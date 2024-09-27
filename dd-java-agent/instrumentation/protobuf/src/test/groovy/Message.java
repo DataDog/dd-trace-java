@@ -10,6 +10,535 @@ public final class Message {
     registerAllExtensions((com.google.protobuf.ExtensionRegistryLite) registry);
   }
 
+  public interface OtherMessageOrBuilder
+      extends
+      // @@protoc_insertion_point(interface_extends:OtherMessage)
+      com.google.protobuf.MessageOrBuilder {
+
+    /** <code>optional string name = 1;</code> */
+    java.lang.String getName();
+    /** <code>optional string name = 1;</code> */
+    com.google.protobuf.ByteString getNameBytes();
+
+    /** <code>optional int32 age = 2;</code> */
+    int getAge();
+  }
+  /** Protobuf type {@code OtherMessage} */
+  public static final class OtherMessage extends com.google.protobuf.GeneratedMessageV3
+      implements
+      // @@protoc_insertion_point(message_implements:OtherMessage)
+      OtherMessageOrBuilder {
+    // Use OtherMessage.newBuilder() to construct.
+    private OtherMessage(com.google.protobuf.GeneratedMessageV3.Builder<?> builder) {
+      super(builder);
+    }
+
+    private OtherMessage() {
+      name_ = "";
+      age_ = 0;
+    }
+
+    @java.lang.Override
+    public final com.google.protobuf.UnknownFieldSet getUnknownFields() {
+      return com.google.protobuf.UnknownFieldSet.getDefaultInstance();
+    }
+
+    private OtherMessage(
+        com.google.protobuf.CodedInputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      this();
+      int mutable_bitField0_ = 0;
+      try {
+        boolean done = false;
+        while (!done) {
+          int tag = input.readTag();
+          switch (tag) {
+            case 0:
+              done = true;
+              break;
+            default:
+              {
+                if (!input.skipField(tag)) {
+                  done = true;
+                }
+                break;
+              }
+            case 10:
+              {
+                java.lang.String s = input.readStringRequireUtf8();
+
+                name_ = s;
+                break;
+              }
+            case 16:
+              {
+                age_ = input.readInt32();
+                break;
+              }
+          }
+        }
+      } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+        throw e.setUnfinishedMessage(this);
+      } catch (java.io.IOException e) {
+        throw new com.google.protobuf.InvalidProtocolBufferException(e).setUnfinishedMessage(this);
+      } finally {
+        makeExtensionsImmutable();
+      }
+    }
+
+    public static final com.google.protobuf.Descriptors.Descriptor getDescriptor() {
+      return Message.internal_static_OtherMessage_descriptor;
+    }
+
+    protected com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
+        internalGetFieldAccessorTable() {
+      return Message.internal_static_OtherMessage_fieldAccessorTable
+          .ensureFieldAccessorsInitialized(
+              Message.OtherMessage.class, Message.OtherMessage.Builder.class);
+    }
+
+    public static final int NAME_FIELD_NUMBER = 1;
+    private volatile java.lang.Object name_;
+    /** <code>optional string name = 1;</code> */
+    public java.lang.String getName() {
+      java.lang.Object ref = name_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs = (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        name_ = s;
+        return s;
+      }
+    }
+    /** <code>optional string name = 1;</code> */
+    public com.google.protobuf.ByteString getNameBytes() {
+      java.lang.Object ref = name_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b =
+            com.google.protobuf.ByteString.copyFromUtf8((java.lang.String) ref);
+        name_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
+    public static final int AGE_FIELD_NUMBER = 2;
+    private int age_;
+    /** <code>optional int32 age = 2;</code> */
+    public int getAge() {
+      return age_;
+    }
+
+    private byte memoizedIsInitialized = -1;
+
+    public final boolean isInitialized() {
+      byte isInitialized = memoizedIsInitialized;
+      if (isInitialized == 1) return true;
+      if (isInitialized == 0) return false;
+
+      memoizedIsInitialized = 1;
+      return true;
+    }
+
+    public void writeTo(com.google.protobuf.CodedOutputStream output) throws java.io.IOException {
+      if (!getNameBytes().isEmpty()) {
+        com.google.protobuf.GeneratedMessageV3.writeString(output, 1, name_);
+      }
+      if (age_ != 0) {
+        output.writeInt32(2, age_);
+      }
+    }
+
+    public int getSerializedSize() {
+      int size = memoizedSize;
+      if (size != -1) return size;
+
+      size = 0;
+      if (!getNameBytes().isEmpty()) {
+        size += com.google.protobuf.GeneratedMessageV3.computeStringSize(1, name_);
+      }
+      if (age_ != 0) {
+        size += com.google.protobuf.CodedOutputStream.computeInt32Size(2, age_);
+      }
+      memoizedSize = size;
+      return size;
+    }
+
+    private static final long serialVersionUID = 0L;
+
+    @java.lang.Override
+    public boolean equals(final java.lang.Object obj) {
+      if (obj == this) {
+        return true;
+      }
+      if (!(obj instanceof Message.OtherMessage)) {
+        return super.equals(obj);
+      }
+      Message.OtherMessage other = (Message.OtherMessage) obj;
+
+      boolean result = true;
+      result = result && getName().equals(other.getName());
+      result = result && (getAge() == other.getAge());
+      return result;
+    }
+
+    @java.lang.Override
+    public int hashCode() {
+      if (memoizedHashCode != 0) {
+        return memoizedHashCode;
+      }
+      int hash = 41;
+      hash = (19 * hash) + getDescriptorForType().hashCode();
+      hash = (37 * hash) + NAME_FIELD_NUMBER;
+      hash = (53 * hash) + getName().hashCode();
+      hash = (37 * hash) + AGE_FIELD_NUMBER;
+      hash = (53 * hash) + getAge();
+      hash = (29 * hash) + unknownFields.hashCode();
+      memoizedHashCode = hash;
+      return hash;
+    }
+
+    public static Message.OtherMessage parseFrom(com.google.protobuf.ByteString data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+
+    public static Message.OtherMessage parseFrom(
+        com.google.protobuf.ByteString data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+
+    public static Message.OtherMessage parseFrom(byte[] data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+
+    public static Message.OtherMessage parseFrom(
+        byte[] data, com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+
+    public static Message.OtherMessage parseFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessageV3.parseWithIOException(PARSER, input);
+    }
+
+    public static Message.OtherMessage parseFrom(
+        java.io.InputStream input, com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessageV3.parseWithIOException(
+          PARSER, input, extensionRegistry);
+    }
+
+    public static Message.OtherMessage parseDelimitedFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessageV3.parseDelimitedWithIOException(PARSER, input);
+    }
+
+    public static Message.OtherMessage parseDelimitedFrom(
+        java.io.InputStream input, com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessageV3.parseDelimitedWithIOException(
+          PARSER, input, extensionRegistry);
+    }
+
+    public static Message.OtherMessage parseFrom(com.google.protobuf.CodedInputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessageV3.parseWithIOException(PARSER, input);
+    }
+
+    public static Message.OtherMessage parseFrom(
+        com.google.protobuf.CodedInputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessageV3.parseWithIOException(
+          PARSER, input, extensionRegistry);
+    }
+
+    public Builder newBuilderForType() {
+      return newBuilder();
+    }
+
+    public static Builder newBuilder() {
+      return DEFAULT_INSTANCE.toBuilder();
+    }
+
+    public static Builder newBuilder(Message.OtherMessage prototype) {
+      return DEFAULT_INSTANCE.toBuilder().mergeFrom(prototype);
+    }
+
+    public Builder toBuilder() {
+      return this == DEFAULT_INSTANCE ? new Builder() : new Builder().mergeFrom(this);
+    }
+
+    @java.lang.Override
+    protected Builder newBuilderForType(
+        com.google.protobuf.GeneratedMessageV3.BuilderParent parent) {
+      Builder builder = new Builder(parent);
+      return builder;
+    }
+    /** Protobuf type {@code OtherMessage} */
+    public static final class Builder
+        extends com.google.protobuf.GeneratedMessageV3.Builder<Builder>
+        implements
+        // @@protoc_insertion_point(builder_implements:OtherMessage)
+        Message.OtherMessageOrBuilder {
+      public static final com.google.protobuf.Descriptors.Descriptor getDescriptor() {
+        return Message.internal_static_OtherMessage_descriptor;
+      }
+
+      protected com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
+          internalGetFieldAccessorTable() {
+        return Message.internal_static_OtherMessage_fieldAccessorTable
+            .ensureFieldAccessorsInitialized(
+                Message.OtherMessage.class, Message.OtherMessage.Builder.class);
+      }
+
+      // Construct using Message.OtherMessage.newBuilder()
+      private Builder() {
+        maybeForceBuilderInitialization();
+      }
+
+      private Builder(com.google.protobuf.GeneratedMessageV3.BuilderParent parent) {
+        super(parent);
+        maybeForceBuilderInitialization();
+      }
+
+      private void maybeForceBuilderInitialization() {
+        if (com.google.protobuf.GeneratedMessageV3.alwaysUseFieldBuilders) {}
+      }
+
+      public Builder clear() {
+        super.clear();
+        name_ = "";
+
+        age_ = 0;
+
+        return this;
+      }
+
+      public com.google.protobuf.Descriptors.Descriptor getDescriptorForType() {
+        return Message.internal_static_OtherMessage_descriptor;
+      }
+
+      public Message.OtherMessage getDefaultInstanceForType() {
+        return Message.OtherMessage.getDefaultInstance();
+      }
+
+      public Message.OtherMessage build() {
+        Message.OtherMessage result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(result);
+        }
+        return result;
+      }
+
+      public Message.OtherMessage buildPartial() {
+        Message.OtherMessage result = new Message.OtherMessage(this);
+        result.name_ = name_;
+        result.age_ = age_;
+        onBuilt();
+        return result;
+      }
+
+      public Builder clone() {
+        return (Builder) super.clone();
+      }
+
+      public Builder setField(com.google.protobuf.Descriptors.FieldDescriptor field, Object value) {
+        return (Builder) super.setField(field, value);
+      }
+
+      public Builder clearField(com.google.protobuf.Descriptors.FieldDescriptor field) {
+        return (Builder) super.clearField(field);
+      }
+
+      public Builder clearOneof(com.google.protobuf.Descriptors.OneofDescriptor oneof) {
+        return (Builder) super.clearOneof(oneof);
+      }
+
+      public Builder setRepeatedField(
+          com.google.protobuf.Descriptors.FieldDescriptor field, int index, Object value) {
+        return (Builder) super.setRepeatedField(field, index, value);
+      }
+
+      public Builder addRepeatedField(
+          com.google.protobuf.Descriptors.FieldDescriptor field, Object value) {
+        return (Builder) super.addRepeatedField(field, value);
+      }
+
+      public Builder mergeFrom(com.google.protobuf.Message other) {
+        if (other instanceof Message.OtherMessage) {
+          return mergeFrom((Message.OtherMessage) other);
+        } else {
+          super.mergeFrom(other);
+          return this;
+        }
+      }
+
+      public Builder mergeFrom(Message.OtherMessage other) {
+        if (other == Message.OtherMessage.getDefaultInstance()) return this;
+        if (!other.getName().isEmpty()) {
+          name_ = other.name_;
+          onChanged();
+        }
+        if (other.getAge() != 0) {
+          setAge(other.getAge());
+        }
+        onChanged();
+        return this;
+      }
+
+      public final boolean isInitialized() {
+        return true;
+      }
+
+      public Builder mergeFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        Message.OtherMessage parsedMessage = null;
+        try {
+          parsedMessage = PARSER.parsePartialFrom(input, extensionRegistry);
+        } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+          parsedMessage = (Message.OtherMessage) e.getUnfinishedMessage();
+          throw e.unwrapIOException();
+        } finally {
+          if (parsedMessage != null) {
+            mergeFrom(parsedMessage);
+          }
+        }
+        return this;
+      }
+
+      private java.lang.Object name_ = "";
+      /** <code>optional string name = 1;</code> */
+      public java.lang.String getName() {
+        java.lang.Object ref = name_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs = (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          name_ = s;
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /** <code>optional string name = 1;</code> */
+      public com.google.protobuf.ByteString getNameBytes() {
+        java.lang.Object ref = name_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b =
+              com.google.protobuf.ByteString.copyFromUtf8((java.lang.String) ref);
+          name_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /** <code>optional string name = 1;</code> */
+      public Builder setName(java.lang.String value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+
+        name_ = value;
+        onChanged();
+        return this;
+      }
+      /** <code>optional string name = 1;</code> */
+      public Builder clearName() {
+
+        name_ = getDefaultInstance().getName();
+        onChanged();
+        return this;
+      }
+      /** <code>optional string name = 1;</code> */
+      public Builder setNameBytes(com.google.protobuf.ByteString value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        checkByteStringIsUtf8(value);
+
+        name_ = value;
+        onChanged();
+        return this;
+      }
+
+      private int age_;
+      /** <code>optional int32 age = 2;</code> */
+      public int getAge() {
+        return age_;
+      }
+      /** <code>optional int32 age = 2;</code> */
+      public Builder setAge(int value) {
+
+        age_ = value;
+        onChanged();
+        return this;
+      }
+      /** <code>optional int32 age = 2;</code> */
+      public Builder clearAge() {
+
+        age_ = 0;
+        onChanged();
+        return this;
+      }
+
+      public final Builder setUnknownFields(
+          final com.google.protobuf.UnknownFieldSet unknownFields) {
+        return this;
+      }
+
+      public final Builder mergeUnknownFields(
+          final com.google.protobuf.UnknownFieldSet unknownFields) {
+        return this;
+      }
+
+      // @@protoc_insertion_point(builder_scope:OtherMessage)
+    }
+
+    // @@protoc_insertion_point(class_scope:OtherMessage)
+    private static final Message.OtherMessage DEFAULT_INSTANCE;
+
+    static {
+      DEFAULT_INSTANCE = new Message.OtherMessage();
+    }
+
+    public static Message.OtherMessage getDefaultInstance() {
+      return DEFAULT_INSTANCE;
+    }
+
+    private static final com.google.protobuf.Parser<OtherMessage> PARSER =
+        new com.google.protobuf.AbstractParser<OtherMessage>() {
+          public OtherMessage parsePartialFrom(
+              com.google.protobuf.CodedInputStream input,
+              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+              throws com.google.protobuf.InvalidProtocolBufferException {
+            return new OtherMessage(input, extensionRegistry);
+          }
+        };
+
+    public static com.google.protobuf.Parser<OtherMessage> parser() {
+      return PARSER;
+    }
+
+    @java.lang.Override
+    public com.google.protobuf.Parser<OtherMessage> getParserForType() {
+      return PARSER;
+    }
+
+    public Message.OtherMessage getDefaultInstanceForType() {
+      return DEFAULT_INSTANCE;
+    }
+  }
+
   public interface MyMessageOrBuilder
       extends
       // @@protoc_insertion_point(interface_extends:MyMessage)
@@ -26,16 +555,22 @@ public final class Message {
     com.google.protobuf.ByteString getValueBytes();
 
     /** <code>repeated .OtherMessage other_message = 3;</code> */
-    java.util.List<OtherMessageOuterClass.OtherMessage> getOtherMessageList();
+    java.util.List<Message.OtherMessage> getOtherMessageList();
     /** <code>repeated .OtherMessage other_message = 3;</code> */
-    OtherMessageOuterClass.OtherMessage getOtherMessage(int index);
+    Message.OtherMessage getOtherMessage(int index);
     /** <code>repeated .OtherMessage other_message = 3;</code> */
     int getOtherMessageCount();
     /** <code>repeated .OtherMessage other_message = 3;</code> */
-    java.util.List<? extends OtherMessageOuterClass.OtherMessageOrBuilder>
-        getOtherMessageOrBuilderList();
+    java.util.List<? extends Message.OtherMessageOrBuilder> getOtherMessageOrBuilderList();
     /** <code>repeated .OtherMessage other_message = 3;</code> */
-    OtherMessageOuterClass.OtherMessageOrBuilder getOtherMessageOrBuilder(int index);
+    Message.OtherMessageOrBuilder getOtherMessageOrBuilder(int index);
+
+    /** <code>optional .OtherMessage nested = 4;</code> */
+    boolean hasNested();
+    /** <code>optional .OtherMessage nested = 4;</code> */
+    Message.OtherMessage getNested();
+    /** <code>optional .OtherMessage nested = 4;</code> */
+    Message.OtherMessageOrBuilder getNestedOrBuilder();
   }
   /** Protobuf type {@code MyMessage} */
   public static final class MyMessage extends com.google.protobuf.GeneratedMessageV3
@@ -96,12 +631,25 @@ public final class Message {
             case 26:
               {
                 if (!((mutable_bitField0_ & 0x00000004) == 0x00000004)) {
-                  otherMessage_ = new java.util.ArrayList<OtherMessageOuterClass.OtherMessage>();
+                  otherMessage_ = new java.util.ArrayList<Message.OtherMessage>();
                   mutable_bitField0_ |= 0x00000004;
                 }
                 otherMessage_.add(
-                    input.readMessage(
-                        OtherMessageOuterClass.OtherMessage.parser(), extensionRegistry));
+                    input.readMessage(Message.OtherMessage.parser(), extensionRegistry));
+                break;
+              }
+            case 34:
+              {
+                Message.OtherMessage.Builder subBuilder = null;
+                if (nested_ != null) {
+                  subBuilder = nested_.toBuilder();
+                }
+                nested_ = input.readMessage(Message.OtherMessage.parser(), extensionRegistry);
+                if (subBuilder != null) {
+                  subBuilder.mergeFrom(nested_);
+                  nested_ = subBuilder.buildPartial();
+                }
+
                 break;
               }
           }
@@ -184,14 +732,13 @@ public final class Message {
     }
 
     public static final int OTHER_MESSAGE_FIELD_NUMBER = 3;
-    private java.util.List<OtherMessageOuterClass.OtherMessage> otherMessage_;
+    private java.util.List<Message.OtherMessage> otherMessage_;
     /** <code>repeated .OtherMessage other_message = 3;</code> */
-    public java.util.List<OtherMessageOuterClass.OtherMessage> getOtherMessageList() {
+    public java.util.List<Message.OtherMessage> getOtherMessageList() {
       return otherMessage_;
     }
     /** <code>repeated .OtherMessage other_message = 3;</code> */
-    public java.util.List<? extends OtherMessageOuterClass.OtherMessageOrBuilder>
-        getOtherMessageOrBuilderList() {
+    public java.util.List<? extends Message.OtherMessageOrBuilder> getOtherMessageOrBuilderList() {
       return otherMessage_;
     }
     /** <code>repeated .OtherMessage other_message = 3;</code> */
@@ -199,12 +746,27 @@ public final class Message {
       return otherMessage_.size();
     }
     /** <code>repeated .OtherMessage other_message = 3;</code> */
-    public OtherMessageOuterClass.OtherMessage getOtherMessage(int index) {
+    public Message.OtherMessage getOtherMessage(int index) {
       return otherMessage_.get(index);
     }
     /** <code>repeated .OtherMessage other_message = 3;</code> */
-    public OtherMessageOuterClass.OtherMessageOrBuilder getOtherMessageOrBuilder(int index) {
+    public Message.OtherMessageOrBuilder getOtherMessageOrBuilder(int index) {
       return otherMessage_.get(index);
+    }
+
+    public static final int NESTED_FIELD_NUMBER = 4;
+    private Message.OtherMessage nested_;
+    /** <code>optional .OtherMessage nested = 4;</code> */
+    public boolean hasNested() {
+      return nested_ != null;
+    }
+    /** <code>optional .OtherMessage nested = 4;</code> */
+    public Message.OtherMessage getNested() {
+      return nested_ == null ? Message.OtherMessage.getDefaultInstance() : nested_;
+    }
+    /** <code>optional .OtherMessage nested = 4;</code> */
+    public Message.OtherMessageOrBuilder getNestedOrBuilder() {
+      return getNested();
     }
 
     private byte memoizedIsInitialized = -1;
@@ -228,6 +790,9 @@ public final class Message {
       for (int i = 0; i < otherMessage_.size(); i++) {
         output.writeMessage(3, otherMessage_.get(i));
       }
+      if (nested_ != null) {
+        output.writeMessage(4, getNested());
+      }
     }
 
     public int getSerializedSize() {
@@ -243,6 +808,9 @@ public final class Message {
       }
       for (int i = 0; i < otherMessage_.size(); i++) {
         size += com.google.protobuf.CodedOutputStream.computeMessageSize(3, otherMessage_.get(i));
+      }
+      if (nested_ != null) {
+        size += com.google.protobuf.CodedOutputStream.computeMessageSize(4, getNested());
       }
       memoizedSize = size;
       return size;
@@ -264,6 +832,10 @@ public final class Message {
       result = result && getId().equals(other.getId());
       result = result && getValue().equals(other.getValue());
       result = result && getOtherMessageList().equals(other.getOtherMessageList());
+      result = result && (hasNested() == other.hasNested());
+      if (hasNested()) {
+        result = result && getNested().equals(other.getNested());
+      }
       return result;
     }
 
@@ -281,6 +853,10 @@ public final class Message {
       if (getOtherMessageCount() > 0) {
         hash = (37 * hash) + OTHER_MESSAGE_FIELD_NUMBER;
         hash = (53 * hash) + getOtherMessageList().hashCode();
+      }
+      if (hasNested()) {
+        hash = (37 * hash) + NESTED_FIELD_NUMBER;
+        hash = (53 * hash) + getNested().hashCode();
       }
       hash = (29 * hash) + unknownFields.hashCode();
       memoizedHashCode = hash;
@@ -413,6 +989,12 @@ public final class Message {
         } else {
           otherMessageBuilder_.clear();
         }
+        if (nestedBuilder_ == null) {
+          nested_ = null;
+        } else {
+          nested_ = null;
+          nestedBuilder_ = null;
+        }
         return this;
       }
 
@@ -446,6 +1028,11 @@ public final class Message {
           result.otherMessage_ = otherMessage_;
         } else {
           result.otherMessage_ = otherMessageBuilder_.build();
+        }
+        if (nestedBuilder_ == null) {
+          result.nested_ = nested_;
+        } else {
+          result.nested_ = nestedBuilder_.build();
         }
         result.bitField0_ = to_bitField0_;
         onBuilt();
@@ -523,6 +1110,9 @@ public final class Message {
               otherMessageBuilder_.addAllMessages(other.otherMessage_);
             }
           }
+        }
+        if (other.hasNested()) {
+          mergeNested(other.getNested());
         }
         onChanged();
         return this;
@@ -660,25 +1250,22 @@ public final class Message {
         return this;
       }
 
-      private java.util.List<OtherMessageOuterClass.OtherMessage> otherMessage_ =
+      private java.util.List<Message.OtherMessage> otherMessage_ =
           java.util.Collections.emptyList();
 
       private void ensureOtherMessageIsMutable() {
         if (!((bitField0_ & 0x00000004) == 0x00000004)) {
-          otherMessage_ =
-              new java.util.ArrayList<OtherMessageOuterClass.OtherMessage>(otherMessage_);
+          otherMessage_ = new java.util.ArrayList<Message.OtherMessage>(otherMessage_);
           bitField0_ |= 0x00000004;
         }
       }
 
       private com.google.protobuf.RepeatedFieldBuilderV3<
-              OtherMessageOuterClass.OtherMessage,
-              OtherMessageOuterClass.OtherMessage.Builder,
-              OtherMessageOuterClass.OtherMessageOrBuilder>
+              Message.OtherMessage, Message.OtherMessage.Builder, Message.OtherMessageOrBuilder>
           otherMessageBuilder_;
 
       /** <code>repeated .OtherMessage other_message = 3;</code> */
-      public java.util.List<OtherMessageOuterClass.OtherMessage> getOtherMessageList() {
+      public java.util.List<Message.OtherMessage> getOtherMessageList() {
         if (otherMessageBuilder_ == null) {
           return java.util.Collections.unmodifiableList(otherMessage_);
         } else {
@@ -694,7 +1281,7 @@ public final class Message {
         }
       }
       /** <code>repeated .OtherMessage other_message = 3;</code> */
-      public OtherMessageOuterClass.OtherMessage getOtherMessage(int index) {
+      public Message.OtherMessage getOtherMessage(int index) {
         if (otherMessageBuilder_ == null) {
           return otherMessage_.get(index);
         } else {
@@ -702,7 +1289,7 @@ public final class Message {
         }
       }
       /** <code>repeated .OtherMessage other_message = 3;</code> */
-      public Builder setOtherMessage(int index, OtherMessageOuterClass.OtherMessage value) {
+      public Builder setOtherMessage(int index, Message.OtherMessage value) {
         if (otherMessageBuilder_ == null) {
           if (value == null) {
             throw new NullPointerException();
@@ -716,8 +1303,7 @@ public final class Message {
         return this;
       }
       /** <code>repeated .OtherMessage other_message = 3;</code> */
-      public Builder setOtherMessage(
-          int index, OtherMessageOuterClass.OtherMessage.Builder builderForValue) {
+      public Builder setOtherMessage(int index, Message.OtherMessage.Builder builderForValue) {
         if (otherMessageBuilder_ == null) {
           ensureOtherMessageIsMutable();
           otherMessage_.set(index, builderForValue.build());
@@ -728,7 +1314,7 @@ public final class Message {
         return this;
       }
       /** <code>repeated .OtherMessage other_message = 3;</code> */
-      public Builder addOtherMessage(OtherMessageOuterClass.OtherMessage value) {
+      public Builder addOtherMessage(Message.OtherMessage value) {
         if (otherMessageBuilder_ == null) {
           if (value == null) {
             throw new NullPointerException();
@@ -742,7 +1328,7 @@ public final class Message {
         return this;
       }
       /** <code>repeated .OtherMessage other_message = 3;</code> */
-      public Builder addOtherMessage(int index, OtherMessageOuterClass.OtherMessage value) {
+      public Builder addOtherMessage(int index, Message.OtherMessage value) {
         if (otherMessageBuilder_ == null) {
           if (value == null) {
             throw new NullPointerException();
@@ -756,7 +1342,7 @@ public final class Message {
         return this;
       }
       /** <code>repeated .OtherMessage other_message = 3;</code> */
-      public Builder addOtherMessage(OtherMessageOuterClass.OtherMessage.Builder builderForValue) {
+      public Builder addOtherMessage(Message.OtherMessage.Builder builderForValue) {
         if (otherMessageBuilder_ == null) {
           ensureOtherMessageIsMutable();
           otherMessage_.add(builderForValue.build());
@@ -767,8 +1353,7 @@ public final class Message {
         return this;
       }
       /** <code>repeated .OtherMessage other_message = 3;</code> */
-      public Builder addOtherMessage(
-          int index, OtherMessageOuterClass.OtherMessage.Builder builderForValue) {
+      public Builder addOtherMessage(int index, Message.OtherMessage.Builder builderForValue) {
         if (otherMessageBuilder_ == null) {
           ensureOtherMessageIsMutable();
           otherMessage_.add(index, builderForValue.build());
@@ -779,8 +1364,7 @@ public final class Message {
         return this;
       }
       /** <code>repeated .OtherMessage other_message = 3;</code> */
-      public Builder addAllOtherMessage(
-          java.lang.Iterable<? extends OtherMessageOuterClass.OtherMessage> values) {
+      public Builder addAllOtherMessage(java.lang.Iterable<? extends Message.OtherMessage> values) {
         if (otherMessageBuilder_ == null) {
           ensureOtherMessageIsMutable();
           com.google.protobuf.AbstractMessageLite.Builder.addAll(values, otherMessage_);
@@ -813,11 +1397,11 @@ public final class Message {
         return this;
       }
       /** <code>repeated .OtherMessage other_message = 3;</code> */
-      public OtherMessageOuterClass.OtherMessage.Builder getOtherMessageBuilder(int index) {
+      public Message.OtherMessage.Builder getOtherMessageBuilder(int index) {
         return getOtherMessageFieldBuilder().getBuilder(index);
       }
       /** <code>repeated .OtherMessage other_message = 3;</code> */
-      public OtherMessageOuterClass.OtherMessageOrBuilder getOtherMessageOrBuilder(int index) {
+      public Message.OtherMessageOrBuilder getOtherMessageOrBuilder(int index) {
         if (otherMessageBuilder_ == null) {
           return otherMessage_.get(index);
         } else {
@@ -825,7 +1409,7 @@ public final class Message {
         }
       }
       /** <code>repeated .OtherMessage other_message = 3;</code> */
-      public java.util.List<? extends OtherMessageOuterClass.OtherMessageOrBuilder>
+      public java.util.List<? extends Message.OtherMessageOrBuilder>
           getOtherMessageOrBuilderList() {
         if (otherMessageBuilder_ != null) {
           return otherMessageBuilder_.getMessageOrBuilderList();
@@ -834,32 +1418,28 @@ public final class Message {
         }
       }
       /** <code>repeated .OtherMessage other_message = 3;</code> */
-      public OtherMessageOuterClass.OtherMessage.Builder addOtherMessageBuilder() {
-        return getOtherMessageFieldBuilder()
-            .addBuilder(OtherMessageOuterClass.OtherMessage.getDefaultInstance());
+      public Message.OtherMessage.Builder addOtherMessageBuilder() {
+        return getOtherMessageFieldBuilder().addBuilder(Message.OtherMessage.getDefaultInstance());
       }
       /** <code>repeated .OtherMessage other_message = 3;</code> */
-      public OtherMessageOuterClass.OtherMessage.Builder addOtherMessageBuilder(int index) {
+      public Message.OtherMessage.Builder addOtherMessageBuilder(int index) {
         return getOtherMessageFieldBuilder()
-            .addBuilder(index, OtherMessageOuterClass.OtherMessage.getDefaultInstance());
+            .addBuilder(index, Message.OtherMessage.getDefaultInstance());
       }
       /** <code>repeated .OtherMessage other_message = 3;</code> */
-      public java.util.List<OtherMessageOuterClass.OtherMessage.Builder>
-          getOtherMessageBuilderList() {
+      public java.util.List<Message.OtherMessage.Builder> getOtherMessageBuilderList() {
         return getOtherMessageFieldBuilder().getBuilderList();
       }
 
       private com.google.protobuf.RepeatedFieldBuilderV3<
-              OtherMessageOuterClass.OtherMessage,
-              OtherMessageOuterClass.OtherMessage.Builder,
-              OtherMessageOuterClass.OtherMessageOrBuilder>
+              Message.OtherMessage, Message.OtherMessage.Builder, Message.OtherMessageOrBuilder>
           getOtherMessageFieldBuilder() {
         if (otherMessageBuilder_ == null) {
           otherMessageBuilder_ =
               new com.google.protobuf.RepeatedFieldBuilderV3<
-                  OtherMessageOuterClass.OtherMessage,
-                  OtherMessageOuterClass.OtherMessage.Builder,
-                  OtherMessageOuterClass.OtherMessageOrBuilder>(
+                  Message.OtherMessage,
+                  Message.OtherMessage.Builder,
+                  Message.OtherMessageOrBuilder>(
                   otherMessage_,
                   ((bitField0_ & 0x00000004) == 0x00000004),
                   getParentForChildren(),
@@ -867,6 +1447,103 @@ public final class Message {
           otherMessage_ = null;
         }
         return otherMessageBuilder_;
+      }
+
+      private Message.OtherMessage nested_ = null;
+      private com.google.protobuf.SingleFieldBuilderV3<
+              Message.OtherMessage, Message.OtherMessage.Builder, Message.OtherMessageOrBuilder>
+          nestedBuilder_;
+      /** <code>optional .OtherMessage nested = 4;</code> */
+      public boolean hasNested() {
+        return nestedBuilder_ != null || nested_ != null;
+      }
+      /** <code>optional .OtherMessage nested = 4;</code> */
+      public Message.OtherMessage getNested() {
+        if (nestedBuilder_ == null) {
+          return nested_ == null ? Message.OtherMessage.getDefaultInstance() : nested_;
+        } else {
+          return nestedBuilder_.getMessage();
+        }
+      }
+      /** <code>optional .OtherMessage nested = 4;</code> */
+      public Builder setNested(Message.OtherMessage value) {
+        if (nestedBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          nested_ = value;
+          onChanged();
+        } else {
+          nestedBuilder_.setMessage(value);
+        }
+
+        return this;
+      }
+      /** <code>optional .OtherMessage nested = 4;</code> */
+      public Builder setNested(Message.OtherMessage.Builder builderForValue) {
+        if (nestedBuilder_ == null) {
+          nested_ = builderForValue.build();
+          onChanged();
+        } else {
+          nestedBuilder_.setMessage(builderForValue.build());
+        }
+
+        return this;
+      }
+      /** <code>optional .OtherMessage nested = 4;</code> */
+      public Builder mergeNested(Message.OtherMessage value) {
+        if (nestedBuilder_ == null) {
+          if (nested_ != null) {
+            nested_ = Message.OtherMessage.newBuilder(nested_).mergeFrom(value).buildPartial();
+          } else {
+            nested_ = value;
+          }
+          onChanged();
+        } else {
+          nestedBuilder_.mergeFrom(value);
+        }
+
+        return this;
+      }
+      /** <code>optional .OtherMessage nested = 4;</code> */
+      public Builder clearNested() {
+        if (nestedBuilder_ == null) {
+          nested_ = null;
+          onChanged();
+        } else {
+          nested_ = null;
+          nestedBuilder_ = null;
+        }
+
+        return this;
+      }
+      /** <code>optional .OtherMessage nested = 4;</code> */
+      public Message.OtherMessage.Builder getNestedBuilder() {
+
+        onChanged();
+        return getNestedFieldBuilder().getBuilder();
+      }
+      /** <code>optional .OtherMessage nested = 4;</code> */
+      public Message.OtherMessageOrBuilder getNestedOrBuilder() {
+        if (nestedBuilder_ != null) {
+          return nestedBuilder_.getMessageOrBuilder();
+        } else {
+          return nested_ == null ? Message.OtherMessage.getDefaultInstance() : nested_;
+        }
+      }
+      /** <code>optional .OtherMessage nested = 4;</code> */
+      private com.google.protobuf.SingleFieldBuilderV3<
+              Message.OtherMessage, Message.OtherMessage.Builder, Message.OtherMessageOrBuilder>
+          getNestedFieldBuilder() {
+        if (nestedBuilder_ == null) {
+          nestedBuilder_ =
+              new com.google.protobuf.SingleFieldBuilderV3<
+                  Message.OtherMessage,
+                  Message.OtherMessage.Builder,
+                  Message.OtherMessageOrBuilder>(getNested(), getParentForChildren(), isClean());
+          nested_ = null;
+        }
+        return nestedBuilder_;
       }
 
       public final Builder setUnknownFields(
@@ -918,6 +1595,10 @@ public final class Message {
   }
 
   private static final com.google.protobuf.Descriptors.Descriptor
+      internal_static_OtherMessage_descriptor;
+  private static final com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
+      internal_static_OtherMessage_fieldAccessorTable;
+  private static final com.google.protobuf.Descriptors.Descriptor
       internal_static_MyMessage_descriptor;
   private static final com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
       internal_static_MyMessage_fieldAccessorTable;
@@ -930,10 +1611,11 @@ public final class Message {
 
   static {
     java.lang.String[] descriptorData = {
-      "\n\rmessage.proto\032\023other_message.proto\"L\n\t"
-          + "MyMessage\022\n\n\002id\030\001 \001(\t\022\r\n\005value\030\002 \001(\t\022$\n\r"
-          + "other_message\030\003 \003(\0132\r.OtherMessageb\006prot"
-          + "o3"
+      "\n\rmessage.proto\")\n\014OtherMessage\022\014\n\004name\030"
+          + "\001 \001(\t\022\013\n\003age\030\002 \001(\005\"k\n\tMyMessage\022\n\n\002id\030\001 "
+          + "\001(\t\022\r\n\005value\030\002 \001(\t\022$\n\rother_message\030\003 \003("
+          + "\0132\r.OtherMessage\022\035\n\006nested\030\004 \001(\0132\r.Other"
+          + "Messageb\006proto3"
     };
     com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner assigner =
         new com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner() {
@@ -944,19 +1626,21 @@ public final class Message {
           }
         };
     com.google.protobuf.Descriptors.FileDescriptor.internalBuildGeneratedFileFrom(
-        descriptorData,
-        new com.google.protobuf.Descriptors.FileDescriptor[] {
-          OtherMessageOuterClass.getDescriptor(),
-        },
-        assigner);
-    internal_static_MyMessage_descriptor = getDescriptor().getMessageTypes().get(0);
+        descriptorData, new com.google.protobuf.Descriptors.FileDescriptor[] {}, assigner);
+    internal_static_OtherMessage_descriptor = getDescriptor().getMessageTypes().get(0);
+    internal_static_OtherMessage_fieldAccessorTable =
+        new com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
+            internal_static_OtherMessage_descriptor,
+            new java.lang.String[] {
+              "Name", "Age",
+            });
+    internal_static_MyMessage_descriptor = getDescriptor().getMessageTypes().get(1);
     internal_static_MyMessage_fieldAccessorTable =
         new com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
             internal_static_MyMessage_descriptor,
             new java.lang.String[] {
-              "Id", "Value", "OtherMessage",
+              "Id", "Value", "OtherMessage", "Nested",
             });
-    OtherMessageOuterClass.getDescriptor();
   }
 
   // @@protoc_insertion_point(outer_class_scope)

@@ -1,9 +1,13 @@
 syntax = "proto3";
 
-import "other_message.proto";
+message OtherMessage {
+  string name = 1;
+  int32 age = 2;
+}
 
 message MyMessage {
   string id = 1;
   string value = 2;
   repeated OtherMessage other_message = 3;
+  OtherMessage nested = 4;
 }

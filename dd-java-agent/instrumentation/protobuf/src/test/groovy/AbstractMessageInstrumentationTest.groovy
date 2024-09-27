@@ -12,14 +12,16 @@ class AbstractMessageInstrumentationTest extends AgentTestRunner {
     return true
   }
 
-  String schema = "{\"components\":{\"schemas\":{\"MyMessage\":{\"properties\":{\"id\":{\"type\":\"string\"},\"value\":{\"type\":\"string\"},\"other_message\":{\"items\":{\"\$ref\":\"#/components/schemas/OtherMessage\"},\"type\":\"array\"}},\"type\":\"object\"},\"OtherMessage\":{\"properties\":{\"name\":{\"items\":{\"type\":\"string\"},\"type\":\"array\"},\"age\":{\"format\":\"int32\",\"type\":\"integer\"}},\"type\":\"object\"}}},\"openapi\":\"3.0.0\"}"
-  String schemaID = "17871055810055148870"
+  String schema = "{\"components\":{\"schemas\":{\"MyMessage\":{\"properties\":{\"id\":{\"type\":\"string\"},\"value\":{\"type\":\"string\"},\"other_message\":{\"items\":{\"\$ref\":\"#/components/schemas/OtherMessage\"},\"type\":\"array\"}},\"type\":\"object\"},\"OtherMessage\":{\"properties\":{\"name\":{\"type\":\"string\"},\"age\":{\"format\":\"int32\",\"type\":\"integer\"}},\"type\":\"object\"}}},\"openapi\":\"3.0.0\"}"
+  String schemaID = "5013912002010458335"
+
 
   void 'test extract protobuf schema on serialize & deserialize'() {
     setup:
     Message.MyMessage message = Message.MyMessage.newBuilder()
     .setId("1")
     .setValue("Hello from Protobuf!")
+    .setNested(Message.OtherMessage.newBuilder().setName("hello").setAge(10).build())
     .build()
     when:
     var bytes
