@@ -71,7 +71,7 @@ class JsonPathSpec extends Specification {
       .name("CODE").build()                          | p().index(2).name("number").name("props").index(0).name("area").name("code")
   }
 
-  def "print normalized json path"() {
+  def "print normalized"() {
     expect:
     pattern.toString() == normalized
 

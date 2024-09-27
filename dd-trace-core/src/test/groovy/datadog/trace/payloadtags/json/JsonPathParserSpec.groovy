@@ -2,7 +2,7 @@ package datadog.trace.payloadtags.json
 
 import spock.lang.Specification
 
-class JsonPathParserTest extends Specification {
+class JsonPathParserSpec extends Specification {
 
   static jp() {
     return JsonPath.Builder.start()

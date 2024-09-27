@@ -37,7 +37,7 @@ public final class JsonTagsCollector {
           JsonPath jp = JsonPathParser.parse(rule);
           result.add(jp);
         } catch (Exception ex) {
-          log.debug("Skipping failed to parse JSON path rule: '{}'. {}", rule, ex.getMessage());
+          log.debug("Skipping failed to parse JSONPath rule: '{}'. {}", rule, ex.getMessage());
         }
       }
       return result;

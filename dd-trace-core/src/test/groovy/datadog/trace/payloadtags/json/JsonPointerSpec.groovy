@@ -8,7 +8,7 @@ class JsonPointerSpec extends Specification {
     return new JsonPointer(10)
   }
 
-  def "print json path in dot notation with a custom prefix"() {
+  def "print json pointer in dot notation with a custom prefix"() {
     expect:
     pattern.dotted("dd") == expected
 
@@ -19,6 +19,7 @@ class JsonPointerSpec extends Specification {
     p().name("foo").name("bar").name("number")        | 'dd.foo.bar.number'
     p().name("phoneNumbers").index(3).name("number")  | 'dd.phoneNumbers.3.number'
     p().name("phoneNumbers").name("3").name("number") | 'dd.phoneNumbers.3.number'
+    p().name("foo.bar")                               | 'dd.foo\\.bar'
   }
 
 

@@ -4,7 +4,7 @@ import com.squareup.moshi.JsonWriter
 import okio.Buffer
 import spock.lang.Specification
 
-class JsonTagsCollectorTest extends Specification {
+class JsonTagsCollectorSpec extends Specification {
 
   def "expand, redact, traverse"() {
     JsonTagsCollector jsonTagsCollector = new JsonTagsCollector.Builder()
@@ -455,15 +455,7 @@ class JsonTagsCollectorTest extends Specification {
     collectTags(jsonTagsCollector, invalidJson, "") == [:]
 
     where:
-    invalidJson << [
-      "{",
-      "}",
-      "[",
-      "]",
-      //      "null",
-      "{ 'a: 1.15,",
-      //      "body"
-    ]
+    invalidJson << ["{", "}", "[", "]", "{ 'a: 1.15,"]
   }
 
   Map<String, Object> collectTags(JsonTagsCollector jsonTagsCollector, String str, String tagPrefix) {
