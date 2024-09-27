@@ -10,7 +10,7 @@ This documentation is dedicated to developers to setup their environment, and bu
 
 ## Development environment quick check
 
-As a preliminary step, you can quickly check that your development environment is properly set up to build the project running `./setup.sh` from the project root:
+To check that your development environment is properly set up to build the project, you will eventually run `./setup.sh` from the project root and should have its output look something like this:
 
 ```bash
 $ ./setup.sh
