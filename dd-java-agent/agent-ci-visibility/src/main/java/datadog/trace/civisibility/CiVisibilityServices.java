@@ -1,12 +1,20 @@
 package datadog.trace.civisibility;
 
+import com.squareup.moshi.JsonAdapter;
+import com.squareup.moshi.Moshi;
+import com.squareup.moshi.Types;
 import datadog.communication.BackendApi;
 import datadog.communication.BackendApiFactory;
 import datadog.communication.ddagent.SharedCommunicationObjects;
+import datadog.communication.http.HttpRetryPolicy;
+import datadog.communication.http.OkHttpUtils;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.civisibility.ci.CIProviderInfoFactory;
+import datadog.trace.civisibility.ci.env.CiEnvironment;
+import datadog.trace.civisibility.ci.env.CiEnvironmentImpl;
+import datadog.trace.civisibility.ci.env.CompositeCiEnvironment;
 import datadog.trace.civisibility.config.CachingJvmInfoFactory;
 import datadog.trace.civisibility.config.JvmInfoFactory;
 import datadog.trace.civisibility.config.JvmInfoFactoryImpl;
@@ -19,25 +27,30 @@ import datadog.trace.civisibility.source.BestEffortMethodLinesResolver;
 import datadog.trace.civisibility.source.ByteCodeMethodLinesResolver;
 import datadog.trace.civisibility.source.CompilerAidedMethodLinesResolver;
 import datadog.trace.civisibility.source.MethodLinesResolver;
-import datadog.trace.civisibility.source.index.CachingRepoIndexBuilderFactory;
-import datadog.trace.civisibility.source.index.ConventionBasedResourceResolver;
-import datadog.trace.civisibility.source.index.PackageResolver;
-import datadog.trace.civisibility.source.index.PackageResolverImpl;
-import datadog.trace.civisibility.source.index.RepoIndexFetcher;
-import datadog.trace.civisibility.source.index.RepoIndexProvider;
-import datadog.trace.civisibility.source.index.ResourceResolver;
+import datadog.trace.civisibility.source.index.*;
 import datadog.trace.civisibility.utils.ProcessHierarchyUtils;
+import java.lang.reflect.Type;
 import java.net.InetSocketAddress;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
+import java.util.Collections;
+import java.util.Map;
 import javax.annotation.Nullable;
+import okhttp3.HttpUrl;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Services that do not need repository root location to be instantiated. Can be shared between
  * multiple sessions.
  */
 public class CiVisibilityServices {
+
+  private static final Logger logger = LoggerFactory.getLogger(CiVisibilityServices.class);
 
   private static final String GIT_FOLDER_NAME = ".git";
 
@@ -63,13 +76,15 @@ public class CiVisibilityServices {
         new BackendApiFactory(config, sco).createBackendApi(BackendApiFactory.Intake.API);
     this.jvmInfoFactory = new CachingJvmInfoFactory(config, new JvmInfoFactoryImpl());
     this.gitClientFactory = new GitClient.Factory(config, metricCollector);
-    this.ciProviderInfoFactory = new CIProviderInfoFactory(config);
+
+    CiEnvironment environment = buildCiEnvironment(config, sco);
+    this.ciProviderInfoFactory = new CIProviderInfoFactory(config, environment);
     this.methodLinesResolver =
         new BestEffortMethodLinesResolver(
             new CompilerAidedMethodLinesResolver(), new ByteCodeMethodLinesResolver());
 
     this.gitInfoProvider = gitInfoProvider;
-    gitInfoProvider.registerGitInfoBuilder(new CIProviderGitInfoBuilder());
+    gitInfoProvider.registerGitInfoBuilder(new CIProviderGitInfoBuilder(config, environment));
     gitInfoProvider.registerGitInfoBuilder(
         new CILocalGitInfoBuilder(gitClientFactory, GIT_FOLDER_NAME));
     gitInfoProvider.registerGitInfoBuilder(new GitClientGitInfoBuilder(config, gitClientFactory));
@@ -91,6 +106,38 @@ public class CiVisibilityServices {
               fileSystem, config.getCiVisibilityResourceFolderNames());
       this.repoIndexProviderFactory =
           new CachingRepoIndexBuilderFactory(config, packageResolver, resourceResolver, fileSystem);
+    }
+  }
+
+  @NotNull
+  private static CiEnvironment buildCiEnvironment(Config config, SharedCommunicationObjects sco) {
+    String remoteEnvVarsProviderUrl = config.getCiVisibilityRemoteEnvVarsProviderUrl();
+    if (remoteEnvVarsProviderUrl != null) {
+      CiEnvironment remoteEnvironment =
+          new CiEnvironmentImpl(getRemoteEnvironment(remoteEnvVarsProviderUrl, sco.okHttpClient));
+      CiEnvironment localEnvironment = new CiEnvironmentImpl(System.getenv());
+      return new CompositeCiEnvironment(remoteEnvironment, localEnvironment);
+    } else {
+      return new CiEnvironmentImpl(System.getenv());
+    }
+  }
+
+  static Map<String, String> getRemoteEnvironment(String url, OkHttpClient httpClient) {
+    HttpRetryPolicy.Factory retryPolicyFactory = new HttpRetryPolicy.Factory(5, 100, 2.0, true);
+
+    HttpUrl httpUrl = HttpUrl.get(url);
+    Request request = new Request.Builder().url(httpUrl).get().build();
+    try (okhttp3.Response response =
+        OkHttpUtils.sendWithRetries(httpClient, retryPolicyFactory, request)) {
+
+      Moshi moshi = new Moshi.Builder().build();
+      Type type = Types.newParameterizedType(Map.class, String.class, String.class);
+      JsonAdapter<Map<String, String>> adapter = moshi.adapter(type);
+      return adapter.fromJson(response.body().source());
+
+    } catch (Exception e) {
+      logger.warn("Could not get remote CI environment", e);
+      return Collections.emptyMap();
     }
   }
 
