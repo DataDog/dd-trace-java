@@ -54,6 +54,8 @@ public class CiVisibilityServices {
 
   private static final String GIT_FOLDER_NAME = ".git";
 
+  static final String DD_ENV_VARS_PROVIDER_KEY_HEADER = "DD-Env-Vars-Provider-Key";
+
   final Config config;
   final CiVisibilityMetricCollector metricCollector;
   final BackendApi backendApi;
@@ -113,8 +115,11 @@ public class CiVisibilityServices {
   private static CiEnvironment buildCiEnvironment(Config config, SharedCommunicationObjects sco) {
     String remoteEnvVarsProviderUrl = config.getCiVisibilityRemoteEnvVarsProviderUrl();
     if (remoteEnvVarsProviderUrl != null) {
+      String remoteEnvVarsProviderKey = config.getCiVisibilityRemoteEnvVarsProviderKey();
       CiEnvironment remoteEnvironment =
-          new CiEnvironmentImpl(getRemoteEnvironment(remoteEnvVarsProviderUrl, sco.okHttpClient));
+          new CiEnvironmentImpl(
+              getRemoteEnvironment(
+                  remoteEnvVarsProviderUrl, remoteEnvVarsProviderKey, sco.okHttpClient));
       CiEnvironment localEnvironment = new CiEnvironmentImpl(System.getenv());
       return new CompositeCiEnvironment(remoteEnvironment, localEnvironment);
     } else {
@@ -122,11 +127,16 @@ public class CiVisibilityServices {
     }
   }
 
-  static Map<String, String> getRemoteEnvironment(String url, OkHttpClient httpClient) {
+  static Map<String, String> getRemoteEnvironment(String url, String key, OkHttpClient httpClient) {
     HttpRetryPolicy.Factory retryPolicyFactory = new HttpRetryPolicy.Factory(5, 100, 2.0, true);
 
     HttpUrl httpUrl = HttpUrl.get(url);
-    Request request = new Request.Builder().url(httpUrl).get().build();
+    Request request =
+        new Request.Builder()
+            .url(httpUrl)
+            .header(DD_ENV_VARS_PROVIDER_KEY_HEADER, key)
+            .get()
+            .build();
     try (okhttp3.Response response =
         OkHttpUtils.sendWithRetries(httpClient, retryPolicyFactory, request)) {
 

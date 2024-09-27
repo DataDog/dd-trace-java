@@ -10,16 +10,22 @@ class CiVisibilityServicesTest extends Specification {
 
   def "test get remote environment"() {
     given:
+    def key = "the-key"
+
     TestHttpServer remoteEnvironmentServer = httpServer {
       handlers {
         prefix("/") {
-          response.status(200).send(""" { "a": 1, "b": "2" } """)
+          if (request.getHeader(CiVisibilityServices.DD_ENV_VARS_PROVIDER_KEY_HEADER) == key) {
+            response.status(200).send(""" { "a": 1, "b": "2" } """)
+          } else {
+            response.status(404).send()
+          }
         }
       }
     }
 
     expect:
-    CiVisibilityServices.getRemoteEnvironment(remoteEnvironmentServer.address.toString(), OkHttpUtils.client()) == ["a": "1", "b": "2"]
+    CiVisibilityServices.getRemoteEnvironment(remoteEnvironmentServer.address.toString(), key, OkHttpUtils.client()) == ["a": "1", "b": "2"]
 
     cleanup:
     remoteEnvironmentServer.stop()
