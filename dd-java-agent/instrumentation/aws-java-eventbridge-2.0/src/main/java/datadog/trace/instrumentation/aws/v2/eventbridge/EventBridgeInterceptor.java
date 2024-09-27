@@ -10,6 +10,7 @@ import static datadog.trace.instrumentation.aws.v2.eventbridge.TextMapInjectAdap
 
 import datadog.trace.bootstrap.InstanceStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -30,7 +31,6 @@ public class EventBridgeInterceptor implements ExecutionInterceptor {
       InstanceStore.of(ExecutionAttribute.class)
           .putIfAbsent("DatadogSpan", () -> new ExecutionAttribute<>("DatadogSpan"));
 
-  private static final String DATADOG_KEY = "_datadog";
   private static final String START_TIME_KEY = "x-datadog-start-time";
   private static final String RESOURCE_NAME_KEY = "x-datadog-resource-name";
 
@@ -66,7 +66,7 @@ public class EventBridgeInterceptor implements ExecutionInterceptor {
 
       detailBuilder
           .append("\"")
-          .append(DATADOG_KEY)
+          .append(PathwayContext.DATADOG_KEY)
           .append("\": ")
           .append(traceContext)
           .append('}');
