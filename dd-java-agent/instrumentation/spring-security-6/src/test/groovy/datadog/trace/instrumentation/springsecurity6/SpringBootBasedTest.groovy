@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.springsecurity5
+package datadog.trace.instrumentation.springsecurity6
 
 import ch.qos.logback.classic.Logger
 import ch.qos.logback.core.Appender
@@ -6,6 +6,7 @@ import com.datadog.appsec.AppSecHttpServerTest
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.api.config.AppSecConfig
 import datadog.trace.core.DDSpan
+import datadog.trace.instrumentation.springsecurity5.SpringSecurityUserEventDecorator
 import okhttp3.FormBody
 import okhttp3.HttpUrl
 import okhttp3.Request
@@ -18,13 +19,12 @@ import spock.lang.Shared
 import static datadog.trace.agent.test.utils.OkHttpUtils.clientBuilder
 import static datadog.trace.agent.test.utils.OkHttpUtils.cookieJar
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.instrumentation.springsecurity5.TestEndpoint.CUSTOM
-import static datadog.trace.instrumentation.springsecurity5.TestEndpoint.LOGIN
-import static datadog.trace.instrumentation.springsecurity5.TestEndpoint.REGISTER
-import static datadog.trace.instrumentation.springsecurity5.TestEndpoint.SUCCESS
-import static datadog.trace.instrumentation.springsecurity5.TestEndpoint.UNKNOWN
-import static datadog.trace.instrumentation.springsecurity5.TestEndpoint.NOT_FOUND
-
+import static datadog.trace.instrumentation.springsecurity6.TestEndpoint.CUSTOM
+import static datadog.trace.instrumentation.springsecurity6.TestEndpoint.LOGIN
+import static datadog.trace.instrumentation.springsecurity6.TestEndpoint.NOT_FOUND
+import static datadog.trace.instrumentation.springsecurity6.TestEndpoint.REGISTER
+import static datadog.trace.instrumentation.springsecurity6.TestEndpoint.SUCCESS
+import static datadog.trace.instrumentation.springsecurity6.TestEndpoint.UNKNOWN
 
 class SpringBootBasedTest extends AppSecHttpServerTest<ConfigurableApplicationContext> {
 

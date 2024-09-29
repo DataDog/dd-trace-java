@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.springsecurity5
+package datadog.trace.instrumentation.springsecurity6
 
 enum TestEndpoint {
   LOGIN("login", 302, ""),

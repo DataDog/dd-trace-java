@@ -111,6 +111,25 @@ public class SpringSecurityUserEventDecorator {
     }
   }
 
+  public void onUser(final Authentication authentication) {
+    if (authentication == null) {
+      return;
+    }
+
+    final AppSecEventTracker tracker = AppSecEventTracker.getEventTracker();
+    if (tracker == null) {
+      return;
+    }
+
+    if (shouldSkipAuthentication(authentication)) {
+      return;
+    }
+
+    UserIdCollectionMode mode = UserIdCollectionMode.get();
+    String userId = authentication.getName();
+    tracker.onUserEvent(mode, userId);
+  }
+
   private static boolean shouldSkipAuthentication(final Authentication authentication) {
     if (authentication instanceof UsernamePasswordAuthenticationToken) {
       return false;
