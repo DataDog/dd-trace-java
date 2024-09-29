@@ -204,9 +204,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       synchronized (this) {
         if (additive != null) {
           try {
+            additiveClosed = true;
             additive.close();
           } finally {
-            additiveClosed = true;
             additive = null;
           }
         }
