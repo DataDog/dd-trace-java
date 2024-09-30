@@ -22,7 +22,7 @@ public class CITagsProvider {
   }
 
   public Map<String, String> getCiTags(CIInfo ciInfo) {
-    String repoRoot = ciInfo.getCiWorkspace();
+    String repoRoot = ciInfo.getNormalizedCiWorkspace();
     GitInfo gitInfo = gitInfoProvider.getGitInfo(repoRoot);
 
     return new CITagsBuilder()
@@ -38,6 +38,7 @@ public class CITagsProvider {
         .withCiNodeName(ciInfo.getCiNodeName())
         .withCiNodeLabels(ciInfo.getCiNodeLabels())
         .withCiEnvVars(ciInfo.getCiEnvVars())
+        .withAdditionalTags(ciInfo.getAdditionalTags())
         .withGitRepositoryUrl(gitInfo)
         .withGitCommit(gitInfo)
         .withGitBranch(gitInfo)
@@ -105,6 +106,16 @@ public class CITagsProvider {
         return this;
       }
       return putTagValue(DDTags.CI_ENV_VARS, toJson(ciEnvVars));
+    }
+
+    public CITagsBuilder withAdditionalTags(final Map<String, String> additionalTags) {
+      if (additionalTags == null || additionalTags.isEmpty()) {
+        return this;
+      }
+      for (Map.Entry<String, String> e : additionalTags.entrySet()) {
+        putTagValue(e.getKey(), e.getValue());
+      }
+      return this;
     }
 
     public CITagsBuilder withGitRepositoryUrl(final GitInfo gitInfo) {

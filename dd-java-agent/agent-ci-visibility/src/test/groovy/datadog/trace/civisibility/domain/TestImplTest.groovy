@@ -11,7 +11,6 @@ import datadog.trace.api.civisibility.coverage.CoverageStore
 import datadog.trace.api.civisibility.coverage.NoOpCoverageStore
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
-import datadog.trace.civisibility.InstrumentationType
 import datadog.trace.civisibility.codeowners.NoCodeowners
 import datadog.trace.civisibility.decorator.TestDecoratorImpl
 import datadog.trace.civisibility.source.MethodLinesResolver
@@ -136,7 +135,7 @@ class TestImplTest extends DDSpecification {
     def testFramework = TestFrameworkInstrumentation.OTHER
     def config = Config.get()
     def metricCollector = Stub(CiVisibilityMetricCollectorImpl)
-    def testDecorator = new TestDecoratorImpl("component", [:])
+    def testDecorator = new TestDecoratorImpl("component", "session-name", "test-command", [:])
     def methodLinesResolver = { it -> MethodLinesResolver.MethodLines.EMPTY }
     def codeowners = NoCodeowners.INSTANCE
     new TestImpl(

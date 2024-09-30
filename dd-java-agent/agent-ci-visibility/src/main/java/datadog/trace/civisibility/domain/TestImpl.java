@@ -9,7 +9,7 @@ import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.InstrumentationTestBridge;
 import datadog.trace.api.civisibility.config.TestIdentifier;
-import datadog.trace.api.civisibility.coverage.CoverageBridge;
+import datadog.trace.api.civisibility.coverage.CoveragePerTestBridge;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.domain.TestContext;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
@@ -26,7 +26,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.civisibility.InstrumentationType;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.source.MethodLinesResolver;
@@ -78,9 +77,9 @@ public class TestImpl implements DDTest {
     this.suiteId = suiteId;
     this.onSpanFinish = onSpanFinish;
 
-    TestIdentifier identifier = new TestIdentifier(testSuiteName, testName, testParameters, null);
+    TestIdentifier identifier = new TestIdentifier(testSuiteName, testName, testParameters);
     CoverageStore coverageStore = coverageStoreFactory.create(identifier);
-    CoverageBridge.setThreadLocalCoverageProbes(coverageStore.getProbes());
+    CoveragePerTestBridge.setThreadLocalCoverageProbes(coverageStore.getProbes());
 
     this.context = new TestContextImpl(coverageStore);
 
@@ -218,7 +217,7 @@ public class TestImpl implements DDTest {
 
     InstrumentationTestBridge.fireBeforeTestEnd(context);
 
-    CoverageBridge.removeThreadLocalCoverageProbes();
+    CoveragePerTestBridge.removeThreadLocalCoverageProbes();
 
     // do not process coverage reports for skipped tests
     if (span.getTag(Tags.TEST_STATUS) != TestStatus.skip) {

@@ -26,11 +26,14 @@ import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_EXCLUSION_DATA
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_HEADER_FINGERPRINT
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_IP_BLOCKING
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_NETWORK_FINGERPRINT
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_LFI
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_SQLI
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_SSRF
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_REQUEST_BLOCKING
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_TRUSTED_IPS
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_USER_BLOCKING
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ENDPOINT_FINGERPRINT
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_SESSION_FINGERPRINT
 import static datadog.remoteconfig.PollingHinterNoop.NOOP
 import static datadog.trace.api.UserIdCollectionMode.ANONYMIZATION
 import static datadog.trace.api.UserIdCollectionMode.DISABLED
@@ -197,6 +200,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     configurer.commit()
 
     then:
+    1 * config.isAppSecRaspEnabled() >> true
     1 * config.getAppSecRulesFile() >> null
     1 * config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
     1 * poller.addListener(Product.ASM_FEATURES, _, _) >> {
@@ -233,6 +237,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     configurer.commit()
 
     then:
+    1 * config.isAppSecRaspEnabled() >> true
     1 * config.getAppSecRulesFile() >> null
     1 * config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
     1 * poller.addListener(Product.ASM_DD, _, _) >> {
@@ -265,8 +270,10 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
       | CAPABILITY_ASM_TRUSTED_IPS
       | CAPABILITY_ASM_RASP_SQLI
+      | CAPABILITY_ASM_RASP_SSRF
+      | CAPABILITY_ASM_RASP_LFI
       | CAPABILITY_ENDPOINT_FINGERPRINT
-      // | CAPABILITY_ASM_SESSION_FINGERPRINT
+      | CAPABILITY_ASM_SESSION_FINGERPRINT
       | CAPABILITY_ASM_NETWORK_FINGERPRINT
       | CAPABILITY_ASM_HEADER_FINGERPRINT)
     0 * _._
@@ -382,6 +389,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     configurer.commit()
 
     then:
+    1 * config.isAppSecRaspEnabled() >> true
     1 * config.getAppSecRulesFile() >> null
     1 * config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
     1 * poller.addListener(Product.ASM_DD, _, _) >> {
@@ -414,8 +422,10 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
       | CAPABILITY_ASM_TRUSTED_IPS
       | CAPABILITY_ASM_RASP_SQLI
+      | CAPABILITY_ASM_RASP_SSRF
+      | CAPABILITY_ASM_RASP_LFI
       | CAPABILITY_ENDPOINT_FINGERPRINT
-      // | CAPABILITY_ASM_SESSION_FINGERPRINT
+      | CAPABILITY_ASM_SESSION_FINGERPRINT
       | CAPABILITY_ASM_NETWORK_FINGERPRINT
       | CAPABILITY_ASM_HEADER_FINGERPRINT)
     0 * _._
@@ -485,9 +495,11 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       | CAPABILITY_ASM_TRUSTED_IPS
       | CAPABILITY_ASM_API_SECURITY_SAMPLE_RATE
       | CAPABILITY_ASM_RASP_SQLI
+      | CAPABILITY_ASM_RASP_SSRF
+      | CAPABILITY_ASM_RASP_LFI
       | CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE
       | CAPABILITY_ENDPOINT_FINGERPRINT
-      // | CAPABILITY_ASM_SESSION_FINGERPRINT
+      | CAPABILITY_ASM_SESSION_FINGERPRINT
       | CAPABILITY_ASM_NETWORK_FINGERPRINT
       | CAPABILITY_ASM_HEADER_FINGERPRINT)
     4 * poller.removeListeners(_)

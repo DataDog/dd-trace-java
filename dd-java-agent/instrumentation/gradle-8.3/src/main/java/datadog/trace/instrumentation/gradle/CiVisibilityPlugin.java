@@ -1,8 +1,12 @@
 package datadog.trace.instrumentation.gradle;
 
+import datadog.trace.api.civisibility.domain.BuildModuleLayout;
+import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -10,7 +14,7 @@ import java.util.stream.Collectors;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
-import org.gradle.api.file.FileCollection;
+import org.gradle.api.file.SourceDirectorySet;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.gradle.api.tasks.SourceSet;
@@ -44,21 +48,35 @@ public abstract class CiVisibilityPlugin implements Plugin<Project> {
   }
 
   private void calculateCompiledClassesFolders(CiVisibilityPluginExtension extension) {
-    FileCollection compiledClassFolders = project.files();
-    SourceSetContainer sourceSets = project.getExtensions().findByType(SourceSetContainer.class);
-    if (sourceSets == null) {
+    SourceSetContainer gradleSourceSets =
+        project.getExtensions().findByType(SourceSetContainer.class);
+    if (gradleSourceSets == null) {
       return;
     }
+
+    Collection<datadog.trace.api.civisibility.domain.SourceSet> sourceSets = new ArrayList<>();
     List<String> sourceSetNames = extension.getCoverageEnabledSourceSets();
     for (String sourceSetName : sourceSetNames) {
-      SourceSet sourceSet = sourceSets.findByName(sourceSetName);
+      SourceSet sourceSet = gradleSourceSets.findByName(sourceSetName);
       if (sourceSet != null) {
+        datadog.trace.api.civisibility.domain.SourceSet.Type sourceSetType =
+            sourceSet.getName().toLowerCase().contains("test")
+                ? datadog.trace.api.civisibility.domain.SourceSet.Type.TEST
+                : datadog.trace.api.civisibility.domain.SourceSet.Type.CODE;
+
+        SourceDirectorySet allSource = sourceSet.getAllSource();
+        Collection<File> srcDirs = allSource.getSrcDirs();
+
         SourceSetOutput output = sourceSet.getOutput();
-        FileCollection classesDirs = output.getClassesDirs();
-        compiledClassFolders = compiledClassFolders.plus(classesDirs);
+        Collection<File> destinationDirs = output.getFiles();
+
+        sourceSets.add(
+            new datadog.trace.api.civisibility.domain.SourceSet(
+                sourceSetType, srcDirs, destinationDirs));
       }
     }
-    extension.setCompiledClassesFolders(compiledClassFolders);
+
+    extension.setModuleLayout(new BuildModuleLayout(sourceSets));
   }
 
   private void applyCompilerPlugin(CiVisibilityPluginExtension extension) {

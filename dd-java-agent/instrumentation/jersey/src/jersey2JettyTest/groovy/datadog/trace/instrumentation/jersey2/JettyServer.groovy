@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.jersey2
 
 import datadog.trace.agent.test.base.HttpServer
+import datadog.trace.instrumentation.jersey2.iast.IastResource
 import org.eclipse.jetty.server.Server
 import org.glassfish.jersey.jackson.JacksonFeature
 import org.glassfish.jersey.jetty.JettyHttpContainerFactory
@@ -20,6 +21,7 @@ class JettyServer implements HttpServer {
     rc.register(ResponseServerFilter)
     rc.register(MultiPartFeature)
     rc.register(JacksonFeature)
+    rc.register(IastResource)
 
     server = JettyHttpContainerFactory.createServer(new URI("http://localhost:0"), rc, false)
   }

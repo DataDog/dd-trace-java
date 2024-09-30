@@ -232,7 +232,10 @@ public class SpanDecorationProbe extends ProbeDefinition {
     for (Pair<String, String> tag : tagsToDecorate) {
       agentSpan.setTag(tag.getLeft(), tag.getRight());
     }
-    DebuggerAgent.getSink().getProbeStatusSink().addEmitting(probeId);
+    if (!tagsToDecorate.isEmpty()) {
+      // only send EMITTING status if we set at least one tag
+      DebuggerAgent.getSink().getProbeStatusSink().addEmitting(probeId);
+    }
   }
 
   private void handleEvaluationErrors(SpanDecorationStatus status) {

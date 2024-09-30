@@ -41,10 +41,8 @@ abstract class PTagsCodec {
       if (ptags.isAppsecPropagationEnabled()) {
         size = codec.appendTag(sb, APPSEC_TAG, APPSEC_ENABLED_TAG_VALUE, size);
       }
-      if (ptags.getDebugPropagation() != PTagsFactory.DEBUG_PROPAGATION_DEFAULT) {
-        size =
-            codec.appendTag(
-                sb, DEBUG_TAG, TagValue.from(String.valueOf(ptags.getDebugPropagation())), size);
+      if (ptags.getDebugPropagation() != null) {
+        size = codec.appendTag(sb, DEBUG_TAG, TagValue.from(ptags.getDebugPropagation()), size);
       }
       Iterator<TagElement> it = ptags.getTagPairs().iterator();
       while (it.hasNext() && !codec.isTooLarge(sb, size)) {
@@ -93,6 +91,10 @@ abstract class PTagsCodec {
       tagMap.put(
           APPSEC_TAG.forType(Encoding.DATADOG).toString(),
           APPSEC_ENABLED_TAG_VALUE.forType(Encoding.DATADOG).toString());
+    }
+    if (propagationTags.getDebugPropagation() != null) {
+      tagMap.put(
+          DEBUG_TAG.forType(Encoding.DATADOG).toString(), propagationTags.getDebugPropagation());
     }
     if (propagationTags.getTraceIdHighOrderBitsHexTagValue() != null) {
       tagMap.put(

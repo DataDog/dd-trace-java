@@ -8,8 +8,8 @@ import datadog.communication.IntakeApi
 import datadog.communication.http.HttpRetryPolicy
 import datadog.communication.http.OkHttpUtils
 import datadog.trace.agent.test.server.http.TestHttpServer
-import datadog.trace.api.civisibility.config.Configurations
 import datadog.trace.api.civisibility.config.TestIdentifier
+import datadog.trace.api.civisibility.config.TestMetadata
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
@@ -19,6 +19,7 @@ import spock.lang.Shared
 import spock.lang.Specification
 
 import java.util.concurrent.TimeUnit
+import java.util.function.Function
 import java.util.zip.GZIPOutputStream
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
@@ -149,7 +150,8 @@ class ConfigurationApiImplTest extends Specification {
         },
         "suite": "suite-a",
         "name": "name-a",
-        "parameters": "parameters-a"
+        "parameters": "parameters-a",
+        "_missing_line_code_coverage": true
       }
     },
     {
@@ -169,7 +171,12 @@ class ConfigurationApiImplTest extends Specification {
     }
   ],
   "meta": {
-    "correlation_id": "11223344"
+    "correlation_id": "11223344",
+    "coverage": {
+        "src/main/java/Calculator.java": "/8AA/w==",
+        "src/main/java/utils/Math.java": "AAAAf+AA/A==",
+        "src/test/java/CalculatorTest.java": "//AAeAAA/A=="
+    }
   }
 }
 """.bytes
@@ -311,16 +318,17 @@ class ConfigurationApiImplTest extends Specification {
     def skippableTests = configurationApi.getSkippableTests(tracerEnvironment)
 
     then:
-    skippableTests.identifiers == [
-      new TestIdentifier("suite-a", "name-a", "parameters-a",
-      new Configurations(null, null, null, null, null,
-      null, null, "testBundle-a", Collections.singletonMap("customTag", "customValue"))),
-      new TestIdentifier("suite-b", "name-b", "parameters-b",
-      new Configurations(null, null, null, null, null,
-      null, null, "testBundle-b", Collections.singletonMap("customTag", "customValue")))
+    skippableTests.identifiersByModule == [
+      "testBundle-a": [ new TestIdentifier("suite-a", "name-a", "parameters-a"): new TestMetadata(true), ],
+      "testBundle-b": [ new TestIdentifier("suite-b", "name-b", "parameters-b"): new TestMetadata(false) ],
     ]
 
     skippableTests.correlationId == "11223344"
+
+    skippableTests.coveredLinesByRelativeSourcePath.size() == 3
+    skippableTests.coveredLinesByRelativeSourcePath["src/main/java/Calculator.java"] == bits(0, 1, 2, 3, 4, 5, 6, 7, 14, 15, 24, 25, 26, 27, 28, 29, 30, 31)
+    skippableTests.coveredLinesByRelativeSourcePath["src/test/java/CalculatorTest.java"] == bits(0, 1, 2, 3, 4, 5, 6, 7, 12, 13, 14, 15, 27, 28, 29, 30, 50, 51, 52, 53, 54, 55)
+    skippableTests.coveredLinesByRelativeSourcePath["src/main/java/utils/Math.java"] == bits(24, 25, 26, 27, 28, 29, 30, 37, 38, 39, 50, 51, 52, 53, 54, 55)
 
     where:
     api                   | displayName
@@ -330,26 +338,39 @@ class ConfigurationApiImplTest extends Specification {
     givenIntakeApi(true)  | "intake, compression enabled"
   }
 
+  private static BitSet bits(int... bits) {
+    BitSet bitSet = new BitSet()
+    for (int bit : bits) {
+      bitSet.set(bit)
+    }
+    return bitSet
+  }
+
   def "test known tests request: #displayName"() {
     given:
     def tracerEnvironment = givenTracerEnvironment()
 
     when:
     def configurationApi = new ConfigurationApiImpl(api, Stub(CiVisibilityMetricCollector), () -> "1234")
-    def knownTests = configurationApi.getKnownTestsByModuleName(tracerEnvironment)
+    def knownTests = configurationApi.getKnownTestsByModule(tracerEnvironment)
 
+    for (Map.Entry<String, Collection<TestIdentifier>> e : knownTests.entrySet()) {
+      def sortedTests = new ArrayList<>(e.value)
+      Collections.sort(sortedTests, Comparator.comparing(TestIdentifier::getSuite).thenComparing((Function) TestIdentifier::getName))
+      e.value = sortedTests
+    }
 
     then:
     knownTests == [
       "test-bundle-a": [
-        new TestIdentifier("test-suite-a", "test-name-1", null, null),
-        new TestIdentifier("test-suite-a", "test-name-2", null, null),
-        new TestIdentifier("test-suite-b", "another-test-name-1", null, null),
-        new TestIdentifier("test-suite-b", "test-name-2", null, null)
+        new TestIdentifier("test-suite-a", "test-name-1", null),
+        new TestIdentifier("test-suite-a", "test-name-2", null),
+        new TestIdentifier("test-suite-b", "another-test-name-1", null),
+        new TestIdentifier("test-suite-b", "test-name-2", null)
       ],
       "test-bundle-N": [
-        new TestIdentifier("test-suite-M", "test-name-1", null, null),
-        new TestIdentifier("test-suite-M", "test-name-2", null, null)
+        new TestIdentifier("test-suite-M", "test-name-1", null),
+        new TestIdentifier("test-suite-M", "test-name-2", null)
       ]
     ]
 
@@ -374,7 +395,6 @@ class ConfigurationApiImplTest extends Specification {
 
     String apiKey = "api-key"
     String traceId = "a-trace-id"
-    long timeoutMillis = 1000
 
     HttpRetryPolicy retryPolicy = Stub(HttpRetryPolicy)
     retryPolicy.shouldRetry(_) >> false
@@ -382,7 +402,8 @@ class ConfigurationApiImplTest extends Specification {
     HttpRetryPolicy.Factory retryPolicyFactory = Stub(HttpRetryPolicy.Factory)
     retryPolicyFactory.create() >> retryPolicy
 
-    return new IntakeApi(intakeUrl, apiKey, traceId, timeoutMillis, retryPolicyFactory, responseCompression)
+    OkHttpClient client = OkHttpUtils.buildHttpClient(intakeUrl, REQUEST_TIMEOUT_MILLIS)
+    return new IntakeApi(intakeUrl, apiKey, traceId, retryPolicyFactory, client, responseCompression)
   }
 
   private static TracerEnvironment givenTracerEnvironment() {

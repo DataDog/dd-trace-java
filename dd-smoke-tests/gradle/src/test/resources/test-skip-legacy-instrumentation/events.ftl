@@ -18,6 +18,7 @@
       "test.module" : ":test",
       "test.status" : "skip",
       "test.skip_reason" : "NO-SOURCE",
+      "test_session.name" : "gradle test",
       "ci.workspace_path" : ${content_meta_ci_workspace_path},
       "runtime.name" : ${content_meta_runtime_name},
       "env" : "integration-test",
@@ -28,7 +29,9 @@
       "component" : "gradle",
       "span.kind" : "test_module_end",
       "runtime.version" : ${content_meta_runtime_version},
-      "test.command" : "gradle test"
+      "test.command" : "gradle test",
+      "runtime-id" : ${content_meta_runtime_id},
+      "language" : "jvm"
     }
   }
 }, {
@@ -51,7 +54,9 @@
       "_dd.p.tid" : ${content_meta__dd_p_tid_2},
       "test.type" : "test",
       "os.architecture" : ${content_meta_os_architecture},
+      "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "test.status" : "skip",
+      "test_session.name" : "gradle test",
       "ci.workspace_path" : ${content_meta_ci_workspace_path},
       "language" : "jvm",
       "runtime.name" : ${content_meta_runtime_name},

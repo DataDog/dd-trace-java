@@ -2,6 +2,7 @@ package datadog.trace.api;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CODE_ORIGIN_FOR_SPANS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_INTEGRATIONS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_MEASURE_METHODS;
@@ -16,8 +17,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_EXECUTORS_ALL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_METHODS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_OTEL_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_SPAN_ORIGIN_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_SPAN_ORIGIN_ENRICHED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_USM_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED;
@@ -32,6 +31,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATI
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED_DEFAULT;
 import static datadog.trace.api.config.TraceInstrumentationConfig.AXIS_TRANSPORT_CLASS_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.EXPERIMENTAL_DEFER_INTEGRATIONS_UNTIL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_URL_CONNECTION_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.INSTRUMENTATION_CONFIG_ID;
@@ -63,8 +63,6 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXECUTOR
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXTENSIONS_PATH;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_OTEL_ENABLED;
-import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_SPAN_ORIGIN_ENABLED;
-import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_SPAN_ORIGIN_ENRICHED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_THREAD_POOL_EXECUTORS_EXCLUDE;
 import static datadog.trace.api.config.UsmConfig.USM_ENABLED;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
@@ -102,8 +100,7 @@ public class InstrumenterConfig {
 
   private final boolean integrationsEnabled;
 
-  private final boolean spanOriginEnabled;
-  private final boolean spanOriginEnriched;
+  private final boolean codeOriginEnabled;
   private final boolean traceEnabled;
   private final boolean traceOtelEnabled;
   private final boolean logs128bTraceIdEnabled;
@@ -111,6 +108,7 @@ public class InstrumenterConfig {
   private final boolean ciVisibilityEnabled;
   private final ProductActivation appSecActivation;
   private final ProductActivation iastActivation;
+  private final boolean iastFullyDisabled;
   private final boolean usmEnabled;
   private final boolean telemetryEnabled;
 
@@ -176,10 +174,9 @@ public class InstrumenterConfig {
     integrationsEnabled =
         configProvider.getBoolean(INTEGRATIONS_ENABLED, DEFAULT_INTEGRATIONS_ENABLED);
 
-    spanOriginEnabled =
-        configProvider.getBoolean(TRACE_SPAN_ORIGIN_ENABLED, DEFAULT_TRACE_SPAN_ORIGIN_ENABLED);
-    spanOriginEnriched =
-        configProvider.getBoolean(TRACE_SPAN_ORIGIN_ENRICHED, DEFAULT_TRACE_SPAN_ORIGIN_ENRICHED);
+    codeOriginEnabled =
+        configProvider.getBoolean(
+            CODE_ORIGIN_FOR_SPANS_ENABLED, DEFAULT_CODE_ORIGIN_FOR_SPANS_ENABLED);
     traceEnabled = configProvider.getBoolean(TRACE_ENABLED, DEFAULT_TRACE_ENABLED);
     traceOtelEnabled = configProvider.getBoolean(TRACE_OTEL_ENABLED, DEFAULT_TRACE_OTEL_ENABLED);
     logs128bTraceIdEnabled =
@@ -198,6 +195,8 @@ public class InstrumenterConfig {
       iastActivation =
           ProductActivation.fromString(
               configProvider.getStringNotEmpty(IAST_ENABLED, DEFAULT_IAST_ENABLED));
+      final Boolean iastEnabled = configProvider.getBoolean(IAST_ENABLED);
+      iastFullyDisabled = iastEnabled != null && !iastEnabled;
       usmEnabled = configProvider.getBoolean(USM_ENABLED, DEFAULT_USM_ENABLED);
       telemetryEnabled = configProvider.getBoolean(TELEMETRY_ENABLED, DEFAULT_TELEMETRY_ENABLED);
     } else {
@@ -205,6 +204,7 @@ public class InstrumenterConfig {
       ciVisibilityEnabled = false;
       appSecActivation = ProductActivation.FULLY_DISABLED;
       iastActivation = ProductActivation.FULLY_DISABLED;
+      iastFullyDisabled = true;
       telemetryEnabled = false;
       usmEnabled = false;
     }
@@ -274,12 +274,8 @@ public class InstrumenterConfig {
         tryMakeImmutableSet(configProvider.getList(JAX_RS_ADDITIONAL_ANNOTATIONS));
   }
 
-  public boolean isSpanOriginEnabled() {
-    return spanOriginEnabled;
-  }
-
-  public boolean isSpanOriginEnriched() {
-    return spanOriginEnriched;
+  public boolean isCodeOriginEnabled() {
+    return codeOriginEnabled;
   }
 
   public boolean isTriageEnabled() {
@@ -327,6 +323,10 @@ public class InstrumenterConfig {
 
   public ProductActivation getIastActivation() {
     return iastActivation;
+  }
+
+  public boolean isIastFullyDisabled() {
+    return iastFullyDisabled;
   }
 
   public boolean isUsmEnabled() {
@@ -584,10 +584,8 @@ public class InstrumenterConfig {
         + runtimeContextFieldInjection
         + ", serialVersionUIDFieldInjection="
         + serialVersionUIDFieldInjection
-        + ", spanOriginEnabled="
-        + spanOriginEnabled
-        + ", spanOriginEnriched="
-        + spanOriginEnriched
+        + ", codeOriginEnabled="
+        + codeOriginEnabled
         + ", traceAnnotations='"
         + traceAnnotations
         + '\''

@@ -9,6 +9,9 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalDouble;
+import java.util.OptionalInt;
+import java.util.OptionalLong;
 import java.util.Set;
 import java.util.function.Function;
 import org.slf4j.Logger;
@@ -23,24 +26,24 @@ public class WellKnownClasses {
 
   static {
     TO_STRING_FINAL_SAFE_CLASSES.put("java.lang.Class", WellKnownClasses::classToString);
-    TO_STRING_FINAL_SAFE_CLASSES.put("java.lang.String", WellKnownClasses::genericToString);
-    TO_STRING_FINAL_SAFE_CLASSES.put("java.lang.Boolean", WellKnownClasses::genericToString);
-    TO_STRING_FINAL_SAFE_CLASSES.put("java.lang.Integer", WellKnownClasses::genericToString);
-    TO_STRING_FINAL_SAFE_CLASSES.put("java.lang.Long", WellKnownClasses::genericToString);
-    TO_STRING_FINAL_SAFE_CLASSES.put("java.lang.Double", WellKnownClasses::genericToString);
-    TO_STRING_FINAL_SAFE_CLASSES.put("java.lang.Character", WellKnownClasses::genericToString);
-    TO_STRING_FINAL_SAFE_CLASSES.put("java.lang.Byte", WellKnownClasses::genericToString);
-    TO_STRING_FINAL_SAFE_CLASSES.put("java.lang.Float", WellKnownClasses::genericToString);
-    TO_STRING_FINAL_SAFE_CLASSES.put("java.lang.Short", WellKnownClasses::genericToString);
-    TO_STRING_FINAL_SAFE_CLASSES.put("java.math.BigDecimal", WellKnownClasses::genericToString);
-    TO_STRING_FINAL_SAFE_CLASSES.put("java.math.BigInteger", WellKnownClasses::genericToString);
-    TO_STRING_FINAL_SAFE_CLASSES.put("java.time.Duration", WellKnownClasses::genericToString);
-    TO_STRING_FINAL_SAFE_CLASSES.put("java.time.Instant", WellKnownClasses::genericToString);
-    TO_STRING_FINAL_SAFE_CLASSES.put("java.time.LocalTime", WellKnownClasses::genericToString);
-    TO_STRING_FINAL_SAFE_CLASSES.put("java.time.LocalDate", WellKnownClasses::genericToString);
-    TO_STRING_FINAL_SAFE_CLASSES.put("java.time.LocalDateTime", WellKnownClasses::genericToString);
-    TO_STRING_FINAL_SAFE_CLASSES.put("java.util.UUID", WellKnownClasses::genericToString);
-    TO_STRING_FINAL_SAFE_CLASSES.put("java.net.URI", WellKnownClasses::genericToString);
+    TO_STRING_FINAL_SAFE_CLASSES.put("java.lang.String", String::valueOf);
+    TO_STRING_FINAL_SAFE_CLASSES.put("java.lang.Boolean", String::valueOf);
+    TO_STRING_FINAL_SAFE_CLASSES.put("java.lang.Integer", String::valueOf);
+    TO_STRING_FINAL_SAFE_CLASSES.put("java.lang.Long", String::valueOf);
+    TO_STRING_FINAL_SAFE_CLASSES.put("java.lang.Double", String::valueOf);
+    TO_STRING_FINAL_SAFE_CLASSES.put("java.lang.Character", String::valueOf);
+    TO_STRING_FINAL_SAFE_CLASSES.put("java.lang.Byte", String::valueOf);
+    TO_STRING_FINAL_SAFE_CLASSES.put("java.lang.Float", String::valueOf);
+    TO_STRING_FINAL_SAFE_CLASSES.put("java.lang.Short", String::valueOf);
+    TO_STRING_FINAL_SAFE_CLASSES.put("java.math.BigDecimal", String::valueOf);
+    TO_STRING_FINAL_SAFE_CLASSES.put("java.math.BigInteger", String::valueOf);
+    TO_STRING_FINAL_SAFE_CLASSES.put("java.time.Duration", String::valueOf);
+    TO_STRING_FINAL_SAFE_CLASSES.put("java.time.Instant", String::valueOf);
+    TO_STRING_FINAL_SAFE_CLASSES.put("java.time.LocalTime", String::valueOf);
+    TO_STRING_FINAL_SAFE_CLASSES.put("java.time.LocalDate", String::valueOf);
+    TO_STRING_FINAL_SAFE_CLASSES.put("java.time.LocalDateTime", String::valueOf);
+    TO_STRING_FINAL_SAFE_CLASSES.put("java.util.UUID", String::valueOf);
+    TO_STRING_FINAL_SAFE_CLASSES.put("java.net.URI", String::valueOf);
   }
 
   private static final Map<String, Function<Object, String>> SAFE_TO_STRING_FUNCTIONS =
@@ -48,12 +51,13 @@ public class WellKnownClasses {
 
   static {
     SAFE_TO_STRING_FUNCTIONS.putAll(TO_STRING_FINAL_SAFE_CLASSES);
-    SAFE_TO_STRING_FUNCTIONS.put(
-        "java.util.concurrent.atomic.AtomicBoolean", WellKnownClasses::genericToString);
-    SAFE_TO_STRING_FUNCTIONS.put(
-        "java.util.concurrent.atomic.AtomicInteger", WellKnownClasses::genericToString);
-    SAFE_TO_STRING_FUNCTIONS.put(
-        "java.util.concurrent.atomic.AtomicLong", WellKnownClasses::genericToString);
+    SAFE_TO_STRING_FUNCTIONS.put("java.util.concurrent.atomic.AtomicBoolean", String::valueOf);
+    SAFE_TO_STRING_FUNCTIONS.put("java.util.concurrent.atomic.AtomicInteger", String::valueOf);
+    SAFE_TO_STRING_FUNCTIONS.put("java.util.concurrent.atomic.AtomicLong", String::valueOf);
+    SAFE_TO_STRING_FUNCTIONS.put("java.io.File", String::valueOf);
+    // implementations of java.io.file.Path interfaces
+    SAFE_TO_STRING_FUNCTIONS.put("sun.nio.fs.UnixPath", String::valueOf);
+    SAFE_TO_STRING_FUNCTIONS.put("sun.nio.fs.WindowsPath", String::valueOf);
   }
 
   private static final Set<String> EQUALS_SAFE_CLASSES = new HashSet<>();
@@ -78,6 +82,9 @@ public class WellKnownClasses {
     EQUALS_SAFE_CLASSES.add("java.time.LocalDateTime");
     EQUALS_SAFE_CLASSES.add("java.util.UUID");
     EQUALS_SAFE_CLASSES.add("java.net.URI");
+    EQUALS_SAFE_CLASSES.add("java.io.File");
+    EQUALS_SAFE_CLASSES.add("sun.nio.fs.UnixPath");
+    EQUALS_SAFE_CLASSES.add("sun.nio.fs.WindowsPath");
   }
 
   private static final Set<String> STRING_PRIMITIVES =
@@ -90,7 +97,10 @@ public class WellKnownClasses {
               "java.time.LocalTime",
               "java.time.LocalDate",
               "java.time.LocalDateTime",
-              "java.util.UUID"));
+              "java.util.UUID",
+              "java.io.File",
+              "sun.nio.fs.UnixPath",
+              "sun.nio.fs.WindowsPath"));
 
   private static final Map<Class<?>, Map<String, Function<Object, CapturedContext.CapturedValue>>>
       SPECIAL_TYPE_ACCESS = new HashMap<>();
@@ -116,14 +126,26 @@ public class WellKnownClasses {
 
   private static final Map<String, Function<Object, CapturedContext.CapturedValue>>
       OPTIONAL_SPECIAL_FIELDS = new HashMap<>();
+  private static final Map<String, Function<Object, CapturedContext.CapturedValue>>
+      OPTIONALINT_SPECIAL_FIELDS = new HashMap<>();
+  private static final Map<String, Function<Object, CapturedContext.CapturedValue>>
+      OPTIONALDOUBLE_SPECIAL_FIELDS = new HashMap<>();
+  private static final Map<String, Function<Object, CapturedContext.CapturedValue>>
+      OPTIONALLONG_SPECIAL_FIELDS = new HashMap<>();
 
   static {
     OPTIONAL_SPECIAL_FIELDS.put("value", OptionalFields::value);
+    OPTIONALINT_SPECIAL_FIELDS.put("value", OptionalFields::valueInt);
+    OPTIONALDOUBLE_SPECIAL_FIELDS.put("value", OptionalFields::valueDouble);
+    OPTIONALLONG_SPECIAL_FIELDS.put("value", OptionalFields::valueLong);
   }
 
   static {
     SPECIAL_TYPE_ACCESS.put(StackTraceElement.class, STACKTRACEELEMENT_SPECIAL_FIELDS);
     SPECIAL_TYPE_ACCESS.put(Optional.class, OPTIONAL_SPECIAL_FIELDS);
+    SPECIAL_TYPE_ACCESS.put(OptionalInt.class, OPTIONALINT_SPECIAL_FIELDS);
+    SPECIAL_TYPE_ACCESS.put(OptionalDouble.class, OPTIONALDOUBLE_SPECIAL_FIELDS);
+    SPECIAL_TYPE_ACCESS.put(OptionalLong.class, OPTIONALLONG_SPECIAL_FIELDS);
   }
 
   private static final Map<String, Function<Object, CapturedContext.CapturedValue>>
@@ -219,10 +241,6 @@ public class WellKnownClasses {
 
   private static String classToString(Object o) {
     return ((Class<?>) o).getTypeName();
-  }
-
-  private static String genericToString(Object o) {
-    return String.valueOf(o);
   }
 
   public static boolean isEqualsSafe(Class<?> clazz) {
@@ -336,6 +354,21 @@ public class WellKnownClasses {
     public static CapturedContext.CapturedValue value(Object o) {
       return CapturedContext.CapturedValue.of(
           "value", Object.class.getTypeName(), ((Optional<?>) o).orElse(null));
+    }
+
+    public static CapturedContext.CapturedValue valueInt(Object o) {
+      return CapturedContext.CapturedValue.of(
+          "value", Integer.TYPE.getTypeName(), ((OptionalInt) o).orElse(0));
+    }
+
+    public static CapturedContext.CapturedValue valueDouble(Object o) {
+      return CapturedContext.CapturedValue.of(
+          "value", Double.TYPE.getTypeName(), ((OptionalDouble) o).orElse(0.0));
+    }
+
+    public static CapturedContext.CapturedValue valueLong(Object o) {
+      return CapturedContext.CapturedValue.of(
+          "value", Long.TYPE.getTypeName(), ((OptionalLong) o).orElse(0L));
     }
   }
 }

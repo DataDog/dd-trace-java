@@ -1,6 +1,7 @@
 package datadog.trace.api.civisibility.coverage;
 
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import javax.annotation.Nullable;
 
 public interface CoverageStore extends TestReportHolder {
 
@@ -10,7 +11,7 @@ public interface CoverageStore extends TestReportHolder {
   boolean report(Long testSessionId, Long testSuiteId, long testSpanId);
 
   interface Factory extends Registry {
-    CoverageStore create(TestIdentifier testIdentifier);
+    CoverageStore create(@Nullable TestIdentifier testIdentifier);
   }
 
   interface Registry {

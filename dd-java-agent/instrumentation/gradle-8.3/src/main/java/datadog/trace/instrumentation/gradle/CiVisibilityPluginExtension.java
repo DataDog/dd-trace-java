@@ -1,11 +1,14 @@
 package datadog.trace.instrumentation.gradle;
 
+import datadog.trace.api.civisibility.domain.BuildModuleLayout;
+import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import javax.inject.Inject;
 import org.gradle.api.file.FileCollection;
 import org.gradle.api.logging.Logger;
@@ -26,12 +29,12 @@ public abstract class CiVisibilityPluginExtension {
 
   private static final Logger LOGGER = Logging.getLogger(CiVisibilityPluginExtension.class);
 
-  public static final String COMPILED_CLASS_FOLDERS_PROPERTY = "compiledClassFolders";
+  public static final String MODULE_LAYOUT_PROPERTY = "moduleLayout";
 
   private final ObjectFactory objectFactory;
   private FileCollection compilerPluginClasspath;
   private String moduleName;
-  private FileCollection compiledClassFolders;
+  private BuildModuleLayout moduleLayout;
 
   @Inject
   public CiVisibilityPluginExtension(ObjectFactory objectFactory) {
@@ -46,8 +49,8 @@ public abstract class CiVisibilityPluginExtension {
     this.moduleName = moduleName;
   }
 
-  public void setCompiledClassesFolders(FileCollection compiledClassFolders) {
-    this.compiledClassFolders = compiledClassFolders;
+  public void setModuleLayout(BuildModuleLayout moduleLayout) {
+    this.moduleLayout = moduleLayout;
   }
 
   @ServiceReference
@@ -101,20 +104,18 @@ public abstract class CiVisibilityPluginExtension {
   }
 
   public void applyTo(Test task) {
-    task.getInputs().property(COMPILED_CLASS_FOLDERS_PROPERTY, compiledClassFolders.getFiles());
+    task.getInputs().property(MODULE_LAYOUT_PROPERTY, moduleLayout);
 
-    Path jvmExecutable = getEffectiveExecutable(task);
-    applyTracerSettings(
-        jvmExecutable, task.getPath(), getProjectProperties(task), task.getJvmArgumentProviders());
+    applyTracerSettings(task.getPath(), getProjectProperties(task), task.getJvmArgumentProviders());
 
     JacocoTaskExtension jacocoTaskExtension =
         task.getExtensions().findByType(JacocoTaskExtension.class);
     if (jacocoTaskExtension != null) {
-      applyJacocoSettings(jvmExecutable, jacocoTaskExtension);
+      applyJacocoSettings(jacocoTaskExtension);
     }
   }
 
-  private Path getEffectiveExecutable(Test task) {
+  public static Path getEffectiveExecutable(Test task) {
     Property<JavaLauncher> javaLauncher = task.getJavaLauncher();
     if (javaLauncher.isPresent()) {
       try {
@@ -131,6 +132,15 @@ public abstract class CiVisibilityPluginExtension {
     }
   }
 
+  public static List<Path> getClasspath(Test task) {
+    try {
+      return task.getClasspath().getFiles().stream().map(File::toPath).collect(Collectors.toList());
+    } catch (Exception e) {
+      LOGGER.error("Could not get classpath for test task", e);
+      return null;
+    }
+  }
+
   private static Map<String, String> getProjectProperties(Test task) {
     Map<String, String> projectProperties = new HashMap<>();
     for (Map.Entry<String, ?> e : task.getProject().getProperties().entrySet()) {
@@ -143,7 +153,7 @@ public abstract class CiVisibilityPluginExtension {
     return projectProperties;
   }
 
-  private void applyJacocoSettings(Path jvmExecutable, JacocoTaskExtension jacocoTaskExtension) {
+  private void applyJacocoSettings(JacocoTaskExtension jacocoTaskExtension) {
     CiVisibilityService ciVisibilityService = getCiVisibilityService().get();
 
     List<String> taskExcludeClassLoaders = jacocoTaskExtension.getExcludeClassLoaders();
@@ -165,8 +175,7 @@ public abstract class CiVisibilityPluginExtension {
       taskIncludePackages = new ArrayList<>();
       jacocoTaskExtension.setIncludes(taskIncludePackages);
     }
-    for (String coverageEnabledPackage :
-        ciVisibilityService.getCoverageEnabledPackages(jvmExecutable)) {
+    for (String coverageEnabledPackage : ciVisibilityService.getCoverageEnabledPackages()) {
       if (coverageEnabledPackage != null && !coverageEnabledPackage.isEmpty()) {
         taskIncludePackages.add(coverageEnabledPackage);
       }
@@ -174,13 +183,11 @@ public abstract class CiVisibilityPluginExtension {
   }
 
   private void applyTracerSettings(
-      Path jvmExecutable,
       String taskPath,
       Map<String, String> projectProperties,
       List<CommandLineArgumentProvider> jvmArgumentProviders) {
     CommandLineArgumentProvider tracerArgumentsProvider =
-        objectFactory.newInstance(
-            TracerArgumentsProvider.class, taskPath, jvmExecutable, projectProperties);
+        objectFactory.newInstance(TracerArgumentsProvider.class, taskPath, projectProperties);
     jvmArgumentProviders.add(tracerArgumentsProvider);
   }
 }

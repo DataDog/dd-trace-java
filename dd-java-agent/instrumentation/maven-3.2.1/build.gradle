@@ -22,6 +22,8 @@ dependencies {
   testImplementation group: 'org.apache.maven.resolver', name: 'maven-resolver-connector-basic', version: '1.0.3'
   testImplementation group: 'org.apache.maven.resolver', name: 'maven-resolver-transport-http', version: '1.0.3'
 
+  testImplementation libs.bundles.mockito
+
   // Maven 4 requires Java 17: https://datadoghq.atlassian.net/browse/AIDM-159
   latestDepTestImplementation group: 'org.apache.maven', name: 'maven-embedder', version: '3.+'
   latestDepTestImplementation group: 'org.apache.maven.resolver', name: 'maven-resolver-connector-basic', version: '1.+'

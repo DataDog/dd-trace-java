@@ -16,7 +16,6 @@ public abstract class TestIdentifierSerializer {
     return new TestIdentifier(
         Serializer.readString(buffer),
         Serializer.readString(buffer),
-        Serializer.readString(buffer),
-        null);
+        Serializer.readString(buffer));
   }
 }

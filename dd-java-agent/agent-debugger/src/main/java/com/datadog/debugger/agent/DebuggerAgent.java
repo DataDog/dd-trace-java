@@ -3,13 +3,14 @@ package com.datadog.debugger.agent;
 import static com.datadog.debugger.agent.ConfigurationAcceptor.Source.REMOTE_CONFIG;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
+import com.datadog.debugger.codeorigin.CodeOriginProbeManager;
+import com.datadog.debugger.codeorigin.DefaultCodeOriginRecorder;
 import com.datadog.debugger.exception.DefaultExceptionDebugger;
 import com.datadog.debugger.exception.ExceptionProbeManager;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.sink.SnapshotSink;
 import com.datadog.debugger.sink.SymbolSink;
-import com.datadog.debugger.snapshot.DefaultSpanDebugger;
 import com.datadog.debugger.symbol.SymDBEnablement;
 import com.datadog.debugger.symbol.SymbolAggregator;
 import com.datadog.debugger.uploader.BatchUploader;
@@ -21,8 +22,11 @@ import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.Product;
 import datadog.trace.api.Config;
 import datadog.trace.api.flare.TracerFlare;
+import datadog.trace.api.git.GitInfo;
+import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.util.Redaction;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.util.SizeCheckedInputStream;
 import datadog.trace.util.TagsHelper;
@@ -44,7 +48,6 @@ import org.slf4j.LoggerFactory;
 /** Debugger agent implementation */
 public class DebuggerAgent {
   private static final Logger LOGGER = LoggerFactory.getLogger(DebuggerAgent.class);
-  public static final Duration EXCEPTION_CAPTURE_INTERVAL = Duration.ofHours(1);
   private static ConfigurationPoller configurationPoller;
   private static DebuggerSink sink;
   private static String agentVersion;
@@ -54,11 +57,6 @@ public class DebuggerAgent {
   public static synchronized void run(
       Instrumentation instrumentation, SharedCommunicationObjects sco) {
     Config config = Config.get();
-    if (!config.isDebuggerEnabled()) {
-      LOGGER.info("Debugger agent disabled");
-      return;
-    }
-    LOGGER.info("Starting Dynamic Instrumentation");
     ClassesToRetransformFinder classesToRetransformFinder = new ClassesToRetransformFinder();
     setupSourceFileTracking(instrumentation, classesToRetransformFinder);
     Redaction.addUserDefinedKeywords(config);
@@ -91,22 +89,54 @@ public class DebuggerAgent {
     DebuggerContext.initTracer(new DebuggerTracer(debuggerSink.getProbeStatusSink()));
     DefaultExceptionDebugger defaultExceptionDebugger = null;
     if (config.isDebuggerExceptionEnabled()) {
+      LOGGER.info("Starting Exception Replay");
       defaultExceptionDebugger =
           new DefaultExceptionDebugger(
               configurationUpdater,
               classNameFiltering,
-              EXCEPTION_CAPTURE_INTERVAL,
+              Duration.ofSeconds(config.getDebuggerExceptionCaptureInterval()),
               config.getDebuggerMaxExceptionPerSecond());
       DebuggerContext.initExceptionDebugger(defaultExceptionDebugger);
     }
-    if (config.isDebuggerSpanDebugEnabled()) {
-      DebuggerContext.initSpanDebugger(
-          new DefaultSpanDebugger(configurationUpdater, classNameFiltering));
+    if (config.isDebuggerCodeOriginEnabled()) {
+      DebuggerContext.initCodeOrigin(
+          new DefaultCodeOriginRecorder(
+              new CodeOriginProbeManager(configurationUpdater, classNameFiltering)));
     }
     if (config.isDebuggerInstrumentTheWorld()) {
       setupInstrumentTheWorldTransformer(
           config, instrumentation, debuggerSink, statsdMetricForwarder);
     }
+    // Dynamic Instrumentation
+    if (config.isDebuggerEnabled()) {
+      startDynamicInstrumentation(
+          instrumentation, sco, config, configurationUpdater, debuggerSink, classNameFiltering);
+    }
+    try {
+      /*
+      Note: shutdown hooks are tricky because JVM holds reference for them forever preventing
+      GC for anything that is reachable from it.
+       */
+      Runtime.getRuntime().addShutdownHook(new ShutdownHook(configurationPoller, debuggerSink));
+    } catch (final IllegalStateException ex) {
+      // The JVM is already shutting down.
+    }
+    ExceptionProbeManager exceptionProbeManager =
+        defaultExceptionDebugger != null
+            ? defaultExceptionDebugger.getExceptionProbeManager()
+            : null;
+    TracerFlare.addReporter(
+        new DebuggerReporter(configurationUpdater, sink, exceptionProbeManager));
+  }
+
+  private static void startDynamicInstrumentation(
+      Instrumentation instrumentation,
+      SharedCommunicationObjects sco,
+      Config config,
+      ConfigurationUpdater configurationUpdater,
+      DebuggerSink debuggerSink,
+      ClassNameFiltering classNameFiltering) {
+    LOGGER.info("Starting Dynamic Instrumentation");
     String probeFileLocation = config.getDebuggerProbeFileLocation();
     if (probeFileLocation != null) {
       Path probeFilePath = Paths.get(probeFileLocation);
@@ -128,24 +158,9 @@ public class DebuggerAgent {
         }
       }
       subscribeConfigurationPoller(config, configurationUpdater, symDBEnablement);
-      try {
-        /*
-        Note: shutdown hooks are tricky because JVM holds reference for them forever preventing
-        GC for anything that is reachable from it.
-         */
-        Runtime.getRuntime().addShutdownHook(new ShutdownHook(configurationPoller, debuggerSink));
-      } catch (final IllegalStateException ex) {
-        // The JVM is already shutting down.
-      }
     } else {
       LOGGER.debug("No configuration poller available from SharedCommunicationObjects");
     }
-    ExceptionProbeManager exceptionProbeManager =
-        defaultExceptionDebugger != null
-            ? defaultExceptionDebugger.getExceptionProbeManager()
-            : null;
-    TracerFlare.addReporter(
-        new DebuggerReporter(configurationUpdater, sink, exceptionProbeManager));
   }
 
   private static DebuggerSink createDebuggerSink(Config config, ProbeStatusSink probeStatusSink) {
@@ -164,13 +179,18 @@ public class DebuggerAgent {
   }
 
   public static String getDefaultTagsMergedWithGlobalTags(Config config) {
+    GitInfo gitInfo = GitInfoProvider.INSTANCE.getGitInfo();
+    String gitSha = gitInfo.getCommit().getSha();
+    String gitUrl = gitInfo.getRepositoryURL();
     String debuggerTags =
         TagsHelper.concatTags(
             "env:" + config.getEnv(),
             "version:" + config.getVersion(),
             "debugger_version:" + DDTraceCoreInfo.VERSION,
             "agent_version:" + DebuggerAgent.getAgentVersion(),
-            "host_name:" + config.getHostName());
+            "host_name:" + config.getHostName(),
+            gitSha != null ? Tags.GIT_COMMIT_SHA + ":" + gitSha : null,
+            gitUrl != null ? Tags.GIT_REPOSITORY_URL + ":" + gitUrl : null);
     if (config.getGlobalTags().isEmpty()) {
       return debuggerTags;
     }
