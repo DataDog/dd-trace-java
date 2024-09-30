@@ -1,17 +1,13 @@
 package datadog.trace.lambda;
 
-import static datadog.trace.api.TracePropagationStyle.DATADOG;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
-import datadog.trace.api.DDTraceId;
-import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.core.propagation.ExtractedContext;
-import datadog.trace.core.propagation.PropagationTags;
+import datadog.trace.core.CoreTracer;
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
@@ -44,7 +40,6 @@ public class LambdaHandler {
   private static final String DATADOG_INVOCATION_ERROR_MSG = "x-datadog-invocation-error-msg";
   private static final String DATADOG_INVOCATION_ERROR_TYPE = "x-datadog-invocation-error-type";
   private static final String DATADOG_INVOCATION_ERROR_STACK = "x-datadog-invocation-error-stack";
-  private static final String DATADOG_TAGS_KEY = "x-datadog-tags";
 
   private static final String START_INVOCATION = "/lambda/start-invocation";
   private static final String END_INVOCATION = "/lambda/end-invocation";
@@ -73,8 +68,7 @@ public class LambdaHandler {
 
   private static String EXTENSION_BASE_URL = "http://127.0.0.1:8124";
 
-  public static AgentSpan.Context notifyStartInvocation(
-      Object event, PropagationTags.Factory propagationTagsFactory) {
+  public static AgentSpan.Context notifyStartInvocation(CoreTracer tracer, Object event) {
     RequestBody body = RequestBody.create(jsonMediaType, writeValueAsString(event));
     try (Response response =
         HTTP_CLIENT
@@ -86,33 +80,16 @@ public class LambdaHandler {
                     .build())
             .execute()) {
       if (response.isSuccessful()) {
-        final String traceID = response.headers().get(DATADOG_TRACE_ID);
-        final String priority = response.headers().get(DATADOG_SAMPLING_PRIORITY);
-        if (null != traceID && null != priority) {
-          int samplingPriority = PrioritySampling.UNSET;
-          try {
-            samplingPriority = Integer.parseInt(priority);
-          } catch (final NumberFormatException ignored) {
-            log.warn("could not read the sampling priority, defaulting to UNSET");
-          }
-          log.debug(
-              "notifyStartInvocation success, found traceID = {} and samplingPriority = {}",
-              traceID,
-              samplingPriority);
-          PropagationTags propagationTags =
-              propagationTagsFactory.fromHeaderValue(
-                  PropagationTags.HeaderType.DATADOG, response.headers().get(DATADOG_TAGS_KEY));
-          return new ExtractedContext(
-              DDTraceId.from(traceID),
-              DDSpanId.ZERO,
-              samplingPriority,
-              null,
-              propagationTags,
-              DATADOG);
-        } else {
-          log.debug(
-              "could not find traceID or sampling priority in notifyStartInvocation, not injecting the context");
-        }
+
+        return tracer
+            .propagate()
+            .extract(
+                response.headers(),
+                (carrier, classifier) -> {
+                  for (String headerName : carrier.names()) {
+                    classifier.accept(headerName, carrier.get(headerName));
+                  }
+                });
       }
     } catch (Throwable ignored) {
       log.error("could not reach the extension");
@@ -121,7 +98,6 @@ public class LambdaHandler {
   }
 
   public static boolean notifyEndInvocation(AgentSpan span, Object result, boolean isError) {
-
     if (null == span || null == span.getSamplingPriority()) {
       log.error(
           "could not notify the extension as the lambda span is null or no sampling priority has been found");
