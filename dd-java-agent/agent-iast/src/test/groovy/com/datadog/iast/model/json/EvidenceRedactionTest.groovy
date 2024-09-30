@@ -303,7 +303,7 @@ class EvidenceRedactionTest extends DDSpecification {
             source = adapter.fromJson(reader)
             break
           case "secure_marks":
-            List<String> secureMarks = new Moshi.Builder().build().adapter(Types.newParameterizedType(List.class, String.class)).fromJson(reader)
+            List<String> secureMarks = new Moshi.Builder().build().adapter(Types.newParameterizedType(List, String)).fromJson(reader) as List<String>
             mark = calculateMarks(secureMarks)
             break
           default:
