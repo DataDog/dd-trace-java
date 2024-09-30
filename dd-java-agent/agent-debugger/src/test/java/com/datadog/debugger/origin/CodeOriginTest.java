@@ -78,7 +78,7 @@ public class CodeOriginTest {
 
   @BeforeEach
   public void before() {
-    CoreTracer tracer = CoreTracer.builder().build();k
+    CoreTracer tracer = CoreTracer.builder().build();
     TracerInstaller.forceInstallGlobalTracer(tracer);
     tracer.addTraceInterceptor(traceInterceptor);
     probeSampler = new MockSampler();
