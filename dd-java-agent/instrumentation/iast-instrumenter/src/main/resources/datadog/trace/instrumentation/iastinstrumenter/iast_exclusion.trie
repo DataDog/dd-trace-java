@@ -125,6 +125,8 @@
 1 graphql.*
 1 ibm.security.*
 1 io.dropwizard.*
+2 io.ebean.*
+2 io.ebeaninternal.*
 1 io.github.lukehutch.fastclasspathscanner.*
 1 io.grpc.*
 1 io.leangen.geantyref.*
