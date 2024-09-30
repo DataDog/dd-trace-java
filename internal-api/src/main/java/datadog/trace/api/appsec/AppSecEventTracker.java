@@ -47,6 +47,8 @@ public abstract class AppSecEventTracker extends EventTracker {
   public abstract void onLoginFailureEvent(
       UserIdCollectionMode mode, String userId, Boolean exists, Map<String, String> metadata);
 
+  public abstract void onUserEvent(UserIdCollectionMode mode, String userId);
+
   public abstract void onCustomEvent(
       UserIdCollectionMode mode, String eventName, Map<String, String> metadata);
 }

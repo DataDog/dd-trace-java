@@ -8,6 +8,7 @@ import static datadog.trace.civisibility.utils.FileUtils.expandTilde;
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
+import datadog.trace.civisibility.ci.env.CiEnvironment;
 import datadog.trace.util.Strings;
 
 class BitBucketInfo implements CIProviderInfo {
@@ -25,21 +26,27 @@ class BitBucketInfo implements CIProviderInfo {
   public static final String BITBUCKET_GIT_BRANCH = "BITBUCKET_BRANCH";
   public static final String BITBUCKET_GIT_TAG = "BITBUCKET_TAG";
 
+  private final CiEnvironment environment;
+
+  BitBucketInfo(CiEnvironment environment) {
+    this.environment = environment;
+  }
+
   @Override
   public GitInfo buildCIGitInfo() {
     return new GitInfo(
         getRepositoryURL(),
-        normalizeBranch(System.getenv(BITBUCKET_GIT_BRANCH)),
-        normalizeTag(System.getenv(BITBUCKET_GIT_TAG)),
-        new CommitInfo(System.getenv(BITBUCKET_GIT_COMMIT)));
+        normalizeBranch(environment.get(BITBUCKET_GIT_BRANCH)),
+        normalizeTag(environment.get(BITBUCKET_GIT_TAG)),
+        new CommitInfo(environment.get(BITBUCKET_GIT_COMMIT)));
   }
 
-  private static String getRepositoryURL() {
-    String gitRepoUrl = System.getenv(BITBUCKET_GIT_REPOSITORY_URL);
+  private String getRepositoryURL() {
+    String gitRepoUrl = environment.get(BITBUCKET_GIT_REPOSITORY_URL);
     if (Strings.isNotBlank(gitRepoUrl)) {
       return filterSensitiveInfo(gitRepoUrl);
     }
-    String httpsRepoUrl = System.getenv(BITBUCKET_HTTPS_REPOSITORY_URL);
+    String httpsRepoUrl = environment.get(BITBUCKET_HTTPS_REPOSITORY_URL);
     if (Strings.isNotBlank(httpsRepoUrl)) {
       return filterSensitiveInfo(httpsRepoUrl);
     }
@@ -48,18 +55,18 @@ class BitBucketInfo implements CIProviderInfo {
 
   @Override
   public CIInfo buildCIInfo() {
-    final String repo = System.getenv(BITBUCKET_REPO_FULL_NAME);
-    final String number = System.getenv(BITBUCKET_BUILD_NUMBER);
+    final String repo = environment.get(BITBUCKET_REPO_FULL_NAME);
+    final String number = environment.get(BITBUCKET_BUILD_NUMBER);
     final String url = buildPipelineUrl(repo, number);
 
-    return CIInfo.builder()
+    return CIInfo.builder(environment)
         .ciProviderName(BITBUCKET_PROVIDER_NAME)
         .ciPipelineId(buildPipelineId())
         .ciPipelineName(repo)
         .ciPipelineNumber(number)
         .ciPipelineUrl(url)
         .ciJobUrl(url)
-        .ciWorkspace(expandTilde(System.getenv(BITBUCKET_WORKSPACE_PATH)))
+        .ciWorkspace(expandTilde(environment.get(BITBUCKET_WORKSPACE_PATH)))
         .build();
   }
 
@@ -69,7 +76,7 @@ class BitBucketInfo implements CIProviderInfo {
   }
 
   private String buildPipelineId() {
-    String id = System.getenv(BITBUCKET_PIPELINE_ID);
+    String id = environment.get(BITBUCKET_PIPELINE_ID);
     if (id != null) {
       id = Strings.replace(id, "{", "");
       id = Strings.replace(id, "}", "");

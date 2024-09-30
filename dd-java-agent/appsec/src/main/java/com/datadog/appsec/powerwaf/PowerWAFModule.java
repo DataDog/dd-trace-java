@@ -410,6 +410,11 @@ public class PowerWAFModule implements AppSecModule {
         return;
       }
 
+      if (reqCtx.isAdditiveClosed()) {
+        log.debug("Skipped; the WAF context is closed");
+        return;
+      }
+
       StandardizedLogging.executingWAF(log);
       long start = 0L;
       if (log.isDebugEnabled()) {
@@ -430,7 +435,9 @@ public class PowerWAFModule implements AppSecModule {
         }
         return;
       } catch (AbstractPowerwafException e) {
-        log.error("Error calling WAF", e);
+        if (!reqCtx.isAdditiveClosed()) {
+          log.error("Error calling WAF", e);
+        }
         return;
       } finally {
         if (log.isDebugEnabled()) {
