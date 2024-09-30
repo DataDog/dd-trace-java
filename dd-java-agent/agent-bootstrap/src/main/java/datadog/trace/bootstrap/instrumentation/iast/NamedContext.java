@@ -19,8 +19,6 @@ public abstract class NamedContext {
 
   public abstract void taintName(@Nullable String name);
 
-  public abstract void setCurrentName(@Nullable final String name);
-
   @Nonnull
   public static <E> NamedContext getOrCreate(
       @Nonnull final ContextStore<E, NamedContext> store, @Nonnull final E target) {
@@ -49,9 +47,6 @@ public abstract class NamedContext {
 
     @Override
     public void taintName(@Nullable final String name) {}
-
-    @Override
-    public void setCurrentName(@Nullable final String name) {}
   }
 
   private static class NamedContextImpl extends NamedContext {
@@ -81,11 +76,6 @@ public abstract class NamedContext {
         currentName = name;
         module.taintString(iastCtx(), name, source.getOrigin(), name, source.getValue());
       }
-    }
-
-    @Override
-    public void setCurrentName(@Nullable final String name) {
-      currentName = name;
     }
 
     private IastContext iastCtx() {

@@ -123,6 +123,10 @@ class KafkaIastDeserializerForkedTest extends IastAgentTestRunner {
       range(0, Integer.MAX_VALUE, source(origin as byte))
     }
     to.hasTaintedObject {
+      value('name')
+      range(0, 4, source(origin as byte, 'name', 'name'))
+    }
+    to.hasTaintedObject {
       value('Mr Bean')
       range(0, 7, source(origin as byte, 'name', 'Mr Bean'))
     }
