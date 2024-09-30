@@ -116,6 +116,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   // should be guarded by this
   private volatile Additive additive;
+  private volatile boolean additiveClosed;
   // set after additive is set
   private volatile PowerwafMetrics wafMetrics;
   private volatile PowerwafMetrics raspMetrics;
@@ -203,6 +204,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       synchronized (this) {
         if (additive != null) {
           try {
+            additiveClosed = true;
             additive.close();
           } finally {
             additive = null;
@@ -549,5 +551,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       throttled = rateLimiter.isThrottled();
     }
     return throttled;
+  }
+
+  public boolean isAdditiveClosed() {
+    return additiveClosed;
   }
 }
