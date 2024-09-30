@@ -37,7 +37,7 @@ abstract class CITagsProviderTest extends Specification {
     environmentVariables.clear(System.getenv().keySet() as String[])
   }
 
-  def "test ci provider info is set properly"() {
+  def "test ci provider info is set properly: #ciSpec.providerName #ciSpec.idx #ciSpec.testCaseName"() {
     setup:
     ciSpec.env.each {
       environmentVariables.set(it.key, it.value)
