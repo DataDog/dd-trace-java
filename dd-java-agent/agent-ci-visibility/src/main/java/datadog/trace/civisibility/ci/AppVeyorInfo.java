@@ -8,6 +8,7 @@ import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.PersonInfo;
+import datadog.trace.civisibility.ci.env.CiEnvironment;
 
 class AppVeyorInfo implements CIProviderInfo {
 
@@ -31,13 +32,19 @@ class AppVeyorInfo implements CIProviderInfo {
   public static final String APPVEYOR_REPO_COMMIT_AUTHOR_EMAIL =
       "APPVEYOR_REPO_COMMIT_AUTHOR_EMAIL";
 
+  private final CiEnvironment environment;
+
+  AppVeyorInfo(CiEnvironment environment) {
+    this.environment = environment;
+  }
+
   @Override
   public GitInfo buildCIGitInfo() {
-    final String repoProvider = System.getenv(APPVEYOR_REPO_PROVIDER);
-    final String messageSubject = System.getenv(APPVEYOR_REPO_COMMIT_MESSAGE_SUBJECT);
-    final String messageBody = System.getenv(APPVEYOR_REPO_COMMIT_MESSAGE_BODY);
+    final String repoProvider = environment.get(APPVEYOR_REPO_PROVIDER);
+    final String messageSubject = environment.get(APPVEYOR_REPO_COMMIT_MESSAGE_SUBJECT);
+    final String messageBody = environment.get(APPVEYOR_REPO_COMMIT_MESSAGE_BODY);
     return new GitInfo(
-        buildGitRepositoryUrl(repoProvider, System.getenv(APPVEYOR_REPO_NAME)),
+        buildGitRepositoryUrl(repoProvider, environment.get(APPVEYOR_REPO_NAME)),
         buildGitBranch(repoProvider),
         buildGitTag(repoProvider),
         new CommitInfo(
@@ -60,23 +67,23 @@ class AppVeyorInfo implements CIProviderInfo {
   @Override
   public CIInfo buildCIInfo() {
     final String url =
-        buildPipelineUrl(System.getenv(APPVEYOR_REPO_NAME), System.getenv(APPVEYOR_BUILD_ID));
-    return CIInfo.builder()
+        buildPipelineUrl(environment.get(APPVEYOR_REPO_NAME), environment.get(APPVEYOR_BUILD_ID));
+    return CIInfo.builder(environment)
         .ciProviderName(APPVEYOR_PROVIDER_NAME)
-        .ciPipelineId(System.getenv(APPVEYOR_BUILD_ID))
-        .ciPipelineName(System.getenv(APPVEYOR_REPO_NAME))
-        .ciPipelineNumber(System.getenv(APPVEYOR_PIPELINE_NUMBER))
+        .ciPipelineId(environment.get(APPVEYOR_BUILD_ID))
+        .ciPipelineName(environment.get(APPVEYOR_REPO_NAME))
+        .ciPipelineNumber(environment.get(APPVEYOR_PIPELINE_NUMBER))
         .ciPipelineUrl(url)
         .ciJobUrl(url)
-        .ciWorkspace(expandTilde(System.getenv(APPVEYOR_WORKSPACE_PATH)))
+        .ciWorkspace(expandTilde(environment.get(APPVEYOR_WORKSPACE_PATH)))
         .build();
   }
 
   private String buildGitBranch(final String repoProvider) {
     if ("github".equals(repoProvider)) {
-      String branch = System.getenv(APPVEYOR_PULL_REQUEST_HEAD_REPO_BRANCH);
+      String branch = environment.get(APPVEYOR_PULL_REQUEST_HEAD_REPO_BRANCH);
       if (branch == null || branch.isEmpty()) {
-        branch = System.getenv(APPVEYOR_REPO_BRANCH);
+        branch = environment.get(APPVEYOR_REPO_BRANCH);
       }
       return normalizeBranch(branch);
     }
@@ -85,14 +92,14 @@ class AppVeyorInfo implements CIProviderInfo {
 
   private String buildGitTag(final String repoProvider) {
     if ("github".equals(repoProvider)) {
-      return normalizeTag(System.getenv(APPVEYOR_REPO_TAG_NAME));
+      return normalizeTag(environment.get(APPVEYOR_REPO_TAG_NAME));
     }
     return null;
   }
 
   private String buildGitCommit() {
-    if ("github".equals(System.getenv(APPVEYOR_REPO_PROVIDER))) {
-      return System.getenv(APPVEYOR_REPO_COMMIT);
+    if ("github".equals(environment.get(APPVEYOR_REPO_PROVIDER))) {
+      return environment.get(APPVEYOR_REPO_COMMIT);
     }
     return null;
   }
@@ -110,8 +117,8 @@ class AppVeyorInfo implements CIProviderInfo {
 
   private PersonInfo buildGitCommitAuthor() {
     return new PersonInfo(
-        System.getenv(APPVEYOR_REPO_COMMIT_AUTHOR_NAME),
-        System.getenv(APPVEYOR_REPO_COMMIT_AUTHOR_EMAIL));
+        environment.get(APPVEYOR_REPO_COMMIT_AUTHOR_NAME),
+        environment.get(APPVEYOR_REPO_COMMIT_AUTHOR_EMAIL));
   }
 
   @Override

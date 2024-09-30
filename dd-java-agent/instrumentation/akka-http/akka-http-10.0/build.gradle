@@ -120,7 +120,7 @@ dependencies {
   iastTestCompileOnly group: 'de.thetaphi', name: 'forbiddenapis', version: '3.4'
   iastTestRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core')
   iastTestRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
-  iastTestRuntimeOnly project(':dd-java-agent:instrumentation:akka-http-10.2-iast')
+  iastTestRuntimeOnly project(':dd-java-agent:instrumentation:akka-http:akka-http-10.2-iast')
 
   // There are some internal API changes in 10.1 that we would like to test separately for
   version101TestImplementation libs.scala212

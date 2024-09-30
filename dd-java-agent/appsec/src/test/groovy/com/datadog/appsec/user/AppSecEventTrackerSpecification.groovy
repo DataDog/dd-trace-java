@@ -237,6 +237,25 @@ class AppSecEventTrackerSpecification extends DDSpecification {
     'ident' | 'identification' | 'user doesn\'t exist' | USER_ID
   }
 
+  def "test onUserEvent (#mode)"() {
+    setup:
+    final collectionMode = UserIdCollectionMode.fromString(mode, null)
+
+    when:
+    tracker.onUserEvent(collectionMode, USER_ID)
+
+    then:
+    1 * traceSegment.getTagTop('_dd.appsec.user.collection_mode') >> null
+    1 * userCallback.apply(_ as RequestContext, collectionMode, expectedUserId) >> NoopFlow.INSTANCE
+    0 * _
+
+    where:
+    mode    | modeTag          | expectedUserId
+    'anon'  | 'anonymization'  | ANONYMIZED_USER_ID
+    'ident' | 'identification' | USER_ID
+  }
+
+
   def "test onUserNotFound (#mode)"() {
     setup:
     final collectionMode = UserIdCollectionMode.fromString(mode, null)
