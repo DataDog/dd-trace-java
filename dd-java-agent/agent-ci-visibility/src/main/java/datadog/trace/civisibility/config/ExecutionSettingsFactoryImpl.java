@@ -1,6 +1,7 @@
 package datadog.trace.civisibility.config;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.CiVisibilityWellKnownTags;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestMetadata;
 import datadog.trace.api.git.GitInfo;
@@ -79,19 +80,16 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
       }
     }
 
-    /*
-     * IMPORTANT: JVM and OS properties should match tags
-     * set in datadog.trace.civisibility.decorator.TestDecoratorImpl
-     */
+    CiVisibilityWellKnownTags wellKnownTags = config.getCiVisibilityWellKnownTags();
     return builder
         .service(config.getServiceName())
         .env(config.getEnv())
         .repositoryUrl(gitInfo.getRepositoryURL())
         .branch(gitInfo.getBranch())
         .sha(gitInfo.getCommit().getSha())
-        .osPlatform(System.getProperty("os.name"))
-        .osArchitecture(System.getProperty("os.arch"))
-        .osVersion(System.getProperty("os.version"))
+        .osPlatform(wellKnownTags.getOsPlatform().toString())
+        .osArchitecture(wellKnownTags.getOsArch().toString())
+        .osVersion(wellKnownTags.getOsVersion().toString())
         .runtimeName(jvmInfo.getName())
         .runtimeVersion(jvmInfo.getVersion())
         .runtimeVendor(jvmInfo.getVendor())

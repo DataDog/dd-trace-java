@@ -15,10 +15,13 @@ import org.springframework.boot.web.servlet.context.ServletWebServerApplicationC
 import org.springframework.context.ConfigurableApplicationContext
 import spock.lang.Shared
 
-import static datadog.trace.instrumentation.springsecurity5.TestEndpoint.LOGIN
+import static datadog.trace.agent.test.utils.OkHttpUtils.clientBuilder
+import static datadog.trace.agent.test.utils.OkHttpUtils.cookieJar
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.instrumentation.springsecurity5.TestEndpoint.CUSTOM
+import static datadog.trace.instrumentation.springsecurity5.TestEndpoint.LOGIN
 import static datadog.trace.instrumentation.springsecurity5.TestEndpoint.REGISTER
+import static datadog.trace.instrumentation.springsecurity5.TestEndpoint.SUCCESS
 import static datadog.trace.instrumentation.springsecurity5.TestEndpoint.UNKNOWN
 import static datadog.trace.instrumentation.springsecurity5.TestEndpoint.NOT_FOUND
 
@@ -213,7 +216,7 @@ class SpringBootBasedTest extends AppSecHttpServerTest<ConfigurableApplicationCo
   void 'test failed signup'() {
     setup:
     final formBody = new FormBody.Builder()
-      .add('username', randomString(1_000))
+      .add('username', 'cant_create_me')
       .add('password', 'cant_create_me')
       .build()
 
@@ -256,10 +259,33 @@ class SpringBootBasedTest extends AppSecHttpServerTest<ConfigurableApplicationCo
     0 * appender._
   }
 
-  @SuppressWarnings('GroovyAssignabilityCheck')
-  private static String randomString(int length) {
-    return new Random().with { random ->
-      (1..length).collect { Character.valueOf((char) (random.nextInt(26) + (char)'a')) }
-    }.join()
+  void 'test user event'() {
+    setup:
+    def client = clientBuilder().cookieJar(cookieJar()).followRedirects(false).build()
+    def formBody = new FormBody.Builder()
+      .add("username", "admin")
+      .add("password", "admin")
+      .build()
+
+    def loginRequest = request(LOGIN, "POST", formBody).build()
+    def loginResponse = client.newCall(loginRequest).execute()
+    assert loginResponse.code() == LOGIN.status
+    assert loginResponse.body().string() == LOGIN.body
+    TEST_WRITER.waitForTraces(1)
+    TEST_WRITER.start() // clear all traces
+
+    when:
+    def request = request(SUCCESS, "GET", null).build()
+    def response = client.newCall(request).execute()
+    TEST_WRITER.waitForTraces(1)
+    def span = TEST_WRITER.flatten().first() as DDSpan
+
+    then:
+    response.code() == SUCCESS.status
+    response.body().string() == SUCCESS.body
+    span.getResourceName().toString() == 'GET /success'
+    !span.getTags().isEmpty()
+    span.getTag("usr.id") == 'admin'
+    span.getTag("_dd.appsec.user.collection_mode") == 'ident'
   }
 }

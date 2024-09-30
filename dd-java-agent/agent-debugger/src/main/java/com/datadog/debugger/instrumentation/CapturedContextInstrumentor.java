@@ -54,6 +54,7 @@ import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldInsnNode;
 import org.objectweb.asm.tree.FieldNode;
+import org.objectweb.asm.tree.IincInsnNode;
 import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.InsnNode;
 import org.objectweb.asm.tree.JumpInsnNode;
@@ -459,75 +460,175 @@ public class CapturedContextInstrumentor extends Instrumentor {
   }
 
   // Initialize and hoist local variables to the top of the method
-  // if there is name conflict, do nothing for the conflicting local variable
+  // if there is name/slot conflict, do nothing for the conflicting local variable
   private Collection<LocalVariableNode> initAndHoistLocalVars(InsnList insnList) {
     if (methodNode.localVariables == null || methodNode.localVariables.isEmpty()) {
       return Collections.emptyList();
     }
     Map<String, LocalVariableNode> localVarsByName = new HashMap<>();
-    Set<String> duplicateNames = new HashSet<>();
+    Map<Integer, LocalVariableNode> localVarsBySlot = new HashMap<>();
+    Map<String, List<LocalVariableNode>> hoistableVarByName = new HashMap<>();
     for (LocalVariableNode localVar : methodNode.localVariables) {
       int idx = localVar.index - localVarBaseOffset;
       if (idx < argOffset) {
         // this is an argument
         continue;
       }
-      if (!checkDuplicateLocalVar(localVar, localVarsByName)) {
-        duplicateNames.add(localVar.name);
+      checkHoistableLocalVar(localVar, localVarsByName, localVarsBySlot, hoistableVarByName);
+    }
+    removeDuplicatesFromArgs(hoistableVarByName, localVarsBySlotArray);
+    // hoist vars
+    List<LocalVariableNode> results = new ArrayList<>();
+    for (Map.Entry<String, List<LocalVariableNode>> entry : hoistableVarByName.entrySet()) {
+      List<LocalVariableNode> hoistableVars = entry.getValue();
+      LocalVariableNode newVarNode;
+      if (hoistableVars.size() > 1) {
+        // merge variables
+        String name = hoistableVars.get(0).name;
+        String desc = hoistableVars.get(0).desc;
+        Type localVarType = getType(desc);
+        int newSlot = newVar(localVarType); // new slot for the local variable
+        newVarNode = new LocalVariableNode(name, desc, null, null, null, newSlot);
+        Set<LabelNode> endLabels = new HashSet<>();
+        for (LocalVariableNode localVar : hoistableVars) {
+          // rewrite each usage of the old var to the new slot
+          rewriteLocalVarInsn(localVar, localVar.index, newSlot);
+          endLabels.add(localVar.end);
+        }
+        hoistVar(insnList, newVarNode);
+        newVarNode.end = findLatestLabel(methodNode.instructions, endLabels);
+        // remove previous local variables
+        methodNode.localVariables.removeIf(hoistableVars::contains);
+        methodNode.localVariables.add(newVarNode);
+      } else {
+        // hoist the single variable and rewrite all its local var instructions
+        newVarNode = hoistableVars.get(0);
+        int oldIndex = newVarNode.index;
+        newVarNode.index = newVar(getType(newVarNode.desc)); // new slot for the local variable
+        rewriteLocalVarInsn(newVarNode, oldIndex, newVarNode.index);
+        hoistVar(insnList, newVarNode);
       }
+      results.add(newVarNode);
     }
-    for (String name : duplicateNames) {
-      localVarsByName.remove(name);
-    }
-    for (LocalVariableNode localVar : localVarsByName.values()) {
-      Type localVarType = getType(localVar.desc);
-      switch (localVarType.getSort()) {
-        case Type.BOOLEAN:
-        case Type.CHAR:
-        case Type.BYTE:
-        case Type.SHORT:
-        case Type.INT:
-          insnList.add(new InsnNode(Opcodes.ICONST_0));
-          break;
-        case Type.LONG:
-          insnList.add(new InsnNode(Opcodes.LCONST_0));
-          break;
-        case Type.FLOAT:
-          insnList.add(new InsnNode(Opcodes.FCONST_0));
-          break;
-        case Type.DOUBLE:
-          insnList.add(new InsnNode(Opcodes.DCONST_0));
-          break;
-        default:
-          insnList.add(new InsnNode(Opcodes.ACONST_NULL));
-          break;
-      }
-      insnList.add(new VarInsnNode(localVarType.getOpcode(Opcodes.ISTORE), localVar.index));
-    }
-    return localVarsByName.values();
+    return results;
   }
 
-  private boolean checkDuplicateLocalVar(
-      LocalVariableNode localVar, Map<String, LocalVariableNode> localVarsByName) {
-    LocalVariableNode previousVar = localVarsByName.putIfAbsent(localVar.name, localVar);
-    if (previousVar == null) {
-      return true;
+  private void removeDuplicatesFromArgs(
+      Map<String, List<LocalVariableNode>> hoistableVarByName,
+      LocalVariableNode[] localVarsBySlotArray) {
+    for (int idx = 0; idx < argOffset; idx++) {
+      LocalVariableNode localVar = localVarsBySlotArray[idx];
+      if (localVar == null) {
+        continue;
+      }
+      // we are removing local variables that are arguments
+      hoistableVarByName.remove(localVar.name);
     }
-    // there are multiple local variables with the same name
-    // checking type to see if they  are compatible
-    Type previousType = getType(previousVar.desc);
-    Type currentType = getType(localVar.desc);
-    if (!ASMHelper.isStoreCompatibleType(previousType, currentType)) {
-      reportWarning(
-          "Local variable "
-              + localVar.name
-              + " has multiple definitions with incompatible types: "
-              + previousVar.desc
-              + " and "
-              + localVar.desc);
-      return false;
+  }
+
+  private LabelNode findLatestLabel(InsnList instructions, Set<LabelNode> endLabels) {
+    for (AbstractInsnNode insn = instructions.getLast(); insn != null; insn = insn.getPrevious()) {
+      if (insn instanceof LabelNode && endLabels.contains(insn)) {
+        return (LabelNode) insn;
+      }
     }
-    return true;
+    return null;
+  }
+
+  private void hoistVar(InsnList insnList, LocalVariableNode varNode) {
+    LabelNode labelNode = new LabelNode(); // new start label for the local variable
+    insnList.add(labelNode);
+    varNode.start = labelNode; // update the start label of the local variable
+    Type localVarType = getType(varNode.desc);
+    addStore0Insn(insnList, varNode, localVarType);
+  }
+
+  private static void addStore0Insn(
+      InsnList insnList, LocalVariableNode localVar, Type localVarType) {
+    switch (localVarType.getSort()) {
+      case Type.BOOLEAN:
+      case Type.CHAR:
+      case Type.BYTE:
+      case Type.SHORT:
+      case Type.INT:
+        insnList.add(new InsnNode(Opcodes.ICONST_0));
+        break;
+      case Type.LONG:
+        insnList.add(new InsnNode(Opcodes.LCONST_0));
+        break;
+      case Type.FLOAT:
+        insnList.add(new InsnNode(Opcodes.FCONST_0));
+        break;
+      case Type.DOUBLE:
+        insnList.add(new InsnNode(Opcodes.DCONST_0));
+        break;
+      default:
+        insnList.add(new InsnNode(Opcodes.ACONST_NULL));
+        break;
+    }
+    insnList.add(new VarInsnNode(localVarType.getOpcode(Opcodes.ISTORE), localVar.index));
+  }
+
+  private void checkHoistableLocalVar(
+      LocalVariableNode localVar,
+      Map<String, LocalVariableNode> localVarsByName,
+      Map<Integer, LocalVariableNode> localVarsBySlot,
+      Map<String, List<LocalVariableNode>> hoistableVarByName) {
+    LocalVariableNode previousVarBySlot = localVarsBySlot.putIfAbsent(localVar.index, localVar);
+    LocalVariableNode previousVarByName = localVarsByName.putIfAbsent(localVar.name, localVar);
+    if (previousVarBySlot != null) {
+      // there are multiple local variables with the same slot but different names
+      // by hoisting in a new slot, we can avoid the conflict
+      hoistableVarByName.computeIfAbsent(localVar.name, k -> new ArrayList<>()).add(localVar);
+    }
+    if (previousVarByName != null) {
+      // there are multiple local variables with the same name
+      // checking type to see if they are compatible
+      Type previousType = getType(previousVarByName.desc);
+      Type currentType = getType(localVar.desc);
+      if (!ASMHelper.isStoreCompatibleType(previousType, currentType)) {
+        reportWarning(
+            "Local variable "
+                + localVar.name
+                + " has multiple definitions with incompatible types: "
+                + previousVarByName.desc
+                + " and "
+                + localVar.desc);
+        // remove name from hoistable
+        hoistableVarByName.remove(localVar.name);
+        return;
+      }
+      // Merge variables because compatible type
+    }
+    // by default, there is no conflict => hoistable
+    hoistableVarByName.computeIfAbsent(localVar.name, k -> new ArrayList<>()).add(localVar);
+  }
+
+  private void rewriteLocalVarInsn(LocalVariableNode localVar, int oldSlot, int newSlot) {
+    // previous insn could be a store to index that need to be rewritten as well
+    AbstractInsnNode previous = localVar.start.getPrevious();
+    if (previous instanceof VarInsnNode) {
+      VarInsnNode varInsnNode = (VarInsnNode) previous;
+      if (varInsnNode.var == oldSlot) {
+        varInsnNode.var = newSlot;
+      }
+    }
+    for (AbstractInsnNode insn = localVar.start;
+        insn != null && insn != localVar.end;
+        insn = insn.getNext()) {
+      if (insn instanceof VarInsnNode) {
+        VarInsnNode varInsnNode = (VarInsnNode) insn;
+        if (varInsnNode.var == oldSlot) {
+          varInsnNode.var = newSlot;
+        }
+      }
+      if (insn instanceof IincInsnNode) {
+        IincInsnNode iincInsnNode = (IincInsnNode) insn;
+        if (iincInsnNode.var == oldSlot) {
+          iincInsnNode.var = newSlot;
+        }
+      }
+    }
   }
 
   private void createInProbeFinallyHandler(LabelNode inProbeStartLabel, LabelNode inProbeEndLabel) {
@@ -675,8 +776,8 @@ public class CapturedContextInstrumentor extends Instrumentor {
     int slot = isStatic ? 0 : 1;
     for (Type argType : argTypes) {
       String currentArgName = null;
-      if (slot < localVarsBySlot.length) {
-        LocalVariableNode localVarNode = localVarsBySlot[slot];
+      if (slot < localVarsBySlotArray.length) {
+        LocalVariableNode localVarNode = localVarsBySlotArray[slot];
         currentArgName = localVarNode != null ? localVarNode.name : null;
       }
       if (currentArgName == null) {

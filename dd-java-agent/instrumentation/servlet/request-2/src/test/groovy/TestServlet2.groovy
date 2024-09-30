@@ -13,6 +13,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SESSION_ID
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_BLOCK
 
@@ -56,6 +57,11 @@ class TestServlet2 {
             break
           case EXCEPTION:
             throw new Exception(endpoint.body)
+          case SESSION_ID:
+            def session = req.getSession(true)
+            resp.status = endpoint.status
+            resp.writer.print(session.id)
+            break
         }
       }
     }

@@ -32,7 +32,6 @@ import com.datadog.debugger.util.TestSnapshotListener;
 import com.datadog.debugger.util.TestTraceInterceptor;
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.api.Config;
-import datadog.trace.api.DDTags;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
@@ -191,20 +190,16 @@ public class CodeOriginTest {
 
   private static void checkEntrySpanTags(MutableSpan span, boolean includeSnapshot) {
     String keys = format("Existing keys for %s: %s", span.getOperationName(), ldKeys(span));
-    assertKeyPresent(span, DDTags.DD_CODE_ORIGIN_FILE);
-    assertKeyPresent(span, DDTags.DD_CODE_ORIGIN_LINE);
-    assertKeyPresent(span, DDTags.DD_CODE_ORIGIN_METHOD);
-    assertKeyPresent(span, DDTags.DD_CODE_ORIGIN_METHOD_SIGNATURE);
 
     assertEquals(span.getTag(DD_STACK_CODE_ORIGIN_TYPE), "entry", keys);
     assertKeyPresent(span, DD_STACK_CODE_ORIGIN_TYPE);
     assertKeyPresent(span, format(DD_STACK_CODE_ORIGIN_FRAME, 0, "file"));
     assertKeyPresent(span, format(DD_STACK_CODE_ORIGIN_FRAME, 0, "line"));
     assertKeyPresent(span, format(DD_STACK_CODE_ORIGIN_FRAME, 0, "method"));
+    assertKeyPresent(span, format(DD_STACK_CODE_ORIGIN_FRAME, 0, "signature"));
     assertKeyPresent(span, format(DD_STACK_CODE_ORIGIN_FRAME, 0, "type"));
 
     if (includeSnapshot) {
-      assertKeyPresent(span, DDTags.DD_CODE_ORIGIN_SNAPSHOT_ID);
       assertKeyPresent(span, format(DD_STACK_CODE_ORIGIN_FRAME, 0, "snapshot_id"));
     }
   }
@@ -228,12 +223,6 @@ public class CodeOriginTest {
   private static void checkExitSpanTags(MutableSpan span, boolean includeSnapshot) {
     String keys =
         format("Existing keys for %s: %s", span.getOperationName(), new TreeSet<>(ldKeys(span)));
-
-    assertKeyNotPresent(span, DDTags.DD_CODE_ORIGIN_FILE);
-    assertKeyNotPresent(span, DDTags.DD_CODE_ORIGIN_LINE);
-    assertKeyNotPresent(span, DDTags.DD_CODE_ORIGIN_METHOD);
-    assertKeyNotPresent(span, DDTags.DD_CODE_ORIGIN_METHOD_SIGNATURE);
-    assertKeyNotPresent(span, DDTags.DD_CODE_ORIGIN_SNAPSHOT_ID);
 
     assertKeyPresent(span, DD_STACK_CODE_ORIGIN_TYPE);
     assertKeyPresent(span, format(DD_STACK_CODE_ORIGIN_FRAME, 0, "file"));

@@ -20,6 +20,7 @@ import static com.datadog.debugger.util.MoshiSnapshotHelper.TIMEOUT_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.TRUNCATED;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.TYPE;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.VALUE;
+import static com.datadog.debugger.util.MoshiSnapshotHelper.WATCHES;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -39,12 +40,14 @@ import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.debugger.ProbeLocation;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import datadog.trace.test.util.Flaky;
+import java.io.File;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.OperatingSystemMXBean;
 import java.math.BigDecimal;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -307,6 +310,8 @@ public class SnapshotSerializationTest {
     OptionalLong maybeLong = OptionalLong.of(84);
     Exception ex = new IllegalArgumentException("invalid arg");
     StackTraceElement element = new StackTraceElement("Foo", "bar", "foo.java", 42);
+    File file = new File("/tmp/foo");
+    Path path = file.toPath();
   }
 
   @Test
@@ -383,6 +388,10 @@ public class SnapshotSerializationTest {
     assertPrimitiveValue(elementFields, "methodName", String.class.getTypeName(), "bar");
     assertPrimitiveValue(elementFields, "fileName", String.class.getTypeName(), "foo.java");
     assertPrimitiveValue(elementFields, "lineNumber", Integer.class.getTypeName(), "42");
+    // file
+    assertPrimitiveValue(objLocalFields, "file", File.class.getTypeName(), "/tmp/foo");
+    // path
+    assertPrimitiveValue(objLocalFields, "path", "sun.nio.fs.UnixPath", "/tmp/foo");
   }
 
   @Test
@@ -926,6 +935,35 @@ public class SnapshotSerializationTest {
     Map<String, Object> locals = getLocalsFromJson(buffer);
     Map<String, Object> enumValueJson = (Map<String, Object>) locals.get("enumValue");
     assertEquals("TWO", enumValueJson.get("value"));
+  }
+
+  @Test
+  public void watches() throws IOException {
+    JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
+    Snapshot snapshot = createSnapshot();
+    CapturedContext context = new CapturedContext();
+    Map<String, String> map = new HashMap<>();
+    map.put("foo1", "bar1");
+    map.put("foo2", "bar2");
+    map.put("foo3", "bar3");
+    context.addWatch(CapturedContext.CapturedValue.of("watch1", Map.class.getTypeName(), map));
+    context.addWatch(
+        CapturedContext.CapturedValue.of(
+            "watch2", List.class.getTypeName(), Arrays.asList("1", "2", "3")));
+    context.addWatch(CapturedContext.CapturedValue.of("watch3", Integer.TYPE.getTypeName(), 42));
+    snapshot.setExit(context);
+    String buffer = adapter.toJson(snapshot);
+    System.out.println(buffer);
+    Map<String, Object> json = MoshiHelper.createGenericAdapter().fromJson(buffer);
+    Map<String, Object> capturesJson = (Map<String, Object>) json.get(CAPTURES);
+    Map<String, Object> returnJson = (Map<String, Object>) capturesJson.get(RETURN);
+    Map<String, Object> watches = (Map<String, Object>) returnJson.get(WATCHES);
+    assertNull(returnJson.get(LOCALS));
+    assertNull(returnJson.get(ARGUMENTS));
+    assertEquals(3, watches.size());
+    assertMapItems(watches, "watch1", "foo1", "bar1", "foo2", "bar2", "foo3", "bar3");
+    assertArrayItem(watches, "watch2", "1", "2", "3");
+    assertPrimitiveValue(watches, "watch3", Integer.TYPE.getTypeName(), "42");
   }
 
   private Map<String, Object> doFieldCount(int maxFieldCount) throws IOException {

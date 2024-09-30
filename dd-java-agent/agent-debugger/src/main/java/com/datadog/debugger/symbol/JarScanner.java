@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 public class JarScanner {
   private static final Logger LOGGER = LoggerFactory.getLogger(JarScanner.class);
   private static final String JAR_FILE_PREFIX = "jar:file:";
+  private static final String JAR_NESTED_PREFIX = "jar:nested:";
   private static final String FILE_PREFIX = "file:";
   // Spring prefixes:
   // https://docs.spring.io/spring-boot/docs/current/reference/html/executable-jar.html
@@ -40,6 +41,11 @@ public class JarScanner {
       int idx = locationStr.indexOf("!/");
       if (idx != -1) {
         return getPathFromPrefixedFileName(locationStr, JAR_FILE_PREFIX, idx);
+      }
+    } else if (locationStr.startsWith(JAR_NESTED_PREFIX)) {
+      int idx = locationStr.indexOf("/!BOOT-INF/");
+      if (idx != -1) {
+        return getPathFromPrefixedFileName(locationStr, JAR_NESTED_PREFIX, idx);
       }
     } else if (locationStr.startsWith(FILE_PREFIX)) {
       return getPathFromPrefixedFileName(locationStr, FILE_PREFIX, locationStr.length());

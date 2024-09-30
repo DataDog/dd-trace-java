@@ -3,20 +3,12 @@ package datadog.trace.api;
 public class DDTags {
 
   private static final String DD_LD_PREFIX = "_dd.ld.";
-  public static final String DD_STACK_CODE_ORIGIN_PREFIX = "_dd.stack.code_origin.";
+  public static final String DD_STACK_CODE_ORIGIN_PREFIX = DD_LD_PREFIX + "code_origin.";
 
   public static final String DD_STACK_CODE_ORIGIN_TYPE = DD_STACK_CODE_ORIGIN_PREFIX + "type";
-  // _dd.stack.code_origin.frame.%d.file|line|method|type|snapshot_id
+  // _dd.ld.code_origin.frames.%d.file|line|method|type|snapshot_id
   public static final String DD_STACK_CODE_ORIGIN_FRAME =
-      DD_STACK_CODE_ORIGIN_PREFIX + "frame.%d.%s";
-
-  public static final String DD_CODE_ORIGIN_FILE = DD_LD_PREFIX + "code_origin.file";
-  public static final String DD_CODE_ORIGIN_METHOD = DD_LD_PREFIX + "code_origin.method";
-  public static final String DD_CODE_ORIGIN_METHOD_SIGNATURE =
-      DD_LD_PREFIX + "code_origin.signature";
-  public static final String DD_CODE_ORIGIN_LINE = DD_LD_PREFIX + "code_origin.line";
-  public static final String DD_CODE_ORIGIN_SNAPSHOT_ID = DD_LD_PREFIX + "code_origin.snapshot_id";
-  public static final String DD_CODE_ORIGIN_TYPE = DD_LD_PREFIX + "code_origin.type";
+      DD_STACK_CODE_ORIGIN_PREFIX + "frames.%d.%s";
 
   public static final String SPAN_TYPE = "span.type";
   public static final String SERVICE_NAME = "service.name";
@@ -64,6 +56,7 @@ public class DDTags {
   public static final String LANGUAGE_TAG_VALUE = "jvm";
   public static final String ORIGIN_KEY = "_dd.origin";
   public static final String SPAN_LINKS = "_dd.span_links";
+  public static final String SPAN_EVENTS = "events";
   public static final String LIBRARY_VERSION_TAG_KEY = "library_version";
   public static final String CI_ENV_VARS = "_dd.ci.env_vars";
   public static final String CI_ITR_TESTS_SKIPPED = "_dd.ci.itr.tests_skipped";
@@ -74,6 +67,7 @@ public class DDTags {
   public static final String PEER_SERVICE_REMAPPED_FROM = "_dd.peer.service.remapped_from";
   public static final String INTERNAL_GIT_REPOSITORY_URL = "_dd.git.repository_url";
   public static final String INTERNAL_GIT_COMMIT_SHA = "_dd.git.commit.sha";
+  public static final String HOST_VCPU_COUNT = "_dd.host.vcpu_count";
 
   public static final String PROFILING_ENABLED = "_dd.profiling.enabled";
   public static final String DSM_ENABLED = "_dd.dsm.enabled";

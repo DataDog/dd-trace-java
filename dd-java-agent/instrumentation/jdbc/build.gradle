@@ -38,7 +38,7 @@ dependencies {
 
   testImplementation group: 'org.testcontainers', name:'mysql', version: libs.versions.testcontainers.get()
   testImplementation group: 'org.testcontainers', name:'postgresql', version: libs.versions.testcontainers.get()
-  testImplementation group: 'org.testcontainers', name:'mssqlserver', version: '1.19.8'
+  testImplementation group: 'org.testcontainers', name:'mssqlserver', version: libs.versions.testcontainers.get()
 
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
 

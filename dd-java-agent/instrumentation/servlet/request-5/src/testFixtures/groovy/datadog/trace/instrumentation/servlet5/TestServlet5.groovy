@@ -23,6 +23,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SESSION_ID
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_BLOCK
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.forPath
@@ -96,6 +97,11 @@ class TestServlet5 extends HttpServlet {
           throw new Exception(endpoint.body)
         case CUSTOM_EXCEPTION:
           throw new InputMismatchException(endpoint.body)
+        case SESSION_ID:
+          def session = req.getSession(true)
+          resp.status = endpoint.status
+          resp.writer.print(session.id)
+          break
         default:
           resp.status = NOT_FOUND.status
           resp.writer.print(NOT_FOUND.body)

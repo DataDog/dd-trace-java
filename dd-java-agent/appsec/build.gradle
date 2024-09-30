@@ -15,7 +15,7 @@ dependencies {
   implementation project(':internal-api')
   implementation project(':communication')
   implementation project(':telemetry')
-  implementation group: 'io.sqreen', name: 'libsqreen', version: '11.0.0'
+  implementation group: 'io.sqreen', name: 'libsqreen', version: '11.0.1'
   implementation libs.moshi
 
   testImplementation libs.bytebuddy
@@ -60,29 +60,6 @@ jmh {
 }
 jmhJar {
   exclude 'org/slf4j/impl/**/*'
-}
-
-
-task runSampleApp(type: GradleBuild, dependsOn: ':dd-java-agent:shadowJar') {
-  description = "Run AppSec sample app with instrumentation"
-  group = 'application'
-
-  def agentShadowJar = project(':dd-java-agent').tasks['shadowJar']
-
-  def jvmArgs = '-Ddd.appsec.enabled=true'
-  if (project.hasProperty('jvmArgs')) {
-    jvmArgs += " ${project.'jvmArgs'}"
-  }
-
-  doFirst {
-    startParameter = startParameter.newInstance()
-    startParameter.projectProperties = [
-      testExecutable: System.getenv('TEST_EXECUTABLE') ?: '',
-      jvmArgs       : "-javaagent:${agentShadowJar.archiveFile.get().asFile} $jvmArgs",
-      debugJvm      : project.hasProperty('debugJvm') ? project.debugJvm : 'false',
-    ]
-  }
-  tasks = ['weblog:weblog-spring-app:bootRun']
 }
 
 ext {

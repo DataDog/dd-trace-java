@@ -98,6 +98,7 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
         new BuildModuleSettings(
             getPropertiesPropagatedToChildProcess(
                 moduleName,
+                startCommand,
                 classpath,
                 jacocoAgent,
                 signalServerAddress,
@@ -109,6 +110,7 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
 
   private Map<String, String> getPropertiesPropagatedToChildProcess(
       String moduleName,
+      String startCommand,
       @Nullable Collection<Path> classpath,
       @Nullable JavaAgent jacocoAgent,
       InetSocketAddress signalServerAddress,
@@ -172,6 +174,9 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
     propagatedSystemProperties.put(
         Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_MODULE_NAME),
         moduleName);
+    propagatedSystemProperties.put(
+        Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_TEST_COMMAND),
+        startCommand);
 
     propagatedSystemProperties.put(
         Strings.propertyNameToSystemPropertyName(
