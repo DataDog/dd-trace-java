@@ -971,7 +971,7 @@ class ConfigTest extends DDSpecification {
     def prop = new Properties()
     prop.setProperty(HTTP_CLIENT_ERROR_STATUSES, "111")
     prop.setProperty(TRACE_HTTP_CLIENT_ERROR_STATUSES, "123")
-    
+
     when:
     Config config = Config.get(prop)
 
