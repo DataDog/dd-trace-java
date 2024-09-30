@@ -1,5 +1,6 @@
 package datadog.smoketest.appsec.springboot.controller;
 
+import datadog.smoketest.appsec.springboot.service.AsyncService;
 import java.io.File;
 import java.net.URL;
 import java.nio.file.Paths;
@@ -7,6 +8,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,6 +22,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 public class WebController {
+
+  @Autowired private AsyncService myAsyncService;
+
   @RequestMapping("/greeting")
   public String greeting() {
     return "Sup AppSec Dawg";
@@ -43,6 +48,12 @@ public class WebController {
   public String sqliQuery(@RequestParam("id") String id) throws Exception {
     Connection conn = DriverManager.getConnection("jdbc:h2:mem:testdb", "sa", "");
     conn.createStatement().execute("SELECT 1 FROM DUAL WHERE '1' = '" + id + "'");
+    return "EXECUTED";
+  }
+
+  @GetMapping("parallel/sqli/query")
+  public String sqliQueryParallel(@RequestParam("id") String id) {
+    myAsyncService.performAsyncTask(id);
     return "EXECUTED";
   }
 
