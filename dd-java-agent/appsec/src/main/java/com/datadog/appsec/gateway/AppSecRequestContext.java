@@ -124,6 +124,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private volatile boolean blocked;
   private volatile int timeouts;
 
+  // keep a reference to the last published usr.id
+  private volatile String userId;
+
   private static final AtomicIntegerFieldUpdater<AppSecRequestContext> TIMEOUTS_UPDATER =
       AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "timeouts");
 
@@ -421,6 +424,14 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public void setRespDataPublished(boolean respDataPublished) {
     this.respDataPublished = respDataPublished;
+  }
+
+  public String getUserId() {
+    return userId;
+  }
+
+  public void setUserId(String userId) {
+    this.userId = userId;
   }
 
   @Override

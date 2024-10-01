@@ -315,6 +315,7 @@ class SpringBootBasedTest extends AppSecHttpServerTest<ConfigurableApplicationCo
 
   void 'test multiple user ids do not cause warn messages'() {
     setup:
+    def logMessagePrefix = 'Attempt to replace'
     def client = clientBuilder().cookieJar(cookieJar()).followRedirects(false).build()
     def formBody = new FormBody.Builder()
       .add('username', 'admin')
@@ -324,14 +325,24 @@ class SpringBootBasedTest extends AppSecHttpServerTest<ConfigurableApplicationCo
     def loginResponse = client.newCall(loginRequest).execute()
     assert loginResponse.code() == LOGIN.status
 
-    when:
+    when: 'sdk with different user'
     def sdkBody = new FormBody.Builder().add("sdkUser", "sdkUser").build()
     def sdkRequest = request(SDK, 'POST', sdkBody).build()
     client.newCall(sdkRequest).execute()
 
     then:
     1 * reqCtxLogAppender.doAppend({ LoggingEvent event ->
-      event.level.levelInt == Level.DEBUG_INT && event.message.startsWith('Attempt to replace')
+      event.level.levelInt == Level.DEBUG_INT && event.message.startsWith(logMessagePrefix)
+    })
+
+    when: 'sdk with same user'
+    sdkBody = new FormBody.Builder().add("sdkUser", "admin").build()
+    sdkRequest = request(SDK, 'POST', sdkBody).build()
+    client.newCall(sdkRequest).execute()
+
+    then:
+    0 * reqCtxLogAppender.doAppend({ LoggingEvent event ->
+      event.message.startsWith(logMessagePrefix)
     })
   }
 }
