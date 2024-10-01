@@ -10,6 +10,7 @@ import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.config.GeneralConfig
+import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.elasticmq.rest.sqs.SQSRestServerBuilder
@@ -18,7 +19,6 @@ import spock.lang.Shared
 import javax.jms.Session
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
-import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_HTTP_CLIENT_TAG_QUERY_STRING
 
 class LegacySqsClientForkedTest extends AgentTestRunner {
 
@@ -31,7 +31,7 @@ class LegacySqsClientForkedTest extends AgentTestRunner {
   void configurePreAgent() {
     super.configurePreAgent()
     injectSysConfig("aws-sdk.legacy.tracing.enabled", "true")
-    injectSysConfig(TRACE_HTTP_CLIENT_TAG_QUERY_STRING, "false")
+    injectSysConfig(TraceInstrumentationConfig.TRACE_HTTP_CLIENT_TAG_QUERY_STRING, "false")
     // Set a service name that gets sorted early with SORT_BY_NAMES
     injectSysConfig(GeneralConfig.SERVICE_NAME, "A")
   }
