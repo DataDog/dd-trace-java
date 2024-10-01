@@ -29,6 +29,7 @@ import spock.lang.Shared
 import javax.jms.Session
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_HTTP_CLIENT_TAG_QUERY_STRING
 import static java.nio.charset.StandardCharsets.UTF_8
 
 abstract class SqsClientTest extends VersionedNamingTestBase {
@@ -85,6 +86,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
 
   def "trace details propagated via SQS system message attributes"() {
     setup:
+    injectSysConfig(TRACE_HTTP_CLIENT_TAG_QUERY_STRING, "false")
     def client = SqsClient.builder()
       .region(Region.EU_CENTRAL_1)
       .endpointOverride(endpoint)
@@ -286,6 +288,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
   @IgnoreIf({instance.isDataStreamsEnabled()})
   def "trace details propagated from SQS to JMS"() {
     setup:
+    injectSysConfig(TRACE_HTTP_CLIENT_TAG_QUERY_STRING, "false")
     def client = SqsClient.builder()
       .region(Region.EU_CENTRAL_1)
       .endpointOverride(endpoint)

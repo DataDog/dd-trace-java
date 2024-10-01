@@ -804,7 +804,7 @@ public class Config {
 
     httpClientTagQueryString =
         configProvider.getBoolean(
-            "trace." + HTTP_CLIENT_TAG_QUERY_STRING,
+            TRACE_HTTP_CLIENT_TAG_QUERY_STRING,
             DEFAULT_HTTP_CLIENT_TAG_QUERY_STRING,
             HTTP_CLIENT_TAG_QUERY_STRING);
 

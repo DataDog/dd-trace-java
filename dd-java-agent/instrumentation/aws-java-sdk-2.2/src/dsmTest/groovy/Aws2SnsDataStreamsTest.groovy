@@ -32,6 +32,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_HTTP_CLIENT_TAG_QUERY_STRING
 
 abstract class Aws2SnsDataStreamsTest extends VersionedNamingTestBase {
 
@@ -107,6 +108,7 @@ abstract class Aws2SnsDataStreamsTest extends VersionedNamingTestBase {
   @Unroll
   def "send #operation request with builder #builder.class.getSimpleName() mocked response"() {
     setup:
+    injectSysConfig(TRACE_HTTP_CLIENT_TAG_QUERY_STRING, "false")
     def conditions = new PollingConditions(timeout: 1)
     boolean executed = false
     def client = builder
@@ -208,6 +210,7 @@ abstract class Aws2SnsDataStreamsTest extends VersionedNamingTestBase {
 
   def "send #operation async request with builder #builder.class.getSimpleName() mocked response"() {
     setup:
+    injectSysConfig(TRACE_HTTP_CLIENT_TAG_QUERY_STRING, "false")
     def conditions = new PollingConditions(timeout: 1)
     boolean executed = false
     def client = builder
