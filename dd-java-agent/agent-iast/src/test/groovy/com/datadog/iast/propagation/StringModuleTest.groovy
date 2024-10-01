@@ -984,6 +984,37 @@ class StringModuleTest extends IastModuleImplTestBase {
     '==>testing<== the ==>test<==' | ' '    | ['==>testing<==', '==>the<==', '==>test<=='] as String[]
   }
 
+  void 'test indent and make sure IastRequestContext is called'() {
+    given:
+    final taintedObjects = ctx.getTaintedObjects()
+    def self = addFromTaintFormat(taintedObjects, testString)
+    objectHolder.add(self)
+
+    and:
+    final result = getStringFromTaintFormat(expected)
+    objectHolder.add(expected)
+    final shouldBeTainted = fromTaintFormat(expected) != null
+
+    when:
+    module.onIndent(self, indentation, result)
+
+    then:
+    1 * tracer.activeSpan() >> span
+    def to = ctx.getTaintedObjects().get(result)
+    if (shouldBeTainted) {
+      assert to != null
+      assert to.get() == result
+      assert taintFormat(to.get() as String, to.getRanges()) == expected
+    } else {
+      assert to == null
+    }
+    where:
+    indentation | testString                                                      | expected
+    4           | "==>123<==\n12==>3<=="                                          | "    ==>123<==\n    12==>3<=="
+    0           | "==>123<==\r\n==>123<=="                                        | "==>123<==\n==>123<=="
+    -4          | "    ==>123<==\n    12==>3<=="                                  | "==>123<==\n12==>3<=="
+  }
+
   private static Date date(final String pattern, final String value) {
     return new SimpleDateFormat(pattern).parse(value)
   }

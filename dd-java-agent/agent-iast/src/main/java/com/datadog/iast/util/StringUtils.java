@@ -38,4 +38,14 @@ public abstract class StringUtils {
     }
     return start >= end ? "" : value.substring(start, end);
   }
+
+  /** Returns how many whitespaces are at the beginning of the string. */
+  @Nonnull
+  public static String substringTrimStart(@Nonnull final String value) {
+    int start = 0;
+    while (start < value.length() && Character.isWhitespace(value.charAt(start))) {
+      start++;
+    }
+    return value.substring(start);
+  }
 }

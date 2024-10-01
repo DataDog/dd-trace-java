@@ -8,6 +8,7 @@ import com.datadog.iast.model.Source;
 import com.datadog.iast.util.HttpHeader;
 import com.datadog.iast.util.RangeBuilder;
 import com.datadog.iast.util.Ranged;
+import com.datadog.iast.util.StringUtils;
 import datadog.trace.api.iast.SourceTypes;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -303,5 +304,120 @@ public final class Ranges {
 
   public static Range copyWithPosition(final Range range, final int offset, final int length) {
     return new Range(offset, length, range.getSource(), range.getMarks());
+  }
+
+  /** Returns a new array of ranges with the indentation applied to each line */
+  public static Range[] forIndentation(
+      String input, int indentation, final @Nonnull Range[] ranges) {
+    final Range[] newRanges = new Range[ranges.length];
+    int delimitersCount = 0;
+    int offset = 0;
+    int currentIndex = 0;
+    int totalWhiteSpaces = 0;
+    while (currentIndex < input.length() - 1) {
+      final int[] delimiterIndex =
+          getNextDelimiterIndex(input.substring(currentIndex), currentIndex + 1);
+      final int lineOffset = delimiterIndex[1] == 2 ? 1 : 0;
+      final String line = input.substring(currentIndex, delimiterIndex[0]);
+      int currentIndentation;
+      // In case indentation is negative we need to check if it will take more than the first
+      // non-white space character
+      if (indentation < 0) {
+        final int whiteSpaces = line.length() - StringUtils.substringTrimStart(line).length();
+        currentIndentation = Math.max(indentation, -whiteSpaces) - totalWhiteSpaces;
+        totalWhiteSpaces += whiteSpaces;
+      } else {
+        currentIndentation = indentation * ++delimitersCount;
+      }
+      updateRangesWithIndentation(
+          line,
+          currentIndex,
+          delimiterIndex[0] - 1,
+          currentIndentation,
+          ranges,
+          newRanges,
+          offset,
+          lineOffset);
+      offset += lineOffset;
+      currentIndex = delimiterIndex[0];
+    }
+
+    return newRanges;
+  }
+
+  /**
+   * Returns two numbers in an array:
+   *
+   * <p>1. The index of the next delimiter (his last character)
+   *
+   * <p>2. The length of the delimiter ({@code 1} or {@code 2})
+   *
+   * <p>In case there is no delimiter, it will return the last index of the string and {@code 1}
+   *
+   * <p>{@code offset} is to take into account the previous lines
+   */
+  private static int[] getNextDelimiterIndex(@Nonnull final String substring, final int offset) {
+    for (int i = 0; i < substring.length(); i++) {
+      final char c = substring.charAt(i);
+      if (c == '\n') {
+        return new int[] {i + offset, 1};
+      } else if (c == '\r') {
+        if (i + 1 < substring.length() && substring.charAt(i + 1) == '\n') {
+          return new int[] {i + 1 + offset, 2};
+        }
+        return new int[] {i + offset, 1};
+      }
+    }
+
+    return new int[] {substring.length() - 1 + offset, 1};
+  }
+
+  /**
+   * Updates the {@code newRanges} array between the {@code start} index and the {@code end} index
+   * and taking into account the {@code indentation}
+   *
+   * <p>The {@code ranges} is the current ranges array
+   *
+   * <p>The {@code line} is the current line being processed
+   *
+   * <p>The {@code offset} is to take into account the normalization of the indent method
+   *
+   * <p>The {@code lineOffset} is to know if the line is being normalized
+   */
+  private static void updateRangesWithIndentation(
+      final @Nonnull String line,
+      int start,
+      int end,
+      int indentation,
+      final @Nonnull Range[] ranges,
+      final @Nonnull Range[] newRanges,
+      int offset,
+      int lineOffset) {
+    int i = 0;
+    while (i < ranges.length && ranges[i].getStart() <= end) {
+      Range range = ranges[i];
+      if (range.getStart() >= start) {
+        final int newStart = range.getStart() + indentation - offset;
+        int newLength = range.getLength();
+        if (range.getStart() + range.getLength() > end) {
+          newLength -= lineOffset;
+        }
+        newRanges[i] = new Range(newStart, newLength, range.getSource(), range.getMarks());
+      }
+      // TODO - REVIEW FOR CASES WHERE THERE IS A RANGE BETWEEN MULTIPLE LINES
+//      if (range.getStart() + range.getLength() >= start) {
+//        // In case indentation is negative we need to check if it will take more than the first
+//        // non-white space character
+//        if (indentation < 0) {
+//          final int whiteSpaces = StringUtils.substringTrimStart(line).length();
+//          final int lengthOfRange = range.getStart() + range.getLength() - start;
+//          indentation = Math.min(lengthOfRange, whiteSpaces);
+//        }
+//        final int newLength = range.getLength() + indentation;
+//        newRanges[i] = new Range(range.getStart(), newLength, range.getSource(), range.getMarks());
+//      }
+
+      i++;
+    }
   }
 }
