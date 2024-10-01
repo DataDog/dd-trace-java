@@ -18,7 +18,6 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.reactive.PublisherState;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -53,8 +52,8 @@ public class PublisherInstrumentation extends InstrumenterModule.Tracing
   @Override
   public Map<String, String> contextStore() {
     final Map<String, String> ret = new HashMap<>();
-    ret.put("org.reactivestreams.Subscriber", PublisherState.class.getName());
-    ret.put("org.reactivestreams.Publisher", PublisherState.class.getName());
+    ret.put("org.reactivestreams.Subscriber", AgentSpan.class.getName());
+    ret.put("org.reactivestreams.Publisher", AgentSpan.class.getName());
     return ret;
   }
 
@@ -62,6 +61,9 @@ public class PublisherInstrumentation extends InstrumenterModule.Tracing
   public String[] helperClassNames() {
     return new String[] {
       this.packageName + ".ReactiveStreamsAsyncResultSupportExtension",
+      this.packageName + ".ReactiveStreamsAsyncResultSupportExtension$WrappedPublisher",
+      this.packageName + ".ReactiveStreamsAsyncResultSupportExtension$WrappedSubscriber",
+      this.packageName + ".ReactiveStreamsAsyncResultSupportExtension$WrappedSubscription",
     };
   }
 
@@ -80,8 +82,7 @@ public class PublisherInstrumentation extends InstrumenterModule.Tracing
   public static class PublisherAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void init() {
-      ReactiveStreamsAsyncResultSupportExtension.initialize(
-          InstrumentationContext.get(Publisher.class, PublisherState.class));
+      ReactiveStreamsAsyncResultSupportExtension.initialize();
     }
   }
 
@@ -89,23 +90,19 @@ public class PublisherInstrumentation extends InstrumenterModule.Tracing
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onSubscribe(
         @Advice.This final Publisher self, @Advice.Argument(value = 0) final Subscriber s) {
-      PublisherState publisherState =
-          InstrumentationContext.get(Publisher.class, PublisherState.class).get(self);
-      if (publisherState == null) {
-        publisherState = new PublisherState();
-      }
-      AgentSpan span = publisherState.getSubscriptionSpan();
-      PublisherState subscriberState =
-          InstrumentationContext.get(Subscriber.class, PublisherState.class)
-              .putIfAbsent(s, PublisherState::new);
-      subscriberState.getPartnerSpans().addAll(publisherState.getPartnerSpans());
 
-      if (span != null) {
-        subscriberState.withSubscriptionSpan(span);
-        if (span != activeSpan()) {
-          return activateSpan(span);
-        }
+      final AgentSpan span = InstrumentationContext.get(Publisher.class, AgentSpan.class).get(self);
+      final AgentSpan activeSpan = activeSpan();
+      if (span == null && activeSpan == null) {
+        return null;
       }
+      final AgentSpan current =
+          InstrumentationContext.get(Subscriber.class, AgentSpan.class)
+              .putIfAbsent(s, span != null ? span : activeSpan);
+      if (current != null && current != activeSpan()) {
+        return activateSpan(current);
+      }
+
       return null;
     }
 

@@ -39,7 +39,7 @@ public final class TraceWebClientSubscriber implements CoreSubscriber<ClientResp
 
   @Override
   public void onNext(final ClientResponse response) {
-    try {
+    try (final AgentScope scope = activateSpan(parent)) {
       actual.onNext(response);
     } finally {
       DECORATE.onResponse(span, response);
@@ -50,7 +50,7 @@ public final class TraceWebClientSubscriber implements CoreSubscriber<ClientResp
 
   @Override
   public void onError(final Throwable t) {
-    try {
+    try (final AgentScope scope = activateSpan(parent)) {
       actual.onError(t);
     } finally {
       DECORATE.onError(span, t);
@@ -61,7 +61,10 @@ public final class TraceWebClientSubscriber implements CoreSubscriber<ClientResp
 
   @Override
   public void onComplete() {
-    actual.onComplete();
+
+    try (final AgentScope scope = activateSpan(parent)) {
+      actual.onComplete();
+    }
   }
 
   public void onCancel() {

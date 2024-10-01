@@ -3,7 +3,10 @@ package datadog.trace.instrumentation.springwebflux.server;
 import static datadog.trace.instrumentation.springwebflux.server.SpringWebfluxHttpServerDecorator.DECORATE;
 
 import datadog.trace.api.GenericClassValue;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import java.util.function.Consumer;
+import reactor.core.publisher.SignalType;
 
 public final class AdviceUtils {
 
@@ -26,5 +29,22 @@ public final class AdviceUtils {
 
   public static CharSequence constructOperationName(Object handler) {
     return NAMES.get(handler.getClass());
+  }
+
+  public static class MonoSpanFinisher implements Consumer<Object> {
+    private final AgentSpan span;
+
+    public MonoSpanFinisher(AgentSpan span) {
+      this.span = span;
+    }
+
+    @Override
+    public void accept(Object o) {
+      if (o instanceof Throwable) {
+        span.addThrowable((Throwable) o);
+      } else if (o instanceof SignalType && span.phasedFinish()) {
+        span.publish();
+      }
+    }
   }
 }

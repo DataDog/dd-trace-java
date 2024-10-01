@@ -8,7 +8,6 @@ import static datadog.trace.instrumentation.springwebflux.server.SpringWebfluxHt
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.reactive.PublisherState;
 import net.bytebuddy.asm.Advice;
 import org.reactivestreams.Publisher;
 import org.springframework.http.HttpMethod;
@@ -73,9 +72,7 @@ public class HandlerAdapterAdvice {
       if (throwable != null) {
         DECORATE.onError(scope, throwable);
       } else if (mono != null) {
-        InstrumentationContext.get(Publisher.class, PublisherState.class)
-            .putIfAbsent(mono, PublisherState::new)
-            .withSubscriptionSpan(scope.span());
+        InstrumentationContext.get(Publisher.class, AgentSpan.class).put(mono, scope.span());
       }
       scope.close();
       // span finished in SpanFinishingSubscriber

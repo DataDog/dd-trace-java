@@ -4,6 +4,8 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.ha
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
@@ -12,7 +14,6 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.reactive.PublisherState;
 import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -40,14 +41,14 @@ public class BlockingPublisherInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(isConstructor(), getClass().getName() + "$AsyncExtensionInstallAdvice");
     transformer.applyAdvice(
         isMethod().and(nameStartsWith("block")), getClass().getName() + "$BlockingAdvice");
   }
 
   @Override
   public Map<String, String> contextStore() {
-    return Collections.singletonMap(
-        "org.reactivestreams.Publisher", PublisherState.class.getName());
+    return Collections.singletonMap("org.reactivestreams.Publisher", AgentSpan.class.getName());
   }
 
   @Override
@@ -62,34 +63,27 @@ public class BlockingPublisherInstrumentation extends InstrumenterModule.Tracing
 
   public static class BlockingAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope before(
-        @Advice.This final Publisher self,
-        @Advice.Local("publisherState") PublisherState publisherState) {
-      publisherState =
-          InstrumentationContext.get(Publisher.class, PublisherState.class).remove(self);
-      if (publisherState == null || publisherState.getSubscriptionSpan() == null) {
+    public static AgentScope before(@Advice.This final Publisher self) {
+      final AgentSpan span = InstrumentationContext.get(Publisher.class, AgentSpan.class).get(self);
+      if (span == null || span == activeSpan()) {
         return null;
       }
-      return activateSpan(publisherState.getSubscriptionSpan());
+      return activateSpan(span);
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     public static void after(
-        @Advice.Enter final AgentScope scope,
-        @Advice.Local("publisherState") final PublisherState state,
-        @Advice.Thrown Throwable throwable) {
+        @Advice.Enter final AgentScope scope, @Advice.Thrown Throwable throwable) {
       if (scope != null) {
         scope.close();
       }
-      if (state == null || state.getPartnerSpans().isEmpty()) {
-        return;
-      }
-      for (AgentSpan span : state.getPartnerSpans()) {
-        if (throwable != null) {
-          span.addThrowable(throwable);
-        }
-        span.finish();
-      }
+    }
+  }
+
+  public static class AsyncExtensionInstallAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void init() {
+      ReactorAsyncResultSupportExtension.initialize();
     }
   }
 }

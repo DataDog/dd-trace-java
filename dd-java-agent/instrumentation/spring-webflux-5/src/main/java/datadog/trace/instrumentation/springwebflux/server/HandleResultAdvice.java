@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.springwebflux.server;
 
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.reactive.PublisherState;
 import net.bytebuddy.asm.Advice;
 import org.reactivestreams.Publisher;
 import org.springframework.web.server.ServerWebExchange;
@@ -15,9 +14,7 @@ public class HandleResultAdvice {
       @Advice.Return(readOnly = false) Mono<Void> mono) {
     final AgentSpan span = exchange.getAttribute(AdviceUtils.SPAN_ATTRIBUTE);
     if (span != null && mono != null) {
-      InstrumentationContext.get(Publisher.class, PublisherState.class)
-          .putIfAbsent(mono, PublisherState::new)
-          .withSubscriptionSpan(span);
+      InstrumentationContext.get(Publisher.class, AgentSpan.class).put(mono, span);
     }
   }
 }

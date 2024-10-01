@@ -12,10 +12,7 @@ import dd.trace.instrumentation.springwebflux.server.FooModel
 import dd.trace.instrumentation.springwebflux.server.SpringWebFluxTestApplication
 import dd.trace.instrumentation.springwebflux.server.TestController
 import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.boot.test.context.TestConfiguration
 import org.springframework.boot.test.web.server.LocalServerPort
-import org.springframework.boot.web.embedded.netty.NettyReactiveWebServerFactory
-import org.springframework.context.annotation.Bean
 import org.springframework.http.client.reactive.ReactorClientHttpConnector
 import org.springframework.web.reactive.function.BodyExtractors
 import org.springframework.web.reactive.function.BodyInserters
@@ -276,7 +273,7 @@ class SpringWebfluxHttp11Test extends AgentTestRunner {
         }
         span {
           operationName "trace.annotation"
-          childOfPrevious()
+          childOf span(annotatedMethod ? 0 : 1)
           errored false
         }
       }
@@ -506,21 +503,22 @@ class SpringWebfluxHttp11Test extends AgentTestRunner {
 
     then:
     response.statusCode().value() == 200
-    assertTraces(4) {
+    assertTraces(4, SORT_TRACES_BY_START) {
       def traceParent1, traceParent2
 
       trace(2) {
         sortSpansByStart()
         clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url), 307)
-        traceParent1 = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url), 307)
+        traceParent1 =  clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url), 307)
       }
+
       trace(2) {
         sortSpansByStart()
         span {
           resourceName "GET /double-greet-redirect"
           operationName "netty.request"
           spanType DDSpanTypes.HTTP_SERVER
-          childOf(traceParent1)
+          childOf traceParent1
           tags {
             "$Tags.COMPONENT" "netty"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -556,7 +554,7 @@ class SpringWebfluxHttp11Test extends AgentTestRunner {
       trace(2) {
         sortSpansByStart()
         clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(finalUrl))
-        traceParent2 = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(finalUrl))
+        traceParent2 =  clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(finalUrl))
       }
       trace(2) {
         sortSpansByStart()
@@ -564,7 +562,7 @@ class SpringWebfluxHttp11Test extends AgentTestRunner {
           resourceName "GET /double-greet"
           operationName "netty.request"
           spanType DDSpanTypes.HTTP_SERVER
-          childOf(traceParent2)
+          childOf traceParent2
           tags {
             "$Tags.COMPONENT" "netty"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER

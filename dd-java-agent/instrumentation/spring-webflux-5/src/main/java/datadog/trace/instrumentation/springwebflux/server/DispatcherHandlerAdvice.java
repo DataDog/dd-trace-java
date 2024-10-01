@@ -9,7 +9,7 @@ import static datadog.trace.instrumentation.springwebflux.server.SpringWebfluxHt
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.reactive.PublisherState;
+import java.util.function.Consumer;
 import net.bytebuddy.asm.Advice;
 import org.reactivestreams.Publisher;
 import org.springframework.web.server.ServerWebExchange;
@@ -47,12 +47,12 @@ public class DispatcherHandlerAdvice {
       @Advice.Argument(0) final ServerWebExchange exchange,
       @Advice.Return(readOnly = false) Mono<Void> mono) {
     if (throwable == null && mono != null) {
-      InstrumentationContext.get(Publisher.class, PublisherState.class)
-          .putIfAbsent(mono, PublisherState::new)
-          .withPartnerSpan(scope.span())
-          .withSubscriptionSpan(scope.span());
+      final AgentSpan span = scope.span();
+      final Consumer finisher = new AdviceUtils.MonoSpanFinisher(span);
+      mono = mono.doOnError(finisher).doFinally(finisher);
+      InstrumentationContext.get(Publisher.class, AgentSpan.class).put(mono, span);
     }
     scope.close();
-    // span finished in SpanFinishingSubscriber
+    // span finished in MonoSpanFinisher
   }
 }

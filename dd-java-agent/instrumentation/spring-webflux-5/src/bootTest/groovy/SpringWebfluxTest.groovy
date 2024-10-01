@@ -506,7 +506,7 @@ class SpringWebfluxTest extends AgentTestRunner {
 
     then:
     response.statusCode().value() == 200
-    assertTraces(4, ) {
+    assertTraces(4, SORT_TRACES_BY_START) {
       def traceParent1, traceParent2
 
       trace(2) {
