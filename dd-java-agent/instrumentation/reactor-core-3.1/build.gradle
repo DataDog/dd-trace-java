@@ -3,7 +3,7 @@ muzzle {
   pass {
     group = "io.projectreactor"
     module = "reactor-core"
-    versions = "[3.0.0.RELEASE,)"
+    versions = "[3.1.0.RELEASE,)"
   }
 }
 
@@ -12,13 +12,13 @@ apply from: "$rootDir/gradle/java.gradle"
 addTestSuite('latestDepTest')
 
 dependencies {
-  compileOnly group: 'io.projectreactor', name: 'reactor-core', version: '3.0.0.RELEASE'
+  compileOnly group: 'io.projectreactor', name: 'reactor-core', version: '3.1.0.RELEASE'
 
   testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
   testImplementation project(':dd-java-agent:instrumentation:reactive-streams')
   testImplementation project(':dd-java-agent:instrumentation:opentelemetry:opentelemetry-annotations-1.20')
 
-  testImplementation group: 'io.projectreactor', name: 'reactor-core', version: '3.0.0.RELEASE'
+  testImplementation group: 'io.projectreactor', name: 'reactor-core', version: '3.1.0.RELEASE'
   testImplementation group: 'io.opentelemetry.instrumentation', name: 'opentelemetry-instrumentation-annotations', version: '1.28.0'
 
   latestDepTestImplementation group: 'io.projectreactor', name: 'reactor-core', version: '+'
