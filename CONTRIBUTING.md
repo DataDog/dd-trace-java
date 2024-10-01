@@ -4,13 +4,8 @@
 
 Pull requests for bug fixes are welcome, but before submitting new features or changes to current
 functionality, please [open an issue](https://github.com/DataDog/dd-trace-java/issues/new)
-and discuss your ideas or propose the changes you wish to make first. After a resolution is reached a PR can be
-submitted for
-review.
-
-When opening a pull request, please open it as
-a [draft](https://github.blog/2019-02-14-introducing-draft-pull-requests/) to not auto assign reviewers before you feel
-the pull request is in a reviewable state.
+and discuss your ideas or propose the changes you wish to make first. After a resolution is reached a [PR can be
+submitted](#pull-request-guidelines) for review.
 
 ## Adding instrumentations
 
@@ -91,6 +86,10 @@ command line should be Java 8.
 
 ## Pull Request Guidelines
 
+### Draft first
+
+When opening a pull request, please open it as a [draft](https://github.blog/2019-02-14-introducing-draft-pull-requests/) to not auto assign reviewers before you feel the pull request is in a reviewable state.
+
 ### Title Format
 
 Pull request titles should briefly describe the proposed changes in a way that makes sense for the users.
@@ -133,3 +132,17 @@ Labels are not only used to categorize but also alter the continuous integration
 >[!NOTE]
 > For reference, the [full list of all labels available](https://github.com/DataDog/dd-trace-java/labels).
 > If you feel one is missing, let [the maintainer team](https://github.com/orgs/DataDog/teams/apm-java) know!
+
+## Pull Request Reviews
+
+### Review Expectations
+
+After making you pull request ready for review by converting it from draft, you can expect getting an initial review comment within two working days, and a full review within a week of work.
+If you don't receive any update, feel free to send a nice reminder to the assigned reviewers using pull request comments or our internal Slack channel.
+
+### Stale Pull Requests
+
+A pull request is considered "stale" if it has had no activity (comments, updates) for the last quarter.
+Stale PRs will be commented and labelled as such (using the `tag: stale` label), then closed if they still receive no update for a week after.
+
+Closed PRs can be reopened at any time, but may be closed again if they ever meet the same stale conditions.
