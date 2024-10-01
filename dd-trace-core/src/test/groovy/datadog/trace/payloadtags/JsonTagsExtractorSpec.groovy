@@ -4,10 +4,10 @@ import com.squareup.moshi.JsonWriter
 import okio.Buffer
 import spock.lang.Specification
 
-class JsonTagsCollectorSpec extends Specification {
+class JsonTagsExtractorSpec extends Specification {
 
   def "expand, redact, traverse"() {
-    JsonTagsCollector jsonTagsCollector = new JsonTagsCollector.Builder()
+    JsonTagsExtractor jsonTagsExtractor = new JsonTagsExtractor.Builder()
       .addRedactionRules(['$.MessageAttributes.*.StringValue'])
       .addRedactionRules(['$.Message.password'])
       .build()
@@ -24,7 +24,7 @@ class JsonTagsCollectorSpec extends Specification {
         }"""
 
     expect:
-    collectTags(jsonTagsCollector, json, "dd") == [
+    extractTags(jsonTagsExtractor, json, "dd") == [
       "dd.Message.a"                           : "1.15",
       "dd.Message.password"                    : "redacted",
       "dd.MessageAttributes.baz.DataType"      : "String",
@@ -37,7 +37,7 @@ class JsonTagsCollectorSpec extends Specification {
   }
 
   def "traverse primitive values"() {
-    JsonTagsCollector jsonTagsCollector = new JsonTagsCollector.Builder().build()
+    JsonTagsExtractor jsonTagsExtractor = new JsonTagsExtractor.Builder().build()
 
     def json = """{
       "a": 1,
@@ -49,7 +49,7 @@ class JsonTagsCollectorSpec extends Specification {
     }"""
 
     expect:
-    collectTags(jsonTagsCollector, json, "") == [
+    extractTags(jsonTagsExtractor, json, "") == [
       ".a": "1",
       ".b": "2.0",
       ".c": "string",
@@ -60,7 +60,7 @@ class JsonTagsCollectorSpec extends Specification {
   }
 
   def "redact all types of value"() {
-    JsonTagsCollector jsonTagsCollector = new JsonTagsCollector.Builder()
+    JsonTagsExtractor jsonTagsExtractor = new JsonTagsExtractor.Builder()
       .addRedactionRules(['$.*'])
       .build()
 
@@ -76,7 +76,7 @@ class JsonTagsCollectorSpec extends Specification {
     }"""
 
     expect:
-    collectTags(jsonTagsCollector, json, "") == [
+    extractTags(jsonTagsExtractor, json, "") == [
       ".a": "redacted",
       ".b": "redacted",
       ".c": "redacted",
@@ -89,7 +89,7 @@ class JsonTagsCollectorSpec extends Specification {
   }
 
   def "traverse empty types"() {
-    JsonTagsCollector jsonTagsCollector = new JsonTagsCollector.Builder().build()
+    JsonTagsExtractor jsonTagsExtractor = new JsonTagsExtractor.Builder().build()
 
     def json = """{
       "foo": {},
@@ -97,18 +97,18 @@ class JsonTagsCollectorSpec extends Specification {
     }"""
 
     expect:
-    collectTags(jsonTagsCollector, json, "") == [:]
+    extractTags(jsonTagsExtractor, json, "") == [:]
   }
 
   def "traverse nested arrays"() {
-    JsonTagsCollector jsonTagsCollector = new JsonTagsCollector.Builder().build()
+    JsonTagsExtractor jsonTagsExtractor = new JsonTagsExtractor.Builder().build()
 
     def json = """{
       "a": [[ 1 ], [ 2, 3 ]]
     }"""
 
     expect:
-    collectTags(jsonTagsCollector, json, "") == [
+    extractTags(jsonTagsExtractor, json, "") == [
       ".a.0.0": "1",
       ".a.1.0": "2",
       ".a.1.1": "3",
@@ -116,34 +116,34 @@ class JsonTagsCollectorSpec extends Specification {
   }
 
   def "traverse nested objects"() {
-    JsonTagsCollector jsonTagsCollector = new JsonTagsCollector.Builder().build()
+    JsonTagsExtractor jsonTagsExtractor = new JsonTagsExtractor.Builder().build()
 
     def json = """{
       "a": { "b": { "c": { "d": "e" } } }
     }"""
 
     expect:
-    collectTags(jsonTagsCollector, json, "") == [
+    extractTags(jsonTagsExtractor, json, "") == [
       ".a.b.c.d": "e",
     ]
   }
 
   def "traverse nested mixed objects and arrays"() {
-    JsonTagsCollector jsonTagsCollector = new JsonTagsCollector.Builder().build()
+    JsonTagsExtractor jsonTagsExtractor = new JsonTagsExtractor.Builder().build()
 
     def json = """{
       "a": [ "b", { "c": [ { "d": "e"} ] } ]
     }"""
 
     expect:
-    collectTags(jsonTagsCollector, json, "") == [
+    extractTags(jsonTagsExtractor, json, "") == [
       ".a.0"      : "b",
       ".a.1.c.0.d": "e",
     ]
   }
 
   def "skip traversing nested objects and arrays"() {
-    JsonTagsCollector jsonTagsCollector = new JsonTagsCollector.Builder()
+    JsonTagsExtractor jsonTagsExtractor = new JsonTagsExtractor.Builder()
       .addRedactionRules(['$.a[1]', '$.a[2]'])
       .build()
 
@@ -152,7 +152,7 @@ class JsonTagsCollectorSpec extends Specification {
     }"""
 
     expect:
-    collectTags(jsonTagsCollector, json, "") == [
+    extractTags(jsonTagsExtractor, json, "") == [
       ".a.0": "b",
       ".a.1": "redacted",
       ".a.2": "redacted",
@@ -160,7 +160,7 @@ class JsonTagsCollectorSpec extends Specification {
   }
 
   def "limit number of tags including embedded json"() {
-    JsonTagsCollector jsonTagsCollector = new JsonTagsCollector.Builder()
+    JsonTagsExtractor jsonTagsExtractor = new JsonTagsExtractor.Builder()
       .tagsLimit(5)
       .build()
 
@@ -177,7 +177,7 @@ class JsonTagsCollectorSpec extends Specification {
     }"""
 
     expect:
-    collectTags(jsonTagsCollector, json, "") == [
+    extractTags(jsonTagsExtractor, json, "") == [
       ".a.0"                       : "1",
       ".a.1"                       : "2",
       ".b.foo"                     : "3",
@@ -188,7 +188,7 @@ class JsonTagsCollectorSpec extends Specification {
   }
 
   def "limit depth of traversal"() {
-    JsonTagsCollector jsonTagsCollector = new JsonTagsCollector.Builder()
+    JsonTagsExtractor jsonTagsExtractor = new JsonTagsExtractor.Builder()
       .depthLimit(3)
       .build()
 
@@ -207,7 +207,7 @@ class JsonTagsCollectorSpec extends Specification {
     }"""
 
     expect:
-    collectTags(jsonTagsCollector, json, "") == [
+    extractTags(jsonTagsExtractor, json, "") == [
       ".a.b.c": "1",
       ".a.f.j": "4",
       ".a.k"  : "6",
@@ -220,7 +220,7 @@ class JsonTagsCollectorSpec extends Specification {
   }
 
   def "escape dots in property names"() {
-    JsonTagsCollector jsonTagsCollector = new JsonTagsCollector.Builder().build()
+    JsonTagsExtractor jsonTagsExtractor = new JsonTagsExtractor.Builder().build()
 
     def json = """{
       "a.b": 1,
@@ -228,14 +228,14 @@ class JsonTagsCollectorSpec extends Specification {
     }"""
 
     expect:
-    collectTags(jsonTagsCollector, json, "") == [
+    extractTags(jsonTagsExtractor, json, "") == [
       ".a\\.b": "1",
       ".c\\.d": "2",
     ]
   }
 
   def "prefix tags"() {
-    JsonTagsCollector jsonTagsCollector = new JsonTagsCollector.Builder()
+    JsonTagsExtractor jsonTagsExtractor = new JsonTagsExtractor.Builder()
       .build()
 
     def json = """{
@@ -244,14 +244,14 @@ class JsonTagsCollectorSpec extends Specification {
     }"""
 
     expect:
-    collectTags(jsonTagsCollector, json, "prefix") == [
+    extractTags(jsonTagsExtractor, json, "prefix") == [
       "prefix.a": "1",
       "prefix.b": "2",
     ]
   }
 
   def "ignore missing redaction paths"() {
-    JsonTagsCollector jsonTagsCollector = new JsonTagsCollector.Builder()
+    JsonTagsExtractor jsonTagsExtractor = new JsonTagsExtractor.Builder()
       .addRedactionRules(['$.MessageAttributes.*.StringValue', '$.Message.password'])
       .build()
 
@@ -260,14 +260,14 @@ class JsonTagsCollectorSpec extends Specification {
         }"""
 
     expect:
-    collectTags(jsonTagsCollector, json, "") == [
+    extractTags(jsonTagsExtractor, json, "") == [
       ".foo": "bar",
     ]
   }
 
 
   def "expand inner json object"() {
-    JsonTagsCollector jsonTagsCollector = new JsonTagsCollector.Builder().build()
+    JsonTagsExtractor jsonTagsExtractor = new JsonTagsExtractor.Builder().build()
 
     String json = """{
           "a": 123,
@@ -275,7 +275,7 @@ class JsonTagsCollectorSpec extends Specification {
           "b": true
         }"""
 
-    Map map = collectTags(jsonTagsCollector, json, "dd")
+    Map map = extractTags(jsonTagsExtractor, json, "dd")
 
     expect:
     map == ['dd.a': '123', 'dd.Message.0.a': '1.15', 'dd.Message.0.password': 'my-secret-password', 'dd.b': true]
@@ -290,7 +290,7 @@ class JsonTagsCollectorSpec extends Specification {
   }
 
   def "expand inner json array"() {
-    JsonTagsCollector jsonTagsCollector = new JsonTagsCollector.Builder().build()
+    JsonTagsExtractor jsonTagsExtractor = new JsonTagsExtractor.Builder().build()
 
     String json = """{
           "a": 123,
@@ -298,7 +298,7 @@ class JsonTagsCollectorSpec extends Specification {
           "b": true
         }"""
 
-    Map map = collectTags(jsonTagsCollector, json, "dd")
+    Map map = extractTags(jsonTagsExtractor, json, "dd")
 
     expect:
     map == ['dd.a': '123', 'dd.Message.0.a': '1.15', 'dd.Message.0.password': 'my-secret-password', 'dd.b': true]
@@ -313,7 +313,7 @@ class JsonTagsCollectorSpec extends Specification {
   }
 
   def "expand inner serialized json"() {
-    JsonTagsCollector jsonTagsCollector = new JsonTagsCollector.Builder().build()
+    JsonTagsExtractor jsonTagsExtractor = new JsonTagsExtractor.Builder().build()
 
     Buffer b1 = new Buffer()
     JsonWriter.of(b1)
@@ -334,14 +334,14 @@ class JsonTagsCollectorSpec extends Specification {
 
     String json = b2.readUtf8()
 
-    Map map = collectTags(jsonTagsCollector, json, "dd")
+    Map map = extractTags(jsonTagsExtractor, json, "dd")
 
     expect:
     map == ['dd.a': '123', 'dd.Message.a': '1.15', 'dd.Message.password': 'my-secret-password', 'dd.b': true]
   }
 
   def "expand inner json within inner json"() {
-    JsonTagsCollector jsonTagsCollector = new JsonTagsCollector.Builder()
+    JsonTagsExtractor jsonTagsExtractor = new JsonTagsExtractor.Builder()
       .build()
 
     Buffer b0 = new Buffer()
@@ -371,14 +371,14 @@ class JsonTagsCollectorSpec extends Specification {
 
     String json = b2.readUtf8()
 
-    Map map = collectTags(jsonTagsCollector, json, "dd")
+    Map map = extractTags(jsonTagsExtractor, json, "dd")
 
     expect:
     map == ['dd.a': '123', 'dd.Message.id': '45', 'dd.Message.user.a': '1.15', 'dd.Message.user.password': 'my-secret-password', 'dd.b': true]
   }
 
   def "handle expansion parse errors"() {
-    JsonTagsCollector jsonTagsCollector = new JsonTagsCollector.Builder()
+    JsonTagsExtractor jsonTagsExtractor = new JsonTagsExtractor.Builder()
       .build()
 
     def json = """{
@@ -386,7 +386,7 @@ class JsonTagsCollectorSpec extends Specification {
         }"""
 
     expect: "invalid json value collected as a string"
-    collectTags(jsonTagsCollector, json, "") == [
+    extractTags(jsonTagsExtractor, json, "") == [
       ".Message": "${invalidInnerJson}",
     ]
 
@@ -399,7 +399,7 @@ class JsonTagsCollectorSpec extends Specification {
   }
 
   def "skip expanding an inner json if can't parse it, keep already parsed, as well as un-parsed value"() {
-    JsonTagsCollector jsonTagsCollector = new JsonTagsCollector.Builder()
+    JsonTagsExtractor jsonTagsExtractor = new JsonTagsExtractor.Builder()
       .build()
 
     String json = """{
@@ -409,7 +409,7 @@ class JsonTagsCollectorSpec extends Specification {
         }"""
 
     expect:
-    collectTags(jsonTagsCollector, json, "dd") == ['dd.a': '123', 'dd.Message': inner, 'dd.b': true] + parsed
+    extractTags(jsonTagsExtractor, json, "dd") == ['dd.a': '123', 'dd.Message': inner, 'dd.b': true] + parsed
 
     where:
     inner                                              | desc                               | parsed
@@ -422,20 +422,20 @@ class JsonTagsCollectorSpec extends Specification {
   }
 
   def "parse and traverse escaped json"() {
-    JsonTagsCollector jsonTagsCollector = new JsonTagsCollector.Builder()
+    JsonTagsExtractor jsonTagsExtractor = new JsonTagsExtractor.Builder()
       .addRedactionRules(['$.password'])
       .build()
 
     def json = "{ \"a\": 1.15, \"password\": \"my-secret-password\" }"
 
     expect:
-    collectTags(jsonTagsCollector, json, "") == ['.a': '1.15', '.password': 'redacted']
+    extractTags(jsonTagsExtractor, json, "") == ['.a': '1.15', '.password': 'redacted']
   }
 
 
   def "skip invalid rules"() {
     def invalidRuleWithLeadingSpace = '$$.Message'
-    JsonTagsCollector jsonTagsCollector = new JsonTagsCollector.Builder()
+    JsonTagsExtractor jsonTagsExtractor = new JsonTagsExtractor.Builder()
       .addRedactionRules([invalidRuleWithLeadingSpace])
       .build()
 
@@ -446,22 +446,22 @@ class JsonTagsCollectorSpec extends Specification {
         }"""
 
     expect: "Message attribute isn't redacted because of invalid rules"
-    collectTags(jsonTagsCollector, json, "") == [".Message": "{ 'a: 1.15, 'password': 'my-secret-password' }"]
+    extractTags(jsonTagsExtractor, json, "") == [".Message": "{ 'a: 1.15, 'password': 'my-secret-password' }"]
   }
 
   def "ignore invalid json, return an empty tag map"() {
-    JsonTagsCollector jsonTagsCollector = new JsonTagsCollector.Builder().build()
+    JsonTagsExtractor jsonTagsExtractor = new JsonTagsExtractor.Builder().build()
 
     expect:
-    collectTags(jsonTagsCollector, invalidJson, "") == [:]
+    extractTags(jsonTagsExtractor, invalidJson, "") == [:]
 
     where:
-    invalidJson << ["{", "}", "[", "]", "{ 'a: 1.15,"]
+    invalidJson << ["{", "}", "[", "]", "{ 'a: 1.15,", "null", "string", "1.0"]
   }
 
-  Map<String, Object> collectTags(JsonTagsCollector jsonTagsCollector, String str, String tagPrefix) {
+  Map<String, Object> extractTags(JsonTagsExtractor jsonTagsExtractor, String str, String tagPrefix) {
     try (InputStream is = new ByteArrayInputStream(str.getBytes())) {
-      return jsonTagsCollector.collectTags(is, tagPrefix)
+      return jsonTagsExtractor.extractTags(is, tagPrefix)
     }
   }
 }

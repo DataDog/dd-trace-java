@@ -36,9 +36,12 @@ public class JsonStreamTraversal {
   private static void traverse(InputStream is, Visitor visitor, JsonPointer pointer)
       throws IOException {
     try (BufferedSource source = Okio.buffer(Okio.source(is))) {
-      try (JsonReader reader = JsonReader.of(source)) {
-        reader.setLenient(true);
-        traverse(reader, visitor, pointer);
+      byte firstByte = source.peek().readByte();
+      if (firstByte == '{' || firstByte == '[') {
+        try (JsonReader reader = JsonReader.of(source)) {
+          reader.setLenient(true);
+          traverse(reader, visitor, pointer);
+        }
       }
     }
   }

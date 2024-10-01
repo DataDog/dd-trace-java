@@ -13,9 +13,9 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class JsonTagsCollector {
+public final class JsonTagsExtractor {
 
-  static final Logger log = LoggerFactory.getLogger(JsonTagsCollector.class);
+  static final Logger log = LoggerFactory.getLogger(JsonTagsExtractor.class);
 
   public static final class Builder {
     private final List<JsonPath> redactionRules = new ArrayList<>();
@@ -53,8 +53,8 @@ public final class JsonTagsCollector {
       return this;
     }
 
-    public JsonTagsCollector build() {
-      return new JsonTagsCollector(redactionRules, tagsLimit, depthLimit);
+    public JsonTagsExtractor build() {
+      return new JsonTagsExtractor(redactionRules, tagsLimit, depthLimit);
     }
   }
 
@@ -65,13 +65,13 @@ public final class JsonTagsCollector {
   private final int tagsLimit;
   private final int depthLimit;
 
-  private JsonTagsCollector(List<JsonPath> redactionRules, int tagsLimit, int depthLimit) {
+  private JsonTagsExtractor(List<JsonPath> redactionRules, int tagsLimit, int depthLimit) {
     this.redactionRules = redactionRules;
     this.tagsLimit = tagsLimit;
     this.depthLimit = depthLimit;
   }
 
-  public Map<String, Object> collectTags(InputStream is, String tagPrefix) {
+  public Map<String, Object> extractTags(InputStream is, String tagPrefix) {
     final Map<String, Object> tags = new java.util.LinkedHashMap<>();
 
     JsonStreamTraversal.Visitor visitor = new JsonVisitorTagCollector(tagPrefix, tags);
@@ -96,8 +96,8 @@ public final class JsonTagsCollector {
 
     private JsonVisitorTagCollector(String tagPrefix, Map<String, Object> collectedTags) {
       this.tagPrefix = tagPrefix;
-      this.depthLimit = JsonTagsCollector.this.depthLimit;
-      this.tagsLimit = JsonTagsCollector.this.tagsLimit;
+      this.depthLimit = JsonTagsExtractor.this.depthLimit;
+      this.tagsLimit = JsonTagsExtractor.this.tagsLimit;
       this.collectedTags = collectedTags;
     }
 

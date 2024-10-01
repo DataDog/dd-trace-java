@@ -90,7 +90,7 @@ import datadog.trace.core.scopemanager.ContinuableScopeManager;
 import datadog.trace.core.taginterceptor.RuleFlags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.lambda.LambdaHandler;
-import datadog.trace.payloadtags.JsonTagsCollector;
+import datadog.trace.payloadtags.JsonTagsExtractor;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentTaskScheduler;
 import java.io.IOException;
@@ -223,8 +223,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   private final PropagationTags.Factory propagationTagsFactory;
 
-  private final JsonTagsCollector requestPayloadTagExtractor;
-  private final JsonTagsCollector responsePayloadTagExtractor;
+  private final JsonTagsExtractor requestPayloadTagExtractor;
+  private final JsonTagsExtractor responsePayloadTagExtractor;
 
   @Override
   public ConfigSnapshot captureTraceConfig() {
@@ -776,7 +776,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       this.localRootSpanTags = localRootSpanTags;
     }
     requestPayloadTagExtractor =
-        new JsonTagsCollector.Builder()
+        new JsonTagsExtractor.Builder()
             .addRedactionRules(ConfigDefaults.DEFAULT_CLOUD_PAYLOAD_TAGGING)
             .addRedactionRules(ConfigDefaults.DEFAULT_CLOUD_REQUEST_PAYLOAD_TAGGING)
             .addRedactionRules(config.getCloudRequestPayloadTagging())
@@ -785,7 +785,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
             .build();
 
     responsePayloadTagExtractor =
-        new JsonTagsCollector.Builder()
+        new JsonTagsExtractor.Builder()
             .addRedactionRules(ConfigDefaults.DEFAULT_CLOUD_PAYLOAD_TAGGING)
             .addRedactionRules(ConfigDefaults.DEFAULT_CLOUD_RESPONSE_PAYLOAD_TAGGING)
             .addRedactionRules(config.getCloudResponsePayloadTagging())
@@ -1214,7 +1214,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public void addTagsFromResponseBody(AgentSpan span, InputStream body, String tagPrefix) {
     if (responsePayloadTagExtractor != null) {
-      Map<String, Object> tags = responsePayloadTagExtractor.collectTags(body, tagPrefix);
+      Map<String, Object> tags = responsePayloadTagExtractor.extractTags(body, tagPrefix);
       setTags(span, tags);
     }
   }
@@ -1222,7 +1222,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public void addTagsFromRequestBody(AgentSpan span, InputStream body, String tagPrefix) {
     if (requestPayloadTagExtractor != null) {
-      Map<String, Object> tags = requestPayloadTagExtractor.collectTags(body, tagPrefix);
+      Map<String, Object> tags = requestPayloadTagExtractor.extractTags(body, tagPrefix);
       setTags(span, tags);
     }
   }
