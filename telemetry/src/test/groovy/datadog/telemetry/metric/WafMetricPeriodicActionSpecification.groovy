@@ -98,12 +98,12 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
         metric.metric == 'waf.requests' &&
         metric.points[0][1] == 1 &&
         metric.tags == [
-        'waf_version:0.0.0',
-        'event_rules_version:rules_ver_1',
-        'rule_triggered:false',
-        'request_blocked:false',
-        'waf_timeout:true'
-      ]
+          'waf_version:0.0.0',
+          'event_rules_version:rules_ver_1',
+          'rule_triggered:false',
+          'request_blocked:false',
+          'waf_timeout:true'
+        ]
     } )
     0 * _._
 
@@ -162,12 +162,12 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
         metric.metric == 'waf.requests' &&
         metric.points[0][1] == 1 &&
         metric.tags == [
-        'waf_version:0.0.0',
-        'event_rules_version:rules_ver_2',
-        'rule_triggered:false',
-        'request_blocked:false',
-        'waf_timeout:true'
-      ]
+          'waf_version:0.0.0',
+          'event_rules_version:rules_ver_2',
+          'rule_triggered:false',
+          'request_blocked:false',
+          'waf_timeout:true'
+        ]
     } )
     0 * _._
   }
