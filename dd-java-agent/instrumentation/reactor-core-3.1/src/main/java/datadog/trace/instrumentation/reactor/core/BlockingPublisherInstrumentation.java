@@ -36,7 +36,9 @@ public class BlockingPublisherInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {};
+    return new String[] {
+      packageName + ".ReactorAsyncResultSupportExtension",
+    };
   }
 
   @Override
@@ -72,8 +74,7 @@ public class BlockingPublisherInstrumentation extends InstrumenterModule.Tracing
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
-    public static void after(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown Throwable throwable) {
+    public static void after(@Advice.Enter final AgentScope scope) {
       if (scope != null) {
         scope.close();
       }

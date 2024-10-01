@@ -219,24 +219,6 @@ class SpringWebfluxHttp11Test extends AgentTestRunner {
     "annotation API traced method with delay" | "/foo-delayed-mono/9"         | "/foo-delayed-mono/{id}"         | "getFooDelayedMono"   | new FooModel(9L, "tracedMethod").toString()
   }
 
-  /*
-   This test differs from the previous in one important aspect.
-   The test above calls endpoints which does not create any spans during their invocation.
-   They merely assemble reactive pipeline where some steps create spans.
-   Thus all those spans are created when WebFlux span created by DispatcherHandlerInstrumentation
-   has already finished. Therefore, they have `SERVER` span as their parent.
-   This test below calls endpoints which do create spans right inside endpoint handler.
-   Therefore, in theory, those spans should have INTERNAL span created by DispatcherHandlerInstrumentation
-   as their parent. But there is a difference how Spring WebFlux handles functional endpoints
-   (created in server.SpringWebFluxTestApplication.greetRouterFunction) and annotated endpoints
-   (created in server.TestController).
-   In the former case org.springframework.web.reactive.function.server.support.HandlerFunctionAdapter.handle
-   calls handler function directly. Thus "tracedMethod" span below has INTERNAL handler span as its parent.
-   In the latter case org.springframework.web.reactive.result.method.annotation.RequestMappingHandlerAdapter.handle
-   merely wraps handler call into Mono and thus actual invocation of handler function happens later,
-   when INTERNAL handler span has already finished. Thus, "tracedMethod" has SERVER Netty span as its parent.
-   */
-
   def "Create span during handler function"() {
     setup:
     String url = "http://localhost:$port$urlPath"
@@ -273,7 +255,7 @@ class SpringWebfluxHttp11Test extends AgentTestRunner {
         }
         span {
           operationName "trace.annotation"
-          childOf span(annotatedMethod ? 0 : 1)
+          childOfPrevious()
           errored false
         }
       }

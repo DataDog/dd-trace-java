@@ -71,7 +71,7 @@ public class OptimizableOperatorInstrumentation extends InstrumenterModule.Traci
         return;
       }
       AgentSpan span = InstrumentationContext.get(Publisher.class, AgentSpan.class).get(self);
-      if (span != null) {
+      if (span == null) {
         span = InstrumentationContext.get(Subscriber.class, AgentSpan.class).get(arg);
       }
       if (span != null) {
