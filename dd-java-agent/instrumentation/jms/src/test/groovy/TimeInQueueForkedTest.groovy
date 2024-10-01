@@ -3,6 +3,7 @@ import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.config.GeneralConfig
+import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
@@ -74,6 +75,7 @@ abstract class TimeInQueueForkedTestBase extends VersionedNamingTestBase {
       injectSysConfig("jms.legacy.tracing.enabled", 'false')
     }
     injectSysConfig(GeneralConfig.SERVICE_NAME, 'myService')
+    injectSysConfig(TraceInstrumentationConfig.TRACE_HTTP_CLIENT_TAG_QUERY_STRING, 'false')
   }
 
   abstract boolean splitByDestination()
