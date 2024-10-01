@@ -23,7 +23,6 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import datadog.trace.core.datastreams.TagsProcessor;
-import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.net.URI;
 import java.time.Instant;
@@ -309,11 +308,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     if (responseBody.isPresent()) {
       InputStream body = responseBody.get();
       if (body instanceof ResponseBodyStreamWrapper) {
-        Optional<ByteArrayInputStream> bodyStream =
-            ((ResponseBodyStreamWrapper) body).toByteArrayInputStream();
-        // TODO log.debug if bodyStream is empty
-        bodyStream.ifPresent(
-            bs -> AgentTracer.get().addTagsFromResponseBody(span, bs, "aws.response.body"));
+        ResponseBodyStreamWrapper wrapper = (ResponseBodyStreamWrapper) body;
+        InputStream bodyStream = wrapper.consumeCapturedData();
+        AgentTracer.get().addTagsFromResponseBody(span, bodyStream, "aws.response.body");
       }
     }
 

@@ -1,57 +1,45 @@
 package datadog.trace.instrumentation.aws.v2;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Optional;
+import okio.BufferedSource;
+import okio.Okio;
 
 /**
- * Buffers stream data that starts with '{' character assuming it is a JSON object. This is used to
- * read the response body from AWS SDK after it has been read by the SDK.
+ * Buffers the response body stream so that it can be read later for tag extraction after it has
+ * been consumed by the SDK.
  */
 public class ResponseBodyStreamWrapper extends InputStream {
+  private final BufferedSource source;
+  private final InputStream sdkInputStream;
 
-  private final InputStream originalStream;
-  private ByteArrayOutputStream buffer;
-  private boolean hasBeenRead;
-
-  public ResponseBodyStreamWrapper(InputStream is) {
-    super();
-    this.originalStream = is;
+  public ResponseBodyStreamWrapper(InputStream origin) {
+    source = Okio.buffer(Okio.source(origin));
+    // Create a separate stream based on the source without consuming it.
+    sdkInputStream = source.peek().inputStream();
   }
 
   @Override
   public int read() throws IOException {
-    // TODO maybe there should be an upper bound limit to avoid buffering large data
-
-    int value = originalStream.read();
-
-    if (!hasBeenRead) {
-      if (value == '{') {
-        // Start buffering only if it starts with '{' to avoid buffering non-json data
-        // TODO maybe add a debug statement?
-        buffer = new ByteArrayOutputStream();
-      }
-      hasBeenRead = true;
-    }
-
-    if (buffer != null) {
-      buffer.write(value);
-    }
-
-    return value;
-  }
-
-  public Optional<ByteArrayInputStream> toByteArrayInputStream() {
-    if (buffer == null) {
-      return Optional.empty();
-    }
-    return Optional.of(new ByteArrayInputStream(buffer.toByteArray()));
+    return sdkInputStream.read();
   }
 
   @Override
-  public void close() throws IOException {
-    originalStream.close();
+  public int read(byte[] sink, int offset, int byteCount) throws IOException {
+    return sdkInputStream.read(sink, offset, byteCount);
+  }
+
+  @Override
+  public int available() throws IOException {
+    return sdkInputStream.available();
+  }
+
+  @Override
+  public void close() {
+    // doesn't close the source, so it can be read later
+  }
+
+  public InputStream consumeCapturedData() {
+    return new ConsumableInputStream(source);
   }
 }
