@@ -177,6 +177,7 @@ class LegacySqsClientForkedTest extends AgentTestRunner {
 
   def "trace details propagated from SQS to JMS"() {
     setup:
+    injectSysConfig(TRACE_HTTP_CLIENT_TAG_QUERY_STRING, "false")
     def client = AmazonSQSClientBuilder.standard()
       .withEndpointConfiguration(endpoint)
       .withCredentials(credentialsProvider)
