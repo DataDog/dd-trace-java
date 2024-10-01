@@ -31,7 +31,7 @@ class LegacySqsClientForkedTest extends AgentTestRunner {
   void configurePreAgent() {
     super.configurePreAgent()
     injectSysConfig("aws-sdk.legacy.tracing.enabled", "true")
-
+    injectSysConfig(TRACE_HTTP_CLIENT_TAG_QUERY_STRING, "false")
     // Set a service name that gets sorted early with SORT_BY_NAMES
     injectSysConfig(GeneralConfig.SERVICE_NAME, "A")
   }
@@ -53,7 +53,6 @@ class LegacySqsClientForkedTest extends AgentTestRunner {
 
   def "trace details propagated via SQS system message attributes"() {
     setup:
-    injectSysConfig(TRACE_HTTP_CLIENT_TAG_QUERY_STRING, "false")
     def client = AmazonSQSClientBuilder.standard()
       .withEndpointConfiguration(endpoint)
       .withCredentials(credentialsProvider)
@@ -173,7 +172,6 @@ class LegacySqsClientForkedTest extends AgentTestRunner {
 
   def "trace details propagated from SQS to JMS"() {
     setup:
-    injectSysConfig(TRACE_HTTP_CLIENT_TAG_QUERY_STRING, "false")
     def client = AmazonSQSClientBuilder.standard()
       .withEndpointConfiguration(endpoint)
       .withCredentials(credentialsProvider)
