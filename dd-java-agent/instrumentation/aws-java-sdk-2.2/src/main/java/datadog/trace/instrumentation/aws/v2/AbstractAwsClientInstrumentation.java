@@ -15,7 +15,6 @@ public abstract class AbstractAwsClientInstrumentation extends InstrumenterModul
       packageName + ".AwsSdkClientDecorator",
       packageName + ".TracingExecutionInterceptor",
       packageName + ".ResponseBodyStreamWrapper",
-      packageName + ".ConsumableInputStream",
     };
   }
 }
