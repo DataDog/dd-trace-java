@@ -24,6 +24,7 @@ import datadog.trace.api.ConfigDefaults
 import datadog.trace.api.internal.TraceSegment
 import datadog.appsec.api.blocking.BlockingContentType
 import datadog.trace.api.gateway.Flow
+import datadog.trace.api.telemetry.WafMetricCollector
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.test.util.DDSpecification
@@ -966,6 +967,9 @@ class PowerWAFModuleSpecification extends DDSpecification {
     TraceSegment segment = Mock()
     TraceSegmentPostProcessor pp = service.traceSegmentPostProcessors.last()
 
+    def mockWafMetricCollector = Mock(WafMetricCollector)
+    WafMetricCollector.INSTANCE = mockWafMetricCollector
+
     when:
     dataListener.onDataAvailable(flow, ctx, db, gwCtx)
 
@@ -974,6 +978,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
       pwafAdditive = it[0].openAdditive() }
     assert !flow.blocking
     1 * ctx.increaseTimeouts()
+    1 * mockWafMetricCollector.get().wafRequestTimeout()
 
     when:
     pp.processTraceSegment(segment, ctx, [])
