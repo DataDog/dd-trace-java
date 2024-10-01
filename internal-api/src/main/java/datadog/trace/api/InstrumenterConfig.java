@@ -108,6 +108,7 @@ public class InstrumenterConfig {
   private final boolean ciVisibilityEnabled;
   private final ProductActivation appSecActivation;
   private final ProductActivation iastActivation;
+  private final boolean iastFullyDisabled;
   private final boolean usmEnabled;
   private final boolean telemetryEnabled;
 
@@ -194,6 +195,8 @@ public class InstrumenterConfig {
       iastActivation =
           ProductActivation.fromString(
               configProvider.getStringNotEmpty(IAST_ENABLED, DEFAULT_IAST_ENABLED));
+      final Boolean iastEnabled = configProvider.getBoolean(IAST_ENABLED);
+      iastFullyDisabled = iastEnabled != null && !iastEnabled;
       usmEnabled = configProvider.getBoolean(USM_ENABLED, DEFAULT_USM_ENABLED);
       telemetryEnabled = configProvider.getBoolean(TELEMETRY_ENABLED, DEFAULT_TELEMETRY_ENABLED);
     } else {
@@ -201,6 +204,7 @@ public class InstrumenterConfig {
       ciVisibilityEnabled = false;
       appSecActivation = ProductActivation.FULLY_DISABLED;
       iastActivation = ProductActivation.FULLY_DISABLED;
+      iastFullyDisabled = true;
       telemetryEnabled = false;
       usmEnabled = false;
     }
@@ -319,6 +323,10 @@ public class InstrumenterConfig {
 
   public ProductActivation getIastActivation() {
     return iastActivation;
+  }
+
+  public boolean isIastFullyDisabled() {
+    return iastFullyDisabled;
   }
 
   public boolean isUsmEnabled() {

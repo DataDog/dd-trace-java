@@ -9,13 +9,18 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.jar.JarFile;
 import net.bytebuddy.agent.ByteBuddyAgent;
 import net.bytebuddy.dynamic.ClassFileLocator;
 import org.junit.platform.runner.JUnitPlatform;
+import org.junit.runner.notification.Failure;
+import org.junit.runner.notification.RunListener;
 import org.junit.runner.notification.RunNotifier;
+import org.spockframework.mock.IMockInvocation;
+import org.spockframework.mock.TooManyInvocationsError;
 
 /**
  * Runs a spock test in an agent-friendly way.
@@ -129,10 +134,13 @@ public class SpockRunner extends JUnitPlatform {
   @Override
   public void run(final RunNotifier notifier) {
     final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
+    final RunListener listener = new TooManyInvocationsErrorListener();
     try {
       Thread.currentThread().setContextClassLoader(customLoader);
+      notifier.addFirstListener(listener);
       super.run(notifier);
     } finally {
+      notifier.removeListener(listener);
       Thread.currentThread().setContextClassLoader(contextLoader);
     }
   }
@@ -219,6 +227,53 @@ public class SpockRunner extends JUnitPlatform {
         }
 
         return parent.loadClass(name);
+      }
+    }
+  }
+
+  /**
+   * This class tries to fix {@link TooManyInvocationsError} exceptions when the assertion error is
+   * caught by a mock triggering a stack overflow while composing the failure message.
+   */
+  @SuppressWarnings("ResultOfMethodCallIgnored")
+  @RunListener.ThreadSafe
+  private static class TooManyInvocationsErrorListener extends RunListener {
+
+    @Override
+    public void testFailure(final Failure failure) throws Exception {
+      if (failure.getException() instanceof TooManyInvocationsError) {
+        final TooManyInvocationsError assertion = (TooManyInvocationsError) failure.getException();
+        try {
+          // try to trigger an error (e.g. stack overflow)
+          assertion.getMessage();
+        } catch (final Throwable e) {
+          fixTooManyInvocationsError(assertion);
+        }
+      }
+    }
+
+    private void fixTooManyInvocationsError(final TooManyInvocationsError error) {
+      final List<IMockInvocation> accepted = error.getAcceptedInvocations();
+      for (final IMockInvocation invocation : accepted) {
+        try {
+          invocation.toString();
+        } catch (final Throwable t) {
+          final List<Object> arguments = invocation.getArguments();
+          for (int i = 0; i < arguments.size(); i++) {
+            final Object arg = arguments.get(i);
+            if (arg instanceof AssertionError) {
+              final AssertionError updatedAssertion =
+                  new AssertionError(
+                      "'"
+                          + arg.getClass().getName()
+                          + "' hidden due to '"
+                          + t.getClass().getName()
+                          + "'",
+                      t);
+              invocation.getArguments().set(i, updatedAssertion);
+            }
+          }
+        }
       }
     }
   }

@@ -9,6 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -41,6 +42,14 @@ public class UsernameNotFoundExceptionInstrumentation extends InstrumenterModule
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor().and(takesArgument(0, named("java.lang.String"))).and(isPublic()),
-        packageName + ".UsernameNotFoundExceptionAdvice");
+        getClass().getName() + "$UsernameNotFoundExceptionAdvice");
+  }
+
+  public static class UsernameNotFoundExceptionAdvice {
+
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void onEnter() {
+      SpringSecurityUserEventDecorator.DECORATE.onUserNotFound();
+    }
   }
 }
