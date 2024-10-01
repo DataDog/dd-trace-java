@@ -544,6 +544,31 @@ class CoreTracerTest extends DDCoreSpecification {
     "some"    | "some"
   }
 
+  def "test dd_version exists iff service == dd_service"() {
+    setup:
+    injectSysConfig(SERVICE_NAME, "dd_service_name")
+    injectSysConfig(VERSION, "1.0.0")
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
+    
+    when:
+    def span = tracer.buildSpan("def").withTag(SERVICE_NAME,"foo").start()
+    span.finish()
+    then:
+    span.getServiceName() == "foo"
+    span.getTags().containsKey("version") == false
+
+    when:
+    def span2 = tracer.buildSpan("abc").start()
+    span2.finish()
+    then:
+    span2.getServiceName() == "dd_service_name"
+    span2.getTags()["version"] == "1.0.0"
+
+    cleanup:
+    tracer?.close()
+  }
+
+
   def "reject configuration when target service+env mismatch"() {
     setup:
     injectSysConfig(SERVICE_NAME, service)

@@ -10,9 +10,11 @@ public final class TagsPostProcessorFactory {
 
   private static class Lazy {
     private static TagsPostProcessor create() {
+      System.out.println("creating instance");
       final List<TagsPostProcessor> processors = new ArrayList<>(4);
       processors.add(new PeerServiceCalculator());
       if (addBaseService) {
+        System.out.println("adding base service");
         processors.add(new BaseServiceAdder(Config.get().getServiceName()));
       }
       processors.add(new QueryObfuscator(Config.get().getObfuscationQueryRegexp()));
@@ -27,6 +29,7 @@ public final class TagsPostProcessorFactory {
   }
 
   public static TagsPostProcessor instance() {
+    System.out.println("processing tags instance");
     return Lazy.instance;
   }
 

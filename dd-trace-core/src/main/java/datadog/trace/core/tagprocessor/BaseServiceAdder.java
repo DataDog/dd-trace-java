@@ -16,10 +16,12 @@ public class BaseServiceAdder implements TagsPostProcessor {
   @Override
   public Map<String, Object> processTags(
       Map<String, Object> unsafeTags, DDSpanContext spanContext) {
+    System.out.println("In Process Tags");
     if (ddService != null
         && spanContext != null
         && !ddService.toString().equalsIgnoreCase(spanContext.getServiceName())) {
       unsafeTags.put(DDTags.BASE_SERVICE, ddService);
+      System.out.println("Removing version");
       unsafeTags.remove("version");
     }
     return unsafeTags;
