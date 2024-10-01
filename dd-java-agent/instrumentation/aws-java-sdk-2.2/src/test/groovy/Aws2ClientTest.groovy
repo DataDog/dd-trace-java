@@ -1,4 +1,5 @@
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_HTTP_CLIENT_TAG_QUERY_STRING
 
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.Config
@@ -91,6 +92,8 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
 
   def "send #operation request with builder {#builder.class.getName()} mocked response"() {
     setup:
+    // injectSysConfig(HTTP_CLIENT_TAG_QUERY_STRING, "false")
+    injectSysConfig(TRACE_HTTP_CLIENT_TAG_QUERY_STRING, "false")
     boolean executed = false
     def client = builder
       // tests that our instrumentation doesn't disturb any overridden configuration
@@ -230,6 +233,7 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
 
   def "send #operation async request with builder {#builder.class.getName()} mocked response"() {
     setup:
+    injectSysConfig(TRACE_HTTP_CLIENT_TAG_QUERY_STRING, "false")
     boolean executed = false
     def client = builder
       // tests that our instrumentation doesn't disturb any overridden configuration
