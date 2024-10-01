@@ -48,6 +48,7 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
     WafMetricCollector.get().wafRequest()
     WafMetricCollector.get().wafRequestBlocked()
     WafMetricCollector.get().wafRequest()
+    WafMetricCollector.get().wafRequestTimeout()
     WafMetricCollector.get().prepareMetrics()
     periodicAction.doIteration(telemetryService)
 
@@ -64,7 +65,8 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
           'waf_version:0.0.0',
           'event_rules_version:rules_ver_1',
           'rule_triggered:false',
-          'request_blocked:false'
+          'request_blocked:false',
+          'waf_timeout:false'
         ]
     } )
     1 * telemetryService.addMetric( { Metric metric ->
@@ -75,7 +77,8 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
           'waf_version:0.0.0',
           'event_rules_version:rules_ver_1',
           'rule_triggered:true',
-          'request_blocked:false'
+          'request_blocked:false',
+          'waf_timeout:false'
         ]
     } )
     1 * telemetryService.addMetric( { Metric metric ->
@@ -86,8 +89,21 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
           'waf_version:0.0.0',
           'event_rules_version:rules_ver_1',
           'rule_triggered:true',
-          'request_blocked:true'
+          'request_blocked:true',
+          'waf_timeout:false'
         ]
+    } )
+    1 * telemetryService.addMetric( { Metric metric ->
+      metric.namespace == 'appsec' &&
+        metric.metric == 'waf.requests' &&
+        metric.points[0][1] == 1 &&
+        metric.tags == [
+        'waf_version:0.0.0',
+        'event_rules_version:rules_ver_1',
+        'rule_triggered:false',
+        'request_blocked:false',
+        'waf_timeout:true'
+      ]
     } )
     0 * _._
 
@@ -96,6 +112,7 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
     WafMetricCollector.get().wafRequest()
     WafMetricCollector.get().wafRequestTriggered()
     WafMetricCollector.get().wafRequestBlocked()
+    WafMetricCollector.get().wafRequestTimeout()
     WafMetricCollector.get().prepareMetrics()
     periodicAction.doIteration(telemetryService)
 
@@ -112,7 +129,8 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
           'waf_version:0.0.0',
           'event_rules_version:rules_ver_2',
           'rule_triggered:false',
-          'request_blocked:false'
+          'request_blocked:false',
+          'waf_timeout:false'
         ]
     } )
     1 * telemetryService.addMetric( { Metric metric ->
@@ -123,7 +141,8 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
           'waf_version:0.0.0',
           'event_rules_version:rules_ver_2',
           'rule_triggered:true',
-          'request_blocked:false'
+          'request_blocked:false',
+          'waf_timeout:false'
         ]
     } )
     1 * telemetryService.addMetric( { Metric metric ->
@@ -134,8 +153,21 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
           'waf_version:0.0.0',
           'event_rules_version:rules_ver_2',
           'rule_triggered:true',
-          'request_blocked:true'
+          'request_blocked:true',
+          'waf_timeout:false'
         ]
+    } )
+    1 * telemetryService.addMetric( { Metric metric ->
+      metric.namespace == 'appsec' &&
+        metric.metric == 'waf.requests' &&
+        metric.points[0][1] == 1 &&
+        metric.tags == [
+        'waf_version:0.0.0',
+        'event_rules_version:rules_ver_2',
+        'rule_triggered:false',
+        'request_blocked:false',
+        'waf_timeout:true'
+      ]
     } )
     0 * _._
   }
