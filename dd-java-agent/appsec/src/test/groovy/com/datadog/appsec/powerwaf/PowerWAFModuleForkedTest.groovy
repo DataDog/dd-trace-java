@@ -41,7 +41,7 @@ import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER
 import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP
 import static org.hamcrest.Matchers.hasSize
 
-class PowerWAFModuleSpecification extends DDSpecification {
+class PowerWAFModuleForkedTest extends DDSpecification {
   @Shared
   protected static final AgentTracer.TracerAPI ORIGINAL_TRACER = AgentTracer.get()
 
