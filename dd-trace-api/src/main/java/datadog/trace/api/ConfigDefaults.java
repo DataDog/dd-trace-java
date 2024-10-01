@@ -182,7 +182,6 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_DEBUGGER_EXCEPTION_CAPTURE_INTERMEDIATE_SPANS_ENABLED = true;
   static final int DEFAULT_DEBUGGER_EXCEPTION_MAX_CAPTURED_FRAMES = 3;
   static final int DEFAULT_DEBUGGER_EXCEPTION_CAPTURE_INTERVAL_SECONDS = 60 * 60;
-  static final boolean DEFAULT_DEBUGGER_CODE_ORIGIN_ENABLED = false;
 
   static final boolean DEFAULT_TRACE_REPORT_HOSTNAME = false;
   static final String DEFAULT_TRACE_ANNOTATIONS = null;
