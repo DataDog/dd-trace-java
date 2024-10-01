@@ -1522,7 +1522,7 @@ public class Config {
             EXCEPTION_REPLAY_ENABLED);
     debuggerCodeOriginEnabled =
         configProvider.getBoolean(
-            DEBUGGER_CODE_ORIGIN_ENABLED, DEFAULT_DEBUGGER_CODE_ORIGIN_ENABLED);
+            CODE_ORIGIN_FOR_SPANS_ENABLED, DEFAULT_CODE_ORIGIN_FOR_SPANS_ENABLED);
     debuggerMaxExceptionPerSecond =
         configProvider.getInteger(
             DEBUGGER_MAX_EXCEPTION_PER_SECOND, DEFAULT_DEBUGGER_MAX_EXCEPTION_PER_SECOND);
