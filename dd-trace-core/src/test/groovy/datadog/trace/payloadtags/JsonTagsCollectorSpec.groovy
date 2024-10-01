@@ -8,7 +8,8 @@ class JsonTagsCollectorSpec extends Specification {
 
   def "expand, redact, traverse"() {
     JsonTagsCollector jsonTagsCollector = new JsonTagsCollector.Builder()
-      .parseRedactionRules(['$.MessageAttributes.*.StringValue', '$.Message.password'])
+      .addRedactionRules(['$.MessageAttributes.*.StringValue'])
+      .addRedactionRules(['$.Message.password'])
       .build()
 
     String inner = "{ 'a': 1.15, 'password': 'my-secret-password' }"
@@ -60,7 +61,7 @@ class JsonTagsCollectorSpec extends Specification {
 
   def "redact all types of value"() {
     JsonTagsCollector jsonTagsCollector = new JsonTagsCollector.Builder()
-      .parseRedactionRules(['$.*'])
+      .addRedactionRules(['$.*'])
       .build()
 
     def json = """{
@@ -143,7 +144,7 @@ class JsonTagsCollectorSpec extends Specification {
 
   def "skip traversing nested objects and arrays"() {
     JsonTagsCollector jsonTagsCollector = new JsonTagsCollector.Builder()
-      .parseRedactionRules(['$.a[1]', '$.a[2]'])
+      .addRedactionRules(['$.a[1]', '$.a[2]'])
       .build()
 
     def json = """{
@@ -251,7 +252,7 @@ class JsonTagsCollectorSpec extends Specification {
 
   def "ignore missing redaction paths"() {
     JsonTagsCollector jsonTagsCollector = new JsonTagsCollector.Builder()
-      .parseRedactionRules(['$.MessageAttributes.*.StringValue', '$.Message.password'])
+      .addRedactionRules(['$.MessageAttributes.*.StringValue', '$.Message.password'])
       .build()
 
     def json = """{
@@ -422,7 +423,7 @@ class JsonTagsCollectorSpec extends Specification {
 
   def "parse and traverse escaped json"() {
     JsonTagsCollector jsonTagsCollector = new JsonTagsCollector.Builder()
-      .parseRedactionRules(['$.password'])
+      .addRedactionRules(['$.password'])
       .build()
 
     def json = "{ \"a\": 1.15, \"password\": \"my-secret-password\" }"
@@ -435,7 +436,7 @@ class JsonTagsCollectorSpec extends Specification {
   def "skip invalid rules"() {
     def invalidRuleWithLeadingSpace = '$$.Message'
     JsonTagsCollector jsonTagsCollector = new JsonTagsCollector.Builder()
-      .parseRedactionRules([invalidRuleWithLeadingSpace])
+      .addRedactionRules([invalidRuleWithLeadingSpace])
       .build()
 
     String inner = "{ 'a: 1.15, 'password': 'my-secret-password' }"

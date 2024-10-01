@@ -240,5 +240,29 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_JAX_RS_EXCEPTION_AS_ERROR_ENABLED = true;
   static final boolean DEFAULT_TELEMETRY_DEBUG_REQUESTS_ENABLED = false;
 
+  public static final List<String> DEFAULT_CLOUD_PAYLOAD_TAGGING =
+      asList("$.Attributes.KmsMasterKeyId", "$.Attributes.Token");
+
+  public static final List<String> DEFAULT_CLOUD_REQUEST_PAYLOAD_TAGGING =
+      asList(
+          "$.Attributes.PlatformCredential",
+          "$.Attributes.PlatformPrincipal",
+          "$.AWSAccountId",
+          "$.Endpoint",
+          "$.OneTimePassword",
+          "$.phoneNumber",
+          "$.PhoneNumber",
+          "$.Token");
+
+  public static final List<String> DEFAULT_CLOUD_RESPONSE_PAYLOAD_TAGGING =
+      asList(
+          "$.Endpoints.*.Token",
+          "$.PhoneNumber",
+          "$.PhoneNumbers",
+          "$.phoneNumbers",
+          "$.PlatformApplication.*.PlatformCredential",
+          "$.PlatformApplication.*.PlatformPrincipal",
+          "$.Subscriptions.*.Endpoint");
+
   private ConfigDefaults() {}
 }

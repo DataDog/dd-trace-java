@@ -19,6 +19,7 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.monitor.Monitoring;
 import datadog.communication.monitor.Recording;
 import datadog.trace.api.Config;
+import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.DynamicConfig;
@@ -776,14 +777,18 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
     requestPayloadTagExtractor =
         new JsonTagsCollector.Builder()
-            .parseRedactionRules(config.getCloudRequestPayloadTagging())
+            .addRedactionRules(ConfigDefaults.DEFAULT_CLOUD_PAYLOAD_TAGGING)
+            .addRedactionRules(ConfigDefaults.DEFAULT_CLOUD_REQUEST_PAYLOAD_TAGGING)
+            .addRedactionRules(config.getCloudRequestPayloadTagging())
             .depthLimit(config.getCloudPayloadTaggingMaxDepth())
             .tagsLimit(config.getCloudPayloadTaggingMaxTags())
             .build();
 
     responsePayloadTagExtractor =
         new JsonTagsCollector.Builder()
-            .parseRedactionRules(config.getCloudResponsePayloadTagging())
+            .addRedactionRules(ConfigDefaults.DEFAULT_CLOUD_PAYLOAD_TAGGING)
+            .addRedactionRules(ConfigDefaults.DEFAULT_CLOUD_RESPONSE_PAYLOAD_TAGGING)
+            .addRedactionRules(config.getCloudResponsePayloadTagging())
             .depthLimit(config.getCloudPayloadTaggingMaxDepth())
             .tagsLimit(config.getCloudPayloadTaggingMaxTags())
             .build();

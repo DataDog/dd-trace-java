@@ -18,12 +18,12 @@ public final class JsonTagsCollector {
   static final Logger log = LoggerFactory.getLogger(JsonTagsCollector.class);
 
   public static final class Builder {
-    private List<JsonPath> redactionRules = Collections.emptyList();
+    private final List<JsonPath> redactionRules = new ArrayList<>();
     private int tagsLimit = 758;
     private int depthLimit = 10;
 
-    public Builder parseRedactionRules(List<String> rules) {
-      this.redactionRules = parseRules(rules);
+    public Builder addRedactionRules(List<String> rules) {
+      this.redactionRules.addAll(parseRules(rules));
       return this;
     }
 
@@ -116,6 +116,7 @@ public final class JsonTagsCollector {
     }
 
     private JsonPath findMatchingRedactionRule(JsonPointer pointer) {
+      log.debug("Checking redaction rules for path: {}", pointer.dotted("$"));
       for (JsonPath rule : redactionRules) {
         if (rule.matches(pointer)) {
           return rule;
