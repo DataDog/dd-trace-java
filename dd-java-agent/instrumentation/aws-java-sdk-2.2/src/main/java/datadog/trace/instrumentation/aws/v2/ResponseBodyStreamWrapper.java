@@ -10,9 +10,19 @@ import java.util.Optional;
  * Buffers stream data that starts with a '{' character, assuming it is a JSON object. This is used
  * to the response body from the AWS SDK after it has been read by the SDK.
  */
-public class ResponseBodyStreamWrapper extends InputStream {
+public final class ResponseBodyStreamWrapper extends InputStream {
+
+  /**
+   * The maximum number of bytes to buffer. Estimate based on an average key size of 50 characters,
+   * value of 250 characters, no more than 10 levels deep, and no more than 750 leaf nodes.
+   */
+  private static final int BUFFERING_LIMIT = 256 * 1024; // 256 KB
 
   private static final class Buffer extends ByteArrayOutputStream {
+    private static Buffer create() {
+      return new Buffer();
+    }
+
     public ByteArrayInputStream asInputStream() {
       return new ByteArrayInputStream(buf, 0, count);
     }
@@ -29,17 +39,15 @@ public class ResponseBodyStreamWrapper extends InputStream {
 
   @Override
   public int read() throws IOException {
-    // TODO maybe there should be an upper bound limit to avoid buffering large data
-
     int value = originalStream.read();
 
     if (value < 0) {
       return -1;
     }
 
-    startBufferingIfNeeded(value);
+    allocateBufferIfNeeded(value);
 
-    if (buffer != null) {
+    if (keepBuffering()) {
       buffer.write(value);
       bufferedBytes += 1;
     }
@@ -48,29 +56,30 @@ public class ResponseBodyStreamWrapper extends InputStream {
   }
 
   @Override
-  public int read(byte[] b, int off, int len) throws IOException {
-    int readBytes = super.read(b, off, len);
+  public int read(byte[] bytes, int offset, int length) throws IOException {
+    int readBytes = originalStream.read(bytes, offset, length);
 
     if (readBytes < 0) {
       return -1;
     }
 
-    startBufferingIfNeeded(b[off]);
+    allocateBufferIfNeeded(bytes[offset]);
 
-    if (buffer != null) {
-      buffer.write(b, off, readBytes);
+    if (keepBuffering()) {
+      buffer.write(bytes, offset, readBytes);
       bufferedBytes += readBytes;
     }
 
     return readBytes;
   }
 
-  private void startBufferingIfNeeded(int firstByte) {
-    if (bufferedBytes == 0) {
-      if (firstByte == '{') {
-        // Start buffering only if it starts with '{' to avoid buffering non-json data
-        buffer = new Buffer();
-      }
+  private boolean keepBuffering() {
+    return buffer != null && bufferedBytes < BUFFERING_LIMIT;
+  }
+
+  private void allocateBufferIfNeeded(int firstByte) {
+    if (bufferedBytes == 0 && firstByte == '{') {
+      buffer = Buffer.create();
     }
   }
 
