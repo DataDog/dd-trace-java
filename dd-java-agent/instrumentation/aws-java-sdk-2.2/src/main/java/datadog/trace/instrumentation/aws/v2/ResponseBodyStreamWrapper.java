@@ -7,14 +7,20 @@ import java.io.InputStream;
 import java.util.Optional;
 
 /**
- * Buffers stream data that starts with '{' character assuming it is a JSON object. This is used to
- * read the response body from AWS SDK after it has been read by the SDK.
+ * Buffers stream data that starts with a '{' character, assuming it is a JSON object. This is used
+ * to the response body from the AWS SDK after it has been read by the SDK.
  */
 public class ResponseBodyStreamWrapper extends InputStream {
 
+  private static final class Buffer extends ByteArrayOutputStream {
+    public ByteArrayInputStream asInputStream() {
+      return new ByteArrayInputStream(buf, 0, count);
+    }
+  }
+
   private final InputStream originalStream;
-  private ByteArrayOutputStream buffer;
-  private boolean hasBeenRead;
+  private Buffer buffer;
+  private long bufferedBytes;
 
   public ResponseBodyStreamWrapper(InputStream is) {
     super();
@@ -27,27 +33,52 @@ public class ResponseBodyStreamWrapper extends InputStream {
 
     int value = originalStream.read();
 
-    if (!hasBeenRead) {
-      if (value == '{') {
-        // Start buffering only if it starts with '{' to avoid buffering non-json data
-        // TODO maybe add a debug statement?
-        buffer = new ByteArrayOutputStream();
-      }
-      hasBeenRead = true;
+    if (value < 0) {
+      return -1;
     }
+
+    startBufferingIfNeeded(value);
 
     if (buffer != null) {
       buffer.write(value);
+      bufferedBytes += 1;
     }
 
     return value;
+  }
+
+  @Override
+  public int read(byte[] b, int off, int len) throws IOException {
+    int readBytes = super.read(b, off, len);
+
+    if (readBytes < 0) {
+      return -1;
+    }
+
+    startBufferingIfNeeded(b[off]);
+
+    if (buffer != null) {
+      buffer.write(b, off, readBytes);
+      bufferedBytes += readBytes;
+    }
+
+    return readBytes;
+  }
+
+  private void startBufferingIfNeeded(int firstByte) {
+    if (bufferedBytes == 0) {
+      if (firstByte == '{') {
+        // Start buffering only if it starts with '{' to avoid buffering non-json data
+        buffer = new Buffer();
+      }
+    }
   }
 
   public Optional<ByteArrayInputStream> toByteArrayInputStream() {
     if (buffer == null) {
       return Optional.empty();
     }
-    return Optional.of(new ByteArrayInputStream(buffer.toByteArray()));
+    return Optional.of(buffer.asInputStream());
   }
 
   @Override
