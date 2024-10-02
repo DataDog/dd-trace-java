@@ -21,7 +21,7 @@ class SpringListenerSQSTest extends AgentTestRunner {
   protected void configurePreAgent() {
     super.configurePreAgent()
     injectSysConfig(GeneralConfig.SERVICE_NAME, "my-service")
-    injectSysConfig(TraceInstrumentationConfig.TRACE_HTTP_CLIENT_TAG_QUERY_STRING, "false")
+    injectSysConfig(TraceInstrumentationConfig.TRACE_HTTP_CLIENT_TAG_QUERY_STRING, 'false')
   }
 
   def "receiving message context used when no immediate context"() {

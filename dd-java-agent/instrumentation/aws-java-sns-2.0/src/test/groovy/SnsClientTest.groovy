@@ -3,6 +3,7 @@ import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.api.config.GeneralConfig
+import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.datastreams.StatsGroup
 import groovy.json.JsonSlurper
@@ -65,6 +66,7 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
     // Set a service name that gets sorted early with SORT_BY_NAMES
     injectSysConfig(GeneralConfig.SERVICE_NAME, "A-service")
     injectSysConfig(GeneralConfig.DATA_STREAMS_ENABLED, isDataStreamsEnabled().toString())
+    injectSysConfig(TraceInstrumentationConfig.TRACE_HTTP_CLIENT_TAG_QUERY_STRING, "false")
   }
 
   @Override
