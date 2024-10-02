@@ -1,5 +1,6 @@
 package com.datadog.appsec.gateway;
 
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static java.util.Collections.emptySet;
 
 import com.datadog.appsec.event.data.Address;
@@ -115,10 +116,11 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   // should be guarded by this
   private volatile Additive additive;
+  private volatile boolean additiveClosed;
   // set after additive is set
   private volatile PowerwafMetrics wafMetrics;
   private volatile PowerwafMetrics raspMetrics;
-  private AtomicInteger raspMetricsCounter;
+  private final AtomicInteger raspMetricsCounter = new AtomicInteger(0);
   private volatile boolean blocked;
   private volatile int timeouts;
 
@@ -131,14 +133,14 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       Address<?> address = entry.getKey();
       Object value = entry.getValue();
       if (value == null) {
-        log.warn("Address {} ignored, because contains null value.", address);
+        log.debug(SEND_TELEMETRY, "Address {} ignored, because contains null value.", address);
         continue;
       }
       Object prev = persistentData.putIfAbsent(address, value);
-      if (prev == value) {
+      if (prev == value || value.equals(prev)) {
         continue;
       } else if (prev != null) {
-        log.warn("Illegal attempt to replace context value for {}", address);
+        log.debug(SEND_TELEMETRY, "Attempt to replace context value for {}", address);
       }
       if (log.isDebugEnabled()) {
         StandardizedLogging.addressPushed(log, address);
@@ -182,7 +184,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       }
       if (isRasp && raspMetrics == null) {
         this.raspMetrics = ctx.createMetrics();
-        this.raspMetricsCounter = new AtomicInteger(0);
       }
     }
 
@@ -203,6 +204,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       synchronized (this) {
         if (additive != null) {
           try {
+            additiveClosed = true;
             additive.close();
           } finally {
             additive = null;
@@ -433,7 +435,8 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public void close(boolean requiresPostProcessing) {
     if (additive != null || derivatives != null) {
-      log.warn("WAF object had not been closed (probably missed request-end event)");
+      log.debug(
+          SEND_TELEMETRY, "WAF object had not been closed (probably missed request-end event)");
       closeAdditive();
       derivatives = null;
     }
@@ -547,5 +550,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       throttled = rateLimiter.isThrottled();
     }
     return throttled;
+  }
+
+  public boolean isAdditiveClosed() {
+    return additiveClosed;
   }
 }

@@ -568,6 +568,43 @@ public class StringModuleImpl implements StringModule {
   }
 
   @Override
+  @SuppressFBWarnings("ES_COMPARING_PARAMETER_STRING_WITH_EQ")
+  public void onStringStrip(@Nonnull String self, @Nonnull String result, boolean trailing) {
+    if (self == result || !canBeTainted(result)) {
+      return;
+    }
+    final IastContext ctx = IastContext.Provider.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    final TaintedObject taintedSelf = taintedObjects.get(self);
+    if (taintedSelf == null) {
+      return;
+    }
+
+    final Range[] rangesSelf = taintedSelf.getRanges();
+    if (rangesSelf.length == 0) {
+      return;
+    }
+
+    int offset = 0;
+    if (!trailing) {
+      while ((offset < self.length()) && (Character.isWhitespace(self.charAt(offset)))) {
+        offset++;
+      }
+    }
+
+    int resultLength = result.length();
+
+    final Range[] newRanges = Ranges.forSubstring(offset, resultLength, rangesSelf);
+
+    if (newRanges != null) {
+      taintedObjects.taint(result, newRanges);
+    }
+  }
+
+  @Override
   public void onIndent(@Nonnull String self, int indentation, @Nonnull String result) {
     if (self == result || !canBeTainted(self)) {
       return;

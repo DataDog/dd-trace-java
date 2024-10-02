@@ -53,8 +53,7 @@ class ListValueTest {
       Value<?> v = listValue.get(i);
       assertNotNull(v);
       if (expected != null) {
-        assertEquals(
-            ((Integer) array[i]).longValue(), v.getValue()); // int is automatically widened to long
+        assertEquals(array[i], v.getValue());
       } else {
         assertEquals(Value.nullValue(), v);
       }
@@ -78,7 +77,7 @@ class ListValueTest {
       ListValue collection = (ListValue) v;
       for (int j = 0; j < collection.count(); j++) {
         Value<?> v1 = collection.get(j);
-        assertEquals((long) intArray[i][j], v1.getValue()); // int is automatically widened to long
+        assertEquals(intArray[i][j], v1.getValue()); // int is automatically widened to long
       }
     }
     assertThrows(IllegalArgumentException.class, () -> listValue.get(-1));
