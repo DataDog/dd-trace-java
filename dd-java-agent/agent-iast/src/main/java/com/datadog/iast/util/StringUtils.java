@@ -39,13 +39,13 @@ public abstract class StringUtils {
     return start >= end ? "" : value.substring(start, end);
   }
 
-  /** Returns the string trimmed with no whitespaces at the start. */
+  /** Returns how many leading whitespaces are between the start and the end of the string */
   @Nonnull
-  public static String substringTrimStart(@Nonnull final String value) {
-    int start = 0;
-    while (start < value.length() && Character.isWhitespace(value.charAt(start))) {
-      start++;
+  public static int leadingWhitespaces(@Nonnull final String value, int start, int end) {
+    int whitespaces = start;
+    while (whitespaces < end && Character.isWhitespace(value.charAt(whitespaces))) {
+      whitespaces++;
     }
-    return value.substring(start);
+    return whitespaces;
   }
 }

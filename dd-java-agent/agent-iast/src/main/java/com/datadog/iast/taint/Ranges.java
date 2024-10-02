@@ -315,15 +315,14 @@ public final class Ranges {
     int currentIndex = 0;
     int totalWhiteSpaces = 0;
     while (currentIndex < input.length() - 1) {
-      final int[] delimiterIndex =
-          getNextDelimiterIndex(input.substring(currentIndex), currentIndex + 1);
+      final int[] delimiterIndex = getNextDelimiterIndex(input, currentIndex, currentIndex + 1);
       final int lineOffset = delimiterIndex[1] == 2 ? 1 : 0;
-      final String line = input.substring(currentIndex, delimiterIndex[0]);
       int currentIndentation;
       // In case indentation is negative we need to check if it will take more than the first
       // non-white space character
       if (indentation < 0) {
-        final int whiteSpaces = line.length() - StringUtils.substringTrimStart(line).length();
+        final int whiteSpaces =
+            StringUtils.leadingWhitespaces(input, currentIndex, delimiterIndex[0]);
         currentIndentation = Math.max(indentation, -whiteSpaces) - totalWhiteSpaces;
         totalWhiteSpaces += whiteSpaces;
       } else {
@@ -354,22 +353,25 @@ public final class Ranges {
    *
    * <p>In case there is no delimiter, it will return the last index of the string and {@code 1}
    *
-   * <p>{@code offset} is to take into account the previous lines
+   * @param original is the original string
+   * @param start is the start index of the substring
+   * @param offset is to take into account the previous lines
    */
-  private static int[] getNextDelimiterIndex(@Nonnull final String substring, final int offset) {
-    for (int i = 0; i < substring.length(); i++) {
-      final char c = substring.charAt(i);
+  private static int[] getNextDelimiterIndex(
+      @Nonnull final String original, final int start, final int offset) {
+    for (int i = start; i < original.length(); i++) {
+      final char c = original.charAt(i);
       if (c == '\n') {
         return new int[] {i + offset, 1};
       } else if (c == '\r') {
-        if (i + 1 < substring.length() && substring.charAt(i + 1) == '\n') {
+        if (i + 1 < original.length() && original.charAt(i + 1) == '\n') {
           return new int[] {i + 1 + offset, 2};
         }
         return new int[] {i + offset, 1};
       }
     }
 
-    return new int[] {substring.length() - 1 + offset, 1};
+    return new int[] {original.length() - 1 + offset - start, 1};
   }
 
   /**
