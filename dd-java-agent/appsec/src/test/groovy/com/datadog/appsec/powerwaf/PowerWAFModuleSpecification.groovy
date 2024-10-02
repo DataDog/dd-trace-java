@@ -41,9 +41,12 @@ import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER
 import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP
 import static org.hamcrest.Matchers.hasSize
 
-class PowerWAFModuleForkedTest extends DDSpecification {
+class PowerWAFModuleSpecification extends DDSpecification {
   @Shared
   protected static final AgentTracer.TracerAPI ORIGINAL_TRACER = AgentTracer.get()
+
+  @Shared
+  protected static final ORIGINAL_METRIC_COLLECTOR = WafMetricCollector.get()
 
   private static final DataBundle ATTACK_BUNDLE = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
   new CaseInsensitiveMap<List<String>>(['user-agent': 'Arachni/v0']))
@@ -71,6 +74,7 @@ class PowerWAFModuleForkedTest extends DDSpecification {
   }
 
   void cleanup() {
+    WafMetricCollector.INSTANCE  = ORIGINAL_METRIC_COLLECTOR
     AgentTracer.forceRegister(ORIGINAL_TRACER)
     pwafAdditive?.close()
     release pwafModule
