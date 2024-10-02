@@ -779,7 +779,9 @@ public class Config {
 
     httpServerErrorStatuses =
         configProvider.getIntegerRange(
-            TRACE_HTTP_SERVER_ERROR_STATUSES, DEFAULT_HTTP_SERVER_ERROR_STATUSES, HTTP_SERVER_ERROR_STATUSES);
+            TRACE_HTTP_SERVER_ERROR_STATUSES,
+            DEFAULT_HTTP_SERVER_ERROR_STATUSES,
+            HTTP_SERVER_ERROR_STATUSES);
 
     httpClientErrorStatuses =
         configProvider.getIntegerRange(
