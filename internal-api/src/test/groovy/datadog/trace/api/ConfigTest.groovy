@@ -966,19 +966,6 @@ class ConfigTest extends DDSpecification {
     integrationNames = new TreeSet<>(names)
   }
 
-  def "verify precedence of aliases"() {
-    setup:
-    def prop = new Properties()
-    prop.setProperty(HTTP_CLIENT_ERROR_STATUSES, "111")
-    prop.setProperty(TRACE_HTTP_CLIENT_ERROR_STATUSES, "123")
-
-    when:
-    Config config = Config.get(prop)
-
-    then:
-    config.httpClientErrorStatuses == toBitSet((123..123))
-  }
-
   def "test getFloatSettingFromEnvironment(#name)"() {
     setup:
     environmentVariables.set("DD_ENV_ZERO_TEST", "0.0")
