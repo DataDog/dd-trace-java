@@ -329,14 +329,14 @@ public final class Ranges {
       } else {
         currentIndentation = indentation * ++delimitersCount;
       }
+      currentIndentation -= offset;
       updateRangesWithIndentation(
-          line,
           currentIndex,
           delimiterIndex[0] - 1,
-          currentIndentation,
+          indentation,
           ranges,
           newRanges,
-          offset,
+          currentIndentation,
           lineOffset);
       offset += lineOffset;
       currentIndex = delimiterIndex[0];
@@ -378,14 +378,11 @@ public final class Ranges {
    *
    * <p>The {@code ranges} is the current ranges array
    *
-   * <p>The {@code line} is the current line being processed
-   *
    * <p>The {@code offset} is to take into account the normalization of the indent method
    *
    * <p>The {@code lineOffset} is to know if the line is being normalized
    */
   private static void updateRangesWithIndentation(
-      final @Nonnull String line,
       int start,
       int end,
       int indentation,
@@ -397,25 +394,18 @@ public final class Ranges {
     while (i < ranges.length && ranges[i].getStart() <= end) {
       Range range = ranges[i];
       if (range.getStart() >= start) {
-        final int newStart = range.getStart() + indentation - offset;
+        final int newStart = range.getStart() + offset;
         int newLength = range.getLength();
         if (range.getStart() + range.getLength() > end) {
           newLength -= lineOffset;
         }
         newRanges[i] = new Range(newStart, newLength, range.getSource(), range.getMarks());
+      } else if (range.getStart() + range.getLength() >= start) {
+        final Range newRange = newRanges[i];
+        final int newLength = newRange.getLength() + indentation;
+        newRanges[i] =
+            new Range(newRange.getStart(), newLength, newRange.getSource(), newRange.getMarks());
       }
-      // TODO - REVIEW FOR CASES WHERE THERE IS A RANGE BETWEEN MULTIPLE LINES
-//      if (range.getStart() + range.getLength() >= start) {
-//        // In case indentation is negative we need to check if it will take more than the first
-//        // non-white space character
-//        if (indentation < 0) {
-//          final int whiteSpaces = StringUtils.substringTrimStart(line).length();
-//          final int lengthOfRange = range.getStart() + range.getLength() - start;
-//          indentation = Math.min(lengthOfRange, whiteSpaces);
-//        }
-//        final int newLength = range.getLength() + indentation;
-//        newRanges[i] = new Range(range.getStart(), newLength, range.getSource(), range.getMarks());
-//      }
 
       i++;
     }
