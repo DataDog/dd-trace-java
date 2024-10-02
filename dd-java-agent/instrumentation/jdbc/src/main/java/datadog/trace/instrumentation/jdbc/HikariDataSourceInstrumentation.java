@@ -83,10 +83,9 @@ public final class HikariDataSourceInstrumentation extends InstrumenterModule.Tr
       // dbInfo);
       // check if need to put
 
-      System.out.println();
-
       // DECORATE.beforeFinish(scope.span());
       System.out.println("hello we eneded");
+      System.out.println();
     }
   }
 }
