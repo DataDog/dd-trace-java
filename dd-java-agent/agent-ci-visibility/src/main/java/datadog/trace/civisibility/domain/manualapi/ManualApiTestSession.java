@@ -51,7 +51,6 @@ public class ManualApiTestSession extends AbstractTestSession implements DDTestS
   public ManualApiTestModule testModuleStart(String moduleName, @Nullable Long startTime) {
     return new ManualApiTestModule(
         span.context(),
-        span.getSpanId(),
         moduleName,
         startTime,
         config,

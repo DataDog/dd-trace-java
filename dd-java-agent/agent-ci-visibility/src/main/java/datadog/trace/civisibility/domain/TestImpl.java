@@ -50,8 +50,7 @@ public class TestImpl implements DDTest {
   private final TestContext context;
 
   public TestImpl(
-      long sessionId,
-      long moduleId,
+      AgentSpan.Context moduleSpanContext,
       long suiteId,
       String moduleName,
       String testSuiteName,
@@ -73,7 +72,7 @@ public class TestImpl implements DDTest {
       Consumer<AgentSpan> onSpanFinish) {
     this.instrumentation = instrumentation;
     this.metricCollector = metricCollector;
-    this.sessionId = sessionId;
+    this.sessionId = moduleSpanContext.getTraceId().toLong();
     this.suiteId = suiteId;
     this.onSpanFinish = onSpanFinish;
 
@@ -108,7 +107,7 @@ public class TestImpl implements DDTest {
     span.setTag(Tags.TEST_MODULE, moduleName);
 
     span.setTag(Tags.TEST_SUITE_ID, suiteId);
-    span.setTag(Tags.TEST_MODULE_ID, moduleId);
+    span.setTag(Tags.TEST_MODULE_ID, moduleSpanContext.getSpanId());
     span.setTag(Tags.TEST_SESSION_ID, sessionId);
 
     span.setTag(Tags.TEST_STATUS, TestStatus.pass);
