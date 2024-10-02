@@ -12,6 +12,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -27,11 +28,6 @@ public final class MessagesAvailableInstrumentation extends InstrumenterModule.T
 
   public MessagesAvailableInstrumentation() {
     super("grpc", "grpc-client", "grpc-message");
-  }
-
-  @Override
-  protected boolean defaultEnabled() {
-    return false;
   }
 
   @Override
@@ -59,7 +55,10 @@ public final class MessagesAvailableInstrumentation extends InstrumenterModule.T
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(isConstructor(), getClass().getName() + "$Capture");
-    transformer.applyAdvice(named("runInContext"), getClass().getName() + "$ReceiveMessages");
+    if (InstrumenterConfig.get()
+        .isIntegrationEnabled(Collections.singleton("grpc-message"), false)) {
+      transformer.applyAdvice(named("runInContext"), getClass().getName() + "$ReceiveMessages");
+    }
   }
 
   public static final class Capture {
