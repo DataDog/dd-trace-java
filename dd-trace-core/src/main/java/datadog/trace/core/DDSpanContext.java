@@ -843,9 +843,7 @@ public class DDSpanContext
       final MetadataConsumer consumer, int longRunningVersion, List<AgentSpanLink> links) {
     synchronized (unsafeTags) {
       // Tags
-      System.out.println("Calling process tags");
       Map<String, Object> tags = TagsPostProcessorFactory.instance().processTags(unsafeTags, this);
-      System.out.println(tags);
       String linksTag = DDSpanLink.toTag(links);
       if (linksTag != null) {
         tags.put(SPAN_LINKS, linksTag);
