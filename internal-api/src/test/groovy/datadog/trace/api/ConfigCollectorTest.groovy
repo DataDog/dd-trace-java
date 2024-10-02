@@ -41,7 +41,7 @@ class ConfigCollectorTest extends DDSpecification {
     // ConfigProvider.getInteger
     JmxFetchConfig.JMX_FETCH_CHECK_PERIOD                      | "60"
     // ConfigProvider.getLong
-    CiVisibilityConfig.CIVISIBILITY_MODULE_ID                  | "450273"
+    CiVisibilityConfig.CIVISIBILITY_GIT_COMMAND_TIMEOUT_MILLIS | "450273"
     // ConfigProvider.getFloat
     GeneralConfig.TELEMETRY_HEARTBEAT_INTERVAL                 | "1.5"
     // ConfigProvider.getDouble
@@ -112,7 +112,7 @@ class ConfigCollectorTest extends DDSpecification {
       GeneralConfig.APPLICATION_KEY,
       TraceInstrumentationConfig.RESOLVER_USE_URL_CACHES,
       JmxFetchConfig.JMX_FETCH_CHECK_PERIOD,
-      CiVisibilityConfig.CIVISIBILITY_MODULE_ID,
+      CiVisibilityConfig.CIVISIBILITY_GIT_COMMAND_TIMEOUT_MILLIS,
       TracerConfig.TRACE_SAMPLE_RATE,
       TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS,
       TracerConfig.PROXY_NO_PROXY,
