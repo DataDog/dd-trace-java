@@ -549,9 +549,9 @@ class CoreTracerTest extends DDCoreSpecification {
     setup:
     injectSysConfig(SERVICE_NAME, "dd_service_name")
     injectSysConfig(VERSION, "1.0.0")
-    TagsPostProcessorFactory.withAddBaseService(true) 
+    TagsPostProcessorFactory.withAddBaseService(true)
     def tracer = tracerBuilder().writer(new ListWriter()).build()
-    
+
     when:
     def span = tracer.buildSpan("def").withTag(SERVICE_NAME,"foo").start()
     span.finish()
