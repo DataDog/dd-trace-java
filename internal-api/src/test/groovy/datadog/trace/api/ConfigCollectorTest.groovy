@@ -112,7 +112,7 @@ class ConfigCollectorTest extends DDSpecification {
       GeneralConfig.APPLICATION_KEY,
       TraceInstrumentationConfig.RESOLVER_USE_URL_CACHES,
       JmxFetchConfig.JMX_FETCH_CHECK_PERIOD,
-      CiVisibilityConfig.CIVISIBILITY_GIT_COMMAND_TIMEOUT_MILLIS,
+      CiVisibilityConfig.CIVISIBILITY_DEBUG_PORT,
       TracerConfig.TRACE_SAMPLE_RATE,
       TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS,
       TracerConfig.PROXY_NO_PROXY,
