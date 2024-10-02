@@ -21,6 +21,7 @@ import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.LoggingWriter
 import datadog.trace.core.datastreams.DataStreamContextExtractor
 import datadog.trace.core.propagation.HttpCodec
+import datadog.trace.core.tagprocessor.TagsPostProcessorFactory
 import datadog.trace.core.test.DDCoreSpecification
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
@@ -548,6 +549,7 @@ class CoreTracerTest extends DDCoreSpecification {
     setup:
     injectSysConfig(SERVICE_NAME, "dd_service_name")
     injectSysConfig(VERSION, "1.0.0")
+    TagsPostProcessorFactory.withAddBaseService(true) 
     def tracer = tracerBuilder().writer(new ListWriter()).build()
     
     when:
