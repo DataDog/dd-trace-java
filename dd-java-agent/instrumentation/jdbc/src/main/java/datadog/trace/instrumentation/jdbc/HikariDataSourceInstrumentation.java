@@ -79,16 +79,16 @@ public final class HikariDataSourceInstrumentation extends InstrumenterModule.Tr
         return;
       }
       System.out.println("after get dbinfo");
-      dbInfo.setHikariPoolName(hikariPoolname);
+      dbInfo.setPoolName(hikariPoolname);
       System.out.println("after set in dbinfo");
 
       // System.out.println(dbInfo.getHikariPoolName() != null ? dbInfo.getHikariPoolName() : "it
       // was null");
-      if (dbInfo.getHikariPoolName() == null) {
+      if (dbInfo.getPoolName() == null) {
         System.out.println("null");
       } else {
         System.out.println("dbinfo was set:");
-        System.out.println(dbInfo.getHikariPoolName());
+        System.out.println(dbInfo.getPoolName());
       }
 
       // InstrumentationContext.get(Connection.class, DBInfo.class).put(hikariDSConnection,

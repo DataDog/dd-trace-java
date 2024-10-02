@@ -138,7 +138,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
 
       setTagIfPresent(span, DB_WAREHOUSE, dbInfo.getWarehouse());
       setTagIfPresent(span, DB_SCHEMA, dbInfo.getSchema());
-      setTagIfPresent(span, HIKARI_POOL_NAME, dbInfo.getHikariPoolName());
+      setTagIfPresent(span, DB_POOL_NAME, dbInfo.getPoolName());
     }
     return super.onConnection(span, dbInfo);
   }

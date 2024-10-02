@@ -90,7 +90,7 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
         DECORATE.afterStart(span);
         DECORATE.onConnection(span, dbInfo);
         System.out.println("just did on connection decorate hello");
-        System.out.println(dbInfo.getHikariPoolName());
+        System.out.println(dbInfo.getPoolName());
         DECORATE.onPreparedStatement(span, queryInfo);
 
         return activateSpan(span);

@@ -15,7 +15,7 @@ public class DBInfo {
   private final Integer port;
   private final String warehouse;
   private final String schema;
-  private String hikariPoolName;
+  private String poolName;
 
   DBInfo(
       String type,
@@ -29,7 +29,7 @@ public class DBInfo {
       Integer port,
       String warehouse,
       String schema,
-      String hikariPoolName) {
+      String poolName) {
     this.type = type;
     this.subtype = subtype;
     this.fullPropagationSupport = fullPropagationSupport;
@@ -41,7 +41,7 @@ public class DBInfo {
     this.port = port;
     this.warehouse = warehouse;
     this.schema = schema;
-    this.hikariPoolName = hikariPoolName;
+    this.poolName = poolName;
   }
 
   public static class Builder {
@@ -58,7 +58,7 @@ public class DBInfo {
     private String schema;
     private String host;
     private Integer port;
-    private String hikariPoolName;
+    private String poolName;
 
     Builder() {}
 
@@ -74,7 +74,7 @@ public class DBInfo {
         Integer port,
         String warehouse,
         String schema,
-        String hikariPoolName) {
+        String poolName) {
       this.type = type;
       this.subtype = subtype;
       this.fullPropagationSupport = fullPropagationSupport;
@@ -86,7 +86,7 @@ public class DBInfo {
       this.port = port;
       this.warehouse = warehouse;
       this.schema = schema;
-      this.hikariPoolName = hikariPoolName;
+      this.poolName = poolName;
     }
 
     public Builder type(String type) {
@@ -147,8 +147,8 @@ public class DBInfo {
       return this;
     }
 
-    public Builder hikariPoolName(String poolName) {
-      this.hikariPoolName = poolName;
+    public Builder poolName(String poolName) {
+      this.poolName = poolName;
       return this;
     }
 
@@ -165,7 +165,7 @@ public class DBInfo {
           port,
           warehouse,
           schema,
-          hikariPoolName);
+          poolName);
     }
   }
 
@@ -213,12 +213,12 @@ public class DBInfo {
     return schema;
   }
 
-  public String getHikariPoolName() {
-    return hikariPoolName;
+  public String getPoolName() {
+    return poolName;
   }
 
-  public void setHikariPoolName(String poolname) {
-    this.hikariPoolName = poolname;
+  public void setPoolName(String poolname) {
+    this.poolName = poolname;
   }
 
   public Builder toBuilder() {
@@ -234,7 +234,7 @@ public class DBInfo {
         port,
         warehouse,
         schema,
-        hikariPoolName);
+        poolName);
   }
 
   @Override
@@ -253,7 +253,7 @@ public class DBInfo {
         && Objects.equals(port, dbInfo.port)
         && Objects.equals(warehouse, dbInfo.warehouse)
         && Objects.equals(schema, dbInfo.schema)
-        && Objects.equals(hikariPoolName, dbInfo.hikariPoolName);
+        && Objects.equals(poolName, dbInfo.poolName);
   }
 
   @Override

@@ -243,9 +243,8 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
               "$Tags.DB_OPERATION" operation
               if (usingHikari) {
-                "hikari.poolname" String
+                "$Tags.DB_POOL_NAME" String
               }
-              ""
               if (addDbmTag) {
                 "$InstrumentationTags.DBM_TRACE_INJECTED" true
               }
@@ -276,7 +275,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
               "$Tags.DB_OPERATION" operation
               if (usingHikari) {
-                "hikari.poolname" String
+                "$Tags.DB_POOL_NAME" String
               }
               peerServiceFrom(Tags.DB_INSTANCE)
               defaultTags()
@@ -299,7 +298,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
               "$Tags.DB_OPERATION" "set"
               if (usingHikari) {
-                "hikari.poolname" String
+                "$Tags.DB_POOL_NAME" String
               }
               "dd.instrumentation" true
               peerServiceFrom(Tags.DB_INSTANCE)
@@ -369,7 +368,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
               "$Tags.DB_OPERATION" operation
               if (usingHikari) {
-                "hikari.poolname" String
+                "$Tags.DB_POOL_NAME" String
               }
               peerServiceFrom(Tags.DB_INSTANCE)
               defaultTags()
@@ -398,7 +397,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
               "$Tags.DB_OPERATION" operation
               if (usingHikari) {
-                "hikari.poolname" String
+                "$Tags.DB_POOL_NAME" String
               }
               peerServiceFrom(Tags.DB_INSTANCE)
               defaultTags()
@@ -421,7 +420,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
               "$Tags.DB_OPERATION" "set"
               if (usingHikari) {
-                "hikari.poolname" String
+                "$Tags.DB_POOL_NAME" String
               }
               "dd.instrumentation" true
               peerServiceFrom(Tags.DB_INSTANCE)
