@@ -78,7 +78,7 @@ abstract class ArmeriaGrpcTest extends VersionedNamingTestBase {
     injectSysConfig("dd.trace.grpc.ignored.inbound.methods", "example.Greeter/IgnoreInbound")
     injectSysConfig("dd.trace.grpc.ignored.outbound.methods", "example.Greeter/Ignore")
     if (hasClientMessageSpans()) {
-      injectSysConfig("instrumentation.armeria-grpc-message.enabled", "true")
+      injectSysConfig("integration.armeria-grpc-message.enabled", "true")
     }
     // here to trigger wrapping to record scheduling time - the logic is trivial so it's enough to verify
     // that ClassCastExceptions do not arise from the wrapping
