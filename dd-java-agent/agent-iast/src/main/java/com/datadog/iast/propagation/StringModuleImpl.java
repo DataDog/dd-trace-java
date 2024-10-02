@@ -605,6 +605,7 @@ public class StringModuleImpl implements StringModule {
   }
 
   @Override
+  @SuppressFBWarnings("ES_COMPARING_PARAMETER_STRING_WITH_EQ")
   public void onIndent(@Nonnull String self, int indentation, @Nonnull String result) {
     if (self == result || !canBeTainted(self)) {
       return;
