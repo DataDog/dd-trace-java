@@ -32,7 +32,10 @@ public class SchemaExtractor implements SchemaIterator {
 
     switch (field.schema().getType()) {
       case RECORD:
-        type = "object";
+        type = "#/components/schemas/" + field.schema().getFullName();
+        if (!extractSchema(field.schema(), builder, depth)) {
+          return false;
+        }
         break;
       case ENUM:
         type = "string";
