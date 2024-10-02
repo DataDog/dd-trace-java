@@ -50,6 +50,18 @@ public final class HikariDataSourceInstrumentation extends InstrumenterModule.Tr
         // Exception was probably thrown.
         return;
       }
+      // connection pools wraps connection with their own type (ProxyConnection in this case)
+      // jdbc drivers have a standard way to ask for the unwrapped instance (calling unwrap).
+      // we need the unwrapped version in order to be able to lookup the instrumentation context
+      // since we stored dbInfo for that instance and not for the wrapped one
+      Connection unwrapped = con;
+      try {
+        if (con.isWrapperFor(Connection.class)) {
+          unwrapped = con.unwrap(Connection.class);
+        }
+      } catch (Throwable t) {
+        return;
+      }
       System.out.println("HELLO IM IN HERE");
 
       String hikariPoolname = ds.getPoolName();
@@ -62,13 +74,13 @@ public final class HikariDataSourceInstrumentation extends InstrumenterModule.Tr
       System.out.println(con.toString());
       // System.out.println("Connection is " + hikariDSConnection.toString());
 
-      //      DBInfo dbInfo =
-      //          InstrumentationContext.get(Connection.class, DBInfo.class).get(con);
-      DBInfo dbInfo = JDBCDecorator.parseDBInfoFromConnection(con);
+      DBInfo dbInfo = InstrumentationContext.get(Connection.class, DBInfo.class).get(unwrapped);
+      if (dbInfo == null) {
+        return;
+      }
       System.out.println("after get dbinfo");
       dbInfo.setHikariPoolName(hikariPoolname);
       System.out.println("after set in dbinfo");
-      InstrumentationContext.get(Connection.class, DBInfo.class).put(con, dbInfo);
 
       // System.out.println(dbInfo.getHikariPoolName() != null ? dbInfo.getHikariPoolName() : "it
       // was null");
