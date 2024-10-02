@@ -312,6 +312,7 @@ public final class Ranges {
     final Range[] newRanges = new Range[ranges.length];
     int delimitersCount = 0;
     int offset = 0;
+    int rangeStart = 0;
     int currentIndex = 0;
     int totalWhiteSpaces = 0;
     while (currentIndex < input.length() - 1) {
@@ -329,14 +330,16 @@ public final class Ranges {
         currentIndentation = indentation * ++delimitersCount;
       }
       currentIndentation -= offset;
-      updateRangesWithIndentation(
-          currentIndex,
-          delimiterIndex[0] - 1,
-          indentation,
-          ranges,
-          newRanges,
-          currentIndentation,
-          lineOffset);
+      rangeStart =
+          updateRangesWithIndentation(
+              currentIndex,
+              delimiterIndex[0] - 1,
+              indentation,
+              rangeStart,
+              ranges,
+              newRanges,
+              currentIndentation,
+              lineOffset);
       offset += lineOffset;
       currentIndex = delimiterIndex[0];
     }
@@ -378,21 +381,26 @@ public final class Ranges {
    * Updates the {@code newRanges} array between the {@code start} index and the {@code end} index
    * and taking into account the {@code indentation}
    *
+   * <p>The {@code rangeStart} is the index of the first range that will be checked
+   *
    * <p>The {@code ranges} is the current ranges array
    *
    * <p>The {@code offset} is to take into account the normalization of the indent method
    *
    * <p>The {@code lineOffset} is to know if the line is being normalized
+   *
+   * @return the index of the first range that will be checked
    */
-  private static void updateRangesWithIndentation(
+  private static int updateRangesWithIndentation(
       int start,
       int end,
       int indentation,
+      int rangeStart,
       final @Nonnull Range[] ranges,
       final @Nonnull Range[] newRanges,
       int offset,
       int lineOffset) {
-    int i = 0;
+    int i = rangeStart;
     while (i < ranges.length && ranges[i].getStart() <= end) {
       Range range = ranges[i];
       if (range.getStart() >= start) {
@@ -409,7 +417,13 @@ public final class Ranges {
             new Range(newRange.getStart(), newLength, newRange.getSource(), newRange.getMarks());
       }
 
+      if (range.getStart() + range.getLength() - 1 <= end) {
+        rangeStart++;
+      }
+
       i++;
     }
+
+    return rangeStart;
   }
 }
