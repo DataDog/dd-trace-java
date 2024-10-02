@@ -1,5 +1,7 @@
 package com.datadog.crashtracking.parsers;
 
+import static java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME;
+
 import com.datadog.crashtracking.dto.CrashLog;
 import com.datadog.crashtracking.dto.ErrorData;
 import com.datadog.crashtracking.dto.Metadata;
@@ -10,13 +12,20 @@ import com.datadog.crashtracking.dto.StackFrame;
 import com.datadog.crashtracking.dto.StackTrace;
 import datadog.common.version.VersionInfo;
 import java.time.OffsetDateTime;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.regex.Pattern;
 
 public final class HotspotCrashLogParser {
+  private static final DateTimeFormatter ZONED_DATE_TIME_FORMATTER =
+      DateTimeFormatter.ofPattern("EEE MMM ppd HH:mm:ss yyyy zzz", Locale.getDefault());
+  private static final DateTimeFormatter OFFSET_DATE_TIME_FORMATTER =
+      DateTimeFormatter.ofPattern("EEE MMM ppd HH:mm:ss yyyy X", Locale.getDefault());
+
   enum State {
     NEW,
     HEADER,
@@ -44,9 +53,6 @@ public final class HotspotCrashLogParser {
   private static final Pattern NEWLINE_SPLITTER = Pattern.compile("\n");
 
   private FileLine fileLine(String line) {
-    String file = null;
-    int lineNum = 0;
-
     if (line.endsWith(")")) {
       int idx = line.lastIndexOf('(');
       String src = line.substring(idx + 1, line.length() - 1);
@@ -130,7 +136,7 @@ public final class HotspotCrashLogParser {
           if (line.startsWith(
               "# A fatal error has been detected by the Java Runtime Environment:")) {
             message.append("\n\n");
-            state = State.MESSAGE; // jump direclty to MESSAGE state
+            state = State.MESSAGE; // jump directly to MESSAGE state
           }
           break;
         case MESSAGE:
@@ -173,7 +179,7 @@ public final class HotspotCrashLogParser {
         case THREAD:
           // Native frames: (J=compiled Java code, j=interpreted, Vv=VM code, C=native code)
           if (line.startsWith("Native frames: ")) {
-            message.append('\n').append(line).append("\n");
+            message.append('\n').append(line).append('\n');
             state = State.STACKTRACE;
           }
           break;
@@ -183,7 +189,7 @@ public final class HotspotCrashLogParser {
           } else {
             // Native frames: (J=compiled Java code, j=interpreted, Vv=VM code, C=native code)
             if (line.contains("libjvm.so") || line.contains("libjavaProfiler")) {
-              message.append(line).append("\n");
+              message.append(line).append('\n');
               frames.add(parseLine(line));
             } else {
               message.append(line.charAt(0)).append("  [redacted]\n");
@@ -195,7 +201,7 @@ public final class HotspotCrashLogParser {
           // skip
           break outer;
         default:
-          // unexpecte parser state; bail out
+          // unexpected parser state; bail out
           break outer;
       }
     }
@@ -208,7 +214,7 @@ public final class HotspotCrashLogParser {
     ErrorData error =
         new ErrorData(
             signal, message.toString(), new StackTrace(frames.toArray(new StackFrame[0])));
-    // We can not really extract the full metadata and osinfo from the crash log
+    // We can not really extract the full metadata and os info from the crash log
     // This code assumes the parser is run on the same machine as the crash happened
     Metadata metadata = new Metadata("dd-trace-java", VersionInfo.VERSION, "java", null);
     OSInfo osInfo =
@@ -221,20 +227,17 @@ public final class HotspotCrashLogParser {
     return new CrashLog(false, datetime, error, metadata, osInfo, procInfo);
   }
 
-  private static String dateTimeToISO(String datetime) {
-    // Append ':00' to the offset if it is not already in the correct format
-    if (datetime.matches(".*\\s[+-]\\d{2}$")) {
-      datetime = datetime + ":00";
+  static String dateTimeToISO(String datetime) {
+    try {
+      return ZonedDateTime.parse(datetime, ZONED_DATE_TIME_FORMATTER).format(ISO_OFFSET_DATE_TIME);
+    } catch (DateTimeParseException ignored) {
+      try {
+        return OffsetDateTime.parse(datetime, OFFSET_DATE_TIME_FORMATTER)
+            .format(ISO_OFFSET_DATE_TIME);
+      } catch (DateTimeParseException e3) {
+        // Failed to parse date time
+        return null;
+      }
     }
-    datetime = datetime.replace("UTC", "+00:00");
-    // Create a formatter that matches the exact input format
-    DateTimeFormatter inputFormatter =
-        DateTimeFormatter.ofPattern("EEE MMM dd HH:mm:ss yyyy XXX", Locale.getDefault());
-
-    // Parse the string to OffsetDateTime
-    OffsetDateTime offsetDateTime = OffsetDateTime.parse(datetime, inputFormatter);
-
-    // Convert to ISO 8601 format (e.g., 2023-10-17T20:25:14+08:00)
-    return offsetDateTime.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
   }
 }
