@@ -62,42 +62,13 @@ public final class HikariDataSourceInstrumentation extends InstrumenterModule.Tr
       } catch (Throwable t) {
         return;
       }
-      System.out.println("HELLO IM IN HERE");
 
       String hikariPoolname = ds.getPoolName();
-      // ContextStore< Connection.class, DBInfo.class> store =
-      // InstrumentationContext.get(Connection.class, DBInfo.class);
-      // DBInfo dbInfo = store.get()
-
-      System.out.println(ds.toString());
-      System.out.println(hikariPoolname);
-      System.out.println(con.toString());
-      // System.out.println("Connection is " + hikariDSConnection.toString());
-
       DBInfo dbInfo = InstrumentationContext.get(Connection.class, DBInfo.class).get(unwrapped);
       if (dbInfo == null) {
         return;
       }
-      System.out.println("after get dbinfo");
       dbInfo.setPoolName(hikariPoolname);
-      System.out.println("after set in dbinfo");
-
-      // System.out.println(dbInfo.getHikariPoolName() != null ? dbInfo.getHikariPoolName() : "it
-      // was null");
-      if (dbInfo.getPoolName() == null) {
-        System.out.println("null");
-      } else {
-        System.out.println("dbinfo was set:");
-        System.out.println(dbInfo.getPoolName());
-      }
-
-      // InstrumentationContext.get(Connection.class, DBInfo.class).put(hikariDSConnection,
-      // dbInfo);
-      // check if need to put
-
-      // DECORATE.beforeFinish(scope.span());
-      System.out.println("hello we eneded");
-      System.out.println();
     }
   }
 }

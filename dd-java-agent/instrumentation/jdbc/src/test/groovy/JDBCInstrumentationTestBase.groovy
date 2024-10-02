@@ -618,10 +618,6 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
           childOf span(0)
           tags {
             "$Tags.COMPONENT" "java-jdbc-connection"
-
-            if (usingHikari) {
-              "hikari.poolname" String
-            }
             defaultTagsNoPeerService()
           }
         }
@@ -632,10 +628,6 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
             childOf span(1)
             tags {
               "$Tags.COMPONENT" "java-jdbc-connection"
-
-              if (usingHikari) {
-                "hikari.poolname" String
-              }
               defaultTagsNoPeerService()
             }
           }
@@ -644,13 +636,13 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
     }
 
     where:
-    datasource                               | init | usingHikari
-    new JdbcDataSource()                     | { ds -> ds.setURL(jdbcUrls.get("h2")) } | false
-    new EmbeddedDataSource()                 | { ds -> ds.jdbcurl = jdbcUrls.get("derby") } | false
-    cpDatasources.get("hikari").get("h2")    | null | true
-    cpDatasources.get("hikari").get("derby") | null | true
-    cpDatasources.get("c3p0").get("h2")      | null | false
-    cpDatasources.get("c3p0").get("derby")   | null | false
+    datasource                               | init
+    new JdbcDataSource()                     | { ds -> ds.setURL(jdbcUrls.get("h2")) }
+    new EmbeddedDataSource()                 | { ds -> ds.jdbcurl = jdbcUrls.get("derby") }
+    cpDatasources.get("hikari").get("h2")    | null
+    cpDatasources.get("hikari").get("derby") | null
+    cpDatasources.get("c3p0").get("h2")      | null
+    cpDatasources.get("c3p0").get("derby")   | null
 
     // Tomcat's pool doesn't work because the getConnection method is
     // implemented in a parent class that doesn't implement DataSource
