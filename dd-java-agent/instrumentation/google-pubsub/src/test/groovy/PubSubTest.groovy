@@ -138,7 +138,10 @@ abstract class PubSubTest extends VersionedNamingTestBase {
     injectSysConfig(GeneralConfig.SERVICE_NAME, "A-service")
     injectSysConfig(GeneralConfig.DATA_STREAMS_ENABLED, isDataStreamsEnabled().toString())
     if (!shadowGrpcSpans()) {
-      injectSysConfig(TraceInstrumentationConfig.GOOGLE_PUBSUB_IGNORED_GRPC_METHODS, "")
+      // only keep Publish and Acknowledge to make this test deterministic
+      // (things might be called depending on the transport and the test will be flaky otherwise)
+      injectSysConfig(TraceInstrumentationConfig.GOOGLE_PUBSUB_IGNORED_GRPC_METHODS,
+      "google.pubsub.v1.Subscriber/ModifyAckDeadline,google.pubsub.v1.Subscriber/Pull,google.pubsub.v1.Subscriber/StreamingPull")
     }
   }
 
@@ -169,7 +172,7 @@ abstract class PubSubTest extends VersionedNamingTestBase {
 
     then:
     def sendSpan
-    assertTraces(shadowGrpcSpans() ? 2 : 4, [
+    assertTraces(shadowGrpcSpans() ? 2 : 3, [
       compare            : { List<DDSpan> o1, List<DDSpan> o2 ->
         // trace will never be empty
         o1[0].localRootSpan.getTag(Tags.SPAN_KIND) <=> o2[0].localRootSpan.getTag(Tags.SPAN_KIND)
@@ -203,10 +206,6 @@ abstract class PubSubTest extends VersionedNamingTestBase {
       }
       if (!shadowGrpcSpans()) {
         // Acknowledge
-        trace(1) {
-          grpcSpans(it, "A-service", true)
-        }
-        // ModifyAckDeadline
         trace(1) {
           grpcSpans(it, "A-service", true)
         }
