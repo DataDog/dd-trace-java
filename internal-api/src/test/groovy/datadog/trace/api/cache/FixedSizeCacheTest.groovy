@@ -215,7 +215,7 @@ class FixedSizeCacheTest extends DDSpecification {
     null                      | null           | ["one", "six", "ten"]           | 3
   }
 
-  def "should handle concurrent usage"() {
+  def "should handle concurrent usage #cacheType"() {
     setup:
     def numThreads = 5
     def numInsertions = 100000
@@ -247,11 +247,11 @@ class FixedSizeCacheTest extends DDSpecification {
     conds.await(30.0) // the test is really fast locally, but I don't know how fast CI is
 
     where:
-    cacheImpl << [
-      { capacity -> DDCaches.newFixedSizeCache(capacity) },
-      { capacity -> DDCaches.newUnboundedCache(capacity) },
-      { capacity ->
-        DDCaches.newFixedSizeWeightedCache(capacity, String.&length, 1000)}
+    [cacheType, cacheImpl] << [
+      ['fixed size', { capacity -> DDCaches.newFixedSizeCache(capacity) }],
+      ['unbounded', { capacity -> DDCaches.newUnboundedCache(capacity) }],
+      ['fixed size weighted', { capacity ->
+        DDCaches.newFixedSizeWeightedCache(capacity, String.&length, 1000)}]
     ]
   }
 
