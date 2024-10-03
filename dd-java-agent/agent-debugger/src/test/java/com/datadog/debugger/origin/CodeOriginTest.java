@@ -1,6 +1,5 @@
 package com.datadog.debugger.origin;
 
-import static com.datadog.debugger.agent.ConfigurationAcceptor.Source.REMOTE_CONFIG;
 import static com.datadog.debugger.util.TestHelper.setFieldInConfig;
 import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_FRAME;
 import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_PREFIX;
@@ -11,23 +10,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
 
-import com.datadog.debugger.agent.ClassesToRetransformFinder;
-import com.datadog.debugger.agent.Configuration;
-import com.datadog.debugger.agent.ConfigurationUpdater;
-import com.datadog.debugger.agent.DebuggerAgentHelper;
-import com.datadog.debugger.agent.DebuggerTransformer;
-import com.datadog.debugger.agent.DebuggerTransformer.InstrumentationListener;
-import com.datadog.debugger.agent.JsonSnapshotSerializer;
-import com.datadog.debugger.agent.MockSampler;
+import com.datadog.debugger.agent.CapturingTestBase;
 import com.datadog.debugger.codeorigin.CodeOriginProbeManager;
 import com.datadog.debugger.codeorigin.DefaultCodeOriginRecorder;
-import com.datadog.debugger.probe.CodeOriginProbe;
-import com.datadog.debugger.sink.DebuggerSink;
-import com.datadog.debugger.sink.ProbeStatusSink;
+import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.util.ClassNameFiltering;
 import com.datadog.debugger.util.TestSnapshotListener;
 import com.datadog.debugger.util.TestTraceInterceptor;
@@ -36,25 +24,26 @@ import datadog.trace.api.Config;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
-import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
+import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.core.CoreTracer;
-import java.lang.instrument.Instrumentation;
-import java.lang.reflect.Field;
-import java.util.Collection;
+import java.io.IOException;
+import java.net.URISyntaxException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
-import net.bytebuddy.agent.ByteBuddyAgent;
 import org.joor.Reflect;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-public class CodeOriginTest {
-  private final Instrumentation instr = ByteBuddyAgent.install();
-  private final TestTraceInterceptor traceInterceptor = new TestTraceInterceptor();
+public class CodeOriginTest extends CapturingTestBase {
+
+  private CodeOriginProbeManager probeManager;
+
+  private TestTraceInterceptor traceInterceptor;
+
   public static ClassNameFiltering classNameFiltering =
       new ClassNameFiltering(
           new HashSet<>(
@@ -69,91 +58,54 @@ public class CodeOriginTest {
                   "com.datadog.debugger.probe",
                   "com.datadog.debugger.codeorigin")));
 
-  private CodeOriginProbeManager probeManager;
-
-  private MockSampler probeSampler;
-
-  private MockSampler globalSampler;
-
-  private ConfigurationUpdater configurationUpdater;
-
+  @Override
   @BeforeEach
   public void before() {
+    super.before();
+    traceInterceptor = new TestTraceInterceptor();
+
     CoreTracer tracer = CoreTracer.builder().build();
     TracerInstaller.forceInstallGlobalTracer(tracer);
     tracer.addTraceInterceptor(traceInterceptor);
-    probeSampler = new MockSampler();
-    globalSampler = new MockSampler();
 
-    ProbeRateLimiter.setSamplerSupplier(rate -> rate < 101 ? probeSampler : globalSampler);
-    ProbeRateLimiter.setGlobalSnapshotRate(1000);
-    // to activate the call to DebuggerContext.handleException
     setFieldInConfig(Config.get(), "debuggerCodeOriginEnabled", true);
-    setFieldInInstrumenterConfig(InstrumenterConfig.get(), "codeOriginEnabled", true);
-  }
-
-  private TestSnapshotListener setupCodeOrigin(Config config) {
-    ProbeStatusSink probeStatusSink = mock(ProbeStatusSink.class);
-    configurationUpdater =
-        new ConfigurationUpdater(
-            instr,
-            this::createTransformer,
-            config,
-            new DebuggerSink(config, probeStatusSink),
-            new ClassesToRetransformFinder());
-    probeManager = new CodeOriginProbeManager(configurationUpdater, classNameFiltering);
-    TestSnapshotListener listener = new TestSnapshotListener(config, probeStatusSink);
-    DebuggerAgentHelper.injectSink(listener);
-    DebuggerContext.initProbeResolver(configurationUpdater);
-    DebuggerContext.initValueSerializer(new JsonSnapshotSerializer());
-    DebuggerContext.initCodeOrigin(new DefaultCodeOriginRecorder(probeManager));
-    configurationUpdater.accept(REMOTE_CONFIG, null);
-    return listener;
+    setFieldInConfig(InstrumenterConfig.get(), "codeOriginEnabled", true);
   }
 
   @Test
   public void basicInstrumentation() throws Exception {
-    Config config = createConfig();
-    TestSnapshotListener listener = setupCodeOrigin(config);
     final String CLASS_NAME = "com.datadog.debugger.CodeOrigin01";
-    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.onClass(testClass).call("main", "fullTrace").get();
-    assertEquals(0, result);
-    Collection<CodeOriginProbe> probes = probeManager.getProbes();
-    assertEquals(2, probes.size());
-    assertEquals(0, listener.snapshots.size());
-    List<? extends MutableSpan> spans = traceInterceptor.getAllTraces().get(0);
-    assertEquals(3, spans.size());
-    assertEquals("main", spans.get(2).getLocalRootSpan().getOperationName());
 
-    List<? extends MutableSpan> list =
-        spans.stream()
-            .filter(span -> !span.getOperationName().equals("exit"))
-            .collect(Collectors.toList());
-
-    for (MutableSpan span : list) {
-      checkEntrySpanTags(span, false);
-    }
-    Optional<? extends MutableSpan> exit =
-        spans.stream().filter(span -> span.getOperationName().equals("exit")).findFirst();
-    assertTrue(exit.isPresent());
-    exit.ifPresent(span -> checkExitSpanTags(span, false));
+    installProbes();
+    final Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    checkResults(testClass, "fullTrace", false, 0);
   }
 
   @Test
-  public void postInstrumentation() throws Exception {
-    Config config = createConfig();
-    TestSnapshotListener listener = setupCodeOrigin(config);
-    final String CLASS_NAME = "com.datadog.debugger.CodeOrigin01";
-    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    Reflect.onClass(testClass).call("main", "fullTrace").get();
-    waitForInstrumentation();
+  public void withDebug1() throws Exception {
+    final String CLASS_NAME = "com.datadog.debugger.CodeOrigin02";
+    installProbes();
+    final Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    checkResults(testClass, "debug_1", true, 0);
+  }
 
-    int result = Reflect.onClass(testClass).call("main", "debug_1").get();
+  @Test
+  public void withLogProbe() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CodeOrigin03";
+    installProbes(
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "fullTrace", "()", "35")
+            .capture(1, 100, 255, Limits.DEFAULT_FIELD_COUNT)
+            .build());
+    final Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    checkResults(testClass, "debug_1", true, 1);
+  }
+
+  private void checkResults(
+      Class<?> testClass, String parameter, boolean includeSnapshot, int expectedProbeCount) {
+    Reflect.onClass(testClass).call("main", parameter).get();
+    waitForInstrumentation(expectedProbeCount);
+    int result = Reflect.onClass(testClass).call("main", parameter).get();
     assertEquals(0, result);
-    Collection<CodeOriginProbe> probes = probeManager.getProbes();
-    assertEquals(2, probes.size());
-    assertEquals(2, listener.snapshots.size());
     List<? extends MutableSpan> spans = traceInterceptor.getTrace();
     assertEquals(3, spans.size());
     assertEquals("main", spans.get(2).getLocalRootSpan().getOperationName());
@@ -164,29 +116,45 @@ public class CodeOriginTest {
             .collect(Collectors.toList());
 
     for (MutableSpan span : list) {
-      checkEntrySpanTags(span, true);
+      checkEntrySpanTags(span, includeSnapshot);
     }
     Optional<? extends MutableSpan> exit =
         spans.stream().filter(span -> span.getOperationName().equals("exit")).findFirst();
     assertTrue(exit.isPresent());
-    exit.ifPresent(span -> checkExitSpanTags(span, true));
+    exit.ifPresent(span -> checkExitSpanTags(span, includeSnapshot));
   }
 
-  private void waitForInstrumentation() {
-    long end = System.currentTimeMillis() + 30_000;
-    try {
-      while (System.currentTimeMillis() < end) {
-        if (probeManager.getProbes().size() == 2) {
-          Thread.sleep(1000);
-          return;
-        }
+  protected TestSnapshotListener installProbes(LogProbe... probes) {
+    TestSnapshotListener listener = super.installProbes(probes);
 
+    probeManager = new CodeOriginProbeManager(configurationUpdater, classNameFiltering);
+    DebuggerContext.initCodeOrigin(new DefaultCodeOriginRecorder(probeManager));
+
+    return listener;
+  }
+
+  private void waitForInstrumentation(int expected) {
+    long end = System.currentTimeMillis() + 5_000;
+    try {
+      while (System.currentTimeMillis() < end
+          && probeManager.getProbes().size() != 2
+          && instrumentationListener.results.size() != expected) {
         Thread.sleep(500);
       }
+      Thread.sleep(1000); // one last time to make sure things have had a chance
     } catch (InterruptedException e) {
       throw new RuntimeException(e);
     }
-    throw new IllegalStateException("Some probes failed to instrument");
+    if (instrumentationListener.results.size() != expected) {
+      throw new IllegalStateException(
+          format(
+              "Some probes failed to instrument. expected %d regular probes and %d code origin "
+                  + "probes.  found: %d and %d",
+              expected,
+              2,
+              instrumentationListener.results.size(),
+              probeManager.getProbes().size()));
+    }
   }
 
   private static void checkEntrySpanTags(MutableSpan span, boolean includeSnapshot) {
@@ -202,23 +170,20 @@ public class CodeOriginTest {
 
     if (includeSnapshot) {
       assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "snapshot_id"));
+    } else {
+      assertKeyNotPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "snapshot_id"));
     }
   }
 
   private static void assertKeyPresent(MutableSpan span, String key) {
     assertNotNull(
-        span.getTag(key),
-        format(
-            "'%s' key missing in '%s' span.  Existing LD keys: %s",
-            key, span.getOperationName(), ldKeys(span)));
+        span.getTag(key), format("'%s' key missing in '%s' span.", key, span.getOperationName()));
   }
 
   private static void assertKeyNotPresent(MutableSpan span, String key) {
     assertNull(
         span.getTag(key),
-        format(
-            "'%s' key missing in '%s' span.  Existing LD keys: %s",
-            key, span.getOperationName(), ldKeys(span)));
+        format("'%s' key found in '%s' span when it shouldn't be.", key, span.getOperationName()));
   }
 
   private static void checkExitSpanTags(MutableSpan span, boolean includeSnapshot) {
@@ -246,36 +211,5 @@ public class CodeOriginTest {
     return span.getTags().keySet().stream()
         .filter(key -> key.startsWith(DD_CODE_ORIGIN_PREFIX))
         .collect(Collectors.toCollection(TreeSet::new));
-  }
-
-  private static Config createConfig() {
-    Config config = mock(Config.class);
-    when(config.isDebuggerEnabled()).thenReturn(true);
-    when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
-    when(config.isDebuggerVerifyByteCode()).thenReturn(true);
-    when(config.getFinalDebuggerSnapshotUrl())
-        .thenReturn("http://localhost:8126/debugger/v1/input");
-    when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
-    when(config.getDebuggerUploadBatchSize()).thenReturn(100);
-    return config;
-  }
-
-  private DebuggerTransformer createTransformer(
-      Config config,
-      Configuration configuration,
-      InstrumentationListener listener,
-      DebuggerSink debuggerSink) {
-    return new DebuggerTransformer(config, configuration, listener, debuggerSink);
-  }
-
-  private void setFieldInInstrumenterConfig(
-      InstrumenterConfig config, String fieldName, Object value) {
-    try {
-      Field field = config.getClass().getDeclaredField(fieldName);
-      field.setAccessible(true);
-      field.set(config, value);
-    } catch (Throwable e) {
-      e.printStackTrace();
-    }
   }
 }

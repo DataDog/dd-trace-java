@@ -47,10 +47,6 @@ public class CodeOriginProbe extends LogProbe implements ForceMethodInstrumentat
     return false;
   }
 
-  public boolean isEntrySpanProbe() {
-    return entrySpanProbe;
-  }
-
   @Override
   public void evaluate(
       CapturedContext context, CapturedContext.Status status, MethodLocation methodLocation) {
@@ -89,11 +85,6 @@ public class CodeOriginProbe extends LogProbe implements ForceMethodInstrumentat
 
   private void applySpanOriginTags(AgentSpan span, String snapshotId) {
     List<StackTraceElement> entries = getUserStackFrames();
-    recordStackFrames(span, entries, snapshotId);
-  }
-
-  private void recordStackFrames(
-      AgentSpan span, List<StackTraceElement> entries, String snapshotId) {
     List<AgentSpan> agentSpans =
         entrySpanProbe ? asList(span, span.getLocalRootSpan()) : singletonList(span);
 

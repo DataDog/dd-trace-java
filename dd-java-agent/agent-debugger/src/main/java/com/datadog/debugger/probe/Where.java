@@ -13,7 +13,9 @@ import java.util.List;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.MethodNode;
 
 /** Stores probe location definition */
@@ -64,11 +66,17 @@ public class Where {
       if (methodsByLine != null && !methodsByLine.isEmpty()) {
         // pick the first method, as we can have multiple methods (lambdas) on the same line
         MethodNode method = methodsByLine.get(0);
-        String javaSignature = Types.descriptorToSignature(method.desc);
-        return new Where(lineWhere.typeName, method.name, javaSignature, (SourceLine[]) null, null);
+        return new Where(
+            lineWhere.typeName,
+            method.name,
+            Arrays.stream(Type.getArgumentTypes(method.desc))
+                .map(Type::getClassName)
+                .collect(Collectors.joining(", ", "(", ")")),
+            (SourceLine[]) null,
+            null);
       }
     }
-    throw new IllegalArgumentException("Invalid where to convert from line to method " + lineWhere);
+    return lineWhere;
   }
 
   public String getTypeName() {
