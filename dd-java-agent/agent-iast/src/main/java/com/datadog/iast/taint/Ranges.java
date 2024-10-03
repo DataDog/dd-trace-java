@@ -315,7 +315,7 @@ public final class Ranges {
     int rangeStart = 0;
     int currentIndex = 0;
     int totalWhiteSpaces = 0;
-    while (currentIndex < input.length() - 1) {
+    while (rangeStart >= ranges.length || currentIndex < input.length() - 1) {
       final int[] delimiterIndex = getNextDelimiterIndex(input, currentIndex, currentIndex + 1);
       final int lineOffset = delimiterIndex[1] == 2 ? 1 : 0;
       int currentIndentation;
