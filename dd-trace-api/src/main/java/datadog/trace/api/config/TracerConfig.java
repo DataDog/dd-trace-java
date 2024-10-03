@@ -65,7 +65,8 @@ public final class TracerConfig {
       "trace.http.server.path-resource-name-mapping";
   public static final String TRACE_HTTP_CLIENT_PATH_RESOURCE_NAME_MAPPING =
       "trace.http.client.path-resource-name-mapping";
-  public static final String HTTP_SERVER_ERROR_STATUSES = "http.server.error.statuses";
+  // Use TRACE_HTTP_SERVER_ERROR_STATUSES instead
+  @Deprecated public static final String HTTP_SERVER_ERROR_STATUSES = "http.server.error.statuses";
   public static final String TRACE_HTTP_SERVER_ERROR_STATUSES = "trace.http.server.error.statuses";
   public static final String HTTP_CLIENT_ERROR_STATUSES = "http.client.error.statuses";
 
