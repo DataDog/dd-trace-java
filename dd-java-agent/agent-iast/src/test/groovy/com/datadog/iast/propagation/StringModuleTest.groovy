@@ -984,6 +984,78 @@ class StringModuleTest extends IastModuleImplTestBase {
     '==>testing<== the ==>test<==' | ' '    | ['==>testing<==', '==>the<==', '==>test<=='] as String[]
   }
 
+  void 'test strip and make sure IastRequestContext is called'() {
+    given:
+    final taintedObjects = ctx.getTaintedObjects()
+    def self = addFromTaintFormat(taintedObjects, testString)
+    objectHolder.add(self)
+
+    and:
+    final result = getStringFromTaintFormat(expected)
+    objectHolder.add(expected)
+    final shouldBeTainted = fromTaintFormat(expected) != null
+
+    when:
+    module.onStringStrip(self, result, trailing)
+
+    then:
+    1 * tracer.activeSpan() >> span
+    def to = ctx.getTaintedObjects().get(result)
+    if (shouldBeTainted) {
+      assert to != null
+      assert to.get() == result
+      assert taintFormat(to.get() as String, to.getRanges()) == expected
+    } else {
+      assert to == null
+    }
+
+    where:
+    trailing | testString                                                      | expected
+    false    | "   ==>123<==   "                                               | "==>123<=="
+    false    | "   ==>123<==   "                                               | "==>123<==   "
+    true     | "   ==>123<==   "                                               | "   ==>123<=="
+    false    | " ==>   <== ==>   <== ==>456<== ==>ABC<== ==>   <== ==>   <== " | "==>456<== ==>ABC<=="
+    false    | " ==>   <== ==>   <== ==>456<== ==>ABC<== ==>   <== ==>   <== " | "==>456<== ==>ABC<== ==>   <== ==>   <== "
+    true     | " ==>   <== ==>   <== ==>456<== ==>ABC<== ==>   <== ==>   <== " | " ==>   <== ==>   <== ==>456<== ==>ABC<=="
+    false    | "   ==>123<==   "                                               | "==>123<=="
+    false    | "   ==>123<==   "                                               | "==>123<==   "
+    true     | "   ==>123<==   "                                               | "   ==>123<=="
+    false    | "==>   123   <=="                                               | "==>123<=="
+    false    | "==>   123   <=="                                               | "==>123   <=="
+    true     | "==>   123   <=="                                               | "==>   123<=="
+    false    | "   a==> b <==c   "                                             | "a==> b <==c"
+    false    | "   a==> b <==c   "                                             | "a==> b <==c   "
+    true     | "   a==> b <==c   "                                             | "   a==> b <==c"
+  }
+
+  void 'test strip for empty string cases'() {
+    given:
+    final taintedObjects = ctx.getTaintedObjects()
+    def self = addFromTaintFormat(taintedObjects, testString)
+    objectHolder.add(self)
+
+    and:
+    final result = getStringFromTaintFormat(expected)
+    objectHolder.add(expected)
+
+    when:
+    module.onStringStrip(self, result, trailing)
+
+    then:
+    0 * tracer.activeSpan() >> span
+    null == taintedObjects.get(result)
+    result == expected
+
+    where:
+    trailing | testString              | expected
+    false    | " ==>   <== "           | ""
+    false    | " ==>   <== "           | ""
+    true     | " ==>   <== "           | ""
+    false    | ""                      | ""
+    false    | ""                      | ""
+    true     | ""                      | ""
+  }
+
   private static Date date(final String pattern, final String value) {
     return new SimpleDateFormat(pattern).parse(value)
   }
