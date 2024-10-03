@@ -98,8 +98,7 @@ public class DebuggerProbeInstrumentationTest extends ProbeInstrumentationTest {
   public void testWithCodeOrigin() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
 
-    Where where =
-        Where.convertLineToMethod(CLASS_NAME, "process", "int (java.lang.String)", (String[]) null);
+    Where where = Where.of(CLASS_NAME, "process", "int (java.lang.String)", (String[]) null);
     installProbes(
         DebuggerProbe.builder()
             .probeId(DEBUG_PROBE_ID)
