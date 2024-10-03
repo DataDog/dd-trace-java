@@ -142,9 +142,9 @@ class JaxRsAnnotations1InstrumentationTest extends AgentTestRunner {
   def "no annotations has no effect"() {
     setup:
     def obj = new Jax() {
-      void call() {
+        void call() {
+        }
       }
-    }
     runUnderTrace("test") {
       obj.call()
     }

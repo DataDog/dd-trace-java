@@ -248,10 +248,21 @@ class FixedSizeCacheTest extends DDSpecification {
 
     where:
     [cacheType, cacheImpl] << [
-      ['fixed size', { capacity -> DDCaches.newFixedSizeCache(capacity) }],
-      ['unbounded', { capacity -> DDCaches.newUnboundedCache(capacity) }],
-      ['fixed size weighted', { capacity ->
-        DDCaches.newFixedSizeWeightedCache(capacity, String.&length, 1000)}]
+      [
+        'fixed size',
+        { capacity ->
+          DDCaches.newFixedSizeCache(capacity) }
+      ],
+      [
+        'unbounded',
+        { capacity ->
+          DDCaches.newUnboundedCache(capacity) }
+      ],
+      [
+        'fixed size weighted',
+        { capacity ->
+          DDCaches.newFixedSizeWeightedCache(capacity, String.&length, 1000)}
+      ]
     ]
   }
 
