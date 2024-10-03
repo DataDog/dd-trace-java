@@ -34,10 +34,17 @@ import java.util.concurrent.atomic.AtomicReference
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_HTTP_CLIENT_TAG_QUERY_STRING
 
+
+import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
+import software.amazon.awssdk.http.SdkHttpRequest;
+import software.amazon.awssdk.http.SdkHttpResponse;
+
 abstract class Aws2SnsDataStreamsTest extends VersionedNamingTestBase {
 
   private static final StaticCredentialsProvider CREDENTIALS_PROVIDER = StaticCredentialsProvider
   .create(AwsBasicCredentials.create("my-access-key", "my-secret-key"))
+
+  String queryParams;
 
   @Shared
   def responseBody = new AtomicReference<String>()
@@ -99,7 +106,26 @@ abstract class Aws2SnsDataStreamsTest extends VersionedNamingTestBase {
   def watch(builder, callback) {
     builder.addExecutionInterceptor(new ExecutionInterceptor() {
       @Override
+      public void beforeExecution(Context.BeforeExecution context, ExecutionAttributes executionAttributes) {
+          String actionType = context.request().getClass().toString();
+          queryParams = actionType.substring(actionType.lastIndexOf('.') + 1).replace("Request", "").trim();
+          Boolean batchRequest = queryParams.equals("PublishBatch") ? true : false;
+          queryParams = "?Action=" + queryParams + "&TopicArn=" + context.request().getValueForField("TopicArn", String.class).get();
+          if (batchRequest){
+            List temp = context.request().getValueForField("PublishBatchRequestEntries", List.class).get();
+            for(int i = 0; i < temp.size(); i++){
+              String id = temp[i].getValueForField("Id", String.class).get();
+              String message = temp[i].getValueForField("Message", String.class).get();
+              queryParams += "&PublishBatchRequestEntries.member." + id + ".Id=" + id + "&PublishBatchRequestEntries.member." + id + ".Message=" + message;
+            }
+          }else{
+            queryParams += "&Message=" + context.request().getValueForField("Message", String.class).get();
+          }
+          System.out.println("queryParams: " + queryParams);
+      }
+      @Override
       void afterExecution(Context.AfterExecution context, ExecutionAttributes executionAttributes) {
+        System.out.println("aftercontext: " + context.request().toString());
         callback.call()
       }
     })
@@ -108,7 +134,7 @@ abstract class Aws2SnsDataStreamsTest extends VersionedNamingTestBase {
   @Unroll
   def "send #operation request with builder #builder.class.getSimpleName() mocked response"() {
     setup:
-    injectSysConfig(TRACE_HTTP_CLIENT_TAG_QUERY_STRING, "false")
+    // injectSysConfig(TRACE_HTTP_CLIENT_TAG_QUERY_STRING, "false")
     def conditions = new PollingConditions(timeout: 1)
     boolean executed = false
     def client = builder
@@ -172,7 +198,7 @@ abstract class Aws2SnsDataStreamsTest extends VersionedNamingTestBase {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.PEER_HOSTNAME" "localhost"
             "$Tags.PEER_PORT" server.address.port
-            "$Tags.HTTP_URL" "${server.address}${path}"
+            "$Tags.HTTP_URL" "${server.address}${path}${queryParams}"
             "$Tags.HTTP_METHOD" "$method"
             "$Tags.HTTP_STATUS" 200
             "aws.service" "$service"
