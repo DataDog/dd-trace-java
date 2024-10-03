@@ -14,7 +14,7 @@ class TaskUnwrappingForkedTest extends AgentTestRunner {
     super.configurePreAgent()
   }
 
-  def "check expected types instrumented and can be unwrapped"() {
+  def "check expected types instrumented and can be unwrapped (#iterationIndex)"() {
     expect:
     task instanceof TaskWrapper
     type.isAssignableFrom(TaskWrapper.getUnwrappedType(task))

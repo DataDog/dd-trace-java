@@ -19,7 +19,6 @@ import javax.annotation.Nullable;
 public abstract class AbstractTestModule {
 
   protected final AgentSpan span;
-  protected final long sessionId;
   protected final String moduleName;
   protected final Config config;
   protected final CiVisibilityMetricCollector metricCollector;
@@ -31,7 +30,6 @@ public abstract class AbstractTestModule {
 
   public AbstractTestModule(
       AgentSpan.Context sessionSpanContext,
-      long sessionId,
       String moduleName,
       @Nullable Long startTime,
       InstrumentationType instrumentationType,
@@ -42,7 +40,6 @@ public abstract class AbstractTestModule {
       Codeowners codeowners,
       MethodLinesResolver methodLinesResolver,
       Consumer<AgentSpan> onSpanFinish) {
-    this.sessionId = sessionId;
     this.moduleName = moduleName;
     this.config = config;
     this.metricCollector = metricCollector;
@@ -65,7 +62,7 @@ public abstract class AbstractTestModule {
     span.setTag(Tags.TEST_MODULE, moduleName);
 
     span.setTag(Tags.TEST_MODULE_ID, span.getSpanId());
-    span.setTag(Tags.TEST_SESSION_ID, sessionId);
+    span.setTag(Tags.TEST_SESSION_ID, span.getTraceId());
 
     // setting status to skip initially,
     // as we do not know in advance whether the module will have any children

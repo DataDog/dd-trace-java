@@ -188,6 +188,7 @@ public class WriterFactory {
       }
       return DDIntakeApi.builder()
           .hostUrl(hostUrl)
+          .httpClient(commObjects.okHttpClient)
           .apiKey(config.getApiKey())
           .trackType(trackType)
           .build();

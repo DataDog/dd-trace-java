@@ -119,6 +119,7 @@ dependencies {
   iastTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-json', version: '2.0.+'
   iastTestImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
   iastTestImplementation project(':dd-java-agent:instrumentation:jackson-core')
+  iastTestImplementation project(':dd-java-agent:instrumentation:jackson-core:jackson-core-2.8')
 
   latestIast24TestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-webflux', version: '2.4.+'
   latestIast24TestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '2.4.+', {
@@ -136,6 +137,7 @@ dependencies {
   }
   latestIastTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-reactor-netty', version: '2.+'
   latestIastTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-json', version: '2.+'
+  latestIastTestImplementation project(':dd-java-agent:instrumentation:jackson-core:jackson-core-2.12')
 }
 
 tasks.named("latestDepTest").configure {

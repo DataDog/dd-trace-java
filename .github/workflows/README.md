@@ -82,6 +82,15 @@ _Action:_ Clean up old lib-injection OCI images from GitHub Container Registry.
 
 _Recovery:_ Manually trigger the action again.
 
+### prune-old-pull-requests [🔗](prune-old-pull-requests.yaml)
+
+_Trigger:_ Every month or manually.
+
+_Action:_ Mark as stale and comment on pull requests with no update during the last quarter.
+Close them if no following update within a week.
+
+_Recovery:_ Manually trigger the action again.
+
 ## Code Quality and Security
 
 ### analyze-changes [🔗](analyze-changes-with-github-codeql.yaml)
