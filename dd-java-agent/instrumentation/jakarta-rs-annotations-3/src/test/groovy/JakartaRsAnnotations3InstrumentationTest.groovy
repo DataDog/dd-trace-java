@@ -141,6 +141,10 @@ class JakartaRsAnnotations3InstrumentationTest extends AgentTestRunner {
 
   def "no annotations has no effect"() {
     setup:
+    def obj = new Jakarta() {
+      void call() {
+      }
+    }
     runUnderTrace("test") {
       obj.call()
     }
@@ -157,13 +161,6 @@ class JakartaRsAnnotations3InstrumentationTest extends AgentTestRunner {
         }
       }
     }
-
-    where:
-    obj | _
-    new Jakarta() {
-        void call() {
-        }
-      }   | _
   }
 
   interface Jakarta {
