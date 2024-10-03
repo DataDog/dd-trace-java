@@ -10,6 +10,7 @@
     "duration" : ${content_duration},
     "error" : 0,
     "metrics" : {
+      "_dd.host.vcpu_count" : 10,
       "process_id" : ${content_metrics_process_id},
       "_dd.profiling.enabled" : 0,
       "_dd.trace_span_attribute_schema" : 0
@@ -44,7 +45,9 @@
     "start" : ${content_start_2},
     "duration" : ${content_duration_2},
     "error" : 0,
-    "metrics" : { },
+    "metrics" : {
+      "_dd.host.vcpu_count" : 10
+    },
     "meta" : {
       "test.type" : "test",
       "test.module" : "junit-5.3",
@@ -68,11 +71,13 @@
     "test_suite_id" : ${content_test_suite_id},
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "name" : "junit.test_suite",
-    "resource" : "org.example.TestFailedSuiteTearDown",
+    "resource" : "org.example.TestFailedSuiteSetup",
     "start" : ${content_start_3},
     "duration" : ${content_duration_3},
     "error" : 1,
-    "metrics" : { },
+    "metrics" : {
+      "_dd.host.vcpu_count" : 10
+    },
     "meta" : {
       "test.type" : "test",
       "test.source.file" : "dummy_source_path",
@@ -86,100 +91,8 @@
       "error.type" : "java.lang.RuntimeException",
       "span.kind" : "test_suite_end",
       "error.message" : ${content_meta_error_message},
-      "test.suite" : "org.example.TestFailedSuiteTearDown",
+      "test.suite" : "org.example.TestFailedSuiteSetup",
       "error.stack" : ${content_meta_error_stack},
-      "test.framework_version" : ${content_meta_test_framework_version},
-      "test.framework" : "junit5"
-    }
-  }
-}, {
-  "type" : "test",
-  "version" : 2,
-  "content" : {
-    "trace_id" : ${content_trace_id},
-    "span_id" : ${content_span_id},
-    "parent_id" : ${content_parent_id},
-    "test_session_id" : ${content_test_session_id},
-    "test_module_id" : ${content_test_module_id},
-    "test_suite_id" : ${content_test_suite_id},
-    "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
-    "name" : "junit.test",
-    "resource" : "org.example.TestFailedSuiteTearDown.test_another_succeed",
-    "start" : ${content_start_4},
-    "duration" : ${content_duration_4},
-    "error" : 0,
-    "metrics" : {
-      "process_id" : ${content_metrics_process_id},
-      "_dd.profiling.enabled" : 0,
-      "_dd.trace_span_attribute_schema" : 0,
-      "test.source.end" : 18,
-      "test.source.start" : 12
-    },
-    "meta" : {
-      "_dd.tracer_host" : ${content_meta__dd_tracer_host},
-      "test.source.file" : "dummy_source_path",
-      "test.source.method" : "test_another_succeed()V",
-      "test.module" : "junit-5.3",
-      "test.status" : "pass",
-      "language" : "jvm",
-      "test.codeowners" : "[\"owner1\",\"owner2\"]",
-      "library_version" : ${content_meta_library_version},
-      "test.name" : "test_another_succeed",
-      "span.kind" : "test",
-      "test.suite" : "org.example.TestFailedSuiteTearDown",
-      "runtime-id" : ${content_meta_runtime_id},
-      "test.type" : "test",
-      "test_session.name" : "session-name",
-      "env" : "none",
-      "dummy_ci_tag" : "dummy_ci_tag_value",
-      "component" : "junit",
-      "_dd.profiling.ctx" : "test",
-      "test.framework_version" : ${content_meta_test_framework_version},
-      "test.framework" : "junit5"
-    }
-  }
-}, {
-  "type" : "test",
-  "version" : 2,
-  "content" : {
-    "trace_id" : ${content_trace_id_2},
-    "span_id" : ${content_span_id_2},
-    "parent_id" : ${content_parent_id},
-    "test_session_id" : ${content_test_session_id},
-    "test_module_id" : ${content_test_module_id},
-    "test_suite_id" : ${content_test_suite_id},
-    "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
-    "name" : "junit.test",
-    "resource" : "org.example.TestFailedSuiteTearDown.test_succeed",
-    "start" : ${content_start_5},
-    "duration" : ${content_duration_5},
-    "error" : 0,
-    "metrics" : {
-      "process_id" : ${content_metrics_process_id},
-      "_dd.profiling.enabled" : 0,
-      "_dd.trace_span_attribute_schema" : 0,
-      "test.source.end" : 18,
-      "test.source.start" : 12
-    },
-    "meta" : {
-      "_dd.tracer_host" : ${content_meta__dd_tracer_host},
-      "test.source.file" : "dummy_source_path",
-      "test.source.method" : "test_succeed()V",
-      "test.module" : "junit-5.3",
-      "test.status" : "pass",
-      "language" : "jvm",
-      "test.codeowners" : "[\"owner1\",\"owner2\"]",
-      "library_version" : ${content_meta_library_version},
-      "test.name" : "test_succeed",
-      "span.kind" : "test",
-      "test.suite" : "org.example.TestFailedSuiteTearDown",
-      "runtime-id" : ${content_meta_runtime_id},
-      "test.type" : "test",
-      "test_session.name" : "session-name",
-      "env" : "none",
-      "dummy_ci_tag" : "dummy_ci_tag_value",
-      "component" : "junit",
-      "_dd.profiling.ctx" : "test",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.framework" : "junit5"
     }
