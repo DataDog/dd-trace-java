@@ -81,9 +81,16 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
 
     for (final CoreSpan<?> span : trace) {
       DDTraceId testSessionId = span.getTag(Tags.TEST_SESSION_ID);
-      Long testModuleId = span.getTag(Tags.TEST_MODULE_ID);
-      Long testSuiteId = span.getTag(Tags.TEST_SUITE_ID);
+      span.removeTag(Tags.TEST_SESSION_ID);
+
+      Number testModuleId = span.getTag(Tags.TEST_MODULE_ID);
+      span.removeTag(Tags.TEST_MODULE_ID);
+
+      Number testSuiteId = span.getTag(Tags.TEST_SUITE_ID);
+      span.removeTag(Tags.TEST_SUITE_ID);
+
       String itrCorrelationId = span.getTag(Tags.ITR_CORRELATION_ID);
+      span.removeTag(Tags.ITR_CORRELATION_ID);
 
       int topLevelTagsCount = 0;
       if (testSessionId != null) {

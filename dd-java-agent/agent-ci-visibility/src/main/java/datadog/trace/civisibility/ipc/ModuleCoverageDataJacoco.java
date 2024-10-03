@@ -30,7 +30,8 @@ public class ModuleCoverageDataJacoco extends ModuleSignal {
       return false;
     }
     ModuleCoverageDataJacoco that = (ModuleCoverageDataJacoco) o;
-    return sessionId == that.sessionId
+    return sessionId.toLong() == that.sessionId.toLong()
+        && sessionId.toHighOrderLong() == that.sessionId.toHighOrderLong()
         && moduleId == that.moduleId
         && Arrays.equals(coverageData, that.coverageData);
   }
