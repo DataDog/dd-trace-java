@@ -10,7 +10,7 @@
     "duration" : ${content_duration},
     "error" : 0,
     "metrics" : {
-      "_dd.host.vcpu_count" : 10,
+      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count},
       "process_id" : ${content_metrics_process_id},
       "_dd.profiling.enabled" : 0,
       "_dd.trace_span_attribute_schema" : 0
@@ -46,7 +46,7 @@
     "duration" : ${content_duration_2},
     "error" : 0,
     "metrics" : {
-      "_dd.host.vcpu_count" : 10
+      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count}
     },
     "meta" : {
       "test.type" : "test",
@@ -76,7 +76,7 @@
     "duration" : ${content_duration_3},
     "error" : 0,
     "metrics" : {
-      "_dd.host.vcpu_count" : 10
+      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count}
     },
     "meta" : {
       "test.type" : "test",
@@ -98,7 +98,7 @@
   "type" : "test",
   "version" : 2,
   "content" : {
-    "trace_id" : ${content_trace_id},
+    "trace_id" : ${content_metrics__dd_host_vcpu_count},
     "span_id" : ${content_span_id},
     "parent_id" : ${content_parent_id},
     "test_session_id" : ${content_test_session_id},
@@ -114,7 +114,7 @@
       "process_id" : ${content_metrics_process_id},
       "_dd.profiling.enabled" : 0,
       "_dd.trace_span_attribute_schema" : 0,
-      "_dd.host.vcpu_count" : 10,
+      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count},
       "test.source.end" : 18,
       "test.source.start" : 12
     },
@@ -145,7 +145,7 @@
   "type" : "test",
   "version" : 2,
   "content" : {
-    "trace_id" : ${content_trace_id_2},
+    "trace_id" : ${content_trace_id},
     "span_id" : ${content_span_id_2},
     "parent_id" : ${content_parent_id},
     "test_session_id" : ${content_test_session_id},
@@ -161,7 +161,7 @@
       "process_id" : ${content_metrics_process_id},
       "_dd.profiling.enabled" : 0,
       "_dd.trace_span_attribute_schema" : 0,
-      "_dd.host.vcpu_count" : 10,
+      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count},
       "test.source.end" : 18,
       "test.source.start" : 12
     },
@@ -192,7 +192,7 @@
   "type" : "span",
   "version" : 1,
   "content" : {
-    "trace_id" : ${content_trace_id_2},
+    "trace_id" : ${content_trace_id},
     "span_id" : ${content_span_id_3},
     "parent_id" : ${content_span_id_2},
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
@@ -212,7 +212,7 @@
   "type" : "span",
   "version" : 1,
   "content" : {
-    "trace_id" : ${content_trace_id},
+    "trace_id" : ${content_metrics__dd_host_vcpu_count},
     "span_id" : ${content_span_id_4},
     "parent_id" : ${content_span_id},
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
@@ -232,7 +232,7 @@
   "type" : "span",
   "version" : 1,
   "content" : {
-    "trace_id" : ${content_trace_id_2},
+    "trace_id" : ${content_trace_id},
     "span_id" : ${content_span_id_5},
     "parent_id" : ${content_span_id_2},
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
@@ -252,7 +252,7 @@
   "type" : "span",
   "version" : 1,
   "content" : {
-    "trace_id" : ${content_trace_id},
+    "trace_id" : ${content_metrics__dd_host_vcpu_count},
     "span_id" : ${content_span_id_6},
     "parent_id" : ${content_span_id},
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",

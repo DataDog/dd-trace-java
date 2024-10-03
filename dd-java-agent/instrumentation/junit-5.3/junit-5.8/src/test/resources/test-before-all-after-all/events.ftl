@@ -10,7 +10,7 @@
     "duration" : ${content_duration},
     "error" : 0,
     "metrics" : {
-      "_dd.host.vcpu_count" : 10,
+      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count},
       "process_id" : ${content_metrics_process_id},
       "_dd.profiling.enabled" : 0,
       "_dd.trace_span_attribute_schema" : 0
@@ -46,7 +46,7 @@
     "duration" : ${content_duration_2},
     "error" : 0,
     "metrics" : {
-      "_dd.host.vcpu_count" : 10
+      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count}
     },
     "meta" : {
       "test.type" : "test",
@@ -76,7 +76,7 @@
     "duration" : ${content_duration_3},
     "error" : 0,
     "metrics" : {
-      "_dd.host.vcpu_count" : 10
+      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count}
     },
     "meta" : {
       "test.type" : "test",
@@ -114,7 +114,7 @@
       "process_id" : ${content_metrics_process_id},
       "_dd.profiling.enabled" : 0,
       "_dd.trace_span_attribute_schema" : 0,
-      "_dd.host.vcpu_count" : 10,
+      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count},
       "test.source.end" : 18,
       "test.source.start" : 12
     },
@@ -161,7 +161,7 @@
       "process_id" : ${content_metrics_process_id},
       "_dd.profiling.enabled" : 0,
       "_dd.trace_span_attribute_schema" : 0,
-      "_dd.host.vcpu_count" : 10,
+      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count},
       "test.source.end" : 18,
       "test.source.start" : 12
     },
