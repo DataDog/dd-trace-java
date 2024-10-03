@@ -115,10 +115,6 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
         if (config.isCloudPayloadTaggingEnabledFor(serviceName)) {
           // Wrap the response so that it can be read again for tag extraction
           return is.map(ResponseBodyStreamWrapper::new);
-        } else {
-          log.debug(
-              "Cloud payload tagging is disabled for service {}. Skipping response wrapping.",
-              serviceName);
         }
       }
     }
