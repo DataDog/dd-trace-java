@@ -1,6 +1,7 @@
 package datadog.trace.civisibility.domain.buildsystem;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
@@ -40,8 +41,7 @@ import org.slf4j.LoggerFactory;
 public class ProxyTestModule implements TestFrameworkModule {
   private static final Logger log = LoggerFactory.getLogger(ProxyTestModule.class);
 
-  private final long parentProcessSessionId;
-  private final long parentProcessModuleId;
+  private final AgentSpan.Context parentProcessModuleContext;
   private final String moduleName;
   private final ExecutionStrategy executionStrategy;
   private final SignalClient.Factory signalClientFactory;
@@ -56,8 +56,7 @@ public class ProxyTestModule implements TestFrameworkModule {
   private final Collection<TestFramework> testFrameworks = ConcurrentHashMap.newKeySet();
 
   public ProxyTestModule(
-      long parentProcessSessionId,
-      long parentProcessModuleId,
+      AgentSpan.Context parentProcessModuleContext,
       String moduleName,
       ExecutionStrategy executionStrategy,
       Config config,
@@ -69,8 +68,7 @@ public class ProxyTestModule implements TestFrameworkModule {
       CoverageStore.Factory coverageStoreFactory,
       ChildProcessCoverageReporter childProcessCoverageReporter,
       SignalClient.Factory signalClientFactory) {
-    this.parentProcessSessionId = parentProcessSessionId;
-    this.parentProcessModuleId = parentProcessModuleId;
+    this.parentProcessModuleContext = parentProcessModuleContext;
     this.moduleName = moduleName;
     this.executionStrategy = executionStrategy;
     this.signalClientFactory = signalClientFactory;
@@ -113,6 +111,9 @@ public class ProxyTestModule implements TestFrameworkModule {
   }
 
   private void sendModuleExecutionResult() {
+    DDTraceId parentProcessSessionId = parentProcessModuleContext.getTraceId();
+    long parentProcessModuleId = parentProcessModuleContext.getSpanId();
+
     try (SignalClient signalClient = signalClientFactory.create()) {
       ModuleSignal coverageSignal =
           childProcessCoverageReporter.createCoverageSignal(
@@ -156,9 +157,7 @@ public class ProxyTestModule implements TestFrameworkModule {
       boolean parallelized,
       TestFrameworkInstrumentation instrumentation) {
     return new TestSuiteImpl(
-        null,
-        parentProcessSessionId,
-        parentProcessModuleId,
+        parentProcessModuleContext,
         moduleName,
         testSuiteName,
         executionStrategy.getExecutionSettings().getItrCorrelationId(),

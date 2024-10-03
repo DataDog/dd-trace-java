@@ -12,6 +12,7 @@ import com.squareup.moshi.Types;
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
+import datadog.trace.civisibility.ci.env.CiEnvironment;
 import datadog.trace.util.Strings;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -47,50 +48,57 @@ class GithubActionsInfo implements CIProviderInfo {
   public static final String GIT_PULL_REQUEST_BASE_BRANCH_SHA = "git.pull_request.base_branch_sha";
   public static final String GIT_COMMIT_HEAD_SHA = "git.commit.head_sha";
 
+  private final CiEnvironment environment;
+
+  GithubActionsInfo(CiEnvironment environment) {
+    this.environment = environment;
+  }
+
   @Override
   public GitInfo buildCIGitInfo() {
     return new GitInfo(
         buildGitRepositoryUrl(
-            filterSensitiveInfo(System.getenv(GHACTIONS_URL)), System.getenv(GHACTIONS_REPOSITORY)),
+            filterSensitiveInfo(environment.get(GHACTIONS_URL)),
+            environment.get(GHACTIONS_REPOSITORY)),
         buildGitBranch(),
         buildGitTag(),
-        new CommitInfo(System.getenv(GHACTIONS_SHA)));
+        new CommitInfo(environment.get(GHACTIONS_SHA)));
   }
 
   @Override
   public CIInfo buildCIInfo() {
     final String pipelineUrl =
         buildPipelineUrl(
-            filterSensitiveInfo(System.getenv(GHACTIONS_URL)),
-            System.getenv(GHACTIONS_REPOSITORY),
-            System.getenv(GHACTIONS_PIPELINE_ID),
-            System.getenv(GHACTIONS_PIPELINE_RETRY));
+            filterSensitiveInfo(environment.get(GHACTIONS_URL)),
+            environment.get(GHACTIONS_REPOSITORY),
+            environment.get(GHACTIONS_PIPELINE_ID),
+            environment.get(GHACTIONS_PIPELINE_RETRY));
     final String jobUrl =
         buildJobUrl(
-            filterSensitiveInfo(System.getenv(GHACTIONS_URL)),
-            System.getenv(GHACTIONS_REPOSITORY),
-            System.getenv(GHACTIONS_SHA));
+            filterSensitiveInfo(environment.get(GHACTIONS_URL)),
+            environment.get(GHACTIONS_REPOSITORY),
+            environment.get(GHACTIONS_SHA));
 
-    CIInfo.Builder builder = CIInfo.builder();
+    CIInfo.Builder builder = CIInfo.builder(environment);
 
     setAdditionalTagsIfApplicable(builder);
 
     return builder
         .ciProviderName(GHACTIONS_PROVIDER_NAME)
-        .ciPipelineId(System.getenv(GHACTIONS_PIPELINE_ID))
-        .ciPipelineName(System.getenv(GHACTIONS_PIPELINE_NAME))
-        .ciPipelineNumber(System.getenv(GHACTIONS_PIPELINE_NUMBER))
+        .ciPipelineId(environment.get(GHACTIONS_PIPELINE_ID))
+        .ciPipelineName(environment.get(GHACTIONS_PIPELINE_NAME))
+        .ciPipelineNumber(environment.get(GHACTIONS_PIPELINE_NUMBER))
         .ciPipelineUrl(pipelineUrl)
-        .ciJobName(System.getenv(GHACTIONS_JOB))
+        .ciJobName(environment.get(GHACTIONS_JOB))
         .ciJobUrl(jobUrl)
-        .ciWorkspace(expandTilde(System.getenv(GHACTIONS_WORKSPACE_PATH)))
+        .ciWorkspace(expandTilde(environment.get(GHACTIONS_WORKSPACE_PATH)))
         .ciEnvVars(
             GHACTIONS_URL, GHACTIONS_REPOSITORY, GHACTIONS_PIPELINE_ID, GHACTIONS_PIPELINE_RETRY)
         .build();
   }
 
-  private static void setAdditionalTagsIfApplicable(CIInfo.Builder builder) {
-    String baseRef = System.getenv(GITHUB_BASE_REF);
+  private void setAdditionalTagsIfApplicable(CIInfo.Builder builder) {
+    String baseRef = environment.get(GITHUB_BASE_REF);
     if (!Strings.isNotBlank(baseRef)) {
       return;
     }
@@ -99,7 +107,7 @@ class GithubActionsInfo implements CIProviderInfo {
       Map<String, String> additionalTags = new HashMap<>();
       additionalTags.put(GIT_PULL_REQUEST_BASE_BRANCH, baseRef);
 
-      Path eventPath = Paths.get(System.getenv(GITHUB_EVENT_PATH));
+      Path eventPath = Paths.get(environment.get(GITHUB_EVENT_PATH));
       String event = new String(Files.readAllBytes(eventPath), StandardCharsets.UTF_8);
 
       Moshi moshi = new Moshi.Builder().build();
@@ -147,10 +155,10 @@ class GithubActionsInfo implements CIProviderInfo {
     }
   }
 
-  private static String getGitBranchOrTag() {
-    String gitBranchOrTag = System.getenv(GHACTIONS_HEAD_REF);
+  private String getGitBranchOrTag() {
+    String gitBranchOrTag = environment.get(GHACTIONS_HEAD_REF);
     if (gitBranchOrTag == null || gitBranchOrTag.isEmpty()) {
-      gitBranchOrTag = System.getenv(GHACTIONS_REF);
+      gitBranchOrTag = environment.get(GHACTIONS_REF);
     }
     return gitBranchOrTag;
   }
