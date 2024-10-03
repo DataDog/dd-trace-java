@@ -22,7 +22,13 @@
       "step.name" : "I add {int} and {int}",
       "env" : "integration-test",
       "runtime-id" : ${content_meta_runtime_id},
-      "language" : "jvm"
+      "language" : "jvm",
+      "runtime.name" : ${content_meta_runtime_name},
+      "runtime.vendor" : ${content_meta_runtime_vendor},
+      "runtime.version" : ${content_meta_runtime_version},
+      "os.architecture" : ${content_meta_os_architecture},
+      "os.platform" : ${content_meta_os_platform},
+      "os.version" : ${content_meta_os_version}
     }
   }
 }, {
@@ -37,35 +43,36 @@
     "duration" : ${content_duration_2},
     "error" : 0,
     "metrics" : {
+      "_dd.host.vcpu_count" : 10,
       "process_id" : ${content_metrics_process_id},
       "_dd.profiling.enabled" : 0,
-      "_dd.trace_span_attribute_schema" : 0,
-      "test.code_coverage.lines_pct" : 0
+      "test.code_coverage.lines_pct" : 0,
+      "_dd.trace_span_attribute_schema" : 0
     },
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_2},
-      "os.architecture" : ${content_meta_os_architecture},
+      "test.type" : "test",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "test.status" : "pass",
+      "test_session.name" : "mvn -B test",
       "ci.workspace_path" : ${content_meta_ci_workspace_path},
       "language" : "jvm",
-      "runtime.name" : ${content_meta_runtime_name},
-      "os.platform" : ${content_meta_os_platform},
-      "os.version" : ${content_meta_os_version},
-      "library_version" : ${content_meta_library_version},
-      "span.kind" : "test_session_end",
-      "runtime.version" : ${content_meta_runtime_version},
-      "runtime-id" : ${content_meta_runtime_id_2},
-      "test.type" : "test",
-      "test_session.name" : "mvn -B test",
       "env" : "integration-test",
-      "runtime.vendor" : ${content_meta_runtime_vendor},
+      "library_version" : ${content_meta_library_version},
       "component" : "maven",
       "test.code_coverage.enabled" : "true",
       "test.toolchain" : ${content_meta_test_toolchain},
+      "span.kind" : "test_session_end",
+      "runtime-id" : ${content_meta_runtime_id_2},
       "test.command" : "mvn -B test",
       "test.framework_version" : "5.4.0",
-      "test.framework" : "cucumber"
+      "test.framework" : "cucumber",
+      "runtime.name" : ${content_meta_runtime_name},
+      "runtime.vendor" : ${content_meta_runtime_vendor},
+      "runtime.version" : ${content_meta_runtime_version},
+      "os.architecture" : ${content_meta_os_architecture},
+      "os.platform" : ${content_meta_os_platform},
+      "os.version" : ${content_meta_os_version}
     }
   }
 }, {
@@ -81,32 +88,188 @@
     "duration" : ${content_duration_3},
     "error" : 0,
     "metrics" : {
+      "_dd.host.vcpu_count" : 10,
       "test.code_coverage.lines_pct" : 0
     },
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_3},
       "test.type" : "test",
-      "os.architecture" : ${content_meta_os_architecture},
       "test.module" : "Maven Smoke Tests Project maven-surefire-plugin default-test",
       "test.status" : "pass",
       "test_session.name" : "mvn -B test",
       "ci.workspace_path" : ${content_meta_ci_workspace_path},
-      "runtime.name" : ${content_meta_runtime_name},
       "env" : "integration-test",
-      "runtime.vendor" : ${content_meta_runtime_vendor},
-      "os.platform" : ${content_meta_os_platform},
-      "os.version" : ${content_meta_os_version},
       "library_version" : ${content_meta_library_version},
       "component" : "maven",
       "test.code_coverage.enabled" : "true",
       "span.kind" : "test_module_end",
       "test.execution" : "maven-surefire-plugin:test:default-test",
-      "runtime.version" : ${content_meta_runtime_version},
       "test.command" : "mvn -B test",
       "test.framework_version" : "5.4.0",
       "test.framework" : "cucumber",
       "runtime-id" : ${content_meta_runtime_id_2},
-      "language" : "jvm"
+      "language" : "jvm",
+      "runtime.name" : ${content_meta_runtime_name},
+      "runtime.vendor" : ${content_meta_runtime_vendor},
+      "runtime.version" : ${content_meta_runtime_version},
+      "os.architecture" : ${content_meta_os_architecture},
+      "os.platform" : ${content_meta_os_platform},
+      "os.version" : ${content_meta_os_version}
+    }
+  }
+}, {
+  "type" : "span",
+  "version" : 1,
+  "content" : {
+    "trace_id" : ${content_test_session_id},
+    "span_id" : ${content_span_id_2},
+    "parent_id" : ${content_parent_id_2},
+    "service" : "test-maven-service",
+    "name" : "Maven_Smoke_Tests_Project_jacoco_maven_plugin_default",
+    "resource" : "Maven_Smoke_Tests_Project_jacoco_maven_plugin_default",
+    "start" : ${content_start_4},
+    "duration" : ${content_duration_4},
+    "error" : 0,
+    "metrics" : { },
+    "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_4},
+      "execution" : "default",
+      "project" : "Maven Smoke Tests Project",
+      "library_version" : ${content_meta_library_version},
+      "env" : "integration-test",
+      "plugin" : "jacoco-maven-plugin",
+      "runtime-id" : ${content_meta_runtime_id_2},
+      "language" : "jvm",
+      "runtime.name" : ${content_meta_runtime_name},
+      "runtime.vendor" : ${content_meta_runtime_vendor},
+      "runtime.version" : ${content_meta_runtime_version},
+      "os.architecture" : ${content_meta_os_architecture},
+      "os.platform" : ${content_meta_os_platform},
+      "os.version" : ${content_meta_os_version}
+    }
+  }
+}, {
+  "type" : "span",
+  "version" : 1,
+  "content" : {
+    "trace_id" : ${content_test_session_id},
+    "span_id" : ${content_span_id_3},
+    "parent_id" : ${content_parent_id_2},
+    "service" : "test-maven-service",
+    "name" : "Maven_Smoke_Tests_Project_maven_compiler_plugin_default_compile",
+    "resource" : "Maven_Smoke_Tests_Project_maven_compiler_plugin_default_compile",
+    "start" : ${content_start_5},
+    "duration" : ${content_duration_5},
+    "error" : 0,
+    "metrics" : { },
+    "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_5},
+      "execution" : "default-compile",
+      "project" : "Maven Smoke Tests Project",
+      "library_version" : ${content_meta_library_version},
+      "env" : "integration-test",
+      "plugin" : "maven-compiler-plugin",
+      "runtime-id" : ${content_meta_runtime_id_2},
+      "language" : "jvm",
+      "runtime.name" : ${content_meta_runtime_name},
+      "runtime.vendor" : ${content_meta_runtime_vendor},
+      "runtime.version" : ${content_meta_runtime_version},
+      "os.architecture" : ${content_meta_os_architecture},
+      "os.platform" : ${content_meta_os_platform},
+      "os.version" : ${content_meta_os_version}
+    }
+  }
+}, {
+  "type" : "span",
+  "version" : 1,
+  "content" : {
+    "trace_id" : ${content_test_session_id},
+    "span_id" : ${content_span_id_4},
+    "parent_id" : ${content_parent_id_2},
+    "service" : "test-maven-service",
+    "name" : "Maven_Smoke_Tests_Project_maven_compiler_plugin_default_testCompile",
+    "resource" : "Maven_Smoke_Tests_Project_maven_compiler_plugin_default_testCompile",
+    "start" : ${content_start_6},
+    "duration" : ${content_duration_6},
+    "error" : 0,
+    "metrics" : { },
+    "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_6},
+      "execution" : "default-testCompile",
+      "project" : "Maven Smoke Tests Project",
+      "library_version" : ${content_meta_library_version},
+      "env" : "integration-test",
+      "plugin" : "maven-compiler-plugin",
+      "runtime-id" : ${content_meta_runtime_id_2},
+      "language" : "jvm",
+      "runtime.name" : ${content_meta_runtime_name},
+      "runtime.vendor" : ${content_meta_runtime_vendor},
+      "runtime.version" : ${content_meta_runtime_version},
+      "os.architecture" : ${content_meta_os_architecture},
+      "os.platform" : ${content_meta_os_platform},
+      "os.version" : ${content_meta_os_version}
+    }
+  }
+}, {
+  "type" : "span",
+  "version" : 1,
+  "content" : {
+    "trace_id" : ${content_test_session_id},
+    "span_id" : ${content_span_id_5},
+    "parent_id" : ${content_parent_id_2},
+    "service" : "test-maven-service",
+    "name" : "Maven_Smoke_Tests_Project_maven_resources_plugin_default_resources",
+    "resource" : "Maven_Smoke_Tests_Project_maven_resources_plugin_default_resources",
+    "start" : ${content_start_7},
+    "duration" : ${content_duration_7},
+    "error" : 0,
+    "metrics" : { },
+    "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_7},
+      "execution" : "default-resources",
+      "project" : "Maven Smoke Tests Project",
+      "library_version" : ${content_meta_library_version},
+      "env" : "integration-test",
+      "plugin" : "maven-resources-plugin",
+      "runtime-id" : ${content_meta_runtime_id_2},
+      "language" : "jvm",
+      "runtime.name" : ${content_meta_runtime_name},
+      "runtime.vendor" : ${content_meta_runtime_vendor},
+      "runtime.version" : ${content_meta_runtime_version},
+      "os.architecture" : ${content_meta_os_architecture},
+      "os.platform" : ${content_meta_os_platform},
+      "os.version" : ${content_meta_os_version}
+    }
+  }
+}, {
+  "type" : "span",
+  "version" : 1,
+  "content" : {
+    "trace_id" : ${content_test_session_id},
+    "span_id" : ${content_span_id_6},
+    "parent_id" : ${content_parent_id_2},
+    "service" : "test-maven-service",
+    "name" : "Maven_Smoke_Tests_Project_maven_resources_plugin_default_testResources",
+    "resource" : "Maven_Smoke_Tests_Project_maven_resources_plugin_default_testResources",
+    "start" : ${content_start_8},
+    "duration" : ${content_duration_8},
+    "error" : 0,
+    "metrics" : { },
+    "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_8},
+      "execution" : "default-testResources",
+      "project" : "Maven Smoke Tests Project",
+      "library_version" : ${content_meta_library_version},
+      "env" : "integration-test",
+      "plugin" : "maven-resources-plugin",
+      "runtime-id" : ${content_meta_runtime_id_2},
+      "language" : "jvm",
+      "runtime.name" : ${content_meta_runtime_name},
+      "runtime.vendor" : ${content_meta_runtime_vendor},
+      "runtime.version" : ${content_meta_runtime_version},
+      "os.architecture" : ${content_meta_os_architecture},
+      "os.platform" : ${content_meta_os_platform},
+      "os.version" : ${content_meta_os_version}
     }
   }
 }, {
@@ -114,17 +277,17 @@
   "version" : 1,
   "content" : {
     "trace_id" : ${content_trace_id},
-    "span_id" : ${content_span_id_2},
+    "span_id" : ${content_span_id_7},
     "parent_id" : ${content_parent_id},
     "service" : "test-maven-service",
     "name" : "cucumber.step",
     "resource" : "a calculator I just turned on",
-    "start" : ${content_start_4},
-    "duration" : ${content_duration_4},
+    "start" : ${content_start_9},
+    "duration" : ${content_duration_9},
     "error" : 0,
     "metrics" : { },
     "meta" : {
-      "_dd.p.tid" : ${content_meta__dd_p_tid_4},
+      "_dd.p.tid" : ${content_meta__dd_p_tid_9},
       "library_version" : ${content_meta_library_version},
       "component" : "cucumber",
       "step.name" : "a calculator I just turned on",
@@ -132,7 +295,13 @@
       "step.location" : "datadog.smoke.calculator.CalculatorSteps.a_calculator_I_just_turned_on()",
       "step.type" : "io.cucumber.java.JavaStepDefinition",
       "runtime-id" : ${content_meta_runtime_id},
-      "language" : "jvm"
+      "language" : "jvm",
+      "runtime.name" : ${content_meta_runtime_name},
+      "runtime.vendor" : ${content_meta_runtime_vendor},
+      "runtime.version" : ${content_meta_runtime_version},
+      "os.architecture" : ${content_meta_os_architecture},
+      "os.platform" : ${content_meta_os_platform},
+      "os.version" : ${content_meta_os_version}
     }
   }
 }, {
@@ -145,37 +314,38 @@
     "service" : "test-maven-service",
     "name" : "junit.test_suite",
     "resource" : "classpath:datadog/smoke/basic_arithmetic.feature:Basic Arithmetic",
-    "start" : ${content_start_5},
-    "duration" : ${content_duration_5},
+    "start" : ${content_start_10},
+    "duration" : ${content_duration_10},
     "error" : 0,
     "metrics" : {
+      "_dd.host.vcpu_count" : 10,
       "process_id" : ${content_metrics_process_id_2},
       "_dd.profiling.enabled" : 0,
       "_dd.trace_span_attribute_schema" : 0
     },
     "meta" : {
-      "_dd.p.tid" : ${content_meta__dd_p_tid_5},
-      "os.architecture" : ${content_meta_os_architecture},
+      "_dd.p.tid" : ${content_meta__dd_p_tid_10},
+      "test.type" : "test",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "test.module" : "Maven Smoke Tests Project maven-surefire-plugin default-test",
       "test.status" : "pass",
+      "test_session.name" : "mvn -B test",
       "ci.workspace_path" : ${content_meta_ci_workspace_path},
       "language" : "jvm",
-      "runtime.name" : ${content_meta_runtime_name},
-      "os.platform" : ${content_meta_os_platform},
-      "os.version" : ${content_meta_os_version},
+      "env" : "integration-test",
       "library_version" : ${content_meta_library_version},
+      "component" : "junit",
       "span.kind" : "test_suite_end",
       "test.suite" : "classpath:datadog/smoke/basic_arithmetic.feature:Basic Arithmetic",
-      "runtime.version" : ${content_meta_runtime_version},
       "runtime-id" : ${content_meta_runtime_id},
-      "test.type" : "test",
-      "test_session.name" : "mvn -B test",
-      "env" : "integration-test",
-      "runtime.vendor" : ${content_meta_runtime_vendor},
-      "component" : "junit",
       "test.framework_version" : "5.4.0",
-      "test.framework" : "cucumber"
+      "test.framework" : "cucumber",
+      "runtime.name" : ${content_meta_runtime_name},
+      "runtime.vendor" : ${content_meta_runtime_vendor},
+      "runtime.version" : ${content_meta_runtime_version},
+      "os.architecture" : ${content_meta_os_architecture},
+      "os.platform" : ${content_meta_os_platform},
+      "os.version" : ${content_meta_os_version}
     }
   }
 }, {
@@ -184,45 +354,46 @@
   "content" : {
     "trace_id" : ${content_trace_id},
     "span_id" : ${content_parent_id},
-    "parent_id" : ${content_parent_id_2},
+    "parent_id" : ${content_parent_id_3},
     "test_session_id" : ${content_test_session_id},
     "test_module_id" : ${content_test_module_id},
     "test_suite_id" : ${content_test_suite_id},
     "service" : "test-maven-service",
     "name" : "junit.test",
     "resource" : "classpath:datadog/smoke/basic_arithmetic.feature:Basic Arithmetic.Addition",
-    "start" : ${content_start_6},
-    "duration" : ${content_duration_6},
+    "start" : ${content_start_11},
+    "duration" : ${content_duration_11},
     "error" : 0,
     "metrics" : {
+      "_dd.host.vcpu_count" : 10,
       "process_id" : ${content_metrics_process_id_2},
       "_dd.profiling.enabled" : 0,
       "_dd.trace_span_attribute_schema" : 0
     },
     "meta" : {
-      "_dd.p.tid" : ${content_meta__dd_p_tid_6},
-      "os.architecture" : ${content_meta_os_architecture},
+      "_dd.p.tid" : ${content_meta__dd_p_tid_11},
+      "test.type" : "test",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "test.module" : "Maven Smoke Tests Project maven-surefire-plugin default-test",
       "test.status" : "pass",
+      "test_session.name" : "mvn -B test",
       "ci.workspace_path" : ${content_meta_ci_workspace_path},
       "language" : "jvm",
-      "runtime.name" : ${content_meta_runtime_name},
-      "os.platform" : ${content_meta_os_platform},
-      "os.version" : ${content_meta_os_version},
+      "env" : "integration-test",
       "library_version" : ${content_meta_library_version},
+      "component" : "junit",
       "test.name" : "Addition",
       "span.kind" : "test",
       "test.suite" : "classpath:datadog/smoke/basic_arithmetic.feature:Basic Arithmetic",
-      "runtime.version" : ${content_meta_runtime_version},
       "runtime-id" : ${content_meta_runtime_id},
-      "test.type" : "test",
-      "test_session.name" : "mvn -B test",
-      "env" : "integration-test",
-      "runtime.vendor" : ${content_meta_runtime_vendor},
-      "component" : "junit",
       "test.framework_version" : "5.4.0",
-      "test.framework" : "cucumber"
+      "test.framework" : "cucumber",
+      "runtime.name" : ${content_meta_runtime_name},
+      "runtime.vendor" : ${content_meta_runtime_vendor},
+      "runtime.version" : ${content_meta_runtime_version},
+      "os.architecture" : ${content_meta_os_architecture},
+      "os.platform" : ${content_meta_os_platform},
+      "os.version" : ${content_meta_os_version}
     }
   }
 }, {
@@ -230,17 +401,17 @@
   "version" : 1,
   "content" : {
     "trace_id" : ${content_trace_id},
-    "span_id" : ${content_span_id_3},
+    "span_id" : ${content_span_id_8},
     "parent_id" : ${content_parent_id},
     "service" : "test-maven-service",
     "name" : "cucumber.step",
     "resource" : "the result is {int}",
-    "start" : ${content_start_7},
-    "duration" : ${content_duration_7},
+    "start" : ${content_start_12},
+    "duration" : ${content_duration_12},
     "error" : 0,
     "metrics" : { },
     "meta" : {
-      "_dd.p.tid" : ${content_meta__dd_p_tid_7},
+      "_dd.p.tid" : ${content_meta__dd_p_tid_12},
       "library_version" : ${content_meta_library_version},
       "component" : "cucumber",
       "step.location" : "datadog.smoke.calculator.CalculatorSteps.the_result_is(double)",
@@ -249,7 +420,13 @@
       "step.name" : "the result is {int}",
       "env" : "integration-test",
       "runtime-id" : ${content_meta_runtime_id},
-      "language" : "jvm"
+      "language" : "jvm",
+      "runtime.name" : ${content_meta_runtime_name},
+      "runtime.vendor" : ${content_meta_runtime_vendor},
+      "runtime.version" : ${content_meta_runtime_version},
+      "os.architecture" : ${content_meta_os_architecture},
+      "os.platform" : ${content_meta_os_platform},
+      "os.version" : ${content_meta_os_version}
     }
   }
 } ]
