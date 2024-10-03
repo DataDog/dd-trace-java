@@ -31,7 +31,6 @@ import datadog.trace.civisibility.source.NoOpSourcePathResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.source.index.RepoIndexProvider;
 import datadog.trace.civisibility.source.index.RepoIndexSourcePathResolver;
-import datadog.trace.civisibility.utils.ProcessHierarchyUtils;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
@@ -76,11 +75,12 @@ public class CiVisibilityRepoServices {
     codeowners = buildCodeowners(repoRoot);
     sourcePathResolver = buildSourcePathResolver(repoRoot, repoIndexProvider);
 
-    if (ProcessHierarchyUtils.isChild()) {
+    if (services.processHierarchy.isChild()) {
       executionSettingsFactory = buildExecutionSettingsFetcher(services.signalClientFactory);
     } else {
       executionSettingsFactory =
           buildExecutionSettingsFactory(
+              services.processHierarchy,
               services.config,
               services.metricCollector,
               services.backendApi,
@@ -122,6 +122,7 @@ public class CiVisibilityRepoServices {
   }
 
   private static ExecutionSettingsFactory buildExecutionSettingsFactory(
+      ProcessHierarchy processHierarchy,
       Config config,
       CiVisibilityMetricCollector metricCollector,
       BackendApi backendApi,
@@ -138,7 +139,7 @@ public class CiVisibilityRepoServices {
 
     ExecutionSettingsFactoryImpl factory =
         new ExecutionSettingsFactoryImpl(config, configurationApi, gitDataUploader, repoRoot);
-    if (ProcessHierarchyUtils.isHeadless()) {
+    if (processHierarchy.isHeadless()) {
       return factory;
     } else {
       return new MultiModuleExecutionSettingsFactory(config, factory);

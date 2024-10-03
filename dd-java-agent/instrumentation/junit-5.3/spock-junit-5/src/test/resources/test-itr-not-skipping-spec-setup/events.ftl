@@ -128,7 +128,7 @@
   "type" : "span",
   "version" : 1,
   "content" : {
-    "trace_id" : ${content_trace_id_3},
+    "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id_3},
     "parent_id" : ${content_test_suite_id},
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",

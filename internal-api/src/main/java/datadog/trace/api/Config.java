@@ -309,8 +309,6 @@ public class Config {
 
   private final boolean ciVisibilitySourceDataEnabled;
   private final boolean ciVisibilityBuildInstrumentationEnabled;
-  private final Long ciVisibilitySessionId;
-  private final Long ciVisibilityModuleId;
   private final String ciVisibilityAgentJarUri;
   private final boolean ciVisibilityAutoConfigurationEnabled;
   private final String ciVisibilityAdditionalChildProcessJvmArgs;
@@ -1308,9 +1306,6 @@ public class Config {
         configProvider.getBoolean(
             CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED,
             DEFAULT_CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED);
-
-    ciVisibilitySessionId = configProvider.getLong(CIVISIBILITY_SESSION_ID);
-    ciVisibilityModuleId = configProvider.getLong(CIVISIBILITY_MODULE_ID);
 
     final String ciVisibilityAgentlessUrlStr = configProvider.getString(CIVISIBILITY_AGENTLESS_URL);
     URI parsedCiVisibilityUri = null;
@@ -2579,14 +2574,6 @@ public class Config {
 
   public boolean isCiVisibilityBuildInstrumentationEnabled() {
     return ciVisibilityBuildInstrumentationEnabled;
-  }
-
-  public Long getCiVisibilitySessionId() {
-    return ciVisibilitySessionId;
-  }
-
-  public Long getCiVisibilityModuleId() {
-    return ciVisibilityModuleId;
   }
 
   public String getCiVisibilityAgentJarUri() {
