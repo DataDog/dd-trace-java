@@ -29,16 +29,20 @@ dependencies {
   // Also include netty instrumentation because it is used by aws async client
   testImplementation project(':dd-java-agent:instrumentation:netty-4.1')
   testImplementation group: 'software.amazon.awssdk', name: 'apache-client', version: '2.2.0'
+  testImplementation group: 'software.amazon.awssdk', name: 'apigateway', version: '2.25.40'
+  testImplementation group: 'software.amazon.awssdk', name: 'eventbridge', version: '2.7.4' // earliest version
   testImplementation group: 'software.amazon.awssdk', name: 's3', version: '2.2.0'
   testImplementation group: 'software.amazon.awssdk', name: 'rds', version: '2.2.0'
   testImplementation group: 'software.amazon.awssdk', name: 'ec2', version: '2.2.0'
-  testImplementation group: 'software.amazon.awssdk', name: 'sqs', version: '2.2.0'
+  testImplementation group: 'software.amazon.awssdk', name: 'sqs', version: '2.25.40'
   testImplementation group: 'software.amazon.awssdk', name: 'sns', version: '2.2.0'
   testImplementation group: 'software.amazon.awssdk', name: 'dynamodb', version: '2.2.0'
   testImplementation group: 'software.amazon.awssdk', name: 'kinesis', version: '2.2.0'
 
   testImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.3.0.v20150612'
   testImplementation group: 'org.eclipse.jetty.http2', name: 'http2-server', version: '9.3.0.v20150612'
+
+  testImplementation group: 'org.testcontainers', name: 'localstack', version: libs.versions.testcontainers.get()
 
   // First version where dsm traced operations have required StreamARN parameter for kinesis
   // and publishBatch is available for SNS
@@ -53,6 +57,8 @@ dependencies {
   latestDepTestImplementation project(':dd-java-agent:instrumentation:netty-4.1')
 
   latestDepTestImplementation group: 'software.amazon.awssdk', name: 'apache-client', version: fixedSdkVersion
+  latestDepTestImplementation group: 'software.amazon.awssdk', name: 'apigateway', version: fixedSdkVersion
+  latestDepTestImplementation group: 'software.amazon.awssdk', name: 'eventbridge', version: fixedSdkVersion
   latestDepTestImplementation group: 'software.amazon.awssdk', name: 's3', version: fixedSdkVersion
   latestDepTestImplementation group: 'software.amazon.awssdk', name: 'rds', version: fixedSdkVersion
   latestDepTestImplementation group: 'software.amazon.awssdk', name: 'ec2', version: fixedSdkVersion
@@ -61,3 +67,8 @@ dependencies {
   latestDepTestImplementation group: 'software.amazon.awssdk', name: 'dynamodb', version: fixedSdkVersion
   latestDepTestImplementation group: 'software.amazon.awssdk', name: 'kinesis', version: fixedSdkVersion
 }
+
+tasks.withType(Test).configureEach {
+  usesService(testcontainersLimit)
+}
+
