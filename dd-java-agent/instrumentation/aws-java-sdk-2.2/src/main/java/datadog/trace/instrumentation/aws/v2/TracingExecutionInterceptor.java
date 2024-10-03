@@ -23,6 +23,7 @@ import software.amazon.awssdk.core.interceptor.Context;
 import software.amazon.awssdk.core.interceptor.ExecutionAttribute;
 import software.amazon.awssdk.core.interceptor.ExecutionAttributes;
 import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
+import software.amazon.awssdk.core.interceptor.SdkExecutionAttribute;
 import software.amazon.awssdk.http.SdkHttpRequest;
 
 /** AWS request execution interceptor */
@@ -107,12 +108,21 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
       Context.ModifyHttpResponse context, ExecutionAttributes executionAttributes) {
     Optional<InputStream> is =
         ExecutionInterceptor.super.modifyHttpResponseContent(context, executionAttributes);
-    if (Config.get().isCloudResponsePayloadTaggingEnabled()) {
-      // Wrap the response so that it can be read again for tag extraction
-      return is.map(ResponseBodyStreamWrapper::new);
+    if (is.isPresent()) {
+      Config config = Config.get();
+      if (config.isCloudResponsePayloadTaggingEnabled()) {
+        String serviceName = executionAttributes.getAttribute(SdkExecutionAttribute.SERVICE_NAME);
+        if (config.isCloudPayloadTaggingEnabledFor(serviceName)) {
+          // Wrap the response so that it can be read again for tag extraction
+          return is.map(ResponseBodyStreamWrapper::new);
+        } else {
+          log.debug(
+              "Cloud payload tagging is disabled for service {}. Skipping response wrapping.",
+              serviceName);
+        }
+      }
     }
-    // Do nothing if no rules defined
-    return is;
+    return Optional.empty();
   }
 
   @Override

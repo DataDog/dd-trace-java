@@ -4,7 +4,6 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Optional;
 
 /**
  * Buffers stream data that starts with a '{' character, assuming it is a JSON object. This is used
@@ -83,11 +82,11 @@ public final class ResponseBodyStreamWrapper extends InputStream {
     }
   }
 
-  public Optional<ByteArrayInputStream> toByteArrayInputStream() {
+  public ByteArrayInputStream asByteArrayInputStream() {
     if (buffer == null) {
-      return Optional.empty();
+      return null;
     }
-    return Optional.of(buffer.asInputStream());
+    return buffer.asInputStream();
   }
 
   @Override

@@ -119,9 +119,13 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     final String awsOperationName = attributes.getAttribute(SdkExecutionAttribute.OPERATION_NAME);
     onOperation(span, awsServiceName, awsOperationName);
 
-    if (Config.get().isCloudRequestPayloadTaggingEnabled() && requestBody.isPresent()) {
-      InputStream body = requestBody.get().contentStreamProvider().newStream();
-      AgentTracer.get().addTagsFromRequestBody(span, body, "aws.request.body");
+    if (requestBody.isPresent()) {
+      Config config = Config.get();
+      if (config.isCloudRequestPayloadTaggingEnabled()
+          && config.isCloudPayloadTaggingEnabledFor(awsServiceName)) {
+        InputStream body = requestBody.get().contentStreamProvider().newStream();
+        AgentTracer.get().addTagsFromRequestBody(span, body, "aws.request.body");
+      }
     }
 
     // S3
@@ -309,11 +313,11 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     if (responseBody.isPresent()) {
       InputStream body = responseBody.get();
       if (body instanceof ResponseBodyStreamWrapper) {
-        Optional<ByteArrayInputStream> bodyStream =
-            ((ResponseBodyStreamWrapper) body).toByteArrayInputStream();
-        // TODO log.debug if bodyStream is empty
-        bodyStream.ifPresent(
-            bs -> AgentTracer.get().addTagsFromResponseBody(span, bs, "aws.response.body"));
+        ResponseBodyStreamWrapper wrapper = (ResponseBodyStreamWrapper) body;
+        ByteArrayInputStream bodyStream = wrapper.asByteArrayInputStream();
+        if (bodyStream != null) {
+          AgentTracer.get().addTagsFromResponseBody(span, bodyStream, "aws.response.body");
+        }
       }
     }
 

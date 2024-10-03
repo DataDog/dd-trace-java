@@ -524,6 +524,7 @@ public class Config {
   private final String agentlessLogSubmissionUrl;
   private final String agentlessLogSubmissionProduct;
 
+  private final Set<String> cloudPayloadTaggingServices;
   @Nullable private final List<String> cloudRequestPayloadTagging;
   @Nullable private final List<String> cloudResponsePayloadTagging;
   private final int cloudPayloadTaggingMaxDepth;
@@ -1755,6 +1756,10 @@ public class Config {
         configProvider.getString(GeneralConfig.AGENTLESS_LOG_SUBMISSION_URL);
     this.agentlessLogSubmissionProduct = isCiVisibilityEnabled() ? "citest" : "apm";
 
+    this.cloudPayloadTaggingServices =
+        configProvider.getSet(
+            TracerConfig.TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES,
+            ConfigDefaults.DEFAULT_TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES);
     this.cloudRequestPayloadTagging =
         configProvider.getList(TracerConfig.TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING, null);
     this.cloudResponsePayloadTagging =
@@ -3756,6 +3761,10 @@ public class Config {
 
   public int getAppSecMaxStackTraceDepth() {
     return appSecMaxStackTraceDepth;
+  }
+
+  public boolean isCloudPayloadTaggingEnabledFor(String serviceName) {
+    return cloudPayloadTaggingServices.contains(serviceName);
   }
 
   public List<String> getCloudRequestPayloadTagging() {

@@ -4,6 +4,7 @@ import static datadog.trace.api.TracePropagationStyle.DATADOG;
 import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT;
 import static java.util.Arrays.asList;
 
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -238,6 +239,18 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_SPARK_APP_NAME_AS_SERVICE = false;
   static final boolean DEFAULT_JAX_RS_EXCEPTION_AS_ERROR_ENABLED = true;
   static final boolean DEFAULT_TELEMETRY_DEBUG_REQUESTS_ENABLED = false;
+
+  static final Set<String> DEFAULT_TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES =
+      new HashSet<>(
+          Arrays.asList(
+              "ApiGateway",
+              "EventBridge",
+              "Sqs",
+              // The following services don't seem to use JSON, but it may also depend on the AWS
+              // SDK version, so here it is for now
+              "Sns",
+              "S3",
+              "Kinesis"));
 
   public static final List<String> DEFAULT_CLOUD_PAYLOAD_TAGGING =
       asList("$.Attributes.KmsMasterKeyId", "$.Attributes.Token");
