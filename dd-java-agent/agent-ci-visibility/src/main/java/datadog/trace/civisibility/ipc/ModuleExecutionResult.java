@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.ipc;
 
+import datadog.trace.api.DDTraceId;
 import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Objects;
@@ -19,7 +20,7 @@ public class ModuleExecutionResult extends ModuleSignal {
   private final Collection<TestFramework> testFrameworks;
 
   public ModuleExecutionResult(
-      long sessionId,
+      DDTraceId sessionId,
       long moduleId,
       boolean coverageEnabled,
       boolean testSkippingEnabled,
@@ -69,7 +70,8 @@ public class ModuleExecutionResult extends ModuleSignal {
       return false;
     }
     ModuleExecutionResult that = (ModuleExecutionResult) o;
-    return sessionId == that.sessionId
+    return sessionId.toLong() == that.sessionId.toLong()
+        && sessionId.toHighOrderLong() == that.sessionId.toHighOrderLong()
         && moduleId == that.moduleId
         && coverageEnabled == that.coverageEnabled
         && testSkippingEnabled == that.testSkippingEnabled
@@ -112,7 +114,7 @@ public class ModuleExecutionResult extends ModuleSignal {
   @Override
   public ByteBuffer serialize() {
     Serializer s = new Serializer();
-    s.write(sessionId);
+    s.write(sessionId.toHexString());
     s.write(moduleId);
 
     byte flags = 0;
@@ -137,7 +139,7 @@ public class ModuleExecutionResult extends ModuleSignal {
   }
 
   public static ModuleExecutionResult deserialize(ByteBuffer buffer) {
-    long sessionId = Serializer.readLong(buffer);
+    DDTraceId sessionId = DDTraceId.fromHex(Serializer.readString(buffer));
     long moduleId = Serializer.readLong(buffer);
 
     int flags = Serializer.readByte(buffer);

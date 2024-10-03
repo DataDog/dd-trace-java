@@ -64,7 +64,7 @@ public abstract class AbstractTestSession {
 
     span.setSpanType(InternalSpanTypes.TEST_SESSION_END);
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_TEST_SESSION);
-    span.setTag(Tags.TEST_SESSION_ID, span.getTraceId().toLong());
+    span.setTag(Tags.TEST_SESSION_ID, span.getTraceId());
 
     // setting status to skip initially,
     // as we do not know in advance whether the session will have any children

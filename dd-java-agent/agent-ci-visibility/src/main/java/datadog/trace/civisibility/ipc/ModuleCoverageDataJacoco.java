@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.ipc;
 
+import datadog.trace.api.DDTraceId;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Objects;
@@ -9,7 +10,8 @@ public class ModuleCoverageDataJacoco extends ModuleSignal {
 
   @Nonnull private final byte[] coverageData;
 
-  public ModuleCoverageDataJacoco(long sessionId, long moduleId, @Nonnull byte[] coverageData) {
+  public ModuleCoverageDataJacoco(
+      DDTraceId sessionId, long moduleId, @Nonnull byte[] coverageData) {
     super(sessionId, moduleId);
     this.coverageData = coverageData;
   }
@@ -51,14 +53,14 @@ public class ModuleCoverageDataJacoco extends ModuleSignal {
   @Override
   public ByteBuffer serialize() {
     Serializer s = new Serializer();
-    s.write(sessionId);
+    s.write(sessionId.toHexString());
     s.write(moduleId);
     s.write(coverageData);
     return s.flush();
   }
 
   public static ModuleCoverageDataJacoco deserialize(ByteBuffer buffer) {
-    long sessionId = Serializer.readLong(buffer);
+    DDTraceId sessionId = DDTraceId.fromHex(Serializer.readString(buffer));
     long moduleId = Serializer.readLong(buffer);
     byte[] coverageData = Serializer.readByteArray(buffer);
     return new ModuleCoverageDataJacoco(sessionId, moduleId, coverageData);

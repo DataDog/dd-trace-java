@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.util.Strings.toJson;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.api.civisibility.InstrumentationBridge;
@@ -44,7 +45,7 @@ public class TestImpl implements DDTest {
   private final CiVisibilityMetricCollector metricCollector;
   private final TestFrameworkInstrumentation instrumentation;
   private final AgentSpan span;
-  private final long sessionId;
+  private final DDTraceId sessionId;
   private final long suiteId;
   private final Consumer<AgentSpan> onSpanFinish;
   private final TestContext context;
@@ -72,7 +73,7 @@ public class TestImpl implements DDTest {
       Consumer<AgentSpan> onSpanFinish) {
     this.instrumentation = instrumentation;
     this.metricCollector = metricCollector;
-    this.sessionId = moduleSpanContext.getTraceId().toLong();
+    this.sessionId = moduleSpanContext.getTraceId();
     this.suiteId = suiteId;
     this.onSpanFinish = onSpanFinish;
 
@@ -108,7 +109,7 @@ public class TestImpl implements DDTest {
 
     span.setTag(Tags.TEST_SUITE_ID, suiteId);
     span.setTag(Tags.TEST_MODULE_ID, moduleSpanContext.getSpanId());
-    span.setTag(Tags.TEST_SESSION_ID, sessionId);
+    span.setTag(Tags.TEST_SESSION_ID, moduleSpanContext.getTraceId());
 
     span.setTag(Tags.TEST_STATUS, TestStatus.pass);
 

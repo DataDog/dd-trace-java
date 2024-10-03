@@ -93,7 +93,7 @@ public class TestSuiteImpl implements DDTestSuite {
 
     span.setTag(Tags.TEST_SUITE_ID, span.getSpanId());
     span.setTag(Tags.TEST_MODULE_ID, moduleSpanContext.getSpanId());
-    span.setTag(Tags.TEST_SESSION_ID, moduleSpanContext.getTraceId().toLong());
+    span.setTag(Tags.TEST_SESSION_ID, moduleSpanContext.getTraceId());
 
     // setting status to skip initially,
     // as we do not know in advance whether the suite will have any children

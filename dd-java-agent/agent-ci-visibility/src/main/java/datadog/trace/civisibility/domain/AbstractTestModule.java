@@ -62,7 +62,7 @@ public abstract class AbstractTestModule {
     span.setTag(Tags.TEST_MODULE, moduleName);
 
     span.setTag(Tags.TEST_MODULE_ID, span.getSpanId());
-    span.setTag(Tags.TEST_SESSION_ID, span.getTraceId().toLong());
+    span.setTag(Tags.TEST_SESSION_ID, span.getTraceId());
 
     // setting status to skip initially,
     // as we do not know in advance whether the module will have any children

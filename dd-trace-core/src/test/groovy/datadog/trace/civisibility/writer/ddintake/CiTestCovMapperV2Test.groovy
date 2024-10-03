@@ -3,6 +3,7 @@ package datadog.trace.civisibility.writer.ddintake
 import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.communication.serialization.GrowableBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
+import datadog.trace.api.DDTraceId
 import datadog.trace.api.civisibility.coverage.CoverageProbes
 import datadog.trace.api.civisibility.coverage.CoverageStore
 import datadog.trace.api.civisibility.coverage.NoOpProbes
@@ -269,7 +270,7 @@ class CiTestCovMapperV2Test extends DDCoreSpecification {
     }
 
     @Override
-    boolean report(Long testSessionId, Long testSuiteId, long spanId) {
+    boolean report(DDTraceId testSessionId, Long testSuiteId, long spanId) {
       return false
     }
 

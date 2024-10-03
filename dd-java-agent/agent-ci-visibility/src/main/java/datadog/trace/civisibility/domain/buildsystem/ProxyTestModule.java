@@ -1,6 +1,7 @@
 package datadog.trace.civisibility.domain.buildsystem;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
@@ -110,7 +111,7 @@ public class ProxyTestModule implements TestFrameworkModule {
   }
 
   private void sendModuleExecutionResult() {
-    long parentProcessSessionId = parentProcessModuleContext.getTraceId().toLong();
+    DDTraceId parentProcessSessionId = parentProcessModuleContext.getTraceId();
     long parentProcessModuleId = parentProcessModuleContext.getSpanId();
 
     try (SignalClient signalClient = signalClientFactory.create()) {
