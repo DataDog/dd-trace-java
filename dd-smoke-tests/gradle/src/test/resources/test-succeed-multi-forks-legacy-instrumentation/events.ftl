@@ -11,7 +11,7 @@
     "duration" : ${content_duration},
     "error" : 0,
     "metrics" : {
-      "_dd.host.vcpu_count" : 10,
+      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count},
       "test.itr.tests_skipping.count" : 0,
       "test.code_coverage.lines_pct" : 67
     },
@@ -141,7 +141,7 @@
     "duration" : ${content_duration_5},
     "error" : 0,
     "metrics" : {
-      "_dd.host.vcpu_count" : 10,
+      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_2},
       "process_id" : ${content_metrics_process_id},
       "_dd.profiling.enabled" : 0,
       "_dd.trace_span_attribute_schema" : 0
@@ -192,7 +192,7 @@
       "process_id" : ${content_metrics_process_id},
       "_dd.profiling.enabled" : 0,
       "_dd.trace_span_attribute_schema" : 0,
-      "_dd.host.vcpu_count" : 10,
+      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_3},
       "test.source.end" : 11,
       "test.source.start" : 8
     },
@@ -238,7 +238,7 @@
     "duration" : ${content_duration_7},
     "error" : 0,
     "metrics" : {
-      "_dd.host.vcpu_count" : 10,
+      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_4},
       "process_id" : ${content_metrics_process_id_2},
       "_dd.profiling.enabled" : 0,
       "_dd.trace_span_attribute_schema" : 0
@@ -289,7 +289,7 @@
       "process_id" : ${content_metrics_process_id_2},
       "_dd.profiling.enabled" : 0,
       "_dd.trace_span_attribute_schema" : 0,
-      "_dd.host.vcpu_count" : 10,
+      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_5},
       "test.source.end" : 11,
       "test.source.start" : 8
     },
@@ -337,7 +337,7 @@
       "test.itr.tests_skipping.count" : 0,
       "_dd.profiling.enabled" : 0,
       "_dd.trace_span_attribute_schema" : 0,
-      "_dd.host.vcpu_count" : 10,
+      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_6},
       "test.code_coverage.lines_pct" : 67
     },
     "meta" : {
