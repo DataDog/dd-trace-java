@@ -1,0 +1,48 @@
+task setupProtoc {
+    doLast {
+        // Set download URL and file paths
+        def protocVersion = '3.0.0'
+        def downloadUrl = "https://github.com/protocolbuffers/protobuf/releases/download/v${protocVersion}/protoc-${protocVersion}-osx-x86_64.zip"
+        def downloadDir = file("/tmp")
+        def protocDir = file("${downloadDir}/protoc-${protocVersion}")
+        def zipFile = file("${downloadDir}/protoc-${protocVersion}.zip")
+        def protocBinDir = file("${protocDir}/bin")
+        def protoSrcDir = file('dd-java-agent/instrumentation/protobuf/src/test/groovy/')  // Directory containing your .proto files
+
+        // Create directories if they don't exist
+        downloadDir.mkdirs()
+        protocDir.mkdirs()
+
+        // Download protoc if it's not already downloaded
+        if (!zipFile.exists()) {
+            println "Downloading protoc using curl..."
+            exec {
+                commandLine 'curl', '-L', downloadUrl, '-o', zipFile.absolutePath
+            }
+        }
+
+        // Unzip protoc
+        println "Unzipping protoc..."
+        exec {
+            commandLine 'unzip', '-o', zipFile.absolutePath, '-d', protocDir.absolutePath
+        }
+
+        // Make protoc executable
+        println "Making protoc executable..."
+        exec {
+            commandLine 'chmod', '+x', "${protocBinDir}/protoc"
+        }
+
+        println "Please ensure that protoc is allowed in macOS by going to Security & Privacy -> General tab and clicking 'Open Anyway' for protoc."
+
+        // Run protoc command
+        println "Running protoc..."
+        def protoFile = file('dd-java-agent/instrumentation/protobuf/src/test/groovy/message.proto')
+        exec {
+            commandLine "${protocBinDir}/protoc", 
+                        "--proto_path=${protoSrcDir.absolutePath}",
+                        "--java_out=${protoSrcDir.absolutePath}", 
+                        protoFile.absolutePath
+        }
+    }
+}
