@@ -13,8 +13,6 @@ import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.civisibility.ci.CIProviderInfoFactory;
 import datadog.trace.civisibility.ci.env.CiEnvironment;
-import datadog.trace.civisibility.ci.env.CiEnvironmentImpl;
-import datadog.trace.civisibility.ci.env.CompositeCiEnvironment;
 import datadog.trace.civisibility.config.CachingJvmInfoFactory;
 import datadog.trace.civisibility.config.JvmInfoFactory;
 import datadog.trace.civisibility.config.JvmInfoFactoryImpl;
@@ -114,18 +112,7 @@ public class CiVisibilityServices {
 
   @NotNull
   private static CiEnvironment buildCiEnvironment(Config config, SharedCommunicationObjects sco) {
-    String remoteEnvVarsProviderUrl = config.getCiVisibilityRemoteEnvVarsProviderUrl();
-    if (remoteEnvVarsProviderUrl != null) {
-      String remoteEnvVarsProviderKey = config.getCiVisibilityRemoteEnvVarsProviderKey();
-      CiEnvironment remoteEnvironment =
-          new CiEnvironmentImpl(
-              getRemoteEnvironment(
-                  remoteEnvVarsProviderUrl, remoteEnvVarsProviderKey, sco.okHttpClient));
-      CiEnvironment localEnvironment = new CiEnvironmentImpl(System.getenv());
-      return new CompositeCiEnvironment(remoteEnvironment, localEnvironment);
-    } else {
-      return new CiEnvironmentImpl(System.getenv());
-    }
+    return CiEnvironment.NO_OP;
   }
 
   static Map<String, String> getRemoteEnvironment(String url, String key, OkHttpClient httpClient) {

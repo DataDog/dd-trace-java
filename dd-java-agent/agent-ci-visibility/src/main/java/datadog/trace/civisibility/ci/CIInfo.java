@@ -99,7 +99,7 @@ public class CIInfo {
 
       ciEnvVars = new HashMap<>();
       for (String ciEnvVarKey : ciEnvVarKeysArray) {
-        final String envVarVal = filterSensitiveInfo(environment.get(ciEnvVarKey));
+        final String envVarVal = filterSensitiveInfo(System.getenv(ciEnvVarKey));
         if (envVarVal != null && !envVarVal.isEmpty()) {
           ciEnvVars.put(ciEnvVarKey, envVarVal);
         }
