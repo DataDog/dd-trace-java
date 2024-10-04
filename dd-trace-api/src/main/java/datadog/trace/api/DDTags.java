@@ -2,13 +2,11 @@ package datadog.trace.api;
 
 public class DDTags {
 
-  private static final String DD_LD_PREFIX = "_dd.ld.";
-  public static final String DD_STACK_CODE_ORIGIN_PREFIX = DD_LD_PREFIX + "code_origin.";
+  public static final String DD_CODE_ORIGIN_PREFIX = "_dd.code_origin.";
 
-  public static final String DD_STACK_CODE_ORIGIN_TYPE = DD_STACK_CODE_ORIGIN_PREFIX + "type";
-  // _dd.ld.code_origin.frames.%d.file|line|method|type|snapshot_id
-  public static final String DD_STACK_CODE_ORIGIN_FRAME =
-      DD_STACK_CODE_ORIGIN_PREFIX + "frames.%d.%s";
+  public static final String DD_CODE_ORIGIN_TYPE = DD_CODE_ORIGIN_PREFIX + "type";
+  // _dd.code_origin.frames.%d.file|line|method|type|snapshot_id
+  public static final String DD_CODE_ORIGIN_FRAME = DD_CODE_ORIGIN_PREFIX + "frames.%d.%s";
 
   public static final String SPAN_TYPE = "span.type";
   public static final String SERVICE_NAME = "service.name";
