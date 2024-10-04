@@ -13,31 +13,9 @@ public class CodeOriginInfo {
     if (InstrumenterConfig.get().isCodeOriginEnabled()) {
       String signature =
           stream(method.getParameterTypes())
-              .map(type -> internalize(type))
-              .collect(Collectors.joining("", "(", ")"));
+              .map(Class::getTypeName)
+              .collect(Collectors.joining(", ", "(", ")"));
       captureCodeOrigin(signature);
-    }
-  }
-
-  private static String internalize(Class<?> type) {
-    if (type.equals(boolean.class)) {
-      return "Z";
-    } else if (type.equals(byte.class)) {
-      return "B";
-    } else if (type.equals(char.class)) {
-      return "C";
-    } else if (type.equals(double.class)) {
-      return "D";
-    } else if (type.equals(float.class)) {
-      return "F";
-    } else if (type.equals(int.class)) {
-      return "I";
-    } else if (type.equals(long.class)) {
-      return "J";
-    } else if (type.equals(short.class)) {
-      return "S";
-    } else {
-      return "L" + type.getName().replace('.', '/') + ";";
     }
   }
 
