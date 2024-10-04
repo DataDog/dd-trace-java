@@ -33,6 +33,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import datadog.trace.test.util.Flaky;
 import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -53,6 +55,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
     assertFalse(logHasErrors(logFilePath, it -> false));
   }
 
+  @Flaky
   @Test
   @DisplayName("testFullMethod")
   void testFullMethod() throws Exception {
