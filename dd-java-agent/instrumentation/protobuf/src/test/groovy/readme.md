@@ -3,4 +3,3 @@ To generate the Protobuf message, we need to use an old version of protobuf (3.0
 ```
 ./gradlew setupProtoc
 ```
-
