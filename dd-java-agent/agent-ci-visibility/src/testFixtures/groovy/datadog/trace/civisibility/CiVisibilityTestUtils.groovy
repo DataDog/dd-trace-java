@@ -124,10 +124,14 @@ abstract class CiVisibilityTestUtils {
   }
 
   private static String getFreemarkerTemplate(String templatePath, Map<String, Object> replacements) {
-    Template coveragesTemplate = FREEMARKER.getTemplate(templatePath)
-    StringWriter coveragesOut = new StringWriter()
-    coveragesTemplate.process(replacements, coveragesOut)
-    return coveragesOut.toString()
+    try {
+      Template coveragesTemplate = FREEMARKER.getTemplate(templatePath)
+      StringWriter coveragesOut = new StringWriter()
+      coveragesTemplate.process(replacements, coveragesOut)
+      return coveragesOut.toString()
+    } catch (Exception e) {
+      throw new RuntimeException("Could not get Freemarker template " + templatePath + "; replacements map: " + replacements, e)
+    }
   }
 
   private static final class TemplateGenerator {
