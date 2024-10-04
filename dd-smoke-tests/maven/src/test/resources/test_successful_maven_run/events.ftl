@@ -315,8 +315,7 @@
       "_dd.profiling.enabled" : 0,
       "_dd.trace_span_attribute_schema" : 0,
       "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_4},
-      "test.source.end" : 12,
-      "test.source.start" : 9
+      "test.source.end" : 12
     },
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_9},
@@ -367,8 +366,7 @@
       "_dd.profiling.enabled" : 0,
       "_dd.trace_span_attribute_schema" : 0,
       "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_5},
-      "test.source.end" : 17,
-      "test.source.start" : 14
+      "test.source.end" : 17
     },
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_10},
