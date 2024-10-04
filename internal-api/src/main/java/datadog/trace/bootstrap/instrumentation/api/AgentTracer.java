@@ -860,6 +860,11 @@ public class AgentTracer {
     public boolean isRequiresPostProcessing() {
       return false;
     }
+
+    @Override
+    public boolean isEntrySpan() {
+      return false;
+    }
   }
 
   public static final class NoopAgentScope implements AgentScope {

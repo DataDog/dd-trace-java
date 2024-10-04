@@ -143,6 +143,8 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo, ImplicitContextKeyed
 
   boolean isRequiresPostProcessing();
 
+  boolean isEntrySpan();
+
   @Override
   default ScopedContext storeInto(ScopedContext context) {
     return context.with(ScopedContextKey.SPAN_KEY, this);

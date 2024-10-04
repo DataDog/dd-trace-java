@@ -840,6 +840,11 @@ public class DDSpan
     return context.isRequiresPostProcessing();
   }
 
+  @Override
+  public boolean isEntrySpan() {
+    return context.isRemote() && isLocalRootSpan();
+  }
+
   // to be accessible in Spock spies, which the field wouldn't otherwise be
   public long getStartTimeNano() {
     return startTimeNano;
