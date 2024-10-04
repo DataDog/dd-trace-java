@@ -1,12 +1,12 @@
 package com.datadog.debugger.agent;
 
-import com.datadog.debugger.probe.DebuggerProbe;
 import com.datadog.debugger.probe.ExceptionProbe;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.SpanProbe;
+import com.datadog.debugger.probe.TriggerProbe;
 import com.squareup.moshi.Json;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -66,7 +66,7 @@ public class Configuration {
   private final Collection<MetricProbe> metricProbes;
   private final Collection<LogProbe> logProbes;
   private final Collection<SpanProbe> spanProbes;
-  private final Collection<DebuggerProbe> debuggerProbes;
+  private final Collection<TriggerProbe> triggerProbes;
   private final Collection<SpanDecorationProbe> spanDecorationProbes;
   private final FilterList allowList;
   private final FilterList denyList;
@@ -89,7 +89,7 @@ public class Configuration {
       Collection<MetricProbe> metricProbes,
       Collection<LogProbe> logProbes,
       Collection<SpanProbe> spanProbes,
-      Collection<DebuggerProbe> debuggerProbes,
+      Collection<TriggerProbe> triggerProbes,
       Collection<SpanDecorationProbe> spanDecorationProbes,
       FilterList allowList,
       FilterList denyList,
@@ -98,7 +98,7 @@ public class Configuration {
     this.metricProbes = metricProbes;
     this.logProbes = logProbes;
     this.spanProbes = spanProbes;
-    this.debuggerProbes = debuggerProbes;
+    this.triggerProbes = triggerProbes;
     this.spanDecorationProbes = spanDecorationProbes;
     this.allowList = allowList;
     this.denyList = denyList;
@@ -121,8 +121,8 @@ public class Configuration {
     return spanProbes;
   }
 
-  public Collection<DebuggerProbe> getDebuggerProbes() {
-    return debuggerProbes;
+  public Collection<TriggerProbe> getTriggerProbes() {
+    return triggerProbes;
   }
 
   public Collection<SpanDecorationProbe> getSpanDecorationProbes() {
@@ -143,8 +143,8 @@ public class Configuration {
 
   public Collection<ProbeDefinition> getDefinitions() {
     Collection<ProbeDefinition> result = new ArrayList<>();
-    if (debuggerProbes != null) {
-      result.addAll(debuggerProbes);
+    if (triggerProbes != null) {
+      result.addAll(triggerProbes);
     }
     if (metricProbes != null) {
       result.addAll(metricProbes);
@@ -209,7 +209,7 @@ public class Configuration {
     private List<MetricProbe> metricProbes = null;
     private List<LogProbe> logProbes = null;
     private List<SpanProbe> spanProbes = null;
-    private List<DebuggerProbe> debuggerProbes = null;
+    private List<TriggerProbe> triggerProbes = null;
     private List<SpanDecorationProbe> spanDecorationProbes = null;
     private FilterList allowList = null;
     private FilterList denyList = null;
@@ -226,7 +226,7 @@ public class Configuration {
       }
       for (ProbeDefinition definition : definitions) {
         if (definition instanceof MetricProbe) add((MetricProbe) definition);
-        if (definition instanceof DebuggerProbe) add((DebuggerProbe) definition);
+        if (definition instanceof TriggerProbe) add((TriggerProbe) definition);
         if (definition instanceof LogProbe) add((LogProbe) definition);
         if (definition instanceof SpanProbe) add((SpanProbe) definition);
         if (definition instanceof SpanDecorationProbe) add((SpanDecorationProbe) definition);
@@ -258,11 +258,11 @@ public class Configuration {
       return this;
     }
 
-    public Configuration.Builder add(DebuggerProbe probe) {
-      if (debuggerProbes == null) {
-        debuggerProbes = new ArrayList<>();
+    public Configuration.Builder add(TriggerProbe probe) {
+      if (triggerProbes == null) {
+        triggerProbes = new ArrayList<>();
       }
-      debuggerProbes.add(probe);
+      triggerProbes.add(probe);
       return this;
     }
 
@@ -321,11 +321,11 @@ public class Configuration {
       return this;
     }
 
-    public Configuration.Builder addDebuggerProbes(Collection<DebuggerProbe> probes) {
+    public Configuration.Builder addTriggerProbes(Collection<TriggerProbe> probes) {
       if (probes == null) {
         return this;
       }
-      for (DebuggerProbe probe : probes) {
+      for (TriggerProbe probe : probes) {
         add(probe);
       }
       return this;
@@ -377,7 +377,7 @@ public class Configuration {
       addMetricProbes(other.getMetricProbes());
       addLogProbes(other.getLogProbes());
       addSpanProbes(other.getSpanProbes());
-      addDebuggerProbes(other.getDebuggerProbes());
+      addTriggerProbes(other.getTriggerProbes());
       addSpanDecorationProbes(other.getSpanDecorationProbes());
       addAllowList(other.getAllowList());
       addDenyList(other.getDenyList());
@@ -391,7 +391,7 @@ public class Configuration {
           metricProbes,
           logProbes,
           spanProbes,
-          debuggerProbes,
+          triggerProbes,
           spanDecorationProbes,
           allowList,
           denyList,
