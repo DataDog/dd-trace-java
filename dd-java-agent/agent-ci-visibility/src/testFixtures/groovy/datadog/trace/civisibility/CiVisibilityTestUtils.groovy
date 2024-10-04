@@ -37,11 +37,11 @@ abstract class CiVisibilityTestUtils {
     path("content.meta.library_version"),
     path("content.meta.runtime-id"),
     path("content.meta.['_dd.tracer_host']"),
-    path("content.metrics.['_dd.host.vcpu_count']"),
     // Different events might or might not have the same start or duration.
     // Regardless, the values of these fields should be treated as different
     path("content.start", false),
     path("content.duration", false),
+    path("content.metrics.['_dd.host.vcpu_count']", false),
     path("content.meta.['_dd.p.tid']", false),
     path("content.meta.['error.stack']", false),
   ]
