@@ -10,7 +10,6 @@ import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.PersonInfo;
-import datadog.trace.civisibility.ci.env.CiEnvironment;
 
 class AzurePipelinesInfo implements CIProviderInfo {
 
@@ -40,12 +39,6 @@ class AzurePipelinesInfo implements CIProviderInfo {
   public static final String AZURE_BUILD_REQUESTED_FOR_ID = "BUILD_REQUESTEDFORID";
   public static final String AZURE_BUILD_REQUESTED_FOR_EMAIL = "BUILD_REQUESTEDFOREMAIL";
 
-  private final CiEnvironment environment;
-
-  AzurePipelinesInfo(CiEnvironment environment) {
-    this.environment = environment;
-  }
-
   @Override
   public GitInfo buildCIGitInfo() {
     return new GitInfo(
@@ -56,27 +49,27 @@ class AzurePipelinesInfo implements CIProviderInfo {
             buildGitCommit(),
             buildGitCommitAuthor(),
             PersonInfo.NOOP,
-            environment.get(AZURE_BUILD_SOURCEVERSION_MESSAGE)));
+            System.getenv(AZURE_BUILD_SOURCEVERSION_MESSAGE)));
   }
 
   @Override
   public CIInfo buildCIInfo() {
-    final String uri = environment.get(AZURE_SYSTEM_TEAMFOUNDATIONSERVERURI);
-    final String project = environment.get(AZURE_SYSTEM_TEAMPROJECTID);
-    final String buildId = environment.get(AZURE_BUILD_BUILDID);
-    final String jobId = environment.get(AZURE_SYSTEM_JOBID);
-    final String taskId = environment.get(AZURE_SYSTEM_TASKINSTANCEID);
+    final String uri = System.getenv(AZURE_SYSTEM_TEAMFOUNDATIONSERVERURI);
+    final String project = System.getenv(AZURE_SYSTEM_TEAMPROJECTID);
+    final String buildId = System.getenv(AZURE_BUILD_BUILDID);
+    final String jobId = System.getenv(AZURE_SYSTEM_JOBID);
+    final String taskId = System.getenv(AZURE_SYSTEM_TASKINSTANCEID);
 
-    return CIInfo.builder(environment)
+    return CIInfo.builder()
         .ciProviderName(AZURE_PROVIDER_NAME)
-        .ciPipelineId(environment.get(AZURE_BUILD_BUILDID))
-        .ciPipelineName(environment.get(AZURE_PIPELINE_NAME))
+        .ciPipelineId(System.getenv(AZURE_BUILD_BUILDID))
+        .ciPipelineName(System.getenv(AZURE_PIPELINE_NAME))
         .ciPipelineNumber(buildId)
         .ciPipelineUrl(buildCiPipelineUrl(uri, project, buildId))
-        .ciStageName(environment.get(AZURE_SYSTEM_STAGEDISPLAYNAME))
-        .ciJobName(environment.get(AZURE_SYSTEM_JOBDISPLAYNAME))
+        .ciStageName(System.getenv(AZURE_SYSTEM_STAGEDISPLAYNAME))
+        .ciJobName(System.getenv(AZURE_SYSTEM_JOBDISPLAYNAME))
         .ciJobUrl(buildCiJobUrl(uri, project, buildId, jobId, taskId))
-        .ciWorkspace(expandTilde(environment.get(AZURE_WORKSPACE_PATH)))
+        .ciWorkspace(expandTilde(System.getenv(AZURE_WORKSPACE_PATH)))
         .ciEnvVars(AZURE_SYSTEM_TEAMPROJECTID, AZURE_BUILD_BUILDID, AZURE_SYSTEM_JOBID)
         .build();
   }
@@ -99,26 +92,26 @@ class AzurePipelinesInfo implements CIProviderInfo {
     }
   }
 
-  private String getGitBranchOrTag() {
-    String gitBranchOrTag = environment.get(AZURE_SYSTEM_PULLREQUEST_SOURCEBRANCH);
+  private static String getGitBranchOrTag() {
+    String gitBranchOrTag = System.getenv(AZURE_SYSTEM_PULLREQUEST_SOURCEBRANCH);
     if (gitBranchOrTag == null || gitBranchOrTag.isEmpty()) {
-      gitBranchOrTag = environment.get(AZURE_BUILD_SOURCEBRANCH);
+      gitBranchOrTag = System.getenv(AZURE_BUILD_SOURCEBRANCH);
     }
     return gitBranchOrTag;
   }
 
   private String buildGitCommit() {
-    String commit = environment.get(AZURE_SYSTEM_PULLREQUEST_SOURCECOMMITID);
+    String commit = System.getenv(AZURE_SYSTEM_PULLREQUEST_SOURCECOMMITID);
     if (commit == null || commit.isEmpty()) {
-      commit = environment.get(AZURE_BUILD_SOURCEVERSION);
+      commit = System.getenv(AZURE_BUILD_SOURCEVERSION);
     }
     return commit;
   }
 
   private String buildGitRepositoryUrl() {
-    String repoUrl = environment.get(AZURE_SYSTEM_PULLREQUEST_SOURCEREPOSITORYURI);
+    String repoUrl = System.getenv(AZURE_SYSTEM_PULLREQUEST_SOURCEREPOSITORYURI);
     if (repoUrl == null || repoUrl.isEmpty()) {
-      repoUrl = environment.get(AZURE_BUILD_REPOSITORY_URI);
+      repoUrl = System.getenv(AZURE_BUILD_REPOSITORY_URI);
     }
     return filterSensitiveInfo(repoUrl);
   }
@@ -139,8 +132,8 @@ class AzurePipelinesInfo implements CIProviderInfo {
 
   private PersonInfo buildGitCommitAuthor() {
     return new PersonInfo(
-        environment.get(AZURE_BUILD_REQUESTED_FOR_ID),
-        environment.get(AZURE_BUILD_REQUESTED_FOR_EMAIL));
+        System.getenv(AZURE_BUILD_REQUESTED_FOR_ID),
+        System.getenv(AZURE_BUILD_REQUESTED_FOR_EMAIL));
   }
 
   @Override

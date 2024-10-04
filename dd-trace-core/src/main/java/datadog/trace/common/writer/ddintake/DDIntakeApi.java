@@ -77,7 +77,7 @@ public class DDIntakeApi extends RemoteApi {
       return this;
     }
 
-    public DDIntakeApiBuilder httpClient(final OkHttpClient httpClient) {
+    DDIntakeApiBuilder httpClient(final OkHttpClient httpClient) {
       this.httpClient = httpClient;
       return this;
     }

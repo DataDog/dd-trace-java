@@ -8,7 +8,6 @@ import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.PersonInfo;
-import datadog.trace.civisibility.ci.env.CiEnvironment;
 
 class TravisInfo implements CIProviderInfo {
 
@@ -28,51 +27,46 @@ class TravisInfo implements CIProviderInfo {
   public static final String TRAVIS_GIT_TAG = "TRAVIS_TAG";
   public static final String TRAVIS_GIT_COMMIT_MESSAGE = "TRAVIS_COMMIT_MESSAGE";
 
-  private final CiEnvironment environment;
-
-  TravisInfo(CiEnvironment environment) {
-    this.environment = environment;
-  }
-
   @Override
   public GitInfo buildCIGitInfo() {
+
     return new GitInfo(
         buildGitRepositoryUrl(),
         buildGitBranch(),
-        normalizeTag(environment.get(TRAVIS_GIT_TAG)),
+        normalizeTag(System.getenv(TRAVIS_GIT_TAG)),
         new CommitInfo(
-            environment.get(TRAVIS_GIT_COMMIT),
+            System.getenv(TRAVIS_GIT_COMMIT),
             PersonInfo.NOOP,
             PersonInfo.NOOP,
-            environment.get(TRAVIS_GIT_COMMIT_MESSAGE)));
+            System.getenv(TRAVIS_GIT_COMMIT_MESSAGE)));
   }
 
   @Override
   public CIInfo buildCIInfo() {
-    return CIInfo.builder(environment)
+    return CIInfo.builder()
         .ciProviderName(TRAVIS_PROVIDER_NAME)
-        .ciPipelineId(environment.get(TRAVIS_PIPELINE_ID))
+        .ciPipelineId(System.getenv(TRAVIS_PIPELINE_ID))
         .ciPipelineName(buildCiPipelineName())
-        .ciPipelineNumber(environment.get(TRAVIS_PIPELINE_NUMBER))
-        .ciPipelineUrl(environment.get(TRAVIS_PIPELINE_URL))
-        .ciJobUrl(environment.get(TRAVIS_JOB_URL))
-        .ciWorkspace(expandTilde(environment.get(TRAVIS_WORKSPACE_PATH)))
+        .ciPipelineNumber(System.getenv(TRAVIS_PIPELINE_NUMBER))
+        .ciPipelineUrl(System.getenv(TRAVIS_PIPELINE_URL))
+        .ciJobUrl(System.getenv(TRAVIS_JOB_URL))
+        .ciWorkspace(expandTilde(System.getenv(TRAVIS_WORKSPACE_PATH)))
         .build();
   }
 
   private String buildGitBranch() {
-    final String fromBranch = environment.get(TRAVIS_GIT_PR_BRANCH);
+    final String fromBranch = System.getenv(TRAVIS_GIT_PR_BRANCH);
     if (fromBranch != null && !fromBranch.isEmpty()) {
       return normalizeBranch(fromBranch);
     } else {
-      return normalizeBranch(environment.get(TRAVIS_GIT_BRANCH));
+      return normalizeBranch(System.getenv(TRAVIS_GIT_BRANCH));
     }
   }
 
   private String buildGitRepositoryUrl() {
-    String repoSlug = environment.get(TRAVIS_PR_REPOSITORY_SLUG);
+    String repoSlug = System.getenv(TRAVIS_PR_REPOSITORY_SLUG);
     if (repoSlug == null || repoSlug.isEmpty()) {
-      repoSlug = environment.get(TRAVIS_REPOSITORY_SLUG);
+      repoSlug = System.getenv(TRAVIS_REPOSITORY_SLUG);
     }
 
     if (repoSlug == null || repoSlug.isEmpty()) {
@@ -82,9 +76,9 @@ class TravisInfo implements CIProviderInfo {
   }
 
   private String buildCiPipelineName() {
-    String repoSlug = environment.get(TRAVIS_PR_REPOSITORY_SLUG);
+    String repoSlug = System.getenv(TRAVIS_PR_REPOSITORY_SLUG);
     if (repoSlug == null || repoSlug.isEmpty()) {
-      repoSlug = environment.get(TRAVIS_REPOSITORY_SLUG);
+      repoSlug = System.getenv(TRAVIS_REPOSITORY_SLUG);
     }
     return repoSlug;
   }

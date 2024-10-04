@@ -34,13 +34,8 @@ public class BackendApiFactory {
             "Agentless mode is enabled and api key is not set. Please set application key");
       }
       String traceId = config.getIdGenerationStrategy().generateTraceId().toString();
-      return new IntakeApi(
-          agentlessUrl,
-          apiKey,
-          traceId,
-          retryPolicyFactory,
-          sharedCommunicationObjects.okHttpClient,
-          true);
+      long timeoutMillis = config.getCiVisibilityBackendApiTimeoutMillis();
+      return new IntakeApi(agentlessUrl, apiKey, traceId, timeoutMillis, retryPolicyFactory, true);
     }
 
     DDAgentFeaturesDiscovery featuresDiscovery =

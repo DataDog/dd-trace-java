@@ -1,64 +1,61 @@
 package datadog.trace.civisibility.ci;
 
 import datadog.trace.api.Config;
-import datadog.trace.civisibility.ci.env.CiEnvironment;
 import java.nio.file.Path;
 
 public class CIProviderInfoFactory {
 
   private final String targetFolder;
   private final Config config;
-  private final CiEnvironment environment;
 
-  public CIProviderInfoFactory(Config config, CiEnvironment environment) {
-    this(config, ".git", environment);
+  public CIProviderInfoFactory(Config config) {
+    this(config, ".git");
   }
 
-  CIProviderInfoFactory(Config config, String targetFolder, CiEnvironment environment) {
+  CIProviderInfoFactory(Config config, String targetFolder) {
     this.targetFolder = targetFolder;
     this.config = config;
-    this.environment = environment;
   }
 
   public CIProviderInfo createCIProviderInfo(Path currentPath) {
     if (!config.isCiVisibilityCiProviderIntegrationEnabled()) {
-      return new UnknownCIInfo(environment, targetFolder, currentPath);
+      return new UnknownCIInfo(targetFolder, currentPath);
     }
 
     // CI and Git information is obtained
     // from different environment variables
     // depending on which CI server is running the build.
-    if (environment.get(JenkinsInfo.JENKINS) != null) {
-      return new JenkinsInfo(environment);
-    } else if (environment.get(GitLabInfo.GITLAB) != null) {
-      return new GitLabInfo(environment);
-    } else if (environment.get(TravisInfo.TRAVIS) != null) {
-      return new TravisInfo(environment);
-    } else if (environment.get(CircleCIInfo.CIRCLECI) != null) {
-      return new CircleCIInfo(environment);
-    } else if (environment.get(AppVeyorInfo.APPVEYOR) != null) {
-      return new AppVeyorInfo(environment);
-    } else if (environment.get(AzurePipelinesInfo.AZURE) != null) {
-      return new AzurePipelinesInfo(environment);
-    } else if (environment.get(BitBucketInfo.BITBUCKET) != null) {
-      return new BitBucketInfo(environment);
-    } else if (environment.get(GithubActionsInfo.GHACTIONS) != null) {
-      return new GithubActionsInfo(environment);
-    } else if (environment.get(BuildkiteInfo.BUILDKITE) != null) {
-      return new BuildkiteInfo(environment);
-    } else if (environment.get(BitriseInfo.BITRISE) != null) {
-      return new BitriseInfo(environment);
-    } else if (environment.get(BuddyInfo.BUDDY) != null) {
-      return new BuddyInfo(environment);
-    } else if (environment.get(CodefreshInfo.CODEFRESH) != null) {
-      return new CodefreshInfo(environment);
-    } else if (environment.get(TeamcityInfo.TEAMCITY) != null) {
-      return new TeamcityInfo(environment);
-    } else if (environment.get(AwsCodePipelineInfo.AWS_CODEPIPELINE) != null
-        && environment.get(AwsCodePipelineInfo.AWS_CODEPIPELINE).startsWith("codepipeline")) {
-      return new AwsCodePipelineInfo(environment);
+    if (System.getenv(JenkinsInfo.JENKINS) != null) {
+      return new JenkinsInfo();
+    } else if (System.getenv(GitLabInfo.GITLAB) != null) {
+      return new GitLabInfo();
+    } else if (System.getenv(TravisInfo.TRAVIS) != null) {
+      return new TravisInfo();
+    } else if (System.getenv(CircleCIInfo.CIRCLECI) != null) {
+      return new CircleCIInfo();
+    } else if (System.getenv(AppVeyorInfo.APPVEYOR) != null) {
+      return new AppVeyorInfo();
+    } else if (System.getenv(AzurePipelinesInfo.AZURE) != null) {
+      return new AzurePipelinesInfo();
+    } else if (System.getenv(BitBucketInfo.BITBUCKET) != null) {
+      return new BitBucketInfo();
+    } else if (System.getenv(GithubActionsInfo.GHACTIONS) != null) {
+      return new GithubActionsInfo();
+    } else if (System.getenv(BuildkiteInfo.BUILDKITE) != null) {
+      return new BuildkiteInfo();
+    } else if (System.getenv(BitriseInfo.BITRISE) != null) {
+      return new BitriseInfo();
+    } else if (System.getenv(BuddyInfo.BUDDY) != null) {
+      return new BuddyInfo();
+    } else if (System.getenv(CodefreshInfo.CODEFRESH) != null) {
+      return new CodefreshInfo();
+    } else if (System.getenv(TeamcityInfo.TEAMCITY) != null) {
+      return new TeamcityInfo();
+    } else if (System.getenv(AwsCodePipelineInfo.AWS_CODEPIPELINE) != null
+        && System.getenv(AwsCodePipelineInfo.AWS_CODEPIPELINE).startsWith("codepipeline")) {
+      return new AwsCodePipelineInfo();
     } else {
-      return new UnknownCIInfo(environment, targetFolder, currentPath);
+      return new UnknownCIInfo(targetFolder, currentPath);
     }
   }
 }

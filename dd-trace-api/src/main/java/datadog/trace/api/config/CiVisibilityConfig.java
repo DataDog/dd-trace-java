@@ -67,10 +67,6 @@ public final class CiVisibilityConfig {
       "civisibility.rum.flush.wait.millis";
   public static final String CIVISIBILITY_AUTO_INSTRUMENTATION_PROVIDER =
       "civisibility.auto.instrumentation.provider";
-  public static final String CIVISIBILITY_REMOTE_ENV_VARS_PROVIDER_URL =
-      "civisibility.remote.env.vars.provider.url";
-  public static final String CIVISIBILITY_REMOTE_ENV_VARS_PROVIDER_KEY =
-      "civisibility.remote.env.vars.provider.key";
 
   /* COVERAGE SETTINGS */
   public static final String CIVISIBILITY_CODE_COVERAGE_ENABLED =

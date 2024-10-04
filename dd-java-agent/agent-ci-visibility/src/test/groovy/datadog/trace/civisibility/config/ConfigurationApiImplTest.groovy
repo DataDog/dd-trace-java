@@ -395,6 +395,7 @@ class ConfigurationApiImplTest extends Specification {
 
     String apiKey = "api-key"
     String traceId = "a-trace-id"
+    long timeoutMillis = 1000
 
     HttpRetryPolicy retryPolicy = Stub(HttpRetryPolicy)
     retryPolicy.shouldRetry(_) >> false
@@ -402,8 +403,7 @@ class ConfigurationApiImplTest extends Specification {
     HttpRetryPolicy.Factory retryPolicyFactory = Stub(HttpRetryPolicy.Factory)
     retryPolicyFactory.create() >> retryPolicy
 
-    OkHttpClient client = OkHttpUtils.buildHttpClient(intakeUrl, REQUEST_TIMEOUT_MILLIS)
-    return new IntakeApi(intakeUrl, apiKey, traceId, retryPolicyFactory, client, responseCompression)
+    return new IntakeApi(intakeUrl, apiKey, traceId, timeoutMillis, retryPolicyFactory, responseCompression)
   }
 
   private static TracerEnvironment givenTracerEnvironment() {
