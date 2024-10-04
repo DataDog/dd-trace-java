@@ -203,6 +203,13 @@ deploy_artifacts_to_github:
     max: 2
     when: always
 
+requirements_json_test:
+  rules:
+    - when: on_success
+  variables:
+    REQUIREMENTS_BLOCK_JSON_PATH: "metadata/requirements-block.json"
+    REQUIREMENTS_ALLOW_JSON_PATH: "metadata/requirements-allow.json"
+
 package-oci:
   needs: [ build ]
 
