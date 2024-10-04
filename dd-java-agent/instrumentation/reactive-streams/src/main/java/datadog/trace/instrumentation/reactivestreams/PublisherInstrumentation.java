@@ -28,8 +28,8 @@ import org.reactivestreams.Subscriber;
 
 /**
  * This instrumentation is responsible for capturing the span when {@link
- * Publisher#subscribe(Subscriber)} is called. The state is then stored and will be propagated later
- * to the subscriber when onSubscribe will be called.
+ * Publisher#subscribe(Subscriber)} is called. The state is then stored and will be used to
+ * eventually propagate on the downstream signals.
  */
 @AutoService(InstrumenterModule.class)
 public class PublisherInstrumentation extends InstrumenterModule.Tracing
@@ -91,7 +91,8 @@ public class PublisherInstrumentation extends InstrumenterModule.Tracing
     public static AgentScope onSubscribe(
         @Advice.This final Publisher self, @Advice.Argument(value = 0) final Subscriber s) {
 
-      final AgentSpan span = InstrumentationContext.get(Publisher.class, AgentSpan.class).get(self);
+      final AgentSpan span =
+          InstrumentationContext.get(Publisher.class, AgentSpan.class).remove(self);
       final AgentSpan activeSpan = activeSpan();
       if (span == null && activeSpan == null) {
         return null;

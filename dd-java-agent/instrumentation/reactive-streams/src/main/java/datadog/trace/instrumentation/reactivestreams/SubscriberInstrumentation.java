@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.reactivestreams;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
@@ -13,6 +14,7 @@ import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -21,21 +23,23 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.reactivestreams.Subscriber;
 
 /**
- * This instrumentation is responsible for propagating the state on the lifecycle methods (onNext,
+ * This instrumentation is responsible for propagating the state on the downstream signals (onNext,
  * onError, onComplete).
  */
 @AutoService(InstrumenterModule.class)
 public class SubscriberInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
   public SubscriberInstrumentation() {
-    super("reactor-core");
+    super("reactive-streams", "reactive-streams-1");
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isMethod().and(namedOneOf("onNext", "onError", "onComplete")),
-        getClass().getName() + "$SubscriberScopeAdvice");
+        isMethod().and(namedOneOf("onNext", "onError")),
+        getClass().getName() + "$SubscriberDownStreamAdvice");
+    transformer.applyAdvice(
+        isMethod().and(named("onComplete")), getClass().getName() + "$SubscriberCompleteAdvice");
   }
 
   @Override
@@ -54,10 +58,37 @@ public class SubscriberInstrumentation extends InstrumenterModule.Tracing
   }
 
   /**
-   * Propagates the span captured onSubscribe when the onNext, onError or onComplete method is
-   * called.
+   * This advice propagate the downstream signals onNext and onError. The context on reactor is
+   * propagating bottom up, but we can have processing pipelines that wants to propagate the state
+   * downstream (i.e. state coming from the source). For this reason we allow to let the active
+   * scope propagate downstream if any. If missing, we'll use the one captured on subscribe.
    */
-  public static class SubscriberScopeAdvice {
+  public static class SubscriberDownStreamAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static AgentScope before(
+        @Advice.Origin final Method m, @Advice.This final Subscriber self) {
+      if (activeSpan() != null) {
+        return null;
+      }
+      final AgentSpan span =
+          InstrumentationContext.get(Subscriber.class, AgentSpan.class).get(self);
+      return span == null ? null : activateSpan(span);
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void closeScope(@Advice.Enter final AgentScope scope) {
+      if (scope != null) {
+        scope.close();
+      }
+    }
+  }
+
+  /**
+   * Propagates the span captured onSubscribe when the onComplete method is called. We do not let to
+   * propagate the active span if different from the span captured on subscribe because we need to
+   * ensure that late subscriptions that kicks onComplete have the right context.
+   */
+  public static class SubscriberCompleteAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope before(@Advice.This final Subscriber self) {
       final AgentSpan span =
