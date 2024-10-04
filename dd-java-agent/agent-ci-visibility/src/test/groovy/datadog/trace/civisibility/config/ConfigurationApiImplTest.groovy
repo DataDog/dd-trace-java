@@ -403,7 +403,7 @@ class ConfigurationApiImplTest extends Specification {
     retryPolicyFactory.create() >> retryPolicy
 
     OkHttpClient client = OkHttpUtils.buildHttpClient(intakeUrl, REQUEST_TIMEOUT_MILLIS)
-    return new IntakeApi(intakeUrl, apiKey, traceId, retryPolicyFactory, client, responseCompression)
+    return new IntakeApi(intakeUrl, apiKey, traceId, REQUEST_TIMEOUT_MILLIS, retryPolicyFactory, client, responseCompression)
   }
 
   private static TracerEnvironment givenTracerEnvironment() {

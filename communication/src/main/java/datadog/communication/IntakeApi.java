@@ -37,6 +37,7 @@ public class IntakeApi implements BackendApi {
       HttpUrl hostUrl,
       String apiKey,
       String traceId,
+      long timeoutMillis,
       HttpRetryPolicy.Factory retryPolicyFactory,
       OkHttpClient httpClient,
       boolean responseCompression) {
@@ -45,7 +46,8 @@ public class IntakeApi implements BackendApi {
     this.traceId = traceId;
     this.retryPolicyFactory = retryPolicyFactory;
     this.responseCompression = responseCompression;
-    this.httpClient = httpClient;
+    this.httpClient =
+        httpClient != null ? httpClient : OkHttpUtils.buildHttpClient(hostUrl, timeoutMillis);
   }
 
   @Override
