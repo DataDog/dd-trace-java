@@ -1,0 +1,33 @@
+# Identifier                    Argument                                            Description
+
+# Apache ActiveMQ Artemis
+apache_activemq_artemis         org.apache.activemq.artemis.boot.Artemis            Skip Apache ActiveMQ Artemis
+
+# Apache Cassandra
+
+apache_cassandra                org.apache.cassandra.service.CassandraDaemon        Skip Apache Cassandra
+apache_cassandra_debugcql       org.apache.cassandra.transport.Client               Skip Apache Cassandra debug-cql
+apache_cassandra_nodetool       org.apache.cassandra.tools.NodeTool                 Skip Apache Cassandra nodetool
+apache_cassandra_sstableloader  org.apache.cassandra.tools.BulkLoader               Skip Apache Cassandra sstableloader
+apache_cassandra_sstablescrub   org.apache.cassandra.tools.StandaloneScrubber       Skip Apache Cassandra stablescrub
+apache_cassandra_sstableupgrade org.apache.cassandra.tools.StandaloneUpgrader       Skip Apache Cassandra sstableupgrade
+apache_cassandra_sstableutil    org.apache.cassandra.tools.StandaloneSSTableUtil    Skip Apache Cassandra sstableutil
+apache_cassandra_sstableverify  org.apache.cassandra.tools.StandaloneVerifier       Skip Apache Cassandra sstableverify
+
+# Apache Lucene
+apache_lucene8_luke             org.apache.lucene.luke.app.desktop.LukeMain         Skip Lucene 8 Luke
+apache_lucene9_luke             org.apache.lucene.luke                              Skip Apache Netbeans
+
+# Apache Netbeans
+apache_netbeans                 org.netbeans.Main                                   Skip Apache Netbeans
+
+# Apache Solr 8
+apache_solr8_start              -Dsolr.solr.home=*                                  Skip Apache Solr 8 start command using System Properties
+apache_solr8_stop               *solr/server/start.jar                              Skip Apache Solr 8 stop using path to jar
+apache_solr8_tools              org.apache.solr.util.SolrCLI                        Skip Apache Solr 8 CLI tools
+
+# Elastic Search 7+
+elasticsearch7                  -Des.path.home=*                                    Skip Elastic Search 7+ commands
+
+# Jetbrains IntelliJ IDEA
+intellij_idea                   com.intellij.idea.Main                              Skip Jetbrains IntelliJ IDEA
