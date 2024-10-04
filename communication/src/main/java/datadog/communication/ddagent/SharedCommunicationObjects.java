@@ -38,19 +38,16 @@ public class SharedCommunicationObjects {
     if (okHttpClient == null) {
       String unixDomainSocket;
       String namedPipe;
-      HttpUrl url;
       if (!config.isCiVisibilityAgentlessEnabled()) {
         unixDomainSocket = SocketUtils.discoverApmSocket(config);
         namedPipe = config.getAgentNamedPipe();
-        url = agentUrl;
       } else {
         unixDomainSocket = null;
         namedPipe = null;
-        url = null;
       }
       okHttpClient =
           OkHttpUtils.buildHttpClient(
-              url, unixDomainSocket, namedPipe, getHttpClientTimeout(config));
+              agentUrl, unixDomainSocket, namedPipe, getHttpClientTimeout(config));
     }
   }
 
