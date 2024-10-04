@@ -19,6 +19,11 @@ addTestSuiteExtendingForDir('dsmForkedTest', 'dsmTest', 'dsmTest')
 addTestSuiteForDir('latestDsmTest', 'dsmTest')
 addTestSuiteExtendingForDir('latestDsmForkedTest', 'latestDsmTest', 'dsmTest')
 
+addTestSuite('payloadTaggingTest')
+addTestSuiteExtendingForDir('payloadTaggingForkedTest', 'payloadTaggingTest', 'payloadTaggingTest')
+addTestSuiteForDir('latestPayloadTaggingTest', 'payloadTaggingTest')
+addTestSuiteExtendingForDir('latestPayloadTaggingForkedTest', 'latestPayloadTaggingTest', 'payloadTaggingTest')
+
 def fixedSdkVersion = '2.20.33' // 2.20.34 is missing and breaks IDEA import
 
 dependencies {
@@ -29,12 +34,10 @@ dependencies {
   // Also include netty instrumentation because it is used by aws async client
   testImplementation project(':dd-java-agent:instrumentation:netty-4.1')
   testImplementation group: 'software.amazon.awssdk', name: 'apache-client', version: '2.2.0'
-  testImplementation group: 'software.amazon.awssdk', name: 'apigateway', version: '2.25.40'
-  testImplementation group: 'software.amazon.awssdk', name: 'eventbridge', version: '2.7.4' // earliest version
   testImplementation group: 'software.amazon.awssdk', name: 's3', version: '2.2.0'
   testImplementation group: 'software.amazon.awssdk', name: 'rds', version: '2.2.0'
   testImplementation group: 'software.amazon.awssdk', name: 'ec2', version: '2.2.0'
-  testImplementation group: 'software.amazon.awssdk', name: 'sqs', version: '2.25.40'
+  testImplementation group: 'software.amazon.awssdk', name: 'sqs', version: '2.2.0'
   testImplementation group: 'software.amazon.awssdk', name: 'sns', version: '2.2.0'
   testImplementation group: 'software.amazon.awssdk', name: 'dynamodb', version: '2.2.0'
   testImplementation group: 'software.amazon.awssdk', name: 'kinesis', version: '2.2.0'
@@ -52,6 +55,13 @@ dependencies {
   latestDsmTestImplementation group: 'software.amazon.awssdk', name: 'apache-client', version: '+'
   latestDsmTestImplementation group: 'software.amazon.awssdk', name: 'kinesis', version: '+'
   latestDsmTestImplementation group: 'software.amazon.awssdk', name: 'sns', version: '+'
+
+  payloadTaggingTestImplementation group: 'software.amazon.awssdk', name: 'apigateway', version: '2.18.40'
+  payloadTaggingTestImplementation group: 'software.amazon.awssdk', name: 'eventbridge', version: '2.7.4' // the earliest version of EventBridgeClient
+  payloadTaggingTestImplementation group: 'software.amazon.awssdk', name: 'sqs', version: '2.23.4' // earlier versions <=2.20.33 don't use JSON
+  latestPayloadTaggingTestImplementation group: 'software.amazon.awssdk', name: 'apigateway', version: '2.25.40'
+  latestPayloadTaggingTestImplementation group: 'software.amazon.awssdk', name: 'eventbridge', version: '2.25.40'
+  latestPayloadTaggingTestImplementation group: 'software.amazon.awssdk', name: 'sqs', version: '2.25.40'
 
   latestDepTestImplementation project(':dd-java-agent:instrumentation:apache-httpclient-4')
   latestDepTestImplementation project(':dd-java-agent:instrumentation:netty-4.1')
@@ -72,3 +82,10 @@ tasks.withType(Test).configureEach {
   usesService(testcontainersLimit)
 }
 
+tasks.named("test").configure {
+  dependsOn "payloadTaggingTest"
+}
+
+tasks.named("forkedTest").configure {
+  dependsOn "payloadTaggingForkedTest"
+}
