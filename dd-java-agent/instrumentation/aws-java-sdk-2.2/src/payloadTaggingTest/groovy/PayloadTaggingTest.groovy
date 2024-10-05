@@ -93,7 +93,7 @@ class PayloadTaggingTest extends AgentTestRunner {
 
     where:
     service       | requestRedactedTag           | responseRedactedTag             | requestClosure
-    "ApiGateway"  | "aws.request.body.name"      | "aws.response.body.value"      | { apiGatewayClient.createApiKey { it.name("testapi") } }
+    "ApiGateway"  | "aws.request.body.name"      | "aws.response.body.value"       | { apiGatewayClient.createApiKey { it.name("testapi") } }
     "EventBridge" | "aws.request.body.Name"      | "aws.response.body.EventBusArn" | { eventBridgeClient.createEventBus { it.name("testbus") } }
     "Sqs"         | "aws.request.body.QueueName" | "aws.response.body.QueueUrl"    | { sqsClient.createQueue { it.queueName("testqueue") } }
   }

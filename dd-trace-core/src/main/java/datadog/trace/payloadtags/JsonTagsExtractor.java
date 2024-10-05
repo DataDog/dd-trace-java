@@ -58,7 +58,7 @@ public final class JsonTagsExtractor {
     }
   }
 
-  public static final String REDACTED = "redacted";
+  private static final String REDACTED = "redacted";
   private static final String DD_PAYLOAD_TAGS_INCOMPLETE = "_dd.payload_tags_incomplete";
 
   private final List<JsonPath> redactionRules;
