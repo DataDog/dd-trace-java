@@ -1,57 +1,72 @@
-apply plugin: 'com.github.spotbugs'
-
-spotbugs {
-  ignoreFailures = true
-  excludeFilter = file("$rootDir/gradle/spotbugFilters/exclude.xml")
+buildscript {
+  repositories {
+    gradlePluginPortal()
+  }
+  dependencies {
+    classpath 'com.github.spotbugs:com.github.spotbugs.gradle.plugin:6.0.20'
+  }
 }
 
-// configure spotbugs for Main tasks and disable it for all other
-afterEvaluate {
-  tasks.withType(spotbugsMain.class).configureEach {
-    def name = it.name
-    if (name.endsWith("Main") || name.endsWith("Main_java11")) {
-      it.ignoreFailures = false
-      // detector documentation is in the following link:
-      // https://spotbugs-in-kengo-toda.readthedocs.io/en/lqc-list-detectors/detectors.html
-      it.omitVisitors = [
-        'DefaultEncodingDetector',
-        'DoInsideDoPrivileged',
-        'DontUseEnum',
-        'DroppedException',
-        'FindDeadLocalStores',
-        'FindHEmismatch',
-        'FindNullDeref',
-        'FindReturnRef',
-        'FindRunInvocations',
-        'FindUselessControlFlow',
-        'InitializationChain',
-        'LazyInit',
-        'LoadOfKnownNullValue',
-        'LostLoggerDueToWeakReference',
-        'MethodReturnCheck',
-        'MutableStaticFields',
-        'Naming',
-        'RuntimeExceptionCapture',
-        'SerializableIdiom',
-        'UnreadFields',
-      ]
-      it.reports {
-        html {
-          enabled = true
-          destination = file("$buildDir/reports/spotbugs/${name}.html")
-          stylesheet = 'fancy-hist.xsl'
+import com.github.spotbugs.snom.SpotBugsTask
+
+final shouldRunSpotbugs = !project.path.startsWith(":dd-smoke-tests")
+
+if (shouldRunSpotbugs) {
+  apply plugin: 'com.github.spotbugs'
+
+  spotbugs {
+    ignoreFailures = true
+    excludeFilter = file("$rootDir/gradle/spotbugFilters/exclude.xml")
+  }
+
+  // configure spotbugs for Main tasks and disable it for all other
+  afterEvaluate {
+    tasks.withType(SpotBugsTask).configureEach {
+      def name = it.name
+      if (name ==~ /.*Main(_java\d+)?/) {
+        it.ignoreFailures = false
+        // detector documentation is in the following link:
+        // https://spotbugs-in-kengo-toda.readthedocs.io/en/lqc-list-detectors/detectors.html
+        it.omitVisitors = [
+          'DefaultEncodingDetector',
+          'DoInsideDoPrivileged',
+          'DontUseEnum',
+          'DroppedException',
+          'FindDeadLocalStores',
+          'FindHEmismatch',
+          'FindNullDeref',
+          'FindReturnRef',
+          'FindRunInvocations',
+          'FindUselessControlFlow',
+          'InitializationChain',
+          'LazyInit',
+          'LoadOfKnownNullValue',
+          'LostLoggerDueToWeakReference',
+          'MethodReturnCheck',
+          'MutableStaticFields',
+          'Naming',
+          'RuntimeExceptionCapture',
+          'SerializableIdiom',
+          'UnreadFields',
+        ]
+        it.reports {
+          html {
+            enabled = true
+            destination = file("$buildDir/reports/spotbugs/${name}.html")
+            stylesheet = 'fancy-hist.xsl'
+          }
         }
+      } else {
+        it.enabled = false
       }
-    } else {
-      it.enabled = false
     }
   }
 }
 
 dependencies {
   compileOnly 'net.jcip:jcip-annotations:1.0'
-  compileOnly 'com.github.spotbugs:spotbugs-annotations:4.2.0'
+  compileOnly "com.github.spotbugs:spotbugs-annotations:${libs.versions.spotbugs.get()}"
 
   testImplementation 'net.jcip:jcip-annotations:1.0'
-  testImplementation 'com.github.spotbugs:spotbugs-annotations:4.2.0'
+  testImplementation "com.github.spotbugs:spotbugs-annotations:${libs.versions.spotbugs.get()}"
 }
