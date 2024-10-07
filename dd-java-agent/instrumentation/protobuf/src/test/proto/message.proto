@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+package com.datadog.instrumentation.protobuf.generated;
+
 message OtherMessage {
   string name = 1;
   int32 age = 2;

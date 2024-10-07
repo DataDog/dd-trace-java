@@ -1,3 +1,5 @@
+package com.datadog.instrumentation.protobuf
+
 import com.google.protobuf.InvalidProtocolBufferException
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDTags
@@ -5,6 +7,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
+import com.datadog.instrumentation.protobuf.generated.Message.MyMessage
+import com.datadog.instrumentation.protobuf.generated.Message.OtherMessage
 
 class AbstractMessageInstrumentationTest extends AgentTestRunner {
   @Override
@@ -12,16 +16,16 @@ class AbstractMessageInstrumentationTest extends AgentTestRunner {
     return true
   }
 
-  String schema = "{\"components\":{\"schemas\":{\"MyMessage\":{\"properties\":{\"id\":{\"type\":\"string\"},\"value\":{\"type\":\"string\"},\"other_message\":{\"items\":{\"\$ref\":\"#/components/schemas/OtherMessage\"},\"type\":\"array\"}},\"type\":\"object\"},\"OtherMessage\":{\"properties\":{\"name\":{\"type\":\"string\"},\"age\":{\"format\":\"int32\",\"type\":\"integer\"}},\"type\":\"object\"}}},\"openapi\":\"3.0.0\"}"
-  String schemaID = "5013912002010458335"
+  String schema = "{\"components\":{\"schemas\":{\"com.datadog.instrumentation.protobuf.generated.MyMessage\":{\"properties\":{\"id\":{\"type\":\"string\"},\"value\":{\"type\":\"string\"},\"other_message\":{\"items\":{\"\$ref\":\"#/components/schemas/com.datadog.instrumentation.protobuf.generated.OtherMessage\"},\"type\":\"array\"}},\"type\":\"object\"},\"com.datadog.instrumentation.protobuf.generated.OtherMessage\":{\"properties\":{\"name\":{\"type\":\"string\"},\"age\":{\"format\":\"int32\",\"type\":\"integer\"}},\"type\":\"object\"}}},\"openapi\":\"3.0.0\"}"
+  String schemaID = "9054678588020233022"
 
 
   void 'test extract protobuf schema on serialize & deserialize'() {
     setup:
-    Message.MyMessage message = Message.MyMessage.newBuilder()
+    MyMessage message = MyMessage.newBuilder()
     .setId("1")
     .setValue("Hello from Protobuf!")
-    .setNested(Message.OtherMessage.newBuilder().setName("hello").setAge(10).build())
+    .setNested(OtherMessage.newBuilder().setName("hello").setAge(10).build())
     .build()
     when:
     var bytes
@@ -33,7 +37,7 @@ class AbstractMessageInstrumentationTest extends AgentTestRunner {
     runUnderTrace("parent_deserialize") {
       AgentSpan span = activeSpan()
       span.setTag(DDTags.MANUAL_KEEP, true)
-      Message.MyMessage.parseFrom(bytes)
+      MyMessage.parseFrom(bytes)
     }
     TEST_WRITER.waitForTraces(2)
     then:
@@ -49,7 +53,7 @@ class AbstractMessageInstrumentationTest extends AgentTestRunner {
             "$DDTags.SCHEMA_DEFINITION" schema
             "$DDTags.SCHEMA_WEIGHT" 1
             "$DDTags.SCHEMA_TYPE" "protobuf"
-            "$DDTags.SCHEMA_NAME" "MyMessage"
+            "$DDTags.SCHEMA_NAME" "com.datadog.instrumentation.protobuf.generated.MyMessage"
             "$DDTags.SCHEMA_OPERATION" "serialization"
             "$DDTags.SCHEMA_ID" schemaID
             defaultTags(false)
@@ -67,7 +71,7 @@ class AbstractMessageInstrumentationTest extends AgentTestRunner {
             "$DDTags.SCHEMA_DEFINITION" schema
             "$DDTags.SCHEMA_WEIGHT" 1
             "$DDTags.SCHEMA_TYPE" "protobuf"
-            "$DDTags.SCHEMA_NAME" "MyMessage"
+            "$DDTags.SCHEMA_NAME" "com.datadog.instrumentation.protobuf.generated.MyMessage"
             "$DDTags.SCHEMA_OPERATION" "deserialization"
             "$DDTags.SCHEMA_ID" schemaID
             defaultTags(false)
@@ -79,7 +83,7 @@ class AbstractMessageInstrumentationTest extends AgentTestRunner {
 
   void 'test error when de-serializing'() {
     setup:
-    Message.MyMessage message = Message.MyMessage.newBuilder()
+    MyMessage message = MyMessage.newBuilder()
     .setId("1")
     .setValue("Hello from Protobuf!")
     .build()
@@ -88,7 +92,7 @@ class AbstractMessageInstrumentationTest extends AgentTestRunner {
       AgentSpan span = activeSpan()
       span.setTag(DDTags.MANUAL_KEEP, true)
       try {
-        Message.MyMessage.parseFrom(new byte[]{
+        MyMessage.parseFrom(new byte[]{
           1, 2, 3, 4, 5
         })
       } catch (InvalidProtocolBufferException e) {
