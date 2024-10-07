@@ -152,4 +152,3 @@ allprojects {
 }
 
 apply from: "$rootDir/gradle/ci_jobs.gradle"
-apply from: "$rootDir/gradle/protoc.gradle"
