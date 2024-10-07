@@ -342,18 +342,18 @@ class RangesTest extends DDSpecification {
 
     where:
     input                | indentation | ranges                                                                                            | expected
-    //    "123\n123"           | 4           | [rangeWithSource(0, 3, (byte) 1, null, "123"), rangeWithSource(6, 1, (byte) 2, null, "3")]        | [rangeWithSource(4, 3, (byte) 1, null, "123"), rangeWithSource(14, 1, (byte) 2, null, "3")]
-    //    "123\r\n123"         | 4           | [rangeWithSource(0, 3, (byte) 1, null, "123"), rangeWithSource(7, 1, (byte) 2, null, "3")]        | [rangeWithSource(4, 3, (byte) 1, null, "123"), rangeWithSource(14, 1, (byte) 2, null, "3")]
+    "123\n123"           | 4           | [rangeWithSource(0, 3, (byte) 1, null, "123"), rangeWithSource(6, 1, (byte) 2, null, "3")]        | [rangeWithSource(4, 3, (byte) 1, null, "123"), rangeWithSource(14, 1, (byte) 2, null, "3")]
+    "123\r\n123"         | 4           | [rangeWithSource(0, 3, (byte) 1, null, "123"), rangeWithSource(7, 1, (byte) 2, null, "3")]        | [rangeWithSource(4, 3, (byte) 1, null, "123"), rangeWithSource(14, 1, (byte) 2, null, "3")]
     "123\n123"           | 4           | [rangeWithSource(0, 5, (byte) 1, null, "123\n1"), rangeWithSource(6, 1, (byte) 2, null, "3")]     | [rangeWithSource(4, 9, (byte) 1, null, "123\n1"), rangeWithSource(14, 1, (byte) 2, null, "3")]
-    //    "123\r\n123"         | 4           | [rangeWithSource(0, 6, (byte) 1, null, "123\r\n1"), rangeWithSource(7, 1, (byte) 2, null, "3")]   | [rangeWithSource(4, 9, (byte) 1, null, "123\r\n1"), rangeWithSource(14, 1, (byte) 2, null, "3")]
-    //    "123\n123"           | 0           | [rangeWithSource(0, 3, (byte) 1, null, "123"), rangeWithSource(6, 1, (byte) 2, null, "3")]        | [rangeWithSource(0, 3, (byte) 1, null, "123"), rangeWithSource(6, 1, (byte) 2, null, "3")]
-    //    "123\r\n123"         | 0           | [rangeWithSource(0, 3, (byte) 1, null, "123"), rangeWithSource(7, 1, (byte) 2, null, "3")]        | [rangeWithSource(0, 3, (byte) 1, null, "123"), rangeWithSource(6, 1, (byte) 2, null, "3")]
-    //    "123\n123"           | 0           | [rangeWithSource(0, 5, (byte) 1, null, "123\n1"), rangeWithSource(6, 1, (byte) 2, null, "3")]     | [rangeWithSource(0, 5, (byte) 1, null, "123\n1"), rangeWithSource(6, 1, (byte) 2, null, "3")]
-    //    "123\r\n123"         | 0           | [rangeWithSource(0, 6, (byte) 1, null, "123\r\n1"), rangeWithSource(7, 1, (byte) 2, null, "3")]   | [rangeWithSource(0, 5, (byte) 1, null, "123\r\n1"), rangeWithSource(6, 1, (byte) 2, null, "3")]
-    //    "    123\n    123"   | -4          | [rangeWithSource(4, 3, (byte) 1, null, "123"), rangeWithSource(14, 1, (byte) 2, null, "3")]       | [rangeWithSource(0, 3, (byte) 1, null, "123"), rangeWithSource(6, 1, (byte) 2, null, "3")]
-    //    "    123\r\n    123" | -4          | [rangeWithSource(4, 3, (byte) 1, null, "123"), rangeWithSource(15, 1, (byte) 2, null, "3")]       | [rangeWithSource(0, 3, (byte) 1, null, "123"), rangeWithSource(6, 1, (byte) 2, null, "3")]
-    //    "    123\n    123"   | -4          | [rangeWithSource(4, 9, (byte) 1, null, "123\n1"), rangeWithSource(14, 1, (byte) 2, null, "3")]    | [rangeWithSource(0, 5, (byte) 1, null, "123\n1"), rangeWithSource(6, 1, (byte) 2, null, "3")]
-    //    "    123\r\n    123" | -4          | [rangeWithSource(4, 10, (byte) 1, null, "123\r\n1"), rangeWithSource(15, 1, (byte) 2, null, "3")] | [rangeWithSource(0, 5, (byte) 1, null, "123\r\n1"), rangeWithSource(6, 1, (byte) 2, null, "3")]
+    "123\r\n123"         | 4           | [rangeWithSource(0, 6, (byte) 1, null, "123\r\n1"), rangeWithSource(7, 1, (byte) 2, null, "3")]   | [rangeWithSource(4, 9, (byte) 1, null, "123\r\n1"), rangeWithSource(14, 1, (byte) 2, null, "3")]
+    "123\n123"           | 0           | [rangeWithSource(0, 3, (byte) 1, null, "123"), rangeWithSource(6, 1, (byte) 2, null, "3")]        | [rangeWithSource(0, 3, (byte) 1, null, "123"), rangeWithSource(6, 1, (byte) 2, null, "3")]
+    "123\r\n123"         | 0           | [rangeWithSource(0, 3, (byte) 1, null, "123"), rangeWithSource(7, 1, (byte) 2, null, "3")]        | [rangeWithSource(0, 3, (byte) 1, null, "123"), rangeWithSource(6, 1, (byte) 2, null, "3")]
+    "123\n123"           | 0           | [rangeWithSource(0, 5, (byte) 1, null, "123\n1"), rangeWithSource(6, 1, (byte) 2, null, "3")]     | [rangeWithSource(0, 5, (byte) 1, null, "123\n1"), rangeWithSource(6, 1, (byte) 2, null, "3")]
+    "123\r\n123"         | 0           | [rangeWithSource(0, 6, (byte) 1, null, "123\r\n1"), rangeWithSource(7, 1, (byte) 2, null, "3")]   | [rangeWithSource(0, 5, (byte) 1, null, "123\r\n1"), rangeWithSource(6, 1, (byte) 2, null, "3")]
+    "    123\n    123"   | -4          | [rangeWithSource(4, 3, (byte) 1, null, "123"), rangeWithSource(14, 1, (byte) 2, null, "3")]       | [rangeWithSource(0, 3, (byte) 1, null, "123"), rangeWithSource(6, 1, (byte) 2, null, "3")]
+    "    123\r\n    123" | -4          | [rangeWithSource(4, 3, (byte) 1, null, "123"), rangeWithSource(15, 1, (byte) 2, null, "3")]       | [rangeWithSource(0, 3, (byte) 1, null, "123"), rangeWithSource(6, 1, (byte) 2, null, "3")]
+    "    123\n    123"   | -4          | [rangeWithSource(4, 9, (byte) 1, null, "123\n1"), rangeWithSource(14, 1, (byte) 2, null, "3")]    | [rangeWithSource(0, 5, (byte) 1, null, "123\n1"), rangeWithSource(6, 1, (byte) 2, null, "3")]
+    "    123\r\n    123" | -4          | [rangeWithSource(4, 10, (byte) 1, null, "123\r\n1"), rangeWithSource(15, 1, (byte) 2, null, "3")] | [rangeWithSource(0, 5, (byte) 1, null, "123\r\n1"), rangeWithSource(6, 1, (byte) 2, null, "3")]
   }
 
 
