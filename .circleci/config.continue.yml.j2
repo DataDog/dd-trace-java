@@ -1217,6 +1217,20 @@ build_test_jobs: &build_test_jobs
       parallelism: 4
       maxWorkers: 4
       testJvm: "8"
+
+  - tests:
+      requires:
+        - ok_to_test
+      name: z_test_8_flaky_debugger
+      gradleTarget: ":debuggerTest"
+      gradleParameters: "-PrunFlakyTests"
+      continueOnFailure: true
+      triggeredBy: *debugger_modules
+      stage: debugger
+      cacheType: base
+      parallelism: 4
+      maxWorkers: 4
+      testJvm: "8"
 {% endif %}
 
   - tests:
