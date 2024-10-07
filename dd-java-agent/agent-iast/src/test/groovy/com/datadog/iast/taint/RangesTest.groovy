@@ -289,7 +289,7 @@ class RangesTest extends DDSpecification {
     [REFERER] | [
       rangeWithSource(REQUEST_HEADER_VALUE, REFERER.name),
       rangeWithSource(REQUEST_HEADER_VALUE, LOCATION.name)
-    ] | true
+    ]                                                                                             | true
   }
 
   void 'test intersection of ranges'() {
@@ -332,6 +332,30 @@ class RangesTest extends DDSpecification {
     [range(2, 2), range(6, 2)] | [range(0, 2), range(4, 2)] | [range(0, 2), range(2, 2), range(4, 2), range(6, 2)]
   }
 
+  void 'test forIndentation method'() {
+    when:
+    final result = Ranges.forIndentation(input, indentation, ranges as Range[])
+
+    then:
+    final expectedArray = expected as Range[]
+    result == expectedArray
+
+    where:
+    input                | indentation | ranges                                                                                            | expected
+    //    "123\n123"           | 4           | [rangeWithSource(0, 3, (byte) 1, null, "123"), rangeWithSource(6, 1, (byte) 2, null, "3")]        | [rangeWithSource(4, 3, (byte) 1, null, "123"), rangeWithSource(14, 1, (byte) 2, null, "3")]
+    //    "123\r\n123"         | 4           | [rangeWithSource(0, 3, (byte) 1, null, "123"), rangeWithSource(7, 1, (byte) 2, null, "3")]        | [rangeWithSource(4, 3, (byte) 1, null, "123"), rangeWithSource(14, 1, (byte) 2, null, "3")]
+    "123\n123"           | 4           | [rangeWithSource(0, 5, (byte) 1, null, "123\n1"), rangeWithSource(6, 1, (byte) 2, null, "3")]     | [rangeWithSource(4, 9, (byte) 1, null, "123\n1"), rangeWithSource(14, 1, (byte) 2, null, "3")]
+    //    "123\r\n123"         | 4           | [rangeWithSource(0, 6, (byte) 1, null, "123\r\n1"), rangeWithSource(7, 1, (byte) 2, null, "3")]   | [rangeWithSource(4, 9, (byte) 1, null, "123\r\n1"), rangeWithSource(14, 1, (byte) 2, null, "3")]
+    //    "123\n123"           | 0           | [rangeWithSource(0, 3, (byte) 1, null, "123"), rangeWithSource(6, 1, (byte) 2, null, "3")]        | [rangeWithSource(0, 3, (byte) 1, null, "123"), rangeWithSource(6, 1, (byte) 2, null, "3")]
+    //    "123\r\n123"         | 0           | [rangeWithSource(0, 3, (byte) 1, null, "123"), rangeWithSource(7, 1, (byte) 2, null, "3")]        | [rangeWithSource(0, 3, (byte) 1, null, "123"), rangeWithSource(6, 1, (byte) 2, null, "3")]
+    //    "123\n123"           | 0           | [rangeWithSource(0, 5, (byte) 1, null, "123\n1"), rangeWithSource(6, 1, (byte) 2, null, "3")]     | [rangeWithSource(0, 5, (byte) 1, null, "123\n1"), rangeWithSource(6, 1, (byte) 2, null, "3")]
+    //    "123\r\n123"         | 0           | [rangeWithSource(0, 6, (byte) 1, null, "123\r\n1"), rangeWithSource(7, 1, (byte) 2, null, "3")]   | [rangeWithSource(0, 5, (byte) 1, null, "123\r\n1"), rangeWithSource(6, 1, (byte) 2, null, "3")]
+    //    "    123\n    123"   | -4          | [rangeWithSource(4, 3, (byte) 1, null, "123"), rangeWithSource(14, 1, (byte) 2, null, "3")]       | [rangeWithSource(0, 3, (byte) 1, null, "123"), rangeWithSource(6, 1, (byte) 2, null, "3")]
+    //    "    123\r\n    123" | -4          | [rangeWithSource(4, 3, (byte) 1, null, "123"), rangeWithSource(15, 1, (byte) 2, null, "3")]       | [rangeWithSource(0, 3, (byte) 1, null, "123"), rangeWithSource(6, 1, (byte) 2, null, "3")]
+    //    "    123\n    123"   | -4          | [rangeWithSource(4, 9, (byte) 1, null, "123\n1"), rangeWithSource(14, 1, (byte) 2, null, "3")]    | [rangeWithSource(0, 5, (byte) 1, null, "123\n1"), rangeWithSource(6, 1, (byte) 2, null, "3")]
+    //    "    123\r\n    123" | -4          | [rangeWithSource(4, 10, (byte) 1, null, "123\r\n1"), rangeWithSource(15, 1, (byte) 2, null, "3")] | [rangeWithSource(0, 5, (byte) 1, null, "123\r\n1"), rangeWithSource(6, 1, (byte) 2, null, "3")]
+  }
+
 
   Range[] rangesFromSpec(List<List<Object>> spec) {
     def ranges = new Range[spec.size()]
@@ -367,5 +391,9 @@ class RangesTest extends DDSpecification {
 
   Range range(final int start, final int length) {
     return new Range(start, length, new Source(REQUEST_HEADER_NAME, 'a', 'b'), NOT_MARKED)
+  }
+
+  Range rangeWithSource(final int start, final int length, final byte source, final String name = 'name', final String value = 'value') {
+    return new Range(start, length, new Source(source, name, value), NOT_MARKED)
   }
 }
