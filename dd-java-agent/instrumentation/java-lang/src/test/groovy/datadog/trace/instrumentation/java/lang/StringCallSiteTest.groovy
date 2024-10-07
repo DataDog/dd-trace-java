@@ -239,4 +239,40 @@ class StringCallSiteTest extends AgentTestRunner {
     ['test the test', ' ']    | ['test', 'the', 'test'] as String[]
     ['test the test', ' ', 0] | ['test', 'the', 'test'] as String[]
   }
+
+  void 'test string replace char'() {
+    given:
+    final module = Mock(StringModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    def result = TestStringSuite.replace(input, oldChar as char, newChar as char)
+
+    then:
+    result == expected
+    1 * module.onStringReplaceChar(input, oldChar, newChar, expected)
+
+    where:
+    input  | oldChar | newChar | expected
+    "test" | 't'     | 'T'     | "TesT"
+    "test" | 'e'     | 'E'     | "tEst"
+  }
+
+  void 'test string replace char sequence'() {
+    given:
+    final module = Mock(StringModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    def result = TestStringSuite.replace(input, oldCharSeq, newCharSeq)
+
+    then:
+    result == expected
+    1 * module.onStringReplaceCharSeq(input, oldCharSeq, newCharSeq, expected)
+
+    where:
+    input  | oldCharSeq | newCharSeq | expected
+    "test" | 'te'       | 'TE'       | "TEst"
+    "test" | 'es'       | 'ES'       | "tESt"
+  }
 }

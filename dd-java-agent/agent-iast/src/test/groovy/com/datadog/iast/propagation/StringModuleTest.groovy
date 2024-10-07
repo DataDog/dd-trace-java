@@ -1047,13 +1047,61 @@ class StringModuleTest extends IastModuleImplTestBase {
     result == expected
 
     where:
-    trailing | testString              | expected
-    false    | " ==>   <== "           | ""
-    false    | " ==>   <== "           | ""
-    true     | " ==>   <== "           | ""
-    false    | ""                      | ""
-    false    | ""                      | ""
-    true     | ""                      | ""
+    trailing | testString    | expected
+    false    | " ==>   <== " | ""
+    false    | " ==>   <== " | ""
+    true     | " ==>   <== " | ""
+    false    | ""            | ""
+    false    | ""            | ""
+    true     | ""            | ""
+  }
+
+  void 'test replace with a single char and make sure IastRequestContext is called'() {
+    given:
+    final taintedObjects = ctx.getTaintedObjects()
+    def self = addFromTaintFormat(taintedObjects, testString)
+    def result = self.replace(oldChar, newChar)
+
+    when:
+    module.onStringReplaceChar(self, oldChar as char, newChar as char, result)
+    def taintedObject = taintedObjects.get(result)
+
+    then:
+    1 * tracer.activeSpan() >> span
+    taintFormat(result, taintedObject.getRanges()) == expected
+
+    where:
+    testString       | oldChar | newChar | expected
+    "==>masquita<==" | 'a'     | 'o'     | "==>mosquito<=="
+    "==>___<=="      | '_'     | '-'     | "==>---<=="
+    "==>my_input<==" | '_'     | '-'     | "==>my-input<=="
+  }
+
+  void 'test replace with a char sequence and make sure IastRequestContext is called'() {
+    given:
+    final taintedObjects = ctx.getTaintedObjects()
+    def self = addFromTaintFormat(taintedObjects, testString)
+    def result = self.replace(oldCharSeq, newCharSeq)
+
+    when:
+    module.onStringReplaceCharSeq(self, oldCharSeq, newCharSeq, result)
+    def taintedObject = taintedObjects.get(result)
+
+    then:
+    1 * tracer.activeSpan() >> span
+    taintFormat(result, taintedObject.getRanges()) == expected
+
+    where:
+    testString                   | oldCharSeq | newCharSeq | expected
+    "==>masquita<=="             | 'as'       | 'os'       | "==>m<==os==>quita<=="
+    "==>m<==as==>qu<==i==>ta<==" | 'as'       | 'os'       | "==>m<==os==>qu<==i==>ta<=="
+    "==>my_input<=="             | 'in'       | 'out'      | "==>my_<==out==>put<=="
+    "==>my_input<=="             | 'in'       | 'out'      | "==>my_<==out==>put<=="
+    "==>my_output<=="            | 'out'      | 'in'       | "==>my_<==in==>put<=="
+    "==>my_input<=="             | '_'        | '-'        | "==>my<==-==>input<=="
+    "==>my<==_==>input<=="       | 'in'       | 'out'      | "==>my<==_out==>put<=="
+    "==>my_in<==p==>ut<=="       | 'in'       | 'out'      | "==>my_<==outp==>ut<=="
+    "==>my_<==in==>put<=="       | 'in'       | 'out'      | "==>my_<==out==>put<=="
   }
 
   private static Date date(final String pattern, final String value) {

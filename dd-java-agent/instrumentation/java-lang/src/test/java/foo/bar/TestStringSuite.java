@@ -194,4 +194,19 @@ public class TestStringSuite {
     LOGGER.debug("After split {}", result);
     return result;
   }
+
+  public static String replace(final String string, final char oldChar, final char newChar) {
+    LOGGER.debug("Before replace {} {} {}", string, oldChar, newChar);
+    String result = string.replace(oldChar, newChar);
+    LOGGER.debug("After replace {}", result);
+    return result;
+  }
+
+  public static String replace(
+      final String string, final CharSequence oldCharSeq, final CharSequence newCharSeq) {
+    LOGGER.debug("Before replace {} {} {}", string, oldCharSeq, newCharSeq);
+    String result = string.replace(oldCharSeq, newCharSeq);
+    LOGGER.debug("After replace {}", result);
+    return result;
+  }
 }

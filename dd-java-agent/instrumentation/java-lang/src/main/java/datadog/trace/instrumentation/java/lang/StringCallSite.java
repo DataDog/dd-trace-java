@@ -281,4 +281,39 @@ public class StringCallSite {
     }
     return result;
   }
+
+  @CallSite.After("java.lang.String java.lang.String.replace(char, char)")
+  public static String afterReplaceChar(
+      @CallSite.This @Nonnull final String self,
+      @CallSite.Argument(0) final char oldChar,
+      @CallSite.Argument(1) final char newChar,
+      @CallSite.Return @Nonnull final String result) {
+    final StringModule module = InstrumentationBridge.STRING;
+    if (module != null) {
+      try {
+        module.onStringReplaceChar(self, oldChar, newChar, result);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterReplaceChar threw", e);
+      }
+    }
+    return result;
+  }
+
+  @CallSite.After(
+      "java.lang.String java.lang.String.replace(java.lang.CharSequence, java.lang.CharSequence)")
+  public static String afterReplaceCharSeq(
+      @CallSite.This final String self,
+      @CallSite.Argument(0) final CharSequence oldCharSeq,
+      @CallSite.Argument(1) final CharSequence newCharSeq,
+      @CallSite.Return final String result) {
+    final StringModule module = InstrumentationBridge.STRING;
+    if (module != null) {
+      try {
+        module.onStringReplaceCharSeq(self, oldCharSeq, newCharSeq, result);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterReplaceCharSeq threw", e);
+      }
+    }
+    return result;
+  }
 }

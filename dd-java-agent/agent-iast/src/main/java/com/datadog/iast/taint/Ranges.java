@@ -304,4 +304,116 @@ public final class Ranges {
   public static Range copyWithPosition(final Range range, final int offset, final int length) {
     return new Range(offset, length, range.getSource(), range.getMarks());
   }
+
+  /** Returns a new array of ranges with the character sequences replaced applied */
+  public static Range[] forReplaceCharSeq(
+      final String self,
+      final CharSequence oldCharSeq,
+      final CharSequence newCharSeq,
+      final Range[] ranges) {
+    RangeBuilder newRanges = new RangeBuilder(ranges.length * 2);
+    // This range is used to have a reference to the current range modified
+    Range currentRange = ranges[0];
+    int lastRangeUsed = -1;
+    int firstRange = 0;
+    int offset = 0;
+    int diffLength = newCharSeq.length() - oldCharSeq.length();
+    for (int i = 0; i + oldCharSeq.length() < self.length() && firstRange < ranges.length; i++) {
+      if (!self.substring(i, i + oldCharSeq.length()).contentEquals(oldCharSeq)) {
+        continue;
+      }
+
+      // Move to the next valid range
+      while (firstRange < ranges.length) {
+        Range range = ranges[firstRange];
+        if (range.getStart() <= i && range.getStart() + range.getLength() >= i) {
+          if (firstRange > lastRangeUsed) {
+            currentRange = range;
+          }
+          break;
+        }
+        if (firstRange > lastRangeUsed) {
+          newRanges.add(currentRange);
+        } else {
+          newRanges.add(
+              new Range(
+                  range.getStart() + offset,
+                  range.getLength(),
+                  range.getSource(),
+                  range.getMarks()));
+        }
+        firstRange++;
+      }
+
+      if (firstRange < ranges.length) {
+        Range[] splittedRanges =
+            splitRanges(
+                i + offset,
+                i + oldCharSeq.length() + offset,
+                newCharSeq.length(),
+                currentRange,
+                offset,
+                diffLength);
+        if (splittedRanges.length == 1) {
+          continue;
+        }
+        if (splittedRanges[0].getLength() > 0) {
+          newRanges.add(splittedRanges[0]);
+        }
+
+        lastRangeUsed = firstRange;
+        currentRange = splittedRanges[1];
+      }
+
+      offset += diffLength;
+    }
+
+    firstRange++;
+
+    // In the case there is no tainted object
+    if (firstRange < ranges.length) {
+      for (int i = firstRange; i < ranges.length; i++) {
+        newRanges.add(
+            new Range(
+                ranges[i].getStart() + offset,
+                ranges[i].getLength(),
+                ranges[i].getSource(),
+                ranges[i].getMarks()));
+      }
+    } else {
+      newRanges.add(currentRange);
+    }
+
+    return newRanges.toArray();
+  }
+
+  /**
+   * Split the range in two taking into account the new length of the characters. In case start and
+   * end are out of the range, it will return the range without splitting.
+   *
+   * @param start is the start of the character sequence
+   * @param end is the end of the character sequence
+   * @param newLength is the new length of the character sequence
+   * @param range is the range to split
+   * @param offset is the offset to apply to the range
+   * @param diffLength is the difference between the new length and the old length
+   */
+  private static Range[] splitRanges(
+      int start, int end, int newLength, Range range, int offset, int diffLength) {
+    int rangeStart = range.getStart() + offset;
+    int rangeEnd = rangeStart + range.getLength() + diffLength;
+
+    if (rangeStart > end || rangeEnd < start || rangeStart > start && rangeEnd < end) {
+      return new Range[] {range};
+    }
+
+    Range[] splittedRanges = new Range[2];
+    int firstLength = start - rangeStart;
+    int secondLength = range.getLength() - firstLength - newLength + diffLength;
+    splittedRanges[0] = new Range(rangeStart, firstLength, range.getSource(), range.getMarks());
+    splittedRanges[1] =
+        new Range(rangeEnd - secondLength, secondLength, range.getSource(), range.getMarks());
+
+    return splittedRanges;
+  }
 }

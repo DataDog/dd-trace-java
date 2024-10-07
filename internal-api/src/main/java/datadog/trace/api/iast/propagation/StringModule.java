@@ -52,4 +52,10 @@ public interface StringModule extends IastModule {
   void onSplit(final @Nonnull String self, final @Nonnull String[] result);
 
   void onStringStrip(@Nonnull String self, @Nonnull String result, boolean trailing);
+
+  void onStringReplaceChar(
+      @Nonnull String self, char oldChar, char newChar, @Nonnull String result);
+
+  void onStringReplaceCharSeq(
+      @Nonnull String self, CharSequence oldChar, CharSequence newChar, @Nonnull String result);
 }
