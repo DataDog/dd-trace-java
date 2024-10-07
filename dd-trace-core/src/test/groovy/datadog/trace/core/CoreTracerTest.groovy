@@ -545,7 +545,7 @@ class CoreTracerTest extends DDCoreSpecification {
     "some"    | "some"
   }
 
-  def "test dd_version exists iff service == dd_service"() {
+  def "test dd_version exists only if service == dd_service"() {
     setup:
     injectSysConfig(SERVICE_NAME, "dd_service_name")
     injectSysConfig(VERSION, "1.0.0")
