@@ -1,4 +1,0 @@
-com/fasterxml/jackson/databind/deser/lazy/LazyIgnoralForNumbers3730Test
-com/fasterxml/jackson/databind/BaseMapTest
-com/fasterxml/jackson/databind/BaseTest
-com/fasterxml/jackson/databind/type/TypeFactory
