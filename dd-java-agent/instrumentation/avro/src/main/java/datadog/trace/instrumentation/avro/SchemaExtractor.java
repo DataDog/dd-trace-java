@@ -50,11 +50,18 @@ public class SchemaExtractor implements SchemaIterator {
             return false;
           };
         }
-
         break;
       case MAP:
         type = "object";
-        description = "Map type";
+        String keys = "string";
+        String values = getType(field.schema().getValueType().getType().getName());
+        if (values == "record") {
+          values = "#/components/schemas/" + field.schema().getValueType().getFullName();
+          if (!extractSchema(field.schema().getValueType(), builder, depth)) {
+            return false;
+          };
+        }
+        description = "Map type with " + keys + " keys and " + values + " values";
         break;
       case STRING:
         type = "string";
