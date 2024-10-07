@@ -23,8 +23,8 @@ class AvroDatumReaderTest extends AgentTestRunner {
 
     return true
   }
-  String schemaID = "13312915480981758289"
-  String openApiSchemaDef = "{\"components\":{\"schemas\":{\"TestRecord\":{\"properties\":{\"stringField\":{\"type\":\"string\"},\"intField\":{\"format\":\"int32\",\"type\":\"integer\"},\"longField\":{\"format\":\"int64\",\"type\":\"integer\"},\"floatField\":{\"format\":\"float\",\"type\":\"number\"},\"doubleField\":{\"format\":\"double\",\"type\":\"number\"},\"booleanField\":{\"type\":\"boolean\"},\"bytesField\":{\"format\":\"byte\",\"type\":\"string\"},\"nullField\":{\"type\":\"null\"},\"enumField\":{\"enum\":[\"A\",\"B\",\"C\"],\"type\":\"string\"},\"fixedField\":{\"type\":\"string\"},\"recordField\":{\"type\":\"#/components/schemas/NestedRecord\"},\"arrayField\":{\"items\":{\"type\":\"integer\"},\"type\":\"array\"},\"mapField\":{\"description\":\"Map type\",\"type\":\"object\"}},\"type\":\"object\"},\"NestedRecord\":{\"properties\":{\"nestedString\":{\"type\":\"string\"}},\"type\":\"object\"}}},\"openapi\":\"3.0.0\"}"
+  String schemaID = "1235632270399345373"
+  String openApiSchemaDef = "{\"components\":{\"schemas\":{\"TestRecord\":{\"properties\":{\"stringField\":{\"type\":\"string\"},\"intField\":{\"format\":\"int32\",\"type\":\"integer\"},\"longField\":{\"format\":\"int64\",\"type\":\"integer\"},\"floatField\":{\"format\":\"float\",\"type\":\"number\"},\"doubleField\":{\"format\":\"double\",\"type\":\"number\"},\"booleanField\":{\"type\":\"boolean\"},\"bytesField\":{\"format\":\"byte\",\"type\":\"string\"},\"nullField\":{\"type\":\"null\"},\"enumField\":{\"enum\":[\"A\",\"B\",\"C\"],\"type\":\"string\"},\"fixedField\":{\"type\":\"string\"},\"recordField\":{\"type\":\"#/components/schemas/NestedRecord\"},\"arrayField\":{\"items\":{\"type\":\"integer\"},\"type\":\"array\"},\"mapField\":{\"description\":\"Map type\",\"type\":\"object\"},\"arrayNestedField\":{\"items\":{\"type\":\"#/components/schemas/OtherNestedRecord\"},\"type\":\"array\"}},\"type\":\"object\"},\"NestedRecord\":{\"properties\":{\"nestedString\":{\"type\":\"string\"}},\"type\":\"object\"},\"OtherNestedRecord\":{\"properties\":{\"nestedString\":{\"type\":\"string\"}},\"type\":\"object\"}}},\"openapi\":\"3.0.0\"}"
   String schemaStr = '''
     {
       "type": "record",
@@ -42,13 +42,23 @@ class AvroDatumReaderTest extends AgentTestRunner {
         {"name": "fixedField", "type": {"type": "fixed", "name": "TestFixed", "size": 16}},
         {"name": "recordField", "type": {"type": "record", "name": "NestedRecord", "fields": [{"name": "nestedString", "type": "string"}]}},
         {"name": "arrayField", "type": {"type": "array", "items": "int"}},
-        {"name": "mapField", "type": {"type": "map", "values": "string"}}
+        {"name": "mapField", "type": {"type": "map", "values": "string"}},
+        {"name": "arrayNestedField", "type": { "type": "array", "items": {"type": "record", "name": "OtherNestedRecord", "fields": [{"name": "nestedString", "type": "string"}]}}}
       ]
     }
     '''
   Schema schemaDef = new Schema.Parser().parse(schemaStr)
-
-
+  // here for convience but must be kept in sync with the array nested field
+  String nestedSchemaStr = '''
+    {
+      "type": "record",
+       "name": "OtherNestedRecord",
+       "fields": [
+        {"name": "nestedString", "type": "string"}
+       ]
+    }
+    '''
+  Schema nestedSchemaDef = new Schema.Parser().parse(nestedSchemaStr)
 
   void 'test extract avro schema on deserialize'() {
 
@@ -79,6 +89,13 @@ class AvroDatumReaderTest extends AgentTestRunner {
     map.put("key1", "value1")
     map.put("key2", "value2")
     datum.put("mapField", map)
+
+    // array of nested fields
+    GenericRecord nestedRecordA = new GenericData.Record(nestedSchemaDef)
+    nestedRecordA.put("nestedString", "a")
+    GenericRecord nestedRecordB = new GenericData.Record(nestedSchemaDef)
+    nestedRecordB.put("nestedString", "b")
+    datum.put("arrayNestedField", Arrays.asList(nestedRecordA, nestedRecordB))
 
     when:
     def bytes

@@ -44,6 +44,13 @@ public class SchemaExtractor implements SchemaIterator {
       case ARRAY:
         array = true;
         type = getType(field.schema().getElementType().getType().getName());
+        if (type == "record") {
+          type = "#/components/schemas/" + field.schema().getElementType().getFullName();
+          if (!extractSchema(field.schema().getElementType(), builder, depth)) {
+            return false;
+          };
+        }
+
         break;
       case MAP:
         type = "object";
@@ -167,6 +174,8 @@ public class SchemaExtractor implements SchemaIterator {
         return "boolean";
       case "null":
         return "null";
+      case "record":
+        return "record";
       default:
         return "string";
     }
