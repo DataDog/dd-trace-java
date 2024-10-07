@@ -37,10 +37,11 @@ public class TagsProcessor {
   public static final String TOPIC_TAG = "topic";
   private static final DDCache<String, String> TOPIC_TAG_CACHE = DDCaches.newFixedSizeCache(32);
   private static final Function<String, String> TOPIC_TAG_PREFIX = new StringPrefix("topic:");
-  // EventBridge Bus
-  public static final String BUS_TAG = "bus";
-  private static final DDCache<String, String> BUS_TAG_CACHE = DDCaches.newFixedSizeCache(32);
-  private static final Function<String, String> BUS_TAG_PREFIX = new StringPrefix("bus:");
+  // EventBridge Rule Name
+  // TODO rename the `rulename` tag to `eventbusname` across all runtimes
+  public static final String RULE_TAG = "rulename";
+  private static final DDCache<String, String> RULE_TAG_CACHE = DDCaches.newFixedSizeCache(32);
+  private static final Function<String, String> RULE_TAG_PREFIX = new StringPrefix("rule:");
 
   public static final String PARTITION_TAG = "partition";
   private static final DDCache<String, String> PARTITION_TAG_CACHE = DDCaches.newFixedSizeCache(32);
@@ -95,7 +96,7 @@ public class TagsProcessor {
     result.put(TYPE_TAG, TYPE_TAG_CACHE);
     result.put(DIRECTION_TAG, DIRECTION_TAG_CACHE);
     result.put(TOPIC_TAG, TOPIC_TAG_CACHE);
-    result.put(BUS_TAG, BUS_TAG_CACHE);
+    result.put(RULE_TAG, RULE_TAG_CACHE);
     result.put(PARTITION_TAG, PARTITION_TAG_CACHE);
     result.put(GROUP_TAG, GROUP_TAG_CACHE);
     result.put(CONSUMER_GROUP_TAG, CONSUMER_GROUP_TAG_CACHE);
@@ -113,7 +114,7 @@ public class TagsProcessor {
     result.put(TYPE_TAG, TYPE_TAG_PREFIX);
     result.put(DIRECTION_TAG, DIRECTION_TAG_PREFIX);
     result.put(TOPIC_TAG, TOPIC_TAG_PREFIX);
-    result.put(BUS_TAG, BUS_TAG_PREFIX);
+    result.put(RULE_TAG, RULE_TAG_PREFIX);
     result.put(PARTITION_TAG, PARTITION_TAG_PREFIX);
     result.put(GROUP_TAG, GROUP_TAG_PREFIX);
     result.put(CONSUMER_GROUP_TAG, CONSUMER_GROUP_TAG_PREFIX);
