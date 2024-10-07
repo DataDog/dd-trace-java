@@ -8,6 +8,7 @@ import com.datadog.iast.model.Source;
 import com.datadog.iast.util.HttpHeader;
 import com.datadog.iast.util.RangeBuilder;
 import com.datadog.iast.util.Ranged;
+import com.datadog.iast.util.StringUtils;
 import datadog.trace.api.iast.SourceTypes;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -303,6 +304,127 @@ public final class Ranges {
 
   public static Range copyWithPosition(final Range range, final int offset, final int length) {
     return new Range(offset, length, range.getSource(), range.getMarks());
+  }
+
+  /** Returns a new array of ranges with the indentation applied to each line */
+  public static Range[] forIndentation(
+      String input, int indentation, final @Nonnull Range[] ranges) {
+    final Range[] newRanges = new Range[ranges.length];
+    int delimitersCount = 0;
+    int offset = 0;
+    int rangeStart = 0;
+    int currentIndex = 0;
+    int totalWhiteSpaces = 0;
+    while (rangeStart < ranges.length || currentIndex < input.length() - 1) {
+      final int[] delimiterIndex = getNextDelimiterIndex(input, currentIndex, currentIndex + 1);
+      final int lineOffset = delimiterIndex[1] == 2 ? 1 : 0;
+      int currentIndentation;
+      // In case indentation is negative we need to check if it will take more than the first
+      // non-white space character
+      if (indentation < 0) {
+        final int whiteSpaces =
+            StringUtils.leadingWhitespaces(input, currentIndex, delimiterIndex[0]);
+        currentIndentation = Math.max(indentation, -whiteSpaces) - totalWhiteSpaces;
+        totalWhiteSpaces += whiteSpaces;
+      } else {
+        currentIndentation = indentation * ++delimitersCount;
+      }
+      currentIndentation -= offset;
+      rangeStart =
+          updateRangesWithIndentation(
+              currentIndex,
+              delimiterIndex[0] - 1,
+              indentation,
+              rangeStart,
+              ranges,
+              newRanges,
+              currentIndentation,
+              lineOffset);
+      offset += lineOffset;
+      currentIndex = delimiterIndex[0];
+    }
+
+    return newRanges;
+  }
+
+  /**
+   * Returns two numbers in an array:
+   *
+   * <p>1. The index of the next delimiter (his last character)
+   *
+   * <p>2. The length of the delimiter ({@code 1} or {@code 2})
+   *
+   * <p>In case there is no delimiter, it will return the last index of the string and {@code 1}
+   *
+   * @param original is the original string
+   * @param start is the start index of the substring
+   * @param offset is to take into account the previous lines
+   */
+  private static int[] getNextDelimiterIndex(
+      @Nonnull final String original, final int start, final int offset) {
+    for (int i = start; i < original.length(); i++) {
+      final char c = original.charAt(i);
+      if (c == '\n') {
+        return new int[] {i + offset, 1};
+      } else if (c == '\r') {
+        if (i + 1 < original.length() && original.charAt(i + 1) == '\n') {
+          return new int[] {i + 1 + offset, 2};
+        }
+        return new int[] {i + offset, 1};
+      }
+    }
+
+    return new int[] {original.length() - 1 + offset - start, 1};
+  }
+
+  /**
+   * Updates the {@code newRanges} array between the {@code start} index and the {@code end} index
+   * and taking into account the {@code indentation}
+   *
+   * <p>The {@code rangeStart} is the index of the first range that will be checked
+   *
+   * <p>The {@code ranges} is the current ranges array
+   *
+   * <p>The {@code offset} is to take into account the normalization of the indent method
+   *
+   * <p>The {@code lineOffset} is to know if the line is being normalized
+   *
+   * @return the index of the first range that will be checked
+   */
+  private static int updateRangesWithIndentation(
+      int start,
+      int end,
+      int indentation,
+      int rangeStart,
+      final @Nonnull Range[] ranges,
+      final @Nonnull Range[] newRanges,
+      int offset,
+      int lineOffset) {
+    int i = rangeStart;
+    while (i < ranges.length && ranges[i].getStart() <= end) {
+      Range range = ranges[i];
+      if (range.getStart() >= start) {
+        final int newStart = range.getStart() + offset;
+        int newLength = range.getLength();
+        if (range.getStart() + range.getLength() > end) {
+          newLength -= lineOffset;
+        }
+        newRanges[i] = new Range(newStart, newLength, range.getSource(), range.getMarks());
+      } else if (range.getStart() + range.getLength() >= start) {
+        final Range newRange = newRanges[i];
+        final int newLength = newRange.getLength() + indentation;
+        newRanges[i] =
+            new Range(newRange.getStart(), newLength, newRange.getSource(), newRange.getMarks());
+      }
+
+      if (range.getStart() + range.getLength() - 1 <= end) {
+        rangeStart++;
+      }
+
+      i++;
+    }
+
+    return rangeStart;
   }
 
   /** Returns a new array of ranges with the character sequences replaced applied */

@@ -53,6 +53,8 @@ public interface StringModule extends IastModule {
 
   void onStringStrip(@Nonnull String self, @Nonnull String result, boolean trailing);
 
+  void onIndent(@Nonnull String self, int indentation, @Nonnull String result);
+
   void onStringReplaceChar(
       @Nonnull String self, char oldChar, char newChar, @Nonnull String result);
 

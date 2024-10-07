@@ -606,6 +606,33 @@ public class StringModuleImpl implements StringModule {
 
   @Override
   @SuppressFBWarnings("ES_COMPARING_PARAMETER_STRING_WITH_EQ")
+  public void onIndent(@Nonnull String self, int indentation, @Nonnull String result) {
+    if (self == result || !canBeTainted(self)) {
+      return;
+    }
+    final IastContext ctx = IastContext.Provider.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    final TaintedObject taintedSelf = taintedObjects.get(self);
+    if (taintedSelf == null) {
+      return;
+    }
+
+    final Range[] rangesSelf = taintedSelf.getRanges();
+    if (rangesSelf.length == 0) {
+      return;
+    }
+
+    final Range[] newRanges = Ranges.forIndentation(self, indentation, rangesSelf);
+    if (newRanges != null) {
+      taintedObjects.taint(result, newRanges);
+    }
+  }
+
+  @Override
+  @SuppressFBWarnings("ES_COMPARING_PARAMETER_STRING_WITH_EQ")
   public void onStringReplaceChar(
       @Nonnull String self, char oldChar, char newChar, @Nonnull String result) {
     if (self == result || !canBeTainted(result)) {
