@@ -36,6 +36,10 @@ abstract class ArmeriaGrpcStreamingTest extends VersionedNamingTestBase {
 
   protected abstract String serverOperation()
 
+  protected boolean hasClientMessageSpans() {
+    false
+  }
+
   @Override
   boolean useStrictTraceWrites() {
     false
@@ -46,6 +50,9 @@ abstract class ArmeriaGrpcStreamingTest extends VersionedNamingTestBase {
     super.configurePreAgent()
     injectSysConfig("dd.trace.grpc.ignored.inbound.methods", "example.Greeter/IgnoreInbound")
     injectSysConfig("dd.trace.grpc.ignored.outbound.methods", "example.Greeter/Ignore")
+    if (hasClientMessageSpans()) {
+      injectSysConfig("integration.grpc-message.enabled", "true")
+    }
     // here to trigger wrapping to record scheduling time - the logic is trivial so it's enough to verify
     // that ClassCastExceptions do not arise from the wrapping
     injectSysConfig("dd.profiling.enabled", "true")
@@ -157,7 +164,7 @@ abstract class ArmeriaGrpcStreamingTest extends VersionedNamingTestBase {
     }.flatten().sort()
 
     assertTraces(2) {
-      trace((clientMessageCount * serverMessageCount) + 1) {
+      trace((hasClientMessageSpans() ? clientMessageCount * serverMessageCount : 0) + 1) {
         sortSpansByStart()
         span {
           operationName clientOperation()
@@ -176,18 +183,20 @@ abstract class ArmeriaGrpcStreamingTest extends VersionedNamingTestBase {
             defaultTags()
           }
         }
-        (1..(clientMessageCount * serverMessageCount)).each {
-          span {
-            operationName "grpc.message"
-            resourceName "grpc.message"
-            spanType DDSpanTypes.RPC
-            childOf span(0)
-            errored false
-            tags {
-              "$Tags.COMPONENT" "armeria-grpc-client"
-              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-              "message.type" "example.Helloworld\$Response"
-              defaultTagsNoPeerService()
+        if (hasClientMessageSpans()) {
+          (1..(clientMessageCount * serverMessageCount)).each {
+            span {
+              operationName "grpc.message"
+              resourceName "grpc.message"
+              spanType DDSpanTypes.RPC
+              childOf span(0)
+              errored false
+              tags {
+                "$Tags.COMPONENT" "armeria-grpc-client"
+                "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+                "message.type" "example.Helloworld\$Response"
+                defaultTagsNoPeerService()
+              }
             }
           }
         }
@@ -246,7 +255,7 @@ abstract class ArmeriaGrpcStreamingTest extends VersionedNamingTestBase {
   }
 }
 
-class ArmeriaGrpcStreamingV0ForkedTest extends ArmeriaGrpcStreamingTest {
+class ArmeriaGrpcStreamingV0Test extends ArmeriaGrpcStreamingTest {
 
   @Override
   int version() {
@@ -261,6 +270,13 @@ class ArmeriaGrpcStreamingV0ForkedTest extends ArmeriaGrpcStreamingTest {
   @Override
   protected String serverOperation() {
     return "grpc.server"
+  }
+}
+
+class ArmeriaGrpcStreamingClientMessagesEnabledTest extends ArmeriaGrpcStreamingV0Test {
+  @Override
+  protected boolean hasClientMessageSpans() {
+    true
   }
 }
 

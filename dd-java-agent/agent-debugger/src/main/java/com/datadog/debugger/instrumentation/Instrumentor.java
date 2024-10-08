@@ -45,7 +45,7 @@ public abstract class Instrumentor {
   protected final LabelNode methodEnterLabel;
   protected int localVarBaseOffset;
   protected int argOffset;
-  protected final LocalVariableNode[] localVarsBySlot;
+  protected final LocalVariableNode[] localVarsBySlotArray;
   protected LabelNode returnHandlerLabel;
   protected final List<CapturedContextInstrumentor.FinallyBlock> finallyBlocks = new ArrayList<>();
 
@@ -68,7 +68,7 @@ public abstract class Instrumentor {
     for (Type t : argTypes) {
       argOffset += t.getSize();
     }
-    localVarsBySlot = extractLocalVariables(argTypes);
+    localVarsBySlotArray = extractLocalVariables(argTypes);
   }
 
   public abstract InstrumentationResult.Status instrument();

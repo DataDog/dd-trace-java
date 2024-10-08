@@ -40,7 +40,6 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
 
   public HeadlessTestModule(
       AgentSpan.Context sessionSpanContext,
-      long sessionId,
       String moduleName,
       @Nullable Long startTime,
       Config config,
@@ -54,7 +53,6 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
       Consumer<AgentSpan> onSpanFinish) {
     super(
         sessionSpanContext,
-        sessionId,
         moduleName,
         startTime,
         InstrumentationType.HEADLESS,
@@ -129,8 +127,6 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
       TestFrameworkInstrumentation instrumentation) {
     return new TestSuiteImpl(
         span.context(),
-        sessionId,
-        span.getSpanId(),
         moduleName,
         testSuiteName,
         executionStrategy.getExecutionSettings().getItrCorrelationId(),

@@ -19,6 +19,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -27,6 +28,7 @@ import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
 import io.grpc.Status;
 import io.grpc.StatusException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -90,8 +92,11 @@ public final class ClientCallImplInstrumentation extends InstrumenterModule.Trac
     transformer.applyAdvice(
         named("close").and(isMethod().and(takesArguments(2))),
         getClass().getName() + "$CloseObserver");
-    transformer.applyAdvice(
-        named("onNext").or(named("messageRead")), getClass().getName() + "$ReceiveMessages");
+    if (InstrumenterConfig.get()
+        .isIntegrationEnabled(Arrays.asList("armeria-grpc-message", "grpc-message"), false)) {
+      transformer.applyAdvice(
+          named("onNext").or(named("messageRead")), getClass().getName() + "$ReceiveMessages");
+    }
   }
 
   public static final class CaptureCall {

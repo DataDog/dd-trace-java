@@ -178,7 +178,7 @@ public class ListValue implements CollectionValue<Object>, ValueExpression<ListV
             }
           }
         } else if (arrayType == long.class) {
-          long longValue = (Long) val.getValue();
+          long longValue = ((Number) val.getValue()).longValue();
           for (int i = 0; i < count; i++) {
             if (Array.getLong(arrayHolder, i) == longValue) {
               return true;

@@ -17,7 +17,7 @@ public abstract class AppSecEventTracker extends EventTracker {
 
   public static void setEventTracker(final AppSecEventTracker tracker) {
     INSTANCE = tracker;
-    GlobalTracer.setEventTracker(tracker);
+    GlobalTracer.setEventTracker(tracker == null ? EventTracker.NO_EVENT_TRACKER : tracker);
   }
 
   @Override
@@ -46,6 +46,8 @@ public abstract class AppSecEventTracker extends EventTracker {
 
   public abstract void onLoginFailureEvent(
       UserIdCollectionMode mode, String userId, Boolean exists, Map<String, String> metadata);
+
+  public abstract void onUserEvent(UserIdCollectionMode mode, String userId);
 
   public abstract void onCustomEvent(
       UserIdCollectionMode mode, String eventName, Map<String, String> metadata);

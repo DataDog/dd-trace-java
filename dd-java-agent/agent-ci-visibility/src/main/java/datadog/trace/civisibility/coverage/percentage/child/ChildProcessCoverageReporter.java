@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.coverage.percentage.child;
 
+import datadog.trace.api.DDTraceId;
 import datadog.trace.civisibility.ipc.ModuleSignal;
 import javax.annotation.Nullable;
 
@@ -12,5 +13,5 @@ import javax.annotation.Nullable;
  */
 public interface ChildProcessCoverageReporter {
   @Nullable
-  ModuleSignal createCoverageSignal(long sessionId, long moduleId);
+  ModuleSignal createCoverageSignal(DDTraceId sessionId, long moduleId);
 }

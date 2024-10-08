@@ -9,6 +9,7 @@ import static datadog.trace.civisibility.utils.FileUtils.expandTilde;
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
+import datadog.trace.civisibility.ci.env.CiEnvironment;
 import datadog.trace.util.Strings;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Arrays;
@@ -37,34 +38,40 @@ class JenkinsInfo implements CIProviderInfo {
   public static final String JENKINS_NODE_NAME = "NODE_NAME";
   public static final String JENKINS_NODE_LABELS = "NODE_LABELS";
 
+  private final CiEnvironment environment;
+
+  JenkinsInfo(CiEnvironment environment) {
+    this.environment = environment;
+  }
+
   @Override
   public GitInfo buildCIGitInfo() {
     return new GitInfo(
         filterSensitiveInfo(buildGitRepositoryUrl()),
         buildGitBranch(),
         buildGitTag(),
-        new CommitInfo(System.getenv(JENKINS_GIT_COMMIT)));
+        new CommitInfo(environment.get(JENKINS_GIT_COMMIT)));
   }
 
   @Override
   public CIInfo buildCIInfo() {
     final String gitBranch = buildGitBranch();
 
-    return CIInfo.builder()
+    return CIInfo.builder(environment)
         .ciProviderName(JENKINS_PROVIDER_NAME)
-        .ciPipelineId(System.getenv(JENKINS_PIPELINE_ID))
+        .ciPipelineId(environment.get(JENKINS_PIPELINE_ID))
         .ciPipelineName(buildCiPipelineName(gitBranch))
-        .ciPipelineNumber(System.getenv(JENKINS_PIPELINE_NUMBER))
-        .ciPipelineUrl(System.getenv(JENKINS_PIPELINE_URL))
-        .ciWorkspace(expandTilde(System.getenv(JENKINS_WORKSPACE_PATH)))
-        .ciNodeName(System.getenv(JENKINS_NODE_NAME))
+        .ciPipelineNumber(environment.get(JENKINS_PIPELINE_NUMBER))
+        .ciPipelineUrl(environment.get(JENKINS_PIPELINE_URL))
+        .ciWorkspace(expandTilde(environment.get(JENKINS_WORKSPACE_PATH)))
+        .ciNodeName(environment.get(JENKINS_NODE_NAME))
         .ciNodeLabels(buildCiNodeLabels())
         .ciEnvVars(JENKINS_DD_CUSTOM_TRACE_ID)
         .build();
   }
 
   private String buildCiNodeLabels() {
-    String labels = System.getenv(JENKINS_NODE_LABELS);
+    String labels = environment.get(JENKINS_NODE_LABELS);
     if (labels == null || labels.isEmpty()) {
       return labels;
     }
@@ -73,13 +80,13 @@ class JenkinsInfo implements CIProviderInfo {
   }
 
   private String buildGitRepositoryUrl() {
-    return System.getenv(JENKINS_GIT_REPOSITORY_URL) != null
-        ? System.getenv(JENKINS_GIT_REPOSITORY_URL)
-        : System.getenv(JENKINS_GIT_REPOSITORY_URL_ALT);
+    return environment.get(JENKINS_GIT_REPOSITORY_URL) != null
+        ? environment.get(JENKINS_GIT_REPOSITORY_URL)
+        : environment.get(JENKINS_GIT_REPOSITORY_URL_ALT);
   }
 
   private String buildGitBranch() {
-    final String gitBranchOrTag = System.getenv(JENKINS_GIT_BRANCH);
+    final String gitBranchOrTag = environment.get(JENKINS_GIT_BRANCH);
     if (!isTagReference(gitBranchOrTag)) {
       return normalizeBranch(gitBranchOrTag);
     } else {
@@ -88,7 +95,7 @@ class JenkinsInfo implements CIProviderInfo {
   }
 
   private String buildGitTag() {
-    final String gitBranchOrTag = System.getenv(JENKINS_GIT_BRANCH);
+    final String gitBranchOrTag = environment.get(JENKINS_GIT_BRANCH);
     if (isTagReference(gitBranchOrTag)) {
       return normalizeTag(gitBranchOrTag);
     } else {
@@ -97,7 +104,7 @@ class JenkinsInfo implements CIProviderInfo {
   }
 
   private String buildCiPipelineName(final String branch) {
-    final String jobName = System.getenv(JENKINS_PIPELINE_NAME);
+    final String jobName = environment.get(JENKINS_PIPELINE_NAME);
     return filterJenkinsJobName(jobName, branch);
   }
 

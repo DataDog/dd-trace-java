@@ -10,7 +10,7 @@ This documentation is dedicated to developers to setup their environment, and bu
 
 ## Development environment quick check
 
-As a preliminary step, you can quickly check that your development environment is properly set up to build the project running `./setup.sh` from the project root:
+To check that your development environment is properly set up to build the project, you will eventually run `./setup.sh` from the project root and should have its output look something like this:
 
 ```bash
 $ ./setup.sh
@@ -25,6 +25,7 @@ $ ./setup.sh
 ✅ The git command line is installed.
 ✅ pre-commit hook is installed in repository.
 ✅ git config submodule.recurse is set to true.
+✅ All git submodules are initialized.
 ℹ️ Checking Docker environment:
 ✅ The docker command line is installed.
 ✅ The Docker server is running.
@@ -190,4 +191,14 @@ To build the entire project with tests (this can take a very long time) run:
 ./gradlew clean build
 ```
 
-After building the project, you can find the jar build artifact into the `dd-java-agent/build/libs` folder.
+>[!NOTE]
+> Running the complete test suite on a local development environment can be challenging.
+> It might take a very long time, and you might encounter few flaky tests along the way.
+> It is recommended to only run the tests related to your changes locally, and leave the whole test suite to the continuous integration platform.
+
+To build the JVM agent artifact only run:
+```bash
+./gradlew :dd-java-agent:shadowJar
+```
+
+After building the project, you can find the built JVM agent artifact into the `dd-java-agent/build/libs` folder.

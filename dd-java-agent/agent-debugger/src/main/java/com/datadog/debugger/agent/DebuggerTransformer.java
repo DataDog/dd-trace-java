@@ -6,7 +6,6 @@ import static java.util.stream.Collectors.toList;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.instrumentation.MethodInfo;
-import com.datadog.debugger.probe.DebuggerProbe;
 import com.datadog.debugger.probe.ExceptionProbe;
 import com.datadog.debugger.probe.ForceMethodInstrumentation;
 import com.datadog.debugger.probe.LogProbe;
@@ -14,6 +13,7 @@ import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.SpanProbe;
+import com.datadog.debugger.probe.TriggerProbe;
 import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
@@ -79,7 +79,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
   private static final Pattern COMMA_PATTERN = Pattern.compile(",");
   private static final List<Class<?>> PROBE_ORDER =
       Arrays.asList(
-          DebuggerProbe.class,
+          TriggerProbe.class,
           MetricProbe.class,
           LogProbe.class,
           SpanDecorationProbe.class,
@@ -569,7 +569,9 @@ public class DebuggerTransformer implements ClassFileTransformer {
       // Log and span decoration probe shared the same instrumentor: CaptureContextInstrumentor
       // and therefore need to be instrumented once
       // note: exception probes are log probes and are handled the same way
-      if (definition instanceof LogProbe || definition instanceof SpanDecorationProbe) {
+      if (definition instanceof LogProbe
+          || definition instanceof SpanDecorationProbe
+          || definition instanceof TriggerProbe) {
         if (definition instanceof ExceptionProbe) {
           if (addedExceptionProbe) {
             continue;

@@ -181,7 +181,6 @@ public class BuildSystemSessionImpl<T extends CoverageCalculator> extends Abstra
     ExecutionSettings executionSettings = executionSettingsFactory.create(jvmInfo, moduleName);
     return new BuildSystemModuleImpl(
         span.context(),
-        span.getSpanId(),
         moduleName,
         startCommand,
         startTime,

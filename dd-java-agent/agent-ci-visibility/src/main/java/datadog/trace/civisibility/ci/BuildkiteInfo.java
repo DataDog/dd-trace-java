@@ -10,6 +10,7 @@ import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.PersonInfo;
+import datadog.trace.civisibility.ci.env.CiEnvironment;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -36,32 +37,38 @@ class BuildkiteInfo implements CIProviderInfo {
   public static final String BUILDKITE_AGENT_ID = "BUILDKITE_AGENT_ID";
   private static final String BUILDKITE_CI_NODE_LABEL_PREFIX = "BUILDKITE_AGENT_META_DATA_";
 
+  private final CiEnvironment environment;
+
+  BuildkiteInfo(CiEnvironment environment) {
+    this.environment = environment;
+  }
+
   @Override
   public GitInfo buildCIGitInfo() {
     return new GitInfo(
-        filterSensitiveInfo(System.getenv(BUILDKITE_GIT_REPOSITORY_URL)),
-        normalizeBranch(System.getenv(BUILDKITE_GIT_BRANCH)),
-        normalizeTag(System.getenv(BUILDKITE_GIT_TAG)),
+        filterSensitiveInfo(environment.get(BUILDKITE_GIT_REPOSITORY_URL)),
+        normalizeBranch(environment.get(BUILDKITE_GIT_BRANCH)),
+        normalizeTag(environment.get(BUILDKITE_GIT_TAG)),
         new CommitInfo(
-            System.getenv(BUILDKITE_GIT_COMMIT),
+            environment.get(BUILDKITE_GIT_COMMIT),
             buildGitCommitAuthor(),
             PersonInfo.NOOP,
-            System.getenv(BUILDKITE_GIT_MESSAGE)));
+            environment.get(BUILDKITE_GIT_MESSAGE)));
   }
 
   @Override
   public CIInfo buildCIInfo() {
-    final String ciPipelineUrl = System.getenv(BUILDKITE_BUILD_URL);
+    final String ciPipelineUrl = environment.get(BUILDKITE_BUILD_URL);
 
-    return CIInfo.builder()
+    return CIInfo.builder(environment)
         .ciProviderName(BUILDKITE_PROVIDER_NAME)
-        .ciPipelineId(System.getenv(BUILDKITE_PIPELINE_ID))
-        .ciPipelineName(System.getenv(BUILDKITE_PIPELINE_NAME))
-        .ciPipelineNumber(System.getenv(BUILDKITE_PIPELINE_NUMBER))
+        .ciPipelineId(environment.get(BUILDKITE_PIPELINE_ID))
+        .ciPipelineName(environment.get(BUILDKITE_PIPELINE_NAME))
+        .ciPipelineNumber(environment.get(BUILDKITE_PIPELINE_NUMBER))
         .ciPipelineUrl(ciPipelineUrl)
-        .ciJobUrl(String.format("%s#%s", ciPipelineUrl, System.getenv(BUILDKITE_JOB_ID)))
-        .ciWorkspace(expandTilde(System.getenv(BUILDKITE_WORKSPACE_PATH)))
-        .ciNodeName(System.getenv(BUILDKITE_AGENT_ID))
+        .ciJobUrl(String.format("%s#%s", ciPipelineUrl, environment.get(BUILDKITE_JOB_ID)))
+        .ciWorkspace(expandTilde(environment.get(BUILDKITE_WORKSPACE_PATH)))
+        .ciNodeName(environment.get(BUILDKITE_AGENT_ID))
         .ciNodeLabels(buildCiNodeLabels())
         .ciEnvVars(BUILDKITE_PIPELINE_ID, BUILDKITE_JOB_ID)
         .build();
@@ -69,7 +76,7 @@ class BuildkiteInfo implements CIProviderInfo {
 
   private String buildCiNodeLabels() {
     List<String> labels = new ArrayList<>();
-    for (Map.Entry<String, String> e : System.getenv().entrySet()) {
+    for (Map.Entry<String, String> e : environment.get().entrySet()) {
       String envVar = e.getKey();
       if (envVar.startsWith(BUILDKITE_CI_NODE_LABEL_PREFIX)) {
         String labelKey =
@@ -83,7 +90,7 @@ class BuildkiteInfo implements CIProviderInfo {
 
   private PersonInfo buildGitCommitAuthor() {
     return new PersonInfo(
-        System.getenv(BUILDKITE_GIT_AUTHOR_NAME), System.getenv(BUILDKITE_GIT_AUTHOR_EMAIL));
+        environment.get(BUILDKITE_GIT_AUTHOR_NAME), environment.get(BUILDKITE_GIT_AUTHOR_EMAIL));
   }
 
   @Override
