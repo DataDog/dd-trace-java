@@ -2,8 +2,9 @@ package com.datadog.debugger.origin;
 
 import static com.datadog.debugger.agent.ConfigurationAcceptor.Source.REMOTE_CONFIG;
 import static com.datadog.debugger.util.TestHelper.setFieldInConfig;
-import static datadog.trace.api.DDTags.DD_STACK_CODE_ORIGIN_FRAME;
-import static datadog.trace.api.DDTags.DD_STACK_CODE_ORIGIN_TYPE;
+import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_FRAME;
+import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_PREFIX;
+import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_TYPE;
 import static java.lang.String.format;
 import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -32,7 +33,6 @@ import com.datadog.debugger.util.TestSnapshotListener;
 import com.datadog.debugger.util.TestTraceInterceptor;
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.api.Config;
-import datadog.trace.api.DDTags;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
@@ -191,21 +191,17 @@ public class CodeOriginTest {
 
   private static void checkEntrySpanTags(MutableSpan span, boolean includeSnapshot) {
     String keys = format("Existing keys for %s: %s", span.getOperationName(), ldKeys(span));
-    assertKeyPresent(span, DDTags.DD_CODE_ORIGIN_FILE);
-    assertKeyPresent(span, DDTags.DD_CODE_ORIGIN_LINE);
-    assertKeyPresent(span, DDTags.DD_CODE_ORIGIN_METHOD);
-    assertKeyPresent(span, DDTags.DD_CODE_ORIGIN_METHOD_SIGNATURE);
 
-    assertEquals(span.getTag(DD_STACK_CODE_ORIGIN_TYPE), "entry", keys);
-    assertKeyPresent(span, DD_STACK_CODE_ORIGIN_TYPE);
-    assertKeyPresent(span, format(DD_STACK_CODE_ORIGIN_FRAME, 0, "file"));
-    assertKeyPresent(span, format(DD_STACK_CODE_ORIGIN_FRAME, 0, "line"));
-    assertKeyPresent(span, format(DD_STACK_CODE_ORIGIN_FRAME, 0, "method"));
-    assertKeyPresent(span, format(DD_STACK_CODE_ORIGIN_FRAME, 0, "type"));
+    assertEquals(span.getTag(DD_CODE_ORIGIN_TYPE), "entry", keys);
+    assertKeyPresent(span, DD_CODE_ORIGIN_TYPE);
+    assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "file"));
+    assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "line"));
+    assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "method"));
+    assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "signature"));
+    assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "type"));
 
     if (includeSnapshot) {
-      assertKeyPresent(span, DDTags.DD_CODE_ORIGIN_SNAPSHOT_ID);
-      assertKeyPresent(span, format(DD_STACK_CODE_ORIGIN_FRAME, 0, "snapshot_id"));
+      assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "snapshot_id"));
     }
   }
 
@@ -229,32 +225,26 @@ public class CodeOriginTest {
     String keys =
         format("Existing keys for %s: %s", span.getOperationName(), new TreeSet<>(ldKeys(span)));
 
-    assertKeyNotPresent(span, DDTags.DD_CODE_ORIGIN_FILE);
-    assertKeyNotPresent(span, DDTags.DD_CODE_ORIGIN_LINE);
-    assertKeyNotPresent(span, DDTags.DD_CODE_ORIGIN_METHOD);
-    assertKeyNotPresent(span, DDTags.DD_CODE_ORIGIN_METHOD_SIGNATURE);
-    assertKeyNotPresent(span, DDTags.DD_CODE_ORIGIN_SNAPSHOT_ID);
-
-    assertKeyPresent(span, DD_STACK_CODE_ORIGIN_TYPE);
-    assertKeyPresent(span, format(DD_STACK_CODE_ORIGIN_FRAME, 0, "file"));
-    assertKeyPresent(span, format(DD_STACK_CODE_ORIGIN_FRAME, 0, "line"));
-    assertKeyPresent(span, format(DD_STACK_CODE_ORIGIN_FRAME, 0, "method"));
-    assertKeyPresent(span, format(DD_STACK_CODE_ORIGIN_FRAME, 0, "type"));
+    assertKeyPresent(span, DD_CODE_ORIGIN_TYPE);
+    assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "file"));
+    assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "line"));
+    assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "method"));
+    assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "type"));
     if (includeSnapshot) {
-      assertKeyPresent(span, format(DD_STACK_CODE_ORIGIN_FRAME, 0, "snapshot_id"));
+      assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "snapshot_id"));
     }
 
     MutableSpan rootSpan = span.getLocalRootSpan();
-    assertEquals(rootSpan.getTag(DD_STACK_CODE_ORIGIN_TYPE), "entry", keys);
-    assertNotNull(rootSpan.getTag(format(DD_STACK_CODE_ORIGIN_FRAME, 1, "file")));
-    assertNotNull(rootSpan.getTag(format(DD_STACK_CODE_ORIGIN_FRAME, 1, "line")));
-    assertNotNull(rootSpan.getTag(format(DD_STACK_CODE_ORIGIN_FRAME, 1, "method")));
-    assertNotNull(rootSpan.getTag(format(DD_STACK_CODE_ORIGIN_FRAME, 1, "type")));
+    assertEquals(rootSpan.getTag(DD_CODE_ORIGIN_TYPE), "entry", keys);
+    assertNotNull(rootSpan.getTag(format(DD_CODE_ORIGIN_FRAME, 1, "file")));
+    assertNotNull(rootSpan.getTag(format(DD_CODE_ORIGIN_FRAME, 1, "line")));
+    assertNotNull(rootSpan.getTag(format(DD_CODE_ORIGIN_FRAME, 1, "method")));
+    assertNotNull(rootSpan.getTag(format(DD_CODE_ORIGIN_FRAME, 1, "type")));
   }
 
   private static Set<String> ldKeys(MutableSpan span) {
     return span.getTags().keySet().stream()
-        .filter(key -> key.startsWith("_dd.ld") || key.startsWith("_dd.stack"))
+        .filter(key -> key.startsWith(DD_CODE_ORIGIN_PREFIX))
         .collect(Collectors.toCollection(TreeSet::new));
   }
 

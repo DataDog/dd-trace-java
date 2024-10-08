@@ -33,7 +33,6 @@ class HeadlessTestModuleTest extends DDSpecification {
     given:
     def headlessTestModule = new HeadlessTestModule(
     Stub(AgentSpan.Context),
-    1L,
     "test-module",
     null,
     config,

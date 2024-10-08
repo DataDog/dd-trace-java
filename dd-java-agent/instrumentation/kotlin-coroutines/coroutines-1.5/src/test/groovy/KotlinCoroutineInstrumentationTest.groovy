@@ -9,7 +9,7 @@ class KotlinCoroutineInstrumentationTest extends AbstractKotlinCoroutineInstrume
     return new KotlinCoroutineTests(dispatcher)
   }
 
-  def "kotlin traced across flows"() {
+  def "kotlin traced across flows #dispatcherName"() {
     setup:
     KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(dispatcher)
     int expectedNumberOfSpans = kotlinTest.tracedAcrossFlows(false)
@@ -23,10 +23,10 @@ class KotlinCoroutineInstrumentationTest extends AbstractKotlinCoroutineInstrume
     findSpan(trace, "consume_2").context().getParentId() == trace[0].context().getSpanId()
 
     where:
-    dispatcher << AbstractKotlinCoroutineInstrumentationTest.dispatchersToTest
+    [dispatcherName, dispatcher] << dispatchersToTest
   }
 
-  def "kotlin traced across flows with modified context"() {
+  def "kotlin traced across flows with modified context #dispatcherName"() {
     setup:
     KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(dispatcher)
     int expectedNumberOfSpans = kotlinTest.tracedAcrossFlows(true)
@@ -40,6 +40,6 @@ class KotlinCoroutineInstrumentationTest extends AbstractKotlinCoroutineInstrume
     findSpan(trace, "consume_2").context().getParentId() == trace[0].context().getSpanId()
 
     where:
-    dispatcher << AbstractKotlinCoroutineInstrumentationTest.dispatchersToTest
+    [dispatcherName, dispatcher] << dispatchersToTest
   }
 }

@@ -410,6 +410,11 @@ public class PowerWAFModule implements AppSecModule {
         return;
       }
 
+      if (reqCtx.isAdditiveClosed()) {
+        log.debug("Skipped; the WAF context is closed");
+        return;
+      }
+
       StandardizedLogging.executingWAF(log);
       long start = 0L;
       if (log.isDebugEnabled()) {
@@ -424,13 +429,16 @@ public class PowerWAFModule implements AppSecModule {
         resultWithData = doRunPowerwaf(reqCtx, newData, ctxAndAddr, gwCtx);
       } catch (TimeoutPowerwafException tpe) {
         reqCtx.increaseTimeouts();
+        WafMetricCollector.get().wafRequestTimeout();
         log.debug(LogCollector.EXCLUDE_TELEMETRY, "Timeout calling the WAF", tpe);
         if (gwCtx.isRasp) {
           WafMetricCollector.get().raspTimeout(gwCtx.raspRuleType);
         }
         return;
       } catch (AbstractPowerwafException e) {
-        log.error("Error calling WAF", e);
+        if (!reqCtx.isAdditiveClosed()) {
+          log.error("Error calling WAF", e);
+        }
         return;
       } finally {
         if (log.isDebugEnabled()) {

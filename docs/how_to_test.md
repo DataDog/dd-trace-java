@@ -12,7 +12,7 @@ Spock framework provides an alternative for more complex test scenarios, or test
 2. A variant of unit tests are **instrumented tests**.  
 Their purpose is similar to the unit tests but the tested code is instrumented by the java agent (`:dd-trace-java:java-agent`) while running. They extend the Spock specification `datadog.trace.agent.test.AgentTestRunner` which allows to test produced traces and metrics.
 
-3. The third type of tests are **Muzzle checks.  
+3. The third type of tests are **Muzzle checks**.  
 Their goal is to check the [Muzzle directives](./how_instrumentations_work.md#muzzle), making sure instrumentations are safe to load against specific library versions.
 
 3. The fourth type of tests are **integration tests**.  
@@ -31,22 +31,32 @@ They are intended to test behavior consistency between all the client libraries,
 ### Forked Tests
 
 Independently of the type of test, test can be run in another (forked) JVM than the one running Gradle.
-This behavior is implicit when the test class name is suffixed by `ForkedTest` (eg `SomeFeatureForkedTest`). This mechanism exists to make sure either java agent state or static data are reset between test runs.
+This behavior is implicit when the test class name is suffixed by `ForkedTest` (eg `SomeFeatureForkedTest`).
+This mechanism exists to make sure either java agent state or static data are reset between test runs.
+
+> [!NOTE]
+> Forked tests are not run part of the gradle `test` task.
+> In order to run them, you need to use the `forkedTest` task instead.
 
 ### Flaky Tests
 
 If a test runs unreliably, or doen't have a fully deterministic behavior, this will lead into recurrent unexpected errors in continuous integration.
 In order to identify such tests and avoid the continuous integration to fail, they are marked as _flaky_ and must be annotated with the `@Flaky` annotation.
 
+> [!TIP]
+> In case your pull request checks failed due to some unexpected flaky tests, you can retry the continous integration pilepeline on CircleCI using the `Rerun workflow from failed` button:
+
+![Rerun workflow from failed](how_to_test/rerun-workflow-from-failed.png)
+
 ## Running Tests
 
 You can run the whole project test suite using `./gradlew test` but expect it to take a certain time.
-Instead, you can run test for a specific module (ex. `:dd-java-agent:instrumentation:opentelemetry:opentelemetry-1.4`) using the test command for this module only: `./gradlew :dd-java-agent:instrumentation:opentelemetry:opentelemetry-1.4:test`.
+Instead, you can run tests for a specific module (ex. `:dd-java-agent:instrumentation:opentelemetry:opentelemetry-1.4`) using the test command for this module only: `./gradlew :dd-java-agent:instrumentation:opentelemetry:opentelemetry-1.4:test`.
 
 > [!TIP]
 > Flaky tests can be disabled by setting the Gradle property `skipFlakyTests` (ex. `./gradlew -PskipFlakyTests <task>`).
 
-### Running tests on another JVM
+### Running Tests on Another JVM
 
 To run tests on a different JVM than the one used for doing the build, you need two things:
 
@@ -58,6 +68,18 @@ To run tests on a different JVM than the one used for doing the build, you need 
 
 > [!NOTE]
 > Please note that the JDK name needs to end with the JDK version, e.g. `11`, `ZULU15`, `ORACLE8`, `GRAALVM17`, etc.
+
+### Running System Tests
+
+The system tests are setup to run on continous integration as pull request check.
+
+If you would like to run them locally, you would have to grab [a local copy of the system tests](https://github.com/DataDog/system-tests), and run them from there.
+You can make them use your development version of `dd-trace-java` by [dropping the built artifacts to the `/binaries` folder](https://github.com/DataDog/system-tests/blob/main/docs/execute/binaries.md#java-library) of your local copy of the system tests. 
+
+If you would like to run another version of the system tests on continuous integration, or update them to the latest version, you would need to use [the update pinned system tests script](../.circleci/update_pinned_system_tests.sh) as your pull request won't use the latest `main` version from the system test repository, but a pinned version. 
+
+> [!NOTE]
+> The system tests version used for continous integration is defined using `default_system_tests_commit` in [CircleCI configuration](../.circleci/config.continue.yml.j2).
 
 ### The APM test agent
 

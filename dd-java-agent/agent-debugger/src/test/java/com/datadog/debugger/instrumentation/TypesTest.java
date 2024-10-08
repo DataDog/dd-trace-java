@@ -90,6 +90,15 @@ class TypesTest {
         IllegalArgumentException.class, () -> Types.descriptorFromSignature("int (a, ,b)"));
   }
 
+  @Test
+  void descriptorToSignature() {
+    String desc = "(I[JLjava/util/Map;Ljava/util/Map$Entry;[[Ljava/lang/String;)Ljava/lang/String;";
+    String expectedSignature =
+        "(int, long[], java.util.Map, java.util.Map$Entry, java.lang.String[][])";
+    String signature = Types.descriptorToSignature(desc);
+    assertEquals(expectedSignature, signature);
+  }
+
   @ParameterizedTest
   @MethodSource("provideGetArrayType")
   void testGetArrayType(Class<?> clazz, int opcode) {

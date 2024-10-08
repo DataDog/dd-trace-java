@@ -3,11 +3,13 @@ package datadog.communication;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.http.HttpRetryPolicy;
+import datadog.communication.http.OkHttpUtils;
 import datadog.trace.api.Config;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
 import java.util.function.Function;
 import javax.annotation.Nullable;
 import okhttp3.HttpUrl;
+import okhttp3.OkHttpClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,8 +36,10 @@ public class BackendApiFactory {
             "Agentless mode is enabled and api key is not set. Please set application key");
       }
       String traceId = config.getIdGenerationStrategy().generateTraceId().toString();
-      long timeoutMillis = config.getCiVisibilityBackendApiTimeoutMillis();
-      return new IntakeApi(agentlessUrl, apiKey, traceId, timeoutMillis, retryPolicyFactory, true);
+      OkHttpClient httpClient =
+          OkHttpUtils.buildHttpClient(
+              agentlessUrl, config.getCiVisibilityBackendApiTimeoutMillis());
+      return new IntakeApi(agentlessUrl, apiKey, traceId, retryPolicyFactory, httpClient, true);
     }
 
     DDAgentFeaturesDiscovery featuresDiscovery =

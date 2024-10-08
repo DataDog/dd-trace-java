@@ -7,14 +7,14 @@
 function check-jvm() {
     local JAVA_HOME_NAME=$1
     local EXPECTED_JAVA_VERSION=$2
-    if [ -z ${!JAVA_HOME_NAME} ]; then
+    if [ -z "${!JAVA_HOME_NAME}" ]; then
         echo "❌ $JAVA_HOME_NAME is not set. Please set $JAVA_HOME_NAME to refer to a JDK $EXPECTED_JAVA_VERSION installation." >&2
         exit 1
-    elif ! ${!JAVA_HOME_NAME}/bin/java -version 2>&1 | grep -q "version \"$EXPECTED_JAVA_VERSION" ; then
+    elif ! "${!JAVA_HOME_NAME}/bin/java" -version 2>&1 | grep -q "version \"$EXPECTED_JAVA_VERSION" ; then
         echo "❌ $JAVA_HOME_NAME is set to ${!JAVA_HOME_NAME}, but it does not refer to a JDK $EXPECTED_JAVA_VERSION installation." >&2
         exit 1
     else
-        echo "✅ $JAVA_HOME_NAME is set to $(readlink -f ${!JAVA_HOME_NAME})."
+        echo "✅ $JAVA_HOME_NAME is set to $(readlink -f "${!JAVA_HOME_NAME}")."
     fi
 }
 
@@ -35,7 +35,7 @@ check-jvm "JAVA_GRAALVM17_HOME" "17"
 
 function check-command() {
     local COMMAND_NAME=$1
-    if command -v $COMMAND_NAME &> /dev/null; then
+    if command -v "$COMMAND_NAME" &> /dev/null; then
         echo "✅ The $COMMAND_NAME command line is installed."
     else
         echo "❌ The $COMMAND_NAME command line is missing. Please install $COMMAND_NAME." >&2
@@ -45,28 +45,30 @@ function check-command() {
 
 function get-file-hash() {
     local FILE=$1
-    echo $(md5sum $FILE | awk '{print $1}')
+    md5sum "$FILE" | awk '{print $1}'
 }
 
 function look-for-hook() {
     local HOOK_NAME=$1
-    local HOOK_CHECKSUM=$(get-file-hash .githooks/$HOOK_NAME)
-    local HOOKS_PATH=$(git config core.hooksPath)
-    local HOOK_FOUND=false
+    local HOOK_CHECKSUM
+    HOOK_CHECKSUM=$(get-file-hash .githooks/$HOOK_NAME)
+    local HOOKS_PATH
+    HOOKS_PATH=$(git config core.hooksPath)
 
     if [ -e ".git/hooks/$HOOK_NAME" ] && [ "$(get-file-hash .git/hooks/$HOOK_NAME)" == "$HOOK_CHECKSUM" ]; then
         echo "✅ $HOOK_NAME hook is installed in repository."
     elif [ -e "$HOOKS_PATH/$HOOK_NAME" ] && [ "$(get-file-hash $HOOKS_PATH/$HOOK_NAME)" == "$HOOK_CHECKSUM" ]; then
         echo "✅ $HOOK_NAME hook is installed in git hooks path."
     else
-        echo "🟨 $HOOK_NAME hook was not found (optional but recommanded)."
+        echo "🟨 $HOOK_NAME hook was not found (optional but recommended)."
     fi
 }
 
 function check-git-config() {
     local CONFIG_NAME=$1
     local EXPECTED_VALUE=$2
-    local ACTUAL_VALUE=$(git config $CONFIG_NAME)
+    local ACTUAL_VALUE
+    ACTUAL_VALUE=$(git config "$CONFIG_NAME")
     if [ "$ACTUAL_VALUE" == "$EXPECTED_VALUE" ]; then
         echo "✅ git config $CONFIG_NAME is set to $EXPECTED_VALUE."
     elif [ -z "$ACTUAL_VALUE" ]; then
@@ -76,16 +78,26 @@ function check-git-config() {
     fi
 }
 
+function check-submodule-initialization() {
+    if [ -e ".gitmodules" ]; then
+        if git submodule status | grep '^-' > /dev/null; then
+            echo "❌ A git submodule are not initialized. Please run 'git submodule update --init --recursive'."
+        else
+            echo "✅ All git submodules are initialized."
+        fi
+    fi
+}
+
 echo "ℹ️ Checking git configuration:"
 check-command "git"
 look-for-hook "pre-commit"
 check-git-config "submodule.recurse" "true"
+check-submodule-initialization
 
 
 #
 # Check Docker environment.
 #
-
 
 function check-docker-server() {
     if docker info &> /dev/null; then
@@ -108,7 +120,8 @@ check-docker-server
 function check-ulimit() {
     local LIMIT_NAME="File descriptor limit"
     local EXPECTED_LIMIT=$1
-    local ACTUAL_LIMIT=$(ulimit -n)
+    local ACTUAL_LIMIT
+    ACTUAL_LIMIT=$(ulimit -n)
     if [ "$ACTUAL_LIMIT" -ge "$EXPECTED_LIMIT" ]; then
         echo "✅ $LIMIT_NAME is set to $ACTUAL_LIMIT."
     else

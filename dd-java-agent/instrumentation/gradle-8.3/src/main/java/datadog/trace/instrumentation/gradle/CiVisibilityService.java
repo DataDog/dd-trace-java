@@ -104,6 +104,17 @@ public abstract class CiVisibilityService
         SESSION_KEY, buildPath, projectRoot, startCommand, "gradle", gradleVersion, additionalTags);
   }
 
+  public void onBuildTaskStart(String taskPath) {
+    buildEventsHandler.onBuildTaskStart(SESSION_KEY, taskPath, Collections.emptyMap());
+  }
+
+  public void onBuildTaskFinish(String taskPath, @Nullable Throwable failure) {
+    if (failure != null) {
+      buildEventsHandler.onBuildTaskFail(SESSION_KEY, taskPath, failure);
+    }
+    buildEventsHandler.onBuildTaskFinish(SESSION_KEY, taskPath);
+  }
+
   public void onModuleStart(
       String taskPath,
       BuildModuleLayout moduleLayout,
