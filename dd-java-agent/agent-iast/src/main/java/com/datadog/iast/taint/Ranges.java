@@ -434,28 +434,63 @@ public final class Ranges {
       final CharSequence newCharSeq,
       final Range[] ranges) {
     RangeBuilder newRanges = new RangeBuilder(ranges.length * 2);
-    // This range is used to have a reference to the current range modified
-    Range currentRange = ranges[0];
-    int lastRangeUsed = -1;
     int firstRange = 0;
     int offset = 0;
     int diffLength = newCharSeq.length() - oldCharSeq.length();
-    for (int i = 0; i + oldCharSeq.length() < self.length() && firstRange < ranges.length; i++) {
-      if (!self.substring(i, i + oldCharSeq.length()).contentEquals(oldCharSeq)) {
+    for (int start = 0;
+        start + oldCharSeq.length() < self.length() && firstRange < ranges.length;
+        start++) {
+      int end = start + oldCharSeq.length();
+      if (!self.substring(start, end).contentEquals(oldCharSeq)) {
         continue;
       }
 
       // Move to the next valid range
       while (firstRange < ranges.length) {
         Range range = ranges[firstRange];
-        if (range.getStart() <= i && range.getStart() + range.getLength() >= i) {
-          if (firstRange > lastRangeUsed) {
-            currentRange = range;
+        int rangeStart = range.getStart();
+        int rangeEnd = rangeStart + range.getLength();
+        // If the replaced value is between one range
+        if (rangeStart <= start && rangeEnd >= end) {
+          Range[] splittedRanges =
+              splitRanges(
+                  start + offset, end + offset, newCharSeq.length(), range, offset, diffLength);
+
+          if (splittedRanges.length == 1 || splittedRanges[0].getLength() > 0) {
+            newRanges.add(splittedRanges[0]);
           }
+          if (splittedRanges.length > 1 && splittedRanges[1].getLength() > 0) {
+            newRanges.add(splittedRanges[1]);
+          }
+
+          firstRange++;
           break;
-        }
-        if (firstRange > lastRangeUsed) {
-          newRanges.add(currentRange);
+          // If the replaced value is starts in the range and not end there
+        } else if (rangeStart <= start && rangeStart + range.getLength() > start) {
+          Range[] splittedRanges =
+              splitRanges(
+                  start + offset, end + offset, newCharSeq.length(), range, offset, diffLength);
+
+          if (splittedRanges.length == 1 || splittedRanges[0].getLength() > 0) {
+            newRanges.add(splittedRanges[0]);
+          }
+
+          // If the replaced value ends in the range
+        } else if (rangeEnd >= end) {
+          Range[] splittedRanges =
+              splitRanges(
+                  start + offset, end + offset, newCharSeq.length(), range, offset, diffLength);
+
+          if (splittedRanges.length == 1 || splittedRanges[0].getLength() > 0) {
+            newRanges.add(splittedRanges[0]);
+          }
+
+          if (splittedRanges.length > 1 && splittedRanges[1].getLength() > 0) {
+            newRanges.add(splittedRanges[1]);
+          }
+
+          firstRange++;
+          break;
         } else {
           newRanges.add(
               new Range(
@@ -464,33 +499,12 @@ public final class Ranges {
                   range.getSource(),
                   range.getMarks()));
         }
+
         firstRange++;
-      }
-
-      if (firstRange < ranges.length) {
-        Range[] splittedRanges =
-            splitRanges(
-                i + offset,
-                i + oldCharSeq.length() + offset,
-                newCharSeq.length(),
-                currentRange,
-                offset,
-                diffLength);
-        if (splittedRanges.length == 1) {
-          continue;
-        }
-        if (splittedRanges[0].getLength() > 0) {
-          newRanges.add(splittedRanges[0]);
-        }
-
-        lastRangeUsed = firstRange;
-        currentRange = splittedRanges[1];
       }
 
       offset += diffLength;
     }
-
-    firstRange++;
 
     // In the case there is no tainted object
     if (firstRange < ranges.length) {
@@ -502,8 +516,6 @@ public final class Ranges {
                 ranges[i].getSource(),
                 ranges[i].getMarks()));
       }
-    } else {
-      newRanges.add(currentRange);
     }
 
     return newRanges.toArray();
