@@ -219,16 +219,6 @@ project.afterEvaluate {
     }
   }
 
-  if (project.plugins.hasPlugin('kotlin')) {
-    ['compileKotlin', 'compileTestKotlin'].each { type ->
-      tasks.named(type).configure {
-        kotlinOptions {
-          freeCompilerArgs += '-Xmx256m'
-        }
-      }
-    }
-  }
-
   tasks.withType(JavaExec).configureEach {
     if (!it.maxHeapSize) {
       it.maxHeapSize('256M')
