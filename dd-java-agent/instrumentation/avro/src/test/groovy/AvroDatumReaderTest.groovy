@@ -167,6 +167,20 @@ class AvroDatumReaderTest extends AgentTestRunner {
     map.put("key2", "value2")
     datum.put("mapField", map)
 
+    // array of nested fields
+    GenericRecord nestedRecordA = new GenericData.Record(schemaDef.getField("arrayNestedField").schema().getElementType())
+    nestedRecordA.put("nestedString", "a")
+    GenericRecord nestedRecordB = new GenericData.Record(schemaDef.getField("arrayNestedField").schema().getElementType())
+    nestedRecordB.put("nestedString", "b")
+    datum.put("arrayNestedField", Arrays.asList(nestedRecordA, nestedRecordB))
+
+    // map of nested fields
+    Map<String, GenericRecord> nestedMap = new HashMap<>()
+    GenericRecord nestedRecordC = new GenericData.Record(schemaDef.getField("mapNestedField").schema().getValueType())
+    nestedRecordC.put("nestedString", "a")
+    nestedMap.put("key1", nestedRecordC)
+    datum.put("mapNestedField", nestedMap)
+
     when:
     def bytes
     ByteArrayOutputStream out = new ByteArrayOutputStream()
