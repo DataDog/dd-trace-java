@@ -38,4 +38,14 @@ public abstract class StringUtils {
     }
     return start >= end ? "" : value.substring(start, end);
   }
+
+  /** Returns how many leading whitespaces are between the start and the end of the string */
+  @Nonnull
+  public static int leadingWhitespaces(@Nonnull final String value, int start, int end) {
+    int whitespaces = start;
+    while (whitespaces < end && Character.isWhitespace(value.charAt(whitespaces))) {
+      whitespaces++;
+    }
+    return whitespaces;
+  }
 }

@@ -1,5 +1,7 @@
 package datadog.trace.civisibility.domain.buildsystem;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.CIConstants;
@@ -181,7 +183,6 @@ public class BuildSystemSessionImpl<T extends CoverageCalculator> extends Abstra
     ExecutionSettings executionSettings = executionSettingsFactory.create(jvmInfo, moduleName);
     return new BuildSystemModuleImpl(
         span.context(),
-        span.getSpanId(),
         moduleName,
         startCommand,
         startTime,
@@ -201,6 +202,11 @@ public class BuildSystemSessionImpl<T extends CoverageCalculator> extends Abstra
         executionSettings,
         settings,
         this::onModuleFinish);
+  }
+
+  @Override
+  public AgentSpan testTaskStart(String taskName) {
+    return startSpan("ci_visibility", taskName, span.context());
   }
 
   private void onModuleFinish(AgentSpan moduleSpan) {

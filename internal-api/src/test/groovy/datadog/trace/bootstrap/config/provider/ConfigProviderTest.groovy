@@ -22,4 +22,27 @@ class ConfigProviderTest extends DDSpecification {
     config["/a"] == "prop"
     config["/b"] == "env"
   }
+
+
+  def "test config alias priority"() {
+    setup:
+    injectEnvConfig("CONFIG_NAME", configNameValue)
+    injectEnvConfig("CONFIG_ALIAS1", configAlias1Value)
+    injectEnvConfig("CONFIG_ALIAS2", configAlias2Value)
+
+    when:
+    def config = configProvider.getString("CONFIG_NAME", null, "CONFIG_ALIAS1", "CONFIG_ALIAS2")
+
+    then:
+    config == expected
+
+    where:
+    configNameValue | configAlias1Value | configAlias2Value | expected
+    "default"       | null              | null              | "default"
+    null            | "alias1"          | null              | "alias1"
+    null            | null              | "alias2"          | "alias2"
+    "default"       | "alias1"          | null              | "default"
+    "default"       | null              | "alias2"          | "default"
+    null            | "alias1"          | "alias2"          | "alias1"
+  }
 }

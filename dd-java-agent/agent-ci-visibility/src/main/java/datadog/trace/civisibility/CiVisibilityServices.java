@@ -28,7 +28,6 @@ import datadog.trace.civisibility.source.ByteCodeMethodLinesResolver;
 import datadog.trace.civisibility.source.CompilerAidedMethodLinesResolver;
 import datadog.trace.civisibility.source.MethodLinesResolver;
 import datadog.trace.civisibility.source.index.*;
-import datadog.trace.civisibility.utils.ProcessHierarchyUtils;
 import java.lang.reflect.Type;
 import java.net.InetSocketAddress;
 import java.nio.file.FileSystem;
@@ -56,6 +55,7 @@ public class CiVisibilityServices {
 
   static final String DD_ENV_VARS_PROVIDER_KEY_HEADER = "DD-Env-Vars-Provider-Key";
 
+  final ProcessHierarchy processHierarchy;
   final Config config;
   final CiVisibilityMetricCollector metricCollector;
   final BackendApi backendApi;
@@ -72,6 +72,7 @@ public class CiVisibilityServices {
       CiVisibilityMetricCollector metricCollector,
       SharedCommunicationObjects sco,
       GitInfoProvider gitInfoProvider) {
+    this.processHierarchy = new ProcessHierarchy();
     this.config = config;
     this.metricCollector = metricCollector;
     this.backendApi =
@@ -91,8 +92,8 @@ public class CiVisibilityServices {
         new CILocalGitInfoBuilder(gitClientFactory, GIT_FOLDER_NAME));
     gitInfoProvider.registerGitInfoBuilder(new GitClientGitInfoBuilder(config, gitClientFactory));
 
-    if (ProcessHierarchyUtils.isChild()) {
-      InetSocketAddress signalServerAddress = ProcessHierarchyUtils.getSignalServerAddress();
+    if (processHierarchy.isChild()) {
+      InetSocketAddress signalServerAddress = processHierarchy.getSignalServerAddress();
       this.signalClientFactory = new SignalClient.Factory(signalServerAddress, config);
 
       RepoIndexProvider indexFetcher = new RepoIndexFetcher(signalClientFactory);
