@@ -30,10 +30,10 @@ public class SfnInterceptor implements ExecutionInterceptor {
       }
       String ddTraceContextJSON = InputAttributeInjector.buildTraceContext(span);
       // Inject the trace context into the Step Function input
-      StringBuilder modifiedInput =
+      String modifiedInput =
           InputAttributeInjector.getModifiedInput(request.input(), ddTraceContextJSON);
 
-      return request.toBuilder().input(modifiedInput.toString()).build();
+      return request.toBuilder().input(modifiedInput).build();
     }
 
     // StartSyncExecutionRequest
@@ -44,10 +44,10 @@ public class SfnInterceptor implements ExecutionInterceptor {
       }
       String ddTraceContextJSON = InputAttributeInjector.buildTraceContext(span);
       // Inject the trace context into the Step Function input
-      StringBuilder modifiedInput =
+      String modifiedInput =
           InputAttributeInjector.getModifiedInput(request.input(), ddTraceContextJSON);
 
-      return request.toBuilder().input(modifiedInput.toString()).build();
+      return request.toBuilder().input(modifiedInput).build();
     }
 
     return context.request();

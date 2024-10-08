@@ -11,7 +11,7 @@ public class InputAttributeInjector {
         .forEach(
             (tagKey, tagValue) ->
                 spanTagsJSON
-                    .append("\"")
+                    .append('"')
                     .append(tagKey)
                     .append("\":\"")
                     .append(tagValue)
@@ -28,7 +28,7 @@ public class InputAttributeInjector {
     return ddTraceContextJSON;
   }
 
-  public static StringBuilder getModifiedInput(String request, String ddTraceContextJSON) {
+  public static String getModifiedInput(String request, String ddTraceContextJSON) {
     StringBuilder modifiedInput = new StringBuilder(request);
     int startPos = modifiedInput.indexOf("{");
     int endPos = modifiedInput.lastIndexOf("}");
@@ -37,8 +37,8 @@ public class InputAttributeInjector {
       modifiedInput.insert(endPos, ddTraceContextJSON);
     } else {
       modifiedInput.insert(
-          endPos, String.format(", %s", ddTraceContextJSON)); // prepend comma to existing input
+          endPos, ",".concat(ddTraceContextJSON)); // prepend comma to existing input
     }
-    return modifiedInput;
+    return modifiedInput.toString();
   }
 }
