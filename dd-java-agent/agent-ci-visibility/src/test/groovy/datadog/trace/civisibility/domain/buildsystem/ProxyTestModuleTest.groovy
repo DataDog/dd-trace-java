@@ -1,6 +1,8 @@
 package datadog.trace.civisibility.domain.buildsystem
 
 import datadog.trace.api.Config
+import datadog.trace.api.DDTraceId
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.civisibility.config.EarlyFlakeDetectionSettings
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.api.civisibility.coverage.CoverageStore
@@ -29,10 +31,16 @@ class ProxyTestModuleTest extends DDSpecification {
 
     def executionStrategy = new ExecutionStrategy(config, executionSettings)
 
+    def traceId = Stub(DDTraceId)
+    traceId.toLong() >> 123
+
+    def moduleSpanContext = Stub(AgentSpan.Context)
+    moduleSpanContext.getSpanId() >> 456
+    moduleSpanContext.getTraceId() >> traceId
+
     given:
     def proxyTestModule = new ProxyTestModule(
-      1L,
-      1L,
+      moduleSpanContext,
       "test-module",
       executionStrategy,
       config,

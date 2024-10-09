@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.coverage.line;
 
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.coverage.TestReport;
@@ -51,7 +52,7 @@ public class LineCoverageStore extends ConcurrentCoverageStore<LineProbes> {
   @Nullable
   @Override
   protected TestReport report(
-      Long testSessionId, Long testSuiteId, long testSpanId, Collection<LineProbes> probes) {
+      DDTraceId testSessionId, Long testSuiteId, long testSpanId, Collection<LineProbes> probes) {
     try {
       Map<Class<?>, ExecutionDataAdapter> combinedExecutionData = new IdentityHashMap<>();
       Collection<String> combinedNonCodeResources = new HashSet<>();

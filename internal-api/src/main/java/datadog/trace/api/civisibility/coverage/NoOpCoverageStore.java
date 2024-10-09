@@ -1,5 +1,6 @@
 package datadog.trace.api.civisibility.coverage;
 
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import javax.annotation.Nullable;
 
@@ -15,7 +16,7 @@ public class NoOpCoverageStore implements CoverageStore {
   }
 
   @Override
-  public boolean report(Long testSessionId, Long testSuiteId, long testSpanId) {
+  public boolean report(DDTraceId testSessionId, Long testSuiteId, long testSpanId) {
     return true;
   }
 

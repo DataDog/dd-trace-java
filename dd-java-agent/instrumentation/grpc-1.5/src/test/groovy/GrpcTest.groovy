@@ -65,11 +65,18 @@ abstract class GrpcTest extends VersionedNamingTestBase {
 
   protected abstract String serverOperation()
 
+  protected boolean hasClientMessageSpans() {
+    false
+  }
+
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
     injectSysConfig("dd.trace.grpc.ignored.inbound.methods", "example.Greeter/IgnoreInbound")
     injectSysConfig("dd.trace.grpc.ignored.outbound.methods", "example.Greeter/Ignore")
+    if (hasClientMessageSpans()) {
+      injectSysConfig("integration.grpc-message.enabled", "true")
+    }
     // here to trigger wrapping to record scheduling time - the logic is trivial so it's enough to verify
     // that ClassCastExceptions do not arise from the wrapping
     injectSysConfig("dd.profiling.enabled", "true")
@@ -144,7 +151,7 @@ abstract class GrpcTest extends VersionedNamingTestBase {
     then:
     response.message == "Hello $name"
     assertTraces(2) {
-      trace(3) {
+      trace(hasClientMessageSpans() ? 3 : 2) {
         basicSpan(it, "parent")
         span {
           operationName clientOperation()
@@ -170,18 +177,20 @@ abstract class GrpcTest extends VersionedNamingTestBase {
             defaultTags()
           }
         }
-        span {
-          operationName "grpc.message"
-          resourceName "grpc.message"
-          spanType DDSpanTypes.RPC
-          childOf span(1)
-          errored false
-          measured true
-          tags {
-            "$Tags.COMPONENT" "grpc-client"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "message.type" "example.Helloworld\$Response"
-            defaultTagsNoPeerService()
+        if (hasClientMessageSpans()) {
+          span {
+            operationName "grpc.message"
+            resourceName "grpc.message"
+            spanType DDSpanTypes.RPC
+            childOf span(1)
+            errored false
+            measured true
+            tags {
+              "$Tags.COMPONENT" "grpc-client"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+              "message.type" "example.Helloworld\$Response"
+              defaultTagsNoPeerService()
+            }
           }
         }
       }
@@ -589,7 +598,7 @@ abstract class GrpcTest extends VersionedNamingTestBase {
     then:
     response.message == "Hello whatever"
     assertTraces(1) {
-      trace(2) {
+      trace(hasClientMessageSpans() ? 2 : 1) {
         span {
           operationName clientOperation()
           resourceName "example.Greeter/IgnoreInbound"
@@ -611,18 +620,20 @@ abstract class GrpcTest extends VersionedNamingTestBase {
             defaultTags()
           }
         }
-        span {
-          operationName "grpc.message"
-          resourceName "grpc.message"
-          spanType DDSpanTypes.RPC
-          childOf span(0)
-          errored false
-          measured true
-          tags {
-            "$Tags.COMPONENT" "grpc-client"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "message.type" "example.Helloworld\$Response"
-            defaultTagsNoPeerService()
+        if (hasClientMessageSpans()) {
+          span {
+            operationName "grpc.message"
+            resourceName "grpc.message"
+            spanType DDSpanTypes.RPC
+            childOf span(0)
+            errored false
+            measured true
+            tags {
+              "$Tags.COMPONENT" "grpc-client"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+              "message.type" "example.Helloworld\$Response"
+              defaultTagsNoPeerService()
+            }
           }
         }
       }
@@ -707,25 +718,9 @@ class GrpcDataStreamsDisabledForkedTest extends GrpcTest {
   }
 }
 
-class GrpcProfilingForkedTest extends GrpcTest {
+class GrpcClientMessagesEnabledTest extends GrpcDataStreamsEnabledV0Test {
   @Override
-  protected void configurePreAgent() {
-    super.configurePreAgent()
-    injectSysConfig("dd.profiling.enabled", "true")
-  }
-
-  @Override
-  int version() {
-    return 1
-  }
-
-  @Override
-  protected String clientOperation() {
-    return "grpc.client.request"
-  }
-
-  @Override
-  protected String serverOperation() {
-    return "grpc.server.request"
+  protected boolean hasClientMessageSpans() {
+    true
   }
 }

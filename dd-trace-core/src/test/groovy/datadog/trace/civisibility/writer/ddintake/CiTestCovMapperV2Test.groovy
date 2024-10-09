@@ -3,6 +3,7 @@ package datadog.trace.civisibility.writer.ddintake
 import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.communication.serialization.GrowableBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
+import datadog.trace.api.DDTraceId
 import datadog.trace.api.civisibility.coverage.CoverageProbes
 import datadog.trace.api.civisibility.coverage.CoverageStore
 import datadog.trace.api.civisibility.coverage.NoOpProbes
@@ -27,7 +28,7 @@ class CiTestCovMapperV2Test extends DDCoreSpecification {
 
   def "test writes message"() {
     given:
-    def trace = givenTrace(new TestReport(1, 2, 3, [new TestReportFileEntry("source", BitSet.valueOf(new long[] {
+    def trace = givenTrace(new TestReport(DDTraceId.from(1), 2, 3, [new TestReportFileEntry("source", BitSet.valueOf(new long[] {
         3, 5, 8
       }))]))
 
@@ -55,7 +56,7 @@ class CiTestCovMapperV2Test extends DDCoreSpecification {
 
   def "test writes message with multiple files and multiple lines"() {
     given:
-    def trace = givenTrace(new TestReport(1, 2, 3, [
+    def trace = givenTrace(new TestReport(DDTraceId.from(1), 2, 3, [
       new TestReportFileEntry("sourceA", BitSet.valueOf(new long[] {
         3, 5, 8
       })),
@@ -93,12 +94,12 @@ class CiTestCovMapperV2Test extends DDCoreSpecification {
   def "test writes message with multiple reports"() {
     given:
     def trace = givenTrace(
-    new TestReport(1, 2, 3, [
+    new TestReport(DDTraceId.from(1), 2, 3, [
       new TestReportFileEntry("sourceA", BitSet.valueOf(new long[] {
         2, 17, 41
       }))
     ]),
-    new TestReport(1, 2, 4, [
+    new TestReport(DDTraceId.from(1), 2, 4, [
       new TestReportFileEntry("sourceB", BitSet.valueOf(new long[] {
         11, 13, 55
       }))
@@ -140,7 +141,7 @@ class CiTestCovMapperV2Test extends DDCoreSpecification {
 
   def "skips spans that have no reports"() {
     given:
-    def trace = givenTrace(null, new TestReport(1, 2, 3, [new TestReportFileEntry("source", BitSet.valueOf(new long[] {
+    def trace = givenTrace(null, new TestReport(DDTraceId.from(1), 2, 3, [new TestReportFileEntry("source", BitSet.valueOf(new long[] {
         83, 25, 48
       }))]), null)
 
@@ -169,12 +170,12 @@ class CiTestCovMapperV2Test extends DDCoreSpecification {
   def "skips empty reports"() {
     given:
     def trace = givenTrace(
-    new TestReport(1, 2, 3, [
+    new TestReport(DDTraceId.from(1), 2, 3, [
       new TestReportFileEntry("source", BitSet.valueOf(new long[] {
         33, 53, 87
       }))
     ]),
-    new TestReport(1, 2, 4, [])
+    new TestReport(DDTraceId.from(1), 2, 4, [])
     )
 
     when:
@@ -203,7 +204,7 @@ class CiTestCovMapperV2Test extends DDCoreSpecification {
     given:
     def trace = new ArrayList()
 
-    def report = new TestReport(1, 2, 3, [new TestReportFileEntry("source", BitSet.valueOf(new long[] {
+    def report = new TestReport(DDTraceId.from(1), 2, 3, [new TestReportFileEntry("source", BitSet.valueOf(new long[] {
         3, 5, 8
       }))])
 
@@ -269,7 +270,7 @@ class CiTestCovMapperV2Test extends DDCoreSpecification {
     }
 
     @Override
-    boolean report(Long testSessionId, Long testSuiteId, long spanId) {
+    boolean report(DDTraceId testSessionId, Long testSuiteId, long spanId) {
       return false
     }
 

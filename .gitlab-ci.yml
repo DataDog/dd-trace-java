@@ -203,13 +203,20 @@ deploy_artifacts_to_github:
     max: 2
     when: always
 
+requirements_json_test:
+  rules:
+    - when: on_success
+  variables:
+    REQUIREMENTS_BLOCK_JSON_PATH: "metadata/requirements-block.json"
+    REQUIREMENTS_ALLOW_JSON_PATH: "metadata/requirements-allow.json"
+
 package-oci:
   needs: [ build ]
 
 onboarding_tests_installer:
   parallel:
     matrix:
-      - ONBOARDING_FILTER_WEBLOG: [test-app-java, test-app-java-container, test-app-java-container-jdk15, test-app-java-alpine-libgcc]
+      - ONBOARDING_FILTER_WEBLOG: [test-app-java, test-app-java-container, test-app-java-container-jdk15, test-app-java-alpine]
         SCENARIO: [ SIMPLE_INSTALLER_AUTO_INJECTION, SIMPLE_AUTO_INJECTION_PROFILING ]
       - ONBOARDING_FILTER_WEBLOG: [test-app-java-buildpack]
         SCENARIO: [ SIMPLE_INSTALLER_AUTO_INJECTION ]

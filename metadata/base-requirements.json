@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "deny": [
+    {
+      "id": "unsupported_jvm",
+      "description": "Skip older JVMs",
+      "os": null,
+      "cmds": [
+        "**/java-1.5*/**/java",
+        "**/java-1.6*/**/java",
+        "**/java-6*/**/java",
+        "**/java-7/**/java"
+      ],
+      "args": [],
+      "envars": null
+    },
+    {
+      "id": "java8_version",
+      "description": "Skip java -version command",
+      "os": null,
+      "cmds": [
+        "**/java"
+      ],
+      "args": [
+        {
+          "args": [
+            "-version"
+          ],
+          "position": 1
+        }
+      ],
+      "envars": null
+    },
+    {
+      "id": "java_version",
+      "description": "Skip java --version command",
+      "os": null,
+      "cmds": [
+        "**/java"
+      ],
+      "args": [
+        {
+          "args": [
+            "--version"
+          ],
+          "position": 1
+        }
+      ],
+      "envars": null
+    }
+  ],
+  "native_deps": {
+    "glibc": [
+      {
+        "arch": "x86",
+        "supported": true
+      },
+      {
+        "arch": "x64",
+        "supported": true
+      },
+      {
+        "arch": "arm64",
+        "supported": true
+      }
+    ],
+    "musl": [
+      {
+        "arch": "x86",
+        "supported": true
+      },
+      {
+        "arch": "x64",
+        "supported": true
+      },
+      {
+        "arch": "arm64",
+        "supported": true
+      }
+    ]
+  }
+}

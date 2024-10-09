@@ -390,7 +390,7 @@ public class DebuggerTransformerTest {
         .when(mock)
         .instrument(any(), anyList(), anyList());
     when(mock.getProbeId()).thenReturn(new ProbeId(id, 0));
-    Where where = Where.convertLineToMethod(ArrayList.class.getName(), "add", "(Object)");
+    Where where = Where.of(ArrayList.class.getName(), "add", "(Object)");
     when(mock.getWhere()).thenReturn(where);
     return (T) mock;
   }

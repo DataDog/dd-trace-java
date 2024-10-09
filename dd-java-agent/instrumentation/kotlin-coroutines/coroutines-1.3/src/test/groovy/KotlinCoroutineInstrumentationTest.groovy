@@ -9,7 +9,7 @@ class KotlinCoroutineInstrumentationTest extends AbstractKotlinCoroutineInstrume
     return new KotlinCoroutineTests(dispatcher)
   }
 
-  def "kotlin traced across channels"() {
+  def "kotlin traced across channels #dispatcherName"() {
     setup:
     KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(dispatcher)
     int expectedNumberOfSpans = kotlinTest.tracedAcrossChannels()
@@ -23,6 +23,6 @@ class KotlinCoroutineInstrumentationTest extends AbstractKotlinCoroutineInstrume
     findSpan(trace, "consume_2").context().getParentId() == trace[0].context().getSpanId()
 
     where:
-    dispatcher << AbstractKotlinCoroutineInstrumentationTest.dispatchersToTest
+    [dispatcherName, dispatcher] << dispatchersToTest
   }
 }

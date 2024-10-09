@@ -156,21 +156,35 @@ public class GatewayBridge {
         return NoopFlow.INSTANCE;
       }
       final TraceSegment segment = ctx_.getTraceSegment();
+      // user id can be set by the SDK overriding the auto event, always update the segment
       segment.setTagTop("usr.id", userId);
       segment.setTagTop("_dd.appsec.user.collection_mode", mode.shortName());
-      final Address<?>[] addresses =
-          address == KnownAddresses.USER_ID
-              ? new Address[] {KnownAddresses.USER_ID}
-              : new Address[] {KnownAddresses.USER_ID, address};
+      final List<Address<?>> addresses = new ArrayList<>(2);
+      final boolean newUserId = !userId.equals(ctx.getUserId());
+      if (newUserId) {
+        // unlikely that multiple threads will update the value at the same time
+        ctx.setUserId(userId);
+        addresses.add(KnownAddresses.USER_ID);
+      }
+      if (address != KnownAddresses.USER_ID) {
+        addresses.add(address);
+      }
+      if (addresses.isEmpty()) {
+        // nothing to publish so short-circuit here
+        return NoopFlow.INSTANCE;
+      }
+      final Address<?>[] addressArray = addresses.toArray(new Address[0]);
       while (true) {
         DataSubscriberInfo subInfo =
             userIdSubInfo.computeIfAbsent(
-                address, k -> producerService.getDataSubscribers(addresses));
+                address, k -> producerService.getDataSubscribers(addressArray));
         if (subInfo == null || subInfo.isEmpty()) {
           return NoopFlow.INSTANCE;
         }
-        MapDataBundle.Builder bundle =
-            new MapDataBundle.Builder(CAPACITY_0_2).add(KnownAddresses.USER_ID, userId);
+        MapDataBundle.Builder bundle = new MapDataBundle.Builder(CAPACITY_0_2);
+        if (newUserId) {
+          bundle.add(KnownAddresses.USER_ID, userId);
+        }
         if (address != KnownAddresses.USER_ID) {
           // we don't support null values for the address so we use an invalid placeholder here
           bundle.add(address, "invalid");

@@ -26,9 +26,8 @@ import javax.annotation.Nullable;
 
 public class TestSuiteImpl implements DDTestSuite {
 
+  private final AgentSpan.Context moduleSpanContext;
   private final AgentSpan span;
-  private final long sessionId;
-  private final long moduleId;
   private final String moduleName;
   private final String testSuiteName;
   private final String itrCorrelationId;
@@ -46,9 +45,7 @@ public class TestSuiteImpl implements DDTestSuite {
   private final Consumer<AgentSpan> onSpanFinish;
 
   public TestSuiteImpl(
-      @Nullable AgentSpan.Context moduleSpanContext,
-      long sessionId,
-      long moduleId,
+      AgentSpan.Context moduleSpanContext,
       String moduleName,
       String testSuiteName,
       String itrCorrelationId,
@@ -65,8 +62,7 @@ public class TestSuiteImpl implements DDTestSuite {
       MethodLinesResolver methodLinesResolver,
       CoverageStore.Factory coverageStoreFactory,
       Consumer<AgentSpan> onSpanFinish) {
-    this.sessionId = sessionId;
-    this.moduleId = moduleId;
+    this.moduleSpanContext = moduleSpanContext;
     this.moduleName = moduleName;
     this.testSuiteName = testSuiteName;
     this.itrCorrelationId = itrCorrelationId;
@@ -96,8 +92,8 @@ public class TestSuiteImpl implements DDTestSuite {
     span.setTag(Tags.TEST_MODULE, moduleName);
 
     span.setTag(Tags.TEST_SUITE_ID, span.getSpanId());
-    span.setTag(Tags.TEST_MODULE_ID, moduleId);
-    span.setTag(Tags.TEST_SESSION_ID, sessionId);
+    span.setTag(Tags.TEST_MODULE_ID, moduleSpanContext.getSpanId());
+    span.setTag(Tags.TEST_SESSION_ID, moduleSpanContext.getTraceId());
 
     // setting status to skip initially,
     // as we do not know in advance whether the suite will have any children
@@ -196,8 +192,7 @@ public class TestSuiteImpl implements DDTestSuite {
       @Nullable Method testMethod,
       @Nullable Long startTime) {
     return new TestImpl(
-        sessionId,
-        moduleId,
+        moduleSpanContext,
         span.getSpanId(),
         moduleName,
         testSuiteName,

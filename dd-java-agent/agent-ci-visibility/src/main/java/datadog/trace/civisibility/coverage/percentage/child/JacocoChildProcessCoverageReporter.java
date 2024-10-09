@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.coverage.percentage.child;
 
+import datadog.trace.api.DDTraceId;
 import datadog.trace.civisibility.ipc.ModuleCoverageDataJacoco;
 import datadog.trace.civisibility.ipc.ModuleSignal;
 import java.util.function.Supplier;
@@ -15,7 +16,7 @@ public class JacocoChildProcessCoverageReporter implements ChildProcessCoverageR
 
   @Nullable
   @Override
-  public ModuleSignal createCoverageSignal(long sessionId, long moduleId) {
+  public ModuleSignal createCoverageSignal(DDTraceId sessionId, long moduleId) {
     byte[] coverageData = coverageDataSupplier.get();
     if (coverageData != null) {
       return new ModuleCoverageDataJacoco(sessionId, moduleId, coverageData);

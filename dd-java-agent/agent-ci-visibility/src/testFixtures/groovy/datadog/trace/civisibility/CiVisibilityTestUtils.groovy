@@ -41,6 +41,7 @@ abstract class CiVisibilityTestUtils {
     // Regardless, the values of these fields should be treated as different
     path("content.start", false),
     path("content.duration", false),
+    path("content.metrics.['_dd.host.vcpu_count']", false),
     path("content.meta.['_dd.p.tid']", false),
     path("content.meta.['error.stack']", false),
   ]
@@ -83,7 +84,7 @@ abstract class CiVisibilityTestUtils {
       replacementMap.put(labelGenerator.forKey(e.key), "\"$e.value\"")
     }
 
-    def expectedEvents = getFreemarkerTemplate(baseTemplatesPath + "/events.ftl", replacementMap)
+    def expectedEvents = getFreemarkerTemplate(baseTemplatesPath + "/events.ftl", replacementMap, events)
     def actualEvents = JSON_MAPPER.writeValueAsString(events)
     try {
       JSONAssert.assertEquals(expectedEvents, actualEvents, JSONCompareMode.LENIENT)
@@ -91,7 +92,7 @@ abstract class CiVisibilityTestUtils {
       throw new org.opentest4j.AssertionFailedError("Events mismatch", expectedEvents, actualEvents, e)
     }
 
-    def expectedCoverages = getFreemarkerTemplate(baseTemplatesPath + "/coverages.ftl", replacementMap)
+    def expectedCoverages = getFreemarkerTemplate(baseTemplatesPath + "/coverages.ftl", replacementMap, coverages)
     def actualCoverages = JSON_MAPPER.writeValueAsString(coverages)
     try {
       JSONAssert.assertEquals(expectedCoverages, actualCoverages, JSONCompareMode.LENIENT)
@@ -122,11 +123,15 @@ abstract class CiVisibilityTestUtils {
     }
   }
 
-  private static String getFreemarkerTemplate(String templatePath, Map<String, Object> replacements) {
-    Template coveragesTemplate = FREEMARKER.getTemplate(templatePath)
-    StringWriter coveragesOut = new StringWriter()
-    coveragesTemplate.process(replacements, coveragesOut)
-    return coveragesOut.toString()
+  private static String getFreemarkerTemplate(String templatePath, Map<String, Object> replacements, List<Map<?, ?>> replacementsSource) {
+    try {
+      Template coveragesTemplate = FREEMARKER.getTemplate(templatePath)
+      StringWriter coveragesOut = new StringWriter()
+      coveragesTemplate.process(replacements, coveragesOut)
+      return coveragesOut.toString()
+    } catch (Exception e) {
+      throw new RuntimeException("Could not get Freemarker template " + templatePath + "; replacements map: " + replacements + "; replacements source: " + replacementsSource, e)
+    }
   }
 
   private static final class TemplateGenerator {

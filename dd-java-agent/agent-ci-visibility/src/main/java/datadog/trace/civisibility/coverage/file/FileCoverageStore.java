@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.coverage.file;
 
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.coverage.TestReport;
@@ -45,7 +46,7 @@ public class FileCoverageStore extends ConcurrentCoverageStore<FileProbes> {
   @Nullable
   @Override
   protected TestReport report(
-      Long testSessionId, Long testSuiteId, long testSpanId, Collection<FileProbes> probes) {
+      DDTraceId testSessionId, Long testSuiteId, long testSpanId, Collection<FileProbes> probes) {
     try {
       Set<Class<?>> combinedClasses = Collections.newSetFromMap(new IdentityHashMap<>());
       Collection<String> combinedNonCodeResources = new HashSet<>();

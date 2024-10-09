@@ -33,7 +33,6 @@ import datadog.trace.civisibility.ipc.SignalServer;
 import datadog.trace.civisibility.telemetry.CiVisibilityMetricCollectorImpl;
 import datadog.trace.civisibility.test.ExecutionStrategy;
 import datadog.trace.civisibility.utils.ConcurrentHashMapContextStore;
-import datadog.trace.civisibility.utils.ProcessHierarchyUtils;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
 import java.lang.instrument.Instrumentation;
 import java.nio.file.Path;
@@ -79,7 +78,7 @@ public class CiVisibilitySystem {
     InstrumentationBridge.registerBuildEventsHandlerFactory(buildEventsHandlerFactory(services));
     CIVisibility.registerSessionFactory(manualApiSessionFactory(services));
 
-    if (ProcessHierarchyUtils.isChild() || ProcessHierarchyUtils.isHeadless()) {
+    if (services.processHierarchy.isChild() || services.processHierarchy.isHeadless()) {
       CiVisibilityRepoServices repoServices = services.repoServices(getCurrentPath());
 
       ExecutionSettings executionSettings =
@@ -142,7 +141,7 @@ public class CiVisibilitySystem {
         ExecutionSettings executionSettings) {
       this.services = services;
       this.repoServices = repoServices;
-      if (ProcessHierarchyUtils.isChild()) {
+      if (services.processHierarchy.isChild()) {
         sessionFactory =
             childTestFrameworkSessionFactory(
                 services, repoServices, coverageServices, executionSettings);
@@ -222,9 +221,6 @@ public class CiVisibilitySystem {
       CiVisibilityCoverageServices.Child coverageServices,
       ExecutionSettings executionSettings) {
     return (String projectName, String component, Long startTime) -> {
-      long parentProcessSessionId = ProcessHierarchyUtils.getParentSessionId();
-      long parentProcessModuleId = ProcessHierarchyUtils.getParentModuleId();
-
       String sessionName = services.config.getCiVisibilitySessionName();
       String testCommand = services.config.getCiVisibilityTestCommand();
       TestDecorator testDecorator =
@@ -232,9 +228,9 @@ public class CiVisibilitySystem {
 
       ExecutionStrategy executionStrategy =
           new ExecutionStrategy(services.config, executionSettings);
+
       return new ProxyTestSession(
-          parentProcessSessionId,
-          parentProcessModuleId,
+          services.processHierarchy.parentProcessModuleContext,
           services.config,
           services.metricCollector,
           testDecorator,

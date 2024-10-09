@@ -173,13 +173,13 @@ public class CiVisibilityGradleListener extends BuildAdapter
   @SuppressWarnings("unchecked")
   @Override
   public void beforeExecute(TaskIdentity<?> taskIdentity) {
+    String taskPath = taskIdentity.getTaskPath();
     if (!Test.class.isAssignableFrom(taskIdentity.getTaskType())) {
+      ciVisibilityService.onBuildTaskStart(taskPath);
       return;
     }
 
     String projectPath = taskIdentity.getProjectPath();
-    String taskPath = taskIdentity.getTaskPath();
-
     Project project = gradle.getRootProject().project(projectPath);
     Test task = (Test) project.getTasks().getByName(taskIdentity.name);
 
@@ -226,12 +226,14 @@ public class CiVisibilityGradleListener extends BuildAdapter
 
   @Override
   public void afterExecute(TaskIdentity<?> taskIdentity, TaskState state) {
+    String taskPath = taskIdentity.getTaskPath();
+    Throwable failure = state.getFailure();
+
     if (!Test.class.isAssignableFrom(taskIdentity.getTaskType())) {
+      ciVisibilityService.onBuildTaskFinish(taskPath, failure);
       return;
     }
 
-    String taskPath = taskIdentity.getTaskPath();
-    Throwable failure = state.getFailure();
     String reason = state.getSkipped() || !state.getDidWork() ? state.getSkipMessage() : null;
     ciVisibilityService.onModuleFinish(taskPath, failure, reason);
   }

@@ -9,7 +9,7 @@ package datadog.trace.api.config;
  * @see TracerConfig for more tracer config options
  */
 public final class TraceInstrumentationConfig {
-  public static final String CODE_ORIGIN_FOR_SPANS_ENABLED = "code.origin.enabled";
+  public static final String CODE_ORIGIN_FOR_SPANS_ENABLED = "code.origin.for.spans.enabled";
   public static final String TRACE_ENABLED = "trace.enabled";
   public static final String TRACE_OTEL_ENABLED = "trace.otel.enabled";
   public static final String INTEGRATIONS_ENABLED = "integrations.enabled";

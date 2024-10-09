@@ -309,8 +309,6 @@ public class Config {
 
   private final boolean ciVisibilitySourceDataEnabled;
   private final boolean ciVisibilityBuildInstrumentationEnabled;
-  private final Long ciVisibilitySessionId;
-  private final Long ciVisibilityModuleId;
   private final String ciVisibilityAgentJarUri;
   private final boolean ciVisibilityAutoConfigurationEnabled;
   private final String ciVisibilityAdditionalChildProcessJvmArgs;
@@ -779,7 +777,9 @@ public class Config {
 
     httpServerErrorStatuses =
         configProvider.getIntegerRange(
-            HTTP_SERVER_ERROR_STATUSES, DEFAULT_HTTP_SERVER_ERROR_STATUSES);
+            TRACE_HTTP_SERVER_ERROR_STATUSES,
+            DEFAULT_HTTP_SERVER_ERROR_STATUSES,
+            HTTP_SERVER_ERROR_STATUSES);
 
     httpClientErrorStatuses =
         configProvider.getIntegerRange(
@@ -1311,9 +1311,6 @@ public class Config {
             CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED,
             DEFAULT_CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED);
 
-    ciVisibilitySessionId = configProvider.getLong(CIVISIBILITY_SESSION_ID);
-    ciVisibilityModuleId = configProvider.getLong(CIVISIBILITY_MODULE_ID);
-
     final String ciVisibilityAgentlessUrlStr = configProvider.getString(CIVISIBILITY_AGENTLESS_URL);
     URI parsedCiVisibilityUri = null;
     if (ciVisibilityAgentlessUrlStr != null && !ciVisibilityAgentlessUrlStr.isEmpty()) {
@@ -1518,7 +1515,7 @@ public class Config {
             EXCEPTION_REPLAY_ENABLED);
     debuggerCodeOriginEnabled =
         configProvider.getBoolean(
-            DEBUGGER_CODE_ORIGIN_ENABLED, DEFAULT_DEBUGGER_CODE_ORIGIN_ENABLED);
+            CODE_ORIGIN_FOR_SPANS_ENABLED, DEFAULT_CODE_ORIGIN_FOR_SPANS_ENABLED);
     debuggerMaxExceptionPerSecond =
         configProvider.getInteger(
             DEBUGGER_MAX_EXCEPTION_PER_SECOND, DEFAULT_DEBUGGER_MAX_EXCEPTION_PER_SECOND);
@@ -2581,14 +2578,6 @@ public class Config {
 
   public boolean isCiVisibilityBuildInstrumentationEnabled() {
     return ciVisibilityBuildInstrumentationEnabled;
-  }
-
-  public Long getCiVisibilitySessionId() {
-    return ciVisibilitySessionId;
-  }
-
-  public Long getCiVisibilityModuleId() {
-    return ciVisibilityModuleId;
   }
 
   public String getCiVisibilityAgentJarUri() {

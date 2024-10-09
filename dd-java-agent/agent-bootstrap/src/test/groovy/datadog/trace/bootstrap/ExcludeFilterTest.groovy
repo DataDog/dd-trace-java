@@ -9,7 +9,7 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFil
 
 class ExcludeFilterTest extends DDSpecification {
 
-  def "test empty ExcludeFilter"() {
+  def "test empty ExcludeFilter #type.name()"() {
     setup:
     def one = new One()
     def oneName = One.getName()
@@ -22,7 +22,7 @@ class ExcludeFilterTest extends DDSpecification {
     type << ExcludeFilter.ExcludeType.values()
   }
 
-  def "test ExcludeFilter"() {
+  def "test ExcludeFilter #type.name()"() {
     setup:
     def another = new Another()
     def anotherName = Another.getName()

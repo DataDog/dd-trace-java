@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.springsecurity5
 
+import datadog.trace.api.GlobalTracer
 import org.springframework.security.core.userdetails.User
 import org.springframework.security.provisioning.UserDetailsManager
 import org.springframework.stereotype.Controller
@@ -11,6 +12,8 @@ import org.springframework.web.bind.annotation.ResponseBody
 
 import static datadog.trace.instrumentation.springsecurity5.TestEndpoint.REGISTER
 import static datadog.trace.instrumentation.springsecurity5.TestEndpoint.SUCCESS
+import static datadog.trace.instrumentation.springsecurity5.TestEndpoint.SDK
+import static java.util.Collections.emptyMap
 
 
 @Controller
@@ -40,6 +43,15 @@ class UserController {
       userDetailsManager.createUser(
         User.withUsername(username).password("{noop}" + password).roles("USER").build())
       model.addAttribute("username", username)
+    }
+  }
+
+  @PostMapping("/sdk")
+  @ResponseBody
+  String sdk(@RequestParam("sdkUser") String sdkUser) {
+    SpringBootBasedTest.controller(SDK) {
+      GlobalTracer.getEventTracker().trackLoginSuccessEvent(sdkUser, emptyMap())
+      return "OK"
     }
   }
 }

@@ -27,7 +27,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 class ComparisonExpressionTest {
 
-  @ParameterizedTest
+  @ParameterizedTest(name = "[{index}] {4}")
   @MethodSource("expressions")
   void evaluateOperator(
       ValueExpression<?> left,
