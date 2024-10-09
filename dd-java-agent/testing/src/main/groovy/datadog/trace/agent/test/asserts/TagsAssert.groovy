@@ -12,6 +12,7 @@ import groovy.transform.stc.ClosureParams
 import groovy.transform.stc.SimpleType
 
 import java.util.regex.Pattern
+import java.net.URI;
 
 class TagsAssert {
   private final long spanParentId
@@ -129,6 +130,78 @@ class TagsAssert {
     if (message != null) {
       tag("error.message", message)
     }
+  }
+
+  def expectedQueryParams(operation) {
+    switch(operation) {
+      case "Publish": 
+        return ["Action", "Version", "TopicArn", "Message"]
+      case "PublishBatch": 
+        return [
+          "Action", "Version", "TopicArn", "PublishBatchRequestEntries.member.1.Id",
+          "PublishBatchRequestEntries.member.1.Message",
+          "PublishBatchRequestEntries.member.2.Id",
+          "PublishBatchRequestEntries.member.2.Message"
+        ]
+      case "AllocateAddress":
+      case "DeleteOptionGroup":
+        return ["Action", "Version"]
+      case "CreateQueue":
+      case "GetQueueUrl":
+        return ["Action", "Version", "QueueName"]
+      case "SendMessage":
+        return ["Action", "Version", "QueueUrl", "MessageBody"]
+      case "DeleteMessage":
+        return ["Action", "Version", "QueueUrl", "ReceiptHandle"]
+      case "ReceiveMessage":
+        return ["Action", "Version", "QueueUrl", "AttributeName.1"]
+      case "SendMessageBatch":
+        return ["Action", "Version", "QueueUrl", "SendMessageBatchRequestEntry.1.Id", "SendMessageBatchRequestEntry.1.MessageBody", "SendMessageBatchRequestEntry.2.Id", "SendMessageBatchRequestEntry.2.MessageBody", "SendMessageBatchRequestEntry.3.Id", "SendMessageBatchRequestEntry.3.MessageBody", "SendMessageBatchRequestEntry.4.Id", "SendMessageBatchRequestEntry.4.MessageBody", "SendMessageBatchRequestEntry.5.Id", "SendMessageBatchRequestEntry.5.MessageBody"]
+      case "DeleteMessageBatch":
+        return ["Action", "Version", "QueueUrl", "DeleteMessageBatchRequestEntry.1.Id", "DeleteMessageBatchRequestEntry.1.ReceiptHandle"]
+      throw new IllegalArgumentException("Unexpected operation: $operation")
+    }
+  }
+
+  def urlTags(String url, List<String> queryParams){
+    tag("http.url", {
+      URI uri = new URI(it.toString().split("\\?", 2)[0]);
+      String scheme = uri.getScheme();
+      String host = uri.getHost();
+      int port = uri.getPort();
+      String path = uri.getPath();
+
+      String baseURL = scheme + "://" + host + ":" + port + path;
+
+      if (!baseURL.equals(url)){
+        return false;
+      }
+      return true;
+    })
+
+    tag("http.query.string", {
+      String paramString = it;
+      Set<String> spanQueryParams = new HashSet<String>();
+
+      if (paramString != null && !paramString.isEmpty()) {
+        String[] pairs = paramString.split("&");
+        for (String pair : pairs) {
+          int idx = pair.indexOf("=");
+          if (idx > 0) {
+              spanQueryParams.add(pair.substring(0, idx));
+          } else {
+              spanQueryParams.add(pair);
+          }
+        }
+      }
+
+      for(String param : queryParams){
+        if (!spanQueryParams.contains(param)){
+          return false;
+        }
+      }
+      return true;
+    })
   }
 
   def tag(String name, expected) {
