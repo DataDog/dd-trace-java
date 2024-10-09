@@ -1103,7 +1103,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     def result = self.replace(oldChar, newChar)
 
     when:
-    module.onStringReplaceChar(self, oldChar as char, newChar as char, result)
+    module.onStringReplace(self, oldChar as char, newChar as char, result)
     def taintedObject = taintedObjects.get(result)
 
     then:
@@ -1124,7 +1124,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     def result = self.replace(oldCharSeq, newCharSeq)
 
     when:
-    module.onStringReplaceCharSeq(self, oldCharSeq, newCharSeq, result)
+    module.onStringReplace(self, oldCharSeq, newCharSeq, result)
     def taintedObject = taintedObjects.get(result)
 
     then:
@@ -1160,7 +1160,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     def result = self.replace(oldCharSeq, inputTainted)
 
     when:
-    module.onStringReplaceCharSeq(self, oldCharSeq, inputTainted, result)
+    module.onStringReplace(self, oldCharSeq, inputTainted, result)
     def taintedObject = taintedObjects.get(result)
 
     then:

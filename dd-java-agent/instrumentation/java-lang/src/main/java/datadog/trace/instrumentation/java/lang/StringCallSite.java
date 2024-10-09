@@ -291,7 +291,7 @@ public class StringCallSite {
     final StringModule module = InstrumentationBridge.STRING;
     if (module != null) {
       try {
-        module.onStringReplaceChar(self, oldChar, newChar, result);
+        module.onStringReplace(self, oldChar, newChar, result);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterReplaceChar threw", e);
       }
@@ -309,7 +309,7 @@ public class StringCallSite {
     final StringModule module = InstrumentationBridge.STRING;
     if (module != null) {
       try {
-        module.onStringReplaceCharSeq(self, oldCharSeq, newCharSeq, result);
+        module.onStringReplace(self, oldCharSeq, newCharSeq, result);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterReplaceCharSeq threw", e);
       }

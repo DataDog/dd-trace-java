@@ -250,7 +250,7 @@ class StringCallSiteTest extends AgentTestRunner {
 
     then:
     result == expected
-    1 * module.onStringReplaceChar(input, oldChar, newChar, expected)
+    1 * module.onStringReplace(input, oldChar, newChar, expected)
 
     where:
     input  | oldChar | newChar | expected
@@ -268,7 +268,7 @@ class StringCallSiteTest extends AgentTestRunner {
 
     then:
     result == expected
-    1 * module.onStringReplaceCharSeq(input, oldCharSeq, newCharSeq, expected)
+    1 * module.onStringReplace(input, oldCharSeq, newCharSeq, expected)
 
     where:
     input  | oldCharSeq | newCharSeq | expected

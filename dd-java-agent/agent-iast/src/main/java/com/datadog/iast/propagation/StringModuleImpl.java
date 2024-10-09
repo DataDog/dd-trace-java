@@ -633,7 +633,7 @@ public class StringModuleImpl implements StringModule {
 
   @Override
   @SuppressFBWarnings("ES_COMPARING_PARAMETER_STRING_WITH_EQ")
-  public void onStringReplaceChar(
+  public void onStringReplace(
       @Nonnull String self, char oldChar, char newChar, @Nonnull String result) {
     if (self == result || !canBeTainted(result)) {
       return;
@@ -658,7 +658,7 @@ public class StringModuleImpl implements StringModule {
 
   @Override
   @SuppressFBWarnings("ES_COMPARING_PARAMETER_STRING_WITH_EQ")
-  public void onStringReplaceCharSeq(
+  public void onStringReplace(
       @Nonnull String self,
       CharSequence oldCharSeq,
       CharSequence newCharSeq,

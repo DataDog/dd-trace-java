@@ -55,10 +55,9 @@ public interface StringModule extends IastModule {
 
   void onIndent(@Nonnull String self, int indentation, @Nonnull String result);
 
-  void onStringReplaceChar(
-      @Nonnull String self, char oldChar, char newChar, @Nonnull String result);
+  void onStringReplace(@Nonnull String self, char oldChar, char newChar, @Nonnull String result);
 
-  void onStringReplaceCharSeq(
+  void onStringReplace(
       @Nonnull String self,
       CharSequence oldCharSeq,
       CharSequence newCharSeq,
