@@ -46,7 +46,6 @@ import java.util.concurrent.Future
 import java.util.concurrent.atomic.AtomicReference
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
-import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_HTTP_CLIENT_TAG_QUERY_STRING
 
 class LegacyAws2ClientForkedTest extends AgentTestRunner {
 
@@ -83,7 +82,6 @@ class LegacyAws2ClientForkedTest extends AgentTestRunner {
 
   def "send #operation request with builder {#builder.class.getName()} mocked response"() {
     setup:
-    injectSysConfig(TRACE_HTTP_CLIENT_TAG_QUERY_STRING, "false")
     boolean executed = false
     def client = builder
       // tests that our instrumentation doesn't disturb any overridden configuration
@@ -121,7 +119,6 @@ class LegacyAws2ClientForkedTest extends AgentTestRunner {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.PEER_HOSTNAME" "localhost"
             "$Tags.PEER_PORT" server.address.port
-            "$Tags.HTTP_URL" "${server.address}${path}"
             "$Tags.HTTP_METHOD" "$method"
             "$Tags.HTTP_STATUS" 200
             "aws.service" "$service"
@@ -153,6 +150,7 @@ class LegacyAws2ClientForkedTest extends AgentTestRunner {
               "aws.stream.name" "somestream"
               "streamname" "somestream"
             }
+            urlTags("${server.address}${path}", expectedQueryParams(operation))
             defaultTags()
           }
         }
@@ -228,7 +226,6 @@ class LegacyAws2ClientForkedTest extends AgentTestRunner {
 
   def "send #operation async request with builder {#builder.class.getName()} mocked response"() {
     setup:
-    injectSysConfig(TRACE_HTTP_CLIENT_TAG_QUERY_STRING, "false")
     boolean executed = false
     def client = builder
       // tests that our instrumentation doesn't disturb any overridden configuration
@@ -265,7 +262,6 @@ class LegacyAws2ClientForkedTest extends AgentTestRunner {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.PEER_HOSTNAME" "localhost"
             "$Tags.PEER_PORT" server.address.port
-            "$Tags.HTTP_URL" "${server.address}${path}"
             "$Tags.HTTP_METHOD" "$method"
             "$Tags.HTTP_STATUS" 200
             "aws.service" "$service"
@@ -294,6 +290,7 @@ class LegacyAws2ClientForkedTest extends AgentTestRunner {
               "aws.stream.name" "somestream"
               "streamname" "somestream"
             }
+            urlTags("${server.address}${path}", expectedQueryParams(operation))
             defaultTags()
           }
         }

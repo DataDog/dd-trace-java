@@ -86,7 +86,6 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
 
   def "trace details propagated via SQS system message attributes"() {
     setup:
-    injectSysConfig(TRACE_HTTP_CLIENT_TAG_QUERY_STRING, "false")
     def client = SqsClient.builder()
       .region(Region.EU_CENTRAL_1)
       .endpointOverride(endpoint)
@@ -123,7 +122,6 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "java-aws-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.HTTP_URL" "http://localhost:${address.port}/"
             "$Tags.HTTP_METHOD" "POST"
             "$Tags.HTTP_STATUS" 200
             "$Tags.PEER_PORT" address.port
@@ -137,6 +135,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
             if ({ isDataStreamsEnabled() }) {
               "$DDTags.PATHWAY_HASH" { String }
             }
+            urlTags("http://localhost:${address.port}/", expectedQueryParams("SendMessage"))
             defaultTags()
           }
         }

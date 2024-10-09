@@ -32,7 +32,6 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
-import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_HTTP_CLIENT_TAG_QUERY_STRING
 
 abstract class Aws2SnsDataStreamsTest extends VersionedNamingTestBase {
 
@@ -108,7 +107,6 @@ abstract class Aws2SnsDataStreamsTest extends VersionedNamingTestBase {
   @Unroll
   def "send #operation request with builder #builder.class.getSimpleName() mocked response"() {
     setup:
-    injectSysConfig(TRACE_HTTP_CLIENT_TAG_QUERY_STRING, "false")
     def conditions = new PollingConditions(timeout: 1)
     boolean executed = false
     def client = builder
@@ -172,7 +170,6 @@ abstract class Aws2SnsDataStreamsTest extends VersionedNamingTestBase {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.PEER_HOSTNAME" "localhost"
             "$Tags.PEER_PORT" server.address.port
-            "$Tags.HTTP_URL" "${server.address}${path}"
             "$Tags.HTTP_METHOD" "$method"
             "$Tags.HTTP_STATUS" 200
             "aws.service" "$service"
@@ -184,6 +181,11 @@ abstract class Aws2SnsDataStreamsTest extends VersionedNamingTestBase {
             "topicname" "mytopic"
             "$DDTags.PATHWAY_HASH" { String }
             checkPeerService = true
+            if (operation.equals("Publish")){
+              urlTags("${server.address}${path}", ["Action", "Version", "TopicArn", "Message"])
+            }else{
+              urlTags("${server.address}${path}", ["Action", "Version", "TopicArn", "PublishBatchRequestEntries.member.1.Id", "PublishBatchRequestEntries.member.1.Message", "PublishBatchRequestEntries.member.2.Id", "PublishBatchRequestEntries.member.2.Message"])
+            }
             defaultTags(false, checkPeerService)
           }
         }
@@ -210,7 +212,6 @@ abstract class Aws2SnsDataStreamsTest extends VersionedNamingTestBase {
 
   def "send #operation async request with builder #builder.class.getSimpleName() mocked response"() {
     setup:
-    injectSysConfig(TRACE_HTTP_CLIENT_TAG_QUERY_STRING, "false")
     def conditions = new PollingConditions(timeout: 1)
     boolean executed = false
     def client = builder
@@ -271,7 +272,6 @@ abstract class Aws2SnsDataStreamsTest extends VersionedNamingTestBase {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.PEER_HOSTNAME" "localhost"
             "$Tags.PEER_PORT" server.address.port
-            "$Tags.HTTP_URL" "${server.address}${path}"
             "$Tags.HTTP_METHOD" "$method"
             "$Tags.HTTP_STATUS" 200
             "aws.service" "$service"
@@ -282,6 +282,7 @@ abstract class Aws2SnsDataStreamsTest extends VersionedNamingTestBase {
             "aws.topic.name" "mytopic"
             "topicname" "mytopic"
             "$DDTags.PATHWAY_HASH" { String }
+            urlTags("${server.address}${path}", expectedQueryParams(operation))
             defaultTags(false, true)
           }
         }
