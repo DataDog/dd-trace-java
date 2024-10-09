@@ -65,7 +65,7 @@ public class CodeOriginProbeManager {
     AgentSpan span = AgentTracer.activeSpan();
     if (!isAlreadyInstrumented(fingerprint)) {
       Where where =
-          Where.convertLineToMethod(
+          Where.of(
               element.getClassName(),
               element.getMethodName(),
               signature,

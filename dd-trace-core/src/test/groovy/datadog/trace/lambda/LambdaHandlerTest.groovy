@@ -1,10 +1,9 @@
 package datadog.trace.lambda
 
-import datadog.trace.api.Config
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
-import datadog.trace.core.propagation.PropagationTags
+import datadog.trace.core.CoreTracer
 import datadog.trace.core.test.DDCoreSpecification
 import datadog.trace.core.DDSpan
 import com.amazonaws.services.lambda.runtime.events.SQSEvent
@@ -30,8 +29,7 @@ class LambdaHandlerTest extends DDCoreSpecification {
 
   def "test start invocation success"() {
     given:
-    Config config = Mock(Config)
-    config.getxDatadogTagsMaxLength() >> 512
+    CoreTracer ct = tracerBuilder().build()
 
     def server = httpServer {
       handlers {
@@ -47,7 +45,7 @@ class LambdaHandlerTest extends DDCoreSpecification {
     LambdaHandler.setExtensionBaseUrl(server.address.toString())
 
     when:
-    def objTest = LambdaHandler.notifyStartInvocation(obj, PropagationTags.factory(config))
+    def objTest = LambdaHandler.notifyStartInvocation(ct, obj)
 
     then:
     objTest.getTraceId().toString() == traceId
@@ -55,16 +53,50 @@ class LambdaHandlerTest extends DDCoreSpecification {
 
     cleanup:
     server.close()
+    ct.close()
 
     where:
     traceId    | samplingPriority      | obj
     "1234"     | 2                     | new TestObject()
   }
 
+  def "test start invocation with 128 bit trace ID"() {
+    given:
+    CoreTracer ct = tracerBuilder().build()
+
+    def server = httpServer {
+      handlers {
+        post("/lambda/start-invocation") {
+          response
+            .status(200)
+            .addHeader("x-datadog-trace-id", "5744042798732701615")
+            .addHeader("x-datadog-sampling-priority", "2")
+            .addHeader("x-datadog-tags", "_dd.p.tid=1914fe7789eb32be")
+            .send()
+        }
+      }
+    }
+    LambdaHandler.setExtensionBaseUrl(server.address.toString())
+
+    when:
+    def objTest = LambdaHandler.notifyStartInvocation(ct, obj)
+
+    then:
+    objTest.getTraceId().toHexString() == traceId
+    objTest.getSamplingPriority() == samplingPriority
+
+    cleanup:
+    server.close()
+    ct.close()
+
+    where:
+    traceId                                | samplingPriority      | obj
+    "1914fe7789eb32be4fb6f07e011a6faf"     | 2                     | new TestObject()
+  }
+
   def "test start invocation failure"() {
     given:
-    Config config = Mock(Config)
-    config.getxDatadogTagsMaxLength() >> 512
+    CoreTracer ct = tracerBuilder().build()
 
     def server = httpServer {
       handlers {
@@ -78,13 +110,14 @@ class LambdaHandlerTest extends DDCoreSpecification {
     LambdaHandler.setExtensionBaseUrl(server.address.toString())
 
     when:
-    def objTest = LambdaHandler.notifyStartInvocation(obj, PropagationTags.factory(config))
+    def objTest = LambdaHandler.notifyStartInvocation(ct, obj)
 
     then:
     objTest == expected
 
     cleanup:
     server.close()
+    ct.close()
 
     where:
     expected    | obj

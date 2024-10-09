@@ -14,7 +14,7 @@ class ThreadLocalRandomCallSiteTest extends AgentTestRunner {
     injectSysConfig('dd.iast.enabled', 'true')
   }
 
-  void 'test #target.#method methods'() {
+  void 'test #target.class.name #method methods'() {
     setup:
     final module = Mock(WeakRandomnessModule)
     InstrumentationBridge.registerIastModule(module)

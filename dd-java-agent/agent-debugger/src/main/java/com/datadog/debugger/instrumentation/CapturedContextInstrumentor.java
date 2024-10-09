@@ -476,6 +476,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
       }
       checkHoistableLocalVar(localVar, localVarsByName, localVarsBySlot, hoistableVarByName);
     }
+    removeDuplicatesFromArgs(hoistableVarByName, localVarsBySlotArray);
     // hoist vars
     List<LocalVariableNode> results = new ArrayList<>();
     for (Map.Entry<String, List<LocalVariableNode>> entry : hoistableVarByName.entrySet()) {
@@ -510,6 +511,19 @@ public class CapturedContextInstrumentor extends Instrumentor {
       results.add(newVarNode);
     }
     return results;
+  }
+
+  private void removeDuplicatesFromArgs(
+      Map<String, List<LocalVariableNode>> hoistableVarByName,
+      LocalVariableNode[] localVarsBySlotArray) {
+    for (int idx = 0; idx < argOffset; idx++) {
+      LocalVariableNode localVar = localVarsBySlotArray[idx];
+      if (localVar == null) {
+        continue;
+      }
+      // we are removing local variables that are arguments
+      hoistableVarByName.remove(localVar.name);
+    }
   }
 
   private LabelNode findLatestLabel(InsnList instructions, Set<LabelNode> endLabels) {
@@ -762,8 +776,8 @@ public class CapturedContextInstrumentor extends Instrumentor {
     int slot = isStatic ? 0 : 1;
     for (Type argType : argTypes) {
       String currentArgName = null;
-      if (slot < localVarsBySlot.length) {
-        LocalVariableNode localVarNode = localVarsBySlot[slot];
+      if (slot < localVarsBySlotArray.length) {
+        LocalVariableNode localVarNode = localVarsBySlotArray[slot];
         currentArgName = localVarNode != null ? localVarNode.name : null;
       }
       if (currentArgName == null) {

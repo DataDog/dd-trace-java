@@ -28,6 +28,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Collections;
@@ -377,7 +378,10 @@ public class DDSpan
     if (!Config.get().isDebuggerExceptionEnabled()) {
       return false;
     }
-    if (Config.get().isDebuggerExceptionOnlyLocalRoot() && !isLocalRootSpan()) {
+    boolean captureOnlyRootSpan =
+        (Config.get().isDebuggerExceptionOnlyLocalRoot()
+            || !Config.get().isDebuggerExceptionCaptureIntermediateSpansEnabled());
+    if (captureOnlyRootSpan && !isLocalRootSpan()) {
       return false;
     }
     return true;
@@ -851,5 +855,11 @@ public class DDSpan
   public DDSpan setMetaStruct(final String field, final Object value) {
     context.setMetaStruct(field, value);
     return this;
+  }
+
+  @Override
+  public boolean isOutbound() {
+    Object spanKind = context.getTag(Tags.SPAN_KIND);
+    return Tags.SPAN_KIND_CLIENT.equals(spanKind) || Tags.SPAN_KIND_PRODUCER.equals(spanKind);
   }
 }

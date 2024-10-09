@@ -83,7 +83,7 @@ public class ExceptionProbeManager {
         continue;
       }
       Where where =
-          Where.convertLineToMethod(
+          Where.of(
               stackTraceElement.getClassName(),
               stackTraceElement.getMethodName(),
               null,

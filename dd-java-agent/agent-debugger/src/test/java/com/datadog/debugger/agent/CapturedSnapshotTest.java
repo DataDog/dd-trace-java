@@ -31,12 +31,12 @@ import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.el.values.StringValue;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
-import com.datadog.debugger.probe.DebuggerProbe;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.SpanProbe;
+import com.datadog.debugger.probe.TriggerProbe;
 import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
@@ -1147,11 +1147,12 @@ public class CapturedSnapshotTest {
     TestSnapshotListener listener = installProbes(CLASS_NAME, logProbes);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.onClass(testClass).call("main", "1").get();
-    assertEquals(1, listener.snapshots.size());
-    List<EvaluationError> evaluationErrors = listener.snapshots.get(0).getEvaluationErrors();
-    Assertions.assertEquals(1, evaluationErrors.size());
-    Assertions.assertEquals("nullTyped.fld.fld", evaluationErrors.get(0).getExpr());
-    Assertions.assertEquals("Cannot dereference field: fld", evaluationErrors.get(0).getMessage());
+    Snapshot snapshot = assertOneSnapshot(listener);
+    List<EvaluationError> evaluationErrors = snapshot.getEvaluationErrors();
+    assertEquals(1, evaluationErrors.size());
+    assertEquals("nullTyped.fld.fld", evaluationErrors.get(0).getExpr());
+    assertEquals("Cannot dereference field: fld", evaluationErrors.get(0).getMessage());
+    assertEquals("Cannot dereference field: fld", snapshot.getMessage());
   }
 
   @Test
@@ -2358,7 +2359,7 @@ public class CapturedSnapshotTest {
   public void allProbesSameMethod() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
     final String METRIC_NAME = "count";
-    Where where = Where.convertLineToMethod(CLASS_NAME, "main", null);
+    Where where = Where.of(CLASS_NAME, "main", null);
     Configuration configuration =
         Configuration.builder()
             .add(
@@ -2384,7 +2385,7 @@ public class CapturedSnapshotTest {
                     .where(where)
                     .build())
             .add(LogProbe.builder().probeId(PROBE_ID3).where(where).build())
-            .add(DebuggerProbe.builder().probeId(PROBE_ID4).where(where).build())
+            .add(TriggerProbe.builder().probeId(PROBE_ID4).where(where).build())
             .build();
 
     CoreTracer tracer = CoreTracer.builder().build();
@@ -2531,7 +2532,7 @@ public class CapturedSnapshotTest {
                 encodedId,
                 logProbes,
                 configuration.getSpanDecorationProbes(),
-                configuration.getDebuggerProbes()));
+                configuration.getTriggerProbes()));
     DebuggerContext.initClassFilter(new DenyListHelper(null));
     DebuggerContext.initValueSerializer(new JsonSnapshotSerializer());
     if (logProbes != null) {
@@ -2554,7 +2555,7 @@ public class CapturedSnapshotTest {
       String encodedId,
       Collection<LogProbe> logProbes,
       Collection<SpanDecorationProbe> spanDecorationProbes,
-      Collection<DebuggerProbe> debuggerProbes) {
+      Collection<TriggerProbe> triggerProbes) {
     for (LogProbe probe : logProbes) {
       if (probe.getProbeId().getEncodedId().equals(encodedId)) {
         return probe;
@@ -2565,7 +2566,7 @@ public class CapturedSnapshotTest {
         return probe;
       }
     }
-    for (DebuggerProbe probe : debuggerProbes) {
+    for (TriggerProbe probe : triggerProbes) {
       if (probe.getProbeId().getEncodedId().equals(encodedId)) {
         return probe;
       }

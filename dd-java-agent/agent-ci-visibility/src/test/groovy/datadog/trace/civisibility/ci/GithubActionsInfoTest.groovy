@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.ci
 
+import datadog.trace.civisibility.ci.env.CiEnvironmentImpl
 
 import java.nio.file.Paths
 
@@ -36,7 +37,7 @@ class GithubActionsInfoTest extends CITagsProviderTest {
     environmentVariables.set(GithubActionsInfo.GITHUB_EVENT_PATH, githubEventPath.toString())
 
     when:
-    def cIInfo = new GithubActionsInfo().buildCIInfo()
+    def cIInfo = new GithubActionsInfo(new CiEnvironmentImpl(System.getenv())).buildCIInfo()
 
     then:
     cIInfo.getAdditionalTags() == [

@@ -97,6 +97,15 @@ public class AppSecEventTrackerImpl extends AppSecEventTracker {
   }
 
   @Override
+  public void onUserEvent(UserIdCollectionMode mode, String userId) {
+    TraceSegment segment = beforeEvent(mode, userId);
+    if (segment == null) {
+      return;
+    }
+    onUserId(mode, segment, userId, EVENTS.userId());
+  }
+
+  @Override
   public void onCustomEvent(
       final UserIdCollectionMode mode, final String eventName, final Map<String, String> metadata) {
     if (eventName == null || eventName.isEmpty()) {

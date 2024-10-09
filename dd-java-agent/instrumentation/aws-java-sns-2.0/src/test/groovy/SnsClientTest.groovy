@@ -65,6 +65,9 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
     // Set a service name that gets sorted early with SORT_BY_NAMES
     injectSysConfig(GeneralConfig.SERVICE_NAME, "A-service")
     injectSysConfig(GeneralConfig.DATA_STREAMS_ENABLED, isDataStreamsEnabled().toString())
+
+    // test propagation styles
+    injectSysConfig('dd.trace.propagation.style', 'datadog,b3single,b3multi,xray,tracecontext')
   }
 
   @Override
@@ -187,6 +190,41 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
 
     then:
     noExceptionThrown()
+  }
+
+  def "test propagation styles"() {
+    when:
+    TEST_WRITER.clear()
+    snsClient.publish { req ->
+      req.message("test message")
+        .topicArn(testTopicARN)
+    }
+
+    def message = sqsClient.receiveMessage { it.queueUrl(testQueueURL).waitTimeSeconds(3) }.messages().get(0)
+    def messageBody = new JsonSlurper().parseText(message.body())
+
+    String base64EncodedString = messageBody["MessageAttributes"]["_datadog"]["Value"]
+    byte[] decodedBytes = base64EncodedString.decodeBase64()
+    String decodedString = new String(decodedBytes, "UTF-8")
+    def traceContext = new JsonSlurper().parseText(decodedString)
+
+    then:
+    expectedHeaders.each { header ->
+      assert traceContext[header] != null, "Header $header is missing"
+    }
+
+    where:
+    expectedHeaders = [
+      'x-datadog-trace-id',
+      'x-datadog-parent-id',
+      'x-datadog-sampling-priority',
+      'b3',
+      'X-B3-TraceId',
+      'X-B3-SpanId',
+      'X-Amzn-Trace-Id',
+      'traceparent',
+      'tracestate'
+    ]
   }
 }
 

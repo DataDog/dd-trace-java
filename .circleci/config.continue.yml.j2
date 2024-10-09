@@ -782,6 +782,7 @@ jobs:
           name: Gather muzzle tasks
           command: >-
             SKIP_BUILDSCAN="true"
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
             ./gradlew writeMuzzleTasksToFile
             << pipeline.parameters.gradle_flags >>
             --max-workers=3
@@ -880,11 +881,27 @@ jobs:
 
       - run:
           name: Run APM Integrations tests
+          environment:
+            - AWS_ACCESS_KEY_ID: $SYSTEM_TESTS_IDM_AWS_ACCESS_KEY_ID
+            - AWS_SECRET_ACCESS_KEY: $SYSTEM_TESTS_IDM_AWS_SECRET_ACCESS_KEY
+            - AWS_REGION: us-east-1
+            - AWS_DEFAULT_REGION: us-east-1  # AWS services should use `AWS_REGION`, but some still use the older `AWS_DEFAULT_REGION`
           # Stop the job after 5m to avoid excessive overhead. Will need adjustment as more tests are added.
           no_output_timeout: 5m
           command: |
             cd system-tests
             DD_SITE=datadoghq.com DD_API_KEY=$SYSTEM_TESTS_E2E_DD_API_KEY DD_APPLICATION_KEY=$SYSTEM_TESTS_E2E_DD_APP_KEY ./run.sh INTEGRATIONS
+        
+      - run:
+          name: Run IDM Crossed Tracing Libraries propagation tests for messaging
+          environment:
+            - AWS_ACCESS_KEY_ID: $SYSTEM_TESTS_IDM_AWS_ACCESS_KEY_ID
+            - AWS_SECRET_ACCESS_KEY: $SYSTEM_TESTS_IDM_AWS_SECRET_ACCESS_KEY
+            - AWS_REGION: us-east-1
+            - AWS_DEFAULT_REGION: us-east-1  # AWS services should use `AWS_REGION`, but some still use the older `AWS_DEFAULT_REGION`
+          command: |
+            cd system-tests
+            DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh CROSSED_TRACING_LIBRARIES
 
       - store_test_results:
           path: system-tests/logs_integrations
@@ -1201,6 +1218,20 @@ build_test_jobs: &build_test_jobs
       parallelism: 4
       maxWorkers: 4
       testJvm: "8"
+
+  - tests:
+      requires:
+        - ok_to_test
+      name: z_test_8_flaky_debugger
+      gradleTarget: ":debuggerTest"
+      gradleParameters: "-PrunFlakyTests"
+      continueOnFailure: true
+      triggeredBy: *debugger_modules
+      stage: debugger
+      cacheType: base
+      parallelism: 4
+      maxWorkers: 4
+      testJvm: "8"
 {% endif %}
 
   - tests:
@@ -1404,6 +1435,7 @@ build_test_jobs: &build_test_jobs
 {% for jdk in all_jdks %}
         - "test_{{ jdk }}"
 {% endfor %}
+        - muzzle
         - profiling
         - debugger
         - system-tests
