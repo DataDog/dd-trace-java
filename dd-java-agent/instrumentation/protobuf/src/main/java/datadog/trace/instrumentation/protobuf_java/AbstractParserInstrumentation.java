@@ -9,9 +9,11 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import com.google.auto.service.AutoService;
 import com.google.protobuf.AbstractMessage;
+import com.google.protobuf.AbstractParser;
 import com.google.protobuf.MessageLite;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.concurrent.ExecutionException;
 import net.bytebuddy.asm.Advice;
@@ -55,9 +57,19 @@ public final class AbstractParserInstrumentation extends InstrumenterModule.Trac
   }
 
   public static class ParseFromAdvice {
+
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void trackDepth() {
+      CallDepthThreadLocalMap.incrementCallDepth(AbstractParser.class);
+    }
+
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
         @Advice.Thrown final Throwable throwable, @Advice.Return MessageLite message) {
+      final int callDepth = CallDepthThreadLocalMap.decrementCallDepth(AbstractParser.class);
+      if (callDepth > 0) {
+        return;
+      }
       AgentSpan span = activeSpan();
       if (span == null) {
         return;
