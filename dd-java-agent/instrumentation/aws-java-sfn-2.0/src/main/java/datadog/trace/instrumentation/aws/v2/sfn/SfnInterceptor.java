@@ -28,12 +28,7 @@ public class SfnInterceptor implements ExecutionInterceptor {
       if (request.input() == null) {
         return request;
       }
-      String ddTraceContextJSON = InputAttributeInjector.buildTraceContext(span);
-      // Inject the trace context into the Step Function input
-      String modifiedInput =
-          InputAttributeInjector.getModifiedInput(request.input(), ddTraceContextJSON);
-
-      return request.toBuilder().input(modifiedInput).build();
+      return injectTraceContext(span, request);
     }
 
     // StartSyncExecutionRequest
@@ -42,14 +37,27 @@ public class SfnInterceptor implements ExecutionInterceptor {
       if (request.input() == null) {
         return request;
       }
-      String ddTraceContextJSON = InputAttributeInjector.buildTraceContext(span);
-      // Inject the trace context into the Step Function input
-      String modifiedInput =
-          InputAttributeInjector.getModifiedInput(request.input(), ddTraceContextJSON);
-
-      return request.toBuilder().input(modifiedInput).build();
+      return injectTraceContext(span, request);
     }
 
     return context.request();
+  }
+
+  private SdkRequest injectTraceContext(AgentSpan span, StartExecutionRequest request) {
+    String ddTraceContextJSON = InputAttributeInjector.buildTraceContext(span);
+    // Inject the trace context into the Step Function input
+    String modifiedInput =
+        InputAttributeInjector.getModifiedInput(request.input(), ddTraceContextJSON);
+
+    return request.toBuilder().input(modifiedInput).build();
+  }
+
+  private SdkRequest injectTraceContext(AgentSpan span, StartSyncExecutionRequest request) {
+    String ddTraceContextJSON = InputAttributeInjector.buildTraceContext(span);
+    // Inject the trace context into the Step Function input
+    String modifiedInput =
+        InputAttributeInjector.getModifiedInput(request.input(), ddTraceContextJSON);
+
+    return request.toBuilder().input(modifiedInput).build();
   }
 }
