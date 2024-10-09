@@ -106,10 +106,9 @@ public abstract class StringUtils {
           // If the replaced value is between one range
           if (rangeStart <= start && rangeEnd >= end) {
             Range[] splittedRanges =
-                Ranges.splitRanges(
-                    start + offset, end + offset, newLength, range, offset, diffLength);
+                Ranges.splitRanges(start, end, newLength, range, offset, diffLength);
 
-            if (splittedRanges.length == 1 || splittedRanges[0].getLength() > 0) {
+            if (splittedRanges.length > 0 && splittedRanges[0].getLength() > 0) {
               newRanges.add(splittedRanges[0]);
             }
 
@@ -133,10 +132,9 @@ public abstract class StringUtils {
             // If the replaced value starts in the range and not end there
           } else if (rangeStart <= start && rangeEnd > start) {
             Range[] splittedRanges =
-                Ranges.splitRanges(
-                    start + offset, end + offset, newLength, range, offset, diffLength);
+                Ranges.splitRanges(start, end, newLength, range, offset, diffLength);
 
-            if (splittedRanges.length == 1 || splittedRanges[0].getLength() > 0) {
+            if (splittedRanges.length > 0 && splittedRanges[0].getLength() > 0) {
               newRanges.add(splittedRanges[0]);
             }
 
@@ -154,8 +152,7 @@ public abstract class StringUtils {
             // If the replaced value ends in the range
           } else if (rangeEnd >= end) {
             Range[] splittedRanges =
-                Ranges.splitRanges(
-                    start + offset, end + offset, newLength, range, offset, diffLength);
+                Ranges.splitRanges(start, end, newLength, range, offset, diffLength);
 
             if (rangesInput != null && !rangesAdded) {
               for (Range rangeInput : rangesInput) {

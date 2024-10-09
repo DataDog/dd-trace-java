@@ -427,8 +427,11 @@ public final class Ranges {
   }
 
   /**
-   * Split the range in two taking into account the new length of the characters. In case start and
-   * end are out of the range, it will return the range without splitting.
+   * Split the range in two taking into account the new length of the characters.
+   *
+   * <p>In case start and end are out of the range, it will return the range without splitting but
+   * taking into account the offset. In the case that the new length is less than or equal to 0, it
+   * will return an empty array.
    *
    * @param start is the start of the character sequence
    * @param end is the end of the character sequence
@@ -439,16 +442,21 @@ public final class Ranges {
    */
   public static Range[] splitRanges(
       int start, int end, int newLength, Range range, int offset, int diffLength) {
+    start += offset;
+    end += offset;
     int rangeStart = range.getStart() + offset;
     int rangeEnd = rangeStart + range.getLength() + diffLength;
 
-    if (rangeStart > end || rangeEnd < start || rangeStart > start && rangeEnd < end) {
-      return new Range[] {range};
+    int firstLength = start - rangeStart;
+    int secondLength = range.getLength() - firstLength - newLength + diffLength;
+    if (rangeStart > end || rangeEnd <= start) {
+      if (firstLength <= 0) {
+        return new Range[0];
+      }
+      return new Range[] {copyWithPosition(range, rangeStart, firstLength)};
     }
 
     Range[] splittedRanges = new Range[2];
-    int firstLength = start - rangeStart;
-    int secondLength = range.getLength() - firstLength - newLength + diffLength;
     splittedRanges[0] = copyWithPosition(range, rangeStart, firstLength);
     splittedRanges[1] = copyWithPosition(range, rangeEnd - secondLength, secondLength);
 

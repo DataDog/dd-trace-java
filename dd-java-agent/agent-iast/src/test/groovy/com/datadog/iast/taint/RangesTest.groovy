@@ -356,6 +356,56 @@ class RangesTest extends DDSpecification {
     "    123\r\n    123" | -4          | [rangeWithSource(4, 10, (byte) 1, null, "123\r\n1"), rangeWithSource(15, 1, (byte) 2, null, "3")] | [rangeWithSource(0, 5, (byte) 1, null, "123\r\n1"), rangeWithSource(6, 1, (byte) 2, null, "3")]
   }
 
+  void 'test splitRanges method'() {
+    when:
+    final result = Ranges.splitRanges(start, end, newLength, range as Range, offset, diffLength)
+
+    then:
+    final expectedArray = expected as Range[]
+    result == expectedArray
+
+    where:
+    start | end | newLength | range                                             | offset | diffLength | expected
+    1     | 3   | 2         | rangeWithSource(0, 8, (byte) 1, null, "masquita") | 0      | 0          | [
+      rangeWithSource(0, 1, (byte) 1, null, "masquita"),
+      rangeWithSource(3, 5, (byte) 1, null, "masquita")
+    ]
+    1     | 3   | 2         | rangeWithSource(0, 8, (byte) 1, null, "masquita") | 2      | 0          | [
+      rangeWithSource(2, 1, (byte) 1, null, "masquita"),
+      rangeWithSource(5, 5, (byte) 1, null, "masquita")
+    ]
+    2     | 4   | 2         | rangeWithSource(1, 8, (byte) 1, null, "masquita") | -1     | 0          | [
+      rangeWithSource(0, 1, (byte) 1, null, "masquita"),
+      rangeWithSource(3, 5, (byte) 1, null, "masquita")
+    ]
+    1     | 3   | 3         | rangeWithSource(0, 8, (byte) 1, null, "masquita") | 0      | -1         | [
+      rangeWithSource(0, 1, (byte) 1, null, "masquita"),
+      rangeWithSource(4, 3, (byte) 1, null, "masquita")
+    ]
+    1     | 3   | 3         | rangeWithSource(0, 8, (byte) 1, null, "masquita") | 2      | -1         | [
+      rangeWithSource(2, 1, (byte) 1, null, "masquita"),
+      rangeWithSource(6, 3, (byte) 1, null, "masquita")
+    ]
+    2     | 3   | 2         | rangeWithSource(1, 8, (byte) 1, null, "masquita") | -1     | -1         | [
+      rangeWithSource(0, 1, (byte) 1, null, "masquita"),
+      rangeWithSource(3, 4, (byte) 1, null, "masquita")
+    ]
+    1     | 3   | 3         | rangeWithSource(0, 8, (byte) 1, null, "masquita") | 0      | 1          | [
+      rangeWithSource(0, 1, (byte) 1, null, "masquita"),
+      rangeWithSource(4, 5, (byte) 1, null, "masquita")
+    ]
+    1     | 3   | 3         | rangeWithSource(0, 8, (byte) 1, null, "masquita") | 2      | 1          | [
+      rangeWithSource(2, 1, (byte) 1, null, "masquita"),
+      rangeWithSource(6, 5, (byte) 1, null, "masquita")
+    ]
+    2     | 3   | 2         | rangeWithSource(1, 8, (byte) 1, null, "masquita") | -1     | 1          | [
+      rangeWithSource(0, 1, (byte) 1, null, "masquita"),
+      rangeWithSource(3, 6, (byte) 1, null, "masquita")
+    ]
+    8     | 10  | 2         | rangeWithSource(0, 8, (byte) 1, null, "masquita") | 0      | 0          | [rangeWithSource(0, 8, (byte) 1, null, "masquita")]
+    1     | 3   | 2         | rangeWithSource(8, 8, (byte) 1, null, "masquita") | 0      | 0          | []
+  }
+
   Range[] rangesFromSpec(List<List<Object>> spec) {
     def ranges = new Range[spec.size()]
     int j = 0
