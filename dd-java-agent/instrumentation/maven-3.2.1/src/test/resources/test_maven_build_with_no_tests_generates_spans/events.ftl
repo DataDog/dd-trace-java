@@ -10,6 +10,7 @@
     "duration" : ${content_duration},
     "error" : 0,
     "metrics" : {
+      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count},
       "process_id" : ${content_metrics_process_id},
       "_dd.profiling.enabled" : 0,
       "_dd.trace_span_attribute_schema" : 0

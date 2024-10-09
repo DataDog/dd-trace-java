@@ -58,7 +58,7 @@ class EvidenceRedactionTest extends DDSpecification {
     vulnerabilitiesParser = moshi.adapter(Types.newParameterizedType(List, Vulnerability))
   }
 
-  void 'test empty value parts'() {
+  void 'test empty value parts #iterationIndex'() {
     given:
     final writer = Stub(JsonWriter)
     final ctx = new AdapterFactory.Context()

@@ -13,8 +13,8 @@ public class CodeOriginInfo {
     if (InstrumenterConfig.get().isCodeOriginEnabled()) {
       String signature =
           stream(method.getParameterTypes())
-              .map(Class::getName)
-              .collect(Collectors.joining(",", "(", ")"));
+              .map(Class::getTypeName)
+              .collect(Collectors.joining(", ", "(", ")"));
       captureCodeOrigin(signature);
     }
   }

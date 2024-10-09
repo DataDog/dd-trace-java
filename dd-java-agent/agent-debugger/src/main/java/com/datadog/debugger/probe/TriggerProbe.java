@@ -17,16 +17,16 @@ import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class DebuggerProbe extends ProbeDefinition {
-  private static final Logger LOGGER = LoggerFactory.getLogger(DebuggerProbe.class);
+public class TriggerProbe extends ProbeDefinition {
+  private static final Logger LOGGER = LoggerFactory.getLogger(TriggerProbe.class);
 
   // no-arg constructor is required by Moshi to avoid creating instance with unsafe and by-passing
   // constructors, including field initializers.
-  public DebuggerProbe() {
+  public TriggerProbe() {
     this(LANGUAGE, null, null);
   }
 
-  public DebuggerProbe(String language, ProbeId probeId, Where where) {
+  public TriggerProbe(String language, ProbeId probeId, Where where) {
     super(language, probeId, (Tag[]) null, where, MethodLocation.ENTRY);
   }
 
@@ -63,7 +63,7 @@ public class DebuggerProbe extends ProbeDefinition {
   public boolean equals(Object o) {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
-    DebuggerProbe that = (DebuggerProbe) o;
+    TriggerProbe that = (TriggerProbe) o;
     return Objects.equals(language, that.language)
         && Objects.equals(id, that.id)
         && version == that.version
@@ -106,8 +106,8 @@ public class DebuggerProbe extends ProbeDefinition {
   }
 
   public static class Builder extends ProbeDefinition.Builder<Builder> {
-    public DebuggerProbe build() {
-      return new DebuggerProbe(language, probeId, where);
+    public TriggerProbe build() {
+      return new TriggerProbe(language, probeId, where);
     }
   }
 }

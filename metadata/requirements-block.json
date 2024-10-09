@@ -1,0 +1,201 @@
+[
+    {
+        "name": "should block -version args",
+        "filepath": "/usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java",
+        "args": [
+            "java",
+            "-version"
+        ],
+        "envars": [],
+        "host": {
+            "os": "linux",
+            "arch": "x64",
+            "libc": "glibc:2.17"
+        }
+    },
+    {
+        "name": "should block -version args",
+        "filepath": "/home/user/workspace/java",
+        "args": [
+            "java",
+            "-version"
+        ],
+        "envars": [],
+        "host": {
+            "os": "linux",
+            "arch": "x64",
+            "libc": "glibc:2.17"
+        }
+    },
+    {
+        "name": "should block --version args",
+        "filepath": "/usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java",
+        "args": [
+            "java",
+            "--version"
+        ],
+        "envars": [],
+        "host": {
+            "os": "linux",
+            "arch": "x64",
+            "libc": "glibc:2.17"
+        }
+    },
+    {
+        "name": "should block --version args",
+        "filepath": "/home/user/workspace/java",
+        "args": [
+            "java",
+            "--version"
+        ],
+        "envars": [],
+        "host": {
+            "os": "linux",
+            "arch": "x64",
+            "libc": "glibc:2.17"
+        }
+    },
+    {
+        "name": "should block old java versions",
+        "filepath": "/usr/lib/jvm/java-1.5-openjdk-amd64/jre/bin/java",
+        "args": [
+            "java",
+            "--version"
+        ],
+        "envars": [],
+        "host": {
+            "os": "linux",
+            "arch": "x64",
+            "libc": "glibc:2.17"
+        }
+    },
+    {
+        "name": "should block old java versions",
+        "filepath": "/usr/lib/jvm/java-1.6-openjdk-amd64/jre/bin/java",
+        "args": [
+            "java",
+            "--version"
+        ],
+        "envars": [],
+        "host": {
+            "os": "linux",
+            "arch": "x64",
+            "libc": "glibc:2.17"
+        }
+    },
+    {
+        "name": "should block old java versions",
+        "filepath": "/usr/lib/jvm/java-6-openjdk-amd64/jre/bin/java",
+        "args": [
+            "java",
+            "--version"
+        ],
+        "envars": [],
+        "host": {
+            "os": "linux",
+            "arch": "x64",
+            "libc": "glibc:2.17"
+        }
+    },
+    {
+        "name": "should block old java versions",
+        "filepath": "/usr/lib/jvm/java-7-openjdk-amd64/jre/bin/java",
+        "args": [
+            "java",
+            "--version"
+        ],
+        "envars": [],
+        "host": {
+            "os": "linux",
+            "arch": "x64",
+            "libc": "glibc:2.17"
+        }
+    },
+    {
+        "name": "should block based on main class",
+        "filepath": "/usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java",
+        "args": [
+            "java",
+            "-XX:+UseParallelGC",
+            "-XX:+AggressiveOpts",
+            "-XX:+UseFastAccessorMethods",
+            "-Xms512M",
+            "-Xmx1024M",
+            "-classpath",
+            "/var/home/artemis/lib/artemis-boot.jar",
+            "-Dartemis.home=/var/home/artemis",
+            "-Djava.library.path=/var/home/artemis/bin/lib/linux-x64",
+            "org.apache.activemq.artemis.boot.Artemis",
+            "queue",
+            "stat"
+        ],
+        "envars": [],
+        "host": {
+            "os": "linux",
+            "arch": "x64",
+            "libc": "glibc:2.17"
+        }
+    },
+    {
+        "name": "should block based on environment variables",
+        "filepath": "/usr/lib/jvm/java-17-openjdk-amd64/jre/bin/java",
+        "args": [
+            "java",
+            "-server",
+            "-Xms512m",
+            "-Xmx512m",
+            "-XX:+UseG1GC",
+            "-XX:+PerfDisableSharedMem",
+            "-XX:+ParallelRefProcEnabled",
+            "-XX:MaxGCPauseMillis=250",
+            "-XX:+UseLargePages",
+            "-XX:+AlwaysPreTouch",
+            "-XX:+ExplicitGCInvokesConcurrent",
+            "-Xlog:gc*:file=/var/lib/solr-9.6.1/server/logs/solr_gc.log:time,uptime:filecount=9,filesize=20M",
+            "-Dsolr.jetty.inetaccess.includes= -Dsolr.jetty.inetaccess.excludes=",
+            "-DzkClientTimeout=30000",
+            "-DzkHost=localhost:9983",
+            "-Dsolr.log.dir=/var/lib/solr-9.6.1/server/logs",
+            "-Djetty.port=8984",
+            "-DSTOP.PORT=7984",
+            "-DSTOP.KEY=solrrocks ",
+            "-Dhost=localhost",
+            "-Duser.timezone=UTC",
+            "-XX:-OmitStackTraceInFastThrow",
+            "-XX:+CrashOnOutOfMemoryError ",
+            "-XX:ErrorFile=/var/lib/solr-9.6.1/server/logs/jvm_crash_%p.log",
+            "-Djetty.home=/var/lib/solr-9.6.1/server ",
+            "-Dsolr.solr.home=/var/lib/solr-9.6.1/server/solr",
+            "-Dsolr.install.dir=/var/lib/solr-9.6.1",
+            "-Dsolr.install.symDir=/var/lib/solr-9.6.1",
+            "-Dsolr.default.confdir=/var/lib/solr-9.6.1/server/solr/configsets/_default/conf",
+            "-Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager",
+            "-Xss256k",
+            "-XX:CompileCommand=exclude,com.github.benmanes.caffeine.cache.BoundedLocalCache::put",
+            "-Djava.security.manager",
+            "-Djava.security.policy=/var/lib/solr-9.6.1/server/etc/security.policy",
+            "-Djava.security.properties=/var/lib/solr-9.6.1/server/etc/security.properties",
+            "-Dsolr.internal.network.permission=*",
+            "-DdisableAdminUI=false",
+            "-jar",
+            "start.jar",
+            "--module=http",
+            "--module=requestlog",
+            "--module=gzip"
+        ],
+        "envars": [
+            "SOLR_INCLUDE=bin/solr.in.sh",
+            "SOLR_PORT=8984",
+            "SOLR_SCRIPT=bin/solr",
+            "SOLR_TIP=/var/lib/solr-9.6.1",
+            "SOLR_TIP_SYM=/var/lib/solr-9.6.1",
+            "SOLR_TOOL_HOST=localhost",
+            "SOLR_URL_SCHEME=http"
+        ],
+        "host": {
+            "os": "linux",
+            "arch": "x64",
+            "libc": "glibc:2.17"
+        }
+    }
+]

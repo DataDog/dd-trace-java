@@ -11,6 +11,7 @@ import org.example.TestFailed
 import org.example.TestFailedAndSucceed
 import org.example.TestFailedFactory
 import org.example.TestFailedParameterized
+import org.example.TestFailedSuiteSetup
 import org.example.TestFailedSuiteTearDown
 import org.example.TestFailedTemplate
 import org.example.TestFailedThenSucceed
@@ -64,7 +65,7 @@ class JUnit5Test extends CiVisibilityInstrumentationTest {
     "test-succeed-and-skipped"                           | [TestSucceedAndSkipped]              | 3
     "test-succeed-and-failed"                            | [TestFailedAndSucceed]               | 4
     "test-suite-teardown-failed"                         | [TestFailedSuiteTearDown]            | 3
-    "test-suite-setup-failed"                            | [TestFailedSuiteTearDown]            | 1
+    "test-suite-setup-failed"                            | [TestFailedSuiteSetup]               | 1
     "test-categories"                                    | [TestSucceedWithCategories]          | 2
     "test-suite-setup-assumption-failed"                 | [TestSuiteSetUpAssumption]           | 2
     "test-suite-setup-assumption-failed-multi-test-case" | [TestAssumptionAndSucceed]           | 3

@@ -1,8 +1,8 @@
 package com.datadog.debugger.probe;
 
 import static com.datadog.debugger.codeorigin.DebuggerConfiguration.isDebuggerEnabled;
-import static datadog.trace.api.DDTags.DD_STACK_CODE_ORIGIN_FRAME;
-import static datadog.trace.api.DDTags.DD_STACK_CODE_ORIGIN_TYPE;
+import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_FRAME;
+import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_TYPE;
 import static java.lang.String.format;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
@@ -98,19 +98,19 @@ public class CodeOriginProbe extends LogProbe implements ForceMethodInstrumentat
         entrySpanProbe ? asList(span, span.getLocalRootSpan()) : singletonList(span);
 
     for (AgentSpan s : agentSpans) {
-      s.setTag(DD_STACK_CODE_ORIGIN_TYPE, entrySpanProbe ? "entry" : "exit");
+      s.setTag(DD_CODE_ORIGIN_TYPE, entrySpanProbe ? "entry" : "exit");
 
       for (int i = 0; i < entries.size(); i++) {
         StackTraceElement info = entries.get(i);
-        s.setTag(format(DD_STACK_CODE_ORIGIN_FRAME, i, "file"), info.getFileName());
-        s.setTag(format(DD_STACK_CODE_ORIGIN_FRAME, i, "method"), info.getMethodName());
-        s.setTag(format(DD_STACK_CODE_ORIGIN_FRAME, i, "line"), info.getLineNumber());
-        s.setTag(format(DD_STACK_CODE_ORIGIN_FRAME, i, "type"), info.getClassName());
+        s.setTag(format(DD_CODE_ORIGIN_FRAME, i, "file"), info.getFileName());
+        s.setTag(format(DD_CODE_ORIGIN_FRAME, i, "method"), info.getMethodName());
+        s.setTag(format(DD_CODE_ORIGIN_FRAME, i, "line"), info.getLineNumber());
+        s.setTag(format(DD_CODE_ORIGIN_FRAME, i, "type"), info.getClassName());
         if (i == 0 && signature != null) {
-          s.setTag(format(DD_STACK_CODE_ORIGIN_FRAME, i, "signature"), signature);
+          s.setTag(format(DD_CODE_ORIGIN_FRAME, i, "signature"), signature);
         }
         if (i == 0 && snapshotId != null) {
-          s.setTag(format(DD_STACK_CODE_ORIGIN_FRAME, i, "snapshot_id"), snapshotId);
+          s.setTag(format(DD_CODE_ORIGIN_FRAME, i, "snapshot_id"), snapshotId);
         }
       }
     }

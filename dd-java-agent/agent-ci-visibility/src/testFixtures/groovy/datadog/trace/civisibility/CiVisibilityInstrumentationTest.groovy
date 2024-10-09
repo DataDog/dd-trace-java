@@ -200,6 +200,11 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
   }
 
   @Override
+  protected String idGenerationStrategyName() {
+    "RANDOM"
+  }
+
+  @Override
   void setup() {
     skippableTests.clear()
     flakyTests.clear()

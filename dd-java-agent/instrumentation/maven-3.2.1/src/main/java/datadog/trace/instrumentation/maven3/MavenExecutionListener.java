@@ -9,10 +9,7 @@ import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.io.File;
 import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import javax.annotation.Nullable;
 import org.apache.maven.execution.AbstractExecutionListener;
 import org.apache.maven.execution.ExecutionEvent;
@@ -61,27 +58,28 @@ public class MavenExecutionListener extends AbstractExecutionListener {
       mojoStarted(event);
       buildEventsHandler.onTestModuleSkip(request, moduleName, null);
       mojoSucceeded(event);
+    } else {
+      mojoStarted(event);
+      mojoSucceeded(event);
     }
   }
 
   @Override
   public void mojoStarted(ExecutionEvent event) {
     MojoExecution mojoExecution = event.getMojoExecution();
-    if (!MavenUtils.isTestExecution(mojoExecution)) {
-      return;
-    }
-
-    String executionId =
-        mojoExecution.getPlugin().getArtifactId()
-            + ":"
-            + mojoExecution.getGoal()
-            + ":"
-            + mojoExecution.getExecutionId();
-
     MavenSession session = event.getSession();
     MavenExecutionRequest request = session.getRequest();
     MavenProject project = event.getProject();
     String moduleName = MavenUtils.getUniqueModuleName(project, mojoExecution);
+
+    if (!MavenUtils.isTestExecution(mojoExecution)) {
+      Map<String, Object> additionalTags = new HashMap<>();
+      additionalTags.put("project", project.getName());
+      additionalTags.put("plugin", mojoExecution.getArtifactId());
+      additionalTags.put("execution", mojoExecution.getExecutionId());
+      buildEventsHandler.onBuildTaskStart(request, moduleName, additionalTags);
+      return;
+    }
 
     Build build = project.getBuild();
     SourceSet classes =
@@ -93,6 +91,12 @@ public class MavenExecutionListener extends AbstractExecutionListener {
 
     Path forkedJvmPath = MavenUtils.getForkedJvmPath(session, mojoExecution);
     List<Path> classpath = MavenUtils.getClasspath(session, mojoExecution);
+    String executionId =
+        mojoExecution.getPlugin().getArtifactId()
+            + ":"
+            + mojoExecution.getGoal()
+            + ":"
+            + mojoExecution.getExecutionId();
     Map<String, Object> additionalTags = Collections.singletonMap(Tags.TEST_EXECUTION, executionId);
     JavaAgent jacocoAgent = MavenUtils.getJacocoAgent(session, project, mojoExecution);
 
@@ -131,26 +135,33 @@ public class MavenExecutionListener extends AbstractExecutionListener {
   @Override
   public void mojoSucceeded(ExecutionEvent event) {
     MojoExecution mojoExecution = event.getMojoExecution();
+    MavenSession session = event.getSession();
+    MavenExecutionRequest request = session.getRequest();
+    MavenProject project = event.getProject();
+    String moduleName = MavenUtils.getUniqueModuleName(project, mojoExecution);
+
     if (MavenUtils.isTestExecution(mojoExecution)) {
-      MavenSession session = event.getSession();
-      MavenExecutionRequest request = session.getRequest();
-      MavenProject project = event.getProject();
-      String moduleName = MavenUtils.getUniqueModuleName(project, mojoExecution);
       buildEventsHandler.onTestModuleFinish(request, moduleName);
+    } else {
+      buildEventsHandler.onBuildTaskFinish(request, moduleName);
     }
   }
 
   @Override
   public void mojoFailed(ExecutionEvent event) {
     MojoExecution mojoExecution = event.getMojoExecution();
+    MavenSession session = event.getSession();
+    MavenExecutionRequest request = session.getRequest();
+    MavenProject project = event.getProject();
+    String moduleName = MavenUtils.getUniqueModuleName(project, mojoExecution);
+    Exception exception = event.getException();
+
     if (MavenUtils.isTestExecution(mojoExecution)) {
-      MavenSession session = event.getSession();
-      MavenExecutionRequest request = session.getRequest();
-      MavenProject project = event.getProject();
-      String moduleName = MavenUtils.getUniqueModuleName(project, mojoExecution);
-      Exception exception = event.getException();
       buildEventsHandler.onTestModuleFail(request, moduleName, exception);
       buildEventsHandler.onTestModuleFinish(request, moduleName);
+    } else {
+      buildEventsHandler.onBuildTaskFail(request, moduleName, exception);
+      buildEventsHandler.onBuildTaskFinish(request, moduleName);
     }
   }
 }

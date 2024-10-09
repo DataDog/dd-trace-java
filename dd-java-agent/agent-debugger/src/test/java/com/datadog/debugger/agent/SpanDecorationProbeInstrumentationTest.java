@@ -742,7 +742,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
         asList(
             configuration.getSpanDecorationProbes(),
             configuration.getLogProbes(),
-            configuration.getDebuggerProbes());
+            configuration.getTriggerProbes());
     for (Collection<? extends ProbeDefinition> list : list1) {
 
       ProbeImplementation probe = scanForProbe(encodedProbeId, list);

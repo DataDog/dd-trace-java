@@ -32,7 +32,10 @@ public class SchemaExtractor implements SchemaIterator {
 
     switch (field.schema().getType()) {
       case RECORD:
-        type = "object";
+        type = "#/components/schemas/" + field.schema().getFullName();
+        if (!extractSchema(field.schema(), builder, depth)) {
+          return false;
+        }
         break;
       case ENUM:
         type = "string";
@@ -41,10 +44,26 @@ public class SchemaExtractor implements SchemaIterator {
       case ARRAY:
         array = true;
         type = getType(field.schema().getElementType().getType().getName());
+        if (type == "record") {
+          type = "#/components/schemas/" + field.schema().getElementType().getFullName();
+          if (!extractSchema(field.schema().getElementType(), builder, depth)) {
+            return false;
+          }
+          ;
+        }
         break;
       case MAP:
         type = "object";
-        description = "Map type";
+        String keys = "string";
+        String values = getType(field.schema().getValueType().getType().getName());
+        if (values == "record") {
+          values = "#/components/schemas/" + field.schema().getValueType().getFullName();
+          if (!extractSchema(field.schema().getValueType(), builder, depth)) {
+            return false;
+          }
+          ;
+        }
+        description = "Map type with " + keys + " keys and " + values + " values";
         break;
       case STRING:
         type = "string";
@@ -164,6 +183,8 @@ public class SchemaExtractor implements SchemaIterator {
         return "boolean";
       case "null":
         return "null";
+      case "record":
+        return "record";
       default:
         return "string";
     }

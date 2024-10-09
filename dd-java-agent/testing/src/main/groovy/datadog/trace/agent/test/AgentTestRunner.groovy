@@ -326,7 +326,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
       Spy(
       CoreTracer.builder()
       .writer(TEST_WRITER)
-      .idGenerationStrategy(IdGenerationStrategy.fromName("SEQUENTIAL"))
+      .idGenerationStrategy(IdGenerationStrategy.fromName(idGenerationStrategyName()))
       .statsDClient(STATS_D_CLIENT)
       .strictTraceWrites(useStrictTraceWrites())
       .dataStreamsMonitoring(TEST_DATA_STREAMS_MONITORING)
@@ -405,6 +405,10 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     .hasNext(): "No instrumentation found"
     activeTransformer = AgentInstaller.installBytebuddyAgent(
       INSTRUMENTATION, true, AgentInstaller.getEnabledSystems(), this)
+  }
+
+  protected String idGenerationStrategyName() {
+    "SEQUENTIAL"
   }
 
   /** Override to set config before the agent is installed */

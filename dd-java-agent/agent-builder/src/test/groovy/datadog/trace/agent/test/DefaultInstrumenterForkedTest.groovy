@@ -20,7 +20,7 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
     target.enabled
   }
 
-  def "default enabled override"() {
+  def "default enabled override #enabled"() {
     expect:
     target.enabled == enabled
 

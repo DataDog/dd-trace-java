@@ -150,6 +150,8 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo, ImplicitContextKeyed
 
   AgentSpan setMetaStruct(final String field, final Object value);
 
+  boolean isOutbound();
+
   interface Context {
     /**
      * Gets the TraceId of the span's trace.
