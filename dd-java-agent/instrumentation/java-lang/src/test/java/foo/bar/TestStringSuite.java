@@ -209,4 +209,20 @@ public class TestStringSuite {
     LOGGER.debug("After replace {}", result);
     return result;
   }
+
+  public static String replaceAll(
+      final String string, final String regex, final String replacement) {
+    LOGGER.debug("Before replace all {} {} {}", string, regex, replacement);
+    String result = string.replaceAll(regex, replacement);
+    LOGGER.debug("After replace all {}", result);
+    return result;
+  }
+
+  public static String replaceFirst(
+      final String string, final String regex, final String replacement) {
+    LOGGER.debug("Before replace first {} {} {}", string, regex, replacement);
+    String result = string.replaceFirst(regex, replacement);
+    LOGGER.debug("After replace first {}", result);
+    return result;
+  }
 }

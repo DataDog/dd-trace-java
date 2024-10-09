@@ -299,21 +299,54 @@ public class StringCallSite {
     return result;
   }
 
-  @CallSite.After(
+  @CallSite.Around(
       "java.lang.String java.lang.String.replace(java.lang.CharSequence, java.lang.CharSequence)")
   public static String afterReplaceCharSeq(
       @CallSite.This final String self,
       @CallSite.Argument(0) final CharSequence oldCharSeq,
-      @CallSite.Argument(1) final CharSequence newCharSeq,
-      @CallSite.Return final String result) {
+      @CallSite.Argument(1) final CharSequence newCharSeq) {
     final StringModule module = InstrumentationBridge.STRING;
     if (module != null) {
       try {
-        module.onStringReplace(self, oldCharSeq, newCharSeq, result);
+        return module.onStringReplace(self, oldCharSeq, newCharSeq);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterReplaceCharSeq threw", e);
       }
     }
-    return result;
+    return self.replace(oldCharSeq, newCharSeq);
+  }
+
+  @CallSite.Around(
+      "java.lang.String java.lang.String.replaceAll(java.lang.String, java.lang.String)")
+  public static String aroundReplaceAll(
+      @CallSite.This final String self,
+      @CallSite.Argument(0) final String regex,
+      @CallSite.Argument(1) final String replacement) {
+    final StringModule module = InstrumentationBridge.STRING;
+    if (module != null) {
+      try {
+        return module.onStringReplace(self, regex, replacement, Integer.MAX_VALUE);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("aroundReplaceAll threw", e);
+      }
+    }
+    return self.replaceAll(regex, replacement);
+  }
+
+  @CallSite.Around(
+      "java.lang.String java.lang.String.replaceFirst(java.lang.String, java.lang.String)")
+  public static String aroundReplaceFirst(
+      @CallSite.This final String self,
+      @CallSite.Argument(0) final String regex,
+      @CallSite.Argument(1) final String replacement) {
+    final StringModule module = InstrumentationBridge.STRING;
+    if (module != null) {
+      try {
+        return module.onStringReplace(self, regex, replacement, 1);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("aroundReplaceFirst threw", e);
+      }
+    }
+    return self.replaceFirst(regex, replacement);
   }
 }

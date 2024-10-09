@@ -356,59 +356,6 @@ class RangesTest extends DDSpecification {
     "    123\r\n    123" | -4          | [rangeWithSource(4, 10, (byte) 1, null, "123\r\n1"), rangeWithSource(15, 1, (byte) 2, null, "3")] | [rangeWithSource(0, 5, (byte) 1, null, "123\r\n1"), rangeWithSource(6, 1, (byte) 2, null, "3")]
   }
 
-  void 'test forReplaceCharSeq method'() {
-    when:
-    final result = Ranges.forReplaceCharSeq(input, oldCharSeq, newCharSeq, ranges as Range[], rangesInput as Range[])
-
-    then:
-    final expectedArray = expected as Range[]
-    result == expectedArray
-
-    where:
-    input       | oldCharSeq | newCharSeq | ranges                                                                                                                                 | rangesInput                                    | expected
-    "masquita"  | 'as'       | 'os'       | [rangeWithSource(0, 8, (byte) 1, null, "masquita")]                                                                                    | [rangeWithSource(0, 2, (byte) 1, null, "os")]  | [
-      rangeWithSource(0, 1, (byte) 1, null, "masquita"),
-      rangeWithSource(1, 2, (byte) 1, null, "os"),
-      rangeWithSource(3, 5, (byte) 1, null, "masquita")
-    ]
-    "masquita"  | 'as'       | 'os'       | [rangeWithSource(0, 8, (byte) 1, null, "masquita")]                                                                                    | []                                             | [
-      rangeWithSource(0, 1, (byte) 1, null, "masquita"),
-      rangeWithSource(3, 5, (byte) 1, null, "masquita")
-    ]
-    "masquita"  | 'as'       | 'os'       | [
-      rangeWithSource(0, 1, (byte) 1, null, "m"),
-      rangeWithSource(3, 2, (byte) 1, null, "qu"),
-      rangeWithSource(6, 2, (byte) 1, null, "ta")
-    ] | [rangeWithSource(0, 2, (byte) 1, null, "os")]  | [
-      rangeWithSource(0, 1, (byte) 1, null, "m"),
-      rangeWithSource(1, 2, (byte) 1, null, "os"),
-      rangeWithSource(3, 2, (byte) 1, null, "qu"),
-      rangeWithSource(6, 2, (byte) 1, null, "ta")
-    ]
-    "masquita"  | 'as'       | 'os'       | [
-      rangeWithSource(0, 1, (byte) 1, null, "m"),
-      rangeWithSource(3, 2, (byte) 1, null, "qu"),
-      rangeWithSource(6, 2, (byte) 1, null, "ta")
-    ] | []                                             | [
-      rangeWithSource(0, 1, (byte) 1, null, "m"),
-      rangeWithSource(3, 2, (byte) 1, null, "qu"),
-      rangeWithSource(6, 2, (byte) 1, null, "ta")
-    ]
-    "my_input"  | 'in'       | 'out'      | [rangeWithSource(0, 4, (byte) 1, null, "my_i"), rangeWithSource(5, 3, (byte) 1, null, "put")]                                          | [rangeWithSource(0, 3, (byte) 1, null, "out")] | [
-      rangeWithSource(0, 3, (byte) 1, null, "my_i"),
-      rangeWithSource(3, 3, (byte) 1, null, "out"),
-      rangeWithSource(6, 3, (byte) 1, null, "put")
-    ]
-    "my_input"  | 'in'       | 'out'      | [rangeWithSource(0, 4, (byte) 1, null, "my_i"), rangeWithSource(5, 3, (byte) 1, null, "put")]                                          | []                                             | [rangeWithSource(0, 3, (byte) 1, null, "my_i"), rangeWithSource(6, 3, (byte) 1, null, "put")]
-    "my_output" | 'out'      | 'in'       | [rangeWithSource(0, 4, (byte) 1, null, "my_o"), rangeWithSource(5, 4, (byte) 1, null, "tput")]                                         | [rangeWithSource(0, 2, (byte) 1, null, "in")]  | [
-      rangeWithSource(0, 3, (byte) 1, null, "my_o"),
-      rangeWithSource(3, 2, (byte) 1, null, "in"),
-      rangeWithSource(5, 3, (byte) 1, null, "tput")
-    ]
-    "my_output" | 'out'      | 'in'       | [rangeWithSource(0, 4, (byte) 1, null, "my_o"), rangeWithSource(5, 4, (byte) 1, null, "tput")]                                         | []                                             | [rangeWithSource(0, 3, (byte) 1, null, "my_o"), rangeWithSource(5, 3, (byte) 1, null, "tput")]
-  }
-
-
   Range[] rangesFromSpec(List<List<Object>> spec) {
     def ranges = new Range[spec.size()]
     int j = 0

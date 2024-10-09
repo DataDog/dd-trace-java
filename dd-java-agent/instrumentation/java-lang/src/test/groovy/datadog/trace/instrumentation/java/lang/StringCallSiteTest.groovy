@@ -264,15 +264,33 @@ class StringCallSiteTest extends AgentTestRunner {
     InstrumentationBridge.registerIastModule(module)
 
     when:
-    def result = TestStringSuite.replace(input, oldCharSeq, newCharSeq)
+    TestStringSuite.replace(input, oldCharSeq, newCharSeq)
 
     then:
-    result == expected
-    1 * module.onStringReplace(input, oldCharSeq, newCharSeq, expected)
+    1 * module.onStringReplace(input, oldCharSeq, newCharSeq)
 
     where:
-    input  | oldCharSeq | newCharSeq | expected
-    "test" | 'te'       | 'TE'       | "TEst"
-    "test" | 'es'       | 'ES'       | "tESt"
+    input  | oldCharSeq | newCharSeq
+    "test" | 'te'       | 'TE'
+    "test" | 'es'       | 'ES'
+  }
+
+  void 'test string replace all and replace first with regex'() {
+    given:
+    final module = Mock(StringModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    TestStringSuite."$method"(input, regex, replacement)
+
+    then:
+    1 * module.onStringReplace(input, regex, replacement, numReplacements)
+
+    where:
+    method         | input  | regex | replacement | numReplacements
+    "replaceAll"   | "test" | 'te'  | 'TE'        | Integer.MAX_VALUE
+    "replaceAll"   | "test" | 'es'  | 'ES'        | Integer.MAX_VALUE
+    "replaceFirst" | "test" | 'te'  | 'TE'        | 1
+    "replaceFirst" | "test" | 'es'  | 'ES'        | 1
   }
 }

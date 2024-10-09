@@ -1,6 +1,12 @@
 package com.datadog.iast.util;
 
+import com.datadog.iast.model.Range;
+import com.datadog.iast.taint.Ranges;
+import com.datadog.iast.taint.TaintedObjects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public abstract class StringUtils {
 
@@ -47,5 +53,175 @@ public abstract class StringUtils {
       whitespaces++;
     }
     return whitespaces;
+  }
+
+  /**
+   * Returns the string replaced with the regex and the values tainted (if needed)
+   *
+   * @param taintedObjects the ctx object to save the range of the tainted values
+   * @param target the string to be replaced
+   * @param pattern the pattern to be replaced
+   * @param replacement the replacement string
+   * @param ranges the ranges of the string to be replaced
+   * @param rangesInput the ranges of the input string
+   * @param numOfReplacements the number of replacements to be made
+   */
+  @Nonnull
+  public static String replaceAndTaint(
+      @Nonnull TaintedObjects taintedObjects,
+      @Nonnull final String target,
+      Pattern pattern,
+      String replacement,
+      Range[] ranges,
+      @Nullable Range[] rangesInput,
+      int numOfReplacements) {
+    if (numOfReplacements <= 0) {
+      return target;
+    }
+    Matcher matcher = pattern.matcher(target);
+    boolean result = matcher.find();
+    if (result) {
+      int offset = 0;
+
+      int newRangesSize = ranges.length * 2;
+      if (rangesInput != null) {
+        newRangesSize += rangesInput.length;
+      }
+      RangeBuilder newRanges = new RangeBuilder(newRangesSize);
+
+      int firstRange = 0;
+      int newLength = replacement.length();
+
+      StringBuffer sb = new StringBuffer();
+      do {
+        int start = matcher.start();
+        int end = matcher.end();
+        int diffLength = newLength - (end - start);
+
+        boolean rangesAdded = false;
+        while (firstRange < ranges.length) {
+          Range range = ranges[firstRange];
+          int rangeStart = range.getStart();
+          int rangeEnd = rangeStart + range.getLength();
+          // If the replaced value is between one range
+          if (rangeStart <= start && rangeEnd >= end) {
+            Range[] splittedRanges =
+                Ranges.splitRanges(
+                    start + offset, end + offset, newLength, range, offset, diffLength);
+
+            if (splittedRanges.length == 1 || splittedRanges[0].getLength() > 0) {
+              newRanges.add(splittedRanges[0]);
+            }
+
+            if (rangesInput != null) {
+              for (Range rangeInput : rangesInput) {
+                newRanges.add(
+                    Ranges.copyWithPosition(
+                        rangeInput,
+                        start + rangeInput.getStart() + offset,
+                        rangeInput.getLength()));
+              }
+              rangesAdded = true;
+            }
+
+            if (splittedRanges.length > 1 && splittedRanges[1].getLength() > 0) {
+              newRanges.add(splittedRanges[1]);
+            }
+
+            firstRange++;
+            break;
+            // If the replaced value starts in the range and not end there
+          } else if (rangeStart <= start && rangeEnd > start) {
+            Range[] splittedRanges =
+                Ranges.splitRanges(
+                    start + offset, end + offset, newLength, range, offset, diffLength);
+
+            if (splittedRanges.length == 1 || splittedRanges[0].getLength() > 0) {
+              newRanges.add(splittedRanges[0]);
+            }
+
+            if (rangesInput != null && !rangesAdded) {
+              for (Range rangeInput : rangesInput) {
+                newRanges.add(
+                    Ranges.copyWithPosition(
+                        rangeInput,
+                        start + rangeInput.getStart() + offset,
+                        rangeInput.getLength()));
+              }
+              rangesAdded = true;
+            }
+
+            // If the replaced value ends in the range
+          } else if (rangeEnd >= end) {
+            Range[] splittedRanges =
+                Ranges.splitRanges(
+                    start + offset, end + offset, newLength, range, offset, diffLength);
+
+            if (rangesInput != null && !rangesAdded) {
+              for (Range rangeInput : rangesInput) {
+                newRanges.add(
+                    Ranges.copyWithPosition(
+                        rangeInput,
+                        start + rangeInput.getStart() + offset,
+                        rangeInput.getLength()));
+              }
+              rangesAdded = true;
+            }
+
+            if (splittedRanges.length > 1 && splittedRanges[1].getLength() > 0) {
+              newRanges.add(splittedRanges[1]);
+            }
+
+            firstRange++;
+            break;
+            // Middle ranges
+          } else if (rangeStart >= start) {
+            firstRange++;
+            continue;
+          } else {
+            newRanges.add(
+                Ranges.copyWithPosition(range, range.getStart() + offset, range.getLength()));
+          }
+
+          firstRange++;
+        }
+
+        // In case there are no ranges
+        if (rangesInput != null && !rangesAdded) {
+          for (Range rangeInput : rangesInput) {
+            newRanges.add(
+                Ranges.copyWithPosition(
+                    rangeInput, start + rangeInput.getStart() + offset, rangeInput.getLength()));
+          }
+        }
+
+        matcher.appendReplacement(sb, replacement);
+
+        offset = diffLength;
+        numOfReplacements--;
+        if (numOfReplacements > 0) {
+          result = matcher.find();
+        }
+      } while (result && numOfReplacements > 0);
+
+      // In the case there is no tainted object
+      if (firstRange < ranges.length) {
+        for (int i = firstRange; i < ranges.length; i++) {
+          newRanges.add(
+              Ranges.copyWithPosition(
+                  ranges[i], ranges[i].getStart() + offset, ranges[i].getLength()));
+        }
+      }
+
+      matcher.appendTail(sb);
+      String finalString = sb.toString();
+      Range[] finalRanges = newRanges.toArray();
+      if (finalRanges.length > 0) {
+        taintedObjects.taint(finalString, finalRanges);
+      }
+      return finalString;
+    }
+
+    return target;
   }
 }

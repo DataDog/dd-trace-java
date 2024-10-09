@@ -57,9 +57,8 @@ public interface StringModule extends IastModule {
 
   void onStringReplace(@Nonnull String self, char oldChar, char newChar, @Nonnull String result);
 
-  void onStringReplace(
-      @Nonnull String self,
-      CharSequence oldCharSeq,
-      CharSequence newCharSeq,
-      @Nonnull String result);
+  String onStringReplace(@Nonnull String self, CharSequence oldCharSeq, CharSequence newCharSeq);
+
+  String onStringReplace(
+      @Nonnull String self, String regex, String replacement, int numReplacements);
 }

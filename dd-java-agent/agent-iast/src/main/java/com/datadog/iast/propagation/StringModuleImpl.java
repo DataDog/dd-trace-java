@@ -13,6 +13,7 @@ import com.datadog.iast.taint.TaintedObject;
 import com.datadog.iast.taint.TaintedObjects;
 import com.datadog.iast.util.RangeBuilder;
 import com.datadog.iast.util.Ranged;
+import com.datadog.iast.util.StringUtils;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.propagation.StringModule;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -658,17 +659,11 @@ public class StringModuleImpl implements StringModule {
 
   @Override
   @SuppressFBWarnings("ES_COMPARING_PARAMETER_STRING_WITH_EQ")
-  public void onStringReplace(
-      @Nonnull String self,
-      CharSequence oldCharSeq,
-      CharSequence newCharSeq,
-      @Nonnull String result) {
-    if (self == result || !canBeTainted(result)) {
-      return;
-    }
+  public String onStringReplace(
+      @Nonnull String self, CharSequence oldCharSeq, CharSequence newCharSeq) {
     final IastContext ctx = IastContext.Provider.get();
     if (ctx == null) {
-      return;
+      return self.replace(oldCharSeq, newCharSeq);
     }
     final TaintedObjects taintedObjects = ctx.getTaintedObjects();
     final TaintedObject taintedSelf = taintedObjects.get(self);
@@ -683,12 +678,61 @@ public class StringModuleImpl implements StringModule {
       rangesInput = taintedInput.getRanges();
     }
 
-    final Range[] newRanges =
-        Ranges.forReplaceCharSeq(self, oldCharSeq, newCharSeq, rangesSelf, rangesInput);
-
-    if (newRanges != null) {
-      taintedObjects.taint(result, newRanges);
+    if (rangesSelf.length == 0 && rangesInput == null) {
+      return self.replace(oldCharSeq, newCharSeq);
     }
+
+    return StringUtils.replaceAndTaint(
+        taintedObjects,
+        self,
+        Pattern.compile((String) oldCharSeq),
+        (String) newCharSeq,
+        rangesSelf,
+        rangesInput,
+        Integer.MAX_VALUE);
+  }
+
+  @Override
+  public String onStringReplace(
+      @Nonnull String self, String regex, String replacement, int numReplacements) {
+    final IastContext ctx = IastContext.Provider.get();
+    if (ctx == null) {
+      if (numReplacements > 1) {
+        return self.replaceAll(regex, replacement);
+      } else {
+        return self.replaceFirst(regex, replacement);
+      }
+    }
+
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    final TaintedObject taintedSelf = taintedObjects.get(self);
+    Range[] rangesSelf = new Range[0];
+    if (taintedSelf != null) {
+      rangesSelf = taintedSelf.getRanges();
+    }
+
+    final TaintedObject taintedInput = taintedObjects.get(replacement);
+    Range[] rangesInput = null;
+    if (taintedInput != null) {
+      rangesInput = taintedInput.getRanges();
+    }
+
+    if (rangesSelf.length == 0 && rangesInput == null) {
+      if (numReplacements > 1) {
+        return self.replaceAll(regex, replacement);
+      } else {
+        return self.replaceFirst(regex, replacement);
+      }
+    }
+
+    return StringUtils.replaceAndTaint(
+        taintedObjects,
+        self,
+        Pattern.compile(regex),
+        replacement,
+        rangesSelf,
+        rangesInput,
+        numReplacements);
   }
 
   /**
