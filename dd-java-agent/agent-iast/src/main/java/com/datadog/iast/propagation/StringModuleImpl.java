@@ -672,16 +672,19 @@ public class StringModuleImpl implements StringModule {
     }
     final TaintedObjects taintedObjects = ctx.getTaintedObjects();
     final TaintedObject taintedSelf = taintedObjects.get(self);
-    if (taintedSelf == null) {
-      return;
+    Range[] rangesSelf = new Range[0];
+    if (taintedSelf != null) {
+      rangesSelf = taintedSelf.getRanges();
     }
 
-    final Range[] rangesSelf = taintedSelf.getRanges();
-    if (rangesSelf.length == 0) {
-      return;
+    final TaintedObject taintedInput = taintedObjects.get(newCharSeq);
+    Range[] rangesInput = null;
+    if (taintedInput != null) {
+      rangesInput = taintedInput.getRanges();
     }
 
-    final Range[] newRanges = Ranges.forReplaceCharSeq(self, oldCharSeq, newCharSeq, rangesSelf);
+    final Range[] newRanges =
+        Ranges.forReplaceCharSeq(self, oldCharSeq, newCharSeq, rangesSelf, rangesInput);
 
     if (newRanges != null) {
       taintedObjects.taint(result, newRanges);

@@ -432,19 +432,27 @@ public final class Ranges {
       final String self,
       final CharSequence oldCharSeq,
       final CharSequence newCharSeq,
-      final Range[] ranges) {
-    RangeBuilder newRanges = new RangeBuilder(ranges.length * 2);
+      final Range[] ranges,
+      @Nullable final Range[] rangesInput) {
+    int newRangesSize = ranges.length * 2;
+    if (rangesInput != null) {
+      newRangesSize += rangesInput.length;
+    }
+    RangeBuilder newRanges = new RangeBuilder(newRangesSize);
     int firstRange = 0;
     int offset = 0;
     int diffLength = newCharSeq.length() - oldCharSeq.length();
     for (int start = 0;
-        start + oldCharSeq.length() < self.length() && firstRange < ranges.length;
+        start + oldCharSeq.length() <= self.length()
+            && ((ranges.length > 0 && firstRange < ranges.length)
+                || (ranges.length == 0 && rangesInput != null));
         start++) {
       int end = start + oldCharSeq.length();
       if (!self.substring(start, end).contentEquals(oldCharSeq)) {
         continue;
       }
 
+      boolean rangesAdded = false;
       // Move to the next valid range
       while (firstRange < ranges.length) {
         Range range = ranges[firstRange];
@@ -459,20 +467,45 @@ public final class Ranges {
           if (splittedRanges.length == 1 || splittedRanges[0].getLength() > 0) {
             newRanges.add(splittedRanges[0]);
           }
+
+          if (rangesInput != null) {
+            for (Range rangeInput : rangesInput) {
+              newRanges.add(
+                  new Range(
+                      start + rangeInput.getStart(),
+                      rangeInput.getLength(),
+                      rangeInput.getSource(),
+                      rangeInput.getMarks()));
+            }
+            rangesAdded = true;
+          }
+
           if (splittedRanges.length > 1 && splittedRanges[1].getLength() > 0) {
             newRanges.add(splittedRanges[1]);
           }
 
           firstRange++;
           break;
-          // If the replaced value is starts in the range and not end there
-        } else if (rangeStart <= start && rangeStart + range.getLength() > start) {
+          // If the replaced value starts in the range and not end there
+        } else if (rangeStart <= start && rangeEnd > start) {
           Range[] splittedRanges =
               splitRanges(
                   start + offset, end + offset, newCharSeq.length(), range, offset, diffLength);
 
           if (splittedRanges.length == 1 || splittedRanges[0].getLength() > 0) {
             newRanges.add(splittedRanges[0]);
+          }
+
+          if (rangesInput != null && !rangesAdded) {
+            for (Range rangeInput : rangesInput) {
+              newRanges.add(
+                  new Range(
+                      start + rangeInput.getStart() + offset,
+                      rangeInput.getLength(),
+                      rangeInput.getSource(),
+                      rangeInput.getMarks()));
+            }
+            rangesAdded = true;
           }
 
           // If the replaced value ends in the range
@@ -481,8 +514,16 @@ public final class Ranges {
               splitRanges(
                   start + offset, end + offset, newCharSeq.length(), range, offset, diffLength);
 
-          if (splittedRanges.length == 1 || splittedRanges[0].getLength() > 0) {
-            newRanges.add(splittedRanges[0]);
+          if (rangesInput != null && !rangesAdded) {
+            for (Range rangeInput : rangesInput) {
+              newRanges.add(
+                  new Range(
+                      start + rangeInput.getStart() + offset,
+                      rangeInput.getLength(),
+                      rangeInput.getSource(),
+                      rangeInput.getMarks()));
+            }
+            rangesAdded = true;
           }
 
           if (splittedRanges.length > 1 && splittedRanges[1].getLength() > 0) {
@@ -491,6 +532,10 @@ public final class Ranges {
 
           firstRange++;
           break;
+          // Middle ranges
+        } else if (rangeStart >= start) {
+          firstRange++;
+          continue;
         } else {
           newRanges.add(
               new Range(
@@ -501,6 +546,18 @@ public final class Ranges {
         }
 
         firstRange++;
+      }
+
+      // In case there are no ranges
+      if (rangesInput != null && !rangesAdded) {
+        for (Range rangeInput : rangesInput) {
+          newRanges.add(
+              new Range(
+                  start + rangeInput.getStart() + offset,
+                  rangeInput.getLength(),
+                  rangeInput.getSource(),
+                  rangeInput.getMarks()));
+        }
       }
 
       offset += diffLength;

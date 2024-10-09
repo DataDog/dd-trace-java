@@ -1081,19 +1081,19 @@ class StringModuleTest extends IastModuleImplTestBase {
       assert to == null
     }
     where:
-    indentation | testString                                                      | expected
-    4           | "==>123<==\n12==>3<=="                                          | "    ==>123<==\n    12==>3<=="
-    4           | "==>123<==\r\n12==>3<=="                                        | "    ==>123<==\n    12==>3<=="
-    4           | "==>123\n1<==2==>3<=="                                          | "    ==>123\n    1<==2==>3<=="
-    4           | "==>123\r\n1<==2==>3<=="                                        | "    ==>123\n    1<==2==>3<=="
-    0           | "==>123<==\r\n==>123<=="                                        | "==>123<==\n==>123<=="
-    0           | "==>123\r\n<====>123<=="                                        | "==>123\n<====>123<=="
-    0           | "==>123<==\r==>123<=="                                          | "==>123<==\n==>123<=="
-    0           | "==>123\r<====>123<=="                                          | "==>123\n<====>123<=="
-    -4          | "    ==>123<==\n    12==>3<=="                                  | "==>123<==\n12==>3<=="
-    -4          | "    ==>123<==\r\n    12==>3<=="                                | "==>123<==\n12==>3<=="
-    -4          | "    ==>123\n    1<==2==>3<=="                                  | "==>123\n1<==2==>3<=="
-    -4          | "    ==>123\r\n    1<==2==>3<=="                                | "==>123\n1<==2==>3<=="
+    indentation | testString                       | expected
+    4           | "==>123<==\n12==>3<=="           | "    ==>123<==\n    12==>3<=="
+    4           | "==>123<==\r\n12==>3<=="         | "    ==>123<==\n    12==>3<=="
+    4           | "==>123\n1<==2==>3<=="           | "    ==>123\n    1<==2==>3<=="
+    4           | "==>123\r\n1<==2==>3<=="         | "    ==>123\n    1<==2==>3<=="
+    0           | "==>123<==\r\n==>123<=="         | "==>123<==\n==>123<=="
+    0           | "==>123\r\n<====>123<=="         | "==>123\n<====>123<=="
+    0           | "==>123<==\r==>123<=="           | "==>123<==\n==>123<=="
+    0           | "==>123\r<====>123<=="           | "==>123\n<====>123<=="
+    -4          | "    ==>123<==\n    12==>3<=="   | "==>123<==\n12==>3<=="
+    -4          | "    ==>123<==\r\n    12==>3<==" | "==>123<==\n12==>3<=="
+    -4          | "    ==>123\n    1<==2==>3<=="   | "==>123\n1<==2==>3<=="
+    -4          | "    ==>123\r\n    1<==2==>3<==" | "==>123\n1<==2==>3<=="
   }
 
   void 'test replace with a single char and make sure IastRequestContext is called'() {
@@ -1117,7 +1117,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     "==>my_input<==" | '_'     | '-'     | "==>my-input<=="
   }
 
-  void 'test replace with a char sequence and make sure IastRequestContext is called'() {
+  void 'test replace with a char sequence (not tainted) and make sure IastRequestContext is called'() {
     given:
     final taintedObjects = ctx.getTaintedObjects()
     def self = addFromTaintFormat(taintedObjects, testString)
@@ -1137,6 +1137,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     testString                                   | oldCharSeq | newCharSeq | expected
     "==>masquita<=="                             | 'as'       | 'os'       | "==>m<==os==>quita<=="
     "==>masquita<=="                             | 'os'       | 'as'       | "==>masquita<=="
+    "masquita"                                   | 'as'       | 'os'       | "mosquita"
     "==>m<==as==>qu<==i==>ta<=="                 | 'as'       | 'os'       | "==>m<==os==>qu<==i==>ta<=="
     "==>my_input<=="                             | 'in'       | 'out'      | "==>my_<==out==>put<=="
     "==>my_output<=="                            | 'out'      | 'in'       | "==>my_<==in==>put<=="
@@ -1148,6 +1149,43 @@ class StringModuleTest extends IastModuleImplTestBase {
     "==>my_<==i==>nput<=="                       | 'in'       | 'out'      | "==>my_<==out==>put<=="
     "==>my_o<==u==>tput<=="                      | 'out'      | 'in'       | "==>my_<==in==>put<=="
     "==>my_o<==u==>tput<====>my_o<==u==>tput<==" | 'out'      | 'in'       | "==>my_<==in==>put<====>my_<==in==>put<=="
+    "==>my_o<==u==>tp<==ut"                      | 'output'   | 'input'    | "==>my_<==input"
+  }
+
+  void 'test replace with a char sequence (tainted) and make sure IastRequestContext is called'() {
+    given:
+    final taintedObjects = ctx.getTaintedObjects()
+    def self = addFromTaintFormat(taintedObjects, testString)
+    def inputTainted = addFromTaintFormat(taintedObjects, newCharSeq)
+    def result = self.replace(oldCharSeq, inputTainted)
+
+    when:
+    module.onStringReplaceCharSeq(self, oldCharSeq, inputTainted, result)
+    def taintedObject = taintedObjects.get(result)
+
+    then:
+    if (testString != expected) {
+      1 * tracer.activeSpan() >> span
+    }
+    taintFormat(result, taintedObject.getRanges()) == expected
+
+    where:
+    testString                                   | oldCharSeq | newCharSeq    | expected
+    "==>masquita<=="                             | 'as'       | '==>os<=='    | "==>m<====>os<====>quita<=="
+    "==>masquita<=="                             | 'os'       | '==>as<=='    | "==>masquita<=="
+    "masquita"                                   | 'as'       | '==>os<=='    | "m==>os<==quita"
+    "==>m<==as==>qu<==i==>ta<=="                 | 'as'       | '==>os<=='    | "==>m<====>os<====>qu<==i==>ta<=="
+    "==>my_input<=="                             | 'in'       | '==>out<=='   | "==>my_<====>out<====>put<=="
+    "==>my_output<=="                            | 'out'      | '==>in<=='    | "==>my_<====>in<====>put<=="
+    "==>my_input<=="                             | '_'        | '==>-<=='     | "==>my<====>-<====>input<=="
+    "==>my<==_==>input<=="                       | 'in'       | '==>out<=='   | "==>my<==_==>out<====>put<=="
+    "==>my_in<==p==>ut<=="                       | 'in'       | '==>out<=='   | "==>my_<====>out<==p==>ut<=="
+    "==>my_<==in==>put<=="                       | 'in'       | '==>out<=='   | "==>my_<====>out<====>put<=="
+    "==>my_i<==n==>put<=="                       | 'in'       | '==>out<=='   | "==>my_<====>out<====>put<=="
+    "==>my_<==i==>nput<=="                       | 'in'       | '==>out<=='   | "==>my_<====>out<====>put<=="
+    "==>my_o<==u==>tput<=="                      | 'out'      | '==>in<=='    | "==>my_<====>in<====>put<=="
+    "==>my_o<==u==>tput<====>my_o<==u==>tput<==" | 'out'      | '==>in<=='    | "==>my_<====>in<====>put<====>my_<====>in<====>put<=="
+    "==>my_o<==u==>tp<==ut"                      | 'output'   | '==>input<==' | "==>my_<====>input<=="
   }
 
   private static Date date(final String pattern, final String value) {
