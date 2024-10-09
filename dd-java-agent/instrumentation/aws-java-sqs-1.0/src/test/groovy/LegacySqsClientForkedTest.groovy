@@ -30,7 +30,7 @@ class LegacySqsClientForkedTest extends AgentTestRunner {
   void configurePreAgent() {
     super.configurePreAgent()
     injectSysConfig("aws-sdk.legacy.tracing.enabled", "true")
-//    injectSysConfig(TraceInstrumentationConfig.TRACE_HTTP_CLIENT_TAG_QUERY_STRING, "false")
+    //    injectSysConfig(TraceInstrumentationConfig.TRACE_HTTP_CLIENT_TAG_QUERY_STRING, "false")
     // Set a service name that gets sorted early with SORT_BY_NAMES
     injectSysConfig(GeneralConfig.SERVICE_NAME, "A")
   }
