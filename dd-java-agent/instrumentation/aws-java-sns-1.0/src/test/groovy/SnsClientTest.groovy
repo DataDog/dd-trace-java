@@ -147,7 +147,7 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "java-aws-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-//            "$Tags.HTTP_URL" endPoint+'/'
+            //            "$Tags.HTTP_URL" endPoint+'/'
             "$Tags.HTTP_METHOD" "POST"
             "$Tags.HTTP_STATUS" 200
             "$Tags.PEER_PORT" LOCALSTACK.getMappedPort(4566)
