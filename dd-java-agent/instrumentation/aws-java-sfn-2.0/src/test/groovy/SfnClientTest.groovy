@@ -18,19 +18,19 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 
 
 abstract class SfnClientTest extends VersionedNamingTestBase {
-  static final LOCALSTACK = new GenericContainer(DockerImageName.parse("localstack/localstack"))
-  .withExposedPorts(4566)
-  .withEnv("SERVICES", "stepfunctions")
-  .withReuse(true)
-  .withStartupTimeout(Duration.ofSeconds(120))
-
+  @Shared GenericContainer localStack
   @Shared SfnClient sfnClient
-
   @Shared String testStateMachineARN
+  @Shared Object endPoint
 
   def setupSpec() {
-    LOCALSTACK.start()
-    def endPoint = "http://" + LOCALSTACK.getHost() + ":" + LOCALSTACK.getMappedPort(4566)
+    localStack = new GenericContainer(DockerImageName.parse("localstack/localstack"))
+      .withExposedPorts(4566)
+      .withEnv("SERVICES", "stepfunctions")
+      .withReuse(true)
+      .withStartupTimeout(Duration.ofSeconds(120))
+    localStack.start()
+    endPoint = "http://" + localStack.getHost() + ":" + localStack.getMappedPort(4566)
     sfnClient = SfnClient.builder()
       .endpointOverride(URI.create(endPoint))
       .region(Region.US_EAST_1)
@@ -46,7 +46,8 @@ abstract class SfnClientTest extends VersionedNamingTestBase {
   }
 
   def cleanupSpec() {
-    LOCALSTACK.stop()
+    sfnClient.close()
+    localStack.stop()
   }
 
   def "Step Functions span is created"() {
@@ -60,16 +61,13 @@ abstract class SfnClientTest extends VersionedNamingTestBase {
       }
     })
 
-    def endPoint = "http://" + LOCALSTACK.getHost() + ":" + LOCALSTACK.getMappedPort(4566)
-
-
     then:
     assertTraces(1) {
       trace(2) {
         basicSpan(it, "parent")
         span {
-          serviceName "java-aws-sdk"
-          operationName "aws.http"
+          serviceName service()
+          operationName operation()
           resourceName "Sfn.StartExecution"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
@@ -81,8 +79,8 @@ abstract class SfnClientTest extends VersionedNamingTestBase {
             "$Tags.HTTP_URL" endPoint+'/'
             "$Tags.HTTP_METHOD" "POST"
             "$Tags.HTTP_STATUS" 200
-            "$Tags.PEER_PORT" LOCALSTACK.getMappedPort(4566)
-            "$Tags.PEER_HOSTNAME" LOCALSTACK.getHost()
+            "$Tags.PEER_PORT" localStack.getMappedPort(4566)
+            "$Tags.PEER_HOSTNAME" localStack.getHost()
             "aws.service" "Sfn"
             "aws.operation" "StartExecution"
             "aws.agent" "java-aws-sdk"
@@ -127,11 +125,11 @@ class SfnClientV0Test extends SfnClientTest {
 
   @Override
   String service() {
-    return null
+    return "java-aws-sdk"
   }
 
   @Override
   String operation() {
-    return null
+    return "aws.http"
   }
 }
