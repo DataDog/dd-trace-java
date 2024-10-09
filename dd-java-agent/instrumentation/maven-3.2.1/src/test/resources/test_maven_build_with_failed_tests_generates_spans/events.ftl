@@ -16,6 +16,7 @@
       "_dd.trace_span_attribute_schema" : 0
     },
     "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid},
       "test.type" : "test",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "test.status" : "fail",
@@ -51,6 +52,7 @@
       "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_2}
     },
     "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_2},
       "test.type" : "test",
       "test.module" : "Maven Integration Tests Project maven-surefire-plugin default-test",
       "test.status" : "fail",
@@ -73,7 +75,7 @@
   "content" : {
     "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id},
-    "parent_id" : ${content_parent_id},
+    "parent_id" : ${content_test_session_id},
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "name" : "Maven_Integration_Tests_Project_maven_clean_plugin_default_clean",
     "resource" : "Maven_Integration_Tests_Project_maven_clean_plugin_default_clean",
@@ -82,6 +84,7 @@
     "error" : 0,
     "metrics" : { },
     "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_3},
       "execution" : "default-clean",
       "project" : "Maven Integration Tests Project",
       "library_version" : ${content_meta_library_version},
@@ -95,7 +98,7 @@
   "content" : {
     "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id_2},
-    "parent_id" : ${content_parent_id},
+    "parent_id" : ${content_test_session_id},
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "name" : "Maven_Integration_Tests_Project_maven_compiler_plugin_default_compile",
     "resource" : "Maven_Integration_Tests_Project_maven_compiler_plugin_default_compile",
@@ -104,6 +107,7 @@
     "error" : 0,
     "metrics" : { },
     "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_4},
       "execution" : "default-compile",
       "project" : "Maven Integration Tests Project",
       "library_version" : ${content_meta_library_version},
@@ -117,7 +121,7 @@
   "content" : {
     "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id_3},
-    "parent_id" : ${content_parent_id},
+    "parent_id" : ${content_test_session_id},
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "name" : "Maven_Integration_Tests_Project_maven_compiler_plugin_default_testCompile",
     "resource" : "Maven_Integration_Tests_Project_maven_compiler_plugin_default_testCompile",
@@ -126,6 +130,7 @@
     "error" : 0,
     "metrics" : { },
     "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_5},
       "execution" : "default-testCompile",
       "project" : "Maven Integration Tests Project",
       "library_version" : ${content_meta_library_version},
@@ -139,7 +144,7 @@
   "content" : {
     "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id_4},
-    "parent_id" : ${content_parent_id},
+    "parent_id" : ${content_test_session_id},
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "name" : "Maven_Integration_Tests_Project_maven_resources_plugin_default_resources",
     "resource" : "Maven_Integration_Tests_Project_maven_resources_plugin_default_resources",
@@ -148,6 +153,7 @@
     "error" : 0,
     "metrics" : { },
     "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_6},
       "execution" : "default-resources",
       "project" : "Maven Integration Tests Project",
       "library_version" : ${content_meta_library_version},
@@ -161,7 +167,7 @@
   "content" : {
     "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id_5},
-    "parent_id" : ${content_parent_id},
+    "parent_id" : ${content_test_session_id},
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "name" : "Maven_Integration_Tests_Project_maven_resources_plugin_default_testResources",
     "resource" : "Maven_Integration_Tests_Project_maven_resources_plugin_default_testResources",
@@ -170,6 +176,7 @@
     "error" : 0,
     "metrics" : { },
     "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_7},
       "execution" : "default-testResources",
       "project" : "Maven Integration Tests Project",
       "library_version" : ${content_meta_library_version},

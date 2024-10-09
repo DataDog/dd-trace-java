@@ -52,7 +52,7 @@
   "content" : {
     "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id},
-    "parent_id" : ${content_parent_id},
+    "parent_id" : ${content_test_session_id},
     "service" : "test-gradle-service",
     "name" : "classes",
     "resource" : "classes",
@@ -80,7 +80,7 @@
   "content" : {
     "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id_2},
-    "parent_id" : ${content_parent_id},
+    "parent_id" : ${content_test_session_id},
     "service" : "test-gradle-service",
     "name" : "compileJava",
     "resource" : "compileJava",
@@ -108,7 +108,7 @@
   "content" : {
     "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id_3},
-    "parent_id" : ${content_parent_id},
+    "parent_id" : ${content_test_session_id},
     "service" : "test-gradle-service",
     "name" : "compileTestJava",
     "resource" : "compileTestJava",
@@ -181,7 +181,7 @@
   "content" : {
     "trace_id" : ${content_trace_id},
     "span_id" : ${content_span_id_4},
-    "parent_id" : ${content_parent_id_2},
+    "parent_id" : ${content_parent_id},
     "test_session_id" : ${content_test_session_id},
     "test_module_id" : ${content_test_module_id},
     "test_suite_id" : ${content_test_suite_id},
@@ -286,7 +286,7 @@
   "content" : {
     "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id_5},
-    "parent_id" : ${content_parent_id},
+    "parent_id" : ${content_test_session_id},
     "service" : "test-gradle-service",
     "name" : "processResources",
     "resource" : "processResources",
@@ -314,7 +314,7 @@
   "content" : {
     "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id_6},
-    "parent_id" : ${content_parent_id},
+    "parent_id" : ${content_test_session_id},
     "service" : "test-gradle-service",
     "name" : "processTestResources",
     "resource" : "processTestResources",
@@ -342,7 +342,7 @@
   "content" : {
     "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id_7},
-    "parent_id" : ${content_parent_id},
+    "parent_id" : ${content_test_session_id},
     "service" : "test-gradle-service",
     "name" : "testClasses",
     "resource" : "testClasses",
