@@ -442,15 +442,9 @@ public class DefaultPathwayContext implements PathwayContext {
   }
 
   private long generatePathwayHash(long nodeHash, long parentHash) {
-    lock.lock();
-    try {
       outputBuffer.clear();
       outputBuffer.writeLongLE(nodeHash);
       outputBuffer.writeLongLE(parentHash);
-
       return FNV64Hash.generateHash(outputBuffer.backingArray(), 0, 16, FNV64Hash.Version.v1);
-    } finally {
-      lock.unlock();
-    }
   }
 }
