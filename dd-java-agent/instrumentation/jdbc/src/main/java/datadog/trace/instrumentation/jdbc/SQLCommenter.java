@@ -83,7 +83,7 @@ public class SQLCommenter {
       }
 
       // Append the comment for mysql JDBC callable statements
-      if (firstWord.startsWith("{") && dbType.equals("mysql")) {
+      if (firstWord.startsWith("{") && "mysql".equals(dbType)) {
         appendComment = true;
       }
 
