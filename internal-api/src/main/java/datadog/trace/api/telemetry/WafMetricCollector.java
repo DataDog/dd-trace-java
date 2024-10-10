@@ -12,10 +12,14 @@ import java.util.concurrent.atomic.AtomicLongArray;
 
 public class WafMetricCollector implements MetricCollector<WafMetricCollector.WafMetric> {
 
-  public static final WafMetricCollector INSTANCE = new WafMetricCollector();
+  public static WafMetricCollector INSTANCE = new WafMetricCollector();
 
   public static WafMetricCollector get() {
     return WafMetricCollector.INSTANCE;
+  }
+
+  private WafMetricCollector() {
+    // Prevent external instantiation
   }
 
   private static final String NAMESPACE = "appsec";
@@ -29,11 +33,12 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
   private static final AtomicRequestCounter wafRequestCounter = new AtomicRequestCounter();
   private static final AtomicRequestCounter wafTriggeredRequestCounter = new AtomicRequestCounter();
   private static final AtomicRequestCounter wafBlockedRequestCounter = new AtomicRequestCounter();
+  private static final AtomicRequestCounter wafTimeoutRequestCounter = new AtomicRequestCounter();
   private static final AtomicLongArray raspRuleEvalCounter =
       new AtomicLongArray(RuleType.getNumValues());
   private static final AtomicLongArray raspRuleMatchCounter =
       new AtomicLongArray(RuleType.getNumValues());
-  private static final AtomicLongArray respTimeoutCounter =
+  private static final AtomicLongArray raspTimeoutCounter =
       new AtomicLongArray(RuleType.getNumValues());
   private static final AtomicRequestCounter missingUserIdCounter = new AtomicRequestCounter();
 
@@ -78,6 +83,10 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
     wafBlockedRequestCounter.increment();
   }
 
+  public void wafRequestTimeout() {
+    wafTimeoutRequestCounter.increment();
+  }
+
   public void raspRuleEval(final RuleType ruleType) {
     raspRuleEvalCounter.incrementAndGet(ruleType.ordinal());
   }
@@ -87,7 +96,7 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
   }
 
   public void raspTimeout(final RuleType ruleType) {
-    respTimeoutCounter.incrementAndGet(ruleType.ordinal());
+    raspTimeoutCounter.incrementAndGet(ruleType.ordinal());
   }
 
   public void missingUserId() {
@@ -116,6 +125,7 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
               WafMetricCollector.wafVersion,
               WafMetricCollector.rulesVersion,
               false,
+              false,
               false))) {
         return;
       }
@@ -129,6 +139,7 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
               WafMetricCollector.wafVersion,
               WafMetricCollector.rulesVersion,
               true,
+              false,
               false))) {
         return;
       }
@@ -142,6 +153,21 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
               WafMetricCollector.wafVersion,
               WafMetricCollector.rulesVersion,
               true,
+              true,
+              false))) {
+        return;
+      }
+    }
+
+    // Timeout requests
+    if (wafTimeoutRequestCounter.get() > 0) {
+      if (!rawMetricsQueue.offer(
+          new WafRequestsRawMetric(
+              wafTimeoutRequestCounter.getAndReset(),
+              WafMetricCollector.wafVersion,
+              WafMetricCollector.rulesVersion,
+              false,
+              false,
               true))) {
         return;
       }
@@ -171,7 +197,7 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
 
     // RASP timeout per rule type
     for (RuleType ruleType : RuleType.values()) {
-      long counter = respTimeoutCounter.getAndSet(ruleType.ordinal(), 0);
+      long counter = raspTimeoutCounter.getAndSet(ruleType.ordinal(), 0);
       if (counter > 0) {
         if (!rawMetricsQueue.offer(
             new RaspTimeout(counter, ruleType, WafMetricCollector.wafVersion))) {
@@ -228,14 +254,16 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
         final String wafVersion,
         final String rulesVersion,
         final boolean triggered,
-        final boolean blocked) {
+        final boolean blocked,
+        final boolean wafTimeout) {
       super(
           "waf.requests",
           counter,
           "waf_version:" + wafVersion,
           "event_rules_version:" + rulesVersion,
           "rule_triggered:" + triggered,
-          "request_blocked:" + blocked);
+          "request_blocked:" + blocked,
+          "waf_timeout:" + wafTimeout);
     }
   }
 

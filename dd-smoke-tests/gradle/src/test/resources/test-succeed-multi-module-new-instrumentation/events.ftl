@@ -14,35 +14,36 @@
       "test.itr.tests_skipping.count" : 0,
       "_dd.profiling.enabled" : 0,
       "_dd.trace_span_attribute_schema" : 0,
+      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count},
       "test.code_coverage.lines_pct" : 0
     },
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid},
-      "os.architecture" : ${content_meta_os_architecture},
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "test.status" : "pass",
       "ci.workspace_path" : ${content_meta_ci_workspace_path},
       "language" : "jvm",
-      "runtime.name" : ${content_meta_runtime_name},
-      "os.platform" : ${content_meta_os_platform},
-      "os.version" : ${content_meta_os_version},
       "library_version" : ${content_meta_library_version},
       "span.kind" : "test_session_end",
-      "runtime.version" : ${content_meta_runtime_version},
       "runtime-id" : ${content_meta_runtime_id},
       "test.code_coverage.backfilled" : "true",
       "test.itr.tests_skipping.enabled" : "true",
       "test.type" : "test",
       "test_session.name" : "gradle test",
       "env" : "integration-test",
-      "runtime.vendor" : ${content_meta_runtime_vendor},
       "component" : "gradle",
       "test.code_coverage.enabled" : "true",
       "test.toolchain" : ${content_meta_test_toolchain},
       "test.itr.tests_skipping.type" : "test",
       "test.command" : "gradle test",
       "test.framework_version" : "4.10",
-      "test.framework" : "junit4"
+      "test.framework" : "junit4",
+      "runtime.name" : ${content_meta_runtime_name},
+      "runtime.vendor" : ${content_meta_runtime_vendor},
+      "runtime.version" : ${content_meta_runtime_version},
+      "os.architecture" : ${content_meta_os_architecture},
+      "os.platform" : ${content_meta_os_platform},
+      "os.version" : ${content_meta_os_version}
     }
   }
 }, {
@@ -58,35 +59,36 @@
     "duration" : ${content_duration_2},
     "error" : 0,
     "metrics" : {
+      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_2},
       "test.itr.tests_skipping.count" : 0,
       "test.code_coverage.lines_pct" : 0
     },
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_2},
-      "os.architecture" : ${content_meta_os_architecture},
+      "test.type" : "test",
       "test.module" : ":submodule-a:test",
       "test.status" : "pass",
-      "ci.workspace_path" : ${content_meta_ci_workspace_path},
-      "runtime.name" : ${content_meta_runtime_name},
-      "os.platform" : ${content_meta_os_platform},
-      "os.version" : ${content_meta_os_version},
-      "library_version" : ${content_meta_library_version},
-      "span.kind" : "test_module_end",
-      "runtime.version" : ${content_meta_runtime_version},
-      "test.code_coverage.backfilled" : "true",
-      "test.itr.tests_skipping.enabled" : "true",
-      "test.type" : "test",
       "test_session.name" : "gradle test",
+      "ci.workspace_path" : ${content_meta_ci_workspace_path},
       "env" : "integration-test",
-      "runtime.vendor" : ${content_meta_runtime_vendor},
+      "library_version" : ${content_meta_library_version},
       "component" : "gradle",
       "test.code_coverage.enabled" : "true",
+      "span.kind" : "test_module_end",
       "test.itr.tests_skipping.type" : "test",
       "test.command" : "gradle test",
+      "test.code_coverage.backfilled" : "true",
       "test.framework_version" : "4.10",
       "test.framework" : "junit4",
+      "test.itr.tests_skipping.enabled" : "true",
       "runtime-id" : ${content_meta_runtime_id},
-      "language" : "jvm"
+      "language" : "jvm",
+      "runtime.name" : ${content_meta_runtime_name},
+      "runtime.vendor" : ${content_meta_runtime_vendor},
+      "runtime.version" : ${content_meta_runtime_version},
+      "os.architecture" : ${content_meta_os_architecture},
+      "os.platform" : ${content_meta_os_platform},
+      "os.version" : ${content_meta_os_version}
     }
   }
 }, {
@@ -102,35 +104,36 @@
     "duration" : ${content_duration_3},
     "error" : 0,
     "metrics" : {
+      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_3},
       "test.itr.tests_skipping.count" : 0,
       "test.code_coverage.lines_pct" : 0
     },
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_3},
-      "os.architecture" : ${content_meta_os_architecture},
+      "test.type" : "test",
       "test.module" : ":submodule-b:test",
       "test.status" : "pass",
-      "ci.workspace_path" : ${content_meta_ci_workspace_path},
-      "runtime.name" : ${content_meta_runtime_name},
-      "os.platform" : ${content_meta_os_platform},
-      "os.version" : ${content_meta_os_version},
-      "library_version" : ${content_meta_library_version},
-      "span.kind" : "test_module_end",
-      "runtime.version" : ${content_meta_runtime_version},
-      "test.code_coverage.backfilled" : "true",
-      "test.itr.tests_skipping.enabled" : "true",
-      "test.type" : "test",
       "test_session.name" : "gradle test",
+      "ci.workspace_path" : ${content_meta_ci_workspace_path},
       "env" : "integration-test",
-      "runtime.vendor" : ${content_meta_runtime_vendor},
+      "library_version" : ${content_meta_library_version},
       "component" : "gradle",
       "test.code_coverage.enabled" : "true",
+      "span.kind" : "test_module_end",
       "test.itr.tests_skipping.type" : "test",
       "test.command" : "gradle test",
+      "test.code_coverage.backfilled" : "true",
       "test.framework_version" : "4.10",
       "test.framework" : "junit4",
+      "test.itr.tests_skipping.enabled" : "true",
       "runtime-id" : ${content_meta_runtime_id},
-      "language" : "jvm"
+      "language" : "jvm",
+      "runtime.name" : ${content_meta_runtime_name},
+      "runtime.vendor" : ${content_meta_runtime_vendor},
+      "runtime.version" : ${content_meta_runtime_version},
+      "os.architecture" : ${content_meta_os_architecture},
+      "os.platform" : ${content_meta_os_platform},
+      "os.version" : ${content_meta_os_version}
     }
   }
 }, {
@@ -147,34 +150,35 @@
     "duration" : ${content_duration_4},
     "error" : 0,
     "metrics" : {
+      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_4},
       "process_id" : ${content_metrics_process_id_2},
       "_dd.profiling.enabled" : 0,
       "_dd.trace_span_attribute_schema" : 0
     },
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_4},
-      "os.architecture" : ${content_meta_os_architecture},
+      "test.type" : "test",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "test.source.file" : "submodule-a/src/test/java/datadog/smoke/TestSucceed.java",
       "test.module" : ":submodule-a:test",
       "test.status" : "pass",
+      "test_session.name" : "gradle test",
       "ci.workspace_path" : ${content_meta_ci_workspace_path},
       "language" : "jvm",
-      "runtime.name" : ${content_meta_runtime_name},
-      "os.platform" : ${content_meta_os_platform},
-      "os.version" : ${content_meta_os_version},
+      "env" : "integration-test",
       "library_version" : ${content_meta_library_version},
+      "component" : "junit",
       "span.kind" : "test_suite_end",
       "test.suite" : "datadog.smoke.TestSucceed",
-      "runtime.version" : ${content_meta_runtime_version},
       "runtime-id" : ${content_meta_runtime_id_2},
-      "test.type" : "test",
-      "test_session.name" : "gradle test",
-      "env" : "integration-test",
-      "runtime.vendor" : ${content_meta_runtime_vendor},
-      "component" : "junit",
       "test.framework_version" : "4.10",
-      "test.framework" : "junit4"
+      "test.framework" : "junit4",
+      "runtime.name" : ${content_meta_runtime_name},
+      "runtime.vendor" : ${content_meta_runtime_vendor},
+      "runtime.version" : ${content_meta_runtime_version},
+      "os.architecture" : ${content_meta_os_architecture},
+      "os.platform" : ${content_meta_os_platform},
+      "os.version" : ${content_meta_os_version}
     }
   }
 }, {
@@ -191,34 +195,35 @@
     "duration" : ${content_duration_5},
     "error" : 0,
     "metrics" : {
+      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_5},
       "process_id" : ${content_metrics_process_id_3},
       "_dd.profiling.enabled" : 0,
       "_dd.trace_span_attribute_schema" : 0
     },
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_5},
-      "os.architecture" : ${content_meta_os_architecture},
+      "test.type" : "test",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "test.source.file" : "submodule-b/src/test/java/datadog/smoke/TestSucceed.java",
       "test.module" : ":submodule-b:test",
       "test.status" : "pass",
+      "test_session.name" : "gradle test",
       "ci.workspace_path" : ${content_meta_ci_workspace_path},
       "language" : "jvm",
-      "runtime.name" : ${content_meta_runtime_name},
-      "os.platform" : ${content_meta_os_platform},
-      "os.version" : ${content_meta_os_version},
+      "env" : "integration-test",
       "library_version" : ${content_meta_library_version},
+      "component" : "junit",
       "span.kind" : "test_suite_end",
       "test.suite" : "datadog.smoke.TestSucceed",
-      "runtime.version" : ${content_meta_runtime_version},
       "runtime-id" : ${content_meta_runtime_id_3},
-      "test.type" : "test",
-      "test_session.name" : "gradle test",
-      "env" : "integration-test",
-      "runtime.vendor" : ${content_meta_runtime_vendor},
-      "component" : "junit",
       "test.framework_version" : "4.10",
-      "test.framework" : "junit4"
+      "test.framework" : "junit4",
+      "runtime.name" : ${content_meta_runtime_name},
+      "runtime.vendor" : ${content_meta_runtime_vendor},
+      "runtime.version" : ${content_meta_runtime_version},
+      "os.architecture" : ${content_meta_os_architecture},
+      "os.platform" : ${content_meta_os_platform},
+      "os.version" : ${content_meta_os_version}
     }
   }
 }, {
@@ -241,12 +246,12 @@
       "process_id" : ${content_metrics_process_id_2},
       "_dd.profiling.enabled" : 0,
       "_dd.trace_span_attribute_schema" : 0,
+      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_6},
       "test.source.end" : 12,
       "test.source.start" : 9
     },
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_6},
-      "os.architecture" : ${content_meta_os_architecture},
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "test.source.file" : "submodule-a/src/test/java/datadog/smoke/TestSucceed.java",
       "test.source.method" : "test_succeed()V",
@@ -254,22 +259,23 @@
       "test.status" : "pass",
       "ci.workspace_path" : ${content_meta_ci_workspace_path},
       "language" : "jvm",
-      "runtime.name" : ${content_meta_runtime_name},
-      "os.platform" : ${content_meta_os_platform},
-      "os.version" : ${content_meta_os_version},
       "library_version" : ${content_meta_library_version},
       "test.name" : "test_succeed",
       "span.kind" : "test",
       "test.suite" : "datadog.smoke.TestSucceed",
-      "runtime.version" : ${content_meta_runtime_version},
       "runtime-id" : ${content_meta_runtime_id_2},
       "test.type" : "test",
       "test_session.name" : "gradle test",
       "env" : "integration-test",
-      "runtime.vendor" : ${content_meta_runtime_vendor},
       "component" : "junit",
       "test.framework_version" : "4.10",
-      "test.framework" : "junit4"
+      "test.framework" : "junit4",
+      "runtime.name" : ${content_meta_runtime_name},
+      "runtime.vendor" : ${content_meta_runtime_vendor},
+      "runtime.version" : ${content_meta_runtime_version},
+      "os.architecture" : ${content_meta_os_architecture},
+      "os.platform" : ${content_meta_os_platform},
+      "os.version" : ${content_meta_os_version}
     }
   }
 }, {
@@ -292,12 +298,12 @@
       "process_id" : ${content_metrics_process_id_3},
       "_dd.profiling.enabled" : 0,
       "_dd.trace_span_attribute_schema" : 0,
+      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_7},
       "test.source.end" : 12,
       "test.source.start" : 9
     },
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_7},
-      "os.architecture" : ${content_meta_os_architecture},
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "test.source.file" : "submodule-b/src/test/java/datadog/smoke/TestSucceed.java",
       "test.source.method" : "test_succeed()V",
@@ -305,22 +311,359 @@
       "test.status" : "pass",
       "ci.workspace_path" : ${content_meta_ci_workspace_path},
       "language" : "jvm",
-      "runtime.name" : ${content_meta_runtime_name},
-      "os.platform" : ${content_meta_os_platform},
-      "os.version" : ${content_meta_os_version},
       "library_version" : ${content_meta_library_version},
       "test.name" : "test_succeed",
       "span.kind" : "test",
       "test.suite" : "datadog.smoke.TestSucceed",
-      "runtime.version" : ${content_meta_runtime_version},
       "runtime-id" : ${content_meta_runtime_id_3},
       "test.type" : "test",
       "test_session.name" : "gradle test",
       "env" : "integration-test",
-      "runtime.vendor" : ${content_meta_runtime_vendor},
       "component" : "junit",
       "test.framework_version" : "4.10",
-      "test.framework" : "junit4"
+      "test.framework" : "junit4",
+      "runtime.name" : ${content_meta_runtime_name},
+      "runtime.vendor" : ${content_meta_runtime_vendor},
+      "runtime.version" : ${content_meta_runtime_version},
+      "os.architecture" : ${content_meta_os_architecture},
+      "os.platform" : ${content_meta_os_platform},
+      "os.version" : ${content_meta_os_version}
+    }
+  }
+}, {
+  "type" : "span",
+  "version" : 1,
+  "content" : {
+    "trace_id" : ${content_test_session_id},
+    "span_id" : ${content_span_id_3},
+    "parent_id" : ${content_test_session_id},
+    "service" : "test-gradle-service",
+    "name" : "submodule_a_classes",
+    "resource" : "submodule_a_classes",
+    "start" : ${content_start_8},
+    "duration" : ${content_duration_8},
+    "error" : 0,
+    "metrics" : { },
+    "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_8},
+      "library_version" : ${content_meta_library_version},
+      "env" : "integration-test",
+      "runtime-id" : ${content_meta_runtime_id},
+      "language" : "jvm",
+      "runtime.name" : ${content_meta_runtime_name},
+      "runtime.vendor" : ${content_meta_runtime_vendor},
+      "runtime.version" : ${content_meta_runtime_version},
+      "os.architecture" : ${content_meta_os_architecture},
+      "os.platform" : ${content_meta_os_platform},
+      "os.version" : ${content_meta_os_version}
+    }
+  }
+}, {
+  "type" : "span",
+  "version" : 1,
+  "content" : {
+    "trace_id" : ${content_test_session_id},
+    "span_id" : ${content_span_id_4},
+    "parent_id" : ${content_test_session_id},
+    "service" : "test-gradle-service",
+    "name" : "submodule_a_compileJava",
+    "resource" : "submodule_a_compileJava",
+    "start" : ${content_start_9},
+    "duration" : ${content_duration_9},
+    "error" : 0,
+    "metrics" : { },
+    "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_9},
+      "library_version" : ${content_meta_library_version},
+      "env" : "integration-test",
+      "runtime-id" : ${content_meta_runtime_id},
+      "language" : "jvm",
+      "runtime.name" : ${content_meta_runtime_name},
+      "runtime.vendor" : ${content_meta_runtime_vendor},
+      "runtime.version" : ${content_meta_runtime_version},
+      "os.architecture" : ${content_meta_os_architecture},
+      "os.platform" : ${content_meta_os_platform},
+      "os.version" : ${content_meta_os_version}
+    }
+  }
+}, {
+  "type" : "span",
+  "version" : 1,
+  "content" : {
+    "trace_id" : ${content_test_session_id},
+    "span_id" : ${content_span_id_5},
+    "parent_id" : ${content_test_session_id},
+    "service" : "test-gradle-service",
+    "name" : "submodule_a_compileTestJava",
+    "resource" : "submodule_a_compileTestJava",
+    "start" : ${content_start_10},
+    "duration" : ${content_duration_10},
+    "error" : 0,
+    "metrics" : { },
+    "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_10},
+      "library_version" : ${content_meta_library_version},
+      "env" : "integration-test",
+      "runtime-id" : ${content_meta_runtime_id},
+      "language" : "jvm",
+      "runtime.name" : ${content_meta_runtime_name},
+      "runtime.vendor" : ${content_meta_runtime_vendor},
+      "runtime.version" : ${content_meta_runtime_version},
+      "os.architecture" : ${content_meta_os_architecture},
+      "os.platform" : ${content_meta_os_platform},
+      "os.version" : ${content_meta_os_version}
+    }
+  }
+}, {
+  "type" : "span",
+  "version" : 1,
+  "content" : {
+    "trace_id" : ${content_test_session_id},
+    "span_id" : ${content_span_id_6},
+    "parent_id" : ${content_test_session_id},
+    "service" : "test-gradle-service",
+    "name" : "submodule_a_processResources",
+    "resource" : "submodule_a_processResources",
+    "start" : ${content_start_11},
+    "duration" : ${content_duration_11},
+    "error" : 0,
+    "metrics" : { },
+    "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_11},
+      "library_version" : ${content_meta_library_version},
+      "env" : "integration-test",
+      "runtime-id" : ${content_meta_runtime_id},
+      "language" : "jvm",
+      "runtime.name" : ${content_meta_runtime_name},
+      "runtime.vendor" : ${content_meta_runtime_vendor},
+      "runtime.version" : ${content_meta_runtime_version},
+      "os.architecture" : ${content_meta_os_architecture},
+      "os.platform" : ${content_meta_os_platform},
+      "os.version" : ${content_meta_os_version}
+    }
+  }
+}, {
+  "type" : "span",
+  "version" : 1,
+  "content" : {
+    "trace_id" : ${content_test_session_id},
+    "span_id" : ${content_span_id_7},
+    "parent_id" : ${content_test_session_id},
+    "service" : "test-gradle-service",
+    "name" : "submodule_a_processTestResources",
+    "resource" : "submodule_a_processTestResources",
+    "start" : ${content_start_12},
+    "duration" : ${content_duration_12},
+    "error" : 0,
+    "metrics" : { },
+    "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_12},
+      "library_version" : ${content_meta_library_version},
+      "env" : "integration-test",
+      "runtime-id" : ${content_meta_runtime_id},
+      "language" : "jvm",
+      "runtime.name" : ${content_meta_runtime_name},
+      "runtime.vendor" : ${content_meta_runtime_vendor},
+      "runtime.version" : ${content_meta_runtime_version},
+      "os.architecture" : ${content_meta_os_architecture},
+      "os.platform" : ${content_meta_os_platform},
+      "os.version" : ${content_meta_os_version}
+    }
+  }
+}, {
+  "type" : "span",
+  "version" : 1,
+  "content" : {
+    "trace_id" : ${content_test_session_id},
+    "span_id" : ${content_span_id_8},
+    "parent_id" : ${content_test_session_id},
+    "service" : "test-gradle-service",
+    "name" : "submodule_a_testClasses",
+    "resource" : "submodule_a_testClasses",
+    "start" : ${content_start_13},
+    "duration" : ${content_duration_13},
+    "error" : 0,
+    "metrics" : { },
+    "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_13},
+      "library_version" : ${content_meta_library_version},
+      "env" : "integration-test",
+      "runtime-id" : ${content_meta_runtime_id},
+      "language" : "jvm",
+      "runtime.name" : ${content_meta_runtime_name},
+      "runtime.vendor" : ${content_meta_runtime_vendor},
+      "runtime.version" : ${content_meta_runtime_version},
+      "os.architecture" : ${content_meta_os_architecture},
+      "os.platform" : ${content_meta_os_platform},
+      "os.version" : ${content_meta_os_version}
+    }
+  }
+}, {
+  "type" : "span",
+  "version" : 1,
+  "content" : {
+    "trace_id" : ${content_test_session_id},
+    "span_id" : ${content_span_id_9},
+    "parent_id" : ${content_test_session_id},
+    "service" : "test-gradle-service",
+    "name" : "submodule_b_classes",
+    "resource" : "submodule_b_classes",
+    "start" : ${content_start_14},
+    "duration" : ${content_duration_14},
+    "error" : 0,
+    "metrics" : { },
+    "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_14},
+      "library_version" : ${content_meta_library_version},
+      "env" : "integration-test",
+      "runtime-id" : ${content_meta_runtime_id},
+      "language" : "jvm",
+      "runtime.name" : ${content_meta_runtime_name},
+      "runtime.vendor" : ${content_meta_runtime_vendor},
+      "runtime.version" : ${content_meta_runtime_version},
+      "os.architecture" : ${content_meta_os_architecture},
+      "os.platform" : ${content_meta_os_platform},
+      "os.version" : ${content_meta_os_version}
+    }
+  }
+}, {
+  "type" : "span",
+  "version" : 1,
+  "content" : {
+    "trace_id" : ${content_test_session_id},
+    "span_id" : ${content_span_id_10},
+    "parent_id" : ${content_test_session_id},
+    "service" : "test-gradle-service",
+    "name" : "submodule_b_compileJava",
+    "resource" : "submodule_b_compileJava",
+    "start" : ${content_start_15},
+    "duration" : ${content_duration_15},
+    "error" : 0,
+    "metrics" : { },
+    "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_15},
+      "library_version" : ${content_meta_library_version},
+      "env" : "integration-test",
+      "runtime-id" : ${content_meta_runtime_id},
+      "language" : "jvm",
+      "runtime.name" : ${content_meta_runtime_name},
+      "runtime.vendor" : ${content_meta_runtime_vendor},
+      "runtime.version" : ${content_meta_runtime_version},
+      "os.architecture" : ${content_meta_os_architecture},
+      "os.platform" : ${content_meta_os_platform},
+      "os.version" : ${content_meta_os_version}
+    }
+  }
+}, {
+  "type" : "span",
+  "version" : 1,
+  "content" : {
+    "trace_id" : ${content_test_session_id},
+    "span_id" : ${content_span_id_11},
+    "parent_id" : ${content_test_session_id},
+    "service" : "test-gradle-service",
+    "name" : "submodule_b_compileTestJava",
+    "resource" : "submodule_b_compileTestJava",
+    "start" : ${content_start_16},
+    "duration" : ${content_duration_16},
+    "error" : 0,
+    "metrics" : { },
+    "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_16},
+      "library_version" : ${content_meta_library_version},
+      "env" : "integration-test",
+      "runtime-id" : ${content_meta_runtime_id},
+      "language" : "jvm",
+      "runtime.name" : ${content_meta_runtime_name},
+      "runtime.vendor" : ${content_meta_runtime_vendor},
+      "runtime.version" : ${content_meta_runtime_version},
+      "os.architecture" : ${content_meta_os_architecture},
+      "os.platform" : ${content_meta_os_platform},
+      "os.version" : ${content_meta_os_version}
+    }
+  }
+}, {
+  "type" : "span",
+  "version" : 1,
+  "content" : {
+    "trace_id" : ${content_test_session_id},
+    "span_id" : ${content_span_id_12},
+    "parent_id" : ${content_test_session_id},
+    "service" : "test-gradle-service",
+    "name" : "submodule_b_processResources",
+    "resource" : "submodule_b_processResources",
+    "start" : ${content_start_17},
+    "duration" : ${content_duration_17},
+    "error" : 0,
+    "metrics" : { },
+    "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_17},
+      "library_version" : ${content_meta_library_version},
+      "env" : "integration-test",
+      "runtime-id" : ${content_meta_runtime_id},
+      "language" : "jvm",
+      "runtime.name" : ${content_meta_runtime_name},
+      "runtime.vendor" : ${content_meta_runtime_vendor},
+      "runtime.version" : ${content_meta_runtime_version},
+      "os.architecture" : ${content_meta_os_architecture},
+      "os.platform" : ${content_meta_os_platform},
+      "os.version" : ${content_meta_os_version}
+    }
+  }
+}, {
+  "type" : "span",
+  "version" : 1,
+  "content" : {
+    "trace_id" : ${content_test_session_id},
+    "span_id" : ${content_span_id_13},
+    "parent_id" : ${content_test_session_id},
+    "service" : "test-gradle-service",
+    "name" : "submodule_b_processTestResources",
+    "resource" : "submodule_b_processTestResources",
+    "start" : ${content_start_18},
+    "duration" : ${content_duration_18},
+    "error" : 0,
+    "metrics" : { },
+    "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_18},
+      "library_version" : ${content_meta_library_version},
+      "env" : "integration-test",
+      "runtime-id" : ${content_meta_runtime_id},
+      "language" : "jvm",
+      "runtime.name" : ${content_meta_runtime_name},
+      "runtime.vendor" : ${content_meta_runtime_vendor},
+      "runtime.version" : ${content_meta_runtime_version},
+      "os.architecture" : ${content_meta_os_architecture},
+      "os.platform" : ${content_meta_os_platform},
+      "os.version" : ${content_meta_os_version}
+    }
+  }
+}, {
+  "type" : "span",
+  "version" : 1,
+  "content" : {
+    "trace_id" : ${content_test_session_id},
+    "span_id" : ${content_span_id_14},
+    "parent_id" : ${content_test_session_id},
+    "service" : "test-gradle-service",
+    "name" : "submodule_b_testClasses",
+    "resource" : "submodule_b_testClasses",
+    "start" : ${content_start_19},
+    "duration" : ${content_duration_19},
+    "error" : 0,
+    "metrics" : { },
+    "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_19},
+      "library_version" : ${content_meta_library_version},
+      "env" : "integration-test",
+      "runtime-id" : ${content_meta_runtime_id},
+      "language" : "jvm",
+      "runtime.name" : ${content_meta_runtime_name},
+      "runtime.vendor" : ${content_meta_runtime_vendor},
+      "runtime.version" : ${content_meta_runtime_version},
+      "os.architecture" : ${content_meta_os_architecture},
+      "os.platform" : ${content_meta_os_platform},
+      "os.version" : ${content_meta_os_version}
     }
   }
 } ]

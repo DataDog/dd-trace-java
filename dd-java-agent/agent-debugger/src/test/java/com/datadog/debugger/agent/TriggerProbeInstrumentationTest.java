@@ -12,10 +12,10 @@ import com.datadog.debugger.codeorigin.CodeOriginProbeManager;
 import com.datadog.debugger.codeorigin.DefaultCodeOriginRecorder;
 import com.datadog.debugger.origin.CodeOriginTest;
 import com.datadog.debugger.probe.CodeOriginProbe;
-import com.datadog.debugger.probe.DebuggerProbe;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
+import com.datadog.debugger.probe.TriggerProbe;
 import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
@@ -44,12 +44,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @TestInstance(Lifecycle.PER_CLASS)
-public class DebuggerProbeInstrumentationTest extends ProbeInstrumentationTest {
+public class TriggerProbeInstrumentationTest extends ProbeInstrumentationTest {
   private static final ProbeId DEBUG_PROBE_ID = new ProbeId("86753098675309", 0);
 
   private static final ProbeId CODE_ORIGIN_PROBE_ID = new ProbeId("48946084894608", 0);
 
-  private static final Logger log = LoggerFactory.getLogger(DebuggerProbeInstrumentationTest.class);
+  private static final Logger log = LoggerFactory.getLogger(TriggerProbeInstrumentationTest.class);
 
   public static final CodeOriginProbeManager probeManager =
       new CodeOriginProbeManager(
@@ -100,7 +100,7 @@ public class DebuggerProbeInstrumentationTest extends ProbeInstrumentationTest {
 
     Where where = Where.of(CLASS_NAME, "process", "int (java.lang.String)", (String[]) null);
     installProbes(
-        DebuggerProbe.builder()
+        TriggerProbe.builder()
             .probeId(DEBUG_PROBE_ID)
             .where(CLASS_NAME, "process", "int (java.lang.String)")
             .build(),
@@ -120,8 +120,8 @@ public class DebuggerProbeInstrumentationTest extends ProbeInstrumentationTest {
   }
 
   private void installProbe(String typeName, String methodName, String signature) {
-    DebuggerProbe probe =
-        DebuggerProbe.builder()
+    TriggerProbe probe =
+        TriggerProbe.builder()
             .probeId(DEBUG_PROBE_ID)
             .where(typeName, methodName, signature)
             .build();
@@ -148,8 +148,8 @@ public class DebuggerProbeInstrumentationTest extends ProbeInstrumentationTest {
                 case ("MetricProbe"):
                   builder.addMetricProbes((List<MetricProbe>) value1);
                   break;
-                case ("DebuggerProbe"):
-                  builder.addDebuggerProbes((List<DebuggerProbe>) value1);
+                case ("TriggerProbe"):
+                  builder.addTriggerProbes((List<TriggerProbe>) value1);
                   break;
                 case ("LogProbe"):
                   builder.addLogProbes((List<LogProbe>) value1);

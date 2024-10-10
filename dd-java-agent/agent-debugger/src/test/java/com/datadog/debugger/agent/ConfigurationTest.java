@@ -12,11 +12,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
-import com.datadog.debugger.probe.DebuggerProbe;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.SpanProbe;
+import com.datadog.debugger.probe.TriggerProbe;
 import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Types;
@@ -271,8 +271,8 @@ public class ConfigurationTest {
         createLog(
             "log1", "this is a log line with arg={arg}", "java.lang.String", "indexOf", "(String)");
     SpanProbe span1 = createSpan("span1", "java.lang.String", "indexOf", "(String)");
-    DebuggerProbe debuggerProbe =
-        createDebuggerProbe("debug1", "java.lang.String", "indexOf", "(String)");
+    TriggerProbe triggerProbe =
+        createTriggerProbe("debug1", "java.lang.String", "indexOf", "(String)");
 
     SpanDecorationProbe.Decoration decoration =
         new SpanDecorationProbe.Decoration(
@@ -300,7 +300,7 @@ public class ConfigurationTest {
         asList(metric1),
         asList(probe1, log1),
         asList(span1),
-        asList(debuggerProbe),
+        asList(triggerProbe),
         asList(spanDecoration1),
         allowList,
         denyList,
@@ -319,8 +319,7 @@ public class ConfigurationTest {
             "indexOf",
             "(String)");
     SpanProbe span2 = createSpan("span2", "String.java", 12, 23);
-    DebuggerProbe debuggerProbe =
-        createDebuggerProbe("debug1", "String.java", "indexOf", "(String)");
+    TriggerProbe triggerProbe = createTriggerProbe("debug1", "String.java", "indexOf", "(String)");
 
     SpanDecorationProbe.Decoration decoration =
         new SpanDecorationProbe.Decoration(
@@ -349,7 +348,7 @@ public class ConfigurationTest {
         asList(metric2),
         asList(probe2, log2),
         asList(span2),
-        asList(debuggerProbe),
+        asList(triggerProbe),
         asList(spanDecoration2),
         allowList,
         denyList,
@@ -405,9 +404,9 @@ public class ConfigurationTest {
         .build();
   }
 
-  private static DebuggerProbe createDebuggerProbe(
+  private static TriggerProbe createTriggerProbe(
       String id, String typeName, String methodName, String signature) {
-    return DebuggerProbe.builder()
+    return TriggerProbe.builder()
         .language("java")
         .probeId(id, 0)
         .where(typeName, methodName, signature)
