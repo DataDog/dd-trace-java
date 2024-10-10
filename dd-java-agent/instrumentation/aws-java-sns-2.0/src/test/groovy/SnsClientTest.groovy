@@ -150,7 +150,7 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
             if ({ isDataStreamsEnabled() }) {
               "$DDTags.PATHWAY_HASH" { String }
             }
-            urlTags("${endPoint}//", expectedQueryParams("Publish"))
+            urlTags("${endPoint}/", expectedQueryParams("Publish"))
             defaultTags()
           }
         }
