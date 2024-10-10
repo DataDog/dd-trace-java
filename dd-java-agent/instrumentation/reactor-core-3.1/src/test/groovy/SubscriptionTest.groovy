@@ -21,7 +21,7 @@ class SubscriptionTest extends AgentTestRunner {
   @Override
   boolean useStrictTraceWrites() {
     // there are continuations we are not handling today on reactor internals.
-    false
+    true
   }
 
   def "subscription test with processor #processor.class and #consumers consumers"() {
