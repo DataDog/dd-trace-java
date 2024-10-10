@@ -46,7 +46,8 @@ public final class DispatcherServletInstrumentation extends InstrumenterModule.T
       packageName + ".HandlerMappingResourceNameFilter",
       packageName + ".PathMatchingHttpServletRequestWrapper",
       packageName + ".DataDogHttpServletResponseWrapper",
-      packageName + ".DataDogHttpServletResponseWrapper$WrapperOutputStream"
+      //packageName + ".DataDogHttpServletResponseWrapper$WrapperOutputStream"
+      packageName + ".DataDogHttpServletResponseWrapper$CustomServletOutputStream"
     };
   }
 

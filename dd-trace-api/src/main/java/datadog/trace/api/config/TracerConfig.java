@@ -141,6 +141,8 @@ public final class TracerConfig {
 
   public static final String TRACE_REQUEST_BODY_ENABLED = "trace.request.body.enabled";
 
+  public static final String TRACE_RESPONSE_BODY_ENABLED = "trace.response.body.enabled";
+
   public static final String TRACE_RESPONSE_BODY_ENCODING = "trace.response.body.encoding";
 
   public static final String TRACE_DUBBO_PROVIDER_PROPAGATE_ENABLED =
