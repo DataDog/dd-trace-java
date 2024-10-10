@@ -1127,9 +1127,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     def taintedObject = taintedObjects.get(result)
 
     then:
-    if (testString != expected) {
-      1 * tracer.activeSpan() >> span
-    }
+    1 * tracer.activeSpan() >> span
     taintFormat(result, taintedObject.getRanges()) == expected
 
     where:
@@ -1161,9 +1159,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     def taintedObject = taintedObjects.get(result)
 
     then:
-    if (testString != expected) {
-      1 * tracer.activeSpan() >> span
-    }
+    1 * tracer.activeSpan() >> span
     taintFormat(result, taintedObject.getRanges()) == expected
 
     where:
@@ -1195,9 +1191,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     def taintedObject = taintedObjects.get(result)
 
     then:
-    if (testString != expected) {
-      1 * tracer.activeSpan() >> span
-    }
+    1 * tracer.activeSpan() >> span
     taintFormat(result, taintedObject.getRanges()) == expected
 
     where:
@@ -1229,9 +1223,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     def taintedObject = taintedObjects.get(result)
 
     then:
-    if (testString != expected) {
-      1 * tracer.activeSpan() >> span
-    }
+    1 * tracer.activeSpan() >> span
     taintFormat(result, taintedObject.getRanges()) == expected
 
     where:

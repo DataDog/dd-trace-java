@@ -16,6 +16,7 @@ import com.datadog.iast.util.Ranged;
 import com.datadog.iast.util.StringUtils;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.propagation.StringModule;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Arrays;
 import java.util.Deque;
@@ -693,6 +694,7 @@ public class StringModuleImpl implements StringModule {
   }
 
   @Override
+  @SuppressForbidden
   public String onStringReplace(
       @Nonnull String self, String regex, String replacement, int numReplacements) {
     final IastContext ctx = IastContext.Provider.get();

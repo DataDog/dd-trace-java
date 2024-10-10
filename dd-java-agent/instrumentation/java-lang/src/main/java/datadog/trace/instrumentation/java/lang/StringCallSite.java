@@ -6,6 +6,7 @@ import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.StringModule;
 import datadog.trace.util.stacktrace.StackUtils;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -318,6 +319,7 @@ public class StringCallSite {
 
   @CallSite.Around(
       "java.lang.String java.lang.String.replaceAll(java.lang.String, java.lang.String)")
+  @SuppressForbidden
   public static String aroundReplaceAll(
       @CallSite.This final String self,
       @CallSite.Argument(0) final String regex,
@@ -335,6 +337,7 @@ public class StringCallSite {
 
   @CallSite.Around(
       "java.lang.String java.lang.String.replaceFirst(java.lang.String, java.lang.String)")
+  @SuppressForbidden
   public static String aroundReplaceFirst(
       @CallSite.This final String self,
       @CallSite.Argument(0) final String regex,
