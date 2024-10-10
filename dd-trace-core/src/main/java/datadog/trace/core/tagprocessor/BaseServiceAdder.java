@@ -20,6 +20,7 @@ public class BaseServiceAdder implements TagsPostProcessor {
         && spanContext != null
         && !ddService.toString().equalsIgnoreCase(spanContext.getServiceName())) {
       unsafeTags.put(DDTags.BASE_SERVICE, ddService);
+      unsafeTags.remove("version");
     }
     return unsafeTags;
   }

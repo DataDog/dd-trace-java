@@ -1,7 +1,10 @@
+package com.datadog.instrumentation.protobuf
+
 import com.google.protobuf.DynamicMessage
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import com.datadog.instrumentation.protobuf.generated.Message.MyMessage
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
@@ -14,13 +17,13 @@ class DynamicMessageInstrumentationTest extends AgentTestRunner {
 
   void 'test extract protobuf schema using the dynamic message'() {
     setup:
-    Message.MyMessage message = Message.MyMessage.newBuilder()
+    MyMessage message = MyMessage.newBuilder()
       .setId("1")
       .setValue("Hello from Protobuf!")
       .build()
     when:
-    String schema = "{\"components\":{\"schemas\":{\"MyMessage\":{\"properties\":{\"id\":{\"type\":\"string\"},\"value\":{\"type\":\"string\"},\"other_message\":{\"items\":{\"\$ref\":\"#/components/schemas/OtherMessage\"},\"type\":\"array\"}},\"type\":\"object\"},\"OtherMessage\":{\"properties\":{\"name\":{\"items\":{\"type\":\"string\"},\"type\":\"array\"},\"age\":{\"format\":\"int32\",\"type\":\"integer\"}},\"type\":\"object\"}}},\"openapi\":\"3.0.0\"}"
-    String schemaID = "17871055810055148870"
+    String schema = "{\"components\":{\"schemas\":{\"com.datadog.instrumentation.protobuf.generated.MyMessage\":{\"properties\":{\"id\":{\"type\":\"string\"},\"value\":{\"type\":\"string\"},\"other_message\":{\"items\":{\"\$ref\":\"#/components/schemas/com.datadog.instrumentation.protobuf.generated.OtherMessage\"},\"type\":\"array\"}},\"type\":\"object\"},\"com.datadog.instrumentation.protobuf.generated.OtherMessage\":{\"properties\":{\"name\":{\"type\":\"string\"},\"age\":{\"format\":\"int32\",\"type\":\"integer\"}},\"type\":\"object\"}}},\"openapi\":\"3.0.0\"}"
+    String schemaID = "9054678588020233022"
     var bytes
     runUnderTrace("parent_serialize") {
       AgentSpan span = activeSpan()
@@ -30,7 +33,7 @@ class DynamicMessageInstrumentationTest extends AgentTestRunner {
     runUnderTrace("parent_deserialize") {
       AgentSpan span = activeSpan()
       span.setTag(DDTags.MANUAL_KEEP, true)
-      DynamicMessage.parseFrom(Message.MyMessage.getDescriptor(), bytes)
+      DynamicMessage.parseFrom(MyMessage.getDescriptor(), bytes)
     }
     TEST_WRITER.waitForTraces(2)
     then:
@@ -46,7 +49,7 @@ class DynamicMessageInstrumentationTest extends AgentTestRunner {
             "$DDTags.SCHEMA_DEFINITION" schema
             "$DDTags.SCHEMA_WEIGHT" 1
             "$DDTags.SCHEMA_TYPE" "protobuf"
-            "$DDTags.SCHEMA_NAME" "MyMessage"
+            "$DDTags.SCHEMA_NAME" "com.datadog.instrumentation.protobuf.generated.MyMessage"
             "$DDTags.SCHEMA_OPERATION" "serialization"
             "$DDTags.SCHEMA_ID" schemaID
             defaultTags(false)
@@ -64,7 +67,7 @@ class DynamicMessageInstrumentationTest extends AgentTestRunner {
             "$DDTags.SCHEMA_DEFINITION" schema
             "$DDTags.SCHEMA_WEIGHT" 1
             "$DDTags.SCHEMA_TYPE" "protobuf"
-            "$DDTags.SCHEMA_NAME" "MyMessage"
+            "$DDTags.SCHEMA_NAME" "com.datadog.instrumentation.protobuf.generated.MyMessage"
             "$DDTags.SCHEMA_OPERATION" "deserialization"
             "$DDTags.SCHEMA_ID" schemaID
             defaultTags(false)

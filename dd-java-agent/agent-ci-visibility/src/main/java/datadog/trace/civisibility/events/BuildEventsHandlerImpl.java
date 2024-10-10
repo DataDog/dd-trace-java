@@ -5,6 +5,7 @@ import datadog.trace.api.civisibility.domain.BuildModuleSettings;
 import datadog.trace.api.civisibility.domain.BuildSessionSettings;
 import datadog.trace.api.civisibility.domain.JavaAgent;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.config.JvmInfo;
 import datadog.trace.civisibility.config.JvmInfoFactory;
@@ -23,7 +24,10 @@ public class BuildEventsHandlerImpl<SessionKey> implements BuildEventsHandler<Se
   private final ConcurrentMap<SessionKey, BuildSystemSession> inProgressTestSessions =
       new ConcurrentHashMap<>();
 
-  private final ConcurrentMap<TestModuleDescriptor<SessionKey>, BuildSystemModule>
+  private final ConcurrentMap<BuildTaskDescriptor<SessionKey>, AgentSpan> inProgressBuildTasks =
+      new ConcurrentHashMap<>();
+
+  private final ConcurrentMap<BuildTaskDescriptor<SessionKey>, BuildSystemModule>
       inProgressTestModules = new ConcurrentHashMap<>();
 
   private final BuildSystemSession.Factory sessionFactory;
@@ -80,6 +84,47 @@ public class BuildEventsHandlerImpl<SessionKey> implements BuildEventsHandler<Se
   }
 
   @Override
+  public void onBuildTaskStart(
+      SessionKey sessionKey, String taskName, Map<String, Object> additionalTags) {
+    BuildSystemSession testSession = inProgressTestSessions.get(sessionKey);
+    if (testSession == null) {
+      throw new IllegalStateException("Could not find session span for key: " + sessionKey);
+    }
+    AgentSpan buildTask = testSession.testTaskStart(taskName);
+    for (Map.Entry<String, Object> e : additionalTags.entrySet()) {
+      buildTask.setTag(e.getKey(), e.getValue());
+    }
+    inProgressBuildTasks.put(new BuildTaskDescriptor<>(sessionKey, taskName), buildTask);
+  }
+
+  @Override
+  public void onBuildTaskFail(SessionKey sessionKey, String taskName, Throwable throwable) {
+    AgentSpan buildTask = inProgressBuildTasks.get(new BuildTaskDescriptor<>(sessionKey, taskName));
+    if (buildTask == null) {
+      throw new IllegalStateException(
+          "Could not find build task span for session key "
+              + sessionKey
+              + " and task name "
+              + taskName);
+    }
+    buildTask.setError(true);
+    buildTask.addThrowable(throwable);
+  }
+
+  @Override
+  public void onBuildTaskFinish(SessionKey sessionKey, String taskName) {
+    AgentSpan buildTask = inProgressBuildTasks.get(new BuildTaskDescriptor<>(sessionKey, taskName));
+    if (buildTask == null) {
+      throw new IllegalStateException(
+          "Could not find build task span for session key "
+              + sessionKey
+              + " and task name "
+              + taskName);
+    }
+    buildTask.finish();
+  }
+
+  @Override
   public BuildModuleSettings onTestModuleStart(
       final SessionKey sessionKey,
       final String moduleName,
@@ -104,8 +149,8 @@ public class BuildEventsHandlerImpl<SessionKey> implements BuildEventsHandler<Se
       }
     }
 
-    TestModuleDescriptor<SessionKey> testModuleDescriptor =
-        new TestModuleDescriptor<>(sessionKey, moduleName);
+    BuildTaskDescriptor<SessionKey> testModuleDescriptor =
+        new BuildTaskDescriptor<>(sessionKey, moduleName);
     inProgressTestModules.put(testModuleDescriptor, testModule);
 
     return testModule.getSettings();
@@ -126,8 +171,8 @@ public class BuildEventsHandlerImpl<SessionKey> implements BuildEventsHandler<Se
   }
 
   private BuildSystemModule getTestModule(final SessionKey sessionKey, final String moduleName) {
-    TestModuleDescriptor<SessionKey> testModuleDescriptor =
-        new TestModuleDescriptor<>(sessionKey, moduleName);
+    BuildTaskDescriptor<SessionKey> testModuleDescriptor =
+        new BuildTaskDescriptor<>(sessionKey, moduleName);
     BuildSystemModule testModule = inProgressTestModules.get(testModuleDescriptor);
     if (testModule == null) {
       throw new IllegalStateException(
@@ -138,8 +183,8 @@ public class BuildEventsHandlerImpl<SessionKey> implements BuildEventsHandler<Se
 
   @Override
   public void onTestModuleFinish(SessionKey sessionKey, String moduleName) {
-    TestModuleDescriptor<SessionKey> testModuleDescriptor =
-        new TestModuleDescriptor<>(sessionKey, moduleName);
+    BuildTaskDescriptor<SessionKey> testModuleDescriptor =
+        new BuildTaskDescriptor<>(sessionKey, moduleName);
     BuildSystemModule testModule = inProgressTestModules.remove(testModuleDescriptor);
     if (testModule == null) {
       throw new IllegalStateException(
