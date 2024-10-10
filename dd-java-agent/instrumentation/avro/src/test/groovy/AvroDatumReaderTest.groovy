@@ -23,8 +23,8 @@ class AvroDatumReaderTest extends AgentTestRunner {
 
     return true
   }
-  String schemaID = "5493435211744749109"
-  String openApiSchemaDef = "{\"components\":{\"schemas\":{\"TestRecord\":{\"properties\":{\"stringField\":{\"type\":\"string\"},\"intField\":{\"format\":\"int32\",\"type\":\"integer\"},\"longField\":{\"format\":\"int64\",\"type\":\"integer\"},\"floatField\":{\"format\":\"float\",\"type\":\"number\"},\"doubleField\":{\"format\":\"double\",\"type\":\"number\"},\"booleanField\":{\"type\":\"boolean\"},\"bytesField\":{\"format\":\"byte\",\"type\":\"string\"},\"nullField\":{\"type\":\"null\"},\"enumField\":{\"enum\":[\"A\",\"B\",\"C\"],\"type\":\"string\"},\"fixedField\":{\"type\":\"string\"},\"recordField\":{\"type\":\"object\"},\"arrayField\":{\"items\":{\"type\":\"integer\"},\"type\":\"array\"},\"mapField\":{\"description\":\"Map type\",\"type\":\"object\"}},\"type\":\"object\"}}},\"openapi\":\"3.0.0\"}"
+  String schemaID = "8924443781494069161"
+  String openApiSchemaDef = "{\"components\":{\"schemas\":{\"TestRecord\":{\"properties\":{\"stringField\":{\"type\":\"string\"},\"intField\":{\"format\":\"int32\",\"type\":\"integer\"},\"longField\":{\"format\":\"int64\",\"type\":\"integer\"},\"floatField\":{\"format\":\"float\",\"type\":\"number\"},\"doubleField\":{\"format\":\"double\",\"type\":\"number\"},\"booleanField\":{\"type\":\"boolean\"},\"bytesField\":{\"format\":\"byte\",\"type\":\"string\"},\"nullField\":{\"type\":\"null\"},\"enumField\":{\"enum\":[\"A\",\"B\",\"C\"],\"type\":\"string\"},\"fixedField\":{\"type\":\"string\"},\"recordField\":{\"type\":\"#/components/schemas/NestedRecord\"},\"arrayField\":{\"items\":{\"type\":\"integer\"},\"type\":\"array\"},\"mapField\":{\"description\":\"Map type with string keys and string values\",\"type\":\"object\"},\"arrayNestedField\":{\"items\":{\"type\":\"#/components/schemas/OtherNestedRecord\"},\"type\":\"array\"},\"mapNestedField\":{\"description\":\"Map type with string keys and #/components/schemas/ThirdTypeOfNestedRecord values\",\"type\":\"object\"}},\"type\":\"object\"},\"NestedRecord\":{\"properties\":{\"nestedString\":{\"type\":\"string\"}},\"type\":\"object\"},\"OtherNestedRecord\":{\"properties\":{\"nestedString\":{\"type\":\"string\"}},\"type\":\"object\"},\"ThirdTypeOfNestedRecord\":{\"properties\":{\"nestedString\":{\"type\":\"string\"}},\"type\":\"object\"}}},\"openapi\":\"3.0.0\"}"
   String schemaStr = '''
     {
       "type": "record",
@@ -42,13 +42,13 @@ class AvroDatumReaderTest extends AgentTestRunner {
         {"name": "fixedField", "type": {"type": "fixed", "name": "TestFixed", "size": 16}},
         {"name": "recordField", "type": {"type": "record", "name": "NestedRecord", "fields": [{"name": "nestedString", "type": "string"}]}},
         {"name": "arrayField", "type": {"type": "array", "items": "int"}},
-        {"name": "mapField", "type": {"type": "map", "values": "string"}}
+        {"name": "mapField", "type": {"type": "map", "values": "string"}},
+        {"name": "arrayNestedField", "type": { "type": "array", "items": {"type": "record", "name": "OtherNestedRecord", "fields": [{"name": "nestedString", "type": "string"}]}}},
+        {"name": "mapNestedField", "type": {"type": "map", "values": {"type": "record", "name": "ThirdTypeOfNestedRecord", "fields": [{"name": "nestedString", "type": "string"}]}}}
       ]
     }
     '''
   Schema schemaDef = new Schema.Parser().parse(schemaStr)
-
-
 
   void 'test extract avro schema on deserialize'() {
 
@@ -79,6 +79,20 @@ class AvroDatumReaderTest extends AgentTestRunner {
     map.put("key1", "value1")
     map.put("key2", "value2")
     datum.put("mapField", map)
+
+    // array of nested fields
+    GenericRecord nestedRecordA = new GenericData.Record(schemaDef.getField("arrayNestedField").schema().getElementType())
+    nestedRecordA.put("nestedString", "a")
+    GenericRecord nestedRecordB = new GenericData.Record(schemaDef.getField("arrayNestedField").schema().getElementType())
+    nestedRecordB.put("nestedString", "b")
+    datum.put("arrayNestedField", Arrays.asList(nestedRecordA, nestedRecordB))
+
+    // map of nested fields
+    Map<String, GenericRecord> nestedMap = new HashMap<>()
+    GenericRecord nestedRecordC = new GenericData.Record(schemaDef.getField("mapNestedField").schema().getValueType())
+    nestedRecordC.put("nestedString", "a")
+    nestedMap.put("key1", nestedRecordC)
+    datum.put("mapNestedField", nestedMap)
 
     when:
     def bytes
@@ -152,6 +166,20 @@ class AvroDatumReaderTest extends AgentTestRunner {
     map.put("key1", "value1")
     map.put("key2", "value2")
     datum.put("mapField", map)
+
+    // array of nested fields
+    GenericRecord nestedRecordA = new GenericData.Record(schemaDef.getField("arrayNestedField").schema().getElementType())
+    nestedRecordA.put("nestedString", "a")
+    GenericRecord nestedRecordB = new GenericData.Record(schemaDef.getField("arrayNestedField").schema().getElementType())
+    nestedRecordB.put("nestedString", "b")
+    datum.put("arrayNestedField", Arrays.asList(nestedRecordA, nestedRecordB))
+
+    // map of nested fields
+    Map<String, GenericRecord> nestedMap = new HashMap<>()
+    GenericRecord nestedRecordC = new GenericData.Record(schemaDef.getField("mapNestedField").schema().getValueType())
+    nestedRecordC.put("nestedString", "a")
+    nestedMap.put("key1", nestedRecordC)
+    datum.put("mapNestedField", nestedMap)
 
     when:
     def bytes
