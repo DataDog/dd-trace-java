@@ -12,7 +12,6 @@ import groovy.transform.stc.ClosureParams
 import groovy.transform.stc.SimpleType
 
 import java.util.regex.Pattern
-import java.net.URI
 
 class TagsAssert {
   private final long spanParentId
@@ -195,11 +194,7 @@ class TagsAssert {
       String path = uri.getPath()
 
       String baseURL = scheme + "://" + host + ":" + port + path
-
-      if (!baseURL.equals(url)){
-        return false
-      }
-      return true
+      return baseURL.equals(url)
     })
 
     tag("http.query.string", {
