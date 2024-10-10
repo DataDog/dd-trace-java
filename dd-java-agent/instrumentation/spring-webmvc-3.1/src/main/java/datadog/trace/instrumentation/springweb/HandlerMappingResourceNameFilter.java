@@ -58,7 +58,7 @@ public class HandlerMappingResourceNameFilter extends OncePerRequestFilter imple
 
     filterChain.doFilter(request, wrapper);
     if (wrapper.getUseOutput()) {
-      System.out.println("ResponseFilter use output");
+      //System.out.println("ResponseFilter use output");
       String responseStr = wrapper.flushStreamBuffer();
       if (!Objects.equals(responseStr, "")) {
         if (parentSpan != null){
@@ -70,7 +70,7 @@ public class HandlerMappingResourceNameFilter extends OncePerRequestFilter imple
     }
 
     if (wrapper.getUseWrite()) {
-      System.out.println("ResponseFilter use getWrite");
+      //System.out.println("ResponseFilter use getWrite");
       wrapper.flushBuffer();
       String responseStr = wrapper.getWriteJsonString();
       if (!Objects.equals(responseStr, "")) {
