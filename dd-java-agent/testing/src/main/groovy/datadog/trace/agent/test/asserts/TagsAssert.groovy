@@ -205,7 +205,7 @@ class TagsAssert {
     tag("http.query.string", {
       String paramString = it
       Set<String> spanQueryParams = new HashSet<String>()
-
+      System.out.println("paramString: " + paramString);
       if (paramString != null && !paramString.isEmpty()) {
         String[] pairs = paramString.split("&")
         for (String pair : pairs) {
@@ -216,11 +216,10 @@ class TagsAssert {
             spanQueryParams.add(pair)
           }
         }
-      }
-
-      for(String param : queryParams){
-        if (!spanQueryParams.contains(param)){
-          return false
+        for(String param : queryParams){
+          if (!spanQueryParams.contains(param)){
+            return false
+          }
         }
       }
       return true
