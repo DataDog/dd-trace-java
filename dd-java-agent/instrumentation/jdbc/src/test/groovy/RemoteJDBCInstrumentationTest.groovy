@@ -877,7 +877,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     MYSQL      | cpDatasources.get("hikari").get(driver).getConnection() | "CALL dummy(?)"
     SQLSERVER  | cpDatasources.get("hikari").get(driver).getConnection() | "{CALL dummy(?)}"
     POSTGRESQL | cpDatasources.get("tomcat").get(driver).getConnection() | "CALL dummy(?)"
-    MYSQL      | cpDatasources.get("tomcat").get(driver).getConnection() | "CALL dummy(?)"
+    MYSQL      | cpDatasources.get("tomcat").get(driver).getConnection() | "{CALL dummy(?)}"
     SQLSERVER  | cpDatasources.get("tomcat").get(driver).getConnection() | "{CALL dummy(?)}"
     POSTGRESQL | cpDatasources.get("c3p0").get(driver).getConnection()   | "CALL dummy(?)"
     MYSQL      | cpDatasources.get("c3p0").get(driver).getConnection()   | "CALL dummy(?)"
