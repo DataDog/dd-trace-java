@@ -9,7 +9,7 @@ muzzle {
     group = "com.google.protobuf"
     module = "protobuf-java"
     versions = "[2.0.0,)"
-    skipVersions = ["2.0.1", "2.1.0", "2.2.0", "2.3.0", "2.4.1"]
+    skipVersions = ["2.0.1", "2.0.3", "2.1.0", "2.2.0", "2.3.0", "2.4.0a", "2.4.1"]
     assertInverse = true
   }
 }
