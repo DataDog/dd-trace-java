@@ -139,6 +139,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RESOLVER_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RESPONSE_BODY_ENCODING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_WRITER_BAGGAGE_INJECT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_ERROR_ENABLED;
 import static datadog.trace.api.DDTags.APM_ENABLED;
 import static datadog.trace.api.DDTags.HOST_TAG;
 import static datadog.trace.api.DDTags.INTERNAL_HOST_NAME;
@@ -503,6 +504,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_STRICT_WRITES_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LENGTH;
 import static datadog.trace.api.config.TracerConfig.WRITER_BAGGAGE_INJECT;
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
+import static datadog.trace.api.config.TracerConfig.HTTP_ERROR_ENABLED;
 import static datadog.trace.api.iast.IastDetectionMode.DEFAULT;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
@@ -1024,6 +1026,8 @@ public class Config {
   private final String agentlessLogSubmissionUrl;
   private final String agentlessLogSubmissionProduct;
 
+  private final boolean httpErrorEnabled;
+
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
     this(ConfigProvider.createDefault());
@@ -1286,6 +1290,8 @@ public class Config {
         configProvider.getIntegerRange(
             HTTP_CLIENT_ERROR_STATUSES, DEFAULT_HTTP_CLIENT_ERROR_STATUSES);
 
+    httpErrorEnabled = configProvider.getBoolean(
+        HTTP_ERROR_ENABLED, DEFAULT_HTTP_ERROR_ENABLED);
     httpServerTagQueryString =
         configProvider.getBoolean(
             HTTP_SERVER_TAG_QUERY_STRING, DEFAULT_HTTP_SERVER_TAG_QUERY_STRING);
@@ -2464,6 +2470,10 @@ public class Config {
 
   public BitSet getHttpClientErrorStatuses() {
     return httpClientErrorStatuses;
+  }
+
+  public boolean isHttpErrorEnabled() {
+    return httpErrorEnabled;
   }
 
   public boolean isHttpServerTagQueryString() {
@@ -4516,6 +4526,8 @@ public class Config {
         + httpServerErrorStatuses
         + ", httpClientErrorStatuses="
         + httpClientErrorStatuses
+        + ", httpErrorEnabled="
+        + httpErrorEnabled
         + ", httpServerTagQueryString="
         + httpServerTagQueryString
         + ", httpServerRawQueryString="

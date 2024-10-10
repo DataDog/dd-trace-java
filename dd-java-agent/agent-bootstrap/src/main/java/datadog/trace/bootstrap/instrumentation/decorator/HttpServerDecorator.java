@@ -65,6 +65,10 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     SERVER_PATHWAY_EDGE_TAGS.put("type", "http");
   }
 
+  private static final BitSet CLIENT_ERROR_STATUSES = Config.get().getHttpClientErrorStatuses();
+
+  private static final Boolean HTTP_ERROR_ENBALED = Config.get().isHttpErrorEnabled();
+
   private static final UTF8BytesString DEFAULT_RESOURCE_NAME = UTF8BytesString.create("/");
   protected static final UTF8BytesString NOT_FOUND_RESOURCE_NAME = UTF8BytesString.create("404");
   private static final boolean SHOULD_SET_404_RESOURCE_NAME =
@@ -306,6 +310,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   public AgentSpan onResponseStatus(final AgentSpan span, final int status) {
     if (status > UNSET_STATUS) {
       span.setHttpStatusCode(status);
+      if (HTTP_ERROR_ENBALED && CLIENT_ERROR_STATUSES.get(status)) {
+        span.setError(true);
+      }else
       // explicitly set here because some other decorators might already set an error without
       // looking at the status code
       // XXX: the logic is questionable: span.error becomes equivalent to status 5xx,
