@@ -93,7 +93,7 @@ public class SubscriberInstrumentation extends InstrumenterModule.Tracing
     public static AgentScope before(@Advice.This final Subscriber self) {
       final AgentSpan span =
           InstrumentationContext.get(Subscriber.class, AgentSpan.class).get(self);
-      return span == null || span == activeSpan() ? null : activateSpan(span);
+      return span == null ? null : activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.ha
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
@@ -67,7 +66,7 @@ public class BlockingPublisherInstrumentation extends InstrumenterModule.Tracing
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope before(@Advice.This final Publisher self) {
       final AgentSpan span = InstrumentationContext.get(Publisher.class, AgentSpan.class).get(self);
-      if (span == null || span == activeSpan()) {
+      if (span == null) {
         return null;
       }
       return activateSpan(span);

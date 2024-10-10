@@ -100,7 +100,7 @@ public class PublisherInstrumentation extends InstrumenterModule.Tracing
       final AgentSpan current =
           InstrumentationContext.get(Subscriber.class, AgentSpan.class)
               .putIfAbsent(s, span != null ? span : activeSpan);
-      if (current != null && current != activeSpan()) {
+      if (current != null) {
         return activateSpan(current);
       }
 
