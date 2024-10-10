@@ -292,7 +292,6 @@ class TimeInQueueForkedTest extends AgentTestRunner {
       tags {
         "$Tags.COMPONENT" "java-aws-sdk"
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-        "$Tags.HTTP_URL" "http://localhost:${address.port}/"
         "$Tags.HTTP_METHOD" "POST"
         "$Tags.HTTP_STATUS" 200
         "$Tags.PEER_PORT" address.port
@@ -303,6 +302,7 @@ class TimeInQueueForkedTest extends AgentTestRunner {
         "aws.agent" "java-aws-sdk"
         "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
         "aws.requestId" { it.trim() == "00000000-0000-0000-0000-000000000000" } // the test server seem messing with request id and insert \n
+        urlTags("http://localhost:${address.port}/", expectedQueryParams("SendMessageBatch"))
         defaultTags()
       }
     }

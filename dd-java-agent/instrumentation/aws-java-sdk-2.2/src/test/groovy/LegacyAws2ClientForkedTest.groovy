@@ -119,7 +119,6 @@ class LegacyAws2ClientForkedTest extends AgentTestRunner {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.PEER_HOSTNAME" "localhost"
             "$Tags.PEER_PORT" server.address.port
-            "$Tags.HTTP_URL" "${server.address}${path}"
             "$Tags.HTTP_METHOD" "$method"
             "$Tags.HTTP_STATUS" 200
             "aws.service" "$service"
@@ -151,6 +150,7 @@ class LegacyAws2ClientForkedTest extends AgentTestRunner {
               "aws.stream.name" "somestream"
               "streamname" "somestream"
             }
+            urlTags("${server.address}${path}", expectedQueryParams(operation))
             defaultTags()
           }
         }
@@ -262,7 +262,6 @@ class LegacyAws2ClientForkedTest extends AgentTestRunner {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.PEER_HOSTNAME" "localhost"
             "$Tags.PEER_PORT" server.address.port
-            "$Tags.HTTP_URL" "${server.address}${path}"
             "$Tags.HTTP_METHOD" "$method"
             "$Tags.HTTP_STATUS" 200
             "aws.service" "$service"
@@ -291,6 +290,7 @@ class LegacyAws2ClientForkedTest extends AgentTestRunner {
               "aws.stream.name" "somestream"
               "streamname" "somestream"
             }
+            urlTags("${server.address}${path}", expectedQueryParams(operation))
             defaultTags()
           }
         }
