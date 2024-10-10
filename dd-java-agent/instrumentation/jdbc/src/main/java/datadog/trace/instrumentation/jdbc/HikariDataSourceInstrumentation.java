@@ -62,8 +62,10 @@ public final class HikariDataSourceInstrumentation extends InstrumenterModule.Tr
       } catch (Throwable t) {
         return;
       }
-
       String hikariPoolname = ds.getPoolName();
+      if (unwrapped == null) {
+        return;
+      }
       DBInfo dbInfo = InstrumentationContext.get(Connection.class, DBInfo.class).get(unwrapped);
       if (dbInfo == null) {
         return;
