@@ -8,16 +8,14 @@ class ReactiveStreamsAsyncResultSupportExtensionTest extends AgentTestRunner {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
-
-    injectSysConfig("dd.integration.opentelemetry-annotations-1.20.enabled", "true")
-    injectSysConfig("dd.integration.reactive-streams-1.enabled", "true")
+    injectSysConfig("trace.otel.enabled", "true")
   }
 
   def "test WithSpan annotated async method (Publisher)"() {
     setup:
     def latch = new CountDownLatch(1)
     def publisher = ReactiveStreamsTracedMethods.traceAsyncPublisher(latch)
-    def subscriber = new ReactiveStreamsTracedMethods.ConsummerSubscriber<String>()
+    def subscriber = new ReactiveStreamsTracedMethods.ConsumerSubscriber<String>()
 
     expect:
     TEST_WRITER.size() == 0
@@ -46,7 +44,7 @@ class ReactiveStreamsAsyncResultSupportExtensionTest extends AgentTestRunner {
     def latch = new CountDownLatch(1)
     def expectedException = new IllegalStateException("Test exception")
     def publisher = ReactiveStreamsTracedMethods.traceAsyncFailingPublisher(latch, expectedException)
-    def subscriber = new ReactiveStreamsTracedMethods.ConsummerSubscriber<String>()
+    def subscriber = new ReactiveStreamsTracedMethods.ConsumerSubscriber<String>()
 
     expect:
     TEST_WRITER.size() == 0
@@ -91,6 +89,44 @@ class ReactiveStreamsAsyncResultSupportExtensionTest extends AgentTestRunner {
         span {
           resourceName "ReactiveStreamsTracedMethods.traceAsyncPublisher"
           operationName "ReactiveStreamsTracedMethods.traceAsyncPublisher"
+          tags {
+            defaultTags()
+            "$Tags.COMPONENT" "opentelemetry"
+          }
+        }
+      }
+    }
+  }
+
+  def "test nested WithSpan annotated async method "() {
+    setup:
+    def latch = new CountDownLatch(1)
+    def publisher = ReactiveStreamsTracedMethods.traceNestedAsyncPublisher(latch)
+    def subscriber = new ReactiveStreamsTracedMethods.ConsumerSubscriber<String>()
+
+    expect:
+    TEST_WRITER.size() == 0
+
+    when:
+    latch.countDown()
+    publisher.subscribe(subscriber)
+
+    then:
+    assertTraces(1) {
+      trace(2) {
+        span {
+          resourceName "ReactiveStreamsTracedMethods.traceNestedAsyncPublisher"
+          operationName "ReactiveStreamsTracedMethods.traceNestedAsyncPublisher"
+          parent()
+          tags {
+            defaultTags()
+            "$Tags.COMPONENT" "opentelemetry"
+          }
+        }
+        span {
+          resourceName "ReactiveStreamsTracedMethods.traceAsyncPublisher"
+          operationName "ReactiveStreamsTracedMethods.traceAsyncPublisher"
+          childOfPrevious()
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"

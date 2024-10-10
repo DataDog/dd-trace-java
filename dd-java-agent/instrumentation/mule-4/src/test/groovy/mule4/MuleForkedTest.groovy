@@ -5,7 +5,6 @@ import com.squareup.moshi.Types
 import datadog.trace.agent.test.base.WithHttpServer
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.test.util.Flaky
 import okhttp3.HttpUrl
 import okhttp3.MediaType
 import okhttp3.Request
@@ -81,7 +80,6 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
     container.stop()
   }
 
-  @Flaky("SocketTimeoutException / https://github.com/DataDog/dd-trace-java/issues/4690")
   def "test mule client remote request"() {
     setup:
     def url = HttpUrl.get(address.resolve("/client-request")).newBuilder().build()
@@ -133,7 +131,6 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
     }
   }
 
-  @Flaky("assert trace.size() == expectedSize / https://github.com/DataDog/dd-trace-java/issues/4690")
   def "test parallel for each"() {
     setup:
     def names = ["Alyssa", "Ben", "Cy", "Eva", "Lem", "Louis"]

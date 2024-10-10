@@ -12,6 +12,7 @@ class ReactorAsyncResultSupportExtensionTest extends AgentTestRunner {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
+
     injectSysConfig("dd.trace.otel.enabled", "true")
     injectSysConfig("dd.integration.opentelemetry-annotations-1.20.enabled", "true")
   }
