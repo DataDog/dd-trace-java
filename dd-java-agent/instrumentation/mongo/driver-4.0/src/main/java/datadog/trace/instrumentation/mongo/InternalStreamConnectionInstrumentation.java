@@ -35,6 +35,13 @@ public class InternalStreamConnectionInstrumentation extends InstrumenterModule.
             .and(takesArgument(1, named("com.mongodb.internal.async.SingleResultCallback"))),
         packageName + ".Arg1Advice");
 
+    // this advice is applied on v5.2.0+ of the client where an extra parameter has been introduced
+    transformer.applyAdvice(
+        isMethod()
+            .and(named("readAsync"))
+            .and(takesArgument(2, named("com.mongodb.internal.async.SingleResultCallback"))),
+        packageName + ".Arg2Advice");
+
     // THESE COULD END WITH AN EXCEPTION AND THE callback.onResult NOT CALLED so the continuation is
     // not cancelled/activated. FIXED in:
     // https://github.com/mongodb/mongo-java-driver/pull/783
