@@ -16,6 +16,7 @@
       "_dd.trace_span_attribute_schema" : 0
     },
     "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid},
       "test.type" : "test",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "test.status" : "pass",
@@ -48,6 +49,7 @@
       "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_2}
     },
     "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_2},
       "test.type" : "test",
       "test.module" : "Maven Integration Tests Project maven-failsafe-plugin default",
       "test.status" : "pass",
@@ -77,6 +79,7 @@
       "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_3}
     },
     "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_3},
       "test.type" : "test",
       "test.module" : "Maven Integration Tests Project maven-surefire-plugin default-test",
       "test.status" : "pass",
@@ -96,7 +99,7 @@
   "content" : {
     "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id},
-    "parent_id" : ${content_parent_id},
+    "parent_id" : ${content_test_session_id},
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "name" : "Maven_Integration_Tests_Project_build_helper_maven_plugin_add_test_source",
     "resource" : "Maven_Integration_Tests_Project_build_helper_maven_plugin_add_test_source",
@@ -105,6 +108,7 @@
     "error" : 0,
     "metrics" : { },
     "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_4},
       "execution" : "add-test-source",
       "project" : "Maven Integration Tests Project",
       "library_version" : ${content_meta_library_version},
@@ -118,7 +122,7 @@
   "content" : {
     "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id_2},
-    "parent_id" : ${content_parent_id},
+    "parent_id" : ${content_test_session_id},
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "name" : "Maven_Integration_Tests_Project_maven_compiler_plugin_default_compile",
     "resource" : "Maven_Integration_Tests_Project_maven_compiler_plugin_default_compile",
@@ -127,6 +131,7 @@
     "error" : 0,
     "metrics" : { },
     "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_5},
       "execution" : "default-compile",
       "project" : "Maven Integration Tests Project",
       "library_version" : ${content_meta_library_version},
@@ -140,7 +145,7 @@
   "content" : {
     "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id_3},
-    "parent_id" : ${content_parent_id},
+    "parent_id" : ${content_test_session_id},
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "name" : "Maven_Integration_Tests_Project_maven_compiler_plugin_default_testCompile",
     "resource" : "Maven_Integration_Tests_Project_maven_compiler_plugin_default_testCompile",
@@ -149,6 +154,7 @@
     "error" : 0,
     "metrics" : { },
     "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_6},
       "execution" : "default-testCompile",
       "project" : "Maven Integration Tests Project",
       "library_version" : ${content_meta_library_version},
@@ -162,7 +168,7 @@
   "content" : {
     "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id_4},
-    "parent_id" : ${content_parent_id},
+    "parent_id" : ${content_test_session_id},
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "name" : "Maven_Integration_Tests_Project_maven_failsafe_plugin_default",
     "resource" : "Maven_Integration_Tests_Project_maven_failsafe_plugin_default",
@@ -171,6 +177,7 @@
     "error" : 0,
     "metrics" : { },
     "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_7},
       "execution" : "default",
       "project" : "Maven Integration Tests Project",
       "library_version" : ${content_meta_library_version},
@@ -184,7 +191,7 @@
   "content" : {
     "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id_5},
-    "parent_id" : ${content_parent_id},
+    "parent_id" : ${content_test_session_id},
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "name" : "Maven_Integration_Tests_Project_maven_jar_plugin_default_jar",
     "resource" : "Maven_Integration_Tests_Project_maven_jar_plugin_default_jar",
@@ -193,6 +200,7 @@
     "error" : 0,
     "metrics" : { },
     "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_8},
       "execution" : "default-jar",
       "project" : "Maven Integration Tests Project",
       "library_version" : ${content_meta_library_version},
@@ -206,7 +214,7 @@
   "content" : {
     "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id_6},
-    "parent_id" : ${content_parent_id},
+    "parent_id" : ${content_test_session_id},
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "name" : "Maven_Integration_Tests_Project_maven_resources_plugin_default_resources",
     "resource" : "Maven_Integration_Tests_Project_maven_resources_plugin_default_resources",
@@ -215,6 +223,7 @@
     "error" : 0,
     "metrics" : { },
     "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_9},
       "execution" : "default-resources",
       "project" : "Maven Integration Tests Project",
       "library_version" : ${content_meta_library_version},
@@ -228,7 +237,7 @@
   "content" : {
     "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id_7},
-    "parent_id" : ${content_parent_id},
+    "parent_id" : ${content_test_session_id},
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "name" : "Maven_Integration_Tests_Project_maven_resources_plugin_default_testResources",
     "resource" : "Maven_Integration_Tests_Project_maven_resources_plugin_default_testResources",
@@ -237,6 +246,7 @@
     "error" : 0,
     "metrics" : { },
     "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_10},
       "execution" : "default-testResources",
       "project" : "Maven Integration Tests Project",
       "library_version" : ${content_meta_library_version},
