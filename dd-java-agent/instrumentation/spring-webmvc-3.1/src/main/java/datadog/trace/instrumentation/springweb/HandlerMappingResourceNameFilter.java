@@ -61,7 +61,9 @@ public class HandlerMappingResourceNameFilter extends OncePerRequestFilter imple
       System.out.println("ResponseFilter use output");
       String responseStr = wrapper.flushStreamBuffer();
       if (!Objects.equals(responseStr, "")) {
-        ((AgentSpan) parentSpan).setTag("response_body", responseStr);
+        if (parentSpan != null){
+          ((AgentSpan) parentSpan).setTag("response_body", responseStr);
+        }
       }
 
       return;
@@ -72,7 +74,9 @@ public class HandlerMappingResourceNameFilter extends OncePerRequestFilter imple
       wrapper.flushBuffer();
       String responseStr = wrapper.getWriteJsonString();
       if (!Objects.equals(responseStr, "")) {
-        ((AgentSpan) parentSpan).setTag("response_body", responseStr);
+        if (parentSpan != null){
+          ((AgentSpan) parentSpan).setTag("response_body", responseStr);
+        }
       }
       return;
     }
