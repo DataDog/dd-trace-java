@@ -533,9 +533,6 @@ class ReporterTest extends DDSpecification {
     batch.vulnerabilities.size() == 2
   }
 
-  /*  void 'Add vulnerability stack trace' (){
-   }*/
-
   private AgentSpan spanWithBatch(final VulnerabilityBatch batch) {
     final traceSegment = Mock(TraceSegment) {
       getDataTop('iast') >> batch
