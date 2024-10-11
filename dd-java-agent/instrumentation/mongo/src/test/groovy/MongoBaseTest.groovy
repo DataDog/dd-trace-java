@@ -32,7 +32,7 @@ abstract class MongoBaseTest extends VersionedNamingTestBase {
   abstract String dbType()
 
   def mongodbImageName() {
-    return "mongo:5.0.29"
+    return "mongo:4.4.29"
   }
 
   def setupSpec() throws Exception {
