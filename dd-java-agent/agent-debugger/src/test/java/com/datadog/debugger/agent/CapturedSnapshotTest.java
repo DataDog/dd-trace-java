@@ -632,6 +632,27 @@ public class CapturedSnapshotTest {
   }
 
   @Test
+  public void hoistVarKotlin() {
+    final String CLASS_NAME = "CapturedSnapshot303";
+    TestSnapshotListener listener =
+        installProbes(
+            CLASS_NAME, createProbeAtExit(PROBE_ID, CLASS_NAME + "$Companion", "main", null));
+    URL resource = CapturedSnapshotTest.class.getResource("/" + CLASS_NAME + ".kt");
+    assertNotNull(resource);
+    List<File> filesToDelete = new ArrayList<>();
+    try {
+      Class<?> testClass =
+          KotlinHelper.compileAndLoad(CLASS_NAME, resource.getFile(), filesToDelete);
+      Object companion = Reflect.onClass(testClass).get("Companion");
+      int result = Reflect.on(companion).call("main", "").get();
+      assertEquals(0, result);
+      Snapshot snapshot = assertOneSnapshot(listener);
+    } finally {
+      filesToDelete.forEach(File::delete);
+    }
+  }
+
+  @Test
   public void fieldExtractor() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot04";
     LogProbe.Builder builder = createProbeBuilder(PROBE_ID1, CLASS_NAME, "createSimpleData", "()");

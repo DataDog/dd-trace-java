@@ -467,7 +467,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
     }
     Map<String, LocalVariableNode> localVarsByName = new HashMap<>();
     Map<Integer, LocalVariableNode> localVarsBySlot = new HashMap<>();
-    Map<String, List<LocalVariableNode>> hoistableVarByName = new HashMap<>();
+    Map<String, Set<LocalVariableNode>> hoistableVarByName = new HashMap<>();
     for (LocalVariableNode localVar : methodNode.localVariables) {
       int idx = localVar.index - localVarBaseOffset;
       if (idx < argOffset) {
@@ -479,13 +479,14 @@ public class CapturedContextInstrumentor extends Instrumentor {
     removeDuplicatesFromArgs(hoistableVarByName, localVarsBySlotArray);
     // hoist vars
     List<LocalVariableNode> results = new ArrayList<>();
-    for (Map.Entry<String, List<LocalVariableNode>> entry : hoistableVarByName.entrySet()) {
-      List<LocalVariableNode> hoistableVars = entry.getValue();
+    for (Map.Entry<String, Set<LocalVariableNode>> entry : hoistableVarByName.entrySet()) {
+      Set<LocalVariableNode> hoistableVars = entry.getValue();
       LocalVariableNode newVarNode;
       if (hoistableVars.size() > 1) {
         // merge variables
-        String name = hoistableVars.get(0).name;
-        String desc = hoistableVars.get(0).desc;
+        LocalVariableNode firstHoistableVar = hoistableVars.iterator().next();
+        String name = firstHoistableVar.name;
+        String desc = firstHoistableVar.desc;
         Type localVarType = getType(desc);
         int newSlot = newVar(localVarType); // new slot for the local variable
         newVarNode = new LocalVariableNode(name, desc, null, null, null, newSlot);
@@ -502,7 +503,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
         methodNode.localVariables.add(newVarNode);
       } else {
         // hoist the single variable and rewrite all its local var instructions
-        newVarNode = hoistableVars.get(0);
+        newVarNode = hoistableVars.iterator().next();
         int oldIndex = newVarNode.index;
         newVarNode.index = newVar(getType(newVarNode.desc)); // new slot for the local variable
         rewriteLocalVarInsn(newVarNode, oldIndex, newVarNode.index);
@@ -514,7 +515,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
   }
 
   private void removeDuplicatesFromArgs(
-      Map<String, List<LocalVariableNode>> hoistableVarByName,
+      Map<String, Set<LocalVariableNode>> hoistableVarByName,
       LocalVariableNode[] localVarsBySlotArray) {
     for (int idx = 0; idx < argOffset; idx++) {
       LocalVariableNode localVar = localVarsBySlotArray[idx];
@@ -573,13 +574,13 @@ public class CapturedContextInstrumentor extends Instrumentor {
       LocalVariableNode localVar,
       Map<String, LocalVariableNode> localVarsByName,
       Map<Integer, LocalVariableNode> localVarsBySlot,
-      Map<String, List<LocalVariableNode>> hoistableVarByName) {
+      Map<String, Set<LocalVariableNode>> hoistableVarByName) {
     LocalVariableNode previousVarBySlot = localVarsBySlot.putIfAbsent(localVar.index, localVar);
     LocalVariableNode previousVarByName = localVarsByName.putIfAbsent(localVar.name, localVar);
     if (previousVarBySlot != null) {
       // there are multiple local variables with the same slot but different names
       // by hoisting in a new slot, we can avoid the conflict
-      hoistableVarByName.computeIfAbsent(localVar.name, k -> new ArrayList<>()).add(localVar);
+      hoistableVarByName.computeIfAbsent(localVar.name, k -> new HashSet<>()).add(localVar);
     }
     if (previousVarByName != null) {
       // there are multiple local variables with the same name
@@ -601,18 +602,11 @@ public class CapturedContextInstrumentor extends Instrumentor {
       // Merge variables because compatible type
     }
     // by default, there is no conflict => hoistable
-    hoistableVarByName.computeIfAbsent(localVar.name, k -> new ArrayList<>()).add(localVar);
+    hoistableVarByName.computeIfAbsent(localVar.name, k -> new HashSet<>()).add(localVar);
   }
 
   private void rewriteLocalVarInsn(LocalVariableNode localVar, int oldSlot, int newSlot) {
-    // previous insn could be a store to index that need to be rewritten as well
-    AbstractInsnNode previous = localVar.start.getPrevious();
-    if (previous instanceof VarInsnNode) {
-      VarInsnNode varInsnNode = (VarInsnNode) previous;
-      if (varInsnNode.var == oldSlot) {
-        varInsnNode.var = newSlot;
-      }
-    }
+    rewritePreviousStoreInsn(localVar, oldSlot, newSlot);
     for (AbstractInsnNode insn = localVar.start;
         insn != null && insn != localVar.end;
         insn = insn.getNext()) {
@@ -627,6 +621,42 @@ public class CapturedContextInstrumentor extends Instrumentor {
         if (iincInsnNode.var == oldSlot) {
           iincInsnNode.var = newSlot;
         }
+      }
+    }
+  }
+
+  // Previous insn(s) to local var range could be a store to index that need to be rewritten as well
+  // LocalVariableTable ranges starts after the init of the local var.
+  // ex:
+  //    9: iconst_0
+  //   10: astore_1
+  //   11: aload_1
+  // range for slot 1 starts at 11
+  // javac always starts the range right after the init of the local var, so we can just look for
+  // the previous instruction
+  // for kotlinc, many instructions can separate the init and the range start
+  // ex:
+  //    LocalVariableTable:
+  //    Start  Length  Slot  Name   Signature
+  //    70     121     4 $i$f$map   I
+  //
+  //    64: istore        4
+  //    66: aload_2
+  //    67: iconst_2
+  //    68: iconst_1
+  //    69: bastore
+  //    70: aload_3
+  private static void rewritePreviousStoreInsn(
+      LocalVariableNode localVar, int oldSlot, int newSlot) {
+    AbstractInsnNode previous = localVar.start.getPrevious();
+    while (previous != null
+        && (!(previous instanceof VarInsnNode) || ((VarInsnNode) previous).var != oldSlot)) {
+      previous = previous.getPrevious();
+    }
+    if (previous != null) {
+      VarInsnNode varInsnNode = (VarInsnNode) previous;
+      if (varInsnNode.var == oldSlot) {
+        varInsnNode.var = newSlot;
       }
     }
   }
