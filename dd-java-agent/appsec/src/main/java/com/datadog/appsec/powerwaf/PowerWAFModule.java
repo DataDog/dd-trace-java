@@ -1,5 +1,6 @@
 package com.datadog.appsec.powerwaf;
 
+import static datadog.trace.util.stacktrace.StackTraceEvent.DEFAULT_LANGUAGE;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.toMap;
@@ -16,8 +17,6 @@ import com.datadog.appsec.gateway.AppSecRequestContext;
 import com.datadog.appsec.gateway.GatewayContext;
 import com.datadog.appsec.gateway.RateLimiter;
 import com.datadog.appsec.report.AppSecEvent;
-import com.datadog.appsec.stack_trace.StackTraceEvent;
-import com.datadog.appsec.stack_trace.StackTraceEvent.Frame;
 import com.datadog.appsec.util.StandardizedLogging;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
@@ -34,7 +33,9 @@ import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.util.stacktrace.StackWalkerFactory;
+import datadog.trace.util.stacktrace.StackTraceEvent;
+import datadog.trace.util.stacktrace.StackTraceFrame;
+import datadog.trace.util.stacktrace.StackUtils;
 import io.sqreen.powerwaf.Additive;
 import io.sqreen.powerwaf.Powerwaf;
 import io.sqreen.powerwaf.PowerwafConfig;
@@ -66,7 +67,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -566,26 +566,8 @@ public class PowerWAFModule implements AppSecModule {
       if (stackId == null || stackId.isEmpty()) {
         return null;
       }
-      List<Frame> result = generateUserCodeStackTrace();
-      return new StackTraceEvent(stackId, EXPLOIT_DETECTED_MSG, result);
-    }
-
-    /** Function generates stack trace of the user code (excluding datadog classes) */
-    private List<Frame> generateUserCodeStackTrace() {
-      int stackCapacity = Config.get().getAppSecMaxStackTraceDepth();
-      List<StackTraceElement> elements =
-          StackWalkerFactory.INSTANCE.walk(
-              stream ->
-                  stream
-                      .filter(
-                          elem ->
-                              !elem.getClassName().startsWith("com.datadog")
-                                  && !elem.getClassName().startsWith("datadog.trace"))
-                      .limit(stackCapacity)
-                      .collect(Collectors.toList()));
-      return IntStream.range(0, elements.size())
-          .mapToObj(idx -> new Frame(elements.get(idx), idx))
-          .collect(Collectors.toList());
+      List<StackTraceFrame> result = StackUtils.generateUserCodeStackTrace();
+      return new StackTraceEvent(result, DEFAULT_LANGUAGE, stackId, EXPLOIT_DETECTED_MSG);
     }
 
     private Powerwaf.ResultWithData doRunPowerwaf(

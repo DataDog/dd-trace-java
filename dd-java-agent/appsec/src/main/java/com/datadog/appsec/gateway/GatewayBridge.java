@@ -5,6 +5,7 @@ import static com.datadog.appsec.event.data.MapDataBundle.Builder.CAPACITY_6_10;
 import static com.datadog.appsec.gateway.AppSecRequestContext.DEFAULT_REQUEST_HEADERS_ALLOW_LIST;
 import static com.datadog.appsec.gateway.AppSecRequestContext.REQUEST_HEADERS_ALLOW_LIST;
 import static com.datadog.appsec.gateway.AppSecRequestContext.RESPONSE_HEADERS_ALLOW_LIST;
+import static datadog.trace.util.stacktrace.StackTraceBatch.META_STRUCT_KEY;
 
 import com.datadog.appsec.AppSecSystem;
 import com.datadog.appsec.api.security.ApiSecurityRequestSampler;
@@ -20,8 +21,6 @@ import com.datadog.appsec.event.data.ObjectIntrospection;
 import com.datadog.appsec.event.data.SingletonDataBundle;
 import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.report.AppSecEventWrapper;
-import com.datadog.appsec.stack_trace.StackTraceCollection;
-import com.datadog.appsec.util.ObjectFlattener;
 import datadog.trace.api.Config;
 import datadog.trace.api.UserIdCollectionMode;
 import datadog.trace.api.function.TriFunction;
@@ -38,6 +37,8 @@ import datadog.trace.api.telemetry.WafMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
+import datadog.trace.util.stacktrace.StackTraceBatch;
+import datadog.trace.util.stacktrace.StackTraceEvent;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
@@ -585,13 +586,20 @@ public class GatewayBridge {
         writeResponseHeaders(traceSeg, RESPONSE_HEADERS_ALLOW_LIST, ctx.getResponseHeaders());
 
         // Report collected stack traces
-        StackTraceCollection stackTraceCollection = ctx.transferStackTracesCollection();
-        if (stackTraceCollection != null) {
-          Object flatStruct = ObjectFlattener.flatten(stackTraceCollection);
-          if (flatStruct != null) {
-            traceSeg.setMetaStructTop("_dd.stack", flatStruct);
+        Collection<StackTraceEvent> stackTraces = ctx.getStackTraces();
+        if (stackTraces != null && !stackTraces.isEmpty()) {
+          StackTraceBatch stackTraceBatch =
+              ((StackTraceBatch) traceSeg.getMetaStructTop(META_STRUCT_KEY));
+          if (stackTraceBatch == null) {
+            stackTraceBatch = new StackTraceBatch(new ArrayList<>(), null);
+            traceSeg.setMetaStructTop(META_STRUCT_KEY, stackTraceBatch);
           }
+          if (stackTraceBatch.getExploit() == null) {
+            stackTraceBatch.setExploit(new ArrayList<>());
+          }
+          stackTraceBatch.getExploit().addAll(stackTraces);
         }
+
       } else if (hasUserTrackingEvent(traceSeg)) {
         // Report all collected request headers on user tracking event
         writeRequestHeaders(traceSeg, REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders());

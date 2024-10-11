@@ -817,7 +817,7 @@ public class DDSpanContext
 
   /** @see CoreSpan#getMetaStruct() */
   public Map<String, Object> getMetaStruct() {
-    return Collections.unmodifiableMap(metaStruct);
+    return metaStruct;
   }
 
   /** @see CoreSpan#setMetaStruct(String, Object) */
@@ -1023,8 +1023,18 @@ public class DDSpanContext
   }
 
   @Override
+  public Object getMetaStructTop(String key) {
+    return getRootSpanContextOrThis().getMetaStructCurrent(key);
+  }
+
+  @Override
   public void setMetaStructCurrent(String field, Object value) {
     setMetaStruct(field, value);
+  }
+
+  @Override
+  public Object getMetaStructCurrent(String key) {
+    return getMetaStruct().get(key);
   }
 
   public void setRequiresPostProcessing(boolean postProcessing) {

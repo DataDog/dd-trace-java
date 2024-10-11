@@ -1,5 +1,6 @@
 package datadog.communication.serialization.msgpack;
 
+import static datadog.trace.util.stacktrace.StackTraceEvent.DEFAULT_LANGUAGE;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -12,12 +13,16 @@ import datadog.communication.serialization.Mapper;
 import datadog.communication.serialization.MessageFormatter;
 import datadog.communication.serialization.StreamingBuffer;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.util.stacktrace.StackTraceBatch;
+import datadog.trace.util.stacktrace.StackTraceEvent;
+import datadog.trace.util.stacktrace.StackTraceFrame;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -784,6 +789,90 @@ public class MsgPackWriterTest {
     writer.writeStringHeader(1);
     writer.writeStringHeader(0xFFFF);
     writer.writeStringHeader(0x10000);
+  }
+
+  @Test
+  public void testStackTraceBatch() {
+    final StackTraceBatch data = buildTestStackTraceBatch();
+    MessageFormatter messageFormatter =
+        new MsgPackWriter(
+            newBuffer(
+                100000,
+                (messageCount, buffer) -> {
+                  MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer);
+                  try {
+                    checkStackTraceBatch(data, unpacker);
+                  } catch (IOException e) {
+                    Assertions.fail(e.getMessage());
+                  }
+                }));
+    messageFormatter.format(data, (x, w) -> w.writeObject(x, null));
+    messageFormatter.flush();
+  }
+
+  private void checkStackTraceBatch(StackTraceBatch batch, MessageUnpacker unpacker)
+      throws IOException {
+    assertEquals(2, unpacker.unpackMapHeader());
+    assertEquals("exploit", unpacker.unpackString());
+    assertEquals(batch.getExploit().size(), unpacker.unpackArrayHeader());
+    for (StackTraceEvent event : batch.getExploit()) {
+      checkStackTraceEvent(event, unpacker);
+    }
+    assertEquals("vulnerability", unpacker.unpackString());
+    assertEquals(batch.getVulnerability().size(), unpacker.unpackArrayHeader());
+    for (StackTraceEvent event : batch.getVulnerability()) {
+      checkStackTraceEvent(event, unpacker);
+    }
+  }
+
+  private void checkStackTraceEvent(StackTraceEvent event, MessageUnpacker unpacker)
+      throws IOException {
+    assertEquals(4, unpacker.unpackMapHeader());
+    assertEquals("id", unpacker.unpackString());
+    assertEquals(event.getId(), unpacker.unpackString());
+    assertEquals("language", unpacker.unpackString());
+    assertEquals(event.getLanguage(), unpacker.unpackString());
+    assertEquals("message", unpacker.unpackString());
+    assertEquals(event.getMessage(), unpacker.unpackString());
+    assertEquals("frames", unpacker.unpackString());
+    assertEquals(event.getFrames().size(), unpacker.unpackArrayHeader());
+    for (StackTraceFrame frame : event.getFrames()) {
+      checkFrame(frame, unpacker);
+    }
+  }
+
+  private void checkFrame(StackTraceFrame frame, MessageUnpacker unpacker) throws IOException {
+    assertEquals(6, unpacker.unpackMapHeader());
+    assertEquals("id", unpacker.unpackString());
+    assertEquals(frame.getId(), unpacker.unpackInt());
+    assertEquals("text", unpacker.unpackString());
+    assertEquals(frame.getText(), unpacker.unpackString());
+    assertEquals("file", unpacker.unpackString());
+    assertEquals(frame.getFile(), unpacker.unpackString());
+    assertEquals("line", unpacker.unpackString());
+    assertEquals(frame.getLine(), unpacker.unpackInt());
+    assertEquals("class_name", unpacker.unpackString());
+    assertEquals(frame.getClass_name(), unpacker.unpackString());
+    assertEquals("function", unpacker.unpackString());
+    assertEquals(frame.getFunction(), unpacker.unpackString());
+  }
+
+  private StackTraceBatch buildTestStackTraceBatch() {
+    final StackTraceFrame frame1 =
+        new StackTraceFrame(1, new StackTraceElement("class1", "method1", "file1", 1));
+    final StackTraceFrame frame2 =
+        new StackTraceFrame(2, new StackTraceElement("class2", "method2", "file2", 2));
+
+    List<StackTraceEvent> exploit =
+        Arrays.asList(
+            new StackTraceEvent(Arrays.asList(frame1, frame2), DEFAULT_LANGUAGE, "id1", "exploit1"),
+            new StackTraceEvent(
+                Arrays.asList(frame1, frame2), DEFAULT_LANGUAGE, "id2", "exploit2"));
+    List<StackTraceEvent> vulnerability =
+        Arrays.asList(
+            new StackTraceEvent(Arrays.asList(frame1, frame2), DEFAULT_LANGUAGE, "1", "vuln1"),
+            new StackTraceEvent(Arrays.asList(frame1, frame2), DEFAULT_LANGUAGE, "2", "vuln2"));
+    return new StackTraceBatch(exploit, vulnerability);
   }
 
   private StreamingBuffer newBuffer(int capacity, ByteBufferConsumer consumer) {

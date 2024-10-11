@@ -1,5 +1,8 @@
 package datadog.communication.serialization;
 
+import datadog.trace.util.stacktrace.StackTraceBatch;
+import datadog.trace.util.stacktrace.StackTraceEvent;
+import datadog.trace.util.stacktrace.StackTraceFrame;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.util.Collection;
@@ -88,6 +91,15 @@ public final class Codec extends ClassValue<ValueWriter<?>> {
     }
     if (ByteBuffer.class.isAssignableFrom(clazz)) {
       return new ByteBufferWriter();
+    }
+    if (StackTraceBatch.class.isAssignableFrom(clazz)) {
+      return new StackTraceBatchWriter();
+    }
+    if (StackTraceEvent.class.isAssignableFrom(clazz)) {
+      return new StackTraceEventWriter();
+    }
+    if (StackTraceFrame.class.isAssignableFrom(clazz)) {
+      return new StackTraceEventFrameWriter();
     }
     return DefaultWriter.INSTANCE;
   }
@@ -286,6 +298,54 @@ public final class Codec extends ClassValue<ValueWriter<?>> {
     @Override
     public void write(Object value, Writable packer, EncodingCache encodingCache) {
       CharSequenceWriter.INSTANCE.write(String.valueOf(value), packer, null);
+    }
+  }
+
+  private static final class StackTraceBatchWriter implements ValueWriter<StackTraceBatch> {
+
+    @Override
+    public void write(StackTraceBatch value, Writable writable, EncodingCache encodingCache) {
+      writable.startMap(2);
+      writable.writeString("exploit", encodingCache);
+      writable.writeObject(value.getExploit(), encodingCache);
+      writable.writeString("vulnerability", encodingCache);
+      writable.writeObject(value.getVulnerability(), encodingCache);
+    }
+  }
+
+  private static final class StackTraceEventWriter implements ValueWriter<StackTraceEvent> {
+
+    @Override
+    public void write(StackTraceEvent value, Writable writable, EncodingCache encodingCache) {
+      writable.startMap(4);
+      writable.writeString("id", encodingCache);
+      writable.writeString(value.getId(), encodingCache);
+      writable.writeString("language", encodingCache);
+      writable.writeString(value.getLanguage(), encodingCache);
+      writable.writeString("message", encodingCache);
+      writable.writeString(value.getMessage(), encodingCache);
+      writable.writeString("frames", encodingCache);
+      writable.writeObject(value.getFrames(), encodingCache);
+    }
+  }
+
+  private static final class StackTraceEventFrameWriter implements ValueWriter<StackTraceFrame> {
+
+    @Override
+    public void write(StackTraceFrame value, Writable writable, EncodingCache encodingCache) {
+      writable.startMap(6);
+      writable.writeString("id", encodingCache);
+      writable.writeInt(value.getId());
+      writable.writeString("text", encodingCache);
+      writable.writeString(value.getText(), encodingCache);
+      writable.writeString("file", encodingCache);
+      writable.writeString(value.getFile(), encodingCache);
+      writable.writeString("line", encodingCache);
+      writable.writeInt(value.getLine());
+      writable.writeString("class_name", encodingCache);
+      writable.writeString(value.getClass_name(), encodingCache);
+      writable.writeString("function", encodingCache);
+      writable.writeString(value.getFunction(), encodingCache);
     }
   }
 }

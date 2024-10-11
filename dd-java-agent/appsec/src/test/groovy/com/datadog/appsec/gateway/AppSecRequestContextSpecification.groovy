@@ -5,10 +5,10 @@ import com.datadog.appsec.config.CurrentAppSecConfig
 import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.event.data.MapDataBundle
 import com.datadog.appsec.report.AppSecEvent
-import com.datadog.appsec.stack_trace.StackTraceCollection
-import com.datadog.appsec.stack_trace.StackTraceEvent
+import datadog.trace.util.stacktrace.StackTraceEvent
 import com.datadog.appsec.test.StubAppSecConfigService
 import datadog.trace.test.util.DDSpecification
+import datadog.trace.util.stacktrace.StackTraceFrame
 import io.sqreen.powerwaf.Additive
 import io.sqreen.powerwaf.Powerwaf
 import io.sqreen.powerwaf.PowerwafContext
@@ -125,30 +125,31 @@ class AppSecRequestContextSpecification extends DDSpecification {
   void 'can collect stack traces'() {
     setup:
     StackTraceElement element = new StackTraceElement('class', 'method', 'file', 1)
-    StackTraceEvent.Frame frame = new StackTraceEvent.Frame(element, 1)
-    StackTraceEvent event = new StackTraceEvent('id', 'message', [frame])
+    StackTraceFrame frame = new StackTraceFrame(1, element)
+    StackTraceEvent event = new StackTraceEvent([frame], 'java', 'id', 'message')
 
     when:
     ctx.reportStackTrace(event)
-    StackTraceCollection collection = ctx.transferStackTracesCollection()
+    final result = ctx.getStackTraces()
 
     then:
-    collection.exploit.size() == 1
-    collection.exploit[0].id == 'id'
-    collection.exploit[0].message == 'message'
-    collection.exploit[0].language == 'java'
-    collection.exploit[0].frames.size() == 1
-    collection.exploit[0].frames[0].id == 1
-    collection.exploit[0].frames[0].text == 'class.method(file:1)'
-    collection.exploit[0].frames[0].file == 'file'
-    collection.exploit[0].frames[0].line == 1
-    collection.exploit[0].frames[0].class_name == 'class'
-    collection.exploit[0].frames[0].function == 'method'
+    result.size() == 1
+    result.size() == 1
+    result[0].id == 'id'
+    result[0].message == 'message'
+    result[0].language == 'java'
+    result[0].frames.size() == 1
+    result[0].frames[0].id == 1
+    result[0].frames[0].text == 'class.method(file:1)'
+    result[0].frames[0].file == 'file'
+    result[0].frames[0].line == 1
+    result[0].frames[0].class_name == 'class'
+    result[0].frames[0].function == 'method'
   }
 
   void 'collect stack traces when none reported'() {
     expect:
-    ctx.transferStackTracesCollection() == null
+    ctx.getStackTraces() == null
   }
 
   void 'headers allow list should contains only lowercase names'() {

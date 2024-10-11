@@ -2,6 +2,8 @@ package com.datadog.iast;
 
 import static com.datadog.iast.IastTag.Enabled.ANALYZED;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
+import static datadog.trace.util.stacktrace.StackTraceBatch.META_STRUCT_KEY;
+import static datadog.trace.util.stacktrace.StackTraceEvent.DEFAULT_LANGUAGE;
 
 import com.datadog.iast.model.Vulnerability;
 import com.datadog.iast.model.VulnerabilityBatch;
@@ -12,12 +14,19 @@ import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.*;
 import datadog.trace.util.AgentTaskScheduler;
+import datadog.trace.util.stacktrace.StackTraceBatch;
+import datadog.trace.util.stacktrace.StackTraceEvent;
+import datadog.trace.util.stacktrace.StackTraceFrame;
+import datadog.trace.util.stacktrace.StackUtils;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -68,8 +77,40 @@ public class Reporter {
       @Nonnull final AgentSpan span, @Nonnull final Vulnerability vulnerability) {
     final VulnerabilityBatch batch = getOrCreateVulnerabilityBatch(span);
     if (batch != null) {
+      if (Config.get().isAppSecStackTraceEnabled()) {
+        String stackId = addVulnerabilityStackTrace(span);
+        if (stackId != null) {
+          vulnerability.setStackId(stackId);
+        }
+      }
       batch.add(vulnerability);
     }
+  }
+
+  @Nullable
+  private static String addVulnerabilityStackTrace(@NotNull AgentSpan span) {
+    final RequestContext reqCtx = span.getRequestContext();
+    if (reqCtx == null) {
+      return null;
+    }
+    final IastRequestContext iastCtx = reqCtx.getData(RequestContextSlot.IAST);
+    if (iastCtx == null) {
+      return null;
+    }
+    List<StackTraceFrame> frames = StackUtils.generateUserCodeStackTrace();
+    StackTraceEvent stackTraceEvent =
+        new StackTraceEvent(frames, DEFAULT_LANGUAGE, iastCtx.getStackTraceId(), null);
+    final TraceSegment segment = reqCtx.getTraceSegment();
+    StackTraceBatch stackTraceBatch = ((StackTraceBatch) segment.getMetaStructTop(META_STRUCT_KEY));
+    if (stackTraceBatch == null) {
+      stackTraceBatch = new StackTraceBatch();
+      segment.setMetaStructTop(META_STRUCT_KEY, stackTraceBatch);
+    }
+    if (stackTraceBatch.getVulnerability() == null) {
+      stackTraceBatch.setVulnerability(new ArrayList<>());
+    }
+    stackTraceBatch.getVulnerability().add(stackTraceEvent);
+    return stackTraceEvent.getId();
   }
 
   @Nullable
