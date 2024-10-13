@@ -1,6 +1,10 @@
 package datadog.trace.instrumentation.zio.v2_0;
 
-import datadog.trace.bootstrap.ContextStore;
+import static datadog.context.Context.current;
+import static datadog.context.Context.empty;
+import static datadog.context.Context.from;
+
+import datadog.context.Context;
 import scala.Option;
 import zio.Exit;
 import zio.Fiber;
@@ -10,19 +14,9 @@ import zio.ZEnvironment;
 import zio.ZIO;
 import zio.ZIO$;
 
-@SuppressWarnings("unchecked")
 public final class TracingSupervisor extends Supervisor<Object> {
-
-  @SuppressWarnings("rawtypes")
-  private final ContextStore<Fiber.Runtime, FiberContext> contextStore;
-
-  @SuppressWarnings("rawtypes")
-  public TracingSupervisor(ContextStore<Fiber.Runtime, FiberContext> contextStore) {
-    this.contextStore = contextStore;
-  }
-
   @Override
-  @SuppressWarnings("rawtypes")
+  @SuppressWarnings({"rawtypes", "unchecked"})
   public ZIO value(Object trace) {
     return ZIO$.MODULE$.unit();
   }
@@ -34,25 +28,27 @@ public final class TracingSupervisor extends Supervisor<Object> {
       Option<Fiber.Runtime<Object, Object>> parent,
       Fiber.Runtime<E, A_> fiber,
       Unsafe unsafe) {
-    FiberContext context = FiberContext.create();
-    contextStore.put(fiber, context);
+    // Store current context to new fiber
+    current().attachTo(fiber);
   }
 
   @Override
-  public <R, E, A_> void onEnd(Exit<E, A_> value, Fiber.Runtime<E, A_> fiber, Unsafe unsafe) {
-    FiberContext context = contextStore.get(fiber);
-    if (context != null) context.onEnd();
-  }
+  public <R, E, A_> void onEnd(Exit<E, A_> value, Fiber.Runtime<E, A_> fiber, Unsafe unsafe) {}
 
   @Override
   public <E, A_> void onSuspend(Fiber.Runtime<E, A_> fiber, Unsafe unsafe) {
-    FiberContext context = contextStore.get(fiber);
-    if (context != null) context.onSuspend();
+    // Store current context on fiber deactivation
+    current().attachTo(fiber);
+    // Clear context to avoid context leak
+    empty().makeCurrent();
   }
 
   @Override
   public <E, A_> void onResume(Fiber.Runtime<E, A_> fiber, Unsafe unsafe) {
-    FiberContext context = contextStore.get(fiber);
-    if (context != null) context.onResume();
+    // Restore stored context on fiber activation
+    Context context = from(fiber);
+    if (context != null) {
+      context.makeCurrent();
+    }
   }
 }

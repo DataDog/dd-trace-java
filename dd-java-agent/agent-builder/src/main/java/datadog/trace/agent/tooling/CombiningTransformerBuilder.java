@@ -9,6 +9,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
+import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter.WithPostProcessor;
 import datadog.trace.agent.tooling.bytebuddy.ExceptionHandlers;
 import datadog.trace.agent.tooling.context.FieldBackedContextInjector;
@@ -117,6 +118,12 @@ public final class CombiningTransformerBuilder
     ignoredMethods = module.methodIgnoreMatcher();
     classLoaderMatcher = module.classLoaderMatcher();
     contextStore = module.contextStore();
+    if (!module.contextCarriers().isEmpty()) {
+      contextStore = new HashMap<>(contextStore);
+      for (String carrier : module.contextCarriers()) {
+        contextStore.put(carrier, Context.class.getName());
+      }
+    }
 
     contextRequestRewriter =
         !contextStore.isEmpty()
