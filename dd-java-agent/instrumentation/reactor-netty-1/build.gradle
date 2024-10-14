@@ -25,8 +25,8 @@ dependencies {
   testImplementation group: 'io.projectreactor.netty', name: 'reactor-netty-http', version: '1.0.0'
   testImplementation project(':dd-java-agent:instrumentation:netty-4.1')
   testImplementation project(':dd-java-agent:instrumentation:reactor-core-3.1')
+  testImplementation project(':dd-java-agent:instrumentation:reactive-streams')
 
   latestDepTestImplementation group: 'io.projectreactor.netty', name: 'reactor-netty-http', version: '+'
   latestDepTestImplementation project(':dd-java-agent:instrumentation:netty-4.1')
-  testImplementation project(':dd-java-agent:instrumentation:reactor-core-3.1')
 }
