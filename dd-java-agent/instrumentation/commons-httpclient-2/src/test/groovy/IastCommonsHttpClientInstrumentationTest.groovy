@@ -37,7 +37,7 @@ class IastCommonsHttpClientInstrumentationTest extends AgentTestRunner {
 
   void 'test ssrf'() {
     given:
-    final url = server.address.toString()
+    final url = normalizeUrl(server.address.toString())
     tainteds.put(url, null)
     final ssrf = Mock(SsrfModule)
     InstrumentationBridge.registerIastModule(ssrf)
@@ -46,7 +46,7 @@ class IastCommonsHttpClientInstrumentationTest extends AgentTestRunner {
     new HttpClient().executeMethod(new GetMethod(url))
 
     then:
-    1 * ssrf.onURLConnection(url + "/")
+    1 * ssrf.onURLConnection(url)
   }
 
   private void mockPropagation() {
@@ -58,5 +58,16 @@ class IastCommonsHttpClientInstrumentationTest extends AgentTestRunner {
       }
     }
     InstrumentationBridge.registerIastModule(propagation)
+  }
+
+  private Object normalizeUrl(Object url) {
+    if (url instanceof String) {
+      return url.endsWith("/") ? url : url + "/"
+    } else if (url instanceof URI) {
+      String path = url.getPath().endsWith("/") ? url.getPath() : url.getPath() + "/"
+      return new URI(url.getScheme(), url.getAuthority(), path, url.getQuery(), url.getFragment()).toURL()
+    }
+
+    return url
   }
 }

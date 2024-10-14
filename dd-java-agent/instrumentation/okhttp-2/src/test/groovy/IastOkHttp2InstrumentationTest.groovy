@@ -56,9 +56,9 @@ class IastOkHttp2InstrumentationTest extends AgentTestRunner {
     1 * module.onURLConnection(url.toString())
 
     where:
-    url                       | _
-    server.address.toString() | _
-    server.address.toURL()    | _
+    url                                     | _
+    normalizeUrl(server.address.toString()) | _
+    normalizeUrl(server.address)            | _
   }
 
   private void mockPropagation() {
@@ -78,5 +78,16 @@ class IastOkHttp2InstrumentationTest extends AgentTestRunner {
       onUrlCreate(*_) >> { taint(it[0], it[1] as List) }
     }
     InstrumentationBridge.registerIastModule(codec)
+  }
+
+  private Object normalizeUrl(Object url) {
+    if (url instanceof String) {
+      return url.endsWith("/") ? url : url + "/"
+    } else if (url instanceof URI) {
+      String path = url.getPath().endsWith("/") ? url.getPath() : url.getPath() + "/"
+      return new URI(url.getScheme(), url.getAuthority(), path, url.getQuery(), url.getFragment()).toURL()
+    }
+
+    return url
   }
 }
