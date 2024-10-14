@@ -23,6 +23,7 @@ import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -822,6 +823,46 @@ public class MsgPackWriterTest {
     testStackTraceBatch(batch);
   }
 
+  @Test
+  public void testSimpleStackTraceEvent() {
+    final StackTraceFrame frame =
+        new StackTraceFrame(1, new StackTraceElement("class1", "method1", "file1", 1));
+    StackTraceEvent data = new StackTraceEvent(Collections.singletonList(frame), null, null, null);
+    MessageFormatter messageFormatter =
+        new MsgPackWriter(
+            newBuffer(
+                1000,
+                (messageCount, buffer) -> {
+                  MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer);
+                  try {
+                    checkStackTraceEvent(data, unpacker);
+                  } catch (IOException e) {
+                    Assertions.fail(e.getMessage());
+                  }
+                }));
+    messageFormatter.format(data, (x, w) -> w.writeObject(x, null));
+    messageFormatter.flush();
+  }
+
+  @Test
+  public void testSimpleStackTraceFrame() {
+    final StackTraceFrame frame = new StackTraceFrame(1, null, "null", -1, null, null);
+    MessageFormatter messageFormatter =
+        new MsgPackWriter(
+            newBuffer(
+                1000,
+                (messageCount, buffer) -> {
+                  MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer);
+                  try {
+                    checkStackTraceFrame(frame, unpacker);
+                  } catch (IOException e) {
+                    Assertions.fail(e.getMessage());
+                  }
+                }));
+    messageFormatter.format(frame, (x, w) -> w.writeObject(x, null));
+    messageFormatter.flush();
+  }
+
   private void testStackTraceBatch(final StackTraceBatch batch) {
     MessageFormatter messageFormatter =
         new MsgPackWriter(
@@ -868,34 +909,77 @@ public class MsgPackWriterTest {
 
   private void checkStackTraceEvent(StackTraceEvent event, MessageUnpacker unpacker)
       throws IOException {
-    assert unpacker.unpackMapHeader() > 0;
-    assertEquals("id", unpacker.unpackString());
-    assertEquals(event.getId(), unpacker.unpackString());
-    assertEquals("language", unpacker.unpackString());
-    assertEquals(event.getLanguage(), unpacker.unpackString());
-    assertEquals("message", unpacker.unpackString());
-    assertEquals(event.getMessage(), unpacker.unpackString());
+    boolean hasId = event.getId() != null && !event.getId().isEmpty();
+    boolean hasLanguage = event.getLanguage() != null && !event.getLanguage().isEmpty();
+    boolean hasMessage = event.getMessage() != null && !event.getMessage().isEmpty();
+    int mapSize = 1 + (hasId ? 1 : 0) + (hasLanguage ? 1 : 0) + (hasMessage ? 1 : 0);
+    assertEquals(mapSize, unpacker.unpackMapHeader());
+    if (hasId) {
+      assertEquals("id", unpacker.unpackString());
+      assertEquals(event.getId(), unpacker.unpackString());
+    }
+    if (hasLanguage) {
+      assertEquals("language", unpacker.unpackString());
+      assertEquals(event.getLanguage(), unpacker.unpackString());
+    }
+    if (hasMessage) {
+      assertEquals("message", unpacker.unpackString());
+      assertEquals(event.getMessage(), unpacker.unpackString());
+    }
     assertEquals("frames", unpacker.unpackString());
     assertEquals(event.getFrames().size(), unpacker.unpackArrayHeader());
     for (StackTraceFrame frame : event.getFrames()) {
-      checkFrame(frame, unpacker);
+      checkStackTraceFrame(frame, unpacker);
     }
   }
 
-  private void checkFrame(StackTraceFrame frame, MessageUnpacker unpacker) throws IOException {
-    assert unpacker.unpackMapHeader() > 0;
+  private void checkStackTraceFrame(StackTraceFrame frame, MessageUnpacker unpacker)
+      throws IOException {
+    boolean hasText = frame.getText() != null && !frame.getText().isEmpty();
+    boolean hasFile = frame.getFile() != null && !frame.getFile().isEmpty();
+    boolean hasLine = frame.getLine() != null;
+    boolean hasClass = frame.getClass_name() != null && !frame.getClass_name().isEmpty();
+    boolean hasFunction = frame.getFunction() != null && !frame.getFunction().isEmpty();
+
+    int mapSize = 1; // id is always present
+    if (hasText) {
+      mapSize++;
+    }
+    if (hasFile) {
+      mapSize++;
+    }
+    if (hasLine) {
+      mapSize++;
+    }
+    if (hasClass) {
+      mapSize++;
+    }
+    if (hasFunction) {
+      mapSize++;
+    }
+    assertEquals(mapSize, unpacker.unpackMapHeader());
     assertEquals("id", unpacker.unpackString());
     assertEquals(frame.getId(), unpacker.unpackInt());
-    assertEquals("text", unpacker.unpackString());
-    assertEquals(frame.getText(), unpacker.unpackString());
-    assertEquals("file", unpacker.unpackString());
-    assertEquals(frame.getFile(), unpacker.unpackString());
-    assertEquals("line", unpacker.unpackString());
-    assertEquals(frame.getLine(), unpacker.unpackInt());
-    assertEquals("class_name", unpacker.unpackString());
-    assertEquals(frame.getClass_name(), unpacker.unpackString());
-    assertEquals("function", unpacker.unpackString());
-    assertEquals(frame.getFunction(), unpacker.unpackString());
+    if (hasText) {
+      assertEquals("text", unpacker.unpackString());
+      assertEquals(frame.getText(), unpacker.unpackString());
+    }
+    if (hasFile) {
+      assertEquals("file", unpacker.unpackString());
+      assertEquals(frame.getFile(), unpacker.unpackString());
+    }
+    if (hasLine) {
+      assertEquals("line", unpacker.unpackString());
+      assertEquals(frame.getLine(), unpacker.unpackInt());
+    }
+    if (hasClass) {
+      assertEquals("class_name", unpacker.unpackString());
+      assertEquals(frame.getClass_name(), unpacker.unpackString());
+    }
+    if (hasFunction) {
+      assertEquals("function", unpacker.unpackString());
+      assertEquals(frame.getFunction(), unpacker.unpackString());
+    }
   }
 
   private List<StackTraceEvent> buildStacktraceEvents() {

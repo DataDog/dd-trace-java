@@ -22,6 +22,21 @@ public class StackTraceFrame {
     this.function = element.getMethodName();
   }
 
+  public StackTraceFrame(
+      final int id,
+      @Nullable final String text,
+      @Nullable final String file,
+      @Nullable final Integer line,
+      @Nullable final String class_name,
+      @Nullable final String function) {
+    this.id = id;
+    this.text = text;
+    this.file = file;
+    this.line = line;
+    this.class_name = class_name;
+    this.function = function;
+  }
+
   public int getId() {
     return id;
   }
@@ -36,6 +51,7 @@ public class StackTraceFrame {
     return file;
   }
 
+  @Nullable
   public Integer getLine() {
     return line;
   }
