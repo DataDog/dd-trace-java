@@ -46,7 +46,7 @@ class IastCommonsHttpClientInstrumentationTest extends AgentTestRunner {
     new HttpClient().executeMethod(new GetMethod(url))
 
     then:
-    1 * ssrf.onURLConnection({ value -> tainteds.containsKey(value) })
+    1 * ssrf.onURLConnection(url + "/")
   }
 
   private void mockPropagation() {

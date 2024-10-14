@@ -6,6 +6,10 @@ import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourc
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.api.ProductActivation;
+import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.sink.SsrfModule;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -67,6 +71,16 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
       String method = method(request);
       span.setTag(Tags.HTTP_METHOD, method);
 
+      if (CLIENT_TAG_HEADERS) {
+        for (Map.Entry<String, String> headerTag :
+            traceConfig(span).getRequestHeaderTags().entrySet()) {
+          String headerValue = getRequestHeader(request, headerTag.getKey());
+          if (null != headerValue) {
+            span.setTag(headerTag.getValue(), headerValue);
+          }
+        }
+      }
+
       // Copy of HttpServerDecorator url handling
       try {
         final URI url = url(request);
@@ -82,21 +96,12 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
           if (shouldSetResourceName()) {
             HTTP_RESOURCE_DECORATOR.withClientPath(span, method, url.getPath());
           }
+          ssrfIastCheck(url.toString());
         } else if (shouldSetResourceName()) {
           span.setResourceName(DEFAULT_RESOURCE_NAME);
         }
       } catch (final Exception e) {
         log.debug("Error tagging url", e);
-      }
-
-      if (CLIENT_TAG_HEADERS) {
-        for (Map.Entry<String, String> headerTag :
-            traceConfig(span).getRequestHeaderTags().entrySet()) {
-          String headerValue = getRequestHeader(request, headerTag.getKey());
-          if (null != headerValue) {
-            span.setTag(headerTag.getValue(), headerValue);
-          }
-        }
       }
     }
     return span;
@@ -167,5 +172,15 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
     }
 
     return 0;
+  }
+
+  private void ssrfIastCheck(final String networkConnection) {
+    if (InstrumenterConfig.get().getIastActivation() != ProductActivation.FULLY_ENABLED) {
+      return;
+    }
+    final SsrfModule ssrfModule = InstrumentationBridge.SSRF;
+    if (ssrfModule != null) {
+      ssrfModule.onURLConnection(networkConnection);
+    }
   }
 }

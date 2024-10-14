@@ -58,7 +58,7 @@ class IastOkHttp3InstrumentationTest extends AgentTestRunner {
     new OkHttpClient().newCall(request).execute()
 
     then:
-    1 * ssrf.onURLConnection({ value -> tainteds.containsKey(value) })
+    1 * ssrf.onURLConnection(url.toString() + "/")
 
     where:
     url                         | _

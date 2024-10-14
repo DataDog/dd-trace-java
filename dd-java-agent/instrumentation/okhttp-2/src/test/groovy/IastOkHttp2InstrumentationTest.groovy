@@ -53,7 +53,7 @@ class IastOkHttp2InstrumentationTest extends AgentTestRunner {
     new OkHttpClient().newCall(request).execute()
 
     then:
-    1 * module.onURLConnection({ value -> tainteds.containsKey(value) })
+    1 * module.onURLConnection(url.toString())
 
     where:
     url                       | _

@@ -41,22 +41,20 @@ class IastHttpClientInstrumentationTest extends AgentTestRunner {
     httpClient.execute(*args)
 
     then:
-    if(classExpected == URI){
-      1 * ssrf.onURLConnection(_ as URI)
-    } else {
-      1 * ssrf.onURLConnection(_ as String, _ as String, _ as String)
+    if(classExpected == String) {
+      1 * ssrf.onURLConnection(_ as String)
     }
 
     where:
     args | classExpected
-    [getHttpUriRequest(server)] | URI
-    [getHttpUriRequest(server), new BasicHttpContext()] | URI
-    [getHttpUriRequest(server), new BasicResponseHandler()] | URI
-    [getHttpUriRequest(server), new BasicResponseHandler(), new BasicHttpContext()] | URI
-    [getHttpHost(server), getHttpUriRequest(server)] | URI
-    [getHttpHost(server), getHttpUriRequest(server), new BasicHttpContext()] | URI
-    [getHttpHost(server), getHttpUriRequest(server), new BasicResponseHandler()] | URI
-    [getHttpHost(server), getHttpUriRequest(server), new BasicResponseHandler(), new BasicHttpContext()] | URI
+    [getHttpUriRequest(server)] | String
+    [getHttpUriRequest(server), new BasicHttpContext()] | String
+    [getHttpUriRequest(server), new BasicResponseHandler()] | String
+    [getHttpUriRequest(server), new BasicResponseHandler(), new BasicHttpContext()] | String
+    [getHttpHost(server), getHttpUriRequest(server)] | String
+    [getHttpHost(server), getHttpUriRequest(server), new BasicHttpContext()] | String
+    [getHttpHost(server), getHttpUriRequest(server), new BasicResponseHandler()] | String
+    [getHttpHost(server), getHttpUriRequest(server), new BasicResponseHandler(), new BasicHttpContext()] | String
     [getHttpHost(server), getHttpRequest(server)] | String
     [getHttpHost(server), getHttpRequest(server), new BasicHttpContext()] | String
     [getHttpHost(server), getHttpRequest(server), new BasicResponseHandler()] | String

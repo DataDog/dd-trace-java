@@ -7,5 +7,5 @@ public interface SsrfModule extends IastModule {
 
   void onURLConnection(@Nullable Object url);
 
-  void onURLConnection(@Nullable String url, @Nullable Object host, @Nullable Object uri);
+  //  void onURLConnection(@Nullable String url, @Nullable Object host, @Nullable Object uri);
 }
