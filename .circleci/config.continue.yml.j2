@@ -782,6 +782,7 @@ jobs:
           name: Gather muzzle tasks
           command: >-
             SKIP_BUILDSCAN="true"
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
             ./gradlew writeMuzzleTasksToFile
             << pipeline.parameters.gradle_flags >>
             --max-workers=3
@@ -1217,6 +1218,20 @@ build_test_jobs: &build_test_jobs
       parallelism: 4
       maxWorkers: 4
       testJvm: "8"
+
+  - tests:
+      requires:
+        - ok_to_test
+      name: z_test_8_flaky_debugger
+      gradleTarget: ":debuggerTest"
+      gradleParameters: "-PrunFlakyTests"
+      continueOnFailure: true
+      triggeredBy: *debugger_modules
+      stage: debugger
+      cacheType: base
+      parallelism: 4
+      maxWorkers: 4
+      testJvm: "8"
 {% endif %}
 
   - tests:
@@ -1420,6 +1435,7 @@ build_test_jobs: &build_test_jobs
 {% for jdk in all_jdks %}
         - "test_{{ jdk }}"
 {% endfor %}
+        - muzzle
         - profiling
         - debugger
         - system-tests

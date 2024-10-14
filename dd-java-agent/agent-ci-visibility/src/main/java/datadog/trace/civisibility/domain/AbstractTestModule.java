@@ -1,12 +1,13 @@
 package datadog.trace.civisibility.domain;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.api.civisibility.CIConstants.CI_VISIBILITY_INSTRUMENTATION_NAME;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.EventType;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
@@ -49,11 +50,17 @@ public abstract class AbstractTestModule {
     this.methodLinesResolver = methodLinesResolver;
     this.onSpanFinish = onSpanFinish;
 
+    AgentTracer.SpanBuilder spanBuilder =
+        AgentTracer.get()
+            .buildSpan(
+                CI_VISIBILITY_INSTRUMENTATION_NAME, testDecorator.component() + ".test_module")
+            .asChildOf(sessionSpanContext);
+
     if (startTime != null) {
-      span = startSpan(testDecorator.component() + ".test_module", sessionSpanContext, startTime);
-    } else {
-      span = startSpan(testDecorator.component() + ".test_module", sessionSpanContext);
+      spanBuilder = spanBuilder.withStartTimestamp(startTime);
     }
+
+    span = spanBuilder.start();
 
     span.setSpanType(InternalSpanTypes.TEST_MODULE_END);
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_TEST_MODULE);

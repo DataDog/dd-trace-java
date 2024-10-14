@@ -100,9 +100,10 @@ public class TraceDecorator extends AsyncResultDecorator {
   }
 
   @Override
-  public Object wrapAsyncResultOrFinishSpan(Object result, AgentSpan span) {
+  public Object wrapAsyncResultOrFinishSpan(
+      Object result, Class<?> methodReturnType, AgentSpan span) {
     if (ASYNC_SUPPORT) {
-      return super.wrapAsyncResultOrFinishSpan(result, span);
+      return super.wrapAsyncResultOrFinishSpan(result, methodReturnType, span);
     } else {
       span.finish();
       return result;

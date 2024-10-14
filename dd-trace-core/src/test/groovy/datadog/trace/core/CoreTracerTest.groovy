@@ -21,6 +21,7 @@ import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.LoggingWriter
 import datadog.trace.core.datastreams.DataStreamContextExtractor
 import datadog.trace.core.propagation.HttpCodec
+import datadog.trace.core.tagprocessor.TagsPostProcessorFactory
 import datadog.trace.core.test.DDCoreSpecification
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
@@ -543,6 +544,32 @@ class CoreTracerTest extends DDCoreSpecification {
     null      | "test"
     "some"    | "some"
   }
+
+  def "test dd_version exists only if service == dd_service"() {
+    setup:
+    injectSysConfig(SERVICE_NAME, "dd_service_name")
+    injectSysConfig(VERSION, "1.0.0")
+    TagsPostProcessorFactory.withAddBaseService(true)
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
+
+    when:
+    def span = tracer.buildSpan("def").withTag(SERVICE_NAME,"foo").start()
+    span.finish()
+    then:
+    span.getServiceName() == "foo"
+    span.getTags().containsKey("version") == false
+
+    when:
+    def span2 = tracer.buildSpan("abc").start()
+    span2.finish()
+    then:
+    span2.getServiceName() == "dd_service_name"
+    span2.getTags()["version"] == "1.0.0"
+
+    cleanup:
+    tracer?.close()
+  }
+
 
   def "reject configuration when target service+env mismatch"() {
     setup:

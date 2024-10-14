@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.domain;
 
+import static datadog.trace.api.civisibility.CIConstants.CI_VISIBILITY_INSTRUMENTATION_NAME;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.util.Strings.toJson;
 
@@ -85,7 +86,7 @@ public class TestImpl implements DDTest {
 
     AgentTracer.SpanBuilder spanBuilder =
         AgentTracer.get()
-            .buildSpan(testDecorator.component() + ".test")
+            .buildSpan(CI_VISIBILITY_INSTRUMENTATION_NAME, testDecorator.component() + ".test")
             .ignoreActiveSpan()
             .asChildOf(null)
             .withRequestContextData(RequestContextSlot.CI_VISIBILITY, context);

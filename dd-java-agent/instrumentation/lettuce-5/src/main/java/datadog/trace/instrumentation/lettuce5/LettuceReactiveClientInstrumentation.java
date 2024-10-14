@@ -1,14 +1,10 @@
 package datadog.trace.instrumentation.lettuce5;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameEndsWith;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-import static net.bytebuddy.matcher.ElementMatchers.returns;
-import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -71,7 +67,6 @@ public class LettuceReactiveClientInstrumentation extends InstrumenterModule.Tra
       packageName + ".rx.RedisSubscriptionSubscribeAdvice",
       packageName + ".rx.RedisSubscriptionSubscribeAdvice$State",
       packageName + ".rx.RedisSubscriptionState",
-      packageName + ".rx.LettuceFlowTracker",
       packageName + ".LettuceInstrumentationUtil",
       packageName + ".LettuceClientDecorator",
       packageName + ".ConnectionContextBiConsumer"
@@ -81,7 +76,9 @@ public class LettuceReactiveClientInstrumentation extends InstrumenterModule.Tra
   @Override
   public Map<String, String> contextStore() {
     Map<String, String> store = new HashMap<>(3);
-    store.put("org.reactivestreams.Subscription", packageName + ".rx.RedisSubscriptionState");
+    store.put(
+        "io.lettuce.core.RedisPublisher$RedisSubscription",
+        packageName + ".rx.RedisSubscriptionState");
     store.put("io.lettuce.core.protocol.RedisCommand", AgentSpan.class.getName());
     store.put("io.lettuce.core.api.StatefulConnection", "io.lettuce.core.RedisURI");
     return store;
@@ -116,18 +113,5 @@ public class LettuceReactiveClientInstrumentation extends InstrumenterModule.Tra
             .and(isDeclaredBy(named("io.lettuce.core.RedisPublisher$SubscriptionCommand")))
             .and(named("onError")),
         packageName + ".rx.RedisSubscriptionCommandErrorAdvice");
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("createMono"))
-            .and(takesArgument(0, named("java.util.function.Supplier")))
-            .and(returns(named("reactor.core.publisher.Mono"))),
-        packageName + ".rx.LettuceMonoCreationAdvice");
-    transformer.applyAdvice(
-        isMethod()
-            .and(nameStartsWith("create"))
-            .and(nameEndsWith("Flux"))
-            .and(takesArgument(0, named("java.util.function.Supplier")))
-            .and(returns(named("reactor.core.publisher.Flux"))),
-        packageName + ".rx.LettuceFluxCreationAdvice");
   }
 }

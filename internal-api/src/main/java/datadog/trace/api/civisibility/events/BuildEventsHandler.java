@@ -23,6 +23,12 @@ public interface BuildEventsHandler<SessionKey> {
 
   void onTestSessionFinish(SessionKey sessionKey);
 
+  void onBuildTaskStart(SessionKey sessionKey, String taskName, Map<String, Object> additionalTags);
+
+  void onBuildTaskFail(SessionKey sessionKey, String taskName, Throwable throwable);
+
+  void onBuildTaskFinish(SessionKey sessionKey, String taskName);
+
   BuildModuleSettings onTestModuleStart(
       SessionKey sessionKey,
       String moduleName,

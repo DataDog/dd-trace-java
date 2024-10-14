@@ -7,18 +7,21 @@ muzzle {
     module = "zio_2.12"
     versions = "[$zioVersion,)"
     assertInverse = true
+    javaVersion = "11"
   }
   pass {
     group = 'dev.zio'
     module = "zio_2.13"
     versions = "[$zioVersion,)"
     assertInverse = true
+    javaVersion = "11"
   }
   pass {
     group = 'dev.zio'
     module = "zio_3"
     versions = "[$zioVersion,)"
     assertInverse = true
+    javaVersion = "11"
   }
 }
 

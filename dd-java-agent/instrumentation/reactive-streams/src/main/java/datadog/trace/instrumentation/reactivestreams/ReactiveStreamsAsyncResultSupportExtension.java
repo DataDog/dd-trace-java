@@ -23,13 +23,15 @@ public class ReactiveStreamsAsyncResultSupportExtension implements AsyncResultSu
 
   @Override
   public boolean supports(Class<?> result) {
-    return Publisher.class.isAssignableFrom(result);
+    boolean ret = result == Publisher.class;
+    return ret;
   }
 
   @Override
   public Object apply(Object result, AgentSpan span) {
-    if (result instanceof Publisher) {
-      return new WrappedPublisher<>((Publisher) result, span);
+    if (result != null) {
+      // the span will be closed then the subscriber span will finish.
+      return new WrappedPublisher<>((Publisher<?>) result, span);
     }
     return null;
   }
@@ -60,7 +62,7 @@ public class ReactiveStreamsAsyncResultSupportExtension implements AsyncResultSu
 
     @Override
     public void onSubscribe(Subscription s) {
-      this.delegate.onSubscribe(s);
+      this.delegate.onSubscribe(new WrappedSubscription(s, this.span));
     }
 
     @Override
@@ -79,6 +81,27 @@ public class ReactiveStreamsAsyncResultSupportExtension implements AsyncResultSu
     public void onComplete() {
       this.span.finish();
       this.delegate.onComplete();
+    }
+  }
+
+  private static class WrappedSubscription implements Subscription {
+    private final Subscription delegate;
+    private final AgentSpan span;
+
+    public WrappedSubscription(Subscription delegate, AgentSpan span) {
+      this.delegate = delegate;
+      this.span = span;
+    }
+
+    @Override
+    public void request(long n) {
+      delegate.request(n);
+    }
+
+    @Override
+    public void cancel() {
+      span.finish();
+      delegate.cancel();
     }
   }
 }

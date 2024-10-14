@@ -8,4 +8,6 @@ public interface CIConstants {
   String EFD_ABORT_REASON_FAULTY = "faulty";
 
   String SELENIUM_BROWSER_DRIVER = "selenium";
+
+  String CI_VISIBILITY_INSTRUMENTATION_NAME = "civisibility";
 }

@@ -1,3 +1,6 @@
+import static datadog.trace.instrumentation.lettuce5.LettuceInstrumentationUtil.AGENT_CRASHING_COMMAND_PREFIX
+
+import com.redis.testcontainers.RedisContainer
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.Config
@@ -13,7 +16,7 @@ import io.lettuce.core.api.async.RedisAsyncCommands
 import io.lettuce.core.api.sync.RedisCommands
 import io.lettuce.core.codec.StringCodec
 import io.lettuce.core.protocol.AsyncCommand
-import redis.embedded.RedisServer
+import org.testcontainers.containers.wait.strategy.Wait
 import spock.lang.Shared
 import spock.util.concurrent.AsyncConditions
 
@@ -25,8 +28,6 @@ import java.util.function.BiConsumer
 import java.util.function.BiFunction
 import java.util.function.Consumer
 import java.util.function.Function
-
-import static datadog.trace.instrumentation.lettuce5.LettuceInstrumentationUtil.AGENT_CRASHING_COMMAND_PREFIX
 
 abstract class Lettuce5AsyncClientTest extends VersionedNamingTestBase {
   public static final String HOST = "127.0.0.1"
@@ -48,7 +49,8 @@ abstract class Lettuce5AsyncClientTest extends VersionedNamingTestBase {
   String embeddedDbUri
 
   @Shared
-  RedisServer redisServer
+  RedisContainer redisServer = new RedisContainer(RedisContainer.DEFAULT_IMAGE_NAME)
+  .waitingFor(Wait.forListeningPort())
 
   @Shared
   Map<String, String> testHashMap = [
@@ -63,26 +65,18 @@ abstract class Lettuce5AsyncClientTest extends VersionedNamingTestBase {
   RedisCommands<String, ?> syncCommands
 
   def setupSpec() {
-    port = PortUtils.randomOpenPort()
+    redisServer.start()
+    println "Using redis: $redisServer.redisURI"
+    port = redisServer.firstMappedPort
     incorrectPort = PortUtils.randomOpenPort()
     dbAddr = HOST + ":" + port + "/" + DB_INDEX
     dbAddrNonExistent = HOST + ":" + incorrectPort + "/" + DB_INDEX
     dbUriNonExistent = "redis://" + dbAddrNonExistent
     embeddedDbUri = "redis://" + dbAddr
-
-    redisServer = RedisServer.builder()
-      // bind to localhost to avoid firewall popup
-      .setting("bind " + HOST)
-      // set max memory to avoid problems in CI
-      .setting("maxmemory 128M")
-      .port(port).build()
   }
 
   def setup() {
     redisClient = RedisClient.create(embeddedDbUri)
-
-    println "Using redis: $redisServer.args"
-    redisServer.start()
     redisClient.setOptions(CLIENT_OPTIONS)
 
     connection = redisClient.connect()
@@ -98,6 +92,9 @@ abstract class Lettuce5AsyncClientTest extends VersionedNamingTestBase {
 
   def cleanup() {
     connection.close()
+  }
+
+  def cleanupSpec() {
     redisServer.stop()
   }
 
@@ -633,7 +630,7 @@ class Lettuce5AsyncProfilingForkedTest extends Lettuce5AsyncClientTest {
 
   @Override
   int version() {
-    return 2
+    return 0
   }
 
   @Override

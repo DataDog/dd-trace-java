@@ -507,6 +507,8 @@ public abstract class BaseIntegrationTest {
     CapturedContext.CapturedValue capturedValue = context.getArguments().get(name);
     assertEquals(typeName, capturedValue.getType());
     Object objValue = capturedValue.getValue();
+    assertNotNull(
+        "objValue null for argName=" + name + " capturedValue=" + capturedValue, objValue);
     if (objValue.getClass().isArray()) {
       assertEquals(value, Arrays.toString((Object[]) objValue));
     } else {

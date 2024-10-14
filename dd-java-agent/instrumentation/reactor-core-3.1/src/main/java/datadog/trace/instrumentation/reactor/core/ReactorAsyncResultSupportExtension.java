@@ -22,7 +22,7 @@ public class ReactorAsyncResultSupportExtension implements AsyncResultSupportExt
 
   @Override
   public boolean supports(Class<?> result) {
-    return Flux.class.isAssignableFrom(result) || Mono.class.isAssignableFrom(result);
+    return result == Flux.class || result == Mono.class;
   }
 
   @Override

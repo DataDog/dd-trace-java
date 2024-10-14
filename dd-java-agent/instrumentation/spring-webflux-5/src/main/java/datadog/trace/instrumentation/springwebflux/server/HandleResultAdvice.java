@@ -1,7 +1,9 @@
 package datadog.trace.instrumentation.springwebflux.server;
 
+import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
+import org.reactivestreams.Publisher;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
@@ -12,7 +14,7 @@ public class HandleResultAdvice {
       @Advice.Return(readOnly = false) Mono<Void> mono) {
     final AgentSpan span = exchange.getAttribute(AdviceUtils.SPAN_ATTRIBUTE);
     if (span != null && mono != null) {
-      mono = AdviceUtils.wrapMonoWithScope(mono, span);
+      InstrumentationContext.get(Publisher.class, AgentSpan.class).put(mono, span);
     }
   }
 }

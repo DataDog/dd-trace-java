@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.springwebflux.client;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.instrumentation.springwebflux.client.SpringWebfluxHttpClientDecorator.DECORATE;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -17,23 +18,28 @@ public final class TraceWebClientSubscriber implements CoreSubscriber<ClientResp
   final Context context;
 
   private final AgentSpan span;
+  private final AgentSpan parent;
 
   public TraceWebClientSubscriber(
-      final CoreSubscriber<? super ClientResponse> actual, final AgentSpan span) {
+      final CoreSubscriber<? super ClientResponse> actual,
+      final AgentSpan span,
+      final AgentSpan parent) {
     this.actual = actual;
     this.span = span;
+    this.parent = parent != null ? parent : noopSpan();
     context = actual.currentContext();
   }
 
   @Override
   public void onSubscribe(final Subscription subscription) {
-    actual.onSubscribe(subscription);
+    try (final AgentScope scope = activateSpan(parent)) {
+      actual.onSubscribe(subscription);
+    }
   }
 
   @Override
   public void onNext(final ClientResponse response) {
-    try (final AgentScope scope = activateSpan(span)) {
-      scope.setAsyncPropagation(true);
+    try (final AgentScope scope = activateSpan(parent)) {
       actual.onNext(response);
     } finally {
       DECORATE.onResponse(span, response);
@@ -44,7 +50,7 @@ public final class TraceWebClientSubscriber implements CoreSubscriber<ClientResp
 
   @Override
   public void onError(final Throwable t) {
-    try (final AgentScope scope = activateSpan(span)) {
+    try (final AgentScope scope = activateSpan(parent)) {
       actual.onError(t);
     } finally {
       DECORATE.onError(span, t);
@@ -55,7 +61,8 @@ public final class TraceWebClientSubscriber implements CoreSubscriber<ClientResp
 
   @Override
   public void onComplete() {
-    try (final AgentScope scope = activateSpan(span)) {
+
+    try (final AgentScope scope = activateSpan(parent)) {
       actual.onComplete();
     }
   }
