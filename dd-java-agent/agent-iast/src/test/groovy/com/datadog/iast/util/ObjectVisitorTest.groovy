@@ -1,5 +1,6 @@
 package com.datadog.iast.util
 
+import com.google.common.collect.Iterables
 import foo.bar.VisitableClass
 import spock.lang.Specification
 
@@ -39,12 +40,7 @@ class ObjectVisitorTest extends Specification {
     given:
     final visitor = Mock(ObjectVisitor.Visitor)
     final wrapped = ['1', '2', '3']
-    final target = new Iterable() {
-        @Override
-        Iterator iterator() {
-          return wrapped.iterator()
-        }
-      }
+    final target = Iterables.unmodifiableIterable(wrapped)
 
     when:
     ObjectVisitor.visit(target, visitor)
@@ -71,6 +67,29 @@ class ObjectVisitorTest extends Specification {
     target.each { key, value ->
       1 * visitor.visit("root[$key]", value) >> CONTINUE
     }
+    0 * _
+  }
+
+  void 'test visiting ignored collection'() {
+    given:
+    final visitor = Mock(ObjectVisitor.Visitor)
+    final target = new AbstractList<String>() {
+        @Override
+        String get(int index) {
+          assert index == 0
+          return 'value'
+        }
+
+        @Override
+        int size() {
+          return 1
+        }
+      }
+
+    when:
+    ObjectVisitor.visit(target, visitor)
+
+    then:
     0 * _
   }
 
