@@ -793,7 +793,36 @@ public class MsgPackWriterTest {
 
   @Test
   public void testStackTraceBatch() {
-    final StackTraceBatch data = buildTestStackTraceBatch();
+    final StackTraceBatch batch =
+        new StackTraceBatch(buildStacktraceEvents(), buildStacktraceEvents());
+    testStackTraceBatch(batch);
+  }
+
+  @Test
+  public void tesNullContentInStackTraceBatch() {
+    final StackTraceBatch batch = new StackTraceBatch(null, null);
+    testStackTraceBatch(batch);
+  }
+
+  @Test
+  public void testEmptyContentInStackTraceBatch() {
+    final StackTraceBatch batch = new StackTraceBatch(new ArrayList<>(), new ArrayList<>());
+    testStackTraceBatch(batch);
+  }
+
+  @Test
+  public void testOnlyExploitInStackTraceBatch() {
+    final StackTraceBatch batch = new StackTraceBatch(buildStacktraceEvents(), null);
+    testStackTraceBatch(batch);
+  }
+
+  @Test
+  public void testOnlyVulnsContentInStackTraceBatch() {
+    final StackTraceBatch batch = new StackTraceBatch(null, buildStacktraceEvents());
+    testStackTraceBatch(batch);
+  }
+
+  private void testStackTraceBatch(final StackTraceBatch batch) {
     MessageFormatter messageFormatter =
         new MsgPackWriter(
             newBuffer(
@@ -801,33 +830,45 @@ public class MsgPackWriterTest {
                 (messageCount, buffer) -> {
                   MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer);
                   try {
-                    checkStackTraceBatch(data, unpacker);
+                    checkStackTraceBatch(batch, unpacker);
                   } catch (IOException e) {
                     Assertions.fail(e.getMessage());
                   }
                 }));
-    messageFormatter.format(data, (x, w) -> w.writeObject(x, null));
+    messageFormatter.format(batch, (x, w) -> w.writeObject(x, null));
     messageFormatter.flush();
   }
 
   private void checkStackTraceBatch(StackTraceBatch batch, MessageUnpacker unpacker)
       throws IOException {
-    assertEquals(2, unpacker.unpackMapHeader());
-    assertEquals("exploit", unpacker.unpackString());
-    assertEquals(batch.getExploit().size(), unpacker.unpackArrayHeader());
-    for (StackTraceEvent event : batch.getExploit()) {
-      checkStackTraceEvent(event, unpacker);
+    boolean hasExploit = batch.getExploit() != null && !batch.getExploit().isEmpty();
+    boolean hasVulnerability =
+        batch.getVulnerability() != null && !batch.getVulnerability().isEmpty();
+    if (!hasExploit && !hasVulnerability) {
+      assertEquals(0, unpacker.unpackMapHeader());
+      return;
     }
-    assertEquals("vulnerability", unpacker.unpackString());
-    assertEquals(batch.getVulnerability().size(), unpacker.unpackArrayHeader());
-    for (StackTraceEvent event : batch.getVulnerability()) {
-      checkStackTraceEvent(event, unpacker);
+    int mapSize = hasExploit && hasVulnerability ? 2 : 1;
+    assertEquals(mapSize, unpacker.unpackMapHeader());
+    if (hasExploit) {
+      assertEquals("exploit", unpacker.unpackString());
+      assertEquals(batch.getExploit().size(), unpacker.unpackArrayHeader());
+      for (StackTraceEvent event : batch.getExploit()) {
+        checkStackTraceEvent(event, unpacker);
+      }
+    }
+    if (hasVulnerability) {
+      assertEquals("vulnerability", unpacker.unpackString());
+      assertEquals(batch.getVulnerability().size(), unpacker.unpackArrayHeader());
+      for (StackTraceEvent event : batch.getVulnerability()) {
+        checkStackTraceEvent(event, unpacker);
+      }
     }
   }
 
   private void checkStackTraceEvent(StackTraceEvent event, MessageUnpacker unpacker)
       throws IOException {
-    assertEquals(4, unpacker.unpackMapHeader());
+    assert unpacker.unpackMapHeader() > 0;
     assertEquals("id", unpacker.unpackString());
     assertEquals(event.getId(), unpacker.unpackString());
     assertEquals("language", unpacker.unpackString());
@@ -842,7 +883,7 @@ public class MsgPackWriterTest {
   }
 
   private void checkFrame(StackTraceFrame frame, MessageUnpacker unpacker) throws IOException {
-    assertEquals(6, unpacker.unpackMapHeader());
+    assert unpacker.unpackMapHeader() > 0;
     assertEquals("id", unpacker.unpackString());
     assertEquals(frame.getId(), unpacker.unpackInt());
     assertEquals("text", unpacker.unpackString());
@@ -857,22 +898,15 @@ public class MsgPackWriterTest {
     assertEquals(frame.getFunction(), unpacker.unpackString());
   }
 
-  private StackTraceBatch buildTestStackTraceBatch() {
+  private List<StackTraceEvent> buildStacktraceEvents() {
     final StackTraceFrame frame1 =
         new StackTraceFrame(1, new StackTraceElement("class1", "method1", "file1", 1));
     final StackTraceFrame frame2 =
         new StackTraceFrame(2, new StackTraceElement("class2", "method2", "file2", 2));
 
-    List<StackTraceEvent> exploit =
-        Arrays.asList(
-            new StackTraceEvent(Arrays.asList(frame1, frame2), DEFAULT_LANGUAGE, "id1", "exploit1"),
-            new StackTraceEvent(
-                Arrays.asList(frame1, frame2), DEFAULT_LANGUAGE, "id2", "exploit2"));
-    List<StackTraceEvent> vulnerability =
-        Arrays.asList(
-            new StackTraceEvent(Arrays.asList(frame1, frame2), DEFAULT_LANGUAGE, "1", "vuln1"),
-            new StackTraceEvent(Arrays.asList(frame1, frame2), DEFAULT_LANGUAGE, "2", "vuln2"));
-    return new StackTraceBatch(exploit, vulnerability);
+    return Arrays.asList(
+        new StackTraceEvent(Arrays.asList(frame1, frame2), DEFAULT_LANGUAGE, "id1", "event1"),
+        new StackTraceEvent(Arrays.asList(frame1, frame2), DEFAULT_LANGUAGE, "id2", "event2"));
   }
 
   private StreamingBuffer newBuffer(int capacity, ByteBufferConsumer consumer) {

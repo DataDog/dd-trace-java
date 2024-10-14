@@ -9,7 +9,7 @@ public class StackTraceFrame {
   // Raw stack frame
   @Nullable private final String text;
   @Nullable private final String file;
-  private final int line;
+  @Nullable private final Integer line;
   @Nullable private final String class_name;
   @Nullable private final String function;
 
@@ -36,7 +36,7 @@ public class StackTraceFrame {
     return file;
   }
 
-  public int getLine() {
+  public Integer getLine() {
     return line;
   }
 
