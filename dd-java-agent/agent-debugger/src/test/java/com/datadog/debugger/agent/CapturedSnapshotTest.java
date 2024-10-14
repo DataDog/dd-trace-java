@@ -583,6 +583,9 @@ public class CapturedSnapshotTest {
   }
 
   @Test
+  @DisabledIf(
+      value = "datadog.trace.api.Platform#isJ9",
+      disabledReason = "Issue with J9 when compiling Kotlin code")
   public void sourceFileProbeKotlin() {
     final String CLASS_NAME = "CapturedSnapshot301";
     TestSnapshotListener listener =
@@ -590,8 +593,9 @@ public class CapturedSnapshotTest {
     URL resource = CapturedSnapshotTest.class.getResource("/" + CLASS_NAME + ".kt");
     assertNotNull(resource);
     List<File> filesToDelete = new ArrayList<>();
-    Class<?> testClass = KotlinHelper.compileAndLoad(CLASS_NAME, resource.getFile(), filesToDelete);
     try {
+      Class<?> testClass =
+          KotlinHelper.compileAndLoad(CLASS_NAME, resource.getFile(), filesToDelete);
       Object companion = Reflect.onClass(testClass).get("Companion");
       int result = Reflect.on(companion).call("main", "").get();
       assertEquals(48, result);
@@ -602,6 +606,56 @@ public class CapturedSnapshotTest {
       Assertions.assertEquals(CLASS_NAME, snapshot.getProbe().getLocation().getType());
       Assertions.assertEquals("f1", snapshot.getProbe().getLocation().getMethod());
       assertCaptureArgs(snapshot.getCaptures().getLines().get(4), "value", "int", "31");
+    } finally {
+      filesToDelete.forEach(File::delete);
+    }
+  }
+
+  @Test
+  @DisabledIf(
+      value = "datadog.trace.api.Platform#isJ9",
+      disabledReason = "Issue with J9 when compiling Kotlin code")
+  public void suspendKotlin() {
+    final String CLASS_NAME = "CapturedSnapshot302";
+    TestSnapshotListener listener =
+        installProbes(CLASS_NAME, createSourceFileProbe(PROBE_ID, CLASS_NAME + ".kt", 9));
+    URL resource = CapturedSnapshotTest.class.getResource("/" + CLASS_NAME + ".kt");
+    assertNotNull(resource);
+    List<File> filesToDelete = new ArrayList<>();
+    try {
+      Class<?> testClass =
+          KotlinHelper.compileAndLoad(CLASS_NAME, resource.getFile(), filesToDelete);
+      Object companion = Reflect.onClass(testClass).get("Companion");
+      int result = Reflect.on(companion).call("main", "").get();
+      assertEquals(0, result);
+      Snapshot snapshot = assertOneSnapshot(listener);
+      assertCaptureFields(snapshot.getCaptures().getLines().get(9), "intField", "int", "42");
+      assertCaptureFields(
+          snapshot.getCaptures().getLines().get(9), "strField", String.class.getTypeName(), "foo");
+    } finally {
+      filesToDelete.forEach(File::delete);
+    }
+  }
+
+  @Test
+  @DisabledIf(
+      value = "datadog.trace.api.Platform#isJ9",
+      disabledReason = "Issue with J9 when compiling Kotlin code")
+  public void hoistVarKotlin() {
+    final String CLASS_NAME = "CapturedSnapshot303";
+    TestSnapshotListener listener =
+        installProbes(
+            CLASS_NAME, createProbeAtExit(PROBE_ID, CLASS_NAME + "$Companion", "main", null));
+    URL resource = CapturedSnapshotTest.class.getResource("/" + CLASS_NAME + ".kt");
+    assertNotNull(resource);
+    List<File> filesToDelete = new ArrayList<>();
+    try {
+      Class<?> testClass =
+          KotlinHelper.compileAndLoad(CLASS_NAME, resource.getFile(), filesToDelete);
+      Object companion = Reflect.onClass(testClass).get("Companion");
+      int result = Reflect.on(companion).call("main", "").get();
+      assertEquals(0, result);
+      Snapshot snapshot = assertOneSnapshot(listener);
     } finally {
       filesToDelete.forEach(File::delete);
     }

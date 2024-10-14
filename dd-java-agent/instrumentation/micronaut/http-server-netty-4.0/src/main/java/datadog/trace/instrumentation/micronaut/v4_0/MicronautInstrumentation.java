@@ -64,6 +64,12 @@ public final class MicronautInstrumentation extends InstrumenterModule.Tracing
                         "io.micronaut.http.MutableHttpResponse",
                         "io.micronaut.http.HttpResponse"))),
         packageName + ".EncodeHttpResponseAdvice");
+    transformer.applyAdvice(
+        isMethod()
+            .and(named("encodeHttpResponse"))
+            .and(takesArgument(0, named("io.micronaut.http.server.netty.NettyHttpRequest")))
+            .and(takesArgument(1, named("io.micronaut.http.HttpResponse"))),
+        packageName + ".EncodeHttpResponseAdvice2");
   }
 
   @Override

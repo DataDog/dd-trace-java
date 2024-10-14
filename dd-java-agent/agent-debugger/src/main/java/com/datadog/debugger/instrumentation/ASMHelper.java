@@ -244,19 +244,33 @@ public class ASMHelper {
     // https://docs.oracle.com/javase/specs/jvms/se8/html/jvms-2.html#jvms-2.6.1
     // so we reassigned local var in arg slots if they are empty
     if (argTypes.length < localVars.length) {
+      List<LocalVariableNode> uniqueSortedLocalVars = dedupLocalVars(sortedLocalVars);
       int slot = isStatic ? 0 : 1;
       int localVarTableIdx = slot;
       for (org.objectweb.asm.Type t : argTypes) {
         if (slot >= localVars.length) {
           break;
         }
-        if (localVars[slot] == null && localVarTableIdx < sortedLocalVars.size()) {
-          localVars[slot] = sortedLocalVars.get(localVarTableIdx);
+        if (localVars[slot] == null && localVarTableIdx < uniqueSortedLocalVars.size()) {
+          localVars[slot] = uniqueSortedLocalVars.get(localVarTableIdx);
         }
         slot += t.getSize();
         localVarTableIdx++;
       }
     }
+  }
+
+  private static List<LocalVariableNode> dedupLocalVars(List<LocalVariableNode> sortedLocalVars) {
+    List<LocalVariableNode> uniqueSortedLocalVars = new ArrayList<>();
+    int maxIndex = sortedLocalVars.get(sortedLocalVars.size() - 1).index;
+    boolean[] usedIndexes = new boolean[maxIndex + 1];
+    for (LocalVariableNode localVariableNode : sortedLocalVars) {
+      if (!usedIndexes[localVariableNode.index]) {
+        uniqueSortedLocalVars.add(localVariableNode);
+        usedIndexes[localVariableNode.index] = true;
+      }
+    }
+    return uniqueSortedLocalVars;
   }
 
   public static void newInstance(InsnList insnList, org.objectweb.asm.Type type) {
