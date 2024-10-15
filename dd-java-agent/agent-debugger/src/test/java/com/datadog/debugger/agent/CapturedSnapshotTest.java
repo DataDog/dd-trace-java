@@ -2823,7 +2823,8 @@ public class CapturedSnapshotTest {
         .build();
   }
 
-  static class MockInstrumentationListener implements DebuggerTransformer.InstrumentationListener {
+  public static class MockInstrumentationListener
+      implements DebuggerTransformer.InstrumentationListener {
     final Map<String, InstrumentationResult> results = new HashMap<>();
 
     @Override

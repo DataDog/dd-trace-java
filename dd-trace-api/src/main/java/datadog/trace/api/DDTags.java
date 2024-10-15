@@ -5,8 +5,11 @@ public class DDTags {
   public static final String DD_CODE_ORIGIN_PREFIX = "_dd.code_origin.";
 
   public static final String DD_CODE_ORIGIN_TYPE = DD_CODE_ORIGIN_PREFIX + "type";
+
+  public static final String DD_CODE_ORIGIN_FRAMES = DD_CODE_ORIGIN_PREFIX + "frames";
+
   // _dd.code_origin.frames.%d.file|line|method|type|snapshot_id
-  public static final String DD_CODE_ORIGIN_FRAME = DD_CODE_ORIGIN_PREFIX + "frames.%d.%s";
+  public static final String DD_CODE_ORIGIN_ENTRY = DD_CODE_ORIGIN_FRAMES + ".%d.%s";
 
   public static final String SPAN_TYPE = "span.type";
   public static final String SERVICE_NAME = "service.name";

@@ -46,6 +46,11 @@ public class Where {
     return new Where(typeName, methodName, signature, lines, null);
   }
 
+  public static Where of(
+      String typeName, String methodName, String signature, String sourceFile, String line) {
+    return new Where(typeName, methodName, signature, new String[] {line}, sourceFile);
+  }
+
   protected static SourceLine[] sourceLines(String[] defs) {
     if (defs == null) {
       return null;

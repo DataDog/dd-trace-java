@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
  * Stores debugger configuration for a service with: - Probe definitions - filters (allow/deny) -
@@ -63,43 +64,23 @@ public class Configuration {
   @Json(name = "id")
   private final String service;
 
-  private final Collection<MetricProbe> metricProbes;
-  private final Collection<LogProbe> logProbes;
-  private final Collection<SpanProbe> spanProbes;
-  private final Collection<TriggerProbe> triggerProbes;
-  private final Collection<SpanDecorationProbe> spanDecorationProbes;
+  private final List<ProbeDefinition> probes = new ArrayList<>();
   private final FilterList allowList;
   private final FilterList denyList;
   private final LogProbe.Sampling sampling;
 
-  public Configuration(String service, Collection<LogProbe> logProbes) {
-    this(service, null, logProbes, null);
+  public Configuration(String serviceName, List<? extends ProbeDefinition> probes) {
+    this(serviceName, probes, null, null, null);
   }
 
   public Configuration(
       String serviceName,
-      Collection<MetricProbe> metricProbes,
-      Collection<LogProbe> logProbes,
-      Collection<SpanProbe> spanProbes) {
-    this(serviceName, metricProbes, logProbes, spanProbes, null, null, null, null, null);
-  }
-
-  public Configuration(
-      String serviceName,
-      Collection<MetricProbe> metricProbes,
-      Collection<LogProbe> logProbes,
-      Collection<SpanProbe> spanProbes,
-      Collection<TriggerProbe> triggerProbes,
-      Collection<SpanDecorationProbe> spanDecorationProbes,
+      List<? extends ProbeDefinition> probes,
       FilterList allowList,
       FilterList denyList,
       LogProbe.Sampling sampling) {
     this.service = serviceName;
-    this.metricProbes = metricProbes;
-    this.logProbes = logProbes;
-    this.spanProbes = spanProbes;
-    this.triggerProbes = triggerProbes;
-    this.spanDecorationProbes = spanDecorationProbes;
+    this.probes.addAll(probes);
     this.allowList = allowList;
     this.denyList = denyList;
     this.sampling = sampling;
@@ -109,24 +90,32 @@ public class Configuration {
     return service;
   }
 
-  public Collection<MetricProbe> getMetricProbes() {
-    return metricProbes;
+  @SuppressWarnings("unchecked")
+  public <T extends ProbeDefinition> List<T> getProbes(Class<T> type) {
+    return (List<T>)
+        probes.stream()
+            .filter(p -> type.isAssignableFrom(p.getClass()))
+            .collect(Collectors.toList());
+  }
+
+  public Collection<? extends MetricProbe> getMetricProbes() {
+    return getProbes(MetricProbe.class);
   }
 
   public Collection<LogProbe> getLogProbes() {
-    return logProbes;
+    return getProbes(LogProbe.class);
   }
 
   public Collection<SpanProbe> getSpanProbes() {
-    return spanProbes;
+    return getProbes(SpanProbe.class);
   }
 
   public Collection<TriggerProbe> getTriggerProbes() {
-    return triggerProbes;
+    return getProbes(TriggerProbe.class);
   }
 
   public Collection<SpanDecorationProbe> getSpanDecorationProbes() {
-    return spanDecorationProbes;
+    return getProbes(SpanDecorationProbe.class);
   }
 
   public FilterList getAllowList() {
@@ -142,23 +131,7 @@ public class Configuration {
   }
 
   public Collection<ProbeDefinition> getDefinitions() {
-    Collection<ProbeDefinition> result = new ArrayList<>();
-    if (triggerProbes != null) {
-      result.addAll(triggerProbes);
-    }
-    if (metricProbes != null) {
-      result.addAll(metricProbes);
-    }
-    if (logProbes != null) {
-      result.addAll(logProbes);
-    }
-    if (spanProbes != null) {
-      result.addAll(spanProbes);
-    }
-    if (spanDecorationProbes != null) {
-      result.addAll(spanDecorationProbes);
-    }
-    return result;
+    return probes;
   }
 
   @Generated
@@ -167,10 +140,8 @@ public class Configuration {
     return "DebuggerConfiguration{"
         + "service="
         + service
-        + ", metricProbes="
-        + metricProbes
-        + ", logProbes="
-        + logProbes
+        + ", probes="
+        + probes
         + ", allowList="
         + allowList
         + ", denyList="
@@ -187,8 +158,7 @@ public class Configuration {
     if (o == null || getClass() != o.getClass()) return false;
     Configuration that = (Configuration) o;
     return Objects.equals(service, that.service)
-        && Objects.equals(metricProbes, that.metricProbes)
-        && Objects.equals(logProbes, that.logProbes)
+        && Objects.equals(probes, that.probes)
         && Objects.equals(allowList, that.allowList)
         && Objects.equals(denyList, that.denyList)
         && Objects.equals(sampling, that.sampling);
@@ -197,7 +167,7 @@ public class Configuration {
   @Generated
   @Override
   public int hashCode() {
-    return Objects.hash(service, metricProbes, logProbes, allowList, denyList, sampling);
+    return Objects.hash(service, probes, allowList, denyList, sampling);
   }
 
   public static Configuration.Builder builder() {
@@ -206,11 +176,7 @@ public class Configuration {
 
   public static class Builder {
     private String service = null;
-    private List<MetricProbe> metricProbes = null;
-    private List<LogProbe> logProbes = null;
-    private List<SpanProbe> spanProbes = null;
-    private List<TriggerProbe> triggerProbes = null;
-    private List<SpanDecorationProbe> spanDecorationProbes = null;
+    private List<ProbeDefinition> probes = new ArrayList<>();
     private FilterList allowList = null;
     private FilterList denyList = null;
     private LogProbe.Sampling sampling = null;
@@ -220,57 +186,18 @@ public class Configuration {
       return this;
     }
 
+    public Configuration.Builder add(ProbeDefinition probe) {
+      probes.add(probe);
+      return this;
+    }
+
     public Configuration.Builder add(Collection<? extends ProbeDefinition> definitions) {
       if (definitions == null) {
         return this;
       }
       for (ProbeDefinition definition : definitions) {
-        if (definition instanceof MetricProbe) add((MetricProbe) definition);
-        if (definition instanceof TriggerProbe) add((TriggerProbe) definition);
-        if (definition instanceof LogProbe) add((LogProbe) definition);
-        if (definition instanceof SpanProbe) add((SpanProbe) definition);
-        if (definition instanceof SpanDecorationProbe) add((SpanDecorationProbe) definition);
+        probes.add(definition);
       }
-      return this;
-    }
-
-    public Configuration.Builder add(MetricProbe probe) {
-      if (metricProbes == null) {
-        metricProbes = new ArrayList<>();
-      }
-      metricProbes.add(probe);
-      return this;
-    }
-
-    public Configuration.Builder add(LogProbe probe) {
-      if (logProbes == null) {
-        logProbes = new ArrayList<>();
-      }
-      logProbes.add(probe);
-      return this;
-    }
-
-    public Configuration.Builder add(SpanProbe probe) {
-      if (spanProbes == null) {
-        spanProbes = new ArrayList<>();
-      }
-      spanProbes.add(probe);
-      return this;
-    }
-
-    public Configuration.Builder add(TriggerProbe probe) {
-      if (triggerProbes == null) {
-        triggerProbes = new ArrayList<>();
-      }
-      triggerProbes.add(probe);
-      return this;
-    }
-
-    public Configuration.Builder add(SpanDecorationProbe probe) {
-      if (spanDecorationProbes == null) {
-        spanDecorationProbes = new ArrayList<>();
-      }
-      spanDecorationProbes.add(probe);
       return this;
     }
 
@@ -282,63 +209,27 @@ public class Configuration {
     }
 
     public Configuration.Builder addMetricProbes(Collection<MetricProbe> probes) {
-      if (probes == null) {
-        return this;
-      }
-      for (MetricProbe probe : probes) {
-        add(probe);
-      }
-      return this;
+      return add(probes);
     }
 
     public Configuration.Builder addLogProbes(Collection<LogProbe> probes) {
-      if (probes == null) {
-        return this;
-      }
-      for (LogProbe probe : probes) {
-        add(probe);
-      }
-      return this;
+      return add(probes);
     }
 
     public Builder addExceptionProbes(Collection<ExceptionProbe> probes) {
-      if (probes == null) {
-        return this;
-      }
-      for (ExceptionProbe probe : probes) {
-        add(probe);
-      }
-      return this;
+      return add(probes);
     }
 
     public Configuration.Builder addSpanProbes(Collection<SpanProbe> probes) {
-      if (probes == null) {
-        return this;
-      }
-      for (SpanProbe probe : probes) {
-        add(probe);
-      }
-      return this;
+      return add(probes);
     }
 
     public Configuration.Builder addTriggerProbes(Collection<TriggerProbe> probes) {
-      if (probes == null) {
-        return this;
-      }
-      for (TriggerProbe probe : probes) {
-        add(probe);
-      }
-      return this;
+      return add(probes);
     }
 
     public Configuration.Builder addSpanDecorationProbes(Collection<SpanDecorationProbe> probes) {
-      if (probes == null) {
-        return this;
-      }
-      for (SpanDecorationProbe probe : probes) {
-        add(probe);
-      }
-      return this;
+      return add(probes);
     }
 
     public Configuration.Builder addAllowList(FilterList newAllowList) {
@@ -374,11 +265,7 @@ public class Configuration {
       if (other.service != null) {
         this.service = other.service;
       }
-      addMetricProbes(other.getMetricProbes());
-      addLogProbes(other.getLogProbes());
-      addSpanProbes(other.getSpanProbes());
-      addTriggerProbes(other.getTriggerProbes());
-      addSpanDecorationProbes(other.getSpanDecorationProbes());
+      add(other.getDefinitions());
       addAllowList(other.getAllowList());
       addDenyList(other.getDenyList());
       add(other.getSampling());
@@ -386,16 +273,7 @@ public class Configuration {
     }
 
     public Configuration build() {
-      return new Configuration(
-          service,
-          metricProbes,
-          logProbes,
-          spanProbes,
-          triggerProbes,
-          spanDecorationProbes,
-          allowList,
-          denyList,
-          sampling);
+      return new Configuration(service, probes, allowList, denyList, sampling);
     }
   }
 }

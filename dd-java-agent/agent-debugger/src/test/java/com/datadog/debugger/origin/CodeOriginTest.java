@@ -2,7 +2,7 @@ package com.datadog.debugger.origin;
 
 import static com.datadog.debugger.agent.ConfigurationAcceptor.Source.REMOTE_CONFIG;
 import static com.datadog.debugger.util.TestHelper.setFieldInConfig;
-import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_FRAME;
+import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_ENTRY;
 import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_PREFIX;
 import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_TYPE;
 import static java.lang.String.format;
@@ -15,6 +15,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
 
+import com.datadog.debugger.agent.CapturedSnapshotTest.MockInstrumentationListener;
 import com.datadog.debugger.agent.ClassesToRetransformFinder;
 import com.datadog.debugger.agent.Configuration;
 import com.datadog.debugger.agent.ConfigurationUpdater;
@@ -37,7 +38,9 @@ import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
+import datadog.trace.bootstrap.debugger.util.Redaction;
 import datadog.trace.core.CoreTracer;
+import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.lang.reflect.Field;
 import java.util.Collection;
@@ -49,12 +52,16 @@ import java.util.TreeSet;
 import java.util.stream.Collectors;
 import net.bytebuddy.agent.ByteBuddyAgent;
 import org.joor.Reflect;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 public class CodeOriginTest {
   private final Instrumentation instr = ByteBuddyAgent.install();
   private final TestTraceInterceptor traceInterceptor = new TestTraceInterceptor();
+  private ClassFileTransformer currentTransformer;
+
   public static ClassNameFiltering classNameFiltering =
       new ClassNameFiltering(
           new HashSet<>(
@@ -69,13 +76,13 @@ public class CodeOriginTest {
                   "com.datadog.debugger.probe",
                   "com.datadog.debugger.codeorigin")));
 
+  private MockInstrumentationListener instrumentationListener;
+
   private CodeOriginProbeManager probeManager;
 
   private MockSampler probeSampler;
 
   private MockSampler globalSampler;
-
-  private ConfigurationUpdater configurationUpdater;
 
   @BeforeEach
   public void before() {
@@ -92,29 +99,19 @@ public class CodeOriginTest {
     setFieldInInstrumenterConfig(InstrumenterConfig.get(), "codeOriginEnabled", true);
   }
 
-  private TestSnapshotListener setupCodeOrigin(Config config) {
-    ProbeStatusSink probeStatusSink = mock(ProbeStatusSink.class);
-    configurationUpdater =
-        new ConfigurationUpdater(
-            instr,
-            this::createTransformer,
-            config,
-            new DebuggerSink(config, probeStatusSink),
-            new ClassesToRetransformFinder());
-    probeManager = new CodeOriginProbeManager(configurationUpdater, classNameFiltering);
-    TestSnapshotListener listener = new TestSnapshotListener(config, probeStatusSink);
-    DebuggerAgentHelper.injectSink(listener);
-    DebuggerContext.initProbeResolver(configurationUpdater);
-    DebuggerContext.initValueSerializer(new JsonSnapshotSerializer());
-    DebuggerContext.initCodeOrigin(new DefaultCodeOriginRecorder(probeManager));
-    configurationUpdater.accept(REMOTE_CONFIG, null);
-    return listener;
+  @AfterEach
+  public void after() {
+    if (currentTransformer != null) {
+      instr.removeTransformer(currentTransformer);
+    }
+    ProbeRateLimiter.resetAll();
+    Assertions.assertFalse(DebuggerContext.isInProbe());
+    Redaction.clearUserDefinedTypes();
   }
 
   @Test
   public void basicInstrumentation() throws Exception {
-    Config config = createConfig();
-    TestSnapshotListener listener = setupCodeOrigin(config);
+    TestSnapshotListener listener = installProbes();
     final String CLASS_NAME = "com.datadog.debugger.CodeOrigin01";
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.onClass(testClass).call("main", "fullTrace").get();
@@ -142,8 +139,7 @@ public class CodeOriginTest {
 
   @Test
   public void postInstrumentation() throws Exception {
-    Config config = createConfig();
-    TestSnapshotListener listener = setupCodeOrigin(config);
+    TestSnapshotListener listener = installProbes();
     final String CLASS_NAME = "com.datadog.debugger.CodeOrigin01";
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.onClass(testClass).call("main", "fullTrace").get();
@@ -172,6 +168,43 @@ public class CodeOriginTest {
     exit.ifPresent(span -> checkExitSpanTags(span, true));
   }
 
+  private TestSnapshotListener installProbes() {
+
+    Configuration configuration = Configuration.builder().setService("CodeOrigin Test").build();
+
+    Config config = mock(Config.class);
+    when(config.isDebuggerEnabled()).thenReturn(true);
+    when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
+    when(config.isDebuggerVerifyByteCode()).thenReturn(false);
+    when(config.getFinalDebuggerSnapshotUrl())
+        .thenReturn("http://localhost:8126/debugger/v1/input");
+    when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
+    when(config.getDebuggerUploadBatchSize()).thenReturn(1000);
+
+    instrumentationListener = new MockInstrumentationListener();
+    ProbeStatusSink probeStatusSink =
+        new ProbeStatusSink(config, "http://localhost:8126/debugger/v1/input", false);
+    TestSnapshotListener listener = new TestSnapshotListener(config, probeStatusSink);
+
+    currentTransformer =
+        new DebuggerTransformer(config, configuration, instrumentationListener, listener);
+    ConfigurationUpdater configurationUpdater =
+        new ConfigurationUpdater(
+            instr,
+            this::createTransformer,
+            config,
+            new DebuggerSink(config, probeStatusSink),
+            new ClassesToRetransformFinder());
+    probeManager = new CodeOriginProbeManager(configurationUpdater, classNameFiltering);
+
+    DebuggerAgentHelper.injectSink(listener);
+    DebuggerContext.initProbeResolver(configurationUpdater);
+    DebuggerContext.initValueSerializer(new JsonSnapshotSerializer());
+    DebuggerContext.initCodeOrigin(new DefaultCodeOriginRecorder(probeManager));
+    configurationUpdater.accept(REMOTE_CONFIG, null);
+    return listener;
+  }
+
   private void waitForInstrumentation() {
     long end = System.currentTimeMillis() + 30_000;
     try {
@@ -194,14 +227,14 @@ public class CodeOriginTest {
 
     assertEquals(span.getTag(DD_CODE_ORIGIN_TYPE), "entry", keys);
     assertKeyPresent(span, DD_CODE_ORIGIN_TYPE);
-    assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "file"));
-    assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "line"));
-    assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "method"));
-    assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "signature"));
-    assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "type"));
+    assertKeyPresent(span, format(DD_CODE_ORIGIN_ENTRY, 0, "file"));
+    assertKeyPresent(span, format(DD_CODE_ORIGIN_ENTRY, 0, "line"));
+    assertKeyPresent(span, format(DD_CODE_ORIGIN_ENTRY, 0, "method"));
+    assertKeyPresent(span, format(DD_CODE_ORIGIN_ENTRY, 0, "signature"));
+    assertKeyPresent(span, format(DD_CODE_ORIGIN_ENTRY, 0, "type"));
 
     if (includeSnapshot) {
-      assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "snapshot_id"));
+      assertKeyPresent(span, format(DD_CODE_ORIGIN_ENTRY, 0, "snapshot_id"));
     }
   }
 
@@ -226,38 +259,26 @@ public class CodeOriginTest {
         format("Existing keys for %s: %s", span.getOperationName(), new TreeSet<>(ldKeys(span)));
 
     assertKeyPresent(span, DD_CODE_ORIGIN_TYPE);
-    assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "file"));
-    assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "line"));
-    assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "method"));
-    assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "type"));
+    assertKeyPresent(span, format(DD_CODE_ORIGIN_ENTRY, 0, "file"));
+    assertKeyPresent(span, format(DD_CODE_ORIGIN_ENTRY, 0, "line"));
+    assertKeyPresent(span, format(DD_CODE_ORIGIN_ENTRY, 0, "method"));
+    assertKeyPresent(span, format(DD_CODE_ORIGIN_ENTRY, 0, "type"));
     if (includeSnapshot) {
-      assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "snapshot_id"));
+      assertKeyPresent(span, format(DD_CODE_ORIGIN_ENTRY, 0, "snapshot_id"));
     }
 
     MutableSpan rootSpan = span.getLocalRootSpan();
     assertEquals(rootSpan.getTag(DD_CODE_ORIGIN_TYPE), "entry", keys);
-    assertNotNull(rootSpan.getTag(format(DD_CODE_ORIGIN_FRAME, 1, "file")));
-    assertNotNull(rootSpan.getTag(format(DD_CODE_ORIGIN_FRAME, 1, "line")));
-    assertNotNull(rootSpan.getTag(format(DD_CODE_ORIGIN_FRAME, 1, "method")));
-    assertNotNull(rootSpan.getTag(format(DD_CODE_ORIGIN_FRAME, 1, "type")));
+    assertNotNull(rootSpan.getTag(format(DD_CODE_ORIGIN_ENTRY, 1, "file")));
+    assertNotNull(rootSpan.getTag(format(DD_CODE_ORIGIN_ENTRY, 1, "line")));
+    assertNotNull(rootSpan.getTag(format(DD_CODE_ORIGIN_ENTRY, 1, "method")));
+    assertNotNull(rootSpan.getTag(format(DD_CODE_ORIGIN_ENTRY, 1, "type")));
   }
 
   private static Set<String> ldKeys(MutableSpan span) {
     return span.getTags().keySet().stream()
         .filter(key -> key.startsWith(DD_CODE_ORIGIN_PREFIX))
         .collect(Collectors.toCollection(TreeSet::new));
-  }
-
-  private static Config createConfig() {
-    Config config = mock(Config.class);
-    when(config.isDebuggerEnabled()).thenReturn(true);
-    when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
-    when(config.isDebuggerVerifyByteCode()).thenReturn(true);
-    when(config.getFinalDebuggerSnapshotUrl())
-        .thenReturn("http://localhost:8126/debugger/v1/input");
-    when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
-    when(config.getDebuggerUploadBatchSize()).thenReturn(100);
-    return config;
   }
 
   private DebuggerTransformer createTransformer(

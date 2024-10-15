@@ -14,7 +14,7 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
   }
 
   @Override
-  public String captureCodeOrigin(String signature) {
-    return probeManager.createProbeForFrame(signature);
+  public String captureCodeOrigin(String identifier, boolean entry) {
+    return probeManager.createProbe(identifier, entry);
   }
 }

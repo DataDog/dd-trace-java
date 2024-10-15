@@ -15,13 +15,13 @@ public class CodeOriginInfo {
           stream(method.getParameterTypes())
               .map(Class::getTypeName)
               .collect(Collectors.joining(", ", "(", ")"));
-      captureCodeOrigin(signature);
+      //      captureCodeOrigin(signature, true);
     }
   }
 
   public static void exit(AgentSpan span) {
     if (InstrumenterConfig.get().isCodeOriginEnabled()) {
-      String probeId = captureCodeOrigin(null);
+      String probeId = captureCodeOrigin(null, false);
       if (span != null) {
         span.getLocalRootSpan().setTag(probeId, span);
       }

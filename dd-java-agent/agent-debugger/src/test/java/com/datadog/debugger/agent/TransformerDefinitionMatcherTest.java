@@ -9,6 +9,7 @@ import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.SpanProbe;
 import datadog.trace.bootstrap.debugger.ProbeId;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -175,12 +176,20 @@ public class TransformerDefinitionMatcherTest {
     assertEquals(PROBE_ID3.getId(), probeDefinitions.get(2).getId());
   }
 
+  private TransformerDefinitionMatcher createMatcher(List<? extends ProbeDefinition> probes) {
+    return new TransformerDefinitionMatcher(new Configuration(SERVICE_NAME, probes));
+  }
+
+  @Deprecated
   private TransformerDefinitionMatcher createMatcher(
       Collection<MetricProbe> metricProbes,
       Collection<LogProbe> logProbes,
       Collection<SpanProbe> spanProbes) {
-    return new TransformerDefinitionMatcher(
-        new Configuration(SERVICE_NAME, metricProbes, logProbes, spanProbes));
+    List<ProbeDefinition> probes = new ArrayList<>();
+    probes.addAll(metricProbes);
+    probes.addAll(logProbes);
+    probes.addAll(spanProbes);
+    return new TransformerDefinitionMatcher(new Configuration(SERVICE_NAME, probes));
   }
 
   private static List<ProbeDefinition> match(TransformerDefinitionMatcher matcher, Class<?> clazz) {

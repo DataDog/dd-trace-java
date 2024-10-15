@@ -104,7 +104,8 @@ public class TriggerProbeInstrumentationTest extends ProbeInstrumentationTest {
             .probeId(DEBUG_PROBE_ID)
             .where(CLASS_NAME, "process", "int (java.lang.String)")
             .build(),
-        new CodeOriginProbe(CODE_ORIGIN_PROBE_ID, "int (java.lang.String)", where, probeManager));
+        new CodeOriginProbe(
+            CODE_ORIGIN_PROBE_ID, true, "int (java.lang.String)", where, probeManager));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     assertEquals(84, result);

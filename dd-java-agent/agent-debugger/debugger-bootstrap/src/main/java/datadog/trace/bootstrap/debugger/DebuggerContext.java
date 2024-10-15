@@ -68,7 +68,7 @@ public class DebuggerContext {
   }
 
   public interface CodeOriginRecorder {
-    String captureCodeOrigin(String signature);
+    String captureCodeOrigin(String identifier, boolean entry);
   }
 
   private static volatile ProbeResolver probeResolver;
@@ -342,11 +342,11 @@ public class DebuggerContext {
     }
   }
 
-  public static String captureCodeOrigin(String signature) {
+  public static String captureCodeOrigin(String identifier, boolean entry) {
     try {
       CodeOriginRecorder recorder = codeOriginRecorder;
       if (recorder != null) {
-        return recorder.captureCodeOrigin(signature);
+        return recorder.captureCodeOrigin(identifier, entry);
       }
     } catch (Exception ex) {
       LOGGER.debug("Error in captureCodeOrigin: ", ex);
