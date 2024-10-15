@@ -100,7 +100,7 @@
   "content" : {
     "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id},
-    "parent_id" : ${content_parent_id},
+    "parent_id" : ${content_test_session_id},
     "service" : "test-maven-service",
     "name" : "Maven_Smoke_Tests_Project_jacoco_maven_plugin_default",
     "resource" : "Maven_Smoke_Tests_Project_jacoco_maven_plugin_default",
@@ -131,7 +131,7 @@
   "content" : {
     "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id_2},
-    "parent_id" : ${content_parent_id},
+    "parent_id" : ${content_test_session_id},
     "service" : "test-maven-service",
     "name" : "Maven_Smoke_Tests_Project_maven_compiler_plugin_default_compile",
     "resource" : "Maven_Smoke_Tests_Project_maven_compiler_plugin_default_compile",
@@ -162,7 +162,7 @@
   "content" : {
     "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id_3},
-    "parent_id" : ${content_parent_id},
+    "parent_id" : ${content_test_session_id},
     "service" : "test-maven-service",
     "name" : "Maven_Smoke_Tests_Project_maven_compiler_plugin_default_testCompile",
     "resource" : "Maven_Smoke_Tests_Project_maven_compiler_plugin_default_testCompile",
@@ -193,7 +193,7 @@
   "content" : {
     "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id_4},
-    "parent_id" : ${content_parent_id},
+    "parent_id" : ${content_test_session_id},
     "service" : "test-maven-service",
     "name" : "Maven_Smoke_Tests_Project_maven_resources_plugin_default_resources",
     "resource" : "Maven_Smoke_Tests_Project_maven_resources_plugin_default_resources",
@@ -224,7 +224,7 @@
   "content" : {
     "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id_5},
-    "parent_id" : ${content_parent_id},
+    "parent_id" : ${content_test_session_id},
     "service" : "test-maven-service",
     "name" : "Maven_Smoke_Tests_Project_maven_resources_plugin_default_testResources",
     "resource" : "Maven_Smoke_Tests_Project_maven_resources_plugin_default_testResources",
@@ -300,7 +300,7 @@
   "content" : {
     "trace_id" : ${content_trace_id},
     "span_id" : ${content_span_id_6},
-    "parent_id" : ${content_parent_id_2},
+    "parent_id" : ${content_parent_id},
     "test_session_id" : ${content_test_session_id},
     "test_module_id" : ${content_test_module_id},
     "test_suite_id" : ${content_test_suite_id},
@@ -351,7 +351,7 @@
   "content" : {
     "trace_id" : ${content_trace_id_2},
     "span_id" : ${content_span_id_7},
-    "parent_id" : ${content_parent_id_2},
+    "parent_id" : ${content_parent_id},
     "test_session_id" : ${content_test_session_id},
     "test_module_id" : ${content_test_module_id},
     "test_suite_id" : ${content_test_suite_id},

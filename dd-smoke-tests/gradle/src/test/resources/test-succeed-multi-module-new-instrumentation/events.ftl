@@ -336,7 +336,7 @@
   "content" : {
     "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id_3},
-    "parent_id" : ${content_parent_id_2},
+    "parent_id" : ${content_test_session_id},
     "service" : "test-gradle-service",
     "name" : "submodule_a_classes",
     "resource" : "submodule_a_classes",
@@ -364,7 +364,7 @@
   "content" : {
     "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id_4},
-    "parent_id" : ${content_parent_id_2},
+    "parent_id" : ${content_test_session_id},
     "service" : "test-gradle-service",
     "name" : "submodule_a_compileJava",
     "resource" : "submodule_a_compileJava",
@@ -392,7 +392,7 @@
   "content" : {
     "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id_5},
-    "parent_id" : ${content_parent_id_2},
+    "parent_id" : ${content_test_session_id},
     "service" : "test-gradle-service",
     "name" : "submodule_a_compileTestJava",
     "resource" : "submodule_a_compileTestJava",
@@ -420,7 +420,7 @@
   "content" : {
     "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id_6},
-    "parent_id" : ${content_parent_id_2},
+    "parent_id" : ${content_test_session_id},
     "service" : "test-gradle-service",
     "name" : "submodule_a_processResources",
     "resource" : "submodule_a_processResources",
@@ -448,7 +448,7 @@
   "content" : {
     "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id_7},
-    "parent_id" : ${content_parent_id_2},
+    "parent_id" : ${content_test_session_id},
     "service" : "test-gradle-service",
     "name" : "submodule_a_processTestResources",
     "resource" : "submodule_a_processTestResources",
@@ -476,7 +476,7 @@
   "content" : {
     "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id_8},
-    "parent_id" : ${content_parent_id_2},
+    "parent_id" : ${content_test_session_id},
     "service" : "test-gradle-service",
     "name" : "submodule_a_testClasses",
     "resource" : "submodule_a_testClasses",
@@ -504,7 +504,7 @@
   "content" : {
     "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id_9},
-    "parent_id" : ${content_parent_id_2},
+    "parent_id" : ${content_test_session_id},
     "service" : "test-gradle-service",
     "name" : "submodule_b_classes",
     "resource" : "submodule_b_classes",
@@ -532,7 +532,7 @@
   "content" : {
     "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id_10},
-    "parent_id" : ${content_parent_id_2},
+    "parent_id" : ${content_test_session_id},
     "service" : "test-gradle-service",
     "name" : "submodule_b_compileJava",
     "resource" : "submodule_b_compileJava",
@@ -560,7 +560,7 @@
   "content" : {
     "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id_11},
-    "parent_id" : ${content_parent_id_2},
+    "parent_id" : ${content_test_session_id},
     "service" : "test-gradle-service",
     "name" : "submodule_b_compileTestJava",
     "resource" : "submodule_b_compileTestJava",
@@ -588,7 +588,7 @@
   "content" : {
     "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id_12},
-    "parent_id" : ${content_parent_id_2},
+    "parent_id" : ${content_test_session_id},
     "service" : "test-gradle-service",
     "name" : "submodule_b_processResources",
     "resource" : "submodule_b_processResources",
@@ -616,7 +616,7 @@
   "content" : {
     "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id_13},
-    "parent_id" : ${content_parent_id_2},
+    "parent_id" : ${content_test_session_id},
     "service" : "test-gradle-service",
     "name" : "submodule_b_processTestResources",
     "resource" : "submodule_b_processTestResources",
@@ -644,7 +644,7 @@
   "content" : {
     "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id_14},
-    "parent_id" : ${content_parent_id_2},
+    "parent_id" : ${content_test_session_id},
     "service" : "test-gradle-service",
     "name" : "submodule_b_testClasses",
     "resource" : "submodule_b_testClasses",
