@@ -135,6 +135,7 @@ class SsrfModuleTest extends IastModuleImplTestBase {
     ctx.getTaintedObjects().taint(value, Ranges.forObject(new Source(SourceTypes.REQUEST_PARAMETER_VALUE, 'name', value.toString())))
   }
 
+
   private String tainted(final String url) {
     final uri = getStringFromTaintFormat(url)
     final ranges = fromTaintFormat(url)
