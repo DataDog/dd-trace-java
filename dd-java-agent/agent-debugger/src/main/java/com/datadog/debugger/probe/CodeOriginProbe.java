@@ -1,12 +1,14 @@
 package com.datadog.debugger.probe;
 
 import static com.datadog.debugger.codeorigin.DebuggerConfiguration.isDebuggerEnabled;
-import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_FRAME;
+import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_ENTRY;
+import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_FRAMES;
 import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_TYPE;
 import static java.lang.String.format;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
+import static java.util.Map.Entry.comparingByKey;
 
 import com.datadog.debugger.agent.DebuggerAgent;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
@@ -19,8 +21,10 @@ import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeLocation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.core.DDSpan;
 import datadog.trace.util.stacktrace.StackWalkerFactory;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +42,11 @@ public class CodeOriginProbe extends LogProbe implements ForceMethodInstrumentat
     super(LANGUAGE, probeId, null, where, MethodLocation.EXIT, null, null, true, null, null, null);
     this.entrySpanProbe = entry;
     this.maxFrames = maxFrames;
+    createFrameProbes();
+  }
+
+  private void createFrameProbes() {
+    DebuggerContext.codeOriginRecorder.createFrameProbes();
   }
 
   @Override
@@ -53,6 +62,19 @@ public class CodeOriginProbe extends LogProbe implements ForceMethodInstrumentat
       return;
     }
 
+    AgentSpan candidate = AgentTracer.activeSpan();
+    AgentSpan span = findSpan(candidate);
+
+    if (span instanceof DDSpan) {
+      Map<String, Object> baggage = span.getTags();
+      System.out.println("\n\n****** CodeOriginProbe.evaluate entrySpanProbe = " + entrySpanProbe);
+      System.out.println("****** CodeOriginProbe.evaluate span.getSpanId() = " + span.getSpanId());
+      baggage.entrySet().stream()
+          .filter(entry1 -> entry1.getKey().startsWith(DD_CODE_ORIGIN_FRAMES))
+          .sorted(comparingByKey())
+          .collect(Collectors.toList())
+          .forEach(entry -> System.out.println("###### CodeOriginProbe.evaluate entry = " + entry));
+    }
     super.evaluate(context, status, methodLocation);
   }
 
@@ -113,15 +135,15 @@ public class CodeOriginProbe extends LogProbe implements ForceMethodInstrumentat
       for (int i = 0; i < entries.size(); i++) {
         StackTraceElement info = entries.get(i);
         String fileName = info.getFileName();
-        s.setTag(format(DD_CODE_ORIGIN_FRAME, i, "file"), fileName);
-        s.setTag(format(DD_CODE_ORIGIN_FRAME, i, "method"), info.getMethodName());
-        s.setTag(format(DD_CODE_ORIGIN_FRAME, i, "line"), info.getLineNumber());
-        s.setTag(format(DD_CODE_ORIGIN_FRAME, i, "type"), info.getClassName());
+        s.setTag(format(DD_CODE_ORIGIN_ENTRY, i, "file"), fileName);
+        s.setTag(format(DD_CODE_ORIGIN_ENTRY, i, "method"), info.getMethodName());
+        s.setTag(format(DD_CODE_ORIGIN_ENTRY, i, "line"), info.getLineNumber());
+        s.setTag(format(DD_CODE_ORIGIN_ENTRY, i, "type"), info.getClassName());
         if (i == 0 && entrySpanProbe) {
-          s.setTag(format(DD_CODE_ORIGIN_FRAME, i, "signature"), where.getSignature());
+          s.setTag(format(DD_CODE_ORIGIN_ENTRY, i, "signature"), where.getSignature());
         }
         if (i == 0 && snapshotId != null) {
-          s.setTag(format(DD_CODE_ORIGIN_FRAME, i, "snapshot_id"), snapshotId);
+          s.setTag(format(DD_CODE_ORIGIN_ENTRY, i, "snapshot_id"), snapshotId);
         }
       }
     }

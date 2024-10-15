@@ -76,6 +76,8 @@ public class DebuggerContext {
     String captureCodeOrigin(boolean entry);
 
     String captureCodeOrigin(Method method, boolean entry);
+
+    void createFrameProbes();
   }
 
   private static volatile ProbeResolver probeResolver;
@@ -85,7 +87,7 @@ public class DebuggerContext {
   private static volatile Tracer tracer;
   private static volatile ValueSerializer valueSerializer;
   private static volatile ExceptionDebugger exceptionDebugger;
-  private static volatile CodeOriginRecorder codeOriginRecorder;
+  public static volatile CodeOriginRecorder codeOriginRecorder;
 
   public static void initProbeResolver(ProbeResolver probeResolver) {
     DebuggerContext.probeResolver = probeResolver;
