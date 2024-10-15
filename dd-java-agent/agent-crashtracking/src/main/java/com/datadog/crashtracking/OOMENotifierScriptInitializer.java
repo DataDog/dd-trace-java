@@ -42,7 +42,7 @@ public final class OOMENotifierScriptInitializer {
     }
     Path scriptPath = getOOMEScripPath(onOutOfMemoryVal);
     if (scriptPath == null) {
-      LOG.info(
+      LOG.debug(
           "OOME notifier script value ({}) does not follow the expected format: <path>/dd_ome_notifier.(sh|bat) %p. OOME tracking is disabled.",
           onOutOfMemoryVal);
       return;
