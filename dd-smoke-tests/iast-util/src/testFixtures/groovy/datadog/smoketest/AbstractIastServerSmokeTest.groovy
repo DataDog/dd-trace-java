@@ -3,6 +3,7 @@ package datadog.smoketest
 import datadog.smoketest.model.TaintedObject
 import datadog.smoketest.model.Vulnerability
 import datadog.smoketest.model.Vulnerability.Source
+import datadog.trace.test.agent.decoder.DecodedSpan
 import groovy.json.JsonBuilder
 import groovy.json.JsonSlurper
 import groovy.transform.CompileDynamic
@@ -119,10 +120,32 @@ abstract class AbstractIastServerSmokeTest extends AbstractServerSmokeTest {
         }
         final vulnerabilities = parseVulnerabilities(json)
         found.addAll(vulnerabilities)
-        return vulnerabilities.find(matcher) != null
       }
     } catch (SpockTimeoutError toe) {
       throw new AssertionError("No matching vulnerability found. Vulnerabilities found: ${new JsonBuilder(found).toPrettyString()}")
+    }
+  }
+
+  protected void hasVulnerabilityStack() {
+    try {
+      waitForSpan(pollingConditions()) { span ->
+        final json = span.meta.get(TAG_NAME)
+        if (!json) {
+          return false
+        }
+        final vulnerabilities = parseVulnerabilities(json)
+        def stack = span.metaStruct.get('_dd.stack')
+        if (stack == null) {
+          return false
+        }
+        def stackVulnerabilities = stack.get('vulnerability')
+        if (stackVulnerabilities == null) {
+          return false
+        }
+        return stackVulnerabilities.size() == vulnerabilities.size()
+      }
+    } catch (SpockTimeoutError toe) {
+      throw new AssertionError("Some error occurred while checking vulnerability stack")
     }
   }
 
