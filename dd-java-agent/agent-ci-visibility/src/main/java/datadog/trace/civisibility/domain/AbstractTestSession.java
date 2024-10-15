@@ -1,8 +1,10 @@
 package datadog.trace.civisibility.domain;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.api.civisibility.CIConstants.CI_VISIBILITY_INSTRUMENTATION_NAME;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.DDTraceId;
+import datadog.trace.api.IdGenerationStrategy;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.TagValue;
@@ -26,6 +28,7 @@ import java.util.Collections;
 import javax.annotation.Nullable;
 
 public abstract class AbstractTestSession {
+
   protected final Provider ciProvider;
   protected final InstrumentationType instrumentationType;
   protected final AgentSpan span;
@@ -56,11 +59,23 @@ public abstract class AbstractTestSession {
     this.codeowners = codeowners;
     this.methodLinesResolver = methodLinesResolver;
 
+    // CI Test Cycle protocol requires session's trace ID and span ID to be the same
+    IdGenerationStrategy idGenerationStrategy = config.getIdGenerationStrategy();
+    DDTraceId traceId = idGenerationStrategy.generateTraceId();
+    AgentSpan.Context traceContext = new TraceContext(traceId);
+
+    AgentTracer.SpanBuilder spanBuilder =
+        AgentTracer.get()
+            .buildSpan(
+                CI_VISIBILITY_INSTRUMENTATION_NAME, testDecorator.component() + ".test_session")
+            .asChildOf(traceContext)
+            .withSpanId(traceId.toLong());
+
     if (startTime != null) {
-      span = startSpan(testDecorator.component() + ".test_session", startTime);
-    } else {
-      span = startSpan(testDecorator.component() + ".test_session");
+      spanBuilder = spanBuilder.withStartTimestamp(startTime);
     }
+
+    span = spanBuilder.start();
 
     span.setSpanType(InternalSpanTypes.TEST_SESSION_END);
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_TEST_SESSION);
