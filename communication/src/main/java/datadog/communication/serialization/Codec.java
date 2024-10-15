@@ -414,8 +414,10 @@ public final class Codec extends ClassValue<ValueWriter<?>> {
         writable.writeString("class_name", encodingCache);
         writable.writeString(value.getClass_name(), encodingCache);
       }
-      writable.writeString("function", encodingCache);
-      writable.writeString(value.getFunction(), encodingCache);
+      if (hasFunction) {
+        writable.writeString("function", encodingCache);
+        writable.writeString(value.getFunction(), encodingCache);
+      }
     }
   }
 }
