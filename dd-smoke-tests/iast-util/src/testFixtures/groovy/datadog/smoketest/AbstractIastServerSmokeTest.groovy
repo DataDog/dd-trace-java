@@ -3,7 +3,6 @@ package datadog.smoketest
 import datadog.smoketest.model.TaintedObject
 import datadog.smoketest.model.Vulnerability
 import datadog.smoketest.model.Vulnerability.Source
-import datadog.trace.test.agent.decoder.DecodedSpan
 import groovy.json.JsonBuilder
 import groovy.json.JsonSlurper
 import groovy.transform.CompileDynamic
