@@ -513,11 +513,11 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return events;
   }
 
-  Collection<StackTraceEvent> getStackTraces() {
+  List<StackTraceEvent> getStackTraces() {
     if (this.stackTraceEvents == null) {
       return null;
     }
-    Collection<StackTraceEvent> stackTraces = new ArrayList<>();
+    List<StackTraceEvent> stackTraces = new ArrayList<>();
     StackTraceEvent item;
     while ((item = this.stackTraceEvents.poll()) != null) {
       stackTraces.add(item);

@@ -586,7 +586,7 @@ public class GatewayBridge {
         writeResponseHeaders(traceSeg, RESPONSE_HEADERS_ALLOW_LIST, ctx.getResponseHeaders());
 
         // Report collected stack traces
-        Collection<StackTraceEvent> stackTraces = ctx.getStackTraces();
+        List<StackTraceEvent> stackTraces = ctx.getStackTraces();
         if (stackTraces != null && !stackTraces.isEmpty()) {
           StackTraceBatch stackTraceBatch =
               ((StackTraceBatch) traceSeg.getMetaStructTop(META_STRUCT_KEY));
