@@ -31,12 +31,12 @@ import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.el.values.StringValue;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
-import com.datadog.debugger.probe.DebuggerProbe;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.SpanProbe;
+import com.datadog.debugger.probe.TriggerProbe;
 import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
@@ -583,6 +583,9 @@ public class CapturedSnapshotTest {
   }
 
   @Test
+  @DisabledIf(
+      value = "datadog.trace.api.Platform#isJ9",
+      disabledReason = "Issue with J9 when compiling Kotlin code")
   public void sourceFileProbeKotlin() {
     final String CLASS_NAME = "CapturedSnapshot301";
     TestSnapshotListener listener =
@@ -590,8 +593,9 @@ public class CapturedSnapshotTest {
     URL resource = CapturedSnapshotTest.class.getResource("/" + CLASS_NAME + ".kt");
     assertNotNull(resource);
     List<File> filesToDelete = new ArrayList<>();
-    Class<?> testClass = KotlinHelper.compileAndLoad(CLASS_NAME, resource.getFile(), filesToDelete);
     try {
+      Class<?> testClass =
+          KotlinHelper.compileAndLoad(CLASS_NAME, resource.getFile(), filesToDelete);
       Object companion = Reflect.onClass(testClass).get("Companion");
       int result = Reflect.on(companion).call("main", "").get();
       assertEquals(48, result);
@@ -602,6 +606,56 @@ public class CapturedSnapshotTest {
       Assertions.assertEquals(CLASS_NAME, snapshot.getProbe().getLocation().getType());
       Assertions.assertEquals("f1", snapshot.getProbe().getLocation().getMethod());
       assertCaptureArgs(snapshot.getCaptures().getLines().get(4), "value", "int", "31");
+    } finally {
+      filesToDelete.forEach(File::delete);
+    }
+  }
+
+  @Test
+  @DisabledIf(
+      value = "datadog.trace.api.Platform#isJ9",
+      disabledReason = "Issue with J9 when compiling Kotlin code")
+  public void suspendKotlin() {
+    final String CLASS_NAME = "CapturedSnapshot302";
+    TestSnapshotListener listener =
+        installProbes(CLASS_NAME, createSourceFileProbe(PROBE_ID, CLASS_NAME + ".kt", 9));
+    URL resource = CapturedSnapshotTest.class.getResource("/" + CLASS_NAME + ".kt");
+    assertNotNull(resource);
+    List<File> filesToDelete = new ArrayList<>();
+    try {
+      Class<?> testClass =
+          KotlinHelper.compileAndLoad(CLASS_NAME, resource.getFile(), filesToDelete);
+      Object companion = Reflect.onClass(testClass).get("Companion");
+      int result = Reflect.on(companion).call("main", "").get();
+      assertEquals(0, result);
+      Snapshot snapshot = assertOneSnapshot(listener);
+      assertCaptureFields(snapshot.getCaptures().getLines().get(9), "intField", "int", "42");
+      assertCaptureFields(
+          snapshot.getCaptures().getLines().get(9), "strField", String.class.getTypeName(), "foo");
+    } finally {
+      filesToDelete.forEach(File::delete);
+    }
+  }
+
+  @Test
+  @DisabledIf(
+      value = "datadog.trace.api.Platform#isJ9",
+      disabledReason = "Issue with J9 when compiling Kotlin code")
+  public void hoistVarKotlin() {
+    final String CLASS_NAME = "CapturedSnapshot303";
+    TestSnapshotListener listener =
+        installProbes(
+            CLASS_NAME, createProbeAtExit(PROBE_ID, CLASS_NAME + "$Companion", "main", null));
+    URL resource = CapturedSnapshotTest.class.getResource("/" + CLASS_NAME + ".kt");
+    assertNotNull(resource);
+    List<File> filesToDelete = new ArrayList<>();
+    try {
+      Class<?> testClass =
+          KotlinHelper.compileAndLoad(CLASS_NAME, resource.getFile(), filesToDelete);
+      Object companion = Reflect.onClass(testClass).get("Companion");
+      int result = Reflect.on(companion).call("main", "").get();
+      assertEquals(0, result);
+      Snapshot snapshot = assertOneSnapshot(listener);
     } finally {
       filesToDelete.forEach(File::delete);
     }
@@ -2359,7 +2413,7 @@ public class CapturedSnapshotTest {
   public void allProbesSameMethod() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
     final String METRIC_NAME = "count";
-    Where where = Where.convertLineToMethod(CLASS_NAME, "main", null);
+    Where where = Where.of(CLASS_NAME, "main", null);
     Configuration configuration =
         Configuration.builder()
             .add(
@@ -2385,7 +2439,7 @@ public class CapturedSnapshotTest {
                     .where(where)
                     .build())
             .add(LogProbe.builder().probeId(PROBE_ID3).where(where).build())
-            .add(DebuggerProbe.builder().probeId(PROBE_ID4).where(where).build())
+            .add(TriggerProbe.builder().probeId(PROBE_ID4).where(where).build())
             .build();
 
     CoreTracer tracer = CoreTracer.builder().build();
@@ -2532,7 +2586,7 @@ public class CapturedSnapshotTest {
                 encodedId,
                 logProbes,
                 configuration.getSpanDecorationProbes(),
-                configuration.getDebuggerProbes()));
+                configuration.getTriggerProbes()));
     DebuggerContext.initClassFilter(new DenyListHelper(null));
     DebuggerContext.initValueSerializer(new JsonSnapshotSerializer());
     if (logProbes != null) {
@@ -2555,7 +2609,7 @@ public class CapturedSnapshotTest {
       String encodedId,
       Collection<LogProbe> logProbes,
       Collection<SpanDecorationProbe> spanDecorationProbes,
-      Collection<DebuggerProbe> debuggerProbes) {
+      Collection<TriggerProbe> triggerProbes) {
     for (LogProbe probe : logProbes) {
       if (probe.getProbeId().getEncodedId().equals(encodedId)) {
         return probe;
@@ -2566,7 +2620,7 @@ public class CapturedSnapshotTest {
         return probe;
       }
     }
-    for (DebuggerProbe probe : debuggerProbes) {
+    for (TriggerProbe probe : triggerProbes) {
       if (probe.getProbeId().getEncodedId().equals(encodedId)) {
         return probe;
       }

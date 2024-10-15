@@ -247,7 +247,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
    */
   @Override
   public void onRootSpanFinished(AgentSpan root, EndpointTracker tracker) {
-    profilingContextIntegration.onRootSpanFinished(root, tracker);
+    if (!root.isOutbound()) {
+      profilingContextIntegration.onRootSpanFinished(root, tracker);
+    }
   }
 
   /**
@@ -269,7 +271,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public EndpointTracker onRootSpanStarted(AgentSpan root) {
-    return profilingContextIntegration.onRootSpanStarted(root);
+    if (!root.isOutbound()) {
+      return profilingContextIntegration.onRootSpanStarted(root);
+    }
+    return null;
   }
 
   @Override
@@ -1296,7 +1301,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       DDSpan span = DDSpan.create(instrumentationName, timestampMicro, buildSpanContext(), links);
       if (span.isLocalRootSpan()) {
         EndpointTracker tracker = tracer.onRootSpanStarted(span);
-        span.setEndpointTracker(tracker);
+        if (tracker != null) {
+          span.setEndpointTracker(tracker);
+        }
       }
       return span;
     }

@@ -1,7 +1,7 @@
 package datadog.trace.civisibility.domain;
 
+import static datadog.trace.api.civisibility.CIConstants.CI_VISIBILITY_INSTRUMENTATION_NAME;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.DDTestSuite;
@@ -78,11 +78,17 @@ public class TestSuiteImpl implements DDTestSuite {
     this.coverageStoreFactory = coverageStoreFactory;
     this.onSpanFinish = onSpanFinish;
 
+    AgentTracer.SpanBuilder spanBuilder =
+        AgentTracer.get()
+            .buildSpan(
+                CI_VISIBILITY_INSTRUMENTATION_NAME, testDecorator.component() + ".test_suite")
+            .asChildOf(moduleSpanContext);
+
     if (startTime != null) {
-      span = startSpan(testDecorator.component() + ".test_suite", moduleSpanContext, startTime);
-    } else {
-      span = startSpan(testDecorator.component() + ".test_suite", moduleSpanContext);
+      spanBuilder = spanBuilder.withStartTimestamp(startTime);
     }
+
+    span = spanBuilder.start();
 
     span.setSpanType(InternalSpanTypes.TEST_SUITE_END);
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_TEST_SUITE);
