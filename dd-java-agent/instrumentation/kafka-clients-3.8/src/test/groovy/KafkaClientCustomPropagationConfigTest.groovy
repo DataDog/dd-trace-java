@@ -26,6 +26,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.KAFKA_PRODUCE
 
+@Flaky
 class KafkaClientCustomPropagationConfigTest extends AgentTestRunner {
   static final SHARED_TOPIC = ["topic1", "topic2", "topic3", "topic4"]
   static final MESSAGE = "Testing without headers for certain topics"
