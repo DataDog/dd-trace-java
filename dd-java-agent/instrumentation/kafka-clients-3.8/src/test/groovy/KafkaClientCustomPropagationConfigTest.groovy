@@ -6,7 +6,6 @@ import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.header.Headers
 import org.apache.kafka.common.header.internals.RecordHeaders
-import org.junit.Rule
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory
 import org.springframework.kafka.core.DefaultKafkaProducerFactory
 import org.springframework.kafka.core.KafkaTemplate
@@ -47,9 +46,6 @@ class KafkaClientCustomPropagationConfigTest extends AgentTestRunner {
     return false
   }
 
-  @Rule
-  public KafkaContainer embeddedKafka = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:latest"))
-  .withEmbeddedZookeeper()
 
   @Override
   void configurePreAgent() {

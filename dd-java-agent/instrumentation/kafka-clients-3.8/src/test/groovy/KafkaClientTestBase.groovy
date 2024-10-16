@@ -17,7 +17,6 @@ import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.serialization.StringSerializer
-import org.junit.Rule
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory
 import org.springframework.kafka.core.DefaultKafkaProducerFactory
 import org.springframework.kafka.core.KafkaTemplate
@@ -60,10 +59,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     // TODO fix this by making sure that spans get closed properly
     return false
   }
-
-  @Rule
-  public KafkaContainer embeddedKafka = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:latest"))
-  .withEmbeddedZookeeper()
 
   @Override
   void configurePreAgent() {
