@@ -52,7 +52,7 @@ dependencies {
   api libs.bundles.test.logging
   api libs.guava
 
-  api group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.2.30.v20200428'
+  api group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.4.56.v20240826'
   // ^ 9.2 last to support java 7
   api group: 'com.squareup.okhttp3', name: 'logging-interceptor', version: libs.versions.okhttp.legacy.get()
 
