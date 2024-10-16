@@ -89,18 +89,18 @@ public class CiVisibilityRepoServices {
     }
   }
 
-  private static String getModuleName(Config config, Path path, CIInfo ciInfo) {
+  static String getModuleName(Config config, Path path, CIInfo ciInfo) {
     // if parent process is instrumented, it will provide build system's module name
     String parentModuleName = config.getCiVisibilityModuleName();
     if (parentModuleName != null) {
       return parentModuleName;
     }
     String repoRoot = ciInfo.getNormalizedCiWorkspace();
-    if (repoRoot != null
-        && path.startsWith(repoRoot)
-        // module name cannot be empty
-        && !path.toString().equals(repoRoot)) {
-      return Paths.get(repoRoot).relativize(path).toString();
+    if (repoRoot != null && path.startsWith(repoRoot)) {
+      String relativePath = Paths.get(repoRoot).relativize(path).toString();
+      if (!relativePath.isEmpty()) {
+        return relativePath;
+      }
     }
     return config.getServiceName();
   }
