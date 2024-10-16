@@ -15,17 +15,15 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.servlet.ServletBlockingHelper;
-
 import java.io.IOException;
 import java.security.Principal;
+import java.util.Enumeration;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import net.bytebuddy.asm.Advice;
-
-import java.util.Enumeration;
 
 public class Servlet3Advice {
 
@@ -67,7 +65,7 @@ public class Servlet3Advice {
     boolean tracerRequestBodyEnabled = Config.get().isTracerRequestBodyEnabled();
     if (tracerRequestBodyEnabled) {
       String contextType = request.getContentType();
-      if (!body && "POST".equalsIgnoreCase(methodType) && (contextType.equals(APPLICATION_JSON_VALUE) || contextType.equals(APPLICATION_JSON_UTF8_VALUE))) {
+      if (!body && "POST".equalsIgnoreCase(methodType)&& contextType!=null && (contextType.equals(APPLICATION_JSON_VALUE) || contextType.equals(APPLICATION_JSON_UTF8_VALUE))) {
         try {
           request.setAttribute("datadog_request_body", true);
           requestWrapper = new BodyReaderHttpServletRequestWrapper(
