@@ -36,6 +36,8 @@ dependencies {
   testImplementation group: 'software.amazon.awssdk', name: 'sns', version: '2.2.0'
   testImplementation group: 'software.amazon.awssdk', name: 'dynamodb', version: '2.2.0'
   testImplementation group: 'software.amazon.awssdk', name: 'kinesis', version: '2.2.0'
+  testImplementation group: 'org.eclipse.jetty.http2', name: 'http2-server', version: '9.4.56.v20240826'
+
 
   // First version where dsm traced operations have required StreamARN parameter for kinesis
   // and publishBatch is available for SNS
