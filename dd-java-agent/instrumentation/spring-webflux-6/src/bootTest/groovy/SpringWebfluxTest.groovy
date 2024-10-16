@@ -12,10 +12,7 @@ import dd.trace.instrumentation.springwebflux.server.FooModel
 import dd.trace.instrumentation.springwebflux.server.SpringWebFluxTestApplication
 import dd.trace.instrumentation.springwebflux.server.TestController
 import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.boot.test.context.TestConfiguration
 import org.springframework.boot.test.web.server.LocalServerPort
-import org.springframework.boot.web.embedded.netty.NettyReactiveWebServerFactory
-import org.springframework.context.annotation.Bean
 import org.springframework.http.client.reactive.ReactorClientHttpConnector
 import org.springframework.web.reactive.function.BodyExtractors
 import org.springframework.web.reactive.function.BodyInserters
@@ -222,24 +219,6 @@ class SpringWebfluxHttp11Test extends AgentTestRunner {
     "annotation API traced method with delay" | "/foo-delayed-mono/9"         | "/foo-delayed-mono/{id}"         | "getFooDelayedMono"   | new FooModel(9L, "tracedMethod").toString()
   }
 
-  /*
-   This test differs from the previous in one important aspect.
-   The test above calls endpoints which does not create any spans during their invocation.
-   They merely assemble reactive pipeline where some steps create spans.
-   Thus all those spans are created when WebFlux span created by DispatcherHandlerInstrumentation
-   has already finished. Therefore, they have `SERVER` span as their parent.
-   This test below calls endpoints which do create spans right inside endpoint handler.
-   Therefore, in theory, those spans should have INTERNAL span created by DispatcherHandlerInstrumentation
-   as their parent. But there is a difference how Spring WebFlux handles functional endpoints
-   (created in server.SpringWebFluxTestApplication.greetRouterFunction) and annotated endpoints
-   (created in server.TestController).
-   In the former case org.springframework.web.reactive.function.server.support.HandlerFunctionAdapter.handle
-   calls handler function directly. Thus "tracedMethod" span below has INTERNAL handler span as its parent.
-   In the latter case org.springframework.web.reactive.result.method.annotation.RequestMappingHandlerAdapter.handle
-   merely wraps handler call into Mono and thus actual invocation of handler function happens later,
-   when INTERNAL handler span has already finished. Thus, "tracedMethod" has SERVER Netty span as its parent.
-   */
-
   def "Create span during handler function"() {
     setup:
     String url = "http://localhost:$port$urlPath"
@@ -276,7 +255,7 @@ class SpringWebfluxHttp11Test extends AgentTestRunner {
         }
         span {
           operationName "trace.annotation"
-          childOf span(annotatedMethod ? 0 : 1)
+          childOfPrevious()
           errored false
         }
       }
@@ -506,21 +485,22 @@ class SpringWebfluxHttp11Test extends AgentTestRunner {
 
     then:
     response.statusCode().value() == 200
-    assertTraces(4) {
-      sortSpansByStart()
-      // TODO: why order of spans is different in these traces?
+    assertTraces(4, SORT_TRACES_BY_START) {
       def traceParent1, traceParent2
 
       trace(2) {
+        sortSpansByStart()
         clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url), 307)
-        traceParent1 = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url), 307)
+        traceParent1 =  clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url), 307)
       }
+
       trace(2) {
+        sortSpansByStart()
         span {
           resourceName "GET /double-greet-redirect"
           operationName "netty.request"
           spanType DDSpanTypes.HTTP_SERVER
-          childOf(traceParent1)
+          childOf traceParent1
           tags {
             "$Tags.COMPONENT" "netty"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -554,15 +534,17 @@ class SpringWebfluxHttp11Test extends AgentTestRunner {
         }
       }
       trace(2) {
+        sortSpansByStart()
         clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(finalUrl))
-        traceParent2 = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(finalUrl))
+        traceParent2 =  clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(finalUrl))
       }
       trace(2) {
+        sortSpansByStart()
         span {
           resourceName "GET /double-greet"
           operationName "netty.request"
           spanType DDSpanTypes.HTTP_SERVER
-          childOf(traceParent2)
+          childOf traceParent2
           tags {
             "$Tags.COMPONENT" "netty"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER

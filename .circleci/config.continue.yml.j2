@@ -962,7 +962,6 @@ jobs:
           name: Build runner
           command: |
             cd system-tests
-            export TEST_LIBRARY=java
             ./build.sh -i runner
 
       - run:
@@ -970,13 +969,11 @@ jobs:
           command: |
             set -e
             cd system-tests
-            export TEST_LIBRARY=java
-            export PYTEST_XDIST_AUTO_NUM_WORKERS=6
             set +e
             RUN_ATTEMPTS=1
             while [ $RUN_ATTEMPTS -le 3 ]; do
               echo "Running parametric test attempt $RUN_ATTEMPTS"
-              timeout 12m ./run.sh PARAMETRIC --log-cli-level=DEBUG --durations=30 -vv
+              timeout 20m ./run.sh PARAMETRIC -L java --log-cli-level=DEBUG --durations=30 -vv
               status=$?
               #timneout returns 124 if it times out
               #if the return code is not 124, then we exit with the status

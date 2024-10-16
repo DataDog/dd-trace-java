@@ -175,9 +175,6 @@ public class SchemaExtractor implements SchemaIterator {
       return;
     }
     AgentDataStreamsMonitoring dsm = AgentTracer.get().getDataStreamsMonitoring();
-    span.setTag(DDTags.SCHEMA_TYPE, PROTOBUF);
-    span.setTag(DDTags.SCHEMA_NAME, descriptor.getFullName());
-    span.setTag(DDTags.SCHEMA_OPERATION, operation);
     // do a check against the schema sampler to avoid forcing the trace sampling decision too often.
     if (!dsm.canSampleSchema(operation)) {
       return;
@@ -192,6 +189,9 @@ public class SchemaExtractor implements SchemaIterator {
       return;
     }
     Schema schema = SchemaExtractor.extractSchemas(descriptor);
+    span.setTag(DDTags.SCHEMA_TYPE, PROTOBUF);
+    span.setTag(DDTags.SCHEMA_NAME, descriptor.getFullName());
+    span.setTag(DDTags.SCHEMA_OPERATION, operation);
     span.setTag(DDTags.SCHEMA_DEFINITION, schema.definition);
     span.setTag(DDTags.SCHEMA_WEIGHT, weight);
     span.setTag(DDTags.SCHEMA_ID, schema.id);

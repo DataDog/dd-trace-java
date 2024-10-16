@@ -583,6 +583,9 @@ public class CapturedSnapshotTest {
   }
 
   @Test
+  @DisabledIf(
+      value = "datadog.trace.api.Platform#isJ9",
+      disabledReason = "Issue with J9 when compiling Kotlin code")
   public void sourceFileProbeKotlin() {
     final String CLASS_NAME = "CapturedSnapshot301";
     TestSnapshotListener listener =
@@ -609,6 +612,9 @@ public class CapturedSnapshotTest {
   }
 
   @Test
+  @DisabledIf(
+      value = "datadog.trace.api.Platform#isJ9",
+      disabledReason = "Issue with J9 when compiling Kotlin code")
   public void suspendKotlin() {
     final String CLASS_NAME = "CapturedSnapshot302";
     TestSnapshotListener listener =
@@ -626,6 +632,30 @@ public class CapturedSnapshotTest {
       assertCaptureFields(snapshot.getCaptures().getLines().get(9), "intField", "int", "42");
       assertCaptureFields(
           snapshot.getCaptures().getLines().get(9), "strField", String.class.getTypeName(), "foo");
+    } finally {
+      filesToDelete.forEach(File::delete);
+    }
+  }
+
+  @Test
+  @DisabledIf(
+      value = "datadog.trace.api.Platform#isJ9",
+      disabledReason = "Issue with J9 when compiling Kotlin code")
+  public void hoistVarKotlin() {
+    final String CLASS_NAME = "CapturedSnapshot303";
+    TestSnapshotListener listener =
+        installProbes(
+            CLASS_NAME, createProbeAtExit(PROBE_ID, CLASS_NAME + "$Companion", "main", null));
+    URL resource = CapturedSnapshotTest.class.getResource("/" + CLASS_NAME + ".kt");
+    assertNotNull(resource);
+    List<File> filesToDelete = new ArrayList<>();
+    try {
+      Class<?> testClass =
+          KotlinHelper.compileAndLoad(CLASS_NAME, resource.getFile(), filesToDelete);
+      Object companion = Reflect.onClass(testClass).get("Companion");
+      int result = Reflect.on(companion).call("main", "").get();
+      assertEquals(0, result);
+      Snapshot snapshot = assertOneSnapshot(listener);
     } finally {
       filesToDelete.forEach(File::delete);
     }
@@ -1632,7 +1662,9 @@ public class CapturedSnapshotTest {
   public void instrumentTheWorld() throws Exception {
     final String CLASS_NAME = "CapturedSnapshot01";
     Map<String, byte[]> classFileBuffers = compile(CLASS_NAME);
-    TestSnapshotListener listener = setupInstrumentTheWorldTransformer(null);
+    TestSnapshotListener listener =
+        setupInstrumentTheWorldTransformer(
+            null, getClass().getResource("/include-files/singleClass.txt").getPath());
     Class<?> testClass;
     try {
       testClass = loadClass(CLASS_NAME, classFileBuffers);
@@ -1643,7 +1675,7 @@ public class CapturedSnapshotTest {
     assertEquals(2, result);
     assertEquals(1, listener.snapshots.size());
     ProbeImplementation probeImplementation = listener.snapshots.get(0).getProbe();
-    assertTrue(probeImplementation.isCaptureSnapshot());
+    assertFalse(probeImplementation.isCaptureSnapshot());
     assertEquals("main", probeImplementation.getLocation().getMethod());
   }
 
@@ -1653,7 +1685,9 @@ public class CapturedSnapshotTest {
     final String CLASS_NAME = "CapturedSnapshot01";
     Map<String, byte[]> classFileBuffers = compile(CLASS_NAME);
     URL resource = getClass().getResource(excludeFileName);
-    TestSnapshotListener listener = setupInstrumentTheWorldTransformer(resource.getPath());
+    TestSnapshotListener listener =
+        setupInstrumentTheWorldTransformer(
+            resource.getPath(), getClass().getResource("/include-files/singleClass.txt").getPath());
     Class<?> testClass;
     try {
       testClass = loadClass(CLASS_NAME, classFileBuffers);
@@ -2477,12 +2511,14 @@ public class CapturedSnapshotTest {
         "hello");
   }
 
-  private TestSnapshotListener setupInstrumentTheWorldTransformer(String excludeFileName) {
+  private TestSnapshotListener setupInstrumentTheWorldTransformer(
+      String excludeFileName, String includeFileName) {
     Config config = mock(Config.class);
     when(config.isDebuggerEnabled()).thenReturn(true);
     when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
     when(config.isDebuggerInstrumentTheWorld()).thenReturn(true);
     when(config.getDebuggerExcludeFiles()).thenReturn(excludeFileName);
+    when(config.getDebuggerIncludeFiles()).thenReturn(includeFileName);
     when(config.getFinalDebuggerSnapshotUrl())
         .thenReturn("http://localhost:8126/debugger/v1/input");
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");

@@ -66,7 +66,6 @@ class GrpcRequestMessageHandlerTest extends IastModuleImplTestBase {
     given:
     final visitor = Mock(ObjectVisitor.Visitor) {
       visit(_ as String, _ as Object) >> {
-        println 'feo'
         return CONTINUE
       }
     }
