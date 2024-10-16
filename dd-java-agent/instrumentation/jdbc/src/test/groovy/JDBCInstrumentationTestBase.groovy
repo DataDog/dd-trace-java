@@ -199,6 +199,9 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
             if (addDbmTag) {
               "$InstrumentationTags.DBM_TRACE_INJECTED" true
             }
+            if (conPoolType == "hikari") {
+              "$Tags.DB_POOL_NAME" String
+            }
             peerServiceFrom(Tags.DB_INSTANCE)
             defaultTags()
           }
@@ -211,31 +214,31 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
     connection.close()
 
     where:
-    driver   | connection                                              | renameService | query                                           | operation | obfuscatedQuery
-    "h2"     | connectTo(driver)                                       | false         | "SELECT 3"                                      | "SELECT"  | "SELECT ?"
-    "derby"  | connectTo(driver)                                       | false         | "SELECT 3 FROM SYSIBM.SYSDUMMY1"                | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
-    "hsqldb" | connectTo(driver)                                       | false         | "SELECT 3 FROM INFORMATION_SCHEMA.SYSTEM_USERS" | "SELECT"  | "SELECT ? FROM INFORMATION_SCHEMA.SYSTEM_USERS"
-    "h2"     | connectTo(driver)                                       | true          | "SELECT 3"                                      | "SELECT"  | "SELECT ?"
-    "derby"  | connectTo(driver)                                       | true          | "SELECT 3 FROM SYSIBM.SYSDUMMY1"                | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
-    "hsqldb" | connectTo(driver)                                       | true          | "SELECT 3 FROM INFORMATION_SCHEMA.SYSTEM_USERS" | "SELECT"  | "SELECT ? FROM INFORMATION_SCHEMA.SYSTEM_USERS"
-    "h2"     | connectTo(driver, connectionProps)                      | true          | "SELECT 3"                                      | "SELECT"  | "SELECT ?"
-    "derby"  | connectTo(driver, connectionProps)                      | true          | "SELECT 3 FROM SYSIBM.SYSDUMMY1"                | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
-    "hsqldb" | connectTo(driver, connectionProps)                      | true          | "SELECT 3 FROM INFORMATION_SCHEMA.SYSTEM_USERS" | "SELECT"  | "SELECT ? FROM INFORMATION_SCHEMA.SYSTEM_USERS"
-    "h2"     | new WrappedConnection(connectTo(driver))                | false         | "SELECT 3"                                      | "SELECT"  | "SELECT ?"
-    "derby"  | new WrappedConnection(connectTo(driver))                | false         | "SELECT 3 FROM SYSIBM.SYSDUMMY1"                | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
-    "hsqldb" | new WrappedConnection(connectTo(driver))                | false         | "SELECT 3 FROM INFORMATION_SCHEMA.SYSTEM_USERS" | "SELECT"  | "SELECT ? FROM INFORMATION_SCHEMA.SYSTEM_USERS"
-    "h2"     | new WrappedConnection(connectTo(driver))                | true          | "SELECT 3"                                      | "SELECT"  | "SELECT ?"
-    "derby"  | new WrappedConnection(connectTo(driver))                | true          | "SELECT 3 FROM SYSIBM.SYSDUMMY1"                | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
-    "hsqldb" | new WrappedConnection(connectTo(driver))                | true          | "SELECT 3 FROM INFORMATION_SCHEMA.SYSTEM_USERS" | "SELECT"  | "SELECT ? FROM INFORMATION_SCHEMA.SYSTEM_USERS"
-    "h2"     | cpDatasources.get("tomcat").get(driver).getConnection() | false         | "SELECT 3"                                      | "SELECT"  | "SELECT ?"
-    "derby"  | cpDatasources.get("tomcat").get(driver).getConnection() | false         | "SELECT 3 FROM SYSIBM.SYSDUMMY1"                | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
-    "hsqldb" | cpDatasources.get("tomcat").get(driver).getConnection() | true          | "SELECT 3 FROM INFORMATION_SCHEMA.SYSTEM_USERS" | "SELECT"  | "SELECT ? FROM INFORMATION_SCHEMA.SYSTEM_USERS"
-    "h2"     | cpDatasources.get("hikari").get(driver).getConnection() | false         | "SELECT 3"                                      | "SELECT"  | "SELECT ?"
-    "derby"  | cpDatasources.get("hikari").get(driver).getConnection() | true          | "SELECT 3 FROM SYSIBM.SYSDUMMY1"                | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
-    "hsqldb" | cpDatasources.get("hikari").get(driver).getConnection() | false         | "SELECT 3 FROM INFORMATION_SCHEMA.SYSTEM_USERS" | "SELECT"  | "SELECT ? FROM INFORMATION_SCHEMA.SYSTEM_USERS"
-    "h2"     | cpDatasources.get("c3p0").get(driver).getConnection()   | true          | "SELECT 3"                                      | "SELECT"  | "SELECT ?"
-    "derby"  | cpDatasources.get("c3p0").get(driver).getConnection()   | false         | "SELECT 3 FROM SYSIBM.SYSDUMMY1"                | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
-    "hsqldb" | cpDatasources.get("c3p0").get(driver).getConnection()   | false         | "SELECT 3 FROM INFORMATION_SCHEMA.SYSTEM_USERS" | "SELECT"  | "SELECT ? FROM INFORMATION_SCHEMA.SYSTEM_USERS"
+    driver   | conPoolType | connection                                                 | renameService | query                                           | operation | obfuscatedQuery
+    "h2"     | ""          | connectTo(driver)                                          | false         | "SELECT 3"                                      | "SELECT"  | "SELECT ?"
+    "derby"  | ""          | connectTo(driver)                                          | false         | "SELECT 3 FROM SYSIBM.SYSDUMMY1"                | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
+    "hsqldb" | ""          | connectTo(driver)                                          | false         | "SELECT 3 FROM INFORMATION_SCHEMA.SYSTEM_USERS" | "SELECT"  | "SELECT ? FROM INFORMATION_SCHEMA.SYSTEM_USERS"
+    "h2"     | ""          | connectTo(driver)                                          | true          | "SELECT 3"                                      | "SELECT"  | "SELECT ?"
+    "derby"  | ""          | connectTo(driver)                                          | true          | "SELECT 3 FROM SYSIBM.SYSDUMMY1"                | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
+    "hsqldb" | ""          | connectTo(driver)                                          | true          | "SELECT 3 FROM INFORMATION_SCHEMA.SYSTEM_USERS" | "SELECT"  | "SELECT ? FROM INFORMATION_SCHEMA.SYSTEM_USERS"
+    "h2"     | ""          | connectTo(driver, connectionProps)                         | true          | "SELECT 3"                                      | "SELECT"  | "SELECT ?"
+    "derby"  | ""          | connectTo(driver, connectionProps)                         | true          | "SELECT 3 FROM SYSIBM.SYSDUMMY1"                | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
+    "hsqldb" | ""          | connectTo(driver, connectionProps)                         | true          | "SELECT 3 FROM INFORMATION_SCHEMA.SYSTEM_USERS" | "SELECT"  | "SELECT ? FROM INFORMATION_SCHEMA.SYSTEM_USERS"
+    "h2"     | ""          | new WrappedConnection(connectTo(driver))                   | false         | "SELECT 3"                                      | "SELECT"  | "SELECT ?"
+    "derby"  | ""          | new WrappedConnection(connectTo(driver))                   | false         | "SELECT 3 FROM SYSIBM.SYSDUMMY1"                | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
+    "hsqldb" | ""          | new WrappedConnection(connectTo(driver))                   | false         | "SELECT 3 FROM INFORMATION_SCHEMA.SYSTEM_USERS" | "SELECT"  | "SELECT ? FROM INFORMATION_SCHEMA.SYSTEM_USERS"
+    "h2"     | ""          | new WrappedConnection(connectTo(driver))                   | true          | "SELECT 3"                                      | "SELECT"  | "SELECT ?"
+    "derby"  | ""          | new WrappedConnection(connectTo(driver))                   | true          | "SELECT 3 FROM SYSIBM.SYSDUMMY1"                | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
+    "hsqldb" | ""          | new WrappedConnection(connectTo(driver))                   | true          | "SELECT 3 FROM INFORMATION_SCHEMA.SYSTEM_USERS" | "SELECT"  | "SELECT ? FROM INFORMATION_SCHEMA.SYSTEM_USERS"
+    "h2"     | "tomcat"    | cpDatasources.get(conPoolType).get(driver).getConnection() | false         | "SELECT 3"                                      | "SELECT"  | "SELECT ?"
+    "derby"  | "tomcat"    | cpDatasources.get(conPoolType).get(driver).getConnection() | false         | "SELECT 3 FROM SYSIBM.SYSDUMMY1"                | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
+    "hsqldb" | "tomcat"    | cpDatasources.get(conPoolType).get(driver).getConnection() | true          | "SELECT 3 FROM INFORMATION_SCHEMA.SYSTEM_USERS" | "SELECT"  | "SELECT ? FROM INFORMATION_SCHEMA.SYSTEM_USERS"
+    "h2"     | "hikari"    | cpDatasources.get(conPoolType).get(driver).getConnection() | false         | "SELECT 3"                                      | "SELECT"  | "SELECT ?"
+    "derby"  | "hikari"    | cpDatasources.get(conPoolType).get(driver).getConnection() | true          | "SELECT 3 FROM SYSIBM.SYSDUMMY1"                | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
+    "hsqldb" | "hikari"    | cpDatasources.get(conPoolType).get(driver).getConnection() | false         | "SELECT 3 FROM INFORMATION_SCHEMA.SYSTEM_USERS" | "SELECT"  | "SELECT ? FROM INFORMATION_SCHEMA.SYSTEM_USERS"
+    "h2"     | "c3p0"      | cpDatasources.get(conPoolType).get(driver).getConnection() | true          | "SELECT 3"                                      | "SELECT"  | "SELECT ?"
+    "derby"  | "c3p0"      | cpDatasources.get(conPoolType).get(driver).getConnection() | false         | "SELECT 3 FROM SYSIBM.SYSDUMMY1"                | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
+    "hsqldb" | "c3p0"      | cpDatasources.get(conPoolType).get(driver).getConnection() | false         | "SELECT 3 FROM INFORMATION_SCHEMA.SYSTEM_USERS" | "SELECT"  | "SELECT ? FROM INFORMATION_SCHEMA.SYSTEM_USERS"
   }
 
   def "prepared statement execute on #driver with #connection.getClass().getCanonicalName() generates a span"() {
@@ -270,6 +273,9 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
             // since Connection.getClientInfo will not provide the username
             "$Tags.DB_USER" jdbcUserNames.get(driver)
             "$Tags.DB_OPERATION" operation
+            if (conPoolType == "hikari") {
+              "$Tags.DB_POOL_NAME" String
+            }
             peerServiceFrom(Tags.DB_INSTANCE)
             defaultTags()
           }
@@ -282,15 +288,15 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
     connection.close()
 
     where:
-    driver  | connection                                              | query                            | operation | obfuscatedQuery
-    "h2"    | connectTo(driver)                                       | "SELECT 3"                       | "SELECT"  | "SELECT ?"
-    "derby" | connectTo(driver)                                       | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
-    "h2"    | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3"                       | "SELECT"  | "SELECT ?"
-    "derby" | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
-    "h2"    | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3"                       | "SELECT"  | "SELECT ?"
-    "derby" | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
-    "h2"    | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3"                       | "SELECT"  | "SELECT ?"
-    "derby" | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
+    driver  | conPoolType | connection                                                 | query                            | operation | obfuscatedQuery
+    "h2"    | ""          | connectTo(driver)                                          | "SELECT 3"                       | "SELECT"  | "SELECT ?"
+    "derby" | ""          | connectTo(driver)                                          | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
+    "h2"    | "tomcat"    | cpDatasources.get(conPoolType).get(driver).getConnection() | "SELECT 3"                       | "SELECT"  | "SELECT ?"
+    "derby" | "tomcat"    | cpDatasources.get(conPoolType).get(driver).getConnection() | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
+    "h2"    | "hikari"    | cpDatasources.get(conPoolType).get(driver).getConnection() | "SELECT 3"                       | "SELECT"  | "SELECT ?"
+    "derby" | "hikari"    | cpDatasources.get(conPoolType).get(driver).getConnection() | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
+    "h2"    | "c3p0"      | cpDatasources.get(conPoolType).get(driver).getConnection() | "SELECT 3"                       | "SELECT"  | "SELECT ?"
+    "derby" | "c3p0"      | cpDatasources.get(conPoolType).get(driver).getConnection() | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
   }
 
   def "prepared statement query on #driver with #connection.getClass().getCanonicalName() generates a span"() {
@@ -324,6 +330,9 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
             // since Connection.getClientInfo will not provide the username
             "$Tags.DB_USER" jdbcUserNames.get(driver)
             "$Tags.DB_OPERATION" operation
+            if (conPoolType == "hikari") {
+              "$Tags.DB_POOL_NAME" String
+            }
             peerServiceFrom(Tags.DB_INSTANCE)
             defaultTags()
           }
@@ -336,15 +345,15 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
     connection.close()
 
     where:
-    driver  | connection                                              | query                            | operation | obfuscatedQuery
-    "h2"    | connectTo(driver)                                       | "SELECT 3"                       | "SELECT"  | "SELECT ?"
-    "derby" | connectTo(driver)                                       | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
-    "h2"    | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3"                       | "SELECT"  | "SELECT ?"
-    "derby" | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
-    "h2"    | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3"                       | "SELECT"  | "SELECT ?"
-    "derby" | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
-    "h2"    | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3"                       | "SELECT"  | "SELECT ?"
-    "derby" | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
+    driver  | conPoolType | connection                                                 | query                            | operation | obfuscatedQuery
+    "h2"    | ""          | connectTo(driver)                                          | "SELECT 3"                       | "SELECT"  | "SELECT ?"
+    "derby" | ""          | connectTo(driver)                                          | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
+    "h2"    | "tomcat"    | cpDatasources.get(conPoolType).get(driver).getConnection() | "SELECT 3"                       | "SELECT"  | "SELECT ?"
+    "derby" | "tomcat"    | cpDatasources.get(conPoolType).get(driver).getConnection() | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
+    "h2"    | "hikari"    | cpDatasources.get(conPoolType).get(driver).getConnection() | "SELECT 3"                       | "SELECT"  | "SELECT ?"
+    "derby" | "hikari"    | cpDatasources.get(conPoolType).get(driver).getConnection() | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
+    "h2"    | "c3p0"      | cpDatasources.get(conPoolType).get(driver).getConnection() | "SELECT 3"                       | "SELECT"  | "SELECT ?"
+    "derby" | "c3p0"      | cpDatasources.get(conPoolType).get(driver).getConnection() | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
   }
 
   def "prepared call on #driver with #connection.getClass().getCanonicalName() generates a span"() {
@@ -378,6 +387,9 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
             // since Connection.getClientInfo will not provide the username
             "$Tags.DB_USER" jdbcUserNames.get(driver)
             "${Tags.DB_OPERATION}" operation
+            if (conPoolType == "hikari") {
+              "$Tags.DB_POOL_NAME" String
+            }
             peerServiceFrom(Tags.DB_INSTANCE)
             defaultTags()
           }
@@ -390,15 +402,15 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
     connection.close()
 
     where:
-    driver  | connection                                              | query                            | operation | obfuscatedQuery
-    "h2"    | connectTo(driver)                                       | "SELECT 3"                       | "SELECT"  | "SELECT ?"
-    "derby" | connectTo(driver)                                       | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
-    "h2"    | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3"                       | "SELECT"  | "SELECT ?"
-    "derby" | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
-    "h2"    | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3"                       | "SELECT"  | "SELECT ?"
-    "derby" | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
-    "h2"    | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3"                       | "SELECT"  | "SELECT ?"
-    "derby" | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
+    driver  | conPoolType | connection                                                 | query                            | operation | obfuscatedQuery
+    "h2"    | ""          | connectTo(driver)                                          | "SELECT 3"                       | "SELECT"  | "SELECT ?"
+    "derby" | ""          | connectTo(driver)                                          | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
+    "h2"    | "tomcat"    | cpDatasources.get(conPoolType).get(driver).getConnection() | "SELECT 3"                       | "SELECT"  | "SELECT ?"
+    "derby" | "tomcat"    | cpDatasources.get(conPoolType).get(driver).getConnection() | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
+    "h2"    | "hikari"    | cpDatasources.get(conPoolType).get(driver).getConnection() | "SELECT 3"                       | "SELECT"  | "SELECT ?"
+    "derby" | "hikari"    | cpDatasources.get(conPoolType).get(driver).getConnection() | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
+    "h2"    | "c3p0"      | cpDatasources.get(conPoolType).get(driver).getConnection() | "SELECT 3"                       | "SELECT"  | "SELECT ?"
+    "derby" | "c3p0"      | cpDatasources.get(conPoolType).get(driver).getConnection() | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
   }
 
   def "statement update on #driver with #connection.getClass().getCanonicalName() generates a span"() {
@@ -435,6 +447,9 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
             if (addDbmTag) {
               "$InstrumentationTags.DBM_TRACE_INJECTED" true
             }
+            if (conPoolType == "hikari") {
+              "$Tags.DB_POOL_NAME" String
+            }
             peerServiceFrom(Tags.DB_INSTANCE)
             defaultTags()
           }
@@ -447,19 +462,19 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
     connection.close()
 
     where:
-    driver   | connection                                              | query                                                                           | operation
-    "h2"     | connectTo(driver)                                       | "CREATE TABLE S_H2 (id INTEGER not NULL, PRIMARY KEY ( id ))"                   | "CREATE"
-    "derby"  | connectTo(driver)                                       | "CREATE TABLE S_DERBY (id INTEGER not NULL, PRIMARY KEY ( id ))"                | "CREATE"
-    "hsqldb" | connectTo(driver)                                       | "CREATE TABLE PUBLIC.S_HSQLDB (id INTEGER not NULL, PRIMARY KEY ( id ))"        | "CREATE"
-    "h2"     | cpDatasources.get("tomcat").get(driver).getConnection() | "CREATE TABLE S_H2_TOMCAT (id INTEGER not NULL, PRIMARY KEY ( id ))"            | "CREATE"
-    "derby"  | cpDatasources.get("tomcat").get(driver).getConnection() | "CREATE TABLE S_DERBY_TOMCAT (id INTEGER not NULL, PRIMARY KEY ( id ))"         | "CREATE"
-    "hsqldb" | cpDatasources.get("tomcat").get(driver).getConnection() | "CREATE TABLE PUBLIC.S_HSQLDB_TOMCAT (id INTEGER not NULL, PRIMARY KEY ( id ))" | "CREATE"
-    "h2"     | cpDatasources.get("hikari").get(driver).getConnection() | "CREATE TABLE S_H2_HIKARI (id INTEGER not NULL, PRIMARY KEY ( id ))"            | "CREATE"
-    "derby"  | cpDatasources.get("hikari").get(driver).getConnection() | "CREATE TABLE S_DERBY_HIKARI (id INTEGER not NULL, PRIMARY KEY ( id ))"         | "CREATE"
-    "hsqldb" | cpDatasources.get("hikari").get(driver).getConnection() | "CREATE TABLE PUBLIC.S_HSQLDB_HIKARI (id INTEGER not NULL, PRIMARY KEY ( id ))" | "CREATE"
-    "h2"     | cpDatasources.get("c3p0").get(driver).getConnection()   | "CREATE TABLE S_H2_C3P0 (id INTEGER not NULL, PRIMARY KEY ( id ))"              | "CREATE"
-    "derby"  | cpDatasources.get("c3p0").get(driver).getConnection()   | "CREATE TABLE S_DERBY_C3P0 (id INTEGER not NULL, PRIMARY KEY ( id ))"           | "CREATE"
-    "hsqldb" | cpDatasources.get("c3p0").get(driver).getConnection()   | "CREATE TABLE PUBLIC.S_HSQLDB_C3P0 (id INTEGER not NULL, PRIMARY KEY ( id ))"   | "CREATE"
+    driver   | conPoolType | connection                                                 | query                                                                           | operation
+    "h2"     | ""          | connectTo(driver)                                          | "CREATE TABLE S_H2 (id INTEGER not NULL, PRIMARY KEY ( id ))"                   | "CREATE"
+    "derby"  | ""          | connectTo(driver)                                          | "CREATE TABLE S_DERBY (id INTEGER not NULL, PRIMARY KEY ( id ))"                | "CREATE"
+    "hsqldb" | ""          | connectTo(driver)                                          | "CREATE TABLE PUBLIC.S_HSQLDB (id INTEGER not NULL, PRIMARY KEY ( id ))"        | "CREATE"
+    "h2"     | "tomcat"    | cpDatasources.get(conPoolType).get(driver).getConnection() | "CREATE TABLE S_H2_TOMCAT (id INTEGER not NULL, PRIMARY KEY ( id ))"            | "CREATE"
+    "derby"  | "tomcat"    | cpDatasources.get(conPoolType).get(driver).getConnection() | "CREATE TABLE S_DERBY_TOMCAT (id INTEGER not NULL, PRIMARY KEY ( id ))"         | "CREATE"
+    "hsqldb" | "tomcat"    | cpDatasources.get(conPoolType).get(driver).getConnection() | "CREATE TABLE PUBLIC.S_HSQLDB_TOMCAT (id INTEGER not NULL, PRIMARY KEY ( id ))" | "CREATE"
+    "h2"     | "hikari"    | cpDatasources.get(conPoolType).get(driver).getConnection() | "CREATE TABLE S_H2_HIKARI (id INTEGER not NULL, PRIMARY KEY ( id ))"            | "CREATE"
+    "derby"  | "hikari"    | cpDatasources.get(conPoolType).get(driver).getConnection() | "CREATE TABLE S_DERBY_HIKARI (id INTEGER not NULL, PRIMARY KEY ( id ))"         | "CREATE"
+    "hsqldb" | "hikari"    | cpDatasources.get(conPoolType).get(driver).getConnection() | "CREATE TABLE PUBLIC.S_HSQLDB_HIKARI (id INTEGER not NULL, PRIMARY KEY ( id ))" | "CREATE"
+    "h2"     | "c3p0"      | cpDatasources.get(conPoolType).get(driver).getConnection() | "CREATE TABLE S_H2_C3P0 (id INTEGER not NULL, PRIMARY KEY ( id ))"              | "CREATE"
+    "derby"  | "c3p0"      | cpDatasources.get(conPoolType).get(driver).getConnection() | "CREATE TABLE S_DERBY_C3P0 (id INTEGER not NULL, PRIMARY KEY ( id ))"           | "CREATE"
+    "hsqldb" | "c3p0"      | cpDatasources.get(conPoolType).get(driver).getConnection() | "CREATE TABLE PUBLIC.S_HSQLDB_C3P0 (id INTEGER not NULL, PRIMARY KEY ( id ))"   | "CREATE"
   }
 
   def "prepared statement update on #driver with #connection.getClass().getCanonicalName() generates a span"() {
@@ -487,6 +502,9 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" driver
             "$Tags.DB_INSTANCE" dbName.toLowerCase()
+            if (conPoolType == "hikari") {
+              "$Tags.DB_POOL_NAME" String
+            }
             if (username != null) {
               "$Tags.DB_USER" username
             }
@@ -503,15 +521,15 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
     connection.close()
 
     where:
-    driver  | connection                                              | username | query                                                                    | operation
-    "h2"    | connectTo(driver)                                       | null     | "CREATE TABLE PS_H2 (id INTEGER not NULL, PRIMARY KEY ( id ))"           | "CREATE"
-    "derby" | connectTo(driver)                                       | "APP"    | "CREATE TABLE PS_DERBY (id INTEGER not NULL, PRIMARY KEY ( id ))"        | "CREATE"
-    "h2"    | cpDatasources.get("tomcat").get(driver).getConnection() | null     | "CREATE TABLE PS_H2_TOMCAT (id INTEGER not NULL, PRIMARY KEY ( id ))"    | "CREATE"
-    "derby" | cpDatasources.get("tomcat").get(driver).getConnection() | "APP"    | "CREATE TABLE PS_DERBY_TOMCAT (id INTEGER not NULL, PRIMARY KEY ( id ))" | "CREATE"
-    "h2"    | cpDatasources.get("hikari").get(driver).getConnection() | null     | "CREATE TABLE PS_H2_HIKARI (id INTEGER not NULL, PRIMARY KEY ( id ))"    | "CREATE"
-    "derby" | cpDatasources.get("hikari").get(driver).getConnection() | "APP"    | "CREATE TABLE PS_DERBY_HIKARI (id INTEGER not NULL, PRIMARY KEY ( id ))" | "CREATE"
-    "h2"    | cpDatasources.get("c3p0").get(driver).getConnection()   | null     | "CREATE TABLE PS_H2_C3P0 (id INTEGER not NULL, PRIMARY KEY ( id ))"      | "CREATE"
-    "derby" | cpDatasources.get("c3p0").get(driver).getConnection()   | "APP"    | "CREATE TABLE PS_DERBY_C3P0 (id INTEGER not NULL, PRIMARY KEY ( id ))"   | "CREATE"
+    driver  | conPoolType | connection                                                 | username | query                                                                    | operation
+    "h2"    | ""          | connectTo(driver)                                          | null     | "CREATE TABLE PS_H2 (id INTEGER not NULL, PRIMARY KEY ( id ))"           | "CREATE"
+    "derby" | ""          | connectTo(driver)                                          | "APP"    | "CREATE TABLE PS_DERBY (id INTEGER not NULL, PRIMARY KEY ( id ))"        | "CREATE"
+    "h2"    | "tomcat"    | cpDatasources.get(conPoolType).get(driver).getConnection() | null     | "CREATE TABLE PS_H2_TOMCAT (id INTEGER not NULL, PRIMARY KEY ( id ))"    | "CREATE"
+    "derby" | "tomcat"    | cpDatasources.get(conPoolType).get(driver).getConnection() | "APP"    | "CREATE TABLE PS_DERBY_TOMCAT (id INTEGER not NULL, PRIMARY KEY ( id ))" | "CREATE"
+    "h2"    | "hikari"    | cpDatasources.get(conPoolType).get(driver).getConnection() | null     | "CREATE TABLE PS_H2_HIKARI (id INTEGER not NULL, PRIMARY KEY ( id ))"    | "CREATE"
+    "derby" | "hikari"    | cpDatasources.get(conPoolType).get(driver).getConnection() | "APP"    | "CREATE TABLE PS_DERBY_HIKARI (id INTEGER not NULL, PRIMARY KEY ( id ))" | "CREATE"
+    "h2"    | "c3p0"      | cpDatasources.get(conPoolType).get(driver).getConnection() | null     | "CREATE TABLE PS_H2_C3P0 (id INTEGER not NULL, PRIMARY KEY ( id ))"      | "CREATE"
+    "derby" | "c3p0"      | cpDatasources.get(conPoolType).get(driver).getConnection() | "APP"    | "CREATE TABLE PS_DERBY_C3P0 (id INTEGER not NULL, PRIMARY KEY ( id ))"   | "CREATE"
   }
 
   def "connection constructor throwing then generating correct spans after recovery using #driver connection (prepare statement = #prepareStatement)"() {
@@ -750,6 +768,9 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
             "$Tags.DB_INSTANCE" dbName.toLowerCase()
             "$Tags.DB_USER" "SA"
             "$Tags.DB_OPERATION" "SELECT"
+            if (connectionPoolName == "hikari") {
+              "$Tags.DB_POOL_NAME" String
+            }
             peerServiceFrom(Tags.DB_INSTANCE)
             defaultTags()
           }
@@ -770,6 +791,9 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
               "$Tags.DB_INSTANCE" dbName.toLowerCase()
               "$Tags.DB_USER" "SA"
               "$Tags.DB_OPERATION" "SELECT"
+              if (connectionPoolName == "hikari") {
+                "$Tags.DB_POOL_NAME" String
+              }
               peerServiceFrom(Tags.DB_INSTANCE)
               defaultTags()
             }
