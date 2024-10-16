@@ -279,11 +279,6 @@ public class DebuggerTransformer implements ClassFileTransformer {
         // Skipping bootstrap classloader
         return null;
       }
-      if (classFilePath.startsWith("com/datadog/debugger/")
-          || classFilePath.startsWith("com/timgroup/statsd/")) {
-        // Skipping classes that are used to capture and send snapshots
-        return null;
-      }
       if (isExcludedFromTransformation(classFilePath)) {
         return null;
       }
@@ -304,9 +299,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
           loader,
           location);
       ClassNode classNode = parseClassFile(classFilePath, classfileBuffer);
-      if (classNode.superName.equals("java/lang/ClassLoader")
-          || classNode.superName.equals("java/net/URLClassLoader")
-          || excludeClasses.contains(classNode.superName)) {
+      if (isClassLoaderRelated(classNode)) {
         // Skip ClassLoader classes
         log.debug("Skipping ClassLoader class: {}", classFilePath);
         excludeClasses.add(classFilePath);
@@ -315,16 +308,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
       List<ProbeDefinition> probes = new ArrayList<>();
       Set<String> methodNames = new HashSet<>();
       for (MethodNode methodNode : classNode.methods) {
-        if (methodNode.name.equals("<clinit>")) {
-          // skip static class initializer
-          continue;
-        }
-        String fqnMethod = classNode.name + "::" + methodNode.name;
-        if (excludeMethods.contains(fqnMethod)) {
-          log.debug("Skipping method: {}", fqnMethod);
-          continue;
-        }
-        if (methodNames.add(methodNode.name)) {
+        if (isMethodIncludedForTransformation(methodNode, classNode, methodNames)) {
           LogProbe probe =
               LogProbe.builder()
                   .probeId(UUID.randomUUID().toString(), 0)
@@ -348,6 +332,26 @@ public class DebuggerTransformer implements ClassFileTransformer {
     return null;
   }
 
+  private boolean isMethodIncludedForTransformation(
+      MethodNode methodNode, ClassNode classNode, Set<String> methodNames) {
+    if (methodNode.name.equals("<clinit>")) {
+      // skip static class initializer
+      return false;
+    }
+    String fqnMethod = classNode.name + "::" + methodNode.name;
+    if (excludeMethods.contains(fqnMethod)) {
+      log.debug("Skipping method: {}", fqnMethod);
+      return false;
+    }
+    return methodNames.add(methodNode.name);
+  }
+
+  private boolean isClassLoaderRelated(ClassNode classNode) {
+    return classNode.superName.equals("java/lang/ClassLoader")
+        || classNode.superName.equals("java/net/URLClassLoader")
+        || excludeClasses.contains(classNode.superName);
+  }
+
   private synchronized void writeToInstrumentationLog(String classFilePath) {
     try (FileWriter writer = new FileWriter("/tmp/debugger/instrumentation.log", true)) {
       writer.write(classFilePath);
@@ -365,6 +369,11 @@ public class DebuggerTransformer implements ClassFileTransformer {
   }
 
   private boolean isExcludedFromTransformation(String classFilePath) {
+    if (classFilePath.startsWith("com/datadog/debugger/")
+        || classFilePath.startsWith("com/timgroup/statsd/")) {
+      // Skipping classes that are used to capture and send snapshots
+      return true;
+    }
     if (excludeClasses.contains(classFilePath)) {
       return true;
     }
