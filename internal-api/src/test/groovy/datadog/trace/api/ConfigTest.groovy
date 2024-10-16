@@ -2465,4 +2465,18 @@ class ConfigTest extends DDSpecification {
     "auto"         | true            | PROFILING_START_DELAY_DEFAULT  | PROFILING_START_FORCE_FIRST_DEFAULT
     // spotless:on
   }
+
+  def "url for debugger with unix domain socket"() {
+    when:
+    def prop = new Properties()
+    prop.setProperty(AGENT_HOST, "myhost")
+    prop.setProperty(TRACE_AGENT_PORT, "1234")
+    prop.setProperty(TRACE_AGENT_URL, "unix:///path/to/socket")
+
+    Config config = Config.get(prop)
+
+    then:
+    config.finalDebuggerSnapshotUrl == "http://localhost:8126/debugger/v1/input"
+    config.finalDebuggerSymDBUrl == "http://localhost:8126/symdb/v1/input"
+  }
 }

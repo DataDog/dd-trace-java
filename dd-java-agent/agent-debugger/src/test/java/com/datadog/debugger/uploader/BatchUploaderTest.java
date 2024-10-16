@@ -72,6 +72,15 @@ public class BatchUploaderTest {
   }
 
   @Test
+  void testUnixDomainSocket() {
+    when(config.getAgentUnixDomainSocket()).thenReturn("/tmp/ddagent/agent.sock");
+    uploader = new BatchUploader(config, "http://localhost:8126");
+    assertEquals(
+        "datadog.common.socket.UnixDomainSocketFactory",
+        uploader.getClient().socketFactory().getClass().getTypeName());
+  }
+
+  @Test
   void testOkHttpClientForcesCleartextConnspecWhenNotUsingTLS() {
     uploader = new BatchUploader(config, "http://example.com");
 

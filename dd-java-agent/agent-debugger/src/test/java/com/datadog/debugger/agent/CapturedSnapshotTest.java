@@ -583,6 +583,9 @@ public class CapturedSnapshotTest {
   }
 
   @Test
+  @DisabledIf(
+      value = "datadog.trace.api.Platform#isJ9",
+      disabledReason = "Issue with J9 when compiling Kotlin code")
   public void sourceFileProbeKotlin() {
     final String CLASS_NAME = "CapturedSnapshot301";
     TestSnapshotListener listener =
@@ -609,6 +612,9 @@ public class CapturedSnapshotTest {
   }
 
   @Test
+  @DisabledIf(
+      value = "datadog.trace.api.Platform#isJ9",
+      disabledReason = "Issue with J9 when compiling Kotlin code")
   public void suspendKotlin() {
     final String CLASS_NAME = "CapturedSnapshot302";
     TestSnapshotListener listener =
@@ -632,6 +638,9 @@ public class CapturedSnapshotTest {
   }
 
   @Test
+  @DisabledIf(
+      value = "datadog.trace.api.Platform#isJ9",
+      disabledReason = "Issue with J9 when compiling Kotlin code")
   public void hoistVarKotlin() {
     final String CLASS_NAME = "CapturedSnapshot303";
     TestSnapshotListener listener =

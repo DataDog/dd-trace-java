@@ -143,9 +143,6 @@ public class SchemaExtractor implements SchemaIterator {
       return;
     }
     AgentDataStreamsMonitoring dsm = AgentTracer.get().getDataStreamsMonitoring();
-    span.setTag(DDTags.SCHEMA_TYPE, AVRO);
-    span.setTag(DDTags.SCHEMA_NAME, schema.getFullName());
-    span.setTag(DDTags.SCHEMA_OPERATION, operation);
 
     if (!dsm.canSampleSchema(operation)) {
       return;
@@ -162,6 +159,9 @@ public class SchemaExtractor implements SchemaIterator {
     }
 
     Schema schemaData = SchemaExtractor.extractSchemas(schema);
+    span.setTag(DDTags.SCHEMA_TYPE, AVRO);
+    span.setTag(DDTags.SCHEMA_NAME, schema.getFullName());
+    span.setTag(DDTags.SCHEMA_OPERATION, operation);
     span.setTag(DDTags.SCHEMA_DEFINITION, schemaData.definition);
     span.setTag(DDTags.SCHEMA_WEIGHT, weight);
     span.setTag(DDTags.SCHEMA_ID, schemaData.id);
