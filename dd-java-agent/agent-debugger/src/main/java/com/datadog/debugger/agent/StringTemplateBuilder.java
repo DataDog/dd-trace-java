@@ -54,10 +54,12 @@ public class StringTemplateBuilder {
             }
           } catch (EvaluationException ex) {
             status.addError(new EvaluationError(ex.getExpr(), ex.getMessage()));
-            status.setLogTemplateErrors(true);
             String msg =
                 ex instanceof RedactedException ? Redaction.REDACTED_VALUE : ex.getMessage();
             sb.append("{").append(msg).append("}");
+          }
+          if (!status.getErrors().isEmpty()) {
+            status.setLogTemplateErrors(true);
           }
         }
       }

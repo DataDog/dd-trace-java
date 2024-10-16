@@ -859,11 +859,11 @@ public class CapturedSnapshotTest {
     assertCaptureFieldsNotCaptured(
         snapshot.getCaptures().getReturn(),
         "bin",
-        "java.lang.reflect.InaccessibleObjectException: Unable to make field private final java.io.ObjectInputStream\\$BlockDataInputStream java.io.ObjectInputStream.bin accessible: module java.base does not \"opens java.io\" to unnamed module.*");
+        "Field is not accessible: module java.base does not opens/exports to the current module");
     assertCaptureFieldsNotCaptured(
         snapshot.getCaptures().getReturn(),
         "vlist",
-        "java.lang.reflect.InaccessibleObjectException: Unable to make field private final java.io.ObjectInputStream\\$ValidationList java.io.ObjectInputStream.vlist accessible: module java.base does not \"opens java.io\" to unnamed module.*");
+        "Field is not accessible: module java.base does not opens/exports to the current module");
   }
 
   @Test
@@ -879,11 +879,11 @@ public class CapturedSnapshotTest {
     assertCaptureStaticFieldsNotCaptured(
         snapshot.getCaptures().getReturn(),
         "followRedirects",
-        "java.lang.reflect.InaccessibleObjectException: Unable to make field private static boolean java.net.HttpURLConnection.followRedirects accessible: module java.base does not \"opens java.net\" to unnamed module.*");
+        "Field is not accessible: module java.base does not opens/exports to the current module");
     assertCaptureStaticFieldsNotCaptured(
         snapshot.getCaptures().getReturn(),
         "factory",
-        "java.lang.reflect.InaccessibleObjectException: Unable to make field private static volatile java.net.ContentHandlerFactory java.net.URLConnection.factory accessible: module java.base does not \"opens java.net\" to unnamed module.*");
+        "Field is not accessible: module java.base does not opens/exports to the current module");
   }
 
   @Test

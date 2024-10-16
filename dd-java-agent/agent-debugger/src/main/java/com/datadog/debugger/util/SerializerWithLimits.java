@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.debugger.util.Redaction.REDACTED_VALUE;
 
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.Limits;
+import datadog.trace.bootstrap.debugger.el.ReflectiveFieldValueResolver;
 import datadog.trace.bootstrap.debugger.util.Redaction;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import datadog.trace.bootstrap.debugger.util.WellKnownClasses;
@@ -102,6 +103,8 @@ public class SerializerWithLimits {
 
     void handleFieldException(Exception ex, Field field);
 
+    void fieldNotCaptured(String reason, Field field);
+
     void objectEpilogue(Object value) throws Exception;
 
     void notCaptured(NotCapturedReason reason) throws Exception;
@@ -111,6 +114,7 @@ public class SerializerWithLimits {
 
   private final TokenWriter tokenWriter;
   private final TimeoutChecker timeoutChecker;
+  private RuntimeException exception;
 
   public SerializerWithLimits(TokenWriter tokenWriter, TimeoutChecker timeoutChecker) {
     this.tokenWriter = tokenWriter;
@@ -298,9 +302,14 @@ public class SerializerWithLimits {
   }
 
   private void onField(Field field, Object obj, Limits limits) throws Exception {
-    field.setAccessible(true);
-    Object fieldValue = field.get(obj);
-    internalOnField(field.getName(), field.getType().getTypeName(), fieldValue, limits);
+    if (ReflectiveFieldValueResolver.trySetAccessible(field)) {
+      field.setAccessible(true);
+      Object fieldValue = field.get(obj);
+      internalOnField(field.getName(), field.getType().getTypeName(), fieldValue, limits);
+    } else {
+      String msg = ReflectiveFieldValueResolver.buildInaccessibleMsg(field);
+      tokenWriter.fieldNotCaptured(msg, field);
+    }
   }
 
   private void onSpecialField(
