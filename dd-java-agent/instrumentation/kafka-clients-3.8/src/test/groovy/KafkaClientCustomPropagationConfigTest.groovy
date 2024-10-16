@@ -52,6 +52,7 @@ class KafkaClientCustomPropagationConfigTest extends AgentTestRunner {
     super.configurePreAgent()
 
     injectSysConfig("dd.kafka.e2e.duration.enabled", "true")
+    injectSysConfig("dd.trace.experimental.kafka.enabled","true")
   }
   @Flaky
   def "test kafka client header propagation with topic filters"() {
