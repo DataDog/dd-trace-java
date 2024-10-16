@@ -1662,7 +1662,9 @@ public class CapturedSnapshotTest {
   public void instrumentTheWorld() throws Exception {
     final String CLASS_NAME = "CapturedSnapshot01";
     Map<String, byte[]> classFileBuffers = compile(CLASS_NAME);
-    TestSnapshotListener listener = setupInstrumentTheWorldTransformer(null);
+    TestSnapshotListener listener =
+        setupInstrumentTheWorldTransformer(
+            null, getClass().getResource("/include-files/singleClass.txt").getPath());
     Class<?> testClass;
     try {
       testClass = loadClass(CLASS_NAME, classFileBuffers);
@@ -1673,7 +1675,7 @@ public class CapturedSnapshotTest {
     assertEquals(2, result);
     assertEquals(1, listener.snapshots.size());
     ProbeImplementation probeImplementation = listener.snapshots.get(0).getProbe();
-    assertTrue(probeImplementation.isCaptureSnapshot());
+    assertFalse(probeImplementation.isCaptureSnapshot());
     assertEquals("main", probeImplementation.getLocation().getMethod());
   }
 
@@ -1683,7 +1685,9 @@ public class CapturedSnapshotTest {
     final String CLASS_NAME = "CapturedSnapshot01";
     Map<String, byte[]> classFileBuffers = compile(CLASS_NAME);
     URL resource = getClass().getResource(excludeFileName);
-    TestSnapshotListener listener = setupInstrumentTheWorldTransformer(resource.getPath());
+    TestSnapshotListener listener =
+        setupInstrumentTheWorldTransformer(
+            resource.getPath(), getClass().getResource("/include-files/singleClass.txt").getPath());
     Class<?> testClass;
     try {
       testClass = loadClass(CLASS_NAME, classFileBuffers);
@@ -2507,12 +2511,14 @@ public class CapturedSnapshotTest {
         "hello");
   }
 
-  private TestSnapshotListener setupInstrumentTheWorldTransformer(String excludeFileName) {
+  private TestSnapshotListener setupInstrumentTheWorldTransformer(
+      String excludeFileName, String includeFileName) {
     Config config = mock(Config.class);
     when(config.isDebuggerEnabled()).thenReturn(true);
     when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
     when(config.isDebuggerInstrumentTheWorld()).thenReturn(true);
     when(config.getDebuggerExcludeFiles()).thenReturn(excludeFileName);
+    when(config.getDebuggerIncludeFiles()).thenReturn(includeFileName);
     when(config.getFinalDebuggerSnapshotUrl())
         .thenReturn("http://localhost:8126/debugger/v1/input");
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");

@@ -384,6 +384,7 @@ public class Config {
   private final boolean debuggerVerifyByteCode;
   private final boolean debuggerInstrumentTheWorld;
   private final String debuggerExcludeFiles;
+  private final String debuggerIncludeFiles;
   private final int debuggerCaptureTimeout;
   private final String debuggerRedactedIdentifiers;
   private final Set<String> debuggerRedactionExcludedIdentifiers;
@@ -1493,6 +1494,7 @@ public class Config {
         configProvider.getBoolean(
             DEBUGGER_INSTRUMENT_THE_WORLD, DEFAULT_DEBUGGER_INSTRUMENT_THE_WORLD);
     debuggerExcludeFiles = configProvider.getString(DEBUGGER_EXCLUDE_FILES);
+    debuggerIncludeFiles = configProvider.getString(DEBUGGER_INCLUDE_FILES);
     debuggerCaptureTimeout =
         configProvider.getInteger(DEBUGGER_CAPTURE_TIMEOUT, DEFAULT_DEBUGGER_CAPTURE_TIMEOUT);
     debuggerRedactedIdentifiers = configProvider.getString(DEBUGGER_REDACTED_IDENTIFIERS, null);
@@ -2885,6 +2887,10 @@ public class Config {
     return debuggerExcludeFiles;
   }
 
+  public String getDebuggerIncludeFiles() {
+    return debuggerIncludeFiles;
+  }
+
   public int getDebuggerCaptureTimeout() {
     return debuggerCaptureTimeout;
   }
@@ -4228,8 +4234,10 @@ public class Config {
         + debuggerVerifyByteCode
         + ", debuggerInstrumentTheWorld="
         + debuggerInstrumentTheWorld
-        + ", debuggerExcludeFile="
+        + ", debuggerExcludeFiles="
         + debuggerExcludeFiles
+        + ", debuggerIncludeFiles="
+        + debuggerIncludeFiles
         + ", debuggerCaptureTimeout="
         + debuggerCaptureTimeout
         + ", debuggerRedactIdentifiers="
