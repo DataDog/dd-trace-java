@@ -45,6 +45,7 @@ public final class LegacyKafkaConsumerInfoInstrumentation extends InstrumenterMo
     contextStores.put(
         "org.apache.kafka.clients.consumer.internals.ConsumerCoordinator",
         KafkaConsumerInfo.class.getName());
+    // new - we are storing the ConsumerDelegate instead of the KafkaConsumer
     contextStores.put(
         "org.apache.kafka.clients.consumer.internals.ConsumerDelegate",
         KafkaConsumerInfo.class.getName());
@@ -56,6 +57,7 @@ public final class LegacyKafkaConsumerInfoInstrumentation extends InstrumenterMo
     return "org.apache.kafka.clients.consumer.internals.ConsumerDelegate";
   }
 
+  // new - we are instrumenting the ConsumerDelegate class instead of the KafkaConsumer class
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(hierarchyMarkerType()))

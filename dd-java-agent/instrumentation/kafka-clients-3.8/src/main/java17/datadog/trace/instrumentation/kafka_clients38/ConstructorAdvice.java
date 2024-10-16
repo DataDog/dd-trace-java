@@ -12,6 +12,7 @@ import org.apache.kafka.clients.consumer.internals.ConsumerDelegate;
 import org.apache.kafka.clients.consumer.internals.OffsetCommitCallbackInvoker;
 
 public class ConstructorAdvice {
+  // new - capturing OffsetCommitCallbackInvoker instead of the old ConsumerCoordinator
   @Advice.OnMethodExit(suppress = Throwable.class)
   public static void captureGroup(
       @Advice.This ConsumerDelegate consumer,
@@ -41,7 +42,8 @@ public class ConstructorAdvice {
     } else {
       kafkaConsumerInfo = new KafkaConsumerInfo(normalizedConsumerGroup, bootstrapServers);
     }
-
+    // new - searching context for ConsumerDelegate and OffsetCommitCallbackInvoker instead of
+    // ConsumerCoordinator and KafkaConsumer
     if (kafkaConsumerInfo.getConsumerGroup() != null || kafkaConsumerInfo.getmetadata() != null) {
       InstrumentationContext.get(ConsumerDelegate.class, KafkaConsumerInfo.class)
           .put(consumer, kafkaConsumerInfo);

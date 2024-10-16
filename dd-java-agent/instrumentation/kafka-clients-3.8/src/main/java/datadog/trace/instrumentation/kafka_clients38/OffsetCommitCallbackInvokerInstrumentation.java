@@ -7,6 +7,8 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 
+// new - this instrumentation is completely new.
+// the purpose of this class is to provide us with information on consumer group and cluster ID
 public class OffsetCommitCallbackInvokerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public OffsetCommitCallbackInvokerInstrumentation() {

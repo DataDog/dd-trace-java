@@ -11,6 +11,7 @@ import org.apache.kafka.clients.consumer.internals.ConsumerCoordinator;
 import org.apache.kafka.clients.consumer.internals.ConsumerDelegate;
 
 public class LegacyConstructorAdvice {
+  // new - capture the ConsumerDelegate instead of KafkaConsumer
   @Advice.OnMethodExit(suppress = Throwable.class)
   public static void captureGroup(
       @Advice.This ConsumerDelegate consumer,
@@ -34,7 +35,7 @@ public class LegacyConstructorAdvice {
     }
     KafkaConsumerInfo kafkaConsumerInfo;
     kafkaConsumerInfo = new KafkaConsumerInfo(normalizedConsumerGroup, metadata, bootstrapServers);
-
+    // new - search for the ConsumerDelegate instead of KafkaConsumer
     if (kafkaConsumerInfo.getConsumerGroup() != null || kafkaConsumerInfo.getmetadata() != null) {
       InstrumentationContext.get(ConsumerDelegate.class, KafkaConsumerInfo.class)
           .put(consumer, kafkaConsumerInfo);

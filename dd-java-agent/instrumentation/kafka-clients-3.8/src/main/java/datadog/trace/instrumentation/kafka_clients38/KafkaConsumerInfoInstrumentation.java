@@ -42,6 +42,8 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
     contextStores.put("org.apache.kafka.clients.Metadata", "java.lang.String");
     contextStores.put(
         "org.apache.kafka.clients.consumer.ConsumerRecords", KafkaConsumerInfo.class.getName());
+    // new- here we are storing the callbackinvoker and consumerdelegate in the context store
+    // as opposed to the old consumercoordinator and kafkaconsumer
     contextStores.put(
         "org.apache.kafka.clients.consumer.internals.OffsetCommitCallbackInvoker",
         KafkaConsumerInfo.class.getName());

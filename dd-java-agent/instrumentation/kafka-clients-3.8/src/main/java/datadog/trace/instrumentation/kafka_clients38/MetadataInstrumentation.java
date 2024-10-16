@@ -10,15 +10,9 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
-import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Map;
-import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
-import org.apache.kafka.clients.Metadata;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.common.Cluster;
-import org.apache.kafka.common.requests.MetadataResponse;
 
 @AutoService(InstrumenterModule.class)
 public class MetadataInstrumentation extends InstrumenterModule.Tracing
@@ -59,45 +53,11 @@ public class MetadataInstrumentation extends InstrumenterModule.Tracing
         isMethod()
             .and(named("update"))
             .and(takesArgument(0, named("org.apache.kafka.common.Cluster"))),
-        MetadataInstrumentation.class.getName() + "$MetadataUpdateBefore22Advice");
+        packageName + ".MetadataUpdateBefore22Advice");
     transformer.applyAdvice(
         isMethod()
             .and(named("update"))
             .and(takesArgument(1, named("org.apache.kafka.common.requests.MetadataResponse"))),
-        MetadataInstrumentation.class.getName() + "$MetadataUpdate22AndAfterAdvice");
-  }
-
-  public static class MetadataUpdateBefore22Advice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter(
-        @Advice.This final Metadata metadata, @Advice.Argument(0) final Cluster newCluster) {
-      if (newCluster != null && !newCluster.isBootstrapConfigured()) {
-        InstrumentationContext.get(Metadata.class, String.class)
-            .put(metadata, newCluster.clusterResource().clusterId());
-      }
-    }
-
-    public static void muzzleCheck(ConsumerRecord record) {
-      // KafkaConsumerInstrumentation only applies for kafka versions with headers
-      // Make an explicit call so MetadataInstrumentation does the same
-      record.headers();
-    }
-  }
-
-  public static class MetadataUpdate22AndAfterAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter(
-        @Advice.This final Metadata metadata, @Advice.Argument(1) final MetadataResponse response) {
-      if (response != null) {
-        InstrumentationContext.get(Metadata.class, String.class)
-            .put(metadata, response.clusterId());
-      }
-    }
-
-    public static void muzzleCheck(ConsumerRecord record) {
-      // KafkaConsumerInstrumentation only applies for kafka versions with headers
-      // Make an explicit call so MetadataInstrumentation does the same
-      record.headers();
-    }
+        packageName + ".MetadataUpdate22AndAfterAdvice");
   }
 }

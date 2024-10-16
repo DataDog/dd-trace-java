@@ -42,6 +42,8 @@ public class RecordsAdvice {
       @Advice.Return ConsumerRecords records) {
     int recordsCount = 0;
     if (records != null) {
+      // new - we are getting the KafkaConsumerInfo from the ConsumerDelegate instead of
+      // KafkaConsumer
       KafkaConsumerInfo kafkaConsumerInfo =
           InstrumentationContext.get(ConsumerDelegate.class, KafkaConsumerInfo.class).get(consumer);
       if (kafkaConsumerInfo != null) {
