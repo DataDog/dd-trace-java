@@ -89,10 +89,18 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
       processSnapshotsAndSetTags(t, span, state, innerMostException, fingerprint);
       exceptionProbeManager.updateLastCapture(fingerprint);
     } else {
-      if (exceptionProbeManager.createProbesForException(innerMostException.getStackTrace())) {
+      ExceptionProbeManager.CreationResult creationResult =
+          exceptionProbeManager.createProbesForException(innerMostException.getStackTrace());
+      if (creationResult.probesCreated > 0) {
         AgentTaskScheduler.INSTANCE.execute(() -> applyExceptionConfiguration(fingerprint));
       } else {
-        LOGGER.debug("No probe created for exception: {}", innerMostException.toString());
+        if (LOGGER.isDebugEnabled()) {
+          LOGGER.debug(
+              "No probe created, nativeFrames={}, thirdPartyFrames={} for exception: {}",
+              creationResult.nativeFrames,
+              creationResult.thirdPartyFrames,
+              ExceptionHelper.foldExceptionStackTrace(innerMostException));
+        }
       }
     }
   }
