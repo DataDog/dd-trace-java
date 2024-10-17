@@ -1,9 +1,10 @@
 package datadog.trace.instrumentation.apachehttpclient;
 
+import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
-import java.net.URISyntaxException;
 import org.apache.http.Header;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpUriRequest;
@@ -36,8 +37,13 @@ public class ApacheHttpClientDecorator extends HttpClientDecorator<HttpUriReques
   }
 
   @Override
-  protected String sourceUrl(final HttpUriRequest request) throws URISyntaxException {
-    return "";
+  protected String sourceUrl(final HttpUriRequest request) {
+    final PropagationModule propagationModule = InstrumentationBridge.PROPAGATION;
+    String url = request.getURI().toString();
+    if (propagationModule != null) {
+      propagationModule.taintObjectIfTainted(url, request.getURI());
+    }
+    return url;
   }
 
   @Override

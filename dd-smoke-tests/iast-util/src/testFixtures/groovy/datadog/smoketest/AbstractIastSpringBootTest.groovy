@@ -727,6 +727,8 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
     where:
     path                  | parameter | value                     | method
+    "apache-httpclient4"  | "url"     | "https://dd.datad0g.com/" | "apacheHttpClient4"
+    "apache-httpclient4"  | "host"    | "dd.datad0g.com"          | "apacheHttpClient4"
     "commons-httpclient2" | "url"     | "https://dd.datad0g.com/" | "commonsHttpClient2"
   }
 

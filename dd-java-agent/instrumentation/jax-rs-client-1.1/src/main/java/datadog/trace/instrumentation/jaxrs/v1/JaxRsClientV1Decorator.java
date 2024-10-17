@@ -37,6 +37,7 @@ public class JaxRsClientV1Decorator extends HttpClientDecorator<ClientRequest, C
 
   @Override
   protected String sourceUrl(final ClientRequest httpRequest) throws URISyntaxException {
+    // It will be implemented later
     return "";
   }
 

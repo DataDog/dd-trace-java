@@ -421,6 +421,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
 
   @Override
   protected String sourceUrl(final SdkHttpRequest request) throws URISyntaxException {
+    // It will be implemented later
     return "";
   }
 

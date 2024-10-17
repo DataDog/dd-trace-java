@@ -1,10 +1,15 @@
 package datadog.smoketest.springboot.controller;
 
+import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.HttpMethod;
 import org.apache.commons.httpclient.methods.GetMethod;
+import org.apache.http.HttpHost;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.message.BasicHttpRequest;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -27,6 +32,26 @@ public class SsrfController {
     return "ok";
   }
 
+  @PostMapping("/apache-httpclient4")
+  public String apacheHttpClient4(
+      @RequestParam(value = "url", required = false) final String url,
+      @RequestParam(value = "host", required = false) final String host) {
+    final DefaultHttpClient client = new DefaultHttpClient();
+    try {
+      if (host != null) {
+        final HttpHost httpHost = new HttpHost(host);
+        final BasicHttpRequest request = new BasicHttpRequest("GET", "/");
+        client.execute(httpHost, request);
+      } else if (url != null) {
+        final HttpGet request = new HttpGet(url);
+        client.execute(request);
+      }
+    } catch (IOException e) {
+    }
+    client.getConnectionManager().shutdown();
+    return "ok";
+  }
+
   @PostMapping("/commons-httpclient2")
   public String commonsHttpClient2(@RequestParam(value = "url") final String url) {
     final HttpClient client = new HttpClient();
@@ -38,21 +63,4 @@ public class SsrfController {
     }
     return "ok";
   }
-
-  // AKKA HTTP
-
-  // APACHE HTTP CLIENT 4 / 5
-
-  // GRIZZLY CLIENT / HTTP
-
-  // JAVA HTTP CLIENT
-
-  // JAVA NET
-
-  // JETTY CLIENT
-
-  // NETTY CLIENT
-
-  // OK HTTP CLIENT
-
 }
