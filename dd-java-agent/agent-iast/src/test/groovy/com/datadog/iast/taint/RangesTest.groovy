@@ -74,44 +74,6 @@ class RangesTest extends DDSpecification {
     1      | 2      | -1    | [[1, 1]] | [null, [0, 1]]
   }
 
-  void 'getIncludedRangesInterval'() {
-    given:
-    def src = rangesFromSpec(srcSpec)
-
-    when:
-    def result = Ranges.getIncludedRangesInterval(offset, length, src)
-
-    then:
-    result == expected
-
-    where:
-    offset | length | srcSpec                   | expected
-    1      | 7      | [[4, 3]]                  | [0, -1]
-    0      | 4      | [[4, 3]]                  | [-1, -1]
-    7      | 2      | [[4, 3]]                  | [-1, -1]
-    1      | 4      | [[4, 3]]                  | [0, -1]
-    1      | 5      | [[4, 3]]                  | [0, -1]
-    4      | 3      | [[4, 3]]                  | [0, -1]
-    6      | 2      | [[4, 3]]                  | [0, -1]
-    5      | 3      | [[4, 3]]                  | [0, -1]
-    4      | 2      | [[4, 3]]                  | [0, -1]
-    1      | 9      | [[2, 3], [6, 3], [15, 1]] | [0, 2]
-    1      | 1      | [[2, 3], [6, 3], [15, 1]] | [-1, -1]
-    5      | 1      | [[2, 3], [6, 3], [15, 1]] | [-1, -1]
-    9      | 1      | [[2, 3], [6, 3], [15, 1]] | [-1, -1]
-    1      | 3      | [[2, 3], [6, 3], [15, 1]] | [0, 1]
-    2      | 2      | [[2, 3], [6, 3], [15, 1]] | [0, 1]
-    2      | 3      | [[2, 3], [6, 3], [15, 1]] | [0, 1]
-    1      | 7      | [[2, 3], [6, 3], [15, 1]] | [0, 2]
-    2      | 6      | [[2, 3], [6, 3], [15, 1]] | [0, 2]
-    2      | 7      | [[2, 3], [6, 3], [15, 1]] | [0, 2]
-    5      | 3      | [[2, 3], [6, 3], [15, 1]] | [1, 2]
-    6      | 2      | [[2, 3], [6, 3], [15, 1]] | [1, 2]
-    6      | 3      | [[2, 3], [6, 3], [15, 1]] | [1, 2]
-    4      | 5      | [[2, 3], [6, 3], [15, 1]] | [0, 2]
-    4      | 4      | [[2, 3], [6, 3], [15, 1]] | [0, 2]
-  }
-
   void 'forObject'() {
     given:
     final source = new Source(SourceTypes.NONE, null, null)
@@ -309,6 +271,43 @@ class RangesTest extends DDSpecification {
     range(2, 4) | [range(3, 1)] | [range(3, 1)] // [2, 3, 4, 5] | [3] -> [3]
     range(2, 4) | [range(4, 4)] | [range(4, 2)] // [2, 3, 4, 5] | [4, 5, 6, 7] -> [4, 5]
     range(2, 4) | [range(6, 4)] | [] // [2, 3, 4, 5] | [6, 7, 8, 9] -> []
+  }
+
+  void 'test forSubstring'() {
+    when:
+    def result = Ranges.forSubstring(offset, length, srcSpec as Range[])
+
+    then:
+    final list = result == null ? [] : result.toList()
+    list.size() == expected.size()
+    list.containsAll(expected)
+
+    where:
+    offset | length | srcSpec                                  | expected
+    1      | 7      | [range(4, 3)]                            | [range(3, 3)]
+    0      | 4      | [range(4, 3)]                            | []
+    7      | 2      | [range(4, 3)]                            | []
+    1      | 4      | [range(4, 3)]                            | [range(3, 1)]
+    1      | 5      | [range(4, 3)]                            | [range(3, 2)]
+    4      | 3      | [range(4, 3)]                            | [range(0, 3)]
+    6      | 2      | [range(4, 3)]                            | [range(0, 1)]
+    5      | 3      | [range(4, 3)]                            | [range(0, 2)]
+    4      | 2      | [range(4, 3)]                            | [range(0, 2)]
+    1      | 9      | [range(2, 3), range(6, 3), range(15, 1)] | [range(1, 3), range(5, 3)]
+    1      | 1      | [range(2, 3), range(6, 3), range(15, 1)] | []
+    5      | 1      | [range(2, 3), range(6, 3), range(15, 1)] | []
+    9      | 1      | [range(2, 3), range(6, 3), range(15, 1)] | []
+    1      | 3      | [range(2, 3), range(6, 3), range(15, 1)] | [range(1, 2)]
+    2      | 2      | [range(2, 3), range(6, 3), range(15, 1)] | [range(0, 2)]
+    2      | 3      | [range(2, 3), range(6, 3), range(15, 1)] | [range(0, 3)]
+    1      | 7      | [range(2, 3), range(6, 3), range(15, 1)] | [range(1, 3), range(5, 2)]
+    2      | 6      | [range(2, 3), range(6, 3), range(15, 1)] | [range(0, 3), range(4, 2)]
+    2      | 7      | [range(2, 3), range(6, 3), range(15, 1)] | [range(0, 3), range(4, 3)]
+    5      | 3      | [range(2, 3), range(6, 3), range(15, 1)] | [range(1, 2)]
+    6      | 2      | [range(2, 3), range(6, 3), range(15, 1)] | [range(0, 2)]
+    6      | 3      | [range(2, 3), range(6, 3), range(15, 1)] | [range(0, 3)]
+    4      | 5      | [range(2, 3), range(6, 3), range(15, 1)] | [range(0, 1), range(2, 3)]
+    4      | 4      | [range(2, 3), range(6, 3), range(15, 1)] | [range(0, 1), range(2, 2)]
   }
 
   void 'merge ranges keeping order'() {
