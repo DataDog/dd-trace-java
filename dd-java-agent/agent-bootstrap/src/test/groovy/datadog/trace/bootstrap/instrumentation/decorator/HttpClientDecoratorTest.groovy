@@ -198,6 +198,11 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
         }
 
         @Override
+        protected String sourceUrl(Map m) {
+          return m.url
+        }
+
+        @Override
         protected int status(Map m) {
           null == m.status ? 0 : m.status.intValue()
         }

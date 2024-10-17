@@ -62,38 +62,6 @@ public class IastApacheHttpClientInstrumentation extends InstrumenterModule.Iast
     transformer.applyAdvice(
         isMethod()
             .and(named("execute"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, named("org.apache.http.client.methods.HttpUriRequest"))),
-        IastApacheHttpClientInstrumentation.class.getName() + "$UriRequestAdvice");
-
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("execute"))
-            .and(takesArguments(2))
-            .and(takesArgument(0, named("org.apache.http.client.methods.HttpUriRequest")))
-            .and(takesArgument(1, named("org.apache.http.protocol.HttpContext"))),
-        IastApacheHttpClientInstrumentation.class.getName() + "$UriRequestAdvice");
-
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("execute"))
-            .and(takesArguments(2))
-            .and(takesArgument(0, named("org.apache.http.client.methods.HttpUriRequest")))
-            .and(takesArgument(1, named("org.apache.http.client.ResponseHandler"))),
-        IastApacheHttpClientInstrumentation.class.getName() + "$UriRequestAdvice");
-
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("execute"))
-            .and(takesArguments(3))
-            .and(takesArgument(0, named("org.apache.http.client.methods.HttpUriRequest")))
-            .and(takesArgument(1, named("org.apache.http.client.ResponseHandler")))
-            .and(takesArgument(2, named("org.apache.http.protocol.HttpContext"))),
-        IastApacheHttpClientInstrumentation.class.getName() + "$UriRequestAdvice");
-
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("execute"))
             .and(takesArguments(2))
             .and(takesArgument(0, named("org.apache.http.HttpHost")))
             .and(takesArgument(1, named("org.apache.http.HttpRequest"))),
@@ -126,19 +94,6 @@ public class IastApacheHttpClientInstrumentation extends InstrumenterModule.Iast
             .and(takesArgument(2, named("org.apache.http.client.ResponseHandler")))
             .and(takesArgument(3, named("org.apache.http.protocol.HttpContext"))),
         IastApacheHttpClientInstrumentation.class.getName() + "$RequestAdvice");
-  }
-
-  public static class UriRequestAdvice {
-    @Sink(VulnerabilityTypes.SSRF)
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void methodEnter(@Advice.Argument(0) final HttpUriRequest request) {
-      IastHelperMethods.doMethodEnter(request);
-    }
-
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void methodExit() {
-      IastHelperMethods.doMethodExit();
-    }
   }
 
   public static class RequestAdvice {

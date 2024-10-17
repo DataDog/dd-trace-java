@@ -6,6 +6,10 @@ import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourc
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.api.ProductActivation;
+import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.sink.SsrfModule;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -41,6 +45,8 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
   protected abstract String method(REQUEST request);
 
   protected abstract URI url(REQUEST request) throws URISyntaxException;
+
+  protected abstract String sourceUrl(REQUEST request) throws URISyntaxException;
 
   protected abstract int status(RESPONSE response);
 
@@ -82,6 +88,7 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
           if (shouldSetResourceName()) {
             HTTP_RESOURCE_DECORATOR.withClientPath(span, method, url.getPath());
           }
+          ssrfIastCheck(request);
         } else if (shouldSetResourceName()) {
           span.setResourceName(DEFAULT_RESOURCE_NAME);
         }
@@ -167,5 +174,19 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
     }
 
     return 0;
+  }
+
+  private void ssrfIastCheck(final REQUEST request) {
+    if (InstrumenterConfig.get().getIastActivation() != ProductActivation.FULLY_ENABLED) {
+      return;
+    }
+    final SsrfModule ssrfModule = InstrumentationBridge.SSRF;
+    if (ssrfModule != null) {
+      try {
+        ssrfModule.onURLConnection(sourceUrl(request));
+      } catch (URISyntaxException e) {
+        ssrfModule.onUnexpectedException("ssrfIastCheck threw", e);
+      }
+    }
   }
 }

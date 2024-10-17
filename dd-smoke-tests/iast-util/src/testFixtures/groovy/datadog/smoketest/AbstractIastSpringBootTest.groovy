@@ -680,7 +680,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   void 'ssrf is present'() {
     setup:
-    final url = "http://localhost:${httpPort}/ssrf"
+    final url = "http://localhost:${httpPort}/ssrf/java-net"
     final body = new FormBody.Builder().add(parameter, value).build()
     final request = new Request.Builder().url(url).post(body).build()
 
@@ -710,6 +710,27 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     parameter | value
     'url'     | 'https://dd.datad0g.com/'
     'host'    | 'dd.datad0g.com'
+  }
+
+  void 'ssrf is present (different clients)'() {
+    setup:
+    final url = "http://localhost:${httpPort}/ssrf/${path}"
+    final body = new FormBody.Builder().add(parameter, value).build()
+    final request = new Request.Builder().url(url).post(body).build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'SSRF' && vul.location.method == method }
+
+    where:
+    path                  | parameter | value                     | method
+    "apache-httpclient4"  | "url"     | "https://dd.datad0g.com/" | "apacheHttpClient4"
+    "apache-httpclient4"  | "host"    | "dd.datad0g.com"          | "apacheHttpClient4"
+    "commons-httpclient2" | "url"     | "https://dd.datad0g.com/" | "commonsHttpClient2"
+    "okHttp2"             | "url"     | "https://dd.datad0g.com/" | "okHttp2"
+    "okHttp3"             | "url"     | "https://dd.datad0g.com/" | "okHttp3"
   }
 
   void 'test iast metrics stored in spans'() {
