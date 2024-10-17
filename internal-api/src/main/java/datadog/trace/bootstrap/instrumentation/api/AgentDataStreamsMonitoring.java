@@ -42,4 +42,20 @@ public interface AgentDataStreamsMonitoring extends DataStreamsCheckpointer {
   Schema getSchema(String schemaName, SchemaIterator iterator);
 
   void setProduceCheckpoint(String type, String target);
+
+  /**
+   * setServiceNameOverride is used override service name for all DataStreams payloads produced
+   * within given thread
+   *
+   * @param threadId thread Id
+   * @param serviceName new service name to use for DSM checkpoints.
+   */
+  void setThreadServiceName(Long threadId, String serviceName);
+
+  /**
+   * clearThreadServiceName clears up threadId -> Service name mapping
+   *
+   * @param threadId thread Id
+   */
+  void clearThreadServiceName(Long threadId);
 }

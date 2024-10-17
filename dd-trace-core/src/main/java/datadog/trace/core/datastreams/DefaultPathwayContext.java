@@ -35,6 +35,7 @@ public class DefaultPathwayContext implements PathwayContext {
   private final Lock lock = new ReentrantLock();
   private final long hashOfKnownTags;
   private final TimeSource timeSource;
+  private final String serviceNameOverride;
   private final GrowingByteArrayOutput outputBuffer =
       GrowingByteArrayOutput.withInitialCapacity(20);
 
@@ -68,9 +69,11 @@ public class DefaultPathwayContext implements PathwayContext {
               TagsProcessor.DATASET_NAMESPACE_TAG,
               TagsProcessor.MANUAL_TAG));
 
-  public DefaultPathwayContext(TimeSource timeSource, long hashOfKnownTags) {
+  public DefaultPathwayContext(
+      TimeSource timeSource, long hashOfKnownTags, String serviceNameOverride) {
     this.timeSource = timeSource;
     this.hashOfKnownTags = hashOfKnownTags;
+    this.serviceNameOverride = serviceNameOverride;
   }
 
   private DefaultPathwayContext(
@@ -79,8 +82,9 @@ public class DefaultPathwayContext implements PathwayContext {
       long pathwayStartNanos,
       long pathwayStartNanoTicks,
       long edgeStartNanoTicks,
-      long hash) {
-    this(timeSource, hashOfKnownTags);
+      long hash,
+      String serviceNameOverride) {
+    this(timeSource, hashOfKnownTags, serviceNameOverride);
     this.pathwayStartNanos = pathwayStartNanos;
     this.pathwayStartNanoTicks = pathwayStartNanoTicks;
     this.edgeStartNanoTicks = edgeStartNanoTicks;
@@ -126,7 +130,8 @@ public class DefaultPathwayContext implements PathwayContext {
       // So far, each tag key has only one tag value, so we're initializing the capacity to match
       // the number of tag keys for now. We should revisit this later if it's no longer the case.
       List<String> allTags = new ArrayList<>(sortedTags.size());
-      PathwayHashBuilder pathwayHashBuilder = new PathwayHashBuilder(hashOfKnownTags);
+      PathwayHashBuilder pathwayHashBuilder =
+          new PathwayHashBuilder(hashOfKnownTags, serviceNameOverride);
       DataSetHashBuilder aggregationHashBuilder = new DataSetHashBuilder();
 
       if (!started) {
@@ -190,7 +195,8 @@ public class DefaultPathwayContext implements PathwayContext {
               startNanos,
               pathwayLatencyNano,
               edgeLatencyNano,
-              payloadSizeBytes);
+              payloadSizeBytes,
+              serviceNameOverride);
       edgeStartNanoTicks = nanoTicks;
       hash = newHash;
 
@@ -272,18 +278,21 @@ public class DefaultPathwayContext implements PathwayContext {
   private static class PathwayContextExtractor implements AgentPropagation.KeyClassifier {
     private final TimeSource timeSource;
     private final long hashOfKnownTags;
+    private final String serviceNameOverride;
     private DefaultPathwayContext extractedContext;
 
-    PathwayContextExtractor(TimeSource timeSource, long hashOfKnownTags) {
+    PathwayContextExtractor(
+        TimeSource timeSource, long hashOfKnownTags, String serviceNameOverride) {
       this.timeSource = timeSource;
       this.hashOfKnownTags = hashOfKnownTags;
+      this.serviceNameOverride = serviceNameOverride;
     }
 
     @Override
     public boolean accept(String key, String value) {
       if (PathwayContext.PROPAGATION_KEY_BASE64.equalsIgnoreCase(key)) {
         try {
-          extractedContext = strDecode(timeSource, hashOfKnownTags, value);
+          extractedContext = strDecode(timeSource, hashOfKnownTags, serviceNameOverride, value);
         } catch (IOException e) {
           return false;
         }
@@ -296,11 +305,14 @@ public class DefaultPathwayContext implements PathwayContext {
       implements AgentPropagation.BinaryKeyClassifier {
     private final TimeSource timeSource;
     private final long hashOfKnownTags;
+    private final String serviceNameOverride;
     private DefaultPathwayContext extractedContext;
 
-    BinaryPathwayContextExtractor(TimeSource timeSource, long hashOfKnownTags) {
+    BinaryPathwayContextExtractor(
+        TimeSource timeSource, long hashOfKnownTags, String serviceNameOverride) {
       this.timeSource = timeSource;
       this.hashOfKnownTags = hashOfKnownTags;
+      this.serviceNameOverride = serviceNameOverride;
     }
 
     @Override
@@ -308,7 +320,7 @@ public class DefaultPathwayContext implements PathwayContext {
       // older versions support, should be removed in the future
       if (PathwayContext.PROPAGATION_KEY.equalsIgnoreCase(key)) {
         try {
-          extractedContext = decode(timeSource, hashOfKnownTags, value);
+          extractedContext = decode(timeSource, hashOfKnownTags, serviceNameOverride, value);
         } catch (IOException e) {
           return false;
         }
@@ -316,7 +328,7 @@ public class DefaultPathwayContext implements PathwayContext {
 
       if (PathwayContext.PROPAGATION_KEY_BASE64.equalsIgnoreCase(key)) {
         try {
-          extractedContext = base64Decode(timeSource, hashOfKnownTags, value);
+          extractedContext = base64Decode(timeSource, hashOfKnownTags, serviceNameOverride, value);
         } catch (IOException e) {
           return false;
         }
@@ -329,13 +341,18 @@ public class DefaultPathwayContext implements PathwayContext {
       C carrier,
       AgentPropagation.ContextVisitor<C> getter,
       TimeSource timeSource,
-      long hashOfKnownTags) {
+      long hashOfKnownTags,
+      String serviceNameOverride) {
     if (getter instanceof AgentPropagation.BinaryContextVisitor) {
       return extractBinary(
-          carrier, (AgentPropagation.BinaryContextVisitor) getter, timeSource, hashOfKnownTags);
+          carrier,
+          (AgentPropagation.BinaryContextVisitor) getter,
+          timeSource,
+          hashOfKnownTags,
+          serviceNameOverride);
     }
     PathwayContextExtractor pathwayContextExtractor =
-        new PathwayContextExtractor(timeSource, hashOfKnownTags);
+        new PathwayContextExtractor(timeSource, hashOfKnownTags, serviceNameOverride);
     getter.forEachKey(carrier, pathwayContextExtractor);
     if (pathwayContextExtractor.extractedContext == null) {
       log.debug("No context extracted");
@@ -349,9 +366,10 @@ public class DefaultPathwayContext implements PathwayContext {
       C carrier,
       AgentPropagation.BinaryContextVisitor<C> getter,
       TimeSource timeSource,
-      long hashOfKnownTags) {
+      long hashOfKnownTags,
+      String serviceNameOverride) {
     BinaryPathwayContextExtractor pathwayContextExtractor =
-        new BinaryPathwayContextExtractor(timeSource, hashOfKnownTags);
+        new BinaryPathwayContextExtractor(timeSource, hashOfKnownTags, serviceNameOverride);
     getter.forEachKey(carrier, pathwayContextExtractor);
     if (pathwayContextExtractor.extractedContext == null) {
       log.debug("No context extracted");
@@ -362,18 +380,22 @@ public class DefaultPathwayContext implements PathwayContext {
   }
 
   private static DefaultPathwayContext strDecode(
-      TimeSource timeSource, long hashOfKnownTags, String data) throws IOException {
+      TimeSource timeSource, long hashOfKnownTags, String serviceNameOverride, String data)
+      throws IOException {
     byte[] base64Bytes = data.getBytes(UTF_8);
-    return base64Decode(timeSource, hashOfKnownTags, base64Bytes);
+    return base64Decode(timeSource, hashOfKnownTags, serviceNameOverride, base64Bytes);
   }
 
   private static DefaultPathwayContext base64Decode(
-      TimeSource timeSource, long hashOfKnownTags, byte[] data) throws IOException {
-    return decode(timeSource, hashOfKnownTags, Base64.getDecoder().decode(data));
+      TimeSource timeSource, long hashOfKnownTags, String serviceNameOverride, byte[] data)
+      throws IOException {
+    return decode(
+        timeSource, hashOfKnownTags, serviceNameOverride, Base64.getDecoder().decode(data));
   }
 
   private static DefaultPathwayContext decode(
-      TimeSource timeSource, long hashOfKnownTags, byte[] data) throws IOException {
+      TimeSource timeSource, long hashOfKnownTags, String serviceNameOverride, byte[] data)
+      throws IOException {
     ByteArrayInput input = ByteArrayInput.wrap(data);
 
     long hash = input.readLongLE();
@@ -397,7 +419,8 @@ public class DefaultPathwayContext implements PathwayContext {
         pathwayStartNanos,
         pathwayStartNanoTicks,
         edgeStartNanoTicks,
-        hash);
+        hash,
+        serviceNameOverride);
   }
 
   static class DataSetHashBuilder {
@@ -412,8 +435,11 @@ public class DefaultPathwayContext implements PathwayContext {
   private static class PathwayHashBuilder {
     private long hash;
 
-    public PathwayHashBuilder(long baseHash) {
+    public PathwayHashBuilder(long baseHash, String serviceNameOverride) {
       hash = baseHash;
+      if (serviceNameOverride != null) {
+        addTag(serviceNameOverride);
+      }
     }
 
     public void addTag(String tag) {

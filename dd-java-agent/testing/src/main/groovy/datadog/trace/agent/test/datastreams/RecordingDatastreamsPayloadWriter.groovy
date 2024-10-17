@@ -19,7 +19,7 @@ class RecordingDatastreamsPayloadWriter implements DatastreamsPayloadWriter {
   private final Set<String> backlogs = []
 
   @Override
-  synchronized void writePayload(Collection<StatsBucket> data) {
+  synchronized void writePayload(Collection<StatsBucket> data, String serviceNameOverride) {
     log.info("payload written - {}", data)
     this.@payloads.addAll(data)
     data.each { this.@groups.addAll(it.groups) }
