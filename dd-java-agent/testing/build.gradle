@@ -53,7 +53,7 @@ dependencies {
   api libs.guava
 
   api group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.4.56.v20240826'
-  // ^ 9.2 last to support java 7
+  // ^ 9.4 last to support java 8
   api group: 'com.squareup.okhttp3', name: 'logging-interceptor', version: libs.versions.okhttp.legacy.get()
 
   api project(':dd-java-agent:agent-tooling')
