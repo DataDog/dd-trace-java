@@ -41,8 +41,8 @@ public final class CiVisibilityConfig {
       "civisibility.test.skipping.enabled";
   public static final String CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED =
       "civisibility.ciprovider.integration.enabled";
-  public static final String CIVISIBILITY_REPO_INDEX_SHARING_ENABLED =
-      "civisibility.repo.index.sharing.enabled";
+  public static final String CIVISIBILITY_REPO_INDEX_DUPLICATE_KEY_CHECK_ENABLED =
+      "civisibility.repo.index.duplicate.key.check.enabled";
   public static final String CIVISIBILITY_EXECUTION_SETTINGS_CACHE_SIZE =
       "civisibility.execution.settings.cache.size";
   public static final String CIVISIBILITY_JVM_INFO_CACHE_SIZE = "civisibility.jvm.info.cache.size";

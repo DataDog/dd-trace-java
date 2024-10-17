@@ -4,6 +4,7 @@ import com.google.common.jimfs.Configuration
 import com.google.common.jimfs.Jimfs
 import datadog.trace.api.Config
 import datadog.trace.api.civisibility.domain.Language
+import datadog.trace.civisibility.source.SourceResolutionException
 import groovy.transform.PackageScope
 import spock.lang.Specification
 
@@ -147,6 +148,20 @@ class RepoIndexSourcePathResolverTest extends Specification {
     sourcePathResolver.getSourcePath(RepoIndexSourcePathResolverTest) == expectedSourcePathOne
     sourcePathResolver.getSourcePath(InnerClass) == expectedSourcePathOne
     sourcePathResolver.getSourcePath(RepoIndexSourcePathResolver) == expectedSourcePathTwo
+  }
+
+  def "test trying to resolve a duplicate key throws exception"() {
+    setup:
+    givenSourceFile(RepoIndexSourcePathResolverTest, repoRoot + "/src/java")
+    givenSourceFile(RepoIndexSourcePathResolverTest, repoRoot + "/src/scala")
+
+    def sourcePathResolver = new RepoIndexSourcePathResolver(new RepoIndexBuilder(config, repoRoot, packageResolver, resourceResolver, fileSystem))
+
+    when:
+    sourcePathResolver.getSourcePath(RepoIndexSourcePathResolverTest)
+
+    then:
+    thrown SourceResolutionException
   }
 
   private String givenSourceFile(Class c, String sourceRoot, Language language = Language.GROOVY) {
