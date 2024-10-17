@@ -1,8 +1,12 @@
 package datadog.trace.util.stacktrace;
 
+import datadog.trace.api.Config;
 import java.util.Arrays;
+import java.util.List;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 public abstract class StackUtils {
 
@@ -47,6 +51,24 @@ public abstract class StackUtils {
           }
           return source;
         });
+  }
+
+  /** Function generates stack trace of the user code (excluding datadog classes) */
+  public static List<StackTraceFrame> generateUserCodeStackTrace() {
+    int stackCapacity = Config.get().getAppSecMaxStackTraceDepth();
+    List<StackTraceElement> elements =
+        StackWalkerFactory.INSTANCE.walk(
+            stream ->
+                stream
+                    .filter(
+                        elem ->
+                            !elem.getClassName().startsWith("com.datadog")
+                                && !elem.getClassName().startsWith("datadog.trace"))
+                    .limit(stackCapacity)
+                    .collect(Collectors.toList()));
+    return IntStream.range(0, elements.size())
+        .mapToObj(idx -> new StackTraceFrame(idx, elements.get(idx)))
+        .collect(Collectors.toList());
   }
 
   private static class OneTimePredicate<T> implements Predicate<T> {

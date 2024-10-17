@@ -2,6 +2,7 @@ package datadog.trace.util.stacktrace;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import java.util.List;
 import java.util.function.Function;
 import org.junit.jupiter.api.Test;
 
@@ -79,6 +80,16 @@ public class StackUtilsTest {
 
     final Throwable noRemoval = StackUtils.filterUntil(withStack(stack), entry -> false);
     assertThat(noRemoval.getStackTrace()).isEqualTo(stack);
+  }
+
+  @Test
+  public void test_generateUserCodeStackTrace() {
+    List<StackTraceFrame> userCodeStack = StackUtils.generateUserCodeStackTrace();
+    assertThat(userCodeStack).isNotNull();
+    for (StackTraceFrame frame : userCodeStack) {
+      assertThat(frame.getClass_name()).doesNotContain("com.datadog");
+      assertThat(frame.getClass_name()).doesNotContain("datadog.trace");
+    }
   }
 
   private static Throwable withStack(final StackTraceElement... stack) {

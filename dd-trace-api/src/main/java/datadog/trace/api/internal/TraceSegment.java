@@ -128,6 +128,14 @@ public interface TraceSegment {
   void setMetaStructTop(String field, Object value);
 
   /**
+   * Gets the value of the meta_struct from the top of this {@code TraceSegment}.
+   *
+   * @param key key of the meta_struct
+   * @return value of the meta_struct
+   */
+  Object getMetaStructTop(String key);
+
+  /**
    * Add a field to the current span meta_struct in this {@code TraceSegment}.
    *
    * @param field field name
@@ -136,6 +144,14 @@ public interface TraceSegment {
    * @see datadog.trace.core.CoreSpan#setMetaStruct(String, Object)
    */
   void setMetaStructCurrent(String field, Object value);
+
+  /**
+   * Gets the value of the meta_struct from the current span in this {@code TraceSegment}.
+   *
+   * @param key key of the meta_struct
+   * @return value of the meta_struct
+   */
+  Object getMetaStructCurrent(String key);
 
   class NoOp implements TraceSegment {
     public static final TraceSegment INSTANCE = new NoOp();
@@ -181,6 +197,16 @@ public interface TraceSegment {
     public void setMetaStructTop(String key, Object value) {}
 
     @Override
+    public Object getMetaStructTop(String key) {
+      return null;
+    }
+
+    @Override
     public void setMetaStructCurrent(String key, Object value) {}
+
+    @Override
+    public Object getMetaStructCurrent(String key) {
+      return null;
+    }
   }
 }
