@@ -29,12 +29,14 @@ public class EndHandlerWrapper implements Handler<Void> {
         actual.handle(event);
       }
     } finally {
-      if (path != null) {
+      if (path != null && parentSpan != null) {
         HTTP_RESOURCE_DECORATOR.withRoute(
             parentSpan, routingContext.request().rawMethod(), path, true);
       }
-      DECORATE.onResponse(span, routingContext.response());
-      span.finish();
+      if (span != null) {
+        DECORATE.onResponse(span, routingContext.response());
+        span.finish();
+      }
     }
   }
 }

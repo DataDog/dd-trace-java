@@ -384,6 +384,7 @@ public class Config {
   private final boolean debuggerVerifyByteCode;
   private final boolean debuggerInstrumentTheWorld;
   private final String debuggerExcludeFiles;
+  private final String debuggerIncludeFiles;
   private final int debuggerCaptureTimeout;
   private final String debuggerRedactedIdentifiers;
   private final Set<String> debuggerRedactionExcludedIdentifiers;
@@ -409,6 +410,8 @@ public class Config {
   private final boolean kafkaClientPropagationEnabled;
   private final Set<String> kafkaClientPropagationDisabledTopics;
   private final boolean kafkaClientBase64DecodingEnabled;
+  // enable the Kafka-3.8 instrumentation manually until testing issues are resolved.
+  private final boolean experimentalKafkaEnabled;
 
   private final boolean jmsPropagationEnabled;
   private final Set<String> jmsPropagationDisabledTopics;
@@ -1493,6 +1496,7 @@ public class Config {
         configProvider.getBoolean(
             DEBUGGER_INSTRUMENT_THE_WORLD, DEFAULT_DEBUGGER_INSTRUMENT_THE_WORLD);
     debuggerExcludeFiles = configProvider.getString(DEBUGGER_EXCLUDE_FILES);
+    debuggerIncludeFiles = configProvider.getString(DEBUGGER_INCLUDE_FILES);
     debuggerCaptureTimeout =
         configProvider.getInteger(DEBUGGER_CAPTURE_TIMEOUT, DEFAULT_DEBUGGER_CAPTURE_TIMEOUT);
     debuggerRedactedIdentifiers = configProvider.getString(DEBUGGER_REDACTED_IDENTIFIERS, null);
@@ -1547,7 +1551,7 @@ public class Config {
         tryMakeImmutableSet(configProvider.getList(KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS));
     kafkaClientBase64DecodingEnabled =
         configProvider.getBoolean(KAFKA_CLIENT_BASE64_DECODING_ENABLED, false);
-
+    experimentalKafkaEnabled = configProvider.getBoolean(EXPERIMENTAL_KAFKA_ENABLED, false);
     jmsPropagationEnabled = isPropagationEnabled(true, "jms");
     jmsPropagationDisabledTopics =
         tryMakeImmutableSet(configProvider.getList(JMS_PROPAGATION_DISABLED_TOPICS));
@@ -2885,6 +2889,10 @@ public class Config {
     return debuggerExcludeFiles;
   }
 
+  public String getDebuggerIncludeFiles() {
+    return debuggerIncludeFiles;
+  }
+
   public int getDebuggerCaptureTimeout() {
     return debuggerCaptureTimeout;
   }
@@ -3006,6 +3014,10 @@ public class Config {
 
   public boolean isKafkaClientBase64DecodingEnabled() {
     return kafkaClientBase64DecodingEnabled;
+  }
+
+  public boolean isExperimentalKafkaEnabled() {
+    return experimentalKafkaEnabled;
   }
 
   public boolean isRabbitPropagationEnabled() {
@@ -4228,8 +4240,10 @@ public class Config {
         + debuggerVerifyByteCode
         + ", debuggerInstrumentTheWorld="
         + debuggerInstrumentTheWorld
-        + ", debuggerExcludeFile="
+        + ", debuggerExcludeFiles="
         + debuggerExcludeFiles
+        + ", debuggerIncludeFiles="
+        + debuggerIncludeFiles
         + ", debuggerCaptureTimeout="
         + debuggerCaptureTimeout
         + ", debuggerRedactIdentifiers="
