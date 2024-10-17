@@ -1773,7 +1773,7 @@ public class Config {
    * my.package.*,my.other.package.*}) to list of package prefixes suitable for use with ASM ({@code
    * my/package/,my/other/package/})
    */
-  private static String[] convertJacocoExclusionFormatToPackagePrefixes(List<String> packages) {
+  public static String[] convertJacocoExclusionFormatToPackagePrefixes(List<String> packages) {
     return packages.stream()
         .map(s -> (s.endsWith("*") ? s.substring(0, s.length() - 1) : s).replace('.', '/'))
         .toArray(String[]::new);

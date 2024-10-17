@@ -30,6 +30,7 @@ import datadog.trace.civisibility.domain.manualapi.ManualApiTestSession;
 import datadog.trace.civisibility.events.BuildEventsHandlerImpl;
 import datadog.trace.civisibility.events.TestEventsHandlerImpl;
 import datadog.trace.civisibility.ipc.SignalServer;
+import datadog.trace.civisibility.source.index.RepoIndex;
 import datadog.trace.civisibility.telemetry.CiVisibilityMetricCollectorImpl;
 import datadog.trace.civisibility.test.ExecutionStrategy;
 import datadog.trace.civisibility.utils.ConcurrentHashMapContextStore;
@@ -90,7 +91,8 @@ public class CiVisibilitySystem {
           // so if lines are explicitly enabled,
           // we rely on Jacoco instrumentation rather than on our own coverage mechanism
           !config.isCiVisibilityCoverageLinesEnabled()) {
-        Predicate<String> instrumentationFilter = createCoverageInstrumentationFilter(config);
+        Predicate<String> instrumentationFilter =
+            createCoverageInstrumentationFilter(services, repoServices);
         inst.addTransformer(new CoverageClassTransformer(instrumentationFilter));
       }
 
@@ -112,9 +114,15 @@ public class CiVisibilitySystem {
     }
   }
 
-  private static Predicate<String> createCoverageInstrumentationFilter(Config config) {
-    String[] includedPackages = config.getCiVisibilityCodeCoverageIncludedPackages();
-    String[] excludedPackages = config.getCiVisibilityCodeCoverageExcludedPackages();
+  private static Predicate<String> createCoverageInstrumentationFilter(
+      CiVisibilityServices services, CiVisibilityRepoServices repoServices) {
+    String[] includedPackages = services.config.getCiVisibilityCodeCoverageIncludedPackages();
+    if (includedPackages.length == 0 && services.processHierarchy.isHeadless()) {
+      RepoIndex repoIndex = repoServices.repoIndexProvider.getIndex();
+      includedPackages =
+          Config.convertJacocoExclusionFormatToPackagePrefixes(repoIndex.getRootPackages());
+    }
+    String[] excludedPackages = services.config.getCiVisibilityCodeCoverageExcludedPackages();
     return new CoverageInstrumentationFilter(includedPackages, excludedPackages);
   }
 
