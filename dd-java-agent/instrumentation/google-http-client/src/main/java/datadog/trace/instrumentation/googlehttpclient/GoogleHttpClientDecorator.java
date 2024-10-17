@@ -34,6 +34,11 @@ public class GoogleHttpClientDecorator extends HttpClientDecorator<HttpRequest, 
     return URIUtils.safeParse(fixedUrl);
   }
 
+  @Override
+  protected String sourceUrl(final HttpRequest httpRequest) throws URISyntaxException {
+    return "";
+  }
+
   public AgentSpan prepareSpan(AgentSpan span, HttpRequest request) {
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, request);

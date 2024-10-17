@@ -5,6 +5,7 @@ import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
+import java.net.URISyntaxException;
 import org.apache.http.Header;
 import org.apache.http.HttpRequest;
 import org.apache.http.HttpResponse;
@@ -35,6 +36,11 @@ public final class SynapseClientDecorator extends HttpClientDecorator<HttpReques
   @Override
   protected URI url(final HttpRequest request) {
     return URI.create(request.getRequestLine().getUri());
+  }
+
+  @Override
+  protected String sourceUrl(final HttpRequest request) throws URISyntaxException {
+    return "";
   }
 
   @Override

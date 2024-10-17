@@ -37,6 +37,11 @@ public class JavaNetClientDecorator extends HttpClientDecorator<HttpRequest, Htt
   }
 
   @Override
+  protected String sourceUrl(final HttpRequest httpRequest) throws URISyntaxException {
+    return "";
+  }
+
+  @Override
   protected int status(HttpResponse<?> httpResponse) {
     return httpResponse.statusCode();
   }

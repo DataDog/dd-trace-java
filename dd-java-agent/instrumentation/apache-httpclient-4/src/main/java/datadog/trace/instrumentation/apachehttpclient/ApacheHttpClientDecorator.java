@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.apachehttpclient;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
+import java.net.URISyntaxException;
 import org.apache.http.Header;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpUriRequest;
@@ -32,6 +33,11 @@ public class ApacheHttpClientDecorator extends HttpClientDecorator<HttpUriReques
   @Override
   protected URI url(final HttpUriRequest request) {
     return request.getURI();
+  }
+
+  @Override
+  protected String sourceUrl(final HttpUriRequest request) throws URISyntaxException {
+    return "";
   }
 
   @Override

@@ -24,6 +24,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import datadog.trace.core.datastreams.TagsProcessor;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.HashSet;
@@ -416,6 +417,11 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
   @Override
   protected URI url(final SdkHttpRequest request) {
     return request.getUri();
+  }
+
+  @Override
+  protected String sourceUrl(final SdkHttpRequest request) throws URISyntaxException {
+    return "";
   }
 
   @Override

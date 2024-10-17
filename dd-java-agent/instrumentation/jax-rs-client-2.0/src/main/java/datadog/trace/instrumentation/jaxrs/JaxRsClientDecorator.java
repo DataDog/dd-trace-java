@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.jaxrs;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
+import java.net.URISyntaxException;
 import javax.ws.rs.client.ClientRequestContext;
 import javax.ws.rs.client.ClientResponseContext;
 
@@ -32,6 +33,11 @@ public class JaxRsClientDecorator
   @Override
   protected URI url(final ClientRequestContext httpRequest) {
     return httpRequest.getUri();
+  }
+
+  @Override
+  protected String sourceUrl(final ClientRequestContext httpRequest) throws URISyntaxException {
+    return "";
   }
 
   @Override

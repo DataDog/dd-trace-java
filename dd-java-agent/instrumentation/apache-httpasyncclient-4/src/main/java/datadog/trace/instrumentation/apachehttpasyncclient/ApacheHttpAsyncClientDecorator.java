@@ -42,6 +42,11 @@ public class ApacheHttpAsyncClientDecorator
   }
 
   @Override
+  protected String sourceUrl(final HttpUriRequest request) throws URISyntaxException {
+    return "";
+  }
+
+  @Override
   protected int status(final HttpContext context) {
     final Object responseObject = context.getAttribute(HttpCoreContext.HTTP_RESPONSE);
     if (responseObject instanceof HttpResponse) {

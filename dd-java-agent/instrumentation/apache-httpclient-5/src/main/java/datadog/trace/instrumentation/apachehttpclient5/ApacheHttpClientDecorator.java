@@ -43,6 +43,11 @@ public class ApacheHttpClientDecorator extends HttpClientDecorator<HttpRequest, 
   }
 
   @Override
+  protected String sourceUrl(final HttpRequest request) throws URISyntaxException {
+    return "";
+  }
+
+  @Override
   protected int status(final HttpResponse httpResponse) {
     return httpResponse.getCode();
   }

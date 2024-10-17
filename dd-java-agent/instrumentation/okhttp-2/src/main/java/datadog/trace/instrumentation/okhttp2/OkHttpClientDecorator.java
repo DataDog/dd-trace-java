@@ -24,6 +24,11 @@ public class OkHttpClientDecorator extends HttpClientDecorator<Request, Response
   }
 
   @Override
+  protected String sourceUrl(final Request request) throws URISyntaxException {
+    return "";
+  }
+
+  @Override
   protected int status(Response response) {
     return response.code();
   }

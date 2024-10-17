@@ -40,6 +40,11 @@ public class HttpUrlConnectionDecorator
   }
 
   @Override
+  protected String sourceUrl(final HttpURLConnection connection) throws URISyntaxException {
+    return "";
+  }
+
+  @Override
   protected int status(final HttpURLConnection connection) {
     try {
       return connection.getResponseCode();
