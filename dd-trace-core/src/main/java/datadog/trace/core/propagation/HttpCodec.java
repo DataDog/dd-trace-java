@@ -12,18 +12,14 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.DDSpanLink;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
-import java.util.ArrayList;
-import java.util.EnumMap;
-import java.util.EnumSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -240,7 +236,12 @@ public class HttpCodec {
               }
             } else {
               // Terminate extracted context and add it as span link
-              context.addTerminatedContextLink(DDSpanLink.from((ExtractedContext) extracted));
+              Map<String, String> attributes = new HashMap<>();
+              attributes.put("reason", "terminated_context");
+              attributes.put("context_headers", extracted.getPropagationStyle().toString());
+              context.addTerminatedContextLink(
+                  DDSpanLink.from(
+                      (ExtractedContext) extracted, SpanAttributes.fromMap(attributes)));
               // TODO Note: Other vendor tracestate will be lost here
             }
           }
