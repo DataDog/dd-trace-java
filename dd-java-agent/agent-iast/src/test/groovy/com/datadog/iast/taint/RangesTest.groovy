@@ -308,7 +308,6 @@ class RangesTest extends DDSpecification {
     6      | 3      | [range(2, 3), range(6, 3), range(15, 1)] | [range(0, 3)]
     4      | 5      | [range(2, 3), range(6, 3), range(15, 1)] | [range(0, 1), range(2, 3)]
     4      | 4      | [range(2, 3), range(6, 3), range(15, 1)] | [range(0, 1), range(2, 2)]
-
   }
 
   void 'merge ranges keeping order'() {
