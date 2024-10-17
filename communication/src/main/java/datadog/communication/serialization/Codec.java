@@ -1,5 +1,7 @@
 package datadog.communication.serialization;
 
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
+
 import datadog.trace.util.stacktrace.StackTraceBatch;
 import datadog.trace.util.stacktrace.StackTraceEvent;
 import datadog.trace.util.stacktrace.StackTraceFrame;
@@ -320,7 +322,7 @@ public final class Codec extends ClassValue<ValueWriter<?>> {
         mapSize++;
       }
       if (mapSize == 0) {
-        LOGGER.warn("No data to serialize in StackTraceBatch");
+        LOGGER.debug(SEND_TELEMETRY, "No data to serialize in StackTraceBatch");
         return; // This should never happen
       }
       writable.startMap(mapSize);
