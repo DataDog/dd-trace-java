@@ -69,12 +69,25 @@ public class SsrfController {
   @PostMapping("/okHttp2")
   public String okHttp2(@RequestParam(value = "url") final String url) {
     final OkHttpClient client = new OkHttpClient();
+    final Request request = new Request.Builder().url(url).build();
     try {
-      final Request request = new Request.Builder().url(url).build();
       client.newCall(request).execute();
     } catch (final Exception e) {
     }
     client.getDispatcher().getExecutorService().shutdown();
+    client.getConnectionPool().evictAll();
+    return "ok";
+  }
+
+  @PostMapping("/okHttp3")
+  public String okHttp3(@RequestParam(value = "url") final String url) {
+    final okhttp3.OkHttpClient client = new okhttp3.OkHttpClient();
+    final okhttp3.Request request = new okhttp3.Request.Builder().url(url).build();
+    try (final okhttp3.Response response = client.newCall(request).execute()) {
+    } catch (final Exception e) {
+    }
+    client.dispatcher().executorService().shutdown();
+    client.connectionPool().evictAll();
     return "ok";
   }
 }
