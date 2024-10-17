@@ -9,7 +9,6 @@ import datadog.communication.monitor.Monitoring;
 import datadog.communication.monitor.Recording;
 import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.util.Strings;
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.security.NoSuchAlgorithmException;
 import java.util.Collections;
@@ -200,7 +199,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
           state = response.header(DATADOG_AGENT_STATE);
           return candidate;
         }
-      } catch (IOException e) {
+      } catch (Throwable e) {
         errorQueryingEndpoint(candidate, e);
       }
     }
@@ -310,7 +309,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
       }
       int statsdPort = ((Number) statsdPortObj).intValue();
       DDAgentStatsDClientManager.setDefaultStatsDPort(statsdPort);
-    } catch (Exception ex) {
+    } catch (Throwable ex) {
       log.debug("statsd_port missing from trace agent /info response", ex);
     }
   }
