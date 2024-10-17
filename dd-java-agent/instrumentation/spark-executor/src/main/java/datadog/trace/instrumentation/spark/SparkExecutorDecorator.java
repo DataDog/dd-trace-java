@@ -1,8 +1,11 @@
 package datadog.trace.instrumentation.spark;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
+import java.lang.reflect.Field;
+import java.util.Properties;
 import org.apache.spark.executor.Executor;
 import org.apache.spark.executor.TaskMetrics;
 
@@ -10,6 +13,7 @@ public class SparkExecutorDecorator extends BaseDecorator {
   public static final CharSequence SPARK_TASK = UTF8BytesString.create("spark.task");
   public static final CharSequence SPARK = UTF8BytesString.create("spark");
   public static SparkExecutorDecorator DECORATE = new SparkExecutorDecorator();
+  private final String propSparkAppName = "spark.app.name";
 
   @Override
   protected String[] instrumentationNames() {
@@ -26,12 +30,29 @@ public class SparkExecutorDecorator extends BaseDecorator {
     return SPARK;
   }
 
-  public void onTaskStart(AgentSpan span, Executor.TaskRunner taskRunner) {
+  public void onTaskStart(AgentSpan span, Executor.TaskRunner taskRunner, Object taskDescription) {
     span.setTag("task_id", taskRunner.taskId());
     span.setTag("task_thread_name", taskRunner.threadName());
+
+    if (taskDescription != null) {
+      try {
+        Field prop = taskDescription.getClass().getDeclaredField("properties");
+        prop.setAccessible(true);
+        Properties props = (Properties) prop.get(taskDescription);
+        String appName = props.getProperty(propSparkAppName);
+        if (appName != null) {
+          AgentTracer.get()
+              .getDataStreamsMonitoring()
+              .setThreadServiceName(taskRunner.getThreadId(), appName);
+        }
+      } catch (Exception ignored) {
+      }
+    }
   }
 
   public void onTaskEnd(AgentSpan span, Executor.TaskRunner taskRunner) {
+    AgentTracer.get().getDataStreamsMonitoring().clearThreadServiceName(taskRunner.getThreadId());
+
     // task is set by spark in run() by deserializing the task binary coming from the driver
     if (taskRunner.task() == null) {
       return;
@@ -50,7 +71,7 @@ public class SparkExecutorDecorator extends BaseDecorator {
       span.setTag("app_attempt_id", taskRunner.task().appAttemptId().get());
     }
     span.setTag(
-        "application_name", taskRunner.task().localProperties().getProperty("spark.app.name"));
+        "application_name", taskRunner.task().localProperties().getProperty(propSparkAppName));
 
     TaskMetrics metrics = taskRunner.task().metrics();
     span.setMetric("spark.executor_deserialize_time", metrics.executorDeserializeTime());
