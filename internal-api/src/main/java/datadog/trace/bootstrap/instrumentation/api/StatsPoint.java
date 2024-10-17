@@ -11,6 +11,7 @@ public class StatsPoint implements InboxItem {
   private final long pathwayLatencyNano;
   private final long edgeLatencyNano;
   private final long payloadSizeBytes;
+  private final String serviceNameOverride;
 
   public StatsPoint(
       List<String> edgeTags,
@@ -20,7 +21,8 @@ public class StatsPoint implements InboxItem {
       long timestampNanos,
       long pathwayLatencyNano,
       long edgeLatencyNano,
-      long payloadSizeBytes) {
+      long payloadSizeBytes,
+      String serviceNameOverride) {
     this.edgeTags = edgeTags;
     this.hash = hash;
     this.parentHash = parentHash;
@@ -29,6 +31,7 @@ public class StatsPoint implements InboxItem {
     this.pathwayLatencyNano = pathwayLatencyNano;
     this.edgeLatencyNano = edgeLatencyNano;
     this.payloadSizeBytes = payloadSizeBytes;
+    this.serviceNameOverride = serviceNameOverride;
   }
 
   public List<String> getEdgeTags() {
@@ -61,6 +64,10 @@ public class StatsPoint implements InboxItem {
 
   public long getAggregationHash() {
     return aggregationHash;
+  }
+
+  public String getServiceNameOverride() {
+    return serviceNameOverride;
   }
 
   @Override

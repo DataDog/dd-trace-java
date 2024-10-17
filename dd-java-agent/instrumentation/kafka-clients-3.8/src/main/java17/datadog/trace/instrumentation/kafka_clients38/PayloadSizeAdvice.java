@@ -27,7 +27,8 @@ public class PayloadSizeAdvice {
               saved.getTimestampNanos(),
               saved.getPathwayLatencyNano(),
               saved.getEdgeLatencyNano(),
-              estimatedPayloadSize);
+              estimatedPayloadSize,
+              saved.getServiceNameOverride());
       // then send the point
       AgentTracer.get().getDataStreamsMonitoring().add(updated);
     }
