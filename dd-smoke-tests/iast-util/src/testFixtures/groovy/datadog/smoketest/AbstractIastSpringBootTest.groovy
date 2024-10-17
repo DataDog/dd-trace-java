@@ -730,6 +730,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     "apache-httpclient4"  | "url"     | "https://dd.datad0g.com/" | "apacheHttpClient4"
     "apache-httpclient4"  | "host"    | "dd.datad0g.com"          | "apacheHttpClient4"
     "commons-httpclient2" | "url"     | "https://dd.datad0g.com/" | "commonsHttpClient2"
+    "okHttp2"             | "url"     | "https://dd.datad0g.com/" | "okHttp2"
   }
 
   //  void 'test iast metrics stored in spans'() {

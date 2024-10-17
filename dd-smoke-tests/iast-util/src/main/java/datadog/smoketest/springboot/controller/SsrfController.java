@@ -1,5 +1,7 @@
 package datadog.smoketest.springboot.controller;
 
+import com.squareup.okhttp.OkHttpClient;
+import com.squareup.okhttp.Request;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -55,12 +57,24 @@ public class SsrfController {
   @PostMapping("/commons-httpclient2")
   public String commonsHttpClient2(@RequestParam(value = "url") final String url) {
     final HttpClient client = new HttpClient();
+    final HttpMethod method = new GetMethod(url);
     try {
-      final HttpMethod method = new GetMethod(url);
       client.executeMethod(method);
-      method.releaseConnection();
     } catch (final Exception e) {
     }
+    method.releaseConnection();
+    return "ok";
+  }
+
+  @PostMapping("/okHttp2")
+  public String okHttp2(@RequestParam(value = "url") final String url) {
+    final OkHttpClient client = new OkHttpClient();
+    try {
+      final Request request = new Request.Builder().url(url).build();
+      client.newCall(request).execute();
+    } catch (final Exception e) {
+    }
+    client.getDispatcher().getExecutorService().shutdown();
     return "ok";
   }
 }

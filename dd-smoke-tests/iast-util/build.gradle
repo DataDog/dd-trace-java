@@ -15,4 +15,5 @@ dependencies {
   // ssrf
   compileOnly group: 'commons-httpclient', name: 'commons-httpclient', version: '2.0'
   compileOnly group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.0'
+  compileOnly group: 'com.squareup.okhttp', name: 'okhttp', version: '2.2.0'
 }

@@ -31,6 +31,7 @@ dependencies {
   // ssrf
   implementation group: 'commons-httpclient', name: 'commons-httpclient', version: '2.0'
   implementation group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.0'
+  implementation group: 'com.squareup.okhttp', name: 'okhttp', version: '2.2.0'
 
 
   testImplementation project(':dd-smoke-tests')
