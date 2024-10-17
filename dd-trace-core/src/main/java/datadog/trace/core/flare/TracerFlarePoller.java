@@ -14,17 +14,20 @@ import datadog.trace.api.DynamicConfig;
 import datadog.trace.core.CoreTracer;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import okio.Okio;
 
 public final class TracerFlarePoller {
-  private static final String FLARE_LOG_LEVEL_PREFIX = "flare-log-level.";
-
+  private static final String FLARE_LOG_LEVEL = "flare-log-level";
   private final DynamicConfig<?> dynamicConfig;
 
   private Runnable stopPreparer;
   private Runnable stopSubmitter;
 
   private TracerFlareService tracerFlareService;
+
+  private final Map<String, String> configAction = new HashMap<>();
 
   public TracerFlarePoller(DynamicConfig<?> dynamicConfig) {
     this.dynamicConfig = dynamicConfig;
@@ -68,23 +71,24 @@ public final class TracerFlarePoller {
     @Override
     public void accept(ConfigKey configKey, byte[] content, PollingRateHinter hinter)
         throws IOException {
-      if (configKey.getConfigId().startsWith(FLARE_LOG_LEVEL_PREFIX)) {
-        AgentConfigLayer agentConfigLayer =
-            AGENT_CONFIG_LAYER_ADAPTER.fromJson(
-                Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
-        if (null != agentConfigLayer
-            && null != agentConfigLayer.config
-            && null != agentConfigLayer.config.logLevel) {
-          prepareForFlare(agentConfigLayer.config.logLevel);
-        } else {
-          cleanupAfterFlare();
-        }
+      AgentConfigLayer agentConfigLayer =
+          AGENT_CONFIG_LAYER_ADAPTER.fromJson(
+              Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
+      if (null != agentConfigLayer
+          && null != agentConfigLayer.config
+          && null != agentConfigLayer.config.logLevel) {
+        configAction.put(configKey.getConfigId(), FLARE_LOG_LEVEL);
+        prepareForFlare(agentConfigLayer.config.logLevel);
+      } else {
+        cleanupAfterFlare();
       }
     }
 
     @Override
     public void remove(ConfigKey configKey, PollingRateHinter hinter) {
-      if (configKey.getConfigId().startsWith(FLARE_LOG_LEVEL_PREFIX)) {
+      String configId = configKey.getConfigId();
+      if (configAction.get(configId).equals(FLARE_LOG_LEVEL)) {
+        configAction.remove(configId);
         cleanupAfterFlare();
       }
     }
