@@ -49,9 +49,9 @@ For IntelliJ IDEA, we suggest the following settings and plugin.
 The default JVM to build and run tests from the command line should be Java 8.
 
 * Use Java 8 to build and run tests:
-  * top right Settings icon -> `Project Structure` -> `Project` -> `SDK` -> `Download JDK...` -> `Version: 1.8` -> `Download`
+  * `Project Structure` -> `Project` -> `SDK` -> `Download JDK...` -> `Version: 1.8` -> `Download`
 * Configure Java and Groovy import formatting:  
-  * top right Settings icon -> `Settings...` ->`Editor` > `Code Style` > `Java` > `Imports`
+  * `Settings...` ->`Editor` > `Code Style` > `Java` > `Imports`
     * `Class count to use import with '*'`: `9999` (some number sufficiently large that is unlikely to matter)
     * `Names count to use static import with '*'`: `9999`
     * Use the following import layout to ensure consistency with google-java-format:
