@@ -221,6 +221,15 @@ public class Agent {
 
     boolean dataJobsEnabled = isFeatureEnabled(AgentFeature.DATA_JOBS);
     if (dataJobsEnabled) {
+      log.info("Data Jobs Monitoring enabled, enabling spark integrations");
+
+      setSystemPropertyDefault(
+          propertyNameToSystemPropertyName(TracerConfig.TRACE_LONG_RUNNING_ENABLED), "true");
+      setSystemPropertyDefault(
+          propertyNameToSystemPropertyName("integration.spark.enabled"), "true");
+      setSystemPropertyDefault(
+          propertyNameToSystemPropertyName("integration.spark-executor.enabled"), "true");
+
       String javaCommand = System.getProperty("sun.java.command");
       String dataJobsCommandPattern = Config.get().getDataJobsCommandPattern();
       if (!isDataJobsSupported(javaCommand, dataJobsCommandPattern)) {
@@ -230,15 +239,6 @@ public class Agent {
             dataJobsCommandPattern);
         return;
       }
-
-      log.info("Data Jobs Monitoring enabled, enabling spark integrations");
-
-      setSystemPropertyDefault(
-          propertyNameToSystemPropertyName(TracerConfig.TRACE_LONG_RUNNING_ENABLED), "true");
-      setSystemPropertyDefault(
-          propertyNameToSystemPropertyName("integration.spark.enabled"), "true");
-      setSystemPropertyDefault(
-          propertyNameToSystemPropertyName("integration.spark-executor.enabled"), "true");
     }
 
     if (!isSupportedAppSecArch()) {
