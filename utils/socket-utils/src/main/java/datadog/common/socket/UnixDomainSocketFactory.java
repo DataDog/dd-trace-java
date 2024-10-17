@@ -1,5 +1,9 @@
 package datadog.common.socket;
 
+import static java.util.concurrent.TimeUnit.MINUTES;
+
+import datadog.trace.api.Config;
+import datadog.trace.relocate.api.RatelimitedLogger;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
@@ -7,6 +11,8 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import javax.net.SocketFactory;
 import jnr.unixsocket.UnixSocketChannel;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Impersonate TCP-style SocketFactory over UNIX domain sockets.
@@ -16,6 +22,10 @@ import jnr.unixsocket.UnixSocketChannel;
  * examples</a>.
  */
 public final class UnixDomainSocketFactory extends SocketFactory {
+  private static final Logger log = LoggerFactory.getLogger(UnixDomainSocketFactory.class);
+
+  private final RatelimitedLogger rlLog = new RatelimitedLogger(log, 5, MINUTES);
+
   private final File path;
 
   public UnixDomainSocketFactory(final File path) {
@@ -24,8 +34,21 @@ public final class UnixDomainSocketFactory extends SocketFactory {
 
   @Override
   public Socket createSocket() throws IOException {
-    final UnixSocketChannel channel = UnixSocketChannel.open();
-    return new TunnelingUnixSocket(path, channel);
+    try {
+      final UnixSocketChannel channel = UnixSocketChannel.open();
+      return new TunnelingUnixSocket(path, channel);
+    } catch (Throwable e) {
+      if (Config.get().isAgentConfiguredUsingDefault()) {
+        // fall back to port if we previously auto-discovered this socket file
+        if (log.isDebugEnabled()) {
+          rlLog.warn("Problem opening {}, using port instead", path, e);
+        } else {
+          rlLog.warn("Problem opening {}, using port instead: " + e, path);
+        }
+        return getDefault().createSocket();
+      }
+      throw e;
+    }
   }
 
   @Override
