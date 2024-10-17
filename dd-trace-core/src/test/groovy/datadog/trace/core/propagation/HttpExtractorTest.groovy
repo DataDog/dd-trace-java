@@ -166,4 +166,55 @@ class HttpExtractorTest extends DDSpecification {
     [DATADOG, TRACECONTEXT]          | "1"            | "2"           | null      | null     | W3C_TRACE_STATE_NO_P   | "1"             | W3C_SPAN_ID_LSTR | "0000000000000002"
     // spotless:on
   }
+
+  def "verify existence of span links when extracting compound http headers"() {
+    setup:
+    Config config = Mock(Config) {
+      getTracePropagationStylesToExtract() >> styles
+    }
+    DynamicConfig dynamicConfig = DynamicConfig.create().apply()
+    HttpCodec.Extractor extractor = HttpCodec.createExtractor(config, { dynamicConfig.captureTraceConfig() })
+
+    final Map<String, String> actual = [:]
+    if (datadogTraceId != null) {
+      actual.put(DatadogHttpCodec.TRACE_ID_KEY.toUpperCase(), datadogTraceId)
+    }
+    if (datadogSpanId != null) {
+      actual.put(DatadogHttpCodec.SPAN_ID_KEY.toUpperCase(), datadogSpanId)
+    }
+    if (b3TraceId != null) {
+      actual.put(B3HttpCodec.TRACE_ID_KEY.toUpperCase(), b3TraceId)
+    }
+    if (b3SpanId != null) {
+      actual.put(B3HttpCodec.SPAN_ID_KEY.toUpperCase(), b3SpanId)
+    }
+    if (w3cTraceParent != null) {
+      actual.put(W3CHttpCodec.TRACE_PARENT_KEY.toUpperCase(), w3cTraceParent)
+    }
+    if (traceState != null) {
+      actual.put(W3CHttpCodec.TRACE_STATE_KEY.toUpperCase(), traceState)
+    }
+
+    when:
+    final TagContext context = extractor.extract(actual, ContextVisitors.stringValuesMap())
+
+    then:
+    def links = context.getTerminatedContextLinks()
+    assert links.size() == expectedSpanLinks.size()
+    for (int i = 0; i < links.size(); i++) {
+      if (expectedSpanLinks[i] == TRACECONTEXT) {
+        assert links[i].traceState() == W3C_TRACE_STATE_NO_P
+      }
+      assert links[i].attributes().asMap()["context_headers"] == expectedSpanLinks[i].toString()
+    }
+
+    where:
+    // spotless:off
+    styles                           | datadogTraceId    | datadogSpanId     | b3TraceId         | b3SpanId          | w3cTraceParent   | traceState           | expectedSpanLinks
+    [DATADOG, B3MULTI, TRACECONTEXT] | "1"               | "2"               | "1"               | "b"               | W3C_TRACE_PARENT | W3C_TRACE_STATE_NO_P | []
+    [DATADOG, B3MULTI, TRACECONTEXT] | "2"               | "2"               | "2"               | "b"               | W3C_TRACE_PARENT | W3C_TRACE_STATE_NO_P | [TRACECONTEXT]
+    [DATADOG, B3MULTI, TRACECONTEXT] | "2"               | "2"               | "1"               | "b"               | W3C_TRACE_PARENT | W3C_TRACE_STATE_NO_P | [B3MULTI, TRACECONTEXT]
+    [TRACECONTEXT, B3MULTI, DATADOG] | "2"               | "2"               | "1"               | "b"               | W3C_TRACE_PARENT | W3C_TRACE_STATE_NO_P | [DATADOG]
+    // spotless:on
+  }
 }
