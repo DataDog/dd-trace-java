@@ -15,6 +15,7 @@ public class DBInfo {
   private final Integer port;
   private final String warehouse;
   private final String schema;
+  private String poolName;
 
   DBInfo(
       String type,
@@ -27,7 +28,8 @@ public class DBInfo {
       String host,
       Integer port,
       String warehouse,
-      String schema) {
+      String schema,
+      String poolName) {
     this.type = type;
     this.subtype = subtype;
     this.fullPropagationSupport = fullPropagationSupport;
@@ -39,6 +41,7 @@ public class DBInfo {
     this.port = port;
     this.warehouse = warehouse;
     this.schema = schema;
+    this.poolName = poolName;
   }
 
   public static class Builder {
@@ -55,6 +58,7 @@ public class DBInfo {
     private String schema;
     private String host;
     private Integer port;
+    private String poolName;
 
     Builder() {}
 
@@ -69,7 +73,8 @@ public class DBInfo {
         String host,
         Integer port,
         String warehouse,
-        String schema) {
+        String schema,
+        String poolName) {
       this.type = type;
       this.subtype = subtype;
       this.fullPropagationSupport = fullPropagationSupport;
@@ -81,6 +86,7 @@ public class DBInfo {
       this.port = port;
       this.warehouse = warehouse;
       this.schema = schema;
+      this.poolName = poolName;
     }
 
     public Builder type(String type) {
@@ -141,6 +147,11 @@ public class DBInfo {
       return this;
     }
 
+    public Builder poolName(String poolName) {
+      this.poolName = poolName;
+      return this;
+    }
+
     public DBInfo build() {
       return new DBInfo(
           type,
@@ -153,7 +164,8 @@ public class DBInfo {
           host,
           port,
           warehouse,
-          schema);
+          schema,
+          poolName);
     }
   }
 
@@ -201,6 +213,14 @@ public class DBInfo {
     return schema;
   }
 
+  public String getPoolName() {
+    return poolName;
+  }
+
+  public void setPoolName(String poolname) {
+    this.poolName = poolname;
+  }
+
   public Builder toBuilder() {
     return new Builder(
         type,
@@ -213,7 +233,8 @@ public class DBInfo {
         host,
         port,
         warehouse,
-        schema);
+        schema,
+        poolName);
   }
 
   @Override
@@ -231,7 +252,8 @@ public class DBInfo {
         && Objects.equals(host, dbInfo.host)
         && Objects.equals(port, dbInfo.port)
         && Objects.equals(warehouse, dbInfo.warehouse)
-        && Objects.equals(schema, dbInfo.schema);
+        && Objects.equals(schema, dbInfo.schema)
+        && Objects.equals(poolName, dbInfo.poolName);
   }
 
   @Override
