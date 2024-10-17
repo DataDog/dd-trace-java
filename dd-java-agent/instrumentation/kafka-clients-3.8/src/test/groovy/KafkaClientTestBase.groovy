@@ -41,7 +41,6 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
-@Flaky
 abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   static final SHARED_TOPIC = "shared.topic"
   static final String MESSAGE = "Testing without headers for certain topics"
@@ -152,11 +151,11 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   protected boolean isDataStreamsEnabled() {
     return true
   }
-  @Flaky
+
   def "test kafka produce and consume"() {
     setup:
     // Create and start a Kafka container using Testcontainers
-    KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:latest")).withEmbeddedZookeeper().withEnv("KAFKA_CREATE_TOPICS", SHARED_TOPIC)
+    KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.7.1")).withEmbeddedZookeeper().withEnv("KAFKA_CREATE_TOPICS", SHARED_TOPIC)
     kafkaContainer.start()
 
     def senderProps = KafkaTestUtils.producerProps(kafkaContainer.getBootstrapServers())
@@ -299,7 +298,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   def "test producing message too large"() {
     setup:
     // set a low max request size, so that we can crash it
-    KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:latest")).withEmbeddedZookeeper().withEnv("KAFKA_CREATE_TOPICS", SHARED_TOPIC)
+    KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.7.1")).withEmbeddedZookeeper().withEnv("KAFKA_CREATE_TOPICS", SHARED_TOPIC)
     kafkaContainer.start()
 
     def senderProps = KafkaTestUtils.producerProps(kafkaContainer.getBootstrapServers())
@@ -321,7 +320,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   @Flaky
   def "test spring kafka template produce and consume"() {
     setup:
-    KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:latest")).withEmbeddedZookeeper().withEnv("KAFKA_CREATE_TOPICS", SHARED_TOPIC)
+    KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.7.1")).withEmbeddedZookeeper().withEnv("KAFKA_CREATE_TOPICS", SHARED_TOPIC)
     kafkaContainer.start()
 
     def senderProps = KafkaTestUtils.producerProps(kafkaContainer.getBootstrapServers())
@@ -465,7 +464,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   @Flaky
   def "test pass through tombstone"() {
     setup:
-    KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:latest")).withEmbeddedZookeeper().withEnv("KAFKA_CREATE_TOPICS", SHARED_TOPIC)
+    KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.7.1")).withEmbeddedZookeeper().withEnv("KAFKA_CREATE_TOPICS", SHARED_TOPIC)
     kafkaContainer.start()
 
     def senderProps = KafkaTestUtils.producerProps(kafkaContainer.getBootstrapServers())
@@ -537,7 +536,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   @Flaky
   def "test records(TopicPartition) kafka consume"() {
     setup:
-    KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:latest")).withEmbeddedZookeeper().withEnv("KAFKA_CREATE_TOPICS", SHARED_TOPIC)
+    KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.7.1")).withEmbeddedZookeeper().withEnv("KAFKA_CREATE_TOPICS", SHARED_TOPIC)
     kafkaContainer.start()
 
     // set up the Kafka consumer properties
@@ -599,7 +598,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   def "test records(TopicPartition).subList kafka consume"() {
     setup:
 
-    KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:latest")).withEmbeddedZookeeper().withEnv("KAFKA_CREATE_TOPICS", SHARED_TOPIC)
+    KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.7.1")).withEmbeddedZookeeper().withEnv("KAFKA_CREATE_TOPICS", SHARED_TOPIC)
     kafkaContainer.start()
 
     def senderProps = KafkaTestUtils.producerProps(kafkaContainer.getBootstrapServers())
@@ -661,7 +660,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   @Flaky
   def "test records(TopicPartition).forEach kafka consume"() {
     setup:
-    KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:latest")).withEmbeddedZookeeper().withEnv("KAFKA_CREATE_TOPICS", SHARED_TOPIC)
+    KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.7.1")).withEmbeddedZookeeper().withEnv("KAFKA_CREATE_TOPICS", SHARED_TOPIC)
     kafkaContainer.start()
 
     def senderProps = KafkaTestUtils.producerProps(kafkaContainer.getBootstrapServers())
@@ -723,7 +722,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   @Flaky
   def "test iteration backwards over ConsumerRecords"() {
     setup:
-    KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:latest")).withEmbeddedZookeeper().withEnv("KAFKA_CREATE_TOPICS", SHARED_TOPIC)
+    KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.7.1")).withEmbeddedZookeeper().withEnv("KAFKA_CREATE_TOPICS", SHARED_TOPIC)
     kafkaContainer.start()
 
     def senderProps = KafkaTestUtils.producerProps(kafkaContainer.getBootstrapServers())
@@ -838,7 +837,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   @Flaky
   def "test kafka client header propagation manual config"() {
     setup:
-    KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:latest")).withEmbeddedZookeeper().withEnv("KAFKA_CREATE_TOPICS", SHARED_TOPIC)
+    KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.7.1")).withEmbeddedZookeeper().withEnv("KAFKA_CREATE_TOPICS", SHARED_TOPIC)
     kafkaContainer.start()
 
     def senderProps = KafkaTestUtils.producerProps(kafkaContainer.getBootstrapServers())
@@ -1073,6 +1072,7 @@ class KafkaClientV0ForkedTest extends KafkaClientForkedTest {
   }
 }
 
+@Flaky
 class KafkaClientV1ForkedTest extends KafkaClientForkedTest {
   @Override
   int version() {
@@ -1105,6 +1105,7 @@ class KafkaClientV1ForkedTest extends KafkaClientForkedTest {
   }
 }
 
+@Flaky
 class KafkaClientSplitByDestinationForkedTest extends KafkaClientTestBase {
   @Override
   void configurePreAgent() {
@@ -1130,6 +1131,7 @@ class KafkaClientSplitByDestinationForkedTest extends KafkaClientTestBase {
   }
 }
 
+@Flaky
 abstract class KafkaClientLegacyTracingForkedTest extends KafkaClientTestBase {
   @Override
   void configurePreAgent() {
@@ -1154,11 +1156,13 @@ abstract class KafkaClientLegacyTracingForkedTest extends KafkaClientTestBase {
   }
 }
 
+@Flaky
 class KafkaClientLegacyTracingV0ForkedTest extends KafkaClientLegacyTracingForkedTest{
 
 
 }
 
+@Flaky
 class KafkaClientLegacyTracingV1ForkedTest extends KafkaClientLegacyTracingForkedTest{
 
   @Override
@@ -1182,6 +1186,7 @@ class KafkaClientLegacyTracingV1ForkedTest extends KafkaClientLegacyTracingForke
   }
 }
 
+@Flaky
 class KafkaClientDataStreamsDisabledForkedTest extends KafkaClientTestBase {
   @Override
   void configurePreAgent() {
