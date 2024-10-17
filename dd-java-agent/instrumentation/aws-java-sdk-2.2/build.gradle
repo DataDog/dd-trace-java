@@ -81,11 +81,3 @@ dependencies {
 tasks.withType(Test).configureEach {
   usesService(testcontainersLimit)
 }
-
-tasks.named("test").configure {
-  dependsOn "payloadTaggingTest"
-}
-
-tasks.named("forkedTest").configure {
-  dependsOn "payloadTaggingForkedTest"
-}
