@@ -129,7 +129,6 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.PEER_HOSTNAME" "localhost"
             "$Tags.PEER_PORT" server.address.port
-            "$Tags.HTTP_URL" "${server.address}${path}"
             "$Tags.HTTP_METHOD" "$method"
             "$Tags.HTTP_STATUS" 200
             "aws.service" "$service"
@@ -173,6 +172,7 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
               peerServiceFrom("aws.stream.name")
               checkPeerService = true
             }
+            urlTags("${server.address}${path}", expectedQueryParams(operation))
             defaultTags(false, checkPeerService)
           }
         }
@@ -266,7 +266,6 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.PEER_HOSTNAME" "localhost"
             "$Tags.PEER_PORT" server.address.port
-            "$Tags.HTTP_URL" "${server.address}${path}"
             "$Tags.HTTP_METHOD" "$method"
             "$Tags.HTTP_STATUS" 200
             "aws.service" "$service"
@@ -308,6 +307,7 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
               peerServiceFrom("aws.stream.name")
               checkPeerService = true
             }
+            urlTags("${server.address}${path}", expectedQueryParams(operation))
             defaultTags(false, checkPeerService)
           }
         }
