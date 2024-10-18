@@ -145,6 +145,9 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
 
   public static DBInfo parseDBInfo(
       final Connection connection, ContextStore<Connection, DBInfo> contextStore) {
+    if (connection == null) {
+      return DBInfo.DEFAULT;
+    }
     DBInfo dbInfo = contextStore.get(connection);
     /*
      * Logic to get the DBInfo from a JDBC Connection, if the connection was not created via
@@ -191,6 +194,10 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   }
 
   public static DBInfo parseDBInfoFromConnection(final Connection connection) {
+    if (connection == null) {
+      // we can log here, but it risks to be too verbose
+      return DBInfo.DEFAULT;
+    }
     DBInfo dbInfo;
     try {
       final DatabaseMetaData metaData = connection.getMetaData();
