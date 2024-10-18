@@ -2,7 +2,6 @@ package datadog.smoketest.springboot.controller;
 
 import com.squareup.okhttp.OkHttpClient;
 import com.squareup.okhttp.Request;
-import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import org.apache.commons.httpclient.HttpClient;
@@ -48,7 +47,7 @@ public class SsrfController {
         final HttpGet request = new HttpGet(url);
         client.execute(request);
       }
-    } catch (IOException e) {
+    } catch (Exception e) {
     }
     client.getConnectionManager().shutdown();
     return "ok";
