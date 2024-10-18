@@ -54,7 +54,7 @@ Requirements to build the full project:
 `brew install --cask zulu@8 zulu@11 zulu@17 zulu@21 graalvm/tap/graalvm-ce-java17`
 * Fix the GraalVM installation by [removing the quarantine flag](https://www.graalvm.org/latest/docs/getting-started/macos/).
 `sudo xattr -r -d com.apple.quarantine /Library/Java/JavaVirtualMachines/graalvm-<current version of graalvm>`
-* Add the required environment variables to your shell using the `export` command.
+* Add the required environment variables to your shell using the `export` command. You can permanently install the environment variables by appending the `export` commands into your shell configuration file `~/.zshrc` or `.bashrc` or other.
 ```shell
 export JAVA_8_HOME=/Library/Java/JavaVirtualMachines/zulu-8.jdk/Contents/Home  
 export JAVA_11_HOME=/Library/Java/JavaVirtualMachines/zulu-11.jdk/Contents/Home
@@ -63,6 +63,7 @@ export JAVA_21_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home
 export JAVA_GRAALVM17_HOME=/Library/Java/JavaVirtualMachines/graalvm-<current version of graalvm>/Contents/Home
 export JAVA_HOME=$JAVA_8_HOME
 ```
+* Restart your shell after applying the changes if you appended the commands to your shell configuration file.
 
 > [!NOTE] 
 > ARM users: there is no Oracle JDK v8 for ARM. 
@@ -72,15 +73,11 @@ export JAVA_HOME=$JAVA_8_HOME
 > [!NOTE]
 > MacOS users: remember that `/usr/libexec/java_home` may control which JDK is in your path.
 
-> [!NOTE]
-> You can permanently install the environment variables by appending the `export` commands into your shell configuration file `~/.zshrc` or `.bashrc` or other.
-> You will need to restart your shell after applying the changes.
-
 **On Linux:**
 
 * Download and extract JDK 8, 11, 17 and 21 from [Eclipse Temurin releases](https://adoptium.net/temurin/releases/) and GraalVM from [Oracle downloads](https://www.graalvm.org/downloads/).
 * Install the GraalVM native image requirements for native builds by following [the GraalVM official documentation](https://www.graalvm.org/latest/reference-manual/native-image/#prerequisites).
-* Add the required environment variables to your shell using the `export` command.
+* Add the required environment variables to your shell using the `export` command. You can permanently install the environment variables by appending the `export` commands into your shell configuration file `~/.zshrc` or `~/.bashrc` or other. 
 ```shell
 export JAVA_8_HOME=/<path to extracted archive>/jdk8u<current version of JDK 8>
 export JAVA_11_HOME=/<path to extracted archive>/jdk-11.<current version of JDK 11>
@@ -89,10 +86,7 @@ export JAVA_21_HOME=/<path to extracted archive>/jdk-21.<current version of JDK 
 export JAVA_GRAALVM17_HOME=/<path to extracted archive>/graalvm-jdk-17.<current version of graalvm>/Contents/Home
 export JAVA_HOME=$JAVA_8_HOME
 ```
-
-> [!NOTE]
-> You can permanently install the environment variables by appending the `export` commands into your shell configuration file `~/.zshrc` or `.bashrc` or other.
-> You will need to restart your shell after applying the changes.
+* Restart your shell after applying the changes if you appended the commands to your shell configuration file.
 
 **On Windows:**
 
