@@ -33,6 +33,7 @@ public class IastRequestContext implements IastContext, HasMetricCollector {
   @Nullable private volatile String xForwardedProto;
   @Nullable private volatile String contentType;
   @Nullable private volatile String authorization;
+
   /**
    * Use {@link IastRequestContext#IastRequestContext(TaintedObjects)} instead as we require more
    * control over the tainted objects dictionaries
