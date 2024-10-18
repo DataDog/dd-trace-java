@@ -2,15 +2,20 @@ package datadog.trace.util.stacktrace;
 
 import static com.google.common.truth.Truth.assertThat;
 import static datadog.trace.util.stacktrace.StackUtils.META_STRUCT_KEY;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import datadog.trace.api.internal.TraceSegment;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 public class StackUtilsTest {
 
@@ -119,6 +124,18 @@ public class StackUtilsTest {
                     });
               }
             });
+  }
+
+  @Test
+  public void addStacktraceEventsToAvailableMetaStruct() {
+    final TraceSegment traceSegmentMock = mock(TraceSegment.class);
+    final Map<String, List<StackTraceEvent>> batch = new HashMap<>();
+    when(traceSegmentMock.getMetaStructTop(META_STRUCT_KEY)).thenReturn(batch);
+    final String productTest = "test";
+    final StackTraceEvent event = new StackTraceEvent(new ArrayList<>(0), "java", "id", "message");
+    StackUtils.addStacktraceEventsToMetaStruct(traceSegmentMock, productTest, event);
+    verify(traceSegmentMock).getMetaStructTop(META_STRUCT_KEY);
+    verify(traceSegmentMock, never()).setMetaStructTop(eq(META_STRUCT_KEY), Mockito.any());
   }
 
   private static Throwable withStack(final StackTraceElement... stack) {
