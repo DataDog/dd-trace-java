@@ -23,7 +23,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -87,7 +86,7 @@ public class Reporter {
   }
 
   @Nullable
-  private static String addVulnerabilityStackTrace(@NotNull AgentSpan span, String index) {
+  private static String addVulnerabilityStackTrace(@Nonnull AgentSpan span, String index) {
     final RequestContext reqCtx = span.getRequestContext();
     if (reqCtx == null) {
       return null;
