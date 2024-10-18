@@ -52,6 +52,18 @@ public final class Source implements Taintable.Source {
     return asString(value);
   }
 
+  /** This will expose the internal reference so be careful */
+  @Nullable
+  public Object getRawValue() {
+    if (value == null) {
+      return null;
+    }
+    if (value instanceof Reference<?>) {
+      return ((Reference<?>) value).get();
+    }
+    return value;
+  }
+
   @SuppressFBWarnings(
       value = "DM_STRING_CTOR",
       justification = "New string instance requires constructor")
