@@ -46,6 +46,62 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     requestBodies = []
   }
 
+  def "Service overrides split buckets"() {
+    given:
+    def conditions = new PollingConditions(timeout: 2)
+
+    def testOkhttpClient = OkHttpUtils.buildHttpClient(HttpUrl.get(server.address), 5000L)
+
+    def features = Stub(DDAgentFeaturesDiscovery) {
+      supportsDataStreams() >> true
+    }
+
+    def wellKnownTags = new WellKnownTags("runtimeid", "hostname", "test", Config.get().getServiceName(), "version", "java")
+
+    def fakeConfig = Stub(Config) {
+      getAgentUrl() >> server.address.toString()
+      getWellKnownTags() >> wellKnownTags
+      getPrimaryTag() >> "region-1"
+    }
+
+    def sharedCommObjects = new SharedCommunicationObjects()
+    sharedCommObjects.featuresDiscovery = features
+    sharedCommObjects.okHttpClient = testOkhttpClient
+    sharedCommObjects.createRemaining(fakeConfig)
+
+    def timeSource = new ControllableTimeSource()
+
+    def traceConfig = Mock(TraceConfig) {
+      isDataStreamsEnabled() >> true
+    }
+    def serviceNameOverride = "service-name-override"
+
+    when:
+    def dataStreams = new DefaultDataStreamsMonitoring(fakeConfig, sharedCommObjects, timeSource, { traceConfig })
+    dataStreams.start()
+    dataStreams.setThreadServiceName(Thread.currentThread().getId(), serviceNameOverride)
+    dataStreams.add(new StatsPoint([], 9, 0, 10, timeSource.currentTimeNanos, 0, 0, 0, serviceNameOverride))
+    dataStreams.trackBacklog(new LinkedHashMap<>(["partition": "1", "topic": "testTopic", "type": "kafka_produce"]), 130)
+    timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
+    // force flush
+    dataStreams.report()
+    dataStreams.close()
+    then:
+    conditions.eventually {
+      assert requestBodies.size() == 1
+    }
+    GzipSource gzipSource = new GzipSource(Okio.source(new ByteArrayInputStream(requestBodies[0])))
+
+    BufferedSource bufferedSource = Okio.buffer(gzipSource)
+    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(bufferedSource.inputStream())
+
+    assert unpacker.unpackMapHeader() == 7
+    assert unpacker.unpackString() == "Env"
+    assert unpacker.unpackString() == "test"
+    assert unpacker.unpackString() == "Service"
+    assert unpacker.unpackString() == serviceNameOverride
+  }
+
   def "Write bucket to mock server"() {
     given:
     def conditions = new PollingConditions(timeout: 2)
@@ -78,15 +134,15 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     when:
     def dataStreams = new DefaultDataStreamsMonitoring(fakeConfig, sharedCommObjects, timeSource, { traceConfig })
     dataStreams.start()
-    dataStreams.add(new StatsPoint([], 9, 0, 10, timeSource.currentTimeNanos, 0, 0, 0))
-    dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, 5, timeSource.currentTimeNanos, 0, 0, 0))
+    dataStreams.add(new StatsPoint([], 9, 0, 10, timeSource.currentTimeNanos, 0, 0, 0, null))
+    dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, 5, timeSource.currentTimeNanos, 0, 0, 0, null))
     dataStreams.trackBacklog(new LinkedHashMap<>(["partition": "1", "topic": "testTopic", "type": "kafka_produce"]), 100)
     dataStreams.trackBacklog(new LinkedHashMap<>(["partition": "1", "topic": "testTopic", "type": "kafka_produce"]), 130)
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS - 100l)
-    dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, 5, timeSource.currentTimeNanos, SECONDS.toNanos(10), SECONDS.toNanos(10), 10))
+    dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, 5, timeSource.currentTimeNanos, SECONDS.toNanos(10), SECONDS.toNanos(10), 10, null))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
-    dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, 5, timeSource.currentTimeNanos, SECONDS.toNanos(5), SECONDS.toNanos(5), 5))
-    dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic2"], 3, 4, 6, timeSource.currentTimeNanos, SECONDS.toNanos(2), 0, 2))
+    dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, 5, timeSource.currentTimeNanos, SECONDS.toNanos(5), SECONDS.toNanos(5), 5, null))
+    dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic2"], 3, 4, 6, timeSource.currentTimeNanos, SECONDS.toNanos(2), 0, 2, null))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
     dataStreams.report()
 
