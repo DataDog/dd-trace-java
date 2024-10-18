@@ -17,7 +17,6 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.AgentTaskScheduler
-import datadog.trace.util.stacktrace.StackTraceBatch
 import datadog.trace.util.stacktrace.StackTraceEvent
 import org.skyscreamer.jsonassert.JSONAssert
 import spock.lang.Shared
@@ -49,7 +48,7 @@ class ReporterTest extends DDSpecification {
     reqCtx.getData(RequestContextSlot.IAST) >> ctx
     reqCtx.getTraceSegment() >> traceSegment
     VulnerabilityBatch batch = null
-    StackTraceBatch stackTraceBatch = null
+    Map stackTraceBatch = null
 
     final span = Stub(AgentSpan)
     span.getRequestContext() >> reqCtx
@@ -86,7 +85,7 @@ class ReporterTest extends DDSpecification {
     1 * traceSegment.setTagTop('asm.keep', true)
     1 * traceSegment.setTagTop('_dd.p.appsec', true)
     1 * traceSegment.getMetaStructTop('_dd.stack') >> null
-    1 * traceSegment.setMetaStructTop('_dd.stack', _) >> { stackTraceBatch = it[1] as StackTraceBatch }
+    1 * traceSegment.setMetaStructTop('_dd.stack', _) >> { stackTraceBatch = it[1] as Map }
     assertStackTrace(stackTraceBatch, v)
     0 * _
   }
@@ -149,7 +148,7 @@ class ReporterTest extends DDSpecification {
     reqCtx.getData(RequestContextSlot.IAST) >> ctx
     reqCtx.getTraceSegment() >> traceSegment
     VulnerabilityBatch batch = null
-    StackTraceBatch stackTraceBatch = null
+    Map stackTraceBatch = null
 
     final span = Stub(AgentSpan)
     span.getRequestContext() >> reqCtx
@@ -207,7 +206,7 @@ class ReporterTest extends DDSpecification {
     1 * traceSegment.setTagTop('asm.keep', true)
     1 * traceSegment.setTagTop('_dd.p.appsec', true)
     1 * traceSegment.getMetaStructTop('_dd.stack') >> null
-    1 * traceSegment.setMetaStructTop('_dd.stack', _) >> { stackTraceBatch = it[1] as StackTraceBatch }
+    1 * traceSegment.setMetaStructTop('_dd.stack', _) >> { stackTraceBatch = it[1] as Map }
     1 * traceSegment.getMetaStructTop('_dd.stack') >>{ return stackTraceBatch } // second vulnerability stack trace
     assertStackTrace(stackTraceBatch, [v1, v2] as Vulnerability[])
     0 * _
@@ -574,11 +573,11 @@ class ReporterTest extends DDSpecification {
       VulnerabilityType.XCONTENTTYPE_HEADER_MISSING, Location.forSpan(null), null)
   }
 
-  private void assertStackTrace(StackTraceBatch batch, Vulnerability[] vulnerabilities) {
-    assert batch.getVulnerability().size() == vulnerabilities.size()
+  private void assertStackTrace(Map batch, Vulnerability[] vulnerabilities) {
+    assert batch.get("vulnerability").size() == vulnerabilities.size()
     StackTraceEvent currentStackTrace = null
     for (int i = 0; i < vulnerabilities.size(); i++) {
-      for (StackTraceEvent event : batch.getVulnerability().get(i)) {
+      for (StackTraceEvent event : batch.get("vulnerability")) {
         if(event.getId() == vulnerabilities[i].getStackId()) {
           currentStackTrace = event
           break
