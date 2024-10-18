@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.okhttp3;
 
+import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
@@ -36,6 +38,16 @@ public class OkHttpClientDecorator extends HttpClientDecorator<Request, Response
   @Override
   protected URI url(final Request httpRequest) {
     return httpRequest.url().uri();
+  }
+
+  @Override
+  protected String sourceUrl(final Request httpRequest) {
+    final PropagationModule propagationModule = InstrumentationBridge.PROPAGATION;
+    final String url = httpRequest.url().toString();
+    if (propagationModule != null) {
+      propagationModule.taintObjectIfTainted(url, httpRequest.url());
+    }
+    return url;
   }
 
   @Override

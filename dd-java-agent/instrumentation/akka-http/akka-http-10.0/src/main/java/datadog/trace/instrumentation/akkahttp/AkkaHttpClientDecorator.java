@@ -36,6 +36,12 @@ public class AkkaHttpClientDecorator extends HttpClientDecorator<HttpRequest, Ht
   }
 
   @Override
+  protected String sourceUrl(final HttpRequest httpRequest) throws URISyntaxException {
+    // It will be implemented later
+    return "";
+  }
+
+  @Override
   protected int status(final HttpResponse httpResponse) {
     return httpResponse.status().intValue();
   }

@@ -2,6 +2,8 @@ package datadog.trace.instrumentation.okhttp2;
 
 import com.squareup.okhttp.Request;
 import com.squareup.okhttp.Response;
+import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
@@ -21,6 +23,16 @@ public class OkHttpClientDecorator extends HttpClientDecorator<Request, Response
   @Override
   protected URI url(Request request) throws URISyntaxException {
     return request.url().toURI();
+  }
+
+  @Override
+  protected String sourceUrl(final Request request) {
+    final PropagationModule propagationModule = InstrumentationBridge.PROPAGATION;
+    String url = request.urlString();
+    if (propagationModule != null) {
+      propagationModule.taintObjectIfTainted(url, request.url());
+    }
+    return url;
   }
 
   @Override

@@ -12,7 +12,7 @@ class IastHttpHostInstrumentationTest extends AgentTestRunner {
     injectSysConfig('dd.iast.enabled', 'true')
   }
 
-  void 'test'(){
+  void 'test constructor'(){
     given:
     final module = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(module)
@@ -28,5 +28,23 @@ class IastHttpHostInstrumentationTest extends AgentTestRunner {
     ['localhost'] | _
     ['localhost', 8080] | _
     ['localhost', 8080, 'http'] | _
+  }
+
+  void 'test toUri'(){
+    given:
+    final module = Mock(PropagationModule)
+    InstrumentationBridge.registerIastModule(module)
+    HttpHost httpHost = new HttpHost(hostname)
+    String result = httpHost.toURI()
+
+    when:
+    httpHost.toURI()
+
+    then:
+    1 * module.taintObjectIfTainted(result, _ as HttpHost)
+
+    where:
+    hostname    | _
+    'localhost' | _
   }
 }
