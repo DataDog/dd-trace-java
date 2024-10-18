@@ -722,15 +722,31 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     client.newCall(request).execute()
 
     then:
-    hasVulnerability { vul -> vul.type == 'SSRF' && vul.location.method == method }
+    hasVulnerability { vul ->
+      if (vul.type != 'SSRF') {
+        return false
+      }
+      final parts = vul.evidence.valueParts
+      if (parameter == 'url') {
+        return parts.size() == 1
+        && parts[0].value == value && parts[0].source.origin == 'http.request.parameter' && parts[0].source.name == parameter
+      } else if (parameter == 'host') {
+        String protocol = protocolSecure ? 'https://' : 'http://'
+        return parts.size() == 2
+        && parts[0].value == protocol + value && parts[0].source.origin == 'http.request.parameter' && parts[0].source.name == parameter
+        && parts[1].value == '/' && parts[1].source == null
+      } else {
+        throw new IllegalArgumentException("Parameter $parameter not supported")
+      }
+    }
 
     where:
-    path                  | parameter | value                     | method
-    "apache-httpclient4"  | "url"     | "https://dd.datad0g.com/" | "apacheHttpClient4"
-    "apache-httpclient4"  | "host"    | "dd.datad0g.com"          | "apacheHttpClient4"
-    "commons-httpclient2" | "url"     | "https://dd.datad0g.com/" | "commonsHttpClient2"
-    "okHttp2"             | "url"     | "https://dd.datad0g.com/" | "okHttp2"
-    "okHttp3"             | "url"     | "https://dd.datad0g.com/" | "okHttp3"
+    path                  | parameter | value                     | method               | protocolSecure
+    "apache-httpclient4"  | "url"     | "https://dd.datad0g.com/" | "apacheHttpClient4"  | false
+    "apache-httpclient4"  | "host"    | "dd.datad0g.com"          | "apacheHttpClient4"  | false
+    "commons-httpclient2" | "url"     | "https://dd.datad0g.com/" | "commonsHttpClient2" | false
+    "okHttp2"             | "url"     | "https://dd.datad0g.com/" | "okHttp2"            | false
+    "okHttp3"             | "url"     | "https://dd.datad0g.com/" | "okHttp3"            | false
   }
 
   void 'test iast metrics stored in spans'() {
