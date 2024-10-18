@@ -24,7 +24,6 @@ import datadog.trace.api.sampling.SamplingRule;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
 import datadog.trace.context.TraceScope;
-import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -292,10 +291,6 @@ public class AgentTracer {
      * @param serviceName
      */
     void updatePreferredServiceName(String serviceName);
-
-    void addTagsFromResponseBody(AgentSpan span, InputStream body, String tagPrefix);
-
-    void addTagsFromRequestBody(AgentSpan span, InputStream body, String tagPrefix);
   }
 
   public interface SpanBuilder {
@@ -530,12 +525,6 @@ public class AgentTracer {
     public void updatePreferredServiceName(String serviceName) {
       // no ops
     }
-
-    @Override
-    public void addTagsFromResponseBody(AgentSpan span, InputStream body, String tagPrefix) {}
-
-    @Override
-    public void addTagsFromRequestBody(AgentSpan span, InputStream body, String tagPrefix) {}
   }
 
   public static final class BlackholeAgentSpan extends NoopAgentSpan {

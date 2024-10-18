@@ -3758,6 +3758,10 @@ public class Config {
     return cloudPayloadTaggingServices.contains(serviceName);
   }
 
+  public boolean isCloudPayloadTaggingEnabled() {
+    return isCloudRequestPayloadTaggingEnabled() || isCloudResponsePayloadTaggingEnabled();
+  }
+
   public List<String> getCloudRequestPayloadTagging() {
     return cloudRequestPayloadTagging == null
         ? Collections.emptyList()

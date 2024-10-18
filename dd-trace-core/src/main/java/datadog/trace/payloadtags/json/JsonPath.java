@@ -1,5 +1,6 @@
 package datadog.trace.payloadtags.json;
 
+import datadog.trace.payloadtags.PathCursor;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -50,10 +51,10 @@ public final class JsonPath {
     this.segments = segments.toArray(new Segment[0]);
   }
 
-  public boolean matches(JsonPointer pointer) {
+  public boolean matches(PathCursor pathCursor) {
     int i = segments.length - 1;
-    int j = pointer.length() - 1;
-    while (i >= 0 && j >= 0 && segments[i].matches(pointer.get(j))) {
+    int j = pathCursor.length() - 1;
+    while (i >= 0 && j >= 0 && segments[i].matches(pathCursor.get(j))) {
       i--;
       j--;
       if (segments[i + 1] == Segment.Singleton.DESCENDANT) {
@@ -61,7 +62,7 @@ public final class JsonPath {
         int blockSize = i - prevSearchSegmentPos;
         int offset2 = j - blockSize + 2;
         while (offset2 > 0
-            && !matchPathBlock(this, prevSearchSegmentPos + 1, pointer, offset2, blockSize)) {
+            && !matchPathBlock(this, prevSearchSegmentPos + 1, pathCursor, offset2, blockSize)) {
           offset2--;
         }
         i = prevSearchSegmentPos;
@@ -81,7 +82,7 @@ public final class JsonPath {
   }
 
   private boolean matchPathBlock(
-      JsonPath pattern, int offset1, JsonPointer pointer, int offset2, int blockSize) {
+      JsonPath pattern, int offset1, PathCursor pointer, int offset2, int blockSize) {
     for (int i = 0; i < blockSize; i++) {
       if (!pattern.segments[offset1 + i].matches(pointer.get(offset2 + i))) {
         return false;

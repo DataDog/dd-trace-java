@@ -1,6 +1,7 @@
 package datadog.trace.payloadtags.json;
 
 import com.squareup.moshi.JsonReader;
+import datadog.trace.payloadtags.PathCursor;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -11,42 +12,60 @@ public class JsonStreamTraversal {
 
   public interface Visitor {
     /** @return - true to skip an inner object or array, otherwise false */
-    boolean skipInner(JsonPointer pointer);
+    boolean skipInner(PathCursor pathCursor);
 
     /** @return - true to visit the value, false to skip it */
-    boolean visitValue(JsonPointer pointer);
+    boolean visitValue(PathCursor pathCursor);
 
-    void valueVisited(JsonPointer pointer, Object value);
+    void valueVisited(PathCursor pathCursor, Object value);
 
     /** @return - true to stop traversing, false to keep traversing */
     boolean keepTraversing();
 
-    /** @return - true to expand the value, false to keep it as is */
-    boolean expandValue(JsonPointer jsonPath, String raw);
-
     /** Called when parsing inner json failed */
-    void expandValueFailed(JsonPointer jsonPath, String raw, Exception e);
+    void expandValueFailed(PathCursor jsonPath, Exception exception);
   }
 
-  public static void traverse(InputStream is, Visitor visitor, int depthLimit) throws IOException {
-    JsonPointer pointer = new JsonPointer(depthLimit + 1);
-    traverse(is, visitor, pointer);
+  /**
+   * Traverse a JSON string.
+   *
+   * @return - true if the string was a json object or array, false otherwise
+   */
+  public static boolean traverse(String raw, Visitor visitor, PathCursor pathCursor) {
+    if (raw.startsWith("{") || raw.startsWith("[")) {
+      try (InputStream is = new ByteArrayInputStream(raw.getBytes())) {
+        return traverse(is, visitor, pathCursor.copy());
+      } catch (Exception e) {
+        visitor.expandValueFailed(pathCursor, e);
+      }
+    }
+    return false;
   }
 
-  private static void traverse(InputStream is, Visitor visitor, JsonPointer pointer)
-      throws IOException {
+  /**
+   * Traverse an InputStream as JSON.
+   *
+   * @return - true if it was successfully traversed as JSON, false otherwise
+   */
+  public static boolean traverse(InputStream is, Visitor visitor, PathCursor pathCursor) {
     try (BufferedSource source = Okio.buffer(Okio.source(is))) {
       byte firstByte = source.peek().readByte();
       if (firstByte == '{' || firstByte == '[') {
         try (JsonReader reader = JsonReader.of(source)) {
           reader.setLenient(true);
-          traverse(reader, visitor, pointer);
+          traverse(reader, visitor, pathCursor);
+          return true;
+        } catch (Exception e) {
+          visitor.expandValueFailed(pathCursor, e);
         }
       }
+    } catch (Exception e) {
+      visitor.expandValueFailed(pathCursor, e);
     }
+    return false;
   }
 
-  private static void traverse(JsonReader reader, Visitor visitor, JsonPointer pointer)
+  private static void traverse(JsonReader reader, Visitor visitor, PathCursor pathCursor)
       throws IOException {
 
     while (visitor.keepTraversing()) {
@@ -56,21 +75,21 @@ public class JsonStreamTraversal {
           return;
 
         case BEGIN_ARRAY:
-          if (visitor.skipInner(pointer) || !visitor.visitValue(pointer)) {
+          if (visitor.skipInner(pathCursor) || !visitor.visitValue(pathCursor)) {
             reader.skipValue();
             // an array can itself be a value in a parent array or object
-            pointer.bumpIndexOrDropLast();
+            pathCursor.advance();
           } else {
             reader.beginArray();
-            pointer.appendIndex();
+            pathCursor.push(0);
           }
           break;
 
         case BEGIN_OBJECT:
-          if (visitor.skipInner(pointer) || !visitor.visitValue(pointer)) {
+          if (visitor.skipInner(pathCursor) || !visitor.visitValue(pathCursor)) {
             reader.skipValue();
             // an object can itself be a value in a parent array or object
-            pointer.bumpIndexOrDropLast();
+            pathCursor.advance();
           } else {
             reader.beginObject();
           }
@@ -78,70 +97,61 @@ public class JsonStreamTraversal {
 
         case NAME:
           String key = reader.nextName();
-          pointer.name(key);
+          pathCursor.push(key);
           break;
 
         case END_ARRAY:
           reader.endArray();
-          pointer.dropLast();
+          pathCursor.pop();
           // an array can itself be a value in a parent array or object
-          pointer.bumpIndexOrDropLast();
+          pathCursor.advance();
           break;
 
         case END_OBJECT:
           reader.endObject();
           // an object can itself be a value in a parent array or object
-          pointer.bumpIndexOrDropLast();
+          pathCursor.advance();
           break;
 
         case BOOLEAN:
-          if (visitor.visitValue(pointer)) {
+          if (visitor.visitValue(pathCursor)) {
             boolean value = reader.nextBoolean();
-            visitor.valueVisited(pointer, value);
+            visitor.valueVisited(pathCursor, value);
           } else {
             reader.skipValue();
           }
-          pointer.bumpIndexOrDropLast();
+          pathCursor.advance();
           break;
 
         case STRING:
-          if (!visitor.visitValue(pointer)) {
+          if (!visitor.visitValue(pathCursor)) {
             reader.skipValue();
           } else {
             String raw = reader.nextString();
-            if (!visitor.expandValue(pointer, raw)) {
-              visitor.valueVisited(pointer, raw);
-            } else {
-              try (InputStream is = new ByteArrayInputStream(raw.getBytes())) {
-                // make a copy of the pointer to make sure it's in original position after
-                // traversing inner json
-                JsonPointer innerPath = pointer.copy();
-                traverse(is, visitor, innerPath);
-              } catch (Exception e) {
-                visitor.expandValueFailed(pointer, raw, e);
-              }
+            if (!traverse(raw, visitor, pathCursor)) {
+              visitor.valueVisited(pathCursor, raw);
             }
           }
-          pointer.bumpIndexOrDropLast();
+          pathCursor.advance();
           break;
 
         case NUMBER:
-          if (visitor.visitValue(pointer)) {
+          if (visitor.visitValue(pathCursor)) {
             // read a number as a string to preserve exact format
-            visitor.valueVisited(pointer, reader.nextString());
+            visitor.valueVisited(pathCursor, reader.nextString());
           } else {
             reader.skipValue();
           }
-          pointer.bumpIndexOrDropLast();
+          pathCursor.advance();
           break;
 
         case NULL:
-          if (visitor.visitValue(pointer)) {
-            visitor.valueVisited(pointer, reader.nextNull());
+          if (visitor.visitValue(pathCursor)) {
+            visitor.valueVisited(pathCursor, reader.nextNull());
           } else {
             reader.skipValue();
           }
-          pointer.bumpIndexOrDropLast();
+          pathCursor.advance();
           break;
       }
     }

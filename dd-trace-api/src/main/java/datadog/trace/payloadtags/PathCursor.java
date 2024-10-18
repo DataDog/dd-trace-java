@@ -1,48 +1,47 @@
-package datadog.trace.payloadtags.json;
+package datadog.trace.payloadtags;
 
 import java.util.Arrays;
 
-public class JsonPointer {
+/** Represents a mutable path in a JSON-like structure with an optional attached object. */
+public class PathCursor {
   private final Object[] parts;
   private int size;
+  private Object value;
 
-  public JsonPointer(int capacity) {
+  public PathCursor(int capacity) {
     super();
     assert capacity > 0;
     parts = new Object[capacity];
   }
 
-  private JsonPointer(JsonPointer that) {
+  private PathCursor(PathCursor that) {
     super();
     parts = Arrays.copyOf(that.parts, that.length());
     size = that.size;
+    value = that.value;
   }
 
-  public JsonPointer name(String value) {
+  public PathCursor push(String value) {
     assert size < parts.length;
     parts[size] = value.replace(".", "\\.");
     size += 1;
     return this;
   }
 
-  public JsonPointer index(int value) {
+  public PathCursor push(int value) {
     assert size < parts.length;
     parts[size] = value;
     size += 1;
     return this;
   }
 
-  public void appendIndex() {
-    index(0);
-  }
-
-  public void dropLast() {
+  public void pop() {
     if (size > 0) {
       size -= 1;
     }
   }
 
-  public void bumpIndexOrDropLast() {
+  public void advance() {
     if (size > 0) {
       Object last = parts[size - 1];
       if (last instanceof Integer) {
@@ -53,8 +52,8 @@ public class JsonPointer {
     }
   }
 
-  public JsonPointer copy() {
-    return new JsonPointer(this);
+  public PathCursor copy() {
+    return new PathCursor(this);
   }
 
   public int length() {
@@ -75,5 +74,14 @@ public class JsonPointer {
       sb.append(parts[i]);
     }
     return sb.toString();
+  }
+
+  public Object attachedValue() {
+    return value;
+  }
+
+  public PathCursor attachValue(Object value) {
+    this.value = value;
+    return this;
   }
 }

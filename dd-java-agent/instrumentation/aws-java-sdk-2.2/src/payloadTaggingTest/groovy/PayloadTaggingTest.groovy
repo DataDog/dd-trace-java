@@ -9,6 +9,7 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.apigateway.ApiGatewayClient
 import software.amazon.awssdk.services.eventbridge.EventBridgeClient
+import software.amazon.awssdk.services.sns.SnsClient
 import software.amazon.awssdk.services.sqs.SqsClient
 import spock.lang.Shared
 import java.time.Duration
@@ -21,22 +22,28 @@ class PayloadTaggingTest extends AgentTestRunner {
 
   static final LOCALSTACK = new GenericContainer(DockerImageName.parse("localstack/localstack"))
   .withExposedPorts(4566) // Default LocalStack port
-  .withEnv("SERVICES", "apigateway,events,sqs")
+  .withEnv("SERVICES", "apigateway,events,sns,sqs")
   .withReuse(true)
   .withStartupTimeout(Duration.ofSeconds(120))
 
   @Shared
-  SqsClient sqsClient
-  @Shared
   ApiGatewayClient apiGatewayClient
+
   @Shared
   EventBridgeClient eventBridgeClient
+
+  @Shared
+  SnsClient snsClient
+
+  @Shared
+  SqsClient sqsClient
 
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
-    injectSysConfig(TracerConfig.TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING, "\$.*")
-    injectSysConfig(TracerConfig.TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING, "\$.*")
+    String redactAll = "\$.*"
+    injectSysConfig(TracerConfig.TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING, redactAll)
+    injectSysConfig(TracerConfig.TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING, redactAll)
   }
 
   def setupSpec() {
@@ -54,6 +61,12 @@ class PayloadTaggingTest extends AgentTestRunner {
       .build()
 
     eventBridgeClient = EventBridgeClient.builder()
+      .endpointOverride(endpoint)
+      .region(region)
+      .credentialsProvider(credentialsProvider)
+      .build()
+
+    snsClient = SnsClient.builder()
       .endpointOverride(endpoint)
       .region(region)
       .credentialsProvider(credentialsProvider)
@@ -95,7 +108,11 @@ class PayloadTaggingTest extends AgentTestRunner {
     service       | requestRedactedTag           | responseRedactedTag             | requestClosure
     "ApiGateway"  | "aws.request.body.name"      | "aws.response.body.value"       | { apiGatewayClient.createApiKey { it.name("testapi") } }
     "EventBridge" | "aws.request.body.Name"      | "aws.response.body.EventBusArn" | { eventBridgeClient.createEventBus { it.name("testbus") } }
+    "Sns"         | "aws.request.body.Name"      | "aws.response.body.TopicArn"    | { snsClient.createTopic { it.name("testtopic") } }
     "Sqs"         | "aws.request.body.QueueName" | "aws.response.body.QueueUrl"    | { sqsClient.createQueue { it.queueName("testqueue") } }
+    //TODO add other services
+
+    //TODO find interesting req/resp with embedded json and/or binary data
   }
 }
 

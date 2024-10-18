@@ -19,7 +19,6 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.monitor.Monitoring;
 import datadog.communication.monitor.Recording;
 import datadog.trace.api.Config;
-import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.DynamicConfig;
@@ -90,11 +89,9 @@ import datadog.trace.core.scopemanager.ContinuableScopeManager;
 import datadog.trace.core.taginterceptor.RuleFlags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.lambda.LambdaHandler;
-import datadog.trace.payloadtags.JsonTagsExtractor;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentTaskScheduler;
 import java.io.IOException;
-import java.io.InputStream;
 import java.lang.ref.WeakReference;
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -222,9 +219,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final CallbackProvider universalCallbackProvider;
 
   private final PropagationTags.Factory propagationTagsFactory;
-
-  private final JsonTagsExtractor requestPayloadTagExtractor;
-  private final JsonTagsExtractor responsePayloadTagExtractor;
 
   @Override
   public ConfigSnapshot captureTraceConfig() {
@@ -780,23 +774,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     } else {
       this.localRootSpanTags = localRootSpanTags;
     }
-    requestPayloadTagExtractor =
-        new JsonTagsExtractor.Builder()
-            .addRedactionRules(ConfigDefaults.DEFAULT_CLOUD_PAYLOAD_TAGGING)
-            .addRedactionRules(ConfigDefaults.DEFAULT_CLOUD_REQUEST_PAYLOAD_TAGGING)
-            .addRedactionRules(config.getCloudRequestPayloadTagging())
-            .depthLimit(config.getCloudPayloadTaggingMaxDepth())
-            .tagsLimit(config.getCloudPayloadTaggingMaxTags())
-            .build();
-
-    responsePayloadTagExtractor =
-        new JsonTagsExtractor.Builder()
-            .addRedactionRules(ConfigDefaults.DEFAULT_CLOUD_PAYLOAD_TAGGING)
-            .addRedactionRules(ConfigDefaults.DEFAULT_CLOUD_RESPONSE_PAYLOAD_TAGGING)
-            .addRedactionRules(config.getCloudResponsePayloadTagging())
-            .depthLimit(config.getCloudPayloadTaggingMaxDepth())
-            .tagsLimit(config.getCloudPayloadTaggingMaxTags())
-            .build();
   }
 
   /** Used by AgentTestRunner to inject configuration into the test tracer. */
@@ -1214,22 +1191,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       return ((DDSpanContext) ctx).getTraceSegment();
     }
     return null;
-  }
-
-  @Override
-  public void addTagsFromResponseBody(AgentSpan span, InputStream body, String tagPrefix) {
-    if (responsePayloadTagExtractor != null) {
-      Map<String, Object> tags = responsePayloadTagExtractor.extractTags(body, tagPrefix);
-      setTags(span, tags);
-    }
-  }
-
-  @Override
-  public void addTagsFromRequestBody(AgentSpan span, InputStream body, String tagPrefix) {
-    if (requestPayloadTagExtractor != null) {
-      Map<String, Object> tags = requestPayloadTagExtractor.extractTags(body, tagPrefix);
-      setTags(span, tags);
-    }
   }
 
   private static void setTags(AgentSpan span, Map<String, Object> tags) {
