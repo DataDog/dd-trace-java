@@ -21,6 +21,7 @@ import com.datadog.iast.util.RangeBuilder;
 import datadog.trace.api.Config;
 import datadog.trace.api.Pair;
 import datadog.trace.api.iast.IastContext;
+import datadog.trace.api.iast.Taintable;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.instrumentation.iastinstrumenter.IastExclusionTrie;
@@ -108,17 +109,35 @@ public abstract class SinkModuleBase {
   protected final Evidence checkInjection(
       final IastContext ctx,
       final VulnerabilityType type,
-      final Object value,
+      Object value,
       @Nullable final EvidenceBuilder evidenceBuilder,
       @Nullable final LocationSupplier locationSupplier) {
 
     final TaintedObjects to = ctx.getTaintedObjects();
-    final TaintedObject tainted = to.get(value);
-    if (tainted == null) {
-      return null;
+    final Range[] valueRanges;
+    if (value instanceof Taintable) {
+      final Taintable taintable = (Taintable) value;
+      if (!taintable.$DD$isTainted()) {
+        return null;
+      }
+      final Source source = (Source) taintable.$$DD$getSource();
+      final Object origin = source.getRawValue();
+      final TaintedObject tainted = origin == null ? null : to.get(origin);
+      if (origin != null && tainted != null) {
+        valueRanges = Ranges.getNotMarkedRanges(tainted.getRanges(), type.mark());
+        value = origin;
+      } else {
+        valueRanges = Ranges.forObject((Source) taintable.$$DD$getSource(), type.mark());
+        value = String.format("Tainted reference detected in " + value.getClass());
+      }
+    } else {
+      final TaintedObject tainted = to.get(value);
+      if (tainted == null) {
+        return null;
+      }
+      valueRanges = Ranges.getNotMarkedRanges(tainted.getRanges(), type.mark());
     }
 
-    final Range[] valueRanges = Ranges.getNotMarkedRanges(tainted.getRanges(), type.mark());
     if (valueRanges == null || valueRanges.length == 0) {
       return null;
     }
