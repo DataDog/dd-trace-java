@@ -38,6 +38,8 @@ import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.function.Function;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -817,7 +819,7 @@ public class DDSpanContext
 
   /** @see CoreSpan#getMetaStruct() */
   public Map<String, Object> getMetaStruct() {
-    return metaStruct;
+    return Collections.unmodifiableMap(metaStruct);
   }
 
   /** @see CoreSpan#setMetaStruct(String, Object) */
@@ -1022,19 +1024,20 @@ public class DDSpanContext
     getRootSpanContextOrThis().setMetaStructCurrent(field, value);
   }
 
+  @SuppressWarnings("unchecked")
   @Override
-  public Object getMetaStructTop(String key) {
-    return getRootSpanContextOrThis().getMetaStructCurrent(key);
+  public <T> T getOrCreateMetaStructTop(final String key, final Function<String, T> defaultValue) {
+    final DDSpanContext top = getRootSpanContextOrThis();
+    if (top.metaStruct == EMPTY_META_STRUCT) {
+       // this will safely create the metastruct if the field has not been initialized already
+       top.setMetaStruct(key, defaultValue.apply(key));
+    }
+    return (T) top.metaStruct.computeIfAbsent(key, defaultValue);
   }
 
   @Override
   public void setMetaStructCurrent(String field, Object value) {
     setMetaStruct(field, value);
-  }
-
-  @Override
-  public Object getMetaStructCurrent(String key) {
-    return getMetaStruct().get(key);
   }
 
   public void setRequiresPostProcessing(boolean postProcessing) {

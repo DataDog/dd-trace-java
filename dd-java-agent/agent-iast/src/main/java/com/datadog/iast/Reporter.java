@@ -16,6 +16,8 @@ import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.stacktrace.StackTraceEvent;
 import datadog.trace.util.stacktrace.StackTraceFrame;
 import datadog.trace.util.stacktrace.StackUtils;
+
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -93,8 +95,7 @@ public class Reporter {
     }
     List<StackTraceFrame> frames = StackUtils.generateUserCodeStackTrace();
     StackTraceEvent stackTraceEvent = new StackTraceEvent(frames, DEFAULT_LANGUAGE, index, null);
-    final TraceSegment segment = reqCtx.getTraceSegment();
-    StackUtils.addStacktraceEventsToMetaStruct(segment, METASTRUCT_VULNERABILITY, stackTraceEvent);
+    StackUtils.addStacktraceEventsToMetaStruct(reqCtx, METASTRUCT_VULNERABILITY, Collections.singletonList(stackTraceEvent));
     return stackTraceEvent.getId();
   }
 

@@ -3,6 +3,8 @@ package datadog.trace.api.gateway;
 import datadog.trace.api.internal.TraceSegment;
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * This is the context that will travel along with the request and be presented to the
@@ -16,6 +18,8 @@ public interface RequestContext extends Closeable {
   void setBlockResponseFunction(BlockResponseFunction blockResponseFunction);
 
   BlockResponseFunction getBlockResponseFunction();
+
+  <T>T getOrCreateMetaStructTop(String key, Function<String, T> defaultValue);
 
   class Noop implements RequestContext {
     public static final RequestContext INSTANCE = new Noop();
@@ -37,6 +41,11 @@ public interface RequestContext extends Closeable {
 
     @Override
     public BlockResponseFunction getBlockResponseFunction() {
+      return null;
+    }
+
+    @Override
+    public <T> T getOrCreateMetaStructTop(String key, Function<String, T> defaultValue) {
       return null;
     }
 

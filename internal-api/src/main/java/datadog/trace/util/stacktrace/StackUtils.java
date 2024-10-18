@@ -1,10 +1,13 @@
 package datadog.trace.util.stacktrace;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.api.gateway.RequestContext;
+
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -75,18 +78,11 @@ public abstract class StackUtils {
         .collect(Collectors.toList());
   }
 
-  public static synchronized void addStacktraceEventsToMetaStruct(
-      final TraceSegment segment, final String productKey, final StackTraceEvent... events) {
-    Map<String, List<StackTraceEvent>> stackTraceBatch =
-        (Map<String, List<StackTraceEvent>>) segment.getMetaStructTop(META_STRUCT_KEY);
-    if (stackTraceBatch == null) {
-      stackTraceBatch = new java.util.HashMap<>();
-      segment.setMetaStructTop(META_STRUCT_KEY, stackTraceBatch);
-    }
-    if (!stackTraceBatch.containsKey(productKey)) {
-      stackTraceBatch.put(productKey, new java.util.ArrayList<>());
-    }
-    stackTraceBatch.get(productKey).addAll(Arrays.asList(events));
+  public static void addStacktraceEventsToMetaStruct(
+      final RequestContext reqCtx, final String productKey, final List<StackTraceEvent> events) {
+    final Map<String, List<StackTraceEvent>> stackTraceBatch = reqCtx.getOrCreateMetaStructTop(META_STRUCT_KEY, k -> new ConcurrentHashMap<>());
+    final List<StackTraceEvent> list = stackTraceBatch.computeIfAbsent(productKey, k -> new ArrayList<>());
+    list.addAll(events);
   }
 
   private static class OneTimePredicate<T> implements Predicate<T> {

@@ -589,8 +589,7 @@ public class GatewayBridge {
         // Report collected stack traces
         List<StackTraceEvent> stackTraces = ctx.getStackTraces();
         if (stackTraces != null && !stackTraces.isEmpty()) {
-          StackUtils.addStacktraceEventsToMetaStruct(
-              traceSeg, METASTRUCT_EXPLOIT, stackTraces.toArray(new StackTraceEvent[0]));
+          StackUtils.addStacktraceEventsToMetaStruct(ctx_, METASTRUCT_EXPLOIT, stackTraces);
         }
 
       } else if (hasUserTrackingEvent(traceSeg)) {
