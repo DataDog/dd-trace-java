@@ -11,6 +11,7 @@ import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.CoverageErrorType;
 import datadog.trace.civisibility.coverage.ConcurrentCoverageStore;
 import datadog.trace.civisibility.source.SourcePathResolver;
+import datadog.trace.civisibility.source.SourceResolutionException;
 import datadog.trace.civisibility.source.Utils;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -52,7 +53,8 @@ public class LineCoverageStore extends ConcurrentCoverageStore<LineProbes> {
   @Nullable
   @Override
   protected TestReport report(
-      DDTraceId testSessionId, Long testSuiteId, long testSpanId, Collection<LineProbes> probes) {
+      DDTraceId testSessionId, Long testSuiteId, long testSpanId, Collection<LineProbes> probes)
+      throws SourceResolutionException {
     try {
       Map<Class<?>, ExecutionDataAdapter> combinedExecutionData = new IdentityHashMap<>();
       Collection<String> combinedNonCodeResources = new HashSet<>();

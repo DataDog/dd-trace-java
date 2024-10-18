@@ -170,16 +170,28 @@ public abstract class CiVisibilityPluginExtension {
           new ArrayList<>(ciVisibilityService.getExcludeClassLoaders()));
     }
 
-    List<String> taskIncludePackages = jacocoTaskExtension.getIncludes();
-    if (taskIncludePackages == null) {
-      taskIncludePackages = new ArrayList<>();
-      jacocoTaskExtension.setIncludes(taskIncludePackages);
-    }
-    for (String coverageEnabledPackage : ciVisibilityService.getCoverageEnabledPackages()) {
-      if (coverageEnabledPackage != null && !coverageEnabledPackage.isEmpty()) {
-        taskIncludePackages.add(coverageEnabledPackage);
+    jacocoTaskExtension.setIncludes(
+        merge(
+            jacocoTaskExtension.getIncludes(), ciVisibilityService.getCoverageIncludedPackages()));
+    jacocoTaskExtension.setExcludes(
+        merge(
+            jacocoTaskExtension.getExcludes(), ciVisibilityService.getCoverageExcludedPackages()));
+  }
+
+  @SafeVarargs
+  private static List<String> merge(List<String>... packageLists) {
+    List<String> merged = new ArrayList<>();
+    for (List<String> packageList : packageLists) {
+      if (packageList == null) {
+        continue;
+      }
+      for (String pkg : packageList) {
+        if (pkg != null && !pkg.isEmpty()) {
+          merged.add(pkg);
+        }
       }
     }
+    return merged;
   }
 
   private void applyTracerSettings(
