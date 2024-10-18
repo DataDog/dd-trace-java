@@ -13,7 +13,6 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstanceStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.io.InputStream;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,7 +22,6 @@ import software.amazon.awssdk.core.interceptor.Context;
 import software.amazon.awssdk.core.interceptor.ExecutionAttribute;
 import software.amazon.awssdk.core.interceptor.ExecutionAttributes;
 import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
-import software.amazon.awssdk.core.interceptor.SdkExecutionAttribute;
 import software.amazon.awssdk.http.SdkHttpRequest;
 
 /** AWS request execution interceptor */
@@ -60,12 +58,7 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
     if (span != null) {
       try (AgentScope ignored = activateSpan(span)) {
         DECORATE.onRequest(span, context.httpRequest());
-        DECORATE.onSdkRequest(
-            span,
-            context.request(),
-            context.httpRequest(),
-            executionAttributes,
-            context.requestBody());
+        DECORATE.onSdkRequest(span, context.request(), context.httpRequest(), executionAttributes);
       }
     }
   }
@@ -104,36 +97,15 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
     }
   }
 
-  public Optional<InputStream> modifyHttpResponseContent(
-      Context.ModifyHttpResponse context, ExecutionAttributes executionAttributes) {
-    Optional<InputStream> is =
-        ExecutionInterceptor.super.modifyHttpResponseContent(context, executionAttributes);
-    if (is.isPresent()) {
-      Config config = Config.get();
-      if (config.isCloudResponsePayloadTaggingEnabled()) {
-        String serviceName = executionAttributes.getAttribute(SdkExecutionAttribute.SERVICE_NAME);
-        if (config.isCloudPayloadTaggingEnabledFor(serviceName)) {
-          // Wrap the response so that it can be read again for tag extraction
-          return is.map(ResponseBodyStreamWrapper::new);
-        }
-      }
-    }
-    return Optional.empty();
-  }
-
   @Override
   public void afterExecution(
       final Context.AfterExecution context, final ExecutionAttributes executionAttributes) {
+
     final AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
     if (span != null) {
       executionAttributes.putAttribute(SPAN_ATTRIBUTE, null);
       // Call onResponse on both types of responses:
-      DECORATE.onSdkResponse(
-          span,
-          context.response(),
-          context.httpResponse(),
-          executionAttributes,
-          context.responseBody());
+      DECORATE.onSdkResponse(span, context.response(), context.httpResponse(), executionAttributes);
       DECORATE.onResponse(span, context.httpResponse());
       DECORATE.beforeFinish(span);
       span.finish();
@@ -156,8 +128,7 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
       Optional<SdkResponse> responseOpt = context.response();
       if (responseOpt.isPresent()) {
         SdkResponse response = responseOpt.get();
-        DECORATE.onSdkResponse(
-            span, response, response.sdkHttpResponse(), executionAttributes, Optional.empty());
+        DECORATE.onSdkResponse(span, response, response.sdkHttpResponse(), executionAttributes);
         DECORATE.onResponse(span, response.sdkHttpResponse());
         if (span.isError()) {
           DECORATE.onError(span, context.exception());

@@ -59,9 +59,11 @@ dependencies {
   payloadTaggingTestImplementation group: 'software.amazon.awssdk', name: 'apigateway', version: '2.18.40'
   payloadTaggingTestImplementation group: 'software.amazon.awssdk', name: 'eventbridge', version: '2.7.4' // the earliest version of EventBridgeClient
   payloadTaggingTestImplementation group: 'software.amazon.awssdk', name: 'sqs', version: '2.23.4' // earlier versions <=2.20.33 don't use JSON
+  payloadTaggingTestImplementation group: 'software.amazon.awssdk', name: 'sns', version: '2.18.40'
   latestPayloadTaggingTestImplementation group: 'software.amazon.awssdk', name: 'apigateway', version: '2.25.40'
   latestPayloadTaggingTestImplementation group: 'software.amazon.awssdk', name: 'eventbridge', version: '2.25.40'
   latestPayloadTaggingTestImplementation group: 'software.amazon.awssdk', name: 'sqs', version: '2.25.40'
+  latestPayloadTaggingTestImplementation group: 'software.amazon.awssdk', name: 'sns', version: '2.25.40'
 
   latestDepTestImplementation project(':dd-java-agent:instrumentation:apache-httpclient-4')
   latestDepTestImplementation project(':dd-java-agent:instrumentation:netty-4.1')

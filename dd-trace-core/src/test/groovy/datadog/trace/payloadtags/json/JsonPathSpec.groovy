@@ -1,5 +1,6 @@
 package datadog.trace.payloadtags.json
 
+import datadog.trace.payloadtags.PathCursor
 import spock.lang.Specification
 
 class JsonPathSpec extends Specification {
@@ -9,7 +10,7 @@ class JsonPathSpec extends Specification {
   }
 
   static p() {
-    return new JsonPointer(10)
+    return new PathCursor(10)
   }
 
   def "matching"() {
@@ -18,26 +19,26 @@ class JsonPathSpec extends Specification {
 
     where:
     pattern                                          | path
-    jp().name("foo").name("bar").build()             | p().name("foo").name("bar")
-    jp().name("foo").name("bar").name("baz").build() | p().name("foo").name("bar").name("baz")
-    jp().name("foo").anyChild().name("baz").build()  | p().name("foo").name("bar").name("baz")
-    jp().name("foo").anyChild().name("baz").build()  | p().name("foo").index(42).name("baz")
-    jp().anyChild().build()                          | p().name("phoneNumbers")
-    jp().anyChild().anyChild().build()               | p().name("foo").name("bar")
-    jp().name("keys").index(3).build()               | p().name("keys").index(3)
-    jp().name("keys").index(3).name("b").build()     | p().name("keys").index(3).name("b")
-    jp().anyDesc().name("password").build()          | p().name("foo").name("bar").index(33).name("password")
-    jp().name("foo").anyDesc().name("bar").build()   | p().name("foo").name("bar")
-    jp().name("foo").anyDesc().name("bar").build()   | p().name("foo").name("bar").index(33).name("bar")
-    jp().name("foo").anyDesc().name("bar").build()   | p().name("foo").name("bar").index(33).name("bar")
-    jp().name("foo").anyDesc().name("bar").build()   | p().name("foo").name("bar").index(33).name("bar")
-    jp().name("foo").anyDesc().name("bar").build()   | p().name("foo").name("baz").index(33).name("bar")
+    jp().name("foo").name("bar").build()             | p().push("foo").push("bar")
+    jp().name("foo").name("bar").name("baz").build() | p().push("foo").push("bar").push("baz")
+    jp().name("foo").anyChild().name("baz").build()  | p().push("foo").push("bar").push("baz")
+    jp().name("foo").anyChild().name("baz").build()  | p().push("foo").push(42).push("baz")
+    jp().anyChild().build()                          | p().push("phoneNumbers")
+    jp().anyChild().anyChild().build()               | p().push("foo").push("bar")
+    jp().name("keys").index(3).build()               | p().push("keys").push(3)
+    jp().name("keys").index(3).name("b").build()     | p().push("keys").push(3).push("b")
+    jp().anyDesc().name("password").build()          | p().push("foo").push("bar").push(33).push("password")
+    jp().name("foo").anyDesc().name("bar").build()   | p().push("foo").push("bar")
+    jp().name("foo").anyDesc().name("bar").build()   | p().push("foo").push("bar").push(33).push("bar")
+    jp().name("foo").anyDesc().name("bar").build()   | p().push("foo").push("bar").push(33).push("bar")
+    jp().name("foo").anyDesc().name("bar").build()   | p().push("foo").push("bar").push(33).push("bar")
+    jp().name("foo").anyDesc().name("bar").build()   | p().push("foo").push("baz").push(33).push("bar")
     jp().anyDesc().name("number").anyDesc()
       .name("area").anyDesc()
-      .name("code").build()                          | p().name("number").name("area").name("code")
+      .name("code").build()                          | p().push("number").push("area").push("code")
     jp().anyDesc().name("number").anyDesc()
       .name("area").anyDesc()
-      .name("code").build()                          | p().index(2).name("number").name("props").index(0).name("area").name("code")
+      .name("code").build()                          | p().push(2).push("number").push("props").push(0).push("area").push("code")
   }
 
   def "non matching"() {
@@ -46,29 +47,29 @@ class JsonPathSpec extends Specification {
 
     where:
     pattern                                          | path
-    jp().name("foo").name("bar").build()             | p().name("foo").name("Bar")
-    jp().name("foo").name("bar").name("baz").build() | p().name("foo").name("bar")
-    jp().name("foo").anyChild().build()              | p().name("bar").name("baz")
-    jp().name("foo").anyChild().name("baz").build()  | p().name("Foo").name("bar").name("baz")
-    jp().name("foo").anyChild().name("baz").build()  | p().name("foo").name("bar").name("Baz")
-    jp().name("foo").anyChild().name("baz").build()  | p().name("foo").name("bar").index(3).name("baz")
-    jp().name("foo").anyChild().name("baz").build()  | p().name("foo").name("bar").name("bar").name("baz")
-    jp().anyChild().build()                          | p().name("foo").name("bar")
-    jp().anyChild().anyChild().build()               | p().name("foo")
-    jp().anyChild().anyChild().build()               | p().name("foo").name("bar").name("baz")
-    jp().name("keys").index(3).build()               | p().name("keys").index(4)
-    jp().name("keys").index(3).build()               | p().name("keys").name("3")
-    jp().name("keys").index(3).name("b").build()     | p().name("keys").index(3).name("a")
-    jp().name("keys").index(3).name("b").build()     | p().name("keys").index(5).name("b")
-    jp().name("keyz").index(3).name("b").build()     | p().name("keys").index(5).name("b")
-    jp().anyDesc().name("password").build()          | p().name("foo").name("bar").index(33).name("Password")
-    jp().name("foo").anyDesc().name("bar").build()   | p().name("foo").name("bar").index(33).name("baz")
+    jp().name("foo").name("bar").build()             | p().push("foo").push("Bar")
+    jp().name("foo").name("bar").name("baz").build() | p().push("foo").push("bar")
+    jp().name("foo").anyChild().build()              | p().push("bar").push("baz")
+    jp().name("foo").anyChild().name("baz").build()  | p().push("Foo").push("bar").push("baz")
+    jp().name("foo").anyChild().name("baz").build()  | p().push("foo").push("bar").push("Baz")
+    jp().name("foo").anyChild().name("baz").build()  | p().push("foo").push("bar").push(3).push("baz")
+    jp().name("foo").anyChild().name("baz").build()  | p().push("foo").push("bar").push("bar").push("baz")
+    jp().anyChild().build()                          | p().push("foo").push("bar")
+    jp().anyChild().anyChild().build()               | p().push("foo")
+    jp().anyChild().anyChild().build()               | p().push("foo").push("bar").push("baz")
+    jp().name("keys").index(3).build()               | p().push("keys").push(4)
+    jp().name("keys").index(3).build()               | p().push("keys").push("3")
+    jp().name("keys").index(3).name("b").build()     | p().push("keys").push(3).push("a")
+    jp().name("keys").index(3).name("b").build()     | p().push("keys").push(5).push("b")
+    jp().name("keyz").index(3).name("b").build()     | p().push("keys").push(5).push("b")
+    jp().anyDesc().name("password").build()          | p().push("foo").push("bar").push(33).push("Password")
+    jp().name("foo").anyDesc().name("bar").build()   | p().push("foo").push("bar").push(33).push("baz")
     jp().anyDesc().name("number").anyDesc()
       .name("AREA").anyDesc()
-      .name("code").build()                          | p().name("number").name("area").name("code")
+      .name("code").build()                          | p().push("number").push("area").push("code")
     jp().anyDesc().name("number").anyDesc()
       .name("area").anyDesc()
-      .name("CODE").build()                          | p().index(2).name("number").name("props").index(0).name("area").name("code")
+      .name("CODE").build()                          | p().push(2).push("number").push("props").push(0).push("area").push("code")
   }
 
   def "print normalized"() {
