@@ -13,7 +13,6 @@ import datadog.communication.serialization.Mapper;
 import datadog.communication.serialization.MessageFormatter;
 import datadog.communication.serialization.StreamingBuffer;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import datadog.trace.util.stacktrace.StackTraceBatch;
 import datadog.trace.util.stacktrace.StackTraceEvent;
 import datadog.trace.util.stacktrace.StackTraceFrame;
 import java.io.IOException;
@@ -794,32 +793,14 @@ public class MsgPackWriterTest {
 
   @Test
   public void testStackTraceBatch() {
-    final StackTraceBatch batch =
-        new StackTraceBatch(buildStacktraceEvents(), buildStacktraceEvents());
+    Map<String, List<StackTraceEvent>> batch = new HashMap<>();
+    batch.put("product_key", buildStacktraceEvents());
     testStackTraceBatch(batch);
   }
 
   @Test
-  public void tesNullContentInStackTraceBatch() {
-    final StackTraceBatch batch = new StackTraceBatch(null, null);
-    testStackTraceBatch(batch);
-  }
-
-  @Test
-  public void testEmptyContentInStackTraceBatch() {
-    final StackTraceBatch batch = new StackTraceBatch(new ArrayList<>(), new ArrayList<>());
-    testStackTraceBatch(batch);
-  }
-
-  @Test
-  public void testOnlyExploitInStackTraceBatch() {
-    final StackTraceBatch batch = new StackTraceBatch(buildStacktraceEvents(), null);
-    testStackTraceBatch(batch);
-  }
-
-  @Test
-  public void testOnlyVulnsContentInStackTraceBatch() {
-    final StackTraceBatch batch = new StackTraceBatch(null, buildStacktraceEvents());
+  public void tesEmptyContentInStackTraceBatch() {
+    Map<String, List<StackTraceEvent>> batch = new HashMap<>();
     testStackTraceBatch(batch);
   }
 
@@ -863,7 +844,7 @@ public class MsgPackWriterTest {
     messageFormatter.flush();
   }
 
-  private void testStackTraceBatch(final StackTraceBatch batch) {
+  private void testStackTraceBatch(final Map<String, List<StackTraceEvent>> batch) {
     MessageFormatter messageFormatter =
         new MsgPackWriter(
             newBuffer(
@@ -880,30 +861,18 @@ public class MsgPackWriterTest {
     messageFormatter.flush();
   }
 
-  private void checkStackTraceBatch(StackTraceBatch batch, MessageUnpacker unpacker)
-      throws IOException {
-    boolean hasExploit = batch.getExploit() != null && !batch.getExploit().isEmpty();
-    boolean hasVulnerability =
-        batch.getVulnerability() != null && !batch.getVulnerability().isEmpty();
-    if (!hasExploit && !hasVulnerability) {
-      assertEquals(0, unpacker.unpackMapHeader());
+  private void checkStackTraceBatch(
+      Map<String, List<StackTraceEvent>> batch, MessageUnpacker unpacker) throws IOException {
+
+    assertEquals(batch.size(), unpacker.unpackMapHeader());
+    if (batch.isEmpty()) {
       return;
     }
-    int mapSize = hasExploit && hasVulnerability ? 2 : 1;
-    assertEquals(mapSize, unpacker.unpackMapHeader());
-    if (hasExploit) {
-      assertEquals("exploit", unpacker.unpackString());
-      assertEquals(batch.getExploit().size(), unpacker.unpackArrayHeader());
-      for (StackTraceEvent event : batch.getExploit()) {
-        checkStackTraceEvent(event, unpacker);
-      }
-    }
-    if (hasVulnerability) {
-      assertEquals("vulnerability", unpacker.unpackString());
-      assertEquals(batch.getVulnerability().size(), unpacker.unpackArrayHeader());
-      for (StackTraceEvent event : batch.getVulnerability()) {
-        checkStackTraceEvent(event, unpacker);
-      }
+    assertEquals("product_key", unpacker.unpackString());
+    List<StackTraceEvent> events = batch.get("product_key");
+    assertEquals(events.size(), unpacker.unpackArrayHeader());
+    for (StackTraceEvent event : events) {
+      checkStackTraceEvent(event, unpacker);
     }
   }
 

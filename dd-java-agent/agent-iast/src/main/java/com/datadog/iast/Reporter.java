@@ -2,7 +2,6 @@ package com.datadog.iast;
 
 import static com.datadog.iast.IastTag.Enabled.ANALYZED;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
-import static datadog.trace.util.stacktrace.StackTraceBatch.META_STRUCT_KEY;
 import static datadog.trace.util.stacktrace.StackTraceEvent.DEFAULT_LANGUAGE;
 
 import com.datadog.iast.model.Vulnerability;
@@ -14,12 +13,13 @@ import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.*;
 import datadog.trace.util.AgentTaskScheduler;
-import datadog.trace.util.stacktrace.StackTraceBatch;
 import datadog.trace.util.stacktrace.StackTraceEvent;
 import datadog.trace.util.stacktrace.StackTraceFrame;
 import datadog.trace.util.stacktrace.StackUtils;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -38,6 +38,7 @@ public class Reporter {
   private static final String IAST_TAG = "iast";
 
   private static final String VULNERABILITY_SPAN_NAME = "vulnerability";
+  public static final String METASTRUCT_VULNERABILITY = "vulnerability";
 
   private final Predicate<Vulnerability> duplicated;
 
@@ -97,15 +98,16 @@ public class Reporter {
     List<StackTraceFrame> frames = StackUtils.generateUserCodeStackTrace();
     StackTraceEvent stackTraceEvent = new StackTraceEvent(frames, DEFAULT_LANGUAGE, index, null);
     final TraceSegment segment = reqCtx.getTraceSegment();
-    StackTraceBatch stackTraceBatch = ((StackTraceBatch) segment.getMetaStructTop(META_STRUCT_KEY));
+    Map<String, List<StackTraceEvent>> stackTraceBatch =
+        (Map<String, List<StackTraceEvent>>) segment.getMetaStructTop("_dd.stack");
     if (stackTraceBatch == null) {
-      stackTraceBatch = new StackTraceBatch();
-      segment.setMetaStructTop(META_STRUCT_KEY, stackTraceBatch);
+      stackTraceBatch = new HashMap<>();
+      segment.setMetaStructTop("_dd.stack", stackTraceBatch);
     }
-    if (stackTraceBatch.getVulnerability() == null) {
-      stackTraceBatch.setVulnerability(new ArrayList<>());
+    if (!stackTraceBatch.containsKey(METASTRUCT_VULNERABILITY)) {
+      stackTraceBatch.put(METASTRUCT_VULNERABILITY, new ArrayList<>());
     }
-    stackTraceBatch.getVulnerability().add(stackTraceEvent);
+    stackTraceBatch.get(METASTRUCT_VULNERABILITY).add(stackTraceEvent);
     return stackTraceEvent.getId();
   }
 

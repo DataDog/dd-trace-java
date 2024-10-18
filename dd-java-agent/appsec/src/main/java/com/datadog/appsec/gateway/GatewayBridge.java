@@ -5,7 +5,6 @@ import static com.datadog.appsec.event.data.MapDataBundle.Builder.CAPACITY_6_10;
 import static com.datadog.appsec.gateway.AppSecRequestContext.DEFAULT_REQUEST_HEADERS_ALLOW_LIST;
 import static com.datadog.appsec.gateway.AppSecRequestContext.REQUEST_HEADERS_ALLOW_LIST;
 import static com.datadog.appsec.gateway.AppSecRequestContext.RESPONSE_HEADERS_ALLOW_LIST;
-import static datadog.trace.util.stacktrace.StackTraceBatch.META_STRUCT_KEY;
 
 import com.datadog.appsec.AppSecSystem;
 import com.datadog.appsec.api.security.ApiSecurityRequestSampler;
@@ -37,7 +36,6 @@ import datadog.trace.api.telemetry.WafMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
-import datadog.trace.util.stacktrace.StackTraceBatch;
 import datadog.trace.util.stacktrace.StackTraceEvent;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -71,6 +69,8 @@ public class GatewayBridge {
   private static final String[] USER_TRACKING_TAGS = {
     "appsec.events.users.login.success.track", "appsec.events.users.login.failure.track"
   };
+
+  private static final String METASTRUCT_EXPLOIT = "exploit";
 
   private final SubscriptionService subscriptionService;
   private final EventProducerService producerService;
@@ -588,16 +588,16 @@ public class GatewayBridge {
         // Report collected stack traces
         List<StackTraceEvent> stackTraces = ctx.getStackTraces();
         if (stackTraces != null && !stackTraces.isEmpty()) {
-          StackTraceBatch stackTraceBatch =
-              ((StackTraceBatch) traceSeg.getMetaStructTop(META_STRUCT_KEY));
+          Map<String, List<StackTraceEvent>> stackTraceBatch =
+              ((Map<String, List<StackTraceEvent>>) traceSeg.getMetaStructTop("_dd.stack"));
           if (stackTraceBatch == null) {
-            stackTraceBatch = new StackTraceBatch(new ArrayList<>(), null);
-            traceSeg.setMetaStructTop(META_STRUCT_KEY, stackTraceBatch);
+            stackTraceBatch = new HashMap<>();
+            traceSeg.setMetaStructTop("_dd.stack", stackTraceBatch);
           }
-          if (stackTraceBatch.getExploit() == null) {
-            stackTraceBatch.setExploit(new ArrayList<>());
+          if (!stackTraceBatch.containsKey(METASTRUCT_EXPLOIT)) {
+            stackTraceBatch.put(METASTRUCT_EXPLOIT, new ArrayList<>());
           }
-          stackTraceBatch.getExploit().addAll(stackTraces);
+          stackTraceBatch.get(METASTRUCT_EXPLOIT).addAll(stackTraces);
         }
 
       } else if (hasUserTrackingEvent(traceSeg)) {
