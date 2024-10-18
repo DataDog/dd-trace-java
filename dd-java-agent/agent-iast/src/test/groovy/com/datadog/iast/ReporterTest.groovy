@@ -328,13 +328,15 @@ class ReporterTest extends DDSpecification {
     then:
     noExceptionThrown()
     2 * span.getRequestContext() >> reqCtx // first time to build the batch vulnerability, second time to build the stack trace
-    2 * reqCtx.getData(RequestContextSlot.IAST) >> null // first time to build the batch vulnerability, second time to build the stack trace
-    1 * reqCtx.getTraceSegment() >> traceSegment
+    1 * reqCtx.getData(RequestContextSlot.IAST) >> null
+    2 * reqCtx.getTraceSegment() >> traceSegment // first time to build the batch vulnerability, second time to build the stack trace
     1 * traceSegment.getDataTop('iast') >> null
     1 * traceSegment.setDataTop('iast', _ as VulnerabilityBatch)
     1 * traceSegment.setTagTop('asm.keep', true)
     1 * traceSegment.setTagTop('_dd.p.appsec', true)
     1 * traceSegment.setTagTop('_dd.iast.enabled', 1)
+    1 * traceSegment.getMetaStructTop('_dd.stack')
+    1 * traceSegment.setMetaStructTop('_dd.stack', _)
     0 * _
   }
 

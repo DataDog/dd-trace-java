@@ -17,7 +17,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -34,8 +33,6 @@ public class IastRequestContext implements IastContext, HasMetricCollector {
   @Nullable private volatile String xForwardedProto;
   @Nullable private volatile String contentType;
   @Nullable private volatile String authorization;
-  private final AtomicInteger stackTraceId = new AtomicInteger(0);
-
   /**
    * Use {@link IastRequestContext#IastRequestContext(TaintedObjects)} instead as we require more
    * control over the tainted objects dictionaries
@@ -124,11 +121,6 @@ public class IastRequestContext implements IastContext, HasMetricCollector {
 
   public void setTaintedObjects(@Nonnull final TaintedObjects taintedObjects) {
     this.taintedObjects = taintedObjects;
-  }
-
-  /* Auto incremental vulnerability stackTraceId per request*/
-  public String getStackTraceId() {
-    return String.valueOf(stackTraceId.incrementAndGet());
   }
 
   public static class Provider extends IastContext.Provider {

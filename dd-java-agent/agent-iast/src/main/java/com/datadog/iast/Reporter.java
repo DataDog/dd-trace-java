@@ -77,29 +77,25 @@ public class Reporter {
       @Nonnull final AgentSpan span, @Nonnull final Vulnerability vulnerability) {
     final VulnerabilityBatch batch = getOrCreateVulnerabilityBatch(span);
     if (batch != null) {
-      if (Config.get().isAppSecStackTraceEnabled()) {
-        String stackId = addVulnerabilityStackTrace(span);
+      batch.add(vulnerability);
+      if (Config.get().isAppSecStackTraceEnabled() && batch.getVulnerabilities() != null) {
+        String stackId =
+            addVulnerabilityStackTrace(span, String.valueOf(batch.getVulnerabilities().size()));
         if (stackId != null) {
           vulnerability.setStackId(stackId);
         }
       }
-      batch.add(vulnerability);
     }
   }
 
   @Nullable
-  private static String addVulnerabilityStackTrace(@NotNull AgentSpan span) {
+  private static String addVulnerabilityStackTrace(@NotNull AgentSpan span, String index) {
     final RequestContext reqCtx = span.getRequestContext();
     if (reqCtx == null) {
       return null;
     }
-    final IastRequestContext iastCtx = reqCtx.getData(RequestContextSlot.IAST);
-    if (iastCtx == null) {
-      return null;
-    }
     List<StackTraceFrame> frames = StackUtils.generateUserCodeStackTrace();
-    StackTraceEvent stackTraceEvent =
-        new StackTraceEvent(frames, DEFAULT_LANGUAGE, iastCtx.getStackTraceId(), null);
+    StackTraceEvent stackTraceEvent = new StackTraceEvent(frames, DEFAULT_LANGUAGE, index, null);
     final TraceSegment segment = reqCtx.getTraceSegment();
     StackTraceBatch stackTraceBatch = ((StackTraceBatch) segment.getMetaStructTop(META_STRUCT_KEY));
     if (stackTraceBatch == null) {
