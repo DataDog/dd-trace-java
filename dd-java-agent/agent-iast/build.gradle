@@ -8,21 +8,14 @@ plugins {
   id 'net.ltgt.errorprone' version '3.1.0'
 }
 
+ext {
+  defaultJdkVersion = 11
+  defaultJavaVersion = 8
+  defaultJavaCompilerRelease = 8
+}
+
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/version.gradle"
-
-java {
-  toolchain {
-    languageVersion.set(JavaLanguageVersion.of(11))
-  }
-  sourceCompatibility = 1.8
-  targetCompatibility = 1.8
-}
-
-tasks.withType(AbstractCompile).configureEach {
-  // ensure no APIs beyond JDK8 are used
-  options.release = 8
-}
 
 // First version with Mac M1 support
 def grpcVersion = '1.42.2'
