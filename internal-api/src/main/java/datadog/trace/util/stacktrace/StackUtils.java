@@ -1,14 +1,18 @@
 package datadog.trace.util.stacktrace;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.internal.TraceSegment;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public abstract class StackUtils {
+
+  public static final String META_STRUCT_KEY = "_dd.stack";
 
   public static <E extends Throwable> E update(
       final E exception, final Function<StackTraceElement[], StackTraceElement[]> filter) {
@@ -69,6 +73,20 @@ public abstract class StackUtils {
     return IntStream.range(0, elements.size())
         .mapToObj(idx -> new StackTraceFrame(idx, elements.get(idx)))
         .collect(Collectors.toList());
+  }
+
+  public static synchronized void addStacktraceEventsToMetaStruct(
+      final TraceSegment segment, final String productKey, final StackTraceEvent... events) {
+    Map<String, List<StackTraceEvent>> stackTraceBatch =
+        (Map<String, List<StackTraceEvent>>) segment.getMetaStructTop(META_STRUCT_KEY);
+    if (stackTraceBatch == null) {
+      stackTraceBatch = new java.util.HashMap<>();
+      segment.setMetaStructTop(META_STRUCT_KEY, stackTraceBatch);
+    }
+    if (!stackTraceBatch.containsKey(productKey)) {
+      stackTraceBatch.put(productKey, new java.util.ArrayList<>());
+    }
+    stackTraceBatch.get(productKey).addAll(Arrays.asList(events));
   }
 
   private static class OneTimePredicate<T> implements Predicate<T> {

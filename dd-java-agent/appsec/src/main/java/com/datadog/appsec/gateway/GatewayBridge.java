@@ -37,6 +37,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.util.stacktrace.StackTraceEvent;
+import datadog.trace.util.stacktrace.StackUtils;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
@@ -588,16 +589,8 @@ public class GatewayBridge {
         // Report collected stack traces
         List<StackTraceEvent> stackTraces = ctx.getStackTraces();
         if (stackTraces != null && !stackTraces.isEmpty()) {
-          Map<String, List<StackTraceEvent>> stackTraceBatch =
-              ((Map<String, List<StackTraceEvent>>) traceSeg.getMetaStructTop("_dd.stack"));
-          if (stackTraceBatch == null) {
-            stackTraceBatch = new HashMap<>();
-            traceSeg.setMetaStructTop("_dd.stack", stackTraceBatch);
-          }
-          if (!stackTraceBatch.containsKey(METASTRUCT_EXPLOIT)) {
-            stackTraceBatch.put(METASTRUCT_EXPLOIT, new ArrayList<>());
-          }
-          stackTraceBatch.get(METASTRUCT_EXPLOIT).addAll(stackTraces);
+          StackUtils.addStacktraceEventsToMetaStruct(
+              traceSeg, METASTRUCT_EXPLOIT, stackTraces.toArray(new StackTraceEvent[0]));
         }
 
       } else if (hasUserTrackingEvent(traceSeg)) {

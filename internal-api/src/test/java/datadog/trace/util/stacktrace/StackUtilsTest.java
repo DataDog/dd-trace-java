@@ -1,7 +1,13 @@
 package datadog.trace.util.stacktrace;
 
 import static com.google.common.truth.Truth.assertThat;
+import static datadog.trace.util.stacktrace.StackUtils.META_STRUCT_KEY;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
+import datadog.trace.api.internal.TraceSegment;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.function.Function;
 import org.junit.jupiter.api.Test;
@@ -90,6 +96,29 @@ public class StackUtilsTest {
       assertThat(frame.getClass_name()).doesNotContain("com.datadog");
       assertThat(frame.getClass_name()).doesNotContain("datadog.trace");
     }
+  }
+
+  @Test
+  public void addStacktraceEventsToMetaStruct() {
+    final TraceSegment traceSegmentMock = mock(TraceSegment.class);
+    final String productTest = "test";
+    final StackTraceEvent event = new StackTraceEvent(new ArrayList<>(0), "java", "id", "message");
+    StackUtils.addStacktraceEventsToMetaStruct(traceSegmentMock, productTest, event);
+    verify(traceSegmentMock).getMetaStructTop(META_STRUCT_KEY);
+    verify(traceSegmentMock)
+        .setMetaStructTop(
+            META_STRUCT_KEY,
+            new HashMap<String, List<StackTraceEvent>>() {
+              {
+                put(
+                    productTest,
+                    new ArrayList<StackTraceEvent>() {
+                      {
+                        add(event);
+                      }
+                    });
+              }
+            });
   }
 
   private static Throwable withStack(final StackTraceElement... stack) {

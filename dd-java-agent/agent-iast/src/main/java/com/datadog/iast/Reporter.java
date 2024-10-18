@@ -16,10 +16,7 @@ import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.stacktrace.StackTraceEvent;
 import datadog.trace.util.stacktrace.StackTraceFrame;
 import datadog.trace.util.stacktrace.StackUtils;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -98,16 +95,7 @@ public class Reporter {
     List<StackTraceFrame> frames = StackUtils.generateUserCodeStackTrace();
     StackTraceEvent stackTraceEvent = new StackTraceEvent(frames, DEFAULT_LANGUAGE, index, null);
     final TraceSegment segment = reqCtx.getTraceSegment();
-    Map<String, List<StackTraceEvent>> stackTraceBatch =
-        (Map<String, List<StackTraceEvent>>) segment.getMetaStructTop("_dd.stack");
-    if (stackTraceBatch == null) {
-      stackTraceBatch = new HashMap<>();
-      segment.setMetaStructTop("_dd.stack", stackTraceBatch);
-    }
-    if (!stackTraceBatch.containsKey(METASTRUCT_VULNERABILITY)) {
-      stackTraceBatch.put(METASTRUCT_VULNERABILITY, new ArrayList<>());
-    }
-    stackTraceBatch.get(METASTRUCT_VULNERABILITY).add(stackTraceEvent);
+    StackUtils.addStacktraceEventsToMetaStruct(segment, METASTRUCT_VULNERABILITY, stackTraceEvent);
     return stackTraceEvent.getId();
   }
 
