@@ -338,7 +338,7 @@ public class Config {
   private final boolean ciVisibilityItrEnabled;
   private final boolean ciVisibilityTestSkippingEnabled;
   private final boolean ciVisibilityCiProviderIntegrationEnabled;
-  private final boolean ciVisibilityRepoIndexSharingEnabled;
+  private final boolean ciVisibilityRepoIndexDuplicateKeyCheckEnabled;
   private final int ciVisibilityExecutionSettingsCacheSize;
   private final int ciVisibilityJvmInfoCacheSize;
   private final int ciVisibilityCoverageRootPackagesLimit;
@@ -1406,8 +1406,8 @@ public class Config {
         configProvider.getBoolean(CIVISIBILITY_TEST_SKIPPING_ENABLED, true);
     ciVisibilityCiProviderIntegrationEnabled =
         configProvider.getBoolean(CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED, true);
-    ciVisibilityRepoIndexSharingEnabled =
-        configProvider.getBoolean(CIVISIBILITY_REPO_INDEX_SHARING_ENABLED, true);
+    ciVisibilityRepoIndexDuplicateKeyCheckEnabled =
+        configProvider.getBoolean(CIVISIBILITY_REPO_INDEX_DUPLICATE_KEY_CHECK_ENABLED, true);
     ciVisibilityExecutionSettingsCacheSize =
         configProvider.getInteger(CIVISIBILITY_EXECUTION_SETTINGS_CACHE_SIZE, 16);
     ciVisibilityJvmInfoCacheSize = configProvider.getInteger(CIVISIBILITY_JVM_INFO_CACHE_SIZE, 8);
@@ -2721,8 +2721,8 @@ public class Config {
     return ciVisibilityCiProviderIntegrationEnabled;
   }
 
-  public boolean isCiVisibilityRepoIndexSharingEnabled() {
-    return ciVisibilityRepoIndexSharingEnabled;
+  public boolean isCiVisibilityRepoIndexDuplicateKeyCheckEnabled() {
+    return ciVisibilityRepoIndexDuplicateKeyCheckEnabled;
   }
 
   public int getCiVisibilityExecutionSettingsCacheSize() {
