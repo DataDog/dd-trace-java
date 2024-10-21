@@ -564,21 +564,9 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     }
 
     @Override
-    Object getMetaStructTop(String key) {
-      check()
-      return delegate.getMetaStructTop(key)
-    }
-
-    @Override
     void setMetaStructCurrent(String key, Object value) {
       check()
       delegate.setMetaStructCurrent(key, value)
-    }
-
-    @Override
-    Object getMetaStructCurrent(String key) {
-      check()
-      return delegate.getMetaStructCurrent(key)
     }
 
     @Override

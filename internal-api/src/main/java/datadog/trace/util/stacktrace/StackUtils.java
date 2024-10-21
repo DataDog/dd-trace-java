@@ -2,7 +2,6 @@ package datadog.trace.util.stacktrace;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.gateway.RequestContext;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -80,8 +79,10 @@ public abstract class StackUtils {
 
   public static void addStacktraceEventsToMetaStruct(
       final RequestContext reqCtx, final String productKey, final List<StackTraceEvent> events) {
-    final Map<String, List<StackTraceEvent>> stackTraceBatch = reqCtx.getOrCreateMetaStructTop(META_STRUCT_KEY, k -> new ConcurrentHashMap<>());
-    final List<StackTraceEvent> list = stackTraceBatch.computeIfAbsent(productKey, k -> new ArrayList<>());
+    final Map<String, List<StackTraceEvent>> stackTraceBatch =
+        reqCtx.getOrCreateMetaStructTop(META_STRUCT_KEY, k -> new ConcurrentHashMap<>());
+    final List<StackTraceEvent> list =
+        stackTraceBatch.computeIfAbsent(productKey, k -> new ArrayList<>());
     list.addAll(events);
   }
 

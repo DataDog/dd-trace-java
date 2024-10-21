@@ -51,6 +51,11 @@ class GatewayBridgeSpecification extends DDSpecification {
     }
 
     @Override
+    def <T> T getOrCreateMetaStructTop(String key, Function<String, T> defaultValue) {
+      return null
+    }
+
+    @Override
     void close() throws IOException {}
   }
   EventProducerService.DataSubscriberInfo nonEmptyDsInfo = {
@@ -853,6 +858,11 @@ class GatewayBridgeSpecification extends DDSpecification {
         @Override
         final TraceSegment getTraceSegment() {
           GatewayBridgeSpecification.this.traceSegment
+        }
+
+        @Override
+        def <T> T getOrCreateMetaStructTop(String key, Function<String, T> defaultValue) {
+          return null
         }
 
         @Override

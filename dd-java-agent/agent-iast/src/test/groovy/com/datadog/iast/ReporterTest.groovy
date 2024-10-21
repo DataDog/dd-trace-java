@@ -21,6 +21,7 @@ import datadog.trace.util.stacktrace.StackTraceEvent
 import org.skyscreamer.jsonassert.JSONAssert
 import spock.lang.Shared
 
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -43,12 +44,10 @@ class ReporterTest extends DDSpecification {
     final Reporter reporter = new Reporter()
     final traceSegment = Mock(TraceSegment)
     final ctx = new IastRequestContext(noOpTaintedObjects())
-    final reqCtx = Stub(RequestContext)
+    final reqCtx = Mock(RequestContext)
     final spanId = 123456
-    reqCtx.getData(RequestContextSlot.IAST) >> ctx
-    reqCtx.getTraceSegment() >> traceSegment
     VulnerabilityBatch batch = null
-    Map stackTraceBatch = null
+    Map stackTraceBatch = new ConcurrentHashMap()
 
     final span = Stub(AgentSpan)
     span.getRequestContext() >> reqCtx
@@ -64,6 +63,8 @@ class ReporterTest extends DDSpecification {
     reporter.report(span, v)
 
     then:
+    1 * reqCtx.getTraceSegment() >> traceSegment
+    1 * reqCtx.getData(RequestContextSlot.IAST) >> ctx
     1 * traceSegment.getDataTop('iast') >> null
     1 * traceSegment.setDataTop('iast', _) >> { batch = it[1] as VulnerabilityBatch }
     JSONAssert.assertEquals('''{
@@ -84,8 +85,7 @@ class ReporterTest extends DDSpecification {
     }''', batch.toString(), true)
     1 * traceSegment.setTagTop('asm.keep', true)
     1 * traceSegment.setTagTop('_dd.p.appsec', true)
-    1 * traceSegment.getMetaStructTop('_dd.stack') >> null
-    1 * traceSegment.setMetaStructTop('_dd.stack', _) >> { stackTraceBatch = it[1] as Map }
+    1 * reqCtx.getOrCreateMetaStructTop('_dd.stack', _)  >> { stackTraceBatch }
     assertStackTrace(stackTraceBatch, v)
     0 * _
   }
@@ -143,12 +143,10 @@ class ReporterTest extends DDSpecification {
     final Reporter reporter = new Reporter()
     final traceSegment = Mock(TraceSegment)
     final ctx = new IastRequestContext(noOpTaintedObjects())
-    final reqCtx = Stub(RequestContext)
+    final reqCtx = Mock(RequestContext)
     final spanId = 123456
-    reqCtx.getData(RequestContextSlot.IAST) >> ctx
-    reqCtx.getTraceSegment() >> traceSegment
     VulnerabilityBatch batch = null
-    Map stackTraceBatch = null
+    Map stackTraceBatch = new ConcurrentHashMap()
 
     final span = Stub(AgentSpan)
     span.getRequestContext() >> reqCtx
@@ -170,9 +168,12 @@ class ReporterTest extends DDSpecification {
     reporter.report(span, v2)
 
     then:
+    1 * reqCtx.getData(RequestContextSlot.IAST) >> ctx
+    2 * reqCtx.getTraceSegment() >> traceSegment
     // first vulnerability
     1 * traceSegment.getDataTop('iast') >> null
     1 * traceSegment.setDataTop('iast', _) >> { batch = it[1] as VulnerabilityBatch }
+    2 * reqCtx.getOrCreateMetaStructTop('_dd.stack', _)  >> { stackTraceBatch }
     // second vulnerability
     1 * traceSegment.getDataTop('iast') >> { return batch } // second vulnerability
     JSONAssert.assertEquals('''{
@@ -205,9 +206,6 @@ class ReporterTest extends DDSpecification {
     }''', batch.toString(), true)
     1 * traceSegment.setTagTop('asm.keep', true)
     1 * traceSegment.setTagTop('_dd.p.appsec', true)
-    1 * traceSegment.getMetaStructTop('_dd.stack') >> null
-    1 * traceSegment.setMetaStructTop('_dd.stack', _) >> { stackTraceBatch = it[1] as Map }
-    1 * traceSegment.getMetaStructTop('_dd.stack') >>{ return stackTraceBatch } // second vulnerability stack trace
     assertStackTrace(stackTraceBatch, [v1, v2] as Vulnerability[])
     0 * _
   }
@@ -328,14 +326,13 @@ class ReporterTest extends DDSpecification {
     noExceptionThrown()
     2 * span.getRequestContext() >> reqCtx // first time to build the batch vulnerability, second time to build the stack trace
     1 * reqCtx.getData(RequestContextSlot.IAST) >> null
-    2 * reqCtx.getTraceSegment() >> traceSegment // first time to build the batch vulnerability, second time to build the stack trace
+    1 * reqCtx.getTraceSegment() >> traceSegment
     1 * traceSegment.getDataTop('iast') >> null
     1 * traceSegment.setDataTop('iast', _ as VulnerabilityBatch)
     1 * traceSegment.setTagTop('asm.keep', true)
     1 * traceSegment.setTagTop('_dd.p.appsec', true)
     1 * traceSegment.setTagTop('_dd.iast.enabled', 1)
-    1 * traceSegment.getMetaStructTop('_dd.stack')
-    1 * traceSegment.setMetaStructTop('_dd.stack', _)
+    1 * reqCtx.getOrCreateMetaStructTop('_dd.stack', _) >> new ConcurrentHashMap<>()
     0 * _
   }
 
@@ -544,6 +541,7 @@ class ReporterTest extends DDSpecification {
     final reqCtx = Stub(RequestContext) {
       it.getData(RequestContextSlot.IAST) >> ctx
       it.getTraceSegment() >> traceSegment
+      it.getOrCreateMetaStructTop('_dd.stack', _) >> new ConcurrentHashMap<>()
     }
     final spanId = 123456
     final span = Mock(AgentSpan)
