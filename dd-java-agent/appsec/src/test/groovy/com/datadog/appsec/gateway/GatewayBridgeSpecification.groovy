@@ -51,7 +51,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     }
 
     @Override
-    def <T> T getOrCreateMetaStructTop(String key, Function<String, T> defaultValue) {
+    def getOrCreateMetaStructTop(String key, Function defaultValue) {
       return null
     }
 
