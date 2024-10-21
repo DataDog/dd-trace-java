@@ -1,0 +1,52 @@
+package com.datadog.profiling.controller.openjdk.events;
+
+import java.util.HashMap;
+import java.util.List;
+import jdk.jfr.Category;
+import jdk.jfr.DataAmount;
+import jdk.jfr.Description;
+import jdk.jfr.Enabled;
+import jdk.jfr.Event;
+import jdk.jfr.Label;
+import jdk.jfr.Name;
+import jdk.jfr.Period;
+import jdk.jfr.StackTrace;
+
+@Name("datadog.AggregatedSmapEntry")
+@Label("Aggregated Smap Entry")
+@Description("Entry for the entries from the smaps file aggregated by NMT category")
+@Category("Datadog")
+@Period("beginChunk")
+@Enabled
+@StackTrace(false)
+public class AggregatedSmapEntryEvent extends Event {
+  @Label("NMT Category")
+  private final String nmtCategory;
+
+  @Label("Resident Set Size")
+  @DataAmount
+  private final long rss;
+
+  public AggregatedSmapEntryEvent(String nmtCategory, long rss) {
+    this.nmtCategory = nmtCategory;
+    this.rss = rss;
+  }
+
+  public static void emit() {
+    HashMap<String, Long> aggregatedSmapEntries = new HashMap<>();
+    List<? extends Event> collectedEvents = SmapEntryFactory.collectEvents();
+    if (collectedEvents.size() > 1) {
+      collectedEvents.forEach(
+          entry -> {
+            aggregatedSmapEntries.merge(
+                ((SmapEntryEvent) entry).getNmtCategory(),
+                ((SmapEntryEvent) entry).getRss(),
+                Long::sum);
+          });
+      aggregatedSmapEntries.forEach(
+          (nmtCategory, rss) -> {
+            new AggregatedSmapEntryEvent(nmtCategory, rss).commit();
+          });
+    }
+  }
+}

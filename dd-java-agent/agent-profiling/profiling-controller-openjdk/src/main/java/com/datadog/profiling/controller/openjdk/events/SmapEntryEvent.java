@@ -243,4 +243,12 @@ public class SmapEntryEvent extends Event {
   public static void emit() {
     SmapEntryFactory.collectEvents().forEach(Event::commit);
   }
+
+  public long getRss() {
+    return this.rss;
+  }
+
+  public String getNmtCategory() {
+    return this.nmtCategory;
+  }
 }
