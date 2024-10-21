@@ -5,7 +5,6 @@ import java.util.List;
 import jdk.jfr.Category;
 import jdk.jfr.DataAmount;
 import jdk.jfr.Description;
-import jdk.jfr.Enabled;
 import jdk.jfr.Event;
 import jdk.jfr.EventType;
 import jdk.jfr.Label;
@@ -18,7 +17,6 @@ import jdk.jfr.StackTrace;
 @Description("Entry for the entries from the smaps file aggregated by NMT category")
 @Category("Datadog")
 @Period("beginChunk")
-@Enabled
 @StackTrace(false)
 public class AggregatedSmapEntryEvent extends Event {
   @Label("NMT Category")
