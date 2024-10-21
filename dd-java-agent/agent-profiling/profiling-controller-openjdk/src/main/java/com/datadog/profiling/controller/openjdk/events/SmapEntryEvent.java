@@ -242,8 +242,11 @@ public class SmapEntryEvent extends Event {
   }
 
   public static void emit() {
-    if (EventType.getEventType(SmapEntryEvent.class).isEnabled()) {
+    if (!EventType.getEventType(AggregatedSmapEntryEvent.class).isEnabled()) {
+      System.out.println("yes to individual");
       SmapEntryFactory.collectEvents().forEach(Event::commit);
+    } else {
+      System.out.println("no to individual");
     }
   }
 

@@ -35,6 +35,7 @@ public class AggregatedSmapEntryEvent extends Event {
 
   public static void emit() {
     if (EventType.getEventType(AggregatedSmapEntryEvent.class).isEnabled()) {
+      System.out.println("yes to aggregated");
       HashMap<String, Long> aggregatedSmapEntries = new HashMap<>();
       List<? extends Event> collectedEvents = SmapEntryFactory.collectEvents();
       // A single entry should only be expected for the error cases
@@ -53,6 +54,8 @@ public class AggregatedSmapEntryEvent extends Event {
       } else {
         collectedEvents.forEach(Event::commit);
       }
+    } else {
+      System.out.println("no to aggregated");
     }
   }
 }

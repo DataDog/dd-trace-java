@@ -223,33 +223,20 @@ public final class OpenJdkController implements Controller {
       }
     }
 
-    if (configProvider.getBoolean(
+    if (!configProvider.getBoolean(
         ProfilingConfig.PROFILING_SMAP_COLLECTION_ENABLED,
         ProfilingConfig.PROFILING_SMAP_COLLECTION_ENABLED_DEFAULT)) {
-      if (!configProvider.getBoolean(
-          ProfilingConfig.PROFILING_SMAP_AGGREGATION_ENABLED,
-          ProfilingConfig.PROFILING_SMAP_AGGREGATION_ENABLED_DEFAULT)) {
-        enableEvent(
-            recordingSettings, "datadog.SmapEntry", "User enabled individual smaps collection");
-        disableEvent(
-            recordingSettings,
-            "datadog.AggregatedSmapEntry",
-            "User disabled aggregate smaps collection");
-      } else {
-        enableEvent(
-            recordingSettings,
-            "datadog.datadog.AggregatedSmapEntry",
-            "User enabled aggregated smaps collection");
-        disableEvent(
-            recordingSettings, "datadog.SmapEntry", "User disabled individual smaps collection");
-      }
-    } else {
       disableEvent(
-          recordingSettings, "datadog.SmapEntry", "User disabled individual smaps collection");
+          recordingSettings, "datadog.datadog.SmapEntry", "User disabled smaps collection");
+      System.out.println("User disabled smaps collection");
+    } else if (!configProvider.getBoolean(
+        ProfilingConfig.PROFILING_SMAP_AGGREGATION_ENABLED,
+        ProfilingConfig.PROFILING_SMAP_AGGREGATION_ENABLED_DEFAULT)) {
       disableEvent(
           recordingSettings,
-          "datadog.AggregatedSmapEntry",
+          "datadog.datadog.AggregatedSmapEntry",
           "User disabled aggregated smaps collection");
+      System.out.println("User disabled aggregated smaps collection");
     }
 
     // Warn users for expensive events
