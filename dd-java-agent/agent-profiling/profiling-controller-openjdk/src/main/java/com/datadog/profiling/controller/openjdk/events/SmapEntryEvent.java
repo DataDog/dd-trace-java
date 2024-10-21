@@ -5,6 +5,7 @@ import jdk.jfr.DataAmount;
 import jdk.jfr.Description;
 import jdk.jfr.Enabled;
 import jdk.jfr.Event;
+import jdk.jfr.EventType;
 import jdk.jfr.Label;
 import jdk.jfr.Name;
 import jdk.jfr.Period;
@@ -241,7 +242,9 @@ public class SmapEntryEvent extends Event {
   }
 
   public static void emit() {
-    SmapEntryFactory.collectEvents().forEach(Event::commit);
+    if (EventType.getEventType(SmapEntryEvent.class).isEnabled()) {
+      SmapEntryFactory.collectEvents().forEach(Event::commit);
+    }
   }
 
   public long getRss() {

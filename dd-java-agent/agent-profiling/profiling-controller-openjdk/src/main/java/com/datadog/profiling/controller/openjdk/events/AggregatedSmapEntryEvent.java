@@ -7,6 +7,7 @@ import jdk.jfr.DataAmount;
 import jdk.jfr.Description;
 import jdk.jfr.Enabled;
 import jdk.jfr.Event;
+import jdk.jfr.EventType;
 import jdk.jfr.Label;
 import jdk.jfr.Name;
 import jdk.jfr.Period;
@@ -33,23 +34,25 @@ public class AggregatedSmapEntryEvent extends Event {
   }
 
   public static void emit() {
-    HashMap<String, Long> aggregatedSmapEntries = new HashMap<>();
-    List<? extends Event> collectedEvents = SmapEntryFactory.collectEvents();
-    // A single entry should only be expected for the error cases
-    if (collectedEvents.size() > 1) {
-      collectedEvents.forEach(
-          entry -> {
-            aggregatedSmapEntries.merge(
-                ((SmapEntryEvent) entry).getNmtCategory(),
-                ((SmapEntryEvent) entry).getRss(),
-                Long::sum);
-          });
-      aggregatedSmapEntries.forEach(
-          (nmtCategory, rss) -> {
-            new AggregatedSmapEntryEvent(nmtCategory, rss).commit();
-          });
-    } else {
-      collectedEvents.forEach(Event::commit);
+    if (EventType.getEventType(AggregatedSmapEntryEvent.class).isEnabled()) {
+      HashMap<String, Long> aggregatedSmapEntries = new HashMap<>();
+      List<? extends Event> collectedEvents = SmapEntryFactory.collectEvents();
+      // A single entry should only be expected for the error cases
+      if (collectedEvents.size() > 1) {
+        collectedEvents.forEach(
+            entry -> {
+              aggregatedSmapEntries.merge(
+                  ((SmapEntryEvent) entry).getNmtCategory(),
+                  ((SmapEntryEvent) entry).getRss(),
+                  Long::sum);
+            });
+        aggregatedSmapEntries.forEach(
+            (nmtCategory, rss) -> {
+              new AggregatedSmapEntryEvent(nmtCategory, rss).commit();
+            });
+      } else {
+        collectedEvents.forEach(Event::commit);
+      }
     }
   }
 }
