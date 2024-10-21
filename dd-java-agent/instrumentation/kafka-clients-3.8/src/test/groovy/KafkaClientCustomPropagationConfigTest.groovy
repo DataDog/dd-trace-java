@@ -1,7 +1,6 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
-import datadog.trace.test.util.Flaky
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.header.Headers
@@ -26,7 +25,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.KAFKA_PRODUCE
 
-@Flaky
 class KafkaClientCustomPropagationConfigTest extends AgentTestRunner {
   static final SHARED_TOPIC = ["topic1", "topic2", "topic3", "topic4"]
   static final MESSAGE = "Testing without headers for certain topics"
@@ -55,7 +53,7 @@ class KafkaClientCustomPropagationConfigTest extends AgentTestRunner {
     injectSysConfig("dd.kafka.e2e.duration.enabled", "true")
     injectSysConfig("dd.trace.experimental.kafka.enabled","true")
   }
-  @Flaky
+
   def "test kafka client header propagation with topic filters"() {
     setup:
     injectSysConfig(TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS, value as String)
@@ -163,7 +161,6 @@ class KafkaClientCustomPropagationConfigTest extends AgentTestRunner {
     [value, expected1, expected2, expected3, expected4]<< dataTable()
   }
 
-  @Flaky
   def "test consumer with topic filters"() {
     setup:
     injectSysConfig(TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS, value as String)
