@@ -338,7 +338,7 @@ public class Config {
   private final boolean ciVisibilityItrEnabled;
   private final boolean ciVisibilityTestSkippingEnabled;
   private final boolean ciVisibilityCiProviderIntegrationEnabled;
-  private final boolean ciVisibilityRepoIndexSharingEnabled;
+  private final boolean ciVisibilityRepoIndexDuplicateKeyCheckEnabled;
   private final int ciVisibilityExecutionSettingsCacheSize;
   private final int ciVisibilityJvmInfoCacheSize;
   private final int ciVisibilityCoverageRootPackagesLimit;
@@ -410,6 +410,8 @@ public class Config {
   private final boolean kafkaClientPropagationEnabled;
   private final Set<String> kafkaClientPropagationDisabledTopics;
   private final boolean kafkaClientBase64DecodingEnabled;
+  // enable the Kafka-3.8 instrumentation manually until testing issues are resolved.
+  private final boolean experimentalKafkaEnabled;
 
   private final boolean jmsPropagationEnabled;
   private final Set<String> jmsPropagationDisabledTopics;
@@ -1404,8 +1406,8 @@ public class Config {
         configProvider.getBoolean(CIVISIBILITY_TEST_SKIPPING_ENABLED, true);
     ciVisibilityCiProviderIntegrationEnabled =
         configProvider.getBoolean(CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED, true);
-    ciVisibilityRepoIndexSharingEnabled =
-        configProvider.getBoolean(CIVISIBILITY_REPO_INDEX_SHARING_ENABLED, true);
+    ciVisibilityRepoIndexDuplicateKeyCheckEnabled =
+        configProvider.getBoolean(CIVISIBILITY_REPO_INDEX_DUPLICATE_KEY_CHECK_ENABLED, true);
     ciVisibilityExecutionSettingsCacheSize =
         configProvider.getInteger(CIVISIBILITY_EXECUTION_SETTINGS_CACHE_SIZE, 16);
     ciVisibilityJvmInfoCacheSize = configProvider.getInteger(CIVISIBILITY_JVM_INFO_CACHE_SIZE, 8);
@@ -1549,7 +1551,7 @@ public class Config {
         tryMakeImmutableSet(configProvider.getList(KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS));
     kafkaClientBase64DecodingEnabled =
         configProvider.getBoolean(KAFKA_CLIENT_BASE64_DECODING_ENABLED, false);
-
+    experimentalKafkaEnabled = configProvider.getBoolean(EXPERIMENTAL_KAFKA_ENABLED, false);
     jmsPropagationEnabled = isPropagationEnabled(true, "jms");
     jmsPropagationDisabledTopics =
         tryMakeImmutableSet(configProvider.getList(JMS_PROPAGATION_DISABLED_TOPICS));
@@ -1771,7 +1773,7 @@ public class Config {
    * my.package.*,my.other.package.*}) to list of package prefixes suitable for use with ASM ({@code
    * my/package/,my/other/package/})
    */
-  private static String[] convertJacocoExclusionFormatToPackagePrefixes(List<String> packages) {
+  public static String[] convertJacocoExclusionFormatToPackagePrefixes(List<String> packages) {
     return packages.stream()
         .map(s -> (s.endsWith("*") ? s.substring(0, s.length() - 1) : s).replace('.', '/'))
         .toArray(String[]::new);
@@ -2719,8 +2721,8 @@ public class Config {
     return ciVisibilityCiProviderIntegrationEnabled;
   }
 
-  public boolean isCiVisibilityRepoIndexSharingEnabled() {
-    return ciVisibilityRepoIndexSharingEnabled;
+  public boolean isCiVisibilityRepoIndexDuplicateKeyCheckEnabled() {
+    return ciVisibilityRepoIndexDuplicateKeyCheckEnabled;
   }
 
   public int getCiVisibilityExecutionSettingsCacheSize() {
@@ -3012,6 +3014,10 @@ public class Config {
 
   public boolean isKafkaClientBase64DecodingEnabled() {
     return kafkaClientBase64DecodingEnabled;
+  }
+
+  public boolean isExperimentalKafkaEnabled() {
+    return experimentalKafkaEnabled;
   }
 
   public boolean isRabbitPropagationEnabled() {

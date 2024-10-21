@@ -56,9 +56,14 @@ public abstract class CiVisibilityService
     return config.getCiVisibilityJacocoGradleSourceSets();
   }
 
-  public List<String> getCoverageEnabledPackages() {
+  public List<String> getCoverageIncludedPackages() {
     BuildSessionSettings sessionSettings = buildEventsHandler.getSessionSettings(SESSION_KEY);
-    return sessionSettings.getCoverageEnabledPackages();
+    return sessionSettings.getCoverageIncludedPackages();
+  }
+
+  public List<String> getCoverageExcludedPackages() {
+    BuildSessionSettings sessionSettings = buildEventsHandler.getSessionSettings(SESSION_KEY);
+    return sessionSettings.getCoverageExcludedPackages();
   }
 
   @SuppressForbidden
