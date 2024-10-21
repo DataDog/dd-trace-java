@@ -175,7 +175,7 @@ class HttpExtractorTest extends DDSpecification {
     DynamicConfig dynamicConfig = DynamicConfig.create().apply()
     HttpCodec.Extractor extractor = HttpCodec.createExtractor(config, { dynamicConfig.captureTraceConfig() })
 
-    final Map<String, String> actual = Map.of(DatadogHttpCodec.TRACE_ID_KEY.toUpperCase(), datadogTraceId, DatadogHttpCodec.SPAN_ID_KEY.toUpperCase(), datadogSpanId, B3HttpCodec.TRACE_ID_KEY.toUpperCase(), b3TraceId, B3HttpCodec.SPAN_ID_KEY.toUpperCase(), b3SpanId, W3CHttpCodec.TRACE_PARENT_KEY.toUpperCase(), w3cTraceParent, W3CHttpCodec.TRACE_STATE_KEY.toUpperCase(), traceState);
+    final Map<String, String> actual = Map.of(DatadogHttpCodec.TRACE_ID_KEY.toUpperCase(), datadogTraceId, DatadogHttpCodec.SPAN_ID_KEY.toUpperCase(), datadogSpanId, B3HttpCodec.TRACE_ID_KEY.toUpperCase(), b3TraceId, B3HttpCodec.SPAN_ID_KEY.toUpperCase(), b3SpanId, W3CHttpCodec.TRACE_PARENT_KEY.toUpperCase(), w3cTraceParent, W3CHttpCodec.TRACE_STATE_KEY.toUpperCase(), traceState)
 
     when:
     final TagContext context = extractor.extract(actual, ContextVisitors.stringValuesMap())
