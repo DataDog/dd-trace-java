@@ -10,7 +10,7 @@ import org.gradle.api.tasks.testing.Test
 
 class AndroidGradleUtils {
 
-  private static final Logger LOGGER = Logging.getLogger(AndroidGradleUtils.class)
+  private static final Logger LOGGER = Logging.getLogger(AndroidGradleUtils)
 
   static BuildModuleLayout getAndroidModuleLayout(Project project, Test task) {
     try {
@@ -54,7 +54,7 @@ class AndroidGradleUtils {
     return sources
   }
 
-  private static final def EXCLUDES = [
+  private static final EXCLUDES = [
     'android/databinding/**/*.class',
     '**/android/databinding/*Binding.class',
     '**/BR.*',
@@ -85,11 +85,10 @@ class AndroidGradleUtils {
     return destinationsTree.files
   }
 
-  private static def getJavaDestinations(variant) {
+  private static getJavaDestinations(variant) {
     if (variant.hasProperty('javaCompileProvider')) {
       return variant.javaCompileProvider.get().destinationDir
-    } else {
-      return variant.javaCompile.destinationDir
     }
+    return variant.javaCompile.destinationDir
   }
 }
