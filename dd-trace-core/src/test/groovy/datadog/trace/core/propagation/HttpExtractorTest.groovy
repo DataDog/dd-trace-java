@@ -175,25 +175,7 @@ class HttpExtractorTest extends DDSpecification {
     DynamicConfig dynamicConfig = DynamicConfig.create().apply()
     HttpCodec.Extractor extractor = HttpCodec.createExtractor(config, { dynamicConfig.captureTraceConfig() })
 
-    final Map<String, String> actual = [:]
-    if (datadogTraceId != null) {
-      actual.put(DatadogHttpCodec.TRACE_ID_KEY.toUpperCase(), datadogTraceId)
-    }
-    if (datadogSpanId != null) {
-      actual.put(DatadogHttpCodec.SPAN_ID_KEY.toUpperCase(), datadogSpanId)
-    }
-    if (b3TraceId != null) {
-      actual.put(B3HttpCodec.TRACE_ID_KEY.toUpperCase(), b3TraceId)
-    }
-    if (b3SpanId != null) {
-      actual.put(B3HttpCodec.SPAN_ID_KEY.toUpperCase(), b3SpanId)
-    }
-    if (w3cTraceParent != null) {
-      actual.put(W3CHttpCodec.TRACE_PARENT_KEY.toUpperCase(), w3cTraceParent)
-    }
-    if (traceState != null) {
-      actual.put(W3CHttpCodec.TRACE_STATE_KEY.toUpperCase(), traceState)
-    }
+    final Map<String, String> actual = Map.of(DatadogHttpCodec.TRACE_ID_KEY.toUpperCase(), datadogTraceId, DatadogHttpCodec.SPAN_ID_KEY.toUpperCase(), datadogSpanId, B3HttpCodec.TRACE_ID_KEY.toUpperCase(), b3TraceId, B3HttpCodec.SPAN_ID_KEY.toUpperCase(), b3SpanId, W3CHttpCodec.TRACE_PARENT_KEY.toUpperCase(), w3cTraceParent, W3CHttpCodec.TRACE_STATE_KEY.toUpperCase(), traceState);
 
     when:
     final TagContext context = extractor.extract(actual, ContextVisitors.stringValuesMap())
