@@ -35,6 +35,7 @@ public class AggregatedSmapEntryEvent extends Event {
   public static void emit() {
     HashMap<String, Long> aggregatedSmapEntries = new HashMap<>();
     List<? extends Event> collectedEvents = SmapEntryFactory.collectEvents();
+    // A single entry should only be expected for the error cases
     if (collectedEvents.size() > 1) {
       collectedEvents.forEach(
           entry -> {
@@ -47,6 +48,8 @@ public class AggregatedSmapEntryEvent extends Event {
           (nmtCategory, rss) -> {
             new AggregatedSmapEntryEvent(nmtCategory, rss).commit();
           });
+    } else {
+      collectedEvents.forEach(Event::commit);
     }
   }
 }
