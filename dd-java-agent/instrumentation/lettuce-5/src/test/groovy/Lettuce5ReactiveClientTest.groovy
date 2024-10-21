@@ -1,5 +1,8 @@
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.instrumentation.lettuce5.LettuceInstrumentationUtil.AGENT_CRASHING_COMMAND_PREFIX
+
+import com.redis.testcontainers.RedisContainer
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
-import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -8,18 +11,14 @@ import io.lettuce.core.RedisClient
 import io.lettuce.core.api.StatefulConnection
 import io.lettuce.core.api.reactive.RedisReactiveCommands
 import io.lettuce.core.api.sync.RedisCommands
+import org.testcontainers.containers.wait.strategy.Wait
 import reactor.core.scheduler.Schedulers
-import redis.embedded.RedisServer
 import spock.lang.Shared
 import spock.util.concurrent.AsyncConditions
 
 import java.util.function.Consumer
 
-import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.instrumentation.lettuce5.LettuceInstrumentationUtil.AGENT_CRASHING_COMMAND_PREFIX
-
 abstract class Lettuce5ReactiveClientTest extends VersionedNamingTestBase {
-  public static final String HOST = "127.0.0.1"
   public static final int DB_INDEX = 0
   // Disable autoreconnect so we do not get stray traces popping up on server shutdown
   public static final ClientOptions CLIENT_OPTIONS = ClientOptions.builder().autoReconnect(false).build()
@@ -37,31 +36,22 @@ abstract class Lettuce5ReactiveClientTest extends VersionedNamingTestBase {
   int port
 
   @Shared
-  RedisServer redisServer
+  RedisContainer redisServer = new RedisContainer(RedisContainer.DEFAULT_TAG)
+  .waitingFor(Wait.forListeningPort())
 
   RedisClient redisClient
   StatefulConnection connection
   RedisReactiveCommands<String, ?> reactiveCommands
   RedisCommands<String, ?> syncCommands
 
-  def setupSpec() {
-    port = PortUtils.randomOpenPort()
-    String dbAddr = HOST + ":" + port + "/" + DB_INDEX
-    embeddedDbUri = "redis://" + dbAddr
-
-    redisServer = RedisServer.builder()
-      // bind to localhost to avoid firewall popup
-      .setting("bind " + HOST)
-      // set max memory to avoid problems in CI
-      .setting("maxmemory 128M")
-      .port(port).build()
-  }
-
   def setup() {
+    redisServer.start()
+    println "Using redis: $redisServer.redisURI"
+    port = redisServer.firstMappedPort
+    String dbAddr = redisServer.getHost() + ":" + port + "/" + DB_INDEX
+    embeddedDbUri = "redis://" + dbAddr
     redisClient = RedisClient.create(embeddedDbUri)
 
-    println "Using redis: $redisServer.args"
-    redisServer.start()
     redisClient.setOptions(CLIENT_OPTIONS)
 
     connection = redisClient.connect()
@@ -112,7 +102,7 @@ abstract class Lettuce5ReactiveClientTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "redis-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.PEER_HOSTNAME" HOST
+            "$Tags.PEER_HOSTNAME" redisServer.getHost()
             "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
             "db.redis.dbIndex" 0
@@ -145,7 +135,7 @@ abstract class Lettuce5ReactiveClientTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "redis-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.PEER_HOSTNAME" HOST
+            "$Tags.PEER_HOSTNAME" redisServer.getHost()
             "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
             "db.redis.dbIndex" 0
@@ -185,7 +175,7 @@ abstract class Lettuce5ReactiveClientTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "redis-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.PEER_HOSTNAME" HOST
+            "$Tags.PEER_HOSTNAME" redisServer.getHost()
             "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
             "db.redis.dbIndex" 0
@@ -223,7 +213,7 @@ abstract class Lettuce5ReactiveClientTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "redis-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.PEER_HOSTNAME" HOST
+            "$Tags.PEER_HOSTNAME" redisServer.getHost()
             "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
             "db.redis.dbIndex" 0
@@ -252,11 +242,11 @@ abstract class Lettuce5ReactiveClientTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "redis-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.PEER_HOSTNAME" HOST
+            "$Tags.PEER_HOSTNAME" redisServer.getHost()
             "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
             "db.redis.dbIndex" 0
-            "db.command.results.count" 157
+            "db.command.results.count" { it > 0}
             peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
@@ -282,7 +272,7 @@ abstract class Lettuce5ReactiveClientTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "redis-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.PEER_HOSTNAME" HOST
+            "$Tags.PEER_HOSTNAME" redisServer.getHost()
             "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
             "db.redis.dbIndex" 0
@@ -325,7 +315,7 @@ abstract class Lettuce5ReactiveClientTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "redis-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.PEER_HOSTNAME" HOST
+            "$Tags.PEER_HOSTNAME" redisServer.getHost()
             "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
             "db.redis.dbIndex" 0
@@ -354,7 +344,7 @@ abstract class Lettuce5ReactiveClientTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "redis-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.PEER_HOSTNAME" HOST
+            "$Tags.PEER_HOSTNAME" redisServer.getHost()
             "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
             "db.redis.dbIndex" 0
@@ -401,7 +391,7 @@ abstract class Lettuce5ReactiveClientTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "redis-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.PEER_HOSTNAME" HOST
+            "$Tags.PEER_HOSTNAME" redisServer.getHost()
             "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
             "db.redis.dbIndex" 0
@@ -420,7 +410,7 @@ abstract class Lettuce5ReactiveClientTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "redis-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.PEER_HOSTNAME" HOST
+            "$Tags.PEER_HOSTNAME" redisServer.getHost()
             "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
             "db.redis.dbIndex" 0
@@ -463,11 +453,11 @@ abstract class Lettuce5ReactiveClientTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "redis-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.PEER_HOSTNAME" HOST
+            "$Tags.PEER_HOSTNAME" redisServer.getHost()
             "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
             "db.redis.dbIndex" 0
-            "db.command.results.count" 157
+            "db.command.results.count" { it > 0}
             peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
@@ -483,7 +473,7 @@ abstract class Lettuce5ReactiveClientTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "redis-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.PEER_HOSTNAME" HOST
+            "$Tags.PEER_HOSTNAME" redisServer.getHost()
             "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
             "db.redis.dbIndex" 0
@@ -529,7 +519,7 @@ abstract class Lettuce5ReactiveClientTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "redis-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.PEER_HOSTNAME" HOST
+            "$Tags.PEER_HOSTNAME" redisServer.getHost()
             "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
             "db.redis.dbIndex" 0
@@ -548,7 +538,7 @@ abstract class Lettuce5ReactiveClientTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "redis-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.PEER_HOSTNAME" HOST
+            "$Tags.PEER_HOSTNAME" redisServer.getHost()
             "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
             "db.redis.dbIndex" 0
@@ -595,7 +585,7 @@ abstract class Lettuce5ReactiveClientTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "redis-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.PEER_HOSTNAME" HOST
+            "$Tags.PEER_HOSTNAME" redisServer.getHost()
             "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
             "db.redis.dbIndex" 0
@@ -614,7 +604,7 @@ abstract class Lettuce5ReactiveClientTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "redis-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.PEER_HOSTNAME" HOST
+            "$Tags.PEER_HOSTNAME" redisServer.getHost()
             "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
             "db.redis.dbIndex" 0
@@ -673,7 +663,7 @@ class Lettuce5ReactiveClientProfilingForkedTest extends Lettuce5ReactiveClientTe
 
   @Override
   int version() {
-    return 2
+    return 0
   }
 
   @Override

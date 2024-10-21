@@ -16,6 +16,7 @@
       "_dd.trace_span_attribute_schema" : 0
     },
     "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid},
       "test.type" : "test",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "test.status" : "fail",
@@ -41,7 +42,7 @@
   "content" : {
     "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id},
-    "parent_id" : ${content_parent_id},
+    "parent_id" : ${content_test_session_id},
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "name" : "Maven_Integration_Tests_Project_maven_clean_plugin_default_clean",
     "resource" : "Maven_Integration_Tests_Project_maven_clean_plugin_default_clean",
@@ -50,6 +51,7 @@
     "error" : 0,
     "metrics" : { },
     "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_2},
       "execution" : "default-clean",
       "project" : "Maven Integration Tests Project",
       "library_version" : ${content_meta_library_version},
@@ -73,6 +75,7 @@
       "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_2}
     },
     "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_3},
       "test.type" : "test",
       "test.module" : "module-a maven-surefire-plugin default-test",
       "test.status" : "pass",
@@ -102,6 +105,7 @@
       "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_3}
     },
     "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_4},
       "test.type" : "test",
       "test.module" : "module-b maven-surefire-plugin default-test",
       "test.status" : "fail",
@@ -124,7 +128,7 @@
   "content" : {
     "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id_2},
-    "parent_id" : ${content_parent_id},
+    "parent_id" : ${content_test_session_id},
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "name" : "module_a_maven_clean_plugin_default_clean",
     "resource" : "module_a_maven_clean_plugin_default_clean",
@@ -133,6 +137,7 @@
     "error" : 0,
     "metrics" : { },
     "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_5},
       "execution" : "default-clean",
       "project" : "module-a",
       "library_version" : ${content_meta_library_version},
@@ -146,7 +151,7 @@
   "content" : {
     "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id_3},
-    "parent_id" : ${content_parent_id},
+    "parent_id" : ${content_test_session_id},
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "name" : "module_a_maven_compiler_plugin_default_compile",
     "resource" : "module_a_maven_compiler_plugin_default_compile",
@@ -155,6 +160,7 @@
     "error" : 0,
     "metrics" : { },
     "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_6},
       "execution" : "default-compile",
       "project" : "module-a",
       "library_version" : ${content_meta_library_version},
@@ -168,7 +174,7 @@
   "content" : {
     "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id_4},
-    "parent_id" : ${content_parent_id},
+    "parent_id" : ${content_test_session_id},
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "name" : "module_a_maven_compiler_plugin_default_testCompile",
     "resource" : "module_a_maven_compiler_plugin_default_testCompile",
@@ -177,6 +183,7 @@
     "error" : 0,
     "metrics" : { },
     "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_7},
       "execution" : "default-testCompile",
       "project" : "module-a",
       "library_version" : ${content_meta_library_version},
@@ -190,7 +197,7 @@
   "content" : {
     "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id_5},
-    "parent_id" : ${content_parent_id},
+    "parent_id" : ${content_test_session_id},
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "name" : "module_a_maven_resources_plugin_default_resources",
     "resource" : "module_a_maven_resources_plugin_default_resources",
@@ -199,6 +206,7 @@
     "error" : 0,
     "metrics" : { },
     "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_8},
       "execution" : "default-resources",
       "project" : "module-a",
       "library_version" : ${content_meta_library_version},
@@ -212,7 +220,7 @@
   "content" : {
     "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id_6},
-    "parent_id" : ${content_parent_id},
+    "parent_id" : ${content_test_session_id},
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "name" : "module_a_maven_resources_plugin_default_testResources",
     "resource" : "module_a_maven_resources_plugin_default_testResources",
@@ -221,6 +229,7 @@
     "error" : 0,
     "metrics" : { },
     "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_9},
       "execution" : "default-testResources",
       "project" : "module-a",
       "library_version" : ${content_meta_library_version},
@@ -234,7 +243,7 @@
   "content" : {
     "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id_7},
-    "parent_id" : ${content_parent_id},
+    "parent_id" : ${content_test_session_id},
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "name" : "module_b_maven_clean_plugin_default_clean",
     "resource" : "module_b_maven_clean_plugin_default_clean",
@@ -243,6 +252,7 @@
     "error" : 0,
     "metrics" : { },
     "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_10},
       "execution" : "default-clean",
       "project" : "module-b",
       "library_version" : ${content_meta_library_version},
@@ -256,7 +266,7 @@
   "content" : {
     "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id_8},
-    "parent_id" : ${content_parent_id},
+    "parent_id" : ${content_test_session_id},
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "name" : "module_b_maven_compiler_plugin_default_compile",
     "resource" : "module_b_maven_compiler_plugin_default_compile",
@@ -265,6 +275,7 @@
     "error" : 0,
     "metrics" : { },
     "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_11},
       "execution" : "default-compile",
       "project" : "module-b",
       "library_version" : ${content_meta_library_version},
@@ -278,7 +289,7 @@
   "content" : {
     "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id_9},
-    "parent_id" : ${content_parent_id},
+    "parent_id" : ${content_test_session_id},
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "name" : "module_b_maven_compiler_plugin_default_testCompile",
     "resource" : "module_b_maven_compiler_plugin_default_testCompile",
@@ -287,6 +298,7 @@
     "error" : 0,
     "metrics" : { },
     "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_12},
       "execution" : "default-testCompile",
       "project" : "module-b",
       "library_version" : ${content_meta_library_version},
@@ -300,7 +312,7 @@
   "content" : {
     "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id_10},
-    "parent_id" : ${content_parent_id},
+    "parent_id" : ${content_test_session_id},
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "name" : "module_b_maven_resources_plugin_default_resources",
     "resource" : "module_b_maven_resources_plugin_default_resources",
@@ -309,6 +321,7 @@
     "error" : 0,
     "metrics" : { },
     "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_13},
       "execution" : "default-resources",
       "project" : "module-b",
       "library_version" : ${content_meta_library_version},
@@ -322,7 +335,7 @@
   "content" : {
     "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id_11},
-    "parent_id" : ${content_parent_id},
+    "parent_id" : ${content_test_session_id},
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "name" : "module_b_maven_resources_plugin_default_testResources",
     "resource" : "module_b_maven_resources_plugin_default_testResources",
@@ -331,6 +344,7 @@
     "error" : 0,
     "metrics" : { },
     "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_14},
       "execution" : "default-testResources",
       "project" : "module-b",
       "library_version" : ${content_meta_library_version},

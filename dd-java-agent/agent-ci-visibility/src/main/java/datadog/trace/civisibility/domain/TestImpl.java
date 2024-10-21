@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.domain;
 
+import static datadog.trace.api.civisibility.CIConstants.CI_VISIBILITY_INSTRUMENTATION_NAME;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.util.Strings.toJson;
 
@@ -31,6 +32,7 @@ import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.source.MethodLinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
+import datadog.trace.civisibility.source.SourceResolutionException;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.function.Consumer;
@@ -85,7 +87,7 @@ public class TestImpl implements DDTest {
 
     AgentTracer.SpanBuilder spanBuilder =
         AgentTracer.get()
-            .buildSpan(testDecorator.component() + ".test")
+            .buildSpan(CI_VISIBILITY_INSTRUMENTATION_NAME, testDecorator.component() + ".test")
             .ignoreActiveSpan()
             .asChildOf(null)
             .withRequestContextData(RequestContextSlot.CI_VISIBILITY, context);
@@ -146,8 +148,14 @@ public class TestImpl implements DDTest {
       return;
     }
 
-    String sourcePath = sourcePathResolver.getSourcePath(testClass);
-    if (sourcePath == null || sourcePath.isEmpty()) {
+    String sourcePath;
+    try {
+      sourcePath = sourcePathResolver.getSourcePath(testClass);
+      if (sourcePath == null || sourcePath.isEmpty()) {
+        return;
+      }
+    } catch (SourceResolutionException e) {
+      log.debug("Could not populate source path for {}", testClass, e);
       return;
     }
 
