@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/ssrf")
 public class SsrfController {
 
-  @PostMapping("/")
+  @PostMapping
   public String ssrf(
       @RequestParam(value = "url", required = false) final String url,
       @RequestParam(value = "host", required = false) final String host) {
