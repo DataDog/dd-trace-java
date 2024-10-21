@@ -680,7 +680,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   void 'ssrf is present'() {
     setup:
-    final url = "http://localhost:${httpPort}/ssrf/java-net"
+    final url = "http://localhost:${httpPort}/ssrf"
     final body = new FormBody.Builder().add(parameter, value).build()
     final request = new Request.Builder().url(url).post(body).build()
 
