@@ -4,7 +4,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
-import java.net.URISyntaxException;
 import org.springframework.web.reactive.function.client.ClientRequest;
 import org.springframework.web.reactive.function.client.ClientResponse;
 
@@ -44,12 +43,6 @@ public class SpringWebfluxHttpClientDecorator
   @Override
   protected URI url(final ClientRequest httpRequest) {
     return httpRequest.url();
-  }
-
-  @Override
-  protected String sourceUrl(final ClientRequest httpRequest) throws URISyntaxException {
-    // It will be implemented later
-    return "";
   }
 
   @Override

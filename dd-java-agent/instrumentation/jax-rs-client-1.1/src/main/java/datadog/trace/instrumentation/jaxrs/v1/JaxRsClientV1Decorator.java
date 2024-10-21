@@ -5,7 +5,6 @@ import com.sun.jersey.api.client.ClientResponse;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
-import java.net.URISyntaxException;
 
 public class JaxRsClientV1Decorator extends HttpClientDecorator<ClientRequest, ClientResponse> {
 
@@ -33,12 +32,6 @@ public class JaxRsClientV1Decorator extends HttpClientDecorator<ClientRequest, C
   @Override
   protected URI url(final ClientRequest httpRequest) {
     return httpRequest.getURI();
-  }
-
-  @Override
-  protected String sourceUrl(final ClientRequest httpRequest) throws URISyntaxException {
-    // It will be implemented later
-    return "";
   }
 
   @Override

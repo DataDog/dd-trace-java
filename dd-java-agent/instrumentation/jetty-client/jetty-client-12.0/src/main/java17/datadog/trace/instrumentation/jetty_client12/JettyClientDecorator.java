@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.jetty_client12;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
-import java.net.URISyntaxException;
 import org.eclipse.jetty.client.Request;
 import org.eclipse.jetty.client.Response;
 
@@ -30,12 +29,6 @@ public class JettyClientDecorator extends HttpClientDecorator<Request, Response>
   @Override
   protected URI url(final Request httpRequest) {
     return httpRequest.getURI();
-  }
-
-  @Override
-  protected String sourceUrl(final Request request) throws URISyntaxException {
-    // It will be implemented later
-    return "";
   }
 
   @Override

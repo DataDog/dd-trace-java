@@ -46,8 +46,6 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
 
   protected abstract URI url(REQUEST request) throws URISyntaxException;
 
-  protected abstract String sourceUrl(REQUEST request) throws URISyntaxException;
-
   protected abstract int status(RESPONSE response);
 
   protected abstract String getRequestHeader(REQUEST request, String headerName);
@@ -174,6 +172,11 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
     }
 
     return 0;
+  }
+
+  /* This method must be override after making the proper propagations to the client before **/
+  protected String sourceUrl(REQUEST request) throws URISyntaxException {
+    return "";
   }
 
   private void ssrfIastCheck(final REQUEST request) {

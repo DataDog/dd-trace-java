@@ -24,12 +24,6 @@ public class PlayWSClientDecorator extends HttpClientDecorator<Request, Response
   }
 
   @Override
-  protected String sourceUrl(final Request request) throws URISyntaxException {
-    // It will be implemented later
-    return "";
-  }
-
-  @Override
   protected int status(final Response response) {
     return response.getStatusCode();
   }

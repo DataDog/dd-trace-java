@@ -51,12 +51,6 @@ public class NettyHttpClientDecorator extends HttpClientDecorator<HttpRequest, H
   }
 
   @Override
-  protected String sourceUrl(final HttpRequest request) throws URISyntaxException {
-    // It will be implemented later
-    return "";
-  }
-
-  @Override
   protected int status(final HttpResponse httpResponse) {
     return httpResponse.getStatus().getCode();
   }

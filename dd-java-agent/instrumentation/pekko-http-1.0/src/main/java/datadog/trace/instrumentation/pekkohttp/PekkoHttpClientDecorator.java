@@ -36,12 +36,6 @@ public class PekkoHttpClientDecorator extends HttpClientDecorator<HttpRequest, H
   }
 
   @Override
-  protected String sourceUrl(final HttpRequest httpRequest) throws URISyntaxException {
-    // It will be implemented later
-    return "";
-  }
-
-  @Override
   protected int status(final HttpResponse httpResponse) {
     return httpResponse.status().intValue();
   }
