@@ -5,6 +5,9 @@ import com.datadog.iast.model.Source
 import com.datadog.iast.overhead.Operations
 import com.datadog.iast.propagation.PropagationModuleImpl
 import com.datadog.iast.taint.Ranges
+import datadog.trace.api.iast.Taintable
+
+import java.lang.ref.WeakReference
 
 import static com.datadog.iast.model.VulnerabilityType.SSRF
 import static datadog.trace.api.iast.SourceTypes.REQUEST_PARAMETER_VALUE
@@ -80,7 +83,63 @@ class AbstractSinkModuleTest extends IastModuleImplTestBase {
     new Source(REQUEST_PARAMETER_VALUE, 'url', 'datadog.com') | new URI('https://dAtAdOg.com/index.html') | false
   }
 
+  void 'test reporting with taintables'() {
+    setup:
+    final sink = new SinkModuleBase(dependencies) {}
+    final value = 'datadog.com'
+    final valueRef = new WeakReference<>(value)
+    final source = new Source(REQUEST_PARAMETER_VALUE, 'url', valueRef)
+
+    and:
+    final taintable = new MockTaintable(source: source)
+
+    when: 'original source value is not tainted'
+    def evidence = sink.checkInjection(SSRF, taintable)
+
+    then: 'a fallback evidence is provided'
+    evidence.value == "Tainted reference detected in " + taintable.class
+    evidence.ranges.length == 1
+    evidence.ranges[0].start == 0
+    evidence.ranges[0].length == evidence.value.length()
+
+    when: 'original source value is tainted'
+    ctx.getTaintedObjects().taint(value, Ranges.forCharSequence(value, source))
+    evidence = sink.checkInjection(SSRF, taintable)
+
+    then: 'the proper value is set in the evidence'
+    evidence.value == value
+    evidence.ranges.length == 1
+    evidence.ranges[0].start == 0
+    evidence.ranges[0].length == value.length()
+
+    when: 'original source cleared by the GC'
+    valueRef.clear()
+    evidence = sink.checkInjection(SSRF, taintable)
+
+    then: 'a fallback evidence is provided'
+    evidence.value == "Tainted reference detected in " + taintable.class
+    evidence.ranges.length == 1
+    evidence.ranges[0].start == 0
+    evidence.ranges[0].length == evidence.value.length()
+  }
+
   private StackTraceElement element(final String declaringClass) {
     return new StackTraceElement(declaringClass, "method", "fileName", 1)
+  }
+
+  private static class MockTaintable implements Taintable {
+    private Source source
+
+    @SuppressWarnings('CodeNarc')
+    @Override
+    Source $$DD$getSource() {
+      return source
+    }
+
+    @SuppressWarnings('CodeNarc')
+    @Override
+    void $$DD$setSource(Source source) {
+      this.source = source
+    }
   }
 }
