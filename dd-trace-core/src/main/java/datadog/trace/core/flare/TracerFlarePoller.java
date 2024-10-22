@@ -86,9 +86,7 @@ public final class TracerFlarePoller {
 
     @Override
     public void remove(ConfigKey configKey, PollingRateHinter hinter) {
-      String configId = configKey.getConfigId();
-      if (configAction.get(configId).equals(FLARE_LOG_LEVEL)) {
-        configAction.remove(configId);
+      if (configAction.remove(configKey.getConfigId(), FLARE_LOG_LEVEL)) {
         cleanupAfterFlare();
       }
     }
