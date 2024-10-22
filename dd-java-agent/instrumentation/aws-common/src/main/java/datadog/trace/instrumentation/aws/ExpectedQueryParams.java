@@ -54,7 +54,8 @@ public class ExpectedQueryParams {
           "DeleteMessageBatchRequestEntry.1.Id",
           "DeleteMessageBatchRequestEntry.1.ReceiptHandle"
         );
+      default:
+        return null;
     }
-    return null;
   }
 }
