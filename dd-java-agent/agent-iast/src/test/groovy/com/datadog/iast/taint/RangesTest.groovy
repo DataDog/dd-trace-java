@@ -365,18 +365,18 @@ class RangesTest extends DDSpecification {
     result == expectedArray
 
     where:
-    start | end | newLength | range        | offset | diffLength | expected
-    1     | 3   | 2         | range(0, 8,) | 0      | 0          | [range(0, 1), range(3, 5)]
-    1     | 3   | 2         | range(0, 8)  | 2      | 0          | [range(2, 1), range(5, 5)]
-    2     | 4   | 2         | range(1, 8)  | -1     | 0          | [range(0, 1), range(3, 5)]
-    1     | 3   | 3         | range(0, 8,) | 0      | -1         | [range(0, 1), range(4, 3)]
-    1     | 3   | 3         | range(0, 8)  | 2      | -1         | [range(2, 1), range(6, 3)]
-    2     | 3   | 2         | range(1, 8)  | -1     | -1         | [range(0, 1), range(3, 4)]
-    1     | 3   | 3         | range(0, 8)  | 0      | 1          | [range(0, 1), range(4, 5)]
-    1     | 3   | 3         | range(0, 8)  | 2      | 1          | [range(2, 1), range(6, 5)]
-    2     | 3   | 2         | range(1, 8)  | -1     | 1          | [range(0, 1), range(3, 6)]
-    8     | 10  | 2         | range(0, 8)  | 0      | 0          | [range(0, 8)]
-    1     | 3   | 2         | range(8, 8)  | 0      | 0          | []
+    start | end | newLength | range       | offset | diffLength | expected
+    1     | 3   | 2         | range(0, 8) | 0      | 0          | [range(0, 1), range(3, 5)]
+    1     | 3   | 2         | range(0, 8) | 2      | 0          | [range(2, 1), range(5, 5)]
+    2     | 4   | 2         | range(1, 8) | -1     | 0          | [range(0, 1), range(3, 5)]
+    1     | 3   | 3         | range(0, 8) | 0      | -1         | [range(0, 1), range(4, 3)]
+    1     | 3   | 3         | range(0, 8) | 2      | -1         | [range(2, 1), range(6, 3)]
+    2     | 3   | 2         | range(1, 8) | -1     | -1         | [range(0, 1), range(3, 4)]
+    1     | 3   | 3         | range(0, 8) | 0      | 1          | [range(0, 1), range(4, 5)]
+    1     | 3   | 3         | range(0, 8) | 2      | 1          | [range(2, 1), range(6, 5)]
+    2     | 3   | 2         | range(1, 8) | -1     | 1          | [range(0, 1), range(3, 6)]
+    8     | 10  | 2         | range(0, 8) | 0      | 0          | [range(0, 8)]
+    1     | 3   | 2         | range(8, 8) | 0      | 0          | []
   }
 
   Range[] rangesFromSpec(List<List<Object>> spec) {

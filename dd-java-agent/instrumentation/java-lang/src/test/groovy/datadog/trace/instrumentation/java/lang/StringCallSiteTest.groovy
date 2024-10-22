@@ -282,15 +282,16 @@ class StringCallSiteTest extends AgentTestRunner {
     module.onStringReplace(_ as String, _ as CharSequence, _ as CharSequence) >> { throw new Error("test error") }
 
     when:
-    TestStringSuite.replace(input, oldCharSeq, newCharSeq)
+    def result = TestStringSuite.replace(input, oldCharSeq, newCharSeq)
 
     then:
+    result == expected
     1 * module.onUnexpectedException("aroundReplaceCharSeq threw", _ as Error)
 
     where:
-    input  | oldCharSeq | newCharSeq
-    "test" | 'te'       | 'TE'
-    "test" | 'es'       | 'ES'
+    input  | oldCharSeq | newCharSeq | expected
+    "test" | 'te'       | 'TE'       | 'TEst'
+    "test" | 'es'       | 'ES'       | 'tESt'
   }
 
   void 'test string replace all and replace first with regex'() {
@@ -320,16 +321,17 @@ class StringCallSiteTest extends AgentTestRunner {
     final textError = "aroundR" + method.substring(1) + " threw"
 
     when:
-    TestStringSuite."$method"(input, regex, replacement)
+    def result = TestStringSuite."$method"(input, regex, replacement)
 
     then:
+    result == expected
     1 * module.onUnexpectedException(textError, _ as Error)
 
     where:
-    method         | input  | regex | replacement | numReplacements
-    "replaceAll"   | "test" | 'te'  | 'TE'        | Integer.MAX_VALUE
-    "replaceAll"   | "test" | 'es'  | 'ES'        | Integer.MAX_VALUE
-    "replaceFirst" | "test" | 'te'  | 'TE'        | 1
-    "replaceFirst" | "test" | 'es'  | 'ES'        | 1
+    method         | input  | regex | replacement | numReplacements   | expected
+    "replaceAll"   | "test" | 'te'  | 'TE'        | Integer.MAX_VALUE | 'TEst'
+    "replaceAll"   | "test" | 'es'  | 'ES'        | Integer.MAX_VALUE | 'tESt'
+    "replaceFirst" | "test" | 'te'  | 'TE'        | 1                 | 'TEst'
+    "replaceFirst" | "test" | 'es'  | 'ES'        | 1                 | 'tESt'
   }
 }
