@@ -302,7 +302,7 @@ public class StringCallSite {
 
   @CallSite.Around(
       "java.lang.String java.lang.String.replace(java.lang.CharSequence, java.lang.CharSequence)")
-  public static String afterReplaceCharSeq(
+  public static String aroundReplaceCharSeq(
       @CallSite.This final String self,
       @CallSite.Argument(0) final CharSequence oldCharSeq,
       @CallSite.Argument(1) final CharSequence newCharSeq) {
@@ -311,7 +311,7 @@ public class StringCallSite {
       try {
         return module.onStringReplace(self, oldCharSeq, newCharSeq);
       } catch (final Throwable e) {
-        module.onUnexpectedException("afterReplaceCharSeq threw", e);
+        module.onUnexpectedException("aroundReplaceCharSeq threw", e);
       }
     }
     return self.replace(oldCharSeq, newCharSeq);

@@ -275,6 +275,24 @@ class StringCallSiteTest extends AgentTestRunner {
     "test" | 'es'       | 'ES'
   }
 
+  void 'test string replace char sequence (throw error)'() {
+    given:
+    final module = Mock(StringModule)
+    InstrumentationBridge.registerIastModule(module)
+    module.onStringReplace(_ as String, _ as CharSequence, _ as CharSequence) >> { throw new Error("test error") }
+
+    when:
+    TestStringSuite.replace(input, oldCharSeq, newCharSeq)
+
+    then:
+    1 * module.onUnexpectedException("aroundReplaceCharSeq threw", _ as Error)
+
+    where:
+    input  | oldCharSeq | newCharSeq
+    "test" | 'te'       | 'TE'
+    "test" | 'es'       | 'ES'
+  }
+
   void 'test string replace all and replace first with regex'() {
     given:
     final module = Mock(StringModule)
@@ -285,6 +303,27 @@ class StringCallSiteTest extends AgentTestRunner {
 
     then:
     1 * module.onStringReplace(input, regex, replacement, numReplacements)
+
+    where:
+    method         | input  | regex | replacement | numReplacements
+    "replaceAll"   | "test" | 'te'  | 'TE'        | Integer.MAX_VALUE
+    "replaceAll"   | "test" | 'es'  | 'ES'        | Integer.MAX_VALUE
+    "replaceFirst" | "test" | 'te'  | 'TE'        | 1
+    "replaceFirst" | "test" | 'es'  | 'ES'        | 1
+  }
+
+  void 'test string replace all and replace first with regex (throw error)'() {
+    given:
+    final module = Mock(StringModule)
+    InstrumentationBridge.registerIastModule(module)
+    module.onStringReplace(_ as String, _ as String, _ as String, numReplacements) >> { throw new Error("test error") }
+    final textError = "aroundR" + method.substring(1) + " threw"
+
+    when:
+    TestStringSuite."$method"(input, regex, replacement)
+
+    then:
+    1 * module.onUnexpectedException(textError, _ as Error)
 
     where:
     method         | input  | regex | replacement | numReplacements

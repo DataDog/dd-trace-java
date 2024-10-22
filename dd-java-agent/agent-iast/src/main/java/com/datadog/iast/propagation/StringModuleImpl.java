@@ -658,6 +658,7 @@ public class StringModuleImpl implements StringModule {
     taintedObjects.taint(result, rangesSelf);
   }
 
+  /** This method is used to make an {@code CallSite.Around} of the {@code String.replace} method */
   @Override
   @SuppressFBWarnings("ES_COMPARING_PARAMETER_STRING_WITH_EQ")
   public String onStringReplace(
@@ -693,6 +694,10 @@ public class StringModuleImpl implements StringModule {
         Integer.MAX_VALUE);
   }
 
+  /**
+   * This method is used to make an {@code CallSite.Around} of the {@code String.replaceFirst} and
+   * {@code String.replaceAll} methods
+   */
   @Override
   @SuppressForbidden
   public String onStringReplace(
