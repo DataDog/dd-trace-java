@@ -4,6 +4,7 @@ import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.instrumentation.aws.ExpectedQueryParams
 import org.elasticmq.rest.sqs.SQSRestServerBuilder
 import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider
 import software.amazon.awssdk.core.SdkSystemSetting
@@ -306,7 +307,7 @@ class TimeInQueueForkedTest extends AgentTestRunner {
         "aws.agent" "java-aws-sdk"
         "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
         "aws.requestId" { it.trim() == "00000000-0000-0000-0000-000000000000" } // the test server seem messing with request id and insert \n
-        urlTags("http://localhost:${address.port}/", expectedQueryParams("SendMessageBatch"))
+        urlTags("http://localhost:${address.port}/", ExpectedQueryParams.getExpectedQueryParams("SendMessageBatch"))
         defaultTags()
       }
     }

@@ -131,60 +131,6 @@ class TagsAssert {
     }
   }
 
-  def expectedQueryParams(operation) {
-    switch(operation) {
-      case "Publish":
-        return ["Action", "Version", "TopicArn", "Message"]
-      case "PublishBatch":
-        return [
-          "Action",
-          "Version",
-          "TopicArn",
-          "PublishBatchRequestEntries.member.1.Id",
-          "PublishBatchRequestEntries.member.1.Message",
-          "PublishBatchRequestEntries.member.2.Id",
-          "PublishBatchRequestEntries.member.2.Message"
-        ]
-      case "AllocateAddress":
-      case "DeleteOptionGroup":
-        return ["Action", "Version"]
-      case "CreateQueue":
-      case "GetQueueUrl":
-        return ["Action", "Version", "QueueName"]
-      case "SendMessage":
-        return ["Action", "Version", "QueueUrl", "MessageBody"]
-      case "DeleteMessage":
-        return ["Action", "Version", "QueueUrl", "ReceiptHandle"]
-      case "ReceiveMessage":
-        return ["Action", "Version", "QueueUrl", "AttributeName.1"]
-      case "SendMessageBatch":
-        return [
-          "Action",
-          "Version",
-          "QueueUrl",
-          "SendMessageBatchRequestEntry.1.Id",
-          "SendMessageBatchRequestEntry.1.MessageBody",
-          "SendMessageBatchRequestEntry.2.Id",
-          "SendMessageBatchRequestEntry.2.MessageBody",
-          "SendMessageBatchRequestEntry.3.Id",
-          "SendMessageBatchRequestEntry.3.MessageBody",
-          "SendMessageBatchRequestEntry.4.Id",
-          "SendMessageBatchRequestEntry.4.MessageBody",
-          "SendMessageBatchRequestEntry.5.Id",
-          "SendMessageBatchRequestEntry.5.MessageBody"
-        ]
-      case "DeleteMessageBatch":
-        return [
-          "Action",
-          "Version",
-          "QueueUrl",
-          "DeleteMessageBatchRequestEntry.1.Id",
-          "DeleteMessageBatchRequestEntry.1.ReceiptHandle"
-        ]
-        throw new IllegalArgumentException("Unexpected operation: $operation")
-    }
-  }
-
   def urlTags(String url, List<String> queryParams){
     tag("http.url", {
       URI uri = new URI(it.toString().split("\\?", 2)[0])

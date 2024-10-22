@@ -4,6 +4,7 @@ import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.instrumentation.aws.ExpectedQueryParams
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
 import software.amazon.awssdk.core.ResponseInputStream
@@ -172,7 +173,7 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
               peerServiceFrom("aws.stream.name")
               checkPeerService = true
             }
-            urlTags("${server.address}${path}", expectedQueryParams(operation))
+            urlTags("${server.address}${path}", ExpectedQueryParams.getExpectedQueryParams(operation))
             defaultTags(false, checkPeerService)
           }
         }
@@ -307,7 +308,7 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
               peerServiceFrom("aws.stream.name")
               checkPeerService = true
             }
-            urlTags("${server.address}${path}", expectedQueryParams(operation))
+            urlTags("${server.address}${path}", ExpectedQueryParams.getExpectedQueryParams(operation))
             defaultTags(false, checkPeerService)
           }
         }

@@ -11,6 +11,7 @@ import datadog.trace.api.naming.SpanNaming
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.datastreams.StatsGroup
+import datadog.trace.instrumentation.aws.ExpectedQueryParams
 import datadog.trace.instrumentation.aws.v2.sqs.TracingList
 import org.elasticmq.rest.sqs.SQSRestServerBuilder
 import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider
@@ -135,7 +136,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
             if ({ isDataStreamsEnabled() }) {
               "$DDTags.PATHWAY_HASH" { String }
             }
-            urlTags("http://localhost:${address.port}/", expectedQueryParams("SendMessage"))
+            urlTags("http://localhost:${address.port}/", ExpectedQueryParams.getExpectedQueryParams("SendMessage"))
             defaultTags()
           }
         }

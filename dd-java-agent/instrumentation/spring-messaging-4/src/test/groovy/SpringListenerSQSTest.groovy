@@ -7,6 +7,7 @@ import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
+import datadog.trace.instrumentation.aws.ExpectedQueryParams
 import io.awspring.cloud.sqs.operations.SqsTemplate
 import listener.Config
 import org.elasticmq.rest.sqs.SQSRestServer
@@ -149,7 +150,7 @@ class SpringListenerSQSTest extends AgentTestRunner {
         "aws.agent" "java-aws-sdk"
         "aws.queue.url" "http://localhost:${address.port}/000000000000/SpringListenerSQS"
         "aws.requestId" "00000000-0000-0000-0000-000000000000"
-        urlTags("http://localhost:${address.port}/", expectedQueryParams("SendMessage"))
+        urlTags("http://localhost:${address.port}/", ExpectedQueryParams.getExpectedQueryParams("SendMessage"))
         defaultTags()
       }
     }
@@ -178,7 +179,7 @@ class SpringListenerSQSTest extends AgentTestRunner {
         "aws.queue.name" "SpringListenerSQS"
         "aws.requestId" "00000000-0000-0000-0000-000000000000"
         "queuename" "SpringListenerSQS"
-        urlTags("http://localhost:${address.port}/", expectedQueryParams("GetQueueUrl"))
+        urlTags("http://localhost:${address.port}/", ExpectedQueryParams.getExpectedQueryParams("GetQueueUrl"))
         defaultTags()
       }
     }
@@ -246,7 +247,7 @@ class SpringListenerSQSTest extends AgentTestRunner {
         "aws.agent" "java-aws-sdk"
         "aws.queue.url" "http://localhost:${address.port}/000000000000/SpringListenerSQS"
         "aws.requestId" "00000000-0000-0000-0000-000000000000"
-        urlTags("http://localhost:${address.port}/", expectedQueryParams("DeleteMessageBatch"))
+        urlTags("http://localhost:${address.port}/", ExpectedQueryParams.getExpectedQueryParams("DeleteMessageBatch"))
         defaultTags()
       }
     }
