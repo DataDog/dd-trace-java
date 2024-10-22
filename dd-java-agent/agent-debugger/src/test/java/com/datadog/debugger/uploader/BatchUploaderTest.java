@@ -14,6 +14,8 @@ import datadog.trace.api.Config;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import java.io.IOException;
 import java.net.ConnectException;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
@@ -48,6 +50,7 @@ public class BatchUploaderTest {
 
   private final MockWebServer server = new MockWebServer();
   private HttpUrl url;
+  private final BatchUploader.RetryPolicy retryPolicy = new BatchUploader.RetryPolicy(3, 3);
 
   private BatchUploader uploader;
 
@@ -58,7 +61,7 @@ public class BatchUploaderTest {
 
     when(config.getDebuggerUploadTimeout()).thenReturn((int) REQUEST_TIMEOUT.getSeconds());
 
-    uploader = new BatchUploader(config, url.toString(), ratelimitedLogger);
+    uploader = new BatchUploader(config, url.toString(), ratelimitedLogger, retryPolicy);
   }
 
   @AfterEach
@@ -74,7 +77,7 @@ public class BatchUploaderTest {
   @Test
   void testUnixDomainSocket() {
     when(config.getAgentUnixDomainSocket()).thenReturn("/tmp/ddagent/agent.sock");
-    uploader = new BatchUploader(config, "http://localhost:8126");
+    uploader = new BatchUploader(config, "http://localhost:8126", retryPolicy);
     assertEquals(
         "datadog.common.socket.UnixDomainSocketFactory",
         uploader.getClient().socketFactory().getClass().getTypeName());
@@ -82,7 +85,7 @@ public class BatchUploaderTest {
 
   @Test
   void testOkHttpClientForcesCleartextConnspecWhenNotUsingTLS() {
-    uploader = new BatchUploader(config, "http://example.com");
+    uploader = new BatchUploader(config, "http://example.com", retryPolicy);
 
     final List<ConnectionSpec> connectionSpecs = uploader.getClient().connectionSpecs();
     assertEquals(connectionSpecs.size(), 1);
@@ -91,7 +94,7 @@ public class BatchUploaderTest {
 
   @Test
   void testOkHttpClientUsesDefaultConnspecsOverTLS() {
-    uploader = new BatchUploader(config, "https://example.com");
+    uploader = new BatchUploader(config, "https://example.com", retryPolicy);
 
     final List<ConnectionSpec> connectionSpecs = uploader.getClient().connectionSpecs();
     assertEquals(connectionSpecs.size(), 2);
@@ -168,7 +171,7 @@ public class BatchUploaderTest {
     // We need to make sure that initial requests that fill up the queue hang to the duration of the
     // test. So we specify insanely large timeout here.
     when(config.getDebuggerUploadTimeout()).thenReturn((int) FOREVER_REQUEST_TIMEOUT.getSeconds());
-    uploader = new BatchUploader(config, url.toString());
+    uploader = new BatchUploader(config, url.toString(), retryPolicy);
 
     // We have to block all parallel requests to make sure queue is kept full
     for (int i = 0; i < BatchUploader.MAX_RUNNING_REQUESTS; i++) {
@@ -208,7 +211,8 @@ public class BatchUploaderTest {
 
   @Test
   public void testEmptyUrl() {
-    Assertions.assertThrows(IllegalArgumentException.class, () -> new BatchUploader(config, ""));
+    Assertions.assertThrows(
+        IllegalArgumentException.class, () -> new BatchUploader(config, "", retryPolicy));
   }
 
   @Test
@@ -216,7 +220,7 @@ public class BatchUploaderTest {
     // we don't explicitly specify a container ID
     server.enqueue(RESPONSE_200);
     BatchUploader uploaderWithNoContainerId =
-        new BatchUploader(config, url.toString(), ratelimitedLogger, null, null);
+        new BatchUploader(config, url.toString(), ratelimitedLogger, retryPolicy, null, null);
 
     uploaderWithNoContainerId.upload(SNAPSHOT_BUFFER);
     uploaderWithNoContainerId.shutdown();
@@ -231,7 +235,12 @@ public class BatchUploaderTest {
 
     BatchUploader uploaderWithContainerId =
         new BatchUploader(
-            config, url.toString(), ratelimitedLogger, "testContainerId", "testEntityId");
+            config,
+            url.toString(),
+            ratelimitedLogger,
+            retryPolicy,
+            "testContainerId",
+            "testEntityId");
     uploaderWithContainerId.upload(SNAPSHOT_BUFFER);
     uploaderWithContainerId.shutdown();
 
@@ -245,7 +254,8 @@ public class BatchUploaderTest {
     server.enqueue(RESPONSE_200);
     when(config.getApiKey()).thenReturn(API_KEY_VALUE);
 
-    BatchUploader uploaderWithApiKey = new BatchUploader(config, url.toString(), ratelimitedLogger);
+    BatchUploader uploaderWithApiKey =
+        new BatchUploader(config, url.toString(), ratelimitedLogger, retryPolicy);
     uploaderWithApiKey.upload(SNAPSHOT_BUFFER);
     uploaderWithApiKey.shutdown();
 
@@ -272,5 +282,70 @@ public class BatchUploaderTest {
     assertNotNull(recordedRequest);
     String strBody = recordedRequest.getBody().readUtf8();
     assertTrue(strBody.contains(new String(SNAPSHOT_BUFFER)));
+  }
+
+  @Test
+  public void testRetryOnFailure() throws IOException, InterruptedException {
+    int port = server.getPort();
+    server.shutdown();
+    ServerSocket serverSocket = new ServerSocket(port);
+    Thread t =
+        new Thread(
+            () -> {
+              try {
+                System.out.println("Accepting connection on port " + port);
+                Socket socket = serverSocket.accept();
+                System.out.println("Accepted connection, closing");
+                socket.setSoLinger(true, 0);
+                socket.close();
+                serverSocket.close();
+              } catch (Exception e) {
+                e.printStackTrace();
+              }
+            });
+    t.start();
+    // only upload once. will fail on first attempt, will succeed on retry
+    uploader.upload(SNAPSHOT_BUFFER);
+    t.join();
+    MockWebServer newServer = new MockWebServer();
+    newServer.start(port);
+    newServer.enqueue(RESPONSE_200);
+    RecordedRequest recordedRequest = newServer.takeRequest(5, TimeUnit.SECONDS);
+    assertNotNull(recordedRequest);
+  }
+
+  @Test
+  public void testRetryOn500() throws InterruptedException {
+    server.enqueue(new MockResponse().setResponseCode(500));
+    server.enqueue(RESPONSE_200);
+    uploader.upload(SNAPSHOT_BUFFER);
+    assertNotNull(server.takeRequest(5, TimeUnit.SECONDS));
+    assertNotNull(server.takeRequest(5, TimeUnit.SECONDS));
+    assertEquals(2, server.getRequestCount());
+    assertEmptyFailures();
+  }
+
+  private void assertEmptyFailures() throws InterruptedException {
+    int count = 0;
+    while (uploader.getRetryPolicy().failures.size() > 0 && count < 300) {
+      Thread.sleep(10);
+      count++;
+    }
+    assertEquals(0, uploader.getRetryPolicy().failures.size());
+  }
+
+  @Test
+  public void testMaxRetryOn500() throws InterruptedException {
+    server.enqueue(new MockResponse().setResponseCode(500)); // first attempt
+    server.enqueue(new MockResponse().setResponseCode(500)); // first retry
+    server.enqueue(new MockResponse().setResponseCode(500));
+    server.enqueue(new MockResponse().setResponseCode(500)); // last retry
+    uploader.upload(SNAPSHOT_BUFFER);
+    assertNotNull(server.takeRequest(5, TimeUnit.SECONDS));
+    assertNotNull(server.takeRequest(5, TimeUnit.SECONDS));
+    assertNotNull(server.takeRequest(5, TimeUnit.SECONDS));
+    assertNotNull(server.takeRequest(5, TimeUnit.SECONDS));
+    assertEmptyFailures();
+    assertEquals(4, server.getRequestCount()); // first + 3 retries
   }
 }
