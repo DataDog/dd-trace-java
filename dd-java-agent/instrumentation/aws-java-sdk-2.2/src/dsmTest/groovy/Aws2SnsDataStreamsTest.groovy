@@ -4,6 +4,7 @@ import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.datastreams.StatsGroup
+import datadog.trace.instrumentation.aws.ExpectedQueryParams
 import org.eclipse.jetty.http2.server.HTTP2CServerConnectionFactory
 import org.eclipse.jetty.server.HttpConfiguration
 import org.eclipse.jetty.server.HttpConnectionFactory
@@ -181,11 +182,7 @@ abstract class Aws2SnsDataStreamsTest extends VersionedNamingTestBase {
             "topicname" "mytopic"
             "$DDTags.PATHWAY_HASH" { String }
             checkPeerService = true
-            if (operation.equals("Publish")){
-              urlTags("${server.address}${path}", ["Action", "Version", "TopicArn", "Message"])
-            }else{
-              urlTags("${server.address}${path}", ["Action", "Version", "TopicArn", "PublishBatchRequestEntries.member.1.Id", "PublishBatchRequestEntries.member.1.Message", "PublishBatchRequestEntries.member.2.Id", "PublishBatchRequestEntries.member.2.Message"])
-            }
+            urlTags("${server.address}${path}", ExpectedQueryParams.getExpectedQueryParams(operation))
             defaultTags(false, checkPeerService)
           }
         }
@@ -282,7 +279,7 @@ abstract class Aws2SnsDataStreamsTest extends VersionedNamingTestBase {
             "aws.topic.name" "mytopic"
             "topicname" "mytopic"
             "$DDTags.PATHWAY_HASH" { String }
-            urlTags("${server.address}${path}", expectedQueryParams(operation))
+            urlTags("${server.address}${path}", ExpectedQueryParams.getExpectedQueryParams(operation))
             defaultTags(false, true)
           }
         }
