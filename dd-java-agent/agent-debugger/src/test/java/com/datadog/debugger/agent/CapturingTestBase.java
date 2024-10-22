@@ -11,10 +11,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.datadog.debugger.instrumentation.InstrumentationResult;
-import com.datadog.debugger.probe.DebuggerProbe;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.SpanDecorationProbe;
+import com.datadog.debugger.probe.TriggerProbe;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.util.MoshiHelper;
@@ -377,7 +377,7 @@ public class CapturingTestBase {
                 encodedId,
                 configuration.getLogProbes(),
                 configuration.getSpanDecorationProbes(),
-                configuration.getDebuggerProbes()));
+                configuration.getTriggerProbes()));
     DebuggerContext.initClassFilter(new DenyListHelper(null));
     DebuggerContext.initValueSerializer(new JsonSnapshotSerializer());
     Collection<LogProbe> logProbes = configuration.getLogProbes();
@@ -403,7 +403,7 @@ public class CapturingTestBase {
       String encodedId,
       Collection<LogProbe> logProbes,
       Collection<SpanDecorationProbe> spanDecorationProbes,
-      Collection<DebuggerProbe> debuggerProbes) {
+      Collection<TriggerProbe> triggerProbes) {
     ProbeImplementation resolve = configurationUpdater.resolve(encodedId);
     if (resolve != null) {
       return resolve;
@@ -422,8 +422,8 @@ public class CapturingTestBase {
         }
       }
     }
-    if (debuggerProbes != null) {
-      for (DebuggerProbe probe : debuggerProbes) {
+    if (triggerProbes != null) {
+      for (TriggerProbe probe : triggerProbes) {
         if (probe.getProbeId().getEncodedId().equals(encodedId)) {
           return probe;
         }

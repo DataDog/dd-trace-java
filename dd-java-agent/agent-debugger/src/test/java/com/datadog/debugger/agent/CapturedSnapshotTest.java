@@ -562,7 +562,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   public void suspendKotlin() {
     final String CLASS_NAME = "CapturedSnapshot302";
     TestSnapshotListener listener =
-        installProbes(CLASS_NAME, createSourceFileProbe(PROBE_ID, CLASS_NAME + ".kt", 9));
+        installProbes(createSourceFileProbe(PROBE_ID, CLASS_NAME + ".kt", 9));
     URL resource = CapturedSnapshotTest.class.getResource("/" + CLASS_NAME + ".kt");
     assertNotNull(resource);
     List<File> filesToDelete = new ArrayList<>();
@@ -588,8 +588,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   public void hoistVarKotlin() {
     final String CLASS_NAME = "CapturedSnapshot303";
     TestSnapshotListener listener =
-        installProbes(
-            CLASS_NAME, createProbeAtExit(PROBE_ID, CLASS_NAME + "$Companion", "main", null));
+        installProbes(createProbeAtExit(PROBE_ID, CLASS_NAME + "$Companion", "main", null));
     URL resource = CapturedSnapshotTest.class.getResource("/" + CLASS_NAME + ".kt");
     assertNotNull(resource);
     List<File> filesToDelete = new ArrayList<>();
