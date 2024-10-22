@@ -80,11 +80,11 @@ public class ExceptionProbeManager {
   }
 
   public CreationResult createProbesForException(StackTraceElement[] stackTraceElements) {
-    int maxFrames = maxCapturedFrames;
+    int instrumentedFrames = 0;
     int nativeFrames = 0;
     int thirdPartyFrames = 0;
     for (StackTraceElement stackTraceElement : stackTraceElements) {
-      if (maxFrames <= 0) {
+      if (instrumentedFrames >= maxCapturedFrames) {
         break;
       }
       if (stackTraceElement.isNativeMethod() || stackTraceElement.getLineNumber() < 0) {
@@ -104,9 +104,9 @@ public class ExceptionProbeManager {
               String.valueOf(stackTraceElement.getLineNumber()));
       ExceptionProbe probe = createMethodProbe(this, where);
       probes.putIfAbsent(probe.getId(), probe);
-      maxFrames--;
+      instrumentedFrames++;
     }
-    return new CreationResult(maxCapturedFrames - maxFrames, thirdPartyFrames, nativeFrames);
+    return new CreationResult(instrumentedFrames, thirdPartyFrames, nativeFrames);
   }
 
   void addFingerprint(String fingerprint) {
