@@ -410,9 +410,6 @@ public class Config {
   private final boolean kafkaClientPropagationEnabled;
   private final Set<String> kafkaClientPropagationDisabledTopics;
   private final boolean kafkaClientBase64DecodingEnabled;
-  // enable the Kafka-3.8 instrumentation manually until testing issues are resolved.
-  private final boolean experimentalKafkaEnabled;
-
   private final boolean jmsPropagationEnabled;
   private final Set<String> jmsPropagationDisabledTopics;
   private final Set<String> jmsPropagationDisabledQueues;
@@ -1551,7 +1548,6 @@ public class Config {
         tryMakeImmutableSet(configProvider.getList(KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS));
     kafkaClientBase64DecodingEnabled =
         configProvider.getBoolean(KAFKA_CLIENT_BASE64_DECODING_ENABLED, false);
-    experimentalKafkaEnabled = configProvider.getBoolean(EXPERIMENTAL_KAFKA_ENABLED, false);
     jmsPropagationEnabled = isPropagationEnabled(true, "jms");
     jmsPropagationDisabledTopics =
         tryMakeImmutableSet(configProvider.getList(JMS_PROPAGATION_DISABLED_TOPICS));
@@ -3014,10 +3010,6 @@ public class Config {
 
   public boolean isKafkaClientBase64DecodingEnabled() {
     return kafkaClientBase64DecodingEnabled;
-  }
-
-  public boolean isExperimentalKafkaEnabled() {
-    return experimentalKafkaEnabled;
   }
 
   public boolean isRabbitPropagationEnabled() {
