@@ -191,11 +191,11 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
             CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_PORT),
         String.valueOf(signalServerAddress != null ? signalServerAddress.getPort() : 0));
 
-    List<String> coverageEnabledPackages = sessionSettings.getCoverageEnabledPackages();
+    List<String> coverageIncludedPackages = sessionSettings.getCoverageIncludedPackages();
     propagatedSystemProperties.put(
         Strings.propertyNameToSystemPropertyName(
             CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_INCLUDES),
-        String.join(":", coverageEnabledPackages));
+        String.join(":", coverageIncludedPackages));
 
     if (jacocoAgent != null && !config.isCiVisibilityCoverageLinesDisabled()) {
       // If the module is using Jacoco,

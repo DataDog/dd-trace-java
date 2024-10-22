@@ -40,9 +40,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
-import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
 public class BuildSystemSessionImpl<T extends CoverageCalculator> extends AbstractTestSession
@@ -92,7 +90,10 @@ public class BuildSystemSessionImpl<T extends CoverageCalculator> extends Abstra
     this.repoIndexProvider = repoIndexProvider;
     this.coverageCalculatorFactory = coverageCalculatorFactory;
     this.coverageCalculator = coverageCalculatorFactory.sessionCoverage(span.getSpanId());
-    this.settings = new BuildSessionSettings(getCoverageEnabledPackages(config, repoIndexProvider));
+    this.settings =
+        new BuildSessionSettings(
+            getCoverageIncludedPackages(config, repoIndexProvider),
+            config.getCiVisibilityCodeCoverageExcludes());
 
     signalServer.registerSignalHandler(
         SignalType.MODULE_EXECUTION_RESULT, moduleSignalRouter::onModuleSignalReceived);
@@ -107,48 +108,19 @@ public class BuildSystemSessionImpl<T extends CoverageCalculator> extends Abstra
     setTag(Tags.TEST_COMMAND, startCommand);
   }
 
-  private static List<String> getCoverageEnabledPackages(
+  private static List<String> getCoverageIncludedPackages(
       Config config, RepoIndexProvider repoIndexProvider) {
     if (!config.isCiVisibilityCodeCoverageEnabled()) {
       return Collections.emptyList();
     }
 
     List<String> includedPackages = config.getCiVisibilityCodeCoverageIncludes();
-    List<String> packages;
     if (includedPackages != null && !includedPackages.isEmpty()) {
-      packages = includedPackages;
+      return new ArrayList<>(includedPackages);
     } else {
       RepoIndex repoIndex = repoIndexProvider.getIndex();
-      packages = new ArrayList<>(repoIndex.getRootPackages());
+      return new ArrayList<>(repoIndex.getRootPackages());
     }
-
-    List<String> excludedPackages = config.getCiVisibilityCodeCoverageExcludes();
-    if (excludedPackages != null && !excludedPackages.isEmpty()) {
-      removeMatchingPackages(packages, excludedPackages);
-    }
-    return packages;
-  }
-
-  private static void removeMatchingPackages(List<String> packages, List<String> excludedPackages) {
-    List<String> excludedPrefixes =
-        excludedPackages.stream()
-            .map(BuildSystemSessionImpl::trimTrailingAsterisk)
-            .collect(Collectors.toList());
-    Iterator<String> packagesIterator = packages.iterator();
-    while (packagesIterator.hasNext()) {
-      String p = packagesIterator.next();
-
-      for (String excludedPrefix : excludedPrefixes) {
-        if (p.startsWith(excludedPrefix)) {
-          packagesIterator.remove();
-          break;
-        }
-      }
-    }
-  }
-
-  private static String trimTrailingAsterisk(String s) {
-    return s.endsWith("*") ? s.substring(0, s.length() - 1) : s;
   }
 
   private SignalResponse onRepoIndexRequestReceived(RepoIndexRequest request) {

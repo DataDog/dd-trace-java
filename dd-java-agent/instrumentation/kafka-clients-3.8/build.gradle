@@ -78,4 +78,8 @@ configurations.testRuntimeClasspath {
   resolutionStrategy.force 'org.assertj:assertj-core:2.9.1'
 }
 
-
+project.afterEvaluate {
+  tasks.withType(Test).configureEach {
+    usesService(testcontainersLimit)
+  }
+}
