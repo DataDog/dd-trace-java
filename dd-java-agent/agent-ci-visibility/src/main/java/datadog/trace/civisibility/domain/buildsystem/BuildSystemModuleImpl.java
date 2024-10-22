@@ -1,5 +1,7 @@
 package datadog.trace.civisibility.domain.buildsystem;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
+
 import datadog.communication.ddagent.TracerVersion;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
@@ -10,6 +12,7 @@ import datadog.trace.api.civisibility.domain.BuildSessionSettings;
 import datadog.trace.api.civisibility.domain.JavaAgent;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.config.CiVisibilityConfig;
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
@@ -29,11 +32,7 @@ import datadog.trace.civisibility.utils.SpanUtils;
 import datadog.trace.util.Strings;
 import java.net.InetSocketAddress;
 import java.nio.file.Path;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
@@ -51,7 +50,6 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
 
   public <T extends CoverageCalculator> BuildSystemModuleImpl(
       AgentSpan.Context sessionSpanContext,
-      long sessionId,
       String moduleName,
       String startCommand,
       @Nullable Long startTime,
@@ -73,7 +71,6 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
       Consumer<AgentSpan> onSpanFinish) {
     super(
         sessionSpanContext,
-        sessionId,
         moduleName,
         startTime,
         InstrumentationType.BUILD,
@@ -106,6 +103,19 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
                 sessionSettings));
 
     setTag(Tags.TEST_COMMAND, startCommand);
+  }
+
+  private static final class ChildProcessPropertiesPropagationSetter
+      implements AgentPropagation.Setter<Map<String, String>> {
+    static final AgentPropagation.Setter<Map<String, String>> INSTANCE =
+        new ChildProcessPropertiesPropagationSetter();
+
+    private ChildProcessPropertiesPropagationSetter() {}
+
+    @Override
+    public void set(Map<String, String> carrier, String key, String value) {
+      carrier.put(key, value);
+    }
   }
 
   private Map<String, String> getPropertiesPropagatedToChildProcess(
@@ -166,12 +176,6 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
         TracerVersion.TRACER_VERSION);
 
     propagatedSystemProperties.put(
-        Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_SESSION_ID),
-        String.valueOf(sessionId));
-    propagatedSystemProperties.put(
-        Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_MODULE_ID),
-        String.valueOf(span.getSpanId()));
-    propagatedSystemProperties.put(
         Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_MODULE_NAME),
         moduleName);
     propagatedSystemProperties.put(
@@ -187,11 +191,11 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
             CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_PORT),
         String.valueOf(signalServerAddress != null ? signalServerAddress.getPort() : 0));
 
-    List<String> coverageEnabledPackages = sessionSettings.getCoverageEnabledPackages();
+    List<String> coverageIncludedPackages = sessionSettings.getCoverageIncludedPackages();
     propagatedSystemProperties.put(
         Strings.propertyNameToSystemPropertyName(
             CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_INCLUDES),
-        String.join(":", coverageEnabledPackages));
+        String.join(":", coverageIncludedPackages));
 
     if (jacocoAgent != null && !config.isCiVisibilityCoverageLinesDisabled()) {
       // If the module is using Jacoco,
@@ -206,6 +210,10 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
               CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_LINES_ENABLED),
           Boolean.toString(true));
     }
+
+    // propagate module span context to child processes
+    propagate()
+        .inject(span, propagatedSystemProperties, ChildProcessPropertiesPropagationSetter.INSTANCE);
 
     return propagatedSystemProperties;
   }

@@ -46,7 +46,11 @@ class LegacySqsClientForkedTest extends AgentTestRunner {
 
   def cleanupSpec() {
     if (server != null) {
-      server.stopAndWait()
+      try {
+        server.stopAndWait()
+      } catch (InterruptedException ie) {
+        Thread.currentThread().interrupt()
+      }
     }
   }
 

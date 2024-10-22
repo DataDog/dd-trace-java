@@ -1,0 +1,85 @@
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_17
+}
+muzzle {
+  pass {
+    group = "org.apache.kafka"
+    module = "kafka-clients"
+    versions = "[3.8.0,)"
+    assertInverse = false
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuite('latestDepTest')
+
+//java {
+//  toolchain {
+//    languageVersion.set(JavaLanguageVersion.of(17))
+//  }
+//}
+
+
+//project.afterEvaluate {
+//  tasks.withType(Test).configureEach {
+//    if (javaLauncher.get().metadata.languageVersion.asInt() >= 16) {
+//      jvmArgs += ['--add-opens', 'java.base/java.util=ALL-UNNAMED']
+//    }
+//  }
+//}
+[compileMain_java17Java, compileTestJava, compileLatestDepTestJava].each {
+  it.configure {
+    setJavaVersion(it, 17)
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+  }
+}
+tasks.withType(JavaCompile).each {
+  it.configure {
+    setJavaVersion(it, 17)
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+  }
+}
+tasks.withType(GroovyCompile) {
+  javaLauncher = getJavaLauncherFor(17)
+}
+
+dependencies {
+  //  compileOnly group: 'org.apache.kafka', name: 'kafka-clients', version: '3.8.0'
+  main_java17CompileOnly group: 'org.apache.kafka', name: 'kafka-clients', version: '3.8.0'
+  implementation project(':dd-java-agent:instrumentation:kafka-common')
+  main_java17Implementation project(':dd-java-agent:instrumentation:kafka-common')
+
+  testImplementation group: 'org.apache.kafka', name: 'kafka-clients', version: '3.8.0'
+  testImplementation group: 'org.springframework.kafka', name: 'spring-kafka', version: '3.1.0'
+  testImplementation group: 'org.springframework.kafka', name: 'spring-kafka-test', version: '3.1.0'
+  testImplementation group: 'org.testcontainers', name: 'kafka', version: '1.17.0'
+  testImplementation group: 'javax.xml.bind', name: 'jaxb-api', version: '2.2.3'
+  testImplementation group: 'org.assertj', name: 'assertj-core', version: '2.9.+'
+  testImplementation group: 'org.mockito', name: 'mockito-core', version: '2.19.0'
+  testRuntimeOnly project(':dd-java-agent:instrumentation:spring-scheduling-3.1')
+
+
+  // Include latest version of kafka itself along with latest version of client libs.
+  // This seems to help with jar compatibility hell.
+  latestDepTestImplementation group: 'org.apache.kafka', name: 'kafka_2.13', version: '2.+'
+  latestDepTestImplementation group: 'org.apache.kafka', name: 'kafka-clients', version: '3.+'
+  latestDepTestImplementation group: 'org.springframework.kafka', name: 'spring-kafka', version: '3.+'
+  latestDepTestImplementation group: 'org.springframework.kafka', name: 'spring-kafka-test', version: '3.+'
+  latestDepTestImplementation group: 'org.assertj', name: 'assertj-core', version: '3.19.+'
+  latestDepTestImplementation libs.guava
+
+}
+
+configurations.testRuntimeClasspath {
+  // spock-core depends on assertj version that is not compatible with kafka-clients
+  resolutionStrategy.force 'org.assertj:assertj-core:2.9.1'
+}
+
+project.afterEvaluate {
+  tasks.withType(Test).configureEach {
+    usesService(testcontainersLimit)
+  }
+}

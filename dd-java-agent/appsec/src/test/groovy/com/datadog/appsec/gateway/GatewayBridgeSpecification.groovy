@@ -1020,4 +1020,20 @@ class GatewayBridgeSpecification extends DDSpecification {
     'loginSuccessCB' | KnownAddresses.LOGIN_SUCCESS
     'loginFailureCB' | KnownAddresses.LOGIN_FAILURE
   }
+
+  void 'ensure that the same user id is not published twice'() {
+    setup:
+    eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
+    final userId = 'admin'
+
+    when:
+    userIdCB.apply(ctx, UserIdCollectionMode.IDENTIFICATION, userId)
+    userIdCB.apply(ctx, UserIdCollectionMode.SDK, userId)
+
+    then:
+    2 * traceSegment.setTagTop('usr.id', userId)
+    1 * traceSegment.setTagTop('_dd.appsec.user.collection_mode', UserIdCollectionMode.IDENTIFICATION.shortName())
+    1 * traceSegment.setTagTop('_dd.appsec.user.collection_mode', UserIdCollectionMode.SDK.shortName())
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext)
+  }
 }

@@ -56,9 +56,14 @@ public abstract class CiVisibilityService
     return config.getCiVisibilityJacocoGradleSourceSets();
   }
 
-  public List<String> getCoverageEnabledPackages() {
+  public List<String> getCoverageIncludedPackages() {
     BuildSessionSettings sessionSettings = buildEventsHandler.getSessionSettings(SESSION_KEY);
-    return sessionSettings.getCoverageEnabledPackages();
+    return sessionSettings.getCoverageIncludedPackages();
+  }
+
+  public List<String> getCoverageExcludedPackages() {
+    BuildSessionSettings sessionSettings = buildEventsHandler.getSessionSettings(SESSION_KEY);
+    return sessionSettings.getCoverageExcludedPackages();
   }
 
   @SuppressForbidden
@@ -102,6 +107,17 @@ public abstract class CiVisibilityService
             : Collections.emptyMap();
     buildEventsHandler.onTestSessionStart(
         SESSION_KEY, buildPath, projectRoot, startCommand, "gradle", gradleVersion, additionalTags);
+  }
+
+  public void onBuildTaskStart(String taskPath) {
+    buildEventsHandler.onBuildTaskStart(SESSION_KEY, taskPath, Collections.emptyMap());
+  }
+
+  public void onBuildTaskFinish(String taskPath, @Nullable Throwable failure) {
+    if (failure != null) {
+      buildEventsHandler.onBuildTaskFail(SESSION_KEY, taskPath, failure);
+    }
+    buildEventsHandler.onBuildTaskFinish(SESSION_KEY, taskPath);
   }
 
   public void onModuleStart(

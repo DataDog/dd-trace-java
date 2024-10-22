@@ -51,9 +51,10 @@ public abstract class AsyncResultDecorator extends BaseDecorator {
    * @return An asynchronous result that will finish the span if the result is asynchronous, the
    *     original result otherwise.
    */
-  public Object wrapAsyncResultOrFinishSpan(final Object result, final AgentSpan span) {
+  public Object wrapAsyncResultOrFinishSpan(
+      final Object result, final Class<?> methodReturnType, final AgentSpan span) {
     AsyncResultSupportExtension extension;
-    if (result != null && (extension = EXTENSION_CLASS_VALUE.get(result.getClass())) != null) {
+    if (result != null && (extension = EXTENSION_CLASS_VALUE.get(methodReturnType)) != null) {
       Object applied = extension.apply(result, span);
       if (applied != null) {
         return applied;

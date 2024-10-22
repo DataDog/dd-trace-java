@@ -39,7 +39,7 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     }
   }
 
-  void '#method(#args) not taintable'() {
+  void '#method(#argTypes) not taintable'() {
     when: 'there is no context by default'
     module.&"$method".call(args.toArray())
 
@@ -102,6 +102,7 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     ]
     'findSource'                | [null]
     'isTainted'                 | [null]
+    argTypes = args*.class.name
   }
 
   void '#method without span'() {

@@ -67,33 +67,46 @@ public class ExceptionProbeManager {
     return classNameFiltering;
   }
 
-  public boolean createProbesForException(StackTraceElement[] stackTraceElements) {
-    boolean created = false;
-    int maxFrames = maxCapturedFrames;
+  static class CreationResult {
+    final int probesCreated;
+    final int thirdPartyFrames;
+    final int nativeFrames;
+
+    public CreationResult(int probesCreated, int thirdPartyFrames, int nativeFrames) {
+      this.probesCreated = probesCreated;
+      this.thirdPartyFrames = thirdPartyFrames;
+      this.nativeFrames = nativeFrames;
+    }
+  }
+
+  public CreationResult createProbesForException(StackTraceElement[] stackTraceElements) {
+    int instrumentedFrames = 0;
+    int nativeFrames = 0;
+    int thirdPartyFrames = 0;
     for (StackTraceElement stackTraceElement : stackTraceElements) {
-      if (maxFrames <= 0) {
+      if (instrumentedFrames >= maxCapturedFrames) {
         break;
       }
       if (stackTraceElement.isNativeMethod() || stackTraceElement.getLineNumber() < 0) {
         // Skip native methods and lines without line numbers
-        // TODO log?
+        nativeFrames++;
         continue;
       }
       if (classNameFiltering.isExcluded(stackTraceElement.getClassName())) {
+        thirdPartyFrames++;
         continue;
       }
       Where where =
-          Where.convertLineToMethod(
+          Where.of(
               stackTraceElement.getClassName(),
               stackTraceElement.getMethodName(),
               null,
               String.valueOf(stackTraceElement.getLineNumber()));
       ExceptionProbe probe = createMethodProbe(this, where);
-      created = true;
       probes.putIfAbsent(probe.getId(), probe);
-      maxFrames--;
+      instrumentedFrames++;
     }
-    return created;
+    return new CreationResult(instrumentedFrames, thirdPartyFrames, nativeFrames);
   }
 
   void addFingerprint(String fingerprint) {
