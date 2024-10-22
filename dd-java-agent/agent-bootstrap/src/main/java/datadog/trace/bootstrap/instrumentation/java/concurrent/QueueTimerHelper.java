@@ -1,12 +1,26 @@
 package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
+import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.profiling.QueueTiming;
 import datadog.trace.api.profiling.Timer;
+import datadog.trace.api.sampling.PerRecordingRateLimiter;
 import datadog.trace.bootstrap.ContextStore;
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 
 public class QueueTimerHelper {
+
+  private static final PerRecordingRateLimiter RATE_LIMITER =
+      new PerRecordingRateLimiter(
+          Duration.of(500, ChronoUnit.MILLIS),
+          10_000, // hard limit on queue events
+          ConfigProvider.getInstance()
+              .getInteger(
+                  ProfilingConfig.PROFILING_UPLOAD_PERIOD,
+                  ProfilingConfig.PROFILING_UPLOAD_PERIOD_DEFAULT));
 
   public static <T> void startQueuingTimer(
       ContextStore<T, State> taskContextStore, Class<?> schedulerClass, T task) {
@@ -17,7 +31,10 @@ public class QueueTimerHelper {
   public static void startQueuingTimer(State state, Class<?> schedulerClass, Object task) {
     // avoid calling this before JFR is initialised because it will lead to reading the wrong
     // TSC frequency before JFR has set it up properly
-    if (task != null && state != null && InstrumentationBasedProfiling.isJFRReady()) {
+    if (task != null
+        && state != null
+        && InstrumentationBasedProfiling.isJFRReady()
+        && RATE_LIMITER.permit()) {
       QueueTiming timing =
           (QueueTiming) AgentTracer.get().getProfilingContext().start(Timer.TimerType.QUEUEING);
       timing.setTask(task);
