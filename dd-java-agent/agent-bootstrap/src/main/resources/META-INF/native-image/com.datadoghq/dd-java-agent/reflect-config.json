@@ -133,5 +133,23 @@
     "fields": [
       {"name": "consumerIndex", "allowUnsafeAccess": true}
     ]
+  },
+  {
+    "name" : "datadog.jctools.queues.MpscArrayQueueProducerIndexField",
+    "fields": [
+      {"name": "producerIndex", "allowUnsafeAccess": true}
+    ]
+  },
+  {
+    "name" : "datadog.jctools.queues.MpscArrayQueueProducerLimitField",
+    "fields": [
+      {"name": "producerLimit", "allowUnsafeAccess": true}
+    ]
+  },
+  {
+    "name" : "datadog.jctools.queues.MpscArrayQueueConsumerIndexField",
+    "fields": [
+      {"name": "consumerIndex", "allowUnsafeAccess": true}
+    ]
   }
 ]

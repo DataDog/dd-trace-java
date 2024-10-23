@@ -30,6 +30,7 @@ public class SnapshotSink {
   private static final int HIGH_RATE_25_PERCENT_CAPACITY = HIGH_RATE_CAPACITY / 4;
   private static final int HIGH_RATE_75_PERCENT_CAPACITY = HIGH_RATE_CAPACITY * 3 / 4;
   static final long HIGH_RATE_STEP_SIZE = 10;
+  public static final BatchUploader.RetryPolicy RETRY_POLICY = new BatchUploader.RetryPolicy(0);
 
   private final BlockingQueue<Snapshot> lowRateSnapshots =
       new ArrayBlockingQueue<>(LOW_RATE_CAPACITY);

@@ -338,7 +338,7 @@ public class Config {
   private final boolean ciVisibilityItrEnabled;
   private final boolean ciVisibilityTestSkippingEnabled;
   private final boolean ciVisibilityCiProviderIntegrationEnabled;
-  private final boolean ciVisibilityRepoIndexSharingEnabled;
+  private final boolean ciVisibilityRepoIndexDuplicateKeyCheckEnabled;
   private final int ciVisibilityExecutionSettingsCacheSize;
   private final int ciVisibilityJvmInfoCacheSize;
   private final int ciVisibilityCoverageRootPackagesLimit;
@@ -384,6 +384,7 @@ public class Config {
   private final boolean debuggerVerifyByteCode;
   private final boolean debuggerInstrumentTheWorld;
   private final String debuggerExcludeFiles;
+  private final String debuggerIncludeFiles;
   private final int debuggerCaptureTimeout;
   private final String debuggerRedactedIdentifiers;
   private final Set<String> debuggerRedactionExcludedIdentifiers;
@@ -409,7 +410,6 @@ public class Config {
   private final boolean kafkaClientPropagationEnabled;
   private final Set<String> kafkaClientPropagationDisabledTopics;
   private final boolean kafkaClientBase64DecodingEnabled;
-
   private final boolean jmsPropagationEnabled;
   private final Set<String> jmsPropagationDisabledTopics;
   private final Set<String> jmsPropagationDisabledQueues;
@@ -783,7 +783,9 @@ public class Config {
 
     httpClientErrorStatuses =
         configProvider.getIntegerRange(
-            HTTP_CLIENT_ERROR_STATUSES, DEFAULT_HTTP_CLIENT_ERROR_STATUSES);
+            TRACE_HTTP_CLIENT_ERROR_STATUSES,
+            DEFAULT_HTTP_CLIENT_ERROR_STATUSES,
+            HTTP_CLIENT_ERROR_STATUSES);
 
     httpServerTagQueryString =
         configProvider.getBoolean(
@@ -1401,8 +1403,8 @@ public class Config {
         configProvider.getBoolean(CIVISIBILITY_TEST_SKIPPING_ENABLED, true);
     ciVisibilityCiProviderIntegrationEnabled =
         configProvider.getBoolean(CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED, true);
-    ciVisibilityRepoIndexSharingEnabled =
-        configProvider.getBoolean(CIVISIBILITY_REPO_INDEX_SHARING_ENABLED, true);
+    ciVisibilityRepoIndexDuplicateKeyCheckEnabled =
+        configProvider.getBoolean(CIVISIBILITY_REPO_INDEX_DUPLICATE_KEY_CHECK_ENABLED, true);
     ciVisibilityExecutionSettingsCacheSize =
         configProvider.getInteger(CIVISIBILITY_EXECUTION_SETTINGS_CACHE_SIZE, 16);
     ciVisibilityJvmInfoCacheSize = configProvider.getInteger(CIVISIBILITY_JVM_INFO_CACHE_SIZE, 8);
@@ -1491,6 +1493,7 @@ public class Config {
         configProvider.getBoolean(
             DEBUGGER_INSTRUMENT_THE_WORLD, DEFAULT_DEBUGGER_INSTRUMENT_THE_WORLD);
     debuggerExcludeFiles = configProvider.getString(DEBUGGER_EXCLUDE_FILES);
+    debuggerIncludeFiles = configProvider.getString(DEBUGGER_INCLUDE_FILES);
     debuggerCaptureTimeout =
         configProvider.getInteger(DEBUGGER_CAPTURE_TIMEOUT, DEFAULT_DEBUGGER_CAPTURE_TIMEOUT);
     debuggerRedactedIdentifiers = configProvider.getString(DEBUGGER_REDACTED_IDENTIFIERS, null);
@@ -1545,7 +1548,6 @@ public class Config {
         tryMakeImmutableSet(configProvider.getList(KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS));
     kafkaClientBase64DecodingEnabled =
         configProvider.getBoolean(KAFKA_CLIENT_BASE64_DECODING_ENABLED, false);
-
     jmsPropagationEnabled = isPropagationEnabled(true, "jms");
     jmsPropagationDisabledTopics =
         tryMakeImmutableSet(configProvider.getList(JMS_PROPAGATION_DISABLED_TOPICS));
@@ -1767,7 +1769,7 @@ public class Config {
    * my.package.*,my.other.package.*}) to list of package prefixes suitable for use with ASM ({@code
    * my/package/,my/other/package/})
    */
-  private static String[] convertJacocoExclusionFormatToPackagePrefixes(List<String> packages) {
+  public static String[] convertJacocoExclusionFormatToPackagePrefixes(List<String> packages) {
     return packages.stream()
         .map(s -> (s.endsWith("*") ? s.substring(0, s.length() - 1) : s).replace('.', '/'))
         .toArray(String[]::new);
@@ -2715,8 +2717,8 @@ public class Config {
     return ciVisibilityCiProviderIntegrationEnabled;
   }
 
-  public boolean isCiVisibilityRepoIndexSharingEnabled() {
-    return ciVisibilityRepoIndexSharingEnabled;
+  public boolean isCiVisibilityRepoIndexDuplicateKeyCheckEnabled() {
+    return ciVisibilityRepoIndexDuplicateKeyCheckEnabled;
   }
 
   public int getCiVisibilityExecutionSettingsCacheSize() {
@@ -2881,6 +2883,10 @@ public class Config {
 
   public String getDebuggerExcludeFiles() {
     return debuggerExcludeFiles;
+  }
+
+  public String getDebuggerIncludeFiles() {
+    return debuggerIncludeFiles;
   }
 
   public int getDebuggerCaptureTimeout() {
@@ -4226,8 +4232,10 @@ public class Config {
         + debuggerVerifyByteCode
         + ", debuggerInstrumentTheWorld="
         + debuggerInstrumentTheWorld
-        + ", debuggerExcludeFile="
+        + ", debuggerExcludeFiles="
         + debuggerExcludeFiles
+        + ", debuggerIncludeFiles="
+        + debuggerIncludeFiles
         + ", debuggerCaptureTimeout="
         + debuggerCaptureTimeout
         + ", debuggerRedactIdentifiers="

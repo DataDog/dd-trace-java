@@ -10,6 +10,7 @@ import com.google.auto.service.AutoService;
 import com.google.protobuf.AbstractMessage;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.concurrent.ExecutionException;
 import net.bytebuddy.asm.Advice;
@@ -58,11 +59,23 @@ public final class AbstractMessageInstrumentation extends InstrumenterModule.Tra
   public static class WriteToAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(@Advice.This AbstractMessage message) {
-      SchemaExtractor.attachSchemaOnSpan(message, activeSpan(), SchemaExtractor.serialization);
+      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(AbstractMessage.class);
+      if (callDepth > 0) {
+        return;
+      }
+      if (message == null) {
+        return;
+      }
+      SchemaExtractor.attachSchemaOnSpan(
+          message.getDescriptorForType(), activeSpan(), SchemaExtractor.serialization);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(@Advice.Thrown final Throwable throwable) {
+      final int callDepth = CallDepthThreadLocalMap.decrementCallDepth(AbstractMessage.class);
+      if (callDepth > 0) {
+        return;
+      }
       AgentSpan span = activeSpan();
       if (throwable != null) {
         span.addThrowable(

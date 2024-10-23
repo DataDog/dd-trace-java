@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.protobuf_java;
 
-import com.google.protobuf.AbstractMessage;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
@@ -170,22 +169,12 @@ public class SchemaExtractor implements SchemaIterator {
     extractSchema(descriptor, builder, 0);
   }
 
-  public static void attachSchemaOnSpan(AbstractMessage message, AgentSpan span, String operation) {
-    if (message == null) {
-      return;
-    }
-    attachSchemaOnSpan(message.getDescriptorForType(), span, operation);
-  }
-
   public static void attachSchemaOnSpan(
       Descriptors.Descriptor descriptor, AgentSpan span, String operation) {
     if (descriptor == null || span == null) {
       return;
     }
     AgentDataStreamsMonitoring dsm = AgentTracer.get().getDataStreamsMonitoring();
-    span.setTag(DDTags.SCHEMA_TYPE, PROTOBUF);
-    span.setTag(DDTags.SCHEMA_NAME, descriptor.getFullName());
-    span.setTag(DDTags.SCHEMA_OPERATION, operation);
     // do a check against the schema sampler to avoid forcing the trace sampling decision too often.
     if (!dsm.canSampleSchema(operation)) {
       return;
@@ -200,6 +189,9 @@ public class SchemaExtractor implements SchemaIterator {
       return;
     }
     Schema schema = SchemaExtractor.extractSchemas(descriptor);
+    span.setTag(DDTags.SCHEMA_TYPE, PROTOBUF);
+    span.setTag(DDTags.SCHEMA_NAME, descriptor.getFullName());
+    span.setTag(DDTags.SCHEMA_OPERATION, operation);
     span.setTag(DDTags.SCHEMA_DEFINITION, schema.definition);
     span.setTag(DDTags.SCHEMA_WEIGHT, weight);
     span.setTag(DDTags.SCHEMA_ID, schema.id);

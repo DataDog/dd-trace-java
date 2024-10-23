@@ -583,6 +583,9 @@ public class CapturedSnapshotTest {
   }
 
   @Test
+  @DisabledIf(
+      value = "datadog.trace.api.Platform#isJ9",
+      disabledReason = "Issue with J9 when compiling Kotlin code")
   public void sourceFileProbeKotlin() {
     final String CLASS_NAME = "CapturedSnapshot301";
     TestSnapshotListener listener =
@@ -590,8 +593,9 @@ public class CapturedSnapshotTest {
     URL resource = CapturedSnapshotTest.class.getResource("/" + CLASS_NAME + ".kt");
     assertNotNull(resource);
     List<File> filesToDelete = new ArrayList<>();
-    Class<?> testClass = KotlinHelper.compileAndLoad(CLASS_NAME, resource.getFile(), filesToDelete);
     try {
+      Class<?> testClass =
+          KotlinHelper.compileAndLoad(CLASS_NAME, resource.getFile(), filesToDelete);
       Object companion = Reflect.onClass(testClass).get("Companion");
       int result = Reflect.on(companion).call("main", "").get();
       assertEquals(48, result);
@@ -602,6 +606,56 @@ public class CapturedSnapshotTest {
       Assertions.assertEquals(CLASS_NAME, snapshot.getProbe().getLocation().getType());
       Assertions.assertEquals("f1", snapshot.getProbe().getLocation().getMethod());
       assertCaptureArgs(snapshot.getCaptures().getLines().get(4), "value", "int", "31");
+    } finally {
+      filesToDelete.forEach(File::delete);
+    }
+  }
+
+  @Test
+  @DisabledIf(
+      value = "datadog.trace.api.Platform#isJ9",
+      disabledReason = "Issue with J9 when compiling Kotlin code")
+  public void suspendKotlin() {
+    final String CLASS_NAME = "CapturedSnapshot302";
+    TestSnapshotListener listener =
+        installProbes(CLASS_NAME, createSourceFileProbe(PROBE_ID, CLASS_NAME + ".kt", 9));
+    URL resource = CapturedSnapshotTest.class.getResource("/" + CLASS_NAME + ".kt");
+    assertNotNull(resource);
+    List<File> filesToDelete = new ArrayList<>();
+    try {
+      Class<?> testClass =
+          KotlinHelper.compileAndLoad(CLASS_NAME, resource.getFile(), filesToDelete);
+      Object companion = Reflect.onClass(testClass).get("Companion");
+      int result = Reflect.on(companion).call("main", "").get();
+      assertEquals(0, result);
+      Snapshot snapshot = assertOneSnapshot(listener);
+      assertCaptureFields(snapshot.getCaptures().getLines().get(9), "intField", "int", "42");
+      assertCaptureFields(
+          snapshot.getCaptures().getLines().get(9), "strField", String.class.getTypeName(), "foo");
+    } finally {
+      filesToDelete.forEach(File::delete);
+    }
+  }
+
+  @Test
+  @DisabledIf(
+      value = "datadog.trace.api.Platform#isJ9",
+      disabledReason = "Issue with J9 when compiling Kotlin code")
+  public void hoistVarKotlin() {
+    final String CLASS_NAME = "CapturedSnapshot303";
+    TestSnapshotListener listener =
+        installProbes(
+            CLASS_NAME, createProbeAtExit(PROBE_ID, CLASS_NAME + "$Companion", "main", null));
+    URL resource = CapturedSnapshotTest.class.getResource("/" + CLASS_NAME + ".kt");
+    assertNotNull(resource);
+    List<File> filesToDelete = new ArrayList<>();
+    try {
+      Class<?> testClass =
+          KotlinHelper.compileAndLoad(CLASS_NAME, resource.getFile(), filesToDelete);
+      Object companion = Reflect.onClass(testClass).get("Companion");
+      int result = Reflect.on(companion).call("main", "").get();
+      assertEquals(0, result);
+      Snapshot snapshot = assertOneSnapshot(listener);
     } finally {
       filesToDelete.forEach(File::delete);
     }
@@ -805,11 +859,11 @@ public class CapturedSnapshotTest {
     assertCaptureFieldsNotCaptured(
         snapshot.getCaptures().getReturn(),
         "bin",
-        "java.lang.reflect.InaccessibleObjectException: Unable to make field private final java.io.ObjectInputStream\\$BlockDataInputStream java.io.ObjectInputStream.bin accessible: module java.base does not \"opens java.io\" to unnamed module.*");
+        "Field is not accessible: module java.base does not opens/exports to the current module");
     assertCaptureFieldsNotCaptured(
         snapshot.getCaptures().getReturn(),
         "vlist",
-        "java.lang.reflect.InaccessibleObjectException: Unable to make field private final java.io.ObjectInputStream\\$ValidationList java.io.ObjectInputStream.vlist accessible: module java.base does not \"opens java.io\" to unnamed module.*");
+        "Field is not accessible: module java.base does not opens/exports to the current module");
   }
 
   @Test
@@ -825,11 +879,11 @@ public class CapturedSnapshotTest {
     assertCaptureStaticFieldsNotCaptured(
         snapshot.getCaptures().getReturn(),
         "followRedirects",
-        "java.lang.reflect.InaccessibleObjectException: Unable to make field private static boolean java.net.HttpURLConnection.followRedirects accessible: module java.base does not \"opens java.net\" to unnamed module.*");
+        "Field is not accessible: module java.base does not opens/exports to the current module");
     assertCaptureStaticFieldsNotCaptured(
         snapshot.getCaptures().getReturn(),
         "factory",
-        "java.lang.reflect.InaccessibleObjectException: Unable to make field private static volatile java.net.ContentHandlerFactory java.net.URLConnection.factory accessible: module java.base does not \"opens java.net\" to unnamed module.*");
+        "Field is not accessible: module java.base does not opens/exports to the current module");
   }
 
   @Test
@@ -1608,7 +1662,9 @@ public class CapturedSnapshotTest {
   public void instrumentTheWorld() throws Exception {
     final String CLASS_NAME = "CapturedSnapshot01";
     Map<String, byte[]> classFileBuffers = compile(CLASS_NAME);
-    TestSnapshotListener listener = setupInstrumentTheWorldTransformer(null);
+    TestSnapshotListener listener =
+        setupInstrumentTheWorldTransformer(
+            null, getClass().getResource("/include-files/singleClass.txt").getPath());
     Class<?> testClass;
     try {
       testClass = loadClass(CLASS_NAME, classFileBuffers);
@@ -1619,7 +1675,7 @@ public class CapturedSnapshotTest {
     assertEquals(2, result);
     assertEquals(1, listener.snapshots.size());
     ProbeImplementation probeImplementation = listener.snapshots.get(0).getProbe();
-    assertTrue(probeImplementation.isCaptureSnapshot());
+    assertFalse(probeImplementation.isCaptureSnapshot());
     assertEquals("main", probeImplementation.getLocation().getMethod());
   }
 
@@ -1629,7 +1685,9 @@ public class CapturedSnapshotTest {
     final String CLASS_NAME = "CapturedSnapshot01";
     Map<String, byte[]> classFileBuffers = compile(CLASS_NAME);
     URL resource = getClass().getResource(excludeFileName);
-    TestSnapshotListener listener = setupInstrumentTheWorldTransformer(resource.getPath());
+    TestSnapshotListener listener =
+        setupInstrumentTheWorldTransformer(
+            resource.getPath(), getClass().getResource("/include-files/singleClass.txt").getPath());
     Class<?> testClass;
     try {
       testClass = loadClass(CLASS_NAME, classFileBuffers);
@@ -2453,12 +2511,14 @@ public class CapturedSnapshotTest {
         "hello");
   }
 
-  private TestSnapshotListener setupInstrumentTheWorldTransformer(String excludeFileName) {
+  private TestSnapshotListener setupInstrumentTheWorldTransformer(
+      String excludeFileName, String includeFileName) {
     Config config = mock(Config.class);
     when(config.isDebuggerEnabled()).thenReturn(true);
     when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
     when(config.isDebuggerInstrumentTheWorld()).thenReturn(true);
     when(config.getDebuggerExcludeFiles()).thenReturn(excludeFileName);
+    when(config.getDebuggerIncludeFiles()).thenReturn(includeFileName);
     when(config.getFinalDebuggerSnapshotUrl())
         .thenReturn("http://localhost:8126/debugger/v1/input");
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");

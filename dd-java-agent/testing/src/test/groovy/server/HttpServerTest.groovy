@@ -1,14 +1,15 @@
 package server
 
+import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
+import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+
+import datadog.communication.util.IOUtils
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.utils.OkHttpUtils
 import okhttp3.MultipartBody
 import okhttp3.Request
 import spock.lang.Shared
-
-import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
-import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
-import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 /* Don't actually need AgentTestRunner, but it messes up the classloader for AgentTestRunnerTest if this runs first. */
 
@@ -408,7 +409,7 @@ class HttpServerTest extends AgentTestRunner {
 
     then:
     clientResponse.code() == 500
-    clientResponse.message().startsWith("assert !req.orig.handled")
+    IOUtils.readFully (clientResponse.body().byteStream()).contains("assert !req.orig.handled")
 
     cleanup:
     server.stop()
@@ -434,7 +435,7 @@ class HttpServerTest extends AgentTestRunner {
 
     then:
     clientResponse.code() == 500
-    clientResponse.message().startsWith("assert body != null?")
+    IOUtils.readFully (clientResponse.body().byteStream()).contains("assert body != null")
 
     cleanup:
     server.stop()

@@ -139,9 +139,23 @@ public class ProbeInserterInstrumentation extends InstrumenterModule.CiVisibilit
       classNameField.setAccessible(true);
       String className = (String) classNameField.get(arrayStrategy);
 
-      String[] excludedClassnames = Config.get().getCiVisibilityCodeCoverageExcludedPackages();
-      for (String excludedClassname : excludedClassnames) {
-        if (className.startsWith(excludedClassname)) {
+      String[] excludedPackages = Config.get().getCiVisibilityCodeCoverageExcludedPackages();
+      for (String excludedPackage : excludedPackages) {
+        if (className.startsWith(excludedPackage)) {
+          return;
+        }
+      }
+
+      String[] includedPackages = Config.get().getCiVisibilityCodeCoverageIncludedPackages();
+      if (includedPackages.length > 0) {
+        boolean included = false;
+        for (String includedPackage : includedPackages) {
+          if (className.startsWith(includedPackage)) {
+            included = true;
+            break;
+          }
+        }
+        if (!included) {
           return;
         }
       }
