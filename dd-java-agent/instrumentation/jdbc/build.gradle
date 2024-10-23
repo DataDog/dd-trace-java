@@ -7,6 +7,7 @@ muzzle {
   pass {
     coreJdk()
     extraDependency 'com.ibm.db2:jcc:11.1.4.4'
+    extraDependency 'com.zaxxer:HikariCP:2.4.0'
   }
 }
 
@@ -19,6 +20,7 @@ addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepJava11Test', 'latestDepTest', 'test')
 
 dependencies {
+  compileOnly group: 'com.zaxxer', name: 'HikariCP', version: '2.4.0'
   testImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
 
   // jdbc unit testing
@@ -38,7 +40,7 @@ dependencies {
 
   testImplementation group: 'org.testcontainers', name:'mysql', version: libs.versions.testcontainers.get()
   testImplementation group: 'org.testcontainers', name:'postgresql', version: libs.versions.testcontainers.get()
-  testImplementation group: 'org.testcontainers', name:'mssqlserver', version: '1.19.8'
+  testImplementation group: 'org.testcontainers', name:'mssqlserver', version: libs.versions.testcontainers.get()
 
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
 

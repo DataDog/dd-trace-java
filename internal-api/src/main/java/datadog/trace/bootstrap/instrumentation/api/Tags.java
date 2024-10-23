@@ -47,6 +47,7 @@ public class Tags {
   public static final String DB_HOST = "db.host";
   public static final String DB_SCHEMA = "db.schema";
   public static final String MESSAGE_BUS_DESTINATION = "message_bus.destination";
+  public static final String DB_POOL_NAME = "db.pool.name";
 
   public static final String TEST_SESSION_NAME = "test_session.name";
   public static final String TEST_MODULE = "test.module";
@@ -75,6 +76,7 @@ public class Tags {
   public static final String TEST_BROWSER_DRIVER_VERSION = "test.browser.driver_version";
   public static final String TEST_BROWSER_NAME = "test.browser.name";
   public static final String TEST_BROWSER_VERSION = "test.browser.version";
+  public static final String TEST_CALLBACK = "test.callback";
 
   public static final String TEST_SESSION_ID = "test_session_id";
   public static final String TEST_MODULE_ID = "test_module_id";

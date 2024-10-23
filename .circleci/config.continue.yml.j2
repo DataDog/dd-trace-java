@@ -36,7 +36,7 @@ instrumentation_modules: &instrumentation_modules "dd-java-agent/instrumentation
 debugger_modules: &debugger_modules "dd-java-agent/agent-debugger|dd-java-agent/agent-bootstrap|dd-java-agent/agent-builder|internal-api|communication|dd-trace-core"
 profiling_modules: &profiling_modules "dd-java-agent/agent-profiling"
 
-default_system_tests_commit: &default_system_tests_commit c87bd359aad64a29f280fc5c70a879f7c7f4846e
+default_system_tests_commit: &default_system_tests_commit 53d9b2c43876a39e5c0426f4df4dd5fd79d062e8
 
 parameters:
   nightly:
@@ -660,7 +660,8 @@ jobs:
           - DD_POOL_TRACE_CHECK_FAILURES=true
           - DD_DISABLE_ERROR_RESPONSES=true
           - ENABLED_CHECKS=trace_content_length,trace_stall,meta_tracer_version_header,trace_count_header,trace_peer_service,trace_dd_service
-    resource_class: xlarge
+    # TODO: merge xlarge_tests and tests? or rename this?
+    resource_class: large
 
 
   # The only way to do fan-in in CircleCI seems to have a proper job, so let's have one that
@@ -781,6 +782,7 @@ jobs:
           name: Gather muzzle tasks
           command: >-
             SKIP_BUILDSCAN="true"
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
             ./gradlew writeMuzzleTasksToFile
             << pipeline.parameters.gradle_flags >>
             --max-workers=3
@@ -879,11 +881,27 @@ jobs:
 
       - run:
           name: Run APM Integrations tests
+          environment:
+            - AWS_ACCESS_KEY_ID: $SYSTEM_TESTS_IDM_AWS_ACCESS_KEY_ID
+            - AWS_SECRET_ACCESS_KEY: $SYSTEM_TESTS_IDM_AWS_SECRET_ACCESS_KEY
+            - AWS_REGION: us-east-1
+            - AWS_DEFAULT_REGION: us-east-1  # AWS services should use `AWS_REGION`, but some still use the older `AWS_DEFAULT_REGION`
           # Stop the job after 5m to avoid excessive overhead. Will need adjustment as more tests are added.
           no_output_timeout: 5m
           command: |
             cd system-tests
             DD_SITE=datadoghq.com DD_API_KEY=$SYSTEM_TESTS_E2E_DD_API_KEY DD_APPLICATION_KEY=$SYSTEM_TESTS_E2E_DD_APP_KEY ./run.sh INTEGRATIONS
+        
+      - run:
+          name: Run IDM Crossed Tracing Libraries propagation tests for messaging
+          environment:
+            - AWS_ACCESS_KEY_ID: $SYSTEM_TESTS_IDM_AWS_ACCESS_KEY_ID
+            - AWS_SECRET_ACCESS_KEY: $SYSTEM_TESTS_IDM_AWS_SECRET_ACCESS_KEY
+            - AWS_REGION: us-east-1
+            - AWS_DEFAULT_REGION: us-east-1  # AWS services should use `AWS_REGION`, but some still use the older `AWS_DEFAULT_REGION`
+          command: |
+            cd system-tests
+            DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh CROSSED_TRACING_LIBRARIES
 
       - store_test_results:
           path: system-tests/logs_integrations
@@ -944,7 +962,6 @@ jobs:
           name: Build runner
           command: |
             cd system-tests
-            export TEST_LIBRARY=java
             ./build.sh -i runner
 
       - run:
@@ -952,13 +969,11 @@ jobs:
           command: |
             set -e
             cd system-tests
-            export TEST_LIBRARY=java
-            export PYTEST_XDIST_AUTO_NUM_WORKERS=6
             set +e
             RUN_ATTEMPTS=1
             while [ $RUN_ATTEMPTS -le 3 ]; do
               echo "Running parametric test attempt $RUN_ATTEMPTS"
-              timeout 12m ./run.sh PARAMETRIC --log-cli-level=DEBUG --durations=30 -vv
+              timeout 20m ./run.sh PARAMETRIC -L java --log-cli-level=DEBUG --durations=30 -vv
               status=$?
               #timneout returns 124 if it times out
               #if the return code is not 124, then we exit with the status
@@ -1099,8 +1114,8 @@ build_test_jobs: &build_test_jobs
       triggeredBy: *instrumentation_modules
       stage: instrumentation
       cacheType: inst
-      parallelism: 4
-      maxWorkers: 4
+      parallelism: 12
+      maxWorkers: 3
       matrix:
         <<: *test_matrix
 
@@ -1113,8 +1128,8 @@ build_test_jobs: &build_test_jobs
       triggeredBy: *instrumentation_modules
       stage: instrumentation
       cacheType: inst
-      parallelism: 4
-      maxWorkers: 4
+      parallelism: 12
+      maxWorkers: 3
       testJvm: "8"
 
   - xlarge_tests:
@@ -1127,8 +1142,8 @@ build_test_jobs: &build_test_jobs
       triggeredBy: *instrumentation_modules
       stage: instrumentation
       cacheType: latestdep
-      parallelism: 4
-      maxWorkers: 4
+      parallelism: 12
+      maxWorkers: 3
       testJvm: "8"
 
   - xlarge_tests:
@@ -1141,8 +1156,8 @@ build_test_jobs: &build_test_jobs
       triggeredBy: *instrumentation_modules
       stage: instrumentation
       cacheType: latestdep
-      parallelism: 4
-      maxWorkers: 4
+      parallelism: 12
+      maxWorkers: 3
       testJvm: "17"
 
   - xlarge_tests:
@@ -1155,8 +1170,8 @@ build_test_jobs: &build_test_jobs
       triggeredBy: *instrumentation_modules
       stage: instrumentation
       cacheType: latestdep
-      parallelism: 4
-      maxWorkers: 4
+      parallelism: 12
+      maxWorkers: 3
       testJvm: "21"
 
 {% if flaky %}
@@ -1184,7 +1199,7 @@ build_test_jobs: &build_test_jobs
       triggeredBy: *instrumentation_modules
       stage: instrumentation
       cacheType: inst
-      parallelism: 2
+      parallelism: 12
       maxWorkers: 4
       testJvm: "8"
 
@@ -1197,6 +1212,20 @@ build_test_jobs: &build_test_jobs
       continueOnFailure: true
       stage: smoke
       cacheType: smoke
+      parallelism: 4
+      maxWorkers: 4
+      testJvm: "8"
+
+  - tests:
+      requires:
+        - ok_to_test
+      name: z_test_8_flaky_debugger
+      gradleTarget: ":debuggerTest"
+      gradleParameters: "-PrunFlakyTests"
+      continueOnFailure: true
+      triggeredBy: *debugger_modules
+      stage: debugger
+      cacheType: base
       parallelism: 4
       maxWorkers: 4
       testJvm: "8"
@@ -1403,6 +1432,7 @@ build_test_jobs: &build_test_jobs
 {% for jdk in all_jdks %}
         - "test_{{ jdk }}"
 {% endfor %}
+        - muzzle
         - profiling
         - debugger
         - system-tests

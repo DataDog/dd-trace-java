@@ -103,6 +103,8 @@ public class Agent {
     USM(propertyNameToSystemPropertyName(UsmConfig.USM_ENABLED), false),
     TELEMETRY(propertyNameToSystemPropertyName(GeneralConfig.TELEMETRY_ENABLED), true),
     DEBUGGER(propertyNameToSystemPropertyName(DebuggerConfig.DEBUGGER_ENABLED), false),
+    EXCEPTION_DEBUGGING(
+        propertyNameToSystemPropertyName(DebuggerConfig.EXCEPTION_REPLAY_ENABLED), false),
     DATA_JOBS(propertyNameToSystemPropertyName(GeneralConfig.DATA_JOBS_ENABLED), false),
     AGENTLESS_LOG_SUBMISSION(
         propertyNameToSystemPropertyName(GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED), false);
@@ -149,6 +151,7 @@ public class Agent {
   private static boolean usmEnabled = false;
   private static boolean telemetryEnabled = true;
   private static boolean debuggerEnabled = false;
+  private static boolean exceptionDebuggingEnabled = false;
   private static boolean agentlessLogSubmissionEnabled = false;
 
   /**
@@ -218,6 +221,15 @@ public class Agent {
 
     boolean dataJobsEnabled = isFeatureEnabled(AgentFeature.DATA_JOBS);
     if (dataJobsEnabled) {
+      log.info("Data Jobs Monitoring enabled, enabling spark integrations");
+
+      setSystemPropertyDefault(
+          propertyNameToSystemPropertyName(TracerConfig.TRACE_LONG_RUNNING_ENABLED), "true");
+      setSystemPropertyDefault(
+          propertyNameToSystemPropertyName("integration.spark.enabled"), "true");
+      setSystemPropertyDefault(
+          propertyNameToSystemPropertyName("integration.spark-executor.enabled"), "true");
+
       String javaCommand = System.getProperty("sun.java.command");
       String dataJobsCommandPattern = Config.get().getDataJobsCommandPattern();
       if (!isDataJobsSupported(javaCommand, dataJobsCommandPattern)) {
@@ -227,15 +239,6 @@ public class Agent {
             dataJobsCommandPattern);
         return;
       }
-
-      log.info("Data Jobs Monitoring enabled, enabling spark integrations");
-
-      setSystemPropertyDefault(
-          propertyNameToSystemPropertyName(TracerConfig.TRACE_LONG_RUNNING_ENABLED), "true");
-      setSystemPropertyDefault(
-          propertyNameToSystemPropertyName("integration.spark.enabled"), "true");
-      setSystemPropertyDefault(
-          propertyNameToSystemPropertyName("integration.spark-executor.enabled"), "true");
     }
 
     if (!isSupportedAppSecArch()) {
@@ -259,6 +262,7 @@ public class Agent {
     cwsEnabled = isFeatureEnabled(AgentFeature.CWS);
     telemetryEnabled = isFeatureEnabled(AgentFeature.TELEMETRY);
     debuggerEnabled = isFeatureEnabled(AgentFeature.DEBUGGER);
+    exceptionDebuggingEnabled = isFeatureEnabled(AgentFeature.EXCEPTION_DEBUGGING);
     agentlessLogSubmissionEnabled = isFeatureEnabled(AgentFeature.AGENTLESS_LOG_SUBMISSION);
 
     if (profilingEnabled) {
@@ -1069,7 +1073,7 @@ public class Agent {
   }
 
   private static void maybeStartDebugger(Instrumentation inst, Class<?> scoClass, Object sco) {
-    if (!debuggerEnabled) {
+    if (!debuggerEnabled && !exceptionDebuggingEnabled) {
       return;
     }
     if (!remoteConfigEnabled) {

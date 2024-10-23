@@ -105,8 +105,25 @@ public final class DatadogClassLoader extends SecureClassLoader {
         }
       }
       return cl.loadInstrumentationClass(name, agentCodeSource);
+    } else if (name.startsWith("com.kenai.jffi")) {
+      // prefer our embedded JFFI to other versions exposed by the parent class-loader
+      return loadLocalClass(name, resolve);
     } else {
       return super.loadClass(name, resolve);
+    }
+  }
+
+  /** Same as {@link #loadClass(String, boolean)} but it doesn't delegate to the parent. */
+  private Class<?> loadLocalClass(String name, boolean resolve) throws ClassNotFoundException {
+    synchronized (getClassLoadingLock(name)) {
+      Class<?> c = findLoadedClass(name);
+      if (null == c) {
+        c = findClass(name);
+      }
+      if (resolve) {
+        resolveClass(c);
+      }
+      return c;
     }
   }
 

@@ -31,7 +31,6 @@ import datadog.trace.civisibility.source.NoOpSourcePathResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.source.index.RepoIndexProvider;
 import datadog.trace.civisibility.source.index.RepoIndexSourcePathResolver;
-import datadog.trace.civisibility.utils.ProcessHierarchyUtils;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
@@ -76,11 +75,12 @@ public class CiVisibilityRepoServices {
     codeowners = buildCodeowners(repoRoot);
     sourcePathResolver = buildSourcePathResolver(repoRoot, repoIndexProvider);
 
-    if (ProcessHierarchyUtils.isChild()) {
+    if (services.processHierarchy.isChild()) {
       executionSettingsFactory = buildExecutionSettingsFetcher(services.signalClientFactory);
     } else {
       executionSettingsFactory =
           buildExecutionSettingsFactory(
+              services.processHierarchy,
               services.config,
               services.metricCollector,
               services.backendApi,
@@ -89,18 +89,18 @@ public class CiVisibilityRepoServices {
     }
   }
 
-  private static String getModuleName(Config config, Path path, CIInfo ciInfo) {
+  static String getModuleName(Config config, Path path, CIInfo ciInfo) {
     // if parent process is instrumented, it will provide build system's module name
     String parentModuleName = config.getCiVisibilityModuleName();
     if (parentModuleName != null) {
       return parentModuleName;
     }
     String repoRoot = ciInfo.getNormalizedCiWorkspace();
-    if (repoRoot != null
-        && path.startsWith(repoRoot)
-        // module name cannot be empty
-        && !path.toString().equals(repoRoot)) {
-      return Paths.get(repoRoot).relativize(path).toString();
+    if (repoRoot != null && path.startsWith(repoRoot)) {
+      String relativePath = Paths.get(repoRoot).relativize(path).toString();
+      if (!relativePath.isEmpty()) {
+        return relativePath;
+      }
     }
     return config.getServiceName();
   }
@@ -122,6 +122,7 @@ public class CiVisibilityRepoServices {
   }
 
   private static ExecutionSettingsFactory buildExecutionSettingsFactory(
+      ProcessHierarchy processHierarchy,
       Config config,
       CiVisibilityMetricCollector metricCollector,
       BackendApi backendApi,
@@ -138,7 +139,7 @@ public class CiVisibilityRepoServices {
 
     ExecutionSettingsFactoryImpl factory =
         new ExecutionSettingsFactoryImpl(config, configurationApi, gitDataUploader, repoRoot);
-    if (ProcessHierarchyUtils.isHeadless()) {
+    if (processHierarchy.isHeadless()) {
       return factory;
     } else {
       return new MultiModuleExecutionSettingsFactory(config, factory);

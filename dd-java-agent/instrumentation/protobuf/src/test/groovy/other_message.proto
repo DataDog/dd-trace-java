@@ -1,6 +1,0 @@
-syntax = "proto3";
-
-message OtherMessage {
-  repeated string name = 1;
-  int32 age = 2;
-}

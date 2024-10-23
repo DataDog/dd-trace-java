@@ -1,5 +1,6 @@
 package datadog.smoketest.appsec
 
+import datadog.trace.agent.test.utils.OkHttpUtils
 import datadog.trace.agent.test.utils.ThreadUtils
 import okhttp3.MediaType
 import okhttp3.Request
@@ -126,6 +127,26 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
               ],
               operator  : "lfi_detector",
             ],
+          ],
+          transformers: [],
+          on_match    : ['block']
+        ],
+        [
+          id          : '__test_session_id_block',
+          name        : 'test rule to block on any session id',
+          tags        : [
+            type      : 'test',
+            category  : 'test',
+            confidence: '1',
+          ],
+          conditions  : [
+            [
+              parameters: [
+                inputs: [[address: 'usr.session_id']],
+                regex : '[a-zA-Z0-9]+',
+              ],
+              operator  : 'match_regex',
+            ]
           ],
           transformers: [],
           on_match    : ['block']
@@ -435,4 +456,41 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     return this.rootSpans.toList().find { (it.span.resource == 'GET /lfi/' + resource) }
   }
 
+
+  void 'session id tracking'() {
+    given:
+    def url = "http://localhost:${httpPort}/session"
+    def cookieJar = OkHttpUtils.cookieJar()
+    def client = OkHttpUtils.clientBuilder().cookieJar(cookieJar).build()
+    def request = new Request.Builder()
+      .url(url)
+      .get()
+      .build()
+
+    when: 'initial request creating the session'
+    def firstResponse = client.newCall(request).execute()
+
+    then:
+    firstResponse.code() == 200
+
+    when: 'second request with a session'
+    def secondResponse = client.newCall(request).execute()
+
+    then:
+    waitForTraceCount(2)
+    secondResponse.code() == 403
+    secondResponse.body().string().contains('You\'ve been blocked')
+    final rootSpan = this.rootSpans.find { it.meta['usr.session_id'] != null }
+    rootSpan != null
+    assert rootSpan.meta.get('appsec.blocked') == 'true', 'appsec.blocked is not set'
+    assert rootSpan.meta.get('_dd.appsec.json') != null, '_dd.appsec.json is not set'
+    def trigger = null
+    for (t in rootSpan.triggers) {
+      if (t['rule']['id'] == '__test_session_id_block') {
+        trigger = t
+        break
+      }
+    }
+    assert trigger != null, 'test trigger not found'
+  }
 }

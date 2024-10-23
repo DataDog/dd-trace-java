@@ -8,7 +8,7 @@ import org.testng.annotations.Test;
 public class TestFailedSuiteSetup {
 
   @BeforeClass
-  public void tearDown() {
+  public void setup() {
     throw new RuntimeException("suite set up failed");
   }
 

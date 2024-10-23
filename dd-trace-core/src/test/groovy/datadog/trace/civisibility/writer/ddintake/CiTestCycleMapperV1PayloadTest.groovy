@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
+import datadog.trace.api.DDTraceId
 import datadog.trace.api.civisibility.CiVisibilityWellKnownTags
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -91,7 +92,7 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
   def "verify test_suite_id, test_module_id, and test_session_id are written as top level tags in test event"() {
     setup:
     def span = generateRandomSpan(InternalSpanTypes.TEST, [
-      (Tags.TEST_SESSION_ID): 123,
+      (Tags.TEST_SESSION_ID): DDTraceId.from(123),
       (Tags.TEST_MODULE_ID) : 456,
       (Tags.TEST_SUITE_ID)  : 789
     ])
@@ -100,7 +101,7 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
     Map<String, Object> deserializedSpan = whenASpanIsWritten(span)
 
     then:
-    verifyTopLevelTags(deserializedSpan, 123, 456, 789)
+    verifyTopLevelTags(deserializedSpan, DDTraceId.from(123), 456, 789)
 
     def spanContent = (Map<String, Object>) deserializedSpan.get("content")
     assert spanContent.containsKey("trace_id")
@@ -111,7 +112,7 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
   def "verify test_suite_end event is written correctly"() {
     setup:
     def span = generateRandomSpan(InternalSpanTypes.TEST_SUITE_END, [
-      (Tags.TEST_SESSION_ID): 123,
+      (Tags.TEST_SESSION_ID): DDTraceId.from(123),
       (Tags.TEST_MODULE_ID) : 456,
       (Tags.TEST_SUITE_ID)  : 789
     ])
@@ -120,7 +121,7 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
     Map<String, Object> deserializedSpan = whenASpanIsWritten(span)
 
     then:
-    verifyTopLevelTags(deserializedSpan, 123, 456, 789)
+    verifyTopLevelTags(deserializedSpan, DDTraceId.from(123), 456, 789)
 
     def spanContent = (Map<String, Object>) deserializedSpan.get("content")
     assert !spanContent.containsKey("trace_id")
@@ -131,7 +132,7 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
   def "verify test_module_end event is written correctly"() {
     setup:
     def span = generateRandomSpan(InternalSpanTypes.TEST_MODULE_END, [
-      (Tags.TEST_SESSION_ID): 123,
+      (Tags.TEST_SESSION_ID): DDTraceId.from(123),
       (Tags.TEST_MODULE_ID) : 456,
     ])
 
@@ -139,7 +140,7 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
     Map<String, Object> deserializedSpan = whenASpanIsWritten(span)
 
     then:
-    verifyTopLevelTags(deserializedSpan, 123, 456, null)
+    verifyTopLevelTags(deserializedSpan, DDTraceId.from(123), 456, null)
 
     def spanContent = (Map<String, Object>) deserializedSpan.get("content")
     assert !spanContent.containsKey("trace_id")
@@ -147,13 +148,13 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
     assert !spanContent.containsKey("parent_id")
   }
 
-  private static void verifyTopLevelTags(Map<String, Object> deserializedSpan, Long testSessionId, Long testModuleId, Long testSuiteId) {
+  private static void verifyTopLevelTags(Map<String, Object> deserializedSpan, DDTraceId testSessionId, Long testModuleId, Long testSuiteId) {
     Map<String, Object> deserializedSpanContent = (Map<String, Object>) deserializedSpan.get("content")
     Map<String, Object> deserializedMetrics = (Map<String, Object>) deserializedSpanContent.get("metrics")
     Map<String, Object> deserializedMeta = (Map<String, Object>) deserializedSpanContent.get("meta")
 
     if (testSessionId != null) {
-      assert deserializedSpanContent.get(Tags.TEST_SESSION_ID) == testSessionId
+      assert deserializedSpanContent.get(Tags.TEST_SESSION_ID) == testSessionId.toLong()
     } else {
       assert !deserializedSpanContent.containsKey(Tags.TEST_SESSION_ID)
     }

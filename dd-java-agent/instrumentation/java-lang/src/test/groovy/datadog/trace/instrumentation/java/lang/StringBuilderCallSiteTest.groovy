@@ -57,7 +57,7 @@ class StringBuilderCallSiteTest extends AgentTestRunner {
     if (param.class == String) {
       1 * iastModule.onStringBuilderAppend(target, (String) param)
     } else {
-      1 * iastModule.onStringBuilderAppend(target, param.toString())
+      1 * iastModule.onStringBuilderAppend(target, { it -> it.toString() == param.toString() } )
     }
     _ * TEST_PROFILING_CONTEXT_INTEGRATION._
     0 * _

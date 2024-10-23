@@ -27,7 +27,6 @@ public class ManualApiTestModule extends AbstractTestModule implements DDTestMod
 
   public ManualApiTestModule(
       AgentSpan.Context sessionSpanContext,
-      long sessionId,
       String moduleName,
       @Nullable Long startTime,
       Config config,
@@ -40,7 +39,6 @@ public class ManualApiTestModule extends AbstractTestModule implements DDTestMod
       Consumer<AgentSpan> onSpanFinish) {
     super(
         sessionSpanContext,
-        sessionId,
         moduleName,
         startTime,
         InstrumentationType.MANUAL_API,
@@ -62,8 +60,6 @@ public class ManualApiTestModule extends AbstractTestModule implements DDTestMod
       boolean parallelized) {
     return new TestSuiteImpl(
         span.context(),
-        sessionId,
-        span.getSpanId(),
         moduleName,
         testSuiteName,
         null,

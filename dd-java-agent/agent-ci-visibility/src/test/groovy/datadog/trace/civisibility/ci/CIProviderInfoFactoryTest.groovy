@@ -1,6 +1,7 @@
 package datadog.trace.civisibility.ci
 
 import datadog.trace.api.Config
+import datadog.trace.civisibility.ci.env.CiEnvironmentImpl
 import org.junit.Rule
 import org.junit.contrib.java.lang.system.EnvironmentVariables
 import org.junit.contrib.java.lang.system.RestoreSystemProperties
@@ -38,7 +39,7 @@ class CIProviderInfoFactoryTest extends Specification {
     environmentVariables.set(ciKeySelector, "true")
 
     when:
-    def ciProviderInfoFactory = new CIProviderInfoFactory(Config.get())
+    def ciProviderInfoFactory = new CIProviderInfoFactory(Config.get(), new CiEnvironmentImpl(System.getenv()))
     def ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(Paths.get("").toAbsolutePath())
 
     then:

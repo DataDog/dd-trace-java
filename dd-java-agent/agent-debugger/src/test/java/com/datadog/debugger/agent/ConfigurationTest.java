@@ -12,11 +12,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
-import com.datadog.debugger.probe.DebuggerProbe;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.SpanProbe;
+import com.datadog.debugger.probe.TriggerProbe;
 import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Types;
@@ -121,6 +121,11 @@ public class ConfigurationTest {
     ArrayList<LogProbe> logProbes = new ArrayList<>(config.getLogProbes());
     assertEquals(1, logProbes.size());
     LogProbe logProbe0 = logProbes.get(0);
+    assertEquals(2, logProbe0.getTags().length);
+    assertEquals("dd_watches_dsl", logProbe0.getTags()[0].getKey());
+    assertEquals("{object.objField.intField}", logProbe0.getTags()[0].getValue());
+    assertEquals("env", logProbe0.getTags()[1].getKey());
+    assertEquals("staging", logProbe0.getTags()[1].getValue());
     assertEquals(8, logProbe0.getSegments().size());
     assertEquals("this is a log line customized! uuid=", logProbe0.getSegments().get(0).getStr());
     assertEquals("uuid", logProbe0.getSegments().get(1).getExpr());
@@ -266,8 +271,8 @@ public class ConfigurationTest {
         createLog(
             "log1", "this is a log line with arg={arg}", "java.lang.String", "indexOf", "(String)");
     SpanProbe span1 = createSpan("span1", "java.lang.String", "indexOf", "(String)");
-    DebuggerProbe debuggerProbe =
-        createDebuggerProbe("debug1", "java.lang.String", "indexOf", "(String)");
+    TriggerProbe triggerProbe =
+        createTriggerProbe("debug1", "java.lang.String", "indexOf", "(String)");
 
     SpanDecorationProbe.Decoration decoration =
         new SpanDecorationProbe.Decoration(
@@ -295,7 +300,7 @@ public class ConfigurationTest {
         asList(metric1),
         asList(probe1, log1),
         asList(span1),
-        asList(debuggerProbe),
+        asList(triggerProbe),
         asList(spanDecoration1),
         allowList,
         denyList,
@@ -314,8 +319,7 @@ public class ConfigurationTest {
             "indexOf",
             "(String)");
     SpanProbe span2 = createSpan("span2", "String.java", 12, 23);
-    DebuggerProbe debuggerProbe =
-        createDebuggerProbe("debug1", "String.java", "indexOf", "(String)");
+    TriggerProbe triggerProbe = createTriggerProbe("debug1", "String.java", "indexOf", "(String)");
 
     SpanDecorationProbe.Decoration decoration =
         new SpanDecorationProbe.Decoration(
@@ -344,7 +348,7 @@ public class ConfigurationTest {
         asList(metric2),
         asList(probe2, log2),
         asList(span2),
-        asList(debuggerProbe),
+        asList(triggerProbe),
         asList(spanDecoration2),
         allowList,
         denyList,
@@ -400,9 +404,9 @@ public class ConfigurationTest {
         .build();
   }
 
-  private static DebuggerProbe createDebuggerProbe(
+  private static TriggerProbe createTriggerProbe(
       String id, String typeName, String methodName, String signature) {
-    return DebuggerProbe.builder()
+    return TriggerProbe.builder()
         .language("java")
         .probeId(id, 0)
         .where(typeName, methodName, signature)

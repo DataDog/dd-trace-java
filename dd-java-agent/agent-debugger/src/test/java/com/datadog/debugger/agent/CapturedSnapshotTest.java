@@ -11,6 +11,7 @@ import static com.datadog.debugger.util.TestHelper.setFieldInConfig;
 import static datadog.trace.bootstrap.debugger.util.Redaction.REDACTED_VALUE;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -30,12 +31,12 @@ import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.el.values.StringValue;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
-import com.datadog.debugger.probe.DebuggerProbe;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.SpanProbe;
+import com.datadog.debugger.probe.TriggerProbe;
 import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
@@ -582,6 +583,9 @@ public class CapturedSnapshotTest {
   }
 
   @Test
+  @DisabledIf(
+      value = "datadog.trace.api.Platform#isJ9",
+      disabledReason = "Issue with J9 when compiling Kotlin code")
   public void sourceFileProbeKotlin() {
     final String CLASS_NAME = "CapturedSnapshot301";
     TestSnapshotListener listener =
@@ -589,8 +593,9 @@ public class CapturedSnapshotTest {
     URL resource = CapturedSnapshotTest.class.getResource("/" + CLASS_NAME + ".kt");
     assertNotNull(resource);
     List<File> filesToDelete = new ArrayList<>();
-    Class<?> testClass = KotlinHelper.compileAndLoad(CLASS_NAME, resource.getFile(), filesToDelete);
     try {
+      Class<?> testClass =
+          KotlinHelper.compileAndLoad(CLASS_NAME, resource.getFile(), filesToDelete);
       Object companion = Reflect.onClass(testClass).get("Companion");
       int result = Reflect.on(companion).call("main", "").get();
       assertEquals(48, result);
@@ -601,6 +606,56 @@ public class CapturedSnapshotTest {
       Assertions.assertEquals(CLASS_NAME, snapshot.getProbe().getLocation().getType());
       Assertions.assertEquals("f1", snapshot.getProbe().getLocation().getMethod());
       assertCaptureArgs(snapshot.getCaptures().getLines().get(4), "value", "int", "31");
+    } finally {
+      filesToDelete.forEach(File::delete);
+    }
+  }
+
+  @Test
+  @DisabledIf(
+      value = "datadog.trace.api.Platform#isJ9",
+      disabledReason = "Issue with J9 when compiling Kotlin code")
+  public void suspendKotlin() {
+    final String CLASS_NAME = "CapturedSnapshot302";
+    TestSnapshotListener listener =
+        installProbes(CLASS_NAME, createSourceFileProbe(PROBE_ID, CLASS_NAME + ".kt", 9));
+    URL resource = CapturedSnapshotTest.class.getResource("/" + CLASS_NAME + ".kt");
+    assertNotNull(resource);
+    List<File> filesToDelete = new ArrayList<>();
+    try {
+      Class<?> testClass =
+          KotlinHelper.compileAndLoad(CLASS_NAME, resource.getFile(), filesToDelete);
+      Object companion = Reflect.onClass(testClass).get("Companion");
+      int result = Reflect.on(companion).call("main", "").get();
+      assertEquals(0, result);
+      Snapshot snapshot = assertOneSnapshot(listener);
+      assertCaptureFields(snapshot.getCaptures().getLines().get(9), "intField", "int", "42");
+      assertCaptureFields(
+          snapshot.getCaptures().getLines().get(9), "strField", String.class.getTypeName(), "foo");
+    } finally {
+      filesToDelete.forEach(File::delete);
+    }
+  }
+
+  @Test
+  @DisabledIf(
+      value = "datadog.trace.api.Platform#isJ9",
+      disabledReason = "Issue with J9 when compiling Kotlin code")
+  public void hoistVarKotlin() {
+    final String CLASS_NAME = "CapturedSnapshot303";
+    TestSnapshotListener listener =
+        installProbes(
+            CLASS_NAME, createProbeAtExit(PROBE_ID, CLASS_NAME + "$Companion", "main", null));
+    URL resource = CapturedSnapshotTest.class.getResource("/" + CLASS_NAME + ".kt");
+    assertNotNull(resource);
+    List<File> filesToDelete = new ArrayList<>();
+    try {
+      Class<?> testClass =
+          KotlinHelper.compileAndLoad(CLASS_NAME, resource.getFile(), filesToDelete);
+      Object companion = Reflect.onClass(testClass).get("Companion");
+      int result = Reflect.on(companion).call("main", "").get();
+      assertEquals(0, result);
+      Snapshot snapshot = assertOneSnapshot(listener);
     } finally {
       filesToDelete.forEach(File::delete);
     }
@@ -804,11 +859,11 @@ public class CapturedSnapshotTest {
     assertCaptureFieldsNotCaptured(
         snapshot.getCaptures().getReturn(),
         "bin",
-        "java.lang.reflect.InaccessibleObjectException: Unable to make field private final java.io.ObjectInputStream\\$BlockDataInputStream java.io.ObjectInputStream.bin accessible: module java.base does not \"opens java.io\" to unnamed module.*");
+        "Field is not accessible: module java.base does not opens/exports to the current module");
     assertCaptureFieldsNotCaptured(
         snapshot.getCaptures().getReturn(),
         "vlist",
-        "java.lang.reflect.InaccessibleObjectException: Unable to make field private final java.io.ObjectInputStream\\$ValidationList java.io.ObjectInputStream.vlist accessible: module java.base does not \"opens java.io\" to unnamed module.*");
+        "Field is not accessible: module java.base does not opens/exports to the current module");
   }
 
   @Test
@@ -824,11 +879,11 @@ public class CapturedSnapshotTest {
     assertCaptureStaticFieldsNotCaptured(
         snapshot.getCaptures().getReturn(),
         "followRedirects",
-        "java.lang.reflect.InaccessibleObjectException: Unable to make field private static boolean java.net.HttpURLConnection.followRedirects accessible: module java.base does not \"opens java.net\" to unnamed module.*");
+        "Field is not accessible: module java.base does not opens/exports to the current module");
     assertCaptureStaticFieldsNotCaptured(
         snapshot.getCaptures().getReturn(),
         "factory",
-        "java.lang.reflect.InaccessibleObjectException: Unable to make field private static volatile java.net.ContentHandlerFactory java.net.URLConnection.factory accessible: module java.base does not \"opens java.net\" to unnamed module.*");
+        "Field is not accessible: module java.base does not opens/exports to the current module");
   }
 
   @Test
@@ -1146,11 +1201,12 @@ public class CapturedSnapshotTest {
     TestSnapshotListener listener = installProbes(CLASS_NAME, logProbes);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.onClass(testClass).call("main", "1").get();
-    assertEquals(1, listener.snapshots.size());
-    List<EvaluationError> evaluationErrors = listener.snapshots.get(0).getEvaluationErrors();
-    Assertions.assertEquals(1, evaluationErrors.size());
-    Assertions.assertEquals("nullTyped.fld.fld", evaluationErrors.get(0).getExpr());
-    Assertions.assertEquals("Cannot dereference field: fld", evaluationErrors.get(0).getMessage());
+    Snapshot snapshot = assertOneSnapshot(listener);
+    List<EvaluationError> evaluationErrors = snapshot.getEvaluationErrors();
+    assertEquals(1, evaluationErrors.size());
+    assertEquals("nullTyped.fld.fld", evaluationErrors.get(0).getExpr());
+    assertEquals("Cannot dereference field: fld", evaluationErrors.get(0).getMessage());
+    assertEquals("Cannot dereference field: fld", snapshot.getMessage());
   }
 
   @Test
@@ -1606,7 +1662,9 @@ public class CapturedSnapshotTest {
   public void instrumentTheWorld() throws Exception {
     final String CLASS_NAME = "CapturedSnapshot01";
     Map<String, byte[]> classFileBuffers = compile(CLASS_NAME);
-    TestSnapshotListener listener = setupInstrumentTheWorldTransformer(null);
+    TestSnapshotListener listener =
+        setupInstrumentTheWorldTransformer(
+            null, getClass().getResource("/include-files/singleClass.txt").getPath());
     Class<?> testClass;
     try {
       testClass = loadClass(CLASS_NAME, classFileBuffers);
@@ -1617,7 +1675,7 @@ public class CapturedSnapshotTest {
     assertEquals(2, result);
     assertEquals(1, listener.snapshots.size());
     ProbeImplementation probeImplementation = listener.snapshots.get(0).getProbe();
-    assertTrue(probeImplementation.isCaptureSnapshot());
+    assertFalse(probeImplementation.isCaptureSnapshot());
     assertEquals("main", probeImplementation.getLocation().getMethod());
   }
 
@@ -1627,7 +1685,9 @@ public class CapturedSnapshotTest {
     final String CLASS_NAME = "CapturedSnapshot01";
     Map<String, byte[]> classFileBuffers = compile(CLASS_NAME);
     URL resource = getClass().getResource(excludeFileName);
-    TestSnapshotListener listener = setupInstrumentTheWorldTransformer(resource.getPath());
+    TestSnapshotListener listener =
+        setupInstrumentTheWorldTransformer(
+            resource.getPath(), getClass().getResource("/include-files/singleClass.txt").getPath());
     Class<?> testClass;
     try {
       testClass = loadClass(CLASS_NAME, classFileBuffers);
@@ -1779,7 +1839,7 @@ public class CapturedSnapshotTest {
         "java.lang.RuntimeException",
         "oops",
         "com.datadog.debugger.CapturedSnapshot31.uncaughtException",
-        24);
+        30);
   }
 
   @Test
@@ -1810,6 +1870,18 @@ public class CapturedSnapshotTest {
     int result = Reflect.onClass(testClass).call("main", "deepScopes").get();
     assertEquals(4, result);
     Snapshot snapshot = assertOneSnapshot(listener);
+    // localVarL4 can not be captured/hoisted because same name, same slot
+    //    LocalVariableTable:
+    //    Start  Length  Slot  Name   Signature
+    //       59       3     6 localVarL4   I
+    //       65       3     6 localVarL4   I
+    //       71       3     6 localVarL4   I
+    //       29      45     5 localVarL3   I
+    //       20      54     4 localVarL2   I
+    //       13      64     3 localVarL1   I
+    //        0      79     0  this   Lcom/datadog/debugger/CapturedSnapshot31;
+    //        0      79     1   arg   Ljava/lang/String;
+    //        2      77     2 localVarL0   I
     assertEquals(6, snapshot.getCaptures().getReturn().getLocals().size());
     assertCaptureLocals(snapshot.getCaptures().getReturn(), "localVarL0", "int", "0");
     assertCaptureLocals(snapshot.getCaptures().getReturn(), "localVarL1", "int", "1");
@@ -1850,6 +1922,40 @@ public class CapturedSnapshotTest {
         "ex",
         IllegalArgumentException.class.getTypeName(),
         expectedFields);
+  }
+
+  @Test
+  @DisabledIf(
+      value = "datadog.trace.api.Platform#isJ9",
+      disabledReason = "we cannot get local variable debug info")
+  public void overlappingLocalVarSlot() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot31";
+    LogProbe probe = createProbeAtExit(PROBE_ID, CLASS_NAME, "overlappingSlots", "(String)");
+    TestSnapshotListener listener = installProbes(CLASS_NAME, probe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.onClass(testClass).call("main", "overlappingSlots").get();
+    assertEquals(5, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    // i local var cannot be hoisted because of overlapping slots and name
+    assertFalse(snapshot.getCaptures().getReturn().getLocals().containsKey("i"));
+    assertTrue(snapshot.getCaptures().getReturn().getLocals().containsKey("subStr"));
+  }
+
+  @Test
+  @DisabledIf(
+      value = "datadog.trace.api.Platform#isJ9",
+      disabledReason = "we cannot get local variable debug info")
+  public void duplicateLocalDifferentScope() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot31";
+    LogProbe probe =
+        createProbeAtExit(PROBE_ID, CLASS_NAME, "duplicateLocalDifferentScope", "(String)");
+    TestSnapshotListener listener = installProbes(CLASS_NAME, probe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.onClass(testClass).call("main", "duplicateLocalDifferentScope").get();
+    assertEquals(28, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    assertCaptureLocals(
+        snapshot.getCaptures().getReturn(), "ch", Character.TYPE.getTypeName(), "e");
   }
 
   @Test
@@ -2311,7 +2417,7 @@ public class CapturedSnapshotTest {
   public void allProbesSameMethod() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
     final String METRIC_NAME = "count";
-    Where where = Where.convertLineToMethod(CLASS_NAME, "main", null);
+    Where where = Where.of(CLASS_NAME, "main", null);
     Configuration configuration =
         Configuration.builder()
             .add(
@@ -2337,7 +2443,7 @@ public class CapturedSnapshotTest {
                     .where(where)
                     .build())
             .add(LogProbe.builder().probeId(PROBE_ID3).where(where).build())
-            .add(DebuggerProbe.builder().probeId(PROBE_ID4).where(where).build())
+            .add(TriggerProbe.builder().probeId(PROBE_ID4).where(where).build())
             .build();
 
     CoreTracer tracer = CoreTracer.builder().build();
@@ -2375,12 +2481,44 @@ public class CapturedSnapshotTest {
     }
   }
 
-  private TestSnapshotListener setupInstrumentTheWorldTransformer(String excludeFileName) {
+  @Test
+  public void watches() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot08";
+    LogProbe probe =
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "doit", null, null)
+            .evaluateAt(MethodLocation.EXIT)
+            .tags(
+                "dd_watches_dsl:{typed.fld.fld.msg},{nullTyped.fld}",
+                "dd_watches_json:[{\"dsl\":\"typed.fld.fld.msg_json\",\"json\":{\"getmember\":[{\"getmember\":[{\"getmember\":[{\"ref\":\"typed\"},\"fld\"]},\"fld\"]},\"msg\"]}}]")
+            .build();
+    TestSnapshotListener listener = installProbes(CLASS_NAME, probe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.onClass(testClass).call("main", "1").get();
+    assertEquals(3, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    assertEquals(3, snapshot.getCaptures().getReturn().getWatches().size());
+    assertCaptureWatches(
+        snapshot.getCaptures().getReturn(),
+        "typed.fld.fld.msg",
+        String.class.getTypeName(),
+        "hello");
+    assertCaptureWatches(
+        snapshot.getCaptures().getReturn(), "nullTyped.fld", Object.class.getTypeName(), null);
+    assertCaptureWatches(
+        snapshot.getCaptures().getReturn(),
+        "typed.fld.fld.msg_json",
+        String.class.getTypeName(),
+        "hello");
+  }
+
+  private TestSnapshotListener setupInstrumentTheWorldTransformer(
+      String excludeFileName, String includeFileName) {
     Config config = mock(Config.class);
     when(config.isDebuggerEnabled()).thenReturn(true);
     when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
     when(config.isDebuggerInstrumentTheWorld()).thenReturn(true);
     when(config.getDebuggerExcludeFiles()).thenReturn(excludeFileName);
+    when(config.getDebuggerIncludeFiles()).thenReturn(includeFileName);
     when(config.getFinalDebuggerSnapshotUrl())
         .thenReturn("http://localhost:8126/debugger/v1/input");
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
@@ -2436,7 +2574,7 @@ public class CapturedSnapshotTest {
     Config config = mock(Config.class);
     when(config.isDebuggerEnabled()).thenReturn(true);
     when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
-    when(config.isDebuggerVerifyByteCode()).thenReturn(true);
+    when(config.isDebuggerVerifyByteCode()).thenReturn(false);
     when(config.getFinalDebuggerSnapshotUrl())
         .thenReturn("http://localhost:8126/debugger/v1/input");
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
@@ -2449,7 +2587,12 @@ public class CapturedSnapshotTest {
     instr.addTransformer(currentTransformer);
     DebuggerAgentHelper.injectSink(listener);
     DebuggerContext.initProbeResolver(
-        (encodedId) -> resolver(encodedId, logProbes, configuration.getSpanDecorationProbes()));
+        (encodedId) ->
+            resolver(
+                encodedId,
+                logProbes,
+                configuration.getSpanDecorationProbes(),
+                configuration.getTriggerProbes()));
     DebuggerContext.initClassFilter(new DenyListHelper(null));
     DebuggerContext.initValueSerializer(new JsonSnapshotSerializer());
     if (logProbes != null) {
@@ -2471,13 +2614,19 @@ public class CapturedSnapshotTest {
   private ProbeImplementation resolver(
       String encodedId,
       Collection<LogProbe> logProbes,
-      Collection<SpanDecorationProbe> spanDecorationProbes) {
+      Collection<SpanDecorationProbe> spanDecorationProbes,
+      Collection<TriggerProbe> triggerProbes) {
     for (LogProbe probe : logProbes) {
       if (probe.getProbeId().getEncodedId().equals(encodedId)) {
         return probe;
       }
     }
     for (SpanDecorationProbe probe : spanDecorationProbes) {
+      if (probe.getProbeId().getEncodedId().equals(encodedId)) {
+        return probe;
+      }
+    }
+    for (TriggerProbe probe : triggerProbes) {
       if (probe.getProbeId().getEncodedId().equals(encodedId)) {
         return probe;
       }
@@ -2595,6 +2744,13 @@ public class CapturedSnapshotTest {
         assertEquals(entry.getValue(), String.valueOf(fieldCapturedValue.getValue()));
       }
     }
+  }
+
+  private void assertCaptureWatches(
+      CapturedContext context, String name, String typeName, String value) {
+    CapturedContext.CapturedValue watch = context.getWatches().get(name);
+    assertEquals(typeName, watch.getType());
+    assertEquals(value, MoshiSnapshotTestHelper.getValue(watch));
   }
 
   private void assertCaptureThrowable(

@@ -3,6 +3,7 @@ package datadog.trace.civisibility.domain.buildsystem;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.coverage.percentage.child.ChildProcessCoverageReporter;
@@ -22,8 +23,7 @@ import javax.annotation.Nullable;
  */
 public class ProxyTestSession implements TestFrameworkSession {
 
-  private final long parentProcessSessionId;
-  private final long parentProcessModuleId;
+  private final AgentSpan.Context parentProcessModuleContext;
   private final Config config;
   private final CiVisibilityMetricCollector metricCollector;
   private final TestDecorator testDecorator;
@@ -36,8 +36,7 @@ public class ProxyTestSession implements TestFrameworkSession {
   private final ExecutionStrategy executionStrategy;
 
   public ProxyTestSession(
-      long parentProcessSessionId,
-      long parentProcessModuleId,
+      AgentSpan.Context parentProcessModuleContext,
       Config config,
       CiVisibilityMetricCollector metricCollector,
       TestDecorator testDecorator,
@@ -48,8 +47,7 @@ public class ProxyTestSession implements TestFrameworkSession {
       ChildProcessCoverageReporter childProcessCoverageReporter,
       SignalClient.Factory signalClientFactory,
       ExecutionStrategy executionStrategy) {
-    this.parentProcessSessionId = parentProcessSessionId;
-    this.parentProcessModuleId = parentProcessModuleId;
+    this.parentProcessModuleContext = parentProcessModuleContext;
     this.config = config;
     this.metricCollector = metricCollector;
     this.testDecorator = testDecorator;
@@ -73,8 +71,7 @@ public class ProxyTestSession implements TestFrameworkSession {
   @Override
   public TestFrameworkModule testModuleStart(String moduleName, @Nullable Long startTime) {
     return new ProxyTestModule(
-        parentProcessSessionId,
-        parentProcessModuleId,
+        parentProcessModuleContext,
         moduleName,
         executionStrategy,
         config,

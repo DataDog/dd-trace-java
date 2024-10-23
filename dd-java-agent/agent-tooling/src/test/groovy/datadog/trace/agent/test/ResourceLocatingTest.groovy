@@ -24,7 +24,7 @@ class ResourceLocatingTest extends DDSpecification {
     lastLookup.set(null)
   }
 
-  def "finds resources from parent classloader"() {
+  def "finds resources from parent classloader #locator.class.name"() {
     expect:
     locator.locate("java/lang/Object").isResolved() == usesProvidedClassloader
     // lastLookup verifies that the given classloader is only used when expected
