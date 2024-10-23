@@ -131,11 +131,19 @@ jobs:
           cp -RP "${MVN_LOCAL_REPO}/com/datadoghq" ./workspace/.trivy/
           ls -laR "./workspace/.trivy"
 
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@eadb05c36f891dc855bba00f67174a1e61528cd4 # v0.2.0
+        with:
+          version: v0.56.2
+          cache: true
+
       - name: Run Trivy security scanner
         uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe2 # v0.28.0
         with:
           scan-type: rootfs
           scan-ref: './workspace/.trivy/'
+          # NOTE: Skip builtin setup-trivy, we use our own pinned call above.
+          skip-setup-trivy: true
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
