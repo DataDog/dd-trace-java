@@ -40,6 +40,8 @@ public class LambdaHandler {
   private static final String DATADOG_INVOCATION_ERROR_MSG = "x-datadog-invocation-error-msg";
   private static final String DATADOG_INVOCATION_ERROR_TYPE = "x-datadog-invocation-error-type";
   private static final String DATADOG_INVOCATION_ERROR_STACK = "x-datadog-invocation-error-stack";
+  private static final String DATADOG_PROPAGATED_TAGS = "x-datadog-tags";
+  private static final String DATADOG_TRACE_ID_UPPER_64 = "_dd.p.tid";
 
   private static final String START_INVOCATION = "/lambda/start-invocation";
   private static final String END_INVOCATION = "/lambda/end-invocation";
@@ -112,6 +114,15 @@ public class LambdaHandler {
             .addHeader(DATADOG_SAMPLING_PRIORITY, span.getSamplingPriority().toString())
             .addHeader(DATADOG_META_LANG, "java")
             .post(body);
+
+    // This is, of course, an ugly hack.
+    // The right thing to do would be to use tracer.propagate().inject().
+    // I'm adding refactoring this method to the list of fast-follow tasks.
+    if (span.getTraceId().toHighOrderLong() != 0L) {
+      String upper64Tag =
+          DATADOG_TRACE_ID_UPPER_64 + "=" + span.getTraceId().toHexString().substring(0, 16);
+      builder.addHeader(DATADOG_PROPAGATED_TAGS, upper64Tag);
+    }
 
     Object errorMessage = span.getTag(DDTags.ERROR_MSG);
     if (errorMessage != null) {
