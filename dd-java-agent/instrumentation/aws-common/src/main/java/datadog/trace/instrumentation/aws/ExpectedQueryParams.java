@@ -51,6 +51,8 @@ public class ExpectedQueryParams {
             "QueueUrl",
             "DeleteMessageBatchRequestEntry.1.Id",
             "DeleteMessageBatchRequestEntry.1.ReceiptHandle");
+      case "Mule":
+        return Arrays.asList("name");
       default:
         return null;
     }
