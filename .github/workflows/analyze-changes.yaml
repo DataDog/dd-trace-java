@@ -131,14 +131,6 @@ jobs:
           cp -RP "${MVN_LOCAL_REPO}/com/datadoghq" ./workspace/.trivy/
           ls -laR "./workspace/.trivy"
 
-      # NOTE: This avoids rate limits when pulling Trivy
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Run Trivy security scanner
         uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8 # v0.24.0
         with:
@@ -148,6 +140,9 @@ jobs:
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
           limit-severities-for-sarif: true
+        env:
+          # NOTE: This avoids rate limits when pulling Trivy
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@4dd16135b69a43b6c8efb853346f8437d92d3c93 # v3.26.6
