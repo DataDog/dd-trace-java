@@ -92,7 +92,7 @@ class ReporterTest extends DDSpecification {
 
   void 'vulnerability reporting without stack'() {
     given:
-    injectSysConfig("appsec.stacktrace.enabled", "false")
+    injectSysConfig("iast.stacktrace.enabled", "false")
     final Reporter reporter = new Reporter()
     final traceSegment = Mock(TraceSegment)
     final ctx = new IastRequestContext(noOpTaintedObjects())

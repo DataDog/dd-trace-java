@@ -129,6 +129,8 @@ public final class ConfigDefaults {
   public static final boolean DEFAULT_IAST_DEDUPLICATION_ENABLED = true;
   static final boolean DEFAULT_IAST_ANONYMOUS_CLASSES_ENABLED = true;
 
+  static final boolean DEFAULT_IAST_STACK_TRACE_ENABLED = true;
+
   static final boolean DEFAULT_USM_ENABLED = false;
 
   static final boolean DEFAULT_CIVISIBILITY_ENABLED = false;
