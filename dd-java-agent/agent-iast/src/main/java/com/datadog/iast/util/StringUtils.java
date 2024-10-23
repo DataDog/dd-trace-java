@@ -113,13 +113,7 @@ public abstract class StringUtils {
             }
 
             if (rangesInput != null) {
-              for (Range rangeInput : rangesInput) {
-                newRanges.add(
-                    Ranges.copyWithPosition(
-                        rangeInput,
-                        start + rangeInput.getStart() + offset,
-                        rangeInput.getLength()));
-              }
+              newRanges.add(rangesInput, start + offset);
               rangesAdded = true;
             }
 
@@ -139,13 +133,7 @@ public abstract class StringUtils {
             }
 
             if (rangesInput != null && !rangesAdded) {
-              for (Range rangeInput : rangesInput) {
-                newRanges.add(
-                    Ranges.copyWithPosition(
-                        rangeInput,
-                        start + rangeInput.getStart() + offset,
-                        rangeInput.getLength()));
-              }
+              newRanges.add(rangesInput, start + offset);
               rangesAdded = true;
             }
 
@@ -155,13 +143,7 @@ public abstract class StringUtils {
                 Ranges.splitRanges(start, end, newLength, range, offset, diffLength);
 
             if (rangesInput != null && !rangesAdded) {
-              for (Range rangeInput : rangesInput) {
-                newRanges.add(
-                    Ranges.copyWithPosition(
-                        rangeInput,
-                        start + rangeInput.getStart() + offset,
-                        rangeInput.getLength()));
-              }
+              newRanges.add(rangesInput, start + offset);
               rangesAdded = true;
             }
 
@@ -185,11 +167,7 @@ public abstract class StringUtils {
 
         // In case there are no ranges
         if (rangesInput != null && !rangesAdded) {
-          for (Range rangeInput : rangesInput) {
-            newRanges.add(
-                Ranges.copyWithPosition(
-                    rangeInput, start + rangeInput.getStart() + offset, rangeInput.getLength()));
-          }
+          newRanges.add(rangesInput, start + offset);
         }
 
         matcher.appendReplacement(sb, replacement);
