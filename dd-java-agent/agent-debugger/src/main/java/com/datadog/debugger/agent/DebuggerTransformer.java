@@ -155,9 +155,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
                 config,
                 "",
                 new BatchUploader(
-                    config,
-                    config.getFinalDebuggerSnapshotUrl(),
-                    new BatchUploader.RetryPolicy(3, 3))),
+                    config, config.getFinalDebuggerSnapshotUrl(), SnapshotSink.RETRY_POLICY)),
             new SymbolSink(config)));
   }
 

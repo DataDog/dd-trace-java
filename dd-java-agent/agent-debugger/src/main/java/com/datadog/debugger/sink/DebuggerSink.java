@@ -46,7 +46,7 @@ public class DebuggerSink {
             config,
             null,
             new BatchUploader(
-                config, config.getFinalDebuggerSnapshotUrl(), new BatchUploader.RetryPolicy(3, 3))),
+                config, config.getFinalDebuggerSnapshotUrl(), SnapshotSink.RETRY_POLICY)),
         new SymbolSink(config));
   }
 

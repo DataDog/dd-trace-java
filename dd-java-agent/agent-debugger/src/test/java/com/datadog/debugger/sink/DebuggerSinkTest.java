@@ -486,7 +486,7 @@ public class DebuggerSinkTest {
             config,
             "",
             new BatchUploader(
-                config, config.getFinalDebuggerSnapshotUrl(), new BatchUploader.RetryPolicy(3, 3)));
+                config, config.getFinalDebuggerSnapshotUrl(), SnapshotSink.RETRY_POLICY));
     SymbolSink symbolSink = new SymbolSink(config);
     DebuggerSink sink =
         new DebuggerSink(config, "", debuggerMetrics, probeStatusSink, snapshotSink, symbolSink);

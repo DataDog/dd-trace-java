@@ -60,12 +60,10 @@ public class BatchUploader {
 
   public static class RetryPolicy {
     public final ConcurrentMap<Call, Integer> failures = new ConcurrentHashMap<>();
-    public final int maxNetworkFailures;
-    public final int max500Failures;
+    public final int maxFailures;
 
-    public RetryPolicy(int maxNetworkFailures, int max500Failures) {
-      this.maxNetworkFailures = maxNetworkFailures;
-      this.max500Failures = max500Failures;
+    public RetryPolicy(int maxFailures) {
+      this.maxFailures = maxFailures;
     }
   }
 
@@ -324,7 +322,7 @@ public class BatchUploader {
     public void onFailure(Call call, IOException e) {
       inflightRequests.arriveAndDeregister();
       ratelimitedLogger.warn("Failed to upload batch to {}", call.request().url(), e);
-      handleRetry(call, retryPolicy.maxNetworkFailures);
+      handleRetry(call, retryPolicy.maxFailures);
     }
 
     private void handleRetry(Call call, int maxFailures) {
@@ -332,7 +330,8 @@ public class BatchUploader {
       if (failure != null) {
         int failureCount = failure + 1;
         if (failureCount <= maxFailures) {
-          LOGGER.debug("Retrying upload {}/{}", failureCount, maxFailures);
+          LOGGER.debug(
+              "Retrying upload to {}, {}/{}", call.request().url(), failureCount, maxFailures);
           enqueueCall(client, call.request(), this, retryPolicy, failureCount, inflightRequests);
         } else {
           LOGGER.warn(
@@ -369,8 +368,8 @@ public class BatchUploader {
                 response.message(),
                 response.code());
           }
-          if (response.code() >= 500) {
-            handleRetry(call, retryPolicy.max500Failures);
+          if (response.code() >= 500 || response.code() == 408 || response.code() == 429) {
+            handleRetry(call, retryPolicy.maxFailures);
           } else {
             retryPolicy.failures.remove(call);
           }

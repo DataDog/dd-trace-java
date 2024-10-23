@@ -50,7 +50,7 @@ public class BatchUploaderTest {
 
   private final MockWebServer server = new MockWebServer();
   private HttpUrl url;
-  private final BatchUploader.RetryPolicy retryPolicy = new BatchUploader.RetryPolicy(3, 3);
+  private final BatchUploader.RetryPolicy retryPolicy = new BatchUploader.RetryPolicy(3);
 
   private BatchUploader uploader;
 
@@ -316,12 +316,19 @@ public class BatchUploaderTest {
 
   @Test
   public void testRetryOn500() throws InterruptedException {
-    server.enqueue(new MockResponse().setResponseCode(500));
+    doTestRetryOnResponseCode(500, 2);
+    doTestRetryOnResponseCode(408, 4);
+    doTestRetryOnResponseCode(429, 6);
+  }
+
+  private void doTestRetryOnResponseCode(int code, int expectedReqCount)
+      throws InterruptedException {
+    server.enqueue(new MockResponse().setResponseCode(code));
     server.enqueue(RESPONSE_200);
     uploader.upload(SNAPSHOT_BUFFER);
     assertNotNull(server.takeRequest(5, TimeUnit.SECONDS));
     assertNotNull(server.takeRequest(5, TimeUnit.SECONDS));
-    assertEquals(2, server.getRequestCount());
+    assertEquals(expectedReqCount, server.getRequestCount());
     assertEmptyFailures();
   }
 

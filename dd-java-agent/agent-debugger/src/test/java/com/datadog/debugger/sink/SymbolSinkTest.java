@@ -85,7 +85,7 @@ class SymbolSinkTest {
     final List<MultiPartContent> multiPartContents = new ArrayList<>();
 
     public SymbolUploaderMock() {
-      super(Config.get(), "http://localhost", new RetryPolicy(10, 10));
+      super(Config.get(), "http://localhost", SymbolSink.RETRY_POLICY);
     }
 
     @Override

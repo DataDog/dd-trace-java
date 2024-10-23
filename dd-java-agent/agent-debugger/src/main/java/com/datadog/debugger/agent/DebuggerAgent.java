@@ -48,8 +48,6 @@ import org.slf4j.LoggerFactory;
 /** Debugger agent implementation */
 public class DebuggerAgent {
   private static final Logger LOGGER = LoggerFactory.getLogger(DebuggerAgent.class);
-  private static final BatchUploader.RetryPolicy SNAPSHOT_RETRY_POLICY =
-      new BatchUploader.RetryPolicy(3, 3);
   private static ConfigurationPoller configurationPoller;
   private static DebuggerSink sink;
   private static String agentVersion;
@@ -171,7 +169,8 @@ public class DebuggerAgent {
         new SnapshotSink(
             config,
             tags,
-            new BatchUploader(config, config.getFinalDebuggerSnapshotUrl(), SNAPSHOT_RETRY_POLICY));
+            new BatchUploader(
+                config, config.getFinalDebuggerSnapshotUrl(), SnapshotSink.RETRY_POLICY));
     SymbolSink symbolSink = new SymbolSink(config);
     return new DebuggerSink(
         config,
