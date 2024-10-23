@@ -132,13 +132,13 @@ jobs:
           ls -laR "./workspace/.trivy"
 
       - name: Install Trivy
-        uses: aquasecurity/setup-trivy@eadb05c36f891dc855bba00f67174a1e61528cd4 # v0.2.0
+        uses: aquasecurity/setup-trivy@eadb05c36f891dc855bba00f67174a1e61528cd4 # v0.2.1
         with:
           version: v0.56.2
           cache: true
 
       - name: Run Trivy security scanner
-        uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe2 # v0.28.0
+        uses: aquasecurity/trivy-action@fc1500abdcdc9fc681e98d8912a52fa70dbc67de # main
         with:
           scan-type: rootfs
           scan-ref: './workspace/.trivy/'
