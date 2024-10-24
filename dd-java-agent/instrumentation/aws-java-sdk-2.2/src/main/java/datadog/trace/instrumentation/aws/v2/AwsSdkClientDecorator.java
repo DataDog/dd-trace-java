@@ -23,16 +23,22 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import datadog.trace.core.datastreams.TagsProcessor;
+import datadog.trace.payloadtags.PathCursor;
+import datadog.trace.payloadtags.PayloadPathData;
+import java.io.InputStream;
 import java.net.URI;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import javax.annotation.Nonnull;
 import software.amazon.awssdk.awscore.AwsResponse;
+import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.core.SdkField;
 import software.amazon.awssdk.core.SdkPojo;
 import software.amazon.awssdk.core.SdkRequest;
@@ -114,6 +120,17 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     final String awsServiceName = attributes.getAttribute(SdkExecutionAttribute.SERVICE_NAME);
     final String awsOperationName = attributes.getAttribute(SdkExecutionAttribute.OPERATION_NAME);
     onOperation(span, awsServiceName, awsOperationName);
+
+    Config config = Config.get();
+    if (config.isCloudRequestPayloadTaggingEnabled()
+        && config.isCloudPayloadTaggingEnabledFor(awsServiceName)) {
+      awsPojoToTags(
+          span,
+          PayloadPathData.AWS_REQUEST_BODY,
+          request,
+          config.getCloudPayloadTaggingMaxDepth(),
+          config.getCloudPayloadTaggingMaxTags());
+    }
 
     // S3
     request.getValueForField("Bucket", String.class).ifPresent(name -> setBucketName(span, name));
@@ -295,6 +312,19 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
       final SdkResponse response,
       final SdkHttpResponse httpResponse,
       final ExecutionAttributes attributes) {
+
+    Config config = Config.get();
+    String serviceName = attributes.getAttribute(SdkExecutionAttribute.SERVICE_NAME);
+    if (config.isCloudResponsePayloadTaggingEnabled()
+        && config.isCloudPayloadTaggingEnabledFor(serviceName)) {
+      awsPojoToTags(
+          span,
+          PayloadPathData.AWS_RESPONSE_BODY,
+          response,
+          config.getCloudPayloadTaggingMaxDepth(),
+          config.getCloudPayloadTaggingMaxTags());
+    }
+
     if (response instanceof AwsResponse) {
       span.setTag(
           InstrumentationTags.AWS_REQUEST_ID,
@@ -436,5 +466,52 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
   @Override
   protected String getResponseHeader(SdkHttpResponse response, String headerName) {
     return response.firstMatchingHeader(headerName).orElse(null);
+  }
+
+  private void awsPojoToTags(
+      AgentSpan span, String pathPrefix, Object pojo, int maxDepth, int maxTags) {
+    PayloadPathData payloadPathData = new PayloadPathData();
+    collectPayloadData(payloadPathData, new PathCursor(maxDepth), pojo, maxDepth, maxTags);
+    // Save as one tag for post-processing
+    span.setTag(pathPrefix, payloadPathData);
+  }
+
+  private void collectPayloadData(
+      PayloadPathData result, PathCursor cursor, Object object, int maxDepth, int maxTags) {
+    // TODO test it
+    if (cursor.length() >= maxDepth || result.size() >= maxTags) {
+      return;
+    }
+    if (object instanceof SdkPojo) {
+      SdkPojo pojo = (SdkPojo) object;
+      for (SdkField<?> field : pojo.sdkFields()) {
+        Object val = field.getValueOrDefault(pojo);
+        cursor.push(field.locationName());
+        collectPayloadData(result, cursor, val, maxDepth, maxTags);
+        cursor.pop();
+      }
+    } else if (object instanceof Collection) {
+      Collection<?> collection = (Collection<?>) object;
+      cursor.push(0);
+      for (Object v : collection) {
+        collectPayloadData(result, cursor, v, maxDepth, maxTags);
+        cursor.advance();
+      }
+      cursor.pop();
+    } else if (object instanceof Map) {
+      Map<?, ?> map = (Map<?, ?>) object;
+      for (Map.Entry<?, ?> e : map.entrySet()) {
+        cursor.push(e.getKey().toString());
+        collectPayloadData(result, cursor, e.getValue(), maxDepth, maxTags);
+        cursor.pop();
+      }
+    } else if (object instanceof SdkBytes) {
+      SdkBytes bytes = (SdkBytes) object;
+      InputStream inputStream = bytes.asInputStream();
+      result.append(cursor.copy().attachValue(inputStream));
+    } else {
+      // TODO maybe limit only to known types such as Instance, Boolean, Number, String???
+      result.append(cursor.copy().attachValue(object));
+    }
   }
 }
