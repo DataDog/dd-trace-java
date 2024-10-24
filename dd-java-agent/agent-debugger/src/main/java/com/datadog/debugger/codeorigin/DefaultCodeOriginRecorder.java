@@ -41,11 +41,6 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
   @Override
   public String captureCodeOrigin(String signature) {
     StackTraceElement element = findPlaceInStack();
-    if (element == null) {
-      LOG.debug("Unable to find place in the stack trace");
-      return null;
-    }
-
     String fingerprint = Fingerprinter.fingerprint(element);
     if (fingerprint == null) {
       LOG.debug("Unable to fingerprint stack trace");
