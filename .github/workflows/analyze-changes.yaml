@@ -131,15 +131,26 @@ jobs:
           cp -RP "${MVN_LOCAL_REPO}/com/datadoghq" ./workspace/.trivy/
           ls -laR "./workspace/.trivy"
 
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@eadb05c36f891dc855bba00f67174a1e61528cd4 # v0.2.1
+        with:
+          version: v0.56.2
+          cache: true
+
       - name: Run Trivy security scanner
-        uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8 # v0.24.0
+        uses: aquasecurity/trivy-action@fc1500abdcdc9fc681e98d8912a52fa70dbc67de # main
         with:
           scan-type: rootfs
           scan-ref: './workspace/.trivy/'
+          # NOTE: Skip builtin setup-trivy, we use our own pinned call above.
+          skip-setup-trivy: true
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
           limit-severities-for-sarif: true
+        env:
+          # NOTE: This avoids rate limits when pulling Trivy
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@4dd16135b69a43b6c8efb853346f8437d92d3c93 # v3.26.6
