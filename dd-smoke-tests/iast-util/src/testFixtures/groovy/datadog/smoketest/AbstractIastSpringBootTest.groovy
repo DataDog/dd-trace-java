@@ -737,7 +737,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
         && parts[1].value == '/' && parts[1].source == null
       } else {
         throw new IllegalArgumentException("Parameter $parameter not supported")
-      }
+      }Co
     }
 
     where:

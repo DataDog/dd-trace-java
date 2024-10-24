@@ -86,13 +86,14 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
           if (shouldSetResourceName()) {
             HTTP_RESOURCE_DECORATOR.withClientPath(span, method, url.getPath());
           }
-          ssrfIastCheck(request);
         } else if (shouldSetResourceName()) {
           span.setResourceName(DEFAULT_RESOURCE_NAME);
         }
       } catch (final Exception e) {
         log.debug("Error tagging url", e);
       }
+
+      ssrfIastCheck(request);
 
       if (CLIENT_TAG_HEADERS) {
         for (Map.Entry<String, String> headerTag :
@@ -175,8 +176,8 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
   }
 
   /* This method must be override after making the proper propagations to the client before **/
-  protected String sourceUrl(REQUEST request) throws URISyntaxException {
-    return "";
+  protected Object sourceUrl(REQUEST request) {
+    return null;
   }
 
   private void ssrfIastCheck(final REQUEST request) {
@@ -185,11 +186,7 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
     }
     final SsrfModule ssrfModule = InstrumentationBridge.SSRF;
     if (ssrfModule != null) {
-      try {
-        ssrfModule.onURLConnection(sourceUrl(request));
-      } catch (URISyntaxException e) {
-        ssrfModule.onUnexpectedException("ssrfIastCheck threw", e);
-      }
+      ssrfModule.onURLConnection(sourceUrl(request));
     }
   }
 }

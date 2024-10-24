@@ -1,7 +1,5 @@
 package datadog.trace.instrumentation.commonshttpclient;
 
-import datadog.trace.api.iast.InstrumentationBridge;
-import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
@@ -44,17 +42,8 @@ public class CommonsHttpClientDecorator extends HttpClientDecorator<HttpMethod, 
   }
 
   @Override
-  protected String sourceUrl(final HttpMethod httpMethod) throws URISyntaxException {
-    final PropagationModule propagationModule = InstrumentationBridge.PROPAGATION;
-    try {
-      String url = httpMethod.getURI().toString();
-      if (propagationModule != null) {
-        propagationModule.taintObjectIfTainted(url, httpMethod);
-      }
-      return url;
-    } catch (URIException e) {
-      throw new URISyntaxException("", e.getMessage());
-    }
+  protected HttpMethod sourceUrl(final HttpMethod httpMethod) {
+    return httpMethod;
   }
 
   @Override
