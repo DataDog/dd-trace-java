@@ -2,6 +2,7 @@ package com.datadog.iast;
 
 import static com.datadog.iast.IastTag.Enabled.ANALYZED;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
+import static datadog.trace.util.stacktrace.StackTraceEvent.DEFAULT_LANGUAGE;
 
 import com.datadog.iast.model.Vulnerability;
 import com.datadog.iast.model.VulnerabilityBatch;
@@ -12,6 +13,11 @@ import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.*;
 import datadog.trace.util.AgentTaskScheduler;
+import datadog.trace.util.stacktrace.StackTraceEvent;
+import datadog.trace.util.stacktrace.StackTraceFrame;
+import datadog.trace.util.stacktrace.StackUtils;
+import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -29,6 +35,7 @@ public class Reporter {
   private static final String IAST_TAG = "iast";
 
   private static final String VULNERABILITY_SPAN_NAME = "vulnerability";
+  public static final String METASTRUCT_VULNERABILITY = "vulnerability";
 
   private final Predicate<Vulnerability> duplicated;
 
@@ -69,7 +76,27 @@ public class Reporter {
     final VulnerabilityBatch batch = getOrCreateVulnerabilityBatch(span);
     if (batch != null) {
       batch.add(vulnerability);
+      if (Config.get().isIastStackTraceEnabled() && batch.getVulnerabilities() != null) {
+        String stackId =
+            addVulnerabilityStackTrace(span, String.valueOf(batch.getVulnerabilities().size()));
+        if (stackId != null) {
+          vulnerability.setStackId(stackId);
+        }
+      }
     }
+  }
+
+  @Nullable
+  private static String addVulnerabilityStackTrace(@Nonnull AgentSpan span, String index) {
+    final RequestContext reqCtx = span.getRequestContext();
+    if (reqCtx == null) {
+      return null;
+    }
+    List<StackTraceFrame> frames = StackUtils.generateUserCodeStackTrace();
+    StackTraceEvent stackTraceEvent = new StackTraceEvent(frames, DEFAULT_LANGUAGE, index, null);
+    StackUtils.addStacktraceEventsToMetaStruct(
+        reqCtx, METASTRUCT_VULNERABILITY, Collections.singletonList(stackTraceEvent));
+    return stackTraceEvent.getId();
   }
 
   @Nullable

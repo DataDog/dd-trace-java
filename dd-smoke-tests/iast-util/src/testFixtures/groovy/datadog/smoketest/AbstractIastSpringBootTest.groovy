@@ -154,6 +154,18 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     hasMetric('_dd.iast.enabled', 1)
   }
 
+  void 'vulnerabilities have stacktrace'(){
+    setup:
+    final url = "http://localhost:${httpPort}/cmdi/runtime?cmd=ls"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerabilityStack()
+  }
+
   void 'weak hash vulnerability is present'() {
     setup:
     String url = "http://localhost:${httpPort}/weakhash"

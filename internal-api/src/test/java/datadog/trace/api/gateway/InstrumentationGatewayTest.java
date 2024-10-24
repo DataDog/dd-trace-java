@@ -56,6 +56,11 @@ public class InstrumentationGatewayTest {
           public BlockResponseFunction getBlockResponseFunction() {
             return null;
           }
+
+          @Override
+          public <T> T getOrCreateMetaStructTop(String key, Function<String, T> defaultValue) {
+            return null;
+          }
         };
     flow = new Flow.ResultFlow<>(null);
     callback = new Callback(context, flow);
