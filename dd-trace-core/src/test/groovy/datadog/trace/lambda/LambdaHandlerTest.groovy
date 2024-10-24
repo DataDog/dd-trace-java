@@ -137,7 +137,7 @@ class LambdaHandlerTest extends DDCoreSpecification {
     }
     LambdaHandler.setExtensionBaseUrl(server.address.toString())
     DDSpan span = Mock(DDSpan) {
-      getTraceId() >> DDTraceId.from("1234")
+      getTraceId() >> DDTraceId.fromHex("1234567890abcdef0000000000001234")
       getSpanId() >> DDSpanId.from("5678")
       getSamplingPriority() >> 2
     }
@@ -150,15 +150,16 @@ class LambdaHandlerTest extends DDCoreSpecification {
     server.lastRequest.headers.get("x-datadog-trace-id") == tIdHeaderValue
     server.lastRequest.headers.get("x-datadog-span-id") == sIdHeaderValue
     server.lastRequest.headers.get("x-datadog-sampling-priority") == sPIdHeaderValue
+    server.lastRequest.headers.get("x-datadog-tags") == tUpper64HeaderValue
     result == expected
 
     cleanup:
     server.close()
 
     where:
-    expected | eHeaderValue | tIdHeaderValue | sIdHeaderValue | sPIdHeaderValue | lambdaResult | boolValue
-    true     | "true"       | "1234"         | "5678"         | "2"             | {}           | true
-    true     | null         | "1234"         | "5678"         | "2"             | "12345"      | false
+    expected | eHeaderValue | tIdHeaderValue | tUpper64HeaderValue           | sIdHeaderValue | sPIdHeaderValue | lambdaResult | boolValue
+    true     | "true"       | "4660"         | "_dd.p.tid=1234567890abcdef"   | "5678"         | "2"             | {}           | true
+    true     | null         | "4660"         | "_dd.p.tid=1234567890abcdef"   | "5678"         | "2"             | "12345"      | false
   }
 
   def "test end invocation failure"() {
