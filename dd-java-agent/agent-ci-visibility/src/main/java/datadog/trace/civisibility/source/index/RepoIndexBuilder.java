@@ -170,7 +170,7 @@ public class RepoIndexBuilder implements RepoIndexProvider {
 
             String existingPath = trieKeyToPath.put(key, file.toString());
             if (existingPath != null) {
-              log.warn("Duplicate repo index key: {} - {}", existingPath, file);
+              log.debug("Duplicate repo index key: {} - {}", existingPath, file);
               duplicateTrieKeys.add(key);
             }
           }

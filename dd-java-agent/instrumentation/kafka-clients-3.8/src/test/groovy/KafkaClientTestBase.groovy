@@ -41,7 +41,6 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
-@Flaky
 abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   static final SHARED_TOPIC = "shared.topic"
   static final String MESSAGE = "Testing without headers for certain topics"
@@ -67,7 +66,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     super.configurePreAgent()
 
     injectSysConfig("dd.kafka.e2e.duration.enabled", "true")
-    injectSysConfig("dd.trace.experimental.kafka.enabled","true")
   }
 
   public static final LinkedHashMap<String, String> PRODUCER_PATHWAY_EDGE_TAGS
@@ -152,6 +150,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   protected boolean isDataStreamsEnabled() {
     return true
   }
+
   @Flaky
   def "test kafka produce and consume"() {
     setup:

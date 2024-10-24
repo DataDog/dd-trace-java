@@ -152,7 +152,10 @@ public class DebuggerTransformer implements ClassFileTransformer {
             DebuggerMetrics.getInstance(config),
             new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl(), false),
             new SnapshotSink(
-                config, "", new BatchUploader(config, config.getFinalDebuggerSnapshotUrl())),
+                config,
+                "",
+                new BatchUploader(
+                    config, config.getFinalDebuggerSnapshotUrl(), SnapshotSink.RETRY_POLICY)),
             new SymbolSink(config)));
   }
 

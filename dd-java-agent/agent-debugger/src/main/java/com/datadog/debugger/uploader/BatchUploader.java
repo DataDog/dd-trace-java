@@ -10,6 +10,8 @@ import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentThreadFactory;
 import java.io.IOException;
 import java.time.Duration;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Phaser;
 import java.util.concurrent.SynchronousQueue;
@@ -56,7 +58,16 @@ public class BatchUploader {
     }
   }
 
-  private static final Logger log = LoggerFactory.getLogger(BatchUploader.class);
+  public static class RetryPolicy {
+    public final ConcurrentMap<Call, Integer> failures = new ConcurrentHashMap<>();
+    public final int maxFailures;
+
+    public RetryPolicy(int maxFailures) {
+      this.maxFailures = maxFailures;
+    }
+  }
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(BatchUploader.class);
   private static final int MINUTES_BETWEEN_ERROR_LOG = 5;
   private static final MediaType APPLICATION_JSON = MediaType.parse("application/json");
   private static final String HEADER_DD_CONTAINER_ID = "Datadog-Container-ID";
@@ -76,18 +87,28 @@ public class BatchUploader {
   private final DebuggerMetrics debuggerMetrics;
   private final boolean instrumentTheWorld;
   private final RatelimitedLogger ratelimitedLogger;
+  private final RetryPolicy retryPolicy;
 
   private final Phaser inflightRequests = new Phaser(1);
 
-  public BatchUploader(Config config, String endpoint) {
-    this(config, endpoint, new RatelimitedLogger(log, MINUTES_BETWEEN_ERROR_LOG, TimeUnit.MINUTES));
+  public BatchUploader(Config config, String endpoint, RetryPolicy retryPolicy) {
+    this(
+        config,
+        endpoint,
+        new RatelimitedLogger(LOGGER, MINUTES_BETWEEN_ERROR_LOG, TimeUnit.MINUTES),
+        retryPolicy);
   }
 
-  BatchUploader(Config config, String endpoint, RatelimitedLogger ratelimitedLogger) {
+  BatchUploader(
+      Config config,
+      String endpoint,
+      RatelimitedLogger ratelimitedLogger,
+      RetryPolicy retryPolicy) {
     this(
         config,
         endpoint,
         ratelimitedLogger,
+        retryPolicy,
         ContainerInfo.get().containerId,
         ContainerInfo.getEntityId());
   }
@@ -97,6 +118,7 @@ public class BatchUploader {
       Config config,
       String endpoint,
       RatelimitedLogger ratelimitedLogger,
+      RetryPolicy retryPolicy,
       String containerId,
       String entityId) {
     instrumentTheWorld = config.isDebuggerInstrumentTheWorld();
@@ -104,10 +126,9 @@ public class BatchUploader {
       throw new IllegalArgumentException("Endpoint url is empty");
     }
     urlBase = HttpUrl.get(endpoint);
-    log.debug("Started BatchUploader with target url {}", urlBase);
+    LOGGER.debug("Started BatchUploader with target url {}", urlBase);
     apiKey = config.getApiKey();
     this.ratelimitedLogger = ratelimitedLogger;
-    responseCallback = new ResponseCallback(ratelimitedLogger, inflightRequests);
     // This is the same thing OkHttp Dispatcher is doing except thread naming and daemonization
     okHttpExecutorService =
         new ThreadPoolExecutor(
@@ -117,6 +138,7 @@ public class BatchUploader {
             TimeUnit.SECONDS,
             new SynchronousQueue<>(),
             new AgentThreadFactory(DEBUGGER_HTTP_DISPATCHER));
+    this.retryPolicy = retryPolicy;
     this.containerId = containerId;
     this.entityId = entityId;
     Duration requestTimeout = Duration.ofSeconds(config.getDebuggerUploadTimeout());
@@ -132,6 +154,8 @@ public class BatchUploader {
             null, /* proxyUsername */
             null, /* proxyPassword */
             requestTimeout.toMillis());
+    responseCallback =
+        new ResponseCallback(ratelimitedLogger, inflightRequests, client, retryPolicy);
     debuggerMetrics = DebuggerMetrics.getInstance(config);
   }
 
@@ -195,6 +219,10 @@ public class BatchUploader {
     return urlBase;
   }
 
+  RetryPolicy getRetryPolicy() {
+    return retryPolicy;
+  }
+
   private void makeUploadRequest(byte[] json, String tags) {
     int contentLength = json.length;
     // use RequestBody.create(MediaType, byte[]) to avoid changing Content-Type to
@@ -205,8 +233,8 @@ public class BatchUploader {
 
   private void buildAndSendRequest(RequestBody body, int contentLength, String tags) {
     debuggerMetrics.histogram("batch.uploader.request.size", contentLength);
-    if (log.isDebugEnabled()) {
-      log.debug("Uploading batch data size={} bytes", contentLength);
+    if (LOGGER.isDebugEnabled()) {
+      LOGGER.debug("Uploading batch data size={} bytes", contentLength);
     }
     HttpUrl.Builder builder = urlBase.newBuilder();
     if (tags != null && !tags.isEmpty()) {
@@ -215,17 +243,17 @@ public class BatchUploader {
     Request.Builder requestBuilder = new Request.Builder().url(builder.build()).post(body);
     if (apiKey != null) {
       if (apiKey.isEmpty()) {
-        log.debug("API key is empty");
+        LOGGER.debug("API key is empty");
       }
       if (apiKey.length() != 32) {
-        log.debug(
+        LOGGER.debug(
             "API key length is incorrect (truncated?) expected=32 actual={} API key={}...",
             apiKey.length(),
             apiKey.substring(0, Math.min(apiKey.length(), 6)));
       }
       requestBuilder.addHeader(HEADER_DD_API_KEY, apiKey);
     } else {
-      log.debug("API key is null");
+      LOGGER.debug("API key is null");
     }
     if (containerId != null) {
       requestBuilder.addHeader(HEADER_DD_CONTAINER_ID, containerId);
@@ -234,16 +262,15 @@ public class BatchUploader {
       requestBuilder.addHeader(HEADER_DD_ENTITY_ID, entityId);
     }
     Request request = requestBuilder.build();
-    log.debug("Sending request: {} CT: {}", request, request.body().contentType());
-    client.newCall(request).enqueue(responseCallback);
-    inflightRequests.register();
+    LOGGER.debug("Sending request: {} CT: {}", request, request.body().contentType());
+    enqueueCall(client, request, responseCallback, retryPolicy, 0, inflightRequests);
   }
 
   public void shutdown() {
     try {
       inflightRequests.awaitAdvanceInterruptibly(inflightRequests.arrive(), 10, TimeUnit.SECONDS);
     } catch (TimeoutException | InterruptedException ignored) {
-      log.warn("Not all upload requests have been handled");
+      LOGGER.warn("Not all upload requests have been handled");
     }
     okHttpExecutorService.shutdownNow();
     try {
@@ -251,7 +278,7 @@ public class BatchUploader {
     } catch (final InterruptedException e) {
       // Note: this should only happen in main thread right before exiting, so eating up interrupted
       // state should be fine.
-      log.warn("Wait for executor shutdown interrupted");
+      LOGGER.warn("Wait for executor shutdown interrupted");
     }
     client.connectionPool().evictAll();
   }
@@ -260,28 +287,68 @@ public class BatchUploader {
     return client.dispatcher().queuedCallsCount() < MAX_ENQUEUED_REQUESTS;
   }
 
+  private static void enqueueCall(
+      OkHttpClient client,
+      Request request,
+      Callback responseCallback,
+      RetryPolicy retryPolicy,
+      int failureCount,
+      Phaser inflightRequests) {
+    Call call = client.newCall(request);
+    retryPolicy.failures.put(call, failureCount);
+    call.enqueue(responseCallback);
+    inflightRequests.register();
+  }
+
   private static final class ResponseCallback implements Callback {
 
     private final RatelimitedLogger ratelimitedLogger;
     private final Phaser inflightRequests;
+    private final OkHttpClient client;
+    private final RetryPolicy retryPolicy;
 
-    public ResponseCallback(final RatelimitedLogger ratelimitedLogger, Phaser inflightRequests) {
+    public ResponseCallback(
+        final RatelimitedLogger ratelimitedLogger,
+        Phaser inflightRequests,
+        OkHttpClient client,
+        RetryPolicy retryPolicy) {
       this.ratelimitedLogger = ratelimitedLogger;
       this.inflightRequests = inflightRequests;
+      this.client = client;
+      this.retryPolicy = retryPolicy;
     }
 
     @Override
-    public void onFailure(final Call call, final IOException e) {
+    public void onFailure(Call call, IOException e) {
       inflightRequests.arriveAndDeregister();
       ratelimitedLogger.warn("Failed to upload batch to {}", call.request().url(), e);
+      handleRetry(call, retryPolicy.maxFailures);
+    }
+
+    private void handleRetry(Call call, int maxFailures) {
+      Integer failure = retryPolicy.failures.remove(call);
+      if (failure != null) {
+        int failureCount = failure + 1;
+        if (failureCount <= maxFailures) {
+          LOGGER.debug(
+              "Retrying upload to {}, {}/{}", call.request().url(), failureCount, maxFailures);
+          enqueueCall(client, call.request(), this, retryPolicy, failureCount, inflightRequests);
+        } else {
+          LOGGER.warn(
+              "Failed permanently to upload batch to {} after {} attempts",
+              call.request().url(),
+              maxFailures);
+        }
+      }
     }
 
     @Override
-    public void onResponse(final Call call, final Response response) {
+    public void onResponse(Call call, Response response) {
       try {
         inflightRequests.arriveAndDeregister();
         if (response.isSuccessful()) {
-          log.debug("Upload done");
+          LOGGER.debug("Upload done");
+          retryPolicy.failures.remove(call);
         } else {
           ResponseBody body = response.body();
           // Retrieve body content for detailed error messages
@@ -300,6 +367,11 @@ public class BatchUploader {
                 "Failed to upload batch: unexpected response code {} {}",
                 response.message(),
                 response.code());
+          }
+          if (response.code() >= 500 || response.code() == 408 || response.code() == 429) {
+            handleRetry(call, retryPolicy.maxFailures);
+          } else {
+            retryPolicy.failures.remove(call);
           }
         }
       } finally {
