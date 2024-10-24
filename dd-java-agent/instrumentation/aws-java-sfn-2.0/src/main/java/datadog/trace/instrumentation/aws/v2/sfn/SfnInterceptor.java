@@ -21,6 +21,15 @@ public class SfnInterceptor implements ExecutionInterceptor {
   @Override
   public SdkRequest modifyRequest(
       Context.ModifyRequest context, ExecutionAttributes executionAttributes) {
+    try {
+      return modifyRequestImpl(context, executionAttributes);
+    } catch (Exception e) {
+      return context.request();
+    }
+  }
+
+  public SdkRequest modifyRequestImpl(
+      Context.ModifyRequest context, ExecutionAttributes executionAttributes) {
     final AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
     // StartExecutionRequest
     if (context.request() instanceof StartExecutionRequest) {
@@ -45,7 +54,7 @@ public class SfnInterceptor implements ExecutionInterceptor {
 
   private SdkRequest injectTraceContext(AgentSpan span, StartExecutionRequest request) {
     String ddTraceContextJSON = InputAttributeInjector.buildTraceContext(span);
-    // Inject the trace context into the Step Function input
+    // Inject the trace context into the StartExecutionRequest input
     String modifiedInput =
         InputAttributeInjector.getModifiedInput(request.input(), ddTraceContextJSON);
 
@@ -54,7 +63,7 @@ public class SfnInterceptor implements ExecutionInterceptor {
 
   private SdkRequest injectTraceContext(AgentSpan span, StartSyncExecutionRequest request) {
     String ddTraceContextJSON = InputAttributeInjector.buildTraceContext(span);
-    // Inject the trace context into the Step Function input
+    // Inject the trace context into the StartSyncExecutionRequest input
     String modifiedInput =
         InputAttributeInjector.getModifiedInput(request.input(), ddTraceContextJSON);
 
