@@ -23,6 +23,8 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import datadog.trace.core.datastreams.TagsProcessor;
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.net.URI;
 import java.time.Instant;
 import java.util.Collections;
@@ -40,6 +42,7 @@ import software.amazon.awssdk.core.SdkResponse;
 import software.amazon.awssdk.core.interceptor.ExecutionAttribute;
 import software.amazon.awssdk.core.interceptor.ExecutionAttributes;
 import software.amazon.awssdk.core.interceptor.SdkExecutionAttribute;
+import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.http.SdkHttpRequest;
 import software.amazon.awssdk.http.SdkHttpResponse;
 
@@ -110,10 +113,20 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
       final AgentSpan span,
       final SdkRequest request,
       final SdkHttpRequest httpRequest,
-      final ExecutionAttributes attributes) {
+      final ExecutionAttributes attributes,
+      Optional<RequestBody> requestBody) {
     final String awsServiceName = attributes.getAttribute(SdkExecutionAttribute.SERVICE_NAME);
     final String awsOperationName = attributes.getAttribute(SdkExecutionAttribute.OPERATION_NAME);
     onOperation(span, awsServiceName, awsOperationName);
+
+    if (requestBody.isPresent()) {
+      Config config = Config.get();
+      if (config.isCloudRequestPayloadTaggingEnabled()
+          && config.isCloudPayloadTaggingEnabledFor(awsServiceName)) {
+        InputStream body = requestBody.get().contentStreamProvider().newStream();
+        AgentTracer.get().addTagsFromRequestBody(span, body, "aws.request.body");
+      }
+    }
 
     // S3
     request.getValueForField("Bucket", String.class).ifPresent(name -> setBucketName(span, name));
@@ -294,7 +307,20 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
       final AgentSpan span,
       final SdkResponse response,
       final SdkHttpResponse httpResponse,
-      final ExecutionAttributes attributes) {
+      final ExecutionAttributes attributes,
+      Optional<InputStream> responseBody) {
+
+    if (responseBody.isPresent()) {
+      InputStream body = responseBody.get();
+      if (body instanceof ResponseBodyStreamWrapper) {
+        ResponseBodyStreamWrapper wrapper = (ResponseBodyStreamWrapper) body;
+        ByteArrayInputStream bodyStream = wrapper.asByteArrayInputStream();
+        if (bodyStream != null) {
+          AgentTracer.get().addTagsFromResponseBody(span, bodyStream, "aws.response.body");
+        }
+      }
+    }
+
     if (response instanceof AwsResponse) {
       span.setTag(
           InstrumentationTags.AWS_REQUEST_ID,
