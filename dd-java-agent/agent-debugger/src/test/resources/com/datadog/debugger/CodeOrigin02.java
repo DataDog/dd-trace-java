@@ -8,7 +8,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.core.DDSpan;
 
-public class CodeOrigin01 {
+public class CodeOrigin02 {
   private int intField = 42;
 
   private static TracerAPI tracerAPI = AgentTracer.get();

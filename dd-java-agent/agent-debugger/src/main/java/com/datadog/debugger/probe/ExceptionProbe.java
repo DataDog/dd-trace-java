@@ -69,8 +69,7 @@ public class ExceptionProbe extends LogProbe implements ForceMethodInstrumentati
     Throwable throwable = context.getCapturedThrowable().getThrowable();
     Throwable innerMostThrowable = getInnerMostThrowable(throwable);
     String fingerprint =
-        Fingerprinter.fingerprint(
-            innerMostThrowable, exceptionProbeManager.getClassNameFiltering());
+        Fingerprinter.fingerprint(innerMostThrowable, exceptionProbeManager.getClassNameFilter());
     if (exceptionProbeManager.shouldCaptureException(fingerprint)) {
       LOGGER.debug("Capturing exception matching fingerprint: {}", fingerprint);
       // capture only on uncaught exception matching the fingerprint
