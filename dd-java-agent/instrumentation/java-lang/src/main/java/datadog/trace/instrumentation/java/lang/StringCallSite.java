@@ -6,6 +6,7 @@ import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.StringModule;
 import datadog.trace.util.stacktrace.StackUtils;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -280,5 +281,75 @@ public class StringCallSite {
       }
     }
     return result;
+  }
+
+  @CallSite.After("java.lang.String java.lang.String.replace(char, char)")
+  public static String afterReplaceChar(
+      @CallSite.This @Nonnull final String self,
+      @CallSite.Argument(0) final char oldChar,
+      @CallSite.Argument(1) final char newChar,
+      @CallSite.Return @Nonnull final String result) {
+    final StringModule module = InstrumentationBridge.STRING;
+    if (module != null) {
+      try {
+        module.onStringReplace(self, oldChar, newChar, result);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterReplaceChar threw", e);
+      }
+    }
+    return result;
+  }
+
+  @CallSite.Around(
+      "java.lang.String java.lang.String.replace(java.lang.CharSequence, java.lang.CharSequence)")
+  public static String aroundReplaceCharSeq(
+      @CallSite.This final String self,
+      @CallSite.Argument(0) final CharSequence oldCharSeq,
+      @CallSite.Argument(1) final CharSequence newCharSeq) {
+    final StringModule module = InstrumentationBridge.STRING;
+    if (module != null) {
+      try {
+        return module.onStringReplace(self, oldCharSeq, newCharSeq);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("aroundReplaceCharSeq threw", e);
+      }
+    }
+    return self.replace(oldCharSeq, newCharSeq);
+  }
+
+  @CallSite.Around(
+      "java.lang.String java.lang.String.replaceAll(java.lang.String, java.lang.String)")
+  @SuppressForbidden
+  public static String aroundReplaceAll(
+      @CallSite.This final String self,
+      @CallSite.Argument(0) final String regex,
+      @CallSite.Argument(1) final String replacement) {
+    final StringModule module = InstrumentationBridge.STRING;
+    if (module != null) {
+      try {
+        return module.onStringReplace(self, regex, replacement, Integer.MAX_VALUE);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("aroundReplaceAll threw", e);
+      }
+    }
+    return self.replaceAll(regex, replacement);
+  }
+
+  @CallSite.Around(
+      "java.lang.String java.lang.String.replaceFirst(java.lang.String, java.lang.String)")
+  @SuppressForbidden
+  public static String aroundReplaceFirst(
+      @CallSite.This final String self,
+      @CallSite.Argument(0) final String regex,
+      @CallSite.Argument(1) final String replacement) {
+    final StringModule module = InstrumentationBridge.STRING;
+    if (module != null) {
+      try {
+        return module.onStringReplace(self, regex, replacement, 1);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("aroundReplaceFirst threw", e);
+      }
+    }
+    return self.replaceFirst(regex, replacement);
   }
 }
