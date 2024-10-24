@@ -1,31 +1,33 @@
 package datadog.trace.instrumentation.aws.v2.sfn;
 
+import datadog.trace.bootstrap.JsonBuffer;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 
 public class InputAttributeInjector {
   public static String buildTraceContext(AgentSpan span) {
     // Extract span tags
-    StringBuilder spanTagsJSON = new StringBuilder();
-    spanTagsJSON.append('{');
+    JsonBuffer spanTagsJSON = new JsonBuffer();
+    spanTagsJSON.beginObject();
     span.getTags()
-        .forEach(
-            (tagKey, tagValue) ->
-                spanTagsJSON
-                    .append('"')
-                    .append(tagKey)
-                    .append("\":\"")
-                    .append(tagValue)
-                    .append("\","));
-    spanTagsJSON.setLength(spanTagsJSON.length() - 1); // remove trailing comma
-    spanTagsJSON.append('}');
+        .forEach((tagKey, tagValue) -> spanTagsJSON.name(tagKey).value(tagValue.toString()));
+    spanTagsJSON.endObject();
 
     // Build DD trace context object
-    String ddTraceContextJSON =
-        String.format(
-            "\"_datadog\": { \"x-datadog-trace-id\": \"%s\",\"x-datadog-parent-id\":\"%s\", \"x-datadog-tags\": %s }",
-            span.getTraceId().toString(), span.getSpanId(), spanTagsJSON);
+    JsonBuffer ddTraceContextJSON = new JsonBuffer();
+    ddTraceContextJSON
+        .beginObject()
+        .name("_datadog")
+        .beginObject()
+        .name("x-datadog-trace-id")
+        .value(span.getTraceId().toString())
+        .name("x-datadog-parent-id")
+        .value(String.valueOf(span.getSpanId()))
+        .name("x-datadog-tags")
+        .value(spanTagsJSON)
+        .endObject()
+        .endObject();
 
-    return ddTraceContextJSON;
+    return ddTraceContextJSON.toString();
   }
 
   public static String getModifiedInput(String request, String ddTraceContextJSON) {
