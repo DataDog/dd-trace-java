@@ -41,26 +41,30 @@ class IastHttpClientInstrumentationTest extends AgentTestRunner {
     httpClient.execute(*args)
 
     then:
-    if(classExpected == URI){
-      1 * ssrf.onURLConnection(_ as URI)
+    if (host) {
+      if(classExpected == URI){
+        1 * ssrf.onURLConnection(_ as URI)
+      } else {
+        1 * ssrf.onURLConnection(_ as String, _ as String, _ as String)
+      }
     } else {
-      1 * ssrf.onURLConnection(_ as String, _ as String, _ as String)
+      1 * ssrf.onURLConnection(_ as String)
     }
 
     where:
-    args | classExpected
-    [getHttpUriRequest(server)] | URI
-    [getHttpUriRequest(server), new BasicHttpContext()] | URI
-    [getHttpUriRequest(server), new BasicResponseHandler()] | URI
-    [getHttpUriRequest(server), new BasicResponseHandler(), new BasicHttpContext()] | URI
-    [getHttpHost(server), getHttpUriRequest(server)] | URI
-    [getHttpHost(server), getHttpUriRequest(server), new BasicHttpContext()] | URI
-    [getHttpHost(server), getHttpUriRequest(server), new BasicResponseHandler()] | URI
-    [getHttpHost(server), getHttpUriRequest(server), new BasicResponseHandler(), new BasicHttpContext()] | URI
-    [getHttpHost(server), getHttpRequest(server)] | String
-    [getHttpHost(server), getHttpRequest(server), new BasicHttpContext()] | String
-    [getHttpHost(server), getHttpRequest(server), new BasicResponseHandler()] | String
-    [getHttpHost(server), getHttpRequest(server), new BasicResponseHandler(), new BasicHttpContext()] | String
+    args                                                                                                 | classExpected | host
+    [getHttpUriRequest(server)]                                                                          | URI           | false
+    [getHttpUriRequest(server), new BasicHttpContext()]                                                  | URI           | false
+    [getHttpUriRequest(server), new BasicResponseHandler()]                                              | URI           | false
+    [getHttpUriRequest(server), new BasicResponseHandler(), new BasicHttpContext()]                      | URI           | false
+    [getHttpHost(server), getHttpUriRequest(server)]                                                     | URI           | true
+    [getHttpHost(server), getHttpUriRequest(server), new BasicHttpContext()]                             | URI           | true
+    [getHttpHost(server), getHttpUriRequest(server), new BasicResponseHandler()]                         | URI           | true
+    [getHttpHost(server), getHttpUriRequest(server), new BasicResponseHandler(), new BasicHttpContext()] | URI           | true
+    [getHttpHost(server), getHttpRequest(server)]                                                        | String        | true
+    [getHttpHost(server), getHttpRequest(server), new BasicHttpContext()]                                | String        | true
+    [getHttpHost(server), getHttpRequest(server), new BasicResponseHandler()]                            | String        | true
+    [getHttpHost(server), getHttpRequest(server), new BasicResponseHandler(), new BasicHttpContext()]    | String        | true
   }
 
   private static org.apache.http.client.methods.HttpUriRequest getHttpUriRequest(final server){
