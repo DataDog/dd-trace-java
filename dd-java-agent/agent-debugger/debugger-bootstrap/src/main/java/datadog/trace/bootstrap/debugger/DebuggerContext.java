@@ -376,6 +376,11 @@ public class DebuggerContext {
   }
 
   public static boolean isClassNameExcluded(String className) {
-    return classNameFilter != null && classNameFilter.isExcluded(className);
+    try {
+      return classNameFilter != null && classNameFilter.isExcluded(className);
+    } catch (Exception ex) {
+      LOGGER.debug("Error in isClassNameExcluded: ", ex);
+      return false;
+    }
   }
 }
