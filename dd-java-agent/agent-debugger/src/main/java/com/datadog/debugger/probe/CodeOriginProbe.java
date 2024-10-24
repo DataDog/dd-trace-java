@@ -8,7 +8,6 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 
 import com.datadog.debugger.agent.DebuggerAgent;
-import com.datadog.debugger.codeorigin.CodeOriginProbeManager;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.sink.Snapshot;
 import datadog.trace.bootstrap.debugger.CapturedContext;
@@ -31,14 +30,10 @@ public class CodeOriginProbe extends LogProbe implements ForceMethodInstrumentat
 
   private final boolean entrySpanProbe;
 
-  private final transient CodeOriginProbeManager probeManager;
-
-  public CodeOriginProbe(
-      ProbeId probeId, String signature, Where where, CodeOriginProbeManager probeManager) {
+  public CodeOriginProbe(ProbeId probeId, String signature, Where where) {
     super(LANGUAGE, probeId, null, where, MethodLocation.EXIT, null, null, true, null, null, null);
     this.signature = signature;
     this.entrySpanProbe = signature != null;
-    this.probeManager = probeManager;
   }
 
   @Override
@@ -105,6 +100,10 @@ public class CodeOriginProbe extends LogProbe implements ForceMethodInstrumentat
         }
       }
     }
+  }
+
+  public boolean entrySpanProbe() {
+    return entrySpanProbe;
   }
 
   /** look "back" to find exit spans that may have already come and gone */

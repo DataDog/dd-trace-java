@@ -3,7 +3,6 @@ package com.datadog.debugger.agent;
 import static com.datadog.debugger.agent.ConfigurationAcceptor.Source.REMOTE_CONFIG;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
-import com.datadog.debugger.codeorigin.CodeOriginProbeManager;
 import com.datadog.debugger.codeorigin.DefaultCodeOriginRecorder;
 import com.datadog.debugger.exception.DefaultExceptionDebugger;
 import com.datadog.debugger.exception.ExceptionProbeManager;
@@ -101,8 +100,7 @@ public class DebuggerAgent {
       DebuggerContext.initExceptionDebugger(defaultExceptionDebugger);
     }
     if (config.isDebuggerCodeOriginEnabled()) {
-      DebuggerContext.initCodeOrigin(
-          new DefaultCodeOriginRecorder(new CodeOriginProbeManager(configurationUpdater)));
+      DebuggerContext.initCodeOrigin(new DefaultCodeOriginRecorder(configurationUpdater));
     }
     if (config.isDebuggerInstrumentTheWorld()) {
       setupInstrumentTheWorldTransformer(
