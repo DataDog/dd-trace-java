@@ -64,8 +64,11 @@ import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.TryCatchBlockNode;
 import org.objectweb.asm.tree.TypeInsnNode;
 import org.objectweb.asm.tree.VarInsnNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class CapturedContextInstrumentor extends Instrumentor {
+  private static final Logger log = LoggerFactory.getLogger(CapturedContextInstrumentor.class);
   private final boolean captureSnapshot;
   private final Limits limits;
   private final LabelNode contextInitLabel = new LabelNode();
@@ -1197,7 +1200,12 @@ public class CapturedContextInstrumentor extends Instrumentor {
         }
       }
     }
-    addInheritedStaticFields(classNode, classLoader, limits, results, fieldCount);
+    if (!Config.get().isDebuggerInstrumentTheWorld()) {
+      // Collects inherited static fields only if the ITW mode is not enabled
+      // because it can lead to LinkageError: attempted duplicate class definition
+      // for example, when a probe is located in method overridden in enum element
+      addInheritedStaticFields(classNode, classLoader, limits, results, fieldCount);
+    }
     return results;
   }
 
@@ -1215,17 +1223,22 @@ public class CapturedContextInstrumentor extends Instrumentor {
       } catch (ClassNotFoundException ex) {
         break;
       }
-      for (Field field : clazz.getDeclaredFields()) {
-        if (isStaticField(field) && !isFinalField(field)) {
-          String desc = Type.getDescriptor(field.getType());
-          FieldNode fieldNode =
-              new FieldNode(field.getModifiers(), field.getName(), desc, null, field);
-          results.add(fieldNode);
-          fieldCount++;
-          if (fieldCount > limits.maxFieldCount) {
-            return;
+      try {
+        for (Field field : clazz.getDeclaredFields()) {
+          if (isStaticField(field) && !isFinalField(field)) {
+            String desc = Type.getDescriptor(field.getType());
+            FieldNode fieldNode =
+                new FieldNode(field.getModifiers(), field.getName(), desc, null, field);
+            results.add(fieldNode);
+            log.debug("Adding static inherited field {}", fieldNode.name);
+            fieldCount++;
+            if (fieldCount > limits.maxFieldCount) {
+              return;
+            }
           }
         }
+      } catch (ClassCircularityError ex) {
+        break;
       }
       clazz = clazz.getSuperclass();
       superClassName = clazz.getTypeName();

@@ -93,6 +93,7 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
     response.body().string() == "Hello Client."
     assertTraces(1) {
       trace(2) {
+        sortSpansByStart()
         span(0) {
           operationName operation()
           resourceName "GET /client-request"

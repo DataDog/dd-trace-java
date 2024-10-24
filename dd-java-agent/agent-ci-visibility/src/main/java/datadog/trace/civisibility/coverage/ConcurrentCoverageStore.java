@@ -4,6 +4,7 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.civisibility.coverage.CoverageProbes;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.coverage.TestReport;
+import datadog.trace.civisibility.source.SourceResolutionException;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -36,13 +37,18 @@ public abstract class ConcurrentCoverageStore<T extends CoverageProbes> implemen
 
   @Override
   public boolean report(DDTraceId testSessionId, Long testSuiteId, long testSpanId) {
-    report = report(testSessionId, testSuiteId, testSpanId, probes.values());
-    return report != null && report.isNotEmpty();
+    try {
+      report = report(testSessionId, testSuiteId, testSpanId, probes.values());
+      return report != null && report.isNotEmpty();
+    } catch (SourceResolutionException e) {
+      return false;
+    }
   }
 
   @Nullable
   protected abstract TestReport report(
-      DDTraceId testSessionId, Long testSuiteId, long testSpanId, Collection<T> probes);
+      DDTraceId testSessionId, Long testSuiteId, long testSpanId, Collection<T> probes)
+      throws SourceResolutionException;
 
   @Nullable
   @Override

@@ -1,7 +1,6 @@
 package datadog.trace.core.datastreams;
 
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V01_DATASTREAMS_ENDPOINT;
-import static datadog.trace.api.DDTags.PATHWAY_HASH;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
@@ -42,11 +41,10 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import org.jctools.queues.MpscBlockingConsumerArrayQueue;
+import org.jctools.queues.MpscArrayQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,7 +59,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       new StatsPoint(Collections.emptyList(), 0, 0, 0, 0, 0, 0, 0);
 
   private final Map<Long, StatsBucket> timeToBucket = new HashMap<>();
-  private final BlockingQueue<InboxItem> inbox = new MpscBlockingConsumerArrayQueue<>(1024);
+  private final MpscArrayQueue<InboxItem> inbox = new MpscArrayQueue<>(1024);
   private final DatastreamsPayloadWriter payloadWriter;
   private final DDAgentFeaturesDiscovery features;
   private final TimeSource timeSource;
@@ -240,9 +238,6 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     PathwayContext pathwayContext = span.context().getPathwayContext();
     if (pathwayContext != null) {
       pathwayContext.setCheckpoint(sortedTags, this::add, defaultTimestamp, payloadSizeBytes);
-      if (pathwayContext.getHash() != 0) {
-        span.setTag(PATHWAY_HASH, Long.toUnsignedString(pathwayContext.getHash()));
-      }
     }
   }
 
@@ -318,7 +313,11 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       Thread currentThread = Thread.currentThread();
       while (!currentThread.isInterrupted()) {
         try {
-          InboxItem payload = inbox.take();
+          InboxItem payload = inbox.poll();
+          if (payload == null) {
+            Thread.sleep(10);
+            continue;
+          }
 
           if (payload == REPORT) {
             checkDynamicConfig();
@@ -350,8 +349,6 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
               statsBucket.addBacklog(backlog);
             }
           }
-        } catch (InterruptedException e) {
-          currentThread.interrupt();
         } catch (Exception e) {
           log.debug("Error monitoring data streams", e);
         }

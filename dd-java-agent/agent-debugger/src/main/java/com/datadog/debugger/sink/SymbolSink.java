@@ -20,6 +20,7 @@ public class SymbolSink {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(SymbolSink.class);
   static final int CAPACITY = 1024;
+  public static final BatchUploader.RetryPolicy RETRY_POLICY = new BatchUploader.RetryPolicy(10);
   private static final JsonAdapter<ServiceVersion> SERVICE_VERSION_ADAPTER =
       MoshiHelper.createMoshiSymbol().adapter(ServiceVersion.class);
   private static final String EVENT_FORMAT =
@@ -38,7 +39,7 @@ public class SymbolSink {
   private final Stats stats = new Stats();
 
   public SymbolSink(Config config) {
-    this(config, new BatchUploader(config, config.getFinalDebuggerSymDBUrl()));
+    this(config, new BatchUploader(config, config.getFinalDebuggerSymDBUrl(), RETRY_POLICY));
   }
 
   SymbolSink(Config config, BatchUploader symbolUploader) {

@@ -1,14 +1,68 @@
 package datadog.trace.bootstrap.debugger.el;
 
+import static java.lang.invoke.MethodType.methodType;
+
 import datadog.trace.bootstrap.debugger.CapturedContext;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** A helper class to resolve a reference path using reflection. */
 public class ReflectiveFieldValueResolver {
+  private static final Logger LOGGER = LoggerFactory.getLogger(ReflectiveFieldValueResolver.class);
+  // This is a workaround for the fact that Field.trySetAccessible is not available in Java 8
+  private static final MethodHandle TRY_SET_ACCESSIBLE;
+
+  static {
+    MethodHandle methodHandle = null;
+    try {
+      MethodHandles.Lookup lookup = MethodHandles.lookup();
+      methodHandle = lookup.findVirtual(Field.class, "trySetAccessible", methodType(boolean.class));
+    } catch (Exception e) {
+      LOGGER.debug("Looking up trySetAccessible failed: ", e);
+    }
+    TRY_SET_ACCESSIBLE = methodHandle;
+  }
+  // We cannot create a Field instance from scratch to be used as special constant,
+  // so need to reflectively access itself
+  private static final Field INACCESSIBLE_FIELD;
+
+  static {
+    Field field = null;
+    try {
+      field = ReflectiveFieldValueResolver.class.getDeclaredField("INACCESSIBLE_FIELD");
+    } catch (Exception e) {
+      LOGGER.debug("INACCESSIBLE_FIELD failed: ", e);
+    }
+    INACCESSIBLE_FIELD = field;
+  }
+
+  private static final Class<?> MODULE_CLASS;
+  private static final MethodHandle GET_MODULE;
+
+  static {
+    MethodHandle methodHandle = null;
+    Class<?> moduleClass = null;
+    try {
+      moduleClass = Class.forName("java.lang.Module");
+      MethodHandles.Lookup lookup = MethodHandles.lookup();
+      methodHandle = lookup.findVirtual(Class.class, "getModule", methodType(moduleClass));
+    } catch (Exception e) {
+      LOGGER.debug("Looking up getModule failed: ", e);
+    }
+    GET_MODULE = methodHandle;
+    MODULE_CLASS = moduleClass;
+  }
+
   public static Object resolve(Object target, Class<?> targetType, String fldName) {
     Field fld = safeGetField(targetType, fldName);
     if (fld == null) {
+      return Values.UNDEFINED_OBJECT;
+    }
+    if (fld == INACCESSIBLE_FIELD) {
       return Values.UNDEFINED_OBJECT;
     }
     try {
@@ -35,10 +89,11 @@ public class ReflectiveFieldValueResolver {
       Class<?> clazz, Object target, String fieldName) {
     Field field;
     try {
-      field = getField(clazz, fieldName);
+      FieldResult fieldResult = getField(clazz, fieldName);
+      field = fieldResult.field;
       if (field == null) {
         return CapturedContext.CapturedValue.notCapturedReason(
-            fieldName, Object.class.getTypeName(), "Field not found");
+            fieldName, Object.class.getTypeName(), fieldResult.msg);
       }
     } catch (Exception ex) {
       return CapturedContext.CapturedValue.notCapturedReason(
@@ -153,7 +208,7 @@ public class ReflectiveFieldValueResolver {
 
   private static Field safeGetField(Class<?> container, String name) {
     try {
-      return getField(container, name);
+      return getField(container, name).field;
     } catch (SecurityException ignored) {
       return null;
     } catch (Exception e) {
@@ -163,18 +218,58 @@ public class ReflectiveFieldValueResolver {
     }
   }
 
-  private static Field getField(Class<?> container, String name) {
+  private static class FieldResult {
+    final Field field;
+    final String msg;
+
+    public FieldResult(Field field, String msg) {
+      this.field = field;
+      this.msg = msg;
+    }
+  }
+
+  private static FieldResult getField(Class<?> container, String name) {
     while (container != null) {
       Field[] declaredFields = container.getDeclaredFields();
       for (int i = 0; i < declaredFields.length; i++) {
         Field declaredField = declaredFields[i];
         if (declaredField.getName().equals(name)) {
-          declaredField.setAccessible(true);
-          return declaredField;
+          if (trySetAccessible(declaredField)) {
+            declaredField.setAccessible(true);
+          } else {
+            return new FieldResult(null, buildInaccessibleMsg(declaredField));
+          }
+          return new FieldResult(declaredField, null);
         }
       }
       container = container.getSuperclass();
     }
-    return null;
+    return new FieldResult(null, "Field not found");
+  }
+
+  public static boolean trySetAccessible(Field field) {
+    if (TRY_SET_ACCESSIBLE == null) {
+      return true;
+    }
+    try {
+      return (boolean) TRY_SET_ACCESSIBLE.invokeExact(field);
+    } catch (Throwable e) {
+      LOGGER.debug("trySetAccessible call failed: ", e);
+      return true;
+    }
+  }
+
+  public static String buildInaccessibleMsg(Field field) {
+    if (MODULE_CLASS != null && GET_MODULE != null) {
+      try {
+        Object module = GET_MODULE.invoke(field.getDeclaringClass());
+        return "Field is not accessible: "
+            + module
+            + " does not opens/exports to the current module";
+      } catch (Throwable ex) {
+        LOGGER.debug("buildInaccessibleMsg failed: ", ex);
+      }
+    }
+    return "Field is not accessible";
   }
 }

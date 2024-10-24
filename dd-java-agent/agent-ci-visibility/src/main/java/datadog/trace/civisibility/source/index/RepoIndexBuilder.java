@@ -13,8 +13,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
@@ -94,6 +96,8 @@ public class RepoIndexBuilder implements RepoIndexProvider {
     private final PackageResolver packageResolver;
     private final ResourceResolver resourceResolver;
     private final ClassNameTrie.Builder trieBuilder;
+    private final Map<String, String> trieKeyToPath;
+    private final Collection<String> duplicateTrieKeys;
     private final Map<RepoIndex.SourceRoot, Integer> sourceRoots;
     private final PackageTree packageTree;
     private final RepoIndexingStats indexingStats;
@@ -109,6 +113,8 @@ public class RepoIndexBuilder implements RepoIndexProvider {
       this.resourceResolver = resourceResolver;
       this.repoRoot = repoRoot;
       trieBuilder = new ClassNameTrie.Builder();
+      trieKeyToPath = new HashMap<>();
+      duplicateTrieKeys = new HashSet<>();
       sourceRoots = new HashMap<>();
       packageTree = new PackageTree(config);
       indexingStats = new RepoIndexingStats();
@@ -161,6 +167,12 @@ public class RepoIndexBuilder implements RepoIndexProvider {
           if (!relativePath.isEmpty()) {
             String key = Utils.toTrieKey(relativePath);
             trieBuilder.put(key, sourceRootIdx);
+
+            String existingPath = trieKeyToPath.put(key, file.toString());
+            if (existingPath != null) {
+              log.debug("Duplicate repo index key: {} - {}", existingPath, file);
+              duplicateTrieKeys.add(key);
+            }
           }
         }
       } catch (Exception e) {
@@ -221,7 +233,8 @@ public class RepoIndexBuilder implements RepoIndexProvider {
         roots[e.getValue()] = e.getKey();
       }
 
-      return new RepoIndex(trieBuilder.buildTrie(), Arrays.asList(roots), packageTree.asList());
+      return new RepoIndex(
+          trieBuilder.buildTrie(), duplicateTrieKeys, Arrays.asList(roots), packageTree.asList());
     }
   }
 

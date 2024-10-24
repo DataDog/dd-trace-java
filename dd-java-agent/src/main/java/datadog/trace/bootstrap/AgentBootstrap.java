@@ -97,8 +97,8 @@ public final class AgentBootstrap {
 
     BootstrapInitializationTelemetry initTelemetry =
         BootstrapInitializationTelemetry.createFromForwarderPath(forwarderPath);
-    initTelemetry.initMetaInfo("runtime_name", "java");
-    initTelemetry.initMetaInfo("language_name", "java");
+    initTelemetry.initMetaInfo("runtime_name", "jvm");
+    initTelemetry.initMetaInfo("language_name", "jvm");
 
     String javaVersion = SystemUtils.tryGetProperty("java.version");
     if (javaVersion != null) {

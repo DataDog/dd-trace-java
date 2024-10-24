@@ -1,6 +1,7 @@
 package datadog.trace.civisibility.source.index
 
 import datadog.trace.api.civisibility.domain.Language
+import datadog.trace.civisibility.source.SourceResolutionException
 import datadog.trace.util.ClassNameTrie
 import spock.lang.Specification
 
@@ -20,7 +21,7 @@ class RepoIndexTest extends Specification {
       new RepoIndex.SourceRoot("myClassSourceRoot", Language.GROOVY),
       new RepoIndex.SourceRoot("myOtherClassSourceRoot", Language.GROOVY))
 
-    def repoIndex = new RepoIndex(trie, sourceRoots, Collections.emptyList())
+    def repoIndex = new RepoIndex(trie, Collections.emptyList(), sourceRoots, Collections.emptyList())
 
     when:
     def serialized = repoIndex.serialize()
@@ -29,5 +30,17 @@ class RepoIndexTest extends Specification {
     then:
     deserialized.getSourcePath(RepoIndexTest) == "myClassSourceRoot/" + myClassName.replace('.' as char, File.separatorChar) + Language.GROOVY.extension
     deserialized.getSourcePath(RepoIndexSourcePathResolverTest) == "myOtherClassSourceRoot/" + myOtherClassName.replace('.' as char, File.separatorChar) + Language.GROOVY.extension
+  }
+
+  def "test trying to resolve a duplicate key throws exception"() {
+    given:
+    def duplicateKeys = [RepoIndexTest.name]
+    def repoIndex = new RepoIndex(new ClassNameTrie.Builder().buildTrie(), duplicateKeys, Collections.emptyList(), Collections.emptyList())
+
+    when:
+    repoIndex.getSourcePath(RepoIndexTest)
+
+    then:
+    thrown SourceResolutionException
   }
 }

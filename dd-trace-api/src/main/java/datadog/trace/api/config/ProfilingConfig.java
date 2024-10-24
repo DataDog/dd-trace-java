@@ -212,6 +212,11 @@ public final class ProfilingConfig {
 
   public static final boolean PROFILING_SMAP_COLLECTION_ENABLED_DEFAULT = true;
 
+  public static final String PROFILING_SMAP_AGGREGATION_ENABLED =
+      "profiling.smap.aggregation.enabled";
+
+  public static final boolean PROFILING_SMAP_AGGREGATION_ENABLED_DEFAULT = true;
+
   public static final String PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS =
       "profiling.queueing.time.threshold.millis";
 

@@ -63,7 +63,11 @@ public final class AbstractMessageInstrumentation extends InstrumenterModule.Tra
       if (callDepth > 0) {
         return;
       }
-      SchemaExtractor.attachSchemaOnSpan(message, activeSpan(), SchemaExtractor.serialization);
+      if (message == null) {
+        return;
+      }
+      SchemaExtractor.attachSchemaOnSpan(
+          message.getDescriptorForType(), activeSpan(), SchemaExtractor.serialization);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

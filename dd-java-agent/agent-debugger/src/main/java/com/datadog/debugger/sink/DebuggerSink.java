@@ -43,7 +43,10 @@ public class DebuggerSink {
         DebuggerMetrics.getInstance(config),
         probeStatusSink,
         new SnapshotSink(
-            config, null, new BatchUploader(config, config.getFinalDebuggerSnapshotUrl())),
+            config,
+            null,
+            new BatchUploader(
+                config, config.getFinalDebuggerSnapshotUrl(), SnapshotSink.RETRY_POLICY)),
         new SymbolSink(config));
   }
 

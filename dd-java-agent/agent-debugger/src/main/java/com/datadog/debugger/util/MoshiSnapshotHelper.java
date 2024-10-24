@@ -446,6 +446,11 @@ public class MoshiSnapshotHelper {
               field.getName(),
               ExceptionHelper.foldExceptionStackTrace(ex));
         }
+        fieldNotCaptured(ex.toString(), field);
+      }
+
+      @Override
+      public void fieldNotCaptured(String reason, Field field) {
         String fieldName = field.getName();
         try {
           jsonWriter.name(fieldName);
@@ -453,7 +458,7 @@ public class MoshiSnapshotHelper {
           jsonWriter.name(TYPE);
           jsonWriter.value(field.getType().getTypeName());
           jsonWriter.name(NOT_CAPTURED_REASON);
-          jsonWriter.value(ex.toString());
+          jsonWriter.value(reason);
           jsonWriter.endObject();
         } catch (IOException e) {
           LOGGER.debug("Serialization error: failed to extract field", e);

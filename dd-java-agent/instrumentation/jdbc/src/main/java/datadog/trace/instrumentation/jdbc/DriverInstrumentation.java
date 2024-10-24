@@ -73,23 +73,26 @@ public final class DriverInstrumentation extends InstrumenterModule.Tracing
       }
       String connectionUrl = url;
       Properties connectionProps = props;
-      try {
-        DatabaseMetaData metaData = connection.getMetaData();
-        connectionUrl = metaData.getURL();
-        if (null != connectionUrl && !connectionUrl.equals(url)) {
-          // connection url was updated, check to see if user has also changed
-          String connectionUser = metaData.getUserName();
-          if (null != connectionUser
-              && (null == props || !connectionUser.equalsIgnoreCase(props.getProperty("user")))) {
-            // merge updated user with original properties
-            connectionProps = new Properties(props);
-            connectionProps.put("user", connectionUser);
+      if (null == props
+          || !Boolean.parseBoolean(props.getProperty("oracle.jdbc.useShardingDriverConnection"))) {
+        try {
+          DatabaseMetaData metaData = connection.getMetaData();
+          connectionUrl = metaData.getURL();
+          if (null != connectionUrl && !connectionUrl.equals(url)) {
+            // connection url was updated, check to see if user has also changed
+            String connectionUser = metaData.getUserName();
+            if (null != connectionUser
+                && (null == props || !connectionUser.equalsIgnoreCase(props.getProperty("user")))) {
+              // merge updated user with original properties
+              connectionProps = new Properties(props);
+              connectionProps.put("user", connectionUser);
+            }
+          } else {
+            connectionUrl = url; // fallback in case updated url is null
           }
-        } else {
-          connectionUrl = url; // fallback in case updated url is null
+        } catch (Throwable ignored) {
+          // use original values
         }
-      } catch (Throwable ignored) {
-        // use original values
       }
       Connection connWithContext = connection;
       if (connectionUrl.startsWith("**internally_generated**", connectionUrl.indexOf("://") + 3)) {

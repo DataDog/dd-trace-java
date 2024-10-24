@@ -40,7 +40,7 @@ public final class Ranges {
 
   @Nullable
   public static Range[] intersection(
-      final @Nonnull Ranged targetRange, @Nonnull final Range[] ranges) {
+      final @Nonnull Ranged targetRange, @Nonnull final Range[] ranges, final int offset) {
     final Range last = ranges[ranges.length - 1];
     final int lastIndex = last.getStart() + last.getLength();
 
@@ -53,13 +53,19 @@ public final class Ranges {
       if (intersection != null) {
         targetRanges.add(
             new Range(
-                intersection.getStart(),
+                intersection.getStart() + offset,
                 intersection.getLength(),
                 range.getSource(),
                 range.getMarks()));
       }
     }
     return targetRanges.isEmpty() ? null : targetRanges.toArray();
+  }
+
+  @Nullable
+  public static Range[] intersection(
+      final @Nonnull Ranged targetRange, @Nonnull final Range[] ranges) {
+    return intersection(targetRange, ranges, 0);
   }
 
   @Nullable
@@ -113,64 +119,8 @@ public final class Ranges {
 
   @Nullable
   public static Range[] forSubstring(int offset, int length, final @Nonnull Range[] ranges) {
-
-    int[] includedRangesInterval = getIncludedRangesInterval(offset, length, ranges);
-
-    // No ranges in the interval
-    if (includedRangesInterval[0] == -1) {
-      return null;
-    }
-    final int firstRangeIncludedIndex = includedRangesInterval[0];
-    final int lastRangeIncludedIndex =
-        includedRangesInterval[1] != -1 ? includedRangesInterval[1] : ranges.length;
-    final int newRagesSize = lastRangeIncludedIndex - firstRangeIncludedIndex;
-    Range[] newRanges = new Range[newRagesSize];
-    for (int rangeIndex = firstRangeIncludedIndex, newRangeIndex = 0;
-        newRangeIndex < newRagesSize;
-        rangeIndex++, newRangeIndex++) {
-      Range range = ranges[rangeIndex];
-      if (offset == 0 && range.getStart() + range.getLength() <= length) {
-        newRanges[newRangeIndex] = range;
-      } else {
-        int newStart = range.getStart() - offset;
-        int newLength = range.getLength();
-        final int newEnd = newStart + newLength;
-        if (newStart < 0) {
-          newLength = newLength + newStart;
-          newStart = 0;
-        }
-        if (newEnd > length) {
-          newLength = length - newStart;
-        }
-        if (newLength > 0) {
-          newRanges[newRangeIndex] =
-              new Range(newStart, newLength, range.getSource(), range.getMarks());
-        }
-      }
-    }
-
-    return newRanges;
-  }
-
-  public static int[] getIncludedRangesInterval(
-      int offset, int length, final @Nonnull Range[] ranges) {
-    // index of the first included range
-    int start = -1;
-    // index of the first not included range
-    int end = -1;
-    for (int rangeIndex = 0; rangeIndex < ranges.length; rangeIndex++) {
-      final Range rangeSelf = ranges[rangeIndex];
-      if (rangeSelf.getStart() < offset + length
-          && rangeSelf.getStart() + rangeSelf.getLength() > offset) {
-        if (start == -1) {
-          start = rangeIndex;
-        }
-      } else if (start != -1) {
-        end = rangeIndex;
-        break;
-      }
-    }
-    return new int[] {start, end};
+    final Ranged substring = Ranged.build(offset, length);
+    return intersection(substring, ranges, -offset);
   }
 
   @Nonnull
@@ -216,6 +166,20 @@ public final class Ranges {
     }
     if (!header.equalsIgnoreCase(source.getName())) {
       return false;
+    }
+    return true;
+  }
+
+  /**
+   * Checks if all ranges are coming from a specify source type, in case no ranges are provided it
+   * will return {@code true}
+   */
+  public static boolean allRangesFromSource(final byte origin, @Nonnull final Range[] ranges) {
+    for (Range range : ranges) {
+      final Source current = range.getSource();
+      if (current.getOrigin() != origin) {
+        return false;
+      }
     }
     return true;
   }

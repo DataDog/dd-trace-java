@@ -53,6 +53,9 @@ ext.generalShadowJarConfig = {
   relocate 'net.jpountz', 'datadog.jpountz'
   // rewrite dependencies calling Logger.getLogger
   relocate 'java.util.logging.Logger', 'datadog.trace.bootstrap.PatchLogger'
+  // patch JFFI loading mechanism to maintain isolation
+  exclude '**/com/kenai/jffi/Init.class'
+  relocate('com.kenai.jffi.Init', 'com.kenai.jffi.PatchInit')
 
   final String projectName = "${project.name}"
 

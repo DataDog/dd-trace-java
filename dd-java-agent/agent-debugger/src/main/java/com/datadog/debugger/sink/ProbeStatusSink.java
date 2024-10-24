@@ -33,6 +33,7 @@ public class ProbeStatusSink {
   private static final JsonAdapter<ProbeStatus> PROBE_STATUS_ADAPTER =
       MoshiHelper.createMoshiProbeStatus().adapter(ProbeStatus.class);
   private static final int MINUTES_BETWEEN_ERROR_LOG = 5;
+  public static final BatchUploader.RetryPolicy RETRY_POLICY = new BatchUploader.RetryPolicy(10);
 
   private final BatchUploader diagnosticUploader;
   private final Builder messageBuilder;
@@ -46,7 +47,7 @@ public class ProbeStatusSink {
   private final boolean useMultiPart;
 
   public ProbeStatusSink(Config config, String diagnosticsEndpoint, boolean useMultiPart) {
-    this(config, new BatchUploader(config, diagnosticsEndpoint), useMultiPart);
+    this(config, new BatchUploader(config, diagnosticsEndpoint, RETRY_POLICY), useMultiPart);
   }
 
   ProbeStatusSink(Config config, BatchUploader diagnosticUploader, boolean useMultiPart) {

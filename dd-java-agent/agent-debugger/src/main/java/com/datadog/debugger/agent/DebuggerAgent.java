@@ -167,7 +167,10 @@ public class DebuggerAgent {
     String tags = getDefaultTagsMergedWithGlobalTags(config);
     SnapshotSink snapshotSink =
         new SnapshotSink(
-            config, tags, new BatchUploader(config, config.getFinalDebuggerSnapshotUrl()));
+            config,
+            tags,
+            new BatchUploader(
+                config, config.getFinalDebuggerSnapshotUrl(), SnapshotSink.RETRY_POLICY));
     SymbolSink symbolSink = new SymbolSink(config);
     return new DebuggerSink(
         config,

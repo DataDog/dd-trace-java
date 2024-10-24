@@ -312,7 +312,9 @@ class MavenProjectConfigurator {
     jacocoPlugin.addExecution(prepareAgentExecution);
 
     configureJacocoInstrumentedPackages(
-        prepareAgentExecution, sessionSettings.getCoverageEnabledPackages());
+        prepareAgentExecution,
+        sessionSettings.getCoverageIncludedPackages(),
+        sessionSettings.getCoverageExcludedPackages());
   }
 
   private static Plugin getJacocoPlugin(MavenProject project) {
@@ -345,20 +347,32 @@ class MavenProjectConfigurator {
   }
 
   private static void configureJacocoInstrumentedPackages(
-      PluginExecution execution, List<String> instrumentedPackages) {
-    Xpp3Dom includes = new Xpp3Dom("includes");
-    for (String instrumentedPackage : instrumentedPackages) {
-      if (Strings.isNotBlank(instrumentedPackage)) {
-        Xpp3Dom include = new Xpp3Dom("include");
-        include.setValue(instrumentedPackage);
-        includes.addChild(include);
+      PluginExecution execution, List<String> includedPackages, List<String> excludedPackages) {
+    Xpp3Dom configuration = new Xpp3Dom("configuration");
+    execution.setConfiguration(configuration);
+
+    if (!includedPackages.isEmpty()) {
+      Xpp3Dom includes = new Xpp3Dom("includes");
+      for (String instrumentedPackage : includedPackages) {
+        if (Strings.isNotBlank(instrumentedPackage)) {
+          Xpp3Dom include = new Xpp3Dom("include");
+          include.setValue(instrumentedPackage);
+          includes.addChild(include);
+        }
       }
+      configuration.addChild(includes);
     }
 
-    if (includes.getChildCount() > 0) {
-      Xpp3Dom configuration = new Xpp3Dom("configuration");
-      configuration.addChild(includes);
-      execution.setConfiguration(configuration);
+    if (!excludedPackages.isEmpty()) {
+      Xpp3Dom excludes = new Xpp3Dom("excludes");
+      for (String excludedPackage : excludedPackages) {
+        if (Strings.isNotBlank(excludedPackage)) {
+          Xpp3Dom exclude = new Xpp3Dom("exclude");
+          exclude.setValue(excludedPackage);
+          excludes.addChild(exclude);
+        }
+      }
+      configuration.addChild(excludes);
     }
   }
 }

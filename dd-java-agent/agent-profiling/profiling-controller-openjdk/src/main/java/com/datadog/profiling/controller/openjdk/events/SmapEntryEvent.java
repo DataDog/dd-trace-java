@@ -3,8 +3,8 @@ package com.datadog.profiling.controller.openjdk.events;
 import jdk.jfr.Category;
 import jdk.jfr.DataAmount;
 import jdk.jfr.Description;
-import jdk.jfr.Enabled;
 import jdk.jfr.Event;
+import jdk.jfr.EventType;
 import jdk.jfr.Label;
 import jdk.jfr.Name;
 import jdk.jfr.Period;
@@ -15,7 +15,6 @@ import jdk.jfr.StackTrace;
 @Description("Entry from the smaps file for the JVM")
 @Category("Datadog")
 @Period("beginChunk")
-@Enabled
 @StackTrace(false)
 public class SmapEntryEvent extends Event {
 
@@ -241,6 +240,17 @@ public class SmapEntryEvent extends Event {
   }
 
   public static void emit() {
-    SmapEntryFactory.collectEvents().forEach(Event::commit);
+    if (!EventType.getEventType(AggregatedSmapEntryEvent.class).isEnabled()) {
+      SmapEntryFactory.collectEvents().forEach(Event::commit);
+    } else {
+    }
+  }
+
+  public long getRss() {
+    return this.rss;
+  }
+
+  public String getNmtCategory() {
+    return this.nmtCategory;
   }
 }
