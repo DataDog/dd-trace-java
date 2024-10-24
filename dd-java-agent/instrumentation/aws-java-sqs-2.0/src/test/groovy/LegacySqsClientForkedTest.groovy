@@ -7,6 +7,7 @@ import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.instrumentation.aws.ExpectedQueryParams
 import org.elasticmq.rest.sqs.SQSRestServerBuilder
 import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider
 import software.amazon.awssdk.core.SdkSystemSetting
@@ -32,7 +33,6 @@ class LegacySqsClientForkedTest extends AgentTestRunner {
   void configurePreAgent() {
     super.configurePreAgent()
     injectSysConfig("aws-sdk.legacy.tracing.enabled", "true")
-
     // Set a service name that gets sorted early with SORT_BY_NAMES
     injectSysConfig(GeneralConfig.SERVICE_NAME, "A")
   }
@@ -88,7 +88,6 @@ class LegacySqsClientForkedTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "java-aws-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.HTTP_URL" "http://localhost:${address.port}/"
             "$Tags.HTTP_METHOD" "POST"
             "$Tags.HTTP_STATUS" 200
             "$Tags.PEER_PORT" address.port
@@ -99,6 +98,7 @@ class LegacySqsClientForkedTest extends AgentTestRunner {
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
             "aws.requestId" { it.trim() == "00000000-0000-0000-0000-000000000000" } // the test server seem messing with request id and insert \n
+            urlTags("http://localhost:${address.port}/", ExpectedQueryParams.getExpectedQueryParams("SendMessage"))
             defaultTags()
           }
         }
@@ -134,7 +134,6 @@ class LegacySqsClientForkedTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "java-aws-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.HTTP_URL" "http://localhost:${address.port}/"
             "$Tags.HTTP_METHOD" "POST"
             "$Tags.HTTP_STATUS" 200
             "$Tags.PEER_PORT" address.port
@@ -145,6 +144,7 @@ class LegacySqsClientForkedTest extends AgentTestRunner {
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
             "aws.requestId" { it.trim() == "00000000-0000-0000-0000-000000000000" } // the test server seem messing with request id and insert \n
+            urlTags("http://localhost:${address.port}/", ExpectedQueryParams.getExpectedQueryParams(("ReceiveMessage")))
             defaultTags()
           }
         }
@@ -216,7 +216,6 @@ class LegacySqsClientForkedTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "java-aws-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.HTTP_URL" "http://localhost:${address.port}/"
             "$Tags.HTTP_METHOD" "POST"
             "$Tags.HTTP_STATUS" 200
             "$Tags.PEER_PORT" address.port
@@ -227,6 +226,7 @@ class LegacySqsClientForkedTest extends AgentTestRunner {
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
             "aws.requestId" { it.trim() == "00000000-0000-0000-0000-000000000000" } // the test server seem messing with request id and insert \n
+            urlTags("http://localhost:${address.port}/", ExpectedQueryParams.getExpectedQueryParams("SendMessage"))
             defaultTags()
           }
         }
@@ -279,7 +279,6 @@ class LegacySqsClientForkedTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "java-aws-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.HTTP_URL" "http://localhost:${address.port}/"
             "$Tags.HTTP_METHOD" "POST"
             "$Tags.HTTP_STATUS" 200
             "$Tags.PEER_PORT" address.port
@@ -290,6 +289,7 @@ class LegacySqsClientForkedTest extends AgentTestRunner {
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
             "aws.requestId" { it.trim() == "00000000-0000-0000-0000-000000000000" } // the test server seem messing with request id and insert \n
+            urlTags("http://localhost:${address.port}/", ExpectedQueryParams.getExpectedQueryParams("DeleteMessage"))
             defaultTags()
           }
         }
@@ -324,7 +324,6 @@ class LegacySqsClientForkedTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "java-aws-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.HTTP_URL" "http://localhost:${address.port}/"
             "$Tags.HTTP_METHOD" "POST"
             "$Tags.HTTP_STATUS" 200
             "$Tags.PEER_PORT" address.port
@@ -335,6 +334,7 @@ class LegacySqsClientForkedTest extends AgentTestRunner {
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
             "aws.requestId" { it.trim() == "00000000-0000-0000-0000-000000000000" } // the test server seem messing with request id and insert \n
+            urlTags("http://localhost:${address.port}/", ExpectedQueryParams.getExpectedQueryParams("ReceiveMessage"))
             defaultTags()
           }
         }

@@ -72,6 +72,7 @@ tasks.named("compileTestGroovy").configure {
 
 dependencies {
   compileOnly group: 'org.mule.runtime', name: 'mule-core', version: muleVersion
+  implementation project(':dd-java-agent:instrumentation:aws-common')
 
   testImplementation project(':dd-java-agent:instrumentation:reactor-core-3.1')
   testImplementation project(':dd-java-agent:instrumentation:reactive-streams')

@@ -19,6 +19,7 @@ addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 dependencies {
   compileOnly group: 'software.amazon.awssdk', name: 'sqs', version: '2.2.0'
   compileOnly group: 'com.amazonaws', name: 'amazon-sqs-java-messaging-lib', version: '2.0.0'
+  implementation project(':dd-java-agent:instrumentation:aws-common')
 
   // Include httpclient instrumentation for testing because it is a dependency for aws-sdk.
   testImplementation project(':dd-java-agent:instrumentation:apache-httpclient-4')
