@@ -330,7 +330,7 @@ public class CapturingTestBase {
         Configuration.builder()
             .setService(CapturedSnapshotTest.SERVICE_NAME)
             .addLogProbes(asList(logProbes))
-            .build());
+            .build() /*, logProbes*/);
   }
 
   public static LogProbe.Builder createProbeBuilder(
@@ -344,7 +344,8 @@ public class CapturingTestBase {
         .sampling(new LogProbe.Sampling(100));
   }
 
-  protected TestSnapshotListener installProbes(Configuration configuration) {
+  protected TestSnapshotListener installProbes(
+      Configuration configuration, ProbeDefinition... probes) {
     config = mock(Config.class);
     when(config.isDebuggerEnabled()).thenReturn(true);
     when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
@@ -355,6 +356,8 @@ public class CapturingTestBase {
     instrumentationListener = new MockInstrumentationListener();
     probeStatusSink = mock(ProbeStatusSink.class);
 
+    TestSnapshotListener listener = new TestSnapshotListener(config, probeStatusSink);
+
     configurationUpdater =
         new ConfigurationUpdater(
             instr,
@@ -363,13 +366,13 @@ public class CapturingTestBase {
             new DebuggerSink(config, probeStatusSink),
             new ClassesToRetransformFinder());
 
-    TestSnapshotListener listener = new TestSnapshotListener(config, probeStatusSink);
-
     currentTransformer =
         new DebuggerTransformer(config, configuration, instrumentationListener, listener);
     instr.addTransformer(currentTransformer);
     DebuggerAgentHelper.injectSink(listener);
 
+    //    DebuggerContext.initProbeResolver(configurationUpdater);
+    //    configurationUpdater.accept(Source.REMOTE_CONFIG, asList(probes));
     DebuggerContext.initProbeResolver(
         (encodedId) ->
             resolver(
@@ -380,6 +383,7 @@ public class CapturingTestBase {
                 configuration.getTriggerProbes()));
     DebuggerContext.initClassFilter(new DenyListHelper(null));
     DebuggerContext.initValueSerializer(new JsonSnapshotSerializer());
+
     Collection<LogProbe> logProbes = configuration.getLogProbes();
     if (logProbes != null) {
       for (LogProbe probe : logProbes) {
@@ -404,10 +408,6 @@ public class CapturingTestBase {
       Collection<LogProbe> logProbes,
       Collection<SpanDecorationProbe> spanDecorationProbes,
       Collection<TriggerProbe> triggerProbes) {
-    ProbeImplementation resolve = configurationUpdater.resolve(encodedId);
-    if (resolve != null) {
-      return resolve;
-    }
     if (logProbes != null) {
       for (LogProbe probe : logProbes) {
         if (probe.getProbeId().getEncodedId().equals(encodedId)) {
@@ -429,7 +429,8 @@ public class CapturingTestBase {
         }
       }
     }
-    return null;
+
+    return configurationUpdater.resolve(encodedId);
   }
 
   protected TestSnapshotListener installSingleProbeAtExit(

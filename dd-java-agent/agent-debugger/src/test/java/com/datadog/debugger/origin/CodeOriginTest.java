@@ -15,7 +15,9 @@ import static utils.InstrumentationTestHelper.compileAndLoadClass;
 import com.datadog.debugger.agent.CapturingTestBase;
 import com.datadog.debugger.codeorigin.CodeOriginProbeManager;
 import com.datadog.debugger.codeorigin.DefaultCodeOriginRecorder;
+import com.datadog.debugger.probe.CodeOriginProbe;
 import com.datadog.debugger.probe.LogProbe;
+import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.util.ClassNameFiltering;
 import com.datadog.debugger.util.TestSnapshotListener;
 import com.datadog.debugger.util.TestTraceInterceptor;
@@ -24,16 +26,21 @@ import datadog.trace.api.Config;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
+import datadog.trace.bootstrap.debugger.DebuggerContext.ClassNameFilter;
 import datadog.trace.bootstrap.debugger.Limits;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.core.CoreTracer;
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.UUID;
 import java.util.stream.Collectors;
+import org.jetbrains.annotations.NotNull;
 import org.joor.Reflect;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -44,7 +51,7 @@ public class CodeOriginTest extends CapturingTestBase {
 
   private TestTraceInterceptor traceInterceptor;
 
-  public static ClassNameFiltering classNameFiltering =
+  public static ClassNameFilter classNameFilter =
       new ClassNameFiltering(
           new HashSet<>(
               asList(
@@ -74,36 +81,55 @@ public class CodeOriginTest extends CapturingTestBase {
 
   @Test
   public void basicInstrumentation() throws Exception {
-    final String CLASS_NAME = "com.datadog.debugger.CodeOrigin01";
+    final String className = "com.datadog.debugger.CodeOrigin01";
 
-    installProbes();
-    final Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    installProbes(codeOriginProbes(className).toArray(new LogProbe[0]));
+    final Class<?> testClass = compileAndLoadClass(className);
     checkResults(testClass, "fullTrace", false, 0);
   }
 
   @Test
   public void withDebug1() throws Exception {
-    final String CLASS_NAME = "com.datadog.debugger.CodeOrigin02";
-    installProbes();
-    final Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    final String className = "com.datadog.debugger.CodeOrigin02";
+    installProbes(codeOriginProbes(className).toArray(new LogProbe[0]));
+    final Class<?> testClass = compileAndLoadClass(className);
     checkResults(testClass, "debug_1", true, 0);
   }
 
   @Test
   public void withLogProbe() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CodeOrigin03";
-    installProbes(
-        createProbeBuilder(PROBE_ID, CLASS_NAME, "fullTrace", "()", "35")
+    LogProbe logProbe =
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "entry", "()")
             .capture(1, 100, 255, Limits.DEFAULT_FIELD_COUNT)
-            .build());
+            .build();
+    List<LogProbe> probes = codeOriginProbes(CLASS_NAME);
+    probes.add(logProbe);
+    installProbes(probes.toArray(new LogProbe[0]));
     final Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     checkResults(testClass, "debug_1", true, 1);
+  }
+
+  @NotNull
+  private List<LogProbe> codeOriginProbes(String type) {
+    CodeOriginProbe entry =
+        new CodeOriginProbe(
+            new ProbeId(UUID.randomUUID().toString(), 0),
+            "()",
+            Where.of(type, "entry", "()", "53"),
+            probeManager);
+    CodeOriginProbe exit =
+        new CodeOriginProbe(
+            new ProbeId(UUID.randomUUID().toString(), 0),
+            null,
+            Where.of(type, "exit", "()", "60"),
+            probeManager);
+    return new ArrayList<>(asList(entry, exit));
   }
 
   private void checkResults(
       Class<?> testClass, String parameter, boolean includeSnapshot, int expectedProbeCount) {
     Reflect.onClass(testClass).call("main", parameter).get();
-    waitForInstrumentation(expectedProbeCount);
     int result = Reflect.onClass(testClass).call("main", parameter).get();
     assertEquals(0, result);
     List<? extends MutableSpan> spans = traceInterceptor.getTrace();
@@ -124,37 +150,16 @@ public class CodeOriginTest extends CapturingTestBase {
     exit.ifPresent(span -> checkExitSpanTags(span, includeSnapshot));
   }
 
+  @Override
   protected TestSnapshotListener installProbes(LogProbe... probes) {
     TestSnapshotListener listener = super.installProbes(probes);
 
-    probeManager = new CodeOriginProbeManager(configurationUpdater, classNameFiltering);
+    DebuggerContext.initClassNameFilter(classNameFilter);
+
+    probeManager = new CodeOriginProbeManager(configurationUpdater);
     DebuggerContext.initCodeOrigin(new DefaultCodeOriginRecorder(probeManager));
 
     return listener;
-  }
-
-  private void waitForInstrumentation(int expected) {
-    long end = System.currentTimeMillis() + 5_000;
-    try {
-      while (System.currentTimeMillis() < end
-          && probeManager.getProbes().size() != 2
-          && instrumentationListener.results.size() != expected) {
-        Thread.sleep(500);
-      }
-      Thread.sleep(1000); // one last time to make sure things have had a chance
-    } catch (InterruptedException e) {
-      throw new RuntimeException(e);
-    }
-    if (instrumentationListener.results.size() != expected) {
-      throw new IllegalStateException(
-          format(
-              "Some probes failed to instrument. expected %d regular probes and %d code origin "
-                  + "probes.  found: %d and %d",
-              expected,
-              2,
-              instrumentationListener.results.size(),
-              probeManager.getProbes().size()));
-    }
   }
 
   private static void checkEntrySpanTags(MutableSpan span, boolean includeSnapshot) {

@@ -11,8 +11,8 @@ import com.datadog.debugger.agent.DebuggerAgent;
 import com.datadog.debugger.codeorigin.CodeOriginProbeManager;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.sink.Snapshot;
-import com.datadog.debugger.util.ClassNameFiltering;
 import datadog.trace.bootstrap.debugger.CapturedContext;
+import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeLocation;
@@ -130,20 +130,10 @@ public class CodeOriginProbe extends LogProbe implements ForceMethodInstrumentat
   }
 
   private List<StackTraceElement> getUserStackFrames() {
-    ClassNameFiltering classNameFiltering = probeManager.getClassNameFiltering();
-
     return StackWalkerFactory.INSTANCE.walk(
         stream ->
             stream
-                .filter(element -> !classNameFiltering.isExcluded(element.getClassName()))
+                .filter(element -> !DebuggerContext.isClassNameExcluded(element.getClassName()))
                 .collect(Collectors.toList()));
-  }
-
-  private static String toFileName(String className) {
-    // this has a number of issues including non-public top level classes and non-Java JVM
-    // languages it's here to fulfill the RFC requirement of a file name in the location.
-    // This part of the spec needs a little review to find consensus on how to handle this but
-    // until then this is here to fill that gap.
-    return className.replace('.', '/') + ".java";
   }
 }

@@ -25,6 +25,7 @@ import datadog.trace.api.flare.TracerFlare;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
+import datadog.trace.bootstrap.debugger.DebuggerContext.ClassNameFilter;
 import datadog.trace.bootstrap.debugger.util.Redaction;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.DDTraceCoreInfo;
@@ -70,7 +71,7 @@ public class DebuggerAgent {
             config, diagnosticEndpoint, ddAgentFeaturesDiscovery.supportsDebuggerDiagnostics());
     DebuggerSink debuggerSink = createDebuggerSink(config, probeStatusSink);
     debuggerSink.start();
-    ClassNameFiltering classNameFiltering = new ClassNameFiltering(config);
+    ClassNameFilter classNameFilter = new ClassNameFiltering(config);
     ConfigurationUpdater configurationUpdater =
         new ConfigurationUpdater(
             instrumentation,
@@ -87,21 +88,21 @@ public class DebuggerAgent {
     snapshotSerializer = new JsonSnapshotSerializer();
     DebuggerContext.initValueSerializer(snapshotSerializer);
     DebuggerContext.initTracer(new DebuggerTracer(debuggerSink.getProbeStatusSink()));
+    DebuggerContext.initClassNameFilter(classNameFilter);
     DefaultExceptionDebugger defaultExceptionDebugger = null;
     if (config.isDebuggerExceptionEnabled()) {
       LOGGER.info("Starting Exception Replay");
       defaultExceptionDebugger =
           new DefaultExceptionDebugger(
               configurationUpdater,
-              classNameFiltering,
+              classNameFilter,
               Duration.ofSeconds(config.getDebuggerExceptionCaptureInterval()),
               config.getDebuggerMaxExceptionPerSecond());
       DebuggerContext.initExceptionDebugger(defaultExceptionDebugger);
     }
     if (config.isDebuggerCodeOriginEnabled()) {
       DebuggerContext.initCodeOrigin(
-          new DefaultCodeOriginRecorder(
-              new CodeOriginProbeManager(configurationUpdater, classNameFiltering)));
+          new DefaultCodeOriginRecorder(new CodeOriginProbeManager(configurationUpdater)));
     }
     if (config.isDebuggerInstrumentTheWorld()) {
       setupInstrumentTheWorldTransformer(
@@ -110,7 +111,7 @@ public class DebuggerAgent {
     // Dynamic Instrumentation
     if (config.isDebuggerEnabled()) {
       startDynamicInstrumentation(
-          instrumentation, sco, config, configurationUpdater, debuggerSink, classNameFiltering);
+          instrumentation, sco, config, configurationUpdater, debuggerSink, classNameFilter);
     }
     try {
       /*
@@ -135,7 +136,7 @@ public class DebuggerAgent {
       Config config,
       ConfigurationUpdater configurationUpdater,
       DebuggerSink debuggerSink,
-      ClassNameFiltering classNameFiltering) {
+      ClassNameFilter classNameFilter) {
     LOGGER.info("Starting Dynamic Instrumentation");
     String probeFileLocation = config.getDebuggerProbeFileLocation();
     if (probeFileLocation != null) {
@@ -152,7 +153,7 @@ public class DebuggerAgent {
                 config,
                 new SymbolAggregator(
                     debuggerSink.getSymbolSink(), config.getDebuggerSymbolFlushThreshold()),
-                classNameFiltering);
+                classNameFilter);
         if (config.isDebuggerSymbolForceUpload()) {
           symDBEnablement.startSymbolExtraction();
         }

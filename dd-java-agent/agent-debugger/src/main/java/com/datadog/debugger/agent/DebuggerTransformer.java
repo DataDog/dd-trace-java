@@ -684,7 +684,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
     for (ProbeDefinition definition : capturedContextProbes) {
       if (definition instanceof LogProbe) {
         if (definition instanceof ForceMethodInstrumentation) {
-          where = Where.convertLineToMethod(where, classFileLines);
+          where = Where.convertLineToMethod(definition.getWhere(), classFileLines);
         }
         hasLogProbe = true;
         LogProbe logProbe = (LogProbe) definition;

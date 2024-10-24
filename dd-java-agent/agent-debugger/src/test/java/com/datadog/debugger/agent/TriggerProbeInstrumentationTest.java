@@ -10,7 +10,6 @@ import static utils.InstrumentationTestHelper.compileAndLoadClass;
 import com.datadog.debugger.agent.Configuration.Builder;
 import com.datadog.debugger.codeorigin.CodeOriginProbeManager;
 import com.datadog.debugger.codeorigin.DefaultCodeOriginRecorder;
-import com.datadog.debugger.origin.CodeOriginTest;
 import com.datadog.debugger.probe.CodeOriginProbe;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
@@ -52,8 +51,7 @@ public class TriggerProbeInstrumentationTest extends ProbeInstrumentationTest {
   private static final Logger log = LoggerFactory.getLogger(TriggerProbeInstrumentationTest.class);
 
   public static final CodeOriginProbeManager probeManager =
-      new CodeOriginProbeManager(
-          mock(ConfigurationUpdater.class), CodeOriginTest.classNameFiltering);
+      new CodeOriginProbeManager(mock(ConfigurationUpdater.class));
 
   private DefaultCodeOriginRecorder codeOriginRecorder =
       new DefaultCodeOriginRecorder(probeManager);

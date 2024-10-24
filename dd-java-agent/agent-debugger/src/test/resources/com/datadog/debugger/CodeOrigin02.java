@@ -32,13 +32,16 @@ public class CodeOrigin02 {
 
   private static void fullTrace() throws NoSuchMethodException {
     AgentSpan span = newSpan("entry");
-
     AgentScope scope = tracerAPI.activateSpan(span, ScopeSource.MANUAL);
     entry();
     span.finish();
     scope.close();
 
+    span = newSpan("exit");
+    scope = tracerAPI.activateSpan(span, ScopeSource.MANUAL);
     exit();
+    span.finish();
+    scope.close();
   }
 
   private static AgentSpan newSpan(String name) {
@@ -46,7 +49,6 @@ public class CodeOrigin02 {
   }
 
   public static void entry() throws NoSuchMethodException {
-    CodeOriginInfo.entry(CodeOrigin01.class.getMethod("entry"));
     // just to fill out the method body
     boolean dummyCode = true;
     if (!dummyCode) {
@@ -55,12 +57,7 @@ public class CodeOrigin02 {
   }
 
   private static void exit() {
-    AgentSpan span = newSpan("exit");
-    try(AgentScope scope = tracerAPI.activateSpan(span, ScopeSource.MANUAL)) {
-      CodeOriginInfo.exit(span);
-    } finally {
-      span.finish();
-    }
+    int x = 47 / 3;
   }
 
 }

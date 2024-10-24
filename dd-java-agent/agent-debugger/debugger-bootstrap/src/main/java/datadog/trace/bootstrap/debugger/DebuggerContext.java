@@ -32,6 +32,10 @@ public class DebuggerContext {
     boolean isDenied(String fullyQualifiedClassName);
   }
 
+  public interface ClassNameFilter {
+    boolean isExcluded(String className);
+  }
+
   public enum MetricKind {
     COUNT,
     GAUGE,
@@ -73,6 +77,7 @@ public class DebuggerContext {
 
   private static volatile ProbeResolver probeResolver;
   private static volatile ClassFilter classFilter;
+  private static volatile ClassNameFilter classNameFilter;
   private static volatile MetricForwarder metricForwarder;
   private static volatile Tracer tracer;
   private static volatile ValueSerializer valueSerializer;
@@ -93,6 +98,10 @@ public class DebuggerContext {
 
   public static void initClassFilter(ClassFilter classFilter) {
     DebuggerContext.classFilter = classFilter;
+  }
+
+  public static void initClassNameFilter(ClassNameFilter classNameFilter) {
+    DebuggerContext.classNameFilter = classNameFilter;
   }
 
   public static void initValueSerializer(ValueSerializer valueSerializer) {
@@ -364,5 +373,9 @@ public class DebuggerContext {
     } catch (Exception ex) {
       LOGGER.debug("Error in handleException: ", ex);
     }
+  }
+
+  public static boolean isClassNameExcluded(String className) {
+    return classNameFilter != null && classNameFilter.isExcluded(className);
   }
 }

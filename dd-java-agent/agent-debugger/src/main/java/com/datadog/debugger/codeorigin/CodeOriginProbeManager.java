@@ -6,8 +6,8 @@ import com.datadog.debugger.agent.ConfigurationUpdater;
 import com.datadog.debugger.exception.Fingerprinter;
 import com.datadog.debugger.probe.CodeOriginProbe;
 import com.datadog.debugger.probe.Where;
-import com.datadog.debugger.util.ClassNameFiltering;
 import datadog.trace.bootstrap.debugger.CapturedContext;
+import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -29,16 +29,12 @@ public class CodeOriginProbeManager {
 
   private final Map<String, CodeOriginProbe> probes = new ConcurrentHashMap<>();
 
-  private final ClassNameFiltering classNameFiltering;
-
   private AgentTaskScheduler taskScheduler = AgentTaskScheduler.INSTANCE;
 
   private final ConfigurationUpdater configurationUpdater;
 
-  public CodeOriginProbeManager(
-      ConfigurationUpdater configurationUpdater, ClassNameFiltering classNameFiltering) {
+  public CodeOriginProbeManager(ConfigurationUpdater configurationUpdater) {
     this.configurationUpdater = configurationUpdater;
-    this.classNameFiltering = classNameFiltering;
   }
 
   public Collection<CodeOriginProbe> getProbes() {
@@ -47,10 +43,6 @@ public class CodeOriginProbeManager {
 
   void addFingerprint(String fingerprint, CodeOriginProbe probe) {
     fingerprints.putIfAbsent(fingerprint, probe);
-  }
-
-  public ClassNameFiltering getClassNameFiltering() {
-    return classNameFiltering;
   }
 
   public String createProbeForFrame(String signature) {
@@ -108,7 +100,7 @@ public class CodeOriginProbeManager {
     return StackWalkerFactory.INSTANCE.walk(
         stream ->
             stream
-                .filter(element -> !classNameFiltering.isExcluded(element.getClassName()))
+                .filter(element -> !DebuggerContext.isClassNameExcluded(element.getClassName()))
                 .findFirst()
                 .orElse(null));
   }

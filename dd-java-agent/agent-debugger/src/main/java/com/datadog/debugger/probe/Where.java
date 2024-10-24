@@ -13,9 +13,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.MethodNode;
 
 /** Stores probe location definition */
@@ -69,14 +67,12 @@ public class Where {
         return new Where(
             lineWhere.typeName,
             method.name,
-            Arrays.stream(Type.getArgumentTypes(method.desc))
-                .map(Type::getClassName)
-                .collect(Collectors.joining(", ", "(", ")")),
-            (SourceLine[]) null,
+            Types.descriptorToSignature(method.desc),
+            new SourceLine[0],
             null);
       }
     }
-    return lineWhere;
+    throw new IllegalArgumentException("Invalid where to convert from line to method " + lineWhere);
   }
 
   public String getTypeName() {
