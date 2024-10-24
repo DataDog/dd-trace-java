@@ -39,6 +39,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -54,11 +55,11 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   static final long FEATURE_CHECK_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(5);
 
   private static final StatsPoint REPORT =
-      new StatsPoint(Collections.emptyList(), 0, 0, 0, 0, 0, 0, 0);
+      new StatsPoint(Collections.emptyList(), 0, 0, 0, 0, 0, 0, 0, null);
   private static final StatsPoint POISON_PILL =
-      new StatsPoint(Collections.emptyList(), 0, 0, 0, 0, 0, 0, 0);
+      new StatsPoint(Collections.emptyList(), 0, 0, 0, 0, 0, 0, 0, null);
 
-  private final Map<Long, StatsBucket> timeToBucket = new HashMap<>();
+  private final Map<Long, Map<String, StatsBucket>> timeToBucket = new HashMap<>();
   private final MpscArrayQueue<InboxItem> inbox = new MpscArrayQueue<>(1024);
   private final DatastreamsPayloadWriter payloadWriter;
   private final DDAgentFeaturesDiscovery features;
@@ -74,6 +75,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private volatile boolean agentSupportsDataStreams = false;
   private volatile boolean configSupportsDataStreams = false;
   private final ConcurrentHashMap<String, SchemaSampler> schemaSamplers;
+  private static final ConcurrentHashMap<Long, String> threadServiceNames =
+      new ConcurrentHashMap<>();
 
   public DefaultDataStreamsMonitoring(
       Config config,
@@ -185,9 +188,23 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   }
 
   @Override
+  public void setThreadServiceName(Long threadId, String serviceName) {
+    threadServiceNames.put(threadId, serviceName);
+  }
+
+  @Override
+  public void clearThreadServiceName(Long threadId) {
+    threadServiceNames.remove(threadId);
+  }
+
+  private static String getThreadServiceNameOverride() {
+    return threadServiceNames.getOrDefault(Thread.currentThread().getId(), null);
+  }
+
+  @Override
   public PathwayContext newPathwayContext() {
     if (configSupportsDataStreams) {
-      return new DefaultPathwayContext(timeSource, hashOfKnownTags);
+      return new DefaultPathwayContext(timeSource, hashOfKnownTags, getThreadServiceNameOverride());
     } else {
       return AgentTracer.NoopPathwayContext.INSTANCE;
     }
@@ -196,7 +213,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   @Override
   public HttpCodec.Extractor extractor(HttpCodec.Extractor delegate) {
     return new DataStreamContextExtractor(
-        delegate, timeSource, traceConfigSupplier, hashOfKnownTags);
+        delegate, timeSource, traceConfigSupplier, hashOfKnownTags, getThreadServiceNameOverride());
   }
 
   @Override
@@ -212,7 +229,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
               carrier,
               DataStreamsContextCarrierAdapter.INSTANCE,
               this.timeSource,
-              this.hashOfKnownTags);
+              this.hashOfKnownTags,
+              getThreadServiceNameOverride());
       ((DDSpan) span).context().mergePathwayContext(pathwayContext);
     }
   }
@@ -226,7 +244,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       }
       tags.add(tag);
     }
-    inbox.offer(new Backlog(tags, value, timeSource.getCurrentTimeNanos()));
+    inbox.offer(
+        new Backlog(tags, value, timeSource.getCurrentTimeNanos(), getThreadServiceNameOverride()));
   }
 
   @Override
@@ -308,6 +327,15 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   }
 
   private class InboxProcessor implements Runnable {
+
+    private StatsBucket getStatsBucket(final long timestamp, final String serviceNameOverride) {
+      long bucket = currentBucket(timestamp);
+      Map<String, StatsBucket> statsBucketMap =
+          timeToBucket.computeIfAbsent(bucket, startTime -> new HashMap<>(1));
+      return statsBucketMap.computeIfAbsent(
+          serviceNameOverride, s -> new StatsBucket(bucket, bucketDurationNanos));
+    }
+
     @Override
     public void run() {
       Thread currentThread = Thread.currentThread();
@@ -335,17 +363,14 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
           } else if (supportsDataStreams) {
             if (payload instanceof StatsPoint) {
               StatsPoint statsPoint = (StatsPoint) payload;
-              Long bucket = currentBucket(statsPoint.getTimestampNanos());
               StatsBucket statsBucket =
-                  timeToBucket.computeIfAbsent(
-                      bucket, startTime -> new StatsBucket(startTime, bucketDurationNanos));
+                  getStatsBucket(
+                      statsPoint.getTimestampNanos(), statsPoint.getServiceNameOverride());
               statsBucket.addPoint(statsPoint);
             } else if (payload instanceof Backlog) {
               Backlog backlog = (Backlog) payload;
-              Long bucket = currentBucket(backlog.getTimestampNanos());
               StatsBucket statsBucket =
-                  timeToBucket.computeIfAbsent(
-                      bucket, startTime -> new StatsBucket(startTime, bucketDurationNanos));
+                  getStatsBucket(backlog.getTimestampNanos(), backlog.getServiceNameOverride());
               statsBucket.addBacklog(backlog);
             }
           }
@@ -363,21 +388,30 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private void flush(long timestampNanos) {
     long currentBucket = currentBucket(timestampNanos);
 
-    List<StatsBucket> includedBuckets = new ArrayList<>();
-    Iterator<Map.Entry<Long, StatsBucket>> mapIterator = timeToBucket.entrySet().iterator();
+    // stats are grouped by time buckets and service names
+    Map<String, List<StatsBucket>> includedBuckets = new HashMap<>();
+    Iterator<Map.Entry<Long, Map<String, StatsBucket>>> mapIterator =
+        timeToBucket.entrySet().iterator();
 
     while (mapIterator.hasNext()) {
-      Map.Entry<Long, StatsBucket> entry = mapIterator.next();
-
+      Map.Entry<Long, Map<String, StatsBucket>> entry = mapIterator.next();
       if (entry.getKey() < currentBucket) {
         mapIterator.remove();
-        includedBuckets.add(entry.getValue());
+        for (Map.Entry<String, StatsBucket> buckets : entry.getValue().entrySet()) {
+          if (!includedBuckets.containsKey(buckets.getKey())) {
+            includedBuckets.put(buckets.getKey(), new LinkedList<>());
+          }
+
+          includedBuckets.get(buckets.getKey()).add(buckets.getValue());
+        }
       }
     }
 
     if (!includedBuckets.isEmpty()) {
-      log.debug("Flushing {} buckets", includedBuckets.size());
-      payloadWriter.writePayload(includedBuckets);
+      for (Map.Entry<String, List<StatsBucket>> entry : includedBuckets.entrySet()) {
+        log.debug("Flushing {} buckets", entry.getValue());
+        payloadWriter.writePayload(entry.getValue(), entry.getKey());
+      }
     }
   }
 
