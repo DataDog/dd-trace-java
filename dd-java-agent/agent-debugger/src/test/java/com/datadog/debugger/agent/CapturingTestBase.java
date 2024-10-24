@@ -371,12 +371,9 @@ public class CapturingTestBase {
     instr.addTransformer(currentTransformer);
     DebuggerAgentHelper.injectSink(listener);
 
-    //    DebuggerContext.initProbeResolver(configurationUpdater);
-    //    configurationUpdater.accept(Source.REMOTE_CONFIG, asList(probes));
     DebuggerContext.initProbeResolver(
         (encodedId) ->
             resolver(
-                configurationUpdater,
                 encodedId,
                 configuration.getLogProbes(),
                 configuration.getSpanDecorationProbes(),
@@ -403,7 +400,6 @@ public class CapturingTestBase {
   }
 
   public static ProbeImplementation resolver(
-      ConfigurationUpdater configurationUpdater,
       String encodedId,
       Collection<LogProbe> logProbes,
       Collection<SpanDecorationProbe> spanDecorationProbes,
@@ -430,7 +426,7 @@ public class CapturingTestBase {
       }
     }
 
-    return configurationUpdater.resolve(encodedId);
+    return null;
   }
 
   protected TestSnapshotListener installSingleProbeAtExit(
