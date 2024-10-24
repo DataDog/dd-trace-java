@@ -43,7 +43,13 @@ public enum HttpHeader {
   SEC_WEBSOCKET_ACCEPT("Sec-WebSocket-Accept"),
   UPGRADE("Upgrade"),
   CONNECTION("Connection"),
-  ORIGIN("Origin");
+  ORIGIN("Origin"),
+  CONTENT_ENCODING("Content-Encoding"),
+  TRANSFER_ENCODING("Transfer-Encoding"),
+  ACCEPT_ENCODING("Accept-Encoding"),
+  VARY("Vary"),
+  PRAGMA("Pragma"),
+  CACHE_CONTROL("Cache-Control");
 
   /** Faster lookup for headers */
   private static final HttpHeaderMap<HttpHeader> HEADERS;
