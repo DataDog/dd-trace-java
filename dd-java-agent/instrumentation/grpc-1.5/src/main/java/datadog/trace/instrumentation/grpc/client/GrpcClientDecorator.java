@@ -38,6 +38,8 @@ public class GrpcClientDecorator extends ClientDecorator {
 
   public static final LinkedHashMap<String, String> CLIENT_PATHWAY_EDGE_TAGS =
       createClientPathwaySortedTags();
+  public static final boolean SHOULD_INSTRUMENT_DATA_STREAMS =
+      Config.get().isGrpcDataStreamsEnabled();
 
   public static final GrpcClientDecorator DECORATE = new GrpcClientDecorator();
 

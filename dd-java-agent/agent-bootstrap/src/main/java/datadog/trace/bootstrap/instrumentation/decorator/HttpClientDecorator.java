@@ -22,6 +22,8 @@ import org.slf4j.LoggerFactory;
 
 public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedClientDecorator {
   public static final LinkedHashMap<String, String> CLIENT_PATHWAY_EDGE_TAGS;
+  public static final boolean SHOULD_INSTRUMENT_DATA_STREAMS =
+      Config.get().isHttpDataStreamsEnabled();
 
   static {
     CLIENT_PATHWAY_EDGE_TAGS = new LinkedHashMap<>(2);

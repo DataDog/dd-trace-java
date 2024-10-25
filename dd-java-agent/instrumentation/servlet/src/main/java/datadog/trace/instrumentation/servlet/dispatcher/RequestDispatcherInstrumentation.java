@@ -121,9 +121,11 @@ public final class RequestDispatcherInstrumentation extends InstrumenterModule.T
 
       // In case we lose context, inject trace into to the request.
       propagate().inject(span, request, SETTER);
-      propagate()
-          .injectPathwayContext(
-              span, request, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+      if (HttpClientDecorator.SHOULD_INSTRUMENT_DATA_STREAMS) {
+        propagate()
+            .injectPathwayContext(
+                span, request, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+      }
 
       // temporarily replace from request to avoid spring resource name bubbling up:
       requestSpan = request.getAttribute(DD_SPAN_ATTRIBUTE);

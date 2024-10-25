@@ -167,6 +167,7 @@ public class Config {
   private final boolean httpClientTagQueryString;
   private final boolean httpClientTagHeaders;
   private final boolean httpClientSplitByDomain;
+  private final boolean httpDataStreamsEnabled;
   private final boolean dbClientSplitByInstance;
   private final boolean dbClientSplitByInstanceTypeSuffix;
   private final boolean dbClientSplitByHost;
@@ -463,6 +464,7 @@ public class Config {
   private final boolean grpcServerTrimPackageResource;
   private final BitSet grpcServerErrorStatuses;
   private final BitSet grpcClientErrorStatuses;
+  private final boolean grpcDataStreamsEnabled;
 
   private final boolean cwsEnabled;
   private final int cwsTlsRefresh;
@@ -812,6 +814,9 @@ public class Config {
     httpClientSplitByDomain =
         configProvider.getBoolean(
             HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, DEFAULT_HTTP_CLIENT_SPLIT_BY_DOMAIN);
+    httpDataStreamsEnabled =
+        configProvider.getBoolean(
+            HTTP_DATA_STREAMS_ENABLED, false);
 
     dbClientSplitByInstance =
         configProvider.getBoolean(
@@ -1597,6 +1602,7 @@ public class Config {
     grpcClientErrorStatuses =
         configProvider.getIntegerRange(
             GRPC_CLIENT_ERROR_STATUSES, DEFAULT_GRPC_CLIENT_ERROR_STATUSES);
+    grpcDataStreamsEnabled = configProvider.getBoolean(GRPC_DATA_STREAMS_ENABLED, false);
 
     hystrixTagsEnabled = configProvider.getBoolean(HYSTRIX_TAGS_ENABLED, false);
     hystrixMeasuredEnabled = configProvider.getBoolean(HYSTRIX_MEASURED_ENABLED, false);
@@ -2013,6 +2019,10 @@ public class Config {
 
   public boolean isHttpClientSplitByDomain() {
     return httpClientSplitByDomain;
+  }
+
+  public boolean isHttpDataStreamsEnabled() {
+    return httpDataStreamsEnabled;
   }
 
   public boolean isDbClientSplitByInstance() {
@@ -3174,6 +3184,10 @@ public class Config {
 
   public BitSet getGrpcClientErrorStatuses() {
     return grpcClientErrorStatuses;
+  }
+
+  public boolean isGrpcDataStreamsEnabled() {
+    return grpcDataStreamsEnabled;
   }
 
   public boolean isCouchbaseInternalSpansEnabled() {

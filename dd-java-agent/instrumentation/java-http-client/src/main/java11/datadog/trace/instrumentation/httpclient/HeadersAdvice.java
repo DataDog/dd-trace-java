@@ -19,9 +19,11 @@ public class HeadersAdvice {
     final Map<String, List<String>> headerMap = new HashMap<>(headers.map());
     final AgentSpan span = activeSpan();
     propagate().inject(span, headerMap, SETTER);
-    propagate()
-        .injectPathwayContext(
-            span, headerMap, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+    if (HttpClientDecorator.SHOULD_INSTRUMENT_DATA_STREAMS) {
+      propagate()
+          .injectPathwayContext(
+              span, headerMap, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+    }
     headers = HttpHeaders.of(headerMap, KEEP);
   }
 }

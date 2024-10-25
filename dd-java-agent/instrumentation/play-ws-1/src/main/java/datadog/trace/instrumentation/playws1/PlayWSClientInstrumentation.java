@@ -30,9 +30,11 @@ public class PlayWSClientInstrumentation extends BasePlayWSClientInstrumentation
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
       propagate().inject(span, request, SETTER);
-      propagate()
-          .injectPathwayContext(
-              span, request, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+      if (HttpClientDecorator.SHOULD_INSTRUMENT_DATA_STREAMS) {
+        propagate()
+            .injectPathwayContext(
+                span, request, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+      }
 
       if (asyncHandler instanceof StreamedAsyncHandler) {
         asyncHandler = new StreamedAsyncHandlerWrapper((StreamedAsyncHandler) asyncHandler, span);

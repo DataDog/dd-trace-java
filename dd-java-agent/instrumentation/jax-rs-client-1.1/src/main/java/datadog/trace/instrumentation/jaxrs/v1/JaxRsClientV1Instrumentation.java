@@ -76,9 +76,11 @@ public final class JaxRsClientV1Instrumentation extends InstrumenterModule.Traci
         request.getProperties().put(DD_SPAN_ATTRIBUTE, span);
 
         propagate().inject(span, request.getHeaders(), SETTER);
-        propagate()
-            .injectPathwayContext(
-                span, request.getHeaders(), SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+        if (HttpClientDecorator.SHOULD_INSTRUMENT_DATA_STREAMS) {
+          propagate()
+              .injectPathwayContext(
+                  span, request.getHeaders(), SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+        }
         return activateSpan(span);
       }
       return null;

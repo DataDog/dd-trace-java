@@ -89,9 +89,11 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
       // AWS calls are often signed, so we can't add headers without breaking the signature.
       if (!awsClientCall) {
         propagate().inject(span, request.headers(), SETTER);
-        propagate()
-            .injectPathwayContext(
-                span, request.headers(), SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+        if (HttpClientDecorator.SHOULD_INSTRUMENT_DATA_STREAMS) {
+          propagate()
+              .injectPathwayContext(
+                  span, request.headers(), SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+        }
       }
 
       ctx.channel().attr(SPAN_ATTRIBUTE_KEY).set(span);

@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.instrumentation.grpc.client.GrpcClientDecorator.CLIENT_PATHWAY_EDGE_TAGS;
+import static datadog.trace.instrumentation.grpc.client.GrpcClientDecorator.SHOULD_INSTRUMENT_DATA_STREAMS;
 import static datadog.trace.instrumentation.grpc.client.GrpcClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.grpc.client.GrpcInjectAdapter.SETTER;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
@@ -16,6 +17,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import io.grpc.ClientCall;
 import io.grpc.Grpc;
 import io.grpc.Metadata;
@@ -93,7 +95,9 @@ public final class ClientCallImplInstrumentation extends InstrumenterModule.Trac
       span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(call);
       if (null != span) {
         propagate().inject(span, headers, SETTER);
-        propagate().injectPathwayContext(span, headers, SETTER, CLIENT_PATHWAY_EDGE_TAGS);
+        if (SHOULD_INSTRUMENT_DATA_STREAMS) {
+          propagate().injectPathwayContext(span, headers, SETTER, CLIENT_PATHWAY_EDGE_TAGS);
+        }
         return activateSpan(span);
       }
       return null;

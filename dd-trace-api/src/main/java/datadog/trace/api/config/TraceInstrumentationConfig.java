@@ -152,6 +152,8 @@ public final class TraceInstrumentationConfig {
   public static final String JAX_RS_ADDITIONAL_ANNOTATIONS = "trace.jax-rs.additional.annotations";
   /** If set, the instrumentation will set its resource name on the local root too. */
   public static final String AXIS_PROMOTE_RESOURCE_NAME = "trace.axis.promote.resource-name";
+  public static final String HTTP_DATA_STREAMS_ENABLED = "data.streams.http.enabled";
+  public static final String GRPC_DATA_STREAMS_ENABLED = "data.streams.http.enabled";
 
   private TraceInstrumentationConfig() {}
 }
