@@ -108,6 +108,7 @@ public class InstrumenterConfig {
   private final boolean ciVisibilityEnabled;
   private final ProductActivation appSecActivation;
   private final ProductActivation iastActivation;
+  private final boolean iastFullyDisabled;
   private final boolean usmEnabled;
   private final boolean telemetryEnabled;
 
@@ -194,6 +195,8 @@ public class InstrumenterConfig {
       iastActivation =
           ProductActivation.fromString(
               configProvider.getStringNotEmpty(IAST_ENABLED, DEFAULT_IAST_ENABLED));
+      final Boolean iastEnabled = configProvider.getBoolean(IAST_ENABLED);
+      iastFullyDisabled = iastEnabled != null && !iastEnabled;
       usmEnabled = configProvider.getBoolean(USM_ENABLED, DEFAULT_USM_ENABLED);
       telemetryEnabled = configProvider.getBoolean(TELEMETRY_ENABLED, DEFAULT_TELEMETRY_ENABLED);
     } else {
@@ -201,6 +204,7 @@ public class InstrumenterConfig {
       ciVisibilityEnabled = false;
       appSecActivation = ProductActivation.FULLY_DISABLED;
       iastActivation = ProductActivation.FULLY_DISABLED;
+      iastFullyDisabled = true;
       telemetryEnabled = false;
       usmEnabled = false;
     }
@@ -282,9 +286,35 @@ public class InstrumenterConfig {
     return integrationsEnabled;
   }
 
+  /**
+   * isIntegrationEnabled determines whether an integration under the specified name(s) is enabled
+   * according to the following list of configurations, from highest to lowest precedence:
+   * trace.name.enabled, trace.integration.name.enabled, integration.name.enabled. If none of these
+   * configurations is set, the defaultEnabled value is used. All system properties take precedence
+   * over all env vars.
+   *
+   * @param integrationNames the name(s) that represent(s) the integration
+   * @param defaultEnabled true if enabled by default, else false
+   * @return boolean on whether the integration is enabled
+   */
   public boolean isIntegrationEnabled(
       final Iterable<String> integrationNames, final boolean defaultEnabled) {
-    return configProvider.isEnabled(integrationNames, "integration.", ".enabled", defaultEnabled);
+    // If default is enabled, we want to disable individually.
+    // If default is disabled, we want to enable individually.
+    boolean anyEnabled = defaultEnabled;
+    for (final String name : integrationNames) {
+      final String primaryKey = "trace." + name + ".enabled";
+      final String[] aliases = {
+        "trace.integration." + name + ".enabled", "integration." + name + ".enabled"
+      }; // listed in order of precedence
+      final boolean configEnabled = configProvider.getBoolean(primaryKey, defaultEnabled, aliases);
+      if (defaultEnabled) {
+        anyEnabled &= configEnabled;
+      } else {
+        anyEnabled |= configEnabled;
+      }
+    }
+    return anyEnabled;
   }
 
   public boolean isIntegrationShortcutMatchingEnabled(
@@ -319,6 +349,10 @@ public class InstrumenterConfig {
 
   public ProductActivation getIastActivation() {
     return iastActivation;
+  }
+
+  public boolean isIastFullyDisabled() {
+    return iastFullyDisabled;
   }
 
   public boolean isUsmEnabled() {

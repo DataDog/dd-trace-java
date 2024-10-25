@@ -32,11 +32,18 @@ abstract class GrpcStreamingTest extends VersionedNamingTestBase {
 
   protected abstract String serverOperation()
 
+  protected boolean hasClientMessageSpans() {
+    false
+  }
+
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
     injectSysConfig("dd.trace.grpc.ignored.inbound.methods", "example.Greeter/IgnoreInbound")
     injectSysConfig("dd.trace.grpc.ignored.outbound.methods", "example.Greeter/Ignore")
+    if (hasClientMessageSpans()) {
+      injectSysConfig("integration.grpc-message.enabled", "true")
+    }
     // here to trigger wrapping to record scheduling time - the logic is trivial so it's enough to verify
     // that ClassCastExceptions do not arise from the wrapping
     injectSysConfig("dd.profiling.enabled", "true")
@@ -142,7 +149,7 @@ abstract class GrpcStreamingTest extends VersionedNamingTestBase {
     }.flatten().sort()
 
     assertTraces(2) {
-      trace((clientMessageCount * serverMessageCount) + 1) {
+      trace((hasClientMessageSpans() ? clientMessageCount * serverMessageCount : 0) + 1) {
         span {
           operationName clientOperation()
           resourceName "example.Greeter/Conversation"
@@ -160,18 +167,20 @@ abstract class GrpcStreamingTest extends VersionedNamingTestBase {
             defaultTags()
           }
         }
-        (1..(clientMessageCount * serverMessageCount)).each {
-          span {
-            operationName "grpc.message"
-            resourceName "grpc.message"
-            spanType DDSpanTypes.RPC
-            childOf span(0)
-            errored false
-            tags {
-              "$Tags.COMPONENT" "grpc-client"
-              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-              "message.type" "example.Helloworld\$Response"
-              defaultTagsNoPeerService()
+        if (hasClientMessageSpans()) {
+          (1..(clientMessageCount * serverMessageCount)).each {
+            span {
+              operationName "grpc.message"
+              resourceName "grpc.message"
+              spanType DDSpanTypes.RPC
+              childOf span(0)
+              errored false
+              tags {
+                "$Tags.COMPONENT" "grpc-client"
+                "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+                "message.type" "example.Helloworld\$Response"
+                defaultTagsNoPeerService()
+              }
             }
           }
         }
@@ -230,7 +239,7 @@ abstract class GrpcStreamingTest extends VersionedNamingTestBase {
   }
 }
 
-class GrpcStreamingV0ForkedTest extends GrpcStreamingTest {
+class GrpcStreamingV0Test extends GrpcStreamingTest {
 
   @Override
   int version() {
@@ -266,26 +275,9 @@ class GrpcStreamingV1ForkedTest extends GrpcStreamingTest {
   }
 }
 
-class GrpcStreamingProfilingForkedTest extends GrpcStreamingTest {
-
+class GrpcStreamingClientMessageEnabledTest extends GrpcStreamingV0Test {
   @Override
-  protected void configurePreAgent() {
-    super.configurePreAgent()
-    injectSysConfig("dd.profiling.enabled", "true")
-  }
-
-  @Override
-  int version() {
-    return 1
-  }
-
-  @Override
-  protected String clientOperation() {
-    return "grpc.client.request"
-  }
-
-  @Override
-  protected String serverOperation() {
-    return "grpc.server.request"
+  protected boolean hasClientMessageSpans() {
+    true
   }
 }

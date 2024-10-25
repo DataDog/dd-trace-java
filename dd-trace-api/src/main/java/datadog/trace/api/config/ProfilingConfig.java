@@ -116,6 +116,10 @@ public final class ProfilingConfig {
       "profiling.ddprof.wall.context.filter";
   public static final boolean PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER_DEFAULT = true;
 
+  public static final String PROFILING_DATADOG_PROFILER_WALL_JVMTI =
+      "profiling.experimental.ddprof.wall.jvmti";
+  public static final boolean PROFILING_DATADOG_PROFILER_WALL_JVMTI_DEFAULT = false;
+
   public static final String PROFILING_DATADOG_PROFILER_SCHEDULING_EVENT =
       "profiling.experimental.ddprof.scheduling.event";
 
@@ -207,6 +211,11 @@ public final class ProfilingConfig {
       "profiling.smap.collection.enabled";
 
   public static final boolean PROFILING_SMAP_COLLECTION_ENABLED_DEFAULT = true;
+
+  public static final String PROFILING_SMAP_AGGREGATION_ENABLED =
+      "profiling.smap.aggregation.enabled";
+
+  public static final boolean PROFILING_SMAP_AGGREGATION_ENABLED_DEFAULT = true;
 
   public static final String PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS =
       "profiling.queueing.time.threshold.millis";

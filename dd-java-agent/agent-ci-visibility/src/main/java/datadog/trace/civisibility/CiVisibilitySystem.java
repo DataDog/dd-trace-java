@@ -30,10 +30,10 @@ import datadog.trace.civisibility.domain.manualapi.ManualApiTestSession;
 import datadog.trace.civisibility.events.BuildEventsHandlerImpl;
 import datadog.trace.civisibility.events.TestEventsHandlerImpl;
 import datadog.trace.civisibility.ipc.SignalServer;
+import datadog.trace.civisibility.source.index.RepoIndex;
 import datadog.trace.civisibility.telemetry.CiVisibilityMetricCollectorImpl;
 import datadog.trace.civisibility.test.ExecutionStrategy;
 import datadog.trace.civisibility.utils.ConcurrentHashMapContextStore;
-import datadog.trace.civisibility.utils.ProcessHierarchyUtils;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
 import java.lang.instrument.Instrumentation;
 import java.nio.file.Path;
@@ -79,7 +79,7 @@ public class CiVisibilitySystem {
     InstrumentationBridge.registerBuildEventsHandlerFactory(buildEventsHandlerFactory(services));
     CIVisibility.registerSessionFactory(manualApiSessionFactory(services));
 
-    if (ProcessHierarchyUtils.isChild() || ProcessHierarchyUtils.isHeadless()) {
+    if (services.processHierarchy.isChild() || services.processHierarchy.isHeadless()) {
       CiVisibilityRepoServices repoServices = services.repoServices(getCurrentPath());
 
       ExecutionSettings executionSettings =
@@ -91,7 +91,8 @@ public class CiVisibilitySystem {
           // so if lines are explicitly enabled,
           // we rely on Jacoco instrumentation rather than on our own coverage mechanism
           !config.isCiVisibilityCoverageLinesEnabled()) {
-        Predicate<String> instrumentationFilter = createCoverageInstrumentationFilter(config);
+        Predicate<String> instrumentationFilter =
+            createCoverageInstrumentationFilter(services, repoServices);
         inst.addTransformer(new CoverageClassTransformer(instrumentationFilter));
       }
 
@@ -113,9 +114,15 @@ public class CiVisibilitySystem {
     }
   }
 
-  private static Predicate<String> createCoverageInstrumentationFilter(Config config) {
-    String[] includedPackages = config.getCiVisibilityCodeCoverageIncludedPackages();
-    String[] excludedPackages = config.getCiVisibilityCodeCoverageExcludedPackages();
+  private static Predicate<String> createCoverageInstrumentationFilter(
+      CiVisibilityServices services, CiVisibilityRepoServices repoServices) {
+    String[] includedPackages = services.config.getCiVisibilityCodeCoverageIncludedPackages();
+    if (includedPackages.length == 0 && services.processHierarchy.isHeadless()) {
+      RepoIndex repoIndex = repoServices.repoIndexProvider.getIndex();
+      includedPackages =
+          Config.convertJacocoExclusionFormatToPackagePrefixes(repoIndex.getRootPackages());
+    }
+    String[] excludedPackages = services.config.getCiVisibilityCodeCoverageExcludedPackages();
     return new CoverageInstrumentationFilter(includedPackages, excludedPackages);
   }
 
@@ -142,7 +149,7 @@ public class CiVisibilitySystem {
         ExecutionSettings executionSettings) {
       this.services = services;
       this.repoServices = repoServices;
-      if (ProcessHierarchyUtils.isChild()) {
+      if (services.processHierarchy.isChild()) {
         sessionFactory =
             childTestFrameworkSessionFactory(
                 services, repoServices, coverageServices, executionSettings);
@@ -222,9 +229,6 @@ public class CiVisibilitySystem {
       CiVisibilityCoverageServices.Child coverageServices,
       ExecutionSettings executionSettings) {
     return (String projectName, String component, Long startTime) -> {
-      long parentProcessSessionId = ProcessHierarchyUtils.getParentSessionId();
-      long parentProcessModuleId = ProcessHierarchyUtils.getParentModuleId();
-
       String sessionName = services.config.getCiVisibilitySessionName();
       String testCommand = services.config.getCiVisibilityTestCommand();
       TestDecorator testDecorator =
@@ -232,9 +236,9 @@ public class CiVisibilitySystem {
 
       ExecutionStrategy executionStrategy =
           new ExecutionStrategy(services.config, executionSettings);
+
       return new ProxyTestSession(
-          parentProcessSessionId,
-          parentProcessModuleId,
+          services.processHierarchy.parentProcessModuleContext,
           services.config,
           services.metricCollector,
           testDecorator,

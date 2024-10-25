@@ -1,18 +1,18 @@
 package com.datadog.appsec.gateway;
 
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static java.util.Collections.emptySet;
 
 import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.report.AppSecEvent;
-import com.datadog.appsec.stack_trace.StackTraceCollection;
-import com.datadog.appsec.stack_trace.StackTraceEvent;
 import com.datadog.appsec.util.StandardizedLogging;
 import datadog.trace.api.Config;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.util.stacktrace.StackTraceEvent;
 import io.sqreen.powerwaf.Additive;
 import io.sqreen.powerwaf.PowerwafContext;
 import io.sqreen.powerwaf.PowerwafMetrics;
@@ -115,12 +115,16 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   // should be guarded by this
   private volatile Additive additive;
+  private volatile boolean additiveClosed;
   // set after additive is set
   private volatile PowerwafMetrics wafMetrics;
   private volatile PowerwafMetrics raspMetrics;
-  private AtomicInteger raspMetricsCounter;
+  private final AtomicInteger raspMetricsCounter = new AtomicInteger(0);
   private volatile boolean blocked;
   private volatile int timeouts;
+
+  // keep a reference to the last published usr.id
+  private volatile String userId;
 
   private static final AtomicIntegerFieldUpdater<AppSecRequestContext> TIMEOUTS_UPDATER =
       AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "timeouts");
@@ -131,14 +135,14 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       Address<?> address = entry.getKey();
       Object value = entry.getValue();
       if (value == null) {
-        log.warn("Address {} ignored, because contains null value.", address);
+        log.debug(SEND_TELEMETRY, "Address {} ignored, because contains null value.", address);
         continue;
       }
       Object prev = persistentData.putIfAbsent(address, value);
-      if (prev == value) {
+      if (prev == value || value.equals(prev)) {
         continue;
       } else if (prev != null) {
-        log.warn("Illegal attempt to replace context value for {}", address);
+        log.debug(SEND_TELEMETRY, "Attempt to replace context value for {}", address);
       }
       if (log.isDebugEnabled()) {
         StandardizedLogging.addressPushed(log, address);
@@ -182,7 +186,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       }
       if (isRasp && raspMetrics == null) {
         this.raspMetrics = ctx.createMetrics();
-        this.raspMetricsCounter = new AtomicInteger(0);
       }
     }
 
@@ -203,6 +206,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       synchronized (this) {
         if (additive != null) {
           try {
+            additiveClosed = true;
             additive.close();
           } finally {
             additive = null;
@@ -421,6 +425,14 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     this.respDataPublished = respDataPublished;
   }
 
+  public String getUserId() {
+    return userId;
+  }
+
+  public void setUserId(String userId) {
+    this.userId = userId;
+  }
+
   @Override
   public void close() {
     final AgentSpan span = AgentTracer.activeSpan();
@@ -433,7 +445,8 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public void close(boolean requiresPostProcessing) {
     if (additive != null || derivatives != null) {
-      log.warn("WAF object had not been closed (probably missed request-end event)");
+      log.debug(
+          SEND_TELEMETRY, "WAF object had not been closed (probably missed request-end event)");
       closeAdditive();
       derivatives = null;
     }
@@ -500,22 +513,16 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return events;
   }
 
-  StackTraceCollection transferStackTracesCollection() {
+  List<StackTraceEvent> getStackTraces() {
     if (this.stackTraceEvents == null) {
       return null;
     }
-
-    Collection<StackTraceEvent> stackTraces = new ArrayList<>();
+    List<StackTraceEvent> stackTraces = new ArrayList<>();
     StackTraceEvent item;
     while ((item = this.stackTraceEvents.poll()) != null) {
       stackTraces.add(item);
     }
-
-    if (stackTraces.size() != 0) {
-      return new StackTraceCollection(stackTraces);
-    } else {
-      return null;
-    }
+    return stackTraces;
   }
 
   public void reportDerivatives(Map<String, String> data) {
@@ -547,5 +554,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       throttled = rateLimiter.isThrottled();
     }
     return throttled;
+  }
+
+  public boolean isAdditiveClosed() {
+    return additiveClosed;
   }
 }

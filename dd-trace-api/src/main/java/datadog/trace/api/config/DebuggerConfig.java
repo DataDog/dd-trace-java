@@ -21,6 +21,7 @@ public final class DebuggerConfig {
   public static final String DEBUGGER_INSTRUMENT_THE_WORLD =
       "dynamic.instrumentation.instrument.the.world";
   public static final String DEBUGGER_EXCLUDE_FILES = "dynamic.instrumentation.exclude.files";
+  public static final String DEBUGGER_INCLUDE_FILES = "dynamic.instrumentation.include.files";
   public static final String DEBUGGER_CAPTURE_TIMEOUT = "dynamic.instrumentation.capture.timeout";
   public static final String DEBUGGER_REDACTED_IDENTIFIERS =
       "dynamic.instrumentation.redacted.identifiers";
@@ -32,7 +33,6 @@ public final class DebuggerConfig {
   public static final String DEBUGGER_SYMBOL_INCLUDES = "symbol.database.includes";
   public static final String DEBUGGER_SYMBOL_FLUSH_THRESHOLD = "symbol.database.flush.threshold";
   public static final String DEBUGGER_EXCEPTION_ENABLED = "exception.debugging.enabled";
-  public static final String DEBUGGER_CODE_ORIGIN_ENABLED = "code.origin.enabled";
   public static final String EXCEPTION_REPLAY_ENABLED = "exception.replay.enabled";
   public static final String DEBUGGER_MAX_EXCEPTION_PER_SECOND =
       "exception.replay.max.exception.analysis.limit";
@@ -40,6 +40,12 @@ public final class DebuggerConfig {
       "internal.exception.replay.only.local.root";
   public static final String DEBUGGER_EXCEPTION_MAX_CAPTURED_FRAMES =
       "exception.replay.max.frames.to.capture";
+  public static final String DEBUGGER_EXCEPTION_CAPTURE_MAX_FRAMES =
+      "exception.replay.capture.max.frames";
+  public static final String DEBUGGER_EXCEPTION_CAPTURE_INTERVAL_SECONDS =
+      "exception.replay.capture.interval.seconds";
+  public static final String DEBUGGER_EXCEPTION_CAPTURE_INTERMEDIATE_SPANS_ENABLED =
+      "exception.replay.capture.intermediate.spans.enabled";
   public static final String THIRD_PARTY_INCLUDES = "third.party.includes";
   public static final String THIRD_PARTY_EXCLUDES = "third.party.excludes";
 

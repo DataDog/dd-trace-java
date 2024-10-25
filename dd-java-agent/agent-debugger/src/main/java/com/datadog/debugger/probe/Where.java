@@ -42,8 +42,7 @@ public class Where {
     this(typeName, methodName, signature, sourceLines(lines), sourceFile);
   }
 
-  public static Where convertLineToMethod(
-      String typeName, String methodName, String signature, String... lines) {
+  public static Where of(String typeName, String methodName, String signature, String... lines) {
     return new Where(typeName, methodName, signature, lines, null);
   }
 
@@ -65,7 +64,12 @@ public class Where {
       if (methodsByLine != null && !methodsByLine.isEmpty()) {
         // pick the first method, as we can have multiple methods (lambdas) on the same line
         MethodNode method = methodsByLine.get(0);
-        return new Where(lineWhere.typeName, method.name, method.desc, (SourceLine[]) null, null);
+        return new Where(
+            lineWhere.typeName,
+            method.name,
+            Types.descriptorToSignature(method.desc),
+            new SourceLine[0],
+            null);
       }
     }
     throw new IllegalArgumentException("Invalid where to convert from line to method " + lineWhere);

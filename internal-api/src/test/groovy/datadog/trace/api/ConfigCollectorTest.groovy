@@ -41,7 +41,7 @@ class ConfigCollectorTest extends DDSpecification {
     // ConfigProvider.getInteger
     JmxFetchConfig.JMX_FETCH_CHECK_PERIOD                      | "60"
     // ConfigProvider.getLong
-    CiVisibilityConfig.CIVISIBILITY_MODULE_ID                  | "450273"
+    CiVisibilityConfig.CIVISIBILITY_GIT_COMMAND_TIMEOUT_MILLIS | "450273"
     // ConfigProvider.getFloat
     GeneralConfig.TELEMETRY_HEARTBEAT_INTERVAL                 | "1.5"
     // ConfigProvider.getDouble
@@ -59,7 +59,7 @@ class ConfigCollectorTest extends DDSpecification {
     // ConfigProvider.getMergedMapWithOptionalMappings
     TracerConfig.HEADER_TAGS                                   | "e:five"
     // ConfigProvider.getIntegerRange
-    TracerConfig.HTTP_CLIENT_ERROR_STATUSES                    | "400-402"
+    TracerConfig.TRACE_HTTP_CLIENT_ERROR_STATUSES              | "400-402"
   }
 
   def "should collect merged data from multiple sources"() {
@@ -95,7 +95,7 @@ class ConfigCollectorTest extends DDSpecification {
     GeneralConfig.TELEMETRY_HEARTBEAT_INTERVAL                 | new Float(DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL).toString()
     CiVisibilityConfig.CIVISIBILITY_GRADLE_SOURCE_SETS         | "main,test"
     IastConfig.IAST_WEAK_HASH_ALGORITHMS                       | DEFAULT_IAST_WEAK_HASH_ALGORITHMS.join(",")
-    TracerConfig.HTTP_CLIENT_ERROR_STATUSES                    | "400-500"
+    TracerConfig.TRACE_HTTP_CLIENT_ERROR_STATUSES              | "400-500"
   }
 
   def "default null config settings are also collected"() {
@@ -112,7 +112,7 @@ class ConfigCollectorTest extends DDSpecification {
       GeneralConfig.APPLICATION_KEY,
       TraceInstrumentationConfig.RESOLVER_USE_URL_CACHES,
       JmxFetchConfig.JMX_FETCH_CHECK_PERIOD,
-      CiVisibilityConfig.CIVISIBILITY_MODULE_ID,
+      CiVisibilityConfig.CIVISIBILITY_DEBUG_PORT,
       TracerConfig.TRACE_SAMPLE_RATE,
       TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS,
       TracerConfig.PROXY_NO_PROXY,

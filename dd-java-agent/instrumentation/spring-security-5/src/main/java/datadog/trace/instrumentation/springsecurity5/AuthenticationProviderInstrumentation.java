@@ -10,8 +10,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.bootstrap.ActiveSubsystems;
+import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 
 @AutoService(InstrumenterModule.class)
 public class AuthenticationProviderInstrumentation extends InstrumenterModule.AppSec
@@ -46,6 +50,19 @@ public class AuthenticationProviderInstrumentation extends InstrumenterModule.Ap
             .and(takesArgument(0, named("org.springframework.security.core.Authentication")))
             .and(returns(named("org.springframework.security.core.Authentication")))
             .and(isPublic()),
-        packageName + ".AuthenticationProviderAdvice");
+        getClass().getName() + "$AuthenticationProviderAdvice");
+  }
+
+  public static class AuthenticationProviderAdvice {
+
+    @Advice.OnMethodExit(onThrowable = AuthenticationException.class, suppress = Throwable.class)
+    public static void onExit(
+        @Advice.Argument(value = 0, readOnly = false) Authentication authentication,
+        @Advice.Return final Authentication result,
+        @Advice.Thrown final AuthenticationException throwable) {
+      if (ActiveSubsystems.APPSEC_ACTIVE) {
+        SpringSecurityUserEventDecorator.DECORATE.onLogin(authentication, throwable, result);
+      }
+    }
   }
 }

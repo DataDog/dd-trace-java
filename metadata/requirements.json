@@ -1,0 +1,419 @@
+{
+  "version": 1,
+  "deny": [
+    {
+      "id": "unsupported_jvm",
+      "description": "Skip older JVMs",
+      "os": null,
+      "cmds": [
+        "**/java-1.5*/**/java",
+        "**/java-1.6*/**/java",
+        "**/java-6*/**/java",
+        "**/java-7/**/java"
+      ],
+      "args": [],
+      "envars": null
+    },
+    {
+      "id": "java8_version",
+      "description": "Skip java -version command",
+      "os": null,
+      "cmds": [
+        "**/java"
+      ],
+      "args": [
+        {
+          "args": [
+            "-version"
+          ],
+          "position": 1
+        }
+      ],
+      "envars": null
+    },
+    {
+      "id": "java_version",
+      "description": "Skip java --version command",
+      "os": null,
+      "cmds": [
+        "**/java"
+      ],
+      "args": [
+        {
+          "args": [
+            "--version"
+          ],
+          "position": 1
+        }
+      ],
+      "envars": null
+    },
+    {
+      "id": "apache_activemq_artemis",
+      "description": "Skip Apache ActiveMQ Artemis",
+      "os": null,
+      "cmds": [
+        "**/java"
+      ],
+      "args": [
+        {
+          "args": [
+            "org.apache.activemq.artemis.boot.Artemis"
+          ],
+          "position": null
+        }
+      ],
+      "envars": null
+    },
+    {
+      "id": "apache_cassandra",
+      "description": "Skip Apache Cassandra",
+      "os": null,
+      "cmds": [
+        "**/java"
+      ],
+      "args": [
+        {
+          "args": [
+            "org.apache.cassandra.service.CassandraDaemon"
+          ],
+          "position": null
+        }
+      ],
+      "envars": null
+    },
+    {
+      "id": "apache_cassandra_debugcql",
+      "description": "Skip Apache Cassandra debug-cql",
+      "os": null,
+      "cmds": [
+        "**/java"
+      ],
+      "args": [
+        {
+          "args": [
+            "org.apache.cassandra.transport.Client"
+          ],
+          "position": null
+        }
+      ],
+      "envars": null
+    },
+    {
+      "id": "apache_cassandra_nodetool",
+      "description": "Skip Apache Cassandra nodetool",
+      "os": null,
+      "cmds": [
+        "**/java"
+      ],
+      "args": [
+        {
+          "args": [
+            "org.apache.cassandra.tools.NodeTool"
+          ],
+          "position": null
+        }
+      ],
+      "envars": null
+    },
+    {
+      "id": "apache_cassandra_sstableloader",
+      "description": "Skip Apache Cassandra sstableloader",
+      "os": null,
+      "cmds": [
+        "**/java"
+      ],
+      "args": [
+        {
+          "args": [
+            "org.apache.cassandra.tools.BulkLoader"
+          ],
+          "position": null
+        }
+      ],
+      "envars": null
+    },
+    {
+      "id": "apache_cassandra_sstablescrub",
+      "description": "Skip Apache Cassandra stablescrub",
+      "os": null,
+      "cmds": [
+        "**/java"
+      ],
+      "args": [
+        {
+          "args": [
+            "org.apache.cassandra.tools.StandaloneScrubber"
+          ],
+          "position": null
+        }
+      ],
+      "envars": null
+    },
+    {
+      "id": "apache_cassandra_sstableupgrade",
+      "description": "Skip Apache Cassandra sstableupgrade",
+      "os": null,
+      "cmds": [
+        "**/java"
+      ],
+      "args": [
+        {
+          "args": [
+            "org.apache.cassandra.tools.StandaloneUpgrader"
+          ],
+          "position": null
+        }
+      ],
+      "envars": null
+    },
+    {
+      "id": "apache_cassandra_sstableutil",
+      "description": "Skip Apache Cassandra sstableutil",
+      "os": null,
+      "cmds": [
+        "**/java"
+      ],
+      "args": [
+        {
+          "args": [
+            "org.apache.cassandra.tools.StandaloneSSTableUtil"
+          ],
+          "position": null
+        }
+      ],
+      "envars": null
+    },
+    {
+      "id": "apache_cassandra_sstableverify",
+      "description": "Skip Apache Cassandra sstableverify",
+      "os": null,
+      "cmds": [
+        "**/java"
+      ],
+      "args": [
+        {
+          "args": [
+            "org.apache.cassandra.tools.StandaloneVerifier"
+          ],
+          "position": null
+        }
+      ],
+      "envars": null
+    },
+    {
+      "id": "apache_lucene8_luke",
+      "description": "Skip Lucene 8 Luke",
+      "os": null,
+      "cmds": [
+        "**/java"
+      ],
+      "args": [
+        {
+          "args": [
+            "org.apache.lucene.luke.app.desktop.LukeMain"
+          ],
+          "position": null
+        }
+      ],
+      "envars": null
+    },
+    {
+      "id": "apache_lucene9_luke",
+      "description": "Skip Apache Netbeans",
+      "os": null,
+      "cmds": [
+        "**/java"
+      ],
+      "args": [
+        {
+          "args": [
+            "org.apache.lucene.luke"
+          ],
+          "position": null
+        }
+      ],
+      "envars": null
+    },
+    {
+      "id": "apache_netbeans",
+      "description": "Skip Apache Netbeans",
+      "os": null,
+      "cmds": [
+        "**/java"
+      ],
+      "args": [
+        {
+          "args": [
+            "org.netbeans.Main"
+          ],
+          "position": null
+        }
+      ],
+      "envars": null
+    },
+    {
+      "id": "apache_solr8_start",
+      "description": "Skip Apache Solr 8 start command using System Properties",
+      "os": null,
+      "cmds": [
+        "**/java"
+      ],
+      "args": [
+        {
+          "args": [
+            "-Dsolr.solr.home=*"
+          ],
+          "position": null
+        }
+      ],
+      "envars": null
+    },
+    {
+      "id": "apache_solr8_stop",
+      "description": "Skip Apache Solr 8 stop using path to jar",
+      "os": null,
+      "cmds": [
+        "**/java"
+      ],
+      "args": [
+        {
+          "args": [
+            "*solr/server/start.jar"
+          ],
+          "position": null
+        }
+      ],
+      "envars": null
+    },
+    {
+      "id": "apache_solr8_tools",
+      "description": "Skip Apache Solr 8 CLI tools",
+      "os": null,
+      "cmds": [
+        "**/java"
+      ],
+      "args": [
+        {
+          "args": [
+            "org.apache.solr.util.SolrCLI"
+          ],
+          "position": null
+        }
+      ],
+      "envars": null
+    },
+    {
+      "id": "elasticsearch7",
+      "description": "Skip Elastic Search 7+ commands",
+      "os": null,
+      "cmds": [
+        "**/java"
+      ],
+      "args": [
+        {
+          "args": [
+            "-Des.path.home=*"
+          ],
+          "position": null
+        }
+      ],
+      "envars": null
+    },
+    {
+      "id": "intellij_idea",
+      "description": "Skip Jetbrains IntelliJ IDEA",
+      "os": null,
+      "cmds": [
+        "**/java"
+      ],
+      "args": [
+        {
+          "args": [
+            "com.intellij.idea.Main"
+          ],
+          "position": null
+        }
+      ],
+      "envars": null
+    },
+    {
+      "id": "apache_hbase",
+      "description": "Skip Apache HBase",
+      "os": null,
+      "cmds": [
+        "**/java"
+      ],
+      "args": [],
+      "envars": {
+        "HBASE_HOME": null
+      }
+    },
+    {
+      "id": "apache_hadoop3",
+      "description": "Skip Apache Hadoop 3",
+      "os": null,
+      "cmds": [
+        "**/java"
+      ],
+      "args": [],
+      "envars": {
+        "HADOOP_HOME": null
+      }
+    },
+    {
+      "id": "apache_hive",
+      "description": "Skip Apache Hive",
+      "os": null,
+      "cmds": [
+        "**/java"
+      ],
+      "args": [],
+      "envars": {
+        "HIVE_HOME": null
+      }
+    },
+    {
+      "id": "apache_solr9",
+      "description": "Skip Apache Solr 9",
+      "os": null,
+      "cmds": [
+        "**/java"
+      ],
+      "args": [],
+      "envars": {
+        "SOLR_PORT": null
+      }
+    }
+  ],
+  "native_deps": {
+    "glibc": [
+      {
+        "arch": "x86",
+        "supported": true
+      },
+      {
+        "arch": "x64",
+        "supported": true
+      },
+      {
+        "arch": "arm64",
+        "supported": true
+      }
+    ],
+    "musl": [
+      {
+        "arch": "x86",
+        "supported": true
+      },
+      {
+        "arch": "x64",
+        "supported": true
+      },
+      {
+        "arch": "arm64",
+        "supported": true
+      }
+    ]
+  }
+}

@@ -6,6 +6,7 @@ import com.datadog.iast.model.Source
 import com.squareup.moshi.JsonAdapter
 import com.squareup.moshi.Moshi
 import datadog.trace.api.config.IastConfig
+import static datadog.trace.api.iast.VulnerabilityMarks.XSS_MARK
 import datadog.trace.test.util.DDSpecification
 import org.skyscreamer.jsonassert.JSONAssert
 import spock.lang.Shared
@@ -64,10 +65,15 @@ class EvidenceEncodingTest extends DDSpecification {
     'Hello World'               | [range(0, 11, source(0))]                        | '{"valueParts": [{"value": "Hello World", "source": 0}]}'
     'Hello World'               | [range(5, 1, source(0))]                         | '{"valueParts": [{"value": "Hello"}, {"value": " ", "source": 0}, {"value": "World"}]}'
     'java.lang.Object@1cb991da' | [range(0, Integer.MAX_VALUE, source(0))]         | '{"valueParts": [{"value": "java.lang.Object@1cb991da", "source": 0}]}'
+    'Hello World'               | [range(6, 5, source(0), XSS_MARK)]               | '{"valueParts": [{"value": "Hello "}, {"value": "World", "source": 0, "secure_marks": [XSS]}]}'
   }
 
   private static Range range(final int start, final int length, final Source source) {
-    return new Range(start, length, source, NOT_MARKED)
+    return range(start, length, source, NOT_MARKED)
+  }
+
+  private static Range range(final int start, final int length, final Source source, final int mark) {
+    return new Range(start, length, source, mark)
   }
 
   private static Source source(final int index) {

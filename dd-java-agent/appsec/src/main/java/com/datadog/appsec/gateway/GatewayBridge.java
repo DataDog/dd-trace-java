@@ -20,9 +20,9 @@ import com.datadog.appsec.event.data.ObjectIntrospection;
 import com.datadog.appsec.event.data.SingletonDataBundle;
 import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.report.AppSecEventWrapper;
-import com.datadog.appsec.stack_trace.StackTraceCollection;
-import com.datadog.appsec.util.ObjectFlattener;
 import datadog.trace.api.Config;
+import datadog.trace.api.UserIdCollectionMode;
+import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.gateway.Events;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
@@ -36,6 +36,8 @@ import datadog.trace.api.telemetry.WafMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
+import datadog.trace.util.stacktrace.StackTraceEvent;
+import datadog.trace.util.stacktrace.StackUtils;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
@@ -49,6 +51,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,6 +71,8 @@ public class GatewayBridge {
     "appsec.events.users.login.success.track", "appsec.events.users.login.failure.track"
   };
 
+  private static final String METASTRUCT_EXPLOIT = "exploit";
+
   private final SubscriptionService subscriptionService;
   private final EventProducerService producerService;
   private final ApiSecurityRequestSampler requestSampler;
@@ -86,6 +91,9 @@ public class GatewayBridge {
   private volatile DataSubscriberInfo dbSqlQuerySubInfo;
   private volatile DataSubscriberInfo ioNetUrlSubInfo;
   private volatile DataSubscriberInfo ioFileSubInfo;
+  private volatile DataSubscriberInfo sessionIdSubInfo;
+  private final ConcurrentHashMap<Address<String>, DataSubscriberInfo> userIdSubInfo =
+      new ConcurrentHashMap<>();
 
   public GatewayBridge(
       SubscriptionService subscriptionService,
@@ -126,6 +134,12 @@ public class GatewayBridge {
     subscriptionService.registerCallback(EVENTS.databaseSqlQuery(), this::onDatabaseSqlQuery);
     subscriptionService.registerCallback(EVENTS.networkConnection(), this::onNetworkConnection);
     subscriptionService.registerCallback(EVENTS.fileLoaded(), this::onFileLoaded);
+    subscriptionService.registerCallback(EVENTS.requestSession(), this::onRequestSession);
+    subscriptionService.registerCallback(EVENTS.userId(), this.onUserEvent(KnownAddresses.USER_ID));
+    subscriptionService.registerCallback(
+        EVENTS.loginSuccess(), this.onUserEvent(KnownAddresses.LOGIN_SUCCESS));
+    subscriptionService.registerCallback(
+        EVENTS.loginFailure(), this.onUserEvent(KnownAddresses.LOGIN_FAILURE));
 
     if (additionalIGEvents.contains(EVENTS.requestPathParams())) {
       subscriptionService.registerCallback(EVENTS.requestPathParams(), this::onRequestPathParams);
@@ -133,6 +147,84 @@ public class GatewayBridge {
     if (additionalIGEvents.contains(EVENTS.requestBodyProcessed())) {
       subscriptionService.registerCallback(
           EVENTS.requestBodyProcessed(), this::onRequestBodyProcessed);
+    }
+  }
+
+  private TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>> onUserEvent(
+      final Address<String> address) {
+    return (ctx_, mode, userId) -> {
+      final AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+      if (ctx == null) {
+        return NoopFlow.INSTANCE;
+      }
+      final TraceSegment segment = ctx_.getTraceSegment();
+      // user id can be set by the SDK overriding the auto event, always update the segment
+      segment.setTagTop("usr.id", userId);
+      segment.setTagTop("_dd.appsec.user.collection_mode", mode.shortName());
+      final List<Address<?>> addresses = new ArrayList<>(2);
+      final boolean newUserId = !userId.equals(ctx.getUserId());
+      if (newUserId) {
+        // unlikely that multiple threads will update the value at the same time
+        ctx.setUserId(userId);
+        addresses.add(KnownAddresses.USER_ID);
+      }
+      if (address != KnownAddresses.USER_ID) {
+        addresses.add(address);
+      }
+      if (addresses.isEmpty()) {
+        // nothing to publish so short-circuit here
+        return NoopFlow.INSTANCE;
+      }
+      final Address<?>[] addressArray = addresses.toArray(new Address[0]);
+      while (true) {
+        DataSubscriberInfo subInfo =
+            userIdSubInfo.computeIfAbsent(
+                address, k -> producerService.getDataSubscribers(addressArray));
+        if (subInfo == null || subInfo.isEmpty()) {
+          return NoopFlow.INSTANCE;
+        }
+        MapDataBundle.Builder bundle = new MapDataBundle.Builder(CAPACITY_0_2);
+        if (newUserId) {
+          bundle.add(KnownAddresses.USER_ID, userId);
+        }
+        if (address != KnownAddresses.USER_ID) {
+          // we don't support null values for the address so we use an invalid placeholder here
+          bundle.add(address, "invalid");
+        }
+        try {
+          GatewayContext gwCtx = new GatewayContext(false);
+          return producerService.publishDataEvent(subInfo, ctx, bundle.build(), gwCtx);
+        } catch (ExpiredSubscriberInfoException e) {
+          userIdSubInfo.remove(address);
+        }
+      }
+    };
+  }
+
+  private Flow<Void> onRequestSession(final RequestContext ctx_, final String sessionId) {
+    final AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx == null) {
+      return NoopFlow.INSTANCE;
+    }
+    final TraceSegment segment = ctx_.getTraceSegment();
+    segment.setTagTop("usr.session_id", sessionId);
+    while (true) {
+      DataSubscriberInfo subInfo = sessionIdSubInfo;
+      if (subInfo == null) {
+        subInfo = producerService.getDataSubscribers(KnownAddresses.SESSION_ID);
+        sessionIdSubInfo = subInfo;
+      }
+      if (subInfo == null || subInfo.isEmpty()) {
+        return NoopFlow.INSTANCE;
+      }
+      DataBundle bundle =
+          new MapDataBundle.Builder(CAPACITY_0_2).add(KnownAddresses.SESSION_ID, sessionId).build();
+      try {
+        GatewayContext gwCtx = new GatewayContext(false);
+        return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
+      } catch (ExpiredSubscriberInfoException e) {
+        sessionIdSubInfo = null;
+      }
     }
   }
 
@@ -495,13 +587,11 @@ public class GatewayBridge {
         writeResponseHeaders(traceSeg, RESPONSE_HEADERS_ALLOW_LIST, ctx.getResponseHeaders());
 
         // Report collected stack traces
-        StackTraceCollection stackTraceCollection = ctx.transferStackTracesCollection();
-        if (stackTraceCollection != null) {
-          Object flatStruct = ObjectFlattener.flatten(stackTraceCollection);
-          if (flatStruct != null) {
-            traceSeg.setMetaStructTop("_dd.stack", flatStruct);
-          }
+        List<StackTraceEvent> stackTraces = ctx.getStackTraces();
+        if (stackTraces != null && !stackTraces.isEmpty()) {
+          StackUtils.addStacktraceEventsToMetaStruct(ctx_, METASTRUCT_EXPLOIT, stackTraces);
         }
+
       } else if (hasUserTrackingEvent(traceSeg)) {
         // Report all collected request headers on user tracking event
         writeRequestHeaders(traceSeg, REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders());

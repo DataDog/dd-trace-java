@@ -54,6 +54,7 @@ import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldInsnNode;
 import org.objectweb.asm.tree.FieldNode;
+import org.objectweb.asm.tree.IincInsnNode;
 import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.InsnNode;
 import org.objectweb.asm.tree.JumpInsnNode;
@@ -63,8 +64,11 @@ import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.TryCatchBlockNode;
 import org.objectweb.asm.tree.TypeInsnNode;
 import org.objectweb.asm.tree.VarInsnNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class CapturedContextInstrumentor extends Instrumentor {
+  private static final Logger log = LoggerFactory.getLogger(CapturedContextInstrumentor.class);
   private final boolean captureSnapshot;
   private final Limits limits;
   private final LabelNode contextInitLabel = new LabelNode();
@@ -459,75 +463,205 @@ public class CapturedContextInstrumentor extends Instrumentor {
   }
 
   // Initialize and hoist local variables to the top of the method
-  // if there is name conflict, do nothing for the conflicting local variable
+  // if there is name/slot conflict, do nothing for the conflicting local variable
   private Collection<LocalVariableNode> initAndHoistLocalVars(InsnList insnList) {
     if (methodNode.localVariables == null || methodNode.localVariables.isEmpty()) {
       return Collections.emptyList();
     }
     Map<String, LocalVariableNode> localVarsByName = new HashMap<>();
-    Set<String> duplicateNames = new HashSet<>();
+    Map<Integer, LocalVariableNode> localVarsBySlot = new HashMap<>();
+    Map<String, Set<LocalVariableNode>> hoistableVarByName = new HashMap<>();
     for (LocalVariableNode localVar : methodNode.localVariables) {
       int idx = localVar.index - localVarBaseOffset;
       if (idx < argOffset) {
         // this is an argument
         continue;
       }
-      if (!checkDuplicateLocalVar(localVar, localVarsByName)) {
-        duplicateNames.add(localVar.name);
+      checkHoistableLocalVar(localVar, localVarsByName, localVarsBySlot, hoistableVarByName);
+    }
+    removeDuplicatesFromArgs(hoistableVarByName, localVarsBySlotArray);
+    // hoist vars
+    List<LocalVariableNode> results = new ArrayList<>();
+    for (Map.Entry<String, Set<LocalVariableNode>> entry : hoistableVarByName.entrySet()) {
+      Set<LocalVariableNode> hoistableVars = entry.getValue();
+      LocalVariableNode newVarNode;
+      if (hoistableVars.size() > 1) {
+        // merge variables
+        LocalVariableNode firstHoistableVar = hoistableVars.iterator().next();
+        String name = firstHoistableVar.name;
+        String desc = firstHoistableVar.desc;
+        Type localVarType = getType(desc);
+        int newSlot = newVar(localVarType); // new slot for the local variable
+        newVarNode = new LocalVariableNode(name, desc, null, null, null, newSlot);
+        Set<LabelNode> endLabels = new HashSet<>();
+        for (LocalVariableNode localVar : hoistableVars) {
+          // rewrite each usage of the old var to the new slot
+          rewriteLocalVarInsn(localVar, localVar.index, newSlot);
+          endLabels.add(localVar.end);
+        }
+        hoistVar(insnList, newVarNode);
+        newVarNode.end = findLatestLabel(methodNode.instructions, endLabels);
+        // remove previous local variables
+        methodNode.localVariables.removeIf(hoistableVars::contains);
+        methodNode.localVariables.add(newVarNode);
+      } else {
+        // hoist the single variable and rewrite all its local var instructions
+        newVarNode = hoistableVars.iterator().next();
+        int oldIndex = newVarNode.index;
+        newVarNode.index = newVar(getType(newVarNode.desc)); // new slot for the local variable
+        rewriteLocalVarInsn(newVarNode, oldIndex, newVarNode.index);
+        hoistVar(insnList, newVarNode);
       }
+      results.add(newVarNode);
     }
-    for (String name : duplicateNames) {
-      localVarsByName.remove(name);
-    }
-    for (LocalVariableNode localVar : localVarsByName.values()) {
-      Type localVarType = getType(localVar.desc);
-      switch (localVarType.getSort()) {
-        case Type.BOOLEAN:
-        case Type.CHAR:
-        case Type.BYTE:
-        case Type.SHORT:
-        case Type.INT:
-          insnList.add(new InsnNode(Opcodes.ICONST_0));
-          break;
-        case Type.LONG:
-          insnList.add(new InsnNode(Opcodes.LCONST_0));
-          break;
-        case Type.FLOAT:
-          insnList.add(new InsnNode(Opcodes.FCONST_0));
-          break;
-        case Type.DOUBLE:
-          insnList.add(new InsnNode(Opcodes.DCONST_0));
-          break;
-        default:
-          insnList.add(new InsnNode(Opcodes.ACONST_NULL));
-          break;
-      }
-      insnList.add(new VarInsnNode(localVarType.getOpcode(Opcodes.ISTORE), localVar.index));
-    }
-    return localVarsByName.values();
+    return results;
   }
 
-  private boolean checkDuplicateLocalVar(
-      LocalVariableNode localVar, Map<String, LocalVariableNode> localVarsByName) {
-    LocalVariableNode previousVar = localVarsByName.putIfAbsent(localVar.name, localVar);
-    if (previousVar == null) {
-      return true;
+  private void removeDuplicatesFromArgs(
+      Map<String, Set<LocalVariableNode>> hoistableVarByName,
+      LocalVariableNode[] localVarsBySlotArray) {
+    for (int idx = 0; idx < argOffset; idx++) {
+      LocalVariableNode localVar = localVarsBySlotArray[idx];
+      if (localVar == null) {
+        continue;
+      }
+      // we are removing local variables that are arguments
+      hoistableVarByName.remove(localVar.name);
     }
-    // there are multiple local variables with the same name
-    // checking type to see if they  are compatible
-    Type previousType = getType(previousVar.desc);
-    Type currentType = getType(localVar.desc);
-    if (!ASMHelper.isStoreCompatibleType(previousType, currentType)) {
-      reportWarning(
-          "Local variable "
-              + localVar.name
-              + " has multiple definitions with incompatible types: "
-              + previousVar.desc
-              + " and "
-              + localVar.desc);
-      return false;
+  }
+
+  private LabelNode findLatestLabel(InsnList instructions, Set<LabelNode> endLabels) {
+    for (AbstractInsnNode insn = instructions.getLast(); insn != null; insn = insn.getPrevious()) {
+      if (insn instanceof LabelNode && endLabels.contains(insn)) {
+        return (LabelNode) insn;
+      }
     }
-    return true;
+    return null;
+  }
+
+  private void hoistVar(InsnList insnList, LocalVariableNode varNode) {
+    LabelNode labelNode = new LabelNode(); // new start label for the local variable
+    insnList.add(labelNode);
+    varNode.start = labelNode; // update the start label of the local variable
+    Type localVarType = getType(varNode.desc);
+    addStore0Insn(insnList, varNode, localVarType);
+  }
+
+  private static void addStore0Insn(
+      InsnList insnList, LocalVariableNode localVar, Type localVarType) {
+    switch (localVarType.getSort()) {
+      case Type.BOOLEAN:
+      case Type.CHAR:
+      case Type.BYTE:
+      case Type.SHORT:
+      case Type.INT:
+        insnList.add(new InsnNode(Opcodes.ICONST_0));
+        break;
+      case Type.LONG:
+        insnList.add(new InsnNode(Opcodes.LCONST_0));
+        break;
+      case Type.FLOAT:
+        insnList.add(new InsnNode(Opcodes.FCONST_0));
+        break;
+      case Type.DOUBLE:
+        insnList.add(new InsnNode(Opcodes.DCONST_0));
+        break;
+      default:
+        insnList.add(new InsnNode(Opcodes.ACONST_NULL));
+        break;
+    }
+    insnList.add(new VarInsnNode(localVarType.getOpcode(Opcodes.ISTORE), localVar.index));
+  }
+
+  private void checkHoistableLocalVar(
+      LocalVariableNode localVar,
+      Map<String, LocalVariableNode> localVarsByName,
+      Map<Integer, LocalVariableNode> localVarsBySlot,
+      Map<String, Set<LocalVariableNode>> hoistableVarByName) {
+    LocalVariableNode previousVarBySlot = localVarsBySlot.putIfAbsent(localVar.index, localVar);
+    LocalVariableNode previousVarByName = localVarsByName.putIfAbsent(localVar.name, localVar);
+    if (previousVarBySlot != null) {
+      // there are multiple local variables with the same slot but different names
+      // by hoisting in a new slot, we can avoid the conflict
+      hoistableVarByName.computeIfAbsent(localVar.name, k -> new HashSet<>()).add(localVar);
+    }
+    if (previousVarByName != null) {
+      // there are multiple local variables with the same name
+      // checking type to see if they are compatible
+      Type previousType = getType(previousVarByName.desc);
+      Type currentType = getType(localVar.desc);
+      if (!ASMHelper.isStoreCompatibleType(previousType, currentType)) {
+        reportWarning(
+            "Local variable "
+                + localVar.name
+                + " has multiple definitions with incompatible types: "
+                + previousVarByName.desc
+                + " and "
+                + localVar.desc);
+        // remove name from hoistable
+        hoistableVarByName.remove(localVar.name);
+        return;
+      }
+      // Merge variables because compatible type
+    }
+    // by default, there is no conflict => hoistable
+    hoistableVarByName.computeIfAbsent(localVar.name, k -> new HashSet<>()).add(localVar);
+  }
+
+  private void rewriteLocalVarInsn(LocalVariableNode localVar, int oldSlot, int newSlot) {
+    rewritePreviousStoreInsn(localVar, oldSlot, newSlot);
+    for (AbstractInsnNode insn = localVar.start;
+        insn != null && insn != localVar.end;
+        insn = insn.getNext()) {
+      if (insn instanceof VarInsnNode) {
+        VarInsnNode varInsnNode = (VarInsnNode) insn;
+        if (varInsnNode.var == oldSlot) {
+          varInsnNode.var = newSlot;
+        }
+      }
+      if (insn instanceof IincInsnNode) {
+        IincInsnNode iincInsnNode = (IincInsnNode) insn;
+        if (iincInsnNode.var == oldSlot) {
+          iincInsnNode.var = newSlot;
+        }
+      }
+    }
+  }
+
+  // Previous insn(s) to local var range could be a store to index that need to be rewritten as well
+  // LocalVariableTable ranges starts after the init of the local var.
+  // ex:
+  //    9: iconst_0
+  //   10: astore_1
+  //   11: aload_1
+  // range for slot 1 starts at 11
+  // javac always starts the range right after the init of the local var, so we can just look for
+  // the previous instruction
+  // for kotlinc, many instructions can separate the init and the range start
+  // ex:
+  //    LocalVariableTable:
+  //    Start  Length  Slot  Name   Signature
+  //    70     121     4 $i$f$map   I
+  //
+  //    64: istore        4
+  //    66: aload_2
+  //    67: iconst_2
+  //    68: iconst_1
+  //    69: bastore
+  //    70: aload_3
+  private static void rewritePreviousStoreInsn(
+      LocalVariableNode localVar, int oldSlot, int newSlot) {
+    AbstractInsnNode previous = localVar.start.getPrevious();
+    while (previous != null
+        && (!(previous instanceof VarInsnNode) || ((VarInsnNode) previous).var != oldSlot)) {
+      previous = previous.getPrevious();
+    }
+    if (previous != null) {
+      VarInsnNode varInsnNode = (VarInsnNode) previous;
+      if (varInsnNode.var == oldSlot) {
+        varInsnNode.var = newSlot;
+      }
+    }
   }
 
   private void createInProbeFinallyHandler(LabelNode inProbeStartLabel, LabelNode inProbeEndLabel) {
@@ -675,8 +809,8 @@ public class CapturedContextInstrumentor extends Instrumentor {
     int slot = isStatic ? 0 : 1;
     for (Type argType : argTypes) {
       String currentArgName = null;
-      if (slot < localVarsBySlot.length) {
-        LocalVariableNode localVarNode = localVarsBySlot[slot];
+      if (slot < localVarsBySlotArray.length) {
+        LocalVariableNode localVarNode = localVarsBySlotArray[slot];
         currentArgName = localVarNode != null ? localVarNode.name : null;
       }
       if (currentArgName == null) {
@@ -1066,7 +1200,12 @@ public class CapturedContextInstrumentor extends Instrumentor {
         }
       }
     }
-    addInheritedStaticFields(classNode, classLoader, limits, results, fieldCount);
+    if (!Config.get().isDebuggerInstrumentTheWorld()) {
+      // Collects inherited static fields only if the ITW mode is not enabled
+      // because it can lead to LinkageError: attempted duplicate class definition
+      // for example, when a probe is located in method overridden in enum element
+      addInheritedStaticFields(classNode, classLoader, limits, results, fieldCount);
+    }
     return results;
   }
 
@@ -1084,17 +1223,22 @@ public class CapturedContextInstrumentor extends Instrumentor {
       } catch (ClassNotFoundException ex) {
         break;
       }
-      for (Field field : clazz.getDeclaredFields()) {
-        if (isStaticField(field) && !isFinalField(field)) {
-          String desc = Type.getDescriptor(field.getType());
-          FieldNode fieldNode =
-              new FieldNode(field.getModifiers(), field.getName(), desc, null, field);
-          results.add(fieldNode);
-          fieldCount++;
-          if (fieldCount > limits.maxFieldCount) {
-            return;
+      try {
+        for (Field field : clazz.getDeclaredFields()) {
+          if (isStaticField(field) && !isFinalField(field)) {
+            String desc = Type.getDescriptor(field.getType());
+            FieldNode fieldNode =
+                new FieldNode(field.getModifiers(), field.getName(), desc, null, field);
+            results.add(fieldNode);
+            log.debug("Adding static inherited field {}", fieldNode.name);
+            fieldCount++;
+            if (fieldCount > limits.maxFieldCount) {
+              return;
+            }
           }
         }
+      } catch (ClassCircularityError ex) {
+        break;
       }
       clazz = clazz.getSuperclass();
       superClassName = clazz.getTypeName();

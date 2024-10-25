@@ -3,14 +3,24 @@ package com.datadog.appsec.user;
 import static datadog.trace.api.UserIdCollectionMode.ANONYMIZATION;
 import static datadog.trace.api.UserIdCollectionMode.DISABLED;
 import static datadog.trace.api.UserIdCollectionMode.SDK;
+import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.util.Strings.toHexString;
 
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.UserIdCollectionMode;
 import datadog.trace.api.appsec.AppSecEventTracker;
+import datadog.trace.api.function.TriFunction;
+import datadog.trace.api.gateway.BlockResponseFunction;
+import datadog.trace.api.gateway.CallbackProvider;
+import datadog.trace.api.gateway.EventType;
+import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.telemetry.WafMetricCollector;
 import datadog.trace.bootstrap.ActiveSubsystems;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.security.MessageDigest;
@@ -54,7 +64,7 @@ public class AppSecEventTrackerImpl extends AppSecEventTracker {
     if (segment == null) {
       return;
     }
-    onUserId(mode, segment, userId);
+    onUserId(mode, segment, userId, EVENTS.userId());
     onEvent(mode, segment, "users.signup", false, metadata);
   }
 
@@ -65,7 +75,7 @@ public class AppSecEventTrackerImpl extends AppSecEventTracker {
     if (segment == null) {
       return;
     }
-    onUserId(mode, segment, userId);
+    onUserId(mode, segment, userId, EVENTS.loginSuccess());
     onEvent(mode, segment, "users.login.success", false, metadata);
   }
 
@@ -79,11 +89,20 @@ public class AppSecEventTrackerImpl extends AppSecEventTracker {
     if (segment == null) {
       return;
     }
-    onUserId(mode, segment, userId, LOGIN_FAILURE_USER_ID_EXTRA_TAG);
+    onUserId(mode, segment, userId, EVENTS.loginFailure(), LOGIN_FAILURE_USER_ID_EXTRA_TAG);
     onEvent(mode, segment, "users.login.failure", false, metadata);
     if (exists != null) {
       segment.setTagTop(LOGIN_FAILURE_NO_USER_TAG, exists, false);
     }
+  }
+
+  @Override
+  public void onUserEvent(UserIdCollectionMode mode, String userId) {
+    TraceSegment segment = beforeEvent(mode, userId);
+    if (segment == null) {
+      return;
+    }
+    onUserId(mode, segment, userId, EVENTS.userId());
   }
 
   @Override
@@ -104,14 +123,36 @@ public class AppSecEventTrackerImpl extends AppSecEventTracker {
       @Nonnull final UserIdCollectionMode mode,
       final TraceSegment segment,
       final String userId,
+      final EventType<TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>>> event,
       final String... extraTags) {
-    if (mode == SDK || !hasSdkEvent(segment)) {
-      String finalUserId = mode == ANONYMIZATION ? anonymize(userId) : userId;
-      segment.setTagTop("usr.id", finalUserId);
-      segment.setTagTop(USER_COLLECTION_MODE_TAG, mode.shortName());
-      for (String tag : extraTags) {
-        segment.setTagTop(tag, finalUserId, false);
+    if (mode != SDK && isSdkCollectedUser(segment)) {
+      return; // do not overwrite users set by the SDK
+    }
+    final String finalUserId = mode == ANONYMIZATION ? anonymize(userId) : userId;
+    for (String tag : extraTags) {
+      segment.setTagTop(tag, finalUserId, false);
+    }
+    final AgentSpan span = tracer().activeSpan();
+    if (span == null) {
+      return;
+    }
+    final RequestContext ctx = span.getRequestContext();
+    if (ctx == null) {
+      return;
+    }
+    final Flow<Void> flow = callIGCallbackUserId(tracer().activeSpan(), mode, finalUserId, event);
+    final Flow.Action action = flow.getAction();
+    if (action instanceof Flow.Action.RequestBlockingAction) {
+      final BlockResponseFunction brf = ctx.getBlockResponseFunction();
+      if (brf != null) {
+        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+        brf.tryCommitBlockingResponse(
+            ctx.getTraceSegment(),
+            rba.getStatusCode(),
+            rba.getBlockingContentType(),
+            rba.getExtraHeaders());
       }
+      throw new BlockingException("Blocked request (for user id)");
     }
   }
 
@@ -151,10 +192,10 @@ public class AppSecEventTrackerImpl extends AppSecEventTracker {
     if (!isEnabled(mode)) {
       return null;
     }
-    return getSegment();
+    return tracer().getTraceSegment();
   }
 
-  protected boolean hasSdkEvent(final TraceSegment segment) {
+  protected boolean isSdkCollectedUser(final TraceSegment segment) {
     if (segment == null) {
       return false;
     }
@@ -189,7 +230,28 @@ public class AppSecEventTrackerImpl extends AppSecEventTracker {
     return ANON_PREFIX + toHexString(hash);
   }
 
-  protected TraceSegment getSegment() {
-    return AgentTracer.get().getTraceSegment();
+  @SuppressWarnings("UnusedReturnValue")
+  private Flow<Void> callIGCallbackUserId(
+      final AgentSpan span,
+      final UserIdCollectionMode mode,
+      final String userId,
+      final EventType<TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>>>
+          event) {
+    final CallbackProvider cbp = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
+    final RequestContext requestContext = span.getRequestContext();
+    if (cbp == null || requestContext == null) {
+      return Flow.ResultFlow.empty();
+    }
+    final TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>> addrCallback =
+        cbp.getCallback(event);
+    if (addrCallback == null) {
+      return Flow.ResultFlow.empty();
+    }
+    return addrCallback.apply(requestContext, mode, userId);
+  }
+
+  // Extract this to allow for easier testing
+  protected AgentTracer.TracerAPI tracer() {
+    return AgentTracer.get();
   }
 }

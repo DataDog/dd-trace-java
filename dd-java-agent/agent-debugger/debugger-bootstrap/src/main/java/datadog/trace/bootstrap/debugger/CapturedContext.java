@@ -35,6 +35,7 @@ public class CapturedContext implements ValueReferenceResolver {
   private String spanId;
   private long duration;
   private final Map<String, Status> statusByProbeId = new LinkedHashMap<>();
+  private Map<String, CapturedValue> watches;
 
   public CapturedContext() {}
 
@@ -267,6 +268,10 @@ public class CapturedContext implements ValueReferenceResolver {
     return staticFields;
   }
 
+  public Map<String, CapturedValue> getWatches() {
+    return watches;
+  }
+
   public Limits getLimits() {
     return limits;
   }
@@ -288,6 +293,11 @@ public class CapturedContext implements ValueReferenceResolver {
    * instance representation into the corresponding string value.
    */
   public void freeze(TimeoutChecker timeoutChecker) {
+    if (watches != null) {
+      // freeze only watches
+      watches.values().forEach(capturedValue -> capturedValue.freeze(timeoutChecker));
+      return;
+    }
     if (arguments != null) {
       arguments.values().forEach(capturedValue -> capturedValue.freeze(timeoutChecker));
     }
@@ -381,6 +391,13 @@ public class CapturedContext implements ValueReferenceResolver {
       staticFields = new HashMap<>();
     }
     staticFields.put(name, value);
+  }
+
+  public void addWatch(CapturedValue value) {
+    if (watches == null) {
+      watches = new HashMap<>();
+    }
+    watches.put(value.name, value);
   }
 
   public static class Status {

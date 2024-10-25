@@ -89,6 +89,11 @@ public class LibertyDecorator
   }
 
   @Override
+  protected String requestedSessionId(final HttpServletRequest request) {
+    return request.getRequestedSessionId();
+  }
+
+  @Override
   public AgentSpan onResponseStatus(AgentSpan span, int status) {
     Integer currentStatus = (Integer) span.getTag(Tags.HTTP_STATUS);
     // do not set status if the tag is already there and it's an error span

@@ -129,6 +129,8 @@ public final class ConfigDefaults {
   public static final boolean DEFAULT_IAST_DEDUPLICATION_ENABLED = true;
   static final boolean DEFAULT_IAST_ANONYMOUS_CLASSES_ENABLED = true;
 
+  static final boolean DEFAULT_IAST_STACK_TRACE_ENABLED = true;
+
   static final boolean DEFAULT_USM_ENABLED = false;
 
   static final boolean DEFAULT_CIVISIBILITY_ENABLED = false;
@@ -178,9 +180,10 @@ public final class ConfigDefaults {
   static final int DEFAULT_DEBUGGER_SYMBOL_FLUSH_THRESHOLD = 100; // nb of classes
   static final boolean DEFAULT_DEBUGGER_EXCEPTION_ENABLED = false;
   static final int DEFAULT_DEBUGGER_MAX_EXCEPTION_PER_SECOND = 100;
-  static final boolean DEFAULT_DEBUGGER_EXCEPTION_ONLY_LOCAL_ROOT = true;
+  static final boolean DEFAULT_DEBUGGER_EXCEPTION_ONLY_LOCAL_ROOT = false;
+  static final boolean DEFAULT_DEBUGGER_EXCEPTION_CAPTURE_INTERMEDIATE_SPANS_ENABLED = true;
   static final int DEFAULT_DEBUGGER_EXCEPTION_MAX_CAPTURED_FRAMES = 3;
-  static final boolean DEFAULT_DEBUGGER_CODE_ORIGIN_ENABLED = false;
+  static final int DEFAULT_DEBUGGER_EXCEPTION_CAPTURE_INTERVAL_SECONDS = 60 * 60;
 
   static final boolean DEFAULT_TRACE_REPORT_HOSTNAME = false;
   static final String DEFAULT_TRACE_ANNOTATIONS = null;
@@ -210,7 +213,7 @@ public final class ConfigDefaults {
       24 * 60 * 60; // 24 hours in seconds
   static final int DEFAULT_TELEMETRY_METRICS_INTERVAL = 10; // in seconds
   static final boolean DEFAULT_TELEMETRY_DEPENDENCY_COLLECTION_ENABLED = true;
-  static final boolean DEFAULT_TELEMETRY_LOG_COLLECTION_ENABLED = false;
+  static final boolean DEFAULT_TELEMETRY_LOG_COLLECTION_ENABLED = true;
   static final int DEFAULT_TELEMETRY_DEPENDENCY_RESOLUTION_QUEUE_SIZE = 100000;
 
   static final boolean DEFAULT_TRACE_128_BIT_TRACEID_GENERATION_ENABLED = true;
