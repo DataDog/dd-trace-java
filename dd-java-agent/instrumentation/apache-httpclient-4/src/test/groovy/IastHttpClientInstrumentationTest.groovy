@@ -31,7 +31,7 @@ class IastHttpClientInstrumentationTest extends AgentTestRunner {
     }
   }
 
-  void 'test ssrf httpClient execute method with args #args expecting call module with #classExpected arg'() {
+  void 'test ssrf httpClient execute method with args #args expecting call module'() {
     given:
     final ssrf = Mock(SsrfModule)
     InstrumentationBridge.registerIastModule(ssrf)
@@ -41,30 +41,23 @@ class IastHttpClientInstrumentationTest extends AgentTestRunner {
     httpClient.execute(*args)
 
     then:
-    if (host) {
-      if(classExpected == URI){
-        1 * ssrf.onURLConnection(_ as URI)
-      } else {
-        1 * ssrf.onURLConnection(_ as String, _ as String, _ as String)
-      }
-    } else {
-      1 * ssrf.onURLConnection(_ as String)
-    }
+    1 * ssrf.onURLConnection(_ as URI)
 
     where:
-    args                                                                                                 | classExpected | host
-    [getHttpUriRequest(server)]                                                                          | URI           | false
-    [getHttpUriRequest(server), new BasicHttpContext()]                                                  | URI           | false
-    [getHttpUriRequest(server), new BasicResponseHandler()]                                              | URI           | false
-    [getHttpUriRequest(server), new BasicResponseHandler(), new BasicHttpContext()]                      | URI           | false
-    [getHttpHost(server), getHttpUriRequest(server)]                                                     | URI           | true
-    [getHttpHost(server), getHttpUriRequest(server), new BasicHttpContext()]                             | URI           | true
-    [getHttpHost(server), getHttpUriRequest(server), new BasicResponseHandler()]                         | URI           | true
-    [getHttpHost(server), getHttpUriRequest(server), new BasicResponseHandler(), new BasicHttpContext()] | URI           | true
-    [getHttpHost(server), getHttpRequest(server)]                                                        | String        | true
-    [getHttpHost(server), getHttpRequest(server), new BasicHttpContext()]                                | String        | true
-    [getHttpHost(server), getHttpRequest(server), new BasicResponseHandler()]                            | String        | true
-    [getHttpHost(server), getHttpRequest(server), new BasicResponseHandler(), new BasicHttpContext()]    | String        | true
+    args << [
+      [getHttpUriRequest(server)],
+      [getHttpUriRequest(server), new BasicHttpContext()],
+      [getHttpUriRequest(server), new BasicResponseHandler()],
+      [getHttpUriRequest(server), new BasicResponseHandler(), new BasicHttpContext()],
+      [getHttpHost(server), getHttpUriRequest(server)],
+      [getHttpHost(server), getHttpUriRequest(server), new BasicHttpContext()],
+      [getHttpHost(server), getHttpUriRequest(server), new BasicResponseHandler()],
+      [getHttpHost(server), getHttpUriRequest(server), new BasicResponseHandler(), new BasicHttpContext()],
+      [getHttpHost(server), getHttpRequest(server)],
+      [getHttpHost(server), getHttpRequest(server), new BasicHttpContext()],
+      [getHttpHost(server), getHttpRequest(server), new BasicResponseHandler()],
+      [getHttpHost(server), getHttpRequest(server), new BasicResponseHandler(), new BasicHttpContext()]
+    ]
   }
 
   private static org.apache.http.client.methods.HttpUriRequest getHttpUriRequest(final server){
