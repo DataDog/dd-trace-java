@@ -1,15 +1,20 @@
 package datadog.trace.instrumentation.jetty;
 
+import static datadog.trace.api.gateway.Events.EVENTS;
 import static java.lang.invoke.MethodHandles.collectArguments;
 import static java.lang.invoke.MethodHandles.lookup;
 import static java.lang.invoke.MethodType.methodType;
 
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.appsec.api.blocking.BlockingException;
+import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import java.io.OutputStream;
 import java.io.PrintWriter;
@@ -19,6 +24,7 @@ import java.lang.invoke.MethodType;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.function.BiFunction;
 import org.eclipse.jetty.io.EndPoint;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
@@ -240,6 +246,26 @@ public class JettyBlockingHelper {
       Request request, Response response, Flow.Action.RequestBlockingAction rba, AgentSpan span) {
     if (!block(request, response, rba, span)) {
       throw new BlockingException("Throwing after being unable to commit blocking response");
+    }
+  }
+
+  public static void maybeBlockOnSession(
+      final RequestContext reqCtx, final String requestedSessionId) {
+    if (requestedSessionId != null && reqCtx != null) {
+      final CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+      if (cbp == null) {
+        return;
+      }
+      final BiFunction<RequestContext, String, Flow<Void>> addrCallback =
+          cbp.getCallback(EVENTS.requestSession());
+      if (addrCallback == null) {
+        return;
+      }
+      final Flow<Void> flow = addrCallback.apply(reqCtx, requestedSessionId);
+      Flow.Action action = flow.getAction();
+      if (action instanceof Flow.Action.RequestBlockingAction) {
+        throw new BlockingException("Blocked request (for sessionId)");
+      }
     }
   }
 }

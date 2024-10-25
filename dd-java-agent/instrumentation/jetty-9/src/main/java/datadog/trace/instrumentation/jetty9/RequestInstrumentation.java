@@ -10,9 +10,14 @@ import static datadog.trace.instrumentation.jetty9.JettyDecorator.DD_SERVLET_PAT
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.trace.advice.ActiveRequestContext;
+import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.instrumentation.jetty.JettyBlockingHelper;
 import javax.servlet.http.HttpServletRequest;
 import net.bytebuddy.asm.Advice;
 import org.eclipse.jetty.http.HttpFields;
@@ -45,6 +50,9 @@ public final class RequestInstrumentation extends InstrumenterModule.Tracing
     transformer.applyAdvice(
         named("setServletPath").and(takesArgument(0, String.class)),
         RequestInstrumentation.class.getName() + "$SetServletPathAdvice");
+    transformer.applyAdvice(
+        named("setRequestedSessionId").and(takesArgument(0, String.class)),
+        RequestInstrumentation.class.getName() + "$SetRequestedSessionIdAdvice");
   }
 
   /**
@@ -89,6 +97,20 @@ public final class RequestInstrumentation extends InstrumenterModule.Tracing
       connection.run();
       request.getContextPath();
       fields.getField(0);
+    }
+  }
+
+  /**
+   * Because we are processing the initial request before the requestedSessionId is set, we must
+   * update it when it is actually set.
+   */
+  @RequiresRequestContext(RequestContextSlot.APPSEC)
+  public static class SetRequestedSessionIdAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void updateContextPath(
+        @ActiveRequestContext RequestContext reqCtx,
+        @Advice.Argument(0) final String requestedSessionId) {
+      JettyBlockingHelper.maybeBlockOnSession(reqCtx, requestedSessionId);
     }
   }
 }

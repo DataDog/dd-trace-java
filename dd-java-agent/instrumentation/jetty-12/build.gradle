@@ -39,6 +39,9 @@ dependencies {
   main_java17CompileOnly ("org.eclipse.jetty:jetty-server:12.0.0") {
     exclude group: 'org.slf4j', module: 'slf4j-api'
   }
+  main_java17CompileOnly ("org.eclipse.jetty:jetty-session:12.0.0") {
+    exclude group: 'org.slf4j', module: 'slf4j-api'
+  }
   main_java17Implementation project(':dd-java-agent:instrumentation:jetty-common')
   implementation project(':dd-java-agent:instrumentation:jetty-common')
 
@@ -60,6 +63,9 @@ dependencies {
   testRuntimeOnly(project(':dd-java-agent:instrumentation:jetty-util'))
 
   latestDepTestImplementation ("org.eclipse.jetty:jetty-server:12.+") {
+    exclude group: 'org.slf4j', module: 'slf4j-api'
+  }
+  latestDepTestImplementation ("org.eclipse.jetty:jetty-session:12.+") {
     exclude group: 'org.slf4j', module: 'slf4j-api'
   }
 
