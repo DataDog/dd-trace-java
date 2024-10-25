@@ -345,6 +345,8 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     rootSpan.span.metaStruct != null
     def stack = rootSpan.span.metaStruct.get('_dd.stack')
     assert stack != null, 'stack is not set'
+    def exploit = stack.get('exploit')
+    assert exploit != null, 'exploit is not set'
   }
 
   void 'rasp blocks on sql injection'() {
