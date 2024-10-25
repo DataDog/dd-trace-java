@@ -34,6 +34,14 @@ public interface DataStreamsCheckpointer {
    */
   void setProduceCheckpoint(String type, String target, DataStreamsContextCarrier carrier);
 
+  /**
+   * @param transactionID The unique organization-level identifier for the transaction
+   *     such as a UUID or other hashed identifier. It is defined by the user and should be non-null.
+   * @param carrier An interface to the context carrier, from which the context will be extracted. I.e.
+   *     wrapper around message headers.
+   */
+  void trackTransaction(String transactionID, DataStreamsContextCarrier carrier);
+
   final class NoOp implements DataStreamsCheckpointer {
 
     public static final DataStreamsCheckpointer INSTANCE = new NoOp();
@@ -45,5 +53,9 @@ public interface DataStreamsCheckpointer {
     @Override
     public void setProduceCheckpoint(
         String type, String target, DataStreamsContextCarrier carrier) {}
+
+    @Override
+    public void trackTransaction(
+        String transactionID, DataStreamsContextCarrier carrier) {}
   }
 }
