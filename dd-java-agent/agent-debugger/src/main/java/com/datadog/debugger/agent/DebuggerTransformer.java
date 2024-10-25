@@ -152,7 +152,10 @@ public class DebuggerTransformer implements ClassFileTransformer {
             DebuggerMetrics.getInstance(config),
             new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl(), false),
             new SnapshotSink(
-                config, "", new BatchUploader(config, config.getFinalDebuggerSnapshotUrl())),
+                config,
+                "",
+                new BatchUploader(
+                    config, config.getFinalDebuggerSnapshotUrl(), SnapshotSink.RETRY_POLICY)),
             new SymbolSink(config)));
   }
 
@@ -684,7 +687,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
     for (ProbeDefinition definition : capturedContextProbes) {
       if (definition instanceof LogProbe) {
         if (definition instanceof ForceMethodInstrumentation) {
-          where = Where.convertLineToMethod(where, classFileLines);
+          where = Where.convertLineToMethod(definition.getWhere(), classFileLines);
         }
         hasLogProbe = true;
         LogProbe logProbe = (LogProbe) definition;
