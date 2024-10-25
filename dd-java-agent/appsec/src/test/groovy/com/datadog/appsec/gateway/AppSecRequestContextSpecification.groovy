@@ -134,7 +134,6 @@ class AppSecRequestContextSpecification extends DDSpecification {
 
     then:
     result.size() == 1
-    result.size() == 1
     result[0].id == 'id'
     result[0].message == 'message'
     result[0].language == 'java'
