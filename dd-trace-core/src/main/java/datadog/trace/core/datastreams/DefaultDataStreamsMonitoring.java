@@ -294,6 +294,40 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     setProduceCheckpoint(type, target, carrier, true);
   }
 
+  public void trackTransaction(String transactionID, DataStreamsContextCarrier carrier) {
+    if (transactionID == null || transactionID.isEmpty()) {
+      log.warn("trackTransaction called with invalid transactionID");
+      return;
+    }
+
+    AgentSpan span = AgentTracer.activeSpan();
+    if (span == null) {
+      log.warn("No active span found in trackTransaction");
+      return;
+    }
+
+    // merge the transaction ID into the span's context
+    span.setTag("transaction.id", transactionID);
+
+    // store the transaction ID in the carrier for propagation
+    carrier.set("transaction.id", transactionID);
+
+    // handle the pathway context
+    PathwayContext pathwayContext = span.context().getPathwayContext();
+    if (pathwayContext == null || !pathwayContext.isStarted()) {
+      pathwayContext = new DefaultPathwayContext(timeSource, hashOfKnownTags);
+      span.context().mergePathwayContext(pathwayContext);
+    }
+
+    // inject the pathway context into the carrier with sorted tags
+    LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+    sortedTags.put("transaction.id", transactionID);
+    injector.injectPathwayContext(
+        span, carrier, DataStreamsContextCarrierAdapter.INSTANCE, sortedTags, 0, 0, true
+    );
+  }
+
+
   @Override
   public void close() {
     if (null != cancellation) {
