@@ -302,6 +302,7 @@ public class Config {
   private final boolean iastAnonymousClassesEnabled;
   private final boolean iastSourceMappingEnabled;
   private final int iastSourceMappingMaxSize;
+  private final boolean iastExperimentalPropagationEnabled;
 
   private final boolean ciVisibilityTraceSanitationEnabled;
   private final boolean ciVisibilityAgentlessEnabled;
@@ -1297,6 +1298,8 @@ public class Config {
             IAST_ANONYMOUS_CLASSES_ENABLED, DEFAULT_IAST_ANONYMOUS_CLASSES_ENABLED);
     iastSourceMappingEnabled = configProvider.getBoolean(IAST_SOURCE_MAPPING_ENABLED, false);
     iastSourceMappingMaxSize = configProvider.getInteger(IAST_SOURCE_MAPPING_MAX_SIZE, 1000);
+    iastExperimentalPropagationEnabled =
+        configProvider.getBoolean(IAST_EXPERIMENTAL_PROPAGATION_ENABLED, false);
 
     ciVisibilityTraceSanitationEnabled =
         configProvider.getBoolean(CIVISIBILITY_TRACE_SANITATION_ENABLED, true);
@@ -2554,6 +2557,10 @@ public class Config {
 
   public boolean isIastAnonymousClassesEnabled() {
     return iastAnonymousClassesEnabled;
+  }
+
+  public boolean isIastExperimentalPropagationEnabled() {
+    return iastExperimentalPropagationEnabled;
   }
 
   public boolean isCiVisibilityEnabled() {

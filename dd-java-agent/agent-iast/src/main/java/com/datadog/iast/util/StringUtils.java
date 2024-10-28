@@ -82,16 +82,12 @@ public abstract class StringUtils {
     boolean result = matcher.find();
     if (result) {
       int offset = 0;
-
-      int newRangesSize = ranges.length * 2;
-      if (rangesInput != null) {
-        newRangesSize += rangesInput.length;
-      }
-      RangeBuilder newRanges = new RangeBuilder(newRangesSize);
+      RangeBuilder newRanges = new RangeBuilder();
 
       int firstRange = 0;
       int newLength = replacement.length();
 
+      boolean canAddRange = true;
       StringBuffer sb = new StringBuffer();
       do {
         int start = matcher.start();
@@ -99,7 +95,7 @@ public abstract class StringUtils {
         int diffLength = newLength - (end - start);
 
         boolean rangesAdded = false;
-        while (firstRange < ranges.length) {
+        while (firstRange < ranges.length && canAddRange) {
           Range range = ranges[firstRange];
           int rangeStart = range.getStart();
           int rangeEnd = rangeStart + range.getLength();
@@ -109,16 +105,16 @@ public abstract class StringUtils {
                 Ranges.splitRanges(start, end, newLength, range, offset, diffLength);
 
             if (splittedRanges.length > 0 && splittedRanges[0].getLength() > 0) {
-              newRanges.add(splittedRanges[0]);
+              canAddRange = newRanges.add(splittedRanges[0]);
             }
 
             if (rangesInput != null) {
-              newRanges.add(rangesInput, start + offset);
+              canAddRange = newRanges.add(rangesInput, start + offset);
               rangesAdded = true;
             }
 
             if (splittedRanges.length > 1 && splittedRanges[1].getLength() > 0) {
-              newRanges.add(splittedRanges[1]);
+              canAddRange = newRanges.add(splittedRanges[1]);
             }
 
             firstRange++;
@@ -129,11 +125,11 @@ public abstract class StringUtils {
                 Ranges.splitRanges(start, end, newLength, range, offset, diffLength);
 
             if (splittedRanges.length > 0 && splittedRanges[0].getLength() > 0) {
-              newRanges.add(splittedRanges[0]);
+              canAddRange = newRanges.add(splittedRanges[0]);
             }
 
             if (rangesInput != null && !rangesAdded) {
-              newRanges.add(rangesInput, start + offset);
+              canAddRange = newRanges.add(rangesInput, start + offset);
               rangesAdded = true;
             }
 
@@ -143,12 +139,12 @@ public abstract class StringUtils {
                 Ranges.splitRanges(start, end, newLength, range, offset, diffLength);
 
             if (rangesInput != null && !rangesAdded) {
-              newRanges.add(rangesInput, start + offset);
+              canAddRange = newRanges.add(rangesInput, start + offset);
               rangesAdded = true;
             }
 
             if (splittedRanges.length > 1 && splittedRanges[1].getLength() > 0) {
-              newRanges.add(splittedRanges[1]);
+              canAddRange = newRanges.add(splittedRanges[1]);
             }
 
             firstRange++;
@@ -158,16 +154,15 @@ public abstract class StringUtils {
             firstRange++;
             continue;
           } else {
-            newRanges.add(
-                Ranges.copyWithPosition(range, range.getStart() + offset, range.getLength()));
+            canAddRange = newRanges.add(range, rangeStart + offset);
           }
 
           firstRange++;
         }
 
         // In case there are no ranges
-        if (rangesInput != null && !rangesAdded) {
-          newRanges.add(rangesInput, start + offset);
+        if (rangesInput != null && !rangesAdded && canAddRange) {
+          canAddRange = newRanges.add(rangesInput, start + offset);
         }
 
         matcher.appendReplacement(sb, replacement);
@@ -180,11 +175,9 @@ public abstract class StringUtils {
       } while (result && numOfReplacements > 0);
 
       // In the case there is no tainted object
-      if (firstRange < ranges.length) {
-        for (int i = firstRange; i < ranges.length; i++) {
-          newRanges.add(
-              Ranges.copyWithPosition(
-                  ranges[i], ranges[i].getStart() + offset, ranges[i].getLength()));
+      if (firstRange < ranges.length && canAddRange) {
+        for (int i = firstRange; i < ranges.length && canAddRange; i++) {
+          canAddRange = newRanges.add(ranges[i], offset);
         }
       }
 

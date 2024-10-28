@@ -6,12 +6,16 @@ import datadog.trace.api.iast.propagation.StringModule
 import foo.bar.TestStringSuite
 import groovy.transform.CompileDynamic
 
+import static datadog.trace.api.config.IastConfig.IAST_ENABLED
+import static datadog.trace.api.config.IastConfig.IAST_EXPERIMENTAL_PROPAGATION_ENABLED
+
 @CompileDynamic
 class StringCallSiteTest extends AgentTestRunner {
 
   @Override
   protected void configurePreAgent() {
-    injectSysConfig("dd.iast.enabled", "true")
+    injectSysConfig(IAST_ENABLED, "true")
+    injectSysConfig(IAST_EXPERIMENTAL_PROPAGATION_ENABLED, "true")
   }
 
   def 'test string concat call site'() {

@@ -47,11 +47,15 @@ public class RangeBuilder {
   }
 
   public boolean add(final Range range) {
+    return add(range, 0);
+  }
+
+  public boolean add(final Range range, final int offset) {
     if (size >= maxSize) {
       return false;
     }
     if (head == null) {
-      addNewEntry(new SingleEntry(range));
+      addNewEntry(new SingleEntry(range.shift(offset)));
     } else {
       final ArrayEntry entry;
       if (tail instanceof ArrayEntry && tail.size() < arrayChunkSize) {
@@ -60,7 +64,7 @@ public class RangeBuilder {
         entry = new ArrayEntry(arrayChunkSize);
         addNewEntry(entry);
       }
-      entry.add(range);
+      entry.add(range.shift(offset));
     }
     size += 1;
     return true;

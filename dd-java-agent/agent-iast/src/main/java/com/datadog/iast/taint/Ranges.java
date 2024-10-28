@@ -451,7 +451,7 @@ public final class Ranges {
     int secondLength = range.getLength() - firstLength - newLength + diffLength;
     if (rangeStart > end || rangeEnd <= start) {
       if (firstLength <= 0) {
-        return new Range[0];
+        return Ranges.EMPTY;
       }
       return new Range[] {copyWithPosition(range, rangeStart, firstLength)};
     }
