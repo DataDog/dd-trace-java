@@ -13,6 +13,7 @@ import static org.mockito.Mockito.when;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
+import com.datadog.debugger.probe.Sampling;
 import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.TriggerProbe;
 import com.datadog.debugger.sink.DebuggerSink;
@@ -346,7 +347,7 @@ public class CapturingTestBase {
         .captureSnapshot(true)
         .where(typeName, methodName, signature, lines)
         // Increase sampling limit to avoid being sampled during tests
-        .sampling(new LogProbe.Sampling(100));
+        .sampling(new Sampling(100));
   }
 
   protected TestSnapshotListener installProbes(

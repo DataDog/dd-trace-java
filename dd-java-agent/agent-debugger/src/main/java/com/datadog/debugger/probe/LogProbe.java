@@ -45,7 +45,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Stores definition of a log probe */
-public class LogProbe extends ProbeDefinition {
+public class LogProbe extends ProbeDefinition implements Sampled {
   private static final Logger LOGGER = LoggerFactory.getLogger(LogProbe.class);
   private static final Limits LIMITS = new Limits(1, 3, 8192, 5);
   private static final int LOG_MSG_LIMIT = 8192;
@@ -216,40 +216,6 @@ public class LogProbe extends ProbeDefinition {
           capture.maxCollectionSize,
           capture.maxLength,
           capture.maxFieldCount);
-    }
-  }
-
-  /** Stores sampling configuration */
-  public static final class Sampling {
-    private final double snapshotsPerSecond;
-
-    public Sampling(double snapshotsPerSecond) {
-      this.snapshotsPerSecond = snapshotsPerSecond;
-    }
-
-    public double getSnapshotsPerSecond() {
-      return snapshotsPerSecond;
-    }
-
-    @Generated
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
-      Sampling sampling = (Sampling) o;
-      return Double.compare(sampling.snapshotsPerSecond, snapshotsPerSecond) == 0;
-    }
-
-    @Generated
-    @Override
-    public int hashCode() {
-      return Objects.hash(snapshotsPerSecond);
-    }
-
-    @Generated
-    @Override
-    public String toString() {
-      return "Sampling{" + "snapshotsPerSecond=" + snapshotsPerSecond + '}';
     }
   }
 

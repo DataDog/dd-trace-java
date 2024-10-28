@@ -14,14 +14,17 @@ import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
+import com.datadog.debugger.probe.Sampling;
 import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.probe.TriggerProbe;
+import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Types;
 import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.MethodLocation;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
 import java.util.ArrayList;
@@ -294,7 +297,7 @@ public class ConfigurationTest {
     Configuration.FilterList denyList =
         new Configuration.FilterList(
             asList("java.security"), asList("javax.security.auth.AuthPermission"));
-    LogProbe.Sampling globalSampling = new LogProbe.Sampling(10.0);
+    Sampling globalSampling = new Sampling(10.0);
     return new Configuration(
         "service1",
         asList(metric1),
@@ -342,7 +345,7 @@ public class ConfigurationTest {
     Configuration.FilterList denyList =
         new Configuration.FilterList(
             asList("java.security"), asList("javax.security.auth.AuthPermission"));
-    LogProbe.Sampling globalSampling = new LogProbe.Sampling(10.0);
+    Sampling globalSampling = new Sampling(10.0);
     return new Configuration(
         "service2",
         asList(metric2),
@@ -406,12 +409,7 @@ public class ConfigurationTest {
 
   private static TriggerProbe createTriggerProbe(
       String id, String typeName, String methodName, String signature) {
-    return TriggerProbe.builder()
-        .language("java")
-        .probeId(id, 0)
-        .where(typeName, methodName, signature)
-        .evaluateAt(MethodLocation.ENTRY)
-        .build();
+    return new TriggerProbe(new ProbeId(id, 0), Where.of(typeName, methodName, signature));
   }
 
   private static SpanProbe createSpan(

@@ -9,6 +9,8 @@ import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
+import com.datadog.debugger.probe.Sampled;
+import com.datadog.debugger.probe.Sampling;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.util.ExceptionHelper;
 import datadog.trace.api.Config;
@@ -236,13 +238,12 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
     return definition;
   }
 
-  private static void applyRateLimiter(
-      ConfigurationComparer changes, LogProbe.Sampling globalSampling) {
+  private static void applyRateLimiter(ConfigurationComparer changes, Sampling globalSampling) {
     // ensure rate is up-to-date for all new probes
-    for (ProbeDefinition addedDefinitions : changes.getAddedDefinitions()) {
-      if (addedDefinitions instanceof LogProbe) {
-        LogProbe probe = (LogProbe) addedDefinitions;
-        LogProbe.Sampling sampling = probe.getSampling();
+    for (ProbeDefinition added : changes.getAddedDefinitions()) {
+      if (added instanceof Sampled) {
+        Sampled probe = (Sampled) added;
+        Sampling sampling = probe.getSampling();
         ProbeRateLimiter.setRate(
             probe.getId(),
             sampling != null
@@ -263,7 +264,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
     }
   }
 
-  private static double getDefaultRateLimitPerProbe(LogProbe probe) {
+  private static double getDefaultRateLimitPerProbe(Sampled probe) {
     return probe.isCaptureSnapshot()
         ? ProbeRateLimiter.DEFAULT_SNAPSHOT_RATE
         : ProbeRateLimiter.DEFAULT_LOG_RATE;
