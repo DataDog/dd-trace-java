@@ -54,31 +54,17 @@ public class HandlerMappingResourceNameFilter extends OncePerRequestFilter imple
       return;
     }
 
-    DataDogHttpServletResponseWrapper wrapper = new DataDogHttpServletResponseWrapper(response);
+    ContentCachingResponseWrapper wrapper = new ContentCachingResponseWrapper(response);
 
     filterChain.doFilter(request, wrapper);
-    if (wrapper.getUseOutput()) {
-      //System.out.println("ResponseFilter use output");
-      String responseStr = wrapper.flushStreamBuffer();
-      if (!Objects.equals(responseStr, "")) {
-        if (parentSpan != null){
-          ((AgentSpan) parentSpan).setTag("response_body", responseStr);
-        }
+    log.debug("wrapper.getContentType() >>>> :{}",wrapper.getContentType());
+    if (wrapper.getContentType().contains("application/json")) {
+      byte[] data = wrapper.getContentAsByteArray();
+      // 将data存储到数据库或文件
+      wrapper.copyBodyToResponse();
+      if (parentSpan != null){
+        ((AgentSpan) parentSpan).setTag("response_body", new String(data));
       }
-
-      return;
-    }
-
-    if (wrapper.getUseWrite()) {
-      //System.out.println("ResponseFilter use getWrite");
-      wrapper.flushBuffer();
-      String responseStr = wrapper.getWriteJsonString();
-      if (!Objects.equals(responseStr, "")) {
-        if (parentSpan != null){
-          ((AgentSpan) parentSpan).setTag("response_body", responseStr);
-        }
-      }
-      return;
     }
   }
 
