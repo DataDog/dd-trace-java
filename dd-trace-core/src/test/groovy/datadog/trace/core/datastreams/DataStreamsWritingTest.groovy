@@ -83,6 +83,7 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     dataStreams.add(new StatsPoint([], 9, 0, 10, timeSource.currentTimeNanos, 0, 0, 0, serviceNameOverride))
     dataStreams.trackBacklog(new LinkedHashMap<>(["partition": "1", "topic": "testTopic", "type": "kafka_produce"]), 130)
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
+    dataStreams.setThreadServiceName(Thread.currentThread().getId(), null)
     // force flush
     dataStreams.report()
     dataStreams.close()
