@@ -32,6 +32,7 @@ import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.source.MethodLinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
+import datadog.trace.civisibility.source.SourceResolutionException;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.function.Consumer;
@@ -147,8 +148,14 @@ public class TestImpl implements DDTest {
       return;
     }
 
-    String sourcePath = sourcePathResolver.getSourcePath(testClass);
-    if (sourcePath == null || sourcePath.isEmpty()) {
+    String sourcePath;
+    try {
+      sourcePath = sourcePathResolver.getSourcePath(testClass);
+      if (sourcePath == null || sourcePath.isEmpty()) {
+        return;
+      }
+    } catch (SourceResolutionException e) {
+      log.debug("Could not populate source path for {}", testClass, e);
       return;
     }
 

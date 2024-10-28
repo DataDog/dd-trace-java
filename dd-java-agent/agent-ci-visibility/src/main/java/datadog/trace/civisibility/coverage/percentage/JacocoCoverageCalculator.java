@@ -9,6 +9,7 @@ import datadog.trace.civisibility.ipc.AckResponse;
 import datadog.trace.civisibility.ipc.ModuleCoverageDataJacoco;
 import datadog.trace.civisibility.ipc.SignalResponse;
 import datadog.trace.civisibility.ipc.SignalType;
+import datadog.trace.civisibility.source.SourceResolutionException;
 import datadog.trace.civisibility.source.index.RepoIndex;
 import datadog.trace.civisibility.source.index.RepoIndexProvider;
 import datadog.trace.util.Strings;
@@ -312,13 +313,19 @@ public class JacocoCoverageCalculator implements CoverageCalculator {
 
     @Override
     protected InputStream getSourceStream(String path) throws IOException {
-      String relativePath = repoIndex.getSourcePath(path);
-      if (relativePath == null) {
+      try {
+        String relativePath = repoIndex.getSourcePath(path);
+        if (relativePath == null) {
+          return null;
+        }
+        String absolutePath =
+            repoRoot + (!repoRoot.endsWith(File.separator) ? File.separator : "") + relativePath;
+        return new BufferedInputStream(Files.newInputStream(Paths.get(absolutePath)));
+
+      } catch (SourceResolutionException e) {
+        LOGGER.debug("Could not resolve source for path {}", path, e);
         return null;
       }
-      String absolutePath =
-          repoRoot + (!repoRoot.endsWith(File.separator) ? File.separator : "") + relativePath;
-      return new BufferedInputStream(Files.newInputStream(Paths.get(absolutePath)));
     }
   }
 
@@ -354,7 +361,13 @@ public class JacocoCoverageCalculator implements CoverageCalculator {
         String fileName = sourceFile.getName();
         String pathRelativeToSourceRoot =
             (Strings.isNotBlank(packageName) ? packageName + "/" : "") + fileName;
-        String pathRelativeToIndexRoot = repoIndex.getSourcePath(pathRelativeToSourceRoot);
+        String pathRelativeToIndexRoot;
+        try {
+          pathRelativeToIndexRoot = repoIndex.getSourcePath(pathRelativeToSourceRoot);
+        } catch (SourceResolutionException e) {
+          LOGGER.debug("Could not resolve source for path {}", pathRelativeToSourceRoot, e);
+          continue;
+        }
 
         BitSet sourceFileCoveredLines = getCoveredLines(sourceFile);
         // backendCoverageData contains data for all modules in the repo,

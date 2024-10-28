@@ -64,8 +64,12 @@ public class Where {
       if (methodsByLine != null && !methodsByLine.isEmpty()) {
         // pick the first method, as we can have multiple methods (lambdas) on the same line
         MethodNode method = methodsByLine.get(0);
-        String javaSignature = Types.descriptorToSignature(method.desc);
-        return new Where(lineWhere.typeName, method.name, javaSignature, (SourceLine[]) null, null);
+        return new Where(
+            lineWhere.typeName,
+            method.name,
+            Types.descriptorToSignature(method.desc),
+            new SourceLine[0],
+            null);
       }
     }
     throw new IllegalArgumentException("Invalid where to convert from line to method " + lineWhere);

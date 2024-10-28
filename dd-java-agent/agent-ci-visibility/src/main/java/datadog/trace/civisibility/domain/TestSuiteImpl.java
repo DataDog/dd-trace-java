@@ -19,12 +19,17 @@ import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.source.MethodLinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
+import datadog.trace.civisibility.source.SourceResolutionException;
 import datadog.trace.civisibility.utils.SpanUtils;
 import java.lang.reflect.Method;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class TestSuiteImpl implements DDTestSuite {
+
+  private static final Logger log = LoggerFactory.getLogger(TestSuiteImpl.class);
 
   private final AgentSpan.Context moduleSpanContext;
   private final AgentSpan span;
@@ -106,13 +111,9 @@ public class TestSuiteImpl implements DDTestSuite {
     span.setTag(Tags.TEST_STATUS, TestStatus.skip);
 
     this.testClass = testClass;
-    if (this.testClass != null) {
-      if (config.isCiVisibilitySourceDataEnabled()) {
-        String sourcePath = sourcePathResolver.getSourcePath(testClass);
-        if (sourcePath != null && !sourcePath.isEmpty()) {
-          span.setTag(Tags.TEST_SOURCE_FILE, sourcePath);
-        }
-      }
+
+    if (config.isCiVisibilitySourceDataEnabled()) {
+      populateSourceDataTags(testClass, sourcePathResolver);
     }
 
     testDecorator.afterStart(span);
@@ -126,6 +127,20 @@ public class TestSuiteImpl implements DDTestSuite {
 
     if (instrumentationType == InstrumentationType.MANUAL_API) {
       metricCollector.add(CiVisibilityCountMetric.MANUAL_API_EVENTS, 1, EventType.SUITE);
+    }
+  }
+
+  private void populateSourceDataTags(Class<?> testClass, SourcePathResolver sourcePathResolver) {
+    if (this.testClass == null) {
+      return;
+    }
+    try {
+      String sourcePath = sourcePathResolver.getSourcePath(testClass);
+      if (sourcePath != null && !sourcePath.isEmpty()) {
+        span.setTag(Tags.TEST_SOURCE_FILE, sourcePath);
+      }
+    } catch (SourceResolutionException e) {
+      log.debug("Could not populate source path for {}", testClass, e);
     }
   }
 
