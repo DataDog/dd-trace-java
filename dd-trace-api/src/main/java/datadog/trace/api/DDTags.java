@@ -22,6 +22,7 @@ public class DDTags {
   public static final String SCHEMA_TOPIC = "schema.topic";
   public static final String SCHEMA_OPERATION = "schema.operation";
   public static final String SCHEMA_NAME = "schema.name";
+  public static final String TRANSACTION_ID = "transaction.id";
 
   public static final String HTTP_QUERY = "http.query.string";
   public static final String HTTP_FRAGMENT = "http.fragment.string";

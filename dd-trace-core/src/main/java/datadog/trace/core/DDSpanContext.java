@@ -767,6 +767,8 @@ public class DDSpanContext
 
   Object getTag(final String key) {
     switch (key) {
+      case DDTags.TRANSACTION_ID:
+          return getTransactionId();
       case DDTags.THREAD_ID:
         return threadId;
       case DDTags.THREAD_NAME:
@@ -782,6 +784,16 @@ public class DDSpanContext
         // maintain previously observable type of http url :|
         return value == null ? null : Tags.HTTP_URL.equals(key) ? value.toString() : value;
     }
+  }
+
+  /**
+   * Retrieves the transaction ID from the tags.
+   *
+   * @return the transaction ID if present; otherwise, null.
+   */
+  public String getTransactionId() {
+    Object transactionId = getTag("transaction.id");
+    return transactionId instanceof String ? (String) transactionId : null;
   }
 
   /**
