@@ -10,7 +10,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 
 @AutoService(InstrumenterModule.class)
-public final class AbstractSessionManagerInstrumentation extends InstrumenterModule.Tracing
+public final class AbstractSessionManagerInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
 
   public AbstractSessionManagerInstrumentation() {
