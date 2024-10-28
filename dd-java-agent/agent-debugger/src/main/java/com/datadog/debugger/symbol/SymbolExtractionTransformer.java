@@ -1,6 +1,6 @@
 package com.datadog.debugger.symbol;
 
-import com.datadog.debugger.util.ClassNameFiltering;
+import datadog.trace.bootstrap.debugger.DebuggerContext.ClassNameFilter;
 import java.lang.instrument.ClassFileTransformer;
 import java.security.ProtectionDomain;
 import org.slf4j.Logger;
@@ -11,10 +11,10 @@ public class SymbolExtractionTransformer implements ClassFileTransformer {
   private static final Logger LOGGER = LoggerFactory.getLogger(SymbolExtractionTransformer.class);
 
   private final SymbolAggregator symbolAggregator;
-  private final ClassNameFiltering classNameFiltering;
+  private final ClassNameFilter classNameFiltering;
 
   public SymbolExtractionTransformer(
-      SymbolAggregator symbolAggregator, ClassNameFiltering classNameFiltering) {
+      SymbolAggregator symbolAggregator, ClassNameFilter classNameFiltering) {
     this.symbolAggregator = symbolAggregator;
     this.classNameFiltering = classNameFiltering;
   }
@@ -45,7 +45,7 @@ public class SymbolExtractionTransformer implements ClassFileTransformer {
     }
   }
 
-  ClassNameFiltering getClassNameFiltering() {
+  ClassNameFilter getClassNameFiltering() {
     return classNameFiltering;
   }
 }

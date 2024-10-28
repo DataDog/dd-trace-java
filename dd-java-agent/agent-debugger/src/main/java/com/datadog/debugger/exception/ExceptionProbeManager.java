@@ -3,10 +3,10 @@ package com.datadog.debugger.exception;
 import com.datadog.debugger.probe.ExceptionProbe;
 import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.sink.Snapshot;
-import com.datadog.debugger.util.ClassNameFiltering;
 import com.datadog.debugger.util.ExceptionHelper;
 import com.datadog.debugger.util.WeakIdentityHashMap;
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.debugger.DebuggerContext.ClassNameFilter;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import java.time.Clock;
 import java.time.Duration;
@@ -28,7 +28,7 @@ public class ExceptionProbeManager {
 
   private final Map<String, Instant> fingerprints = new ConcurrentHashMap<>();
   private final Map<String, ExceptionProbe> probes = new ConcurrentHashMap<>();
-  private final ClassNameFiltering classNameFiltering;
+  private final ClassNameFilter classNameFiltering;
   // FIXME: if this becomes a bottleneck, find a way to make it concurrent weak identity hashmap
   private final Map<Throwable, ThrowableState> snapshotsByThrowable =
       Collections.synchronizedMap(new WeakIdentityHashMap<>());
@@ -36,7 +36,7 @@ public class ExceptionProbeManager {
   private final Clock clock;
   private final int maxCapturedFrames;
 
-  public ExceptionProbeManager(ClassNameFiltering classNameFiltering, Duration captureInterval) {
+  public ExceptionProbeManager(ClassNameFilter classNameFiltering, Duration captureInterval) {
     this(
         classNameFiltering,
         captureInterval,
@@ -44,7 +44,7 @@ public class ExceptionProbeManager {
         Config.get().getDebuggerExceptionMaxCapturedFrames());
   }
 
-  ExceptionProbeManager(ClassNameFiltering classNameFiltering) {
+  ExceptionProbeManager(ClassNameFilter classNameFiltering) {
     this(
         classNameFiltering,
         Duration.ofHours(1),
@@ -53,7 +53,7 @@ public class ExceptionProbeManager {
   }
 
   ExceptionProbeManager(
-      ClassNameFiltering classNameFiltering,
+      ClassNameFilter classNameFiltering,
       Duration captureInterval,
       Clock clock,
       int maxCapturedFrames) {
@@ -63,7 +63,7 @@ public class ExceptionProbeManager {
     this.maxCapturedFrames = maxCapturedFrames;
   }
 
-  public ClassNameFiltering getClassNameFiltering() {
+  public ClassNameFilter getClassNameFilter() {
     return classNameFiltering;
   }
 

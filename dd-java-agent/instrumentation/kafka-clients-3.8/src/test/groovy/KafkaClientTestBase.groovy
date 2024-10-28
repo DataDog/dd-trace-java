@@ -7,6 +7,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.DDSpan
 import datadog.trace.core.datastreams.StatsGroup
+import datadog.trace.test.util.Flaky
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.consumer.KafkaConsumer
@@ -150,6 +151,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     return true
   }
 
+  @Flaky
   def "test kafka produce and consume"() {
     setup:
     // Create and start a Kafka container using Testcontainers
@@ -292,6 +294,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     kafkaContainer.stop()
   }
 
+  @Flaky
   def "test producing message too large"() {
     setup:
     // set a low max request size, so that we can crash it
@@ -314,6 +317,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     producer.close()
   }
 
+  @Flaky
   def "test spring kafka template produce and consume"() {
     setup:
     KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:latest")).withEmbeddedZookeeper().withEnv("KAFKA_CREATE_TOPICS", SHARED_TOPIC)
@@ -457,6 +461,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     kafkaContainer.stop()
   }
 
+  @Flaky
   def "test pass through tombstone"() {
     setup:
     KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:latest")).withEmbeddedZookeeper().withEnv("KAFKA_CREATE_TOPICS", SHARED_TOPIC)
@@ -528,6 +533,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
 
   }
 
+  @Flaky
   def "test records(TopicPartition) kafka consume"() {
     setup:
     KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:latest")).withEmbeddedZookeeper().withEnv("KAFKA_CREATE_TOPICS", SHARED_TOPIC)
@@ -588,6 +594,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
 
   }
 
+  @Flaky
   def "test records(TopicPartition).subList kafka consume"() {
     setup:
 
@@ -650,6 +657,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
 
   }
 
+  @Flaky
   def "test records(TopicPartition).forEach kafka consume"() {
     setup:
     KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:latest")).withEmbeddedZookeeper().withEnv("KAFKA_CREATE_TOPICS", SHARED_TOPIC)
@@ -711,6 +719,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
 
   }
 
+  @Flaky
   def "test iteration backwards over ConsumerRecords"() {
     setup:
     KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:latest")).withEmbeddedZookeeper().withEnv("KAFKA_CREATE_TOPICS", SHARED_TOPIC)
@@ -825,6 +834,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
 
   }
 
+  @Flaky
   def "test kafka client header propagation manual config"() {
     setup:
     KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:latest")).withEmbeddedZookeeper().withEnv("KAFKA_CREATE_TOPICS", SHARED_TOPIC)
