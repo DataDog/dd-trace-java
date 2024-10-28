@@ -148,12 +148,10 @@ class DataStreamsWritingTest extends DDCoreSpecification {
 
     then:
     conditions.eventually {
-      assert requestBodies.size() > 0
+      assert requestBodies.size() == 1
     }
 
-    for (int i = 0; i < requestBodies.size(); i++) {
-      validateMessage(requestBodies[i])
-    }
+    validateMessage(requestBodies[0])
   }
 
   def validateMessage(byte[] message) {
