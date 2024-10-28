@@ -186,6 +186,11 @@ public class CiVisibilityGradleListener extends BuildAdapter
     Map<String, Object> inputProperties = task.getInputs().getProperties();
     BuildModuleLayout moduleLayout =
         (BuildModuleLayout) inputProperties.get(CiVisibilityPluginExtension.MODULE_LAYOUT_PROPERTY);
+    if (moduleLayout.getSourceSets().isEmpty()
+        && project.getExtensions().findByName("android") != null) {
+      moduleLayout = AndroidGradleUtils.getAndroidModuleLayout(project, task);
+    }
+
     JavaAgent jacocoAgent = getJacocoAgent(task);
 
     Path jvmExecutable = CiVisibilityPluginExtension.getEffectiveExecutable(task);

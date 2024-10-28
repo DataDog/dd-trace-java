@@ -36,7 +36,7 @@ instrumentation_modules: &instrumentation_modules "dd-java-agent/instrumentation
 debugger_modules: &debugger_modules "dd-java-agent/agent-debugger|dd-java-agent/agent-bootstrap|dd-java-agent/agent-builder|internal-api|communication|dd-trace-core"
 profiling_modules: &profiling_modules "dd-java-agent/agent-profiling"
 
-default_system_tests_commit: &default_system_tests_commit c87bd359aad64a29f280fc5c70a879f7c7f4846e
+default_system_tests_commit: &default_system_tests_commit 53d9b2c43876a39e5c0426f4df4dd5fd79d062e8
 
 parameters:
   nightly:
@@ -971,19 +971,20 @@ jobs:
             cd system-tests
             set +e
             RUN_ATTEMPTS=1
-            while [ $RUN_ATTEMPTS -le 3 ]; do
+            MAX_ATTEMPTS=1 # Disable retries as the runner is supposed to be stable. Revert to 3 if needed.
+            while [ $RUN_ATTEMPTS -le $MAX_ATTEMPTS ]; do
               echo "Running parametric test attempt $RUN_ATTEMPTS"
-              timeout 20m ./run.sh PARAMETRIC -L java --log-cli-level=DEBUG --durations=30 -vv
+              timeout 20m ./run.sh PARAMETRIC --library java --durations=30 -vv
               status=$?
-              #timneout returns 124 if it times out
-              #if the return code is not 124, then we exit with the status
+              # timeout returns 124 if it times out
+              # if the return code is not 124, then we exit with the status
               if [ $status -ne 124 ]; then
                 exit $status
                 break
               fi
               RUN_ATTEMPTS=$((RUN_ATTEMPTS+1))
-              if [ $RUN_ATTEMPTS -eq 4 ]; then
-                #Max attempts reached, exit with 124
+              if [ $RUN_ATTEMPTS -gt $MAX_ATTEMPTS ]; then
+                # Max attempts reached, exit with 124
                 exit 124
               fi
             done
@@ -994,9 +995,11 @@ jobs:
       - run:
           name: Collect artifacts
           command: tar -cvzf logs_java_parametric_dev.tar.gz -C system-tests logs_parametric
+          when: always
 
       - store_artifacts:
           path: logs_java_parametric_dev.tar.gz
+          when: always
 
 
 build_test_jobs: &build_test_jobs

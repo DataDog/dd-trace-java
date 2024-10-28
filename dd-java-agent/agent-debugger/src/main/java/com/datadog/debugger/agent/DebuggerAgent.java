@@ -3,7 +3,6 @@ package com.datadog.debugger.agent;
 import static com.datadog.debugger.agent.ConfigurationAcceptor.Source.REMOTE_CONFIG;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
-import com.datadog.debugger.codeorigin.CodeOriginProbeManager;
 import com.datadog.debugger.codeorigin.DefaultCodeOriginRecorder;
 import com.datadog.debugger.exception.DefaultExceptionDebugger;
 import com.datadog.debugger.exception.ExceptionProbeManager;
@@ -25,6 +24,7 @@ import datadog.trace.api.flare.TracerFlare;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
+import datadog.trace.bootstrap.debugger.DebuggerContext.ClassNameFilter;
 import datadog.trace.bootstrap.debugger.util.Redaction;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.DDTraceCoreInfo;
@@ -70,7 +70,7 @@ public class DebuggerAgent {
             config, diagnosticEndpoint, ddAgentFeaturesDiscovery.supportsDebuggerDiagnostics());
     DebuggerSink debuggerSink = createDebuggerSink(config, probeStatusSink);
     debuggerSink.start();
-    ClassNameFiltering classNameFiltering = new ClassNameFiltering(config);
+    ClassNameFilter classNameFilter = new ClassNameFiltering(config);
     ConfigurationUpdater configurationUpdater =
         new ConfigurationUpdater(
             instrumentation,
@@ -87,21 +87,20 @@ public class DebuggerAgent {
     snapshotSerializer = new JsonSnapshotSerializer();
     DebuggerContext.initValueSerializer(snapshotSerializer);
     DebuggerContext.initTracer(new DebuggerTracer(debuggerSink.getProbeStatusSink()));
+    DebuggerContext.initClassNameFilter(classNameFilter);
     DefaultExceptionDebugger defaultExceptionDebugger = null;
     if (config.isDebuggerExceptionEnabled()) {
       LOGGER.info("Starting Exception Replay");
       defaultExceptionDebugger =
           new DefaultExceptionDebugger(
               configurationUpdater,
-              classNameFiltering,
+              classNameFilter,
               Duration.ofSeconds(config.getDebuggerExceptionCaptureInterval()),
               config.getDebuggerMaxExceptionPerSecond());
       DebuggerContext.initExceptionDebugger(defaultExceptionDebugger);
     }
     if (config.isDebuggerCodeOriginEnabled()) {
-      DebuggerContext.initCodeOrigin(
-          new DefaultCodeOriginRecorder(
-              new CodeOriginProbeManager(configurationUpdater, classNameFiltering)));
+      DebuggerContext.initCodeOrigin(new DefaultCodeOriginRecorder(configurationUpdater));
     }
     if (config.isDebuggerInstrumentTheWorld()) {
       setupInstrumentTheWorldTransformer(
@@ -110,7 +109,7 @@ public class DebuggerAgent {
     // Dynamic Instrumentation
     if (config.isDebuggerEnabled()) {
       startDynamicInstrumentation(
-          instrumentation, sco, config, configurationUpdater, debuggerSink, classNameFiltering);
+          instrumentation, sco, config, configurationUpdater, debuggerSink, classNameFilter);
     }
     try {
       /*
@@ -135,7 +134,7 @@ public class DebuggerAgent {
       Config config,
       ConfigurationUpdater configurationUpdater,
       DebuggerSink debuggerSink,
-      ClassNameFiltering classNameFiltering) {
+      ClassNameFilter classNameFilter) {
     LOGGER.info("Starting Dynamic Instrumentation");
     String probeFileLocation = config.getDebuggerProbeFileLocation();
     if (probeFileLocation != null) {
@@ -152,7 +151,7 @@ public class DebuggerAgent {
                 config,
                 new SymbolAggregator(
                     debuggerSink.getSymbolSink(), config.getDebuggerSymbolFlushThreshold()),
-                classNameFiltering);
+                classNameFilter);
         if (config.isDebuggerSymbolForceUpload()) {
           symDBEnablement.startSymbolExtraction();
         }
@@ -167,7 +166,10 @@ public class DebuggerAgent {
     String tags = getDefaultTagsMergedWithGlobalTags(config);
     SnapshotSink snapshotSink =
         new SnapshotSink(
-            config, tags, new BatchUploader(config, config.getFinalDebuggerSnapshotUrl()));
+            config,
+            tags,
+            new BatchUploader(
+                config, config.getFinalDebuggerSnapshotUrl(), SnapshotSink.RETRY_POLICY));
     SymbolSink symbolSink = new SymbolSink(config);
     return new DebuggerSink(
         config,
