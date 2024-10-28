@@ -17,10 +17,11 @@ public class QueueTimerHelper {
       new PerRecordingRateLimiter(
           Duration.of(500, ChronoUnit.MILLIS),
           10_000, // hard limit on queue events
-          ConfigProvider.getInstance()
-              .getInteger(
-                  ProfilingConfig.PROFILING_UPLOAD_PERIOD,
-                  ProfilingConfig.PROFILING_UPLOAD_PERIOD_DEFAULT));
+          Duration.ofSeconds(
+              ConfigProvider.getInstance()
+                  .getInteger(
+                      ProfilingConfig.PROFILING_UPLOAD_PERIOD,
+                      ProfilingConfig.PROFILING_UPLOAD_PERIOD_DEFAULT)));
 
   public static <T> void startQueuingTimer(
       ContextStore<T, State> taskContextStore, Class<?> schedulerClass, T task) {

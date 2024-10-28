@@ -7,18 +7,24 @@ public class PerRecordingRateLimiter {
 
   private final AdaptiveSampler sampler;
 
-  public PerRecordingRateLimiter(Duration windowDuration, int limit, int recordingLength) {
-    int lookback = samplingWindowsPerRecording(recordingLength, windowDuration);
-    int samplesPerWindow = limit / samplingWindowsPerRecording(recordingLength, windowDuration);
-    sampler = new AdaptiveSampler(windowDuration, samplesPerWindow, lookback, 16, false);
+  public PerRecordingRateLimiter(Duration windowDuration, int limit, Duration recordingLength) {
+    this(windowDuration, limit, recordingLength, 16);
   }
 
-  public void start() {
-    sampler.start();
+  public PerRecordingRateLimiter(
+      Duration windowDuration, int limit, Duration recordingLength, int budgetLookback) {
+    int lookback = samplingWindowsPerRecording(recordingLength.getSeconds(), windowDuration);
+    int samplesPerWindow =
+        limit / samplingWindowsPerRecording(recordingLength.getSeconds(), windowDuration);
+    sampler = new AdaptiveSampler(windowDuration, samplesPerWindow, lookback, budgetLookback, true);
   }
 
   public boolean permit() {
-    return sampler.sample();
+    if (!sampler.sample()) {
+      return false;
+    }
+    return true;
+    // return sampler.sample();
   }
 
   public static int samplingWindowsPerRecording(long uploadPeriodSeconds, Duration samplingWindow) {
