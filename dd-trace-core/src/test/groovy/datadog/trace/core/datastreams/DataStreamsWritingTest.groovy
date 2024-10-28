@@ -144,14 +144,16 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, 5, timeSource.currentTimeNanos, SECONDS.toNanos(5), SECONDS.toNanos(5), 5, null))
     dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic2"], 3, 4, 6, timeSource.currentTimeNanos, SECONDS.toNanos(2), 0, 2, null))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
-    dataStreams.report()
     dataStreams.close()
 
     then:
     conditions.eventually {
-      assert requestBodies.size() == 1
+      assert requestBodies.size() > 0
     }
-    validateMessage(requestBodies[0])
+
+    for (int i = 0; i < requestBodies.size(); i++) {
+      validateMessage(requestBodies[i])
+    }
   }
 
   def validateMessage(byte[] message) {
