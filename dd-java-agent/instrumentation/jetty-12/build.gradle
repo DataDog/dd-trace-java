@@ -7,6 +7,13 @@ muzzle {
     group = "org.eclipse.jetty"
     module = 'jetty-server'
     versions = "[12,]"
+    additionalDependencies = ['org.eclipse.jetty:jetty-session:12.0.0']
+  }
+  pass {
+    name = 'jetty-session'
+    group = "org.eclipse.jetty"
+    module = 'jetty-session'
+    versions = "[12,]"
   }
 }
 

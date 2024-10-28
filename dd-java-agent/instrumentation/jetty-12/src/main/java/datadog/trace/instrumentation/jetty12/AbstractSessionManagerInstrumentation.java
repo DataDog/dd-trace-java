@@ -18,6 +18,11 @@ public final class AbstractSessionManagerInstrumentation extends InstrumenterMod
   }
 
   @Override
+  public String muzzleDirective() {
+    return "jetty-session";
+  }
+
+  @Override
   public String instrumentedType() {
     return "org.eclipse.jetty.session.AbstractSessionManager";
   }
