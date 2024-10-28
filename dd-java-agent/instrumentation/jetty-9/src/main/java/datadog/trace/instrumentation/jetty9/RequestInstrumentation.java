@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.jetty9;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SERVLET_CONTEXT;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SERVLET_PATH;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_DISPATCH_SPAN_ATTRIBUTE;
@@ -10,14 +11,18 @@ import static datadog.trace.instrumentation.jetty9.JettyDecorator.DD_SERVLET_PAT
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.gateway.CallbackProvider;
+import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.instrumentation.jetty.JettyBlockingHelper;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import java.util.function.BiFunction;
 import javax.servlet.http.HttpServletRequest;
 import net.bytebuddy.asm.Advice;
 import org.eclipse.jetty.http.HttpFields;
@@ -110,7 +115,23 @@ public final class RequestInstrumentation extends InstrumenterModule.Tracing
     public static void updateContextPath(
         @ActiveRequestContext RequestContext reqCtx,
         @Advice.Argument(0) final String requestedSessionId) {
-      JettyBlockingHelper.maybeBlockOnSession(reqCtx, requestedSessionId);
+      if (requestedSessionId != null && reqCtx != null) {
+        final CallbackProvider cbp =
+            AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+        if (cbp == null) {
+          return;
+        }
+        final BiFunction<RequestContext, String, Flow<Void>> addrCallback =
+            cbp.getCallback(EVENTS.requestSession());
+        if (addrCallback == null) {
+          return;
+        }
+        final Flow<Void> flow = addrCallback.apply(reqCtx, requestedSessionId);
+        Flow.Action action = flow.getAction();
+        if (action instanceof Flow.Action.RequestBlockingAction) {
+          throw new BlockingException("Blocked request (for sessionId)");
+        }
+      }
     }
   }
 }
