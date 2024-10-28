@@ -140,18 +140,34 @@ public class SymbolSink {
             continue;
           }
           LOGGER.debug("Sending {} jar scope size={}", scope.getName(), json.length());
-          updateStats(Collections.singletonList(scope), json);
-          symbolUploader.uploadAsMultipart(
-              "",
-              event,
-              new BatchUploader.MultiPartContent(
-                  json.getBytes(StandardCharsets.UTF_8), "file", "file.json"));
+          doUpload(Collections.singletonList(scope), json);
         }
       } else {
-        LOGGER.warn(
-            "Too many jar scopes to send, {} jar scopes, max is {}",
-            scopesToSerialize.size(),
-            BatchUploader.MAX_ENQUEUED_REQUESTS);
+        // split the list of jar scope in 2 list jar scopes with half of the jar scopes
+        int half = scopesToSerialize.size() / 2;
+        List<Scope> firstHalf = scopesToSerialize.subList(0, half);
+        List<Scope> secondHalf = scopesToSerialize.subList(half, scopesToSerialize.size());
+        LOGGER.debug("split jar scope list in 2: {} and {}", firstHalf.size(), secondHalf.size());
+        String jsonFirstHalf =
+            SERVICE_VERSION_ADAPTER.toJson(
+                new ServiceVersion(serviceName, env, version, "JAVA", firstHalf));
+        if (jsonFirstHalf.length() > maxPayloadSize) {
+          LOGGER.warn(
+              "Cannot split jar scope list in 2, first half is too big: {}",
+              jsonFirstHalf.length());
+          return;
+        }
+        doUpload(firstHalf, jsonFirstHalf);
+        String jsonSecondHalf =
+            SERVICE_VERSION_ADAPTER.toJson(
+                new ServiceVersion(serviceName, env, version, "JAVA", secondHalf));
+        if (jsonSecondHalf.length() > maxPayloadSize) {
+          LOGGER.warn(
+              "Cannot split jar scope list in 2, second half is too big: {}",
+              jsonSecondHalf.length());
+          return;
+        }
+        doUpload(secondHalf, jsonSecondHalf);
       }
     } else {
       Scope jarScope = scopesToSerialize.get(0);
@@ -178,6 +194,15 @@ public class SymbolSink {
               createJarScope(jarScope.getName(), firstHalf),
               createJarScope(jarScope.getName(), secondHalf)));
     }
+  }
+
+  private void doUpload(List<Scope> scopes, String json) {
+    updateStats(scopes, json);
+    symbolUploader.uploadAsMultipart(
+        "",
+        event,
+        new BatchUploader.MultiPartContent(
+            json.getBytes(StandardCharsets.UTF_8), "file", "file.json"));
   }
 
   private static Scope createJarScope(String jarName, List<Scope> classScopes) {

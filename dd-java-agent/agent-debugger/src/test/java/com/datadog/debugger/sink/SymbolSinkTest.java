@@ -104,6 +104,30 @@ class SymbolSinkTest {
   }
 
   @Test
+  public void splitTootManyJarScopes() {
+    SymbolUploaderMock symbolUploaderMock = new SymbolUploaderMock();
+    Config config = mock(Config.class);
+    when(config.getServiceName()).thenReturn("service1");
+    SymbolSink symbolSink = new SymbolSink(config, symbolUploaderMock, 2048);
+    final int NUM_JAR_SCOPES = 21;
+    for (int i = 0; i < NUM_JAR_SCOPES; i++) {
+      symbolSink.addScope(
+          Scope.builder(ScopeType.JAR, "jar" + i + ".jar", 0, 0)
+              .scopes(singletonList(Scope.builder(ScopeType.CLASS, "class" + i, 0, 0).build()))
+              .build());
+    }
+    symbolSink.flush();
+    // split upload request per half jar scopes
+    assertEquals(2 * 2, symbolUploaderMock.multiPartContents.size());
+    String strContent1 = assertMultipartContent(symbolUploaderMock, 0);
+    assertTrue(strContent1.contains("\"source_file\":\"jar0.jar\""));
+    assertTrue(strContent1.contains("\"source_file\":\"jar9.jar\""));
+    String strContent2 = assertMultipartContent(symbolUploaderMock, 2);
+    assertTrue(strContent2.contains("\"source_file\":\"jar10.jar\""));
+    assertTrue(strContent2.contains("\"source_file\":\"jar20.jar\""));
+  }
+
+  @Test
   public void splitByClassScopes() {
     SymbolUploaderMock symbolUploaderMock = new SymbolUploaderMock();
     Config config = mock(Config.class);
