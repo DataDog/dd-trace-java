@@ -1,5 +1,3 @@
-import org.eclipse.jetty.session.DefaultSessionIdManager
-
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.UNKNOWN
 

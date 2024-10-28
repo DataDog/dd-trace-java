@@ -20,8 +20,7 @@ class JettyServer implements HttpServer {
   final server = new Server(0) // select random open port
 
   JettyServer(Handler handler) {
-    sessionHandler.handler = handler
-    server.handler = sessionHandler
+    server.handler = handler
     server.addBean(errorHandler)
   }
 
@@ -49,6 +48,7 @@ class JettyServer implements HttpServer {
 
   static AbstractHandler servletHandler(Class<? extends Servlet> servlet) {
     ServletContextHandler handler = new ServletContextHandler(null, "/context-path")
+    final sessionHandler = new SessionHandler()
     handler.sessionHandler = sessionHandler
     handler.errorHandler = errorHandler
     handler.servletHandler.addFilterWithMapping(EnableMultipartFilter, '/*', FilterMapping.ALL)
@@ -75,6 +75,4 @@ class JettyServer implements HttpServer {
       }
     }
   }
-
-  static sessionHandler = new SessionHandler()
 }
