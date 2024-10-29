@@ -83,10 +83,10 @@ benchmarks-post-results:
   interruptible: true
   timeout: 1h
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:java-dsm-kafka
-  needs: [ "build" ]
+  needs: []
   script:
     - git clone --branch fayssal/fix-java-tracer-fetch https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform.git platform && cd platform
-    - ./steps/run-benchmarks.sh
+    - ./steps/download-java-tracer.sh
   artifacts:
     name: "artifacts"
     when: always
