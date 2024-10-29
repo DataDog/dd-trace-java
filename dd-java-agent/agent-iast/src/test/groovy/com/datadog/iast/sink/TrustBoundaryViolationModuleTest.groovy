@@ -10,6 +10,8 @@ import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
 import foo.bar.VisitableClass
 
+import static java.util.Arrays.asList
+
 class TrustBoundaryViolationModuleTest extends IastModuleImplTestBase {
 
   private TrustBoundaryViolationModuleImpl module
@@ -125,20 +127,23 @@ class TrustBoundaryViolationModuleTest extends IastModuleImplTestBase {
     assertVulnerability(savedVul, badValue)
   }
 
-  void 'report TrustBoundary vulnerability for tainted value within custom class'() {
+  void 'test that reporter should not report TBV with unknown classes'() {
     given:
-    Vulnerability savedVul
     final name = "name"
     final badValue = "badValue"
     ctx.getTaintedObjects().taint(badValue, Ranges.forCharSequence(badValue, new Source(SourceTypes.NONE, null, null)))
-    final value = new VisitableClass(name: badValue)
 
     when:
-    module.onSessionValue(name, value)
+    module.onSessionValue(name, new VisitableClass(name: badValue))
 
     then:
-    1 * reporter.report(_, _ as Vulnerability) >> { savedVul = it[1] }
-    assertVulnerability(savedVul, badValue)
+    0 * reporter.report(_, _ as Vulnerability)
+
+    when:
+    module.onSessionValue(name, DynamicList.build(badValue))
+
+    then:
+    0 * reporter.report(_, _ as Vulnerability)
   }
 
   private static void assertVulnerability(final Vulnerability vuln, String expectedValue) {
@@ -146,5 +151,22 @@ class TrustBoundaryViolationModuleTest extends IastModuleImplTestBase {
     assert vuln.getType() == VulnerabilityType.TRUST_BOUNDARY_VIOLATION
     assert vuln.getLocation() != null
     assert vuln.getEvidence().getValue() == expectedValue
+  }
+}
+
+class DynamicList<E> {
+
+  private List<E> delegate
+
+  private DynamicList(E...items) {
+    delegate = asList(items)
+  }
+
+  static <E> List<E> build(E...items) {
+    return new DynamicList(items) as List<E>
+  }
+
+  def methodMissing(final String name, final args){
+    throw new UnsupportedOperationException('Do not touch me!')
   }
 }
