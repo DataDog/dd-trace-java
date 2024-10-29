@@ -7,7 +7,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.util.FNV64Hash;
 import java.lang.reflect.Field;
 import org.apache.kafka.clients.producer.ProducerRecord;
-
+//trigger benchmark
 public class AvroSchemaExtractor {
   public static void tryExtractProducer(ProducerRecord record, AgentSpan span) {
     AgentDataStreamsMonitoring dsm = AgentTracer.get().getDataStreamsMonitoring();
