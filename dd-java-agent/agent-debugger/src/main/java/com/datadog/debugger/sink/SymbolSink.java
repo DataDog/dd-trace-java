@@ -1,5 +1,8 @@
 package com.datadog.debugger.sink;
 
+import static com.datadog.debugger.uploader.BatchUploader.APPLICATION_GZIP;
+import static com.datadog.debugger.uploader.BatchUploader.APPLICATION_JSON;
+
 import com.datadog.debugger.symbol.Scope;
 import com.datadog.debugger.symbol.ScopeType;
 import com.datadog.debugger.symbol.ServiceVersion;
@@ -8,6 +11,8 @@ import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.api.Config;
 import datadog.trace.util.TagsHelper;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -15,6 +20,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.zip.GZIPOutputStream;
 import okhttp3.HttpUrl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,6 +48,7 @@ public class SymbolSink {
   private final BatchUploader.MultiPartContent event;
   private final BlockingQueue<Scope> scopes = new ArrayBlockingQueue<>(CAPACITY);
   private final Stats stats = new Stats();
+  private final boolean isCompressed;
 
   public SymbolSink(Config config) {
     this(
@@ -56,11 +63,13 @@ public class SymbolSink {
     this.version = TagsHelper.sanitize(config.getVersion());
     this.symbolUploader = symbolUploader;
     this.maxPayloadSize = maxPayloadSize;
+    this.isCompressed = config.isDebuggerSymbolCompressed();
     byte[] eventContent =
         String.format(
                 EVENT_FORMAT, TagsHelper.sanitize(config.getServiceName()), config.getRuntimeId())
             .getBytes(StandardCharsets.UTF_8);
-    this.event = new BatchUploader.MultiPartContent(eventContent, "event", "event.json");
+    this.event =
+        new BatchUploader.MultiPartContent(eventContent, "event", "event.json", APPLICATION_JSON);
   }
 
   public void stop() {
@@ -105,14 +114,22 @@ public class SymbolSink {
       splitAndSend(scopesToSerialize);
     } else {
       LOGGER.debug("Sending {} jar scopes size={}", scopesToSerialize.size(), json.length());
-      updateStats(scopesToSerialize, json);
-      LOGGER.debug("SymbolSink stats: {}", stats);
-      symbolUploader.uploadAsMultipart(
-          "",
-          event,
-          new BatchUploader.MultiPartContent(
-              json.getBytes(StandardCharsets.UTF_8), "file", "file.json"));
+      doUpload(scopesToSerialize, json);
     }
+  }
+
+  private static byte[] compressPayload(byte[] jsonBytes) {
+    // usual compression factor 40:1 for those json payload, so we are preallocating 1/40
+    ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream(jsonBytes.length / 40);
+    try (GZIPOutputStream gzipOutputStream = new GZIPOutputStream(byteArrayOutputStream)) {
+      gzipOutputStream.write(jsonBytes);
+    } catch (IOException ex) {
+      LOGGER.error("Error compressing json", ex);
+      return null;
+    }
+    LOGGER.debug(
+        "Compressed payload from={} to={}", jsonBytes.length, byteArrayOutputStream.size());
+    return byteArrayOutputStream.toByteArray();
   }
 
   /*
@@ -198,11 +215,27 @@ public class SymbolSink {
 
   private void doUpload(List<Scope> scopes, String json) {
     updateStats(scopes, json);
-    symbolUploader.uploadAsMultipart(
-        "",
-        event,
-        new BatchUploader.MultiPartContent(
-            json.getBytes(StandardCharsets.UTF_8), "file", "file.json"));
+    byte[] jsonBytes = json.getBytes(StandardCharsets.UTF_8);
+    byte[] payload = null;
+    if (isCompressed) {
+      payload = compressPayload(jsonBytes);
+    }
+    if (payload == null) {
+      if (jsonBytes.length > maxPayloadSize) {
+        LOGGER.warn("Compressed payload is too big: {}/{}", payload.length, maxPayloadSize);
+        splitAndSend(scopes);
+        return;
+      }
+      symbolUploader.uploadAsMultipart(
+          "",
+          event,
+          new BatchUploader.MultiPartContent(jsonBytes, "file", "file.json", APPLICATION_JSON));
+    } else {
+      symbolUploader.uploadAsMultipart(
+          "",
+          event,
+          new BatchUploader.MultiPartContent(payload, "file", "file.gz", APPLICATION_GZIP));
+    }
   }
 
   private static Scope createJarScope(String jarName, List<Scope> classScopes) {
@@ -213,6 +246,7 @@ public class SymbolSink {
     for (Scope scope : scopesToSerialize) {
       stats.updateStats(scope.getScopes() != null ? scope.getScopes().size() : 0, json.length());
     }
+    LOGGER.debug("SymbolSink stats: {}", stats);
   }
 
   public HttpUrl getUrl() {

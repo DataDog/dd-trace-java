@@ -178,6 +178,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_DEBUGGER_SYMBOL_ENABLED = false;
   static final boolean DEFAULT_DEBUGGER_SYMBOL_FORCE_UPLOAD = false;
   static final int DEFAULT_DEBUGGER_SYMBOL_FLUSH_THRESHOLD = 100; // nb of classes
+  static final boolean DEFAULT_DEBUGGER_SYMBOL_COMPRESSED = true;
   static final boolean DEFAULT_DEBUGGER_EXCEPTION_ENABLED = false;
   static final int DEFAULT_DEBUGGER_MAX_EXCEPTION_PER_SECOND = 100;
   static final boolean DEFAULT_DEBUGGER_EXCEPTION_ONLY_LOCAL_ROOT = false;

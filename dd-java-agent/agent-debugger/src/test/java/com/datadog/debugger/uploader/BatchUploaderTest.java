@@ -1,5 +1,6 @@
 package com.datadog.debugger.uploader;
 
+import static com.datadog.debugger.uploader.BatchUploader.APPLICATION_JSON;
 import static com.datadog.debugger.uploader.BatchUploader.HEADER_DD_API_KEY;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -277,7 +278,8 @@ public class BatchUploaderTest {
   public void testUploadMultiPart() throws InterruptedException {
     server.enqueue(RESPONSE_200);
     uploader.uploadAsMultipart(
-        "", new BatchUploader.MultiPartContent(SNAPSHOT_BUFFER, "file", "file.json"));
+        "",
+        new BatchUploader.MultiPartContent(SNAPSHOT_BUFFER, "file", "file.json", APPLICATION_JSON));
     RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertNotNull(recordedRequest);
     String strBody = recordedRequest.getBody().readUtf8();
