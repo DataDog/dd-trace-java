@@ -20,11 +20,7 @@ public class PerRecordingRateLimiter {
   }
 
   public boolean permit() {
-    if (!sampler.sample()) {
-      return false;
-    }
-    return true;
-    // return sampler.sample();
+    return sampler.sample();
   }
 
   public static int samplingWindowsPerRecording(long uploadPeriodSeconds, Duration samplingWindow) {
