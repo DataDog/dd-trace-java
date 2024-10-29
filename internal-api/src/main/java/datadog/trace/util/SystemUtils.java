@@ -26,7 +26,12 @@ public final class SystemUtils {
   }
 
   public static String tryGetProperty(String property) {
-    return getPropertyOrDefault(property, null);
+    try {
+      return System.getProperty(property);
+    } catch (SecurityException e) {
+      log.warn(logMessageOnSecurityError, "system property", property, e);
+      return null;
+    }
   }
 
   public static String getPropertyOrDefault(String property, String defaultValue) {
