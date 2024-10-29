@@ -1,6 +1,7 @@
 package datadog.trace.api.env;
 
 import datadog.trace.api.config.GeneralConfig;
+import datadog.trace.util.SystemUtils;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.File;
 import java.util.HashMap;
@@ -40,8 +41,8 @@ public class CapturedEnvironment {
    * autodetection will return either the JAR filename or the java main class.
    */
   private String autodetectServiceName() {
-    String inAas = System.getenv("DD_AZURE_APP_SERVICES");
-    String siteName = System.getenv("WEBSITE_SITE_NAME");
+    String inAas = SystemUtils.tryGetEnv("DD_AZURE_APP_SERVICES");
+    String siteName = SystemUtils.tryGetEnv("WEBSITE_SITE_NAME");
 
     if (("true".equalsIgnoreCase(inAas) || "1".equals(inAas)) && siteName != null) {
       return siteName;
@@ -50,7 +51,7 @@ public class CapturedEnvironment {
     // Besides "sun.java.command" property is not an standard, all main JDKs has set this property.
     // Tested on:
     // - OracleJDK, OpenJDK, AdoptOpenJDK, IBM JDK, Azul Zulu JDK, Amazon Coretto JDK
-    return extractJarOrClass(System.getProperty("sun.java.command"));
+    return extractJarOrClass(SystemUtils.tryGetProperty("sun.java.command"));
   }
 
   @SuppressForbidden
