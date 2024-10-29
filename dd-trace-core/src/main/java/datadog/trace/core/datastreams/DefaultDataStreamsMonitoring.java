@@ -189,6 +189,12 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
   @Override
   public void setThreadServiceName(Long threadId, String serviceName) {
+    // setting service name to null == removing the value
+    if (serviceName == null) {
+      clearThreadServiceName(threadId);
+      return;
+    }
+
     threadServiceNames.put(threadId, serviceName);
   }
 
