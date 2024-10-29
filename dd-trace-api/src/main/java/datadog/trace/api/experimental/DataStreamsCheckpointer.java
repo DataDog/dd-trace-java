@@ -36,7 +36,8 @@ public interface DataStreamsCheckpointer {
 
   /**
    * @param transactionID The unique organization-level identifier for the transaction
-   *     such as a UUID or other hashed identifier. It is defined by the user and should be non-null.
+   *     such as a UUID or other hashed identifier. Transaction IDs are defined by your organization
+   *     and should be non-null.
    * @param carrier An interface to the context carrier, from which the context will be extracted. I.e.
    *     wrapper around message headers.
    */
