@@ -8,9 +8,7 @@ import static org.mockito.Mockito.when;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
 
 import com.datadog.debugger.agent.Configuration.Builder;
-import com.datadog.debugger.codeorigin.CodeOriginProbeManager;
 import com.datadog.debugger.codeorigin.DefaultCodeOriginRecorder;
-import com.datadog.debugger.origin.CodeOriginTest;
 import com.datadog.debugger.probe.CodeOriginProbe;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
@@ -51,12 +49,8 @@ public class TriggerProbeInstrumentationTest extends ProbeInstrumentationTest {
 
   private static final Logger log = LoggerFactory.getLogger(TriggerProbeInstrumentationTest.class);
 
-  public static final CodeOriginProbeManager probeManager =
-      new CodeOriginProbeManager(
-          mock(ConfigurationUpdater.class), CodeOriginTest.classNameFiltering);
-
-  private DefaultCodeOriginRecorder codeOriginRecorder =
-      new DefaultCodeOriginRecorder(probeManager);
+  private static DefaultCodeOriginRecorder codeOriginRecorder =
+      new DefaultCodeOriginRecorder(mock(ConfigurationUpdater.class));
 
   private TestTraceInterceptor traceInterceptor;
 
@@ -104,7 +98,7 @@ public class TriggerProbeInstrumentationTest extends ProbeInstrumentationTest {
             .probeId(DEBUG_PROBE_ID)
             .where(CLASS_NAME, "process", "int (java.lang.String)")
             .build(),
-        new CodeOriginProbe(CODE_ORIGIN_PROBE_ID, "int (java.lang.String)", where, probeManager));
+        new CodeOriginProbe(CODE_ORIGIN_PROBE_ID, "int (java.lang.String)", where));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     assertEquals(84, result);
@@ -143,7 +137,7 @@ public class TriggerProbeInstrumentationTest extends ProbeInstrumentationTest {
             (key, value1) -> {
               switch (key) {
                 case ("CodeOriginProbe"):
-                  value1.forEach(probe -> probeManager.installProbe((CodeOriginProbe) probe));
+                  value1.forEach(probe -> codeOriginRecorder.installProbe((CodeOriginProbe) probe));
                   break;
                 case ("MetricProbe"):
                   builder.addMetricProbes((List<MetricProbe>) value1);

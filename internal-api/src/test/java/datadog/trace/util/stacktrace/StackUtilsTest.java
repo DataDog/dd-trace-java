@@ -1,7 +1,18 @@
 package datadog.trace.util.stacktrace;
 
 import static com.google.common.truth.Truth.assertThat;
+import static datadog.trace.util.stacktrace.StackUtils.META_STRUCT_KEY;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
+import datadog.trace.api.gateway.RequestContext;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 import org.junit.jupiter.api.Test;
 
@@ -79,6 +90,29 @@ public class StackUtilsTest {
 
     final Throwable noRemoval = StackUtils.filterUntil(withStack(stack), entry -> false);
     assertThat(noRemoval.getStackTrace()).isEqualTo(stack);
+  }
+
+  @Test
+  public void test_generateUserCodeStackTrace() {
+    List<StackTraceFrame> userCodeStack = StackUtils.generateUserCodeStackTrace();
+    assertThat(userCodeStack).isNotNull();
+    for (StackTraceFrame frame : userCodeStack) {
+      assertThat(frame.getClass_name()).doesNotContain("com.datadog");
+      assertThat(frame.getClass_name()).doesNotContain("datadog.trace");
+    }
+  }
+
+  @Test
+  public void addStacktraceEventsToAvailableMetaStruct() {
+    final RequestContext reqCtx = mock(RequestContext.class);
+    final Map<String, List<StackTraceEvent>> batch = new HashMap<>();
+    when(reqCtx.getOrCreateMetaStructTop(eq(META_STRUCT_KEY), any())).thenReturn(batch);
+    final String productTest = "test";
+    final StackTraceEvent event = new StackTraceEvent(new ArrayList<>(0), "java", "id", "message");
+    StackUtils.addStacktraceEventsToMetaStruct(
+        reqCtx, productTest, Collections.singletonList(event));
+    assertThat(batch).containsKey(productTest);
+    assertThat(batch.get(productTest)).containsExactly(event);
   }
 
   private static Throwable withStack(final StackTraceElement... stack) {

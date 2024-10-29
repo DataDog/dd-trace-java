@@ -8,9 +8,9 @@ import com.datadog.debugger.agent.DebuggerAgent;
 import com.datadog.debugger.exception.ExceptionProbeManager.ThrowableState;
 import com.datadog.debugger.sink.Snapshot;
 import com.datadog.debugger.util.CircuitBreaker;
-import com.datadog.debugger.util.ClassNameFiltering;
 import com.datadog.debugger.util.ExceptionHelper;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
+import datadog.trace.bootstrap.debugger.DebuggerContext.ClassNameFilter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.util.AgentTaskScheduler;
 import java.time.Duration;
@@ -33,12 +33,12 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
 
   private final ExceptionProbeManager exceptionProbeManager;
   private final ConfigurationUpdater configurationUpdater;
-  private final ClassNameFiltering classNameFiltering;
+  private final ClassNameFilter classNameFiltering;
   private final CircuitBreaker circuitBreaker;
 
   public DefaultExceptionDebugger(
       ConfigurationUpdater configurationUpdater,
-      ClassNameFiltering classNameFiltering,
+      ClassNameFilter classNameFiltering,
       Duration captureInterval,
       int maxExceptionPerSecond) {
     this(
@@ -51,7 +51,7 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
   DefaultExceptionDebugger(
       ExceptionProbeManager exceptionProbeManager,
       ConfigurationUpdater configurationUpdater,
-      ClassNameFiltering classNameFiltering,
+      ClassNameFilter classNameFiltering,
       int maxExceptionPerSecond) {
     this.exceptionProbeManager = exceptionProbeManager;
     this.configurationUpdater = configurationUpdater;

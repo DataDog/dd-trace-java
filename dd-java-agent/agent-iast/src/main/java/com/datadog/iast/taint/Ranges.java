@@ -171,6 +171,20 @@ public final class Ranges {
   }
 
   /**
+   * Checks if all ranges are coming from a specify source type, in case no ranges are provided it
+   * will return {@code true}
+   */
+  public static boolean allRangesFromSource(final byte origin, @Nonnull final Range[] ranges) {
+    for (Range range : ranges) {
+      final Source current = range.getSource();
+      if (current.getOrigin() != origin) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
    * Checks if all ranges are coming from the header, in case no ranges are provided it will return
    * {@code true}
    */

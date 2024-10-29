@@ -38,6 +38,7 @@ import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1020,6 +1021,17 @@ public class DDSpanContext
   @Override
   public void setMetaStructTop(String field, Object value) {
     getRootSpanContextOrThis().setMetaStructCurrent(field, value);
+  }
+
+  @SuppressWarnings("unchecked")
+  @Override
+  public <T> T getOrCreateMetaStructTop(final String key, final Function<String, T> defaultValue) {
+    final DDSpanContext top = getRootSpanContextOrThis();
+    if (top.metaStruct == EMPTY_META_STRUCT) {
+      // this will safely create the metastruct if the field has not been initialized already
+      top.setMetaStruct(key, defaultValue.apply(key));
+    }
+    return (T) top.metaStruct.computeIfAbsent(key, defaultValue);
   }
 
   @Override
