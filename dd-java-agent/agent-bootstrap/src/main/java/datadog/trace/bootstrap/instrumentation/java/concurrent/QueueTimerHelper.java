@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
+import datadog.trace.api.Platform;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.profiling.QueueTiming;
 import datadog.trace.api.profiling.Timer;
@@ -13,15 +14,19 @@ import java.time.temporal.ChronoUnit;
 
 public class QueueTimerHelper {
 
-  private static final PerRecordingRateLimiter RATE_LIMITER =
-      new PerRecordingRateLimiter(
-          Duration.of(500, ChronoUnit.MILLIS),
-          10_000, // hard limit on queue events
-          Duration.ofSeconds(
-              ConfigProvider.getInstance()
-                  .getInteger(
-                      ProfilingConfig.PROFILING_UPLOAD_PERIOD,
-                      ProfilingConfig.PROFILING_UPLOAD_PERIOD_DEFAULT)));
+  private static final class RateLimiterHolder {
+    // indirection to prevent needing to instantiate the class and its transitive dependencies
+    // in graal native image
+    private static final PerRecordingRateLimiter RATE_LIMITER =
+        new PerRecordingRateLimiter(
+            Duration.of(500, ChronoUnit.MILLIS),
+            10_000, // hard limit on queue events
+            Duration.ofSeconds(
+                ConfigProvider.getInstance()
+                    .getInteger(
+                        ProfilingConfig.PROFILING_UPLOAD_PERIOD,
+                        ProfilingConfig.PROFILING_UPLOAD_PERIOD_DEFAULT)));
+  }
 
   public static <T> void startQueuingTimer(
       ContextStore<T, State> taskContextStore, Class<?> schedulerClass, T task) {
@@ -30,12 +35,16 @@ public class QueueTimerHelper {
   }
 
   public static void startQueuingTimer(State state, Class<?> schedulerClass, Object task) {
+    if (Platform.isNativeImageBuilder()) {
+      // explicitly not supported for Graal native image
+      return;
+    }
     // avoid calling this before JFR is initialised because it will lead to reading the wrong
     // TSC frequency before JFR has set it up properly
     if (task != null
         && state != null
         && InstrumentationBasedProfiling.isJFRReady()
-        && RATE_LIMITER.permit()) {
+        && RateLimiterHolder.RATE_LIMITER.permit()) {
       QueueTiming timing =
           (QueueTiming) AgentTracer.get().getProfilingContext().start(Timer.TimerType.QUEUEING);
       timing.setTask(task);
