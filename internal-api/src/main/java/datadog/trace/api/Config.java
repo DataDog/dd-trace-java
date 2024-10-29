@@ -537,7 +537,7 @@ public class Config {
     this.instrumenterConfig = instrumenterConfig;
     configFileStatus = configProvider.getConfigFileStatus();
     runtimeIdEnabled = configProvider.getBoolean(RUNTIME_ID_ENABLED, true);
-    runtimeVersion = System.getProperty("java.version", "unknown");
+    runtimeVersion = SystemUtils.getPropertyOrDefault("java.version", "unknown");
 
     // Note: We do not want APiKey to be loaded from property for security reasons
     // Note: we do not use defined default here
@@ -3941,7 +3941,7 @@ public class Config {
   }
 
   private static String getProp(String name, String def) {
-    String value = System.getProperty(name, def);
+    String value = SystemUtils.getPropertyOrDefault(name, def);
     if (value != null) {
       ConfigCollector.get().put(name, value, ConfigOrigin.JVM_PROP);
     }
