@@ -12,7 +12,6 @@ import datadog.trace.api.DDTags
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.datastreams.StatsGroup
-import datadog.trace.instrumentation.aws.ExpectedQueryParams
 import groovy.json.JsonSlurper
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.utility.DockerImageName
