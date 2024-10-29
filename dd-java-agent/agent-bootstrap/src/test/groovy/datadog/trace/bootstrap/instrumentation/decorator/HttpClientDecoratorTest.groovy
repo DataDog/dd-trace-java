@@ -1,6 +1,8 @@
 package datadog.trace.bootstrap.instrumentation.decorator
 
 import datadog.trace.api.DDTags
+import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.sink.SsrfModule
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities
@@ -167,6 +169,32 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
     600    | [status: 600]  | false
     null   | [status: null] | false
     null   | null           | false
+  }
+
+  def "test ssrfIastCheck is called"() {
+    setup:
+    injectSysConfig('dd.iast.enabled', input)
+    def decorator = newDecorator()
+    final module = Mock(SsrfModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    decorator.onRequest(span, req)
+
+    then:
+    if (input == 'true') {
+      1 * module.onURLConnection(_)
+    } else {
+      0 * module.onURLConnection(_)
+    }
+    if (req) {
+      1 * span.traceConfig() >> AgentTracer.traceConfig()
+    }
+
+    where:
+    input  | req
+    'true' | [method: "test-method", url: testUrl, path: '/somepath']
+    'false' | [method: "test-method", url: testUrl, path: '/somepath']
   }
 
   @Override

@@ -175,7 +175,7 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
     return 0;
   }
 
-  /* This method must be override after making the proper propagations to the client before **/
+  /* This method must be overriden after making the proper propagations to the client before **/
   protected Object sourceUrl(REQUEST request) {
     return null;
   }
