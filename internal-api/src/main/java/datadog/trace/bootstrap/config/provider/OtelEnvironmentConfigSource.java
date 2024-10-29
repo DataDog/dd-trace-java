@@ -19,6 +19,7 @@ import datadog.trace.api.ConfigOrigin;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.telemetry.OtelEnvMetricCollector;
 import datadog.trace.util.Strings;
+import datadog.trace.util.SystemUtils;
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -186,9 +187,9 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
    * <p>Checks system properties and environment variables.
    */
   private static String getProperty(String sysProp) {
-    String value = System.getProperty(sysProp);
+    String value = SystemUtils.tryGetProperty(sysProp);
     if (null == value) {
-      value = System.getenv(Strings.toEnvVar(sysProp));
+      value = SystemUtils.tryGetEnv(Strings.toEnvVar(sysProp));
     }
     return value;
   }

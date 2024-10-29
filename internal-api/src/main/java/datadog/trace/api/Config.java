@@ -39,6 +39,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.context.TraceScope;
 import datadog.trace.util.PidHelper;
 import datadog.trace.util.Strings;
+import datadog.trace.util.SystemUtils;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.BufferedReader;
@@ -3917,7 +3918,7 @@ public class Config {
   }
 
   private static String getEnv(String name) {
-    String value = System.getenv(name);
+    String value = SystemUtils.tryGetEnv(name);
     if (value != null) {
       ConfigCollector.get().put(name, value, ConfigOrigin.ENV);
     }
