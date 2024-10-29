@@ -145,6 +145,7 @@ class TagsAssert {
 
     tag("http.query.string", {
       String paramString = it
+      System.out.println("it: " + it)
       Set<String> spanQueryParams = new HashSet<String>()
       if (paramString != null && !paramString.isEmpty()) {
         String[] pairs = paramString.split("&")
@@ -158,9 +159,12 @@ class TagsAssert {
         }
         for(String param : queryParams){
           if (!spanQueryParams.contains(param)){
+            System.out.println("param: " + param)
             return false
           }
         }
+      } else if(queryParams != null && queryParams.size() > 0){ //if http.query.string is empty/null but we expect queryParams, return false
+        return false
       }
       return true
     })

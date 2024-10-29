@@ -11,8 +11,8 @@ import datadog.trace.api.naming.SpanNaming
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.datastreams.StatsGroup
-import datadog.trace.instrumentation.aws.ExpectedQueryParams
 import datadog.trace.instrumentation.aws.v2.sqs.TracingList
+import datadog.trace.instrumentation.aws.ExpectedQueryParams
 import org.elasticmq.rest.sqs.SQSRestServerBuilder
 import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider
 import software.amazon.awssdk.core.SdkBytes
@@ -30,7 +30,6 @@ import spock.lang.Shared
 import javax.jms.Session
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
-import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_HTTP_CLIENT_TAG_QUERY_STRING
 import static java.nio.charset.StandardCharsets.UTF_8
 
 abstract class SqsClientTest extends VersionedNamingTestBase {
@@ -288,7 +287,6 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
   @IgnoreIf({instance.isDataStreamsEnabled()})
   def "trace details propagated from SQS to JMS"() {
     setup:
-    injectSysConfig(TRACE_HTTP_CLIENT_TAG_QUERY_STRING, "false")
     def client = SqsClient.builder()
       .region(Region.EU_CENTRAL_1)
       .endpointOverride(endpoint)
@@ -335,7 +333,6 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "java-aws-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.HTTP_URL" "http://localhost:${address.port}/"
             "$Tags.HTTP_METHOD" "POST"
             "$Tags.HTTP_STATUS" 200
             "$Tags.PEER_PORT" address.port
@@ -346,6 +343,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
             "aws.requestId" "00000000-0000-0000-0000-000000000000"
+            urlTags("http://localhost:${address.port}/", ExpectedQueryParams.getExpectedQueryParams("SendMessage"))
             defaultTags()
           }
         }
@@ -404,7 +402,6 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "java-aws-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.HTTP_URL" "http://localhost:${address.port}/"
             "$Tags.HTTP_METHOD" "POST"
             "$Tags.HTTP_STATUS" 200
             "$Tags.PEER_PORT" address.port
@@ -415,6 +412,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
             "aws.requestId" { it.trim() == "00000000-0000-0000-0000-000000000000" } // the test server seem messing with request id and insert \n
+            urlTags("http://localhost:${address.port}/", ExpectedQueryParams.getExpectedQueryParams("DeleteMessage"))
             defaultTags()
           }
         }
