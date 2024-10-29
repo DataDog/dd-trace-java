@@ -8,6 +8,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -34,6 +36,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.verification.VerificationMode;
 
 /** Unit tests for the snapshot uploader. */
 @ExtendWith(MockitoExtension.class)
@@ -120,7 +123,7 @@ public class BatchUploaderTest {
 
     // Shutting down uploader ensures all callbacks are called on http client
     uploader.shutdown();
-    verify(ratelimitedLogger)
+    verify(ratelimitedLogger, atLeastOnce())
         .warn(
             eq("Failed to upload batch to {}"),
             ArgumentMatchers.argThat(arg -> arg.toString().startsWith(url.toString())),
