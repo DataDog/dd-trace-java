@@ -20,7 +20,10 @@ public final class TagsPostProcessorFactory {
         processors.add(new RemoteHostnameAdder(Config.get().getHostNameSupplier()));
       }
       if (Config.get().isCloudPayloadTaggingEnabled()) {
-        processors.add(new PayloadTagsProcessor(Config.get()));
+        PayloadTagsProcessor ptp = PayloadTagsProcessor.create(Config.get());
+        if (ptp != null) {
+          processors.add(ptp);
+        }
       }
       return new PostProcessorChain(
           processors.toArray(processors.toArray(new TagsPostProcessor[0])));

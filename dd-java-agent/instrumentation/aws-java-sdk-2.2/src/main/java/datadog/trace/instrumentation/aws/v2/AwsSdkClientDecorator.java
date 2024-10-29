@@ -24,7 +24,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import datadog.trace.core.datastreams.TagsProcessor;
 import datadog.trace.payloadtags.PathCursor;
-import datadog.trace.payloadtags.PayloadPathData;
+import datadog.trace.payloadtags.PayloadTagsData;
 import java.io.InputStream;
 import java.net.URI;
 import java.time.Instant;
@@ -126,7 +126,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
         && config.isCloudPayloadTaggingEnabledFor(awsServiceName)) {
       awsPojoToTags(
           span,
-          PayloadPathData.AWS_REQUEST_BODY,
+          PayloadTagsData.KnownPayloadTags.AWS_REQUEST_BODY,
           request,
           config.getCloudPayloadTaggingMaxDepth(),
           config.getCloudPayloadTaggingMaxTags());
@@ -319,7 +319,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
         && config.isCloudPayloadTaggingEnabledFor(serviceName)) {
       awsPojoToTags(
           span,
-          PayloadPathData.AWS_RESPONSE_BODY,
+          PayloadTagsData.KnownPayloadTags.AWS_RESPONSE_BODY,
           response,
           config.getCloudPayloadTaggingMaxDepth(),
           config.getCloudPayloadTaggingMaxTags());
@@ -470,14 +470,14 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
 
   private void awsPojoToTags(
       AgentSpan span, String pathPrefix, Object pojo, int maxDepth, int maxTags) {
-    PayloadPathData payloadPathData = new PayloadPathData();
-    collectPayloadData(payloadPathData, new PathCursor(maxDepth), pojo, maxDepth, maxTags);
+    PayloadTagsData payloadTagsData = new PayloadTagsData();
+    collectPayloadData(payloadTagsData, new PathCursor(maxDepth), pojo, maxDepth, maxTags);
     // Save as one tag for post-processing
-    span.setTag(pathPrefix, payloadPathData);
+    span.setTag(pathPrefix, payloadTagsData);
   }
 
   private void collectPayloadData(
-      PayloadPathData result, PathCursor cursor, Object object, int maxDepth, int maxTags) {
+      PayloadTagsData result, PathCursor cursor, Object object, int maxDepth, int maxTags) {
     // TODO test it
     if (cursor.length() >= maxDepth || result.size() >= maxTags) {
       return;

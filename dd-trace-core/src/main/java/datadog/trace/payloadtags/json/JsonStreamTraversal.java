@@ -50,7 +50,8 @@ public class JsonStreamTraversal {
   public static boolean traverse(InputStream is, Visitor visitor, PathCursor pathCursor) {
     try (BufferedSource source = Okio.buffer(Okio.source(is))) {
       byte firstByte = source.peek().readByte();
-      if (firstByte == '{' || firstByte == '[') {
+      if (firstByte == '{'
+          || firstByte == '[') { // TODO this check already done if called from the traverse above
         try (JsonReader reader = JsonReader.of(source)) {
           reader.setLenient(true);
           traverse(reader, visitor, pathCursor);
