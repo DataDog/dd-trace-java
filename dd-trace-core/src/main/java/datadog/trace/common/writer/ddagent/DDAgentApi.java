@@ -23,6 +23,7 @@ import java.util.Objects;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
+import okio.Buffer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -125,6 +126,7 @@ public class DDAgentApi extends RemoteApi {
         if (response.code() != 200) {
           agentErrorCounter.incrementErrorCount(response.message(), payload.traceCount());
           countAndLogFailedSend(payload.traceCount(), sizeInBytes, response, null);
+          logMessagePackErrors(response, request);
           return Response.failed(response.code());
         }
         countAndLogSuccessfulSend(payload.traceCount(), sizeInBytes);
@@ -148,6 +150,21 @@ public class DDAgentApi extends RemoteApi {
     } catch (final IOException e) {
       countAndLogFailedSend(payload.traceCount(), sizeInBytes, null, e);
       return Response.failed(e);
+    }
+  }
+
+  private static void logMessagePackErrors(okhttp3.Response response, Request request) {
+    if (log.isDebugEnabled()) {
+      if (getResponseBody(response).startsWith("msgp") && request.body() != null) {
+        try {
+          Buffer buffer = new Buffer();
+          request.body().writeTo(buffer);
+          String body = buffer.readByteString().base64();
+          log.debug("Base64 representation of the bytes sent to the agent: {}", body);
+        } catch (Exception e) {
+          log.debug("error while trying to log bytes sent", e);
+        }
+      }
     }
   }
 
