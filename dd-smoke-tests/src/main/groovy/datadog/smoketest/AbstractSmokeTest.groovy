@@ -131,11 +131,17 @@ abstract class AbstractSmokeTest extends ProcessManager {
 
 
   def javaProperties() {
+    def tmpDir = "/tmp"
+    def errorFileValue = tmpDir + "/hs_err_pid%p.log"
+    def errorScript = tmpDir + "/dd_crash_uploader." + getScriptExtension()
+    def onErrorValue = '"' + errorScript + ' %p"'
+
     def ret = [
       "${getMaxMemoryArgumentForFork()}",
       "${getMinMemoryArgumentForFork()}",
       "-javaagent:${shadowJarPath}",
-      isIBM ? "-Xdump:directory=/tmp" : "-XX:ErrorFile=/tmp/hs_err_pid%p.log",
+      isIBM ? "-Xdump:directory=" + tmpDir : "-XX:ErrorFile=" + errorFileValue,
+      "-XX:OnError=" + onErrorValue,
       "-Ddd.trace.agent.port=${server.address.port}",
       "-Ddd.env=${ENV}",
       "-Ddd.version=${VERSION}",
@@ -154,6 +160,11 @@ abstract class AbstractSmokeTest extends ProcessManager {
     }
     ret as String[]
   }
+
+  static String getScriptExtension() {
+    return Platform.isWindows() ? "bat" : "sh"
+  }
+
 
   def inferServiceName() {
     true
