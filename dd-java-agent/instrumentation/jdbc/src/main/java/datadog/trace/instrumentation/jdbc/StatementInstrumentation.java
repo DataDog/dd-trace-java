@@ -110,7 +110,9 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
           if (injectTraceContext) {
             Integer priority = span.forceSamplingDecision();
             if (priority != null) {
-              traceParent = DECORATE.traceParent(span, priority);
+              if (!isSqlServer) {
+                traceParent = DECORATE.traceParent(span, priority);
+              }
               // set the dbm trace injected tag on the span
               span.setTag(DBM_TRACE_INJECTED, true);
             }
