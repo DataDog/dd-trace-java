@@ -49,8 +49,10 @@ public final class TraceInstrumentationConfig {
   public static final String HTTP_SERVER_DECODED_RESOURCE_PRESERVE_SPACES =
       "http.server.decoded.resource.preserve-spaces";
   public static final String HTTP_SERVER_ROUTE_BASED_NAMING = "http.server.route-based-naming";
-  //Use TRACE_HTTP_CLIENT_TAG_QUERY_STRING instead
-  @Deprecated public static final String HTTP_CLIENT_TAG_QUERY_STRING = "http.client.tag.query-string";
+  // Use TRACE_HTTP_CLIENT_TAG_QUERY_STRING instead
+  @Deprecated
+  public static final String HTTP_CLIENT_TAG_QUERY_STRING = "http.client.tag.query-string";
+
   public static final String TRACE_HTTP_CLIENT_TAG_QUERY_STRING =
       "trace.http.client.tag.query-string";
   public static final String HTTP_CLIENT_TAG_HEADERS = "http.client.tag.headers";
