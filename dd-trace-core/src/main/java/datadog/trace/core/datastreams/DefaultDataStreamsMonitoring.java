@@ -416,7 +416,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     if (!includedBuckets.isEmpty()) {
       for (Map.Entry<String, List<StatsBucket>> entry : includedBuckets.entrySet()) {
         if (!entry.getValue().isEmpty()) {
-          log.debug("Flushing {} buckets", entry.getValue());
+          log.debug("Flushing {} buckets ({})", entry.getValue(), entry.getKey());
           payloadWriter.writePayload(entry.getValue(), entry.getKey());
         }
       }
