@@ -107,7 +107,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
         if (span != null && INJECT_COMMENT) {
           String traceParent = null;
 
-          if (injectTraceContext && !isSqlServer) {
+          if (injectTraceContext) {
             Integer priority = span.forceSamplingDecision();
             if (priority != null) {
               traceParent = DECORATE.traceParent(span, priority);
