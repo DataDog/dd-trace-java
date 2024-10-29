@@ -3,7 +3,9 @@ package datadog.trace.instrumentation.aws;
 import java.util.Arrays;
 import java.util.List;
 
-public class ExpectedQueryParams {
+public final class ExpectedQueryParams {
+  private ExpectedQueryParams() {}
+
   public static List<String> getExpectedQueryParams(String operation) {
     switch (operation) {
       case "Publish":
