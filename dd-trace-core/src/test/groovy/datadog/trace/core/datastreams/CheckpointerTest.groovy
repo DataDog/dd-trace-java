@@ -71,7 +71,7 @@ class CheckpointerTest extends DDCoreSpecification {
     span.context().pathwayContext != null
     span.context().pathwayContext.isStarted()
 
-    // Optionally, verify that the pathway context hash is set
+    // Verify that the pathway context hash is set
     span.context().pathwayContext.getHash() != 0
   }
 
