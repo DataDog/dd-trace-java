@@ -792,9 +792,10 @@ public class DDSpanContext
    * @return the transaction ID if present; otherwise, null.
    */
   public String getTransactionId() {
-    Object transactionId = getTag("transaction.id");
+    Object transactionId = unsafeGetTag(DDTags.TRANSACTION_ID);
     return transactionId instanceof String ? (String) transactionId : null;
   }
+
 
   /**
    * This is not thread-safe and must only be used when it can be guaranteed that the context will
