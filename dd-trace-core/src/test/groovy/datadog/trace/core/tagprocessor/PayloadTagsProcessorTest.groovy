@@ -1,7 +1,7 @@
 package datadog.trace.core.tagprocessor
 
-import datadog.trace.payloadtags.PathCursor
 import datadog.trace.payloadtags.PayloadTagsData
+import datadog.trace.payloadtags.json.PathCursor
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.api.Config
 
@@ -52,12 +52,12 @@ class PayloadTagsProcessorTest extends DDSpecification {
 
     when:
     PayloadTagsData requestData = new PayloadTagsData()
-      .append(pc().push("foo").withValue("bar"))
-      .append(pc().push("bar").push(0).withValue("{ 'a': 1.15, 'password': 'my-secret-password' }"))
-      .append(pc().push("baz").push("Value"))
+      .add(pc().push("foo").toPath(), "bar")
+      .add(pc().push("bar").push(0).toPath(), "{ 'a': 1.15, 'password': 'my-secret-password' }")
+      .add(pc().push("baz").push("Value").toPath(), null)
 
     PayloadTagsData responseData = new PayloadTagsData()
-      .append(pc().push("foo").withValue("bar"))
+      .add(pc().push("foo").toPath(), "bar")
 
     Map<String, Object> tags = [
       "aws.request.body" : requestData,
@@ -84,10 +84,10 @@ class PayloadTagsProcessorTest extends DDSpecification {
 
     when:
     PayloadTagsData requestData = new PayloadTagsData()
-      .append(pc().push("phoneNumber").withValue("+15555555555"))
+      .add(pc().push("phoneNumber").toPath(), "+15555555555")
 
     PayloadTagsData responseData = new PayloadTagsData()
-      .append(pc().push("phoneNumbers").push(0).withValue("+15555555555"))
+      .add(pc().push("phoneNumbers").push(0).toPath(), "+15555555555")
 
     Map<String, Object> tags = [
       "aws.request.body" : requestData,
@@ -111,12 +111,12 @@ class PayloadTagsProcessorTest extends DDSpecification {
 
     when:
     PayloadTagsData requestData = new PayloadTagsData()
-      .append(pc().push("customField").withValue("custom-field-value"))
-      .append(pc().push("customField2").withValue("custom-field-value"))
+      .add(pc().push("customField").toPath(), "custom-field-value")
+      .add(pc().push("customField2").toPath(), "custom-field-value")
 
     PayloadTagsData responseData = new PayloadTagsData()
-      .append(pc().push("foo").push("bar").push(0).withValue("foobar"))
-      .append(pc().push("foo").push("bar").push(1).withValue("foobar2"))
+      .add(pc().push("foo").push("bar").push(0).toPath(), "foobar")
+      .add(pc().push("foo").push("bar").push(1).toPath(), "foobar2")
 
     Map<String, Object> tags = [
       "aws.request.body" : requestData,
@@ -142,12 +142,12 @@ class PayloadTagsProcessorTest extends DDSpecification {
 
     when:
     PayloadTagsData requestData = new PayloadTagsData()
-      .append(pc().push("a").withValue(1))
-      .append(pc().push("b").withValue(2.0f))
-      .append(pc().push("c").withValue("string"))
-      .append(pc().push("d").withValue(true))
-      .append(pc().push("e").withValue(false))
-      .append(pc().push("f").withValue(null))
+      .add(pc().push("a").toPath(), 1)
+      .add(pc().push("b").toPath(), 2.0f)
+      .add(pc().push("c").toPath(), "string")
+      .add(pc().push("d").toPath(), true)
+      .add(pc().push("e").toPath(), false)
+      .add(pc().push("f").toPath(), null)
 
 
     def tags = ["aws.request.body": requestData]

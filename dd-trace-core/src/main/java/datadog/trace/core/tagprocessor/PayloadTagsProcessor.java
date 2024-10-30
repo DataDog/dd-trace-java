@@ -4,11 +4,11 @@ import datadog.trace.api.Config;
 import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.core.DDSpanContext;
-import datadog.trace.payloadtags.PathCursor;
 import datadog.trace.payloadtags.PayloadTagsData;
 import datadog.trace.payloadtags.json.JsonPath;
 import datadog.trace.payloadtags.json.JsonPathParser;
 import datadog.trace.payloadtags.json.JsonStreamParser;
+import datadog.trace.payloadtags.json.PathCursor;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -88,17 +88,18 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
     return tags;
   }
 
-  private static void processPayloadTags(
+  private void processPayloadTags(
       PayloadTagsData payloadTagsData,
       RedactionJsonPaths redactionJsonPaths,
       JsonStreamParser.Visitor visitor,
       Map<String, Object> collectedTags) {
-    for (PathCursor cursor : payloadTagsData.all()) {
+    for (PayloadTagsData.PathAndValue pathAndValue : payloadTagsData.getAll()) {
       String prefix = redactionJsonPaths.knownPayloadTag;
+      PathCursor cursor = new PathCursor(pathAndValue.path, depthLimit);
       if (redactionJsonPaths.findMatching(cursor) != null) {
         collectedTags.put(cursor.dotted(prefix), REDACTED);
       } else {
-        Object value = cursor.attachedValue();
+        Object value = pathAndValue.value;
         if (value instanceof InputStream) {
           // try to parse the input stream as JSON if it starts like a JSON object or array
           if (!JsonStreamParser.tryToParse((InputStream) value, visitor, cursor)) {
@@ -198,7 +199,7 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
 
     @Override
     public boolean skipInner(PathCursor pathCursor) {
-      return pathCursor.length() > depthLimit;
+      return pathCursor.depth() > depthLimit;
     }
 
     @Override

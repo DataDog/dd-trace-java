@@ -1,5 +1,4 @@
-package datadog.trace.payloadtags
-
+package datadog.trace.payloadtags.json
 
 import spock.lang.Specification
 
@@ -110,38 +109,28 @@ class PathCursorSpec extends Specification {
     p.dotted("") == ""
   }
 
-  def "attach object to path creates a copy and never changes initial value"() {
-    def p1 = p().push("path").push(2)
-
+  def "copy create another object"() {
     when:
-    def p2 = p1.withValue("foo")
-
-    then:
-    p2 != p1
-    p1.attachedValue() == null
-    p2.attachedValue() == "foo"
-
-    when:
-    def p3 = p2.withValue("bar")
-
-    then:
-    p3 != p2
-    p2.attachedValue() == "foo"
-    p3.attachedValue() == "bar"
-  }
-
-  def "copy create another object without value attached to prevent possible bugs when path reused improperly"() {
-    def p = new PathCursor(10)
-
-    when:
-    def p1 = p.push("a").push(3).withValue("foobar")
+    def p1 = p().push("a").push(3)
     def p2 = p1.copy()
 
     then:
     p1 != p2
     p1.dotted("") == p2.dotted("")
-    p1.attachedValue() == "foobar"
-    and: "attached value is not copied"
-    p2.attachedValue() == null
+  }
+
+  def "create a cursor with bigger capacity than the path"() {
+    when:
+    def p1 = p().push("a").push(3).push("b")
+    def path = p1.toPath()
+
+    then:
+    path == ["a", 3, "b"].toArray()
+
+    when:
+    def p2 = new PathCursor(path, 4)
+
+    then:
+    p2.push("c").dotted("") == ".a.3.b.c"
   }
 }

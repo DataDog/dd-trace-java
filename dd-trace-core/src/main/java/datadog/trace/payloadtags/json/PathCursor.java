@@ -1,25 +1,30 @@
-package datadog.trace.payloadtags;
+package datadog.trace.payloadtags.json;
 
 import java.util.Arrays;
 
-/** Represents a mutable path in a JSON-like structure with an optional attached value. */
+/** Represents a mutable path in a JSON-like structure. */
 public class PathCursor {
   private final Object[] parts;
   private int size;
-  private final Object value;
 
   public PathCursor(int capacity) {
     super();
-    assert capacity > 0;
     parts = new Object[capacity];
-    value = null;
+    size = 0;
   }
 
-  private PathCursor(PathCursor that, Object value) {
+  public PathCursor(Object[] path, int capacity) {
     super();
-    parts = Arrays.copyOf(that.parts, that.length());
+    assert path.length <= capacity;
+    parts = new Object[capacity];
+    System.arraycopy(path, 0, parts, 0, path.length);
+    size = path.length;
+  }
+
+  private PathCursor(PathCursor that) {
+    super();
+    parts = Arrays.copyOf(that.parts, that.parts.length);
     size = that.size;
-    this.value = value;
   }
 
   public PathCursor push(String name) {
@@ -30,7 +35,6 @@ public class PathCursor {
   }
 
   public PathCursor push(int index) {
-    assert value == null;
     assert size < parts.length;
     parts[size] = index;
     size += 1;
@@ -38,14 +42,12 @@ public class PathCursor {
   }
 
   public void pop() {
-    assert value == null;
     if (size > 0) {
       size -= 1;
     }
   }
 
   public void advance() {
-    assert value == null;
     if (size > 0) {
       Object last = parts[size - 1];
       if (last instanceof Integer) {
@@ -57,10 +59,10 @@ public class PathCursor {
   }
 
   public PathCursor copy() {
-    return new PathCursor(this, null);
+    return new PathCursor(this);
   }
 
-  public int length() {
+  public int depth() {
     return size + 1;
   }
 
@@ -80,12 +82,7 @@ public class PathCursor {
     return sb.toString();
   }
 
-  public Object attachedValue() {
-    return value;
-  } // TODO probably return another thing that is part of API and have cursor to be internal
-  // json-parsing thing
-
-  public PathCursor withValue(Object value) {
-    return new PathCursor(this, value);
+  public Object[] toPath() {
+    return Arrays.copyOf(parts, size);
   }
 }

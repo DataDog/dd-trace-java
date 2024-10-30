@@ -1,7 +1,6 @@
 package datadog.trace.payloadtags.json;
 
 import com.squareup.moshi.JsonReader;
-import datadog.trace.payloadtags.PathCursor;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;

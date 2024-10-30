@@ -23,9 +23,8 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import datadog.trace.core.datastreams.TagsProcessor;
-import datadog.trace.payloadtags.PathCursor;
 import datadog.trace.payloadtags.PayloadTagsData;
-import java.io.InputStream;
+import datadog.trace.payloadtags.json.PathCursor;
 import java.net.URI;
 import java.time.Instant;
 import java.util.Collection;
@@ -474,8 +473,8 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
   }
 
   private void collectPayloadData(
-      PayloadTagsData result, PathCursor cursor, Object object, int maxDepth) {
-    if (cursor.length() >= maxDepth) {
+      PayloadTagsData payloadTagsData, PathCursor cursor, Object object, int maxDepth) {
+    if (cursor.depth() >= maxDepth) {
       return;
     }
     if (object instanceof SdkPojo) {
@@ -483,14 +482,14 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
       for (SdkField<?> field : pojo.sdkFields()) {
         Object val = field.getValueOrDefault(pojo);
         cursor.push(field.locationName());
-        collectPayloadData(result, cursor, val, maxDepth);
+        collectPayloadData(payloadTagsData, cursor, val, maxDepth);
         cursor.pop();
       }
     } else if (object instanceof Collection) {
       Collection<?> collection = (Collection<?>) object;
       cursor.push(0);
       for (Object v : collection) {
-        collectPayloadData(result, cursor, v, maxDepth);
+        collectPayloadData(payloadTagsData, cursor, v, maxDepth);
         cursor.advance();
       }
       cursor.pop();
@@ -498,15 +497,14 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
       Map<?, ?> map = (Map<?, ?>) object;
       for (Map.Entry<?, ?> e : map.entrySet()) {
         cursor.push(e.getKey().toString());
-        collectPayloadData(result, cursor, e.getValue(), maxDepth);
+        collectPayloadData(payloadTagsData, cursor, e.getValue(), maxDepth);
         cursor.pop();
       }
     } else if (object instanceof SdkBytes) {
       SdkBytes bytes = (SdkBytes) object;
-      InputStream inputStream = bytes.asInputStream();
-      result.append(cursor.withValue(inputStream));
+      payloadTagsData.add(cursor.toPath(), bytes.asInputStream());
     } else {
-      result.append(cursor.withValue(object));
+      payloadTagsData.add(cursor.toPath(), object);
     }
   }
 }

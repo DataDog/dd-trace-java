@@ -15,18 +15,29 @@ public class PayloadTagsData {
     String AWS_RESPONSE_BODY = "aws.response.body";
   }
 
-  private final List<PathCursor> cursors = new ArrayList<>();
+  public static final class PathAndValue {
+    // either a name (String) or an index (Integer)
+    public final Object[] path;
+    public final Object value;
 
-  public PayloadTagsData append(PathCursor cursor) {
-    cursors.add(cursor);
+    public PathAndValue(Object[] path, Object value) {
+      this.path = path;
+      this.value = value;
+    }
+  }
+
+  private final List<PathAndValue> pathAndValues = new ArrayList<>();
+
+  public PayloadTagsData add(Object[] path, Object value) {
+    pathAndValues.add(new PathAndValue(path, value));
     return this;
   }
 
-  public List<PathCursor> all() {
-    return cursors;
+  public List<PathAndValue> getAll() {
+    return pathAndValues;
   }
 
   public int size() {
-    return cursors.size();
+    return pathAndValues.size();
   }
 }

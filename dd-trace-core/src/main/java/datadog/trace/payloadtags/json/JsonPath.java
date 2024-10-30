@@ -1,6 +1,5 @@
 package datadog.trace.payloadtags.json;
 
-import datadog.trace.payloadtags.PathCursor;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -53,7 +52,7 @@ public final class JsonPath {
 
   public boolean matches(PathCursor pathCursor) {
     int i = segments.length - 1;
-    int j = pathCursor.length() - 1;
+    int j = pathCursor.depth() - 1;
     while (i >= 0 && j >= 0 && segments[i].matches(pathCursor.get(j))) {
       i--;
       j--;
