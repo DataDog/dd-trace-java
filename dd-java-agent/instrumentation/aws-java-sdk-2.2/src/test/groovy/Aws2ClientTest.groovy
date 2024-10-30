@@ -4,6 +4,7 @@ import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.instrumentation.aws.ExpectedQueryParams
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
 import software.amazon.awssdk.core.ResponseInputStream
@@ -129,7 +130,6 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.PEER_HOSTNAME" "localhost"
             "$Tags.PEER_PORT" server.address.port
-            "$Tags.HTTP_URL" "${server.address}${path}"
             "$Tags.HTTP_METHOD" "$method"
             "$Tags.HTTP_STATUS" 200
             "aws.service" "$service"
@@ -173,6 +173,7 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
               peerServiceFrom("aws.stream.name")
               checkPeerService = true
             }
+            urlTags("${server.address}${path}", ExpectedQueryParams.getExpectedQueryParams(operation))
             defaultTags(false, checkPeerService)
           }
         }
@@ -266,7 +267,6 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.PEER_HOSTNAME" "localhost"
             "$Tags.PEER_PORT" server.address.port
-            "$Tags.HTTP_URL" "${server.address}${path}"
             "$Tags.HTTP_METHOD" "$method"
             "$Tags.HTTP_STATUS" 200
             "aws.service" "$service"
@@ -308,6 +308,7 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
               peerServiceFrom("aws.stream.name")
               checkPeerService = true
             }
+            urlTags("${server.address}${path}", ExpectedQueryParams.getExpectedQueryParams(operation))
             defaultTags(false, checkPeerService)
           }
         }
