@@ -47,7 +47,7 @@ public class DataStreamContextInjector {
     injectPathwayContext(span, carrier, setter, sortedTags, 0, 0, false);
   }
 
-  <C> void injectPathwayContext(
+  private <C> void injectPathwayContext(
       AgentSpan span,
       C carrier,
       AgentPropagation.Setter<C> setter,
