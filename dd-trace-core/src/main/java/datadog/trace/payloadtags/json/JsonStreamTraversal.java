@@ -32,7 +32,7 @@ public class JsonStreamTraversal {
    * @return - true if the string was a json object or array, false otherwise
    */
   public static boolean traverse(String raw, Visitor visitor, PathCursor pathCursor) {
-    if (raw.startsWith("{") || raw.startsWith("[")) {
+    if (raw.startsWith("{") && raw.endsWith("}") || raw.startsWith("[") && raw.endsWith("]")) {
       try (InputStream is = new ByteArrayInputStream(raw.getBytes())) {
         return traverse(is, visitor, pathCursor.copy());
       } catch (Exception e) {
@@ -50,8 +50,7 @@ public class JsonStreamTraversal {
   public static boolean traverse(InputStream is, Visitor visitor, PathCursor pathCursor) {
     try (BufferedSource source = Okio.buffer(Okio.source(is))) {
       byte firstByte = source.peek().readByte();
-      if (firstByte == '{'
-          || firstByte == '[') { // TODO this check already done if called from the traverse above
+      if (firstByte == '{' || firstByte == '[') {
         try (JsonReader reader = JsonReader.of(source)) {
           reader.setLenient(true);
           traverse(reader, visitor, pathCursor);

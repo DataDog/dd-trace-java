@@ -102,24 +102,15 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
         } else if (value instanceof String) {
           String raw = (String) value;
           if (!JsonStreamTraversal.traverse(raw, visitor, cursor)) {
-            // keep string value as-is if it's not a valid JSON object or array
-            collectedTags.put(cursor.dotted(prefix), tagValue(value));
+            collectedTags.put(cursor.dotted(prefix), String.valueOf(value));
           }
+        } else if (value instanceof Number || value instanceof Boolean) {
+          collectedTags.put(cursor.dotted(prefix), value);
         } else {
-          collectedTags.put(cursor.dotted(prefix), tagValue(value));
+          collectedTags.put(cursor.dotted(prefix), String.valueOf(value));
         }
       }
     }
-  }
-
-  private static Object tagValue(Object value) {
-    if (value == null) {
-      // convert `null` to a string, otherwise it won't be set as a tag value
-      return "null";
-    }
-    // TODO maybe check value type???
-    // TODO maybe cut if too long???
-    return value;
   }
 
   private static final class RedactionJsonPaths {
@@ -208,7 +199,8 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
     @Override
     public void valueVisited(PathCursor pathCursor, Object value) {
       if (collectedTags.size() < tagsLimit) {
-        collectedTags.put(pathCursor.dotted(redactionJsonPaths.knownPayloadTag), tagValue(value));
+        collectedTags.put(
+            pathCursor.dotted(redactionJsonPaths.knownPayloadTag), String.valueOf(value));
       } else {
         collectedTags.put(DD_PAYLOAD_TAGS_INCOMPLETE, true);
         stopFlag = true;

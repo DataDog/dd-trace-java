@@ -128,8 +128,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
           span,
           PayloadTagsData.KnownPayloadTags.AWS_REQUEST_BODY,
           request,
-          config.getCloudPayloadTaggingMaxDepth(),
-          config.getCloudPayloadTaggingMaxTags());
+          config.getCloudPayloadTaggingMaxDepth());
     }
 
     // S3
@@ -321,8 +320,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
           span,
           PayloadTagsData.KnownPayloadTags.AWS_RESPONSE_BODY,
           response,
-          config.getCloudPayloadTaggingMaxDepth(),
-          config.getCloudPayloadTaggingMaxTags());
+          config.getCloudPayloadTaggingMaxDepth());
     }
 
     if (response instanceof AwsResponse) {
@@ -468,18 +466,16 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     return response.firstMatchingHeader(headerName).orElse(null);
   }
 
-  private void awsPojoToTags(
-      AgentSpan span, String pathPrefix, Object pojo, int maxDepth, int maxTags) {
+  private void awsPojoToTags(AgentSpan span, String pathPrefix, Object pojo, int maxDepth) {
     PayloadTagsData payloadTagsData = new PayloadTagsData();
-    collectPayloadData(payloadTagsData, new PathCursor(maxDepth), pojo, maxDepth, maxTags);
+    collectPayloadData(payloadTagsData, new PathCursor(maxDepth), pojo, maxDepth);
     // Save as one tag for post-processing
     span.setTag(pathPrefix, payloadTagsData);
   }
 
   private void collectPayloadData(
-      PayloadTagsData result, PathCursor cursor, Object object, int maxDepth, int maxTags) {
-    // TODO test it
-    if (cursor.length() >= maxDepth || result.size() >= maxTags) {
+      PayloadTagsData result, PathCursor cursor, Object object, int maxDepth) {
+    if (cursor.length() >= maxDepth) {
       return;
     }
     if (object instanceof SdkPojo) {
@@ -487,14 +483,14 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
       for (SdkField<?> field : pojo.sdkFields()) {
         Object val = field.getValueOrDefault(pojo);
         cursor.push(field.locationName());
-        collectPayloadData(result, cursor, val, maxDepth, maxTags);
+        collectPayloadData(result, cursor, val, maxDepth);
         cursor.pop();
       }
     } else if (object instanceof Collection) {
       Collection<?> collection = (Collection<?>) object;
       cursor.push(0);
       for (Object v : collection) {
-        collectPayloadData(result, cursor, v, maxDepth, maxTags);
+        collectPayloadData(result, cursor, v, maxDepth);
         cursor.advance();
       }
       cursor.pop();
@@ -502,16 +498,15 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
       Map<?, ?> map = (Map<?, ?>) object;
       for (Map.Entry<?, ?> e : map.entrySet()) {
         cursor.push(e.getKey().toString());
-        collectPayloadData(result, cursor, e.getValue(), maxDepth, maxTags);
+        collectPayloadData(result, cursor, e.getValue(), maxDepth);
         cursor.pop();
       }
     } else if (object instanceof SdkBytes) {
       SdkBytes bytes = (SdkBytes) object;
       InputStream inputStream = bytes.asInputStream();
-      result.append(cursor.copy().attachValue(inputStream));
+      result.append(cursor.withValue(inputStream));
     } else {
-      // TODO maybe limit only to known types such as Instance, Boolean, Number, String???
-      result.append(cursor.copy().attachValue(object));
+      result.append(cursor.withValue(object));
     }
   }
 }

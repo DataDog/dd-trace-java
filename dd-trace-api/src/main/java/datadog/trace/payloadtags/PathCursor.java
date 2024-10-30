@@ -2,46 +2,50 @@ package datadog.trace.payloadtags;
 
 import java.util.Arrays;
 
-/** Represents a mutable path in a JSON-like structure with an optional attached object. */
+/** Represents a mutable path in a JSON-like structure with an optional attached value. */
 public class PathCursor {
   private final Object[] parts;
   private int size;
-  private Object value;
+  private final Object value;
 
   public PathCursor(int capacity) {
     super();
     assert capacity > 0;
     parts = new Object[capacity];
+    value = null;
   }
 
-  private PathCursor(PathCursor that) {
+  private PathCursor(PathCursor that, Object value) {
     super();
     parts = Arrays.copyOf(that.parts, that.length());
     size = that.size;
-    value = that.value;
+    this.value = value;
   }
 
-  public PathCursor push(String value) {
+  public PathCursor push(String name) {
     assert size < parts.length;
-    parts[size] = value.replace(".", "\\.");
+    parts[size] = name.replace(".", "\\.");
     size += 1;
     return this;
   }
 
-  public PathCursor push(int value) {
+  public PathCursor push(int index) {
+    assert value == null;
     assert size < parts.length;
-    parts[size] = value;
+    parts[size] = index;
     size += 1;
     return this;
   }
 
   public void pop() {
+    assert value == null;
     if (size > 0) {
       size -= 1;
     }
   }
 
   public void advance() {
+    assert value == null;
     if (size > 0) {
       Object last = parts[size - 1];
       if (last instanceof Integer) {
@@ -53,7 +57,7 @@ public class PathCursor {
   }
 
   public PathCursor copy() {
-    return new PathCursor(this);
+    return new PathCursor(this, null);
   }
 
   public int length() {
@@ -80,8 +84,7 @@ public class PathCursor {
     return value;
   }
 
-  public PathCursor attachValue(Object value) {
-    this.value = value;
-    return this;
+  public PathCursor withValue(Object value) {
+    return new PathCursor(this, value);
   }
 }

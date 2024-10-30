@@ -110,44 +110,38 @@ class PathCursorSpec extends Specification {
     p.dotted("") == ""
   }
 
-  def "attach object to path"() {
-    def p = p()
+  def "attach object to path creates a copy and never changes initial value"() {
+    def p1 = p().push("path").push(2)
 
     when:
-    p.attachValue("foo")
+    def p2 = p1.withValue("foo")
 
     then:
-    p.attachedValue() == "foo"
+    p2 != p1
+    p1.attachedValue() == null
+    p2.attachedValue() == "foo"
 
     when:
-    p.push("path")
+    def p3 = p2.withValue("bar")
 
     then:
-    p.attachedValue() == "foo"
-
-    when:
-    p.attachValue("baz")
-
-    then:
-    p.attachedValue() == "baz"
-
-    when:
-    p.pop()
-
-    then:
-    p.attachedValue() == "baz"
+    p3 != p2
+    p2.attachedValue() == "foo"
+    p3.attachedValue() == "bar"
   }
 
   def "test copy"() {
     def p = new PathCursor(10)
 
     when:
-    def p1 = p.push("a").push(3).attachValue("foobar")
+    def p1 = p.push("a").push(3).withValue("foobar")
     def p2 = p1.copy()
 
     then:
     p1 != p2
     p1.dotted("") == p2.dotted("")
-    p1.attachedValue() == p2.attachedValue()
+    p1.attachedValue() == "foobar"
+    and: "attached value is not copied"
+    p2.attachedValue() == null
   }
 }

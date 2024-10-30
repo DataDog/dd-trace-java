@@ -18,12 +18,12 @@ class PayloadTagsProcessorTest extends DDSpecification {
 
     when:
     PayloadTagsData requestData = new PayloadTagsData()
-      .append(pc().push("foo").attachValue("bar"))
-      .append(pc().push("bar").push(0).attachValue("{ 'a': 1.15, 'password': 'my-secret-password' }"))
+      .append(pc().push("foo").withValue("bar"))
+      .append(pc().push("bar").push(0).withValue("{ 'a': 1.15, 'password': 'my-secret-password' }"))
       .append(pc().push("baz").push("Value"))
 
     PayloadTagsData responseData = new PayloadTagsData()
-      .append(pc().push("foo").attachValue("bar"))
+      .append(pc().push("foo").withValue("bar"))
 
     Map<String, Object> tags = [
       "aws.request.body" : requestData,
@@ -50,10 +50,10 @@ class PayloadTagsProcessorTest extends DDSpecification {
 
     when:
     PayloadTagsData requestData = new PayloadTagsData()
-      .append(pc().push("phoneNumber").attachValue("+15555555555"))
+      .append(pc().push("phoneNumber").withValue("+15555555555"))
 
     PayloadTagsData responseData = new PayloadTagsData()
-      .append(pc().push("phoneNumbers").push(0).attachValue("+15555555555"))
+      .append(pc().push("phoneNumbers").push(0).withValue("+15555555555"))
 
     Map<String, Object> tags = [
       "aws.request.body" : requestData,
@@ -77,12 +77,12 @@ class PayloadTagsProcessorTest extends DDSpecification {
 
     when:
     PayloadTagsData requestData = new PayloadTagsData()
-      .append(pc().push("a").attachValue(1))
-      .append(pc().push("b").attachValue(2.0f))
-      .append(pc().push("c").attachValue("string"))
-      .append(pc().push("d").attachValue(true))
-      .append(pc().push("e").attachValue(false))
-      .append(pc().push("f").attachValue(null))
+      .append(pc().push("a").withValue(1))
+      .append(pc().push("b").withValue(2.0f))
+      .append(pc().push("c").withValue("string"))
+      .append(pc().push("d").withValue(true))
+      .append(pc().push("e").withValue(false))
+      .append(pc().push("f").withValue(null))
 
 
     def tags = ["aws.request.body": requestData]
