@@ -1,6 +1,7 @@
 package com.datadog.debugger.probe;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -94,7 +95,7 @@ public class WhereTest {
     assertEquals("java.util.Map", whereMapPut.getTypeName());
     assertEquals("put", whereMapPut.getMethodName());
     assertEquals("(java.lang.Object, java.lang.Object)", whereMapPut.getSignature());
-    assertEquals(0, whereMapPut.getLines().length);
+    assertNull(whereMapPut.getLines());
   }
 
   @Test
