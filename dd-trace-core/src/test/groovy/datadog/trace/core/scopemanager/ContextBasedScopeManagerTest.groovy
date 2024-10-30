@@ -1,5 +1,8 @@
 package datadog.trace.core.scopemanager
 
+import datadog.context.Context
+import datadog.context.ContextListener
+import datadog.context.ContextProvider
 import datadog.trace.agent.test.utils.ThreadUtils
 import datadog.trace.api.Config
 import datadog.trace.api.Stateful
@@ -7,12 +10,12 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentSpan
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration
-import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.context.TraceScope
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.monitor.HealthMetrics
+import datadog.trace.core.scopemanager.context.ContextBasedScopeManager
 import datadog.trace.core.test.DDCoreSpecification
 import spock.lang.Shared
 
@@ -24,6 +27,10 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
+import static datadog.trace.api.tracing.ContextKeys.SPAN_CONTEXT_KEY
+import static datadog.trace.bootstrap.instrumentation.api.ScopeSource.INSTRUMENTATION
+import static datadog.trace.core.scopemanager.ContextBasedScopeManagerTest.SpanEventType.ACTIVATED
+import static datadog.trace.core.scopemanager.ContextBasedScopeManagerTest.SpanEventType.DEACTIVATED
 import static datadog.trace.core.scopemanager.EVENT.ACTIVATE
 import static datadog.trace.core.scopemanager.EVENT.CLOSE
 import static datadog.trace.test.util.GCUtils.awaitGC
@@ -37,12 +44,19 @@ class ContextBasedScopeManagerTest extends DDCoreSpecification {
     return false
   }
 
+  static EventCountingContextListener listener
+
   ListWriter writer
   CoreTracer tracer
   ContextBasedScopeManager scopeManager
   EventCountingListener eventCountingListener
   EventCountingExtendedListener eventCountingExtendedListener
   ProfilingContextIntegration profilingContext
+
+  def setupSpec() {
+    listener = new EventCountingContextListener()
+    ContextProvider.addListener(listener)
+  }
 
   def setup() {
     //    def state = Stub(Stateful)
@@ -396,68 +410,66 @@ class ContextBasedScopeManagerTest extends DDCoreSpecification {
     def span = tracer.buildSpan(INSTR_NAME, 'test').start()
 
     when:
-    AgentScope scope1 = scopeManager.activate(span, ScopeSource.INSTRUMENTATION)
+    AgentScope scope1 = scopeManager.activate(span, INSTRUMENTATION)
 
     then:
-    assertEvents([ACTIVATE])
+    assertEvents(ACTIVATED, 'test')
 
     when:
-    AgentScope scope2 = scopeManager.activate(span, ScopeSource.INSTRUMENTATION)
+    AgentScope scope2 = scopeManager.activate(span, INSTRUMENTATION)
 
     then: 'Activating the same span multiple times does not create a new scope'
-    assertEvents([ACTIVATE])
+    assertEvents(ACTIVATED, 'test')
 
     when:
     scope2.close()
 
     then: 'Closing a scope once that has been activated multiple times does not close'
-    assertEvents([ACTIVATE])
+    assertEvents(ACTIVATED, 'test')
 
     when:
     scope1.close()
 
     then:
-    assertEvents([ACTIVATE, CLOSE])
+    assertEvents(ACTIVATED, 'test', DEACTIVATED, 'test')
   }
 
   def "opening and closing multiple scopes"() {
     when:
-    AgentSpan span = tracer.buildSpan("foo").start()
-    AgentScope continuableScope = tracer.activateSpan(span)
+    AgentSpan span = tracer.buildSpan(INSTR_NAME, 'parent').start()
+    AgentScope scope = tracer.activateSpan(span)
 
     then:
-    continuableScope instanceof ContinuableScope
-    assertEvents([ACTIVATE])
+    assertEvents(ACTIVATED, 'parent')
 
     when:
-    AgentSpan childSpan = tracer.buildSpan("foo").start()
-    AgentScope childDDScope = tracer.activateSpan(childSpan)
+    AgentSpan childSpan = tracer.buildSpan(INSTR_NAME, 'child').start()
+    AgentScope childScope = tracer.activateSpan(childSpan)
 
     then:
-    childDDScope instanceof ContinuableScope
-    assertEvents([ACTIVATE, ACTIVATE])
+    assertEvents(ACTIVATED, 'parent', ACTIVATED, 'child')
 
     when:
-    childDDScope.close()
+    childScope.close()
     childSpan.finish()
 
     then:
-    assertEvents([ACTIVATE, ACTIVATE, CLOSE, ACTIVATE])
+    assertEvents(ACTIVATED, 'parent', ACTIVATED, 'child', DEACTIVATED, 'child', ACTIVATED, 'parent')
 
     when:
-    continuableScope.close()
+    scope.close()
     span.finish()
 
     then:
-    assertEvents([ACTIVATE, ACTIVATE, CLOSE, ACTIVATE, CLOSE])
+    assertEvents(ACTIVATED, 'parent', ACTIVATED, 'child', DEACTIVATED, 'child', ACTIVATED, 'parent', DEACTIVATED, 'parent')
   }
 
   def "closing scope out of order - simple"() {
     when:
-    AgentSpan firstSpan = tracer.buildSpan("foo").start()
+    AgentSpan firstSpan = tracer.buildSpan(INSTR_NAME, "foo").start()
     AgentScope firstScope = tracer.activateSpan(firstSpan)
 
-    AgentSpan secondSpan = tracer.buildSpan("bar").start()
+    AgentSpan secondSpan = tracer.buildSpan(INSTR_NAME, "bar").start()
     AgentScope secondScope = tracer.activateSpan(secondSpan)
 
     firstSpan.finish()
@@ -587,13 +599,13 @@ class ContextBasedScopeManagerTest extends DDCoreSpecification {
     def span = tracer.buildSpan("test").start()
 
     when:
-    AgentScope scope1 = scopeManager.activate(span, ScopeSource.INSTRUMENTATION)
+    AgentScope scope1 = scopeManager.activate(span, INSTRUMENTATION)
 
     then:
     assertEvents([ACTIVATE])
 
     when:
-    AgentScope scope2 = scopeManager.activate(span, ScopeSource.INSTRUMENTATION)
+    AgentScope scope2 = scopeManager.activate(span, INSTRUMENTATION)
 
     then: 'Activating the same span multiple times does not create a new scope'
     assertEvents([ACTIVATE])
@@ -833,7 +845,7 @@ class ContextBasedScopeManagerTest extends DDCoreSpecification {
     def span = tracer.buildSpan("test").start()
 
     when:
-    AgentScope scope = scopeManager.activate(span, ScopeSource.INSTRUMENTATION)
+    AgentScope scope = scopeManager.activate(span, INSTRUMENTATION)
 
     then:
     assertEvents([ACTIVATE])
@@ -863,7 +875,7 @@ class ContextBasedScopeManagerTest extends DDCoreSpecification {
     def span = tracer.buildSpan("test").start()
 
     when:
-    AgentScope scope = scopeManager.activate(span, ScopeSource.INSTRUMENTATION)
+    AgentScope scope = scopeManager.activate(span, INSTRUMENTATION)
 
     then:
     assertEvents([ACTIVATE])
@@ -997,9 +1009,37 @@ class ContextBasedScopeManagerTest extends DDCoreSpecification {
     return ((DDSpan) span)?.isFinished()
   }
 
-  def assertEvents(List<EVENT> events) {
-    assert eventCountingListener.events == events
-    assert eventCountingExtendedListener.events == events
+  def assertEvents(Object... events) {
+    assert listener.events == events.toList()
+    //    assert listener.events.size() == events.size()
+    //    for (i in 0..<events.size()) {
+    //      assert listener.events[i] == events[i]
+    //    }
     return true
+  }
+
+  enum SpanEventType {
+    ACTIVATED,
+    DEACTIVATED
+  }
+
+  class EventCountingContextListener implements ContextListener {
+    public final List<Object> events = new ArrayList<>()
+
+    // TODO Add all other events too
+
+    @Override
+    void onAttached(Context previous, Context currentContext) {
+      def pastSpan = previous.get(SPAN_CONTEXT_KEY)
+      def currentSpan = currentContext.get(SPAN_CONTEXT_KEY)
+      if (pastSpan != null && pastSpan != currentSpan) {
+        this.events.add(DEACTIVATED)
+        this.events.add(pastSpan.getSpanName())
+      }
+      if (currentSpan != null && currentSpan != pastSpan) {
+        this.events.add(ACTIVATED)
+        this.events.add(currentSpan.getSpanName())
+      }
+    }
   }
 }

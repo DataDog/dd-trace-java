@@ -52,4 +52,8 @@ public final class ContextProvider {
       ContextProvider.contextStorage = contextStorage;
     }
   }
+
+  public static void addListener(ContextListener listener) {
+    contextStorage().addListener(listener);
+  }
 }

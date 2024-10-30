@@ -18,6 +18,8 @@ import datadog.communication.ddagent.ExternalAgentLauncher;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.monitor.Monitoring;
 import datadog.communication.monitor.Recording;
+import datadog.context.ContextListener;
+import datadog.context.ContextProvider;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
@@ -1105,6 +1107,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     if (scopeManager instanceof ContinuableScopeManager) {
       ((ContinuableScopeManager) scopeManager).addScopeListener(listener);
     }
+  }
+
+  @Override
+  public void addContextListener(ContextListener listener) {
+    ContextProvider.addListener(listener);
   }
 
   @Override

@@ -36,4 +36,8 @@ public interface ContextStorage {
    */
   @Nonnull
   ContextScope attach(@Nonnull Context context);
+
+  void addListener(@Nonnull ContextListener listener);
+
+  void removeListener(@Nonnull ContextListener listener);
 }
