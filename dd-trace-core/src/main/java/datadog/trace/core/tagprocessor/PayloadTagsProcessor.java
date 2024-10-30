@@ -77,7 +77,7 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
         JsonStreamParser.Visitor visitor =
             new JsonVisitorTagCollector(depthLimit, maxTags, redactionJsonPaths, tags);
         processPayloadTags(payloadTagsData, redactionJsonPaths, visitor, tags);
-      } else {
+      } else if (tagValue != null) {
         log.debug(
             LogCollector.SEND_TELEMETRY,
             "Expected PayloadTagsData for known payload tag '{}', but got '{}'",
@@ -115,6 +115,8 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
         } else if (value instanceof Number || value instanceof Boolean) {
           // use numbers and booleans as-is for tags
           collectedTags.put(cursor.dotted(prefix), value);
+        } else if (value == null) {
+          collectedTags.put(cursor.dotted(prefix), null);
         } else {
           // everything else including null convert to a string representation
           collectedTags.put(cursor.dotted(prefix), String.valueOf(value));
@@ -182,6 +184,7 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
     private final int maxTags;
     private final int depthLimit;
     private final RedactionJsonPaths redactionJsonPaths;
+    private final String tagPrefix;
 
     private final Map<String, Object> collectedTags;
 
@@ -193,39 +196,64 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
       this.depthLimit = depthLimit;
       this.maxTags = maxTags;
       this.redactionJsonPaths = redactionJsonPaths;
+      this.tagPrefix = redactionJsonPaths.knownPayloadTag;
       this.collectedTags = collectedTags;
     }
 
     @Override
-    public boolean visitValue(PathCursor pathCursor) {
-      if (pathCursor.depth() > depthLimit) {
+    public boolean visitPath(PathCursor path) {
+      if (path.depth() > depthLimit) {
         return false;
       }
-      if (redactionJsonPaths.findMatching(pathCursor) != null) {
-        collectedTags.put(pathCursor.dotted(redactionJsonPaths.knownPayloadTag), REDACTED);
+      if (redactionJsonPaths.findMatching(path) != null) {
+        collectedTags.put(path.dotted(tagPrefix), REDACTED);
         return false;
       }
       return true;
     }
 
     @Override
-    public void valueVisited(PathCursor pathCursor, Object value) {
-      collectedTags.put(
-          pathCursor.dotted(redactionJsonPaths.knownPayloadTag), String.valueOf(value));
+    public void booleanValue(PathCursor path, boolean value) {
+      collectedTags.put(path.dotted(tagPrefix), value);
     }
 
     @Override
-    public boolean keepParsing(PathCursor pathCursor) {
+    public void stringValue(PathCursor path, String value) {
+      collectedTags.put(path.dotted(tagPrefix), value);
+    }
+
+    @Override
+    public void intValue(PathCursor path, int value) {
+      collectedTags.put(path.dotted(tagPrefix), value);
+    }
+
+    @Override
+    public void longValue(PathCursor path, long value) {
+      collectedTags.put(path.dotted(tagPrefix), value);
+    }
+
+    @Override
+    public void doubleValue(PathCursor path, double value) {
+      collectedTags.put(path.dotted(tagPrefix), value);
+    }
+
+    @Override
+    public void nullValue(PathCursor path) {
+      collectedTags.put(path.dotted(tagPrefix), null);
+    }
+
+    @Override
+    public boolean keepParsing(PathCursor path) {
       if (collectedTags.size() < maxTags) {
-        collectedTags.put(DD_PAYLOAD_TAGS_INCOMPLETE, true);
         return true;
       }
+      collectedTags.put(DD_PAYLOAD_TAGS_INCOMPLETE, true);
       return false;
     }
 
     @Override
-    public void expandValueFailed(PathCursor pathCursor, Exception exception) {
-      log.debug("Failed to expand value at path '{}'", pathCursor.dotted(""), exception);
+    public void expandValueFailed(PathCursor path, Exception exception) {
+      log.debug("Failed to expand value at path '{}'", path.dotted(""), exception);
     }
   }
 }

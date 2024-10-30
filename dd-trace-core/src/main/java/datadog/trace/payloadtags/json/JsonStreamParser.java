@@ -8,30 +8,40 @@ import okio.BufferedSource;
 import okio.Okio;
 
 /**
- * Provides depth-first event-based parsing of JSON. Support for expanding embedded stringified JSON
- * values, and stopping parsing before each iteration.
+ * Provides depth-first event-based parsing of JSON, iterating through the maps and arrays in a JSON
+ * structure. Support for expanding embedded stringified JSON values, and stopping parsing before
+ * each iteration.
  */
 public class JsonStreamParser {
 
   public interface Visitor {
-    /** @return - true to visit the value, false to skip it */
-    boolean visitValue(PathCursor pathCursor);
+    /** @return - true to visit the path, false to skip it */
+    boolean visitPath(PathCursor path);
 
-    /** Called when a primitive value is read */
-    void valueVisited(PathCursor pathCursor, Object value);
+    void booleanValue(PathCursor path, boolean value);
+
+    void stringValue(PathCursor path, String value);
+
+    void intValue(PathCursor path, int value);
+
+    void longValue(PathCursor path, long value);
+
+    void doubleValue(PathCursor path, double value);
+
+    void nullValue(PathCursor path);
 
     /**
      * Called at each iteration, so parsing can be stopped at any time
      *
      * @return - true to stop parsing, false to keep parsing
      */
-    boolean keepParsing(PathCursor pathCursor);
+    boolean keepParsing(PathCursor path);
 
     /**
      * Called when parsing of inner JSON-like value failed. It will be handled and continue parsing
      * the outer JSON-like value.
      */
-    void expandValueFailed(PathCursor pathCursor, Exception exception);
+    void expandValueFailed(PathCursor path, Exception exception);
   }
 
   /**
@@ -85,7 +95,7 @@ public class JsonStreamParser {
           return;
 
         case BEGIN_ARRAY:
-          if (!visitor.visitValue(pathCursor)) {
+          if (!visitor.visitPath(pathCursor)) {
             reader.skipValue();
             // an array can itself be a value in a parent array or object
             pathCursor.advance();
@@ -96,7 +106,7 @@ public class JsonStreamParser {
           break;
 
         case BEGIN_OBJECT:
-          if (!visitor.visitValue(pathCursor)) {
+          if (!visitor.visitPath(pathCursor)) {
             reader.skipValue();
             // an object can itself be a value in a parent array or object
             pathCursor.advance();
@@ -124,9 +134,8 @@ public class JsonStreamParser {
           break;
 
         case BOOLEAN:
-          if (visitor.visitValue(pathCursor)) {
-            boolean value = reader.nextBoolean();
-            visitor.valueVisited(pathCursor, value);
+          if (visitor.visitPath(pathCursor)) {
+            visitor.booleanValue(pathCursor, reader.nextBoolean());
           } else {
             reader.skipValue();
           }
@@ -134,36 +143,68 @@ public class JsonStreamParser {
           break;
 
         case STRING:
-          if (!visitor.visitValue(pathCursor)) {
+          if (!visitor.visitPath(pathCursor)) {
             reader.skipValue();
           } else {
-            String raw = reader.nextString();
-            if (!tryToParse(raw, visitor, pathCursor)) {
-              visitor.valueVisited(pathCursor, raw);
+            String str = reader.nextString();
+            if (!tryToParse(str, visitor, pathCursor)) {
+              visitor.stringValue(pathCursor, str);
             }
           }
           pathCursor.advance();
           break;
 
         case NUMBER:
-          if (visitor.visitValue(pathCursor)) {
-            // read a number as a string to preserve exact format
-            visitor.valueVisited(pathCursor, reader.nextString());
-          } else {
+          if (!visitor.visitPath(pathCursor)) {
             reader.skipValue();
+          } else {
+            String numberStr = reader.nextString();
+            if (!tryToParseInt(visitor, pathCursor, numberStr)
+                && !tryToParseLong(visitor, pathCursor, numberStr)
+                && !tryToParseDouble(visitor, pathCursor, numberStr)) {
+              visitor.stringValue(pathCursor, numberStr);
+            }
           }
           pathCursor.advance();
           break;
 
         case NULL:
-          if (visitor.visitValue(pathCursor)) {
-            visitor.valueVisited(pathCursor, reader.nextNull());
+          if (visitor.visitPath(pathCursor)) {
+            reader.nextNull();
+            visitor.nullValue(pathCursor);
           } else {
             reader.skipValue();
           }
           pathCursor.advance();
           break;
       }
+    }
+  }
+
+  private static boolean tryToParseInt(Visitor visitor, PathCursor path, String str) {
+    try {
+      visitor.intValue(path, Integer.parseInt(str));
+      return true;
+    } catch (NumberFormatException e) {
+      return false;
+    }
+  }
+
+  private static boolean tryToParseLong(Visitor visitor, PathCursor path, String str) {
+    try {
+      visitor.longValue(path, Long.parseLong(str));
+      return true;
+    } catch (NumberFormatException e) {
+      return false;
+    }
+  }
+
+  private static boolean tryToParseDouble(Visitor visitor, PathCursor path, String str) {
+    try {
+      visitor.doubleValue(path, Double.parseDouble(str));
+      return true;
+    } catch (NumberFormatException e) {
+      return false;
     }
   }
 }
