@@ -767,8 +767,6 @@ public class DDSpanContext
 
   Object getTag(final String key) {
     switch (key) {
-      case DDTags.TRANSACTION_ID:
-          return getTransactionId();
       case DDTags.THREAD_ID:
         return threadId;
       case DDTags.THREAD_NAME:
@@ -785,17 +783,6 @@ public class DDSpanContext
         return value == null ? null : Tags.HTTP_URL.equals(key) ? value.toString() : value;
     }
   }
-
-  /**
-   * Retrieves the transaction ID from the tags.
-   *
-   * @return the transaction ID if present; otherwise, null.
-   */
-  public String getTransactionId() {
-    Object transactionId = unsafeGetTag(DDTags.TRANSACTION_ID);
-    return transactionId instanceof String ? (String) transactionId : null;
-  }
-
 
   /**
    * This is not thread-safe and must only be used when it can be guaranteed that the context will
