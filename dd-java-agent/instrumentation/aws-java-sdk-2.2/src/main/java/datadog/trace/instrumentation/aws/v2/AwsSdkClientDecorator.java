@@ -24,9 +24,9 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import datadog.trace.core.datastreams.TagsProcessor;
 import datadog.trace.payloadtags.PayloadTagsData;
-import datadog.trace.payloadtags.json.PathCursor;
 import java.net.URI;
 import java.time.Instant;
+import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -123,11 +123,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     Config config = Config.get();
     if (config.isCloudRequestPayloadTaggingEnabled()
         && config.isCloudPayloadTaggingEnabledFor(awsServiceName)) {
-      awsPojoToTags(
-          span,
-          PayloadTagsData.KnownPayloadTags.AWS_REQUEST_BODY,
-          request,
-          config.getCloudPayloadTaggingMaxDepth());
+      awsPojoToTags(span, PayloadTagsData.KnownPayloadTags.AWS_REQUEST_BODY, request);
     }
 
     // S3
@@ -315,11 +311,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     String serviceName = attributes.getAttribute(SdkExecutionAttribute.SERVICE_NAME);
     if (config.isCloudResponsePayloadTaggingEnabled()
         && config.isCloudPayloadTaggingEnabledFor(serviceName)) {
-      awsPojoToTags(
-          span,
-          PayloadTagsData.KnownPayloadTags.AWS_RESPONSE_BODY,
-          response,
-          config.getCloudPayloadTaggingMaxDepth());
+      awsPojoToTags(span, PayloadTagsData.KnownPayloadTags.AWS_RESPONSE_BODY, response);
     }
 
     if (response instanceof AwsResponse) {
@@ -465,46 +457,43 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     return response.firstMatchingHeader(headerName).orElse(null);
   }
 
-  private void awsPojoToTags(AgentSpan span, String pathPrefix, Object pojo, int maxDepth) {
+  private void awsPojoToTags(AgentSpan span, String pathPrefix, Object pojo) {
     PayloadTagsData payloadTagsData = new PayloadTagsData();
-    collectPayloadData(payloadTagsData, new PathCursor(maxDepth), pojo, maxDepth);
+    collectPayloadData(payloadTagsData, new ArrayDeque<>(), pojo);
     // Save as one tag for post-processing
     span.setTag(pathPrefix, payloadTagsData);
   }
 
   private void collectPayloadData(
-      PayloadTagsData payloadTagsData, PathCursor cursor, Object object, int maxDepth) {
-    if (cursor.depth() >= maxDepth) {
-      return;
-    }
+      PayloadTagsData payloadTagsData, ArrayDeque<Object> path, Object object) {
     if (object instanceof SdkPojo) {
       SdkPojo pojo = (SdkPojo) object;
       for (SdkField<?> field : pojo.sdkFields()) {
         Object val = field.getValueOrDefault(pojo);
-        cursor.push(field.locationName());
-        collectPayloadData(payloadTagsData, cursor, val, maxDepth);
-        cursor.pop();
+        path.push(field.locationName());
+        collectPayloadData(payloadTagsData, path, val);
+        path.pop();
       }
     } else if (object instanceof Collection) {
-      Collection<?> collection = (Collection<?>) object;
-      cursor.push(0);
-      for (Object v : collection) {
-        collectPayloadData(payloadTagsData, cursor, v, maxDepth);
-        cursor.advance();
+      int i = 0;
+      for (Object v : (Collection<?>) object) {
+        path.push(i);
+        collectPayloadData(payloadTagsData, path, v);
+        path.pop();
+        i++;
       }
-      cursor.pop();
     } else if (object instanceof Map) {
       Map<?, ?> map = (Map<?, ?>) object;
       for (Map.Entry<?, ?> e : map.entrySet()) {
-        cursor.push(e.getKey().toString());
-        collectPayloadData(payloadTagsData, cursor, e.getValue(), maxDepth);
-        cursor.pop();
+        path.push(e.getKey().toString());
+        collectPayloadData(payloadTagsData, path, e.getValue());
+        path.pop();
       }
     } else if (object instanceof SdkBytes) {
       SdkBytes bytes = (SdkBytes) object;
-      payloadTagsData.add(cursor.toPath(), bytes.asInputStream());
+      payloadTagsData.add(path.toArray(), bytes.asInputStream());
     } else {
-      payloadTagsData.add(cursor.toPath(), object);
+      payloadTagsData.add(path.toArray(), object);
     }
   }
 }
