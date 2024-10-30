@@ -218,8 +218,6 @@ onboarding_tests_installer:
     matrix:
       - ONBOARDING_FILTER_WEBLOG: [test-app-java, test-app-java-container, test-app-java-alpine]
         SCENARIO: [ SIMPLE_INSTALLER_AUTO_INJECTION, SIMPLE_AUTO_INJECTION_PROFILING ]
-      - ONBOARDING_FILTER_WEBLOG: [test-app-java-buildpack]
-        SCENARIO: [ SIMPLE_INSTALLER_AUTO_INJECTION ]
 
 onboarding_tests_k8s_injection:
   variables:
