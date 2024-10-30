@@ -35,11 +35,6 @@ public final class WebServiceInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  protected boolean defaultEnabled() {
-    return true;
-  }
-
-  @Override
   public String hierarchyMarkerType() {
     return null; // bootstrap type
   }
@@ -80,7 +75,7 @@ public final class WebServiceInstrumentation extends InstrumenterModule.Tracing
 
       AgentSpan span = startSpan(JAKARTA_WS_REQUEST);
       span.setMeasured(true);
-      DECORATE.onJaxWsSpan(span, thiz.getClass(), method);
+      DECORATE.onJakartaWsSpan(span, thiz.getClass(), method);
       DECORATE.afterStart(span);
       return activateSpan(span);
     }

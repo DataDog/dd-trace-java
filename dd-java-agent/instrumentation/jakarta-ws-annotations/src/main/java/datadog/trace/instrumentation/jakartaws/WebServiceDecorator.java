@@ -30,7 +30,7 @@ public class WebServiceDecorator extends BaseDecorator {
     return JAKARTA_WS_ENDPOINT;
   }
 
-  public void onJaxWsSpan(final AgentSpan span, final Class<?> target, final String method) {
+  public void onJakartaWsSpan(final AgentSpan span, final Class<?> target, final String method) {
     span.setResourceName(spanNameForMethod(target, method));
   }
 }

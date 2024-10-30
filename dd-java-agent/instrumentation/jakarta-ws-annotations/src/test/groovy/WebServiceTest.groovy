@@ -5,14 +5,6 @@ import static org.junit.Assert.fail
 
 class WebServiceTest extends AgentTestRunner {
 
-  @Override
-  void configurePreAgent() {
-    super.configurePreAgent()
-    // todo figure out sysconfig
-    // injectSysConfig("dd.integration.jax-ws.enabled", "true")
-    injectSysConfig("dd.integration.jakarta-ws.enabled", "true")
-  }
-
   def "test successful interface request is traced"() {
     when:
     new TestService1Impl().send("success")
