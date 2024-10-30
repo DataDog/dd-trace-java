@@ -1,8 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
-import datadog.trace.api.iast.InstrumentationBridge;
-import datadog.trace.api.iast.propagation.CodecModule;
-import datadog.trace.api.iast.propagation.StringModule;
+import datadog.trace.api.iast.util.PropagationUtils;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
@@ -129,25 +127,11 @@ public class URIUtils {
       return null;
     }
     try {
-      return createAndPropagate(unparsed);
+      return PropagationUtils.onUriCreate(unparsed, URI.create(unparsed));
     } catch (final IllegalArgumentException exception) {
       LOGGER.debug("Unable to parse request uri {}", unparsed, exception);
       return null;
     }
-  }
-
-  /** This method is used to not lose propagation of the original host/path */
-  private static URI createAndPropagate(final String unparsed) {
-    URI result = URI.create(unparsed);
-    final CodecModule module = InstrumentationBridge.CODEC;
-    if (module != null) {
-      try {
-        module.onUriCreate(result, unparsed);
-      } catch (final Throwable e) {
-        module.onUnexpectedException("createAndPropagate threw", e);
-      }
-    }
-    return result;
   }
 
   /**
@@ -307,39 +291,12 @@ public class URIUtils {
     final boolean addSlash = !(part2.startsWith("/") || part1.endsWith("/"));
     final StringBuilder sb =
         new StringBuilder(part1.length() + part2.length() + (addSlash ? 1 : 0));
-    appendAndPropagatePath(sb, part1);
+    PropagationUtils.onStringBuilderAppend(part1, sb.append(part1));
     if (addSlash) {
       // it happens for http async client 4 with relative URI
       sb.append("/");
     }
-    appendAndPropagatePath(sb, part2);
-    return safeParse(toStringAndPropagateStringBuilder(sb));
-  }
-
-  /** This method is used to not lose propagation of the original host/path */
-  private static String toStringAndPropagateStringBuilder(StringBuilder sb) {
-    final String result = sb.toString();
-    final StringModule module = InstrumentationBridge.STRING;
-    if (module != null) {
-      try {
-        module.onStringBuilderToString(sb, result);
-      } catch (final Throwable e) {
-        module.onUnexpectedException("toStringAndPropagateStringBuilder threw", e);
-      }
-    }
-    return result;
-  }
-
-  /** This method is used to not lose propagation of the original host/path */
-  private static void appendAndPropagatePath(StringBuilder sb, String path) {
-    sb.append(path);
-    final StringModule module = InstrumentationBridge.STRING;
-    if (module != null) {
-      try {
-        module.onStringBuilderAppend(sb, path);
-      } catch (final Throwable e) {
-        module.onUnexpectedException("appendAndPropagatePath threw", e);
-      }
-    }
+    PropagationUtils.onStringBuilderAppend(part2, sb.append(part2));
+    return safeParse(PropagationUtils.onStringBuilderToString(sb, sb.toString()));
   }
 }
