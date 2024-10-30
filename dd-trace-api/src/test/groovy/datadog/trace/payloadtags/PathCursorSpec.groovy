@@ -130,7 +130,7 @@ class PathCursorSpec extends Specification {
     p3.attachedValue() == "bar"
   }
 
-  def "test copy"() {
+  def "copy create another object without value attached to prevent possible bugs when path reused improperly"() {
     def p = new PathCursor(10)
 
     when:

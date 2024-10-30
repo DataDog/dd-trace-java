@@ -2,6 +2,7 @@ package datadog.trace.core.tagprocessor;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.ConfigDefaults;
+import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.payloadtags.PathCursor;
 import datadog.trace.payloadtags.PayloadTagsData;
@@ -26,7 +27,7 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
   private static final String DD_PAYLOAD_TAGS_INCOMPLETE = "_dd.payload_tags_incomplete";
 
   @Nullable
-  public static PayloadTagsProcessor create(Config config) {
+  public static PayloadTagsProcessor create(Config config) { // TODO test with a config test
     List<RedactionJsonPaths> knownPayloadTagsRedactionPaths = new ArrayList<>();
     if (config.isCloudRequestPayloadTaggingEnabled()) {
       knownPayloadTagsRedactionPaths.add(
@@ -56,7 +57,7 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
   private final int depthLimit;
   private final int maxTags;
 
-  private PayloadTagsProcessor(
+  private PayloadTagsProcessor( // TODO test all the other cases via constructor
       List<RedactionJsonPaths> redactionJsonPaths, int depthLimit, int maxTags) {
     this.redactionJsonPaths = redactionJsonPaths;
     this.depthLimit = depthLimit;
@@ -77,7 +78,11 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
             new JsonVisitorTagCollector(depthLimit, maxTags, redactionJsonPaths, tags);
         processPayloadTags(payloadTagsData, redactionJsonPaths, visitor, tags);
       } else {
-        // TODO expected to be PayloadTagsData but it's not
+        log.debug(
+            LogCollector.SEND_TELEMETRY,
+            "Expected PayloadTagsData for known payload tag '{}', but got '{}'",
+            knownPayloadTag,
+            tagValue);
       }
     }
     return tags;
@@ -89,30 +94,35 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
       JsonStreamTraversal.Visitor visitor,
       Map<String, Object> collectedTags) {
     for (PathCursor cursor : payloadTagsData.all()) {
-      JsonPath redactionJsonPath = redactionJsonPaths.findMatching(cursor);
       String prefix = redactionJsonPaths.knownPayloadTag;
-      if (redactionJsonPath != null) {
+      if (redactionJsonPaths.findMatching(cursor) != null) {
         collectedTags.put(cursor.dotted(prefix), REDACTED);
       } else {
         Object value = cursor.attachedValue();
         if (value instanceof InputStream) {
+          // try to parse the input stream as JSON
           if (!JsonStreamTraversal.traverse((InputStream) value, visitor, cursor)) {
+            // if failed to parse, use predefined binary tag value
             collectedTags.put(cursor.dotted(prefix), BINARY);
           }
         } else if (value instanceof String) {
-          String raw = (String) value;
-          if (!JsonStreamTraversal.traverse(raw, visitor, cursor)) {
-            collectedTags.put(cursor.dotted(prefix), String.valueOf(value));
+          String str = (String) value;
+          // try to traverse the raw string as JSON
+          if (!JsonStreamTraversal.traverse(str, visitor, cursor)) {
+            collectedTags.put(cursor.dotted(prefix), str);
           }
         } else if (value instanceof Number || value instanceof Boolean) {
+          // use numbers and booleans as-is for tags
           collectedTags.put(cursor.dotted(prefix), value);
         } else {
+          // everything else including null convert to a string representation
           collectedTags.put(cursor.dotted(prefix), String.valueOf(value));
         }
       }
     }
   }
 
+  /** Contains set of redaction rules per known integration payload tag. */
   private static final class RedactionJsonPaths {
 
     public static final class Builder {
@@ -163,6 +173,10 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
     }
   }
 
+  /**
+   * Collects tags by walking through JSON structure and extracting values from it. Controls number
+   * of collected tags and depth of traversal. Redacts values that match redaction paths.
+   */
   private static final class JsonVisitorTagCollector implements JsonStreamTraversal.Visitor {
     private final int tagsLimit;
     private final int depthLimit;
@@ -214,7 +228,11 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
 
     @Override
     public void expandValueFailed(PathCursor pathCursor, Exception exception) {
-      // TODO debug log???
+      log.debug(
+          LogCollector.SEND_TELEMETRY,
+          "Failed to expand value at path '{}'",
+          pathCursor.dotted(""),
+          exception);
     }
   }
 }

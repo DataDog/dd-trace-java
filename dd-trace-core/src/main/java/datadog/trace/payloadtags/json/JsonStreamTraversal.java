@@ -8,6 +8,7 @@ import java.io.InputStream;
 import okio.BufferedSource;
 import okio.Okio;
 
+/** Provides event driven traversal of a JSON stream. The traversal is depth first. */
 public class JsonStreamTraversal {
 
   public interface Visitor {
@@ -45,7 +46,8 @@ public class JsonStreamTraversal {
   /**
    * Traverse an InputStream as JSON.
    *
-   * @return - true if it was successfully traversed as JSON, false otherwise
+   * @return - true if it was successfully traversed as JSON, false if it was not JSON, or it failed
+   *     to parse.
    */
   public static boolean traverse(InputStream is, Visitor visitor, PathCursor pathCursor) {
     try (BufferedSource source = Okio.buffer(Okio.source(is))) {
