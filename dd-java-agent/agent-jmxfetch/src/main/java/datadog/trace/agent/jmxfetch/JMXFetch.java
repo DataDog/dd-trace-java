@@ -22,6 +22,7 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 import org.datadog.jmxfetch.App;
 import org.datadog.jmxfetch.AppConfig;
+import org.datadog.jmxfetch.reporter.ConsoleReporter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,6 +50,8 @@ public class JMXFetch {
         && System.getProperty("org.slf4j.simpleLogger.log.org.datadog.jmxfetch") == null) {
       // Reduce noisiness of jmxfetch logging.
       System.setProperty("org.slf4j.simpleLogger.log.org.datadog.jmxfetch", "warn");
+      // But keep ConsoleReporter at info in case initAction is used
+      System.setProperty("org.slf4j.simpleLogger.log.org.datadog.jmxfetch.reporter.ConsoleReporter", "info");
     }
 
     final String jmxFetchConfigDir = config.getJmxFetchConfigDir();
@@ -59,6 +62,7 @@ public class JMXFetch {
     final Integer refreshBeansPeriod = config.getJmxFetchRefreshBeansPeriod();
     final Integer initialRefreshBeansPeriod = config.getJmxFetchInitialRefreshBeansPeriod();
     final Map<String, String> globalTags = config.getMergedJmxTags();
+    final String initAction = config.getJmxFetchInitAction();
 
     String host = config.getJmxFetchStatsdHost();
     Integer port = config.getJmxFetchStatsdPort();
@@ -136,6 +140,24 @@ public class JMXFetch {
             new Runnable() {
               @Override
               public void run() {
+                if (initAction != null) {
+                  final AppConfig initAppConfig = appConfig.toBuilder()
+                      .action(Collections.singletonList(initAction))
+                      .reporter(new ConsoleReporter())
+                      .build();
+
+                  final App initApp = new App(initAppConfig);
+                  try {
+                    log.info("running JMX init action: {}", initAction);
+                    final int result = initApp.run();
+                    if (result != 0) {
+                      log.error("JMX init action exited with result: {}", result);
+                    }
+                  } catch (final Exception e) {
+                    log.error("Exception running JMX init action", e);
+                  }
+                }
+
                 App app = new App(appConfig);
                 while (true) {
                   // check in case dynamic-config has temporarily disabled JMXFetch

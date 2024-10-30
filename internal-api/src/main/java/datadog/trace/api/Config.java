@@ -206,6 +206,7 @@ public class Config {
   private final Integer jmxFetchStatsdPort;
   private final boolean jmxFetchMultipleRuntimeServicesEnabled;
   private final int jmxFetchMultipleRuntimeServicesLimit;
+  private final String jmxFetchInitAction;
 
   // These values are default-ed to those of jmx fetch values as needed
   private final boolean healthMetricsEnabled;
@@ -976,6 +977,7 @@ public class Config {
     jmxFetchInitialRefreshBeansPeriod =
         configProvider.getInteger(JMX_FETCH_INITIAL_REFRESH_BEANS_PERIOD);
     jmxFetchRefreshBeansPeriod = configProvider.getInteger(JMX_FETCH_REFRESH_BEANS_PERIOD);
+    jmxFetchInitAction = configProvider.getString(JMX_FETCH_INIT_ACTION);
 
     jmxFetchStatsdPort = configProvider.getInteger(JMX_FETCH_STATSD_PORT, DOGSTATSD_PORT);
     jmxFetchStatsdHost =
@@ -2158,6 +2160,11 @@ public class Config {
   public int getJmxFetchMultipleRuntimeServicesLimit() {
     return jmxFetchMultipleRuntimeServicesLimit;
   }
+
+  public String getJmxFetchInitAction() {
+    return jmxFetchInitAction;
+  }
+
 
   public boolean isHealthMetricsEnabled() {
     return healthMetricsEnabled;
@@ -4130,6 +4137,9 @@ public class Config {
         + jmxFetchMultipleRuntimeServicesEnabled
         + ", jmxFetchMultipleRuntimeServicesLimit="
         + jmxFetchMultipleRuntimeServicesLimit
+        + ", jmxFetchInitAction='"
+        + jmxFetchInitAction
+        + '\''
         + ", healthMetricsEnabled="
         + healthMetricsEnabled
         + ", healthMetricsStatsdHost='"
