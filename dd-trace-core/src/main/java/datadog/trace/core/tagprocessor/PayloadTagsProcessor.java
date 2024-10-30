@@ -54,13 +54,13 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
 
   private final List<RedactionJsonPaths> redactionJsonPaths;
   private final int depthLimit;
-  private final int tagsLimit;
+  private final int maxTags;
 
   private PayloadTagsProcessor(
-      List<RedactionJsonPaths> redactionJsonPaths, int depthLimit, int tagsLimit) {
+      List<RedactionJsonPaths> redactionJsonPaths, int depthLimit, int maxTags) {
     this.redactionJsonPaths = redactionJsonPaths;
     this.depthLimit = depthLimit;
-    this.tagsLimit = tagsLimit;
+    this.maxTags = maxTags;
   }
 
   @Override
@@ -74,7 +74,7 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
         PayloadTagsData payloadTagsData = (PayloadTagsData) tagValue;
         // TODO calc local limit taking into account already collected tags
         JsonStreamTraversal.Visitor visitor =
-            new JsonVisitorTagCollector(depthLimit, tagsLimit, redactionJsonPaths, tags);
+            new JsonVisitorTagCollector(depthLimit, maxTags, redactionJsonPaths, tags);
         processPayloadTags(payloadTagsData, redactionJsonPaths, visitor, tags);
       } else {
         // TODO expected to be PayloadTagsData but it's not

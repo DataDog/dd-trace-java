@@ -70,6 +70,37 @@ class PayloadTagsProcessorTest extends DDSpecification {
     ]
   }
 
+  def "test some custom redaction rules"() {
+    setup:
+    injectSysConfig("trace.cloud.request.payload.tagging", "\$.customField")
+    injectSysConfig("trace.cloud.response.payload.tagging", "\$.foo.bar[1]")
+
+    when:
+    PayloadTagsData requestData = new PayloadTagsData()
+      .append(pc().push("customField").withValue("custom-field-value"))
+      .append(pc().push("customField2").withValue("custom-field-value"))
+
+    PayloadTagsData responseData = new PayloadTagsData()
+      .append(pc().push("foo").push("bar").push(0).withValue("foobar"))
+      .append(pc().push("foo").push("bar").push(1).withValue("foobar2"))
+
+    Map<String, Object> tags = [
+      "aws.request.body" : requestData,
+      "aws.response.body": responseData,
+    ]
+
+    PayloadTagsProcessor.create(Config.get())
+      .processTags(tags, null)
+
+    then:
+    tags == [
+      "aws.request.body.customField" : "redacted",
+      "aws.request.body.customField2": "custom-field-value",
+      "aws.response.body.foo.bar.0"  : "foobar",
+      "aws.response.body.foo.bar.1"  : "redacted"
+    ]
+  }
+
   def "traverse primitive values"() {
     setup:
     injectSysConfig("trace.cloud.request.payload.tagging", "all")
