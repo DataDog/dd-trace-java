@@ -93,6 +93,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
           final long spanID = DECORATE.setContextInfo(connection, dbInfo);
           // we then force that pre-determined span ID for the span covering the actual query
           span = AgentTracer.get().buildSpan(DATABASE_QUERY).withSpanId(spanID).start();
+          span.setTag(DBM_TRACE_INJECTED, true);
         } else {
           span = startSpan(DATABASE_QUERY);
         }
@@ -100,15 +101,13 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
         DECORATE.afterStart(span);
         DECORATE.onConnection(span, dbInfo);
         final String copy = sql;
-        if (span != null && INJECT_COMMENT) {
+        if (span != null && INJECT_COMMENT && !isSqlServer) {
           String traceParent = null;
 
           if (injectTraceContext) {
             Integer priority = span.forceSamplingDecision();
             if (priority != null) {
-              if (!isSqlServer) {
-                traceParent = DECORATE.traceParent(span, priority);
-              }
+              traceParent = DECORATE.traceParent(span, priority);
               // set the dbm trace injected tag on the span
               span.setTag(DBM_TRACE_INJECTED, true);
             }
