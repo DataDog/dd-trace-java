@@ -88,7 +88,6 @@ public class CurrentAppSecConfig {
 
     Map<String, Object> mso = new HashMap<>();
     if (dirtyStatus.rules) {
-      mso.put("metadata", ddConfig.getRawConfig().getOrDefault("metadata", Collections.emptyMap()));
       mso.put("rules", ddConfig.getRawConfig().getOrDefault("rules", Collections.emptyList()));
       mso.put(
           "processors",
@@ -115,6 +114,10 @@ public class CurrentAppSecConfig {
     }
 
     mso.put("version", ddConfig.getVersion() == null ? "2.1" : ddConfig.getVersion());
+
+    if (dirtyStatus.isAnyDirty()) {
+      mso.put("metadata", ddConfig.getRawConfig().getOrDefault("metadata", Collections.emptyMap()));
+    }
 
     if (log.isDebugEnabled()) {
       log.debug(
@@ -220,11 +223,9 @@ public class CurrentAppSecConfig {
   }
 
   private List<Map<String, Object>> getMergedCustomRules() {
-    List<Map<String, Object>> customRules =
-        this.userConfigs.stream()
-            .map(uc -> uc.customRules)
-            .reduce(Collections.emptyList(), CurrentAppSecConfig::mergeMapsByIdKeepLatest);
-    return customRules;
+    return this.userConfigs.stream()
+        .map(uc -> uc.customRules)
+        .reduce(Collections.emptyList(), CurrentAppSecConfig::mergeMapsByIdKeepLatest);
   }
 
   private List<Map<String, Object>> getMergedExclusions() {
