@@ -8,7 +8,7 @@ import datadog.trace.payloadtags.PathCursor;
 import datadog.trace.payloadtags.PayloadTagsData;
 import datadog.trace.payloadtags.json.JsonPath;
 import datadog.trace.payloadtags.json.JsonPathParser;
-import datadog.trace.payloadtags.json.JsonStreamTraversal;
+import datadog.trace.payloadtags.json.JsonStreamParser;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -70,11 +70,11 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
       String knownPayloadTag = redactionJsonPaths.knownPayloadTag;
       Object tagValue = tags.get(knownPayloadTag);
       if (tagValue instanceof PayloadTagsData) {
-        // remove payload path data tag to be replaced by post-processed extracted tags
+        // remove payload path data tag and replace with  post-processed extracted tags
         tags.remove(knownPayloadTag);
         PayloadTagsData payloadTagsData = (PayloadTagsData) tagValue;
         // TODO calc local limit taking into account already collected tags
-        JsonStreamTraversal.Visitor visitor =
+        JsonStreamParser.Visitor visitor =
             new JsonVisitorTagCollector(depthLimit, maxTags, redactionJsonPaths, tags);
         processPayloadTags(payloadTagsData, redactionJsonPaths, visitor, tags);
       } else {
@@ -91,7 +91,7 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
   private static void processPayloadTags(
       PayloadTagsData payloadTagsData,
       RedactionJsonPaths redactionJsonPaths,
-      JsonStreamTraversal.Visitor visitor,
+      JsonStreamParser.Visitor visitor,
       Map<String, Object> collectedTags) {
     for (PathCursor cursor : payloadTagsData.all()) {
       String prefix = redactionJsonPaths.knownPayloadTag;
@@ -100,15 +100,15 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
       } else {
         Object value = cursor.attachedValue();
         if (value instanceof InputStream) {
-          // try to parse the input stream as JSON
-          if (!JsonStreamTraversal.traverse((InputStream) value, visitor, cursor)) {
+          // try to parse the input stream as JSON if it starts like a JSON object or array
+          if (!JsonStreamParser.tryToParse((InputStream) value, visitor, cursor)) {
             // if failed to parse, use predefined binary tag value
             collectedTags.put(cursor.dotted(prefix), BINARY);
           }
         } else if (value instanceof String) {
           String str = (String) value;
-          // try to traverse the raw string as JSON
-          if (!JsonStreamTraversal.traverse(str, visitor, cursor)) {
+          // try to parse a string as JSON if it looks like a JSON object or array
+          if (!JsonStreamParser.tryToParse(str, visitor, cursor)) {
             collectedTags.put(cursor.dotted(prefix), str);
           }
         } else if (value instanceof Number || value instanceof Boolean) {
@@ -177,8 +177,8 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
    * Collects tags by walking through JSON structure and extracting values from it. Controls number
    * of collected tags and depth of traversal. Redacts values that match redaction paths.
    */
-  private static final class JsonVisitorTagCollector implements JsonStreamTraversal.Visitor {
-    private final int tagsLimit;
+  private static final class JsonVisitorTagCollector implements JsonStreamParser.Visitor {
+    private final int maxTags;
     private final int depthLimit;
     private final RedactionJsonPaths redactionJsonPaths;
 
@@ -187,11 +187,11 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
 
     public JsonVisitorTagCollector(
         int depthLimit,
-        int tagsLimit,
+        int maxTags,
         RedactionJsonPaths redactionJsonPaths,
         Map<String, Object> collectedTags) {
       this.depthLimit = depthLimit;
-      this.tagsLimit = tagsLimit;
+      this.maxTags = maxTags;
       this.redactionJsonPaths = redactionJsonPaths;
       this.collectedTags = collectedTags;
     }
@@ -212,7 +212,7 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
 
     @Override
     public void valueVisited(PathCursor pathCursor, Object value) {
-      if (collectedTags.size() < tagsLimit) {
+      if (collectedTags.size() < maxTags) {
         collectedTags.put(
             pathCursor.dotted(redactionJsonPaths.knownPayloadTag), String.valueOf(value));
       } else {
@@ -222,17 +222,13 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
     }
 
     @Override
-    public boolean keepTraversing() {
+    public boolean keepParsing() {
       return !stopFlag;
     }
 
     @Override
     public void expandValueFailed(PathCursor pathCursor, Exception exception) {
-      log.debug(
-          LogCollector.SEND_TELEMETRY,
-          "Failed to expand value at path '{}'",
-          pathCursor.dotted(""),
-          exception);
+      log.debug("Failed to expand value at path '{}'", pathCursor.dotted(""), exception);
     }
   }
 }

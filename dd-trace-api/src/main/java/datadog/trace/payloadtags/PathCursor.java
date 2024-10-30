@@ -82,7 +82,8 @@ public class PathCursor {
 
   public Object attachedValue() {
     return value;
-  }
+  } // TODO probably return another thing that is part of API and have cursor to be internal
+  // json-parsing thing
 
   public PathCursor withValue(Object value) {
     return new PathCursor(this, value);

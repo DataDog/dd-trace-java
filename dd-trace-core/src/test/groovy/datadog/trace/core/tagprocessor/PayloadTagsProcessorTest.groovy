@@ -11,6 +11,40 @@ class PayloadTagsProcessorTest extends DDSpecification {
     new PathCursor(10)
   }
 
+  def "disabled by default"() {
+    expect:
+    !PayloadTagsProcessor.create(Config.get())
+  }
+
+  def "enabled with default limits"() {
+    setup:
+    injectSysConfig("trace.cloud.request.payload.tagging", "all")
+    injectSysConfig("trace.cloud.response.payload.tagging", "all")
+
+    when:
+    def ptp = PayloadTagsProcessor.create(Config.get())
+
+    then:
+    ptp != null
+    ptp.depthLimit == 10
+    ptp.maxTags == 758
+  }
+
+  def "enabled with custom limits"() {
+    setup:
+    injectSysConfig("trace.cloud.request.payload.tagging", "\$")
+    injectSysConfig("trace.cloud.response.payload.tagging", "\$")
+    injectSysConfig("trace.cloud.payload.tagging.max-depth", "7")
+    injectSysConfig("trace.cloud.payload.tagging.max-tags", "42")
+
+    when:
+    def ptp = PayloadTagsProcessor.create(Config.get())
+
+    then:
+    ptp.depthLimit == 7
+    ptp.maxTags == 42
+  }
+
   def "test when enabled"() {
     setup:
     injectSysConfig("trace.cloud.request.payload.tagging", "all")
@@ -101,7 +135,7 @@ class PayloadTagsProcessorTest extends DDSpecification {
     ]
   }
 
-  def "traverse primitive values"() {
+  def "collect primitive values"() {
     setup:
     injectSysConfig("trace.cloud.request.payload.tagging", "all")
     injectSysConfig("trace.cloud.response.payload.tagging", "all")
@@ -128,11 +162,11 @@ class PayloadTagsProcessorTest extends DDSpecification {
       "aws.request.body.c": "string",
       "aws.request.body.d": true,
       "aws.request.body.e": false,
-      "aws.request.body.f": "null",
+      "aws.request.body.f": "null", // collect a null as a string to be a valid tag value
     ]
   }
 
-  //    def "traverse inner json primitive values"() {
+  //    def "parse inner json primitive values"() {
   //      JsonTagsExtractor jsonTagsExtractor = new JsonTagsExtractor.Builder().build()
   //
   //      def json = """{

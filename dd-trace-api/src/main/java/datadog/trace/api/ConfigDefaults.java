@@ -245,15 +245,7 @@ public final class ConfigDefaults {
   static final Set<String> DEFAULT_TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES =
       new HashSet<>(
           Arrays.asList(
-              "ApiGateway",
-              "ApiGatewayV2",
-              "EventBridge",
-              "Sqs",
-              // The following services don't seem to use JSON, but it may also depend on the AWS
-              // SDK version, so here it is for now
-              "Sns",
-              "S3",
-              "Kinesis"));
+              "ApiGateway", "ApiGatewayV2", "EventBridge", "Sqs", "Sns", "S3", "Kinesis"));
 
   public static final List<String> DEFAULT_CLOUD_PAYLOAD_TAGGING =
       asList(

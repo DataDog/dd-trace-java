@@ -8,34 +8,51 @@ import java.io.InputStream;
 import okio.BufferedSource;
 import okio.Okio;
 
-/** Provides event driven traversal of a JSON stream. The traversal is depth first. */
-public class JsonStreamTraversal {
+/** Provides depth-first event-based parser of a JSON. */
+public class JsonStreamParser {
 
   public interface Visitor {
-    /** @return - true to skip an inner object or array, otherwise false */
-    boolean skipInner(PathCursor pathCursor);
+    /**
+     * Called before object or array value is parsed
+     *
+     * @return - true to instruct parser to skip an inner object or array, otherwise return false
+     */
+    boolean skipInner(PathCursor pathCursor); // TODO can be removed as visitValue does the same
 
     /** @return - true to visit the value, false to skip it */
     boolean visitValue(PathCursor pathCursor);
 
-    void valueVisited(PathCursor pathCursor, Object value);
+    /** Called when a primitive value is read */
+    void valueVisited(
+        PathCursor pathCursor,
+        Object
+            value); // TODO replace with typed methods boolean, string, number (maybe long/double),
+    // null
 
-    /** @return - true to stop traversing, false to keep traversing */
-    boolean keepTraversing();
+    /**
+     * Called at each iteration, so parsing can be stopped at any time
+     *
+     * @return - true to stop parsing, false to keep parsing
+     */
+    boolean keepParsing();
 
-    /** Called when parsing inner json failed */
+    /**
+     * Called when parsing of inner JSON-like value failed. It will be handled and continue parsing
+     * the outer JSON-like value.
+     */
     void expandValueFailed(PathCursor jsonPath, Exception exception);
   }
 
   /**
-   * Traverse a JSON string.
+   * Try to parse a JSON string if it looks like a JSON object or array.
    *
-   * @return - true if the string was a json object or array, false otherwise
+   * @return - true if the string was a JSON object or array, false if it was not JSON or failed to
+   *     parse
    */
-  public static boolean traverse(String raw, Visitor visitor, PathCursor pathCursor) {
+  public static boolean tryToParse(String raw, Visitor visitor, PathCursor pathCursor) {
     if (raw.startsWith("{") && raw.endsWith("}") || raw.startsWith("[") && raw.endsWith("]")) {
       try (InputStream is = new ByteArrayInputStream(raw.getBytes())) {
-        return traverse(is, visitor, pathCursor.copy());
+        return tryToParse(is, visitor, pathCursor.copy());
       } catch (Exception e) {
         visitor.expandValueFailed(pathCursor, e);
       }
@@ -44,18 +61,18 @@ public class JsonStreamTraversal {
   }
 
   /**
-   * Traverse an InputStream as JSON.
+   * Try to parse an InputStream as JSON if it starts as a JSON object or array.
    *
-   * @return - true if it was successfully traversed as JSON, false if it was not JSON, or it failed
-   *     to parse.
+   * @return - true if it was successfully parsed as JSON, false if it was not JSON, or it failed to
+   *     parse.
    */
-  public static boolean traverse(InputStream is, Visitor visitor, PathCursor pathCursor) {
+  public static boolean tryToParse(InputStream is, Visitor visitor, PathCursor pathCursor) {
     try (BufferedSource source = Okio.buffer(Okio.source(is))) {
       byte firstByte = source.peek().readByte();
       if (firstByte == '{' || firstByte == '[') {
         try (JsonReader reader = JsonReader.of(source)) {
           reader.setLenient(true);
-          traverse(reader, visitor, pathCursor);
+          tryToParse(reader, visitor, pathCursor);
           return true;
         } catch (Exception e) {
           visitor.expandValueFailed(pathCursor, e);
@@ -67,10 +84,10 @@ public class JsonStreamTraversal {
     return false;
   }
 
-  private static void traverse(JsonReader reader, Visitor visitor, PathCursor pathCursor)
+  private static void tryToParse(JsonReader reader, Visitor visitor, PathCursor pathCursor)
       throws IOException {
 
-    while (visitor.keepTraversing()) {
+    while (visitor.keepParsing()) {
 
       switch (reader.peek()) {
         case END_DOCUMENT:
@@ -130,7 +147,7 @@ public class JsonStreamTraversal {
             reader.skipValue();
           } else {
             String raw = reader.nextString();
-            if (!traverse(raw, visitor, pathCursor)) {
+            if (!tryToParse(raw, visitor, pathCursor)) {
               visitor.valueVisited(pathCursor, raw);
             }
           }
