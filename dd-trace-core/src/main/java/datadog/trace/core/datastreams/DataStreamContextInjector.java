@@ -3,11 +3,14 @@ package datadog.trace.core.datastreams;
 import static datadog.trace.api.DDTags.PATHWAY_HASH;
 import static datadog.trace.bootstrap.instrumentation.api.PathwayContext.PROPAGATION_KEY_BASE64;
 
+import datadog.trace.api.experimental.DataStreamsContextCarrier;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import java.io.IOException;
 import java.util.LinkedHashMap;
+import java.util.Map;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,6 +74,26 @@ public class DataStreamContextInjector {
             ? injectBinaryPathwayContext(
                 pathwayContext, carrier, (AgentPropagation.BinarySetter<C>) setter)
             : injectPathwayContext(pathwayContext, carrier, setter);
+
+    long pathwayHash = pathwayContext.getHash();
+
+    // Extract transaction ID from the carrier
+    String transactionId = null;
+    if (carrier instanceof DataStreamsContextCarrier) {
+      DataStreamsContextCarrier dsCarrier = (DataStreamsContextCarrier) carrier;
+      for (Map.Entry<String, Object> entry : dsCarrier.entries()) {
+        if ("transaction.id".equals(entry.getKey())) {
+          transactionId = entry.getValue().toString();
+          break;
+        }
+      }
+    }
+
+    if (transactionId != null && pathwayHash != 0) {
+      // dummy logic to set them as used variables
+      System.out.println("WE HAVE BOTH TRANSACTION ID AND PATHWAY HASH");
+    }
+
 
     if (injected && pathwayContext.getHash() != 0) {
       span.setTag(PATHWAY_HASH, Long.toUnsignedString(pathwayContext.getHash()));
