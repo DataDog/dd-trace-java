@@ -712,7 +712,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     'host'    | 'dd.datad0g.com'
   }
 
-  void 'ssrf is present (different clients)'() {
+  void 'ssrf is present (#path)'() {
     setup:
     final url = "http://localhost:${httpPort}/ssrf/${path}"
     final body = new FormBody.Builder().add(parameter, value).build()

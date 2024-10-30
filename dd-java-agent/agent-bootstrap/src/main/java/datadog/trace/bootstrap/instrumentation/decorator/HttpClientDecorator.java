@@ -181,12 +181,16 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
   }
 
   private void ssrfIastCheck(final REQUEST request) {
+    final Object sourceUrl = sourceUrl(request);
+    if (sourceUrl == null) {
+      return;
+    }
     if (InstrumenterConfig.get().getIastActivation() != ProductActivation.FULLY_ENABLED) {
       return;
     }
     final SsrfModule ssrfModule = InstrumentationBridge.SSRF;
     if (ssrfModule != null) {
-      ssrfModule.onURLConnection(sourceUrl(request));
+      ssrfModule.onURLConnection(sourceUrl);
     }
   }
 }
