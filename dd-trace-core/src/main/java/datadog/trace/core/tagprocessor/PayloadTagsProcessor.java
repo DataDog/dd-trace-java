@@ -184,7 +184,6 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
     private final RedactionJsonPaths redactionJsonPaths;
 
     private final Map<String, Object> collectedTags;
-    private boolean stopFlag;
 
     public JsonVisitorTagCollector(
         int depthLimit,
@@ -198,12 +197,10 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
     }
 
     @Override
-    public boolean skipInner(PathCursor pathCursor) {
-      return pathCursor.depth() > depthLimit;
-    }
-
-    @Override
     public boolean visitValue(PathCursor pathCursor) {
+      if (pathCursor.depth() > depthLimit) {
+        return false;
+      }
       if (redactionJsonPaths.findMatching(pathCursor) != null) {
         collectedTags.put(pathCursor.dotted(redactionJsonPaths.knownPayloadTag), REDACTED);
         return false;
@@ -213,18 +210,17 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
 
     @Override
     public void valueVisited(PathCursor pathCursor, Object value) {
-      if (collectedTags.size() < maxTags) {
-        collectedTags.put(
-            pathCursor.dotted(redactionJsonPaths.knownPayloadTag), String.valueOf(value));
-      } else {
-        collectedTags.put(DD_PAYLOAD_TAGS_INCOMPLETE, true);
-        stopFlag = true;
-      }
+      collectedTags.put(
+          pathCursor.dotted(redactionJsonPaths.knownPayloadTag), String.valueOf(value));
     }
 
     @Override
-    public boolean keepParsing() {
-      return !stopFlag;
+    public boolean keepParsing(PathCursor pathCursor) {
+      if (collectedTags.size() < maxTags) {
+        collectedTags.put(DD_PAYLOAD_TAGS_INCOMPLETE, true);
+        return true;
+      }
+      return false;
     }
 
     @Override

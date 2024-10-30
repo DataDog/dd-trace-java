@@ -7,39 +7,31 @@ import java.io.InputStream;
 import okio.BufferedSource;
 import okio.Okio;
 
-/** Provides depth-first event-based parser of a JSON. */
+/**
+ * Provides depth-first event-based parsing of JSON. Support for expanding embedded stringified JSON
+ * values, and stopping parsing before each iteration.
+ */
 public class JsonStreamParser {
 
   public interface Visitor {
-    /**
-     * Called before object or array value is parsed
-     *
-     * @return - true to instruct parser to skip an inner object or array, otherwise return false
-     */
-    boolean skipInner(PathCursor pathCursor); // TODO can be removed as visitValue does the same
-
     /** @return - true to visit the value, false to skip it */
     boolean visitValue(PathCursor pathCursor);
 
     /** Called when a primitive value is read */
-    void valueVisited(
-        PathCursor pathCursor,
-        Object
-            value); // TODO replace with typed methods boolean, string, number (maybe long/double),
-    // null
+    void valueVisited(PathCursor pathCursor, Object value);
 
     /**
      * Called at each iteration, so parsing can be stopped at any time
      *
      * @return - true to stop parsing, false to keep parsing
      */
-    boolean keepParsing();
+    boolean keepParsing(PathCursor pathCursor);
 
     /**
      * Called when parsing of inner JSON-like value failed. It will be handled and continue parsing
      * the outer JSON-like value.
      */
-    void expandValueFailed(PathCursor jsonPath, Exception exception);
+    void expandValueFailed(PathCursor pathCursor, Exception exception);
   }
 
   /**
@@ -86,14 +78,14 @@ public class JsonStreamParser {
   private static void tryToParse(JsonReader reader, Visitor visitor, PathCursor pathCursor)
       throws IOException {
 
-    while (visitor.keepParsing()) {
+    while (visitor.keepParsing(pathCursor)) {
 
       switch (reader.peek()) {
         case END_DOCUMENT:
           return;
 
         case BEGIN_ARRAY:
-          if (visitor.skipInner(pathCursor) || !visitor.visitValue(pathCursor)) {
+          if (!visitor.visitValue(pathCursor)) {
             reader.skipValue();
             // an array can itself be a value in a parent array or object
             pathCursor.advance();
@@ -104,7 +96,7 @@ public class JsonStreamParser {
           break;
 
         case BEGIN_OBJECT:
-          if (visitor.skipInner(pathCursor) || !visitor.visitValue(pathCursor)) {
+          if (!visitor.visitValue(pathCursor)) {
             reader.skipValue();
             // an object can itself be a value in a parent array or object
             pathCursor.advance();
