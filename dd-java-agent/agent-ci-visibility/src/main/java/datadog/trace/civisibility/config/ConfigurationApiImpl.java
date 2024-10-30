@@ -160,11 +160,13 @@ public class ConfigurationApiImpl implements ConfigurationApi {
             telemetryListener,
             false);
 
+    Configurations requestConf = tracerEnvironment.getConfigurations();
+
     Map<String, Map<TestIdentifier, TestMetadata>> testIdentifiersByModule = new HashMap<>();
     for (DataDto<TestIdentifierJson> dataDto : response.data) {
       TestIdentifierJson testIdentifierJson = dataDto.getAttributes();
-      Configurations configurations = testIdentifierJson.getConfigurations();
-      String moduleName = configurations.getTestBundle();
+      Configurations conf = testIdentifierJson.getConfigurations();
+      String moduleName = (conf != null ? conf : requestConf).getTestBundle();
       testIdentifiersByModule
           .computeIfAbsent(moduleName, k -> new HashMap<>())
           .put(testIdentifierJson.toTestIdentifier(), testIdentifierJson.toTestMetadata());
