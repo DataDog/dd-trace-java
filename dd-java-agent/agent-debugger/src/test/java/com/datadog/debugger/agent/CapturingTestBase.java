@@ -391,14 +391,12 @@ public class CapturingTestBase {
       for (LogProbe probe : logProbes) {
         if (probe.getSampling() != null) {
           ProbeRateLimiter.setRate(
-              probe.getId(),
-              probe.getSampling().getSnapshotsPerSecond(),
-              probe.isCaptureSnapshot());
+              probe.getId(), probe.getSampling().getEventsPerSecond(), probe.isCaptureSnapshot());
         }
       }
     }
     if (configuration.getSampling() != null) {
-      ProbeRateLimiter.setGlobalSnapshotRate(configuration.getSampling().getSnapshotsPerSecond());
+      ProbeRateLimiter.setGlobalSnapshotRate(configuration.getSampling().getEventsPerSecond());
     }
 
     return listener;
