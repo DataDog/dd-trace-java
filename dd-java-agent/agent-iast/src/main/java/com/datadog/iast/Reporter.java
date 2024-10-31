@@ -12,6 +12,7 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.*;
+import datadog.trace.instrumentation.iastinstrumenter.IastExclusionTrie;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.stacktrace.StackTraceEvent;
 import datadog.trace.util.stacktrace.StackTraceFrame;
@@ -92,7 +93,9 @@ public class Reporter {
     if (reqCtx == null) {
       return null;
     }
-    List<StackTraceFrame> frames = StackUtils.generateUserCodeStackTrace();
+    List<StackTraceFrame> frames =
+        StackUtils.generateUserCodeStackTrace(
+            stack -> IastExclusionTrie.apply(stack.getClassName()) < 1);
     StackTraceEvent stackTraceEvent = new StackTraceEvent(frames, DEFAULT_LANGUAGE, index, null);
     StackUtils.addStacktraceEventsToMetaStruct(
         reqCtx, METASTRUCT_VULNERABILITY, Collections.singletonList(stackTraceEvent));
