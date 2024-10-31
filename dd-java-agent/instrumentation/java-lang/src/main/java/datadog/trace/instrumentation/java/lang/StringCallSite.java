@@ -1,30 +1,20 @@
 package datadog.trace.instrumentation.java.lang;
 
-import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
-
 import datadog.trace.agent.tooling.csi.CallSite;
-import datadog.trace.api.Config;
 import datadog.trace.api.iast.IastCallSites;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.StringModule;
-import datadog.trace.api.iast.telemetry.IastMetric;
-import datadog.trace.api.iast.telemetry.IastMetricCollector;
 import datadog.trace.util.stacktrace.StackUtils;
-import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @Propagation
 @CallSite(spi = IastCallSites.class)
 public class StringCallSite {
-
-  private static final Logger LOGGER = LoggerFactory.getLogger(StringCallSite.class);
 
   @CallSite.After("java.lang.String java.lang.String.concat(java.lang.String)")
   @Nonnull
@@ -307,118 +297,5 @@ public class StringCallSite {
       }
     }
     return result;
-  }
-
-  @CallSite.Around(
-      "java.lang.String java.lang.String.replace(java.lang.CharSequence, java.lang.CharSequence)")
-  public static String aroundReplaceCharSeq(
-      @CallSite.This final String self,
-      @CallSite.Argument(0) final CharSequence oldCharSeq,
-      @CallSite.Argument(1) final CharSequence newCharSeq)
-      throws Throwable {
-    String originalReplaced;
-    try {
-      originalReplaced = self.replace(oldCharSeq, newCharSeq);
-    } catch (final Throwable e) {
-      throw StackUtils.filterDatadog(e);
-    }
-
-    if (Config.get().isIastExperimentalPropagationEnabled()) {
-      String newReplaced = "";
-      final StringModule module = InstrumentationBridge.STRING;
-      if (module != null) {
-        try {
-          newReplaced = module.onStringReplace(self, oldCharSeq, newCharSeq);
-        } catch (final Throwable e) {
-          module.onUnexpectedException("aroundReplaceCharSeq threw", e);
-        }
-      }
-      if (!originalReplaced.equals(newReplaced)) {
-        LOGGER.debug(
-            SEND_TELEMETRY,
-            "AroundReplaceCharSeq failed due to a different result between original replace and new replace, originalLength: {}, newLength: {}",
-            originalReplaced.length(),
-            newReplaced != null ? newReplaced.length() : 0);
-      }
-
-      IastMetricCollector.add(IastMetric.EXPERIMENTAL_PROPAGATION, 1);
-    }
-    return originalReplaced;
-  }
-
-  @CallSite.Around(
-      "java.lang.String java.lang.String.replaceAll(java.lang.String, java.lang.String)")
-  @SuppressForbidden
-  public static String aroundReplaceAll(
-      @CallSite.This final String self,
-      @CallSite.Argument(0) final String regex,
-      @CallSite.Argument(1) final String replacement)
-      throws Throwable {
-    String originalReplaced;
-    try {
-      originalReplaced = self.replaceAll(regex, replacement);
-    } catch (final Throwable e) {
-      throw StackUtils.filterDatadog(e);
-    }
-
-    if (Config.get().isIastExperimentalPropagationEnabled()) {
-      String newReplaced = "";
-      final StringModule module = InstrumentationBridge.STRING;
-      if (module != null) {
-        try {
-          newReplaced = module.onStringReplace(self, regex, replacement, Integer.MAX_VALUE);
-        } catch (final Throwable e) {
-          module.onUnexpectedException("aroundReplaceAll threw", e);
-        }
-      }
-      if (!originalReplaced.equals(newReplaced)) {
-        LOGGER.debug(
-            SEND_TELEMETRY,
-            "aroundReplaceAll failed due to a different result between original replace and new replace, originalLength: {}, newLength: {}",
-            originalReplaced.length(),
-            newReplaced != null ? newReplaced.length() : 0);
-      }
-
-      IastMetricCollector.add(IastMetric.EXPERIMENTAL_PROPAGATION, 1);
-    }
-    return originalReplaced;
-  }
-
-  @CallSite.Around(
-      "java.lang.String java.lang.String.replaceFirst(java.lang.String, java.lang.String)")
-  @SuppressForbidden
-  public static String aroundReplaceFirst(
-      @CallSite.This final String self,
-      @CallSite.Argument(0) final String regex,
-      @CallSite.Argument(1) final String replacement)
-      throws Throwable {
-    String originalReplaced;
-    try {
-      originalReplaced = self.replaceAll(regex, replacement);
-    } catch (final Throwable e) {
-      throw StackUtils.filterDatadog(e);
-    }
-
-    if (Config.get().isIastExperimentalPropagationEnabled()) {
-      String newReplaced = "";
-      final StringModule module = InstrumentationBridge.STRING;
-      if (module != null) {
-        try {
-          newReplaced = module.onStringReplace(self, regex, replacement, 1);
-        } catch (final Throwable e) {
-          module.onUnexpectedException("aroundReplaceFirst threw", e);
-        }
-      }
-      if (!originalReplaced.equals(newReplaced)) {
-        LOGGER.debug(
-            SEND_TELEMETRY,
-            "aroundReplaceFirst failed due to a different result between original replace and new replace, originalLength: {}, newLength: {}",
-            originalReplaced.length(),
-            newReplaced != null ? newReplaced.length() : 0);
-      }
-
-      IastMetricCollector.add(IastMetric.EXPERIMENTAL_PROPAGATION, 1);
-    }
-    return originalReplaced;
   }
 }
