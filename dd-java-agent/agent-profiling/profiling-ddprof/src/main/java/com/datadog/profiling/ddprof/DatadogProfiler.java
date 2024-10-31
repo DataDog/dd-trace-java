@@ -402,17 +402,18 @@ public final class DatadogProfiler {
     return new QueueTimeTracker(this, profiler.getCurrentTicks());
   }
 
-  void recordQueueTimeEvent(
-      long startMillis, long startTicks, Object task, Class<?> scheduler, Thread origin) {
+  boolean shouldRecordQueueTimeEvent(long startMillis) {
+    return System.currentTimeMillis() - startMillis >= queueTimeThresholdMillis;
+  }
+
+  void recordQueueTimeEvent(long startTicks, Object task, Class<?> scheduler, Thread origin) {
     if (profiler != null) {
-      if (System.currentTimeMillis() - startMillis >= queueTimeThresholdMillis) {
-        // note: because this type traversal can update secondary_super_cache (see JDK-8180450)
-        // we avoid doing this unless we are absolutely certain we will record the event
-        Class<?> taskType = TaskWrapper.getUnwrappedType(task);
-        if (taskType != null) {
-          long endTicks = profiler.getCurrentTicks();
-          profiler.recordQueueTime(startTicks, endTicks, taskType, scheduler, origin);
-        }
+      // note: because this type traversal can update secondary_super_cache (see JDK-8180450)
+      // we avoid doing this unless we are absolutely certain we will record the event
+      Class<?> taskType = TaskWrapper.getUnwrappedType(task);
+      if (taskType != null) {
+        long endTicks = profiler.getCurrentTicks();
+        profiler.recordQueueTime(startTicks, endTicks, taskType, scheduler, origin);
       }
     }
   }

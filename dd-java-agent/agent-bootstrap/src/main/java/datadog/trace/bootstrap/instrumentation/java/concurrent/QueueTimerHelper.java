@@ -4,6 +4,7 @@ import datadog.trace.api.Platform;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.profiling.QueueTiming;
 import datadog.trace.api.profiling.Timer;
+import datadog.trace.api.profiling.Timing;
 import datadog.trace.api.sampling.PerRecordingRateLimiter;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
@@ -41,15 +42,22 @@ public class QueueTimerHelper {
     }
     // avoid calling this before JFR is initialised because it will lead to reading the wrong
     // TSC frequency before JFR has set it up properly
-    if (task != null
-        && state != null
-        && InstrumentationBasedProfiling.isJFRReady()
-        && RateLimiterHolder.RATE_LIMITER.permit()) {
+    if (task != null && state != null && InstrumentationBasedProfiling.isJFRReady()) {
       QueueTiming timing =
           (QueueTiming) AgentTracer.get().getProfilingContext().start(Timer.TimerType.QUEUEING);
       timing.setTask(task);
       timing.setScheduler(schedulerClass);
       state.setTiming(timing);
+    }
+  }
+
+  public static void stopQueuingTimer(Timing timing) {
+    if (Platform.isNativeImageBuilder()) {
+      // explicitly not supported for Graal native image
+      return;
+    }
+    if (timing != null && timing.sample() && RateLimiterHolder.RATE_LIMITER.permit()) {
+      timing.report();
     }
   }
 }
