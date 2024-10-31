@@ -100,7 +100,6 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
   @Override
   public void afterExecution(
       final Context.AfterExecution context, final ExecutionAttributes executionAttributes) {
-
     final AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
     if (span != null) {
       executionAttributes.putAttribute(SPAN_ATTRIBUTE, null);

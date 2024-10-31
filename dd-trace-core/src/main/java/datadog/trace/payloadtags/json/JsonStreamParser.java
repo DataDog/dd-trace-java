@@ -8,15 +8,18 @@ import okio.BufferedSource;
 import okio.Okio;
 
 /**
- * Provides depth-first event-based parsing of JSON, iterating through the maps and arrays in a JSON
- * structure. Support for expanding embedded stringified JSON values, and stopping parsing before
- * each iteration.
+ * Provides event-based parsing of JSON, iterating through the maps and arrays in a JSON structure.
+ * Support for expanding embedded stringified JSON values, and stopping parsing before each
+ * iteration.
  */
 public class JsonStreamParser {
 
   public interface Visitor {
     /** @return - true to visit the path, false to skip it */
-    boolean visitPath(PathCursor path);
+    boolean visitCompound(PathCursor path);
+
+    /** @return - true to visit the path, false to skip it */
+    boolean visitPrimitive(PathCursor path);
 
     void booleanValue(PathCursor path, boolean value);
 
@@ -95,23 +98,25 @@ public class JsonStreamParser {
           return;
 
         case BEGIN_ARRAY:
-          if (!visitor.visitPath(pathCursor)) {
-            reader.skipValue();
-            // an array can itself be a value in a parent array or object
-            pathCursor.advance();
-          } else {
+          if (visitor.visitCompound(pathCursor)) {
             reader.beginArray();
             pathCursor.push(0);
+          } else {
+            reader.skipValue();
+            // an array can itself be a value in a parent array or object
+            // by skipping we won't get END_ARRAY
+            pathCursor.advance();
           }
           break;
 
         case BEGIN_OBJECT:
-          if (!visitor.visitPath(pathCursor)) {
+          if (visitor.visitCompound(pathCursor)) {
+            reader.beginObject();
+          } else {
             reader.skipValue();
             // an object can itself be a value in a parent array or object
+            // by skipping we won't get END_OBJECT
             pathCursor.advance();
-          } else {
-            reader.beginObject();
           }
           break;
 
@@ -134,7 +139,7 @@ public class JsonStreamParser {
           break;
 
         case BOOLEAN:
-          if (visitor.visitPath(pathCursor)) {
+          if (visitor.visitPrimitive(pathCursor)) {
             visitor.booleanValue(pathCursor, reader.nextBoolean());
           } else {
             reader.skipValue();
@@ -143,7 +148,7 @@ public class JsonStreamParser {
           break;
 
         case STRING:
-          if (!visitor.visitPath(pathCursor)) {
+          if (!visitor.visitPrimitive(pathCursor)) {
             reader.skipValue();
           } else {
             String str = reader.nextString();
@@ -155,7 +160,7 @@ public class JsonStreamParser {
           break;
 
         case NUMBER:
-          if (!visitor.visitPath(pathCursor)) {
+          if (!visitor.visitPrimitive(pathCursor)) {
             reader.skipValue();
           } else {
             String numberStr = reader.nextString();
@@ -169,7 +174,7 @@ public class JsonStreamParser {
           break;
 
         case NULL:
-          if (visitor.visitPath(pathCursor)) {
+          if (visitor.visitPrimitive(pathCursor)) {
             reader.nextNull();
             visitor.nullValue(pathCursor);
           } else {

@@ -33,7 +33,7 @@ public class PayloadTagsData {
     return this;
   }
 
-  public List<PathAndValue> getAll() {
+  public List<PathAndValue> all() {
     return pathAndValues;
   }
 

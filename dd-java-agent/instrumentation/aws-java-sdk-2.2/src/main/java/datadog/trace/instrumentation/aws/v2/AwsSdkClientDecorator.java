@@ -459,34 +459,34 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
 
   private void awsPojoToTags(AgentSpan span, String pathPrefix, Object pojo) {
     PayloadTagsData payloadTagsData = new PayloadTagsData();
-    collectPayloadData(payloadTagsData, new ArrayDeque<>(), pojo);
+    collectPayloadTagsData(payloadTagsData, new ArrayDeque<>(), pojo);
     // Save as one tag for post-processing
     span.setTag(pathPrefix, payloadTagsData);
   }
 
-  private void collectPayloadData(
+  private void collectPayloadTagsData(
       PayloadTagsData payloadTagsData, ArrayDeque<Object> path, Object object) {
     if (object instanceof SdkPojo) {
       SdkPojo pojo = (SdkPojo) object;
       for (SdkField<?> field : pojo.sdkFields()) {
         Object val = field.getValueOrDefault(pojo);
-        path.push(keyToString(field.locationName()));
-        collectPayloadData(payloadTagsData, path, val);
+        path.push(field.locationName());
+        collectPayloadTagsData(payloadTagsData, path, val);
         path.pop();
       }
     } else if (object instanceof Collection) {
       int index = 0;
       for (Object value : (Collection<?>) object) {
         path.push(index);
-        collectPayloadData(payloadTagsData, path, value);
+        collectPayloadTagsData(payloadTagsData, path, value);
         path.pop();
         index++;
       }
     } else if (object instanceof Map) {
       Map<?, ?> map = (Map<?, ?>) object;
       for (Map.Entry<?, ?> entry : map.entrySet()) {
-        path.push(keyToString(entry.getKey()));
-        collectPayloadData(payloadTagsData, path, entry.getValue());
+        path.push(entry.getKey().toString());
+        collectPayloadTagsData(payloadTagsData, path, entry.getValue());
         path.pop();
       }
     } else if (object instanceof SdkBytes) {
@@ -495,9 +495,5 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     } else {
       payloadTagsData.add(path.toArray(), object);
     }
-  }
-
-  private static String keyToString(Object key) {
-    return key.toString().replace(".", "\\.");
   }
 }

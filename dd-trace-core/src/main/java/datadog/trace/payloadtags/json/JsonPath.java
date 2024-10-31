@@ -52,8 +52,8 @@ public final class JsonPath {
 
   public boolean matches(PathCursor pathCursor) {
     int i = segments.length - 1;
-    int j = pathCursor.depth() - 1;
-    while (i >= 0 && j >= 0 && segments[i].matches(pathCursor.get(j))) {
+    int j = pathCursor.levels();
+    while (i >= 0 && j >= 0 && segments[i].matches(pathCursor.jsonPathSegment(j))) {
       i--;
       j--;
       if (segments[i + 1] == Segment.Singleton.DESCENDANT) {
@@ -83,7 +83,7 @@ public final class JsonPath {
   private boolean matchPathBlock(
       JsonPath pattern, int offset1, PathCursor pointer, int offset2, int blockSize) {
     for (int i = 0; i < blockSize; i++) {
-      if (!pattern.segments[offset1 + i].matches(pointer.get(offset2 + i))) {
+      if (!pattern.segments[offset1 + i].matches(pointer.jsonPathSegment(offset2 + i))) {
         return false;
       }
     }

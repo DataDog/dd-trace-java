@@ -10,7 +10,7 @@ class PathCursorSpec extends Specification {
 
   def "print path cursor in a dot notation with a custom prefix"() {
     expect:
-    pattern.dotted("dd") == expected
+    pattern.toString("dd") == expected
 
     where:
     pattern                                           | expected
@@ -30,43 +30,43 @@ class PathCursorSpec extends Specification {
     p.push(0)
 
     then:
-    p.dotted("") == ".0"
+    p.toString("") == ".0"
 
     when:
     p.advance()
 
     then:
-    p.dotted("") == ".1"
+    p.toString("") == ".1"
 
     when:
     p.advance()
 
     then:
-    p.dotted("") == ".2"
+    p.toString("") == ".2"
 
     when:
     p.push(0)
 
     then:
-    p.dotted("") == ".2.0"
+    p.toString("") == ".2.0"
 
     when:
     p.advance()
 
     then:
-    p.dotted("") == ".2.1"
+    p.toString("") == ".2.1"
 
     when:
     p.pop()
 
     then:
-    p.dotted("") == ".2"
+    p.toString("") == ".2"
 
     when:
     p.pop()
 
     then:
-    p.dotted("") == ""
+    p.toString("") == ""
   }
 
   def "advance cursor between object fields"() {
@@ -76,37 +76,37 @@ class PathCursorSpec extends Specification {
     p.push("foo")
 
     then:
-    p.dotted("") == ".foo"
+    p.toString("") == ".foo"
 
     when:
     p.advance()
 
     then:
-    p.dotted("") == ""
+    p.toString("") == ""
 
     when:
     p.push("bar")
 
     then:
-    p.dotted("") == ".bar"
+    p.toString("") == ".bar"
 
     when:
     p.push("baz")
 
     then:
-    p.dotted("") == ".bar.baz"
+    p.toString("") == ".bar.baz"
 
     when:
     p.advance()
 
     then:
-    p.dotted("") == ".bar"
+    p.toString("") == ".bar"
 
     when:
     p.advance()
 
     then:
-    p.dotted("") == ""
+    p.toString("") == ""
   }
 
   def "copy create another object"() {
@@ -116,7 +116,7 @@ class PathCursorSpec extends Specification {
 
     then:
     p1 != p2
-    p1.dotted("") == p2.dotted("")
+    p1.toString("") == p2.toString("")
   }
 
   def "create a cursor with bigger capacity than the path"() {
@@ -131,6 +131,6 @@ class PathCursorSpec extends Specification {
     def p2 = new PathCursor(path, 4)
 
     then:
-    p2.push("c").dotted("") == ".a.3.b.c"
+    p2.push("c").toString("") == ".a.3.b.c"
   }
 }

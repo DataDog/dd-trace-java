@@ -1,5 +1,6 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.utils.TraceUtils
+import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.config.TracerConfig
 import org.testcontainers.containers.GenericContainer
@@ -244,3 +245,54 @@ class PayloadTaggingExpansionForkedTest extends AbstractPayloadTaggingTest {
     }
   }
 }
+
+class PayloadTaggingMaxDepthForkedTest extends AbstractPayloadTaggingTest {
+
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig(TracerConfig.TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING, "all")
+    injectSysConfig(TracerConfig.TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING, "all")
+    injectSysConfig(TracerConfig.TRACE_CLOUD_PAYLOAD_TAGGING_MAX_DEPTH, "4")
+  }
+
+  def "generate tags up to the specified max depth"() {
+    setup:
+    TEST_WRITER.clear()
+
+    expect:
+    Config.get().getCloudPayloadTaggingMaxDepth() == 4
+
+    when:
+    TraceUtils.runUnderTrace('parent', apiCall)
+
+    then:
+    assertTraces(1) {
+      trace(2) {
+        basicSpan(it, "parent")
+        span {
+          spanType DDSpanTypes.HTTP_CLIENT
+          childOf(span(0))
+          assert span.tags.get("aws.request.body." + expectedReqTag) != null
+          assert span.tags.get("aws.request.body." + missingReqTag) == null
+        }
+      }
+    }
+
+    where:
+    expectedReqTag     | missingReqTag         | apiCall
+    "Message.a2.a3.a4" | "Message.a2.a3.b4.a5" | {
+      snsClient.publish { it.phoneNumber("+15555555555").message('{ "a2": { "a3" : { "a4" : 42, "b4" : { "a5" : 33 } } } }') }
+    }
+    "Message.0.0.0"    | "Message.0.0.1"       | {
+      snsClient.publish { it.phoneNumber("+15555555555").message('[ [ [ 3, [ "a4" ] ] ] ]') }
+    }
+    "Message.a2.a3.a4" | "Message.a2.a3.b4"    | {
+      snsClient.publish { it.phoneNumber("+15555555555").message('{ "a2": \'{ "a3" : { "a4" : 42, "b4" : { "a5" : 33 } } }\' }') }
+    }
+    "Message.0.0.0"    | "Message.0.0.1"       | {
+      snsClient.publish { it.phoneNumber("+15555555555").message('[ [ \'[ 3, [ "a4" ] ]\' ] ]') }
+    }
+  }
+}
+

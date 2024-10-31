@@ -4,56 +4,56 @@ import java.util.Arrays;
 
 /** Represents a mutable path in a JSON-like structure. */
 public class PathCursor {
-  private final Object[] parts;
-  private int size;
+  private final Object[] path;
+  private int levels;
 
   public PathCursor(int capacity) {
     super();
-    parts = new Object[capacity];
-    size = 0;
+    path = new Object[capacity];
+    levels = 0;
   }
 
   public PathCursor(Object[] path, int capacity) {
     super();
     assert path.length <= capacity;
-    parts = new Object[capacity];
-    System.arraycopy(path, 0, parts, 0, path.length);
-    size = path.length;
+    this.path = new Object[capacity];
+    System.arraycopy(path, 0, this.path, 0, path.length);
+    levels = path.length;
   }
 
   private PathCursor(PathCursor that) {
     super();
-    parts = Arrays.copyOf(that.parts, that.parts.length);
-    size = that.size;
+    path = Arrays.copyOf(that.path, that.path.length);
+    levels = that.levels;
   }
 
   public PathCursor push(String name) {
-    assert size < parts.length;
-    parts[size] = name.replace(".", "\\.");
-    size += 1;
+    assert levels < path.length;
+    path[levels] = name;
+    levels += 1;
     return this;
   }
 
   public PathCursor push(int index) {
-    assert size < parts.length;
-    parts[size] = index;
-    size += 1;
+    assert levels < path.length;
+    path[levels] = index;
+    levels += 1;
     return this;
   }
 
   public void pop() {
-    if (size > 0) {
-      size -= 1;
+    if (levels > 0) {
+      levels -= 1;
     }
   }
 
   public void advance() {
-    if (size > 0) {
-      Object last = parts[size - 1];
+    if (levels > 0) {
+      Object last = path[levels - 1];
       if (last instanceof Integer) {
-        parts[size - 1] = (int) last + 1;
+        path[levels - 1] = (int) last + 1;
       } else {
-        size -= 1;
+        levels -= 1;
       }
     }
   }
@@ -62,27 +62,28 @@ public class PathCursor {
     return new PathCursor(this);
   }
 
-  public int depth() {
-    return size + 1;
+  public int levels() {
+    return levels;
   }
 
-  public Object get(int i) {
+  Object jsonPathSegment(int i) {
     if (i == 0) {
+      // root segment
       return null;
     }
-    return parts[i - 1];
+    return path[i - 1];
   }
 
-  public String dotted(String prefix) {
+  public String toString(String prefix) {
     StringBuilder sb = new StringBuilder(prefix);
-    for (int i = 0; i < size; i++) {
+    for (int i = 0; i < levels; i++) {
       sb.append('.');
-      sb.append(parts[i]);
+      sb.append(String.valueOf(path[i]).replace(".", "\\."));
     }
     return sb.toString();
   }
 
   public Object[] toPath() {
-    return Arrays.copyOf(parts, size);
+    return Arrays.copyOf(path, levels);
   }
 }

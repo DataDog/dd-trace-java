@@ -26,7 +26,7 @@ class PayloadTagsProcessorTest extends DDSpecification {
 
     then:
     ptp != null
-    ptp.depthLimit == 10
+    ptp.maxDepth == 10
     ptp.maxTags == 758
   }
 
@@ -41,7 +41,7 @@ class PayloadTagsProcessorTest extends DDSpecification {
     def ptp = PayloadTagsProcessor.create(Config.get())
 
     then:
-    ptp.depthLimit == 7
+    ptp.maxDepth == 7
     ptp.maxTags == 42
   }
 
