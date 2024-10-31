@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import datadog.trace.api.iast.util.PropagationUtils;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
@@ -126,7 +127,7 @@ public class URIUtils {
       return null;
     }
     try {
-      return URI.create(unparsed);
+      return PropagationUtils.onUriCreate(unparsed, URI.create(unparsed));
     } catch (final IllegalArgumentException exception) {
       LOGGER.debug("Unable to parse request uri {}", unparsed, exception);
       return null;
@@ -290,12 +291,12 @@ public class URIUtils {
     final boolean addSlash = !(part2.startsWith("/") || part1.endsWith("/"));
     final StringBuilder sb =
         new StringBuilder(part1.length() + part2.length() + (addSlash ? 1 : 0));
-    sb.append(part1);
+    PropagationUtils.onStringBuilderAppend(part1, sb.append(part1));
     if (addSlash) {
       // it happens for http async client 4 with relative URI
       sb.append("/");
     }
-    sb.append(part2);
-    return safeParse(sb.toString());
+    PropagationUtils.onStringBuilderAppend(part2, sb.append(part2));
+    return safeParse(PropagationUtils.onStringBuilderToString(sb, sb.toString()));
   }
 }

@@ -86,6 +86,7 @@ ext {
   excludedClassesCoverage = [
     // Avoid coverage measurement of model getters atm
     'com.datadog.iast.model.Evidence',
+    'com.datadog.iast.sink.SinkModuleBase.EvidenceBuilder',
     'com.datadog.iast.model.Range',
     'com.datadog.iast.model.Source',
     'com.datadog.iast.model.Vulnerability',
