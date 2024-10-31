@@ -68,7 +68,7 @@ public class Where {
             lineWhere.typeName,
             method.name,
             Types.descriptorToSignature(method.desc),
-            new SourceLine[0],
+            (SourceLine[]) null,
             null);
       }
     }
