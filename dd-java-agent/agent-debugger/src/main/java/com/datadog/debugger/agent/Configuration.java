@@ -4,7 +4,6 @@ import com.datadog.debugger.probe.ExceptionProbe;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
-import com.datadog.debugger.probe.Sampling;
 import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.probe.TriggerProbe;
@@ -71,7 +70,7 @@ public class Configuration {
   private final Collection<SpanDecorationProbe> spanDecorationProbes;
   private final FilterList allowList;
   private final FilterList denyList;
-  private final Sampling sampling;
+  private final LogProbe.Sampling sampling;
 
   public Configuration(String service, Collection<LogProbe> logProbes) {
     this(service, null, logProbes, null);
@@ -94,7 +93,7 @@ public class Configuration {
       Collection<SpanDecorationProbe> spanDecorationProbes,
       FilterList allowList,
       FilterList denyList,
-      Sampling sampling) {
+      LogProbe.Sampling sampling) {
     this.service = serviceName;
     this.metricProbes = metricProbes;
     this.logProbes = logProbes;
@@ -138,7 +137,7 @@ public class Configuration {
     return denyList;
   }
 
-  public Sampling getSampling() {
+  public LogProbe.Sampling getSampling() {
     return sampling;
   }
 
@@ -214,7 +213,7 @@ public class Configuration {
     private List<SpanDecorationProbe> spanDecorationProbes = null;
     private FilterList allowList = null;
     private FilterList denyList = null;
-    private Sampling sampling = null;
+    private LogProbe.Sampling sampling = null;
 
     public Configuration.Builder setService(String service) {
       this.service = service;
@@ -275,7 +274,7 @@ public class Configuration {
       return this;
     }
 
-    public Configuration.Builder add(Sampling newSampling) {
+    public Configuration.Builder add(LogProbe.Sampling newSampling) {
       if (newSampling != null) {
         sampling = newSampling;
       }
@@ -366,7 +365,7 @@ public class Configuration {
       return this;
     }
 
-    public Configuration.Builder setSampling(Sampling sampling) {
+    public Configuration.Builder setSampling(LogProbe.Sampling sampling) {
       this.sampling = sampling;
       return this;
     }

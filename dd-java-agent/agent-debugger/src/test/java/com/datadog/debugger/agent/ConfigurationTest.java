@@ -142,9 +142,7 @@ public class ConfigurationTest {
 
   @Test
   public void roundtripSerialization() throws Exception {
-    String buffer = serialize();
-    System.out.println(buffer);
-    deserialize(buffer);
+    deserialize(serialize());
   }
 
   @Test
@@ -275,7 +273,8 @@ public class ConfigurationTest {
             "log1", "this is a log line with arg={arg}", "java.lang.String", "indexOf", "(String)");
     SpanProbe span1 = createSpan("span1", "java.lang.String", "indexOf", "(String)");
     TriggerProbe triggerProbe =
-        createTriggerProbe("debug1", "java.lang.String", "indexOf", "(String)");
+        createTriggerProbe("debug1", "java.lang.String", "indexOf", "(String)")
+            .setSampling(new Sampling(47, 12.0));
 
     SpanDecorationProbe.Decoration decoration =
         new SpanDecorationProbe.Decoration(
@@ -297,7 +296,7 @@ public class ConfigurationTest {
     Configuration.FilterList denyList =
         new Configuration.FilterList(
             asList("java.security"), asList("javax.security.auth.AuthPermission"));
-    Sampling globalSampling = new LogProbe.Sampling(10.0);
+    LogProbe.Sampling globalSampling = new LogProbe.Sampling(10.0);
     return new Configuration(
         "service1",
         asList(metric1),
@@ -345,7 +344,7 @@ public class ConfigurationTest {
     Configuration.FilterList denyList =
         new Configuration.FilterList(
             asList("java.security"), asList("javax.security.auth.AuthPermission"));
-    Sampling globalSampling = new LogProbe.Sampling(10.0);
+    LogProbe.Sampling globalSampling = new LogProbe.Sampling(10.0);
     return new Configuration(
         "service2",
         asList(metric2),

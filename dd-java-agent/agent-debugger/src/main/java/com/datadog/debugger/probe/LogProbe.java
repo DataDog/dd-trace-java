@@ -227,8 +227,12 @@ public class LogProbe extends ProbeDefinition implements Sampled {
       this.snapshotsPerSecond = snapshotsPerSecond;
     }
 
+    public double getSnapshotsPerSecond() {
+      return snapshotsPerSecond;
+    }
+
     @Override
-    public Double getEventsPerSecond() {
+    public double getEventsPerSecond() {
       return snapshotsPerSecond;
     }
 

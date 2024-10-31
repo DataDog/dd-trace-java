@@ -4,12 +4,28 @@ import java.util.Objects;
 
 /** Stores sampling configuration */
 public class Sampling {
-  private Integer coolDownInSeconds;
-  private Double eventsPerSecond;
+  private int coolDownInSeconds;
+  private double eventsPerSecond;
   private volatile long nextExecution;
   private int executionInterval = -1;
 
   public Sampling() {}
+
+  public Sampling(int coolDownInSeconds) {
+    this.coolDownInSeconds = coolDownInSeconds;
+    this.executionInterval = coolDownInSeconds * 1000;
+  }
+
+  public Sampling(double eventsPerSecond) {
+    this.eventsPerSecond = eventsPerSecond;
+  }
+
+  public Sampling(int coolDownInSeconds, double eventsPerSecond) {
+    this.coolDownInSeconds = coolDownInSeconds;
+    this.executionInterval = coolDownInSeconds * 1000;
+
+    this.eventsPerSecond = eventsPerSecond;
+  }
 
   public int getCoolDownInSeconds() {
     return coolDownInSeconds;
@@ -23,19 +39,8 @@ public class Sampling {
     return true;
   }
 
-  public Sampling setCoolDownInSeconds(int coolDownInSeconds) {
-    this.coolDownInSeconds = coolDownInSeconds;
-    this.executionInterval = coolDownInSeconds * 1000;
-    return this;
-  }
-
-  public Double getEventsPerSecond() {
+  public double getEventsPerSecond() {
     return eventsPerSecond;
-  }
-
-  public Sampling setEventsPerSecond(Double eventsPerSecond) {
-    this.eventsPerSecond = eventsPerSecond;
-    return this;
   }
 
   private int getExecutionInterval() {

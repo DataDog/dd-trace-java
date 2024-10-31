@@ -61,12 +61,7 @@ public class TriggerProbeTest extends CapturingTestBase {
       final String className = "com.datadog.debugger.TriggerProbe01";
       TriggerProbe probe1 =
           createTriggerProbe(
-              TRIGGER_PROBE_ID1,
-              className,
-              "entry",
-              "()",
-              null,
-              new Sampling().setEventsPerSecond(10.0).setCoolDownInSeconds(10));
+              TRIGGER_PROBE_ID1, className, "entry", "()", null, new Sampling(10, 10.0));
       installProbes(
           Configuration.builder()
               .setService(SERVICE_NAME)
@@ -113,13 +108,7 @@ public class TriggerProbeTest extends CapturingTestBase {
 
       final String className = "com.datadog.debugger.TriggerProbe01";
       TriggerProbe probe1 =
-          createTriggerProbe(
-              TRIGGER_PROBE_ID1,
-              className,
-              "entry",
-              "()",
-              null,
-              new Sampling().setEventsPerSecond(10.0));
+          createTriggerProbe(TRIGGER_PROBE_ID1, className, "entry", "()", null, new Sampling(10.0));
       Configuration config =
           Configuration.builder()
               .setService(SERVICE_NAME)
@@ -148,7 +137,7 @@ public class TriggerProbeTest extends CapturingTestBase {
             "entry",
             "(int)",
             new ProbeCondition(when(lt(ref("value"), value(25))), "value < 25"),
-            new Sampling().setEventsPerSecond(10.0));
+            new Sampling(10.0));
     installProbes(
         Configuration.builder()
             .setService(SERVICE_NAME)

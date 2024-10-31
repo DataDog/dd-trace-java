@@ -238,7 +238,8 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
     return definition;
   }
 
-  private static void applyRateLimiter(ConfigurationComparer changes, Sampling globalSampling) {
+  private static void applyRateLimiter(
+      ConfigurationComparer changes, LogProbe.Sampling globalSampling) {
     // ensure rate is up-to-date for all new probes
     for (ProbeDefinition added : changes.getAddedDefinitions()) {
       if (added instanceof Sampled) {
@@ -259,7 +260,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
     }
     // set global sampling
     if (globalSampling != null) {
-      ProbeRateLimiter.setGlobalSnapshotRate(globalSampling.getEventsPerSecond());
+      ProbeRateLimiter.setGlobalSnapshotRate(globalSampling.getSnapshotsPerSecond());
     }
   }
 
