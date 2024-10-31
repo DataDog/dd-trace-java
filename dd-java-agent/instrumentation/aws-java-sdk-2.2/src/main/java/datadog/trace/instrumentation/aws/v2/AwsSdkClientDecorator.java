@@ -470,23 +470,23 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
       SdkPojo pojo = (SdkPojo) object;
       for (SdkField<?> field : pojo.sdkFields()) {
         Object val = field.getValueOrDefault(pojo);
-        path.push(field.locationName());
+        path.push(keyToString(field.locationName()));
         collectPayloadData(payloadTagsData, path, val);
         path.pop();
       }
     } else if (object instanceof Collection) {
-      int i = 0;
-      for (Object v : (Collection<?>) object) {
-        path.push(i);
-        collectPayloadData(payloadTagsData, path, v);
+      int index = 0;
+      for (Object value : (Collection<?>) object) {
+        path.push(index);
+        collectPayloadData(payloadTagsData, path, value);
         path.pop();
-        i++;
+        index++;
       }
     } else if (object instanceof Map) {
       Map<?, ?> map = (Map<?, ?>) object;
-      for (Map.Entry<?, ?> e : map.entrySet()) {
-        path.push(e.getKey().toString());
-        collectPayloadData(payloadTagsData, path, e.getValue());
+      for (Map.Entry<?, ?> entry : map.entrySet()) {
+        path.push(keyToString(entry.getKey()));
+        collectPayloadData(payloadTagsData, path, entry.getValue());
         path.pop();
       }
     } else if (object instanceof SdkBytes) {
@@ -495,5 +495,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     } else {
       payloadTagsData.add(path.toArray(), object);
     }
+  }
+
+  private static String keyToString(Object key) {
+    return key.toString().replace(".", "\\.");
   }
 }

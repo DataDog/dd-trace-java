@@ -6,12 +6,15 @@ import org.testcontainers.containers.GenericContainer
 import org.testcontainers.utility.DockerImageName
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
+import software.amazon.awssdk.core.SdkBytes
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.apigateway.ApiGatewayClient
 import software.amazon.awssdk.services.eventbridge.EventBridgeClient
 import software.amazon.awssdk.services.kinesis.KinesisClient
 import software.amazon.awssdk.services.s3.S3Client
+import software.amazon.awssdk.services.sns.model.Tag
 import software.amazon.awssdk.services.sns.SnsClient
+import software.amazon.awssdk.services.sns.model.MessageAttributeValue
 import software.amazon.awssdk.services.sqs.SqsClient
 import spock.lang.Shared
 import java.time.Duration
@@ -19,12 +22,15 @@ import java.time.Duration
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 
 abstract class AbstractPayloadTaggingTest extends AgentTestRunner {
+  static final Object NA = {}
 
+  static final int DEFAULT_PORT = 4566
   static final LOCALSTACK = new GenericContainer(DockerImageName.parse("localstack/localstack"))
-  .withExposedPorts(4566) // Default LocalStack port
+  .withExposedPorts(DEFAULT_PORT)
   .withEnv("SERVICES", "apigateway,events,sns,sqs,s3,kinesis")
   .withReuse(true)
   .withStartupTimeout(Duration.ofSeconds(120))
+  .withNetworkAliases("localstack")
 
   @Shared
   ApiGatewayClient apiGatewayClient
@@ -44,16 +50,11 @@ abstract class AbstractPayloadTaggingTest extends AgentTestRunner {
   @Shared
   KinesisClient kinesisClient
 
-  @Override
-  protected void configurePreAgent() {
-    super.configurePreAgent()
-  }
-
   def setupSpec() {
     LOCALSTACK.start()
-    def port = LOCALSTACK.getMappedPort(4566)
+    def port = LOCALSTACK.getMappedPort(DEFAULT_PORT)
     def endpoint = URI.create("http://${LOCALSTACK.getHost()}:$port")
-    def region = Region.of("us-east-1")
+    def region = Region.US_EAST_1
     def credentials = AwsBasicCredentials.create("test", "test")
     def credentialsProvider = StaticCredentialsProvider.create(credentials)
 
@@ -109,13 +110,12 @@ class PayloadTaggingRedactionForkedTest extends AbstractPayloadTaggingTest {
     injectSysConfig(TracerConfig.TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING, redactTopLevelTags)
   }
 
-  def "redact top-level payload fields as tags for #service"() {
-    when:
+  def "test payload tag observability support for #service"() {
+    setup:
     TEST_WRITER.clear()
 
-    TraceUtils.runUnderTrace('parent', {
-      apiCall()
-    })
+    when:
+    TraceUtils.runUnderTrace('parent', apiCall)
 
     then:
     assertTraces(1) {
@@ -124,21 +124,45 @@ class PayloadTaggingRedactionForkedTest extends AbstractPayloadTaggingTest {
         span {
           spanType DDSpanTypes.HTTP_CLIENT
           childOf(span(0))
-          assert expectedReqTag == null || span.tags.get("aws.request.body." + expectedReqTag) == "redacted"
-          assert expectedRespTag == null || span.tags.get("aws.response.body." + expectedRespTag) == "redacted"
+          assert expectedReqTag == NA || span.tags.get("aws.request.body." + expectedReqTag) == "redacted"
+          assert expectedRespTag == NA || span.tags.get("aws.response.body." + expectedRespTag) == "redacted"
         }
       }
     }
 
     where:
     service       | expectedReqTag                | expectedRespTag      | apiCall
-    "ApiGateway"  | "name"                        | "value"              | { apiGatewayClient.createApiKey { it.name("testapi") } }
-    "EventBridge" | "Name"                        | "EventBusArn"        | { eventBridgeClient.createEventBus { it.name("testbus") } }
-    "Sns"         | "Name"                        | "TopicArn"           | { snsClient.createTopic { it.name("testtopic") } }
-    "Sqs"         | "QueueName"                   | "QueueUrl"           | { sqsClient.createQueue { it.queueName("testqueue") } }
-    "S3"          | "x-amz-expected-bucket-owner" | "LocationConstraint" | { s3Client.getBucketLocation { it.bucket("testbucket") } }
-    "Kinesis"     | "StreamModeDetails"           | null                 | { kinesisClient.createStream { it.streamName("teststream") } }
-    "Kinesis"     | null                          | "ShardLimit"         | { kinesisClient.describeLimits() }
+    "ApiGateway"  | "name"                        | "value"              | {
+      apiGatewayClient.createApiKey {
+        it.name("testapi")
+      }
+    }
+    "EventBridge" | "Name"                        | "EventBusArn"        | {
+      eventBridgeClient.createEventBus {
+        it.name("testbus")
+      }
+    }
+    "Sns"         | "Name"                        | "TopicArn"           | {
+      snsClient.createTopic {
+        it.name("testtopic")
+      }
+    }
+    "Sqs"         | "QueueName"                   | "QueueUrl"           | {
+      sqsClient.createQueue {
+        it.queueName("testqueue")
+      }
+    }
+    "S3"          | "x-amz-expected-bucket-owner" | "LocationConstraint" | {
+      s3Client.getBucketLocation {
+        it.bucket("testbucket")
+      }
+    }
+    "Kinesis"     | "StreamModeDetails"           | NA                   | {
+      kinesisClient.createStream {
+        it.streamName("teststream")
+      }
+    }
+    "Kinesis"     | NA                            | "ShardLimit"         | { kinesisClient.describeLimits() }
   }
 }
 
@@ -148,16 +172,15 @@ class PayloadTaggingExpansionForkedTest extends AbstractPayloadTaggingTest {
   protected void configurePreAgent() {
     super.configurePreAgent()
     injectSysConfig(TracerConfig.TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING, "all")
-    injectSysConfig(TracerConfig.TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING, "\$.MessageId")
+    injectSysConfig(TracerConfig.TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING, "\$.MessageId,\$.SubscriptionArn,\$[*].phoneNumbers")
   }
 
-  def "extract inner request payload fields as tags for #service"() {
-    when:
+  def "support various types, embedded JSON in string and binary format"() {
+    setup:
     TEST_WRITER.clear()
 
-    TraceUtils.runUnderTrace('parent', {
-      apiCall()
-    })
+    when:
+    TraceUtils.runUnderTrace('parent', apiCall)
 
     then:
     assertTraces(1) {
@@ -167,15 +190,57 @@ class PayloadTaggingExpansionForkedTest extends AbstractPayloadTaggingTest {
           spanType DDSpanTypes.HTTP_CLIENT
           childOf(span(0))
           assert span.tags.get("aws.request.body." + expectedReqTag) == expectedReqTagValue
-          assert span.tags.get("aws.response.body." + expectedRespTag) == expectedRespTagValue
         }
       }
     }
 
     where:
-    service | expectedReqTag | expectedReqTagValue | expectedRespTag | expectedRespTagValue | apiCall
-    "Sns"   | "Message.sms"  | "sms text"          | "MessageId"     | "redacted"           | {
-      snsClient.publish { it.phoneNumber("+15555555555").messageStructure("json").message('{ "sms": "sms text", "default": "default text" }') }
+    expectedReqTag                                      | expectedReqTagValue    | apiCall
+    "Message.sms"                                       | "sms text"             | {
+      snsClient.publish {
+        it.phoneNumber("+15555555555").messageStructure("json")
+          .message('{ "sms": "sms text", "default": "default text" }')
+      }
+    }
+    "Key.0.Tags"                                        | "foo"                  | {
+      snsClient.createTopic {
+        it.name("testtopic")
+          .tags(Tag.builder().key("foo").value("bar").build(), Tag.builder().key("t").value("1").build())
+      }
+    }
+    "nextToken"                                         | null                   | {
+      snsClient.listPhoneNumbersOptedOut()
+    }
+    "DefaultSMSType.attributes"                         | "bar"                  | {
+      snsClient.setSMSAttributes { it.attributes(Map.of("DefaultSenderID", "foo", "DefaultSMSType", "bar")) }
+    }
+    "BinaryValue.foo\\.bar.MessageAttributes.abc\\.def" | 42                     | {
+      snsClient.publish {
+        it.phoneNumber("+15555555555").message("testmessage")
+          .messageAttributes(
+          Map.of("foo.bar",
+          MessageAttributeValue.builder().dataType("Binary").binaryValue(SdkBytes.fromByteArray('{"abc.def": 42}'.bytes)).build()
+          )
+          )
+      }
+    }
+    "BinaryValue.foo\\.bar.MessageAttributes"           | "<binary>"             | {
+      snsClient.publish {
+        it.phoneNumber("+15555555555").message("testmessage")
+          .messageAttributes(
+          Map.of("foo.bar",
+          MessageAttributeValue.builder().dataType("Binary").binaryValue(SdkBytes.fromByteArray('{"invalid json: 42}'.bytes)).build())
+          )
+      }
+    }
+    "Message"                                           | "{\"invalid json: 42}" | {
+      snsClient.publish { it.phoneNumber("+15555555555").message('{"invalid json: 42}') }
+    }
+    "Message.abc\\.def"                                 | 3.14d                  | {
+      snsClient.publish { it.phoneNumber("+15555555555").message('{"abc.def": 3.14}') }
+    }
+    "Message.abc\\.def.0"                               | null                   | {
+      snsClient.publish { it.phoneNumber("+15555555555").message('{"abc.def": [null]}') }
     }
   }
 }
