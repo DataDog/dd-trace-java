@@ -243,9 +243,11 @@ public class SymbolSink {
   }
 
   private void updateStats(List<Scope> scopesToSerialize, String json) {
+    int totalClasses = 0;
     for (Scope scope : scopesToSerialize) {
-      stats.updateStats(scope.getScopes() != null ? scope.getScopes().size() : 0, json.length());
+      totalClasses += scope.getScopes() != null ? scope.getScopes().size() : 0;
     }
+    stats.updateStats(totalClasses, json.length());
     LOGGER.debug("SymbolSink stats: {}", stats);
   }
 
