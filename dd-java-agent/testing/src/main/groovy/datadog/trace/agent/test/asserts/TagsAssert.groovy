@@ -134,6 +134,45 @@ class TagsAssert {
     }
   }
 
+  def urlTags(String url, List<String> queryParams){
+    tag("http.url", {
+      URI uri = new URI(it.toString().split("\\?", 2)[0])
+      String scheme = uri.getScheme()
+      String host = uri.getHost()
+      int port = uri.getPort()
+      String path = uri.getPath()
+
+      String baseURL = scheme + "://" + host + ":" + port + path
+      return baseURL.equals(url)
+    })
+
+    tag("http.query.string", {
+      String paramString = it
+      System.out.println("it: " + it)
+      Set<String> spanQueryParams = new HashSet<String>()
+      if (paramString != null && !paramString.isEmpty()) {
+        String[] pairs = paramString.split("&")
+        for (String pair : pairs) {
+          int idx = pair.indexOf("=")
+          if (idx > 0) {
+            spanQueryParams.add(pair.substring(0, idx))
+          } else {
+            spanQueryParams.add(pair)
+          }
+        }
+        for(String param : queryParams){
+          if (!spanQueryParams.contains(param)){
+            System.out.println("param: " + param)
+            return false
+          }
+        }
+      } else if(queryParams != null && queryParams.size() > 0){ //if http.query.string is empty/null but we expect queryParams, return false
+        return false
+      }
+      return true
+    })
+  }
+
   def tag(String name, expected) {
     if (expected == null) {
       return

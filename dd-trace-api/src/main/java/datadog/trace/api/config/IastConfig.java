@@ -26,5 +26,7 @@ public final class IastConfig {
   public static final String IAST_SOURCE_MAPPING_ENABLED = "iast.source-mapping.enabled";
   public static final String IAST_SOURCE_MAPPING_MAX_SIZE = "iast.source-mapping.max-size";
 
+  public static final String IAST_STACK_TRACE_ENABLED = "iast.stacktrace.enabled";
+
   private IastConfig() {}
 }

@@ -6,6 +6,10 @@ import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourc
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.api.ProductActivation;
+import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.sink.SsrfModule;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -89,6 +93,8 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
         log.debug("Error tagging url", e);
       }
 
+      ssrfIastCheck(request);
+
       if (CLIENT_TAG_HEADERS) {
         for (Map.Entry<String, String> headerTag :
             traceConfig(span).getRequestHeaderTags().entrySet()) {
@@ -167,5 +173,24 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
     }
 
     return 0;
+  }
+
+  /* This method must be overriden after making the proper propagations to the client before **/
+  protected Object sourceUrl(REQUEST request) {
+    return null;
+  }
+
+  private void ssrfIastCheck(final REQUEST request) {
+    final Object sourceUrl = sourceUrl(request);
+    if (sourceUrl == null) {
+      return;
+    }
+    if (InstrumenterConfig.get().getIastActivation() != ProductActivation.FULLY_ENABLED) {
+      return;
+    }
+    final SsrfModule ssrfModule = InstrumentationBridge.SSRF;
+    if (ssrfModule != null) {
+      ssrfModule.onURLConnection(sourceUrl);
+    }
   }
 }

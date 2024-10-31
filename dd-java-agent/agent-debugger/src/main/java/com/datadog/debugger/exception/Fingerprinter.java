@@ -2,7 +2,7 @@ package com.datadog.debugger.exception;
 
 import static com.datadog.debugger.util.ExceptionHelper.getInnerMostThrowable;
 
-import com.datadog.debugger.util.ClassNameFiltering;
+import datadog.trace.bootstrap.debugger.DebuggerContext.ClassNameFilter;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import org.slf4j.Logger;
@@ -13,7 +13,7 @@ public class Fingerprinter {
   private static final Logger LOGGER = LoggerFactory.getLogger(Fingerprinter.class);
 
   // compute fingerprint of the Throwable based on the stacktrace and exception type
-  public static String fingerprint(Throwable t, ClassNameFiltering classNameFiltering) {
+  public static String fingerprint(Throwable t, ClassNameFilter classNameFiltering) {
     t = getInnerMostThrowable(t);
     if (t == null) {
       LOGGER.debug("Unable to find root cause of exception");

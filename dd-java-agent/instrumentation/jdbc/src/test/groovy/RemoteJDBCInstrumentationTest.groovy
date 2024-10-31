@@ -277,6 +277,9 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               if (usingHikari) {
                 "$Tags.DB_POOL_NAME" String
               }
+              if (addDbmTag) {
+                "$InstrumentationTags.DBM_TRACE_INJECTED" true
+              }
               peerServiceFrom(Tags.DB_INSTANCE)
               defaultTags()
             }
@@ -343,7 +346,8 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     then:
     resultSet.next()
     resultSet.getInt(1) == 3
-    if (driver == POSTGRESQL || driver == MYSQL || !dbmTraceInjected()) {
+    def addDbmTag = dbmTraceInjected()
+    if (driver == POSTGRESQL || driver == MYSQL || !addDbmTag) {
       assertTraces(1) {
         trace(2) {
           basicSpan(it, "parent")
@@ -398,6 +402,9 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               "$Tags.DB_OPERATION" operation
               if (usingHikari) {
                 "$Tags.DB_POOL_NAME" String
+              }
+              if (addDbmTag) {
+                "$InstrumentationTags.DBM_TRACE_INJECTED" true
               }
               peerServiceFrom(Tags.DB_INSTANCE)
               defaultTags()
@@ -523,6 +530,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               if (conPoolType == "hikari") {
                 "$Tags.DB_POOL_NAME" String
               }
+              "$InstrumentationTags.DBM_TRACE_INJECTED" true
               peerServiceFrom(Tags.DB_INSTANCE)
               defaultTags()
             }
@@ -642,6 +650,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               if (conPoolType == "hikari") {
                 "$Tags.DB_POOL_NAME" String
               }
+              "$InstrumentationTags.DBM_TRACE_INJECTED" true
               defaultTags()
             }
           }
@@ -765,9 +774,13 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               // since Connection.getClientInfo will not provide the username
               "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
               "${Tags.DB_OPERATION}" operation
+              if (addDbmTag) {
+                "$InstrumentationTags.DBM_TRACE_INJECTED" true
+              }
               if (conPoolType == "hikari") {
                 "$Tags.DB_POOL_NAME" String
               }
+              "$InstrumentationTags.DBM_TRACE_INJECTED" true
               peerServiceFrom(Tags.DB_INSTANCE)
               defaultTags()
             }

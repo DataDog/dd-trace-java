@@ -14,20 +14,6 @@ apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuite('latestDepTest')
 
-//java {
-//  toolchain {
-//    languageVersion.set(JavaLanguageVersion.of(17))
-//  }
-//}
-
-
-//project.afterEvaluate {
-//  tasks.withType(Test).configureEach {
-//    if (javaLauncher.get().metadata.languageVersion.asInt() >= 16) {
-//      jvmArgs += ['--add-opens', 'java.base/java.util=ALL-UNNAMED']
-//    }
-//  }
-//}
 [compileMain_java17Java, compileTestJava, compileLatestDepTestJava].each {
   it.configure {
     setJavaVersion(it, 17)
