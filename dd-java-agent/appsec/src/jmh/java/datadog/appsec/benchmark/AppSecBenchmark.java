@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.function.Function;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.HttpUrl;
@@ -244,6 +245,11 @@ public class AppSecBenchmark {
 
     @Override
     public BlockResponseFunction getBlockResponseFunction() {
+      return null;
+    }
+
+    @Override
+    public <T> T getOrCreateMetaStructTop(String key, Function<String, T> defaultValue) {
       return null;
     }
 
