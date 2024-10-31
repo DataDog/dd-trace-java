@@ -334,6 +334,11 @@ public class CapturingTestBase {
   }
 
   public static LogProbe.Builder createProbeBuilder(
+      ProbeId id, String typeName, String methodName, String signature) {
+    return createProbeBuilder(id, typeName, methodName, signature, (String[]) null);
+  }
+
+  public static LogProbe.Builder createProbeBuilder(
       ProbeId id, String typeName, String methodName, String signature, String... lines) {
     return LogProbe.builder()
         .language(LANGUAGE)

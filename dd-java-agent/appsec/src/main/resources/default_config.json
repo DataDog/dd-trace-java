@@ -1,7 +1,7 @@
 {
   "version": "2.2",
   "metadata": {
-    "rules_version": "1.13.1"
+    "rules_version": "1.13.2"
   },
   "rules": [
     {
@@ -6335,7 +6335,6 @@
     {
       "id": "rasp-934-100",
       "name": "Server-side request forgery exploit",
-      "enabled": false,
       "tags": {
         "type": "ssrf",
         "category": "vulnerability_trigger",
@@ -6383,60 +6382,7 @@
     },
     {
       "id": "rasp-942-100",
-      "name": "SQL injection exploit (legacy)",
-      "enabled": false,
-      "tags": {
-        "type": "sql_injection",
-        "category": "vulnerability_trigger",
-        "cwe": "89",
-        "capec": "1000/152/248/66",
-        "confidence": "0",
-        "module": "rasp"
-      },
-      "max_version": "1.19.1",
-      "conditions": [
-        {
-          "parameters": {
-            "resource": [
-              {
-                "address": "server.db.statement"
-              }
-            ],
-            "params": [
-              {
-                "address": "server.request.query"
-              },
-              {
-                "address": "server.request.body"
-              },
-              {
-                "address": "server.request.path_params"
-              },
-              {
-                "address": "graphql.server.all_resolvers"
-              },
-              {
-                "address": "graphql.server.resolver"
-              }
-            ],
-            "db_type": [
-              {
-                "address": "server.db.system"
-              }
-            ]
-          },
-          "operator": "sqli_detector"
-        }
-      ],
-      "transformers": [],
-      "on_match": [
-        "stack_trace"
-      ]
-    },
-    {
-      "id": "rasp-942-110",
       "name": "SQL injection exploit",
-      "enabled": false,
       "tags": {
         "type": "sql_injection",
         "category": "vulnerability_trigger",
@@ -6445,7 +6391,6 @@
         "confidence": "0",
         "module": "rasp"
       },
-      "min_version": "1.20.0",
       "conditions": [
         {
           "parameters": {

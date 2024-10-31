@@ -4,15 +4,12 @@ import static com.datadog.iast.util.ObjectVisitor.State.CONTINUE;
 import static com.datadog.iast.util.ObjectVisitor.State.EXIT;
 
 import datadog.trace.api.Platform;
-import datadog.trace.instrumentation.iastinstrumenter.IastExclusionTrie;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.IdentityHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -21,17 +18,9 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@SuppressWarnings("JavaReflectionMemberAccess")
 public class ObjectVisitor {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ObjectVisitor.class);
-  private static final List<String> ALLOWED_COLLECTION_PKGS =
-      Arrays.asList(
-          "java.util",
-          "com.google.protobuf",
-          "org.apache.commons.collections",
-          "com.google.common.collect");
-
   private static final int MAX_VISITED_OBJECTS = 1000;
   private static final int MAX_DEPTH = 10;
   @Nullable private static final Method TRY_SET_ACCESSIBLE;
@@ -40,23 +29,11 @@ public class ObjectVisitor {
     TRY_SET_ACCESSIBLE = fetchTrySetAccessibleMethod();
   }
 
-  public static void visit(@Nonnull final Object object, @Nonnull final Visitor visitor) {
-    visit(object, visitor, ObjectVisitor::inspectClass);
-  }
-
   public static void visit(
       @Nonnull final Object object,
       @Nonnull final Visitor visitor,
       @Nonnull final Predicate<Class<?>> classFilter) {
     visit(object, visitor, classFilter, MAX_DEPTH, MAX_VISITED_OBJECTS);
-  }
-
-  public static void visit(
-      @Nonnull final Object object,
-      @Nonnull final Visitor visitor,
-      final int maxDepth,
-      final int maxObjects) {
-    visit(object, visitor, ObjectVisitor::inspectClass, maxDepth, maxObjects);
   }
 
   public static void visit(
@@ -130,7 +107,7 @@ public class ObjectVisitor {
   }
 
   private State visitMap(final int depth, final String path, final Map<?, ?> map) {
-    if (!isAllowedCollection(map)) {
+    if (!classFilter.test(map.getClass())) {
       return CONTINUE;
     }
     final int mapDepth = depth + 1;
@@ -156,7 +133,7 @@ public class ObjectVisitor {
   }
 
   private State visitIterable(final int depth, final String path, final Iterable<?> iterable) {
-    if (!isAllowedCollection(iterable)) {
+    if (!classFilter.test(iterable.getClass())) {
       return CONTINUE;
     }
     final int iterableDepth = depth + 1;
@@ -200,26 +177,6 @@ public class ObjectVisitor {
       klass = klass.getSuperclass();
     }
     return ObjectVisitor.State.CONTINUE;
-  }
-
-  private static boolean isAllowedCollection(final Object value) {
-    if (value == null) {
-      return false;
-    }
-    final String packageName = value.getClass().getPackage().getName();
-    for (final String allowed : ALLOWED_COLLECTION_PKGS) {
-      if (packageName.startsWith(allowed)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  public static boolean inspectClass(final Class<?> cls) {
-    if (cls.isPrimitive()) {
-      return false; // skip primitives
-    }
-    return IastExclusionTrie.apply(cls.getName()) < 1;
   }
 
   private static boolean inspectField(final Field field) {

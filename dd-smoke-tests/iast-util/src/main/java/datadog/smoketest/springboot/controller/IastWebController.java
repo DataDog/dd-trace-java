@@ -11,8 +11,6 @@ import java.io.ObjectInputStream;
 import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
 import java.net.HttpCookie;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.security.Principal;
@@ -249,19 +247,6 @@ public class IastWebController {
   @GetMapping("/jwt")
   public String jwt(Principal userPrincipal) {
     return "ok User Principal name: " + userPrincipal.getName();
-  }
-
-  @PostMapping("/ssrf")
-  public String ssrf(
-      @RequestParam(value = "url", required = false) final String url,
-      @RequestParam(value = "host", required = false) final String host) {
-    try {
-      final URL target = url != null ? new URL(url) : new URL("https", host, 443, "/test");
-      final HttpURLConnection conn = (HttpURLConnection) target.openConnection();
-      conn.disconnect();
-    } catch (final Exception e) {
-    }
-    return "ok";
   }
 
   @GetMapping("/weak_randomness")

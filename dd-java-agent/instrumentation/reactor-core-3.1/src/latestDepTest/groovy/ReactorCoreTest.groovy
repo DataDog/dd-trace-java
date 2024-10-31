@@ -1,22 +1,27 @@
+import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan
+
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import io.opentelemetry.api.GlobalOpenTelemetry
+import io.opentelemetry.api.trace.Span
+import io.opentracing.util.GlobalTracer
 import org.reactivestreams.Publisher
 import org.reactivestreams.Subscriber
 import org.reactivestreams.Subscription
 import reactor.core.publisher.Flux
+import reactor.core.publisher.Hooks
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
+import reactor.util.context.Context
 import spock.lang.Shared
 
 import java.time.Duration
-
-import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
-import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan
 
 class ReactorCoreTest extends AgentTestRunner {
 
@@ -35,6 +40,12 @@ class ReactorCoreTest extends AgentTestRunner {
   @Shared
   def throwException = {
     throw new RuntimeException(EXCEPTION_MESSAGE)
+  }
+
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("dd.trace.otel.enabled", "true")
   }
 
   def "Publisher '#name' test"() {
@@ -370,6 +381,64 @@ class ReactorCoreTest extends AgentTestRunner {
     "elastic"     | Schedulers.boundedElastic()
     "single"      | Schedulers.single()
     "immediate"   | Schedulers.immediate()
+  }
+
+  def "Context propagation through reactor context with span #spanType"() {
+    when:
+    runUnderTrace("parent", {
+      Mono.defer {
+        def span = buildSpan()
+        Mono.just(0)
+        .contextWrite(Context.of("dd.span", span))
+        .doFinally { ignored -> finishSpan(span) }
+      }
+      .map(this::addOneFunc)
+      .block()
+    })
+    then:
+    assertTraces(1, {
+      trace(3) {
+        basicSpan(it, "parent")
+        basicSpan(it, "contextual", span(0), null, ['span.kind': { true }]) // otel spans sets span.kind
+        span {
+          operationName "addOne"
+          childOfPrevious()
+          tags {
+            "$Tags.COMPONENT" "trace"
+            defaultTags()
+          }
+        }
+      }
+    })
+    where:
+    spanType      | buildSpan                                                                                                                      | finishSpan
+    "datadog"     | { TEST_TRACER.buildSpan("contextual").start() }                                                                                | { AgentSpan span -> span.finish() }
+    "opentracing" | { GlobalTracer.get().buildSpan("contextual").start() }                                                                         | { io.opentracing.Span span -> span.finish() }
+    "otel"        | { GlobalOpenTelemetry.get().getTracer("").spanBuilder("contextual").setAttribute("operation.name", "contextual").startSpan() } | { Span span -> span.end() }
+  }
+
+  def "Bad values for dd.span are tolerated"() {
+    when:
+    runUnderTrace("parent", {
+      Mono.just(1)
+      .contextWrite(Context.of("dd.span", "Hello world"))
+      .map(this::addOneFunc)
+      .block()
+    })
+    then:
+    assertTraces(1, {
+      trace(2) {
+        basicSpan(it, "parent")
+        span {
+          operationName "addOne"
+          childOfPrevious()
+          tags {
+            "$Tags.COMPONENT" "trace"
+            defaultTags()
+          }
+        }
+      }
+    })
   }
 
   @Trace(operationName = "trace-parent", resourceName = "trace-parent")

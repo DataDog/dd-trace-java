@@ -642,6 +642,10 @@ public class DDSpanContext
   }
 
   public void setBaggageItem(final String key, final String value) {
+    if (key == null || value == null) {
+      log.debug("Try to set invalid baggage: key = {}, value = {}", key, value);
+      return;
+    }
     if (baggageItems == EMPTY_BAGGAGE) {
       synchronized (this) {
         if (baggageItems == EMPTY_BAGGAGE) {

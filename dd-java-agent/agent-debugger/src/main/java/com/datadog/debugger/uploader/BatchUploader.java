@@ -74,7 +74,7 @@ public class BatchUploader {
   private static final String HEADER_DD_ENTITY_ID = "Datadog-Entity-ID";
   static final String HEADER_DD_API_KEY = "DD-API-KEY";
   static final int MAX_RUNNING_REQUESTS = 10;
-  static final int MAX_ENQUEUED_REQUESTS = 20;
+  public static final int MAX_ENQUEUED_REQUESTS = 20;
   static final int TERMINATION_TIMEOUT = 5;
 
   private final String containerId;
