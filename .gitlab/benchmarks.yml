@@ -83,7 +83,7 @@ benchmarks-post-results:
   interruptible: true
   timeout: 1h
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:java-dsm-kafka
-  needs: []
+  needs: [ "build" ]
   script:
     - pwd
     - ls -lah
