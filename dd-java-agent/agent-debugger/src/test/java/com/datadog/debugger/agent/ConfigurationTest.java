@@ -219,7 +219,7 @@ public class ConfigurationTest {
     assertEquals(2, configs.size());
     Configuration config0 = configs.get(0);
     assertEquals("service1", config0.getService());
-    assertEquals(10.0, config0.getSampling().getSnapshotsPerSecond(), 0.1);
+    assertEquals(10.0, config0.getSampling().getEventsPerSecond(), 0.1);
     // snapshot probe
     assertEquals(2, config0.getLogProbes().size());
     List<LogProbe> logProbes0 = new ArrayList<>(config0.getLogProbes());
@@ -230,7 +230,7 @@ public class ConfigurationTest {
     assertTrue(snapshotProbe0.isCaptureSnapshot());
     assertEquals("tag1:value1", snapshotProbe0.getTags()[0].toString());
     assertEquals("tag2:value2", snapshotProbe0.getTags()[1].toString());
-    assertEquals(42.0, snapshotProbe0.getSampling().getSnapshotsPerSecond(), 0.1);
+    assertEquals(42.0, snapshotProbe0.getSampling().getEventsPerSecond(), 0.1);
     Configuration config1 = configs.get(1);
     assertEquals("service2", config1.getService());
     assertEquals(2, config1.getLogProbes().size());
@@ -297,7 +297,7 @@ public class ConfigurationTest {
     Configuration.FilterList denyList =
         new Configuration.FilterList(
             asList("java.security"), asList("javax.security.auth.AuthPermission"));
-    Sampling globalSampling = new Sampling(10.0);
+    Sampling globalSampling = new LogProbe.Sampling(10.0);
     return new Configuration(
         "service1",
         asList(metric1),
@@ -345,7 +345,7 @@ public class ConfigurationTest {
     Configuration.FilterList denyList =
         new Configuration.FilterList(
             asList("java.security"), asList("javax.security.auth.AuthPermission"));
-    Sampling globalSampling = new Sampling(10.0);
+    Sampling globalSampling = new LogProbe.Sampling(10.0);
     return new Configuration(
         "service2",
         asList(metric2),

@@ -12,9 +12,9 @@ import com.datadog.debugger.agent.CapturingTestBase;
 import com.datadog.debugger.agent.Configuration;
 import com.datadog.debugger.agent.MockSampler;
 import com.datadog.debugger.el.ProbeCondition;
+import com.datadog.debugger.probe.Sampling;
 import com.datadog.debugger.probe.TriggerProbe;
 import com.datadog.debugger.probe.Where;
-import com.datadog.debugger.util.TestSnapshotListener;
 import com.datadog.debugger.util.TestTraceInterceptor;
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.api.Config;
@@ -60,20 +60,25 @@ public class TriggerProbeTest extends CapturingTestBase {
 
       final String className = "com.datadog.debugger.TriggerProbe01";
       TriggerProbe probe1 =
-          createTriggerProbe(TRIGGER_PROBE_ID1, className, "entry", "()", null, 10);
-      Configuration config =
+          createTriggerProbe(
+              TRIGGER_PROBE_ID1,
+              className,
+              "entry",
+              "()",
+              null,
+              new Sampling().setEventsPerSecond(10.0).setCoolDownInSeconds(10));
+      installProbes(
           Configuration.builder()
               .setService(SERVICE_NAME)
               .addTriggerProbes(singletonList(probe1))
-              .build();
-      installProbes(config);
+              .build());
       Class<?> testClass = compileAndLoadClass(className);
       int runs = 10000;
       for (int i = 0; i < runs; i++) {
         Reflect.onClass(testClass).call("main", "").get();
       }
 
-      assertTrue(sampler.getCallCount() == 1);
+      assertEquals(1, sampler.getCallCount());
       List<List<? extends MutableSpan>> allTraces = traceInterceptor.getAllTraces();
       long debugSessions =
           allTraces.stream()
@@ -108,7 +113,13 @@ public class TriggerProbeTest extends CapturingTestBase {
 
       final String className = "com.datadog.debugger.TriggerProbe01";
       TriggerProbe probe1 =
-          createTriggerProbe(TRIGGER_PROBE_ID1, className, "entry", "()", null, 10);
+          createTriggerProbe(
+              TRIGGER_PROBE_ID1,
+              className,
+              "entry",
+              "()",
+              null,
+              new Sampling().setEventsPerSecond(10.0));
       Configuration config =
           Configuration.builder()
               .setService(SERVICE_NAME)
@@ -137,14 +148,12 @@ public class TriggerProbeTest extends CapturingTestBase {
             "entry",
             "(int)",
             new ProbeCondition(when(lt(ref("value"), value(25))), "value < 25"),
-            10);
-    probe1.setCoolDownSeconds(0);
-    Configuration config =
+            new Sampling().setEventsPerSecond(10.0));
+    installProbes(
         Configuration.builder()
             .setService(SERVICE_NAME)
             .addTriggerProbes(singletonList(probe1))
-            .build();
-    TestSnapshotListener listener = installProbes(config);
+            .build());
     Class<?> testClass = compileAndLoadClass(className);
     for (int i = 0; i < 100; i++) {
       Reflect.onClass(testClass).call("main", i).get();
@@ -170,8 +179,10 @@ public class TriggerProbeTest extends CapturingTestBase {
       String methodName,
       String signature,
       ProbeCondition probeCondition,
-      Integer sampling,
+      Sampling sampling,
       String... lines) {
-    return new TriggerProbe(id, Where.of(typeName, methodName, signature, lines));
+    return new TriggerProbe(id, Where.of(typeName, methodName, signature, lines))
+        .setProbeCondition(probeCondition)
+        .setSampling(sampling);
   }
 }

@@ -26,21 +26,14 @@ import org.slf4j.LoggerFactory;
 public class TriggerProbe extends ProbeDefinition implements Sampled {
   private static final Logger LOGGER = LoggerFactory.getLogger(TriggerProbe.class);
 
-  private static final int DEFAULT_COOLDOWN = 10;
-
   private ProbeCondition probeCondition;
-
   private Sampling sampling;
-
-  private long nextExecution = 0;
-
-  private int executionInterval;
   private String sessionId;
 
   // no-arg constructor is required by Moshi to avoid creating instance with unsafe and by-passing
   // constructors, including field initializers.
   public TriggerProbe() {
-    this(null, null, null, null, null, null);
+    this(null, null, null, null, null);
   }
 
   public TriggerProbe(
@@ -48,16 +41,14 @@ public class TriggerProbe extends ProbeDefinition implements Sampled {
       String[] tagStrs,
       Where where,
       ProbeCondition probeCondition,
-      Sampling sampling,
-      Integer coolDownSeconds) {
+      Sampling sampling) {
     super("java", probeId, tagStrs, where, MethodLocation.ENTRY);
     this.probeCondition = probeCondition;
     this.sampling = sampling;
-    setCoolDownSeconds(coolDownSeconds != null ? coolDownSeconds : DEFAULT_COOLDOWN);
   }
 
   public TriggerProbe(ProbeId probeId, Where where) {
-    this(probeId, null, where, null, null, null);
+    this(probeId, null, where, null, null);
   }
 
   @Override
@@ -69,11 +60,6 @@ public class TriggerProbe extends ProbeDefinition implements Sampled {
 
   public Sampling getSampling() {
     return sampling;
-  }
-
-  public TriggerProbe setCoolDownSeconds(int coolDownSeconds) {
-    this.executionInterval = coolDownSeconds * 1000;
-    return this;
   }
 
   public TriggerProbe setSampling(Sampling sampling) {
@@ -90,8 +76,7 @@ public class TriggerProbe extends ProbeDefinition implements Sampled {
   public void evaluate(
       CapturedContext context, CapturedContext.Status status, MethodLocation location) {
 
-    if (System.currentTimeMillis() > nextExecution) {
-      nextExecution = System.currentTimeMillis() + executionInterval;
+    if (sampling == null || !sampling.inCoolDown()) {
       boolean sample = true;
       if (!hasCondition()) {
         sample = MethodLocation.isSame(location, evaluateAt) && ProbeRateLimiter.tryProbe(id);

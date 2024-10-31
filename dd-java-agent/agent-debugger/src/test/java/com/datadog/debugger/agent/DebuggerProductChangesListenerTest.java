@@ -17,7 +17,6 @@ import static org.mockito.Mockito.lenient;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
-import com.datadog.debugger.probe.Sampling;
 import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.SpanProbe;
 import datadog.remoteconfig.state.ParsedConfigKey;
@@ -178,7 +177,7 @@ public class DebuggerProductChangesListenerTest {
             .add(metricProbe)
             .add(logProbe)
             .add(spanProbe)
-            .add(new Sampling(3.0))
+            .add(new LogProbe.Sampling(3.0))
             .addDenyList(createFilteredList())
             .build();
 

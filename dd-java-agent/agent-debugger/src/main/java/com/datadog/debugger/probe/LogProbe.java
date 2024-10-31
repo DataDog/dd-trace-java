@@ -219,6 +219,41 @@ public class LogProbe extends ProbeDefinition implements Sampled {
     }
   }
 
+  /** Stores sampling configuration */
+  public static final class Sampling extends com.datadog.debugger.probe.Sampling {
+    private double snapshotsPerSecond;
+
+    public Sampling(double snapshotsPerSecond) {
+      this.snapshotsPerSecond = snapshotsPerSecond;
+    }
+
+    @Override
+    public Double getEventsPerSecond() {
+      return snapshotsPerSecond;
+    }
+
+    @Generated
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      Sampling sampling = (Sampling) o;
+      return Double.compare(sampling.snapshotsPerSecond, snapshotsPerSecond) == 0;
+    }
+
+    @Generated
+    @Override
+    public int hashCode() {
+      return Objects.hash(snapshotsPerSecond);
+    }
+
+    @Generated
+    @Override
+    public String toString() {
+      return "Sampling{" + "snapshotsPerSecond=" + snapshotsPerSecond + '}';
+    }
+  }
+
   private final String template;
   private final List<Segment> segments;
   private final boolean captureSnapshot;

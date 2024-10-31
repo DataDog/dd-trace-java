@@ -244,12 +244,11 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
       if (added instanceof Sampled) {
         Sampled probe = (Sampled) added;
         Sampling sampling = probe.getSampling();
-        ProbeRateLimiter.setRate(
-            probe.getId(),
-            sampling != null
-                ? sampling.getSnapshotsPerSecond()
-                : getDefaultRateLimitPerProbe(probe),
-            probe.isCaptureSnapshot());
+        double rate = getDefaultRateLimitPerProbe(probe);
+        if (sampling != null && sampling.getEventsPerSecond() != 0) {
+          rate = sampling.getEventsPerSecond();
+        }
+        ProbeRateLimiter.setRate(probe.getId(), rate, probe.isCaptureSnapshot());
       }
     }
     // remove rate for all removed probes
@@ -260,7 +259,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
     }
     // set global sampling
     if (globalSampling != null) {
-      ProbeRateLimiter.setGlobalSnapshotRate(globalSampling.getSnapshotsPerSecond());
+      ProbeRateLimiter.setGlobalSnapshotRate(globalSampling.getEventsPerSecond());
     }
   }
 

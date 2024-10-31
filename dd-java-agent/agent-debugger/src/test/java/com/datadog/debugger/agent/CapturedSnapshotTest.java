@@ -32,7 +32,6 @@ import com.datadog.debugger.el.values.StringValue;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
-import com.datadog.debugger.probe.Sampling;
 import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.probe.TriggerProbe;
@@ -983,7 +982,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
             .language(LANGUAGE)
             .probeId(PROBE_ID)
             .where(CLASS_NAME, 8)
-            .sampling(new Sampling(1))
+            .sampling(new LogProbe.Sampling(1))
             .build();
     TestSnapshotListener listener = installProbes(logProbes);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
@@ -1003,7 +1002,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
         Configuration.builder()
             .setService(SERVICE_NAME)
             .addLogProbes(Arrays.asList(probe1, probe2))
-            .add(new Sampling(1))
+            .add(new LogProbe.Sampling(1))
             .build();
     TestSnapshotListener listener = installProbes(config);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
