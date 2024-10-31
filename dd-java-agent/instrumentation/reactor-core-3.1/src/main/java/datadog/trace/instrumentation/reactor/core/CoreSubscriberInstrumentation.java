@@ -10,6 +10,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.WithAgentSpan;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -33,15 +34,6 @@ public class CoreSubscriberInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".SpanExtractorHelper",
-      packageName + ".SpanExtractorHelper$1",
-      packageName + ".SpanExtractorHelper$CachedDelegateCaller",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         namedOneOf("onNext", "onComplete", "onError"),
@@ -52,9 +44,12 @@ public class CoreSubscriberInstrumentation extends InstrumenterModule.Tracing
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope before(@Advice.This final CoreSubscriber<?> self) {
       if (self.currentContext().hasKey("dd.span")) {
-        final AgentSpan span = SpanExtractorHelper.maybeFrom(self.currentContext().get("dd.span"));
-        if (span != null) {
-          return activateSpan(span);
+        Object maybeSpan = self.currentContext().get("dd.span");
+        if (maybeSpan instanceof WithAgentSpan) {
+          AgentSpan span = ((WithAgentSpan) maybeSpan).asAgentSpan();
+          if (span != null) {
+            return activateSpan(span);
+          }
         }
       }
       return null;
