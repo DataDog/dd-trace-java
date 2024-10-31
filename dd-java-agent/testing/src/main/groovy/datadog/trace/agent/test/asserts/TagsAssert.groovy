@@ -32,7 +32,9 @@ class TagsAssert {
     clone.delegate = asserter
     clone.resolveStrategy = Closure.DELEGATE_FIRST
     clone(asserter)
-    if (checkAllTags) asserter.assertTagsAllVerified()
+    if (checkAllTags) {
+      asserter.assertTagsAllVerified()
+    }
   }
 
   /**
