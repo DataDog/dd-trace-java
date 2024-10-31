@@ -15,6 +15,7 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import reactor.core.CoreSubscriber;
+import reactor.util.context.Context;
 
 @AutoService(InstrumenterModule.class)
 public class CoreSubscriberInstrumentation extends InstrumenterModule.Tracing
@@ -43,8 +44,9 @@ public class CoreSubscriberInstrumentation extends InstrumenterModule.Tracing
   public static class PropagateSpanInScopeAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope before(@Advice.This final CoreSubscriber<?> self) {
-      if (self.currentContext().hasKey("dd.span")) {
-        Object maybeSpan = self.currentContext().get("dd.span");
+      final Context context = self.currentContext();
+      if (context.hasKey("dd.span")) {
+        Object maybeSpan = context.get("dd.span");
         if (maybeSpan instanceof WithAgentSpan) {
           AgentSpan span = ((WithAgentSpan) maybeSpan).asAgentSpan();
           if (span != null) {
