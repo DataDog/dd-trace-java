@@ -25,13 +25,14 @@ class TagsAssert {
 
   static void assertTags(DDSpan span,
     @ClosureParams(value = SimpleType, options = ['datadog.trace.agent.test.asserts.TagsAssert'])
-    @DelegatesTo(value = TagsAssert, strategy = Closure.DELEGATE_FIRST) Closure spec) {
+    @DelegatesTo(value = TagsAssert, strategy = Closure.DELEGATE_FIRST) Closure spec,
+    boolean checkAllTags = true) {
     def asserter = new TagsAssert(span)
     def clone = (Closure) spec.clone()
     clone.delegate = asserter
     clone.resolveStrategy = Closure.DELEGATE_FIRST
     clone(asserter)
-    asserter.assertTagsAllVerified()
+    if (checkAllTags) asserter.assertTagsAllVerified()
   }
 
   /**
@@ -39,7 +40,7 @@ class TagsAssert {
    * @param sourceTag the source to match
    */
   def peerServiceFrom(String sourceTag) {
-    tag(DDTags.PEER_SERVICE_SOURCE, { SpanNaming.instance().namingSchema().peerService().supports() ? it == sourceTag : it == null})
+    tag(DDTags.PEER_SERVICE_SOURCE, { SpanNaming.instance().namingSchema().peerService().supports() ? it == sourceTag : it == null })
   }
 
   def defaultTagsNoPeerService(boolean distributedRootSpan = false) {
