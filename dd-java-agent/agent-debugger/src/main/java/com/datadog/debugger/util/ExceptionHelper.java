@@ -6,6 +6,7 @@ import java.io.StringWriter;
 import java.io.Writer;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Deque;
 import java.util.List;
 import org.slf4j.Logger;
 
@@ -60,9 +61,19 @@ public class ExceptionHelper {
   }
 
   public static Throwable getInnerMostThrowable(Throwable t) {
+    return getInnerMostThrowable(t, null);
+  }
+
+  public static Throwable getInnerMostThrowable(Throwable t, Deque<Throwable> chainedExceptions) {
+    if (chainedExceptions != null) {
+      chainedExceptions.addFirst(t);
+    }
     int i = 100;
     while (t.getCause() != null && i > 0) {
       t = t.getCause();
+      if (chainedExceptions != null) {
+        chainedExceptions.addFirst(t);
+      }
       i--;
     }
     if (i == 0) {
