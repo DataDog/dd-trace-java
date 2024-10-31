@@ -567,11 +567,7 @@ public class PowerWAFModule implements AppSecModule {
       if (stackId == null || stackId.isEmpty()) {
         return null;
       }
-      List<StackTraceFrame> result =
-          StackUtils.generateUserCodeStackTrace(
-              stack ->
-                  !stack.getClassName().startsWith("com.datadog")
-                      && !stack.getClassName().startsWith("datadog.trace"));
+      List<StackTraceFrame> result = StackUtils.generateUserCodeStackTrace();
       return new StackTraceEvent(result, DEFAULT_LANGUAGE, stackId, EXPLOIT_DETECTED_MSG);
     }
 

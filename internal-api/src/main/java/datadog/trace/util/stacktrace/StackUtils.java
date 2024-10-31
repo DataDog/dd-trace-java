@@ -60,6 +60,10 @@ public abstract class StackUtils {
         });
   }
 
+  public static List<StackTraceFrame> generateUserCodeStackTrace() {
+    return generateUserCodeStackTrace(AbstractStackWalker::isNotDatadogTraceStackElement);
+  }
+
   /** Function generates stack trace of the user code (excluding datadog classes) */
   public static List<StackTraceFrame> generateUserCodeStackTrace(
       final Predicate<StackTraceElement> filterPredicate) {
