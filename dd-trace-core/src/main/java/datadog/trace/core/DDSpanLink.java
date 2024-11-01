@@ -8,7 +8,6 @@ import com.squareup.moshi.Moshi;
 import com.squareup.moshi.ToJson;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
-import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Attributes;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
@@ -54,7 +53,6 @@ public class DDSpanLink extends SpanLink {
     byte traceFlags = context.getSamplingPriority() > 0 ? SAMPLED_FLAG : DEFAULT_FLAGS;
     String traceState =
         context.getPropagationTags() == null
-                || context.getPropagationStyle() != TracePropagationStyle.TRACECONTEXT
             ? ""
             : context.getPropagationTags().headerValue(PropagationTags.HeaderType.W3C);
     return new DDSpanLink(

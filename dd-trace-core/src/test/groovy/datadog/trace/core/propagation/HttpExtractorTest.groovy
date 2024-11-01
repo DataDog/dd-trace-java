@@ -175,13 +175,14 @@ class HttpExtractorTest extends DDSpecification {
     DynamicConfig dynamicConfig = DynamicConfig.create().apply()
     HttpCodec.Extractor extractor = HttpCodec.createExtractor(config, { dynamicConfig.captureTraceConfig() })
 
-    final Map<String, String> actual = [:]
-    actual.put(DatadogHttpCodec.TRACE_ID_KEY.toUpperCase(), datadogTraceId)
-    actual.put(DatadogHttpCodec.SPAN_ID_KEY.toUpperCase(), datadogSpanId)
-    actual.put(B3HttpCodec.TRACE_ID_KEY.toUpperCase(), b3TraceId)
-    actual.put(B3HttpCodec.SPAN_ID_KEY.toUpperCase(), b3SpanId)
-    actual.put(W3CHttpCodec.TRACE_PARENT_KEY.toUpperCase(), w3cTraceParent)
-    actual.put(W3CHttpCodec.TRACE_STATE_KEY.toUpperCase(), traceState)
+    final Map<String, String> actual = [
+      (DatadogHttpCodec.TRACE_ID_KEY.toUpperCase()): datadogTraceId,
+      (DatadogHttpCodec.SPAN_ID_KEY.toUpperCase()) : datadogSpanId,
+      (B3HttpCodec.TRACE_ID_KEY.toUpperCase())     : b3TraceId,
+      (B3HttpCodec.SPAN_ID_KEY.toUpperCase())      : b3SpanId,
+      (W3CHttpCodec.TRACE_PARENT_KEY.toUpperCase()): w3cTraceParent,
+      (W3CHttpCodec.TRACE_STATE_KEY.toUpperCase()) : traceState
+    ]
 
     when:
     final TagContext context = extractor.extract(actual, ContextVisitors.stringValuesMap())

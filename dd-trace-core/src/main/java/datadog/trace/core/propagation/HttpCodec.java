@@ -19,7 +19,12 @@ import datadog.trace.core.DDSpanLink;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.EnumMap;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -236,12 +241,9 @@ public class HttpCodec {
               }
             } else {
               // Terminate extracted context and add it as span link
-              Map<String, String> attributes = new HashMap<>();
-              attributes.put("reason", "terminated_context");
-              attributes.put("context_headers", extracted.getPropagationStyle().toString());
               context.addTerminatedContextLink(
                   DDSpanLink.from(
-                      (ExtractedContext) extracted, SpanAttributes.fromMap(attributes)));
+                      (ExtractedContext) extracted, SpanAttributes.builder().put("reason", "terminated_context").put("context_headers", extracted.getPropagationStyle().toString()).build()));
               // TODO Note: Other vendor tracestate will be lost here
             }
           }
