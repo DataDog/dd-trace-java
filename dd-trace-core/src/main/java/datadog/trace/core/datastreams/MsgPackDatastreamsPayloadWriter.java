@@ -8,9 +8,15 @@ import datadog.communication.serialization.WritableFormatter;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.common.metrics.Sink;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.zip.GZIPOutputStream;
 
 public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter {
   private static final byte[] ENV = "Env".getBytes(ISO_8859_1);
@@ -32,6 +38,8 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
   private static final byte[] BACKLOG_VALUE = "Value".getBytes(ISO_8859_1);
   private static final byte[] BACKLOG_TAGS = "Tags".getBytes(ISO_8859_1);
   private static final byte[] TRANSACTION_IDENTIFIER = "Transaction".getBytes(ISO_8859_1);
+
+  private static final Logger log = LoggerFactory.getLogger(MsgPackDatastreamsPayloadWriter.class);
 
   private static final int INITIAL_CAPACITY = 512 * 1024;
 
@@ -130,6 +138,45 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
     buffer.mark();
     sink.accept(buffer.messageCount(), buffer.slice());
     buffer.reset();
+  }
+
+  @Override
+  public void writeCompressedTransactionPayload(List<TransactionPayload> payloads) {
+    try {
+      GrowableBuffer serializeBuffer = new GrowableBuffer(INITIAL_CAPACITY);
+      MsgPackWriter msgPackWriter = new MsgPackWriter(serializeBuffer);
+
+      msgPackWriter.startArray(payloads.size());
+      for (TransactionPayload payload : payloads) {
+        msgPackWriter.startMap(2); // since each transaction has two fields
+        msgPackWriter.writeUTF8("TransactionId".getBytes(ISO_8859_1));
+        msgPackWriter.writeUTF8(payload.getTransactionId().getBytes(ISO_8859_1));
+        msgPackWriter.writeUTF8("PathwayHash".getBytes(ISO_8859_1));
+        msgPackWriter.writeLong(payload.getPathwayHash());
+      }
+      msgPackWriter.flush();
+
+      byte[] serializedData = new byte[serializeBuffer.slice().remaining()];
+      serializeBuffer.slice().get(serializedData);
+
+      ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
+      try (GZIPOutputStream gzipOS = new GZIPOutputStream(byteStream)) {
+        gzipOS.write(serializedData);
+      }
+      byte[] compressedData = byteStream.toByteArray();
+
+      GrowableBuffer finalBuffer = new GrowableBuffer(INITIAL_CAPACITY);
+      MsgPackWriter finalWriter = new MsgPackWriter(finalBuffer);
+      finalWriter.startMap(1); // Single key-value pair
+      finalWriter.writeUTF8("CompressedTransactions".getBytes(ISO_8859_1));
+      finalWriter.writeBinary(compressedData);
+      finalWriter.flush();
+
+      sink.accept(finalBuffer.messageCount(), finalBuffer.slice());
+      finalBuffer.reset();
+    } catch (IOException e) {
+      log.debug("Failed to compress and write transaction payloads", e);
+    }
   }
 
 

@@ -43,6 +43,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 import org.jctools.queues.MpscArrayQueue;
 import org.slf4j.Logger;
@@ -76,6 +77,11 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private volatile boolean agentSupportsDataStreams = false;
   private volatile boolean configSupportsDataStreams = false;
   private final ConcurrentHashMap<String, SchemaSampler> schemaSamplers;
+
+  private final List<TransactionItem> accumulatedTransactions = new ArrayList<>();
+  private final ReentrantLock transactionsLock = new ReentrantLock();
+  private final long flushIntervalMillis = 1000; // Flush every 1 second
+  private long lastFlushTime = System.currentTimeMillis();
 
   public DefaultDataStreamsMonitoring(
       Config config,
@@ -350,22 +356,36 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       Thread currentThread = Thread.currentThread();
       while (!currentThread.isInterrupted()) {
         try {
-          InboxItem item = transactionInbox.poll();
-          if (item == null) {
-            Thread.sleep(10);
-            continue;
-          }
+          long currentTime = System.currentTimeMillis();
+          if (currentTime - lastFlushTime >= flushIntervalMillis) {
+            List<TransactionItem> transactionsToFlush = new ArrayList<>();
+            transactionsLock.lock();
+            try {
+              if (!accumulatedTransactions.isEmpty()) {
+                transactionsToFlush.addAll(accumulatedTransactions);
+                accumulatedTransactions.clear();
+                lastFlushTime = currentTime;
+              }
+            } finally {
+              transactionsLock.unlock();
+            }
 
-          if (item instanceof TransactionItem) {
-            TransactionItem transaction = (TransactionItem) item;
-            // prepare the transaction payload with a distinct identifier
-            MsgPackDatastreamsPayloadWriter.TransactionPayload payload
-                = new MsgPackDatastreamsPayloadWriter.TransactionPayload(transaction.getTransactionId(), transaction.getPathwayHash());
-            // write the transaction payload
-            payloadWriter.writeTransactionPayload(payload);
+            if (!transactionsToFlush.isEmpty()) {
+              // Prepare the transaction payloads
+              List<MsgPackDatastreamsPayloadWriter.TransactionPayload> payloads = new ArrayList<>();
+              for (TransactionItem transaction : transactionsToFlush) {
+                payloads.add(new MsgPackDatastreamsPayloadWriter.TransactionPayload(
+                    transaction.getTransactionId(), transaction.getPathwayHash()));
+              }
+              // Write the compressed transaction payload
+              payloadWriter.writeCompressedTransactionPayload(payloads);
+            }
           }
+          Thread.sleep(flushIntervalMillis / 2); // sleep for half the flush interval
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
         } catch (Exception e) {
-          log.debug("Error processing transaction", e);
+          log.debug("Error processing transactions", e);
         }
       }
     }
