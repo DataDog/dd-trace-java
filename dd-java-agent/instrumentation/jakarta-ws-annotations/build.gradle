@@ -1,0 +1,21 @@
+
+muzzle {
+  pass {
+    group = "jakarta.jws"
+    module = "jakarta.jws-api"
+    versions = "[3.0.0,]"
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  // todo correct version non rs
+  compileOnly group: 'jakarta.jws', name: 'jakarta.jws-api', version: '3.0.0'
+
+  //todo also make jakarta
+  testImplementation group: 'jakarta.jws', name: 'jakarta.jws-api', version: '3.0.0'
+  latestDepTestImplementation group: 'jakarta.jws', name: 'jakarta.jws-api', version: '+'
+}

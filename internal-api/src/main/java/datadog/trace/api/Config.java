@@ -395,6 +395,7 @@ public class Config {
   private final boolean debuggerSymbolForceUpload;
   private final String debuggerSymbolIncludes;
   private final int debuggerSymbolFlushThreshold;
+  private final boolean debuggerSymbolCompressed;
   private final boolean debuggerExceptionEnabled;
   private final int debuggerMaxExceptionPerSecond;
   @Deprecated private final boolean debuggerExceptionOnlyLocalRoot;
@@ -812,7 +813,9 @@ public class Config {
 
     httpClientTagQueryString =
         configProvider.getBoolean(
-            HTTP_CLIENT_TAG_QUERY_STRING, DEFAULT_HTTP_CLIENT_TAG_QUERY_STRING);
+            TRACE_HTTP_CLIENT_TAG_QUERY_STRING,
+            DEFAULT_HTTP_CLIENT_TAG_QUERY_STRING,
+            HTTP_CLIENT_TAG_QUERY_STRING);
 
     httpClientTagHeaders = configProvider.getBoolean(HTTP_CLIENT_TAG_HEADERS, true);
 
@@ -1520,6 +1523,8 @@ public class Config {
     debuggerSymbolFlushThreshold =
         configProvider.getInteger(
             DEBUGGER_SYMBOL_FLUSH_THRESHOLD, DEFAULT_DEBUGGER_SYMBOL_FLUSH_THRESHOLD);
+    debuggerSymbolCompressed =
+        configProvider.getBoolean(DEBUGGER_SYMBOL_COMPRESSED, DEFAULT_DEBUGGER_SYMBOL_COMPRESSED);
     debuggerExceptionEnabled =
         configProvider.getBoolean(
             DEBUGGER_EXCEPTION_ENABLED,
@@ -2929,12 +2934,12 @@ public class Config {
     return debuggerSymbolForceUpload;
   }
 
-  public String getDebuggerSymbolIncludes() {
-    return debuggerSymbolIncludes;
-  }
-
   public int getDebuggerSymbolFlushThreshold() {
     return debuggerSymbolFlushThreshold;
+  }
+
+  public boolean isDebuggerSymbolCompressed() {
+    return debuggerSymbolCompressed;
   }
 
   public boolean isDebuggerExceptionEnabled() {

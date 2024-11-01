@@ -1,5 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.jfr.backpressure;
 
+import static datadog.trace.api.sampling.PerRecordingRateLimiter.samplingWindowsPerRecording;
+
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.jfr.WindowSampler;
 import java.time.Duration;
