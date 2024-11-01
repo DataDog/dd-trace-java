@@ -31,6 +31,7 @@ import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
 import java.time.Duration;
@@ -333,6 +334,7 @@ public class LogProbe extends ProbeDefinition implements Sampled {
     this.sampling = sampling;
   }
 
+  @SuppressForbidden
   private static List<ValueScript> parseWatchesFromTags(Tag[] tags) {
     if (tags == null || tags.length == 0) {
       return Collections.emptyList();
