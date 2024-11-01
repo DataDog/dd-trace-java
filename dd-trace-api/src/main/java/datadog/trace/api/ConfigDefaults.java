@@ -175,7 +175,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_DEBUGGER_VERIFY_BYTECODE = true;
   static final boolean DEFAULT_DEBUGGER_INSTRUMENT_THE_WORLD = false;
   static final int DEFAULT_DEBUGGER_CAPTURE_TIMEOUT = 100; // milliseconds
-  static final boolean DEFAULT_DEBUGGER_SYMBOL_ENABLED = false;
+  static final boolean DEFAULT_DEBUGGER_SYMBOL_ENABLED = true;
   static final boolean DEFAULT_DEBUGGER_SYMBOL_FORCE_UPLOAD = false;
   static final int DEFAULT_DEBUGGER_SYMBOL_FLUSH_THRESHOLD = 100; // nb of classes
   static final boolean DEFAULT_DEBUGGER_SYMBOL_COMPRESSED = true;
