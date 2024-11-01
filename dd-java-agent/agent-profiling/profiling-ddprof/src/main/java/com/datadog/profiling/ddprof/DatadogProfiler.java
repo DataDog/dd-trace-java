@@ -36,6 +36,7 @@ import com.datadog.profiling.controller.OngoingRecording;
 import com.datadog.profiling.utils.ProfilingMode;
 import com.datadoghq.profiler.ContextSetter;
 import com.datadoghq.profiler.JavaProfiler;
+import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.TaskWrapper;
@@ -236,6 +237,14 @@ public final class DatadogProfiler {
 
   String cmdStartProfiling(Path file) throws IllegalStateException {
     // 'start' = start, 'jfr=7' = store in JFR format ready for concatenation
+    int safemode = getSafeMode(configProvider);
+    if (safemode != ProfilingConfig.PROFILING_DATADOG_PROFILER_SAFEMODE_DEFAULT) {
+      // be very vocal about messing around with the profiler safemode as it may induce crashes
+      log.warn(
+          "Datadog profiler safemode is enabled with overridden value {}. "
+              + "This is not recommended and may cause instability and crashes.",
+          safemode);
+    }
     StringBuilder cmd = new StringBuilder("start,jfr=7");
     cmd.append(",file=").append(file.toAbsolutePath());
     cmd.append(",loglevel=").append(getLogLevel(configProvider));
