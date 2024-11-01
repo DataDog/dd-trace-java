@@ -461,8 +461,8 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
 
   private void awsPojoToTags(AgentSpan span, String tagsPrefix, Object pojo) {
     Collection<PayloadTagsData.PathAndValue> payloadTagsData = new ArrayList<>();
-    ArrayDeque<Object> pathBuilder = new ArrayDeque<>();
-    collectPayloadTagsData(payloadTagsData, pathBuilder, pojo);
+    ArrayDeque<Object> path = new ArrayDeque<>();
+    collectPayloadTagsData(payloadTagsData, path, pojo);
     span.setTag(
         tagsPrefix,
         new PayloadTagsData(payloadTagsData.toArray(new PayloadTagsData.PathAndValue[0])));

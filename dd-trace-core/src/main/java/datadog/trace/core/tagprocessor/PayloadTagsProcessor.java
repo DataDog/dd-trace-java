@@ -19,7 +19,7 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Post-processor that extracts tags from payload paths injected as tags by instrumentations. */
+/** Post-processor that extracts tags from payload data injected as tags by instrumentations. */
 public final class PayloadTagsProcessor implements TagsPostProcessor {
   private static final Logger log = LoggerFactory.getLogger(PayloadTagsProcessor.class);
 
@@ -56,11 +56,11 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
     return new PayloadTagsProcessor(redactionRulesByTagPrefix, maxDepth, maxTags);
   }
 
-  private final Map<String, RedactionRules> redactionRulesByTagPrefix;
-  private final int maxDepth;
-  private final int maxTags;
+  final Map<String, RedactionRules> redactionRulesByTagPrefix;
+  final int maxDepth;
+  final int maxTags;
 
-  private PayloadTagsProcessor(
+  PayloadTagsProcessor(
       Map<String, RedactionRules> redactionRulesByTagPrefix, int maxDepth, int maxTags) {
     this.redactionRulesByTagPrefix = redactionRulesByTagPrefix;
     this.maxDepth = maxDepth;
@@ -132,7 +132,7 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
     }
   }
 
-  private static final class RedactionRules {
+  static final class RedactionRules {
 
     public static final class Builder {
       private final List<JsonPath> redactionRules = new ArrayList<>();
@@ -158,7 +158,7 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
         return result;
       }
 
-      public RedactionRules build() {
+      RedactionRules build() {
         return new RedactionRules(redactionRules);
       }
     }
