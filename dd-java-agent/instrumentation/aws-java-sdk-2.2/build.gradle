@@ -23,6 +23,7 @@ def fixedSdkVersion = '2.20.33' // 2.20.34 is missing and breaks IDEA import
 
 dependencies {
   compileOnly group: 'software.amazon.awssdk', name: 'aws-core', version: '2.2.0'
+  testImplementation project(':dd-java-agent:instrumentation:aws-common')
 
   // Include httpclient instrumentation for testing because it is a dependency for aws-sdk.
   testImplementation project(':dd-java-agent:instrumentation:apache-httpclient-4')
@@ -36,9 +37,8 @@ dependencies {
   testImplementation group: 'software.amazon.awssdk', name: 'sns', version: '2.2.0'
   testImplementation group: 'software.amazon.awssdk', name: 'dynamodb', version: '2.2.0'
   testImplementation group: 'software.amazon.awssdk', name: 'kinesis', version: '2.2.0'
+  testImplementation group: 'org.eclipse.jetty.http2', name: 'http2-server', version: '9.4.56.v20240826'
 
-  testImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.3.0.v20150612'
-  testImplementation group: 'org.eclipse.jetty.http2', name: 'http2-server', version: '9.3.0.v20150612'
 
   // First version where dsm traced operations have required StreamARN parameter for kinesis
   // and publishBatch is available for SNS

@@ -350,18 +350,6 @@
       }
     },
     {
-      "id": "apache_hadoop3",
-      "description": "Skip Apache Hadoop 3",
-      "os": null,
-      "cmds": [
-        "**/java"
-      ],
-      "args": [],
-      "envars": {
-        "HADOOP_HOME": null
-      }
-    },
-    {
       "id": "apache_hive",
       "description": "Skip Apache Hive",
       "os": null,

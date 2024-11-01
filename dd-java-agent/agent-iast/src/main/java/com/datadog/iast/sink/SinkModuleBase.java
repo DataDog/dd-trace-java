@@ -21,12 +21,14 @@ import com.datadog.iast.util.RangeBuilder;
 import datadog.trace.api.Config;
 import datadog.trace.api.Pair;
 import datadog.trace.api.iast.IastContext;
+import datadog.trace.api.iast.Taintable;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.instrumentation.iastinstrumenter.IastExclusionTrie;
 import datadog.trace.instrumentation.iastinstrumenter.SourceMapperImpl;
 import datadog.trace.util.stacktrace.StackWalker;
 import java.util.Iterator;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -108,17 +110,35 @@ public abstract class SinkModuleBase {
   protected final Evidence checkInjection(
       final IastContext ctx,
       final VulnerabilityType type,
-      final Object value,
+      Object value,
       @Nullable final EvidenceBuilder evidenceBuilder,
       @Nullable final LocationSupplier locationSupplier) {
 
     final TaintedObjects to = ctx.getTaintedObjects();
-    final TaintedObject tainted = to.get(value);
-    if (tainted == null) {
-      return null;
+    final Range[] valueRanges;
+    if (value instanceof Taintable) {
+      final Taintable taintable = (Taintable) value;
+      if (!taintable.$DD$isTainted()) {
+        return null;
+      }
+      final Source source = (Source) taintable.$$DD$getSource();
+      final Object origin = source.getRawValue();
+      final TaintedObject tainted = origin == null ? null : to.get(origin);
+      if (origin != null && tainted != null) {
+        valueRanges = Ranges.getNotMarkedRanges(tainted.getRanges(), type.mark());
+        value = origin;
+      } else {
+        valueRanges = Ranges.forObject((Source) taintable.$$DD$getSource(), type.mark());
+        value = String.format("Tainted reference detected in " + value.getClass());
+      }
+    } else {
+      final TaintedObject tainted = to.get(value);
+      if (tainted == null) {
+        return null;
+      }
+      valueRanges = Ranges.getNotMarkedRanges(tainted.getRanges(), type.mark());
     }
 
-    final Range[] valueRanges = Ranges.getNotMarkedRanges(tainted.getRanges(), type.mark());
     if (valueRanges == null || valueRanges.length == 0) {
       return null;
     }
@@ -207,8 +227,9 @@ public abstract class SinkModuleBase {
   }
 
   @Nullable
-  protected Evidence checkInjectionDeeply(final VulnerabilityType type, final Object value) {
-    return checkInjectionDeeply(type, value, null, null);
+  protected Evidence checkInjectionDeeply(
+      final VulnerabilityType type, final Object value, final Predicate<Class<?>> filter) {
+    return checkInjectionDeeply(type, value, filter, null, null);
   }
 
   @Nullable
@@ -216,8 +237,9 @@ public abstract class SinkModuleBase {
   protected Evidence checkInjectionDeeply(
       final VulnerabilityType type,
       final Object value,
+      final Predicate<Class<?>> filter,
       @Nullable final EvidenceBuilder evidenceBuilder) {
-    return checkInjectionDeeply(type, value, evidenceBuilder, null);
+    return checkInjectionDeeply(type, value, filter, evidenceBuilder, null);
   }
 
   @Nullable
@@ -225,14 +247,16 @@ public abstract class SinkModuleBase {
   protected Evidence checkInjectionDeeply(
       final VulnerabilityType type,
       final Object value,
+      final Predicate<Class<?>> filter,
       @Nullable final LocationSupplier locationSupplier) {
-    return checkInjectionDeeply(type, value, null, locationSupplier);
+    return checkInjectionDeeply(type, value, filter, null, locationSupplier);
   }
 
   @Nullable
   protected Evidence checkInjectionDeeply(
       final VulnerabilityType type,
       final Object value,
+      final Predicate<Class<?>> filter,
       @Nullable final EvidenceBuilder evidenceBuilder,
       @Nullable final LocationSupplier locationSupplier) {
     final IastContext ctx = IastContext.Provider.get();
@@ -242,7 +266,7 @@ public abstract class SinkModuleBase {
 
     final InjectionVisitor visitor =
         new InjectionVisitor(ctx, type, evidenceBuilder, locationSupplier);
-    ObjectVisitor.visit(value, visitor);
+    ObjectVisitor.visit(value, visitor, filter);
     return visitor.evidence;
   }
 

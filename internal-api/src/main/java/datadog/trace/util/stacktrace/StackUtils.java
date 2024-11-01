@@ -1,10 +1,21 @@
 package datadog.trace.util.stacktrace;
 
+import datadog.trace.api.Config;
+import datadog.trace.api.gateway.RequestContext;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 public abstract class StackUtils {
+
+  public static final String META_STRUCT_KEY = "_dd.stack";
 
   public static <E extends Throwable> E update(
       final E exception, final Function<StackTraceElement[], StackTraceElement[]> filter) {
@@ -47,6 +58,34 @@ public abstract class StackUtils {
           }
           return source;
         });
+  }
+
+  /** Function generates stack trace of the user code (excluding datadog classes) */
+  public static List<StackTraceFrame> generateUserCodeStackTrace() {
+    int stackCapacity = Config.get().getAppSecMaxStackTraceDepth();
+    List<StackTraceElement> elements =
+        StackWalkerFactory.INSTANCE.walk(
+            stream ->
+                stream
+                    .filter(
+                        elem ->
+                            !elem.getClassName().startsWith("com.datadog")
+                                && !elem.getClassName().startsWith("datadog.trace"))
+                    .limit(stackCapacity)
+                    .collect(Collectors.toList()));
+    return IntStream.range(0, elements.size())
+        .mapToObj(idx -> new StackTraceFrame(idx, elements.get(idx)))
+        .collect(Collectors.toList());
+  }
+
+  public static void addStacktraceEventsToMetaStruct(
+      final RequestContext reqCtx, final String productKey, final List<StackTraceEvent> events) {
+    final Map<String, List<StackTraceEvent>> stackTraceBatch =
+        reqCtx.getOrCreateMetaStructTop(META_STRUCT_KEY, k -> new ConcurrentHashMap<>());
+    final List<StackTraceEvent> list =
+        stackTraceBatch.computeIfAbsent(
+            productKey, k -> Collections.synchronizedList(new ArrayList<>()));
+    list.addAll(events);
   }
 
   private static class OneTimePredicate<T> implements Predicate<T> {

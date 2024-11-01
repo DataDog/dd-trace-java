@@ -483,7 +483,10 @@ public class DebuggerSinkTest {
     DebuggerMetrics debuggerMetrics = spy(DebuggerMetrics.getInstance(config));
     SnapshotSink snapshotSink =
         new SnapshotSink(
-            config, "", new BatchUploader(config, config.getFinalDebuggerSnapshotUrl()));
+            config,
+            "",
+            new BatchUploader(
+                config, config.getFinalDebuggerSnapshotUrl(), SnapshotSink.RETRY_POLICY));
     SymbolSink symbolSink = new SymbolSink(config);
     DebuggerSink sink =
         new DebuggerSink(config, "", debuggerMetrics, probeStatusSink, snapshotSink, symbolSink);

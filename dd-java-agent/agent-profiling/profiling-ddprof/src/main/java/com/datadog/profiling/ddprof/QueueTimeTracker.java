@@ -32,12 +32,17 @@ public class QueueTimeTracker implements QueueTiming {
   }
 
   @Override
-  public void close() {
+  public void report() {
     assert weakTask != null && scheduler != null;
     Object task = this.weakTask.get();
     if (task != null) {
       // indirection reduces shallow size of the tracker instance
-      profiler.recordQueueTimeEvent(startMillis, startTicks, task, scheduler, origin);
+      profiler.recordQueueTimeEvent(startTicks, task, scheduler, origin);
     }
+  }
+
+  @Override
+  public boolean sample() {
+    return profiler.shouldRecordQueueTimeEvent(startMillis);
   }
 }

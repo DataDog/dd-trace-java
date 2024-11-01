@@ -4,6 +4,7 @@ import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.bootstrap.instrumentation.api.WithAgentSpan;
 import datadog.trace.instrumentation.opentracing.LogHandler;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
@@ -13,7 +14,7 @@ import java.util.Map;
  * This class should be castable to MutableSpan since that is the way we've encouraged users to
  * interact with non-ot parts of our API.
  */
-class OTSpan implements Span, MutableSpan {
+class OTSpan implements Span, MutableSpan, WithAgentSpan {
   private final AgentSpan delegate;
   private final TypeConverter converter;
   private final LogHandler logHandler;
@@ -212,10 +213,6 @@ class OTSpan implements Span, MutableSpan {
     delegate.finish(finishMicros);
   }
 
-  public AgentSpan getDelegate() {
-    return delegate;
-  }
-
   @Override
   public boolean equals(final Object o) {
     if (this == o) {
@@ -231,5 +228,10 @@ class OTSpan implements Span, MutableSpan {
   @Override
   public int hashCode() {
     return delegate.hashCode();
+  }
+
+  @Override
+  public AgentSpan asAgentSpan() {
+    return delegate;
   }
 }
