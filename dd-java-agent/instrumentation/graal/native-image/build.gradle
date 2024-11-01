@@ -26,13 +26,39 @@ apply plugin: "idea"
   ])
 }
 
+// Must use Java 11 to build JFR enabled code - there is no JFR in OpenJDK 8 (revisit once JFR in Java 8 is available)
+//todo fix comment and relocate this
+sourceSets {
+  "main_java21" {
+    java.srcDirs "${project.projectDir}/src/main/java21"
+  }
+}
+
+compileMain_java21Java {
+  it.sourceCompatibility = JavaVersion.VERSION_21
+  it.targetCompatibility = JavaVersion.VERSION_21
+  setJavaVersion(it, 21)
+  it.options.compilerArgs.addAll([
+    '-Xlint:all,-processing,-options,-path',
+    '--add-modules',
+    'jdk.internal.vm.ci',
+    '--add-exports',
+    'jdk.internal.vm.ci/jdk.vm.ci.meta=ALL-UNNAMED'
+  ])
+}
+
 dependencies {
   compileOnly project(':dd-java-agent:agent-logging')
 
   main_java11CompileOnly group: 'org.graalvm.nativeimage', name: 'svm', version: '20.0.0'
+  main_java21CompileOnly group: 'org.graalvm.nativeimage', name: 'svm', version: '23.1.0'
 }
 
 forbiddenApisMain_java11 {
+  failOnMissingClasses = false
+}
+
+forbiddenApisMain_java21 {
   failOnMissingClasses = false
 }
 
