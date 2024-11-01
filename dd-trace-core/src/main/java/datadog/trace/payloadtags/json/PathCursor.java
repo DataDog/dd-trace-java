@@ -66,12 +66,8 @@ public class PathCursor {
     return length;
   }
 
-  Object jsonPathSegment(int i) {
-    if (i == 0) {
-      // root segment
-      return null;
-    }
-    return path[i - 1];
+  Object get(int i) {
+    return path[i];
   }
 
   public String toString(String prefix) {

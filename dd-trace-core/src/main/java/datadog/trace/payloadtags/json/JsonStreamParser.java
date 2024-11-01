@@ -103,8 +103,6 @@ public class JsonStreamParser {
             pathCursor.push(0);
           } else {
             reader.skipValue();
-            // an array can itself be a value in a parent array or object
-            // by skipping we won't get END_ARRAY
             pathCursor.advance();
           }
           break;
@@ -114,8 +112,6 @@ public class JsonStreamParser {
             reader.beginObject();
           } else {
             reader.skipValue();
-            // an object can itself be a value in a parent array or object
-            // by skipping we won't get END_OBJECT
             pathCursor.advance();
           }
           break;
@@ -128,13 +124,11 @@ public class JsonStreamParser {
         case END_ARRAY:
           reader.endArray();
           pathCursor.pop();
-          // an array can itself be a value in a parent array or object
           pathCursor.advance();
           break;
 
         case END_OBJECT:
           reader.endObject();
-          // an object can itself be a value in a parent array or object
           pathCursor.advance();
           break;
 

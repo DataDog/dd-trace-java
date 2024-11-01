@@ -1193,12 +1193,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     return null;
   }
 
-  private static void setTags(AgentSpan span, Map<String, Object> tags) {
-    for (Map.Entry<String, Object> entry : tags.entrySet()) {
-      span.setTag(entry.getKey(), entry.getValue());
-    }
-  }
-
   public void addTracerReportToFlare(ZipOutputStream zip) throws IOException {
     TracerFlare.addText(zip, "tracer_health.txt", healthMetrics.summary());
     TracerFlare.addText(zip, "span_metrics.txt", SpanMetricRegistry.getInstance().summary());
