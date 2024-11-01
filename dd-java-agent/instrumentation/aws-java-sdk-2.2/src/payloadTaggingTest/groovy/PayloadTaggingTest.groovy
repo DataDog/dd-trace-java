@@ -28,7 +28,7 @@ abstract class AbstractPayloadTaggingTest extends AgentTestRunner {
   static final int DEFAULT_PORT = 4566
   static final LOCALSTACK = new GenericContainer(DockerImageName.parse("localstack/localstack"))
   .withExposedPorts(DEFAULT_PORT)
-  .withEnv("SERVICES", "apigateway,events,sns,sqs,s3,kinesis")
+  .withEnv("SERVICES", "apigateway,events,s3,sns,sqs,kinesis")
   .withReuse(true)
   .withStartupTimeout(Duration.ofSeconds(120))
   .withNetworkAliases("localstack")
@@ -114,7 +114,7 @@ class PayloadTaggingRedactionForkedTest extends AbstractPayloadTaggingTest {
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
-    def redactTopLevelTags = "\$.*"
+    def redactTopLevelTags = "\$.*,\$.DisplayName.Owner"
     injectSysConfig(TracerConfig.TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING, redactTopLevelTags)
     injectSysConfig(TracerConfig.TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING, redactTopLevelTags)
   }
@@ -165,17 +165,13 @@ class PayloadTaggingRedactionForkedTest extends AbstractPayloadTaggingTest {
         it.queueName("testqueue")
       }
     }
-    "S3"          | "x-amz-expected-bucket-owner" | "LocationConstraint" | {
-      s3Client.getBucketLocation {
-        it.bucket("testbucket")
-      }
-    }
     "Kinesis"     | "StreamModeDetails"           | NA                   | {
       kinesisClient.createStream {
         it.streamName("teststream")
       }
     }
     "Kinesis"     | NA                            | "ShardLimit"         | { kinesisClient.describeLimits() }
+    "S3"          | NA                            | "DisplayName.Owner"  | { s3Client.listBuckets() }
   }
 }
 
