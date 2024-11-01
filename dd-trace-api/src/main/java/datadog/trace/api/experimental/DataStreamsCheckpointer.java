@@ -43,6 +43,14 @@ public interface DataStreamsCheckpointer {
    */
   void trackTransaction(String transactionID, DataStreamsContextCarrier carrier);
 
+  /**
+   * Reports a transaction by enqueuing it to the transactionInbox.
+   *
+   * @param transactionId The unique identifier of the transaction.
+   * @param pathwayHash   The hash associated with the pathway context.
+   */
+  void reportTransaction(String transactionId, long pathwayHash);
+
   final class NoOp implements DataStreamsCheckpointer {
 
     public static final DataStreamsCheckpointer INSTANCE = new NoOp();
@@ -58,5 +66,9 @@ public interface DataStreamsCheckpointer {
     @Override
     public void trackTransaction(
         String transactionID, DataStreamsContextCarrier carrier) {}
+
+    @Override
+    public void reportTransaction(
+        String transactionId, long pathwayHash) {}
   }
 }

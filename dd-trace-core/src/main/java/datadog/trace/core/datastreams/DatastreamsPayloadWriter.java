@@ -4,4 +4,6 @@ import java.util.Collection;
 
 public interface DatastreamsPayloadWriter {
   void writePayload(Collection<StatsBucket> data);
+
+  void writeTransactionPayload(MsgPackDatastreamsPayloadWriter.TransactionPayload payload);
 }

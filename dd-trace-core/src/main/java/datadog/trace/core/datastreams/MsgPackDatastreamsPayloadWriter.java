@@ -31,6 +31,7 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
   private static final byte[] PARENT_HASH = "ParentHash".getBytes(ISO_8859_1);
   private static final byte[] BACKLOG_VALUE = "Value".getBytes(ISO_8859_1);
   private static final byte[] BACKLOG_TAGS = "Tags".getBytes(ISO_8859_1);
+  private static final byte[] TRANSACTION_IDENTIFIER = "Transaction".getBytes(ISO_8859_1);
 
   private static final int INITIAL_CAPACITY = 512 * 1024;
 
@@ -40,6 +41,24 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
   private final WellKnownTags wellKnownTags;
   private final byte[] tracerVersionValue;
   private final byte[] primaryTagValue;
+
+  public static class TransactionPayload {
+    private final String transactionId;
+    private final long pathwayHash;
+
+    public TransactionPayload(String transactionId, long pathwayHash) {
+      this.transactionId = transactionId;
+      this.pathwayHash = pathwayHash;
+    }
+
+    public String getTransactionId() {
+      return transactionId;
+    }
+
+    public long getPathwayHash() {
+      return pathwayHash;
+    }
+  }
 
   public MsgPackDatastreamsPayloadWriter(
       Sink sink, WellKnownTags wellKnownTags, String tracerVersion, String primaryTag) {
@@ -113,6 +132,29 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
     buffer.reset();
   }
 
+
+  public void writeTransactionPayload(TransactionPayload transaction) {
+    writer.startMap(2); // assumes two key-value pairs for transaction
+
+    // identifier to differentiate transaction messages
+    writer.writeUTF8("Type".getBytes(ISO_8859_1));
+    writer.writeUTF8(TRANSACTION_IDENTIFIER);
+
+    // transaction Data
+    writer.writeUTF8("TransactionData".getBytes(ISO_8859_1));
+    writer.startMap(2);
+
+    writer.writeUTF8("TransactionId".getBytes(ISO_8859_1));
+    writer.writeUTF8(transaction.getTransactionId().getBytes(ISO_8859_1));
+
+    writer.writeUTF8("PathwayHash".getBytes(ISO_8859_1));
+    writer.writeLong(transaction.getPathwayHash());
+
+    // send the payload
+    buffer.mark();
+    sink.accept(buffer.messageCount(), buffer.slice());
+    buffer.reset();
+  }
   private void writeBucket(StatsBucket bucket, Writable packer) {
     Collection<StatsGroup> groups = bucket.getGroups();
     packer.startArray(groups.size());

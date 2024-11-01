@@ -90,8 +90,16 @@ public class DataStreamContextInjector {
     }
 
     if (transactionId != null && pathwayHash != 0) {
-      // dummy logic to set them as used variables
-      System.out.println("WE HAVE BOTH TRANSACTION ID AND PATHWAY HASH");
+      // report transaction here
+      dataStreamsMonitoring.reportTransaction(transactionId, pathwayHash); // adds another piece of logic to transaction thread, finds an active bucket and extend data streams payload
+      // need to add logic in writer to actually write it to the payload,
+      // have to add logic to accumulate those transaction IDs over time
+      // maybe keep transaction IDs in memory, then when we go to write we compress using zip or something
+      // background thread flushes it same way it flushes states
+      // in this way, actual datapoint
+      // follow similar logic to set consume checkpoint
+      // create a new thread that flushes to same endpoint and statspayload but stats points are empty backlogs are empty but transactions info is not empty
+      // create a parallel thing so easier to split endpoints, two separate queues, two diff endpoint buckets etc.
     }
 
 

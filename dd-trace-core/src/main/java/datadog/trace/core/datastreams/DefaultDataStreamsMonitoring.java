@@ -60,6 +60,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
   private final Map<Long, StatsBucket> timeToBucket = new HashMap<>();
   private final MpscArrayQueue<InboxItem> inbox = new MpscArrayQueue<>(1024);
+  private final MpscArrayQueue<InboxItem> transactionInbox = new MpscArrayQueue<>(1024);
   private final DatastreamsPayloadWriter payloadWriter;
   private final DDAgentFeaturesDiscovery features;
   private final TimeSource timeSource;
@@ -68,6 +69,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private final long bucketDurationNanos;
   private final DataStreamContextInjector injector;
   private final Thread thread;
+  private final Thread transactionThread;
   private AgentTaskScheduler.Scheduled<DefaultDataStreamsMonitoring> cancellation;
   private volatile long nextFeatureCheck;
   private volatile boolean supportsDataStreams = false;
@@ -128,6 +130,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     this.injector = new DataStreamContextInjector(this);
 
     thread = newAgentThread(DATA_STREAMS_MONITORING, new InboxProcessor());
+    transactionThread = newAgentThread(DATA_STREAMS_MONITORING, new TransactionProcessor());
+
     sink.register(this);
     schemaSamplers = new ConcurrentHashMap<>();
   }
@@ -153,6 +157,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
         AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
             new ReportTask(), this, bucketDurationNanos, bucketDurationNanos, TimeUnit.NANOSECONDS);
     thread.start();
+    transactionThread.start();
   }
 
   @Override
@@ -241,6 +246,24 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     }
   }
 
+  /**
+   * Reports a transaction by enqueuing it to the transactionInbox.
+   *
+   * @param transactionId The unique identifier of the transaction.
+   * @param pathwayHash   The hash associated with the pathway context.
+   */
+  @Override
+  public void reportTransaction(String transactionId, long pathwayHash) {
+    if (transactionId == null || transactionId.isEmpty()) {
+      log.warn("reportTransaction called with invalid transactionId");
+      return;
+    }
+    InboxItem transactionItem = new TransactionItem(transactionId, pathwayHash);
+    if (!transactionInbox.offer(transactionItem)) {
+      log.warn("Transaction queue is full. Dropping transaction: {}", transactionId);
+    }
+  }
+
   @Override
   public void setConsumeCheckpoint(String type, String source, DataStreamsContextCarrier carrier) {
     if (type == null || type.isEmpty() || source == null || source.isEmpty()) {
@@ -312,11 +335,42 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     }
 
     inbox.offer(POISON_PILL);
+    transactionInbox.offer(POISON_PILL);
     try {
       thread.join(THREAD_JOIN_TIMOUT_MS);
+      transactionThread.join(THREAD_JOIN_TIMOUT_MS);
     } catch (InterruptedException ignored) {
     }
   }
+
+
+  private class TransactionProcessor implements Runnable {
+    @Override
+    public void run() {
+      Thread currentThread = Thread.currentThread();
+      while (!currentThread.isInterrupted()) {
+        try {
+          InboxItem item = transactionInbox.poll();
+          if (item == null) {
+            Thread.sleep(10);
+            continue;
+          }
+
+          if (item instanceof TransactionItem) {
+            TransactionItem transaction = (TransactionItem) item;
+            // prepare the transaction payload with a distinct identifier
+            MsgPackDatastreamsPayloadWriter.TransactionPayload payload
+                = new MsgPackDatastreamsPayloadWriter.TransactionPayload(transaction.getTransactionId(), transaction.getPathwayHash());
+            // write the transaction payload
+            payloadWriter.writeTransactionPayload(payload);
+          }
+        } catch (Exception e) {
+          log.debug("Error processing transaction", e);
+        }
+      }
+    }
+  }
+
 
   private class InboxProcessor implements Runnable {
     @Override
@@ -449,4 +503,23 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       target.report();
     }
   }
+
+  private static class TransactionItem implements InboxItem {
+    private final String transactionId;
+    private final long pathwayHash;
+
+    public TransactionItem(String transactionId, long pathwayHash) {
+      this.transactionId = transactionId;
+      this.pathwayHash = pathwayHash;
+    }
+
+    public String getTransactionId() {
+      return transactionId;
+    }
+
+    public long getPathwayHash() {
+      return pathwayHash;
+    }
+  }
+
 }
