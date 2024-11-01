@@ -99,6 +99,14 @@ abstract class AbstractPayloadTaggingTest extends AgentTestRunner {
   def cleanupSpec() {
     LOCALSTACK.stop()
   }
+
+  Tag snsTag(String key, String value) {
+    return Tag.builder().key(key).value(value).build()
+  }
+
+  MessageAttributeValue snsBinaryAttribute(String data) {
+    MessageAttributeValue.builder().dataType("Binary").binaryValue(SdkBytes.fromByteArray(data.bytes)).build()
+  }
 }
 
 class PayloadTaggingRedactionForkedTest extends AbstractPayloadTaggingTest {
@@ -226,17 +234,13 @@ class PayloadTaggingExpansionForkedTest extends AbstractPayloadTaggingTest {
     "BinaryValue.foo\\.bar.MessageAttributes.abc\\.def" | 42                     | {
       snsClient.publish {
         it.phoneNumber("+15555555555").message("testmessage")
-          .messageAttributes(["foo.bar":
-            MessageAttributeValue.builder().dataType("Binary").binaryValue(SdkBytes.fromByteArray('{"abc.def": 42}'.bytes)).build()
+          .messageAttributes(["foo.bar": snsBinaryAttribute('{"abc.def": 42}')
           ])
       }
     }
     "BinaryValue.foo\\.bar.MessageAttributes"           | "<binary>"             | {
       snsClient.publish {
-        it.phoneNumber("+15555555555").message("testmessage")
-          .messageAttributes(["foo.bar":
-            MessageAttributeValue.builder().dataType("Binary").binaryValue(SdkBytes.fromByteArray('{"invalid json: 42}'.bytes)).build()]
-          )
+        it.phoneNumber("+15555555555").message("testmessage").messageAttributes(["foo.bar": snsBinaryAttribute('{"invalid json: 42}')])
       }
     }
     "Message"                                           | "{\"invalid json: 42}" | {
@@ -355,11 +359,11 @@ class PayloadTaggingMaxTagsForkedTest extends AbstractPayloadTaggingTest {
         snsClient.createTopic {
           it.name("testtopic")
             .tags(
-            Tag.builder().key("a").value("1").build(),
-            Tag.builder().key("b").value("2").build(),
-            Tag.builder().key("c").value("3").build(),
-            Tag.builder().key("d").value("4").build(),
-            Tag.builder().key("e").value("5").build()
+            snsTag("a", "1"),
+            snsTag("b", "2"),
+            snsTag("c", "3"),
+            snsTag("d", "4"),
+            snsTag("e", "5"),
             )
         }
       },
