@@ -213,24 +213,21 @@ class PayloadTaggingExpansionForkedTest extends AbstractPayloadTaggingTest {
       snsClient.listPhoneNumbersOptedOut()
     }
     "DefaultSMSType.attributes"                         | "bar"                  | {
-      snsClient.setSMSAttributes { it.attributes(Map.of("DefaultSenderID", "foo", "DefaultSMSType", "bar")) }
+      snsClient.setSMSAttributes { it.attributes(["DefaultSenderID": "foo", "DefaultSMSType": "bar"]) }
     }
     "BinaryValue.foo\\.bar.MessageAttributes.abc\\.def" | 42                     | {
       snsClient.publish {
         it.phoneNumber("+15555555555").message("testmessage")
-          .messageAttributes(
-          Map.of("foo.bar",
-          MessageAttributeValue.builder().dataType("Binary").binaryValue(SdkBytes.fromByteArray('{"abc.def": 42}'.bytes)).build()
-          )
-          )
+          .messageAttributes(["foo.bar":
+            MessageAttributeValue.builder().dataType("Binary").binaryValue(SdkBytes.fromByteArray('{"abc.def": 42}'.bytes)).build()
+          ])
       }
     }
     "BinaryValue.foo\\.bar.MessageAttributes"           | "<binary>"             | {
       snsClient.publish {
         it.phoneNumber("+15555555555").message("testmessage")
-          .messageAttributes(
-          Map.of("foo.bar",
-          MessageAttributeValue.builder().dataType("Binary").binaryValue(SdkBytes.fromByteArray('{"invalid json: 42}'.bytes)).build())
+          .messageAttributes(["foo.bar":
+            MessageAttributeValue.builder().dataType("Binary").binaryValue(SdkBytes.fromByteArray('{"invalid json: 42}'.bytes)).build()]
           )
       }
     }
