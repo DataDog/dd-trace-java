@@ -2,15 +2,15 @@ package datadog.trace.payloadtags.json;
 
 import java.util.Arrays;
 
-/** Represents a mutable path in a JSON-like structure. */
+/** Represents a mutable path in a hierarchical structure such as JSON. */
 public class PathCursor {
   private final Object[] path;
-  private int levels;
+  private int length;
 
   public PathCursor(int capacity) {
     super();
     path = new Object[capacity];
-    levels = 0;
+    length = 0;
   }
 
   public PathCursor(Object[] path, int capacity) {
@@ -18,42 +18,42 @@ public class PathCursor {
     assert path.length <= capacity;
     this.path = new Object[capacity];
     System.arraycopy(path, 0, this.path, 0, path.length);
-    levels = path.length;
+    length = path.length;
   }
 
   private PathCursor(PathCursor that) {
     super();
     path = Arrays.copyOf(that.path, that.path.length);
-    levels = that.levels;
+    length = that.length;
   }
 
   public PathCursor push(String name) {
-    assert levels < path.length;
-    path[levels] = name;
-    levels += 1;
+    assert length < path.length;
+    path[length] = name;
+    length += 1;
     return this;
   }
 
   public PathCursor push(int index) {
-    assert levels < path.length;
-    path[levels] = index;
-    levels += 1;
+    assert length < path.length;
+    path[length] = index;
+    length += 1;
     return this;
   }
 
   public void pop() {
-    if (levels > 0) {
-      levels -= 1;
+    if (length > 0) {
+      length -= 1;
     }
   }
 
   public void advance() {
-    if (levels > 0) {
-      Object last = path[levels - 1];
+    if (length > 0) {
+      Object last = path[length - 1];
       if (last instanceof Integer) {
-        path[levels - 1] = (int) last + 1;
+        path[length - 1] = (int) last + 1;
       } else {
-        levels -= 1;
+        length -= 1;
       }
     }
   }
@@ -62,8 +62,8 @@ public class PathCursor {
     return new PathCursor(this);
   }
 
-  public int levels() {
-    return levels;
+  public int length() {
+    return length;
   }
 
   Object jsonPathSegment(int i) {
@@ -76,7 +76,7 @@ public class PathCursor {
 
   public String toString(String prefix) {
     StringBuilder sb = new StringBuilder(prefix);
-    for (int i = 0; i < levels; i++) {
+    for (int i = 0; i < length; i++) {
       sb.append('.');
       sb.append(String.valueOf(path[i]).replace(".", "\\."));
     }
@@ -84,6 +84,6 @@ public class PathCursor {
   }
 
   public Object[] toPath() {
-    return Arrays.copyOf(path, levels);
+    return Arrays.copyOf(path, length);
   }
 }

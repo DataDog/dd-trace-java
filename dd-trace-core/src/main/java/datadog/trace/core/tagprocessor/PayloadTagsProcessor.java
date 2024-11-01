@@ -29,22 +29,21 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
 
   @Nullable
   public static PayloadTagsProcessor create(Config config) {
-    // TODO test with a config test
     Map<String, RedactionRules> redactionRulesByTagPrefix = new HashMap<>();
     if (config.isCloudRequestPayloadTaggingEnabled()) {
       redactionRulesByTagPrefix.put(
-          PayloadTagsData.KnownPayloadTags.AWS_REQUEST_BODY,
+          ConfigDefaults.DEFAULT_TRACE_CLOUD_PAYLOAD_REQUEST_TAG,
           new RedactionRules.Builder()
-              .addRedactionJsonPaths(ConfigDefaults.DEFAULT_CLOUD_PAYLOAD_TAGGING)
+              .addRedactionJsonPaths(ConfigDefaults.DEFAULT_CLOUD_COMMON_PAYLOAD_TAGGING)
               .addRedactionJsonPaths(ConfigDefaults.DEFAULT_CLOUD_REQUEST_PAYLOAD_TAGGING)
               .addRedactionJsonPaths(config.getCloudRequestPayloadTagging())
               .build());
     }
     if (config.isCloudResponsePayloadTaggingEnabled()) {
       redactionRulesByTagPrefix.put(
-          PayloadTagsData.KnownPayloadTags.AWS_RESPONSE_BODY,
+          ConfigDefaults.DEFAULT_TRACE_CLOUD_PAYLOAD_RESPONSE_TAG,
           new RedactionRules.Builder()
-              .addRedactionJsonPaths(ConfigDefaults.DEFAULT_CLOUD_PAYLOAD_TAGGING)
+              .addRedactionJsonPaths(ConfigDefaults.DEFAULT_CLOUD_COMMON_PAYLOAD_TAGGING)
               .addRedactionJsonPaths(ConfigDefaults.DEFAULT_CLOUD_RESPONSE_PAYLOAD_TAGGING)
               .addRedactionJsonPaths(config.getCloudResponsePayloadTagging())
               .build());
@@ -63,7 +62,6 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
 
   private PayloadTagsProcessor(
       Map<String, RedactionRules> redactionRulesByTagPrefix, int maxDepth, int maxTags) {
-    // TODO test all the other cases via constructor
     this.redactionRulesByTagPrefix = redactionRulesByTagPrefix;
     this.maxDepth = maxDepth;
     this.maxTags = maxTags;
@@ -76,15 +74,16 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
         redactionRulesByTagPrefix.entrySet()) {
       String tagPrefix = tagPrefixRedactionRules.getKey();
       RedactionRules redactionRules = tagPrefixRedactionRules.getValue();
-      Object tagValue = spanTags.remove(tagPrefix);
+      Object tagValue = spanTags.get(tagPrefix);
       if (tagValue instanceof PayloadTagsData) {
-        spanMaxTags -= 1;
+        if (spanTags.remove(tagPrefix) != null) {
+          spanMaxTags -= 1;
+        }
         PayloadTagsData payloadTagsData = (PayloadTagsData) tagValue;
         PayloadTagsCollector payloadTagsCollector =
             new PayloadTagsCollector(maxDepth, spanMaxTags, redactionRules, tagPrefix, spanTags);
         collectPayloadTags(payloadTagsData, payloadTagsCollector);
       } else if (tagValue != null) {
-        spanMaxTags -= 1;
         log.debug(
             LogCollector.SEND_TELEMETRY,
             "Expected PayloadTagsData for known payload tag '{}', but got '{}'",
@@ -97,7 +96,7 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
 
   private void collectPayloadTags(
       PayloadTagsData payloadTagsData, PayloadTagsCollector payloadTagsCollector) {
-    for (PayloadTagsData.PathAndValue pathAndValue : payloadTagsData.all()) {
+    for (PayloadTagsData.PathAndValue pathAndValue : payloadTagsData.pathAndValues) {
       if (pathAndValue.path.length > maxDepth) {
         continue;
       }
@@ -203,7 +202,7 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
 
     @Override
     public boolean visitCompound(PathCursor path) {
-      if (path.levels() < maxDepth) {
+      if (path.length() < maxDepth) {
         return notRedacted(path);
       }
       return false;

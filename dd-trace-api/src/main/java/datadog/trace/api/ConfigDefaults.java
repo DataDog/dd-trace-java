@@ -247,7 +247,10 @@ public final class ConfigDefaults {
           Arrays.asList(
               "ApiGateway", "ApiGatewayV2", "EventBridge", "Sqs", "Sns", "S3", "Kinesis"));
 
-  public static final List<String> DEFAULT_CLOUD_PAYLOAD_TAGGING =
+  public static final String DEFAULT_TRACE_CLOUD_PAYLOAD_REQUEST_TAG = "aws.request.body";
+  public static final String DEFAULT_TRACE_CLOUD_PAYLOAD_RESPONSE_TAG = "aws.response.body";
+
+  public static final List<String> DEFAULT_CLOUD_COMMON_PAYLOAD_TAGGING =
       asList(
           // Sns
           "$.Attributes.KmsMasterKeyId",

@@ -7,6 +7,7 @@ import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
@@ -27,6 +28,7 @@ import datadog.trace.payloadtags.PayloadTagsData;
 import java.net.URI;
 import java.time.Instant;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -123,7 +125,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     Config config = Config.get();
     if (config.isCloudRequestPayloadTaggingEnabled()
         && config.isCloudPayloadTaggingEnabledFor(awsServiceName)) {
-      awsPojoToTags(span, PayloadTagsData.KnownPayloadTags.AWS_REQUEST_BODY, request);
+      awsPojoToTags(span, ConfigDefaults.DEFAULT_TRACE_CLOUD_PAYLOAD_REQUEST_TAG, request);
     }
 
     // S3
@@ -311,7 +313,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     String serviceName = attributes.getAttribute(SdkExecutionAttribute.SERVICE_NAME);
     if (config.isCloudResponsePayloadTaggingEnabled()
         && config.isCloudPayloadTaggingEnabledFor(serviceName)) {
-      awsPojoToTags(span, PayloadTagsData.KnownPayloadTags.AWS_RESPONSE_BODY, response);
+      awsPojoToTags(span, ConfigDefaults.DEFAULT_TRACE_CLOUD_PAYLOAD_RESPONSE_TAG, response);
     }
 
     if (response instanceof AwsResponse) {
@@ -458,13 +460,18 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
   }
 
   private void awsPojoToTags(AgentSpan span, String tagsPrefix, Object pojo) {
-    PayloadTagsData payloadTagsData = new PayloadTagsData();
-    collectPayloadTagsData(payloadTagsData, new ArrayDeque<>(), pojo);
-    span.setTag(tagsPrefix, payloadTagsData);
+    Collection<PayloadTagsData.PathAndValue> payloadTagsData = new ArrayList<>();
+    ArrayDeque<Object> pathBuilder = new ArrayDeque<>();
+    collectPayloadTagsData(payloadTagsData, pathBuilder, pojo);
+    span.setTag(
+        tagsPrefix,
+        new PayloadTagsData(payloadTagsData.toArray(new PayloadTagsData.PathAndValue[0])));
   }
 
   private void collectPayloadTagsData(
-      PayloadTagsData payloadTagsData, ArrayDeque<Object> path, Object object) {
+      Collection<PayloadTagsData.PathAndValue> payloadTagsData,
+      ArrayDeque<Object> path,
+      Object object) {
     if (object instanceof SdkPojo) {
       SdkPojo pojo = (SdkPojo) object;
       for (SdkField<?> field : pojo.sdkFields()) {
@@ -490,9 +497,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
       }
     } else if (object instanceof SdkBytes) {
       SdkBytes bytes = (SdkBytes) object;
-      payloadTagsData.add(path.toArray(), bytes.asInputStream());
+      payloadTagsData.add(new PayloadTagsData.PathAndValue(path.toArray(), bytes.asInputStream()));
     } else {
-      payloadTagsData.add(path.toArray(), object);
+      payloadTagsData.add(new PayloadTagsData.PathAndValue(path.toArray(), object));
     }
   }
 }

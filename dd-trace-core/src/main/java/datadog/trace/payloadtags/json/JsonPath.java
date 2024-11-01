@@ -52,7 +52,7 @@ public final class JsonPath {
 
   public boolean matches(PathCursor pathCursor) {
     int i = segments.length - 1;
-    int j = pathCursor.levels();
+    int j = pathCursor.length();
     while (i >= 0 && j >= 0 && segments[i].matches(pathCursor.jsonPathSegment(j))) {
       i--;
       j--;
