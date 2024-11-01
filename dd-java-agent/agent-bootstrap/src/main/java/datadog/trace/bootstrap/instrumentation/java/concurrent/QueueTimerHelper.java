@@ -36,7 +36,7 @@ public class QueueTimerHelper {
   }
 
   public static void startQueuingTimer(State state, Class<?> schedulerClass, Object task) {
-    if (Platform.isNativeImageBuilder()) {
+    if (Platform.isNativeImage()) {
       // explicitly not supported for Graal native image
       return;
     }
@@ -52,7 +52,7 @@ public class QueueTimerHelper {
   }
 
   public static void stopQueuingTimer(Timing timing) {
-    if (Platform.isNativeImageBuilder()) {
+    if (Platform.isNativeImage()) {
       // explicitly not supported for Graal native image
       return;
     }
