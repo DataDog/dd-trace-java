@@ -62,8 +62,8 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
   private final int maxTags;
 
   private PayloadTagsProcessor(
-      // TODO test all the other cases via constructor
       Map<String, RedactionRules> redactionRulesByTagPrefix, int maxDepth, int maxTags) {
+    // TODO test all the other cases via constructor
     this.redactionRulesByTagPrefix = redactionRulesByTagPrefix;
     this.maxDepth = maxDepth;
     this.maxTags = maxTags;
@@ -71,22 +71,20 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
 
   @Override
   public Map<String, Object> processTags(Map<String, Object> spanTags, DDSpanContext spanContext) {
-    Map<String, Object> collectedTags =
-        new HashMap<>(); // TODO avoid allocation by inlining visitor
+    int spanMaxTags = maxTags + spanTags.size();
     for (Map.Entry<String, RedactionRules> tagPrefixRedactionRules :
         redactionRulesByTagPrefix.entrySet()) {
       String tagPrefix = tagPrefixRedactionRules.getKey();
       RedactionRules redactionRules = tagPrefixRedactionRules.getValue();
-      Object tagValue = spanTags.get(tagPrefix);
+      Object tagValue = spanTags.remove(tagPrefix);
       if (tagValue instanceof PayloadTagsData) {
+        spanMaxTags -= 1;
         PayloadTagsData payloadTagsData = (PayloadTagsData) tagValue;
-        JsonStreamParser.Visitor visitor = // TODO avoid allocation by inlining visitor
-            new JsonVisitorTagCollector(
-                maxDepth, maxTags, redactionRules, tagPrefix, collectedTags);
-        collectPayloadTags(payloadTagsData, redactionRules, tagPrefix, visitor, collectedTags);
-        spanTags.putAll(collectedTags);
-        spanTags.remove(tagPrefix);
+        PayloadTagsCollector payloadTagsCollector =
+            new PayloadTagsCollector(maxDepth, spanMaxTags, redactionRules, tagPrefix, spanTags);
+        collectPayloadTags(payloadTagsData, payloadTagsCollector);
       } else if (tagValue != null) {
+        spanMaxTags -= 1;
         log.debug(
             LogCollector.SEND_TELEMETRY,
             "Expected PayloadTagsData for known payload tag '{}', but got '{}'",
@@ -98,39 +96,38 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
   }
 
   private void collectPayloadTags(
-      PayloadTagsData payloadTagsData,
-      RedactionRules redactionRules,
-      String tagPrefix,
-      JsonStreamParser.Visitor visitor,
-      Map<String, Object> collectedTags) {
+      PayloadTagsData payloadTagsData, PayloadTagsCollector payloadTagsCollector) {
     for (PayloadTagsData.PathAndValue pathAndValue : payloadTagsData.all()) {
       if (pathAndValue.path.length > maxDepth) {
         continue;
       }
-      if (collectedTags.size() >= maxTags) {
-        collectedTags.put(DD_PAYLOAD_TAGS_INCOMPLETE, true);
+      if (!payloadTagsCollector.keepCollectingTags()) {
         break;
       }
       PathCursor cursor = new PathCursor(pathAndValue.path, maxDepth);
-      if (redactionRules.findMatching(cursor) != null) {
-        collectedTags.put(cursor.toString(tagPrefix), REDACTED);
-      } else {
+      if (payloadTagsCollector.notRedacted(cursor)) {
         Object value = pathAndValue.value;
         if (value instanceof InputStream) {
-          if (!JsonStreamParser.tryToParse((InputStream) value, visitor, cursor)) {
-            collectedTags.put(cursor.toString(tagPrefix), BINARY);
+          if (!JsonStreamParser.tryToParse((InputStream) value, payloadTagsCollector, cursor)) {
+            payloadTagsCollector.stringValue(cursor, BINARY);
           }
         } else if (value instanceof String) {
           String str = (String) value;
-          if (!JsonStreamParser.tryToParse(str, visitor, cursor)) {
-            collectedTags.put(cursor.toString(tagPrefix), str);
+          if (!JsonStreamParser.tryToParse(str, payloadTagsCollector, cursor)) {
+            payloadTagsCollector.stringValue(cursor, str);
           }
-        } else if (value instanceof Number || value instanceof Boolean) {
-          collectedTags.put(cursor.toString(tagPrefix), value);
+        } else if (value instanceof Boolean) {
+          payloadTagsCollector.booleanValue(cursor, (Boolean) value);
+        } else if (value instanceof Integer) {
+          payloadTagsCollector.intValue(cursor, (Integer) value);
+        } else if (value instanceof Long) {
+          payloadTagsCollector.longValue(cursor, (Long) value);
+        } else if (value instanceof Double) {
+          payloadTagsCollector.doubleValue(cursor, (Double) value);
         } else if (value == null) {
-          collectedTags.put(cursor.toString(tagPrefix), null);
+          payloadTagsCollector.nullValue(cursor);
         } else {
-          collectedTags.put(cursor.toString(tagPrefix), String.valueOf(value));
+          payloadTagsCollector.stringValue(cursor, String.valueOf(value));
         }
       }
     }
@@ -183,11 +180,7 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
     }
   }
 
-  /**
-   * Collects tags by walking through JSON structure and extracting values from it. Controls number
-   * of collected tags and depth of traversal. Redacts values that match redaction paths.
-   */
-  private static final class JsonVisitorTagCollector implements JsonStreamParser.Visitor {
+  private static final class PayloadTagsCollector implements JsonStreamParser.Visitor {
     private final int maxTags;
     private final int maxDepth;
     private final RedactionRules redactionRules;
@@ -195,7 +188,7 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
 
     private final Map<String, Object> collectedTags;
 
-    public JsonVisitorTagCollector(
+    public PayloadTagsCollector(
         int maxDepth,
         int maxTags,
         RedactionRules redactionRules,
@@ -211,17 +204,17 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
     @Override
     public boolean visitCompound(PathCursor path) {
       if (path.levels() < maxDepth) {
-        return redactIfMatchesAnyJsonPaths(path);
+        return notRedacted(path);
       }
       return false;
     }
 
     @Override
     public boolean visitPrimitive(PathCursor path) {
-      return redactIfMatchesAnyJsonPaths(path);
+      return notRedacted(path);
     }
 
-    private boolean redactIfMatchesAnyJsonPaths(PathCursor path) {
+    private boolean notRedacted(PathCursor path) {
       if (redactionRules.findMatching(path) != null) {
         collectedTags.put(path.toString(tagPrefix), REDACTED);
         return false;
@@ -261,6 +254,10 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
 
     @Override
     public boolean keepParsing(PathCursor path) {
+      return keepCollectingTags();
+    }
+
+    public boolean keepCollectingTags() {
       if (collectedTags.size() < maxTags) {
         return true;
       }

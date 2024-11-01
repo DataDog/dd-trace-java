@@ -457,11 +457,10 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     return response.firstMatchingHeader(headerName).orElse(null);
   }
 
-  private void awsPojoToTags(AgentSpan span, String pathPrefix, Object pojo) {
+  private void awsPojoToTags(AgentSpan span, String tagsPrefix, Object pojo) {
     PayloadTagsData payloadTagsData = new PayloadTagsData();
     collectPayloadTagsData(payloadTagsData, new ArrayDeque<>(), pojo);
-    // Save as one tag for post-processing
-    span.setTag(pathPrefix, payloadTagsData);
+    span.setTag(tagsPrefix, payloadTagsData);
   }
 
   private void collectPayloadTagsData(
