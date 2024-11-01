@@ -241,7 +241,7 @@ public final class DatadogProfiler {
     if (safemode != ProfilingConfig.PROFILING_DATADOG_PROFILER_SAFEMODE_DEFAULT) {
       // be very vocal about messing around with the profiler safemode as it may induce crashes
       log.warn(
-          "Datadog profiler safemode is enabled with unsupported value {}. "
+          "Datadog profiler safemode is enabled with overridden value {}. "
               + "This is not recommended and may cause instability and crashes.",
           safemode);
     }
