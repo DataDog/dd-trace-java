@@ -12,6 +12,7 @@ import datadog.trace.payloadtags.json.PathCursor;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -27,112 +28,120 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
   private static final String DD_PAYLOAD_TAGS_INCOMPLETE = "_dd.payload_tags_incomplete";
 
   @Nullable
-  public static PayloadTagsProcessor create(Config config) { // TODO test with a config test
-    List<RedactionJsonPaths> knownPayloadTagsRedactionPaths = new ArrayList<>();
+  public static PayloadTagsProcessor create(Config config) {
+    // TODO test with a config test
+    Map<String, RedactionRules> redactionRulesByTagPrefix = new HashMap<>();
     if (config.isCloudRequestPayloadTaggingEnabled()) {
-      knownPayloadTagsRedactionPaths.add(
-          new RedactionJsonPaths.Builder()
+      redactionRulesByTagPrefix.put(
+          PayloadTagsData.KnownPayloadTags.AWS_REQUEST_BODY,
+          new RedactionRules.Builder()
               .addRedactionJsonPaths(ConfigDefaults.DEFAULT_CLOUD_PAYLOAD_TAGGING)
               .addRedactionJsonPaths(ConfigDefaults.DEFAULT_CLOUD_REQUEST_PAYLOAD_TAGGING)
               .addRedactionJsonPaths(config.getCloudRequestPayloadTagging())
-              .build(PayloadTagsData.KnownPayloadTags.AWS_REQUEST_BODY));
+              .build());
     }
     if (config.isCloudResponsePayloadTaggingEnabled()) {
-      knownPayloadTagsRedactionPaths.add(
-          new RedactionJsonPaths.Builder()
+      redactionRulesByTagPrefix.put(
+          PayloadTagsData.KnownPayloadTags.AWS_RESPONSE_BODY,
+          new RedactionRules.Builder()
               .addRedactionJsonPaths(ConfigDefaults.DEFAULT_CLOUD_PAYLOAD_TAGGING)
               .addRedactionJsonPaths(ConfigDefaults.DEFAULT_CLOUD_RESPONSE_PAYLOAD_TAGGING)
               .addRedactionJsonPaths(config.getCloudResponsePayloadTagging())
-              .build(PayloadTagsData.KnownPayloadTags.AWS_RESPONSE_BODY));
+              .build());
     }
-    if (knownPayloadTagsRedactionPaths.isEmpty()) {
+    if (redactionRulesByTagPrefix.isEmpty()) {
       return null;
     }
     int maxDepth = config.getCloudPayloadTaggingMaxDepth();
     int maxTags = config.getCloudPayloadTaggingMaxTags();
-    return new PayloadTagsProcessor(knownPayloadTagsRedactionPaths, maxDepth, maxTags);
+    return new PayloadTagsProcessor(redactionRulesByTagPrefix, maxDepth, maxTags);
   }
 
-  private final List<RedactionJsonPaths> redactionJsonPaths;
+  private final Map<String, RedactionRules> redactionRulesByTagPrefix;
   private final int maxDepth;
   private final int maxTags;
 
-  private PayloadTagsProcessor( // TODO test all the other cases via constructor
-      List<RedactionJsonPaths> redactionJsonPaths, int maxDepth, int maxTags) {
-    this.redactionJsonPaths = redactionJsonPaths;
+  private PayloadTagsProcessor(
+      // TODO test all the other cases via constructor
+      Map<String, RedactionRules> redactionRulesByTagPrefix, int maxDepth, int maxTags) {
+    this.redactionRulesByTagPrefix = redactionRulesByTagPrefix;
     this.maxDepth = maxDepth;
     this.maxTags = maxTags;
   }
 
   @Override
-  public Map<String, Object> processTags(Map<String, Object> tags, DDSpanContext spanContext) {
-    int maxTagsBudget = maxTags;
-    for (RedactionJsonPaths redactionJsonPaths : redactionJsonPaths) {
-      String knownPayloadTag = redactionJsonPaths.knownPayloadTag;
-      Object tagValue = tags.get(knownPayloadTag);
+  public Map<String, Object> processTags(Map<String, Object> spanTags, DDSpanContext spanContext) {
+    Map<String, Object> collectedTags =
+        new HashMap<>(); // TODO avoid allocation by inlining visitor
+    for (Map.Entry<String, RedactionRules> tagPrefixRedactionRules :
+        redactionRulesByTagPrefix.entrySet()) {
+      String tagPrefix = tagPrefixRedactionRules.getKey();
+      RedactionRules redactionRules = tagPrefixRedactionRules.getValue();
+      Object tagValue = spanTags.get(tagPrefix);
       if (tagValue instanceof PayloadTagsData) {
-        // Remove the PayloadTagsData tag to replace it with post-processed extracted tags.
-        tags.remove(knownPayloadTag);
         PayloadTagsData payloadTagsData = (PayloadTagsData) tagValue;
-        JsonStreamParser.Visitor visitor =
-            new JsonVisitorTagCollector(maxDepth, maxTagsBudget, redactionJsonPaths, tags);
-        int numberOfTagsBefore = tags.size();
-        processPayloadTags(payloadTagsData, redactionJsonPaths, visitor, tags);
-        int numberOfTagsAfter = tags.size();
-        maxTagsBudget -= numberOfTagsAfter - numberOfTagsBefore;
+        JsonStreamParser.Visitor visitor = // TODO avoid allocation by inlining visitor
+            new JsonVisitorTagCollector(
+                maxDepth, maxTags, redactionRules, tagPrefix, collectedTags);
+        collectPayloadTags(payloadTagsData, redactionRules, tagPrefix, visitor, collectedTags);
+        spanTags.putAll(collectedTags);
+        spanTags.remove(tagPrefix);
       } else if (tagValue != null) {
         log.debug(
             LogCollector.SEND_TELEMETRY,
             "Expected PayloadTagsData for known payload tag '{}', but got '{}'",
-            knownPayloadTag,
+            tagPrefix,
             tagValue);
       }
     }
-    return tags;
+    return spanTags;
   }
 
-  private void processPayloadTags(
+  private void collectPayloadTags(
       PayloadTagsData payloadTagsData,
-      RedactionJsonPaths redactionJsonPaths,
+      RedactionRules redactionRules,
+      String tagPrefix,
       JsonStreamParser.Visitor visitor,
       Map<String, Object> collectedTags) {
     for (PayloadTagsData.PathAndValue pathAndValue : payloadTagsData.all()) {
       if (pathAndValue.path.length > maxDepth) {
         continue;
       }
-      String prefix = redactionJsonPaths.knownPayloadTag;
+      if (collectedTags.size() >= maxTags) {
+        collectedTags.put(DD_PAYLOAD_TAGS_INCOMPLETE, true);
+        break;
+      }
       PathCursor cursor = new PathCursor(pathAndValue.path, maxDepth);
-      if (redactionJsonPaths.findMatching(cursor) != null) {
-        collectedTags.put(cursor.toString(prefix), REDACTED);
+      if (redactionRules.findMatching(cursor) != null) {
+        collectedTags.put(cursor.toString(tagPrefix), REDACTED);
       } else {
         Object value = pathAndValue.value;
         if (value instanceof InputStream) {
           if (!JsonStreamParser.tryToParse((InputStream) value, visitor, cursor)) {
-            collectedTags.put(cursor.toString(prefix), BINARY);
+            collectedTags.put(cursor.toString(tagPrefix), BINARY);
           }
         } else if (value instanceof String) {
           String str = (String) value;
           if (!JsonStreamParser.tryToParse(str, visitor, cursor)) {
-            collectedTags.put(cursor.toString(prefix), str);
+            collectedTags.put(cursor.toString(tagPrefix), str);
           }
         } else if (value instanceof Number || value instanceof Boolean) {
-          collectedTags.put(cursor.toString(prefix), value);
+          collectedTags.put(cursor.toString(tagPrefix), value);
         } else if (value == null) {
-          collectedTags.put(cursor.toString(prefix), null);
+          collectedTags.put(cursor.toString(tagPrefix), null);
         } else {
-          collectedTags.put(cursor.toString(prefix), String.valueOf(value));
+          collectedTags.put(cursor.toString(tagPrefix), String.valueOf(value));
         }
       }
     }
   }
 
-  /** Contains set of redaction rules per known integration payload tag. */
-  private static final class RedactionJsonPaths {
+  private static final class RedactionRules {
 
     public static final class Builder {
       private final List<JsonPath> redactionRules = new ArrayList<>();
 
-      public RedactionJsonPaths.Builder addRedactionJsonPaths(List<String> jsonPaths) {
+      public RedactionRules.Builder addRedactionJsonPaths(List<String> jsonPaths) {
         this.redactionRules.addAll(parseJsonPaths(jsonPaths));
         return this;
       }
@@ -147,23 +156,20 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
             JsonPath jp = JsonPathParser.parse(rule);
             result.add(jp);
           } catch (Exception ex) {
-            log.warn(
-                "Skipping failed to parse redaction jsonpath: '{}'. {}", rule, ex.getMessage());
+            log.warn("Skipping failed to parse redaction rule '{}'. {}", rule, ex.getMessage());
           }
         }
         return result;
       }
 
-      public RedactionJsonPaths build(String prefix) {
-        return new RedactionJsonPaths(prefix, redactionRules);
+      public RedactionRules build() {
+        return new RedactionRules(redactionRules);
       }
     }
 
-    private final String knownPayloadTag;
     private final List<JsonPath> paths;
 
-    private RedactionJsonPaths(String knownPayloadTag, List<JsonPath> paths) {
-      this.knownPayloadTag = knownPayloadTag;
+    private RedactionRules(List<JsonPath> paths) {
       this.paths = paths;
     }
 
@@ -184,7 +190,7 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
   private static final class JsonVisitorTagCollector implements JsonStreamParser.Visitor {
     private final int maxTags;
     private final int maxDepth;
-    private final RedactionJsonPaths redactionJsonPaths;
+    private final RedactionRules redactionRules;
     private final String tagPrefix;
 
     private final Map<String, Object> collectedTags;
@@ -192,12 +198,13 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
     public JsonVisitorTagCollector(
         int maxDepth,
         int maxTags,
-        RedactionJsonPaths redactionJsonPaths,
+        RedactionRules redactionRules,
+        String tagPrefix,
         Map<String, Object> collectedTags) {
       this.maxDepth = maxDepth;
       this.maxTags = maxTags;
-      this.redactionJsonPaths = redactionJsonPaths;
-      this.tagPrefix = redactionJsonPaths.knownPayloadTag;
+      this.redactionRules = redactionRules;
+      this.tagPrefix = tagPrefix;
       this.collectedTags = collectedTags;
     }
 
@@ -215,7 +222,7 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
     }
 
     private boolean redactIfMatchesAnyJsonPaths(PathCursor path) {
-      if (redactionJsonPaths.findMatching(path) != null) {
+      if (redactionRules.findMatching(path) != null) {
         collectedTags.put(path.toString(tagPrefix), REDACTED);
         return false;
       }

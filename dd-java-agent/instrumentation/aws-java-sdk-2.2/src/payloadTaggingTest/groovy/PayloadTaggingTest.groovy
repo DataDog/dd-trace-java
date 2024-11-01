@@ -127,6 +127,10 @@ class PayloadTaggingRedactionForkedTest extends AbstractPayloadTaggingTest {
           childOf(span(0))
           assert expectedReqTag == NA || span.tags.get("aws.request.body." + expectedReqTag) == "redacted"
           assert expectedRespTag == NA || span.tags.get("aws.response.body." + expectedRespTag) == "redacted"
+
+          assert !span.tags.containsKey("_dd.payload_tags_incomplete")
+          assert !span.tags.containsKey("aws.request.body")
+          assert !span.tags.containsKey("aws.response.body")
         }
       }
     }
@@ -191,6 +195,10 @@ class PayloadTaggingExpansionForkedTest extends AbstractPayloadTaggingTest {
           spanType DDSpanTypes.HTTP_CLIENT
           childOf(span(0))
           assert span.tags.get("aws.request.body." + expectedReqTag) == expectedReqTagValue
+
+          assert !span.tags.containsKey("_dd.payload_tags_incomplete")
+          assert !span.tags.containsKey("aws.request.body")
+          assert !span.tags.containsKey("aws.response.body")
         }
       }
     }
@@ -272,6 +280,10 @@ class PayloadTaggingMaxDepthForkedTest extends AbstractPayloadTaggingTest {
           childOf(span(0))
           assert span.tags.get("aws.request.body." + expectedReqTag) != null
           assert span.tags.get("aws.request.body." + missingReqTag) == null
+
+          assert !span.tags.containsKey("_dd.payload_tags_incomplete")
+          assert !span.tags.containsKey("aws.request.body")
+          assert !span.tags.containsKey("aws.response.body")
         }
       }
     }
@@ -290,6 +302,71 @@ class PayloadTaggingMaxDepthForkedTest extends AbstractPayloadTaggingTest {
     "Message.0.0.0"    | "Message.0.0.1"       | {
       snsClient.publish { it.phoneNumber("+15555555555").message('[ [ \'[ 3, [ "a4" ] ]\' ] ]') }
     }
+  }
+}
+
+class PayloadTaggingMaxTagsForkedTest extends AbstractPayloadTaggingTest {
+
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig(TracerConfig.TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING, "all")
+    injectSysConfig(TracerConfig.TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING, "all")
+    injectSysConfig(TracerConfig.TRACE_CLOUD_PAYLOAD_TAGGING_MAX_TAGS, "5")
+  }
+
+  def "generate tags up to the specified max number"() {
+    setup:
+    TEST_WRITER.clear()
+
+    expect:
+    Config.get().getCloudPayloadTaggingMaxTags() == 5
+
+    when:
+    TraceUtils.runUnderTrace('parent', apiCall)
+
+    then:
+    assertTraces(1) {
+      trace(2) {
+        basicSpan(it, "parent")
+        span {
+          spanType DDSpanTypes.HTTP_CLIENT
+          childOf(span(0))
+
+          def reqTags = span.tags.keySet().stream().filter { it.startsWith("aws.request.body.") }.count()
+          def respTags = span.tags.keySet().stream().filter { it.startsWith("aws.response.body.") }.count()
+
+          assert reqTags + respTags == 5
+          assert span.tags.containsKey("_dd.payload_tags_incomplete")
+          assert !span.tags.containsKey("aws.request.body")
+          assert !span.tags.containsKey("aws.response.body")
+        }
+      }
+    }
+
+    where:
+    apiCall << [
+      {
+        snsClient.publish {
+          it.phoneNumber("+15555555555").message('message')
+        }
+      },
+      {
+        snsClient.createTopic {
+          it.name("testtopic")
+            .tags(
+            Tag.builder().key("a").value("1").build(),
+            Tag.builder().key("b").value("2").build(),
+            Tag.builder().key("c").value("3").build(),
+            Tag.builder().key("d").value("4").build(),
+            Tag.builder().key("e").value("5").build()
+            )
+        }
+      },
+      {
+        snsClient.listPhoneNumbersOptedOut()
+      }
+    ]
   }
 }
 
