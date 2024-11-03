@@ -1,5 +1,4 @@
 # Identifier    EnvironmentVariable     Description
 apache_hbase    HBASE_HOME              Skip Apache HBase
-apache_hadoop3  HADOOP_HOME             Skip Apache Hadoop 3
 apache_hive     HIVE_HOME               Skip Apache Hive
 apache_solr9    SOLR_PORT               Skip Apache Solr 9

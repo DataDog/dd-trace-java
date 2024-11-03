@@ -5,6 +5,7 @@ muzzle {
     module = "lettuce-core"
     versions = "[5.0.0.RELEASE,)"
     assertInverse = true
+    skipVersions = ["6.5.0.RELEASE"]
   }
 }
 

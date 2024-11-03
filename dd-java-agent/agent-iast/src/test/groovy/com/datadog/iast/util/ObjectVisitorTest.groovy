@@ -14,7 +14,7 @@ class ObjectVisitorTest extends Specification {
     final target = '123'
 
     when:
-    ObjectVisitor.visit(target, visitor)
+    ObjectVisitor.visit(target, visitor) { false } // do not introspect objects
 
     then:
     1 * visitor.visit('root', target) >> CONTINUE
@@ -27,7 +27,7 @@ class ObjectVisitorTest extends Specification {
     final target = ['1', '2', '3']
 
     when:
-    ObjectVisitor.visit(target, visitor)
+    ObjectVisitor.visit(target, visitor) {Collection.isAssignableFrom(it) }
 
     then:
     target.eachWithIndex { value, index ->
@@ -43,7 +43,7 @@ class ObjectVisitorTest extends Specification {
     final target = Iterables.unmodifiableIterable(wrapped)
 
     when:
-    ObjectVisitor.visit(target, visitor)
+    ObjectVisitor.visit(target, visitor) { Iterable.isAssignableFrom(it) }
 
     then:
     wrapped.eachWithIndex { value, index ->
@@ -58,7 +58,7 @@ class ObjectVisitorTest extends Specification {
     final target = ['a': 'b']
 
     when:
-    ObjectVisitor.visit(target, visitor)
+    ObjectVisitor.visit(target, visitor) { Map.isAssignableFrom(it) }
 
     then:
     target.keySet().each { key ->
@@ -70,24 +70,13 @@ class ObjectVisitorTest extends Specification {
     0 * _
   }
 
-  void 'test visiting ignored collection'() {
+  void 'test visiting ignored object'() {
     given:
     final visitor = Mock(ObjectVisitor.Visitor)
-    final target = new AbstractList<String>() {
-        @Override
-        String get(int index) {
-          assert index == 0
-          return 'value'
-        }
-
-        @Override
-        int size() {
-          return 1
-        }
-      }
+    final target = new HashMap<>(['a': 'b'])
 
     when:
-    ObjectVisitor.visit(target, visitor)
+    ObjectVisitor.visit(target, visitor) { false }
 
     then:
     0 * _
@@ -97,9 +86,10 @@ class ObjectVisitorTest extends Specification {
     given:
     final visitor = Mock(ObjectVisitor.Visitor)
     final target = [a : [b: ['c', 'd']]]
+    final predicate = {Class<?> cls -> Map.isAssignableFrom(cls) || Collection.isAssignableFrom(cls)}
 
     when:
-    ObjectVisitor.visit(target, visitor, 2, Integer.MAX_VALUE)
+    ObjectVisitor.visit(target, visitor, predicate, 2, Integer.MAX_VALUE)
 
     then:
     1 * visitor.visit("root[]", 'a') >> CONTINUE
@@ -111,9 +101,10 @@ class ObjectVisitorTest extends Specification {
     given:
     final visitor = Mock(ObjectVisitor.Visitor)
     final target = [1, 2, 3]
+    final predicate = {Class<?> cls -> Collection.isAssignableFrom(cls)}
 
     when: 'we visit at most two objects'
-    ObjectVisitor.visit(target, visitor, Integer.MAX_VALUE, 2)
+    ObjectVisitor.visit(target, visitor, predicate, Integer.MAX_VALUE, 2)
 
     then: 'we visit the array and its first element'
     1 * visitor.visit("root[0]", 1) >> CONTINUE
@@ -125,9 +116,10 @@ class ObjectVisitorTest extends Specification {
     final visitor = Mock(ObjectVisitor.Visitor)
     final target = new VisitableClass(name: 'cycle')
     target.cycle = target
+    final predicate = {Class<?> cls -> VisitableClass.isAssignableFrom(cls)}
 
     when: 'we visit a class with a self reference'
-    ObjectVisitor.visit(target, visitor, Integer.MAX_VALUE, Integer.MAX_VALUE)
+    ObjectVisitor.visit(target, visitor, predicate, Integer.MAX_VALUE, Integer.MAX_VALUE)
 
     then: 'we only visit the class once'
     1 * visitor.visit("root", target) >> CONTINUE

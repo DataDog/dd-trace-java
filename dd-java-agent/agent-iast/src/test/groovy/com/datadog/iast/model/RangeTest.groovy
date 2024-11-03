@@ -3,7 +3,6 @@ package com.datadog.iast.model
 import static com.datadog.iast.model.VulnerabilityType.SQL_INJECTION
 import static com.datadog.iast.model.VulnerabilityType.XSS
 import datadog.trace.api.iast.SourceTypes
-import datadog.trace.api.iast.VulnerabilityMarks
 import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
 import static datadog.trace.api.iast.VulnerabilityMarks.SQL_INJECTION_MARK
 import static datadog.trace.api.iast.VulnerabilityMarks.XSS_MARK
@@ -44,7 +43,7 @@ class RangeTest extends DDSpecification {
   def 'shift zero'() {
     given:
     final source = new Source(SourceTypes.NONE, null, null)
-    final orig = new Range(0, 1, source, VulnerabilityMarks.NOT_MARKED)
+    final orig = new Range(0, 1, source, NOT_MARKED)
 
     when:
     final result = orig.shift(0)
@@ -55,7 +54,7 @@ class RangeTest extends DDSpecification {
 
 
 
-  void 'test getMarkedVulnerabilities'() {
+  void 'test getMarkedVulnerabilities #marks'() {
     given:
     final source = new Source(SourceTypes.NONE, null, null)
     final range = new Range(0, 1, source, marks)
