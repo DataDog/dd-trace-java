@@ -27,6 +27,8 @@ import org.slf4j.LoggerFactory;
 public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
   private static final Logger LOG = LoggerFactory.getLogger(DefaultCodeOriginRecorder.class);
 
+  private final Config config;
+
   private final ConfigurationUpdater configurationUpdater;
 
   private final Map<String, CodeOriginProbe> fingerprints = new HashMap<>();
@@ -36,8 +38,8 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
   private final AgentTaskScheduler taskScheduler = AgentTaskScheduler.INSTANCE;
 
   public DefaultCodeOriginRecorder(Config config, ConfigurationUpdater configurationUpdater) {
+    this.config = config;
     this.configurationUpdater = configurationUpdater;
-    CodeOriginProbe.MAX_FRAMES = config.getDebuggerCodeOriginMaxUserFrames();
   }
 
   @Override
@@ -61,7 +63,10 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
 
       probe =
           new CodeOriginProbe(
-              new ProbeId(UUID.randomUUID().toString(), 0), where.getSignature(), where);
+              new ProbeId(UUID.randomUUID().toString(), 0),
+              where.getSignature(),
+              where,
+              config.getDebuggerCodeOriginMaxUserFrames());
       addFingerprint(fingerprint, probe);
 
       installProbe(probe);

@@ -49,6 +49,8 @@ public class CodeOriginTest extends CapturingTestBase {
   private static final ProbeId CODE_ORIGIN_ID1 = new ProbeId("code origin 1", 0);
   private static final ProbeId CODE_ORIGIN_ID2 = new ProbeId("code origin 2", 0);
 
+  private static final int MAX_FRAMES = 20;
+
   private DefaultCodeOriginRecorder codeOriginRecorder;
 
   private TestTraceInterceptor traceInterceptor;
@@ -116,16 +118,12 @@ public class CodeOriginTest extends CapturingTestBase {
   public void stackDepth() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CodeOrigin04";
     installProbes(
-        new CodeOriginProbe(CODE_ORIGIN_ID1, null, Where.of(CLASS_NAME, "exit", "()", "39")));
+        new CodeOriginProbe(
+            CODE_ORIGIN_ID1, null, Where.of(CLASS_NAME, "exit", "()", "39"), MAX_FRAMES));
 
     Class<?> testClass = compileAndLoadClass("com.datadog.debugger.CodeOrigin04");
-    CodeOriginProbe.MAX_FRAMES = 20;
     countFrames(testClass, 10);
     countFrames(testClass, 100);
-    CodeOriginProbe.MAX_FRAMES = 8;
-    countFrames(testClass, 10);
-    countFrames(testClass, 1);
-    countFrames(testClass, 0);
   }
 
   private void countFrames(Class<?> testClass, int loops) {
@@ -137,7 +135,7 @@ public class CodeOriginTest extends CapturingTestBase {
             .flatMap(s -> s.getTags().keySet().stream())
             .filter(key -> key.contains("frames") && key.endsWith("method"))
             .count();
-    assertTrue(count <= CodeOriginProbe.MAX_FRAMES);
+    assertTrue(count <= MAX_FRAMES);
   }
 
   @Test
@@ -159,9 +157,9 @@ public class CodeOriginTest extends CapturingTestBase {
   @NotNull
   private List<LogProbe> codeOriginProbes(String type) {
     CodeOriginProbe entry =
-        new CodeOriginProbe(CODE_ORIGIN_ID1, "()", Where.of(type, "entry", "()", "53"));
+        new CodeOriginProbe(CODE_ORIGIN_ID1, "()", Where.of(type, "entry", "()", "53"), MAX_FRAMES);
     CodeOriginProbe exit =
-        new CodeOriginProbe(CODE_ORIGIN_ID2, null, Where.of(type, "exit", "()", "60"));
+        new CodeOriginProbe(CODE_ORIGIN_ID2, null, Where.of(type, "exit", "()", "60"), MAX_FRAMES);
     return new ArrayList<>(asList(entry, exit));
   }
 
