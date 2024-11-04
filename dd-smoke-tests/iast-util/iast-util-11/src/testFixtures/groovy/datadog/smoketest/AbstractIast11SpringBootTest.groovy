@@ -33,7 +33,7 @@ abstract class AbstractIast11SpringBootTest extends AbstractIastServerSmokeTest 
     ]
   }
 
-  void 'ssrf is present (different clients)'() {
+  void 'ssrf is present (#path)'() {
     setup:
     final url = "http://localhost:${httpPort}/ssrf/${path}"
     final body = new FormBody.Builder()
