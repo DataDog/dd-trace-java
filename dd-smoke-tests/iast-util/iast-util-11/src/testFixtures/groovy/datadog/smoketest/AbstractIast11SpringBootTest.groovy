@@ -54,20 +54,15 @@ abstract class AbstractIast11SpringBootTest extends AbstractIastServerSmokeTest 
       if (parameter == 'url') {
         return parts.size() == 1
         && parts[0].value == value && parts[0].source.origin == 'http.request.parameter' && parts[0].source.name == parameter
-      } else if (parameter == 'host') {
-        String protocol = protocolSecure ? 'https://' : 'http://'
-        return parts.size() == 2
-        && parts[0].value == protocol + value && parts[0].source.origin == 'http.request.parameter' && parts[0].source.name == parameter
-        && parts[1].value == '/' && parts[1].source == null
       } else {
         throw new IllegalArgumentException("Parameter $parameter not supported")
       }
     }
 
     where:
-    path       | parameter | value                     | method    | protocolSecure | async   | promise
-    "java-net" | "url"     | "https://dd.datad0g.com/" | "javaNet" | false          | "false" | "false"
-    "java-net" | "url"     | "https://dd.datad0g.com/" | "javaNet" | false          | "true"  | "false"
-    "java-net" | "url"     | "https://dd.datad0g.com/" | "javaNet" | false          | "true"  | "true"
+    path       | parameter | value                     | method    | async   | promise
+    "java-net" | "url"     | "https://dd.datad0g.com/" | "javaNet" | "false" | "false"
+    "java-net" | "url"     | "https://dd.datad0g.com/" | "javaNet" | "true"  | "false"
+    "java-net" | "url"     | "https://dd.datad0g.com/" | "javaNet" | "true"  | "true"
   }
 }
