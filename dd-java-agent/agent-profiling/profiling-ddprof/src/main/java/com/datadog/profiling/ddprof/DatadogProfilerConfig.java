@@ -172,19 +172,23 @@ public class DatadogProfilerConfig {
   }
 
   public static boolean isAllocationProfilingEnabled(ConfigProvider configProvider) {
-    boolean dflt = isJmethodIDSafe();
-    boolean enableDdprofAlloc =
-        getBoolean(
-            configProvider,
-            PROFILING_ALLOCATION_ENABLED,
-            dflt,
-            PROFILING_DATADOG_PROFILER_ALLOC_ENABLED);
+    // JVMTI Allocation Sampler is available since Java 11
+    if (Platform.isJavaVersionAtLeast(11)) {
+      boolean dflt = isJmethodIDSafe();
+      boolean enableDdprofAlloc =
+          getBoolean(
+              configProvider,
+              PROFILING_ALLOCATION_ENABLED,
+              dflt,
+              PROFILING_DATADOG_PROFILER_ALLOC_ENABLED);
 
-    if (!dflt && enableDdprofAlloc) {
-      log.warn(
-          "Allocation profiling was enabled although it is not considered stable on this JVM version.");
+      if (!dflt && enableDdprofAlloc) {
+        log.warn(
+            "Allocation profiling was enabled although it is not considered stable on this JVM version.");
+      }
+      return enableDdprofAlloc;
     }
-    return enableDdprofAlloc;
+    return false;
   }
 
   public static boolean isAllocationProfilingEnabled() {

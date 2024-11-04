@@ -17,7 +17,7 @@ import com.datadog.appsec.event.data.MapDataBundle
 import com.datadog.appsec.gateway.AppSecRequestContext
 import com.datadog.appsec.gateway.GatewayContext
 import com.datadog.appsec.report.AppSecEvent
-import com.datadog.appsec.stack_trace.StackTraceEvent
+import datadog.trace.util.stacktrace.StackTraceEvent
 import com.datadog.appsec.test.StubAppSecConfigService
 import datadog.communication.monitor.Monitoring
 import datadog.trace.api.ConfigDefaults

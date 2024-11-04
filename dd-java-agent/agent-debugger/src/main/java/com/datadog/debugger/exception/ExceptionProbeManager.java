@@ -3,10 +3,10 @@ package com.datadog.debugger.exception;
 import com.datadog.debugger.probe.ExceptionProbe;
 import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.sink.Snapshot;
-import com.datadog.debugger.util.ClassNameFiltering;
 import com.datadog.debugger.util.ExceptionHelper;
 import com.datadog.debugger.util.WeakIdentityHashMap;
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.debugger.DebuggerContext.ClassNameFilter;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import java.time.Clock;
 import java.time.Duration;
@@ -28,7 +28,7 @@ public class ExceptionProbeManager {
 
   private final Map<String, Instant> fingerprints = new ConcurrentHashMap<>();
   private final Map<String, ExceptionProbe> probes = new ConcurrentHashMap<>();
-  private final ClassNameFiltering classNameFiltering;
+  private final ClassNameFilter classNameFiltering;
   // FIXME: if this becomes a bottleneck, find a way to make it concurrent weak identity hashmap
   private final Map<Throwable, ThrowableState> snapshotsByThrowable =
       Collections.synchronizedMap(new WeakIdentityHashMap<>());
@@ -36,7 +36,7 @@ public class ExceptionProbeManager {
   private final Clock clock;
   private final int maxCapturedFrames;
 
-  public ExceptionProbeManager(ClassNameFiltering classNameFiltering, Duration captureInterval) {
+  public ExceptionProbeManager(ClassNameFilter classNameFiltering, Duration captureInterval) {
     this(
         classNameFiltering,
         captureInterval,
@@ -44,7 +44,7 @@ public class ExceptionProbeManager {
         Config.get().getDebuggerExceptionMaxCapturedFrames());
   }
 
-  ExceptionProbeManager(ClassNameFiltering classNameFiltering) {
+  ExceptionProbeManager(ClassNameFilter classNameFiltering) {
     this(
         classNameFiltering,
         Duration.ofHours(1),
@@ -53,7 +53,7 @@ public class ExceptionProbeManager {
   }
 
   ExceptionProbeManager(
-      ClassNameFiltering classNameFiltering,
+      ClassNameFilter classNameFiltering,
       Duration captureInterval,
       Clock clock,
       int maxCapturedFrames) {
@@ -63,23 +63,37 @@ public class ExceptionProbeManager {
     this.maxCapturedFrames = maxCapturedFrames;
   }
 
-  public ClassNameFiltering getClassNameFiltering() {
+  public ClassNameFilter getClassNameFilter() {
     return classNameFiltering;
   }
 
-  public boolean createProbesForException(StackTraceElement[] stackTraceElements) {
-    boolean created = false;
-    int maxFrames = maxCapturedFrames;
+  static class CreationResult {
+    final int probesCreated;
+    final int thirdPartyFrames;
+    final int nativeFrames;
+
+    public CreationResult(int probesCreated, int thirdPartyFrames, int nativeFrames) {
+      this.probesCreated = probesCreated;
+      this.thirdPartyFrames = thirdPartyFrames;
+      this.nativeFrames = nativeFrames;
+    }
+  }
+
+  public CreationResult createProbesForException(StackTraceElement[] stackTraceElements) {
+    int instrumentedFrames = 0;
+    int nativeFrames = 0;
+    int thirdPartyFrames = 0;
     for (StackTraceElement stackTraceElement : stackTraceElements) {
-      if (maxFrames <= 0) {
+      if (instrumentedFrames >= maxCapturedFrames) {
         break;
       }
       if (stackTraceElement.isNativeMethod() || stackTraceElement.getLineNumber() < 0) {
         // Skip native methods and lines without line numbers
-        // TODO log?
+        nativeFrames++;
         continue;
       }
       if (classNameFiltering.isExcluded(stackTraceElement.getClassName())) {
+        thirdPartyFrames++;
         continue;
       }
       Where where =
@@ -89,11 +103,10 @@ public class ExceptionProbeManager {
               null,
               String.valueOf(stackTraceElement.getLineNumber()));
       ExceptionProbe probe = createMethodProbe(this, where);
-      created = true;
       probes.putIfAbsent(probe.getId(), probe);
-      maxFrames--;
+      instrumentedFrames++;
     }
-    return created;
+    return new CreationResult(instrumentedFrames, thirdPartyFrames, nativeFrames);
   }
 
   void addFingerprint(String fingerprint) {
