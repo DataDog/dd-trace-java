@@ -34,14 +34,10 @@ class RecordingDatastreamsPayloadWriter implements DatastreamsPayloadWriter {
   }
 
   @Override
-  void writeTransactionPayload(MsgPackDatastreamsPayloadWriter.TransactionPayload payload) {
-
-  }
+  void writeTransactionPayload(MsgPackDatastreamsPayloadWriter.TransactionPayload payload) {}
 
   @Override
-  void writeCompressedTransactionPayload(List<MsgPackDatastreamsPayloadWriter.TransactionPayload> payloads) {
-
-  }
+  void writeCompressedTransactionPayload(List<MsgPackDatastreamsPayloadWriter.TransactionPayload> payloads) {}
 
   synchronized List<StatsBucket> getPayloads() {
     Collections.unmodifiableList(new ArrayList<>(this.@payloads))
