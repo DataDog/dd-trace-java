@@ -113,6 +113,34 @@ public class CodeOriginTest extends CapturingTestBase {
   }
 
   @Test
+  public void stackDepth() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CodeOrigin04";
+    installProbes(
+        new CodeOriginProbe(CODE_ORIGIN_ID1, null, Where.of(CLASS_NAME, "exit", "()", "39")));
+
+    Class<?> testClass = compileAndLoadClass("com.datadog.debugger.CodeOrigin04");
+    CodeOriginProbe.MAX_FRAMES = 20;
+    countFrames(testClass, 10);
+    countFrames(testClass, 100);
+    CodeOriginProbe.MAX_FRAMES = 8;
+    countFrames(testClass, 10);
+    countFrames(testClass, 1);
+    countFrames(testClass, 0);
+  }
+
+  private void countFrames(Class<?> testClass, int loops) {
+    int result = Reflect.onClass(testClass).call("main", loops).get();
+    assertEquals(loops, result);
+    long count =
+        traceInterceptor.getTrace().stream()
+            .filter(s -> s.getOperationName().equals("exit"))
+            .flatMap(s -> s.getTags().keySet().stream())
+            .filter(key -> key.contains("frames") && key.endsWith("method"))
+            .count();
+    assertTrue(count <= CodeOriginProbe.MAX_FRAMES);
+  }
+
+  @Test
   public void testCaptureCodeOriginWithSignature() {
     installProbes();
     CodeOriginProbe probe = codeOriginRecorder.getProbe(codeOriginRecorder.captureCodeOrigin("()"));
@@ -164,7 +192,7 @@ public class CodeOriginTest extends CapturingTestBase {
     TestSnapshotListener listener = super.installProbes(probes);
 
     DebuggerContext.initClassNameFilter(classNameFilter);
-    codeOriginRecorder = new DefaultCodeOriginRecorder(configurationUpdater);
+    codeOriginRecorder = new DefaultCodeOriginRecorder(config, configurationUpdater);
     DebuggerContext.initCodeOrigin(codeOriginRecorder);
 
     return listener;

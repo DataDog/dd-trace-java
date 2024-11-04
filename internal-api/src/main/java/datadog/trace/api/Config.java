@@ -403,6 +403,7 @@ public class Config {
   private final int debuggerExceptionMaxCapturedFrames;
   private final int debuggerExceptionCaptureInterval;
   private final boolean debuggerCodeOriginEnabled;
+  private final int debuggerCodeOriginMaxUserFrames;
 
   private final Set<String> debuggerThirdPartyIncludes;
   private final Set<String> debuggerThirdPartyExcludes;
@@ -1533,6 +1534,8 @@ public class Config {
     debuggerCodeOriginEnabled =
         configProvider.getBoolean(
             CODE_ORIGIN_FOR_SPANS_ENABLED, DEFAULT_CODE_ORIGIN_FOR_SPANS_ENABLED);
+    debuggerCodeOriginMaxUserFrames =
+        configProvider.getInteger(CODE_ORIGIN_MAX_USER_FRAMES, DEFAULT_CODE_ORIGIN_MAX_USER_FRAMES);
     debuggerMaxExceptionPerSecond =
         configProvider.getInteger(
             DEBUGGER_MAX_EXCEPTION_PER_SECOND, DEFAULT_DEBUGGER_MAX_EXCEPTION_PER_SECOND);
@@ -2968,6 +2971,10 @@ public class Config {
 
   public boolean isDebuggerCodeOriginEnabled() {
     return debuggerCodeOriginEnabled;
+  }
+
+  public int getDebuggerCodeOriginMaxUserFrames() {
+    return debuggerCodeOriginMaxUserFrames;
   }
 
   public Set<String> getThirdPartyIncludes() {
