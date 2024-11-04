@@ -57,6 +57,11 @@ public final class AnnotationSubstitutionProcessorInstrumentation
     public static void onExit(@Advice.Return(readOnly = false) List<Class<?>> result) {
       result.add(Target_datadog_jctools_counters_FixedSizeStripedLongCounterFields.class);
       result.add(Target_datadog_jctools_util_UnsafeRefArrayAccess.class);
+
+      String version = System.getProperty("java.specification.version");
+      if (version.startsWith("17") || version.startsWith("21")) {
+        result.add(Target_jdk_jfr_internal_instrument_JDKEvents.class);
+      }
     }
   }
 }
