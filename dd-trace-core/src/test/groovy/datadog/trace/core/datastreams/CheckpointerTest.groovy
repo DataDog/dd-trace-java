@@ -46,7 +46,6 @@ class CheckpointerTest extends DDCoreSpecification {
     // Get the test checkpointer
     def checkpointer = tracer.getDataStreamsCheckpointer()
 
-
     when:
     (1..10000).each { // Generate and track 10000 transactions
       // Declare the carrier to test injected data
