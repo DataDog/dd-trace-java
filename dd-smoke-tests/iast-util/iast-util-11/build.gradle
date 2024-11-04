@@ -29,3 +29,7 @@ project.tasks.withType(AbstractCompile).configureEach {
     it.options.release.set(11)
   }
 }
+
+forbiddenApisMain {
+  failOnMissingClasses = false
+}
