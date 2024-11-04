@@ -1,100 +1,78 @@
-package datadog.trace.core.datastreams;
+package datadog.trace.core.datastreams
 
-import datadog.trace.api.experimental.DataStreamsContextCarrier;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.core.test.DDCoreSpecification;
+import datadog.trace.api.experimental.DataStreamsContextCarrier
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.core.test.DDCoreSpecification
 
-import java.io.*;
-import java.util.*;
-import java.util.zip.GZIPInputStream;
-import java.util.zip.GZIPOutputStream;
-
-import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_ENABLED
 
 class CheckpointerTest extends DDCoreSpecification {
 
-  void 'test startTransaction and injectPathwayContext'() {
+  void 'test setting produce & consume checkpoint'() {
     setup:
-    // Enable Data Streams Monitoring
+    // Enable DSM
     injectSysConfig(DATA_STREAMS_ENABLED, 'true')
     // Create a test tracer
     def tracer = tracerBuilder().build()
     AgentTracer.forceRegister(tracer)
-    // Get the checkpointer
+    // Get the test checkpointer
     def checkpointer = tracer.getDataStreamsCheckpointer()
-    // Create a carrier for context propagation
+    // Declare the carrier to test injected data
     def carrier = new CustomContextCarrier()
-    // Generate a unique transaction ID
-    def transactionID = UUID.randomUUID().toString()
+    // Start and activate a span
+    def span = tracer.buildSpan('test', 'dsm-checkpoint').start()
+    def scope = tracer.activateSpan(span)
 
     when:
-    // Start a transaction and inject pathway context
-    checkpointer.startTransaction(transactionID, carrier)
+    // Trigger produce checkpoint
+    checkpointer.setProduceCheckpoint('kafka', 'testTopic', carrier)
+    checkpointer.setConsumeCheckpoint('kafka', 'testTopic', carrier)
+    // Clean up span
+    scope.close()
+    span.finish()
 
     then:
-    // Verify that the transaction ID is set in the carrier
-    carrier.entries().any { entry -> entry.getKey() == "transaction.id" && entry.getValue() == transactionID }
-    // Verify that the pathway context is injected into the carrier
-    carrier.entries().any { entry -> entry.getKey() == "dd-pathway-ctx-base64" && entry.getValue() != null }
+    carrier.entries().any { entry -> entry.getKey() == "dd-pathway-ctx-base64" }
+    span.context().pathwayContext.hash != 0
   }
 
-  void 'test reportTransaction'() {
+  void 'test transaction tracking'() {
     setup:
-    // Enable Data Streams Monitoring
+    // Enable DSM
     injectSysConfig(DATA_STREAMS_ENABLED, 'true')
     // Create a test tracer
     def tracer = tracerBuilder().build()
     AgentTracer.forceRegister(tracer)
-    // Get the checkpointer
+    // Get the test checkpointer
     def checkpointer = tracer.getDataStreamsCheckpointer()
+    // Declare the carrier to test injected data
+    def carrier = new CustomContextCarrier()
+    // Start and activate a span
+    def span = tracer.buildSpan('test', 'transaction-tracking').start()
+    def scope = tracer.activateSpan(span)
     // Generate a unique transaction ID
     def transactionID = UUID.randomUUID().toString()
 
     when:
-    // Report the transaction
-    checkpointer.reportTransaction(transactionID)
+    // Track the transaction
+    checkpointer.trackTransaction(transactionID, carrier)
+    // Clean up span
+    scope.close()
+    span.finish()
 
     then:
-    // Verify that the transaction was reported
-    // This may involve checking internal metrics or state
-    // Assuming the checkpointer provides a method to get reported transactions
-    checkpointer.getReportedTransactions().contains(transactionID)
-  }
+    // Verify that the transaction ID tag is set on the span
+    span.context().getTag("transaction.id") == transactionID
 
-  void 'test TransactionInbox processing'() {
-    setup:
-    // Create a TransactionInbox instance
-    def transactionInbox = new TransactionInbox()
-    // Create a sample transaction payload
-    def transactionPayload = new TransactionPayload(transactionID: UUID.randomUUID().toString(), data: "sample data")
+    // Verify that the transaction ID is set in the carrier for propagation
+    carrier.entries().any { entry -> entry.getKey() == "transaction.id" && entry.getValue() == transactionID }
 
-    when:
-    // Send the transaction payload to the inbox
-    transactionInbox.receive(transactionPayload)
+    // Verify that the pathway context is initialized and injected
+    span.context().pathwayContext != null
+    span.context().pathwayContext.isStarted()
 
-    then:
-    // Verify that the transaction was processed
-    transactionInbox.containsTransaction(transactionPayload.transactionID)
-  }
-
-  void 'test payload compression and decompression'() {
-    setup:
-    // Create a large payload
-    def payload = "x" * 10000 // 10,000 characters
-    // Create an instance of a compression utility
-    def compressionUtil = new CompressionUtil()
-
-    when:
-    // Compress the payload
-    def compressedPayload = compressionUtil.compress(payload)
-    // Decompress the payload
-    def decompressedPayload = compressionUtil.decompress(compressedPayload)
-
-    then:
-    // Verify that the compressed payload is smaller
-    compressedPayload.length < payload.length()
-    // Verify that decompressed payload matches the original
-    decompressedPayload == payload
+    // Optionally, verify that the pathway context hash is set
+    span.context().pathwayContext.getHash() != 0
   }
 
   class CustomContextCarrier implements DataStreamsContextCarrier {
@@ -109,46 +87,6 @@ class CheckpointerTest extends DDCoreSpecification {
     @Override
     void set(String key, String value) {
       data.put(key, value)
-    }
-  }
-
-  class TransactionInbox {
-    private Set<String> transactions = new HashSet<>()
-
-    void receive(TransactionPayload payload) {
-      // Process the transaction payload
-      transactions.add(payload.transactionID)
-    }
-
-    boolean containsTransaction(String transactionID) {
-      return transactions.contains(transactionID)
-    }
-  }
-
-  class TransactionPayload {
-    String transactionID
-    String data
-  }
-
-  class CompressionUtil {
-    byte[] compress(String data) throws IOException {
-      ByteArrayOutputStream bos = new ByteArrayOutputStream()
-      GZIPOutputStream gzip = new GZIPOutputStream(bos)
-      gzip.write(data.getBytes("UTF-8"))
-      gzip.close()
-      return bos.toByteArray()
-    }
-
-    String decompress(byte[] compressedData) throws IOException {
-      ByteArrayInputStream bis = new ByteArrayInputStream(compressedData)
-      GZIPInputStream gzip = new GZIPInputStream(bis)
-      InputStreamReader reader = new InputStreamReader(gzip, "UTF-8")
-      StringBuilder sb = new StringBuilder()
-      int c
-      while ((c = reader.read()) != -1) {
-        sb.append((char) c)
-      }
-      return sb.toString()
     }
   }
 }
