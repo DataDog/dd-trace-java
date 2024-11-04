@@ -85,7 +85,7 @@ public final class State {
   public void stopTiming() {
     Timing timing = TIMING.getAndSet(this, null);
     if (timing != null) {
-      timing.close();
+      QueueTimerHelper.stopQueuingTimer(timing);
     }
   }
 }
