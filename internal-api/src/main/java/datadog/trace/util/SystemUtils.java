@@ -1,10 +1,9 @@
 package datadog.trace.util;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 public final class SystemUtils {
-  private static final Logger log = LoggerFactory.getLogger(SystemUtils.class);
+  public static boolean hasEnvError = false;
+  public static boolean hasPropertyError = false;
+
   // to be templatized with the type of thing we wanted to access and the key
   private static final String logMessageOnSecurityError =
       "The Java Security Manager prevented the Datadog Tracer from accessing the {} '{}'. "
@@ -20,7 +19,7 @@ public final class SystemUtils {
     try {
       return System.getenv(envVar);
     } catch (SecurityException e) {
-      log.warn(logMessageOnSecurityError, "environment variable", envVar, e);
+      hasEnvError = true;
       return defaultValue;
     }
   }
@@ -29,7 +28,7 @@ public final class SystemUtils {
     try {
       return System.getProperty(property);
     } catch (SecurityException e) {
-      log.warn(logMessageOnSecurityError, "system property", property, e);
+      hasPropertyError = true;
       return null;
     }
   }
@@ -38,7 +37,7 @@ public final class SystemUtils {
     try {
       return System.getProperty(property, defaultValue);
     } catch (SecurityException e) {
-      log.warn(logMessageOnSecurityError, "system property", property, e);
+      hasPropertyError = true;
       return defaultValue;
     }
   }

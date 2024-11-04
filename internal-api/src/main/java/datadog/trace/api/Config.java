@@ -3957,7 +3957,22 @@ public class Config {
               : ConfigProvider.getInstance(),
           InstrumenterConfig.get());
 
+  private static boolean configErrorsLogged = false;
+
   public static Config get() {
+    // checking if there are errors that we couldn't log earlier to report
+    if (!configErrorsLogged && (SystemUtils.hasEnvError || SystemUtils.hasPropertyError)) {
+      // we want to log once, but if 2 threads end up here it's not a big issue.
+      configErrorsLogged = true;
+      if (SystemUtils.hasEnvError)
+        log.warn(
+            "The Java Security Manager prevented the Datadog Tracer from accessing at least one environment variable. "
+                + "Consider granting AllPermission to the dd-java-agent jar.");
+      if (SystemUtils.hasPropertyError)
+        log.warn(
+            "The Java Security Manager prevented the Datadog Tracer from accessing at least one system property. "
+                + "Consider granting AllPermission to the dd-java-agent jar.");
+    }
     return INSTANCE;
   }
 
