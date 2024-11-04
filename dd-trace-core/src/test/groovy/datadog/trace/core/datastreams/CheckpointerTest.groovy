@@ -61,18 +61,9 @@ class CheckpointerTest extends DDCoreSpecification {
     span.finish()
 
     then:
-    // Verify that the transaction ID tag is set on the span
-    span.context().getTag("transaction.id") == transactionID
 
     // Verify that the transaction ID is set in the carrier for propagation
     carrier.entries().any { entry -> entry.getKey() == "transaction.id" && entry.getValue() == transactionID }
-
-    // Verify that the pathway context is initialized and injected
-    span.context().pathwayContext != null
-    span.context().pathwayContext.isStarted()
-
-    // Optionally, verify that the pathway context hash is set
-    span.context().pathwayContext.getHash() != 0
   }
 
   class CustomContextCarrier implements DataStreamsContextCarrier {

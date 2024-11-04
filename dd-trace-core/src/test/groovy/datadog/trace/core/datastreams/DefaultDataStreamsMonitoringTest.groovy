@@ -847,6 +847,16 @@ class CapturingPayloadWriter implements DatastreamsPayloadWriter {
     }
   }
 
+  @Override
+  void writeTransactionPayload(MsgPackDatastreamsPayloadWriter.TransactionPayload payload) {
+
+  }
+
+  @Override
+  void writeCompressedTransactionPayload(List<MsgPackDatastreamsPayloadWriter.TransactionPayload> payloads) {
+
+  }
+
   void close() {
     // Stop accepting new buckets so any late submissions by the reporting thread aren't seen
     accepting = false

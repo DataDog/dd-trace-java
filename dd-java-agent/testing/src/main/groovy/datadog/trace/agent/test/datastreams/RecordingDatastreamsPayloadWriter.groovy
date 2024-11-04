@@ -1,6 +1,7 @@
 package datadog.trace.agent.test.datastreams
 
 import datadog.trace.core.datastreams.DatastreamsPayloadWriter
+import datadog.trace.core.datastreams.MsgPackDatastreamsPayloadWriter
 import datadog.trace.core.datastreams.StatsBucket
 import datadog.trace.core.datastreams.StatsGroup
 import groovy.util.logging.Slf4j
@@ -30,6 +31,16 @@ class RecordingDatastreamsPayloadWriter implements DatastreamsPayloadWriter {
         }
       }
     }
+  }
+
+  @Override
+  void writeTransactionPayload(MsgPackDatastreamsPayloadWriter.TransactionPayload payload) {
+
+  }
+
+  @Override
+  void writeCompressedTransactionPayload(List<MsgPackDatastreamsPayloadWriter.TransactionPayload> payloads) {
+
   }
 
   synchronized List<StatsBucket> getPayloads() {
