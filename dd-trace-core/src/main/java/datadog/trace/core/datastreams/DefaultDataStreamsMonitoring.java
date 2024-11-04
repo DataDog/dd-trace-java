@@ -260,6 +260,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
    */
   @Override
   public void reportTransaction(String transactionId, long pathwayHash) {
+    log.info("We are reporting the transaction with transaction id {} and pathwayHash {}", transactionId, pathwayHash);
     if (transactionId == null || transactionId.isEmpty()) {
       log.warn("reportTransaction called with invalid transactionId");
       return;
@@ -356,6 +357,20 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       Thread currentThread = Thread.currentThread();
       while (!currentThread.isInterrupted()) {
         try {
+          // process transactions from the transactionInbox
+          InboxItem item;
+          while ((item = transactionInbox.poll()) != null) {
+            if (item instanceof TransactionItem) {
+              TransactionItem transaction = (TransactionItem) item;
+              transactionsLock.lock();
+              try {
+                accumulatedTransactions.add(transaction);
+              } finally {
+                transactionsLock.unlock();
+              }
+            }
+          }
+
           long currentTime = System.currentTimeMillis();
           if (currentTime - lastFlushTime >= flushIntervalMillis) {
             List<TransactionItem> transactionsToFlush = new ArrayList<>();

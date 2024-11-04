@@ -13,6 +13,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.Base64;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -142,6 +144,11 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
 
   @Override
   public void writeCompressedTransactionPayload(List<TransactionPayload> payloads) {
+    if (payloads.isEmpty()) {
+      log.warn("No transaction payloads to write.");
+      return;
+    }
+
     try {
       GrowableBuffer serializeBuffer = new GrowableBuffer(INITIAL_CAPACITY);
       MsgPackWriter msgPackWriter = new MsgPackWriter(serializeBuffer);
@@ -156,15 +163,19 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
       }
       msgPackWriter.flush();
 
-      byte[] serializedData = new byte[serializeBuffer.slice().remaining()];
-      serializeBuffer.slice().get(serializedData);
+      // Capture the slice once and reuse it
+      ByteBuffer slice = serializeBuffer.slice();
+      byte[] serializedData = new byte[slice.remaining()];
+      slice.get(serializedData);
 
+      // Compress the serialized data
       ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
       try (GZIPOutputStream gzipOS = new GZIPOutputStream(byteStream)) {
         gzipOS.write(serializedData);
       }
       byte[] compressedData = byteStream.toByteArray();
 
+      // Prepare final buffer with compressed data
       GrowableBuffer finalBuffer = new GrowableBuffer(INITIAL_CAPACITY);
       MsgPackWriter finalWriter = new MsgPackWriter(finalBuffer);
       finalWriter.startMap(1); // Single key-value pair
@@ -174,8 +185,12 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
 
       sink.accept(finalBuffer.messageCount(), finalBuffer.slice());
       finalBuffer.reset();
+      log.info("Successfully wrote compressed transaction payload");
+
     } catch (IOException e) {
-      log.debug("Failed to compress and write transaction payloads", e);
+      log.error("Failed to compress and write transaction payloads", e);
+    } catch (Exception e) {
+      log.error("Unexpected error in writeCompressedTransactionPayload", e);
     }
   }
 
@@ -201,6 +216,7 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
     buffer.mark();
     sink.accept(buffer.messageCount(), buffer.slice());
     buffer.reset();
+    log.info("Successfully sent transaction payload");
   }
   private void writeBucket(StatsBucket bucket, Writable packer) {
     Collection<StatsGroup> groups = bucket.getGroups();
