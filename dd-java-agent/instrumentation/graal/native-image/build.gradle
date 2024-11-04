@@ -43,8 +43,14 @@ compileMain_java21Java {
     '--add-modules',
     'jdk.internal.vm.ci',
     '--add-exports',
-    'jdk.internal.vm.ci/jdk.vm.ci.meta=ALL-UNNAMED'
+    'jdk.internal.vm.ci/jdk.vm.ci.meta=ALL-UNNAMED',
+    '--add-exports',
+    'jdk.jfr/jdk.jfr.events=ALL-UNNAMED'
   ])
+}
+
+jar {
+  from sourceSets."main_java21".output
 }
 
 dependencies {
