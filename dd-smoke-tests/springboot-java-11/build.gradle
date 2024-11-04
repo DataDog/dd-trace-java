@@ -35,6 +35,10 @@ project.tasks.withType(AbstractCompile).configureEach {
   }
 }
 
+forbiddenApisMain {
+  failOnMissingClasses = false
+}
+
 tasks.withType(Test).configureEach {
   dependsOn "bootJar"
   jvmArgs "-Ddatadog.smoketest.springboot.shadowJar.path=${tasks.bootJar.archiveFile.get()}"
