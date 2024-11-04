@@ -6,6 +6,7 @@ import com.datadog.debugger.agent.ConfigurationUpdater;
 import com.datadog.debugger.exception.Fingerprinter;
 import com.datadog.debugger.probe.CodeOriginProbe;
 import com.datadog.debugger.probe.Where;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.DebuggerContext.CodeOriginRecorder;
@@ -34,8 +35,9 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
 
   private final AgentTaskScheduler taskScheduler = AgentTaskScheduler.INSTANCE;
 
-  public DefaultCodeOriginRecorder(ConfigurationUpdater configurationUpdater) {
+  public DefaultCodeOriginRecorder(Config config, ConfigurationUpdater configurationUpdater) {
     this.configurationUpdater = configurationUpdater;
+    CodeOriginProbe.MAX_FRAMES = config.getDebuggerCodeOriginMaxUserFrames();
   }
 
   @Override
