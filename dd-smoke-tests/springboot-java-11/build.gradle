@@ -1,0 +1,41 @@
+plugins {
+  id 'java'
+  id 'org.springframework.boot' version '2.7.15'
+  id 'io.spring.dependency-management' version '1.0.15.RELEASE'
+  id 'java-test-fixtures'
+}
+
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_11
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+description = 'SpringBoot Java 11 Smoke Tests.'
+
+repositories {
+  mavenCentral()
+}
+
+dependencies {
+  implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.2.0.RELEASE'
+
+  testImplementation project(':dd-smoke-tests')
+  testImplementation testFixtures(project(":dd-smoke-tests:iast-util:iast-util-11"))
+  testImplementation testFixtures(project(':dd-smoke-tests:iast-util'))
+
+  implementation project(':dd-smoke-tests:iast-util:iast-util-11')
+}
+
+project.tasks.withType(AbstractCompile).configureEach {
+  setJavaVersion(it, 11)
+  sourceCompatibility = JavaVersion.VERSION_11
+  targetCompatibility = JavaVersion.VERSION_11
+  if (it instanceof JavaCompile) {
+    it.options.release.set(11)
+  }
+}
+
+tasks.withType(Test).configureEach {
+  dependsOn "bootJar"
+  jvmArgs "-Ddatadog.smoketest.springboot.shadowJar.path=${tasks.bootJar.archiveFile.get()}"
+}
