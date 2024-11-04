@@ -36,7 +36,7 @@ class CheckpointerTest extends DDCoreSpecification {
     span.context().pathwayContext.hash != 0
   }
 
-  void 'test transaction tracking'() {
+  void 'test multiple transaction tracking'() {
     setup:
     // Enable DSM
     injectSysConfig(DATA_STREAMS_ENABLED, 'true')
@@ -45,26 +45,36 @@ class CheckpointerTest extends DDCoreSpecification {
     AgentTracer.forceRegister(tracer)
     // Get the test checkpointer
     def checkpointer = tracer.getDataStreamsCheckpointer()
-    // Declare the carrier to test injected data
-    def carrier = new CustomContextCarrier()
-    // Start and activate a span
-    def span = tracer.buildSpan('test', 'transaction-tracking').start()
-    def scope = tracer.activateSpan(span)
-    // Generate a unique transaction ID
-    def transactionID = UUID.randomUUID().toString()
+
 
     when:
-    // Track the transaction
-    checkpointer.trackTransaction(transactionID, carrier)
-    // Clean up span
-    scope.close()
-    span.finish()
+    (1..100).each { // Generate and track 10000 transactions
+      // Declare the carrier to test injected data
+      def carrier = new CustomContextCarrier()
+      // Start and activate a span for each transaction
+      def span = tracer.buildSpan('test', 'transaction-tracking').start()
+      def scope = tracer.activateSpan(span)
+
+      // Generate a unique transaction ID
+      def transactionID = UUID.randomUUID().toString()
+
+      // Track the transaction
+      checkpointer.trackTransaction(transactionID, carrier)
+      checkpointer.setProduceCheckpoint('kafka', 'testTopic', carrier)
+
+      // Clean up span
+      scope.close()
+      span.finish()
+
+      // Verify for each transaction
+      assert carrier.entries().any { entry -> entry.getKey() == "transaction.id" && entry.getValue() == transactionID }
+      assert span.context().pathwayContext.hash != 0
+    }
 
     then:
-
-    // Verify that the transaction ID is set in the carrier for propagation
-    carrier.entries().any { entry -> entry.getKey() == "transaction.id" && entry.getValue() == transactionID }
+    true // Asserts are already done within the loop
   }
+
 
   class CustomContextCarrier implements DataStreamsContextCarrier {
 
