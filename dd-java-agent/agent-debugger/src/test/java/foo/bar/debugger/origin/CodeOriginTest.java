@@ -48,7 +48,6 @@ import org.junit.jupiter.api.Test;
  * Tests for the code origin feature.
  *  Moved to foo.bar package to avoid datadog stacktrace filtering.
  */
-/
 public class CodeOriginTest extends CapturingTestBase {
 
   private static final ProbeId CODE_ORIGIN_ID1 = new ProbeId("code origin 1", 0);
