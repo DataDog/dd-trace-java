@@ -114,7 +114,7 @@ class PayloadTaggingRedactionForkedTest extends AbstractPayloadTaggingTest {
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
-    def redactTopLevelTags = "\$.*,\$.DisplayName.Owner"
+    def redactTopLevelTags = "\$.*,\$.Owner.DisplayName"
     injectSysConfig(TracerConfig.TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING, redactTopLevelTags)
     injectSysConfig(TracerConfig.TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING, redactTopLevelTags)
   }
@@ -171,7 +171,7 @@ class PayloadTaggingRedactionForkedTest extends AbstractPayloadTaggingTest {
       }
     }
     "Kinesis"     | NA                            | "ShardLimit"         | { kinesisClient.describeLimits() }
-    "S3"          | NA                            | "DisplayName.Owner"  | { s3Client.listBuckets() }
+    "S3"          | NA                            | "Owner.DisplayName"  | { s3Client.listBuckets() }
   }
 }
 
@@ -215,7 +215,7 @@ class PayloadTaggingExpansionForkedTest extends AbstractPayloadTaggingTest {
           .message('{ "sms": "sms text", "default": "default text" }')
       }
     }
-    "Key.0.Tags"                                        | "foo"                  | {
+    "Tags.0.Key"                                        | "foo"                  | {
       snsClient.createTopic {
         it.name("testtopic")
           .tags(Tag.builder().key("foo").value("bar").build(), Tag.builder().key("t").value("1").build())
@@ -224,17 +224,17 @@ class PayloadTaggingExpansionForkedTest extends AbstractPayloadTaggingTest {
     "nextToken"                                         | null                   | {
       snsClient.listPhoneNumbersOptedOut()
     }
-    "DefaultSMSType.attributes"                         | "bar"                  | {
+    "attributes.DefaultSMSType"                         | "bar"                  | {
       snsClient.setSMSAttributes { it.attributes(["DefaultSenderID": "foo", "DefaultSMSType": "bar"]) }
     }
-    "BinaryValue.foo\\.bar.MessageAttributes.abc\\.def" | 42                     | {
+    "MessageAttributes.foo\\.bar.BinaryValue.abc\\.def" | 42                     | {
       snsClient.publish {
         it.phoneNumber("+15555555555").message("testmessage")
           .messageAttributes(["foo.bar": snsBinaryAttribute('{"abc.def": 42}')
           ])
       }
     }
-    "BinaryValue.foo\\.bar.MessageAttributes"           | "<binary>"             | {
+    "MessageAttributes.foo\\.bar.BinaryValue"           | "<binary>"             | {
       snsClient.publish {
         it.phoneNumber("+15555555555").message("testmessage").messageAttributes(["foo.bar": snsBinaryAttribute('{"invalid json: 42}')])
       }
