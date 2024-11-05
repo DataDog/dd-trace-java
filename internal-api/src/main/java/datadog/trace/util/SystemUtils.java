@@ -1,8 +1,8 @@
 package datadog.trace.util;
 
 public final class SystemUtils {
-  public static boolean hasEnvError = false;
-  public static boolean hasPropertyError = false;
+  public static boolean hasEnvError;
+  public static boolean hasPropertyError;
 
   private SystemUtils() {}
 
