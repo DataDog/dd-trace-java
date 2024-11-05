@@ -495,7 +495,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     } else if (object instanceof SdkBytes) {
       SdkBytes bytes = (SdkBytes) object;
       payloadTagsData.add(new PayloadTagsData.PathAndValue(path.toArray(), bytes.asInputStream()));
-    } else {
+    } else if (object != null) {
       payloadTagsData.add(new PayloadTagsData.PathAndValue(path.toArray(), object));
     }
   }
