@@ -61,7 +61,10 @@ public abstract class StackUtils {
   }
 
   public static List<StackTraceFrame> generateUserCodeStackTrace() {
-    return generateUserCodeStackTrace(AbstractStackWalker::isNotDatadogTraceStackElement);
+    return generateUserCodeStackTrace(element ->  {
+      final String clazz = element.getClassName();
+      return !clazz.startsWith("datadog.trace.") && !clazz.startsWith("com.datadog.");
+    });
   }
 
   /** Function generates stack trace of the user code (excluding datadog classes) */
