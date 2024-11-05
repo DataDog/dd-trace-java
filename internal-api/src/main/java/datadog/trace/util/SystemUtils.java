@@ -4,11 +4,6 @@ public final class SystemUtils {
   public static boolean hasEnvError = false;
   public static boolean hasPropertyError = false;
 
-  // to be templatized with the type of thing we wanted to access and the key
-  private static final String logMessageOnSecurityError =
-      "The Java Security Manager prevented the Datadog Tracer from accessing the {} '{}'. "
-          + "Consider granting AllPermission to the dd-java-agent jar.";
-
   private SystemUtils() {}
 
   public static String tryGetEnv(String envVar) {

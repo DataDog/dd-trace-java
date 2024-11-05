@@ -5,6 +5,7 @@ plugins {
 ext {
   // need access to sun.misc.SharedSecrets
   skipSettingCompilerRelease = true
+  excludedClassesCoverage = ['datadog.trace.util.SystemUtils']
 }
 
 // sun.misc.SharedSecrets is gone in later versions
