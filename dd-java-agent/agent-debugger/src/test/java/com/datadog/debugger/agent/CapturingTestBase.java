@@ -358,6 +358,7 @@ public class CapturingTestBase {
     when(config.getFinalDebuggerSnapshotUrl())
         .thenReturn("http://localhost:8126/debugger/v1/input");
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
+    when(config.getDebuggerCodeOriginMaxUserFrames()).thenReturn(20);
     instrumentationListener = new MockInstrumentationListener();
     probeStatusSink = mock(ProbeStatusSink.class);
 
