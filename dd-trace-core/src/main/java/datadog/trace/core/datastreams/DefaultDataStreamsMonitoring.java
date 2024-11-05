@@ -61,7 +61,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
   private final Map<Long, StatsBucket> timeToBucket = new HashMap<>();
   private final MpscArrayQueue<InboxItem> inbox = new MpscArrayQueue<>(1024);
-  private final MpscArrayQueue<InboxItem> transactionInbox = new MpscArrayQueue<>(1024);
+  private final MpscArrayQueue<InboxItem> transactionInbox = new MpscArrayQueue<>(65536);
   private final DatastreamsPayloadWriter payloadWriter;
   private final DDAgentFeaturesDiscovery features;
   private final TimeSource timeSource;
