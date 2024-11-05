@@ -45,7 +45,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Stores definition of a log probe */
-public class LogProbe extends ProbeDefinition {
+public class LogProbe extends ProbeDefinition implements Sampled {
   private static final Logger LOGGER = LoggerFactory.getLogger(LogProbe.class);
   private static final Limits LIMITS = new Limits(1, 3, 8192, 5);
   private static final int LOG_MSG_LIMIT = 8192;
@@ -220,14 +220,19 @@ public class LogProbe extends ProbeDefinition {
   }
 
   /** Stores sampling configuration */
-  public static final class Sampling {
-    private final double snapshotsPerSecond;
+  public static final class Sampling extends com.datadog.debugger.probe.Sampling {
+    private double snapshotsPerSecond;
 
     public Sampling(double snapshotsPerSecond) {
       this.snapshotsPerSecond = snapshotsPerSecond;
     }
 
     public double getSnapshotsPerSecond() {
+      return snapshotsPerSecond;
+    }
+
+    @Override
+    public double getEventsPerSecond() {
       return snapshotsPerSecond;
     }
 

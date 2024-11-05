@@ -16,6 +16,7 @@ import datadog.trace.util.Strings;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -43,6 +44,7 @@ import org.jacoco.report.FileMultiReportOutput;
 import org.jacoco.report.IReportVisitor;
 import org.jacoco.report.InputStreamSourceFileLocator;
 import org.jacoco.report.html.HTMLFormatter;
+import org.jacoco.report.xml.XMLFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -290,12 +292,23 @@ public class JacocoCoverageCalculator implements CoverageCalculator {
     }
     try {
       final HTMLFormatter htmlFormatter = new HTMLFormatter();
-      final IReportVisitor visitor =
+
+      final IReportVisitor htmlVisitor =
           htmlFormatter.createVisitor(new FileMultiReportOutput(reportFolder));
-      visitor.visitInfo(Collections.emptyList(), Collections.emptyList());
-      visitor.visitBundle(
+      htmlVisitor.visitInfo(Collections.emptyList(), Collections.emptyList());
+      htmlVisitor.visitBundle(
           coverageBundle, new RepoIndexFileLocator(repoIndexProvider.getIndex(), repoRoot));
-      visitor.visitEnd();
+      htmlVisitor.visitEnd();
+
+      File xmlReport = new File(reportFolder, "jacoco.xml");
+      try (FileOutputStream xmlReportStream = new FileOutputStream(xmlReport)) {
+        XMLFormatter xmlFormatter = new XMLFormatter();
+        IReportVisitor xmlVisitor = xmlFormatter.createVisitor(xmlReportStream);
+        xmlVisitor.visitInfo(Collections.emptyList(), Collections.emptyList());
+        xmlVisitor.visitBundle(
+            coverageBundle, new RepoIndexFileLocator(repoIndexProvider.getIndex(), repoRoot));
+        xmlVisitor.visitEnd();
+      }
     } catch (Exception e) {
       LOGGER.error("Error while creating report in {}", reportFolder, e);
     }

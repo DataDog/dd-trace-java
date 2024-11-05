@@ -38,11 +38,13 @@ public class BatchUploader {
     private final byte[] content;
     private final String partName;
     private final String fileName;
+    private final MediaType mediaType;
 
-    public MultiPartContent(byte[] content, String partName, String fileName) {
+    public MultiPartContent(byte[] content, String partName, String fileName, MediaType mediaType) {
       this.content = content;
       this.partName = partName;
       this.fileName = fileName;
+      this.mediaType = mediaType;
     }
 
     public byte[] getContent() {
@@ -55,6 +57,10 @@ public class BatchUploader {
 
     public String getFileName() {
       return fileName;
+    }
+
+    public MediaType getMediaType() {
+      return mediaType;
     }
   }
 
@@ -69,13 +75,14 @@ public class BatchUploader {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(BatchUploader.class);
   private static final int MINUTES_BETWEEN_ERROR_LOG = 5;
-  private static final MediaType APPLICATION_JSON = MediaType.parse("application/json");
   private static final String HEADER_DD_CONTAINER_ID = "Datadog-Container-ID";
   private static final String HEADER_DD_ENTITY_ID = "Datadog-Entity-ID";
   static final String HEADER_DD_API_KEY = "DD-API-KEY";
   static final int MAX_RUNNING_REQUESTS = 10;
   public static final int MAX_ENQUEUED_REQUESTS = 20;
   static final int TERMINATION_TIMEOUT = 5;
+  public static final MediaType APPLICATION_JSON = MediaType.get("application/json");
+  public static final MediaType APPLICATION_GZIP = MediaType.get("application/gzip");
 
   private final String containerId;
   private final String entityId;
@@ -182,7 +189,7 @@ public class BatchUploader {
   }
 
   private int addPart(MultipartBody.Builder builder, MultiPartContent part) {
-    RequestBody fileBody = RequestBody.create(APPLICATION_JSON, part.content);
+    RequestBody fileBody = RequestBody.create(part.mediaType, part.content);
     builder.addFormDataPart(part.partName, part.fileName, fileBody);
     return part.content.length;
   }

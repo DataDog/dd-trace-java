@@ -139,5 +139,16 @@ public final class TracerConfig {
 
   public static final String TRACE_POST_PROCESSING_TIMEOUT = "trace.post-processing.timeout";
 
+  public static final String TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES =
+      "trace.cloud.payload.tagging.services";
+  public static final String TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING =
+      "trace.cloud.request.payload.tagging";
+  public static final String TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING =
+      "trace.cloud.response.payload.tagging";
+  public static final String TRACE_CLOUD_PAYLOAD_TAGGING_MAX_DEPTH =
+      "trace.cloud.payload.tagging.max-depth";
+  public static final String TRACE_CLOUD_PAYLOAD_TAGGING_MAX_TAGS =
+      "trace.cloud.payload.tagging.max-tags";
+
   private TracerConfig() {}
 }

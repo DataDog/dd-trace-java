@@ -3,10 +3,12 @@ package datadog.trace.agent.test
 import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.Logger
 import ch.qos.logback.core.read.ListAppender
+import datadog.appsec.api.blocking.BlockingException
 import datadog.trace.agent.tooling.bytebuddy.ExceptionHandlers
 import datadog.trace.api.Platform
 import datadog.trace.bootstrap.ExceptionLogger
 import datadog.trace.bootstrap.InstrumentationErrors
+import datadog.trace.bootstrap.blocking.BlockingExceptionHandler
 import datadog.trace.test.util.DDSpecification
 import net.bytebuddy.agent.ByteBuddyAgent
 import net.bytebuddy.agent.builder.AgentBuilder
@@ -60,6 +62,13 @@ abstract class BaseExceptionHandlerTest extends DDSpecification {
       .advice(
       isMethod().and(namedOneOf("smallStack", "largeStack")),
       BadAdvice.NoOpAdvice.getName()))
+      .transform(
+      new AgentBuilder.Transformer.ForAdvice()
+      .with(new AgentBuilder.LocationStrategy.Simple(ClassFileLocator.ForClassLoader.of(BadAdvice.getClassLoader())))
+      .withExceptionHandler(ExceptionHandlers.defaultExceptionHandler())
+      .advice(
+      isMethod().and(named("blockingException")),
+      BlockingExceptionAdvice.getName()))
 
     ByteBuddyAgent.install()
     transformer = builder.installOn(ByteBuddyAgent.getInstrumentation())
@@ -94,6 +103,10 @@ abstract class BaseExceptionHandlerTest extends DDSpecification {
 
   abstract protected Level expectedFailureLogLevel()
 
+  protected boolean expectedBlockingException() {
+    true
+  }
+
   def "exception handler invoked"() {
     setup:
     int initLogEvents = testAppender.list.size()
@@ -113,9 +126,21 @@ abstract class BaseExceptionHandlerTest extends DDSpecification {
     int initLogEvents = testAppender.list.size()
     URL[] classpath = [
       SomeClass.getProtectionDomain().getCodeSource().getLocation(),
-      GroovyObject.getProtectionDomain().getCodeSource().getLocation()
+      GroovyObject.getProtectionDomain().getCodeSource().getLocation(),
     ]
-    URLClassLoader loader = new URLClassLoader(classpath, (ClassLoader) null)
+    URLClassLoader loader = new URLClassLoader(classpath, null, null) {
+        @Override
+        Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+          if (name == BlockingExceptionHandler.name) {
+            return BlockingExceptionHandler
+          }
+          if (name == BlockingException.name) {
+            return BlockingException
+          }
+          return super.loadClass(name, resolve)
+        }
+      }
+
     when:
     loader.loadClass(InstrumentationErrors.getName())
     then:
@@ -140,6 +165,23 @@ abstract class BaseExceptionHandlerTest extends DDSpecification {
     exitStatus.get() == 0
   }
 
+  void 'blocking exception is rethrown'() {
+    when:
+    Throwable exception = null
+    try {
+      SomeClass.blockingException()
+    } catch (Throwable t) {
+      exception = t
+    }
+
+    then:
+    if (expectedBlockingException()) {
+      exception instanceof BlockingException
+    } else {
+      exception == null
+    }
+  }
+
   static class SomeClass {
     static boolean isInstrumented() {
       return false
@@ -156,6 +198,10 @@ abstract class BaseExceptionHandlerTest extends DDSpecification {
       double d = 32.2d
       Object o = new Object()
       println "large stack: $l $i $d $o"
+    }
+
+    static void blockingException() {
+      // do nothing and throw from the advice
     }
   }
 
