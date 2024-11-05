@@ -146,11 +146,14 @@ public class ExceptionProbeManager {
 
   public void addSnapshot(Snapshot snapshot) {
     Throwable throwable = snapshot.getCaptures().getReturn().getCapturedThrowable().getThrowable();
+    if (throwable == null) {
+      LOGGER.debug("Snapshot has no throwable: {}", snapshot.getId());
+      return;
+    }
     throwable = ExceptionHelper.getInnerMostThrowable(throwable);
     if (throwable == null) {
-      LOGGER.debug(
-          "Unable to find root cause of exception: {}",
-          snapshot.getCaptures().getReturn().getCapturedThrowable().getThrowable().toString());
+      throwable = snapshot.getCaptures().getReturn().getCapturedThrowable().getThrowable();
+      LOGGER.debug("Unable to find root cause of exception: {}", String.valueOf(throwable));
       return;
     }
     ThrowableState state =
@@ -170,6 +173,10 @@ public class ExceptionProbeManager {
 
   void updateLastCapture(String fingerprint, Clock clock) {
     fingerprints.put(fingerprint, Instant.now(clock));
+  }
+
+  boolean hasExceptionStateTracked() {
+    return !snapshotsByThrowable.isEmpty();
   }
 
   public static class ThrowableState {

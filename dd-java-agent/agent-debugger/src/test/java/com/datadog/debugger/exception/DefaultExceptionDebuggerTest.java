@@ -25,6 +25,7 @@ import com.datadog.debugger.sink.Snapshot;
 import com.datadog.debugger.util.ClassNameFiltering;
 import com.datadog.debugger.util.ExceptionHelper;
 import com.datadog.debugger.util.TestSnapshotListener;
+import com.sun.management.HotSpotDiagnosticMXBean;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.CapturedStackFrame;
@@ -35,6 +36,9 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.lang.management.ManagementFactory;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -43,6 +47,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
+import javax.management.MBeanServer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.invocation.InvocationOnMock;
@@ -143,6 +148,14 @@ public class DefaultExceptionDebuggerTest {
         expectedFrameIndex,
         "com.datadog.debugger.exception.DefaultExceptionDebuggerTest",
         "createTest1Exception");
+    // make sure we are not leaking references
+    exception = null; // release strong reference
+    System.gc();
+    // calling ExceptionProbeManager#hasExceptionStateTracked() will call WeakIdentityHashMap#size()
+    // through isEmpty() an will purge stale entries
+    assertWithTimeout(
+        () -> !exceptionDebugger.getExceptionProbeManager().hasExceptionStateTracked(),
+        Duration.ofSeconds(30));
   }
 
   @Test
