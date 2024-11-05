@@ -38,7 +38,7 @@ public final class ConnectWorkerInstrumentation extends InstrumenterModule.Traci
     transformer.applyAdvice(
         isConstructor()
             .and(takesArgument(0, named("org.apache.kafka.connect.util.ConnectorTaskId")))
-            .and(takesArgument(1, named("org.apache.kafka.connect.runtime.TaskStatus.Listener"))),
+            .and(takesArgument(2, named("org.apache.kafka.connect.runtime.TaskStatus.Listener"))),
         ConnectWorkerInstrumentation.class.getName() + "$ConstructorAdvice");
   }
 
@@ -47,7 +47,7 @@ public final class ConnectWorkerInstrumentation extends InstrumenterModule.Traci
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void wrap(
         @Advice.Argument(value = 0, readOnly = true) ConnectorTaskId id,
-        @Advice.Argument(value = 1, readOnly = false) Listener statusListen
+        @Advice.Argument(value = 2, readOnly = false) Listener statusListen
         ) {
       System.out.println("building worker task!!");
     }
