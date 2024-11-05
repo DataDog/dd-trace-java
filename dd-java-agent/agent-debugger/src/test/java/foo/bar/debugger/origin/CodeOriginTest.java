@@ -1,4 +1,4 @@
-package com.datadog.debugger.origin;
+package foo.bar.debugger.origin;
 
 import static com.datadog.debugger.util.TestHelper.setFieldInConfig;
 import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_FRAME;
@@ -44,6 +44,11 @@ import org.joor.Reflect;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+/** *
+ * Tests for the code origin feature.
+ *  Moved to foo.bar package to avoid datadog stacktrace filtering.
+ */
+/
 public class CodeOriginTest extends CapturingTestBase {
 
   private static final ProbeId CODE_ORIGIN_ID1 = new ProbeId("code origin 1", 0);
