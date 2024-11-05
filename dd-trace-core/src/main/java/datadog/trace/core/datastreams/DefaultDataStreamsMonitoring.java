@@ -80,7 +80,6 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
   private final List<TransactionItem> accumulatedTransactions = new ArrayList<>();
   private final ReentrantLock transactionsLock = new ReentrantLock();
-  private final long flushIntervalMillis = 1000; // Flush every 1 second
   private long lastFlushTime = System.currentTimeMillis();
 
   public DefaultDataStreamsMonitoring(
@@ -372,6 +371,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
           }
 
           long currentTime = System.currentTimeMillis();
+          // Flush every 1 second
+          long flushIntervalMillis = 1000;
           if (currentTime - lastFlushTime >= flushIntervalMillis) {
             List<TransactionItem> transactionsToFlush = new ArrayList<>();
             transactionsLock.lock();
