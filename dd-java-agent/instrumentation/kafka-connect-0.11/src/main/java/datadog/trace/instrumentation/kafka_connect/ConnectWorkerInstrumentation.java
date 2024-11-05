@@ -4,23 +4,33 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.kafka.connect.util.ConnectorTaskId;
 import org.apache.kafka.connect.runtime.TaskStatus.Listener;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.*;
 
 @AutoService(InstrumenterModule.class)
 public final class ConnectWorkerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForTypeHierarchy {
+
+  static final String TARGET_TYPE = "org.apache.kafka.connect.runtime.WorkerTask";
 
   public ConnectWorkerInstrumentation() {
     super("kafka", "kafka-connect");
   }
 
   @Override
-  public String instrumentedType() {
-    return "org.apache.kafka.connect.runtime.WorkerTask";
+  public String hierarchyMarkerType() {
+    return TARGET_TYPE;
+  }
+
+  @Override
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
+    return extendsClass(named(hierarchyMarkerType()));
   }
 
   @Override
