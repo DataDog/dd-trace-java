@@ -387,13 +387,12 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
             }
 
             if (!transactionsToFlush.isEmpty()) {
-              // Prepare the transaction payloads
               List<MsgPackDatastreamsPayloadWriter.TransactionPayload> payloads = new ArrayList<>();
               for (TransactionItem transaction : transactionsToFlush) {
                 payloads.add(new MsgPackDatastreamsPayloadWriter.TransactionPayload(
                     transaction.getTransactionId(), transaction.getPathwayHash()));
               }
-              // Write the compressed transaction payload
+              // finally, we write the compressed transaction payload
               payloadWriter.writeCompressedTransactionPayload(payloads);
             }
           }
