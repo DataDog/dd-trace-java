@@ -14,7 +14,6 @@ addTestSuite('iastLatestDepTest3')
 
 dependencies {
   compileOnly group: 'org.apache.kafka', name: 'kafka-clients', version: '0.11.0.0'
-  compileOnly group: 'io.projectreactor.kafka', name: 'reactor-kafka', version: '1.0.0.RELEASE'
   implementation project(':dd-java-agent:instrumentation:kafka-common')
 
   testImplementation group: 'org.apache.kafka', name: 'kafka-clients', version: '0.11.0.0'
