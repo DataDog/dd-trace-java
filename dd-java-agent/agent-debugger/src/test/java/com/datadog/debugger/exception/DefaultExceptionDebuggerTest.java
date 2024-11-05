@@ -143,6 +143,14 @@ public class DefaultExceptionDebuggerTest {
         expectedFrameIndex,
         "com.datadog.debugger.exception.DefaultExceptionDebuggerTest",
         "createTest1Exception");
+    // make sure we are not leaking references
+    exception = null; // release strong reference
+    System.gc();
+    // calling ExceptionProbeManager#hasExceptionStateTracked() will call WeakIdentityHashMap#size()
+    // through isEmpty() an will purge stale entries
+    assertWithTimeout(
+        () -> !exceptionDebugger.getExceptionProbeManager().hasExceptionStateTracked(),
+        Duration.ofSeconds(30));
   }
 
   @Test
