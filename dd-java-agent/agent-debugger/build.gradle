@@ -7,7 +7,7 @@ apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/version.gradle"
 
 minimumInstructionCoverage = 0.1
-minimumBranchCoverage = 0.5
+minimumBranchCoverage = 0.6
 excludedClassesCoverage += [
   'com.datadog.debugger.model.*Exception',
   'com.datadog.debugger.parser.*Exception',
