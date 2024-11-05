@@ -44,9 +44,9 @@ import org.joor.Reflect;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-/** *
- * Tests for the code origin feature.
- *  Moved to foo.bar package to avoid datadog stacktrace filtering.
+/**
+ * * Tests for the code origin feature. Moved to foo.bar package to avoid datadog stacktrace
+ * filtering.
  */
 public class CodeOriginTest extends CapturingTestBase {
 
