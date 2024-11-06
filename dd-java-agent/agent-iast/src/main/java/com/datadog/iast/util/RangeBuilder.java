@@ -81,6 +81,9 @@ public class RangeBuilder {
     if (ranges.length == 0) {
       return true;
     }
+    if (ranges.length == 1) {
+      return add(ranges[0], offset);
+    }
 
     if (tail instanceof ArrayEntry && ranges.length <= (arrayChunkSize - tail.size())) {
       // compact intermediate ranges
