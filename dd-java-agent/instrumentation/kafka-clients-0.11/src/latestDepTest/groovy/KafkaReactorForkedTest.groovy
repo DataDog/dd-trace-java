@@ -5,13 +5,15 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.DDSpan
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.junit.Rule
-import org.springframework.kafka.test.rule.KafkaEmbedded
+import org.springframework.kafka.test.EmbeddedKafkaBroker
+import org.springframework.kafka.test.rule.EmbeddedKafkaRule
 import org.springframework.kafka.test.utils.KafkaTestUtils
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -26,10 +28,11 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
-class KafkaReactorTest extends AgentTestRunner {
+class KafkaReactorForkedTest extends AgentTestRunner {
   @Rule
-  // create 4 partitions for more parallelism
-  KafkaEmbedded embeddedKafka = new KafkaEmbedded(1, true, 4, KafkaClientTestBase.SHARED_TOPIC)
+  EmbeddedKafkaRule kafkaRule = new EmbeddedKafkaRule(1, true, 4, KafkaClientTest.SHARED_TOPIC)
+  EmbeddedKafkaBroker embeddedKafka = kafkaRule.embeddedKafka
+
 
   @Override
   boolean useStrictTraceWrites() {
@@ -37,12 +40,21 @@ class KafkaReactorTest extends AgentTestRunner {
   }
 
   def setup() {
-    TEST_WRITER.setFilter(KafkaClientTestBase.DROP_KAFKA_POLL)
+    TEST_WRITER.setFilter(new ListWriter.Filter() {
+        @Override
+        boolean accept(List<DDSpan> trace) {
+          return !(trace.size() == 1 &&
+            trace.get(0).getResourceName().toString().equals("kafka.poll"))
+        }
+      })
   }
 
   def "test reactive produce and consume"() {
     setup:
-    def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
+    def senderProps = KafkaTestUtils.producerProps(embeddedKafka)
+    if (isDataStreamsEnabled()) {
+      senderProps.put(ProducerConfig.METADATA_MAX_AGE_CONFIG, 1000)
+    }
 
     def kafkaSender = KafkaSender.create(SenderOptions.create(senderProps))
     // set up the Kafka consumer properties
@@ -50,7 +62,7 @@ class KafkaReactorTest extends AgentTestRunner {
     def subscriptionReady = new CountDownLatch(embeddedKafka.getPartitionsPerTopic())
 
     final KafkaReceiver<String, String> kafkaReceiver = KafkaReceiver.create(ReceiverOptions.<String, String> create(consumerProperties)
-    .subscription([KafkaClientTestBase.SHARED_TOPIC])
+    .subscription([KafkaClientTest.SHARED_TOPIC])
     .addAssignListener {
       it.each { subscriptionReady.countDown() }
     })
@@ -74,7 +86,7 @@ class KafkaReactorTest extends AgentTestRunner {
     when:
     String greeting = "Hello Reactor Kafka Sender!"
     runUnderTrace("parent") {
-      kafkaSender.send(Mono.just(SenderRecord.create(new ProducerRecord<>(KafkaClientTestBase.SHARED_TOPIC, greeting), null)))
+      kafkaSender.send(Mono.just(SenderRecord.create(new ProducerRecord<>(KafkaClientTest.SHARED_TOPIC, greeting), null)))
       .doOnError { ex -> runUnderTrace("producer exception: " + ex) {} }
       .doOnNext { runUnderTrace("producer callback") {} }
       .blockFirst()
@@ -101,7 +113,7 @@ class KafkaReactorTest extends AgentTestRunner {
 
   def "test reactive 100 msg produce and consume have only one parent"() {
     setup:
-    def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
+    def senderProps = KafkaTestUtils.producerProps(embeddedKafka)
     if (isDataStreamsEnabled()) {
       senderProps.put(ProducerConfig.METADATA_MAX_AGE_CONFIG, 1000)
     }
@@ -112,7 +124,7 @@ class KafkaReactorTest extends AgentTestRunner {
     def subscriptionReady = new CountDownLatch(embeddedKafka.getPartitionsPerTopic())
 
     final KafkaReceiver<String, String> kafkaReceiver = KafkaReceiver.create(ReceiverOptions.<String, String> create(consumerProperties)
-    .subscription([KafkaClientTestBase.SHARED_TOPIC])
+    .subscription([KafkaClientTest.SHARED_TOPIC])
     .addAssignListener {
       it.each { subscriptionReady.countDown() }
     })
@@ -136,7 +148,7 @@ class KafkaReactorTest extends AgentTestRunner {
     when:
     String greeting = "Hello Reactor Kafka Sender!"
     Flux.range(0, 100)
-    .flatMap { kafkaSender.send(Mono.just(SenderRecord.create(new ProducerRecord<>(KafkaClientTestBase.SHARED_TOPIC, greeting), null))) }
+    .flatMap { kafkaSender.send(Mono.just(SenderRecord.create(new ProducerRecord<>(KafkaClientTest.SHARED_TOPIC, greeting), null))) }
     .publishOn(Schedulers.parallel())
     .subscribe()
     then:
@@ -162,13 +174,13 @@ class KafkaReactorTest extends AgentTestRunner {
   }
 
   def producerSpan(
-    TraceAssert trace,
-    Map<String, ?> config,
-    DDSpan parentSpan = null) {
+  TraceAssert trace,
+  Map<String, ?> config,
+  DDSpan parentSpan = null) {
     trace.span {
       serviceName "kafka"
       operationName "kafka.produce"
-      resourceName "Produce Topic $KafkaClientTestBase.SHARED_TOPIC"
+      resourceName "Produce Topic $KafkaClientTest.SHARED_TOPIC"
       spanType "queue"
       errored false
       measured true
@@ -188,13 +200,13 @@ class KafkaReactorTest extends AgentTestRunner {
   }
 
   def consumerSpan(
-    TraceAssert trace,
-    Map<String, Object> config,
-    DDSpan parentSpan = null) {
+  TraceAssert trace,
+  Map<String, Object> config,
+  DDSpan parentSpan = null) {
     trace.span {
       serviceName "kafka"
       operationName "kafka.consume"
-      resourceName "Consume Topic $KafkaClientTestBase.SHARED_TOPIC"
+      resourceName "Consume Topic $KafkaClientTest.SHARED_TOPIC"
       spanType "queue"
       errored false
       measured true
