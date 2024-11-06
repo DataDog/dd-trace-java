@@ -83,15 +83,11 @@ benchmarks-post-results:
   interruptible: true
   timeout: 1h
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:java-dsm-kafka
-  needs: [ "build" ]
+  needs: []
   script:
-    - pwd
-    - ls -lah
-    - cd
-    - ls -lah
+    - export ARTIFACTS_DIR="$(pwd)/reports" && mkdir -p "${ARTIFACTS_DIR}"
     - export CIRCLE_CI_TOKEN=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.circleci_token --with-decryption --query "Parameter.Value" --out text)
-    - git clone --branch fayssal/fix-tracer-fetch https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform.git platform && cd platform
-    - ./steps/download-java-tracer.sh
+    - git clone --branch fayssal/fetch-tracer https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform.git platform && cd platform
   artifacts:
     name: "artifacts"
     when: always
