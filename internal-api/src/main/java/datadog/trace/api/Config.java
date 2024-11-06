@@ -1794,6 +1794,19 @@ public class Config {
           "AppSec SCA is enabled but telemetry is disabled. AppSec SCA will not work.");
     }
 
+    // check if the security manager is causing us trouble
+    if (!SystemUtils.canAccessEnvironmentVariables()) {
+      log.warn(
+          "The Java Security Manager is preventing the Datadog Tracer from accessing some environment variables. "
+              + "Consider granting AllPermission to the dd-java-agent jar.");
+    }
+
+    if (!SystemUtils.canAccessSystemProperties()) {
+      log.warn(
+          "The Java Security Manager is preventing the Datadog Tracer from accessing some system properties. "
+              + "Consider granting AllPermission to the dd-java-agent jar.");
+    }
+
     log.debug("New instance: {}", this);
   }
 

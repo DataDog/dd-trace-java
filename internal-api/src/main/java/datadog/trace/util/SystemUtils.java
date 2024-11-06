@@ -14,7 +14,6 @@ public final class SystemUtils {
     try {
       return System.getenv(envVar);
     } catch (SecurityException e) {
-      hasEnvError = true;
       return defaultValue;
     }
   }
@@ -23,7 +22,6 @@ public final class SystemUtils {
     try {
       return System.getProperty(property);
     } catch (SecurityException e) {
-      hasPropertyError = true;
       return null;
     }
   }
@@ -32,8 +30,27 @@ public final class SystemUtils {
     try {
       return System.getProperty(property, defaultValue);
     } catch (SecurityException e) {
-      hasPropertyError = true;
       return defaultValue;
     }
+  }
+
+  public static boolean canAccessSystemProperties() {
+    try {
+      // try to access a common system property and see what happens
+      System.getProperty("os.name");
+    } catch (SecurityException e) {
+      return false;
+    }
+    return true;
+  }
+
+  public static boolean canAccessEnvironmentVariables() {
+    try {
+      // try to access a common env var and see what happens
+      System.getenv("DD_ENV");
+    } catch (SecurityException e) {
+      return false;
+    }
+    return true;
   }
 }

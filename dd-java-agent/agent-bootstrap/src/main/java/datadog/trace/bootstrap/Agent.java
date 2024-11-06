@@ -41,7 +41,6 @@ import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
-import datadog.trace.util.SystemUtils;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
 import java.lang.instrument.Instrumentation;
 import java.lang.reflect.InvocationTargetException;
@@ -369,18 +368,6 @@ public class Agent {
       }
 
       StaticEventLogger.end("Profiling");
-    }
-
-    // log eventual errors that would have happened before we could log them
-    if (SystemUtils.hasEnvError) {
-      log.warn(
-          "The Java Security Manager prevented the Datadog Tracer from accessing at least one environment variable. "
-              + "Consider granting AllPermission to the dd-java-agent jar.");
-    }
-    if (SystemUtils.hasPropertyError) {
-      log.warn(
-          "The Java Security Manager prevented the Datadog Tracer from accessing at least one system property. "
-              + "Consider granting AllPermission to the dd-java-agent jar.");
     }
 
     StaticEventLogger.end("Agent.start");
