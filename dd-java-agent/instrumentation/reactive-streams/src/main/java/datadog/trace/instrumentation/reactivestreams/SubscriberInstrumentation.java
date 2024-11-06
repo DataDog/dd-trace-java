@@ -14,7 +14,6 @@ import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -65,8 +64,7 @@ public class SubscriberInstrumentation extends InstrumenterModule.Tracing
    */
   public static class SubscriberDownStreamAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope before(
-        @Advice.Origin final Method m, @Advice.This final Subscriber self) {
+    public static AgentScope before(@Advice.This final Subscriber self) {
       if (activeSpan() != null) {
         return null;
       }

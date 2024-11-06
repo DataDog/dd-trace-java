@@ -753,12 +753,12 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     }
 
     where:
-    path                  | parameter | value                     | method               | protocolSecure
-    "apache-httpclient4"  | "url"     | "https://dd.datad0g.com/" | "apacheHttpClient4"  | false
-    "apache-httpclient4"  | "host"    | "dd.datad0g.com"          | "apacheHttpClient4"  | false
-    "commons-httpclient2" | "url"     | "https://dd.datad0g.com/" | "commonsHttpClient2" | false
-    "okHttp2"             | "url"     | "https://dd.datad0g.com/" | "okHttp2"            | false
-    "okHttp3"             | "url"     | "https://dd.datad0g.com/" | "okHttp3"            | false
+    path                  | parameter | value                     | protocolSecure
+    "apache-httpclient4"  | "url"     | "https://dd.datad0g.com/" | true
+    "apache-httpclient4"  | "host"    | "dd.datad0g.com"          | false
+    "commons-httpclient2" | "url"     | "https://dd.datad0g.com/" | true
+    "okHttp2"             | "url"     | "https://dd.datad0g.com/" | true
+    "okHttp3"             | "url"     | "https://dd.datad0g.com/" | true
   }
 
   void 'test iast metrics stored in spans'() {

@@ -20,6 +20,14 @@ _Action:_ Append the new release to the Cloud Foundry repository.
 
 _Recovery:_ Manually edit and push the `index.yml` file from [the cloudfoundry branch](https://github.com/DataDog/dd-trace-java/tree/cloudfoundry).
 
+### check-pull-requests [🔗](check-pull-requests.yaml)
+
+_Trigger:_ When creating or updating a pull request.
+
+_Action:_ Check the pull request complies with [the contribution guidelines](https://github.com/DataDog/dd-trace-java/blob/master/CONTRIBUTING.md).
+
+_Recovery:_ Manually verify the guideline compliance.
+
 ### create-next-milestone [🔗](create-next-milestone.yaml)
 
 _Trigger:_ When closing a milestone.

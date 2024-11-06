@@ -9,6 +9,7 @@ import datadog.trace.bootstrap.debugger.el.Values;
 import datadog.trace.bootstrap.debugger.util.Redaction;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import datadog.trace.bootstrap.debugger.util.WellKnownClasses;
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -181,6 +182,10 @@ public class CapturedContext implements ValueReferenceResolver {
   @Override
   public ValueReferenceResolver withExtensions(Map<String, Object> extensions) {
     return new CapturedContext(this, extensions);
+  }
+
+  public void removeExtension(String name) {
+    extensions.remove(name);
   }
 
   private void addExtension(String name, Object value) {
@@ -642,7 +647,7 @@ public class CapturedContext implements ValueReferenceResolver {
   public static class CapturedThrowable {
     private final String type;
     private final String message;
-    private final transient Throwable throwable;
+    private final transient WeakReference<Throwable> throwable;
 
     /*
      * Need to exclude stacktrace from equals/hashCode computation.
@@ -663,7 +668,7 @@ public class CapturedContext implements ValueReferenceResolver {
       this.type = type;
       this.message = message;
       this.stacktrace = new ArrayList<>(stacktrace);
-      this.throwable = t;
+      this.throwable = new WeakReference<>(t);
     }
 
     public String getType() {
@@ -679,7 +684,7 @@ public class CapturedContext implements ValueReferenceResolver {
     }
 
     public Throwable getThrowable() {
-      return throwable;
+      return throwable.get();
     }
 
     private static List<CapturedStackFrame> captureFrames(StackTraceElement[] stackTrace) {

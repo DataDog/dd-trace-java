@@ -44,7 +44,14 @@ public class CoreSubscriberInstrumentation extends InstrumenterModule.Tracing
   public static class PropagateSpanInScopeAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope before(@Advice.This final CoreSubscriber<?> self) {
-      final Context context = self.currentContext();
+      Context context = null;
+      try {
+        context = self.currentContext();
+      } catch (Throwable ignored) {
+      }
+      if (context == null) {
+        return null;
+      }
       if (context.hasKey("dd.span")) {
         Object maybeSpan = context.get("dd.span");
         if (maybeSpan instanceof WithAgentSpan) {

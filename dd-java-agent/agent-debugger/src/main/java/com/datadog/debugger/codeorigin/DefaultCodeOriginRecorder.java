@@ -6,6 +6,7 @@ import com.datadog.debugger.agent.ConfigurationUpdater;
 import com.datadog.debugger.exception.Fingerprinter;
 import com.datadog.debugger.probe.CodeOriginProbe;
 import com.datadog.debugger.probe.Where;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.DebuggerContext.CodeOriginRecorder;
@@ -26,6 +27,8 @@ import org.slf4j.LoggerFactory;
 public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
   private static final Logger LOG = LoggerFactory.getLogger(DefaultCodeOriginRecorder.class);
 
+  private final Config config;
+
   private final ConfigurationUpdater configurationUpdater;
 
   private final Map<String, CodeOriginProbe> fingerprints = new HashMap<>();
@@ -34,7 +37,8 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
 
   private final AgentTaskScheduler taskScheduler = AgentTaskScheduler.INSTANCE;
 
-  public DefaultCodeOriginRecorder(ConfigurationUpdater configurationUpdater) {
+  public DefaultCodeOriginRecorder(Config config, ConfigurationUpdater configurationUpdater) {
+    this.config = config;
     this.configurationUpdater = configurationUpdater;
   }
 
@@ -59,7 +63,10 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
 
       probe =
           new CodeOriginProbe(
-              new ProbeId(UUID.randomUUID().toString(), 0), where.getSignature(), where);
+              new ProbeId(UUID.randomUUID().toString(), 0),
+              where.getSignature(),
+              where,
+              config.getDebuggerCodeOriginMaxUserFrames());
       addFingerprint(fingerprint, probe);
 
       installProbe(probe);

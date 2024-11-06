@@ -22,7 +22,7 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:reactive-streams')
 
 
-  latestDepTestImplementation group: 'io.lettuce', name: 'lettuce-core', version: '5.+'
+  latestDepTestImplementation group: 'io.lettuce', name: 'lettuce-core', version: '+'
 
   tasks.withType(Test).configureEach {
     usesService(testcontainersLimit)

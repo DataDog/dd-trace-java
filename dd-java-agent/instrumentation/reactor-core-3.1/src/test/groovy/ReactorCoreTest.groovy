@@ -490,6 +490,14 @@ class ReactorCoreTest extends AgentTestRunner {
     span.finish()
   }
 
+  def "test currentContext() calls on inner operator is not throwing a NPE on the advice"() {
+    when:
+    def mono = Flux.range(1, 100).windowUntil {it % 10 == 0}.count()
+    then:
+    // we are not interested into asserting a trace structure but only that the instrumentation error count is 0
+    assert mono.block() == 11
+  }
+
   @Trace(operationName = "addOne", resourceName = "addOne")
   def static addOneFunc(int i) {
     return i + 1
