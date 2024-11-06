@@ -71,7 +71,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   public static final LinkedHashMap<String, String> PRODUCER_PATHWAY_EDGE_TAGS
 
   // filter out Kafka poll, since the function is called in a loop, giving inconsistent results
-  static final ListWriter.Filter DROP_KAFKA_POLL = new ListWriter.Filter() {
+  final ListWriter.Filter dropKafkaPoll = new ListWriter.Filter() {
     @Override
     boolean accept(List<DDSpan> trace) {
       return !(trace.size() == 1 &&
@@ -117,7 +117,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   }
 
   def setup() {
-    TEST_WRITER.setFilter(DROP_KAFKA_POLL)
+    TEST_WRITER.setFilter(dropKafkaPoll)
   }
 
   @Override

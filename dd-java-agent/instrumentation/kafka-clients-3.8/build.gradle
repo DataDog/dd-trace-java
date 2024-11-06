@@ -39,11 +39,9 @@ dependencies {
   main_java17Implementation project(':dd-java-agent:instrumentation:kafka-common')
 
   testImplementation group: 'org.apache.kafka', name: 'kafka-clients', version: '3.8.0'
-  // the first supporting 3.6.0 (it's ok with 3.8.0)
-  testImplementation group: 'io.projectreactor.kafka', name: 'reactor-kafka', version: '1.3.21'
   testImplementation group: 'org.springframework.kafka', name: 'spring-kafka', version: '3.1.0'
   testImplementation group: 'org.springframework.kafka', name: 'spring-kafka-test', version: '3.1.0'
-  testImplementation group: 'org.testcontainers', name: 'kafka', version: libs.versions.testcontainers.get()
+  testImplementation group: 'org.testcontainers', name: 'kafka', version: '1.17.0'
   testImplementation group: 'javax.xml.bind', name: 'jaxb-api', version: '2.2.3'
   testImplementation group: 'org.assertj', name: 'assertj-core', version: '2.9.+'
   testImplementation group: 'org.mockito', name: 'mockito-core', version: '2.19.0'
@@ -54,7 +52,6 @@ dependencies {
   // This seems to help with jar compatibility hell.
   latestDepTestImplementation group: 'org.apache.kafka', name: 'kafka_2.13', version: '2.+'
   latestDepTestImplementation group: 'org.apache.kafka', name: 'kafka-clients', version: '3.+'
-  latestDepTestImplementation group: 'io.projectreactor.kafka', name: 'reactor-kafka', version: '+'
   latestDepTestImplementation group: 'org.springframework.kafka', name: 'spring-kafka', version: '3.+'
   latestDepTestImplementation group: 'org.springframework.kafka', name: 'spring-kafka-test', version: '3.+'
   latestDepTestImplementation group: 'org.assertj', name: 'assertj-core', version: '3.19.+'
