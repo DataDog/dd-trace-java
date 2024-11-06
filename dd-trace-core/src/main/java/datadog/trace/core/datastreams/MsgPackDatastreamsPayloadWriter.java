@@ -154,7 +154,7 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
 
       msgPackWriter.startArray(payloads.size());
       for (TransactionPayload payload : payloads) {
-        msgPackWriter.startMap(2); // since each transaction has two fields
+        msgPackWriter.startMap(2);
         msgPackWriter.writeUTF8("TransactionId".getBytes(ISO_8859_1));
         msgPackWriter.writeUTF8(payload.getTransactionId().getBytes(ISO_8859_1));
         msgPackWriter.writeUTF8("PathwayHash".getBytes(ISO_8859_1));
@@ -162,22 +162,21 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
       }
       msgPackWriter.flush();
 
-      // Capture the slice once and reuse it
       ByteBuffer slice = serializeBuffer.slice();
       byte[] serializedData = new byte[slice.remaining()];
       slice.get(serializedData);
 
-      // Compress the serialized data
+      // compress serialized data
       ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
       try (GZIPOutputStream gzipOS = new GZIPOutputStream(byteStream)) {
         gzipOS.write(serializedData);
       }
       byte[] compressedData = byteStream.toByteArray();
 
-      // Prepare final buffer with compressed data
+      // prepare final buffer with compressed data
       GrowableBuffer finalBuffer = new GrowableBuffer(INITIAL_CAPACITY);
       MsgPackWriter finalWriter = new MsgPackWriter(finalBuffer);
-      finalWriter.startMap(1); // Single key-value pair
+      finalWriter.startMap(1); // make it a single k-v pair
       finalWriter.writeUTF8("CompressedTransactions".getBytes(ISO_8859_1));
       finalWriter.writeBinary(compressedData);
       finalWriter.flush();
