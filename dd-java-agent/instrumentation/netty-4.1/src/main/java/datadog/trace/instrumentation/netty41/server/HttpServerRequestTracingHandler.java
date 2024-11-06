@@ -76,8 +76,18 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
         DECORATE.onError(span, throwable);
         DECORATE.beforeFinish(span);
         span.finish(); // Finish the span manually since finishSpanOnClose was false
+        ctx.channel().attr(SPAN_ATTRIBUTE_KEY).remove();
         throw throwable;
       }
+    }
+  }
+
+  @Override
+  public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+    final AgentSpan span = ctx.channel().attr(SPAN_ATTRIBUTE_KEY).getAndRemove();
+    if (span != null && span.phasedFinish()) {
+      // at this point we can just publish this span to avoid loosing the rest of the trace
+      span.publish();
     }
   }
 }

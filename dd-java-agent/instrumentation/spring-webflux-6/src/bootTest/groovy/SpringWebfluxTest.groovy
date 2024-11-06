@@ -22,6 +22,8 @@ import reactor.core.publisher.Mono
 import reactor.netty.http.HttpProtocol
 import reactor.netty.http.client.HttpClient
 
+import java.time.Duration
+
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
 classes = [SpringWebFluxTestApplication],
 properties = "server.http2.enabled=true")
@@ -654,6 +656,47 @@ class SpringWebfluxHttp11Test extends AgentTestRunner {
     testName                          | urlPath          | urlPathWithVariables | annotatedMethod | expectedResponseBody
     "functional API delayed response" | "/greet-delayed" | "/greet-delayed"     | null            | SpringWebFluxTestApplication.GreetingHandler.DEFAULT_RESPONSE
     "annotation API delayed response" | "/foo-delayed"   | "/foo-delayed"       | "getFooDelayed" | new FooModel(3L, "delayed").toString()
+  }
+
+  def "Cancellation should always release the server span"() {
+    setup:
+    String url = "http://localhost:$port/very-delayed"
+    when:
+    def response = client.get().uri(url).exchange().timeout(Duration.ofSeconds(2)).block()
+
+    then:
+    thrown Exception
+    assert response == null
+    assertTraces(2) {
+      def traceParent
+      sortSpansByStart()
+      trace(2) {
+        clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url), null, false, null, false,
+          [ "message":"The subscription was cancelled", "event":"cancelled"])
+        traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url), null)
+      }
+      trace(1) {
+        span {
+          resourceName "GET /very-delayed"
+          operationName "netty.request"
+          spanType DDSpanTypes.HTTP_SERVER
+          childOf(traceParent)
+          tags {
+            "$Tags.COMPONENT" "netty"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            "$Tags.PEER_HOST_IPV4" "127.0.0.1"
+            "$Tags.PEER_PORT" Integer
+            "$Tags.HTTP_URL" url
+            "$Tags.HTTP_HOSTNAME" "localhost"
+            "$Tags.HTTP_METHOD" "GET"
+            "$Tags.HTTP_USER_AGENT" String
+            "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
+            "$Tags.HTTP_ROUTE" "/very-delayed"
+            defaultTags(true)
+          }
+        }
+      }
+    }
   }
 
   def clientSpan(
