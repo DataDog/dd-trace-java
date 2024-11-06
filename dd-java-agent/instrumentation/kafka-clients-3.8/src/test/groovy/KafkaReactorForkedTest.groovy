@@ -28,7 +28,7 @@ import java.util.concurrent.TimeUnit
 
 class KafkaReactorForkedTest extends AgentTestRunner {
 
-  final ConfluentKafkaContainer kafkaContainer = new ConfluentKafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.7.1"))
+  ConfluentKafkaContainer kafkaContainer
 
 
   @Override
@@ -38,6 +38,7 @@ class KafkaReactorForkedTest extends AgentTestRunner {
 
   def setup() {
     TEST_WRITER.setFilter(KafkaClientTestBase.DROP_KAFKA_POLL)
+    kafkaContainer = new ConfluentKafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.7.1"))
     kafkaContainer.start()
     def createResult = kafkaContainer.execInContainer("/bin/kafka-topics", "--create",
       "--bootstrap-server", "${kafkaContainer.getHost()}:9093", "--replication-factor", "1", "--partitions", "4", "--topic", KafkaClientTestBase.SHARED_TOPIC)
@@ -46,7 +47,7 @@ class KafkaReactorForkedTest extends AgentTestRunner {
   }
 
   def cleanup() {
-    kafkaContainer.stop()
+    kafkaContainer?.stop()
   }
 
   def "test reactive produce and consume"() {
@@ -65,7 +66,7 @@ class KafkaReactorForkedTest extends AgentTestRunner {
 
     // create a thread safe queue to store the received message
     def records = new LinkedBlockingQueue<ConsumerRecord<String, String>>()
-    kafkaReceiver.receive()
+    def subscription = kafkaReceiver.receive()
     // publish on another thread to be sure we're propagating that receive span correctly
     .publishOn(Schedulers.parallel())
     .flatMap { receiverRecord ->
@@ -105,6 +106,8 @@ class KafkaReactorForkedTest extends AgentTestRunner {
         consumerSpan(it, consumerProperties, trace(0)[2])
       }
     }
+    cleanup:
+    subscription?.dispose()
   }
 
   def "test reactive 100 msg produce and consume have only one parent"() {
@@ -122,8 +125,7 @@ class KafkaReactorForkedTest extends AgentTestRunner {
       it.each { subscriptionReady.countDown() }
     })
 
-    // create a thread safe queue to store the received message
-    kafkaReceiver.receive()
+    def subscription = kafkaReceiver.receive()
     // publish on another thread to be sure we're propagating that receive span correctly
     .publishOn(Schedulers.parallel())
     .flatMap { receiverRecord ->
@@ -164,6 +166,8 @@ class KafkaReactorForkedTest extends AgentTestRunner {
       assert it.get(consumeIndex).getParentId() == it.get(produceIndex).getSpanId()
       assert it.get(produceIndex).getParentId() == 0
     }
+    cleanup:
+    subscription?.dispose()
   }
 
   def producerSpan(
