@@ -356,7 +356,6 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       Thread currentThread = Thread.currentThread();
       while (!currentThread.isInterrupted()) {
         try {
-          // process transactions from the transactionInbox
           InboxItem item;
           while ((item = transactionInbox.poll()) != null) {
             if (item instanceof TransactionItem) {
@@ -371,7 +370,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
           }
 
           long currentTime = System.currentTimeMillis();
-          // Flush every 1 second
+          // flush every 1 second
           long flushIntervalMillis = 1000;
           if (currentTime - lastFlushTime >= flushIntervalMillis) {
             List<TransactionItem> transactionsToFlush = new ArrayList<>();
@@ -396,7 +395,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
               payloadWriter.writeCompressedTransactionPayload(payloads);
             }
           }
-          Thread.sleep(flushIntervalMillis / 2); // sleep for half the flush interval
+          Thread.sleep(flushIntervalMillis / 2);
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
         } catch (Exception e) {
