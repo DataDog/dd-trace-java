@@ -195,13 +195,11 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
 
 
   public void writeTransactionPayload(TransactionPayload transaction) {
-    writer.startMap(2); // assumes two key-value pairs for transaction
+    writer.startMap(2);
 
-    // identifier to differentiate transaction messages
     writer.writeUTF8("Type".getBytes(ISO_8859_1));
     writer.writeUTF8(TRANSACTION_IDENTIFIER);
 
-    // transaction Data
     writer.writeUTF8("TransactionData".getBytes(ISO_8859_1));
     writer.startMap(2);
 
@@ -211,7 +209,6 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
     writer.writeUTF8("PathwayHash".getBytes(ISO_8859_1));
     writer.writeLong(transaction.getPathwayHash());
 
-    // send the payload
     buffer.mark();
     sink.accept(buffer.messageCount(), buffer.slice());
     buffer.reset();
