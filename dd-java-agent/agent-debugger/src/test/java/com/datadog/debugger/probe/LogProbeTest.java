@@ -35,7 +35,7 @@ public class LogProbeTest {
   public void testSampling() {
     LogProbe.Builder builder = createLog(null);
     LogProbe snapshotProbe = builder.sampling(0.25).build();
-    Assertions.assertEquals(0.25, snapshotProbe.getSampling().getSnapshotsPerSecond(), 0.01);
+    Assertions.assertEquals(0.25, snapshotProbe.getSampling().getEventsPerSecond(), 0.01);
   }
 
   @Test

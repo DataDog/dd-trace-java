@@ -175,6 +175,12 @@ class SpanAssert {
     assertTags(span, spec)
   }
 
+  void tags(boolean checkAllTags,
+    @ClosureParams(value = SimpleType, options = ['datadog.trace.agent.test.asserts.TagsAssert'])
+    @DelegatesTo(value = TagsAssert, strategy = Closure.DELEGATE_FIRST) Closure spec) {
+    assertTags(span, spec, checkAllTags)
+  }
+
   DDSpan getSpan() {
     return span
   }

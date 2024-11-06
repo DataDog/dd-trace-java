@@ -19,6 +19,11 @@ addTestSuiteExtendingForDir('dsmForkedTest', 'dsmTest', 'dsmTest')
 addTestSuiteForDir('latestDsmTest', 'dsmTest')
 addTestSuiteExtendingForDir('latestDsmForkedTest', 'latestDsmTest', 'dsmTest')
 
+addTestSuite('payloadTaggingTest')
+addTestSuiteExtendingForDir('payloadTaggingForkedTest', 'payloadTaggingTest', 'payloadTaggingTest')
+addTestSuiteForDir('latestPayloadTaggingTest', 'payloadTaggingTest')
+addTestSuiteExtendingForDir('latestPayloadTaggingForkedTest', 'latestPayloadTaggingTest', 'payloadTaggingTest')
+
 def fixedSdkVersion = '2.20.33' // 2.20.34 is missing and breaks IDEA import
 
 dependencies {
@@ -40,6 +45,8 @@ dependencies {
   testImplementation group: 'org.eclipse.jetty.http2', name: 'http2-server', version: '9.4.56.v20240826'
 
 
+  testImplementation group: 'org.testcontainers', name: 'localstack', version: libs.versions.testcontainers.get()
+
   // First version where dsm traced operations have required StreamARN parameter for kinesis
   // and publishBatch is available for SNS
   dsmTestImplementation group: 'software.amazon.awssdk', name: 'apache-client', version: '2.18.40'
@@ -49,10 +56,25 @@ dependencies {
   latestDsmTestImplementation group: 'software.amazon.awssdk', name: 'kinesis', version: '+'
   latestDsmTestImplementation group: 'software.amazon.awssdk', name: 'sns', version: '+'
 
+  payloadTaggingTestImplementation group: 'software.amazon.awssdk', name: 'apigateway', version: '2.19.0'
+  payloadTaggingTestImplementation group: 'software.amazon.awssdk', name: 'eventbridge', version: '2.7.4'
+  payloadTaggingTestImplementation group: 'software.amazon.awssdk', name: 'sqs', version: '2.18.40'
+  payloadTaggingTestImplementation group: 'software.amazon.awssdk', name: 'sns', version: '2.18.40'
+  payloadTaggingTestImplementation group: 'software.amazon.awssdk', name: 's3', version: '2.18.40'
+  payloadTaggingTestImplementation group: 'software.amazon.awssdk', name: 'kinesis', version: '2.18.40'
+  latestPayloadTaggingTestImplementation group: 'software.amazon.awssdk', name: 'apigateway', version: '2.25.40'
+  latestPayloadTaggingTestImplementation group: 'software.amazon.awssdk', name: 'eventbridge', version: '2.25.40'
+  latestPayloadTaggingTestImplementation group: 'software.amazon.awssdk', name: 'sqs', version: '2.25.40'
+  latestPayloadTaggingTestImplementation group: 'software.amazon.awssdk', name: 'sns', version: '2.25.40'
+  latestPayloadTaggingTestImplementation group: 'software.amazon.awssdk', name: 's3', version: '2.18.40'
+  latestPayloadTaggingTestImplementation group: 'software.amazon.awssdk', name: 'kinesis', version: '2.18.40'
+
   latestDepTestImplementation project(':dd-java-agent:instrumentation:apache-httpclient-4')
   latestDepTestImplementation project(':dd-java-agent:instrumentation:netty-4.1')
 
   latestDepTestImplementation group: 'software.amazon.awssdk', name: 'apache-client', version: fixedSdkVersion
+  latestDepTestImplementation group: 'software.amazon.awssdk', name: 'apigateway', version: fixedSdkVersion
+  latestDepTestImplementation group: 'software.amazon.awssdk', name: 'eventbridge', version: fixedSdkVersion
   latestDepTestImplementation group: 'software.amazon.awssdk', name: 's3', version: fixedSdkVersion
   latestDepTestImplementation group: 'software.amazon.awssdk', name: 'rds', version: fixedSdkVersion
   latestDepTestImplementation group: 'software.amazon.awssdk', name: 'ec2', version: fixedSdkVersion
@@ -60,4 +82,8 @@ dependencies {
   latestDepTestImplementation group: 'software.amazon.awssdk', name: 'sns', version: fixedSdkVersion
   latestDepTestImplementation group: 'software.amazon.awssdk', name: 'dynamodb', version: fixedSdkVersion
   latestDepTestImplementation group: 'software.amazon.awssdk', name: 'kinesis', version: fixedSdkVersion
+}
+
+tasks.withType(Test).configureEach {
+  usesService(testcontainersLimit)
 }

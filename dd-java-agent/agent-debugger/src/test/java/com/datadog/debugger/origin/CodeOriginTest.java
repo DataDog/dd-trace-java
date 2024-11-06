@@ -49,6 +49,8 @@ public class CodeOriginTest extends CapturingTestBase {
   private static final ProbeId CODE_ORIGIN_ID1 = new ProbeId("code origin 1", 0);
   private static final ProbeId CODE_ORIGIN_ID2 = new ProbeId("code origin 2", 0);
 
+  private static final int MAX_FRAMES = 20;
+
   private DefaultCodeOriginRecorder codeOriginRecorder;
 
   private TestTraceInterceptor traceInterceptor;
@@ -113,6 +115,30 @@ public class CodeOriginTest extends CapturingTestBase {
   }
 
   @Test
+  public void stackDepth() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CodeOrigin04";
+    installProbes(
+        new CodeOriginProbe(
+            CODE_ORIGIN_ID1, null, Where.of(CLASS_NAME, "exit", "()", "39"), MAX_FRAMES));
+
+    Class<?> testClass = compileAndLoadClass("com.datadog.debugger.CodeOrigin04");
+    countFrames(testClass, 10);
+    countFrames(testClass, 100);
+  }
+
+  private void countFrames(Class<?> testClass, int loops) {
+    int result = Reflect.onClass(testClass).call("main", loops).get();
+    assertEquals(loops, result);
+    long count =
+        traceInterceptor.getTrace().stream()
+            .filter(s -> s.getOperationName().equals("exit"))
+            .flatMap(s -> s.getTags().keySet().stream())
+            .filter(key -> key.contains("frames") && key.endsWith("method"))
+            .count();
+    assertTrue(count <= MAX_FRAMES);
+  }
+
+  @Test
   public void testCaptureCodeOriginWithSignature() {
     installProbes();
     CodeOriginProbe probe = codeOriginRecorder.getProbe(codeOriginRecorder.captureCodeOrigin("()"));
@@ -131,9 +157,9 @@ public class CodeOriginTest extends CapturingTestBase {
   @NotNull
   private List<LogProbe> codeOriginProbes(String type) {
     CodeOriginProbe entry =
-        new CodeOriginProbe(CODE_ORIGIN_ID1, "()", Where.of(type, "entry", "()", "53"));
+        new CodeOriginProbe(CODE_ORIGIN_ID1, "()", Where.of(type, "entry", "()", "53"), MAX_FRAMES);
     CodeOriginProbe exit =
-        new CodeOriginProbe(CODE_ORIGIN_ID2, null, Where.of(type, "exit", "()", "60"));
+        new CodeOriginProbe(CODE_ORIGIN_ID2, null, Where.of(type, "exit", "()", "60"), MAX_FRAMES);
     return new ArrayList<>(asList(entry, exit));
   }
 
@@ -164,7 +190,7 @@ public class CodeOriginTest extends CapturingTestBase {
     TestSnapshotListener listener = super.installProbes(probes);
 
     DebuggerContext.initClassNameFilter(classNameFilter);
-    codeOriginRecorder = new DefaultCodeOriginRecorder(configurationUpdater);
+    codeOriginRecorder = new DefaultCodeOriginRecorder(config, configurationUpdater);
     DebuggerContext.initCodeOrigin(codeOriginRecorder);
 
     return listener;

@@ -119,6 +119,7 @@ abstract class AbstractIastServerSmokeTest extends AbstractServerSmokeTest {
         }
         final vulnerabilities = parseVulnerabilities(json)
         found.addAll(vulnerabilities)
+        return vulnerabilities.find(matcher) != null
       }
     } catch (SpockTimeoutError toe) {
       throw new AssertionError("No matching vulnerability found. Vulnerabilities found: ${new JsonBuilder(found).toPrettyString()}")
