@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.jdbc;
 
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -15,6 +17,7 @@ public class SQLCommenter {
   private static final String DATABASE_SERVICE = encode("dddbs");
   private static final String DD_HOSTNAME = encode("ddh");
   private static final String DD_DB_NAME = encode("dddb");
+  private static final String DD_PEER_SERVICE = encode("ddprs");
   private static final String DD_ENV = encode("dde");
   private static final String DD_VERSION = encode("ddpv");
   private static final String TRACEPARENT = encode("traceparent");
@@ -25,6 +28,7 @@ public class SQLCommenter {
   private static final String OPEN_COMMENT = "/*";
   private static final String CLOSE_COMMENT = "*/";
   private static final int INITIAL_CAPACITY = computeInitialCapacity();
+  private static final String DD_DB_INSTANCE = "ddprs";
 
   public static String append(
       final String sql,
@@ -140,6 +144,109 @@ public class SQLCommenter {
     return sb.toString();
   }
 
+  public static String inject(
+      final String sql,
+      final String dbService,
+      final String dbType,
+      final String hostname,
+      final String dbName,
+      final String dbInstance,
+      final String traceParent,
+      final boolean injectTrace,
+      boolean appendComment) {
+    System.out.println("HELLO IN INJECT PEER SERVICE");
+
+    // Map<String, Object> tagMap = span.getTags();
+    // Object peerService = tagMap.get(Tags.PEER_SERVICE);
+
+    // String peerService = span.getTag(Tags.PEER_SERVICE);
+    AgentSpan currSpan = AgentTracer.activeSpan();
+    //    System.out.println(currSpan.getTags());
+    //    String myPeerService = currSpan.getTag(Tags.PEER_SERVICE).toString();
+    //
+    //    if (myPeerService != null) {
+    //      System.out.print(myPeerService);
+    //    }
+
+    if (sql == null || sql.isEmpty()) {
+      return sql;
+    }
+    if (hasDDComment(sql, appendComment)) {
+      return sql;
+    }
+
+    if (dbType != null) {
+      final String firstWord = getFirstWord(sql);
+
+      // The Postgres JDBC parser doesn't allow SQL comments anywhere in a JDBC callable statements
+      // https://github.com/pgjdbc/pgjdbc/blob/master/pgjdbc/src/main/java/org/postgresql/core/Parser.java#L1038
+      // TODO: Could we inject the comment after the JDBC has been converted to standard SQL?
+      if (firstWord.startsWith("{") && dbType.startsWith("postgres")) {
+        return sql;
+      }
+
+      // Append the comment for mysql JDBC callable statements
+      if (firstWord.startsWith("{") && "mysql".equals(dbType)) {
+        appendComment = true;
+      }
+
+      // Both Postgres and MySQL are unhappy with anything before CALL in a stored procedure
+      // invocation but they seem ok with it after so we force append mode
+      if (firstWord.equalsIgnoreCase("call")) {
+        appendComment = true;
+      }
+    }
+    final Config config = Config.get();
+    final String parentService = config.getServiceName();
+    final String env = config.getEnv();
+    final String version = config.getVersion();
+    //    String configPeerService = config.getPeerServiceMapping().get(Tags.PEER_SERVICE);
+    //    System.out.println(configPeerService);
+
+    final int commentSize = capacity(traceParent, parentService, dbService, env, version);
+    StringBuilder sb = new StringBuilder(sql.length() + commentSize);
+    boolean commentAdded = false;
+    if (appendComment) {
+      sb.append(sql);
+      sb.append(SPACE);
+      sb.append(OPEN_COMMENT);
+      commentAdded =
+          toComment(
+              sb,
+              injectTrace,
+              parentService,
+              dbService,
+              hostname,
+              dbName,
+              dbInstance,
+              env,
+              version,
+              traceParent);
+      sb.append(CLOSE_COMMENT);
+    } else {
+      sb.append(OPEN_COMMENT);
+      commentAdded =
+          toComment(
+              sb,
+              injectTrace,
+              parentService,
+              dbService,
+              hostname,
+              dbName,
+              dbInstance,
+              env,
+              version,
+              traceParent);
+      sb.append(CLOSE_COMMENT);
+      sb.append(SPACE);
+      sb.append(sql);
+    }
+    if (!commentAdded) {
+      return sql;
+    }
+    return sb.toString();
+  }
+
   private static boolean hasDDComment(String sql, final boolean appendComment) {
     // first check to see if sql ends with a comment
     if ((!(sql.endsWith(CLOSE_COMMENT)) && appendComment)
@@ -207,6 +314,33 @@ public class SQLCommenter {
     append(sb, DATABASE_SERVICE, dbService, sb.length() > emptySize);
     append(sb, DD_HOSTNAME, hostname, sb.length() > emptySize);
     append(sb, DD_DB_NAME, dbName, sb.length() > emptySize);
+    append(sb, DD_ENV, env, sb.length() > emptySize);
+    append(sb, DD_VERSION, version, sb.length() > emptySize);
+    if (injectTrace) {
+      append(sb, TRACEPARENT, traceparent, sb.length() > emptySize);
+    }
+    return sb.length() > emptySize;
+  }
+
+  protected static boolean toComment(
+      StringBuilder sb,
+      final boolean injectTrace,
+      final String parentService,
+      final String dbService,
+      final String hostname,
+      final String dbName,
+      final String dbInstance,
+      final String env,
+      final String version,
+      final String traceparent) {
+    System.out.println("in the new to Comment");
+    int emptySize = sb.length();
+    System.out.println("DB INSTANCE PEER SERVICE:" + dbInstance);
+    append(sb, PARENT_SERVICE, parentService, false);
+    append(sb, DATABASE_SERVICE, dbService, sb.length() > emptySize);
+    append(sb, DD_HOSTNAME, hostname, sb.length() > emptySize);
+    append(sb, DD_DB_NAME, dbName, sb.length() > emptySize);
+    append(sb, DD_DB_INSTANCE, dbInstance, sb.length() > emptySize);
     append(sb, DD_ENV, env, sb.length() > emptySize);
     append(sb, DD_VERSION, version, sb.length() > emptySize);
     if (injectTrace) {
