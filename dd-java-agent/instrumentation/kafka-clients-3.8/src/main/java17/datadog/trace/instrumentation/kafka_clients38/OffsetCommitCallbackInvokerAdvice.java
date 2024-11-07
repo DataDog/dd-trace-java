@@ -15,4 +15,9 @@ public class OffsetCommitCallbackInvokerAdvice {
             .get(callbackInvoker);
     callback = new DDOffsetCommitCallback(callback, kafkaConsumerInfo);
   }
+
+  public static void muzzleCheck(OffsetCommitCallbackInvoker invoker) {
+    // Only applies for kafka versions with OffsetCommitCallbackInvoker
+    invoker.executeCallbacks();
+  }
 }
