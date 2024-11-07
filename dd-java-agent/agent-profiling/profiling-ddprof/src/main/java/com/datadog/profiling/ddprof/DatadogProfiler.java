@@ -36,6 +36,7 @@ import com.datadog.profiling.controller.OngoingRecording;
 import com.datadog.profiling.utils.ProfilingMode;
 import com.datadoghq.profiler.ContextSetter;
 import com.datadoghq.profiler.JavaProfiler;
+import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.TaskWrapper;
@@ -236,6 +237,14 @@ public final class DatadogProfiler {
 
   String cmdStartProfiling(Path file) throws IllegalStateException {
     // 'start' = start, 'jfr=7' = store in JFR format ready for concatenation
+    int safemode = getSafeMode(configProvider);
+    if (safemode != ProfilingConfig.PROFILING_DATADOG_PROFILER_SAFEMODE_DEFAULT) {
+      // be very vocal about messing around with the profiler safemode as it may induce crashes
+      log.warn(
+          "Datadog profiler safemode is enabled with overridden value {}. "
+              + "This is not recommended and may cause instability and crashes.",
+          safemode);
+    }
     StringBuilder cmd = new StringBuilder("start,jfr=7");
     cmd.append(",file=").append(file.toAbsolutePath());
     cmd.append(",loglevel=").append(getLogLevel(configProvider));
@@ -320,7 +329,7 @@ public final class DatadogProfiler {
     debugLogging(rootSpanId);
     try {
       profiler.setContext(spanId, rootSpanId);
-    } catch (IllegalStateException e) {
+    } catch (Throwable e) {
       log.debug("Failed to clear context", e);
     }
   }
@@ -329,14 +338,18 @@ public final class DatadogProfiler {
     debugLogging(0L);
     try {
       profiler.setContext(0L, 0L);
-    } catch (IllegalStateException e) {
+    } catch (Throwable e) {
       log.debug("Failed to set context", e);
     }
   }
 
   public boolean setContextValue(int offset, int encoding) {
     if (contextSetter != null && offset >= 0) {
-      return contextSetter.setContextValue(offset, encoding);
+      try {
+        return contextSetter.setContextValue(offset, encoding);
+      } catch (Throwable e) {
+        log.debug("Failed to set context", e);
+      }
     }
     return false;
   }
@@ -344,7 +357,11 @@ public final class DatadogProfiler {
   public boolean setContextValue(int offset, CharSequence value) {
     if (contextSetter != null && offset >= 0) {
       int encoding = encode(value);
-      return contextSetter.setContextValue(offset, encoding);
+      try {
+        return contextSetter.setContextValue(offset, encoding);
+      } catch (Throwable e) {
+        log.debug("Failed to set context", e);
+      }
     }
     return false;
   }
@@ -365,7 +382,11 @@ public final class DatadogProfiler {
 
   public boolean clearContextValue(int offset) {
     if (contextSetter != null && offset >= 0) {
-      return contextSetter.clearContextValue(offset);
+      try {
+        return contextSetter.clearContextValue(offset);
+      } catch (Throwable t) {
+        log.debug("Failed to clear context", t);
+      }
     }
     return false;
   }
@@ -402,17 +423,18 @@ public final class DatadogProfiler {
     return new QueueTimeTracker(this, profiler.getCurrentTicks());
   }
 
-  void recordQueueTimeEvent(
-      long startMillis, long startTicks, Object task, Class<?> scheduler, Thread origin) {
+  boolean shouldRecordQueueTimeEvent(long startMillis) {
+    return System.currentTimeMillis() - startMillis >= queueTimeThresholdMillis;
+  }
+
+  void recordQueueTimeEvent(long startTicks, Object task, Class<?> scheduler, Thread origin) {
     if (profiler != null) {
-      if (System.currentTimeMillis() - startMillis >= queueTimeThresholdMillis) {
-        // note: because this type traversal can update secondary_super_cache (see JDK-8180450)
-        // we avoid doing this unless we are absolutely certain we will record the event
-        Class<?> taskType = TaskWrapper.getUnwrappedType(task);
-        if (taskType != null) {
-          long endTicks = profiler.getCurrentTicks();
-          profiler.recordQueueTime(startTicks, endTicks, taskType, scheduler, origin);
-        }
+      // note: because this type traversal can update secondary_super_cache (see JDK-8180450)
+      // we avoid doing this unless we are absolutely certain we will record the event
+      Class<?> taskType = TaskWrapper.getUnwrappedType(task);
+      if (taskType != null) {
+        long endTicks = profiler.getCurrentTicks();
+        profiler.recordQueueTime(startTicks, endTicks, taskType, scheduler, origin);
       }
     }
   }

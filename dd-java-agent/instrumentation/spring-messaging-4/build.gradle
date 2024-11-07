@@ -22,6 +22,7 @@ addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
   compileOnly group: 'org.springframework', name: 'spring-messaging', version: '4.0.0.RELEASE'
+  testImplementation project(':dd-java-agent:instrumentation:aws-common')
 
   // capture SQS send and receive spans, propagate trace details in messages
   testImplementation project(':dd-java-agent:instrumentation:apache-httpclient-4')

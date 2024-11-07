@@ -1,5 +1,6 @@
 package com.datadog.debugger.sink;
 
+import static com.datadog.debugger.uploader.BatchUploader.APPLICATION_JSON;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 
 import com.datadog.debugger.agent.ProbeStatus;
@@ -104,7 +105,8 @@ public class ProbeStatusSink {
     for (byte[] batch : batches) {
       if (useMultiPart) {
         diagnosticUploader.uploadAsMultipart(
-            tags, new BatchUploader.MultiPartContent(batch, "event", "event.json"));
+            tags,
+            new BatchUploader.MultiPartContent(batch, "event", "event.json", APPLICATION_JSON));
       } else {
         diagnosticUploader.upload(batch, tags);
       }

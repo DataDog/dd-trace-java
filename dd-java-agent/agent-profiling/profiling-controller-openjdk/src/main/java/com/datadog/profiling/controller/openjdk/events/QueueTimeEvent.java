@@ -56,10 +56,12 @@ public class QueueTimeEvent extends Event implements QueueTiming {
   }
 
   @Override
-  public void close() {
-    end();
-    if (shouldCommit()) {
-      commit();
-    }
+  public void report() {
+    commit();
+  }
+
+  @Override
+  public boolean sample() {
+    return shouldCommit();
   }
 }

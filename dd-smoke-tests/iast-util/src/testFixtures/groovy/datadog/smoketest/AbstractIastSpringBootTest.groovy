@@ -724,6 +724,43 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     'host'    | 'dd.datad0g.com'
   }
 
+  void 'ssrf is present (#path)'() {
+    setup:
+    final url = "http://localhost:${httpPort}/ssrf/${path}"
+    final body = new FormBody.Builder().add(parameter, value).build()
+    final request = new Request.Builder().url(url).post(body).build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul ->
+      if (vul.type != 'SSRF') {
+        return false
+      }
+      final parts = vul.evidence.valueParts
+      if (parameter == 'url') {
+        return parts.size() == 1
+        && parts[0].value == value && parts[0].source.origin == 'http.request.parameter' && parts[0].source.name == parameter
+      } else if (parameter == 'host') {
+        String protocol = protocolSecure ? 'https://' : 'http://'
+        return parts.size() == 2
+        && parts[0].value == protocol + value && parts[0].source.origin == 'http.request.parameter' && parts[0].source.name == parameter
+        && parts[1].value == '/' && parts[1].source == null
+      } else {
+        throw new IllegalArgumentException("Parameter $parameter not supported")
+      }
+    }
+
+    where:
+    path                  | parameter | value                     | protocolSecure
+    "apache-httpclient4"  | "url"     | "https://dd.datad0g.com/" | true
+    "apache-httpclient4"  | "host"    | "dd.datad0g.com"          | false
+    "commons-httpclient2" | "url"     | "https://dd.datad0g.com/" | true
+    "okHttp2"             | "url"     | "https://dd.datad0g.com/" | true
+    "okHttp3"             | "url"     | "https://dd.datad0g.com/" | true
+  }
+
   void 'test iast metrics stored in spans'() {
     setup:
     final url = "http://localhost:${httpPort}/cmdi/runtime?cmd=ls"

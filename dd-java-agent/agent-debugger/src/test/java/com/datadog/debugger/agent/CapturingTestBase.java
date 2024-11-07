@@ -334,6 +334,11 @@ public class CapturingTestBase {
   }
 
   public static LogProbe.Builder createProbeBuilder(
+      ProbeId id, String typeName, String methodName, String signature) {
+    return createProbeBuilder(id, typeName, methodName, signature, (String[]) null);
+  }
+
+  public static LogProbe.Builder createProbeBuilder(
       ProbeId id, String typeName, String methodName, String signature, String... lines) {
     return LogProbe.builder()
         .language(LANGUAGE)
@@ -353,6 +358,7 @@ public class CapturingTestBase {
     when(config.getFinalDebuggerSnapshotUrl())
         .thenReturn("http://localhost:8126/debugger/v1/input");
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
+    when(config.getDebuggerCodeOriginMaxUserFrames()).thenReturn(20);
     instrumentationListener = new MockInstrumentationListener();
     probeStatusSink = mock(ProbeStatusSink.class);
 
@@ -386,14 +392,12 @@ public class CapturingTestBase {
       for (LogProbe probe : logProbes) {
         if (probe.getSampling() != null) {
           ProbeRateLimiter.setRate(
-              probe.getId(),
-              probe.getSampling().getSnapshotsPerSecond(),
-              probe.isCaptureSnapshot());
+              probe.getId(), probe.getSampling().getEventsPerSecond(), probe.isCaptureSnapshot());
         }
       }
     }
     if (configuration.getSampling() != null) {
-      ProbeRateLimiter.setGlobalSnapshotRate(configuration.getSampling().getSnapshotsPerSecond());
+      ProbeRateLimiter.setGlobalSnapshotRate(configuration.getSampling().getEventsPerSecond());
     }
 
     return listener;
