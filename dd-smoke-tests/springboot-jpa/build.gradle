@@ -1,0 +1,30 @@
+plugins {
+  id 'java'
+  id 'war'
+  id 'org.springframework.boot' version '2.6.0'
+}
+
+apply plugin: 'io.spring.dependency-management'
+apply from: "$rootDir/gradle/java.gradle"
+description = 'SpringBoot JPA Smoke Tests.'
+
+dependencies {
+  implementation 'org.springframework.boot:spring-boot-starter-web'
+  implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+  implementation 'org.apache.tomcat.embed:tomcat-embed-jasper'
+  implementation 'javax.servlet:jstl:1.2'
+  implementation 'com.h2database:h2:2.1.214'
+
+  testImplementation project(':dd-smoke-tests')
+
+  compileOnly 'org.projectlombok:lombok:1.18.34'
+  annotationProcessor 'org.projectlombok:lombok:1.18.34'
+
+  testCompileOnly 'org.projectlombok:lombok:1.18.34'
+  testAnnotationProcessor 'org.projectlombok:lombok:1.18.34'
+}
+
+tasks.withType(Test).configureEach {
+  dependsOn "bootWar"
+  jvmArgs "-Ddatadog.smoketest.springboot.bootWar.path=${tasks.bootWar.archiveFile.get()}"
+}
