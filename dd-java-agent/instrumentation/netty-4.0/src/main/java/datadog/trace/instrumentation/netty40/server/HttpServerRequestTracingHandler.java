@@ -79,10 +79,17 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
 
   @Override
   public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-    final AgentSpan span = ctx.channel().attr(SPAN_ATTRIBUTE_KEY).getAndRemove();
-    if (span != null && span.phasedFinish()) {
-      // at this point we can just publish this span to avoid loosing the rest of the trace
-      span.publish();
+    try {
+      super.channelInactive(ctx);
+    } finally {
+      try {
+        final AgentSpan span = ctx.channel().attr(SPAN_ATTRIBUTE_KEY).getAndRemove();
+        if (span != null && span.phasedFinish()) {
+          // at this point we can just publish this span to avoid loosing the rest of the trace
+          span.publish();
+        }
+      } catch (final Throwable ignored) {
+      }
     }
   }
 }

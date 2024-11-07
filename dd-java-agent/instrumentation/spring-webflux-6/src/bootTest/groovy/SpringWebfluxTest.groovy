@@ -675,7 +675,7 @@ class SpringWebfluxHttp11Test extends AgentTestRunner {
           [ "message":"The subscription was cancelled", "event":"cancelled"])
         traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url), null)
       }
-      trace(1) {
+      trace(2) {
         span {
           resourceName "GET /very-delayed"
           operationName "netty.request"
@@ -693,6 +693,18 @@ class SpringWebfluxHttp11Test extends AgentTestRunner {
             "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
             "$Tags.HTTP_ROUTE" "/very-delayed"
             defaultTags(true)
+          }
+        }
+        span {
+          resourceName "TestController.getVeryDelayedMono"
+          operationName "TestController.getVeryDelayedMono"
+          spanType DDSpanTypes.HTTP_SERVER
+          childOfPrevious()
+          tags {
+            "$Tags.COMPONENT" "spring-webflux-controller"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            "handler.type" TestController.getName()
+            defaultTags()
           }
         }
       }
