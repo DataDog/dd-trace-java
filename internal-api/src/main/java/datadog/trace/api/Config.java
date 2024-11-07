@@ -412,6 +412,8 @@ public class Config {
 
   private final boolean kafkaClientPropagationEnabled;
   private final Set<String> kafkaClientPropagationDisabledTopics;
+  // enable the Kafka-3.8+ instrumentation manually until issues are resolved.
+  private final boolean experimentalKafkaEnabled;
   private final boolean kafkaClientBase64DecodingEnabled;
   private final boolean jmsPropagationEnabled;
   private final Set<String> jmsPropagationDisabledTopics;
@@ -1558,7 +1560,7 @@ public class Config {
 
     awsPropagationEnabled = isPropagationEnabled(true, "aws", "aws-sdk");
     sqsPropagationEnabled = isPropagationEnabled(true, "sqs");
-
+    experimentalKafkaEnabled = configProvider.getBoolean(EXPERIMENTAL_KAFKA_ENABLED, false);
     kafkaClientPropagationEnabled = isPropagationEnabled(true, "kafka", "kafka.client");
     kafkaClientPropagationDisabledTopics =
         tryMakeImmutableSet(configProvider.getList(KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS));
@@ -3017,6 +3019,10 @@ public class Config {
 
   public boolean isSqsPropagationEnabled() {
     return sqsPropagationEnabled;
+  }
+
+  public boolean isExperimentalKafkaEnabled() {
+    return experimentalKafkaEnabled;
   }
 
   public boolean isKafkaClientPropagationEnabled() {

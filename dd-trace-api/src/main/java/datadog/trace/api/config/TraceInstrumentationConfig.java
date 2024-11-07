@@ -158,5 +158,7 @@ public final class TraceInstrumentationConfig {
   /** If set, the instrumentation will set its resource name on the local root too. */
   public static final String AXIS_PROMOTE_RESOURCE_NAME = "trace.axis.promote.resource-name";
 
+  public static final String EXPERIMENTAL_KAFKA_ENABLED = "trace.experimental.kafka.enabled";
+
   private TraceInstrumentationConfig() {}
 }

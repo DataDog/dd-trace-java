@@ -50,7 +50,7 @@ class KafkaClientCustomPropagationConfigTest extends AgentTestRunner {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
-
+    injectSysConfig("dd.trace.experimental.kafka.enabled","true")
     injectSysConfig("dd.kafka.e2e.duration.enabled", "true")
   }
 
