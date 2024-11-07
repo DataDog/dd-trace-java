@@ -1,8 +1,6 @@
 package datadog.trace.instrumentation.jdbc;
 
 import datadog.trace.api.Config;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -17,7 +15,7 @@ public class SQLCommenter {
   private static final String DATABASE_SERVICE = encode("dddbs");
   private static final String DD_HOSTNAME = encode("ddh");
   private static final String DD_DB_NAME = encode("dddb");
-  private static final String DD_PEER_SERVICE = encode("ddprs");
+  private static final String DD_DB_INSTANCE = "ddprs";
   private static final String DD_ENV = encode("dde");
   private static final String DD_VERSION = encode("ddpv");
   private static final String TRACEPARENT = encode("traceparent");
@@ -28,7 +26,6 @@ public class SQLCommenter {
   private static final String OPEN_COMMENT = "/*";
   private static final String CLOSE_COMMENT = "*/";
   private static final int INITIAL_CAPACITY = computeInitialCapacity();
-  private static final String DD_DB_INSTANCE = "ddprs";
 
   public static String append(
       final String sql,
@@ -154,19 +151,6 @@ public class SQLCommenter {
       final String traceParent,
       final boolean injectTrace,
       boolean appendComment) {
-    System.out.println("HELLO IN INJECT PEER SERVICE");
-
-    // Map<String, Object> tagMap = span.getTags();
-    // Object peerService = tagMap.get(Tags.PEER_SERVICE);
-
-    // String peerService = span.getTag(Tags.PEER_SERVICE);
-    AgentSpan currSpan = AgentTracer.activeSpan();
-    //    System.out.println(currSpan.getTags());
-    //    String myPeerService = currSpan.getTag(Tags.PEER_SERVICE).toString();
-    //
-    //    if (myPeerService != null) {
-    //      System.out.print(myPeerService);
-    //    }
 
     if (sql == null || sql.isEmpty()) {
       return sql;
@@ -200,8 +184,6 @@ public class SQLCommenter {
     final String parentService = config.getServiceName();
     final String env = config.getEnv();
     final String version = config.getVersion();
-    //    String configPeerService = config.getPeerServiceMapping().get(Tags.PEER_SERVICE);
-    //    System.out.println(configPeerService);
 
     final int commentSize = capacity(traceParent, parentService, dbService, env, version);
     StringBuilder sb = new StringBuilder(sql.length() + commentSize);
@@ -333,9 +315,8 @@ public class SQLCommenter {
       final String env,
       final String version,
       final String traceparent) {
-    System.out.println("in the new to Comment");
     int emptySize = sb.length();
-    System.out.println("DB INSTANCE PEER SERVICE:" + dbInstance);
+
     append(sb, PARENT_SERVICE, parentService, false);
     append(sb, DATABASE_SERVICE, dbService, sb.length() > emptySize);
     append(sb, DD_HOSTNAME, hostname, sb.length() > emptySize);
