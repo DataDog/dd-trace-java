@@ -7,7 +7,6 @@ import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.Metadata;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerGroupMetadata;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.internals.ConsumerDelegate;
 import org.apache.kafka.clients.consumer.internals.OffsetCommitCallbackInvoker;
 
@@ -54,9 +53,7 @@ public class ConstructorAdvice {
     }
   }
 
-  public static void muzzleCheck(ConsumerRecord record) {
-    // KafkaConsumerInstrumentation only applies for kafka versions with headers
-    // Make an explicit call so KafkaConsumerGroupInstrumentation does the same
-    record.headers();
+  public static void muzzleCheck(OffsetCommitCallbackInvoker invoker) {
+    invoker.executeCallbacks();
   }
 }

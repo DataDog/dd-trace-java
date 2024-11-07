@@ -23,6 +23,7 @@ import java.util.LinkedHashMap;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.ApiVersions;
 import org.apache.kafka.clients.Metadata;
+import org.apache.kafka.clients.consumer.internals.OffsetCommitCallbackInvoker;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -113,5 +114,9 @@ public class ProducerAdvice {
     PRODUCER_DECORATE.onError(scope, throwable);
     PRODUCER_DECORATE.beforeFinish(scope);
     scope.close();
+  }
+
+  public static void muzzleCheck(OffsetCommitCallbackInvoker invoker) {
+    invoker.executeCallbacks();
   }
 }

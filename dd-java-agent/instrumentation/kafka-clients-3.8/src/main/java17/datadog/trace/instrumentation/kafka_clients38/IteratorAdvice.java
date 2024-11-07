@@ -6,6 +6,7 @@ import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.Metadata;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.internals.OffsetCommitCallbackInvoker;
 
 public class IteratorAdvice {
 
@@ -31,5 +32,9 @@ public class IteratorAdvice {
               clusterId,
               bootstrapServers);
     }
+  }
+
+  public static void muzzleCheck(OffsetCommitCallbackInvoker invoker) {
+    invoker.executeCallbacks();
   }
 }

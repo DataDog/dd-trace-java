@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
 import net.bytebuddy.asm.Advice;
+import org.apache.kafka.clients.consumer.internals.OffsetCommitCallbackInvoker;
 
 public class PayloadSizeAdvice {
 
@@ -31,5 +32,9 @@ public class PayloadSizeAdvice {
       // then send the point
       AgentTracer.get().getDataStreamsMonitoring().add(updated);
     }
+  }
+
+  public static void muzzleCheck(OffsetCommitCallbackInvoker invoker) {
+    invoker.executeCallbacks();
   }
 }

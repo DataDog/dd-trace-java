@@ -12,9 +12,9 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.Metadata;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.consumer.internals.ConsumerCoordinator;
+import org.apache.kafka.clients.consumer.internals.OffsetCommitCallbackInvoker;
 import org.apache.kafka.clients.consumer.internals.RequestFuture;
 import org.apache.kafka.common.TopicPartition;
 
@@ -66,9 +66,7 @@ public class ConsumerCoordinatorAdvice {
     }
   }
 
-  public static void muzzleCheck(ConsumerRecord record) {
-    // KafkaConsumerInstrumentation only applies for kafka versions with headers
-    // Make an explicit call so ConsumerCoordinatorInstrumentation does the same
-    record.headers();
+  public static void muzzleCheck(OffsetCommitCallbackInvoker invoker) {
+    invoker.executeCallbacks();
   }
 }

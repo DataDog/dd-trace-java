@@ -13,6 +13,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.internals.ConsumerDelegate;
+import org.apache.kafka.clients.consumer.internals.OffsetCommitCallbackInvoker;
 
 /**
  * this method transfers the consumer group from the KafkaConsumer class key to the ConsumerRecords
@@ -59,5 +60,9 @@ public class RecordsAdvice {
     span.setTag(KAFKA_RECORDS_COUNT, recordsCount);
     span.finish();
     scope.close();
+  }
+
+  public static void muzzleCheck(OffsetCommitCallbackInvoker invoker) {
+    invoker.executeCallbacks();
   }
 }
