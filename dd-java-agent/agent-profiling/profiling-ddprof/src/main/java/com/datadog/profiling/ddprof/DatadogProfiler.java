@@ -329,7 +329,7 @@ public final class DatadogProfiler {
     debugLogging(rootSpanId);
     try {
       profiler.setContext(spanId, rootSpanId);
-    } catch (IllegalStateException e) {
+    } catch (Throwable e) {
       log.debug("Failed to clear context", e);
     }
   }
@@ -338,14 +338,18 @@ public final class DatadogProfiler {
     debugLogging(0L);
     try {
       profiler.setContext(0L, 0L);
-    } catch (IllegalStateException e) {
+    } catch (Throwable e) {
       log.debug("Failed to set context", e);
     }
   }
 
   public boolean setContextValue(int offset, int encoding) {
     if (contextSetter != null && offset >= 0) {
-      return contextSetter.setContextValue(offset, encoding);
+      try {
+        return contextSetter.setContextValue(offset, encoding);
+      } catch (Throwable e) {
+        log.debug("Failed to set context", e);
+      }
     }
     return false;
   }
@@ -353,7 +357,11 @@ public final class DatadogProfiler {
   public boolean setContextValue(int offset, CharSequence value) {
     if (contextSetter != null && offset >= 0) {
       int encoding = encode(value);
-      return contextSetter.setContextValue(offset, encoding);
+      try {
+        return contextSetter.setContextValue(offset, encoding);
+      } catch (Throwable e) {
+        log.debug("Failed to set context", e);
+      }
     }
     return false;
   }
@@ -374,7 +382,11 @@ public final class DatadogProfiler {
 
   public boolean clearContextValue(int offset) {
     if (contextSetter != null && offset >= 0) {
-      return contextSetter.clearContextValue(offset);
+      try {
+        return contextSetter.clearContextValue(offset);
+      } catch (Throwable t) {
+        log.debug("Failed to clear context", t);
+      }
     }
     return false;
   }
