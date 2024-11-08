@@ -92,12 +92,14 @@ public class SmapEntryFactory {
         boolean arrivedAtMappings = false;
 
         for (String line : lines) {
+          // The output begins with a legend followed by a `size prot offset What` table header
           if (!arrivedAtMappings) {
             if (line.startsWith("size")) {
               arrivedAtMappings = true;
             }
             continue;
           } else {
+            // The final line contains the total number of mappings and their net vsize
             if (line.startsWith("Total")) {
               break;
             }
@@ -112,6 +114,9 @@ public class SmapEntryFactory {
           }
 
           if (segments.length >= 7) {
+            // The schema is derived from an example output, see
+            // https://gist.github.com/MattAlp/5618219d5719e773d4c1fedfe9ff399d
+            // It may need to be updated in the future
             String description = segments[6];
             if (description.startsWith("STACK")) {
               annotatedRegions.put(startAddress, "STACK");
