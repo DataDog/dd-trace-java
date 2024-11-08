@@ -130,7 +130,6 @@ public class SmapEntryFactory {
     }
   }
 
-  @SuppressForbidden // split with one-char String use a fast-path without regex usage
   static List<? extends Event> collectEvents() {
     if (!SMAP_ENTRY_EVENT.isEnabled()) {
       return Collections.emptyList();
@@ -188,6 +187,7 @@ public class SmapEntryFactory {
           buffer.append(chars[i]);
           i++;
         }
+        buffer.insert(0, new char[] {'0', 'x'});
         startAddress = Long.decode(buffer.toString());
         buffer.setLength(0);
         i++;
@@ -197,6 +197,7 @@ public class SmapEntryFactory {
           buffer.append(chars[i]);
           i++;
         }
+        buffer.insert(0, new char[] {'0', 'x'});
         endAddress = Long.decode(buffer.toString());
         buffer.setLength(0);
         i++;
@@ -216,7 +217,8 @@ public class SmapEntryFactory {
           buffer.append(chars[i]);
           i++;
         }
-        offset = Long.decode("0x" + buffer.toString());
+        buffer.insert(0, new char[] {'0', 'x'});
+        offset = Long.decode(buffer.toString());
         buffer.setLength(0);
         i++;
 
@@ -403,6 +405,7 @@ public class SmapEntryFactory {
     } catch (FileNotFoundException e) {
       return List.of(new SmapParseErrorEvent(ErrorReason.SMAP_FILE_NOT_FOUND));
     } catch (Exception e) {
+      e.printStackTrace();
       return List.of(new SmapParseErrorEvent(ErrorReason.SMAP_PARSING_ERROR));
     }
   }
