@@ -16,13 +16,25 @@ jobs:
         uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # 4.1.6
         with:
           submodules: 'recursive'
-      - name: Check code meets quality standards
+      - name: Check code meets quality standards (production)
         id: datadog-static-analysis
         uses: DataDog/datadog-static-analyzer-github-action@c74aff158c8cc1c3e285660713bcaa5f9c6d696e # v1
         with:
-          dd_app_key: ${{ secrets.DD_APP_KEY }}
-          dd_api_key: ${{ secrets.DD_API_KEY }}
-          dd_site: datad0g.com
+          dd_app_key: ${{ secrets.DATADOG_APP_KEY_PROD }}
+          dd_api_key: ${{ secrets.DATADOG_API_KEY_PROD }}
+          dd_site: "datadoghq.com"
+          dd_service: "dd-trace-java"
+          dd_env: "ci"
+          cpu_count: 2
+          enable_performance_statistics: false
+      # Also run the static analysis on the staging environment to benefit from the new features not yet released
+      - name: Check code meets quality standards (staging)
+        id: datadog-static-analysis-staging
+        uses: DataDog/datadog-static-analyzer-github-action@c74aff158c8cc1c3e285660713bcaa5f9c6d696e # v1
+        with:
+          dd_app_key: ${{ secrets.DATADOG_APP_KEY_STAGING }}
+          dd_api_key: ${{ secrets.DATADOG_API_KEY_STAGING }}
+          dd_site: "datad0g.com"
           dd_service: "dd-trace-java"
           dd_env: "ci"
           cpu_count: 2
@@ -77,11 +89,19 @@ jobs:
       # For now, CodeQL SARIF results are not supported by Datadog CI
       # - name: Upload results to Datadog CI Static Analysis
       #   run: |
-      #     wget --no-verbose https://github.com/DataDog/datadog-ci/releases/download/v2.42.0/datadog-ci_linux-x64 -O datadog-ci
+      #     wget --no-verbose https://github.com/DataDog/datadog-ci/releases/latest/download/datadog-ci_linux-x64 -O datadog-ci
       #     chmod +x datadog-ci
       #     ./datadog-ci sarif upload /home/runner/work/dd-trace-java/results/java.sarif --service dd-trace-java --env ci
       #   env:
-      #     DD_API_KEY: ${{ secrets.DD_API_KEY }}
+      #     DD_API_KEY: ${{ secrets.DATADOG_APP_KEY_PROD }}
+      #     DD_SITE: datadoghq.com
+
+      # For now, CodeQL SARIF results are not supported by Datadog CI
+      # - name: Upload results to Datadog Staging CI Static Analysis
+      #   run: |
+      #     ./datadog-ci sarif upload /home/runner/work/dd-trace-java/results/java.sarif --service dd-trace-java --env ci
+      #   env:
+      #     DD_API_KEY: ${{ secrets.DATADOG_API_KEY_STAGING }}
       #     DD_SITE: datad0g.com
 
   trivy:
@@ -152,9 +172,16 @@ jobs:
 
       - name: Upload results to Datadog CI Static Analysis
         run: |
-          wget --no-verbose https://github.com/DataDog/datadog-ci/releases/download/v2.42.0/datadog-ci_linux-x64 -O datadog-ci
+          wget --no-verbose https://github.com/DataDog/datadog-ci/releases/latest/download/datadog-ci_linux-x64 -O datadog-ci
           chmod +x datadog-ci
           ./datadog-ci sarif upload trivy-results.sarif --service dd-trace-java --env ci
         env:
-          DD_API_KEY: ${{ secrets.DD_API_KEY }}
+          DD_API_KEY: ${{ secrets.DATADOG_API_KEY_PROD }}
+          DD_SITE: datadoghq.com
+
+      - name: Upload results to Datadog Staging CI Static Analysis
+        run: |
+          ./datadog-ci sarif upload trivy-results.sarif --service dd-trace-java --env ci
+        env:
+          DD_API_KEY: ${{ secrets.DATADOG_API_KEY_STAGING }}
           DD_SITE: datad0g.com
