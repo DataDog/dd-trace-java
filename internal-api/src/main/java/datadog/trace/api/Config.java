@@ -3305,12 +3305,12 @@ public class Config {
         getRuntimeId(),
         getEnv(),
         LANGUAGE_TAG_VALUE,
-        System.getProperty("java.runtime.name"),
-        System.getProperty("java.version"),
-        System.getProperty("java.vendor"),
-        System.getProperty("os.arch"),
-        System.getProperty("os.name"),
-        System.getProperty("os.version"));
+        SystemUtils.tryGetProperty("java.runtime.name"),
+        SystemUtils.tryGetProperty("java.version"),
+        SystemUtils.tryGetProperty("java.vendor"),
+        SystemUtils.tryGetProperty("os.arch"),
+        SystemUtils.tryGetProperty("os.name"),
+        SystemUtils.tryGetProperty("os.version"));
   }
 
   public String getPrimaryTag() {
