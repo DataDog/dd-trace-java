@@ -7,6 +7,7 @@ import datadog.trace.logging.LoggerHelper;
 import datadog.trace.logging.LoggerHelperFactory;
 import datadog.trace.logging.LoggingSettingsDescription;
 import datadog.trace.logging.simplelogger.SLCompatFactory;
+import datadog.trace.util.SystemUtils;
 import org.slf4j.ILoggerFactory;
 import org.slf4j.Logger;
 import org.slf4j.Marker;
@@ -99,14 +100,14 @@ public class DDLoggerFactory implements ILoggerFactory, LogLevelSwitcher {
 
   private static boolean isFlagEnabled(
       final String systemProperty, final String envVar, final boolean defaultValue) {
-    String value = System.getProperty(systemProperty);
+    String value = SystemUtils.tryGetProperty(systemProperty);
     if ("true".equalsIgnoreCase(value)) {
       return true;
     }
     if ("false".equalsIgnoreCase(value)) {
       return false;
     }
-    value = System.getenv(envVar);
+    value = SystemUtils.tryGetEnv(envVar);
     if ("true".equalsIgnoreCase(value)) {
       return true;
     }

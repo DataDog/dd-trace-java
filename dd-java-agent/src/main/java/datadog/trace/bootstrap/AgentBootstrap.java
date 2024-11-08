@@ -90,7 +90,10 @@ public final class AgentBootstrap {
   }
 
   private static BootstrapInitializationTelemetry createInitializationTelemetry() {
+    System.out.println("AGENTBOOTSTRAP - before trying to get env DD_TELEMETRY_FORWARDER_PATH");
     String forwarderPath = SystemUtils.tryGetEnv("DD_TELEMETRY_FORWARDER_PATH");
+    System.out.println("AGENTBOOTSTRAP - after trying to get env DD_TELEMETRY_FORWARDER_PATH");
+    System.out.println("AGENTBOOTSTRAP - forwarderPath is " + forwarderPath);
     if (forwarderPath == null) {
       return BootstrapInitializationTelemetry.noOpInstance();
     }
@@ -158,9 +161,16 @@ public final class AgentBootstrap {
   static boolean getConfig(String configName) {
     switch (configName) {
       case LIB_INJECTION_ENABLED_FLAG:
-        return SystemUtils.tryGetEnv(LIB_INJECTION_ENABLED_FLAG) != null;
+        System.out.println("AGENTBOOTSTRAP - before trying to get env DD_INJECTION_ENABLED");
+        String flag = SystemUtils.tryGetEnv(LIB_INJECTION_ENABLED_FLAG);
+        System.out.println("AGENTBOOTSTRAP - after trying to get env DD_INJECTION_ENABLED");
+        System.out.println("AGENTBOOTSTRAP - flag is " + flag);
+        return flag != null;
       case LIB_INJECTION_FORCE_FLAG:
+        System.out.println("AGENTBOOTSTRAP - before trying to get env DD_INJECT_FORCE");
         String libInjectionForceFlag = SystemUtils.tryGetEnv(LIB_INJECTION_FORCE_FLAG);
+        System.out.println("AGENTBOOTSTRAP - after trying to get env DD_INJECT_FORCE");
+        System.out.println("AGENTBOOTSTRAP - flag is " + libInjectionForceFlag);
         return "true".equalsIgnoreCase(libInjectionForceFlag) || "1".equals(libInjectionForceFlag);
       default:
         return false;

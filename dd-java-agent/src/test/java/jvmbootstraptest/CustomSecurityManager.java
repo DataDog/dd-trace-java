@@ -49,6 +49,7 @@ public class CustomSecurityManager extends SecurityManager {
     }
 
     if (!allow) {
+      System.out.println("CUSTOMSECURITYMANAGER - permission denied at " + perm);
       if (DEBUG) System.err.println("Blocked: " + perm);
 
       block(perm);

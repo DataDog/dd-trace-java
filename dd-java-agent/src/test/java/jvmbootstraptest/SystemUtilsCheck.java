@@ -12,7 +12,9 @@ public final class SystemUtilsCheck {
     System.out.println(config.toString());
     if (!Config.get().getEnv().equals("unnamed-java-app")) {
       System.out.println("Env is not set to default value."); // something else here?
+      System.exit(0);
     }
+    System.exit(2);
   }
 
   public static final int runTestJvm(Class<? extends TestSecurityManager> securityManagerClass)
