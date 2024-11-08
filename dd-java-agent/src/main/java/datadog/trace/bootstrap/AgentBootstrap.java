@@ -158,9 +158,9 @@ public final class AgentBootstrap {
   static boolean getConfig(String configName) {
     switch (configName) {
       case LIB_INJECTION_ENABLED_FLAG:
-        return System.getenv(LIB_INJECTION_ENABLED_FLAG) != null;
+        return SystemUtils.tryGetEnv(LIB_INJECTION_ENABLED_FLAG) != null;
       case LIB_INJECTION_FORCE_FLAG:
-        String libInjectionForceFlag = System.getenv(LIB_INJECTION_FORCE_FLAG);
+        String libInjectionForceFlag = SystemUtils.tryGetEnv(LIB_INJECTION_FORCE_FLAG);
         return "true".equalsIgnoreCase(libInjectionForceFlag) || "1".equals(libInjectionForceFlag);
       default:
         return false;
@@ -192,7 +192,7 @@ public final class AgentBootstrap {
 
   private static boolean lessThanJava8() {
     try {
-      return lessThanJava8(System.getProperty("java.version"), System.err);
+      return lessThanJava8(SystemUtils.tryGetProperty("java.version"), System.err);
     } catch (SecurityException e) {
       // Hypothetically, we could version sniff the supported version level
       // For now, just skip the check and let the JVM handle things instead
