@@ -7,6 +7,8 @@ import java.net.URL;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.HttpMethod;
 import org.apache.commons.httpclient.methods.GetMethod;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.http.HttpHost;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.DefaultHttpClient;
@@ -87,6 +89,27 @@ public class SsrfController {
     }
     client.dispatcher().executorService().shutdown();
     client.connectionPool().evictAll();
+    return "ok";
+  }
+
+  @PostMapping("/apache-httpclient5")
+  public String apacheHttpClient5(
+      @RequestParam(value = "url", required = false) final String url,
+      @RequestParam(value = "host", required = false) final String host) {
+    CloseableHttpClient client = HttpClients.createDefault();
+    org.apache.hc.client5.http.classic.methods.HttpGet request =
+        new org.apache.hc.client5.http.classic.methods.HttpGet(url);
+    try {
+      if (host != null) {
+        //        final HttpHost httpHost = new HttpHost(host);
+        //        final BasicHttpRequest request = new BasicHttpRequest("GET", "/");
+        //        client.execute(httpHost, request);
+      } else if (url != null) {
+        client.execute(request);
+      }
+      client.close();
+    } catch (Exception e) {
+    }
     return "ok";
   }
 }

@@ -20,6 +20,7 @@ import datadog.trace.bootstrap.FieldBackedContextAccessor;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.util.AgentTaskScheduler;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
+import java.io.File;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.util.Collections;
@@ -42,6 +43,7 @@ import net.bytebuddy.dynamic.scaffold.InstrumentedType;
 import net.bytebuddy.dynamic.scaffold.MethodGraph;
 import net.bytebuddy.matcher.LatentMatcher;
 import net.bytebuddy.utility.JavaModule;
+import net.bytebuddy.utility.nullability.MaybeNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -153,6 +155,57 @@ public class AgentInstaller {
             .with(AgentStrategies.bufferStrategy())
             .with(AgentStrategies.typeStrategy())
             .with(new ClassLoadListener())
+            .with(
+                new AgentBuilder.Listener.Adapter() {
+                  @Override
+                  public void onTransformation(
+                      TypeDescription typeDescription,
+                      ClassLoader classLoader,
+                      JavaModule module,
+                      boolean loaded,
+                      DynamicType dynamicType) {
+                    try {
+                      if (typeDescription
+                          .getName()
+                          .equals("org.apache.hc.core5.http.message.LineFormatter")) {
+                        //
+                        // Utils.getInstrumentation().retransformClasses(Class.forName("org.apache.hc.core5.http.message.BasicHttpRequest", true, classLoader));
+                      }
+                      dynamicType.saveIn(new File("/Users/mario.vidal/Documents/instrumentations"));
+                    } catch (Throwable e) {
+                      throw new RuntimeException(e);
+                    }
+                  }
+
+                  @Override
+                  public void onDiscovery(
+                      String typeName,
+                      @MaybeNull ClassLoader classLoader,
+                      @MaybeNull JavaModule module,
+                      boolean loaded) {
+                    super.onDiscovery(typeName, classLoader, module, loaded);
+                  }
+
+                  @Override
+                  public void onIgnored(
+                      TypeDescription typeDescription,
+                      @MaybeNull ClassLoader classLoader,
+                      @MaybeNull JavaModule module,
+                      boolean loaded) {
+                    super.onIgnored(typeDescription, classLoader, module, loaded);
+                  }
+
+                  @Override
+                  public void onError(
+                      String typeName,
+                      ClassLoader classLoader,
+                      JavaModule module,
+                      boolean loaded,
+                      Throwable throwable) {
+                    super.onError(typeName, classLoader, module, loaded, throwable);
+                  }
+                })
+
             // FIXME: we cannot enable it yet due to BB/JVM bug, see
             // https://github.com/raphw/byte-buddy/issues/558
             // .with(AgentBuilder.LambdaInstrumentationStrategy.ENABLED)
