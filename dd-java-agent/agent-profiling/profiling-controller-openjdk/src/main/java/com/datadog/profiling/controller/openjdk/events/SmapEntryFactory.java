@@ -13,8 +13,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
 import jdk.jfr.Category;
@@ -31,9 +29,6 @@ public class SmapEntryFactory {
 
   private static final AtomicBoolean REGISTERED = new AtomicBoolean();
   private static boolean annotatedMapsAvailable;
-  private static final Pattern SYSTEM_MAP_ENTRY_PATTERN =
-      Pattern.compile(
-          "([0-9a-fA-Fx]+)\\s+-\\s+([0-9a-fA-Fx]+)\\s+(\\d+)\\s+(\\S+)\\s+(\\S+)(?:\\s+(.*))?");
   private static final String VSYSCALL_START_ADDRESS = "ffffffffff600000";
   private static final SmapEntryEvent SMAP_ENTRY_EVENT = new SmapEntryEvent();
 
@@ -91,34 +86,49 @@ public class SmapEntryFactory {
         String[] emptyStringArgs = {};
         Object[] dcmdArgs = {emptyStringArgs};
         String[] signature = {String[].class.getName()};
-
         String[] lines =
             ((String) mbs.invoke(objectName, "systemMap", dcmdArgs, signature)).split("\n");
         HashMap<Long, String> annotatedRegions = new HashMap<>();
+        boolean arrivedAtMappings = false;
 
         for (String line : lines) {
-          Matcher matcher = SYSTEM_MAP_ENTRY_PATTERN.matcher(line);
-          if (matcher.matches()) {
-            long startAddress;
-            if (matcher.group(1).equals("0x" + VSYSCALL_START_ADDRESS)) {
-              // See how smap entry parsing is done for vsyscall
-              startAddress = -0x1000 - 1;
-            } else {
-              startAddress = Long.decode(matcher.group(1));
+          if (!arrivedAtMappings) {
+            if (line.startsWith("size")) {
+              arrivedAtMappings = true;
             }
-            String description = matcher.group(6);
-            annotatedRegions.put(startAddress, description);
-            if (description.isEmpty()) {
-              annotatedRegions.put(startAddress, "UNDEFINED");
-            } else if (description.startsWith("STACK")) {
+            continue;
+          } else {
+            if (line.startsWith("Total")) {
+              break;
+            }
+          }
+
+          String[] segments = line.split("\\s+");
+          long startAddress;
+          if (segments[0].equals("0x" + VSYSCALL_START_ADDRESS)) {
+            startAddress = -0x1000 - 1;
+          } else {
+            startAddress = Long.decode(segments[0]);
+          }
+
+          if (segments.length >= 7) {
+            String description = segments[6];
+            if (description.startsWith("STACK")) {
               annotatedRegions.put(startAddress, "STACK");
             } else if (description.startsWith("[") || description.startsWith("/")) {
               annotatedRegions.put(startAddress, "SYSTEM");
+            } else if (description.startsWith("CDS")) {
+              annotatedRegions.put(startAddress, "CDS");
+            } else if (description.startsWith("INTERN")) {
+              annotatedRegions.put(startAddress, "INTERN");
             } else {
-              annotatedRegions.put(startAddress, description.split("\\s+")[0]);
+              annotatedRegions.put(startAddress, description);
             }
+          } else {
+            annotatedRegions.put(startAddress, "UNDEFINED");
           }
         }
+
         return annotatedRegions;
       } catch (Exception e) {
         new SmapParseErrorEvent(ErrorReason.VM_MAP_PARSING_ERROR).commit();
@@ -143,7 +153,7 @@ public class SmapEntryFactory {
     long offset;
     String dev;
     int inode;
-    String pathname = "";
+    String pathname;
 
     long size = 0;
     long kernelPageSize = 0;
@@ -169,9 +179,11 @@ public class SmapEntryFactory {
     long locked = 0;
 
     boolean thpEligible = false;
-    String vmFlags = "";
+    String vmFlags;
 
     HashMap<Long, String> annotatedRegions = getAnnotatedRegions();
+    // Partially based on
+    // https://gist.github.com/vladimir-bukhtoyarov/314c4080368bb5ba0acdcc7e5cb88304
     try (BufferedReader reader = new BufferedReader(new FileReader("/proc/self/smaps"))) {
       String line;
       StringBuilder buffer = new StringBuilder();
@@ -182,27 +194,32 @@ public class SmapEntryFactory {
         char[] chars = line.toCharArray();
         int i = 0;
 
-        // parse begin address
         while (chars[i] != '-') {
           buffer.append(chars[i]);
           i++;
         }
         buffer.insert(0, new char[] {'0', 'x'});
         startAddress = Long.decode(buffer.toString());
-        buffer.setLength(0);
-        i++;
 
-        // parse end address
-        while (chars[i] != ' ') {
-          buffer.append(chars[i]);
+        if (buffer.toString().equals("0x" + VSYSCALL_START_ADDRESS)) {
+          startAddress = -0x1000 - 1;
+          endAddress = -1;
+        } else {
+          buffer.setLength(0);
           i++;
+
+          // parse end address
+          while (chars[i] != ' ') {
+            buffer.append(chars[i]);
+            i++;
+          }
+          buffer.insert(0, new char[] {'0', 'x'});
+          endAddress = Long.decode(buffer.toString());
         }
-        buffer.insert(0, new char[] {'0', 'x'});
-        endAddress = Long.decode(buffer.toString());
+
         buffer.setLength(0);
         i++;
 
-        // parse permissions
         while (chars[i] != ' ') {
           buffer.append(chars[i]);
           i++;
@@ -211,8 +228,6 @@ public class SmapEntryFactory {
         buffer.setLength(0);
         i++;
 
-        //
-        // parse offset
         while (chars[i] != ' ') {
           buffer.append(chars[i]);
           i++;
@@ -222,7 +237,6 @@ public class SmapEntryFactory {
         buffer.setLength(0);
         i++;
 
-        // parse device
         while (chars[i] != ' ') {
           buffer.append(chars[i]);
           i++;
@@ -231,7 +245,6 @@ public class SmapEntryFactory {
         buffer.setLength(0);
         i++;
 
-        // parse end inode
         while (chars[i] != ' ') {
           buffer.append(chars[i]);
           i++;
@@ -240,7 +253,6 @@ public class SmapEntryFactory {
         buffer.setLength(0);
         i++;
 
-        // parse pathname
         while (i < chars.length) {
           if (chars[i] != ' ') {
             buffer.append(chars[i]);
@@ -249,7 +261,6 @@ public class SmapEntryFactory {
         }
         pathname = buffer.toString();
 
-        HashMap<String, Long> attributes = new HashMap<>();
         while (true) {
           buffer.setLength(0);
           String attributeLine = reader.readLine();
@@ -405,7 +416,6 @@ public class SmapEntryFactory {
     } catch (FileNotFoundException e) {
       return List.of(new SmapParseErrorEvent(ErrorReason.SMAP_FILE_NOT_FOUND));
     } catch (Exception e) {
-      e.printStackTrace();
       return List.of(new SmapParseErrorEvent(ErrorReason.SMAP_PARSING_ERROR));
     }
   }
