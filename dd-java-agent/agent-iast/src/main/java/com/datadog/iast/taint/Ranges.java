@@ -373,12 +373,11 @@ public final class Ranges {
         if (range.getStart() + range.getLength() > end) {
           newLength -= lineOffset;
         }
-        newRanges[i] = new Range(newStart, newLength, range.getSource(), range.getMarks());
+        newRanges[i] = copyWithPosition(range, newStart, newLength);
       } else if (range.getStart() + range.getLength() >= start) {
         final Range newRange = newRanges[i];
         final int newLength = newRange.getLength() + indentation;
-        newRanges[i] =
-            new Range(newRange.getStart(), newLength, newRange.getSource(), newRange.getMarks());
+        newRanges[i] = copyWithPosition(newRange, newRange.getStart(), newLength);
       }
 
       if (range.getStart() + range.getLength() - 1 <= end) {
@@ -389,5 +388,42 @@ public final class Ranges {
     }
 
     return rangeStart;
+  }
+
+  /**
+   * Split the range in two taking into account the new length of the characters.
+   *
+   * <p>In case start and end are out of the range, it will return the range without splitting but
+   * taking into account the offset. In the case that the new length is less than or equal to 0, it
+   * will return an empty array.
+   *
+   * @param start is the start of the character sequence
+   * @param end is the end of the character sequence
+   * @param newLength is the new length of the character sequence
+   * @param range is the range to split
+   * @param offset is the offset to apply to the range
+   * @param diffLength is the difference between the new length and the old length
+   */
+  public static Range[] splitRanges(
+      int start, int end, int newLength, Range range, int offset, int diffLength) {
+    start += offset;
+    end += offset;
+    int rangeStart = range.getStart() + offset;
+    int rangeEnd = rangeStart + range.getLength() + diffLength;
+
+    int firstLength = start - rangeStart;
+    int secondLength = range.getLength() - firstLength - newLength + diffLength;
+    if (rangeStart > end || rangeEnd <= start) {
+      if (firstLength <= 0) {
+        return Ranges.EMPTY;
+      }
+      return new Range[] {copyWithPosition(range, rangeStart, firstLength)};
+    }
+
+    Range[] splittedRanges = new Range[2];
+    splittedRanges[0] = copyWithPosition(range, rangeStart, firstLength);
+    splittedRanges[1] = copyWithPosition(range, rangeEnd - secondLength, secondLength);
+
+    return splittedRanges;
   }
 }
