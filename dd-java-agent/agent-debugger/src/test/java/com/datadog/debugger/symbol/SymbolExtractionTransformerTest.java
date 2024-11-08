@@ -43,6 +43,7 @@ class SymbolExtractionTransformerTest {
               "javax.",
               "javaslang.",
               "org.omg.",
+              "org.joor.",
               "com.datadog.debugger.")
           .collect(Collectors.toSet());
 
@@ -894,6 +895,20 @@ class SymbolExtractionTransformerTest {
         symbolSinkMock.jarScopes.stream()
             .flatMap(scope -> scope.getScopes().stream())
             .anyMatch(scope -> scope.getName().equals(CLASS_NAME)));
+  }
+
+  @Test
+  public void duplicateClassThroughDifferentClassLoader() throws IOException, URISyntaxException {
+    final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction01";
+    SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
+    SymbolExtractionTransformer transformer = createTransformer(symbolSinkMock);
+    instr.addTransformer(transformer);
+    for (int i = 0; i < 10; i++) {
+      // compile and load the class in a specific ClassLoader each time
+      Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+      Reflect.on(testClass).call("main", "1").get();
+    }
+    assertEquals(1, symbolSinkMock.jarScopes.size());
   }
 
   private void assertLangSpecifics(
