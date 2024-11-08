@@ -4,59 +4,29 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
+import datadog.trace.util.MethodHandles;
 import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
-import java.lang.reflect.Field;
 import java.util.Properties;
 import org.apache.spark.executor.Executor;
 import org.apache.spark.executor.TaskMetrics;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class SparkExecutorDecorator extends BaseDecorator {
-  private static final Logger log = LoggerFactory.getLogger(SparkExecutorDecorator.class);
-
   public static final CharSequence SPARK_TASK = UTF8BytesString.create("spark.task");
   public static final CharSequence SPARK = UTF8BytesString.create("spark");
   public static SparkExecutorDecorator DECORATE = new SparkExecutorDecorator();
   private final String propSparkAppName = "spark.app.name";
   private static final String TASK_DESCRIPTION_CLASSNAME =
       "org.apache.spark.scheduler.TaskDescription";
-  private static final MethodHandles.Lookup lookup = MethodHandles.lookup();
-  private static final MethodHandle propertiesField_mh;
-
-  private static Class<?> initClass() {
-    try {
-      return Class.forName(
-          SparkExecutorDecorator.TASK_DESCRIPTION_CLASSNAME,
-          false,
-          SparkExecutorDecorator.class.getClassLoader());
-    } catch (ClassNotFoundException e) {
-      log.debug("Can't find class '{}'", TASK_DESCRIPTION_CLASSNAME, e);
-    }
-    return null;
-  }
+  private static final MethodHandle propertiesField_mh = getFieldGetter();
 
   private static MethodHandle getFieldGetter() {
-    Class<?> cls = initClass();
-
     try {
-      if (cls != null) {
-        Field field = cls.getDeclaredField("properties");
-        field.setAccessible(true);
-
-        return lookup.unreflectGetter(field);
-      }
-
-    } catch (NoSuchFieldException | IllegalAccessException e) {
-      log.debug("Can't find and unreflect declared field for '{}'", TASK_DESCRIPTION_CLASSNAME);
+      return new MethodHandles(Executor.class.getClassLoader())
+          .privateFieldGetter(TASK_DESCRIPTION_CLASSNAME, "properties");
+    } catch (Throwable ignored) {
+      // should be already logged
     }
-
     return null;
-  }
-
-  static {
-    propertiesField_mh = getFieldGetter();
   }
 
   @Override
