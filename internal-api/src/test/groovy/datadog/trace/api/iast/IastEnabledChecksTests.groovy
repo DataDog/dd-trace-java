@@ -36,4 +36,20 @@ class IastEnabledChecksTests extends DDSpecification {
     IastDetectionMode.FULL    | true
     IastDetectionMode.DEFAULT | false
   }
+
+  void 'test experimental propagation'() {
+    setup:
+    injectSysConfig(IastConfig.IAST_EXPERIMENTAL_PROPAGATION_ENABLED, value)
+
+    when:
+    final isExperimentalPropagationEnabled = IastEnabledChecks.isExperimentalPropagationEnabled()
+
+    then:
+    isExperimentalPropagationEnabled == expected
+
+    where:
+    value   | expected
+    "true"  | true
+    "false" | false
+  }
 }

@@ -1,0 +1,75 @@
+name: Check pull requests
+on:
+  pull_request:
+    types: [opened, edited, labeled, unlabeled]
+    branches:
+    - master
+    - release/v*
+jobs:
+  check_pull_requests:
+    name: Check pull requests
+    permissions:
+      issues: write # Required to create a comment on the pull request
+      pull-requests: write # Required to create a comment on the pull request
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check pull requests
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # 7.0.1
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            // Skip draft pull requests
+            if (context.payload.pull_request.draft) {
+              return
+            }
+            // Check at least one type and (component or instrumentation) label is set
+            const labels = context.payload.pull_request.labels.map(label => label.name)
+            const ignoreReleaseNotes = labels.filter(label => label == 'tag: no release notes').length > 0
+            const hasTypeLabel = labels.filter(label => label.startsWith('type:')).length > 0
+            const hasComponentLabel = labels.filter(label => label.startsWith('comp:')).length > 0
+            const hasInstrumentationLabel = labels.filter(label => label.startsWith('instr:')).length > 0
+            const labelsCheckFailed = !ignoreReleaseNotes && (!hasTypeLabel || (!hasComponentLabel && !hasInstrumentationLabel));
+            if (labelsCheckFailed) {
+              core.setFailed('Please add at least one type, and one component or instrumentation label to the pull request.')
+            }
+            // Check title does not contain tag
+            const title = context.payload.pull_request.title
+            const titleCheckFailed = title.match(/\[.*\]/)
+            if (titleCheckFailed) {
+              core.setFailed('Please remove the tag from the pull request title.')
+            }
+            // Add comment to the pull request
+            if (labelsCheckFailed || titleCheckFailed) {
+              // Define comment body
+              const commentMarker = '<!-- dd-trace-java-check-pull-requests-workflow -->'
+              const commentBody = 'Hi! 👋 Thanks for your pull request! 🎉\n\n' +
+                  'To help us review it, please make sure to:\n\n' +
+                  (labelsCheckFailed ? '* Add at least one type, and one component or instrumentation label to the pull request\n' : '') +
+                  (titleCheckFailed ? '* Remove the tag from the pull request title\n' : '') +
+                  '\nIf you need help, please check our [contributing guidelines](https://github.com/DataDog/dd-trace-java/blob/master/CONTRIBUTING.md).' +
+                  '\n\n' + commentMarker
+              // Look for previous comment
+              const comments = await github.rest.issues.listComments({
+                issue_number: context.payload.pull_request.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo
+              })
+              const previousComment = comments.data.find(comment => comment.body.includes(commentMarker))
+              if (previousComment) {
+                // Update previous comment
+                await github.rest.issues.updateComment({
+                  comment_id: previousComment.id,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: commentBody
+                })
+              } else {
+                // Create new comment
+                await github.rest.issues.createComment({
+                  issue_number: context.payload.pull_request.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: commentBody
+                })
+              }
+            }

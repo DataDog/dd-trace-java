@@ -114,9 +114,8 @@ class PayloadTaggingRedactionForkedTest extends AbstractPayloadTaggingTest {
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
-    def redactTopLevelTags = "\$.*,\$.DisplayName.Owner"
-    injectSysConfig(TracerConfig.TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING, redactTopLevelTags)
-    injectSysConfig(TracerConfig.TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING, redactTopLevelTags)
+    injectSysConfig(TracerConfig.TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING, "all")
+    injectSysConfig(TracerConfig.TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING, "\$.*,\$.Owner.DisplayName")
   }
 
   def "test payload tag observability support for #service"() {
@@ -133,45 +132,46 @@ class PayloadTaggingRedactionForkedTest extends AbstractPayloadTaggingTest {
         span {
           spanType DDSpanTypes.HTTP_CLIENT
           childOf(span(0))
-          assert expectedReqTag == NA || span.tags.get("aws.request.body." + expectedReqTag) == "redacted"
+          assert expectedReqTag == NA || span.tags.get("aws.request.body." + expectedReqTag) == "tagvalue"
           assert expectedRespTag == NA || span.tags.get("aws.response.body." + expectedRespTag) == "redacted"
 
           assert !span.tags.containsKey("_dd.payload_tags_incomplete")
           assert !span.tags.containsKey("aws.request.body")
           assert !span.tags.containsKey("aws.response.body")
+          assert !span.tags.containsValue(null)
         }
       }
     }
 
     where:
-    service       | expectedReqTag                | expectedRespTag      | apiCall
-    "ApiGateway"  | "name"                        | "value"              | {
+    service       | expectedReqTag | expectedRespTag     | apiCall
+    "ApiGateway"  | "name"         | "value"             | {
       apiGatewayClient.createApiKey {
-        it.name("testapi")
+        it.name("tagvalue")
       }
     }
-    "EventBridge" | "Name"                        | "EventBusArn"        | {
+    "EventBridge" | "Name"         | "EventBusArn"       | {
       eventBridgeClient.createEventBus {
-        it.name("testbus")
+        it.name("tagvalue")
       }
     }
-    "Sns"         | "Name"                        | "TopicArn"           | {
+    "Sns"         | "Name"         | "TopicArn"          | {
       snsClient.createTopic {
-        it.name("testtopic")
+        it.name("tagvalue")
       }
     }
-    "Sqs"         | "QueueName"                   | "QueueUrl"           | {
+    "Sqs"         | "QueueName"    | "QueueUrl"          | {
       sqsClient.createQueue {
-        it.queueName("testqueue")
+        it.queueName("tagvalue")
       }
     }
-    "Kinesis"     | "StreamModeDetails"           | NA                   | {
+    "Kinesis"     | "StreamName"   | NA                  | {
       kinesisClient.createStream {
-        it.streamName("teststream")
+        it.streamName("tagvalue")
       }
     }
-    "Kinesis"     | NA                            | "ShardLimit"         | { kinesisClient.describeLimits() }
-    "S3"          | NA                            | "DisplayName.Owner"  | { s3Client.listBuckets() }
+    "Kinesis"     | NA             | "ShardLimit"        | { kinesisClient.describeLimits() }
+    "S3"          | NA             | "Owner.DisplayName" | { s3Client.listBuckets() }
   }
 }
 
@@ -215,7 +215,7 @@ class PayloadTaggingExpansionForkedTest extends AbstractPayloadTaggingTest {
           .message('{ "sms": "sms text", "default": "default text" }')
       }
     }
-    "Key.0.Tags"                                        | "foo"                  | {
+    "Tags.0.Key"                                        | "foo"                  | {
       snsClient.createTopic {
         it.name("testtopic")
           .tags(Tag.builder().key("foo").value("bar").build(), Tag.builder().key("t").value("1").build())
@@ -224,17 +224,17 @@ class PayloadTaggingExpansionForkedTest extends AbstractPayloadTaggingTest {
     "nextToken"                                         | null                   | {
       snsClient.listPhoneNumbersOptedOut()
     }
-    "DefaultSMSType.attributes"                         | "bar"                  | {
+    "attributes.DefaultSMSType"                         | "bar"                  | {
       snsClient.setSMSAttributes { it.attributes(["DefaultSenderID": "foo", "DefaultSMSType": "bar"]) }
     }
-    "BinaryValue.foo\\.bar.MessageAttributes.abc\\.def" | 42                     | {
+    "MessageAttributes.foo\\.bar.BinaryValue.abc\\.def" | 42                     | {
       snsClient.publish {
         it.phoneNumber("+15555555555").message("testmessage")
           .messageAttributes(["foo.bar": snsBinaryAttribute('{"abc.def": 42}')
           ])
       }
     }
-    "BinaryValue.foo\\.bar.MessageAttributes"           | "<binary>"             | {
+    "MessageAttributes.foo\\.bar.BinaryValue"           | "<binary>"             | {
       snsClient.publish {
         it.phoneNumber("+15555555555").message("testmessage").messageAttributes(["foo.bar": snsBinaryAttribute('{"invalid json: 42}')])
       }
@@ -346,11 +346,6 @@ class PayloadTaggingMaxTagsForkedTest extends AbstractPayloadTaggingTest {
 
     where:
     apiCall << [
-      {
-        snsClient.publish {
-          it.phoneNumber("+15555555555").message('message')
-        }
-      },
       {
         snsClient.createTopic {
           it.name("testtopic")

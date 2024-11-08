@@ -14,5 +14,6 @@ jdk.ObjectAllocationInNewTLAB#enabled=true
 jdk.ObjectAllocationInNewTLAB#stackTrace=true
 jdk.ObjectAllocationOutsideTLAB#enabled=true
 jdk.ObjectAllocationOutsideTLAB#stackTrace=true
+jdk.SystemGC#enabled=true
 datadog.ExceptionSample#enabled=true
 datadog.ExceptionCount#enabled=true

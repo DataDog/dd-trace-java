@@ -27,7 +27,6 @@ import datadog.trace.core.datastreams.TagsProcessor;
 import datadog.trace.payloadtags.PayloadTagsData;
 import java.net.URI;
 import java.time.Instant;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -461,7 +460,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
 
   private void awsPojoToTags(AgentSpan span, String tagsPrefix, Object pojo) {
     Collection<PayloadTagsData.PathAndValue> payloadTagsData = new ArrayList<>();
-    ArrayDeque<Object> path = new ArrayDeque<>();
+    List<Object> path = new ArrayList<>();
     collectPayloadTagsData(payloadTagsData, path, pojo);
     span.setTag(
         tagsPrefix,
@@ -469,36 +468,34 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
   }
 
   private void collectPayloadTagsData(
-      Collection<PayloadTagsData.PathAndValue> payloadTagsData,
-      ArrayDeque<Object> path,
-      Object object) {
+      Collection<PayloadTagsData.PathAndValue> payloadTagsData, List<Object> path, Object object) {
     if (object instanceof SdkPojo) {
       SdkPojo pojo = (SdkPojo) object;
       for (SdkField<?> field : pojo.sdkFields()) {
         Object val = field.getValueOrDefault(pojo);
-        path.push(field.locationName());
+        path.add(field.locationName());
         collectPayloadTagsData(payloadTagsData, path, val);
-        path.pop();
+        path.remove(path.size() - 1);
       }
     } else if (object instanceof Collection) {
       int index = 0;
       for (Object value : (Collection<?>) object) {
-        path.push(index);
+        path.add(index);
         collectPayloadTagsData(payloadTagsData, path, value);
-        path.pop();
+        path.remove(path.size() - 1);
         index++;
       }
     } else if (object instanceof Map) {
       Map<?, ?> map = (Map<?, ?>) object;
       for (Map.Entry<?, ?> entry : map.entrySet()) {
-        path.push(entry.getKey().toString());
+        path.add(entry.getKey().toString());
         collectPayloadTagsData(payloadTagsData, path, entry.getValue());
-        path.pop();
+        path.remove(path.size() - 1);
       }
     } else if (object instanceof SdkBytes) {
       SdkBytes bytes = (SdkBytes) object;
       payloadTagsData.add(new PayloadTagsData.PathAndValue(path.toArray(), bytes.asInputStream()));
-    } else {
+    } else if (object != null) {
       payloadTagsData.add(new PayloadTagsData.PathAndValue(path.toArray(), object));
     }
   }

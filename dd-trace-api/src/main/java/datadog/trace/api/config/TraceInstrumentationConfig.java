@@ -10,6 +10,7 @@ package datadog.trace.api.config;
  */
 public final class TraceInstrumentationConfig {
   public static final String CODE_ORIGIN_FOR_SPANS_ENABLED = "code.origin.for.spans.enabled";
+  public static final String CODE_ORIGIN_MAX_USER_FRAMES = "code.origin.max.user.frames";
   public static final String TRACE_ENABLED = "trace.enabled";
   public static final String TRACE_OTEL_ENABLED = "trace.otel.enabled";
   public static final String INTEGRATIONS_ENABLED = "integrations.enabled";
@@ -157,6 +158,8 @@ public final class TraceInstrumentationConfig {
   public static final String JAX_RS_ADDITIONAL_ANNOTATIONS = "trace.jax-rs.additional.annotations";
   /** If set, the instrumentation will set its resource name on the local root too. */
   public static final String AXIS_PROMOTE_RESOURCE_NAME = "trace.axis.promote.resource-name";
+
+  public static final String EXPERIMENTAL_KAFKA_ENABLED = "trace.experimental.kafka.enabled";
 
   private TraceInstrumentationConfig() {}
 }
