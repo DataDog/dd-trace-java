@@ -3,7 +3,7 @@ package datadog.trace.instrumentation.apachehttpcore5
 import datadog.trace.agent.test.AgentTestRunner
 import org.apache.hc.core5.http.message.BasicHttpRequest
 
-class HttpRequestInstrumentationTest extends AgentTestRunner {
+class BasicHttpRequestInstrumentationTest extends AgentTestRunner {
 
   @Override
   protected void configurePreAgent() {
