@@ -30,6 +30,7 @@ public class SmapEntryFactory {
   private static final AtomicBoolean REGISTERED = new AtomicBoolean();
   private static boolean annotatedMapsAvailable;
   private static final String VSYSCALL_START_ADDRESS = "ffffffffff600000";
+  private static final char[] PREFIX = {'0', 'x'};
   private static final SmapEntryEvent SMAP_ENTRY_EVENT = new SmapEntryEvent();
 
   private enum ErrorReason {
@@ -203,7 +204,8 @@ public class SmapEntryFactory {
           buffer.append(chars[i]);
           i++;
         }
-        buffer.insert(0, new char[] {'0', 'x'});
+
+        buffer.insert(0, PREFIX);
         startAddress = Long.decode(buffer.toString());
 
         if (buffer.toString().equals("0x" + VSYSCALL_START_ADDRESS)) {
@@ -218,7 +220,7 @@ public class SmapEntryFactory {
             buffer.append(chars[i]);
             i++;
           }
-          buffer.insert(0, new char[] {'0', 'x'});
+          buffer.insert(0, PREFIX);
           endAddress = Long.decode(buffer.toString());
         }
 
@@ -237,7 +239,7 @@ public class SmapEntryFactory {
           buffer.append(chars[i]);
           i++;
         }
-        buffer.insert(0, new char[] {'0', 'x'});
+        buffer.insert(0, PREFIX);
         offset = Long.decode(buffer.toString());
         buffer.setLength(0);
         i++;
@@ -279,7 +281,7 @@ public class SmapEntryFactory {
           j++;
           buffer.setLength(0);
 
-          if (attributeName.equals("VmFlags")) {
+          if ("VmFlags".equals(attributeName)) {
             while (j < attributedChars.length) {
               buffer.append(attributedChars[j]);
               j++;
@@ -294,9 +296,9 @@ public class SmapEntryFactory {
               buffer.append(attributedChars[j]);
               j++;
             }
-            if (attributeName.equals("ThpEligible")) {
+            if ("ThpEligible".equals(attributeName)) {
               thpEligible = buffer.toString().equals("1");
-            } else if (attributeName.equals("ProtectionKey")) {
+            } else if ("ProtectionKey".equals(attributeName)) {
               // Original event did not include protection key attribute, so skipping for now
               encounteredForeignKeys = true;
             } else {
