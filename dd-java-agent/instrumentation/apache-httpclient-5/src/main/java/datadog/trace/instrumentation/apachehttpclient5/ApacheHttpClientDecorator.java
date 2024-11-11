@@ -43,15 +43,6 @@ public class ApacheHttpClientDecorator extends HttpClientDecorator<HttpRequest, 
   }
 
   @Override
-  protected Object sourceUrl(final HttpRequest request) {
-    try {
-      return request.getUri();
-    } catch (URISyntaxException e) {
-      return null;
-    }
-  }
-
-  @Override
   protected int status(final HttpResponse httpResponse) {
     return httpResponse.getCode();
   }
