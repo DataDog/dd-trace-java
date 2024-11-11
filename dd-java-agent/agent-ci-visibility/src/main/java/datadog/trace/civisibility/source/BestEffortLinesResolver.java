@@ -22,4 +22,16 @@ public class BestEffortLinesResolver implements LinesResolver {
     }
     return Lines.EMPTY;
   }
+
+  @Nonnull
+  @Override
+  public Lines getClassLines(@Nonnull Class<?> clazz) {
+    for (LinesResolver delegate : delegates) {
+      Lines lines = delegate.getClassLines(clazz);
+      if (lines.isValid()) {
+        return lines;
+      }
+    }
+    return Lines.EMPTY;
+  }
 }

@@ -52,7 +52,9 @@ class TestSuiteImplTest extends SpanWriterTest {
     def config = Config.get()
     def metricCollector = Stub(CiVisibilityMetricCollectorImpl)
     def testDecorator = new TestDecoratorImpl("component", "session-name", "test-command", [:])
-    def methodLinesResolver = { it -> LinesResolver.Lines.EMPTY }
+
+    def linesResolver = Stub(LinesResolver)
+    linesResolver.getClassLines(MyClass) >> LinesResolver.Lines.EMPTY
 
     def resolver = Stub(SourcePathResolver)
     resolver.getSourcePath(MyClass) >> "MyClass.java"
@@ -75,7 +77,7 @@ class TestSuiteImplTest extends SpanWriterTest {
       testDecorator,
       resolver,
       codeowners,
-      methodLinesResolver,
+      linesResolver,
       coverageStoreFactory,
       SpanUtils.DO_NOT_PROPAGATE_CI_VISIBILITY_TAGS
       )

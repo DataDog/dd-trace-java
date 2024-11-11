@@ -18,4 +18,10 @@ public class CompilerAidedLinesResolver implements LinesResolver {
     }
     return new Lines(startLine, endLine);
   }
+
+  @Nonnull
+  @Override
+  public Lines getClassLines(@Nonnull Class<?> clazz) {
+    return Lines.EMPTY;
+  }
 }

@@ -37,6 +37,12 @@ public class ByteCodeLinesResolver implements LinesResolver {
     }
   }
 
+  @Nonnull
+  @Override
+  public Lines getClassLines(@Nonnull Class<?> clazz) {
+    return Lines.EMPTY;
+  }
+
   static final class ClassMethodLines {
     private final Map<String, MethodLinesRecorder> recordersByMethodFingerprint = new HashMap<>();
 

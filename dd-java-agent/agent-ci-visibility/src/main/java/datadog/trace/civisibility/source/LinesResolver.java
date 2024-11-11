@@ -9,6 +9,9 @@ public interface LinesResolver {
   @Nonnull
   Lines getMethodLines(@Nonnull Method method);
 
+  @Nonnull
+  Lines getClassLines(@Nonnull Class<?> clazz);
+
   final class Lines {
     public static final Lines EMPTY = new Lines(Integer.MAX_VALUE, Integer.MIN_VALUE);
 
