@@ -77,6 +77,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private volatile boolean agentSupportsDataStreams = false;
   private volatile boolean configSupportsDataStreams = false;
   private final ConcurrentHashMap<String, SchemaSampler> schemaSamplers;
+  private final OkHttpSink okHttpSink;
 
   private final List<TransactionItem> accumulatedTransactions = new ArrayList<>();
   private final ReentrantLock transactionsLock = new ReentrantLock();
@@ -126,6 +127,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       WellKnownTags wellKnownTags,
       DatastreamsPayloadWriter payloadWriter,
       long bucketDurationNanos) {
+    this.okHttpSink = (OkHttpSink) sink;
     this.features = features;
     this.timeSource = timeSource;
     this.traceConfigSupplier = traceConfigSupplier;
@@ -391,7 +393,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
                 payloads.add(new MsgPackDatastreamsPayloadWriter.TransactionPayload(
                     transaction.getTransactionId(), transaction.getPathwayHash()));
               }
-              // finally, we write the compressed transaction payload
+              okHttpSink.addHeader("Data-Type", "Transaction");
+              log.info("Added header successfully");
               payloadWriter.writeCompressedTransactionPayload(payloads);
             }
           }

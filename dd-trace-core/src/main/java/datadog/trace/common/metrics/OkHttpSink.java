@@ -65,6 +65,14 @@ public final class OkHttpSink implements Sink, EventListener {
     }
   }
 
+  public void addHeader(String key, String value) {
+    if (key == null || value == null) {
+      throw new IllegalArgumentException("Header key and value cannot be null");
+    }
+    this.headers.put(key, value);
+    log.info("Added/Updated header: {}={}", key, value);
+  }
+
   @Override
   public void accept(int messageCount, ByteBuffer buffer) {
     // if the agent is healthy, then we can send on this thread,
