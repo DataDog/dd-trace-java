@@ -167,6 +167,9 @@ include ':dd-smoke-tests:iast-util:iast-util-11'
 // TODO this fails too often with a jgit failure, so disable until fixed
 //include ':dd-smoke-tests:debugger-integration-tests:latest-jdk-app'
 
+// annotation processor for checking instrumentation advice
+include ':dd-java-agent:instrumentation-annotation-processor'
+
 // instrumentation:
 include ':dd-java-agent:instrumentation:aerospike-4'
 include ':dd-java-agent:instrumentation:akka-concurrent'
