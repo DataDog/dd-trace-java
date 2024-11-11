@@ -13,13 +13,13 @@ public class BestEffortLinesResolver implements LinesResolver {
 
   @Nonnull
   @Override
-  public MethodLines getMethodLines(@Nonnull Method method) {
+  public Lines getMethodLines(@Nonnull Method method) {
     for (LinesResolver delegate : delegates) {
-      MethodLines lines = delegate.getMethodLines(method);
+      Lines lines = delegate.getMethodLines(method);
       if (lines.isValid()) {
         return lines;
       }
     }
-    return MethodLines.EMPTY;
+    return Lines.EMPTY;
   }
 }

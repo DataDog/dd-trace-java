@@ -25,7 +25,7 @@ public class ByteCodeLinesResolver implements LinesResolver {
 
   @Nonnull
   @Override
-  public MethodLines getMethodLines(@Nonnull Method method) {
+  public Lines getMethodLines(@Nonnull Method method) {
     try {
       ClassMethodLines classMethodLines =
           methodLinesCache.computeIfAbsent(method.getDeclaringClass(), ClassMethodLines::parse);
@@ -33,7 +33,7 @@ public class ByteCodeLinesResolver implements LinesResolver {
 
     } catch (Exception e) {
       log.error("Could not determine method borders for {}", method, e);
-      return MethodLines.EMPTY;
+      return Lines.EMPTY;
     }
   }
 
@@ -46,14 +46,13 @@ public class ByteCodeLinesResolver implements LinesResolver {
       return recorder;
     }
 
-    public MethodLines get(Method method) {
+    public Lines get(Method method) {
       String methodFingerprint = getFingerprint(method);
       MethodLinesRecorder methodLinesRecorder = recordersByMethodFingerprint.get(methodFingerprint);
       if (methodLinesRecorder != null) {
-        return new MethodLines(
-            methodLinesRecorder.startLineNumber, methodLinesRecorder.finishLineNumber);
+        return new Lines(methodLinesRecorder.startLineNumber, methodLinesRecorder.finishLineNumber);
       } else {
-        return MethodLines.EMPTY;
+        return Lines.EMPTY;
       }
     }
 

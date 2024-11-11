@@ -98,7 +98,7 @@ class TestImplTest extends SpanWriterTest {
     def config = Config.get()
     def metricCollector = Stub(CiVisibilityMetricCollectorImpl)
     def testDecorator = new TestDecoratorImpl("component", "session-name", "test-command", [:])
-    def methodLinesResolver = { it -> LinesResolver.MethodLines.EMPTY }
+    def methodLinesResolver = { it -> LinesResolver.Lines.EMPTY }
     def codeowners = NoCodeowners.INSTANCE
     new TestImpl(
       moduleSpanContext,

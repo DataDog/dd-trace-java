@@ -94,7 +94,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     codeowners.getOwners(DUMMY_SOURCE_PATH) >> DUMMY_CODE_OWNERS
 
     def methodLinesResolver = Stub(LinesResolver)
-    methodLinesResolver.getMethodLines(_ as Method) >> new LinesResolver.MethodLines(DUMMY_TEST_METHOD_START, DUMMY_TEST_METHOD_END)
+    methodLinesResolver.getMethodLines(_ as Method) >> new LinesResolver.Lines(DUMMY_TEST_METHOD_START, DUMMY_TEST_METHOD_END)
 
     def executionSettingsFactory = new ExecutionSettingsFactory() {
       @Override

@@ -7,15 +7,15 @@ import javax.annotation.Nonnull;
 public class CompilerAidedLinesResolver implements LinesResolver {
   @Nonnull
   @Override
-  public MethodLines getMethodLines(@Nonnull Method method) {
+  public Lines getMethodLines(@Nonnull Method method) {
     int startLine = CompilerUtils.getStartLine(method);
     if (startLine <= 0) {
-      return MethodLines.EMPTY;
+      return Lines.EMPTY;
     }
     int endLine = CompilerUtils.getEndLine(method);
     if (endLine <= 0) {
-      return MethodLines.EMPTY;
+      return Lines.EMPTY;
     }
-    return new MethodLines(startLine, endLine);
+    return new Lines(startLine, endLine);
   }
 }

@@ -8,14 +8,14 @@ class BestEffortLinesResolverTest extends Specification {
   def "test get source info from delegate"() {
     setup:
     def testMethod = TestClass.getDeclaredMethod("testMethod")
-    def expectedLines = new LinesResolver.MethodLines(42, 43)
+    def expectedLines = new LinesResolver.Lines(42, 43)
 
     def delegate = Stub(LinesResolver)
     def secondDelegate = Stub(LinesResolver)
     def resolver = new BestEffortLinesResolver(delegate, secondDelegate)
 
     delegate.getMethodLines(testMethod) >> expectedLines
-    secondDelegate.getMethodLines(testMethod) >> LinesResolver.MethodLines.EMPTY
+    secondDelegate.getMethodLines(testMethod) >> LinesResolver.Lines.EMPTY
 
     when:
     def lines = resolver.getMethodLines(testMethod)
@@ -27,13 +27,13 @@ class BestEffortLinesResolverTest extends Specification {
   def "test get source info from second delegate"() {
     setup:
     def testMethod = TestClass.getDeclaredMethod("testMethod")
-    def expectedLines = new LinesResolver.MethodLines(42, 43)
+    def expectedLines = new LinesResolver.Lines(42, 43)
 
     def delegate = Stub(LinesResolver)
     def secondDelegate = Stub(LinesResolver)
     def resolver = new BestEffortLinesResolver(delegate, secondDelegate)
 
-    delegate.getMethodLines(testMethod) >> LinesResolver.MethodLines.EMPTY
+    delegate.getMethodLines(testMethod) >> LinesResolver.Lines.EMPTY
     secondDelegate.getMethodLines(testMethod) >> expectedLines
 
     when:
@@ -51,14 +51,14 @@ class BestEffortLinesResolverTest extends Specification {
     def secondDelegate = Stub(LinesResolver)
     def resolver = new BestEffortLinesResolver(delegate, secondDelegate)
 
-    delegate.getMethodLines(testMethod) >> LinesResolver.MethodLines.EMPTY
-    secondDelegate.getMethodLines(testMethod) >> LinesResolver.MethodLines.EMPTY
+    delegate.getMethodLines(testMethod) >> LinesResolver.Lines.EMPTY
+    secondDelegate.getMethodLines(testMethod) >> LinesResolver.Lines.EMPTY
 
     when:
     def lines = resolver.getMethodLines(testMethod)
 
     then:
-    lines == LinesResolver.MethodLines.EMPTY
+    lines == LinesResolver.Lines.EMPTY
   }
 
   private static final class TestClass {

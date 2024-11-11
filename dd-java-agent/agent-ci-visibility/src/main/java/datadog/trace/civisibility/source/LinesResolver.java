@@ -7,15 +7,15 @@ import javax.annotation.Nonnull;
 public interface LinesResolver {
 
   @Nonnull
-  MethodLines getMethodLines(@Nonnull Method method);
+  Lines getMethodLines(@Nonnull Method method);
 
-  final class MethodLines {
-    public static final MethodLines EMPTY = new MethodLines(Integer.MAX_VALUE, Integer.MIN_VALUE);
+  final class Lines {
+    public static final Lines EMPTY = new Lines(Integer.MAX_VALUE, Integer.MIN_VALUE);
 
     private final int startLineNumber;
     private final int finishLineNumber;
 
-    public MethodLines(int startLineNumber, int finishLineNumber) {
+    public Lines(int startLineNumber, int finishLineNumber) {
       this.startLineNumber = startLineNumber;
       this.finishLineNumber = finishLineNumber;
     }
@@ -40,7 +40,7 @@ public interface LinesResolver {
       if (o == null || getClass() != o.getClass()) {
         return false;
       }
-      MethodLines that = (MethodLines) o;
+      Lines that = (Lines) o;
       return startLineNumber == that.startLineNumber && finishLineNumber == that.finishLineNumber;
     }
 

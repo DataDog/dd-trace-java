@@ -162,7 +162,7 @@ public class TestImpl implements DDTest {
     span.setTag(Tags.TEST_SOURCE_FILE, sourcePath);
 
     if (testMethod != null) {
-      LinesResolver.MethodLines testMethodLines = linesResolver.getMethodLines(testMethod);
+      LinesResolver.Lines testMethodLines = linesResolver.getMethodLines(testMethod);
       if (testMethodLines.isValid()) {
         span.setTag(Tags.TEST_SOURCE_START, testMethodLines.getStartLineNumber());
         span.setTag(Tags.TEST_SOURCE_END, testMethodLines.getFinishLineNumber());
