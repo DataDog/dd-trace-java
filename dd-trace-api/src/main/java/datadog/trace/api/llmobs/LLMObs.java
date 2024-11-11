@@ -4,6 +4,8 @@ import datadog.trace.api.llmobs.noop.NoOpLLMObsSpan;
 import javax.annotation.Nullable;
 
 public class LLMObs {
+
+
   public static LLMObsSpan startLLMSpan(
       String modelName, String name, @Nullable String modelProvider, @Nullable String sessionID, @Nullable String mlApp) {
 
@@ -32,5 +34,23 @@ public class LLMObs {
       String name, @Nullable String sessionID, @Nullable String mlApp) {
 
     return NoOpLLMObsSpan.INSTANCE;
+  }
+
+  public interface LLMObsSpanFactory {
+    LLMObsSpan startLLMSpan(String modelName, String name, @Nullable String modelProvider, @Nullable String sessionID, @Nullable String mlApp);
+    LLMObsSpan startAgentSpan(String name, @Nullable String sessionID, @Nullable String mlApp);
+    LLMObsSpan startToolSpan(String name, @Nullable String sessionID, @Nullable String mlApp);
+    LLMObsSpan startTaskSpan(String name, @Nullable String sessionID, @Nullable String mlApp);
+    LLMObsSpan startWorkflowSpan(String name, @Nullable String sessionID, @Nullable String mlApp);
+  }
+
+  private class NoOpLLMObsSpanFactory implements LLMObsSpanFactory{
+    public LLMObsSpan startLLMSpan(String modelName, String name, @Nullable String modelProvider, @Nullable String sessionID, @Nullable String mlApp) {
+      return NoOpLLMObsSpan.INSTANCE;
+    }
+    public LLMObsSpan startAgentSpan(String name, @Nullable String sessionID, @Nullable String mlApp);
+    LLMObsSpan startToolSpan(String name, @Nullable String sessionID, @Nullable String mlApp);
+    LLMObsSpan startTaskSpan(String name, @Nullable String sessionID, @Nullable String mlApp);
+    LLMObsSpan startWorkflowSpan(String name, @Nullable String sessionID, @Nullable String mlApp);
   }
 }
