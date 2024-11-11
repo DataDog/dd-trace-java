@@ -184,7 +184,6 @@ abstract class AbstractSmokeTest extends ProcessManager {
       "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=${logLevel()}",
       "-Dorg.slf4j.simpleLogger.defaultLogLevel=${logLevel()}",
       "-Ddd.site=",
-
     ]
     if (testTelemetry()) {
       ret += "-Ddd.telemetry.heartbeat.interval=2"
