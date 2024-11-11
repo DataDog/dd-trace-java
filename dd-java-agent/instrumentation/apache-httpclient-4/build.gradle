@@ -39,7 +39,7 @@ dependencies {
   iastIntegrationTestImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
   iastIntegrationTestImplementation group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.0'
   iastIntegrationTestRuntimeOnly(project(':dd-java-agent:instrumentation:jetty-9'))
-  iastIntegrationTestRuntimeOnly(project(':dd-java-agent:instrumentation:apache-httpcore'))
+  iastIntegrationTestRuntimeOnly(project(':dd-java-agent:instrumentation:apache-httpcore-4'))
   iastIntegrationTestRuntimeOnly(project(':dd-java-agent:instrumentation:servlet'))
   iastIntegrationTestRuntimeOnly(project(':dd-java-agent:instrumentation:java-lang'))
   iastIntegrationTestRuntimeOnly(project(':dd-java-agent:instrumentation:java-net'))

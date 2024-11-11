@@ -97,6 +97,8 @@ public class SsrfController {
       @RequestParam(value = "url", required = false) final String url,
       @RequestParam(value = "host", required = false) final String host) {
     CloseableHttpClient client = HttpClients.createDefault();
+    org.apache.hc.core5.http.message.BasicHttpRequest test =
+        new org.apache.hc.core5.http.message.BasicHttpRequest("GET", "/");
     org.apache.hc.client5.http.classic.methods.HttpGet request =
         new org.apache.hc.client5.http.classic.methods.HttpGet(url);
     try {
