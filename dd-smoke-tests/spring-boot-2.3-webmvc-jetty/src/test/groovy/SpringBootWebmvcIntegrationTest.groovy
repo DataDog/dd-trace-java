@@ -86,4 +86,9 @@ class SpringBootWebmvcIntegrationTest extends AbstractServerSmokeTest {
     response.code() == 404
     waitForTraceCount(1)
   }
+
+  @Override
+  List<String> expectedTelemetryDependencies() {
+    ['org.eclipse.jetty:jetty-client']
+  }
 }

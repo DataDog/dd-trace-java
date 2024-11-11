@@ -5,6 +5,7 @@ import datadog.trace.agent.test.utils.OkHttpUtils
 import datadog.trace.agent.test.utils.PortUtils
 import okhttp3.OkHttpClient
 import spock.lang.Shared
+import static org.junit.Assume.assumeTrue
 
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
@@ -115,5 +116,60 @@ abstract class AbstractServerSmokeTest extends AbstractSmokeTest {
       }
     }
     return remaining
+  }
+
+  /** Set to false in a test suite to skip telemetry tests. */
+  boolean testTelemetry() {
+    true
+  }
+
+  @RunLast
+  void 'receive telemetry app-started'() {
+    when:
+    assumeTrue(testTelemetry())
+    waitForTelemetryCount(1)
+
+    then:
+    telemetryMessages.size() >= 1
+    Object msg = telemetryMessages.get(0)
+    msg['request_type'] == 'app-started'
+  }
+
+  List<String> expectedTelemetryDependencies() {
+    []
+  }
+
+  @SuppressWarnings('UnnecessaryBooleanExpression')
+  @RunLast
+  void 'receive telemetry app-dependencies-loaded'() {
+    when:
+    assumeTrue(testTelemetry())
+    // app-started + 3 message-batch
+    waitForTelemetryCount(4)
+    waitForTelemetryFlat { it.get('request_type') == 'app-dependencies-loaded' }
+
+    then: 'received some dependencies'
+    def dependenciesLoaded = telemetryFlatMessages.findAll { it.get('request_type') == 'app-dependencies-loaded' }
+    def dependencies = []
+    dependenciesLoaded.each {
+      def payload = it.get('payload') as Map<String, Object>
+      dependencies.addAll(payload.get('dependencies')) }
+    dependencies.size() > 0
+
+    Set<String> dependencyNames = dependencies.collect {
+      def dependency = it as Map<String, Object>
+      dependency.get('name') as String
+    }.toSet()
+
+    and: 'received tracer dependencies'
+    // Not exhaustive list of tracer dependencies.
+    Set<String> missingDependencyNames = ['com.github.jnr:jnr-ffi', 'net.bytebuddy:byte-buddy-agent',].toSet()
+    missingDependencyNames.removeAll(dependencyNames) || true
+    missingDependencyNames.isEmpty()
+
+    and: 'received application dependencies'
+    Set<String> missingExtraDependencyNames = expectedTelemetryDependencies().toSet()
+    missingExtraDependencyNames.removeAll(dependencyNames) || true
+    missingExtraDependencyNames.isEmpty()
   }
 }
