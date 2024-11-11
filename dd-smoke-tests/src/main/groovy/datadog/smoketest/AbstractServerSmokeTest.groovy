@@ -118,11 +118,6 @@ abstract class AbstractServerSmokeTest extends AbstractSmokeTest {
     return remaining
   }
 
-  /** Set to false in a test suite to skip telemetry tests. */
-  boolean testTelemetry() {
-    true
-  }
-
   @RunLast
   void 'receive telemetry app-started'() {
     when:

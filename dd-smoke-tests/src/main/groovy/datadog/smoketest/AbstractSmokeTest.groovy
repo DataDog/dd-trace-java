@@ -184,8 +184,11 @@ abstract class AbstractSmokeTest extends ProcessManager {
       "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=${logLevel()}",
       "-Dorg.slf4j.simpleLogger.defaultLogLevel=${logLevel()}",
       "-Ddd.site=",
-      "-Ddd.telemetry.heartbeat.interval=2",
+
     ]
+    if (testTelemetry()) {
+      ret += "-Ddd.telemetry.heartbeat.interval=2"
+    }
     if (inferServiceName())  {
       ret += "-Ddd.service.name=${SERVICE_NAME}"
     }
@@ -193,6 +196,11 @@ abstract class AbstractSmokeTest extends ProcessManager {
   }
 
   def inferServiceName() {
+    true
+  }
+
+  /** Set to false in a test suite to skip telemetry tests. */
+  boolean testTelemetry() {
     true
   }
 
@@ -331,6 +339,6 @@ abstract class AbstractSmokeTest extends ProcessManager {
   }
 
   def logLevel() {
-    return "info"
+    return "debug"
   }
 }
