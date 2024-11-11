@@ -26,4 +26,8 @@ public abstract class IastEnabledChecks {
   public static boolean isFullDetection() {
     return Config.get().getIastDetectionMode() == IastDetectionMode.FULL;
   }
+
+  public static boolean isExperimentalPropagationEnabled() {
+    return Config.get().isIastExperimentalPropagationEnabled();
+  }
 }

@@ -194,4 +194,35 @@ public class TestStringSuite {
     LOGGER.debug("After split {}", result);
     return result;
   }
+
+  public static String replace(final String string, final char oldChar, final char newChar) {
+    LOGGER.debug("Before replace {} {} {}", string, oldChar, newChar);
+    String result = string.replace(oldChar, newChar);
+    LOGGER.debug("After replace {}", result);
+    return result;
+  }
+
+  public static String replace(
+      final String string, final CharSequence oldCharSeq, final CharSequence newCharSeq) {
+    LOGGER.debug("Before replace {} {} {}", string, oldCharSeq, newCharSeq);
+    String result = string.replace(oldCharSeq, newCharSeq);
+    LOGGER.debug("After replace {}", result);
+    return result;
+  }
+
+  public static String replaceAll(
+      final String string, final String regex, final String replacement) {
+    LOGGER.debug("Before replace all {} {} {}", string, regex, replacement);
+    String result = string.replaceAll(regex, replacement);
+    LOGGER.debug("After replace all {}", result);
+    return result;
+  }
+
+  public static String replaceFirst(
+      final String string, final String regex, final String replacement) {
+    LOGGER.debug("Before replace first {} {} {}", string, regex, replacement);
+    String result = string.replaceFirst(regex, replacement);
+    LOGGER.debug("After replace first {}", result);
+    return result;
+  }
 }
