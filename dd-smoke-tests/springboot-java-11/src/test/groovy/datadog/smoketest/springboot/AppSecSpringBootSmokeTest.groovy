@@ -159,7 +159,7 @@ class AppSecSpringBootSmokeTest extends AbstractServerSmokeTest  {
     setup:
     final url = "http://localhost:${httpPort}/ssrf/java-net"
     final body = new FormBody.Builder()
-      .add("domain" , "169.254.169.254")
+      .add("url" , "169.254.169.254")
       .add("async", async)
       .add("promise", promise ).build()
     final request = new Request.Builder().url(url).post(body).build()
@@ -191,6 +191,7 @@ class AppSecSpringBootSmokeTest extends AbstractServerSmokeTest  {
 
     where:
     async   | promise
+    "false" | "false"
     "true"  | "false"
     "true"  | "true"
   }
