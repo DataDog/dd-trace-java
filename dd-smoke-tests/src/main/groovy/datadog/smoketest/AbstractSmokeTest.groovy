@@ -7,6 +7,7 @@ import datadog.trace.test.agent.decoder.Decoder
 import datadog.trace.test.agent.decoder.DecodedMessage
 import datadog.trace.test.agent.decoder.DecodedTrace
 import datadog.trace.util.Strings
+import groovy.json.JsonSlurper
 
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.CopyOnWriteArrayList
@@ -29,6 +30,12 @@ abstract class AbstractSmokeTest extends ProcessManager {
   protected CopyOnWriteArrayList<DecodedTrace> decodeTraces = new CopyOnWriteArrayList()
 
   @Shared
+  protected CopyOnWriteArrayList<Map<String, Object>> telemetryMessages = new CopyOnWriteArrayList()
+
+  @Shared
+  protected CopyOnWriteArrayList<Map<String, Object>> telemetryFlatMessages = new CopyOnWriteArrayList()
+
+  @Shared
   private Closure decode = decodedTracesCallback()
 
   @Shared
@@ -39,6 +46,9 @@ abstract class AbstractSmokeTest extends ProcessManager {
 
   @Shared
   protected TestHttpServer.Headers lastTraceRequestHeaders = null
+
+  @Shared
+  private Throwable telemetryDecodingFailure = null
 
   @Shared
   @AutoCleanup
@@ -119,6 +129,24 @@ abstract class AbstractSmokeTest extends ProcessManager {
         response.status(200).send(remoteConfigResponse)
       }
       prefix("/telemetry/proxy/api/v2/apmtelemetry") {
+        def body = request.getBody()
+        if (body != null) {
+          Map<String, Object> msg = null
+          try {
+            msg = new JsonSlurper().parseText(new String(body, StandardCharsets.UTF_8)) as Map<String, Object>
+          } catch (Throwable t) {
+            println("=== Failure during telemetry decoding ===")
+            t.printStackTrace(System.out)
+            telemetryDecodingFailure = t
+            throw t
+          }
+          telemetryMessages.add(msg)
+          if (msg.get("request_type") == "message-batch") {
+            msg.get("payload")?.each { telemetryFlatMessages.add(it as Map<String, Object>) }
+          } else {
+            telemetryFlatMessages.add(msg)
+          }
+        }
         response.status(202).send()
       }
     }
@@ -155,7 +183,8 @@ abstract class AbstractSmokeTest extends ProcessManager {
       "-Ddd.profiling.ddprof.alloc.enabled=${isDdprofSafe()}",
       "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=${logLevel()}",
       "-Dorg.slf4j.simpleLogger.defaultLogLevel=${logLevel()}",
-      "-Ddd.site="
+      "-Ddd.site=",
+      "-Ddd.telemetry.heartbeat.interval=2",
     ]
     if (inferServiceName())  {
       ret += "-Ddd.service.name=${SERVICE_NAME}"
@@ -274,6 +303,31 @@ abstract class AbstractSmokeTest extends ProcessManager {
 
   List<DecodedTrace> getTraces() {
     decodeTraces
+  }
+
+  void waitForTelemetryCount(final int count) {
+    def conditions = new PollingConditions(timeout: 30, initialDelay: 0, delay: 1, factor: 1)
+    waitForTelemetryCount(conditions, count)
+  }
+
+  void waitForTelemetryCount(final PollingConditions poll, final int count) {
+    poll.eventually {
+      telemetryMessages.size() >= count
+    }
+  }
+
+  void waitForTelemetryFlat(final Function<Map<String, Object>, Boolean> predicate) {
+    def conditions = new PollingConditions(timeout: 30, initialDelay: 0, delay: 1, factor: 1)
+    waitForTelemetryFlat(conditions, predicate)
+  }
+
+  void waitForTelemetryFlat(final PollingConditions poll, final Function<Map<String, Object>, Boolean> predicate) {
+    poll.eventually {
+      if (telemetryDecodingFailure != null) {
+        throw telemetryDecodingFailure
+      }
+      assert telemetryFlatMessages.find { predicate.apply(it) } != null
+    }
   }
 
   def logLevel() {
