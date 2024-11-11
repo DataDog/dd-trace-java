@@ -56,6 +56,11 @@ abstract class AbstractServerSmokeTest extends AbstractSmokeTest {
     return Collections.emptySet()
   }
 
+  @Override
+  boolean testTelemetry() {
+    return false
+  }
+
   protected Set<String> expectedTraces(int processIndex) {
     if (processIndex > 0) {
       throw new IllegalArgumentException("Override expectedTraces(int processIndex) for multi process tests")
