@@ -20,7 +20,7 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.decorator.TestDecorator;
-import datadog.trace.civisibility.source.MethodLinesResolver;
+import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -37,7 +37,7 @@ public abstract class AbstractTestSession {
   protected final TestDecorator testDecorator;
   protected final SourcePathResolver sourcePathResolver;
   protected final Codeowners codeowners;
-  protected final MethodLinesResolver methodLinesResolver;
+  protected final LinesResolver linesResolver;
 
   public AbstractTestSession(
       String projectName,
@@ -49,7 +49,7 @@ public abstract class AbstractTestSession {
       TestDecorator testDecorator,
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
-      MethodLinesResolver methodLinesResolver) {
+      LinesResolver linesResolver) {
     this.ciProvider = ciProvider;
     this.instrumentationType = instrumentationType;
     this.config = config;
@@ -57,7 +57,7 @@ public abstract class AbstractTestSession {
     this.testDecorator = testDecorator;
     this.sourcePathResolver = sourcePathResolver;
     this.codeowners = codeowners;
-    this.methodLinesResolver = methodLinesResolver;
+    this.linesResolver = linesResolver;
 
     // CI Test Cycle protocol requires session's trace ID and span ID to be the same
     IdGenerationStrategy idGenerationStrategy = config.getIdGenerationStrategy();

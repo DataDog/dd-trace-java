@@ -13,7 +13,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.civisibility.codeowners.NoCodeowners
 import datadog.trace.civisibility.decorator.TestDecoratorImpl
-import datadog.trace.civisibility.source.MethodLinesResolver
+import datadog.trace.civisibility.source.LinesResolver
 import datadog.trace.civisibility.source.NoOpSourcePathResolver
 import datadog.trace.civisibility.telemetry.CiVisibilityMetricCollectorImpl
 import datadog.trace.civisibility.utils.SpanUtils
@@ -98,7 +98,7 @@ class TestImplTest extends SpanWriterTest {
     def config = Config.get()
     def metricCollector = Stub(CiVisibilityMetricCollectorImpl)
     def testDecorator = new TestDecoratorImpl("component", "session-name", "test-command", [:])
-    def methodLinesResolver = { it -> MethodLinesResolver.MethodLines.EMPTY }
+    def methodLinesResolver = { it -> LinesResolver.MethodLines.EMPTY }
     def codeowners = NoCodeowners.INSTANCE
     new TestImpl(
       moduleSpanContext,

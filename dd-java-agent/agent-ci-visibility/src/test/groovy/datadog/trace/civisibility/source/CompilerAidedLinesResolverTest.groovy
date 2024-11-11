@@ -3,15 +3,15 @@ package datadog.trace.civisibility.source
 import datadog.compiler.annotations.MethodLines
 import spock.lang.Specification
 
-class CompilerAidedMethodLinesResolverTest extends Specification {
+class CompilerAidedLinesResolverTest extends Specification {
 
   def "test source info retrieval for #methodName"() {
     setup:
-    def resolver = new CompilerAidedMethodLinesResolver()
+    def resolver = new CompilerAidedLinesResolver()
     def method = TestClass.getDeclaredMethod(methodName)
 
     when:
-    def lines = resolver.getLines(method)
+    def lines = resolver.getMethodLines(method)
 
     then:
     lines.valid == expectedValid

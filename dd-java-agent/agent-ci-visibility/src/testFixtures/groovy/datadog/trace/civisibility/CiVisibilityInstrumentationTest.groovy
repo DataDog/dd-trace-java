@@ -36,7 +36,7 @@ import datadog.trace.civisibility.domain.headless.HeadlessTestSession
 import datadog.trace.civisibility.events.BuildEventsHandlerImpl
 import datadog.trace.civisibility.events.TestEventsHandlerImpl
 import datadog.trace.civisibility.ipc.SignalServer
-import datadog.trace.civisibility.source.MethodLinesResolver
+import datadog.trace.civisibility.source.LinesResolver
 import datadog.trace.civisibility.source.SourcePathResolver
 import datadog.trace.civisibility.source.index.RepoIndexBuilder
 import datadog.trace.civisibility.telemetry.CiVisibilityMetricCollectorImpl
@@ -93,8 +93,8 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     def codeowners = Stub(Codeowners)
     codeowners.getOwners(DUMMY_SOURCE_PATH) >> DUMMY_CODE_OWNERS
 
-    def methodLinesResolver = Stub(MethodLinesResolver)
-    methodLinesResolver.getLines(_ as Method) >> new MethodLinesResolver.MethodLines(DUMMY_TEST_METHOD_START, DUMMY_TEST_METHOD_END)
+    def methodLinesResolver = Stub(LinesResolver)
+    methodLinesResolver.getMethodLines(_ as Method) >> new LinesResolver.MethodLines(DUMMY_TEST_METHOD_START, DUMMY_TEST_METHOD_END)
 
     def executionSettingsFactory = new ExecutionSettingsFactory() {
       @Override

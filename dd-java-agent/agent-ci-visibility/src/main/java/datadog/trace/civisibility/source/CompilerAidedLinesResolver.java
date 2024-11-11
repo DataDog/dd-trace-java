@@ -4,10 +4,10 @@ import datadog.compiler.utils.CompilerUtils;
 import java.lang.reflect.Method;
 import javax.annotation.Nonnull;
 
-public class CompilerAidedMethodLinesResolver implements MethodLinesResolver {
+public class CompilerAidedLinesResolver implements LinesResolver {
   @Nonnull
   @Override
-  public MethodLines getLines(@Nonnull Method method) {
+  public MethodLines getMethodLines(@Nonnull Method method) {
     int startLine = CompilerUtils.getStartLine(method);
     if (startLine <= 0) {
       return MethodLines.EMPTY;

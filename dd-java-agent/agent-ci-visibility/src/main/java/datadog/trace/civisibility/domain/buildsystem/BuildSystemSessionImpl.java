@@ -31,7 +31,7 @@ import datadog.trace.civisibility.ipc.RepoIndexResponse;
 import datadog.trace.civisibility.ipc.SignalResponse;
 import datadog.trace.civisibility.ipc.SignalServer;
 import datadog.trace.civisibility.ipc.SignalType;
-import datadog.trace.civisibility.source.MethodLinesResolver;
+import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.source.index.RepoIndex;
 import datadog.trace.civisibility.source.index.RepoIndexProvider;
@@ -67,7 +67,7 @@ public class BuildSystemSessionImpl<T extends CoverageCalculator> extends Abstra
       TestDecorator testDecorator,
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
-      MethodLinesResolver methodLinesResolver,
+      LinesResolver linesResolver,
       ExecutionSettingsFactory executionSettingsFactory,
       SignalServer signalServer,
       RepoIndexProvider repoIndexProvider,
@@ -82,7 +82,7 @@ public class BuildSystemSessionImpl<T extends CoverageCalculator> extends Abstra
         testDecorator,
         sourcePathResolver,
         codeowners,
-        methodLinesResolver);
+        linesResolver);
     this.startCommand = startCommand;
     this.moduleSignalRouter = moduleSignalRouter;
     this.executionSettingsFactory = executionSettingsFactory;
@@ -167,7 +167,7 @@ public class BuildSystemSessionImpl<T extends CoverageCalculator> extends Abstra
         testDecorator,
         sourcePathResolver,
         codeowners,
-        methodLinesResolver,
+        linesResolver,
         moduleSignalRouter,
         coverageCalculatorFactory,
         coverageCalculator,

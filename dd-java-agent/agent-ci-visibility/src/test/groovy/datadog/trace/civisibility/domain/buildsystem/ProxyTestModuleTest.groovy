@@ -12,7 +12,7 @@ import datadog.trace.civisibility.config.ExecutionSettings
 import datadog.trace.civisibility.coverage.percentage.child.ChildProcessCoverageReporter
 import datadog.trace.civisibility.decorator.TestDecorator
 import datadog.trace.civisibility.ipc.SignalClient
-import datadog.trace.civisibility.source.MethodLinesResolver
+import datadog.trace.civisibility.source.LinesResolver
 import datadog.trace.civisibility.source.SourcePathResolver
 import datadog.trace.civisibility.test.ExecutionStrategy
 import datadog.trace.test.util.DDSpecification
@@ -48,7 +48,7 @@ class ProxyTestModuleTest extends DDSpecification {
       Stub(TestDecorator),
       Stub(SourcePathResolver),
       Stub(Codeowners),
-      Stub(MethodLinesResolver),
+      Stub(LinesResolver),
       Stub(CoverageStore.Factory),
       Stub(ChildProcessCoverageReporter),
       GroovyMock(SignalClient.Factory)

@@ -16,16 +16,16 @@ import org.objectweb.asm.Type;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ByteCodeMethodLinesResolver implements MethodLinesResolver {
+public class ByteCodeLinesResolver implements LinesResolver {
 
-  private static final Logger log = LoggerFactory.getLogger(ByteCodeMethodLinesResolver.class);
+  private static final Logger log = LoggerFactory.getLogger(ByteCodeLinesResolver.class);
 
   private final DDCache<Class<?>, ClassMethodLines> methodLinesCache =
       DDCaches.newFixedSizeIdentityCache(16);
 
   @Nonnull
   @Override
-  public MethodLines getLines(@Nonnull Method method) {
+  public MethodLines getMethodLines(@Nonnull Method method) {
     try {
       ClassMethodLines classMethodLines =
           methodLinesCache.computeIfAbsent(method.getDeclaringClass(), ClassMethodLines::parse);

@@ -4,15 +4,15 @@ package datadog.trace.civisibility.source
 import org.spockframework.util.IoUtil
 import spock.lang.Specification
 
-class ByteCodeMethodLinesResolverTest extends Specification {
+class ByteCodeLinesResolverTest extends Specification {
 
   def "test method lines resolution"() {
     setup:
     def aTestMethod = NestedClass.getDeclaredMethod("aTestMethod")
 
     when:
-    def methodLinesResolver = new ByteCodeMethodLinesResolver()
-    def methodLines = methodLinesResolver.getLines(aTestMethod)
+    def methodLinesResolver = new ByteCodeLinesResolver()
+    def methodLines = methodLinesResolver.getMethodLines(aTestMethod)
 
     then:
     methodLines.isValid()
@@ -25,8 +25,8 @@ class ByteCodeMethodLinesResolverTest extends Specification {
     def aTestMethod = NestedClass.getDeclaredMethod("abstractMethod")
 
     when:
-    def methodLinesResolver = new ByteCodeMethodLinesResolver()
-    def methodLines = methodLinesResolver.getLines(aTestMethod)
+    def methodLinesResolver = new ByteCodeLinesResolver()
+    def methodLines = methodLinesResolver.getMethodLines(aTestMethod)
 
     then:
     !methodLines.isValid()
@@ -46,8 +46,8 @@ class ByteCodeMethodLinesResolverTest extends Specification {
     def misbehavingMethod = misbehavingClass.getDeclaredMethod("aTestMethod")
 
     when:
-    def methodLinesResolver = new ByteCodeMethodLinesResolver()
-    def methodLines = methodLinesResolver.getLines(misbehavingMethod)
+    def methodLinesResolver = new ByteCodeLinesResolver()
+    def methodLines = methodLinesResolver.getMethodLines(misbehavingMethod)
 
     then:
     !methodLines.isValid()
@@ -56,7 +56,7 @@ class ByteCodeMethodLinesResolverTest extends Specification {
   def "test returns empty method lines when unknown method is attempted to be resolved"() {
     setup:
     def aTestMethod = NestedClass.getDeclaredMethod("abstractMethod")
-    def classMethodLines = new ByteCodeMethodLinesResolver.ClassMethodLines()
+    def classMethodLines = new ByteCodeLinesResolver.ClassMethodLines()
 
     when:
     def methodLines = classMethodLines.get(aTestMethod)

@@ -23,10 +23,10 @@ import datadog.trace.civisibility.git.CIProviderGitInfoBuilder;
 import datadog.trace.civisibility.git.GitClientGitInfoBuilder;
 import datadog.trace.civisibility.git.tree.GitClient;
 import datadog.trace.civisibility.ipc.SignalClient;
-import datadog.trace.civisibility.source.BestEffortMethodLinesResolver;
-import datadog.trace.civisibility.source.ByteCodeMethodLinesResolver;
-import datadog.trace.civisibility.source.CompilerAidedMethodLinesResolver;
-import datadog.trace.civisibility.source.MethodLinesResolver;
+import datadog.trace.civisibility.source.BestEffortLinesResolver;
+import datadog.trace.civisibility.source.ByteCodeLinesResolver;
+import datadog.trace.civisibility.source.CompilerAidedLinesResolver;
+import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.index.*;
 import java.lang.reflect.Type;
 import java.net.InetSocketAddress;
@@ -63,7 +63,7 @@ public class CiVisibilityServices {
   final CIProviderInfoFactory ciProviderInfoFactory;
   final GitClient.Factory gitClientFactory;
   final GitInfoProvider gitInfoProvider;
-  final MethodLinesResolver methodLinesResolver;
+  final LinesResolver linesResolver;
   final RepoIndexProvider.Factory repoIndexProviderFactory;
   @Nullable final SignalClient.Factory signalClientFactory;
 
@@ -82,9 +82,8 @@ public class CiVisibilityServices {
 
     CiEnvironment environment = buildCiEnvironment(config, sco);
     this.ciProviderInfoFactory = new CIProviderInfoFactory(config, environment);
-    this.methodLinesResolver =
-        new BestEffortMethodLinesResolver(
-            new CompilerAidedMethodLinesResolver(), new ByteCodeMethodLinesResolver());
+    this.linesResolver =
+        new BestEffortLinesResolver(new CompilerAidedLinesResolver(), new ByteCodeLinesResolver());
 
     this.gitInfoProvider = gitInfoProvider;
     gitInfoProvider.registerGitInfoBuilder(new CIProviderGitInfoBuilder(config, environment));

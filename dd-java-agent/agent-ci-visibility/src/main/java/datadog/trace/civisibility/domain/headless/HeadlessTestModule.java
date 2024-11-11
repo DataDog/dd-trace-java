@@ -18,7 +18,7 @@ import datadog.trace.civisibility.domain.AbstractTestModule;
 import datadog.trace.civisibility.domain.InstrumentationType;
 import datadog.trace.civisibility.domain.TestFrameworkModule;
 import datadog.trace.civisibility.domain.TestSuiteImpl;
-import datadog.trace.civisibility.source.MethodLinesResolver;
+import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.test.ExecutionStrategy;
 import datadog.trace.civisibility.utils.SpanUtils;
@@ -47,7 +47,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
       TestDecorator testDecorator,
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
-      MethodLinesResolver methodLinesResolver,
+      LinesResolver linesResolver,
       CoverageStore.Factory coverageStoreFactory,
       ExecutionStrategy executionStrategy,
       Consumer<AgentSpan> onSpanFinish) {
@@ -61,7 +61,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
         testDecorator,
         sourcePathResolver,
         codeowners,
-        methodLinesResolver,
+        linesResolver,
         onSpanFinish);
     this.coverageStoreFactory = coverageStoreFactory;
     this.executionStrategy = executionStrategy;
@@ -140,7 +140,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
         testDecorator,
         sourcePathResolver,
         codeowners,
-        methodLinesResolver,
+        linesResolver,
         coverageStoreFactory,
         SpanUtils.propagateCiVisibilityTagsTo(span));
   }
