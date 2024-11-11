@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.springsecurity6
 
 import custom.CustomAuthenticationFilter
 import custom.CustomAuthenticationProvider
+import custom.FailingAuthenticationProvider
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.security.authentication.AuthenticationManager
@@ -47,6 +48,7 @@ class SecurityConfig {
     @Override
     void configure(HttpSecurity http) throws Exception {
       AuthenticationManager authenticationManager = http.getSharedObject(AuthenticationManager)
+      http.authenticationProvider(new FailingAuthenticationProvider())
       http.authenticationProvider(new CustomAuthenticationProvider())
       http.addFilterBefore(new CustomAuthenticationFilter(authenticationManager), UsernamePasswordAuthenticationFilter)
     }

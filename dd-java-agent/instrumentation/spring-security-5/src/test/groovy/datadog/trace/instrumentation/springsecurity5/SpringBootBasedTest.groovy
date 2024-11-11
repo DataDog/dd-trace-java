@@ -235,6 +235,8 @@ class SpringBootBasedTest extends AppSecHttpServerTest<ConfigurableApplicationCo
     span.getTag("appsec.events.users.login.success")['enabled'] == 'true'
     span.getTag("appsec.events.users.login.success")['authorities'] == 'ROLE_USER'
     span.getTag("appsec.events.users.login.success")['accountNonLocked'] == 'true'
+
+    span.getTag("appsec.events.users.login.failure.track") == null
   }
 
   void 'test failed signup'() {
