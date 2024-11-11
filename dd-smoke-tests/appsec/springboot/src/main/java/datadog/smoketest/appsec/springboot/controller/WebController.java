@@ -1,5 +1,7 @@
 package datadog.smoketest.appsec.springboot.controller;
 
+import com.squareup.okhttp.OkHttpClient;
+import com.squareup.okhttp.Request;
 import datadog.smoketest.appsec.springboot.service.AsyncService;
 import java.io.File;
 import java.net.URL;
@@ -102,6 +104,20 @@ public class WebController {
       // ignore errors opening connection
     }
     method.releaseConnection();
+    return "EXECUTED";
+  }
+
+  @GetMapping("/ssrf/okHttp2")
+  public String okHttp2(@RequestParam(value = "domain") final String domain) {
+    final OkHttpClient client = new OkHttpClient();
+    final Request request = new Request.Builder().url("http://" + domain).build();
+    try {
+      client.newCall(request).execute();
+    } catch (final Exception e) {
+      // ignore errors opening connection
+    }
+    client.getDispatcher().getExecutorService().shutdown();
+    client.getConnectionPool().evictAll();
     return "EXECUTED";
   }
 

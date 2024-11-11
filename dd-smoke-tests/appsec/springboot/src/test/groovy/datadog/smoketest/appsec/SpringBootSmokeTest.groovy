@@ -419,6 +419,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     variant               | _
     'query'               | _
     'okHttp3'             | _
+    'okHttp2'             | _
     'apache-httpclient4'  | _
     'commons-httpclient2' | _
   }
