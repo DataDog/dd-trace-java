@@ -33,13 +33,24 @@ ext {
 dependencies {
   compileOnly group: 'org.apache.spark', name: 'spark-core_2.12', version: '2.4.0'
   compileOnly group: 'org.apache.spark', name: 'spark-sql_2.12', version: '2.4.0'
+  compileOnly group: 'org.apache.spark', name:'spark-sql-kafka-0-10_2.12', version: "2.4.0"
 
   baseTestImplementation group: 'org.apache.spark', name: "spark-core_2.12", version: "2.4.0"
   baseTestImplementation group: 'org.apache.spark', name: "spark-sql_2.12", version: "2.4.0"
+  baseTestImplementation group: 'org.apache.spark', name: "spark-sql_2.12", version: "2.4.0"
+  baseTestImplementation group: 'org.apache.spark', name:'spark-sql-kafka-0-10_2.12', version: "2.4.0"
+  testImplementation group: 'org.apache.kafka', name: 'kafka_2.12', version: '2.4.0'
+  testImplementation group: 'org.apache.kafka', name: 'kafka-clients', version: '2.4.0'
+  testImplementation group: 'org.springframework.kafka', name: 'spring-kafka', version: '2.4.0.RELEASE'
+  testImplementation group: 'org.springframework.kafka', name: 'spring-kafka-test', version: '2.4.0.RELEASE'
 
   latest212DepTestImplementation group: 'org.apache.spark', name: "spark-core_2.12", version: '3.+'
   latest212DepTestImplementation group: 'org.apache.spark', name: "spark-sql_2.12", version: '3.+'
+  latest212DepTestImplementation group: 'org.apache.spark', name: "spark-sql_2.12", version: "3.+"
+  latest212DepTestImplementation group: 'org.apache.spark', name:'spark-sql-kafka-0-10_2.12', version: "2.4.0"
 
   latest213DepTestImplementation group: 'org.apache.spark', name: "spark-core_2.13", version: '3.+'
   latest213DepTestImplementation group: 'org.apache.spark', name: "spark-sql_2.13", version: '3.+'
+  latest212DepTestImplementation group: 'org.apache.spark', name: "spark-sql_2.13", version: "3.+"
+  latest212DepTestImplementation group: 'org.apache.spark', name:'spark-sql-kafka-0-10_2.13', version: "3.+"
 }
