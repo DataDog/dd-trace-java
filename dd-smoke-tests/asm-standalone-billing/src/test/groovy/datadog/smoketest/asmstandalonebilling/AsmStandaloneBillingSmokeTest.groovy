@@ -60,7 +60,8 @@ class AsmStandaloneBillingSmokeTest extends AbstractAsmStandaloneBillingSmokeTes
 
     then: 'Check if Datadog-Client-Computed-Stats header is present and set to true, Disabling the metrics computation agent-side'
     waitForTraceCount(1)
-    def computedStatsHeader = server.lastRequest.headers.get('Datadog-Client-Computed-Stats')
+    lastTraceRequestHeaders != null
+    def computedStatsHeader = lastTraceRequestHeaders.get('Datadog-Client-Computed-Stats')
     assert computedStatsHeader != null && computedStatsHeader == 'true'
 
     then:'metrics should be disabled'
