@@ -1,5 +1,6 @@
 package datadog.trace.core;
 
+import static datadog.trace.api.DDTags.SPAN_EVENTS;
 import static datadog.trace.api.DDTags.SPAN_LINKS;
 import static datadog.trace.api.cache.RadixTreeCache.HTTP_STATUSES;
 import static datadog.trace.bootstrap.instrumentation.api.ErrorPriorities.UNSET;
@@ -17,6 +18,7 @@ import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanEvent;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
@@ -845,13 +847,19 @@ public class DDSpanContext
   }
 
   public void processTagsAndBaggage(
-      final MetadataConsumer consumer, int longRunningVersion, List<AgentSpanLink> links) {
+      final MetadataConsumer consumer, int longRunningVersion, List<AgentSpanLink> links,
+      List<AgentSpanEvent> events) {
     synchronized (unsafeTags) {
       // Tags
       Map<String, Object> tags = TagsPostProcessorFactory.instance().processTags(unsafeTags, this);
       String linksTag = DDSpanLink.toTag(links);
       if (linksTag != null) {
         tags.put(SPAN_LINKS, linksTag);
+      }
+      // Events
+      String eventsTag = DDSpanEvent.toTag(events);
+      if (eventsTag != null) {
+        tags.put(SPAN_EVENTS, eventsTag);
       }
       // Baggage
       Map<String, String> baggageItemsWithPropagationTags;

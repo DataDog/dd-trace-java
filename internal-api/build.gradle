@@ -59,6 +59,10 @@ excludedClassesCoverage += [
   // Caused by empty 'default' interface method
   "datadog.trace.bootstrap.instrumentation.api.AgentSpan",
   "datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context",
+  "datadog.trace.bootstrap.instrumentation.api.AgentSpanEvent",
+  "datadog.trace.bootstrap.instrumentation.api.SpanEvent",
+  "datadog.trace.bootstrap.instrumentation.api.AgentSpanLink",
+  "datadog.trace.bootstrap.instrumentation.api.SpanLink",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentPropagation",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopContext",

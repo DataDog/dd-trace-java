@@ -141,6 +141,8 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo, ImplicitContextKeyed
 
   void addLink(AgentSpanLink link);
 
+  void addEvent(AgentSpanEvent event);
+
   boolean isRequiresPostProcessing();
 
   @Override
