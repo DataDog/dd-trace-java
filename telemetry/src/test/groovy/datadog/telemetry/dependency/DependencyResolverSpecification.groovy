@@ -159,6 +159,48 @@ class DependencyResolverSpecification extends DepSpecification {
     dep.source == 'opentracing-util-0.33.0.jar'
   }
 
+  void 'spring boot dependency new style'() throws IOException {
+    when:
+    String zipPath = Classloader.classLoader.getResource('datadog/telemetry/dependencies/spring-boot-app.jar').path
+    URI uri = new URI("jar:nested:$zipPath/!BOOT-INF/lib/opentracing-util-0.33.0.jar!/")
+
+    Dependency dep = DependencyResolver.resolve(uri).get(0)
+
+    then:
+    dep != null
+    dep.name == 'io.opentracing:opentracing-util'
+    dep.version == '0.33.0'
+    dep.hash == null
+    dep.source == 'opentracing-util-0.33.0.jar'
+  }
+
+  void 'spring boot dependency new style empty path'() throws IOException {
+    when:
+    URI uri = new URI("jar:nested:")
+    List<Dependency> deps = DependencyResolver.resolve(uri)
+
+    then:
+    deps.isEmpty()
+  }
+
+  void 'spring boot dependency old style empty path'() throws IOException {
+    when:
+    URI uri = new URI("jar:file:")
+    List<Dependency> deps = DependencyResolver.resolve(uri)
+
+    then:
+    deps.isEmpty()
+  }
+
+  void 'jar unknown'() throws IOException {
+    when:
+    URI uri = new URI("jar:unknown")
+    List<Dependency> deps = DependencyResolver.resolve(uri)
+
+    then:
+    deps.isEmpty()
+  }
+
   void 'spring boot dependency without maven metadata'() throws IOException {
     given:
     def innerJarData = new ByteArrayOutputStream()
