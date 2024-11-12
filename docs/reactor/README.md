@@ -25,7 +25,10 @@ The use cases are reflecting the tests in this project
 
 ### Standard bottom-up context propagation
 
-The sample leverages the `@Trace` annotation to create a span when a method returning a `Mono` or `Flux` is called
+The sample leverages the `@Trace` annotation to create a span when a method returning a `Mono` or `Flux` is called.
+The annotation is available as part of the `dd-trace-api` library. Alternatively, the OpenTelemetry equivalent `@WithSpan` can 
+also be used. 
+
 ```java
 @Trace(operationName = "mono", resourceName = "mono")
   private Mono<String> monoMethod() {
