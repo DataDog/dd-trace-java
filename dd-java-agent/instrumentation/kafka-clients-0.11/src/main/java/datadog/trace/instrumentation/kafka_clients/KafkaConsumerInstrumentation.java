@@ -142,11 +142,9 @@ public final class KafkaConsumerInstrumentation extends InstrumenterModule.Traci
         KafkaConsumerInfo kafkaConsumerInfo =
             InstrumentationContext.get(ConsumerRecords.class, KafkaConsumerInfo.class).get(records);
         String group = KafkaConsumerInstrumentationHelper.extractGroup(kafkaConsumerInfo);
-        System.out.println("consumer info retrieved" + group);
         String clusterId =
             KafkaConsumerInstrumentationHelper.extractClusterId(
                 kafkaConsumerInfo, InstrumentationContext.get(Metadata.class, String.class));
-        System.out.println("cluster ID retrieved" + clusterId);
         String bootstrapServers =
             KafkaConsumerInstrumentationHelper.extractBootstrapServers(kafkaConsumerInfo);
         iterator =
