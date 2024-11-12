@@ -1161,7 +1161,10 @@ public class CapturedContextInstrumentor extends Instrumentor {
       Limits limits,
       List<FieldNode> results,
       int fieldCount) {
-    String superClassName = Strings.getClassName(classNode.superName);
+    String superClassName =
+        classNode.superName != null
+            ? Strings.getClassName(classNode.superName)
+            : Object.class.getTypeName();
     while (!superClassName.equals(Object.class.getTypeName())) {
       Class<?> clazz;
       try {
@@ -1215,7 +1218,10 @@ public class CapturedContextInstrumentor extends Instrumentor {
       Limits limits,
       List<FieldNode> results,
       int fieldCount) {
-    String superClassName = Strings.getClassName(classNode.superName);
+    String superClassName =
+        classNode.superName != null
+            ? Strings.getClassName(classNode.superName)
+            : Object.class.getTypeName();
     while (!superClassName.equals(Object.class.getTypeName())) {
       Class<?> clazz;
       try {
