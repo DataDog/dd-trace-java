@@ -79,7 +79,8 @@ public class ExceptionProbeManager {
     }
   }
 
-  public CreationResult createProbesForException(StackTraceElement[] stackTraceElements) {
+  public CreationResult createProbesForException(
+      StackTraceElement[] stackTraceElements, int chainedExceptionIdx) {
     int instrumentedFrames = 0;
     int nativeFrames = 0;
     int thirdPartyFrames = 0;
@@ -102,7 +103,7 @@ public class ExceptionProbeManager {
               stackTraceElement.getMethodName(),
               null,
               String.valueOf(stackTraceElement.getLineNumber()));
-      ExceptionProbe probe = createMethodProbe(this, where);
+      ExceptionProbe probe = createMethodProbe(this, where, chainedExceptionIdx);
       probes.putIfAbsent(probe.getId(), probe);
       instrumentedFrames++;
     }
@@ -114,10 +115,16 @@ public class ExceptionProbeManager {
   }
 
   private static ExceptionProbe createMethodProbe(
-      ExceptionProbeManager exceptionProbeManager, Where where) {
+      ExceptionProbeManager exceptionProbeManager, Where where, int chainedExceptionIdx) {
     String probeId = UUID.randomUUID().toString();
     return new ExceptionProbe(
-        new ProbeId(probeId, 0), where, null, null, null, exceptionProbeManager);
+        new ProbeId(probeId, 0),
+        where,
+        null,
+        null,
+        null,
+        exceptionProbeManager,
+        chainedExceptionIdx);
   }
 
   public boolean isAlreadyInstrumented(String fingerprint) {

@@ -33,6 +33,7 @@ public class Snapshot {
   private transient String message;
   private final transient int maxDepth;
   private String exceptionId;
+  private transient int chainedExceptionIdx;
 
   public Snapshot(java.lang.Thread thread, ProbeImplementation probeImplementation, int maxDepth) {
     this.version = VERSION;
@@ -89,6 +90,10 @@ public class Snapshot {
 
   public void setExceptionId(String exceptionId) {
     this.exceptionId = exceptionId;
+  }
+
+  public void setChainedExceptionIdx(int chainedExceptionIdx) {
+    this.chainedExceptionIdx = chainedExceptionIdx;
   }
 
   public void addLine(CapturedContext context, int line) {
@@ -176,6 +181,10 @@ public class Snapshot {
 
   public String getExceptionId() {
     return exceptionId;
+  }
+
+  public int getChainedExceptionIdx() {
+    return chainedExceptionIdx;
   }
 
   public void recordStackTrace(int offset) {
