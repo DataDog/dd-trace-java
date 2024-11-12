@@ -28,22 +28,23 @@ class SpringBootOpenLibertySmokeTest extends AbstractServerSmokeTest {
 
     List<String> envParams = new ArrayList<>()
     envParams.addAll(defaultJavaProperties)
-    envParams.addAll(
+    envParams.addAll([
       "-Ddd.writer.type=MultiWriter:TraceStructureWriter:${output.getAbsolutePath()},DDAgentWriter",
       "-Ddd.jmxfetch.enabled=false",
       "-Ddd.appsec.enabled=true",
       "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=debug",
       "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug",
-      "-Ddd.iast.enabled=true", "-Ddd.iast.request-sampling=100",
+      "-Ddd.iast.enabled=true",
+      "-Ddd.iast.request-sampling=100",
       "-Ddd.integration.spring-boot.enabled=true"
-      )
+      ])
 
 
     String javaToolOptions = envParams.stream().collect(Collectors.joining(" "))
 
 
     ProcessBuilder processBuilder = new ProcessBuilder(command)
-    processBuilder.environment().put("JAVA_TOOL_OPTIONS", javaToolOptions)
+    processBuilder.environment().put("JVM_ARGS", javaToolOptions)
     processBuilder.directory(new File(buildDirectory))
     return processBuilder
   }
