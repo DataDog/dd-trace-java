@@ -185,6 +185,7 @@
 1 okhttp3.*
 2 okhttp3.Request
 2 okhttp3.Request$*
+2 okio.*
 1 ognl.*
 2 oracle.j2ee.*
 1 oracle.jdbc.*
