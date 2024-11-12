@@ -79,10 +79,27 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
         KafkaConsumerInfoInstrumentation.class.getName() + "$ConstructorAdvice");
 
     transformer.applyAdvice(
+        isConstructor()
+            .and(takesArgument(0, Map.class))
+            .and(takesArgument(1, named("org.apache.kafka.common.serialization.Deserializer")))
+            .and(takesArgument(2, named("org.apache.kafka.common.serialization.Deserializer"))),
+        KafkaConsumerInfoInstrumentation.class.getName() + "$SecondConstructorAdvice");
+
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(named("poll"))
             .and(takesArguments(1))
+            .and(takesArgument(0, long.class))
+            .and(returns(named("org.apache.kafka.clients.consumer.ConsumerRecords"))),
+        KafkaConsumerInfoInstrumentation.class.getName() + "$RecordsAdvice");
+
+    transformer.applyAdvice(
+        isMethod()
+            .and(isPublic())
+            .and(named("poll"))
+            .and(takesArguments(1))
+            .and(takesArgument(0, named("java.time.Duration")))
             .and(returns(named("org.apache.kafka.clients.consumer.ConsumerRecords"))),
         KafkaConsumerInfoInstrumentation.class.getName() + "$RecordsAdvice");
   }
@@ -94,6 +111,7 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
         @Advice.FieldValue("metadata") Metadata metadata,
         @Advice.FieldValue("coordinator") ConsumerCoordinator coordinator,
         @Advice.Argument(0) ConsumerConfig consumerConfig) {
+      System.out.println("constructor advice!!!");
       String consumerGroup = consumerConfig.getString(ConsumerConfig.GROUP_ID_CONFIG);
       String normalizedConsumerGroup =
           consumerGroup != null && !consumerGroup.isEmpty() ? consumerGroup : null;
@@ -105,6 +123,66 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
         bootstrapServers = String.join(",", bootstrapServersList);
       }
 
+      KafkaConsumerInfo kafkaConsumerInfo;
+      if (Config.get().isDataStreamsEnabled()) {
+        kafkaConsumerInfo =
+            new KafkaConsumerInfo(normalizedConsumerGroup, metadata, bootstrapServers);
+      } else {
+        kafkaConsumerInfo = new KafkaConsumerInfo(normalizedConsumerGroup, bootstrapServers);
+      }
+
+      if (kafkaConsumerInfo.getConsumerGroup() != null
+          || kafkaConsumerInfo.getClientMetadata() != null) {
+        InstrumentationContext.get(KafkaConsumer.class, KafkaConsumerInfo.class)
+            .put(consumer, kafkaConsumerInfo);
+        if (coordinator != null) {
+          InstrumentationContext.get(ConsumerCoordinator.class, KafkaConsumerInfo.class)
+              .put(coordinator, kafkaConsumerInfo);
+        }
+      }
+    }
+
+    public static void muzzleCheck(ConsumerRecord record) {
+      // KafkaConsumerInstrumentation only applies for kafka versions with headers
+      // Make an explicit call so KafkaConsumerGroupInstrumentation does the same
+      record.headers();
+    }
+  }
+
+  public static class SecondConstructorAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void captureGroup(
+        @Advice.This KafkaConsumer consumer,
+        @Advice.FieldValue("metadata") Metadata metadata,
+        @Advice.FieldValue("coordinator") ConsumerCoordinator coordinator,
+        @Advice.Argument(0) Map<String, Object> consumerConfig) {
+      System.out.println("new constructor advice!!!");
+      Object groupID = consumerConfig.get("group.id");
+      String consumerGroup = groupID instanceof String ? (String) groupID : null;
+      String normalizedConsumerGroup =
+          consumerGroup != null && !consumerGroup.isEmpty() ? consumerGroup : null;
+      System.out.println("consume group " + normalizedConsumerGroup);
+
+      String bootstrapServers = null;
+      Object bootstrapServersObj = consumerConfig.get("bootstrap.servers");
+      if (bootstrapServersObj instanceof String) {
+        bootstrapServers = (String) bootstrapServersObj;
+        System.out.println("bootstrap servers " + bootstrapServers);
+      } else {
+        System.out.println("it s not a string");
+      }
+      // if (bootstrapServersList != null && !bootstrapServersList.isEmpty()) {
+      //   bootstrapServers = String.join(",", bootstrapServersList);
+      // }
+      // Object bootstrapServersObj = consumerConfig.get("bootstrap.servers");
+      // if (bootstrapServersObj instanceof List) {
+      //   List<?> tempList = (List<?>) bootstrapServersObj;
+
+      //   // Verify each element is a String
+      //   if (!tempList.isEmpty() && tempList.stream().allMatch(element -> element instanceof String)) {
+      //     bootstrapServers = String.join(",", (List<String>) tempList);
+      //   }
+      // }
       KafkaConsumerInfo kafkaConsumerInfo;
       if (Config.get().isDataStreamsEnabled()) {
         kafkaConsumerInfo =
@@ -157,6 +235,7 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
         @Advice.Enter final AgentScope scope,
         @Advice.This KafkaConsumer consumer,
         @Advice.Return ConsumerRecords records) {
+      System.out.println("polling!");
       int recordsCount = 0;
       if (records != null) {
         KafkaConsumerInfo kafkaConsumerInfo =
