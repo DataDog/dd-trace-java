@@ -1,5 +1,6 @@
 package datadog.trace.api;
 
+import datadog.trace.util.SystemUtils;
 import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
@@ -201,11 +202,11 @@ public final class Platform {
 
     public JvmRuntime() {
       this(
-          System.getProperty("java.version"),
-          System.getProperty("java.runtime.version"),
-          System.getProperty("java.runtime.name"),
-          System.getProperty("java.vm.vendor"),
-          System.getProperty("java.vendor.version"));
+          SystemUtils.tryGetProperty("java.version"),
+          SystemUtils.tryGetProperty("java.runtime.version"),
+          SystemUtils.tryGetProperty("java.runtime.name"),
+          SystemUtils.tryGetProperty("java.vm.vendor"),
+          SystemUtils.tryGetProperty("java.vendor.version"));
     }
 
     // Only visible for testing

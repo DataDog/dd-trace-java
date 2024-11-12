@@ -37,4 +37,14 @@ public final class SystemUtils {
       return defaultValue;
     }
   }
+
+  public static String trySetProperty(String property, String value) {
+    try {
+      System.out.println("BOOTSTRAP/SYSTEMUTILS - in trySetProperty method try block");
+      return System.getProperty(property);
+    } catch (SecurityException e) {
+      System.out.println("BOOTSTRAP/SYSTEMUTILS - in tryGetProperty method catch block");
+      return null;
+    }
+  }
 }
