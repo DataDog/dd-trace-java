@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.jdbc;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DBM_TRACE_INJECTED;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.*;
 
 import datadog.trace.api.Config;
@@ -248,6 +249,10 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     return sb.toString();
   }
 
+  public boolean isPostgres(final DBInfo dbInfo) {
+    return "postgres".equals(dbInfo.getType());
+  }
+
   public boolean isSqlServer(final DBInfo dbInfo) {
     return "sqlserver".equals(dbInfo.getType());
   }
@@ -310,6 +315,40 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       instrumentationSpan.finish();
     }
     return spanID;
+  }
+
+  // TODO: add description
+  public void setApplicationName(AgentSpan span, Connection connection) {
+    // TODO: measure time spent in instrumentation and add it as a tag in span
+    try {
+      Integer priority = span.forceSamplingDecision();
+      if (priority == null) {
+        return;
+      }
+      final String traceParent = DECORATE.traceParent(span, priority);
+      final String traceContext = "_DD_" + traceParent;
+
+      // SET doesn't work with parameters
+      StringBuilder sql = new StringBuilder();
+      sql.append("SET application_name = '");
+      sql.append(traceContext);
+      sql.append("';");
+
+      try (Statement statement = connection.createStatement()) {
+        statement.execute(sql.toString());
+      } catch (SQLException e) {
+        throw e;
+      }
+    } catch (Exception e) {
+      log.debug(
+          "Failed to set extra DBM data in application_name for trace {}. "
+              + "To disable this behavior, set trace_prepared_statements to 'false'. "
+              + "See https://docs.datadoghq.com/database_monitoring/connect_dbm_and_apm/ for more info.{}",
+          span.getTraceId().toHexString(),
+          e);
+      DECORATE.onError(span, e);
+    }
+    span.setTag(DBM_TRACE_INJECTED, true);
   }
 
   @Override

@@ -103,6 +103,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
         if (span != null && INJECT_COMMENT) {
           String traceParent = null;
 
+          // TODO: don't propagate trace info in the comments for postgres if full+ mode is defined
           if (injectTraceContext) {
             Integer priority = span.forceSamplingDecision();
             if (priority != null) {

@@ -88,6 +88,11 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
           span.setTag(DBM_TRACE_INJECTED, true);
         } else {
           span = startSpan(DATABASE_QUERY);
+          // TODO: call setApplicationName only if postgres && inject comment && inject trace
+          // context && trace_prepared_statements
+          // if (DECORATE.isPostgres(dbInfo)) {
+          DECORATE.setApplicationName(span, connection);
+          // }
         }
         DECORATE.afterStart(span);
         DECORATE.onConnection(span, dbInfo);
