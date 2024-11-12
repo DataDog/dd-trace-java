@@ -1,5 +1,3 @@
-import static datadog.trace.instrumentation.lettuce5.LettuceInstrumentationUtil.AGENT_CRASHING_COMMAND_PREFIX
-
 import com.redis.testcontainers.RedisContainer
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.PortUtils
@@ -20,6 +18,7 @@ import org.testcontainers.containers.wait.strategy.Wait
 import spock.lang.Shared
 import spock.util.concurrent.AsyncConditions
 
+import java.time.Duration
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletionException
 import java.util.concurrent.ExecutionException
@@ -28,6 +27,8 @@ import java.util.function.BiConsumer
 import java.util.function.BiFunction
 import java.util.function.Consumer
 import java.util.function.Function
+
+import static datadog.trace.instrumentation.lettuce5.LettuceInstrumentationUtil.AGENT_CRASHING_COMMAND_PREFIX
 
 abstract class Lettuce5AsyncClientTest extends VersionedNamingTestBase {
   public static final int DB_INDEX = 0
@@ -104,7 +105,7 @@ abstract class Lettuce5AsyncClientTest extends VersionedNamingTestBase {
 
     when:
     ConnectionFuture connectionFuture = testConnectionClient.connectAsync(StringCodec.UTF8,
-      new RedisURI(redisServer.getHost(), port, 3, TimeUnit.SECONDS))
+      new RedisURI(redisServer.getHost(), port, Duration.ofSeconds(3)))
     StatefulConnection connection = connectionFuture.get()
     TEST_WRITER.waitForTraces(1)
 
@@ -144,7 +145,7 @@ abstract class Lettuce5AsyncClientTest extends VersionedNamingTestBase {
 
     when:
     ConnectionFuture connectionFuture = testConnectionClient.connectAsync(StringCodec.UTF8,
-      new RedisURI(redisServer.getHost(), incorrectPort, 3, TimeUnit.SECONDS))
+      new RedisURI(redisServer.getHost(), incorrectPort, Duration.ofSeconds(3)))
     StatefulConnection connection = connectionFuture.get()
 
     then:
