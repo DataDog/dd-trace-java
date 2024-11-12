@@ -68,6 +68,7 @@ public class ExceptionHelper {
     if (chainedExceptions != null) {
       chainedExceptions.addFirst(t);
     }
+    // putting an arbitrary limit to avoid infinite loops with cycling causes
     int i = 100;
     while (t.getCause() != null && i > 0) {
       t = t.getCause();
