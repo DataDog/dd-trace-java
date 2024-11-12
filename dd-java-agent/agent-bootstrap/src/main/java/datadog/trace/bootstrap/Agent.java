@@ -69,6 +69,8 @@ public class Agent {
 
   private static final String SIMPLE_LOGGER_SHOW_DATE_TIME_PROPERTY =
       "datadog.slf4j.simpleLogger.showDateTime";
+  private static final String SIMPLE_LOGGER_JSON_ENABLED_PROPERTY =
+      "datadog.slf4j.simpleLogger.json.enabled";
   private static final String SIMPLE_LOGGER_DATE_TIME_FORMAT_PROPERTY =
       "datadog.slf4j.simpleLogger.dateTimeFormat";
   private static final String SIMPLE_LOGGER_DATE_TIME_FORMAT_DEFAULT =
@@ -1104,6 +1106,8 @@ public class Agent {
     setSystemPropertyDefault(SIMPLE_LOGGER_SHOW_DATE_TIME_PROPERTY, "true");
     setSystemPropertyDefault(
         SIMPLE_LOGGER_DATE_TIME_FORMAT_PROPERTY, SIMPLE_LOGGER_DATE_TIME_FORMAT_DEFAULT);
+    setSystemPropertyDefault(
+        SIMPLE_LOGGER_JSON_ENABLED_PROPERTY, "false");
 
     String logLevel;
     if (isDebugMode()) {
