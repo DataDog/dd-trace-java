@@ -16,12 +16,16 @@ class BestEffortLinesResolverTest extends Specification {
 
     delegate.getMethodLines(testMethod) >> expectedLines
     secondDelegate.getMethodLines(testMethod) >> LinesResolver.Lines.EMPTY
+    delegate.getClassLines(TestClass) >> expectedLines
+    secondDelegate.getClassLines(TestClass) >> LinesResolver.Lines.EMPTY
 
     when:
-    def lines = resolver.getMethodLines(testMethod)
+    def methodLines = resolver.getMethodLines(testMethod)
+    def classLines = resolver.getClassLines(TestClass)
 
     then:
-    lines == expectedLines
+    methodLines == expectedLines
+    classLines == expectedLines
   }
 
   def "test get source info from second delegate"() {
@@ -35,12 +39,16 @@ class BestEffortLinesResolverTest extends Specification {
 
     delegate.getMethodLines(testMethod) >> LinesResolver.Lines.EMPTY
     secondDelegate.getMethodLines(testMethod) >> expectedLines
+    delegate.getClassLines(TestClass) >> LinesResolver.Lines.EMPTY
+    secondDelegate.getClassLines(TestClass) >> expectedLines
 
     when:
-    def lines = resolver.getMethodLines(testMethod)
+    def methodLines = resolver.getMethodLines(testMethod)
+    def classLines = resolver.getClassLines(TestClass)
 
     then:
-    lines == expectedLines
+    methodLines == expectedLines
+    classLines == expectedLines
   }
 
   def "test failed to get info from both delegates"() {
@@ -53,12 +61,16 @@ class BestEffortLinesResolverTest extends Specification {
 
     delegate.getMethodLines(testMethod) >> LinesResolver.Lines.EMPTY
     secondDelegate.getMethodLines(testMethod) >> LinesResolver.Lines.EMPTY
+    delegate.getClassLines(TestClass) >> LinesResolver.Lines.EMPTY
+    secondDelegate.getClassLines(TestClass) >> LinesResolver.Lines.EMPTY
 
     when:
-    def lines = resolver.getMethodLines(testMethod)
+    def methodLines = resolver.getMethodLines(testMethod)
+    def classLines = resolver.getClassLines(TestClass)
 
     then:
-    lines == LinesResolver.Lines.EMPTY
+    methodLines == LinesResolver.Lines.EMPTY
+    classLines == LinesResolver.Lines.EMPTY
   }
 
   private static final class TestClass {
