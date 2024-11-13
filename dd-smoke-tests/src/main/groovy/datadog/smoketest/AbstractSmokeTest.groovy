@@ -38,6 +38,9 @@ abstract class AbstractSmokeTest extends ProcessManager {
   private Throwable traceDecodingFailure = null
 
   @Shared
+  protected TestHttpServer.Headers lastTraceRequestHeaders = null
+
+  @Shared
   @AutoCleanup
   protected TestHttpServer server = httpServer {
     handlers {
@@ -48,7 +51,7 @@ abstract class AbstractSmokeTest extends ProcessManager {
           "endpoints": [
             "/v0.4/traces",
             "/v0.5/traces",
-            "/telemetry/proxy/",
+            "/telemetry/proxy/"
           ],
           "client_drop_p0s": true,
           "span_meta_structs": true,
@@ -82,6 +85,7 @@ abstract class AbstractSmokeTest extends ProcessManager {
           }
         }
         traceCount.addAndGet(count)
+        lastTraceRequestHeaders = request.headers
         println("Received v0.4 traces: " + countString)
         response.status(200).send()
       }
@@ -104,7 +108,11 @@ abstract class AbstractSmokeTest extends ProcessManager {
           }
         }
         traceCount.addAndGet(count)
+        lastTraceRequestHeaders = request.headers
         println("Received v0.5 traces: " + countString)
+        response.status(200).send()
+      }
+      prefix("/v0.6/stats") {
         response.status(200).send()
       }
       prefix("/v0.7/config") {

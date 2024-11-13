@@ -79,7 +79,8 @@ public class ExceptionProbeManager {
     }
   }
 
-  public CreationResult createProbesForException(StackTraceElement[] stackTraceElements) {
+  public CreationResult createProbesForException(
+      StackTraceElement[] stackTraceElements, int chainedExceptionIdx) {
     int instrumentedFrames = 0;
     int nativeFrames = 0;
     int thirdPartyFrames = 0;
@@ -102,7 +103,7 @@ public class ExceptionProbeManager {
               stackTraceElement.getMethodName(),
               null,
               String.valueOf(stackTraceElement.getLineNumber()));
-      ExceptionProbe probe = createMethodProbe(this, where);
+      ExceptionProbe probe = createMethodProbe(this, where, chainedExceptionIdx);
       probes.putIfAbsent(probe.getId(), probe);
       instrumentedFrames++;
     }
@@ -114,10 +115,16 @@ public class ExceptionProbeManager {
   }
 
   private static ExceptionProbe createMethodProbe(
-      ExceptionProbeManager exceptionProbeManager, Where where) {
+      ExceptionProbeManager exceptionProbeManager, Where where, int chainedExceptionIdx) {
     String probeId = UUID.randomUUID().toString();
     return new ExceptionProbe(
-        new ProbeId(probeId, 0), where, null, null, null, exceptionProbeManager);
+        new ProbeId(probeId, 0),
+        where,
+        null,
+        null,
+        null,
+        exceptionProbeManager,
+        chainedExceptionIdx);
   }
 
   public boolean isAlreadyInstrumented(String fingerprint) {
@@ -146,11 +153,14 @@ public class ExceptionProbeManager {
 
   public void addSnapshot(Snapshot snapshot) {
     Throwable throwable = snapshot.getCaptures().getReturn().getCapturedThrowable().getThrowable();
+    if (throwable == null) {
+      LOGGER.debug("Snapshot has no throwable: {}", snapshot.getId());
+      return;
+    }
     throwable = ExceptionHelper.getInnerMostThrowable(throwable);
     if (throwable == null) {
-      LOGGER.debug(
-          "Unable to find root cause of exception: {}",
-          snapshot.getCaptures().getReturn().getCapturedThrowable().getThrowable().toString());
+      throwable = snapshot.getCaptures().getReturn().getCapturedThrowable().getThrowable();
+      LOGGER.debug("Unable to find root cause of exception: {}", String.valueOf(throwable));
       return;
     }
     ThrowableState state =
@@ -170,6 +180,10 @@ public class ExceptionProbeManager {
 
   void updateLastCapture(String fingerprint, Clock clock) {
     fingerprints.put(fingerprint, Instant.now(clock));
+  }
+
+  boolean hasExceptionStateTracked() {
+    return !snapshotsByThrowable.isEmpty();
   }
 
   public static class ThrowableState {

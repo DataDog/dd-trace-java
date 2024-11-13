@@ -34,11 +34,13 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
         DECORATE.onError(span, throwable);
         span.setHttpStatusCode(500);
         span.finish(); // Finish the span manually since finishSpanOnClose was false
+        ctx.channel().attr(SPAN_ATTRIBUTE_KEY).remove();
         throw throwable;
       }
       if (response.getStatus() != HttpResponseStatus.CONTINUE) {
         DECORATE.onResponse(span, response);
         DECORATE.beforeFinish(span);
+        ctx.channel().attr(SPAN_ATTRIBUTE_KEY).remove();
         span.finish(); // Finish the span manually since finishSpanOnClose was false
       }
     }

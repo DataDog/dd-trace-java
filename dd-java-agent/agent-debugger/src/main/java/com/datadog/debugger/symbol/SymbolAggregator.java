@@ -4,6 +4,8 @@ import static com.datadog.debugger.symbol.JarScanner.trimPrefixes;
 
 import com.datadog.debugger.sink.SymbolSink;
 import datadog.trace.util.AgentTaskScheduler;
+import datadog.trace.util.ClassNameTrie;
+import datadog.trace.util.Strings;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.ProtectionDomain;
@@ -12,8 +14,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,7 +28,8 @@ public class SymbolAggregator {
   private final AgentTaskScheduler.Scheduled<SymbolAggregator> scheduled;
   private final Object jarScopeLock = new Object();
   private int totalClasses;
-  private volatile Set<String> loadedClasses;
+  // ClassNameTrie is not thread safe, All accesses must be protected by a lock
+  private final ClassNameTrie.Builder loadedClasses = new ClassNameTrie.Builder();
 
   public SymbolAggregator(SymbolSink sink, int symbolFlushThreshold) {
     this.sink = sink;
@@ -61,10 +62,13 @@ public class SymbolAggregator {
     if (className.endsWith(CLASS_SUFFIX)) {
       className = className.substring(0, className.length() - CLASS_SUFFIX.length());
     }
-    Set<String> localLoadedClasses = loadedClasses;
-    if (localLoadedClasses != null && !localLoadedClasses.add(className)) {
-      // class already loaded and symbol extracted
-      return;
+    synchronized (loadedClasses) {
+      String fqn = Strings.getClassName(className); // ClassNameTrie expects Java class names ('.')
+      if (loadedClasses.apply(fqn) > 0) {
+        // class already loaded and symbol extracted
+        return;
+      }
+      loadedClasses.put(fqn, 1);
     }
     LOGGER.debug("Extracting Symbols from: {}, located in: {}", className, jarName);
     Scope jarScope = SymbolExtractor.extract(classfileBuffer, jarName);
@@ -109,15 +113,5 @@ public class SymbolAggregator {
         sink.addScope(scope);
       }
     }
-  }
-
-  void loadedClassesProcessStarted() {
-    // to avoid duplicate symbol extraction we keep track of loaded classes
-    // during the loaded class extraction phase
-    loadedClasses = ConcurrentHashMap.newKeySet();
-  }
-
-  void loadedClassesProcessEnded() {
-    loadedClasses = null;
   }
 }

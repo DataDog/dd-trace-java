@@ -13,8 +13,10 @@ import com.datadog.iast.taint.TaintedObject;
 import com.datadog.iast.taint.TaintedObjects;
 import com.datadog.iast.util.RangeBuilder;
 import com.datadog.iast.util.Ranged;
+import com.datadog.iast.util.StringUtils;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.propagation.StringModule;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Arrays;
 import java.util.Deque;
@@ -629,6 +631,115 @@ public class StringModuleImpl implements StringModule {
     if (newRanges != null) {
       taintedObjects.taint(result, newRanges);
     }
+  }
+
+  @Override
+  @SuppressFBWarnings("ES_COMPARING_PARAMETER_STRING_WITH_EQ")
+  public void onStringReplace(
+      @Nonnull String self, char oldChar, char newChar, @Nonnull String result) {
+    if (self == result || !canBeTainted(result)) {
+      return;
+    }
+    final IastContext ctx = IastContext.Provider.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    final TaintedObject taintedSelf = taintedObjects.get(self);
+    if (taintedSelf == null) {
+      return;
+    }
+
+    final Range[] rangesSelf = taintedSelf.getRanges();
+    if (rangesSelf.length == 0) {
+      return;
+    }
+
+    taintedObjects.taint(result, rangesSelf);
+  }
+
+  /** This method is used to make an {@code CallSite.Around} of the {@code String.replace} method */
+  @Override
+  @SuppressFBWarnings("ES_COMPARING_PARAMETER_STRING_WITH_EQ")
+  public String onStringReplace(
+      @Nonnull String self, CharSequence oldCharSeq, CharSequence newCharSeq) {
+    final IastContext ctx = IastContext.Provider.get();
+    if (ctx == null) {
+      return self.replace(oldCharSeq, newCharSeq);
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    final TaintedObject taintedSelf = taintedObjects.get(self);
+    Range[] rangesSelf = new Range[0];
+    if (taintedSelf != null) {
+      rangesSelf = taintedSelf.getRanges();
+    }
+
+    final TaintedObject taintedInput = taintedObjects.get(newCharSeq);
+    Range[] rangesInput = null;
+    if (taintedInput != null) {
+      rangesInput = taintedInput.getRanges();
+    }
+
+    if (rangesSelf.length == 0 && rangesInput == null) {
+      return self.replace(oldCharSeq, newCharSeq);
+    }
+
+    return StringUtils.replaceAndTaint(
+        taintedObjects,
+        self,
+        Pattern.compile((String) oldCharSeq),
+        (String) newCharSeq,
+        rangesSelf,
+        rangesInput,
+        Integer.MAX_VALUE);
+  }
+
+  /**
+   * This method is used to make an {@code CallSite.Around} of the {@code String.replaceFirst} and
+   * {@code String.replaceAll} methods
+   */
+  @Override
+  @SuppressForbidden
+  public String onStringReplace(
+      @Nonnull String self, String regex, String replacement, int numReplacements) {
+    final IastContext ctx = IastContext.Provider.get();
+    if (ctx == null) {
+      if (numReplacements > 1) {
+        return self.replaceAll(regex, replacement);
+      } else {
+        return self.replaceFirst(regex, replacement);
+      }
+    }
+
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    final TaintedObject taintedSelf = taintedObjects.get(self);
+    Range[] rangesSelf = new Range[0];
+    if (taintedSelf != null) {
+      rangesSelf = taintedSelf.getRanges();
+    }
+
+    final TaintedObject taintedInput = taintedObjects.get(replacement);
+    Range[] rangesInput = null;
+    if (taintedInput != null) {
+      rangesInput = taintedInput.getRanges();
+    }
+
+    if (rangesSelf.length == 0 && rangesInput == null) {
+      if (numReplacements > 1) {
+        return self.replaceAll(regex, replacement);
+      } else {
+        return self.replaceFirst(regex, replacement);
+      }
+    }
+
+    return StringUtils.replaceAndTaint(
+        taintedObjects,
+        self,
+        Pattern.compile(regex),
+        replacement,
+        rangesSelf,
+        rangesInput,
+        numReplacements);
   }
 
   /**

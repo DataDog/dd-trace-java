@@ -338,30 +338,6 @@
       "envars": null
     },
     {
-      "id": "apache_hbase",
-      "description": "Skip Apache HBase",
-      "os": null,
-      "cmds": [
-        "**/java"
-      ],
-      "args": [],
-      "envars": {
-        "HBASE_HOME": null
-      }
-    },
-    {
-      "id": "apache_hive",
-      "description": "Skip Apache Hive",
-      "os": null,
-      "cmds": [
-        "**/java"
-      ],
-      "args": [],
-      "envars": {
-        "HIVE_HOME": null
-      }
-    },
-    {
       "id": "apache_solr9",
       "description": "Skip Apache Solr 9",
       "os": null,

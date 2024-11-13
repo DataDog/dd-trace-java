@@ -54,4 +54,11 @@ public interface StringModule extends IastModule {
   void onStringStrip(@Nonnull String self, @Nonnull String result, boolean trailing);
 
   void onIndent(@Nonnull String self, int indentation, @Nonnull String result);
+
+  void onStringReplace(@Nonnull String self, char oldChar, char newChar, @Nonnull String result);
+
+  String onStringReplace(@Nonnull String self, CharSequence oldCharSeq, CharSequence newCharSeq);
+
+  String onStringReplace(
+      @Nonnull String self, String regex, String replacement, int numReplacements);
 }
