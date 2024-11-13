@@ -1,10 +1,12 @@
 package datadog.trace.instrumentation.apachehttpcore5;
 
-import static net.bytebuddy.matcher.ElementMatchers.any;
+import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
+import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import java.net.URI;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
@@ -22,7 +24,9 @@ public class BasicHttpRequestInstrumentation extends InstrumenterModule.Iast
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(any(), BasicHttpRequestInstrumentation.class.getName() + "$CtorAdvice");
+    transformer.applyAdvice(
+        isConstructor().and(takesArguments(String.class, URI.class)),
+        BasicHttpRequestInstrumentation.class.getName() + "$CtorAdvice");
   }
 
   public static class CtorAdvice {
