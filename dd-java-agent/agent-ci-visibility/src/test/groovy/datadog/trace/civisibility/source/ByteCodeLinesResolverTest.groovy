@@ -1,6 +1,5 @@
 package datadog.trace.civisibility.source
 
-
 import org.spockframework.util.IoUtil
 import spock.lang.Specification
 
@@ -11,8 +10,8 @@ class ByteCodeLinesResolverTest extends Specification {
     def aTestMethod = NestedClass.getDeclaredMethod("aTestMethod")
 
     when:
-    def methodLinesResolver = new ByteCodeLinesResolver()
-    def methodLines = methodLinesResolver.getMethodLines(aTestMethod)
+    def linesResolver = new ByteCodeLinesResolver()
+    def methodLines = linesResolver.getMethodLines(aTestMethod)
 
     then:
     methodLines.isValid()
@@ -20,13 +19,22 @@ class ByteCodeLinesResolverTest extends Specification {
     methodLines.finishLineNumber > methodLines.startLineNumber
   }
 
+  def "test always invalid class lines resolution" () {
+    when:
+    def linesResolver = new ByteCodeLinesResolver()
+    def classLines = linesResolver.getClassLines(NestedClass)
+
+    then:
+    !classLines.isValid()
+  }
+
   def "test invalid method lines resolution"() {
     setup:
     def aTestMethod = NestedClass.getDeclaredMethod("abstractMethod")
 
     when:
-    def methodLinesResolver = new ByteCodeLinesResolver()
-    def methodLines = methodLinesResolver.getMethodLines(aTestMethod)
+    def linesResolver = new ByteCodeLinesResolver()
+    def methodLines = linesResolver.getMethodLines(aTestMethod)
 
     then:
     !methodLines.isValid()
@@ -46,8 +54,8 @@ class ByteCodeLinesResolverTest extends Specification {
     def misbehavingMethod = misbehavingClass.getDeclaredMethod("aTestMethod")
 
     when:
-    def methodLinesResolver = new ByteCodeLinesResolver()
-    def methodLines = methodLinesResolver.getMethodLines(misbehavingMethod)
+    def linesResolver = new ByteCodeLinesResolver()
+    def methodLines = linesResolver.getMethodLines(misbehavingMethod)
 
     then:
     !methodLines.isValid()
