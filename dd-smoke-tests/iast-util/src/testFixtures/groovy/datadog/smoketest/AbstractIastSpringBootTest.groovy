@@ -741,7 +741,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
       final parts = vul.evidence.valueParts
       if (parameter == 'url' || parameter == 'urlHandler') {
         return parts.size() == 1
-        && parts[0].value == value && parts[0].source.origin == 'http.request.parameter' && parts[0].source.name == parameter
+        && parts[0].value.endsWith(value) && parts[0].source.origin == 'http.request.parameter' && parts[0].source.name == parameter
       } else if (parameter == 'host') {
         String protocol = protocolSecure ? 'https://' : 'http://'
         String finalValue = protocol + value + (endSlash ? '/' : '')

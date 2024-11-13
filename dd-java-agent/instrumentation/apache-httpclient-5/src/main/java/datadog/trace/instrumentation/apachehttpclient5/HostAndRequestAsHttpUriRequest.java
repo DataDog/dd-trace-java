@@ -16,7 +16,9 @@ public class HostAndRequestAsHttpUriRequest extends BasicClassicHttpRequest {
   public HostAndRequestAsHttpUriRequest(final HttpHost httpHost, final HttpRequest httpRequest) {
     super(httpRequest.getMethod(), httpHost, httpRequest.getPath());
     actualRequest = httpRequest;
-    PropagationUtils.taintObjectIfTainted(this, httpHost.toURI());
+    // Propagate in case the host or request is tainted
+    PropagationUtils.taintObjectIfTainted(this, httpHost);
+    PropagationUtils.taintObjectIfTainted(this, httpRequest);
   }
 
   @Override
