@@ -8,6 +8,8 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.when;
 
 import datadog.trace.relocate.api.RatelimitedLogger;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentMatchers;
@@ -72,7 +74,8 @@ public class ExceptionHelperTest {
     String strStackTrace = ExceptionHelper.foldExceptionStackTrace(new Exception());
     assertTrue(
         strStackTrace.startsWith(
-            "java.lang.Exception at com.datadog.debugger.util.ExceptionHelperTest.foldExceptionStackTrace(ExceptionHelperTest.java:72) at "));
+            "java.lang.Exception at com.datadog.debugger.util.ExceptionHelperTest.foldExceptionStackTrace(ExceptionHelperTest.java:74) at "),
+        strStackTrace);
     assertFalse(strStackTrace.contains("\n"));
     assertFalse(strStackTrace.contains("\t"));
     assertFalse(strStackTrace.contains("\r"));
@@ -86,6 +89,13 @@ public class ExceptionHelperTest {
     Exception nested = new RuntimeException("test3", new RuntimeException("test2", ex));
     innerMost = ExceptionHelper.getInnerMostThrowable(nested);
     assertEquals(ex, innerMost);
+    Deque<Throwable> exceptions = new ArrayDeque<>();
+    innerMost = ExceptionHelper.getInnerMostThrowable(nested, exceptions);
+    assertEquals(ex, innerMost);
+    assertEquals(3, exceptions.size());
+    assertEquals(nested, exceptions.pollLast());
+    assertEquals(nested.getCause(), exceptions.pollLast());
+    assertEquals(nested.getCause().getCause(), exceptions.pollLast());
   }
 
   @Test
