@@ -78,6 +78,8 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
             .and(takesArgument(2, named("org.apache.kafka.common.serialization.Deserializer"))),
         KafkaConsumerInfoInstrumentation.class.getName() + "$ConstructorAdviceNot27");
 
+    // Note: On some Kafka versions, both constructors will be instrumented. This is OK as we will override the context,
+    // and the instrumentation will still work as expected.
     transformer.applyAdvice(
         isConstructor()
             .and(takesArgument(0, Map.class))
