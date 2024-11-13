@@ -148,7 +148,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     }
     TEST_WRITER.setFilter(dropEmptyKafkaPoll)
     KafkaProducer<String, String> producer = new KafkaProducer<>(producerProps, new StringSerializer(), new StringSerializer())
-    String clusterId = null;
+    String clusterId = null
     while (clusterId == null || clusterId.isEmpty()) {
       Thread.sleep(1500)
       clusterId = producer.metadata.fetch().clusterResource().clusterId()
