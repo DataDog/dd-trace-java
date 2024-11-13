@@ -76,14 +76,14 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
             .and(takesArgument(0, named("org.apache.kafka.clients.consumer.ConsumerConfig")))
             .and(takesArgument(1, named("org.apache.kafka.common.serialization.Deserializer")))
             .and(takesArgument(2, named("org.apache.kafka.common.serialization.Deserializer"))),
-        KafkaConsumerInfoInstrumentation.class.getName() + "$ConstructorAdviceBefore27");
+        KafkaConsumerInfoInstrumentation.class.getName() + "$ConstructorAdviceNot27");
 
     transformer.applyAdvice(
         isConstructor()
             .and(takesArgument(0, Map.class))
             .and(takesArgument(1, named("org.apache.kafka.common.serialization.Deserializer")))
             .and(takesArgument(2, named("org.apache.kafka.common.serialization.Deserializer"))),
-        KafkaConsumerInfoInstrumentation.class.getName() + "$ConstructorAdvice27AndAfter");
+        KafkaConsumerInfoInstrumentation.class.getName() + "$ConstructorAdvice27");
 
     transformer.applyAdvice(
         isMethod()
@@ -94,7 +94,7 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
         KafkaConsumerInfoInstrumentation.class.getName() + "$RecordsAdvice");
   }
 
-  public static class ConstructorAdviceBefore27 {
+  public static class ConstructorAdviceNot27 {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void captureGroup(
         @Advice.This KafkaConsumer consumer,
@@ -138,7 +138,7 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
     }
   }
 
-  public static class ConstructorAdvice27AndAfter {
+  public static class ConstructorAdvice27 {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void captureGroup(
         @Advice.This KafkaConsumer consumer,
