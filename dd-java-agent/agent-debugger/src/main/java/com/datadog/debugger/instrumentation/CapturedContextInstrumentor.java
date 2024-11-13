@@ -1,5 +1,6 @@
 package com.datadog.debugger.instrumentation;
 
+import static com.datadog.debugger.instrumentation.ASMHelper.extractSuperClass;
 import static com.datadog.debugger.instrumentation.ASMHelper.getStatic;
 import static com.datadog.debugger.instrumentation.ASMHelper.invokeConstructor;
 import static com.datadog.debugger.instrumentation.ASMHelper.invokeStatic;
@@ -37,7 +38,6 @@ import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.util.Redaction;
-import datadog.trace.util.Strings;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -1161,7 +1161,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
       Limits limits,
       List<FieldNode> results,
       int fieldCount) {
-    String superClassName = Strings.getClassName(classNode.superName);
+    String superClassName = extractSuperClass(classNode);
     while (!superClassName.equals(Object.class.getTypeName())) {
       Class<?> clazz;
       try {
@@ -1215,7 +1215,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
       Limits limits,
       List<FieldNode> results,
       int fieldCount) {
-    String superClassName = Strings.getClassName(classNode.superName);
+    String superClassName = extractSuperClass(classNode);
     while (!superClassName.equals(Object.class.getTypeName())) {
       Class<?> clazz;
       try {
