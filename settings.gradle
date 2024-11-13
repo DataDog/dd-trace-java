@@ -134,6 +134,7 @@ include ':dd-smoke-tests:spring-boot-3.0-webflux'
 include ':dd-smoke-tests:spring-boot-2.3-webmvc-jetty'
 include ':dd-smoke-tests:spring-boot-2.6-webmvc'
 include ':dd-smoke-tests:spring-boot-3.0-webmvc'
+include ':dd-smoke-tests:spring-boot-3.3-webmvc'
 include ':dd-smoke-tests:spring-boot-rabbit'
 include ':dd-smoke-tests:spring-security'
 include ':dd-smoke-tests:springboot'
@@ -141,6 +142,7 @@ include ':dd-smoke-tests:springboot-freemarker'
 include ':dd-smoke-tests:springboot-grpc'
 include ':dd-smoke-tests:springboot-java-11'
 include ':dd-smoke-tests:springboot-jetty-jsp'
+include ':dd-smoke-tests:springboot-jpa'
 include ':dd-smoke-tests:springboot-mongo'
 include ':dd-smoke-tests:springboot-openliberty-20'
 include ':dd-smoke-tests:springboot-openliberty-23'
@@ -166,6 +168,9 @@ include ':dd-smoke-tests:iast-util'
 include ':dd-smoke-tests:iast-util:iast-util-11'
 // TODO this fails too often with a jgit failure, so disable until fixed
 //include ':dd-smoke-tests:debugger-integration-tests:latest-jdk-app'
+
+// annotation processor for checking instrumentation advice
+include ':dd-java-agent:instrumentation-annotation-processor'
 
 // instrumentation:
 include ':dd-java-agent:instrumentation:aerospike-4'
@@ -502,4 +507,3 @@ include ':dd-java-agent:benchmark'
 include ':dd-java-agent:benchmark-integration'
 include ':dd-java-agent:benchmark-integration:jetty-perftest'
 include ':dd-java-agent:benchmark-integration:play-perftest'
-
