@@ -1,7 +1,6 @@
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
@@ -12,22 +11,14 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.DDSpan
 import datadog.trace.core.datastreams.StatsGroup
-import datadog.trace.test.util.Flaky
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.ConsumerRecord
-import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.clients.producer.KafkaProducer
-import org.apache.kafka.clients.producer.Producer
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
-import org.apache.kafka.clients.producer.RecordMetadata
-import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.serialization.StringSerializer
 import org.junit.Rule
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory
-import org.springframework.kafka.core.DefaultKafkaProducerFactory
-import org.springframework.kafka.core.KafkaTemplate
-import org.springframework.kafka.listener.BatchMessageListener
 import org.springframework.kafka.listener.KafkaMessageListenerContainer
 import org.springframework.kafka.listener.MessageListener
 import org.springframework.kafka.test.utils.ContainerTestUtils
@@ -36,8 +27,6 @@ import org.springframework.kafka.test.rule.EmbeddedKafkaRule
 import org.springframework.kafka.test.EmbeddedKafkaBroker
 import spock.lang.Shared
 
-import java.util.concurrent.ExecutionException
-import java.util.concurrent.Future
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
