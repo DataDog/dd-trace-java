@@ -117,22 +117,8 @@ class SQLCommenterTest extends AgentTestRunner {
     injectSysConfig("dd.service", ddService)
     injectSysConfig("dd.env", ddEnv)
     injectSysConfig("dd.version", ddVersion)
-    //DDSpan testSpan = TEST_TRACER.buildSpan("fooInstrumentation", "op name").withServiceName("foo").start()
-
 
     when:
-    System.out.println("Setting peerservice")
-    System.out.println(peerService)
-
-    //testSpan.setTag(Tags.PEER_SERVICE, peerService);
-    //System.out.println(testSpan.tags);
-    //AgentSpan testSpan = CoreTracer.CoreSpanBuilder.buildSpan("testing");
-
-    //DefaultLoghandlerTest.groovy
-
-    //DDSpan testSpan = runUnderTrace("test");
-
-    //AgentTracer.activateSpan(testSpan);
     String sqlWithComment = ""
     runUnderTrace("testTrace"){
       AgentSpan currSpan = AgentTracer.activeSpan()
@@ -148,17 +134,10 @@ class SQLCommenterTest extends AgentTestRunner {
         }
       }
     }
-
-
     sqlWithComment == expected
 
     then:
     sqlWithComment == expected
-
-    cleanup:
-    //testSpan = null;
-    //TEST_TRACER.flush()
-    //TEST_SPANS.clear()
 
     where:
     query                                                                                                         | ddService      | ddEnv  | dbService    | dbType     | host | dbName | ddVersion     | injectTrace | appendComment | traceParent                                               | peerService | expected

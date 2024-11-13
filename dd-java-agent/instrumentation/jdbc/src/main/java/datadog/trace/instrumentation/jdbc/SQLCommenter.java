@@ -70,7 +70,6 @@ public class SQLCommenter {
       final String traceParent,
       final boolean injectTrace,
       boolean appendComment) {
-    System.out.println("hello in the other inject");
     if (sql == null || sql.isEmpty()) {
       return sql;
     }
@@ -100,15 +99,8 @@ public class SQLCommenter {
       }
     }
 
-    // find the current span, check if it inlcudes peerservice, if it does get it and inject it in
-    // the SQL comments
     AgentSpan currSpan = activeSpan();
-    System.out.println(currSpan.toString());
     Object peerService = currSpan.getTag(Tags.PEER_SERVICE);
-    System.out.println("just tried getting peer service");
-    if (peerService != null) {
-      System.out.println(peerService.toString());
-    }
 
     final Config config = Config.get();
     final String parentService = config.getServiceName();
@@ -185,109 +177,6 @@ public class SQLCommenter {
     }
     return sb.toString();
   }
-  /*
-    public static String inject(
-        final String sql,
-        final String dbService,
-        final String dbType,
-        final String hostname,
-        final String dbName,
-        final String dbInstance,
-        final String traceParent,
-        final boolean injectTrace,
-        boolean appendComment) {
-      // inject with dbInstance / peer.service attribute
-      System.out.println("Hello in Peerservice inject");
-      if (sql == null || sql.isEmpty()) {
-        return sql;
-      }
-      if (hasDDComment(sql, appendComment)) {
-        return sql;
-      }
-
-      if (dbType != null) {
-        final String firstWord = getFirstWord(sql);
-
-        // The Postgres JDBC parser doesn't allow SQL comments anywhere in a JDBC callable statements
-        // https://github.com/pgjdbc/pgjdbc/blob/master/pgjdbc/src/main/java/org/postgresql/core/Parser.java#L1038
-        // TODO: Could we inject the comment after the JDBC has been converted to standard SQL?
-        if (firstWord.startsWith("{") && dbType.startsWith("postgres")) {
-          return sql;
-        }
-
-        // Append the comment for mysql JDBC callable statements
-        if (firstWord.startsWith("{") && "mysql".equals(dbType)) {
-          appendComment = true;
-        }
-
-        // Both Postgres and MySQL are unhappy with anything before CALL in a stored procedure
-        // invocation but they seem ok with it after so we force append mode
-        if (firstWord.equalsIgnoreCase("call")) {
-          appendComment = true;
-        }
-      }
-
-      // find the current span, check if it inlcudes peerservice, if it does get it and inject it in the SQL comments
-      AgentSpan currSpan = activeSpan();
-      System.out.println(currSpan.toString());
-      Object peerService = currSpan.getTag(Tags.PEER_SERVICE);
-      System.out.println("just tried getting peer service");
-      if (peerService != null) {
-        System.out.println(peerService.toString());
-      }
-
-
-      final Config config = Config.get();
-      final String parentService = config.getServiceName();
-  //    if (SpanNaming.instance().namingSchema().allowInferredServices()) {
-  //      dbService = parentService;
-  //    }
-      final String env = config.getEnv();
-      final String version = config.getVersion();
-
-      final int commentSize = capacity(traceParent, parentService, dbService, env, version);
-      StringBuilder sb = new StringBuilder(sql.length() + commentSize);
-      boolean commentAdded = false;
-      if (appendComment) {
-        sb.append(sql);
-        sb.append(SPACE);
-        sb.append(OPEN_COMMENT);
-        commentAdded =
-            toComment(
-                sb,
-                injectTrace,
-                parentService,
-                dbService,
-                hostname,
-                dbName,
-                dbInstance,
-                env,
-                version,
-                traceParent);
-        sb.append(CLOSE_COMMENT);
-      } else {
-        sb.append(OPEN_COMMENT);
-        commentAdded =
-            toComment(
-                sb,
-                injectTrace,
-                parentService,
-                dbService,
-                hostname,
-                dbName,
-                dbInstance,
-                env,
-                version,
-                traceParent);
-        sb.append(CLOSE_COMMENT);
-        sb.append(SPACE);
-        sb.append(sql);
-      }
-      if (!commentAdded) {
-        return sql;
-      }
-      return sb.toString();
-    }*/
 
   private static boolean hasDDComment(String sql, final boolean appendComment) {
     // first check to see if sql ends with a comment
