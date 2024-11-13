@@ -41,6 +41,7 @@ import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
+import datadog.trace.util.SystemUtils;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
 import java.lang.instrument.Instrumentation;
 import java.lang.reflect.InvocationTargetException;
@@ -1129,8 +1130,8 @@ public class Agent {
   }
 
   private static void setSystemPropertyDefault(final String property, final String value) {
-    if (System.getProperty(property) == null && ddGetEnv(property) == null) {
-      System.setProperty(property, value);
+    if (SystemUtils.tryGetProperty(property) == null && ddGetEnv(property) == null) {
+      SystemUtils.trySetProperty(property, value);
     }
   }
 
@@ -1323,7 +1324,7 @@ public class Agent {
 
   /** Looks for the "DD_" environment variable equivalent of the given "dd." system property. */
   private static String ddGetEnv(final String sysProp) {
-    return System.getenv(toEnvVar(sysProp));
+    return SystemUtils.tryGetEnv(toEnvVar(sysProp));
   }
 
   private static boolean okHttpMayIndirectlyLoadJUL() {

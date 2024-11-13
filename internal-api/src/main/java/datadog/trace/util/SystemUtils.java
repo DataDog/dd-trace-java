@@ -51,4 +51,12 @@ public final class SystemUtils {
     }
     return true;
   }
+
+  public static String trySetProperty(String property, String value) {
+    try {
+      return System.setProperty(property, value);
+    } catch (SecurityException e) {
+      return null;
+    }
+  }
 }

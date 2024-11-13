@@ -49,6 +49,7 @@ public class CustomSecurityManager extends SecurityManager {
     }
 
     if (!allow) {
+      System.out.println("CUSTOMSECURITYMANAGER - permission denied at " + perm);
       if (DEBUG) System.err.println("Blocked: " + perm);
 
       block(perm);
@@ -569,6 +570,11 @@ public class CustomSecurityManager extends SecurityManager {
       case "ibm.system.encoding":
       case "os.name":
       case "JAVABIDI":
+      case "line.separator":
+      case "dd.trace.debug":
+      case "jdk.internal.lambda.dumpProxyClasses":
+      case "os.arch":
+      case "dd.log.level":
         return true;
     }
 
