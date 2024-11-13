@@ -38,8 +38,6 @@ dependencies {
   testImplementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.10')
 
   // Include latest version of kafka itself along with latest version of client libs.
-  // This seems to help with jar compatibility hell.
-  // latestDepTestImplementation group: 'org.apache.kafka', name: 'kafka_2.13', version: '2.+'
   latestDepTestImplementation group: 'org.apache.kafka', name: 'kafka-clients', version: '2.+'
   // latest depending to kafka client 2.x -> to be fixed when this instrumentation will test 3.x as well
   latestDepTestImplementation group: 'org.springframework.kafka', name: 'spring-kafka', version: '2.+'
