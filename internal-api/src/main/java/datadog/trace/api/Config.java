@@ -2404,8 +2404,8 @@ public class Config {
     // don't want to put this logic (which will evolve) in the public ProfilingConfig, and can't
     // access Platform there
     if (!Platform.isJ9() && Platform.isJavaVersion(8)) {
-      String arch = System.getProperty("os.arch");
-      if ("aarch64".equalsIgnoreCase(arch) || "arm64".equalsIgnoreCase(arch)) {
+      String arch = SystemUtils.tryGetProperty("os.arch");
+      if (arch == null || "aarch64".equalsIgnoreCase(arch) || "arm64".equalsIgnoreCase(arch)) {
         return false;
       }
     }
@@ -3305,12 +3305,12 @@ public class Config {
         getRuntimeId(),
         getEnv(),
         LANGUAGE_TAG_VALUE,
-        System.getProperty("java.runtime.name"),
-        System.getProperty("java.version"),
-        System.getProperty("java.vendor"),
-        System.getProperty("os.arch"),
-        System.getProperty("os.name"),
-        System.getProperty("os.version"));
+        SystemUtils.tryGetProperty("java.runtime.name"),
+        SystemUtils.tryGetProperty("java.version"),
+        SystemUtils.tryGetProperty("java.vendor"),
+        SystemUtils.tryGetProperty("os.arch"),
+        SystemUtils.tryGetProperty("os.name"),
+        SystemUtils.tryGetProperty("os.version"));
   }
 
   public String getPrimaryTag() {

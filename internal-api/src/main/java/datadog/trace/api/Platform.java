@@ -1,5 +1,6 @@
 package datadog.trace.api;
 
+import datadog.trace.util.SystemUtils;
 import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
@@ -43,7 +44,8 @@ public final class Platform {
     }
   }
 
-  private static final Version JAVA_VERSION = parseJavaVersion(System.getProperty("java.version"));
+  private static final Version JAVA_VERSION =
+      parseJavaVersion(SystemUtils.getPropertyOrDefault("java.version", "0"));
   private static final JvmRuntime RUNTIME = new JvmRuntime();
 
   private static final GC GARBAGE_COLLECTOR = GC.current();
@@ -201,11 +203,11 @@ public final class Platform {
 
     public JvmRuntime() {
       this(
-          System.getProperty("java.version"),
-          System.getProperty("java.runtime.version"),
-          System.getProperty("java.runtime.name"),
-          System.getProperty("java.vm.vendor"),
-          System.getProperty("java.vendor.version"));
+          SystemUtils.tryGetProperty("java.version"),
+          SystemUtils.tryGetProperty("java.runtime.version"),
+          SystemUtils.tryGetProperty("java.runtime.name"),
+          SystemUtils.tryGetProperty("java.vm.vendor"),
+          SystemUtils.tryGetProperty("java.vendor.version"));
     }
 
     // Only visible for testing
@@ -293,17 +295,19 @@ public final class Platform {
   }
 
   public static boolean isLinux() {
-    return System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("linux");
+    return SystemUtils.getPropertyOrDefault("os.name", "")
+        .toLowerCase(Locale.ROOT)
+        .contains("linux");
   }
 
   public static boolean isWindows() {
     // https://mkyong.com/java/how-to-detect-os-in-java-systemgetpropertyosname/
-    final String os = System.getProperty("os.name").toLowerCase(Locale.ROOT);
+    final String os = SystemUtils.getPropertyOrDefault("os.name", "").toLowerCase(Locale.ROOT);
     return os.contains("win");
   }
 
   public static boolean isMac() {
-    final String os = System.getProperty("os.name").toLowerCase(Locale.ROOT);
+    final String os = SystemUtils.getPropertyOrDefault("os.name", "").toLowerCase(Locale.ROOT);
     return os.contains("mac");
   }
 
@@ -314,7 +318,7 @@ public final class Platform {
   }
 
   public static boolean isJ9() {
-    return System.getProperty("java.vm.name").contains("J9");
+    return SystemUtils.getPropertyOrDefault("java.vm.name", "").contains("J9");
   }
 
   public static boolean isIbm8() {

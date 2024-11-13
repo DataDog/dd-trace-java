@@ -9,6 +9,7 @@ import datadog.communication.monitor.Monitoring;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.DefaultConfigurationPoller;
 import datadog.trace.api.Config;
+import datadog.trace.util.SystemUtils;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import okhttp3.HttpUrl;
@@ -98,7 +99,7 @@ public class SharedCommunicationObjects {
               agentUrl,
               config.isTraceAgentV05Enabled(),
               config.isTracerMetricsEnabled());
-      if (!"true".equalsIgnoreCase(System.getProperty("dd.test.no.early.discovery"))) {
+      if (!"true".equalsIgnoreCase(SystemUtils.tryGetProperty("dd.test.no.early.discovery"))) {
         featuresDiscovery.discover();
       }
     }
