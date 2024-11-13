@@ -118,6 +118,8 @@
 1 com.zaxxer.*
 1 commonj.work.*
 1 cryptix.*
+# Avoid weak random in dev.failsafe.internal.RetryPolicyExecutor
+1 dev.failsafe.*
 1 edu.emory.*
 1 edu.oswego.*
 1 freemarker.*
