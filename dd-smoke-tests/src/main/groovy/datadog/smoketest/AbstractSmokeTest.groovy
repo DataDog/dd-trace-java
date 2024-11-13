@@ -154,11 +154,11 @@ abstract class AbstractSmokeTest extends ProcessManager {
     ]
 
 
-    // DQH - 13 Nov 2024 - Crashtracking bash script oesn't work on OS X,
+    // DQH - 13 Nov 2024 - Crashtracking bash script doesn't work on OS X,
     // so skipping crash tracking on OS X
-    if (!Platform.isMac()) {
+    if (!Platform.isMac() && !Platform.isJ9()) {
       def errorScript = tmpDir + "/dd_crash_uploader." + getScriptExtension()
-      def onErrorValue = '"' + errorScript + ' %p"'
+      def onErrorValue = errorScript + ' %p'
 
       ret += "-XX:OnError=" + onErrorValue
     }
