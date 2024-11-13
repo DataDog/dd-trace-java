@@ -51,7 +51,7 @@ public class SymbolExtractor {
               .addModifiers(extractClassModifiers(classNode.access))
               .addInterfaces(extractInterfaces(classNode))
               .addAnnotations(extractAnnotations(classNode.visibleAnnotations))
-              .superClass(extractSuperClass(classNode))
+              .superClass(ASMHelper.extractSuperClass(classNode))
               .build();
       Scope classScope =
           Scope.builder(ScopeType.CLASS, sourceFile, classStartLine, classEndLine)
@@ -70,13 +70,6 @@ public class SymbolExtractor {
               "Extracting scopes for class[{}] in jar[{}] failed: ", classNode.name, jarName, ex);
       return null;
     }
-  }
-
-  private static String extractSuperClass(ClassNode classNode) {
-    if (classNode.superName == null) {
-      return Object.class.getTypeName();
-    }
-    return Strings.getClassName(classNode.superName);
   }
 
   private static Collection<String> extractInterfaces(ClassNode classNode) {
