@@ -115,7 +115,6 @@ public class SymDBEnablement implements ProductListener {
                 Instant.ofEpochMilli(lastUploadTimestamp), ZoneId.systemDefault()));
         return;
       }
-      symbolAggregator.loadedClassesProcessStarted();
       try {
         symbolExtractionTransformer =
             new SymbolExtractionTransformer(symbolAggregator, classNameFilter);
@@ -125,8 +124,6 @@ public class SymDBEnablement implements ProductListener {
       } catch (Throwable ex) {
         // catch all Throwables because LinkageError is possible (duplicate class definition)
         LOGGER.debug("Error during symbol extraction: ", ex);
-      } finally {
-        symbolAggregator.loadedClassesProcessEnded();
       }
     } finally {
       starting.set(false);
