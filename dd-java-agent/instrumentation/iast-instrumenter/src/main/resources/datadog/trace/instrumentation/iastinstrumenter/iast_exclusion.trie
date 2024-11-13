@@ -313,6 +313,8 @@
 1 serp.*
 1 sl.org.objectweb.asm.*
 1 software.amazon.awssdk.*
+# Avoid header injection reported within spark.Response
+2 spark.*
 1 springfox.*
 1 System.*
 1 tech.jhipster.*
