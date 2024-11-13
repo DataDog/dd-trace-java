@@ -95,17 +95,24 @@ public class SsrfController {
   @PostMapping("/apache-httpclient5")
   public String apacheHttpClient5(
       @RequestParam(value = "url", required = false) final String url,
+      @RequestParam(value = "urlHandler", required = false) final String urlHandler,
       @RequestParam(value = "host", required = false) final String host) {
     CloseableHttpClient client = HttpClients.createDefault();
-    org.apache.hc.client5.http.classic.methods.HttpGet request =
-        new org.apache.hc.client5.http.classic.methods.HttpGet(url);
     try {
       if (host != null) {
-        //        final HttpHost httpHost = new HttpHost(host);
-        //        final BasicHttpRequest request = new BasicHttpRequest("GET", "/");
-        //        client.execute(httpHost, request);
+        final org.apache.hc.core5.http.HttpHost httpHost =
+            new org.apache.hc.core5.http.HttpHost(host);
+        final org.apache.hc.client5.http.classic.methods.HttpGet request =
+            new org.apache.hc.client5.http.classic.methods.HttpGet("/");
+        client.execute(httpHost, request);
       } else if (url != null) {
+        final org.apache.hc.client5.http.classic.methods.HttpGet request =
+            new org.apache.hc.client5.http.classic.methods.HttpGet(url);
         client.execute(request);
+      } else if (urlHandler != null) {
+        final org.apache.hc.client5.http.classic.methods.HttpGet request =
+            new org.apache.hc.client5.http.classic.methods.HttpGet(urlHandler);
+        client.execute(request, response -> null);
       }
       client.close();
     } catch (Exception e) {

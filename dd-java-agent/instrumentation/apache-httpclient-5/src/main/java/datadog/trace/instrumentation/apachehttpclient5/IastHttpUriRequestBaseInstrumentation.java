@@ -19,7 +19,7 @@ public class IastHttpUriRequestBaseInstrumentation extends InstrumenterModule.Ia
     implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice {
 
   public IastHttpUriRequestBaseInstrumentation() {
-    super("testApache");
+    super("apache-httpclient", "httpclient5");
   }
 
   @Override
