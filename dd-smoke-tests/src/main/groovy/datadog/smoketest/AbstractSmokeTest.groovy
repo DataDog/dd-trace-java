@@ -133,15 +133,12 @@ abstract class AbstractSmokeTest extends ProcessManager {
   def javaProperties() {
     def tmpDir = "/tmp"
     def errorFileValue = tmpDir + "/hs_err_pid%p.log"
-    def errorScript = tmpDir + "/dd_crash_uploader." + getScriptExtension()
-    def onErrorValue = '"' + errorScript + ' %p"'
 
     def ret = [
       "${getMaxMemoryArgumentForFork()}",
       "${getMinMemoryArgumentForFork()}",
       "-javaagent:${shadowJarPath}",
       isIBM ? "-Xdump:directory=" + tmpDir : "-XX:ErrorFile=" + errorFileValue,
-      "-XX:OnError=" + onErrorValue,
       "-Ddd.trace.agent.port=${server.address.port}",
       "-Ddd.env=${ENV}",
       "-Ddd.version=${VERSION}",
@@ -155,6 +152,17 @@ abstract class AbstractSmokeTest extends ProcessManager {
       "-Dorg.slf4j.simpleLogger.defaultLogLevel=${logLevel()}",
       "-Ddd.site="
     ]
+
+
+    // DQH - 13 Nov 2024 - Crashtracking bash script oesn't work on OS X, 
+    // so skipping crash tracking on OS X
+    if (!Platform.isMac()) {
+      def errorScript = tmpDir + "/dd_crash_uploader." + getScriptExtension()
+      def onErrorValue = '"' + errorScript + ' %p"'
+
+      ret += "-XX:OnError=" + onErrorValue
+    }
+
     if (inferServiceName())  {
       ret += "-Ddd.service.name=${SERVICE_NAME}"
     }
