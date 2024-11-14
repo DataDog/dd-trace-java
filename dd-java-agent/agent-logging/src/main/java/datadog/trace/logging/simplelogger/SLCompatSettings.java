@@ -1,7 +1,5 @@
 package datadog.trace.logging.simplelogger;
 
-import static java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME;
-
 import datadog.trace.logging.LogLevel;
 import datadog.trace.logging.LogReporter;
 import datadog.trace.logging.PrintStreamWrapper;
@@ -39,7 +37,6 @@ public class SLCompatSettings {
     public static final String DEFAULT_LOG_LEVEL = "defaultLogLevel";
     public static final String EMBED_EXCEPTION = "embedException";
     public static final String CONFIGURATION_FILE = "configurationFile";
-
   }
 
   public static final class Keys {

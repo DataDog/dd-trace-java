@@ -1106,8 +1106,7 @@ public class Agent {
     setSystemPropertyDefault(SIMPLE_LOGGER_SHOW_DATE_TIME_PROPERTY, "true");
     setSystemPropertyDefault(
         SIMPLE_LOGGER_DATE_TIME_FORMAT_PROPERTY, SIMPLE_LOGGER_DATE_TIME_FORMAT_DEFAULT);
-    setSystemPropertyDefault(
-        SIMPLE_LOGGER_JSON_ENABLED_PROPERTY, "false");
+    setSystemPropertyDefault(SIMPLE_LOGGER_JSON_ENABLED_PROPERTY, "false");
 
     String logLevel;
     if (isDebugMode()) {

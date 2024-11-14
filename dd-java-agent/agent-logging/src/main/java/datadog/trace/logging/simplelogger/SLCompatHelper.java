@@ -1,6 +1,7 @@
 package datadog.trace.logging.simplelogger;
 
 import static datadog.trace.util.Strings.escapeToJson;
+
 import datadog.trace.logging.LogLevel;
 import datadog.trace.logging.LoggerHelper;
 import org.slf4j.Marker;
@@ -35,11 +36,11 @@ class SLCompatHelper extends LoggerHelper {
     if (settings.showDateTime) {
       timeMillis = System.currentTimeMillis();
     }
-
+    System.out.println("CTE settings.jsonEnabled: " + settings.jsonEnabled);
     if (settings.jsonEnabled) {
-        logJson(level, marker, SLCompatFactory.START_TIME, timeMillis, message, t);
+      logJson(level, marker, SLCompatFactory.START_TIME, timeMillis, message, t);
     } else {
-        log(level, marker, SLCompatFactory.START_TIME, timeMillis, message, t);
+      log(level, marker, SLCompatFactory.START_TIME, timeMillis, message, t);
     }
   }
 
@@ -146,7 +147,7 @@ class SLCompatHelper extends LoggerHelper {
     StringBuilder buf = new StringBuilder(32);
 
     buf.append("{");
-    
+
     if (timeMillis >= 0 && settings.showDateTime) {
       embedJsonKey(buf, "time");
       settings.dateTimeFormatter.appendFormattedDate(buf, timeMillis, startTimeMillis);
@@ -158,12 +159,13 @@ class SLCompatHelper extends LoggerHelper {
     }
 
     embedJsonKey(buf, "level");
+
     if (settings.warnLevelString != null && level == LogLevel.WARN) {
-      embedJsonValue(buf, settings.warnLevelString, true);
+      embedJsonValue(buf, wrappedValueWithBracketsIfRequested(settings.warnLevelString), true);
     } else if (marker != null) {
-      embedJsonValue(buf, marker.getName(), true);
+      embedJsonValue(buf, wrappedValueWithBracketsIfRequested(marker.getName()), true);
     } else {
-      embedJsonValue(buf, level.name(), true);
+      embedJsonValue(buf, wrappedValueWithBracketsIfRequested(level.name()), true);
     }
 
     if (!logName.isEmpty()) {
@@ -184,7 +186,10 @@ class SLCompatHelper extends LoggerHelper {
   private void embedJson(StringBuilder buf, String key, String value, boolean withComma) {
     embedJsonKey(buf, key);
     embedJsonValue(buf, value, withComma);
+  }
 
+  private String wrappedValueWithBracketsIfRequested(String value) {
+    return settings.levelInBrackets ? '[' + value + ']' : value;
   }
 
   private void embedJsonKey(StringBuilder buf, String key) {
@@ -197,10 +202,11 @@ class SLCompatHelper extends LoggerHelper {
       buf.append(",");
     }
   }
+
   private void embedExceptionJson(StringBuilder buf, Throwable t) {
     buf.append("\"exception\":{");
-    embedJson(buf, "message",escapeToJson(t.getMessage()), true);
-    int length =  t.getStackTrace().length;
+    embedJson(buf, "message", escapeToJson(t.getMessage()), true);
+    int length = t.getStackTrace().length;
     if (length > 0) {
       buf.append("\"stackTrace\":[\"");
       int count = 0;

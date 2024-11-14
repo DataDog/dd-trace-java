@@ -1,6 +1,7 @@
 package datadog.trace.logging.simplelogger
 
 import datadog.trace.logging.LogLevel
+import org.slf4j.Marker
 import spock.lang.Shared
 import spock.lang.Specification
 
@@ -139,25 +140,54 @@ class SLCompatHelperTest extends Specification {
     def printStream = new PrintStream(outputStream, true)
     def props = new Properties()
     def dateTimeFormatter = SLCompatSettings.DTFormatter.create(dateTFS)
-    def settings = new SLCompatSettings(props, props, warnS, showB, printStream, showS, showL, showT, dateTimeFormatter, showDT, LogLevel.INFO, false)
+    def settings = new SLCompatSettings(props, props, warnS, showB, printStream, showS, showL, showT, dateTimeFormatter, showDT, jsonE, LogLevel.INFO, false)
     def helper = new SLCompatHelper("foo.bar", settings)
+
     helper.log(level, null, 0, 4711, "thread", "log", null)
 
     then:
     outputStream.toString() == expected
 
     where:
-    level         | warnS    | showB | showS | showL | showT | dateTFS                 | showDT | expected
-    LogLevel.WARN | null     | false | false | false | false | null                    | false  | "WARN log\n"
-    LogLevel.WARN | "DANGER" | false | false | false | false | null                    | false  | "DANGER log\n"
-    LogLevel.INFO | "DANGER" | false | false | false | false | null                    | false  | "INFO log\n"
-    LogLevel.WARN | null     | true  | false | false | false | null                    | false  | "[WARN] log\n"
-    LogLevel.INFO | null     | false | true  | false | false | null                    | false  | "INFO bar - log\n"
-    LogLevel.INFO | null     | true  | true  | true  | false | null                    | false  | "[INFO] bar - log\n"
-    LogLevel.INFO | null     | true  | false | true  | false | null                    | false  | "[INFO] foo.bar - log\n"
-    LogLevel.INFO | null     | false | false | false | true  | null                    | false  | "[thread] INFO log\n"
-    LogLevel.INFO | null     | false | false | false | true  | null                    | true   | "4711 [thread] INFO log\n"
-    LogLevel.INFO | null     | false | false | false | true  | "yyyy-MM-dd HH:mm:ss z" | false  | "[thread] INFO log\n"
-    LogLevel.INFO | null     | false | false | false | true  | "yyyy-MM-dd HH:mm:ss z" | true   | "${new SimpleDateFormat("yyyy-MM-dd HH:mm:ss z").format(new Date(4711))} [thread] INFO log\n"
+    level         | warnS    | showB | showS | showL | showT | dateTFS                 | showDT |  jsonE | expected
+    LogLevel.WARN | null     | false | false | false | false | null                    | false  |  false | "WARN log\n"
+    LogLevel.WARN | "DANGER" | false | false | false | false | null                    | false  |  false | "DANGER log\n"
+    LogLevel.INFO | "DANGER" | false | false | false | false | null                    | false  |  false | "INFO log\n"
+    LogLevel.WARN | null     | true  | false | false | false | null                    | false  |  false | "[WARN] log\n"
+    LogLevel.INFO | null     | false | true  | false | false | null                    | false  |  false | "INFO bar - log\n"
+    LogLevel.INFO | null     | true  | true  | true  | false | null                    | false  |  false | "[INFO] bar - log\n"
+    LogLevel.INFO | null     | true  | false | true  | false | null                    | false  |  false | "[INFO] foo.bar - log\n"
+    LogLevel.INFO | null     | false | false | false | true  | null                    | false  |  false | "[thread] INFO log\n"
+    LogLevel.INFO | null     | false | false | false | true  | null                    | true   |  false | "4711 [thread] INFO log\n"
+    LogLevel.INFO | null     | false | false | false | true  | "yyyy-MM-dd HH:mm:ss z" | false  |  false | "[thread] INFO log\n"
+    LogLevel.INFO | null     | false | false | false | true  | "yyyy-MM-dd HH:mm:ss z" | true   |  false | "${new SimpleDateFormat("yyyy-MM-dd HH:mm:ss z").format(new Date(4711))} [thread] INFO log\n"
+  }
+
+
+  def "test log output with JSon configuration"() {
+    when:
+    def outputStream = new ByteArrayOutputStream()
+    def printStream = new PrintStream(outputStream, true)
+    def props = new Properties()
+    def dateTimeFormatter = SLCompatSettings.DTFormatter.create(dateTFS)
+    def settings = new SLCompatSettings(props, props, warnS, showB, printStream, showS, showL, showT, dateTimeFormatter, showDT, jsonE, LogLevel.INFO, false)
+    def helper = new SLCompatHelper("foo.bar", settings)
+
+    helper. log(level, null, "log", null)
+
+    then:
+    outputStream.toString() == expected
+
+    where:
+    level         | warnS    | showB | showS | showL | showT | dateTFS                 | showDT |  jsonE | expected
+    LogLevel.WARN | null     | false | false | false | false | null                    | false  |  false | "WARN log\n"
+    LogLevel.WARN | "DANGER" | false | false | false | false | null                    | false  |  true  | "{\"level\":\"DANGER\",\"message\":\"log\"}\n"
+    LogLevel.INFO | "DANGER" | false | false | false | false | null                    | false  |  true  | "{\"level\":\"INFO\",\"message\":\"log\"}\n"
+    LogLevel.WARN | null     | true  | false | false | false | null                    | false  |  true  | "{\"level\":\"[WARN]\",\"message\":\"log\"}\n"
+    LogLevel.INFO | null     | false | true  | false | false | null                    | false  |  true  | "{\"level\":\"INFO\",\"loggerName\":\"bar\",\"message\":\"log\"}\n"
+    LogLevel.INFO | null     | true  | true  | true  | false | null                    | false  |  true  | "{\"level\":\"[INFO]\",\"loggerName\":\"bar\",\"message\":\"log\"}\n"
+    LogLevel.INFO | null     | true  | false | true  | false | null                    | false  |  true  | "{\"level\":\"[INFO]\",\"loggerName\":\"foo.bar\",\"message\":\"log\"}\n"
+    LogLevel.INFO | null     | false | false | false | true  | null                    | false  |  true  | "{\"threadName\":\"Test worker\",\"level\":\"INFO\",\"message\":\"log\"}\n"
+    LogLevel.INFO | null     | false | false | false | true  | "yyyy-MM-dd HH:mm:ss z" | false  |  true  | "{\"threadName\":\"Test worker\",\"level\":\"INFO\",\"message\":\"log\"}\n"
   }
 }
