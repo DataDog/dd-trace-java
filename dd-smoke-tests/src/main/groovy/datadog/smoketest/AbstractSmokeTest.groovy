@@ -7,6 +7,7 @@ import datadog.trace.test.agent.decoder.Decoder
 import datadog.trace.test.agent.decoder.DecodedMessage
 import datadog.trace.test.agent.decoder.DecodedTrace
 import datadog.trace.util.Strings
+import groovy.json.JsonSlurper
 
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.CopyOnWriteArrayList
@@ -36,6 +37,15 @@ abstract class AbstractSmokeTest extends ProcessManager {
 
   @Shared
   private Throwable traceDecodingFailure = null
+
+  @Shared
+  protected CopyOnWriteArrayList<Map<String, Object>> telemetryMessages = new CopyOnWriteArrayList()
+
+  @Shared
+  protected CopyOnWriteArrayList<Map<String, Object>> telemetryFlatMessages = new CopyOnWriteArrayList()
+
+  @Shared
+  private Throwable telemetryDecodingFailure = null
 
   @Shared
   protected TestHttpServer.Headers lastTraceRequestHeaders = null
@@ -119,6 +129,24 @@ abstract class AbstractSmokeTest extends ProcessManager {
         response.status(200).send(remoteConfigResponse)
       }
       prefix("/telemetry/proxy/api/v2/apmtelemetry") {
+        def body = request.getBody()
+        if (body != null) {
+          Map<String, Object> msg = null
+          try {
+            msg = new JsonSlurper().parseText(new String(body, StandardCharsets.UTF_8)) as Map<String, Object>
+          } catch (Throwable t) {
+            println("=== Failure during telemetry decoding ===")
+            t.printStackTrace(System.out)
+            telemetryDecodingFailure = t
+            throw t
+          }
+          telemetryMessages.add(msg)
+          if (msg.get("request_type") == "message-batch") {
+            msg.get("payload")?.each { telemetryFlatMessages.add(it as Map<String, Object>) }
+          } else {
+            telemetryFlatMessages.add(msg)
+          }
+        }
         response.status(202).send()
       }
     }
