@@ -54,6 +54,8 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
           || DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_STATIC);
   private static final boolean INJECT_TRACE_CONTEXT =
       DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_FULL);
+  public static final boolean DBM_TRACE_PREPARED_STATEMENTS =
+      Config.get().isDBMTracePreparedStatements();
 
   private volatile boolean warnedAboutDBMPropagationMode = false; // to log a warning only once
 
@@ -250,7 +252,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   }
 
   public boolean isPostgres(final DBInfo dbInfo) {
-    return "postgres".equals(dbInfo.getType());
+    return dbInfo.getType().startsWith("postgres");
   }
 
   public boolean isSqlServer(final DBInfo dbInfo) {
