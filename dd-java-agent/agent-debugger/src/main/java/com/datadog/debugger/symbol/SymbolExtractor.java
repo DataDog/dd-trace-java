@@ -51,7 +51,7 @@ public class SymbolExtractor {
               .addModifiers(extractClassModifiers(classNode.access))
               .addInterfaces(extractInterfaces(classNode))
               .addAnnotations(extractAnnotations(classNode.visibleAnnotations))
-              .superClass(Strings.getClassName(classNode.superName))
+              .superClass(ASMHelper.extractSuperClass(classNode))
               .build();
       Scope classScope =
           Scope.builder(ScopeType.CLASS, sourceFile, classStartLine, classEndLine)

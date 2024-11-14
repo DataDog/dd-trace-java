@@ -26,7 +26,7 @@ class ExceptionProbeManagerTest {
     ExceptionProbeManager exceptionProbeManager = new ExceptionProbeManager(classNameFiltering);
     RuntimeException exception = new RuntimeException("test");
     String fingerprint = Fingerprinter.fingerprint(exception, classNameFiltering);
-    exceptionProbeManager.createProbesForException(exception.getStackTrace());
+    exceptionProbeManager.createProbesForException(exception.getStackTrace(), 0);
     assertFalse(exceptionProbeManager.getProbes().isEmpty());
   }
 
@@ -47,7 +47,7 @@ class ExceptionProbeManagerTest {
 
     String fingerprint = Fingerprinter.fingerprint(exception, classNameFiltering);
     assertEquals("4974b2b4853e6152d8f218fb79a42a761a45335447e22e53d75f5325e742655", fingerprint);
-    exceptionProbeManager.createProbesForException(exception.getStackTrace());
+    exceptionProbeManager.createProbesForException(exception.getStackTrace(), 0);
     assertEquals(1, exceptionProbeManager.getProbes().size());
     ExceptionProbe exceptionProbe = exceptionProbeManager.getProbes().iterator().next();
     assertEquals(
@@ -71,7 +71,7 @@ class ExceptionProbeManagerTest {
     ExceptionProbeManager exceptionProbeManager = new ExceptionProbeManager(classNameFiltering);
     String fingerprint = Fingerprinter.fingerprint(exception, classNameFiltering);
     assertEquals("7a1e5e1bcc64ee26801d1471245eff6b6e8d7c61d0ea36fe85f3f75d79e42c", fingerprint);
-    exceptionProbeManager.createProbesForException(exception.getStackTrace());
+    exceptionProbeManager.createProbesForException(exception.getStackTrace(), 0);
     assertEquals(0, exceptionProbeManager.getProbes().size());
   }
 
@@ -106,7 +106,7 @@ class ExceptionProbeManagerTest {
                 .collect(Collectors.toSet()));
     ExceptionProbeManager exceptionProbeManager =
         new ExceptionProbeManager(classNameFiltering, Duration.ofHours(1), Clock.systemUTC(), 3);
-    exceptionProbeManager.createProbesForException(deepException.getStackTrace());
+    exceptionProbeManager.createProbesForException(deepException.getStackTrace(), 0);
     assertEquals(3, exceptionProbeManager.getProbes().size());
   }
 
