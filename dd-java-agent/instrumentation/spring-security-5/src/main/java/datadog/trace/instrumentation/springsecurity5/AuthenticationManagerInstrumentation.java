@@ -18,16 +18,16 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 
 @AutoService(InstrumenterModule.class)
-public class AuthenticationProviderInstrumentation extends InstrumenterModule.AppSec
+public class AuthenticationManagerInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForTypeHierarchy {
 
-  public AuthenticationProviderInstrumentation() {
+  public AuthenticationManagerInstrumentation() {
     super("spring-security");
   }
 
   @Override
   public String hierarchyMarkerType() {
-    return "org.springframework.security.authentication.AuthenticationProvider";
+    return "org.springframework.security.authentication.AuthenticationManager";
   }
 
   @Override
@@ -50,10 +50,10 @@ public class AuthenticationProviderInstrumentation extends InstrumenterModule.Ap
             .and(takesArgument(0, named("org.springframework.security.core.Authentication")))
             .and(returns(named("org.springframework.security.core.Authentication")))
             .and(isPublic()),
-        getClass().getName() + "$AuthenticationProviderAdvice");
+        getClass().getName() + "$AuthenticationManagerAdvice");
   }
 
-  public static class AuthenticationProviderAdvice {
+  public static class AuthenticationManagerAdvice {
 
     @Advice.OnMethodExit(onThrowable = AuthenticationException.class, suppress = Throwable.class)
     public static void onExit(
