@@ -11,6 +11,9 @@ import io.vertx.reactivex.core.MultiMap
 import io.vertx.reactivex.ext.web.Router
 import io.vertx.reactivex.ext.web.RoutingContext
 import io.vertx.reactivex.ext.web.handler.BodyHandler
+import io.vertx.reactivex.ext.web.handler.CookieHandler
+import io.vertx.reactivex.ext.web.handler.SessionHandler
+import io.vertx.reactivex.ext.web.sstore.LocalSessionStore
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
@@ -22,6 +25,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SESSION_ID
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_BLOCK
 import static server.VertxTestServer.CONFIG_HTTP_SERVER_PORT
@@ -232,6 +236,26 @@ class VertxRxCircuitBreakerHttpServerForkedTest extends VertxHttpServerForkedTes
           }
         })
       }
+
+      router.route(SESSION_ID.getPath()).handler(CookieHandler.create())
+      final LocalSessionStore sessionStorage = LocalSessionStore.create(super.@vertx)
+      router
+        .route(SESSION_ID.getPath())
+        .handler(SessionHandler.create(sessionStorage).setCookieSecureFlag(true).setCookieHttpOnlyFlag(true))
+      router
+        .route(SESSION_ID.getPath())
+        .handler { ctx ->
+          controller(SESSION_ID) {
+            final session = ctx.session()
+            if (!session) {
+              ctx.response()
+                .setStatusCode(500)
+                .end('Cookie/Session handlers not present')
+            } else {
+              ctx.response().setStatusCode(SESSION_ID.getStatus()).end(session.id())
+            }
+          }
+        }
 
       super.@vertx.createHttpServer(new HttpServerOptions().setHandle100ContinueAutomatically(true))
         .requestHandler { router.accept(it) }

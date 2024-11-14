@@ -4,6 +4,9 @@ import io.vertx.core.AbstractVerticle
 import io.vertx.core.Future
 import io.vertx.core.http.HttpServerOptions
 import io.vertx.ext.web.Router
+import io.vertx.ext.web.handler.CookieHandler
+import io.vertx.ext.web.handler.SessionHandler
+import io.vertx.ext.web.sstore.LocalSessionStore
 import spock.lang.Ignore
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
@@ -12,6 +15,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWAR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SESSION_ID
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static server.VertxTestServer.CONFIG_HTTP_SERVER_PORT
 
@@ -69,6 +73,24 @@ class VertxRxHttpServerForkedTest extends VertxHttpServerForkedTest {
       router.route(EXCEPTION.path).handler { ctx ->
         controller(EXCEPTION) {
           throw new Exception(EXCEPTION.body)
+        }
+      }
+
+      router.route(SESSION_ID.getPath()).handler(CookieHandler.create())
+      final LocalSessionStore sessionStorage = LocalSessionStore.create(vertx)
+      router
+        .route(SESSION_ID.getPath())
+        .handler(SessionHandler.create(sessionStorage).setCookieSecureFlag(true).setCookieHttpOnlyFlag(true))
+      router.route(SESSION_ID.getPath()).handler { ctx ->
+        controller(SESSION_ID) {
+          final session = ctx.session()
+          if (session == null) {
+            ctx.response()
+              .setStatusCode(500)
+              .end('Cookie/Session handlers not present')
+          } else {
+            ctx.response().setStatusCode(SESSION_ID.getStatus()).end(session.id())
+          }
         }
       }
 
