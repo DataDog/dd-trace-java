@@ -118,10 +118,6 @@ abstract class AbstractServerSmokeTest extends AbstractSmokeTest {
     return remaining
   }
 
-  boolean testTelemetry() {
-    return true
-  }
-
   void 'receive telemetry app-started'() {
     when:
     assumeTrue(testTelemetry())
@@ -135,5 +131,37 @@ abstract class AbstractServerSmokeTest extends AbstractSmokeTest {
 
   List<String> expectedTelemetryDependencies() {
     []
+  }
+
+  void 'receive telemetry app-dependencies-loaded'() {
+    when:
+    assumeTrue(testTelemetry())
+    // app-started + 3 message-batch
+    waitForTelemetryCount(4)
+    waitForTelemetryFlat { it.get('request_type') == 'app-dependencies-loaded' }
+
+    then: 'received some dependencies'
+    def dependenciesLoaded = telemetryFlatMessages.findAll { it.get('request_type') == 'app-dependencies-loaded' }
+    def dependencies = []
+    dependenciesLoaded.each {
+      def payload = it.get('payload') as Map<String, Object>
+      dependencies.addAll(payload.get('dependencies')) }
+    dependencies.size() > 0
+
+    Set<String> dependencyNames = dependencies.collect {
+      def dependency = it as Map<String, Object>
+      dependency.get('name') as String
+    }.toSet()
+
+    and: 'received tracer dependencies'
+    // Not exhaustive list of tracer dependencies.
+    Set<String> missingDependencyNames = ['com.github.jnr:jnr-ffi', 'net.bytebuddy:byte-buddy-agent',].toSet()
+    missingDependencyNames.removeAll(dependencyNames) || true
+    missingDependencyNames.isEmpty()
+
+    and: 'received application dependencies'
+    Set<String> missingExtraDependencyNames = expectedTelemetryDependencies().toSet()
+    missingExtraDependencyNames.removeAll(dependencyNames) || true
+    missingExtraDependencyNames.isEmpty()
   }
 }

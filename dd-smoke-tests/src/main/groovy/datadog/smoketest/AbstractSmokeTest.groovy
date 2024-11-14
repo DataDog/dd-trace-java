@@ -187,6 +187,9 @@ abstract class AbstractSmokeTest extends ProcessManager {
     if (inferServiceName())  {
       ret += "-Ddd.service.name=${SERVICE_NAME}"
     }
+    if (testTelemetry()) {
+      ret += "-Ddd.telemetry.heartbeat.interval=5"
+    }
     ret as String[]
   }
 
@@ -197,6 +200,11 @@ abstract class AbstractSmokeTest extends ProcessManager {
   private static boolean isDdprofSafe() {
     // currently the J9 handling of jmethodIDs will cause frequent crashes
     return !Platform.isJ9()
+  }
+
+
+  boolean testTelemetry() {
+    return true
   }
 
   def setup() {
