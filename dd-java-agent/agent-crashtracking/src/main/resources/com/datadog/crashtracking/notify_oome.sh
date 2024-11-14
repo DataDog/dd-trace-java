@@ -22,20 +22,25 @@ fi
 # The expected contents are:
 # - agent: Path to the agent jar
 # - tags: Comma-separated list of tags to be sent with the OOME event; key:value pairs are supported
-declare -A config
 while IFS="=" read -r key value; do
-    config["$key"]="$value"
+    declare "config_$key"="$value"
 done < "$configFile"
 
+# Exiting early if configuration is missing
+if [ -z "${config_agent}" ] || [ -z "${config_tags}" ]; then
+    echo "Error: Missing configuration"
+    exit 1
+fi
+
 # Debug: Print the loaded values (Optional)
-echo "Agent Jar: ${config[agent]}"
-echo "Tags: ${config[tags]}"
+echo "Agent Jar: ${config_agent}"
+echo "Tags: ${config_tags}"
 echo "PID: $PID"
 
 # Execute the Java command with the loaded values
-java -Ddd.dogstatsd.start-delay=0 -jar "${config[agent]}" sendOomeEvent "${config[tags]}"
+java -Ddd.dogstatsd.start-delay=0 -jar "${config_agent}" sendOomeEvent "${config_tags}"
 RC=$?
-rm -f ${configFile} # Remove the configuration file
+rm -f "${configFile}" # Remove the configuration file
 
 if [ $RC -eq 0 ]; then
     echo "OOME Event generated successfully"
