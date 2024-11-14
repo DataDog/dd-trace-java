@@ -13,6 +13,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT;
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SESSION_ID;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.UNKNOWN;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_BLOCK;
@@ -30,7 +31,10 @@ import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
+import io.vertx.ext.web.Session;
 import io.vertx.ext.web.handler.BodyHandler;
+import io.vertx.ext.web.handler.SessionHandler;
+import io.vertx.ext.web.sstore.LocalSessionStore;
 
 public class VertxTestServer extends AbstractVerticle {
   public static final String CONFIG_HTTP_SERVER_PORT = "http.server.port";
@@ -197,6 +201,31 @@ public class VertxTestServer extends AbstractVerticle {
     router
         .route(EXCEPTION.getPath())
         .handler(ctx -> controller(ctx, EXCEPTION, VertxTestServer::exception));
+
+    final LocalSessionStore sessionStorage = LocalSessionStore.create(vertx);
+    router
+        .route(SESSION_ID.getPath())
+        .handler(
+            SessionHandler.create(sessionStorage)
+                .setCookieSecureFlag(true)
+                .setCookieHttpOnlyFlag(true));
+    router
+        .route(SESSION_ID.getPath())
+        .handler(
+            ctx ->
+                controller(
+                    ctx,
+                    SESSION_ID,
+                    () -> {
+                      final Session session = ctx.session();
+                      if (session == null) {
+                        ctx.response()
+                            .setStatusCode(500)
+                            .end("Cookie/Session handlers not present");
+                      } else {
+                        ctx.response().setStatusCode(SESSION_ID.getStatus()).end(session.id());
+                      }
+                    }));
 
     router = customizeAfterRoutes(router);
 
