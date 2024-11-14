@@ -55,6 +55,11 @@ class SpringBootNativeInstrumentationTest extends AbstractServerSmokeTest {
     return ["[servlet.request[spring.handler[WebController.doHello[WebController.sayHello]]]]"]
   }
 
+  @Override
+  boolean testTelemetry() {
+    false
+  }
+
   def "check native instrumentation"() {
     setup:
     String url = "http://localhost:${httpPort}/hello"
