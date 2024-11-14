@@ -36,6 +36,7 @@ import com.datadog.profiling.controller.OngoingRecording;
 import com.datadog.profiling.utils.ProfilingMode;
 import com.datadoghq.profiler.ContextSetter;
 import com.datadoghq.profiler.JavaProfiler;
+import datadog.trace.api.Platform;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
@@ -258,6 +259,8 @@ public final class DatadogProfiler {
     }
     if (profilingModes.contains(CPU)) {
       // cpu profiling is enabled.
+      final int DEFAULT_J9_CPU_SAMPLING_FREQUENCY = 50;
+
       String schedulingEvent = getSchedulingEvent(configProvider);
       if (schedulingEvent != null && !schedulingEvent.isEmpty()) {
         // using a user-specified event, e.g. L1-dcache-load-misses
@@ -268,7 +271,12 @@ public final class DatadogProfiler {
         }
       } else {
         // using cpu time schedule
-        cmd.append(",cpu=").append(getCpuInterval(configProvider)).append('m');
+        cmd.append(",cpu=")
+            .append(
+                Platform.isJ9()
+                    ? DEFAULT_J9_CPU_SAMPLING_FREQUENCY
+                    : getCpuInterval(configProvider))
+            .append('m');
       }
     }
     if (profilingModes.contains(WALL)) {
