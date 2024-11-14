@@ -27,5 +27,8 @@ public final class RequestInstrumentation extends InstrumenterModule.Tracing
             .and(takesArgument(0, named("org.eclipse.jetty.server.handler.ContextHandler$Context")))
             .and(takesArgument(1, String.class)),
         packageName + ".SetContextPathAdvice");
+    transformer.applyAdvice(
+        named("setRequestedSessionId").and(takesArgument(0, String.class)),
+        packageName + ".SetRequestedSessionIdAdvice");
   }
 }

@@ -15,6 +15,11 @@ class JettyAsyncHandlerTest extends Jetty11Test implements TestingGenericHttpNam
     new ContinuationTestHandler(super.handler())
   }
 
+  @Override
+  boolean testSessionId() {
+    false // continuation test handler not working with sessions
+  }
+
   static class ContinuationTestHandler implements Handler {
     @Delegate
     private final Handler delegate

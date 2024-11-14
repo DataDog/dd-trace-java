@@ -11,6 +11,7 @@ import org.eclipse.jetty.server.Handler
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.server.handler.AbstractHandler
 import org.eclipse.jetty.server.handler.ErrorHandler
+import org.eclipse.jetty.server.session.SessionHandler
 import org.eclipse.jetty.servlet.FilterMapping
 import org.eclipse.jetty.servlet.ServletContextHandler
 
@@ -47,6 +48,8 @@ class JettyServer implements HttpServer {
 
   static AbstractHandler servletHandler(Class<? extends Servlet> servlet) {
     ServletContextHandler handler = new ServletContextHandler(null, "/context-path")
+    final sessionHandler = new SessionHandler()
+    handler.sessionHandler = sessionHandler
     handler.errorHandler = errorHandler
     handler.servletHandler.addFilterWithMapping(EnableMultipartFilter, '/*', FilterMapping.ALL)
     handler.servletHandler.addServletWithMapping(servlet, '/*')

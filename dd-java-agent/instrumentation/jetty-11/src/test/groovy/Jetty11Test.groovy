@@ -84,6 +84,11 @@ abstract class Jetty11Test extends HttpServerTest<Server> {
   boolean hasExtraErrorInformation() {
     true
   }
+
+  @Override
+  boolean testSessionId() {
+    true
+  }
 }
 
 class Jetty11V0ForkedTest extends Jetty11Test implements TestingGenericHttpNamingConventions.ServerV0 {

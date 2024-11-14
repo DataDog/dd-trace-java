@@ -1363,6 +1363,14 @@ build_test_jobs: &build_test_jobs
       stage: tracing
       testJvm: "8"
 
+  - fan_in:
+      requires:
+        - test_8_inst_latest
+        - test_17_inst_latest
+        - test_21_inst_latest
+      name: test_inst_latest
+      stage: tracing
+
   - agent_integration_tests:
       requires:
         - ok_to_test
@@ -1435,6 +1443,7 @@ build_test_jobs: &build_test_jobs
 {% for jdk in all_jdks %}
         - "test_{{ jdk }}"
 {% endfor %}
+        - test_inst_latest
         - muzzle
         - profiling
         - debugger

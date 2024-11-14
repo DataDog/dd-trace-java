@@ -48,6 +48,11 @@ abstract class Jetty12Test extends HttpServerTest<Server> implements TestingGene
   boolean hasExtraErrorInformation() {
     true
   }
+
+  @Override
+  boolean testSessionId() {
+    true
+  }
 }
 
 class Jetty12SyncTest extends Jetty12Test {
