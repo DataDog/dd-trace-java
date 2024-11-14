@@ -5,6 +5,7 @@ import datadog.trace.agent.test.utils.OkHttpUtils
 import datadog.trace.agent.test.utils.PortUtils
 import okhttp3.OkHttpClient
 import spock.lang.Shared
+import static org.junit.Assume.assumeTrue
 
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
@@ -115,5 +116,24 @@ abstract class AbstractServerSmokeTest extends AbstractSmokeTest {
       }
     }
     return remaining
+  }
+
+  boolean testTelemetry() {
+    return true
+  }
+
+  void 'receive telemetry app-started'() {
+    when:
+    assumeTrue(testTelemetry())
+    waitForTelemetryCount(1)
+
+    then:
+    telemetryMessages.size() >= 1
+    Object msg = telemetryMessages.get(0)
+    msg['request_type'] == 'app-started'
+  }
+
+  List<String> expectedTelemetryDependencies() {
+    []
   }
 }
