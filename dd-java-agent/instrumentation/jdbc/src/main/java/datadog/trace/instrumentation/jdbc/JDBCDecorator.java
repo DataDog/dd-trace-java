@@ -321,8 +321,9 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
 
   // TODO: add description
   public void setApplicationName(AgentSpan span, Connection connection) {
-    // TODO: measure time spent in instrumentation and add it as a tag in span
+    final long startTime = System.currentTimeMillis();
     try {
+
       Integer priority = span.forceSamplingDecision();
       if (priority == null) {
         return;
@@ -349,8 +350,11 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
           span.getTraceId().toHexString(),
           e);
       DECORATE.onError(span, e);
+    } finally {
+      span.setTag(DBM_TRACE_INJECTED, true);
+      final long elapsed = System.currentTimeMillis() - startTime;
+      span.setTag("dd.instrumentation.time_ms", elapsed);
     }
-    span.setTag(DBM_TRACE_INJECTED, true);
   }
 
   @Override
