@@ -34,7 +34,7 @@ junit_upload() {
 }
 
 # Make sure we do not use DATADOG_API_KEY from the environment
-export DATADOG_API_KEY=
+unset DATADOG_API_KEY
 
 # Upload test results to production environment like all other CI jobs
 junit_upload "$DATADOG_API_KEY_PROD"
