@@ -42,7 +42,7 @@ public class ApacheHttpAsyncClientDecorator
   }
 
   @Override
-  protected Object sourceUrl(final HttpUriRequest request) {
+  protected URI sourceUrl(final HttpUriRequest request) {
     return request.getURI();
   }
 

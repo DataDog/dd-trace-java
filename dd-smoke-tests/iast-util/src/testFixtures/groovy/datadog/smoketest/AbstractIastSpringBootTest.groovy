@@ -21,9 +21,6 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
     List<String> command = []
     command.add(javaPath())
-    //    command.add("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005")
-    command.add("-Ddd.trace.trace=true")
-    command.add("-verbose:class")
     command.addAll(defaultJavaProperties)
     command.addAll(iastJvmOpts())
     command.addAll((String[]) ['-jar', springBootShadowJar, "--server.port=${httpPort}"])

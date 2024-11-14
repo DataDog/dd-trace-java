@@ -43,7 +43,7 @@ public class ApacheHttpClientDecorator extends HttpClientDecorator<HttpRequest, 
   }
 
   @Override
-  protected Object sourceUrl(final HttpRequest request) {
+  protected HttpRequest sourceUrl(final HttpRequest request) {
     return request;
   }
 

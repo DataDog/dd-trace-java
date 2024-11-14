@@ -17,7 +17,7 @@ public class IastHttpHostInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
 
   public IastHttpHostInstrumentation() {
-    super("httpcore", "apache-httpcore", "apache-http-core");
+    super("httpcore-5", "apache-httpcore-5", "apache-http-core-5");
   }
 
   @Override
