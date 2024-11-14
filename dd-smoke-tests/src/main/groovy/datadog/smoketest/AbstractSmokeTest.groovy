@@ -132,13 +132,12 @@ abstract class AbstractSmokeTest extends ProcessManager {
 
   def javaProperties() {
     def tmpDir = "/tmp"
-    def errorFileValue = tmpDir + "/hs_err_pid%p.log"
-
+    
     def ret = [
       "${getMaxMemoryArgumentForFork()}",
       "${getMinMemoryArgumentForFork()}",
       "-javaagent:${shadowJarPath}",
-      isIBM ? "-Xdump:directory=" + tmpDir : "-XX:ErrorFile=" + errorFileValue,
+      isIBM ? "-Xdump:directory=${tmpDir}" : "-XX:ErrorFile=${tmpDir}/hs_err_pid%p.log",
       "-Ddd.trace.agent.port=${server.address.port}",
       "-Ddd.env=${ENV}",
       "-Ddd.version=${VERSION}",
@@ -153,19 +152,20 @@ abstract class AbstractSmokeTest extends ProcessManager {
       "-Ddd.site="
     ]
 
+    if (inferServiceName())  {
+      ret += "-Ddd.service.name=${SERVICE_NAME}"
+    }
 
     // DQH - 13 Nov 2024 - Crashtracking bash script doesn't work on OS X,
     // so skipping crash tracking on OS X
     if (!Platform.isMac() && !Platform.isJ9()) {
-      def errorScript = tmpDir + "/dd_crash_uploader." + getScriptExtension()
-      def onErrorValue = errorScript + ' %p'
+      def extension = getScriptExtension()
 
-      ret += "-XX:OnError=" + onErrorValue
+      ret += "-XX:OnError=${tmpDir}/dd_crash_uploader.${extension} %p"
+      // Unlike crash tracking smoke test, keep the default delay; otherwise, otherwise other tests will fail   
+      // ret += "-Ddd.dogstatsd.start-delay=0"
     }
 
-    if (inferServiceName())  {
-      ret += "-Ddd.service.name=${SERVICE_NAME}"
-    }
     ret as String[]
   }
 
