@@ -5,6 +5,7 @@ import static org.objectweb.asm.Type.getMethodDescriptor;
 import static org.objectweb.asm.Type.getObjectType;
 
 import com.datadog.debugger.agent.Generated;
+import datadog.trace.util.Strings;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
@@ -17,6 +18,7 @@ import org.objectweb.asm.Type;
 import org.objectweb.asm.signature.SignatureReader;
 import org.objectweb.asm.signature.SignatureVisitor;
 import org.objectweb.asm.tree.AbstractInsnNode;
+import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldInsnNode;
 import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.tree.InsnList;
@@ -329,6 +331,13 @@ public class ASMHelper {
         return org.objectweb.asm.Type.INT;
     }
     return sort;
+  }
+
+  public static String extractSuperClass(ClassNode classNode) {
+    if (classNode.superName == null) {
+      return Object.class.getTypeName();
+    }
+    return Strings.getClassName(classNode.superName);
   }
 
   /** Wraps ASM's {@link org.objectweb.asm.Type} with associated generic types */
