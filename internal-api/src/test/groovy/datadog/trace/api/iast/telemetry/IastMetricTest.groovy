@@ -9,7 +9,7 @@ import static datadog.trace.api.iast.telemetry.IastMetric.TRACE_METRIC_PREFIX
 
 class IastMetricTest extends Specification {
 
-  void 'test iast metrics attributes'() {
+  void 'test iast metrics attributes #metric.name()'() {
     given:
     final verbosity = Config.get().getIastTelemetryVerbosity()
 
@@ -29,7 +29,7 @@ class IastMetricTest extends Specification {
     metric << (IastMetric.values() as List<IastMetric>)
   }
 
-  void 'test unwrapping of tags'() {
+  void 'test unwrapping of tags #iterationIndex'() {
     when:
     final result = metricTag.unwrap(tag)
 
@@ -46,7 +46,7 @@ class IastMetricTest extends Specification {
     IastMetric.Tag.SOURCE_TYPE        | SourceTypes.REQUEST_PARAMETER_VALUE | null
   }
 
-  void 'test metric tags'() {
+  void 'test metric tags #metric.name()'() {
     when:
     final telemetryTags = []
     final spanTags = []

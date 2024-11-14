@@ -7,7 +7,7 @@ import java.util.function.Function
 
 class QualifiedClassNameCacheTest extends DDSpecification {
 
-  def "test cached string operations"() {
+  def "test cached string operations #iterationIndex"() {
     when:
     QualifiedClassNameCache cache = new QualifiedClassNameCache(new Function<Class<?>, String>() {
         @Override

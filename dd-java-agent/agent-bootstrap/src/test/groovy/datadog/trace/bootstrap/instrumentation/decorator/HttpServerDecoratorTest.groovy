@@ -422,7 +422,8 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     def ig = new InstrumentationGateway()
     def ss = ig.getSubscriptionService(RequestContextSlot.APPSEC)
     def cbpAppSec = ig.getCallbackProvider(RequestContextSlot.APPSEC)
-    def callbacks = new IGCallBacks(reqData)
+    def data = reqData ? new Object() : null
+    def callbacks = new IGCallBacks(data)
     if (reqStarted) {
       ss.registerCallback(EVENTS.requestStarted(), callbacks)
     }
@@ -434,7 +435,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     }
     Map<String, String> headers = ["foo": "bar", "some": "thing", "another": "value"]
     def reqCtxt = Mock(RequestContext) {
-      getData(RequestContextSlot.APPSEC) >> reqData
+      getData(RequestContextSlot.APPSEC) >> data
     }
     def mSpan = Mock(AgentSpan) {
       getRequestContext() >> reqCtxt
@@ -461,13 +462,13 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
 
     where:
     // spotless:off
-    reqStarted | reqData      | reqHeader | reqHeaderDone | reqStartedCount | reqHeaderCount | reqHeaderDoneCount
-    false      | null         | false     | false         | 0               | 0              | 0
-    false      | new Object() | false     | false         | 0               | 0              | 0
-    true       | null         | false     | false         | 1               | 0              | 0
-    true       | new Object() | false     | false         | 1               | 0              | 0
-    true       | new Object() | true      | false         | 1               | 3              | 0
-    true       | new Object() | true      | true          | 1               | 3              | 1
+    reqStarted | reqData | reqHeader | reqHeaderDone | reqStartedCount | reqHeaderCount | reqHeaderDoneCount
+    false      | false   | false     | false         | 0               | 0              | 0
+    false      | true    | false     | false         | 0               | 0              | 0
+    true       | false   | false     | false         | 1               | 0              | 0
+    true       | true    | false     | false         | 1               | 0              | 0
+    true       | true    | true      | false         | 1               | 3              | 0
+    true       | true    | true      | true          | 1               | 3              | 1
     // spotless:on
   }
 
