@@ -42,6 +42,11 @@ public class ApacheHttpAsyncClientDecorator
   }
 
   @Override
+  protected Object sourceUrl(final HttpUriRequest request) {
+    return request.getURI();
+  }
+
+  @Override
   protected int status(final HttpContext context) {
     final Object responseObject = context.getAttribute(HttpCoreContext.HTTP_RESPONSE);
     if (responseObject instanceof HttpResponse) {

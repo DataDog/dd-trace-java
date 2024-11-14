@@ -12,7 +12,11 @@ import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.http.HttpHost;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
+import org.apache.http.impl.nio.client.HttpAsyncClients;
 import org.apache.http.message.BasicHttpRequest;
+import org.apache.http.nio.client.methods.HttpAsyncMethods;
+import org.apache.http.nio.protocol.HttpAsyncRequestProducer;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -116,6 +120,34 @@ public class SsrfController {
       }
       client.close();
     } catch (Exception e) {
+    }
+    return "ok";
+  }
+
+  @PostMapping("/apache-httpasyncclient")
+  public String apacheHttpAsyncClient(
+      @RequestParam(value = "url", required = false) final String url,
+      @RequestParam(value = "host", required = false) final String host,
+      @RequestParam(value = "urlProducer", required = false) final String urlProducer) {
+    final CloseableHttpAsyncClient client = HttpAsyncClients.createDefault();
+    client.start();
+    try {
+      if (host != null) {
+        final HttpHost httpHost = new HttpHost(host);
+        client.execute(httpHost, new HttpGet("/"), null);
+      } else if (url != null) {
+        final HttpGet request = new HttpGet(url);
+        client.execute(request, null);
+      } else if (urlProducer != null) {
+        final HttpAsyncRequestProducer producer = HttpAsyncMethods.create(new HttpGet(urlProducer));
+        client.execute(producer, null, null);
+      }
+    } catch (Exception e) {
+    } finally {
+      try {
+        client.close();
+      } catch (Exception e) {
+      }
     }
     return "ok";
   }

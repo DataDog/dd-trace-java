@@ -21,6 +21,9 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
     List<String> command = []
     command.add(javaPath())
+    //    command.add("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005")
+    command.add("-Ddd.trace.trace=true")
+    command.add("-verbose:class")
     command.addAll(defaultJavaProperties)
     command.addAll(iastJvmOpts())
     command.addAll((String[]) ['-jar', springBootShadowJar, "--server.port=${httpPort}"])
@@ -739,28 +742,34 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
         return false
       }
       final parts = vul.evidence.valueParts
-      if (parameter == 'url' || parameter == 'urlHandler') {
+      if (parameter == 'url') {
         return parts.size() == 1
-        && parts[0].value.endsWith(value) && parts[0].source.origin == 'http.request.parameter' && parts[0].source.name == parameter
+        && parts[0].value == value && parts[0].source.origin == 'http.request.parameter' && parts[0].source.name == parameter
       } else if (parameter == 'host') {
         String protocol = protocolSecure ? 'https://' : 'http://'
         String finalValue = protocol + value + (endSlash ? '/' : '')
         return parts[0].value.endsWith(finalValue) && parts[0].source.origin == 'http.request.parameter' && parts[0].source.name == parameter
+      } else if (parameter == 'urlProducer' || parameter == 'urlHandler') {
+        return parts.size() == 1
+        && parts[0].value.endsWith(value) && parts[0].source.origin == 'http.request.parameter' && parts[0].source.name == parameter
       } else {
         throw new IllegalArgumentException("Parameter $parameter not supported")
       }
     }
 
     where:
-    path                  | parameter    | value                     | protocolSecure | endSlash
-    "apache-httpclient4"  | "url"        | "https://dd.datad0g.com/" | true           | true
-    "apache-httpclient4"  | "host"       | "dd.datad0g.com"          | false          | false
-    "apache-httpclient5"  | "url"        | "https://dd.datad0g.com/" | true           | true
-    "apache-httpclient5"  | "urlHandler" | "https://dd.datad0g.com/" | true           | true
-    "apache-httpclient5"  | "host"       | "dd.datad0g.com"          | false          | true
-    "commons-httpclient2" | "url"        | "https://dd.datad0g.com/" | true           | true
-    "okHttp2"             | "url"        | "https://dd.datad0g.com/" | true           | true
-    "okHttp3"             | "url"        | "https://dd.datad0g.com/" | true           | true
+    path                     | parameter     | value                     | protocolSecure | endSlash
+    "apache-httpclient4"     | "url"         | "https://dd.datad0g.com/" | true           | true
+    "apache-httpclient4"     | "host"        | "dd.datad0g.com"          | false          | false
+    "apache-httpasyncclient" | "url"         | "https://dd.datad0g.com/" | true           | true
+    "apache-httpasyncclient" | "urlProducer" | "https://dd.datad0g.com/" | true           | true
+    "apache-httpasyncclient" | "host"        | "dd.datad0g.com"          | false          | false
+    "apache-httpclient5"     | "url"         | "https://dd.datad0g.com/" | true           | true
+    "apache-httpclient5"     | "urlHandler"  | "https://dd.datad0g.com/" | true           | true
+    "apache-httpclient5"     | "host"        | "dd.datad0g.com"          | false          | true
+    "commons-httpclient2"    | "url"         | "https://dd.datad0g.com/" | true           | true
+    "okHttp2"                | "url"         | "https://dd.datad0g.com/" | true           | true
+    "okHttp3"                | "url"         | "https://dd.datad0g.com/" | true           | true
   }
 
   void 'test iast metrics stored in spans'() {
