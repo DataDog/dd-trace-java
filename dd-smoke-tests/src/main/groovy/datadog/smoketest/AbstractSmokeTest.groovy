@@ -132,7 +132,7 @@ abstract class AbstractSmokeTest extends ProcessManager {
 
   def javaProperties() {
     def tmpDir = "/tmp"
-    
+
     def ret = [
       "${getMaxMemoryArgumentForFork()}",
       "${getMinMemoryArgumentForFork()}",
@@ -162,7 +162,7 @@ abstract class AbstractSmokeTest extends ProcessManager {
       def extension = getScriptExtension()
 
       ret += "-XX:OnError=${tmpDir}/dd_crash_uploader.${extension} %p"
-      // Unlike crash tracking smoke test, keep the default delay; otherwise, otherwise other tests will fail   
+      // Unlike crash tracking smoke test, keep the default delay; otherwise, otherwise other tests will fail
       // ret += "-Ddd.dogstatsd.start-delay=0"
     }
 
