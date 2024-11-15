@@ -816,7 +816,7 @@ jobs:
     parameters:
       weblog-variant:
         type: string
-    parallelism: 3
+    parallelism: 4
     steps:
       - setup_system_tests
 
@@ -842,6 +842,11 @@ jobs:
             DEFAULT
             APM_TRACING_E2E
             APM_TRACING_E2E_SINGLE_SPAN
+            APPSEC_BLOCKING
+            APPSEC_REQUEST_BLOCKING
+            APPSEC_RASP
+            APPSEC_RUNTIME_ACTIVATION
+            REMOTE_CONFIG_MOCKED_BACKEND_ASM_DD
             " | circleci tests split > scenarios.list
             for scenario in $(<scenarios.list); do
               if [[ $scenario =~ .*_E2E.* ]]; then
