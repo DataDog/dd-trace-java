@@ -100,7 +100,10 @@ public class SQLCommenter {
     }
 
     AgentSpan currSpan = activeSpan();
-    Object peerService = currSpan.getTag(Tags.PEER_SERVICE);
+    Object peerService = null;
+    if (currSpan != null) {
+      peerService = currSpan.getTag(Tags.PEER_SERVICE);
+    }
 
     final Config config = Config.get();
     final String parentService = config.getServiceName();
