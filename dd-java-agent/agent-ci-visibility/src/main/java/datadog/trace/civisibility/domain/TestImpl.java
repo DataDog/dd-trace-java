@@ -165,7 +165,7 @@ public class TestImpl implements DDTest {
       LinesResolver.Lines testMethodLines = linesResolver.getMethodLines(testMethod);
       if (testMethodLines.isValid()) {
         span.setTag(Tags.TEST_SOURCE_START, testMethodLines.getStartLineNumber());
-        span.setTag(Tags.TEST_SOURCE_END, testMethodLines.getFinishLineNumber());
+        span.setTag(Tags.TEST_SOURCE_END, testMethodLines.getEndLineNumber());
       }
     }
 

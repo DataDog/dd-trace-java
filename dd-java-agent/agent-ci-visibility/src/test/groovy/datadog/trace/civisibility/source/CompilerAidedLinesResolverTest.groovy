@@ -18,7 +18,7 @@ class CompilerAidedLinesResolverTest extends Specification {
 
     if (lines.valid) {
       lines.startLineNumber == expectedStart
-      lines.finishLineNumber == expectedFinish
+      lines.endLineNumber == expectedFinish
     }
 
     where:
@@ -40,7 +40,7 @@ class CompilerAidedLinesResolverTest extends Specification {
 
     if (lines.valid) {
       lines.startLineNumber == expectedStart
-      lines.finishLineNumber == expectedFinish
+      lines.endLineNumber == expectedFinish
     }
 
     where:

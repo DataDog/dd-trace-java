@@ -16,23 +16,23 @@ public interface LinesResolver {
     public static final Lines EMPTY = new Lines(Integer.MAX_VALUE, Integer.MIN_VALUE);
 
     private final int startLineNumber;
-    private final int finishLineNumber;
+    private final int endLineNumber;
 
-    public Lines(int startLineNumber, int finishLineNumber) {
+    public Lines(int startLineNumber, int endLineNumber) {
       this.startLineNumber = startLineNumber;
-      this.finishLineNumber = finishLineNumber;
+      this.endLineNumber = endLineNumber;
     }
 
     public int getStartLineNumber() {
       return startLineNumber;
     }
 
-    public int getFinishLineNumber() {
-      return finishLineNumber;
+    public int getEndLineNumber() {
+      return endLineNumber;
     }
 
     public boolean isValid() {
-      return startLineNumber <= finishLineNumber;
+      return startLineNumber <= endLineNumber;
     }
 
     @Override
@@ -44,12 +44,12 @@ public interface LinesResolver {
         return false;
       }
       Lines that = (Lines) o;
-      return startLineNumber == that.startLineNumber && finishLineNumber == that.finishLineNumber;
+      return startLineNumber == that.startLineNumber && endLineNumber == that.endLineNumber;
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(startLineNumber, finishLineNumber);
+      return Objects.hash(startLineNumber, endLineNumber);
     }
   }
 }

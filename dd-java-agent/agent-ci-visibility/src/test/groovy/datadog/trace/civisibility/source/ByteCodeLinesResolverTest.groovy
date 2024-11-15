@@ -16,7 +16,7 @@ class ByteCodeLinesResolverTest extends Specification {
     then:
     methodLines.isValid()
     methodLines.startLineNumber > 0
-    methodLines.finishLineNumber > methodLines.startLineNumber
+    methodLines.endLineNumber > methodLines.startLineNumber
   }
 
   def "test always invalid class lines resolution" () {
