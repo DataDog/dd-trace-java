@@ -40,7 +40,7 @@ class SQLCommenterTest extends AgentTestRunner {
     when:
     String sqlWithComment = ""
     if (injectTrace) {
-      sqlWithComment = SQLCommenter.inject(query, dbService, dbType, host, dbName, traceParent, true, appendComment, false)
+      sqlWithComment = SQLCommenter.inject(query, dbService, dbType, host, dbName, traceParent, true, appendComment)
     } else {
       if (appendComment) {
         sqlWithComment = SQLCommenter.append(query, dbService, dbType, host, dbName)
