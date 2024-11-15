@@ -18,9 +18,12 @@ class RecordingDatastreamsPayloadWriter implements DatastreamsPayloadWriter {
   @SuppressWarnings('UnusedPrivateField')
   private final Set<String> backlogs = []
 
+  private final Set<String> serviceNameOverrides = []
+
   @Override
   synchronized void writePayload(Collection<StatsBucket> data, String serviceNameOverride) {
     log.info("payload written - {}", data)
+    serviceNameOverrides.add(serviceNameOverride)
     this.@payloads.addAll(data)
     data.each { this.@groups.addAll(it.groups) }
     for (StatsBucket bucket : data) {
@@ -30,6 +33,10 @@ class RecordingDatastreamsPayloadWriter implements DatastreamsPayloadWriter {
         }
       }
     }
+  }
+
+  synchronized List<String> getServices() {
+    Collections.unmodifiableList(new ArrayList<>(this.@serviceNameOverrides))
   }
 
   synchronized List<StatsBucket> getPayloads() {
