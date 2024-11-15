@@ -154,6 +154,12 @@ public class TestSuiteImpl implements DDTestSuite {
 
     span.setTag(Tags.TEST_SOURCE_FILE, sourcePath);
 
+    LinesResolver.Lines testClassLines = linesResolver.getClassLines(testClass);
+    if (testClassLines.isValid()) {
+      span.setTag(Tags.TEST_SOURCE_START, testClassLines.getStartLineNumber());
+      span.setTag(Tags.TEST_SOURCE_END, testClassLines.getFinishLineNumber());
+    }
+
     Collection<String> testCodeOwners = codeowners.getOwners(sourcePath);
     if (testCodeOwners != null) {
       span.setTag(Tags.TEST_CODEOWNERS, toJson(testCodeOwners));
