@@ -100,7 +100,7 @@ class TestImplTest extends SpanWriterTest {
     def testDecorator = new TestDecoratorImpl("component", "session-name", "test-command", [:])
 
     def linesResolver = Stub(LinesResolver)
-    linesResolver.getMethodLines(null) >> LinesResolver.Lines.EMPTY
+    linesResolver.getMethodLines(_) >> LinesResolver.Lines.EMPTY
 
     def codeowners = NoCodeowners.INSTANCE
     new TestImpl(
