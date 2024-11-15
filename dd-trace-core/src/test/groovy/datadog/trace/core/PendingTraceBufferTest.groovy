@@ -31,7 +31,7 @@ class PendingTraceBufferTest extends DDSpecification {
 
   def tracer = Mock(CoreTracer)
   def traceConfig = Mock(CoreTracer.ConfigSnapshot)
-  def scopeManager = new ContinuableScopeManager(10, true, true)
+  def scopeManager = new ContinuableScopeManager(10, true)
   def factory = new PendingTrace.Factory(tracer, bufferSpy, SystemTimeSource.INSTANCE, false, HealthMetrics.NO_OP)
   List<TraceScope.Continuation> continuations = []
 

@@ -48,7 +48,6 @@ public final class ContinuableScopeManager implements AgentScopeManager {
   final boolean strictMode;
   private final ScopeStackThreadLocal tlsScopeStack;
   private final int depthLimit;
-  private final boolean inheritAsyncPropagation;
   final HealthMetrics healthMetrics;
   private final ProfilingContextIntegration profilingContextIntegration;
 
@@ -57,17 +56,9 @@ public final class ContinuableScopeManager implements AgentScopeManager {
    *
    * @param depthLimit The maximum scope depth limit, <code>0</code> for unlimited.
    * @param strictMode Whether check if the closed spans are the active ones or not.
-   * @param inheritAsyncPropagation Whether the next span should inherit the active span
-   *     asyncPropagation flag.
    */
-  public ContinuableScopeManager(
-      final int depthLimit, final boolean strictMode, final boolean inheritAsyncPropagation) {
-    this(
-        depthLimit,
-        strictMode,
-        inheritAsyncPropagation,
-        ProfilingContextIntegration.NoOp.INSTANCE,
-        HealthMetrics.NO_OP);
+  public ContinuableScopeManager(final int depthLimit, final boolean strictMode) {
+    this(depthLimit, strictMode, ProfilingContextIntegration.NoOp.INSTANCE, HealthMetrics.NO_OP);
   }
 
   /**
@@ -75,18 +66,14 @@ public final class ContinuableScopeManager implements AgentScopeManager {
    *
    * @param depthLimit The maximum scope depth limit, <code>0</code> for unlimited.
    * @param strictMode Whether check if the closed spans are the active ones or not.
-   * @param inheritAsyncPropagation Whether the next span should inherit the active span
-   *     asyncPropagation flag.
    */
   public ContinuableScopeManager(
       final int depthLimit,
       final boolean strictMode,
-      final boolean inheritAsyncPropagation,
       final ProfilingContextIntegration profilingContextIntegration,
       final HealthMetrics healthMetrics) {
     this.depthLimit = depthLimit == 0 ? Integer.MAX_VALUE : depthLimit;
     this.strictMode = strictMode;
-    this.inheritAsyncPropagation = inheritAsyncPropagation;
     this.scopeListeners = new CopyOnWriteArrayList<>();
     this.extendedScopeListeners = new CopyOnWriteArrayList<>();
     this.healthMetrics = healthMetrics;
@@ -141,9 +128,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     boolean asyncPropagation =
         overrideAsyncPropagation
             ? isAsyncPropagating
-            : inheritAsyncPropagation && top != null
-                ? top.isAsyncPropagating()
-                : DEFAULT_ASYNC_PROPAGATING;
+            : top != null ? top.isAsyncPropagating() : DEFAULT_ASYNC_PROPAGATING;
 
     final ContinuableScope scope =
         new ContinuableScope(this, span, source, asyncPropagation, createScopeState(span));
@@ -219,10 +204,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
 
     final ContinuableScope top = scopeStack.top;
 
-    boolean asyncPropagation =
-        inheritAsyncPropagation && top != null
-            ? top.isAsyncPropagating()
-            : DEFAULT_ASYNC_PROPAGATING;
+    boolean asyncPropagation = top != null ? top.isAsyncPropagating() : DEFAULT_ASYNC_PROPAGATING;
 
     final ContinuableScope scope =
         new ContinuableScope(
