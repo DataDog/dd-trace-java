@@ -37,8 +37,8 @@ RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && cd jsoup && mvn verify -
 
 
 # Jackson
-#RUN git clone https://github.com/FasterXML/jackson-core.git
-#RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && cd jackson-core && ./mvnw dependency:resolve dependency:resolve-plugins"
+RUN git clone -b 2.16 https://github.com/FasterXML/jackson-core.git
+RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && cd jackson-core && mvn verify -DskipTests=true"
 #RUN git clone https://github.com/FasterXML/jackson-databind.git
 #RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && cd jackson-databind && ./mvnw dependency:resolve dependency:resolve-plugins"
 

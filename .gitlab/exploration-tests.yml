@@ -22,12 +22,13 @@ build-exploration-tests-image:
     - cp dd-java-agent/agent-debugger/exploration-tests/include_*.txt /exploration-tests
     - cd /exploration-tests
   after_script:
-    - echo "$PROJECT"
-    - cd $CI_PROJECT_DIR
-    - cp /exploration-tests/$PROJECT/agent.log ${PROJECT}_agent.log
-    - gzip ${PROJECT}_agent.log
-    - tar czf ${PROJECT}_surefire-reports.tar.gz /exploration-tests/${PROJECT}/target/surefire-reports
-    - tar czf ${PROJECT}_debugger-dumps.tar.gz /tmp/debugger
+    - for project in $PROJECTS; do
+        echo "$project"
+        cp /exploration-tests/project/agent.log ${project}_agent.log
+        gzip ${project}_agent.log;
+        tar czf ${project}_surefire-reports.tar.gz /exploration-tests/$project/target/surefire-reports;
+        tar czf ${project}_debugger-dumps.tar.gz /tmp/debugger;
+      done
   stage: exploration-tests
   when: manual
   tags: [ "runner:main"]
@@ -39,12 +40,16 @@ build-exploration-tests-image:
       - ${PROJECT}_surefire-reports.tar.gz
       - ${PROJECT}_debugger-dumps.tar.gz
 
-exploration-tests-jsoup:
+exploration-tests:
   variables:
-    PROJECT: jsoup
+    PROJECTS: jsoup jackson-core
   <<: *common-exploration-tests
   script:
-    - ./run-exploration-tests.sh "$PROJECT" "mvn verify" "include_jsoup.txt" "exclude_jsoup.txt"
+    - |
+      for project in $PROJECTS; do
+        echo $project
+        ./run-exploration-tests.sh "$project" "mvn verify" "include_${project}.txt" "exclude_${project}.txt"
+      done
 
 
 exploration-tests-jackson-core:
