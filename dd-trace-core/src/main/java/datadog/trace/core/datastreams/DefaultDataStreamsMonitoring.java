@@ -75,8 +75,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private volatile boolean agentSupportsDataStreams = false;
   private volatile boolean configSupportsDataStreams = false;
   private final ConcurrentHashMap<String, SchemaSampler> schemaSamplers;
-  private static final ConcurrentHashMap<Long, String> threadServiceNames =
-      new ConcurrentHashMap<>();
+  private static final ThreadLocal<String> serviceNameOverride = new ThreadLocal<>();
 
   public DefaultDataStreamsMonitoring(
       Config config,
@@ -188,29 +187,28 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   }
 
   @Override
-  public void setThreadServiceName(Long threadId, String serviceName) {
-    // setting service name to null == removing the value
+  public void setThreadServiceName(String serviceName) {
     if (serviceName == null) {
-      clearThreadServiceName(threadId);
+      clearThreadServiceName();
       return;
     }
 
-    threadServiceNames.put(threadId, serviceName);
+    serviceNameOverride.set(serviceName);
   }
 
   @Override
-  public void clearThreadServiceName(Long threadId) {
-    threadServiceNames.remove(threadId);
+  public void clearThreadServiceName() {
+    serviceNameOverride.remove();
   }
 
-  private static String getThreadServiceNameOverride() {
-    return threadServiceNames.getOrDefault(Thread.currentThread().getId(), null);
+  private static String getThreadServiceName() {
+    return serviceNameOverride.get();
   }
 
   @Override
   public PathwayContext newPathwayContext() {
     if (configSupportsDataStreams) {
-      return new DefaultPathwayContext(timeSource, hashOfKnownTags, getThreadServiceNameOverride());
+      return new DefaultPathwayContext(timeSource, hashOfKnownTags, getThreadServiceName());
     } else {
       return AgentTracer.NoopPathwayContext.INSTANCE;
     }
@@ -219,7 +217,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   @Override
   public HttpCodec.Extractor extractor(HttpCodec.Extractor delegate) {
     return new DataStreamContextExtractor(
-        delegate, timeSource, traceConfigSupplier, hashOfKnownTags, getThreadServiceNameOverride());
+        delegate, timeSource, traceConfigSupplier, hashOfKnownTags, getThreadServiceName());
   }
 
   @Override
@@ -236,7 +234,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
               DataStreamsContextCarrierAdapter.INSTANCE,
               this.timeSource,
               this.hashOfKnownTags,
-              getThreadServiceNameOverride());
+              getThreadServiceName());
       ((DDSpan) span).context().mergePathwayContext(pathwayContext);
     }
   }
@@ -250,8 +248,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       }
       tags.add(tag);
     }
-    inbox.offer(
-        new Backlog(tags, value, timeSource.getCurrentTimeNanos(), getThreadServiceNameOverride()));
+    inbox.offer(new Backlog(tags, value, timeSource.getCurrentTimeNanos(), getThreadServiceName()));
   }
 
   @Override

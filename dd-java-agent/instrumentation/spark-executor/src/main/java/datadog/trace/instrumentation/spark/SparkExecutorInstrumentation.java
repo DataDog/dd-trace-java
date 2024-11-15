@@ -52,13 +52,11 @@ public class SparkExecutorInstrumentation extends InstrumenterModule.Tracing
 
   public static final class RunAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope enter(
-        @Advice.FieldValue("taskDescription") final Object taskDescription,
-        @Advice.This Executor.TaskRunner taskRunner) {
+    public static AgentScope enter(@Advice.This Executor.TaskRunner taskRunner) {
       final AgentSpan span = startSpan("spark-executor", SPARK_TASK);
 
       DECORATE.afterStart(span);
-      DECORATE.onTaskStart(span, taskRunner, taskDescription);
+      DECORATE.onTaskStart(span, taskRunner);
 
       return activateSpan(span);
     }

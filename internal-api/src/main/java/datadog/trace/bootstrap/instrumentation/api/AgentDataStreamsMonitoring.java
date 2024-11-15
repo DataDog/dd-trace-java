@@ -45,17 +45,12 @@ public interface AgentDataStreamsMonitoring extends DataStreamsCheckpointer {
 
   /**
    * setServiceNameOverride is used override service name for all DataStreams payloads produced
-   * within given thread
+   * within Thread.currentThread()
    *
-   * @param threadId thread Id
    * @param serviceName new service name to use for DSM checkpoints.
    */
-  void setThreadServiceName(Long threadId, String serviceName);
+  void setThreadServiceName(String serviceName);
 
-  /**
-   * clearThreadServiceName clears up threadId -> Service name mapping
-   *
-   * @param threadId thread Id
-   */
-  void clearThreadServiceName(Long threadId);
+  /** clearThreadServiceName clears up service name override for Thread.currentThread() */
+  void clearThreadServiceName();
 }

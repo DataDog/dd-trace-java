@@ -79,14 +79,14 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     when:
     def dataStreams = new DefaultDataStreamsMonitoring(fakeConfig, sharedCommObjects, timeSource, { traceConfig })
     dataStreams.start()
-    dataStreams.setThreadServiceName(Thread.currentThread().getId(), serviceNameOverride)
+    dataStreams.setThreadServiceName(serviceNameOverride)
     dataStreams.add(new StatsPoint([], 9, 0, 10, timeSource.currentTimeNanos, 0, 0, 0, serviceNameOverride))
     dataStreams.trackBacklog(new LinkedHashMap<>(["partition": "1", "topic": "testTopic", "type": "kafka_produce"]), 130)
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
     // force flush
     dataStreams.report()
     dataStreams.close()
-    dataStreams.clearThreadServiceName(Thread.currentThread().getId())
+    dataStreams.clearThreadServiceName()
     then:
     conditions.eventually {
       assert requestBodies.size() == 1
