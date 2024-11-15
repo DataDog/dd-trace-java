@@ -22,6 +22,14 @@ public class CompilerAidedLinesResolver implements LinesResolver {
   @Nonnull
   @Override
   public Lines getClassLines(@Nonnull Class<?> clazz) {
-    return Lines.EMPTY;
+    int startLine = CompilerUtils.getStartLine(clazz);
+    if (startLine <= 0) {
+      return Lines.EMPTY;
+    }
+    int endLine = CompilerUtils.getEndLine(clazz);
+    if (endLine <= 0) {
+      return Lines.EMPTY;
+    }
+    return new Lines(startLine, endLine);
   }
 }
