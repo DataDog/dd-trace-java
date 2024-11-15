@@ -307,6 +307,8 @@ public class Config {
   private final int iastSourceMappingMaxSize;
   private final boolean iastStackTraceEnabled;
   private final boolean iastExperimentalPropagationEnabled;
+  private final boolean iastSecurityControlsEnabled;
+  private final String iastSecurityControlsConfiguration;
 
   private final boolean ciVisibilityTraceSanitationEnabled;
   private final boolean ciVisibilityAgentlessEnabled;
@@ -1332,6 +1334,10 @@ public class Config {
         configProvider.getBoolean(IAST_STACK_TRACE_ENABLED, DEFAULT_IAST_STACK_TRACE_ENABLED);
     iastExperimentalPropagationEnabled =
         configProvider.getBoolean(IAST_EXPERIMENTAL_PROPAGATION_ENABLED, false);
+    iastSecurityControlsEnabled =
+            configProvider.getBoolean(IAST_SECURITY_CONTROLS_ENABLED, false);
+    iastSecurityControlsConfiguration =
+        configProvider.getString(IAST_SECURITY_CONTROLS_CONFIGURATION, null);
 
     ciVisibilityTraceSanitationEnabled =
         configProvider.getBoolean(CIVISIBILITY_TRACE_SANITATION_ENABLED, true);
@@ -2631,6 +2637,14 @@ public class Config {
 
   public boolean isIastExperimentalPropagationEnabled() {
     return iastExperimentalPropagationEnabled;
+  }
+
+  public boolean isIastSecurityControlsEnabled() {
+    return iastSecurityControlsEnabled;
+  }
+
+  public String getIastSecurityControlsConfiguration() {
+    return iastSecurityControlsConfiguration;
   }
 
   public boolean isCiVisibilityEnabled() {
