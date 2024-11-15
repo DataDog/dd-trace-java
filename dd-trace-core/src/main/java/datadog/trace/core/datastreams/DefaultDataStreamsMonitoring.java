@@ -257,11 +257,14 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
    * Reports a transaction by enqueuing it to the transactionInbox.
    *
    * @param transactionId The unique identifier of the transaction.
-   * @param pathwayHash   The hash associated with the pathway context.
+   * @param pathwayHash The hash associated with the pathway context.
    */
   @Override
   public void reportTransaction(String transactionId, long pathwayHash) {
-    log.info("We are reporting the transaction with transaction id {} and pathwayHash {}", transactionId, pathwayHash);
+    log.info(
+        "We are reporting the transaction with transaction id {} and pathwayHash {}",
+        transactionId,
+        pathwayHash);
     if (transactionId == null || transactionId.isEmpty()) {
       log.warn("reportTransaction called with invalid transactionId");
       return;
@@ -335,7 +338,6 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     carrier.set("transaction.id", transactionID);
   }
 
-
   @Override
   public void close() {
     if (null != cancellation) {
@@ -350,7 +352,6 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     } catch (InterruptedException ignored) {
     }
   }
-
 
   private class TransactionProcessor implements Runnable {
     @Override
@@ -390,8 +391,9 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
             if (!transactionsToFlush.isEmpty()) {
               List<MsgPackDatastreamsPayloadWriter.TransactionPayload> payloads = new ArrayList<>();
               for (TransactionItem transaction : transactionsToFlush) {
-                payloads.add(new MsgPackDatastreamsPayloadWriter.TransactionPayload(
-                    transaction.getTransactionId(), transaction.getPathwayHash()));
+                payloads.add(
+                    new MsgPackDatastreamsPayloadWriter.TransactionPayload(
+                        transaction.getTransactionId(), transaction.getPathwayHash()));
               }
               okHttpSink.addHeader("Data-Type", "Transaction");
               log.info("Added header successfully");
@@ -407,7 +409,6 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       }
     }
   }
-
 
   private class InboxProcessor implements Runnable {
     @Override
@@ -558,5 +559,4 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       return pathwayHash;
     }
   }
-
 }

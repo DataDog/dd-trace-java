@@ -8,9 +8,6 @@ import datadog.communication.serialization.WritableFormatter;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.common.metrics.Sink;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -18,6 +15,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.zip.GZIPOutputStream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter {
   private static final byte[] ENV = "Env".getBytes(ISO_8859_1);
@@ -192,7 +191,6 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
     }
   }
 
-
   public void writeTransactionPayload(TransactionPayload transaction) {
     writer.startMap(2);
 
@@ -213,6 +211,7 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
     buffer.reset();
     log.info("Successfully sent transaction payload");
   }
+
   private void writeBucket(StatsBucket bucket, Writable packer) {
     Collection<StatsGroup> groups = bucket.getGroups();
     packer.startArray(groups.size());

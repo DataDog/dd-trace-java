@@ -10,7 +10,6 @@ import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -92,7 +91,6 @@ public class DataStreamContextInjector {
     if (transactionId != null && pathwayHash != 0) {
       dataStreamsMonitoring.reportTransaction(transactionId, pathwayHash);
     }
-
 
     if (injected && pathwayContext.getHash() != 0) {
       span.setTag(PATHWAY_HASH, Long.toUnsignedString(pathwayContext.getHash()));
