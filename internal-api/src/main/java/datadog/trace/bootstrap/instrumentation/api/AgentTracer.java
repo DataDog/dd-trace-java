@@ -1141,6 +1141,14 @@ public class AgentTracer {
     @Override
     public void setProduceCheckpoint(
         String type, String target, DataStreamsContextCarrier carrier) {}
+
+    @Override
+    public void trackTransaction(
+        String transactionID, DataStreamsContextCarrier carrier) {}
+
+    @Override
+    public void reportTransaction(
+        String transactionId, long pathwayHash) {}
   }
 
   public static class NoopPathwayContext implements PathwayContext {

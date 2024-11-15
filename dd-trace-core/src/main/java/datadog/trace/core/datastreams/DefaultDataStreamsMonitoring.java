@@ -43,6 +43,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 import org.jctools.queues.MpscArrayQueue;
 import org.slf4j.Logger;
@@ -60,6 +61,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
   private final Map<Long, StatsBucket> timeToBucket = new HashMap<>();
   private final MpscArrayQueue<InboxItem> inbox = new MpscArrayQueue<>(1024);
+  private final MpscArrayQueue<InboxItem> transactionInbox = new MpscArrayQueue<>(65536);
   private final DatastreamsPayloadWriter payloadWriter;
   private final DDAgentFeaturesDiscovery features;
   private final TimeSource timeSource;
@@ -68,12 +70,18 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private final long bucketDurationNanos;
   private final DataStreamContextInjector injector;
   private final Thread thread;
+  private final Thread transactionThread;
   private AgentTaskScheduler.Scheduled<DefaultDataStreamsMonitoring> cancellation;
   private volatile long nextFeatureCheck;
   private volatile boolean supportsDataStreams = false;
   private volatile boolean agentSupportsDataStreams = false;
   private volatile boolean configSupportsDataStreams = false;
   private final ConcurrentHashMap<String, SchemaSampler> schemaSamplers;
+  private final OkHttpSink okHttpSink;
+
+  private final List<TransactionItem> accumulatedTransactions = new ArrayList<>();
+  private final ReentrantLock transactionsLock = new ReentrantLock();
+  private long lastFlushTime = System.currentTimeMillis();
 
   public DefaultDataStreamsMonitoring(
       Config config,
@@ -119,6 +127,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       WellKnownTags wellKnownTags,
       DatastreamsPayloadWriter payloadWriter,
       long bucketDurationNanos) {
+    this.okHttpSink = (OkHttpSink) sink;
     this.features = features;
     this.timeSource = timeSource;
     this.traceConfigSupplier = traceConfigSupplier;
@@ -128,6 +137,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     this.injector = new DataStreamContextInjector(this);
 
     thread = newAgentThread(DATA_STREAMS_MONITORING, new InboxProcessor());
+    transactionThread = newAgentThread(DATA_STREAMS_MONITORING, new TransactionProcessor());
+
     sink.register(this);
     schemaSamplers = new ConcurrentHashMap<>();
   }
@@ -153,6 +164,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
         AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
             new ReportTask(), this, bucketDurationNanos, bucketDurationNanos, TimeUnit.NANOSECONDS);
     thread.start();
+    transactionThread.start();
   }
 
   @Override
@@ -241,6 +253,28 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     }
   }
 
+  /**
+   * Reports a transaction by enqueuing it to the transactionInbox.
+   *
+   * @param transactionId The unique identifier of the transaction.
+   * @param pathwayHash The hash associated with the pathway context.
+   */
+  @Override
+  public void reportTransaction(String transactionId, long pathwayHash) {
+    log.info(
+        "We are reporting the transaction with transaction id {} and pathwayHash {}",
+        transactionId,
+        pathwayHash);
+    if (transactionId == null || transactionId.isEmpty()) {
+      log.warn("reportTransaction called with invalid transactionId");
+      return;
+    }
+    InboxItem transactionItem = new TransactionItem(transactionId, pathwayHash);
+    if (!transactionInbox.offer(transactionItem)) {
+      log.warn("Transaction queue is full. Dropping transaction: {}", transactionId);
+    }
+  }
+
   @Override
   public void setConsumeCheckpoint(String type, String source, DataStreamsContextCarrier carrier) {
     if (type == null || type.isEmpty() || source == null || source.isEmpty()) {
@@ -294,6 +328,16 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     setProduceCheckpoint(type, target, carrier, true);
   }
 
+  public void trackTransaction(String transactionID, DataStreamsContextCarrier carrier) {
+    if (transactionID == null || transactionID.isEmpty()) {
+      log.warn("trackTransaction called with invalid transactionID");
+      return;
+    }
+
+    // store the transaction ID in the carrier
+    carrier.set("transaction.id", transactionID);
+  }
+
   @Override
   public void close() {
     if (null != cancellation) {
@@ -301,9 +345,68 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     }
 
     inbox.offer(POISON_PILL);
+    transactionInbox.offer(POISON_PILL);
     try {
       thread.join(THREAD_JOIN_TIMOUT_MS);
+      transactionThread.join(THREAD_JOIN_TIMOUT_MS);
     } catch (InterruptedException ignored) {
+    }
+  }
+
+  private class TransactionProcessor implements Runnable {
+    @Override
+    public void run() {
+      Thread currentThread = Thread.currentThread();
+      while (!currentThread.isInterrupted()) {
+        try {
+          InboxItem item;
+          while ((item = transactionInbox.poll()) != null) {
+            if (item instanceof TransactionItem) {
+              TransactionItem transaction = (TransactionItem) item;
+              transactionsLock.lock();
+              try {
+                accumulatedTransactions.add(transaction);
+              } finally {
+                transactionsLock.unlock();
+              }
+            }
+          }
+
+          long currentTime = System.currentTimeMillis();
+          // flush every 1 second
+          long flushIntervalMillis = 1000;
+          if (currentTime - lastFlushTime >= flushIntervalMillis) {
+            List<TransactionItem> transactionsToFlush = new ArrayList<>();
+            transactionsLock.lock();
+            try {
+              if (!accumulatedTransactions.isEmpty()) {
+                transactionsToFlush.addAll(accumulatedTransactions);
+                accumulatedTransactions.clear();
+                lastFlushTime = currentTime;
+              }
+            } finally {
+              transactionsLock.unlock();
+            }
+
+            if (!transactionsToFlush.isEmpty()) {
+              List<MsgPackDatastreamsPayloadWriter.TransactionPayload> payloads = new ArrayList<>();
+              for (TransactionItem transaction : transactionsToFlush) {
+                payloads.add(
+                    new MsgPackDatastreamsPayloadWriter.TransactionPayload(
+                        transaction.getTransactionId(), transaction.getPathwayHash()));
+              }
+              okHttpSink.addHeader("Data-Type", "Transaction");
+              log.info("Added header successfully");
+              payloadWriter.writeCompressedTransactionPayload(payloads);
+            }
+          }
+          Thread.sleep(flushIntervalMillis / 2);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+        } catch (Exception e) {
+          log.debug("Error processing transactions", e);
+        }
+      }
     }
   }
 
@@ -436,6 +539,24 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     @Override
     public void run(DefaultDataStreamsMonitoring target) {
       target.report();
+    }
+  }
+
+  private static class TransactionItem implements InboxItem {
+    private final String transactionId;
+    private final long pathwayHash;
+
+    public TransactionItem(String transactionId, long pathwayHash) {
+      this.transactionId = transactionId;
+      this.pathwayHash = pathwayHash;
+    }
+
+    public String getTransactionId() {
+      return transactionId;
+    }
+
+    public long getPathwayHash() {
+      return pathwayHash;
     }
   }
 }
