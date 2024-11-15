@@ -816,6 +816,7 @@ jobs:
     parameters:
       weblog-variant:
         type: string
+    parallelism: 3
     steps:
       - setup_system_tests
 
@@ -833,32 +834,38 @@ jobs:
 
       - run:
           name: Run
-          command: |
-            cd system-tests
-            DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh
-
-      - run:
-          name: Run APM E2E default tests
           # Stop the job after 5m to avoid excessive overhead. Will need adjustment as more tests are added.
           no_output_timeout: 5m
           command: |
             cd system-tests
-            DD_SITE=datadoghq.com DD_API_KEY=$SYSTEM_TESTS_E2E_DD_API_KEY DD_APPLICATION_KEY=$SYSTEM_TESTS_E2E_DD_APP_KEY ./run.sh APM_TRACING_E2E
-
-      - run:
-          name: Run APM E2E Single Span tests
-          # Stop the job after 5m to avoid excessive overhead. Will need adjustment as more tests are added.
-          no_output_timeout: 5m
-          command: |
-            cd system-tests
-            DD_SITE=datadoghq.com DD_API_KEY=$SYSTEM_TESTS_E2E_DD_API_KEY DD_APPLICATION_KEY=$SYSTEM_TESTS_E2E_DD_APP_KEY ./run.sh APM_TRACING_E2E_SINGLE_SPAN
+            echo "
+            DEFAULT
+            APM_TRACING_E2E
+            APM_TRACING_E2E_SINGLE_SPAN
+            " | circleci tests split > scenarios.list
+            for scenario in $(<scenarios.list); do
+              if [[ $scenario =~ .*_E2E.* ]]; then
+                export DD_SITE=datadoghq.com
+                export DD_API_KEY=$SYSTEM_TESTS_E2E_DD_API_KEY
+                export DD_APPLICATION_KEY=$SYSTEM_TESTS_E2E_DD_APP_KEY
+              else
+                export DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY
+              fi
+              echo "Running scenario $scenario"
+              ./run.sh $scenario
+            done
 
       - run:
           name: Collect artifacts
-          command: tar -cvzf logs_java_<< parameters.weblog-variant >>_dev.tar.gz -C system-tests logs logs_apm_tracing_e2e logs_apm_tracing_e2e_single_span
+          command: |
+            mkdir -p artifacts
+            cd system-tests
+            for log_dir in logs*; do
+              tar -cvzf ../artifacts/${log_dir}_<< parameters.weblog-variant >>.tar.gz $log_dir
+            done
 
       - store_artifacts:
-          path: logs_java_<< parameters.weblog-variant >>_dev.tar.gz
+          path: artifacts
 
   integrations-system-tests:
     machine:

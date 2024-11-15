@@ -98,9 +98,9 @@ class TestServlet5 extends HttpServlet {
         case CUSTOM_EXCEPTION:
           throw new InputMismatchException(endpoint.body)
         case SESSION_ID:
-          def session = req.getSession(true)
+          req.getSession(true)
           resp.status = endpoint.status
-          resp.writer.print(session.id)
+          resp.writer.print(req.requestedSessionId)
           break
         default:
           resp.status = NOT_FOUND.status
