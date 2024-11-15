@@ -14,7 +14,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 public class StackUtilsTest {
 
@@ -92,13 +97,30 @@ public class StackUtilsTest {
     assertThat(noRemoval.getStackTrace()).isEqualTo(stack);
   }
 
-  @Test
-  public void test_generateUserCodeStackTrace() {
-    List<StackTraceFrame> userCodeStack = StackUtils.generateUserCodeStackTrace();
+  private static Stream<Arguments> test_generateUserCodeStackTrace_Params() {
+    return Stream.of(
+        Arguments.of((Predicate<StackTraceElement>) stack -> true, false),
+        Arguments.of(
+            (Predicate<StackTraceElement>) stack -> !stack.getClassName().startsWith("org.junit"),
+            true));
+  }
+
+  @ParameterizedTest
+  @MethodSource("test_generateUserCodeStackTrace_Params")
+  public void test_generateUserCodeStackTrace(
+      final Predicate<StackTraceElement> filter, final boolean expected) {
+    List<StackTraceFrame> userCodeStack = StackUtils.generateUserCodeStackTrace(filter);
     assertThat(userCodeStack).isNotNull();
+    int junitFramesCounter = 0;
     for (StackTraceFrame frame : userCodeStack) {
-      assertThat(frame.getClass_name()).doesNotContain("com.datadog");
-      assertThat(frame.getClass_name()).doesNotContain("datadog.trace");
+      if (frame.getClass_name() != null && frame.getClass_name().startsWith("org.junit")) {
+        junitFramesCounter++;
+      }
+    }
+    if (expected) {
+      assertThat(junitFramesCounter).isEqualTo(0);
+    } else {
+      assertThat(junitFramesCounter).isGreaterThan(0);
     }
   }
 

@@ -12,6 +12,7 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.DDSpanLink;
@@ -240,7 +241,13 @@ public class HttpCodec {
               }
             } else {
               // Terminate extracted context and add it as span link
-              context.addTerminatedContextLink(DDSpanLink.from((ExtractedContext) extracted));
+              context.addTerminatedContextLink(
+                  DDSpanLink.from(
+                      (ExtractedContext) extracted,
+                      SpanAttributes.builder()
+                          .put("reason", "terminated_context")
+                          .put("context_headers", extracted.getPropagationStyle().toString())
+                          .build()));
               // TODO Note: Other vendor tracestate will be lost here
             }
           }

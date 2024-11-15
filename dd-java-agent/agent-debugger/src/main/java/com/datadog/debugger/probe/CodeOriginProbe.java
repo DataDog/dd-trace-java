@@ -26,14 +26,17 @@ import org.slf4j.LoggerFactory;
 public class CodeOriginProbe extends LogProbe implements ForceMethodInstrumentation {
   private static final Logger LOGGER = LoggerFactory.getLogger(CodeOriginProbe.class);
 
+  public final int maxFrames;
+
   private final String signature;
 
   private final boolean entrySpanProbe;
 
-  public CodeOriginProbe(ProbeId probeId, String signature, Where where) {
+  public CodeOriginProbe(ProbeId probeId, String signature, Where where, int maxFrames) {
     super(LANGUAGE, probeId, null, where, MethodLocation.EXIT, null, null, true, null, null, null);
     this.signature = signature;
     this.entrySpanProbe = signature != null;
+    this.maxFrames = maxFrames;
   }
 
   @Override
@@ -133,6 +136,7 @@ public class CodeOriginProbe extends LogProbe implements ForceMethodInstrumentat
         stream ->
             stream
                 .filter(element -> !DebuggerContext.isClassNameExcluded(element.getClassName()))
+                .limit(maxFrames)
                 .collect(Collectors.toList()));
   }
 }

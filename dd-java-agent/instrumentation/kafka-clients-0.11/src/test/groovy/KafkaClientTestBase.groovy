@@ -1,5 +1,3 @@
-import datadog.trace.common.writer.ListWriter
-
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
@@ -11,6 +9,7 @@ import datadog.trace.api.Config
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.DDSpan
 import datadog.trace.core.datastreams.StatsGroup
 import datadog.trace.test.util.Flaky
@@ -34,6 +33,7 @@ import org.springframework.kafka.listener.MessageListener
 import org.springframework.kafka.test.rule.KafkaEmbedded
 import org.springframework.kafka.test.utils.ContainerTestUtils
 import org.springframework.kafka.test.utils.KafkaTestUtils
+import spock.lang.Shared
 
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.Future
@@ -56,7 +56,8 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   public static final LinkedHashMap<String, String> PRODUCER_PATHWAY_EDGE_TAGS
 
   // filter out Kafka poll, since the function is called in a loop, giving inconsistent results
-  final ListWriter.Filter dropKafkaPoll = new ListWriter.Filter() {
+  @Shared
+  static final ListWriter.Filter DROP_KAFKA_POLL = new ListWriter.Filter() {
     @Override
     boolean accept(List<DDSpan> trace) {
       return !(trace.size() == 1 &&
@@ -103,7 +104,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   }
 
   def setup() {
-    TEST_WRITER.setFilter(dropKafkaPoll)
+    TEST_WRITER.setFilter(DROP_KAFKA_POLL)
   }
 
   @Override
@@ -299,15 +300,15 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
       }
       List<String> produce = [
         "kafka_cluster_id:$clusterId",
-        "partition:"+received.partition(),
-        "topic:"+SHARED_TOPIC,
+        "partition:" + received.partition(),
+        "topic:" + SHARED_TOPIC,
         "type:kafka_produce"
       ]
       List<String> commit = [
         "consumer_group:sender",
         "kafka_cluster_id:$clusterId",
-        "partition:"+received.partition(),
-        "topic:"+SHARED_TOPIC,
+        "partition:" + received.partition(),
+        "topic:" + SHARED_TOPIC,
         "type:kafka_commit"
       ]
       verifyAll(TEST_DATA_STREAMS_WRITER.backlogs) {
@@ -452,15 +453,15 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
       }
       List<String> produce = [
         "kafka_cluster_id:$clusterId".toString(),
-        "partition:"+received.partition(),
-        "topic:"+SHARED_TOPIC,
+        "partition:" + received.partition(),
+        "topic:" + SHARED_TOPIC,
         "type:kafka_produce"
       ]
       List<String> commit = [
         "consumer_group:sender",
         "kafka_cluster_id:$clusterId".toString(),
-        "partition:"+received.partition(),
-        "topic:"+SHARED_TOPIC,
+        "partition:" + received.partition(),
+        "topic:" + SHARED_TOPIC,
         "type:kafka_commit"
       ]
       verifyAll(TEST_DATA_STREAMS_WRITER.backlogs) {
@@ -1014,7 +1015,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
 
   def producerSpan(
     TraceAssert trace,
-    Map<String,?> config,
+    Map<String, ?> config,
     DDSpan parentSpan = null,
     boolean partitioned = true,
     boolean tombstone = false,
@@ -1042,7 +1043,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
         if (tombstone) {
           "$InstrumentationTags.TOMBSTONE" true
         }
-        if ({isDataStreamsEnabled()}) {
+        if ({ isDataStreamsEnabled() }) {
           "$DDTags.PATHWAY_HASH" { String }
           if (schema != null) {
             "$DDTags.SCHEMA_DEFINITION" schema
@@ -1063,7 +1064,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     DDSpan parentSpan = null
   ) {
     trace.span {
-      serviceName splitByDestination() ? "$SHARED_TOPIC" :  serviceForTimeInQueue()
+      serviceName splitByDestination() ? "$SHARED_TOPIC" : serviceForTimeInQueue()
       operationName "kafka.deliver"
       resourceName "$SHARED_TOPIC"
       spanType "queue"
@@ -1084,7 +1085,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
 
   def consumerSpan(
     TraceAssert trace,
-    Map<String,Object> config,
+    Map<String, Object> config,
     DDSpan parentSpan = null,
     Range offset = 0..0,
     boolean tombstone = false,
@@ -1114,7 +1115,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
         if (tombstone) {
           "$InstrumentationTags.TOMBSTONE" true
         }
-        if ({isDataStreamsEnabled()}) {
+        if ({ isDataStreamsEnabled() }) {
           "$DDTags.PATHWAY_HASH" { String }
         }
         defaultTags(distributedRootSpan)
@@ -1146,9 +1147,9 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   def waitForKafkaMetadataUpdate(KafkaTemplate kafkaTemplate) {
     kafkaTemplate.flush()
     Producer<String, String> wrappedProducer = kafkaTemplate.getTheProducer()
-    assert(wrappedProducer instanceof DefaultKafkaProducerFactory.CloseSafeProducer)
+    assert (wrappedProducer instanceof DefaultKafkaProducerFactory.CloseSafeProducer)
     Producer<String, String> producer = wrappedProducer.delegate
-    assert(producer instanceof KafkaProducer)
+    assert (producer instanceof KafkaProducer)
     String clusterId = producer.metadata.cluster.clusterResource().clusterId()
     while (clusterId == null || clusterId.isEmpty()) {
       Thread.sleep(1500)
@@ -1265,12 +1266,12 @@ abstract class KafkaClientLegacyTracingForkedTest extends KafkaClientTestBase {
   }
 }
 
-class KafkaClientLegacyTracingV0ForkedTest extends KafkaClientLegacyTracingForkedTest{
+class KafkaClientLegacyTracingV0ForkedTest extends KafkaClientLegacyTracingForkedTest {
 
 
 }
 
-class KafkaClientLegacyTracingV1ForkedTest extends KafkaClientLegacyTracingForkedTest{
+class KafkaClientLegacyTracingV1ForkedTest extends KafkaClientLegacyTracingForkedTest {
 
   @Override
   int version() {

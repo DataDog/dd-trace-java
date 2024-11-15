@@ -265,6 +265,8 @@ public final class OpenJdkController implements Controller {
 
     // Register periodic events
     AvailableProcessorCoresEvent.register();
+
+    log.debug("JFR Recording Settings: {}", recordingSettings);
   }
 
   private static String getJfrRepositoryBase(ConfigProvider configProvider) {

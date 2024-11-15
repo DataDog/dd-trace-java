@@ -70,7 +70,7 @@ public class LettuceInstrumentationUtil {
 
       // get the redis command name (i.e. GET, SET, HMSET, etc)
       if (command.getType() != null) {
-        commandName = command.getType().name().trim();
+        commandName = command.getType().toString().trim();
       }
     }
     return commandName;

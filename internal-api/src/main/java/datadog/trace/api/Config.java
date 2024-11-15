@@ -58,6 +58,7 @@ import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -173,7 +174,6 @@ public class Config {
   private final Set<String> splitByTags;
   private final int scopeDepthLimit;
   private final boolean scopeStrictMode;
-  private final boolean scopeInheritAsyncPropagation;
   private final int scopeIterationKeepAlive;
   private final int partialFlushMinSpans;
   private final boolean traceStrictWritesEnabled;
@@ -303,6 +303,7 @@ public class Config {
   private final boolean iastSourceMappingEnabled;
   private final int iastSourceMappingMaxSize;
   private final boolean iastStackTraceEnabled;
+  private final boolean iastExperimentalPropagationEnabled;
 
   private final boolean ciVisibilityTraceSanitationEnabled;
   private final boolean ciVisibilityAgentlessEnabled;
@@ -402,6 +403,7 @@ public class Config {
   private final int debuggerExceptionMaxCapturedFrames;
   private final int debuggerExceptionCaptureInterval;
   private final boolean debuggerCodeOriginEnabled;
+  private final int debuggerCodeOriginMaxUserFrames;
 
   private final Set<String> debuggerThirdPartyIncludes;
   private final Set<String> debuggerThirdPartyExcludes;
@@ -412,6 +414,9 @@ public class Config {
   private final boolean kafkaClientPropagationEnabled;
   private final Set<String> kafkaClientPropagationDisabledTopics;
   private final boolean kafkaClientBase64DecodingEnabled;
+  // enable the Kafka-3.8 instrumentation manually until testing issues are resolved.
+  private final boolean experimentalKafkaEnabled;
+
   private final boolean jmsPropagationEnabled;
   private final Set<String> jmsPropagationDisabledTopics;
   private final Set<String> jmsPropagationDisabledQueues;
@@ -522,6 +527,12 @@ public class Config {
   private final String agentlessLogSubmissionLevel;
   private final String agentlessLogSubmissionUrl;
   private final String agentlessLogSubmissionProduct;
+
+  private final Set<String> cloudPayloadTaggingServices;
+  @Nullable private final List<String> cloudRequestPayloadTagging;
+  @Nullable private final List<String> cloudResponsePayloadTagging;
+  private final int cloudPayloadTaggingMaxDepth;
+  private final int cloudPayloadTaggingMaxTags;
 
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
@@ -841,8 +852,6 @@ public class Config {
     scopeDepthLimit = configProvider.getInteger(SCOPE_DEPTH_LIMIT, DEFAULT_SCOPE_DEPTH_LIMIT);
 
     scopeStrictMode = configProvider.getBoolean(SCOPE_STRICT_MODE, false);
-
-    scopeInheritAsyncPropagation = configProvider.getBoolean(SCOPE_INHERIT_ASYNC_PROPAGATION, true);
 
     scopeIterationKeepAlive =
         configProvider.getInteger(SCOPE_ITERATION_KEEP_ALIVE, DEFAULT_SCOPE_ITERATION_KEEP_ALIVE);
@@ -1298,9 +1307,10 @@ public class Config {
             IAST_ANONYMOUS_CLASSES_ENABLED, DEFAULT_IAST_ANONYMOUS_CLASSES_ENABLED);
     iastSourceMappingEnabled = configProvider.getBoolean(IAST_SOURCE_MAPPING_ENABLED, false);
     iastSourceMappingMaxSize = configProvider.getInteger(IAST_SOURCE_MAPPING_MAX_SIZE, 1000);
-
     iastStackTraceEnabled =
         configProvider.getBoolean(IAST_STACK_TRACE_ENABLED, DEFAULT_IAST_STACK_TRACE_ENABLED);
+    iastExperimentalPropagationEnabled =
+        configProvider.getBoolean(IAST_EXPERIMENTAL_PROPAGATION_ENABLED, false);
 
     ciVisibilityTraceSanitationEnabled =
         configProvider.getBoolean(CIVISIBILITY_TRACE_SANITATION_ENABLED, true);
@@ -1526,6 +1536,8 @@ public class Config {
     debuggerCodeOriginEnabled =
         configProvider.getBoolean(
             CODE_ORIGIN_FOR_SPANS_ENABLED, DEFAULT_CODE_ORIGIN_FOR_SPANS_ENABLED);
+    debuggerCodeOriginMaxUserFrames =
+        configProvider.getInteger(CODE_ORIGIN_MAX_USER_FRAMES, DEFAULT_CODE_ORIGIN_MAX_USER_FRAMES);
     debuggerMaxExceptionPerSecond =
         configProvider.getInteger(
             DEBUGGER_MAX_EXCEPTION_PER_SECOND, DEFAULT_DEBUGGER_MAX_EXCEPTION_PER_SECOND);
@@ -1557,6 +1569,7 @@ public class Config {
         tryMakeImmutableSet(configProvider.getList(KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS));
     kafkaClientBase64DecodingEnabled =
         configProvider.getBoolean(KAFKA_CLIENT_BASE64_DECODING_ENABLED, false);
+    experimentalKafkaEnabled = configProvider.getBoolean(EXPERIMENTAL_KAFKA_ENABLED, false);
     jmsPropagationEnabled = isPropagationEnabled(true, "jms");
     jmsPropagationDisabledTopics =
         tryMakeImmutableSet(configProvider.getList(JMS_PROPAGATION_DISABLED_TOPICS));
@@ -1756,6 +1769,19 @@ public class Config {
     this.agentlessLogSubmissionUrl =
         configProvider.getString(GeneralConfig.AGENTLESS_LOG_SUBMISSION_URL);
     this.agentlessLogSubmissionProduct = isCiVisibilityEnabled() ? "citest" : "apm";
+
+    this.cloudPayloadTaggingServices =
+        configProvider.getSet(
+            TracerConfig.TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES,
+            ConfigDefaults.DEFAULT_TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES);
+    this.cloudRequestPayloadTagging =
+        configProvider.getList(TracerConfig.TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING, null);
+    this.cloudResponsePayloadTagging =
+        configProvider.getList(TracerConfig.TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING, null);
+    this.cloudPayloadTaggingMaxDepth =
+        configProvider.getInteger(TracerConfig.TRACE_CLOUD_PAYLOAD_TAGGING_MAX_DEPTH, 10);
+    this.cloudPayloadTaggingMaxTags =
+        configProvider.getInteger(TracerConfig.TRACE_CLOUD_PAYLOAD_TAGGING_MAX_TAGS, 758);
 
     timelineEventsEnabled =
         configProvider.getBoolean(
@@ -2042,10 +2068,6 @@ public class Config {
 
   public boolean isScopeStrictMode() {
     return scopeStrictMode;
-  }
-
-  public boolean isScopeInheritAsyncPropagation() {
-    return scopeInheritAsyncPropagation;
   }
 
   public int getScopeIterationKeepAlive() {
@@ -2565,6 +2587,10 @@ public class Config {
     return iastStackTraceEnabled;
   }
 
+  public boolean isIastExperimentalPropagationEnabled() {
+    return iastExperimentalPropagationEnabled;
+  }
+
   public boolean isCiVisibilityEnabled() {
     return instrumenterConfig.isCiVisibilityEnabled();
   }
@@ -2950,6 +2976,10 @@ public class Config {
     return debuggerCodeOriginEnabled;
   }
 
+  public int getDebuggerCodeOriginMaxUserFrames() {
+    return debuggerCodeOriginMaxUserFrames;
+  }
+
   public Set<String> getThirdPartyIncludes() {
     return debuggerThirdPartyIncludes;
   }
@@ -3023,6 +3053,10 @@ public class Config {
 
   public boolean isKafkaClientBase64DecodingEnabled() {
     return kafkaClientBase64DecodingEnabled;
+  }
+
+  public boolean isExperimentalKafkaEnabled() {
+    return experimentalKafkaEnabled;
   }
 
   public boolean isRabbitPropagationEnabled() {
@@ -3751,6 +3785,42 @@ public class Config {
     return appSecMaxStackTraceDepth;
   }
 
+  public boolean isCloudPayloadTaggingEnabledFor(String serviceName) {
+    return cloudPayloadTaggingServices.contains(serviceName);
+  }
+
+  public boolean isCloudPayloadTaggingEnabled() {
+    return isCloudRequestPayloadTaggingEnabled() || isCloudResponsePayloadTaggingEnabled();
+  }
+
+  public List<String> getCloudRequestPayloadTagging() {
+    return cloudRequestPayloadTagging == null
+        ? Collections.emptyList()
+        : cloudRequestPayloadTagging;
+  }
+
+  public boolean isCloudRequestPayloadTaggingEnabled() {
+    return cloudRequestPayloadTagging != null;
+  }
+
+  public List<String> getCloudResponsePayloadTagging() {
+    return cloudResponsePayloadTagging == null
+        ? Collections.emptyList()
+        : cloudResponsePayloadTagging;
+  }
+
+  public boolean isCloudResponsePayloadTaggingEnabled() {
+    return cloudResponsePayloadTagging != null;
+  }
+
+  public int getCloudPayloadTaggingMaxDepth() {
+    return cloudPayloadTaggingMaxDepth;
+  }
+
+  public int getCloudPayloadTaggingMaxTags() {
+    return cloudPayloadTaggingMaxTags;
+  }
+
   private <T> Set<T> getSettingsSetFromEnvironment(
       String name, Function<String, T> mapper, boolean splitOnWS) {
     final String value = configProvider.getString(name, "");
@@ -4091,8 +4161,6 @@ public class Config {
         + scopeDepthLimit
         + ", scopeStrictMode="
         + scopeStrictMode
-        + ", scopeInheritAsyncPropagation="
-        + scopeInheritAsyncPropagation
         + ", scopeIterationKeepAlive="
         + scopeIterationKeepAlive
         + ", partialFlushMinSpans="
@@ -4399,6 +4467,10 @@ public class Config {
         + dataJobsCommandPattern
         + ", appSecStandaloneEnabled="
         + appSecStandaloneEnabled
+        + ", cloudRequestPayloadTagging="
+        + cloudRequestPayloadTagging
+        + ", cloudResponsePayloadTagging="
+        + cloudResponsePayloadTagging
         + '}';
   }
 }

@@ -77,6 +77,7 @@ public class CrashUploaderTest {
   @BeforeEach
   public void setup() throws IOException {
     server.start();
+    System.out.println("Setting up test: " + server.getPort());
     url = server.url(URL_PATH);
 
     when(config.getEnv()).thenReturn(ENV);
@@ -170,6 +171,7 @@ public class CrashUploaderTest {
     // payload:
     assertEquals("ERROR", event.get("payload").get(0).get("level").asText());
 
+    assertTrue(event.get("payload").get(0).get("is_sensitive").asBoolean());
     // we need to sanitize the UIID which keeps on changing
     String message = event.get("payload").get(0).get("message").asText();
     CrashLog extracted = CrashLog.fromJson(message);

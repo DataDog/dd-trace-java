@@ -222,7 +222,7 @@ public final class ConfigProvider {
       }
       return defaultValue;
     } else {
-      return ConfigConverter.parseList(getString(key));
+      return ConfigConverter.parseList(list);
     }
   }
 
@@ -234,7 +234,7 @@ public final class ConfigProvider {
       }
       return defaultValue;
     } else {
-      return new HashSet(ConfigConverter.parseList(getString(key)));
+      return new HashSet(ConfigConverter.parseList(list));
     }
   }
 

@@ -1,0 +1,15 @@
+{
+    "pull_request": {
+        "number": 7884,
+        "draft": false,
+        "labels": [
+            {
+                "name": "comp: api"
+            },
+            {
+                "name": "type: enhancement"
+            }
+        ],
+        "title": "[API] Adding some new features"
+    }
+}

@@ -38,6 +38,8 @@ excludedClassesCoverage += [
   'datadog.appsec.api.blocking.*',
   'datadog.trace.context.NoopTraceScope.NoopContinuation',
   'datadog.trace.context.NoopTraceScope',
+  'datadog.trace.payloadtags.PayloadTagsData',
+  'datadog.trace.payloadtags.PayloadTagsData.PathAndValue',
 ]
 
 description = 'dd-trace-api'
