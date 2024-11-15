@@ -96,7 +96,7 @@ class TaintUtils {
     return resultString
   }
 
-  static StringBuilder addFromTaintFormat(final TaintedObjects tos, final StringBuilder sb) {
+  static Appendable addFromTaintFormat(final TaintedObjects tos, final Appendable sb) {
     final String s = sb.toString()
     final ranges = fromTaintFormat(s)
     if (ranges == null || ranges.length == 0) {
