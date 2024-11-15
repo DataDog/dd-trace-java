@@ -133,6 +133,7 @@ abstract class AbstractServerSmokeTest extends AbstractSmokeTest {
     []
   }
 
+  @SuppressWarnings('UnnecessaryBooleanExpression')
   void 'receive telemetry app-dependencies-loaded'() {
     when:
     assumeTrue(testTelemetry())
