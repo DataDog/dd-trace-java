@@ -450,12 +450,20 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
 
   @Override
   protected String getRequestHeader(SdkHttpRequest request, String headerName) {
-    return request.firstMatchingHeader(headerName).orElse(null);
+    List<String> headers = request.headers().get(headerName);
+    if (headers != null) {
+      return String.join(", ", headers);
+    }
+    return null;
   }
 
   @Override
   protected String getResponseHeader(SdkHttpResponse response, String headerName) {
-    return response.firstMatchingHeader(headerName).orElse(null);
+    List<String> headers = response.headers().get(headerName);
+    if (headers != null) {
+      return String.join(", ", headers);
+    }
+    return null;
   }
 
   private void awsPojoToTags(AgentSpan span, String tagsPrefix, Object pojo) {

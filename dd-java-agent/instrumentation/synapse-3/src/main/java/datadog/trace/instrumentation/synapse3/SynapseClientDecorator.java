@@ -5,6 +5,8 @@ import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.http.Header;
 import org.apache.http.HttpRequest;
 import org.apache.http.HttpResponse;
@@ -47,18 +49,26 @@ public final class SynapseClientDecorator extends HttpClientDecorator<HttpReques
 
   @Override
   protected String getRequestHeader(HttpRequest request, String headerName) {
-    Header header = request.getFirstHeader(headerName);
-    if (null != header) {
-      return header.getValue();
+    Header[] headers = request.getHeaders(headerName);
+    List<String> values = new ArrayList<>();
+    if (null != headers) {
+      for (Header header : headers) {
+        values.add(header.getValue());
+      }
+      return String.join(", ", values);
     }
     return null;
   }
 
   @Override
   protected String getResponseHeader(HttpResponse response, String headerName) {
-    Header header = response.getFirstHeader(headerName);
-    if (null != header) {
-      return header.getValue();
+    Header[] headers = response.getHeaders(headerName);
+    List<String> values = new ArrayList<>();
+    if (null != headers) {
+      for (Header header : headers) {
+        values.add(header.getValue());
+      }
+      return String.join(", ", values);
     }
     return null;
   }
