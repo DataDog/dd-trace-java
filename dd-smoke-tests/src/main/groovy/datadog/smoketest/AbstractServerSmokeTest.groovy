@@ -118,6 +118,7 @@ abstract class AbstractServerSmokeTest extends AbstractSmokeTest {
     return remaining
   }
 
+  @RunLast
   void 'receive telemetry app-started'() {
     when:
     assumeTrue(testTelemetry())
@@ -133,6 +134,7 @@ abstract class AbstractServerSmokeTest extends AbstractSmokeTest {
     []
   }
 
+  @RunLast
   @SuppressWarnings('UnnecessaryBooleanExpression')
   void 'receive telemetry app-dependencies-loaded'() {
     when:
