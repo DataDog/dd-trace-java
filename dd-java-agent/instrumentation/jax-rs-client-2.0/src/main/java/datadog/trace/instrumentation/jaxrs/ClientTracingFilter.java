@@ -29,12 +29,14 @@ public class ClientTracingFilter implements ClientRequestFilter, ClientResponseF
       DECORATE.onRequest(span, requestContext);
 
       propagate().inject(span, requestContext.getHeaders(), SETTER);
-      propagate()
-          .injectPathwayContext(
-              span,
-              requestContext.getHeaders(),
-              SETTER,
-              HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+      if (HttpClientDecorator.SHOULD_INSTRUMENT_DATA_STREAMS) {
+        propagate()
+            .injectPathwayContext(
+                span,
+                requestContext.getHeaders(),
+                SETTER,
+                HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+      }
 
       requestContext.setProperty(SPAN_PROPERTY_NAME, span);
     }

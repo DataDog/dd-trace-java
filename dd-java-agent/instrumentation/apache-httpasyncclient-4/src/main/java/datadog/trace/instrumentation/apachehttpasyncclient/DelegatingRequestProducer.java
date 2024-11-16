@@ -35,8 +35,10 @@ public class DelegatingRequestProducer implements HttpAsyncRequestProducer {
     DECORATE.onRequest(span, new HostAndRequestAsHttpUriRequest(delegate.getTarget(), request));
 
     propagate().inject(span, request, SETTER);
-    propagate()
-        .injectPathwayContext(span, request, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+    if (HttpClientDecorator.SHOULD_INSTRUMENT_DATA_STREAMS) {
+      propagate()
+          .injectPathwayContext(span, request, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+    }
 
     return request;
   }

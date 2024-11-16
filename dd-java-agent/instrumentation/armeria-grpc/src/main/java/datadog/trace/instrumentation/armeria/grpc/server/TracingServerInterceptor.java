@@ -45,6 +45,8 @@ public class TracingServerInterceptor implements ServerInterceptor {
 
   public static final TracingServerInterceptor INSTANCE = new TracingServerInterceptor();
   private static final Set<String> IGNORED_METHODS = Config.get().getGrpcIgnoredInboundMethods();
+  private static final boolean SHOULD_INSTRUMENT_DATA_STREAMS =
+      Config.get().isGrpcDataStreamsEnabled();
 
   private TracingServerInterceptor() {}
 
@@ -69,9 +71,11 @@ public class TracingServerInterceptor implements ServerInterceptor {
     final AgentSpan span =
         startSpan(DECORATE.instrumentationNames()[0], GRPC_SERVER, spanContext).setMeasured(true);
 
-    AgentTracer.get()
-        .getDataStreamsMonitoring()
-        .setCheckpoint(span, SERVER_PATHWAY_EDGE_TAGS, 0, 0);
+    if (SHOULD_INSTRUMENT_DATA_STREAMS) {
+      AgentTracer.get()
+          .getDataStreamsMonitoring()
+          .setCheckpoint(span, SERVER_PATHWAY_EDGE_TAGS, 0, 0);
+    }
 
     RequestContext reqContext = span.getRequestContext();
     if (reqContext != null) {

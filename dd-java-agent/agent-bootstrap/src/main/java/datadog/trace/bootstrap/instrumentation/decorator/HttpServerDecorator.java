@@ -73,6 +73,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
           && Config.get().isRuleEnabled("Status404Decorator");
   private static final boolean SHOULD_SET_URL_RESOURCE_NAME =
       Config.get().isRuleEnabled("URLAsResourceNameRule");
+  private static final boolean SHOULD_INSTRUMENT_DATA_STREAMS =
+      Config.get().isHttpDataStreamsEnabled();
 
   private static final BitSet SERVER_ERROR_STATUSES = Config.get().getHttpServerErrorStatuses();
 
@@ -146,7 +148,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       span.setRequestBlockingAction((Flow.Action.RequestBlockingAction) flow.getAction());
     }
     AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
-    if (null != carrier && null != getter) {
+    if (null != carrier && null != getter && SHOULD_INSTRUMENT_DATA_STREAMS) {
       tracer().getDataStreamsMonitoring().setCheckpoint(span, SERVER_PATHWAY_EDGE_TAGS, 0, 0);
     }
     return span;

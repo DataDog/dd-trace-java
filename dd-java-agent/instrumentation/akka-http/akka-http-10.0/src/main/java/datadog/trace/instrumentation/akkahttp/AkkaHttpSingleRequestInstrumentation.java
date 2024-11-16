@@ -79,9 +79,11 @@ public final class AkkaHttpSingleRequestInstrumentation extends InstrumenterModu
 
       if (request != null) {
         propagate().inject(span, request, headers);
-        propagate()
-            .injectPathwayContext(
-                span, request, headers, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+        if (HttpClientDecorator.SHOULD_INSTRUMENT_DATA_STREAMS) {
+          propagate()
+              .injectPathwayContext(
+                  span, request, headers, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+        }
         // Request is immutable, so we have to assign new value once we update headers
         request = headers.getRequest();
       }

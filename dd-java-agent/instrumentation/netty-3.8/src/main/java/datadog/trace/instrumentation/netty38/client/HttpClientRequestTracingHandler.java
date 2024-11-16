@@ -66,9 +66,11 @@ public class HttpClientRequestTracingHandler extends SimpleChannelDownstreamHand
       }
 
       propagate().inject(span, request.headers(), SETTER);
-      propagate()
-          .injectPathwayContext(
-              span, request.headers(), SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+      if (HttpClientDecorator.SHOULD_INSTRUMENT_DATA_STREAMS) {
+        propagate()
+            .injectPathwayContext(
+                span, request.headers(), SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+      }
 
       channelTraceContext.setClientSpan(span);
 
