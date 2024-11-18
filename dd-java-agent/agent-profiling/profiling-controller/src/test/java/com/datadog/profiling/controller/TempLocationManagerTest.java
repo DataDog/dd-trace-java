@@ -38,19 +38,14 @@ public class TempLocationManagerTest {
   @Test
   void testFromConfig() throws Exception {
     Path myDir = Paths.get(System.getProperty("java.io.tmpdir"), "test1");
-    try {
-      Files.createDirectories(myDir);
-      Properties props = new Properties();
-      props.put(ProfilingConfig.PROFILING_TEMP_DIR, myDir.toString());
-      ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
-      TempLocationManager tempLocationManager = new TempLocationManager(configProvider);
-      Path tempDir = tempLocationManager.getTempDir();
-      assertNotNull(tempDir);
-      assertTrue(tempDir.toString().startsWith(myDir.toString()));
-    } finally {
-      // make sure to delete the test directory
-      Files.delete(myDir);
-    }
+    Files.createDirectories(myDir);
+    Properties props = new Properties();
+    props.put(ProfilingConfig.PROFILING_TEMP_DIR, myDir.toString());
+    ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
+    TempLocationManager tempLocationManager = new TempLocationManager(configProvider);
+    Path tempDir = tempLocationManager.getTempDir();
+    assertNotNull(tempDir);
+    assertTrue(tempDir.toString().startsWith(myDir.toString()));
   }
 
   @Test
@@ -66,18 +61,13 @@ public class TempLocationManagerTest {
   @Test
   void testFromConfigNotWritable() throws Exception {
     Path myDir = Paths.get(System.getProperty("java.io.tmpdir"), "test3");
-    try {
-      Files.createDirectories(
-          myDir,
-          PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("r-x------")));
-      Properties props = new Properties();
-      props.put(ProfilingConfig.PROFILING_TEMP_DIR, myDir.toString());
-      ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
-      TempLocationManager tempLocationManager = new TempLocationManager(configProvider);
-      assertThrows(IllegalStateException.class, tempLocationManager::getTempDir);
-    } finally {
-      // make sure to delete the test directory
-      Files.delete(myDir);
-    }
+    Files.createDirectories(
+        myDir,
+        PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("r-x------")));
+    Properties props = new Properties();
+    props.put(ProfilingConfig.PROFILING_TEMP_DIR, myDir.toString());
+    ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
+    TempLocationManager tempLocationManager = new TempLocationManager(configProvider);
+    assertThrows(IllegalStateException.class, tempLocationManager::getTempDir);
   }
 }
