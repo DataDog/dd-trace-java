@@ -174,7 +174,6 @@ public class Config {
   private final Set<String> splitByTags;
   private final int scopeDepthLimit;
   private final boolean scopeStrictMode;
-  private final boolean scopeInheritAsyncPropagation;
   private final int scopeIterationKeepAlive;
   private final int partialFlushMinSpans;
   private final boolean traceStrictWritesEnabled;
@@ -304,6 +303,7 @@ public class Config {
   private final boolean iastSourceMappingEnabled;
   private final int iastSourceMappingMaxSize;
   private final boolean iastStackTraceEnabled;
+  private final boolean iastExperimentalPropagationEnabled;
 
   private final boolean ciVisibilityTraceSanitationEnabled;
   private final boolean ciVisibilityAgentlessEnabled;
@@ -414,6 +414,9 @@ public class Config {
   private final boolean kafkaClientPropagationEnabled;
   private final Set<String> kafkaClientPropagationDisabledTopics;
   private final boolean kafkaClientBase64DecodingEnabled;
+  // enable the Kafka-3.8 instrumentation manually until testing issues are resolved.
+  private final boolean experimentalKafkaEnabled;
+
   private final boolean jmsPropagationEnabled;
   private final Set<String> jmsPropagationDisabledTopics;
   private final Set<String> jmsPropagationDisabledQueues;
@@ -849,8 +852,6 @@ public class Config {
     scopeDepthLimit = configProvider.getInteger(SCOPE_DEPTH_LIMIT, DEFAULT_SCOPE_DEPTH_LIMIT);
 
     scopeStrictMode = configProvider.getBoolean(SCOPE_STRICT_MODE, false);
-
-    scopeInheritAsyncPropagation = configProvider.getBoolean(SCOPE_INHERIT_ASYNC_PROPAGATION, true);
 
     scopeIterationKeepAlive =
         configProvider.getInteger(SCOPE_ITERATION_KEEP_ALIVE, DEFAULT_SCOPE_ITERATION_KEEP_ALIVE);
@@ -1306,9 +1307,10 @@ public class Config {
             IAST_ANONYMOUS_CLASSES_ENABLED, DEFAULT_IAST_ANONYMOUS_CLASSES_ENABLED);
     iastSourceMappingEnabled = configProvider.getBoolean(IAST_SOURCE_MAPPING_ENABLED, false);
     iastSourceMappingMaxSize = configProvider.getInteger(IAST_SOURCE_MAPPING_MAX_SIZE, 1000);
-
     iastStackTraceEnabled =
         configProvider.getBoolean(IAST_STACK_TRACE_ENABLED, DEFAULT_IAST_STACK_TRACE_ENABLED);
+    iastExperimentalPropagationEnabled =
+        configProvider.getBoolean(IAST_EXPERIMENTAL_PROPAGATION_ENABLED, false);
 
     ciVisibilityTraceSanitationEnabled =
         configProvider.getBoolean(CIVISIBILITY_TRACE_SANITATION_ENABLED, true);
@@ -1567,6 +1569,7 @@ public class Config {
         tryMakeImmutableSet(configProvider.getList(KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS));
     kafkaClientBase64DecodingEnabled =
         configProvider.getBoolean(KAFKA_CLIENT_BASE64_DECODING_ENABLED, false);
+    experimentalKafkaEnabled = configProvider.getBoolean(EXPERIMENTAL_KAFKA_ENABLED, false);
     jmsPropagationEnabled = isPropagationEnabled(true, "jms");
     jmsPropagationDisabledTopics =
         tryMakeImmutableSet(configProvider.getList(JMS_PROPAGATION_DISABLED_TOPICS));
@@ -2065,10 +2068,6 @@ public class Config {
 
   public boolean isScopeStrictMode() {
     return scopeStrictMode;
-  }
-
-  public boolean isScopeInheritAsyncPropagation() {
-    return scopeInheritAsyncPropagation;
   }
 
   public int getScopeIterationKeepAlive() {
@@ -2588,6 +2587,10 @@ public class Config {
     return iastStackTraceEnabled;
   }
 
+  public boolean isIastExperimentalPropagationEnabled() {
+    return iastExperimentalPropagationEnabled;
+  }
+
   public boolean isCiVisibilityEnabled() {
     return instrumenterConfig.isCiVisibilityEnabled();
   }
@@ -3050,6 +3053,10 @@ public class Config {
 
   public boolean isKafkaClientBase64DecodingEnabled() {
     return kafkaClientBase64DecodingEnabled;
+  }
+
+  public boolean isExperimentalKafkaEnabled() {
+    return experimentalKafkaEnabled;
   }
 
   public boolean isRabbitPropagationEnabled() {
@@ -4154,8 +4161,6 @@ public class Config {
         + scopeDepthLimit
         + ", scopeStrictMode="
         + scopeStrictMode
-        + ", scopeInheritAsyncPropagation="
-        + scopeInheritAsyncPropagation
         + ", scopeIterationKeepAlive="
         + scopeIterationKeepAlive
         + ", partialFlushMinSpans="

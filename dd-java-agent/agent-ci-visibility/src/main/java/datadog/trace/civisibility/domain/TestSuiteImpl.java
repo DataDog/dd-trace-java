@@ -18,7 +18,7 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.decorator.TestDecorator;
-import datadog.trace.civisibility.source.MethodLinesResolver;
+import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.source.SourceResolutionException;
 import datadog.trace.civisibility.utils.SpanUtils;
@@ -46,7 +46,7 @@ public class TestSuiteImpl implements DDTestSuite {
   private final TestDecorator testDecorator;
   private final SourcePathResolver sourcePathResolver;
   private final Codeowners codeowners;
-  private final MethodLinesResolver methodLinesResolver;
+  private final LinesResolver linesResolver;
   private final CoverageStore.Factory coverageStoreFactory;
   private final boolean parallelized;
   private final Consumer<AgentSpan> onSpanFinish;
@@ -66,7 +66,7 @@ public class TestSuiteImpl implements DDTestSuite {
       TestDecorator testDecorator,
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
-      MethodLinesResolver methodLinesResolver,
+      LinesResolver linesResolver,
       CoverageStore.Factory coverageStoreFactory,
       Consumer<AgentSpan> onSpanFinish) {
     this.moduleSpanContext = moduleSpanContext;
@@ -81,7 +81,7 @@ public class TestSuiteImpl implements DDTestSuite {
     this.testDecorator = testDecorator;
     this.sourcePathResolver = sourcePathResolver;
     this.codeowners = codeowners;
-    this.methodLinesResolver = methodLinesResolver;
+    this.linesResolver = linesResolver;
     this.coverageStoreFactory = coverageStoreFactory;
     this.onSpanFinish = onSpanFinish;
 
@@ -153,6 +153,12 @@ public class TestSuiteImpl implements DDTestSuite {
     }
 
     span.setTag(Tags.TEST_SOURCE_FILE, sourcePath);
+
+    LinesResolver.Lines testClassLines = linesResolver.getClassLines(testClass);
+    if (testClassLines.isValid()) {
+      span.setTag(Tags.TEST_SOURCE_START, testClassLines.getStartLineNumber());
+      span.setTag(Tags.TEST_SOURCE_END, testClassLines.getEndLineNumber());
+    }
 
     Collection<String> testCodeOwners = codeowners.getOwners(sourcePath);
     if (testCodeOwners != null) {
@@ -245,7 +251,7 @@ public class TestSuiteImpl implements DDTestSuite {
         metricCollector,
         testDecorator,
         sourcePathResolver,
-        methodLinesResolver,
+        linesResolver,
         codeowners,
         coverageStoreFactory,
         SpanUtils.propagateCiVisibilityTagsTo(span));

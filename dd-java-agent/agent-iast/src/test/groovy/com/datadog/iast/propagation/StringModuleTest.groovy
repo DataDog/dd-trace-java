@@ -1047,13 +1047,13 @@ class StringModuleTest extends IastModuleImplTestBase {
     result == expected
 
     where:
-    trailing | testString              | expected
-    false    | " ==>   <== "           | ""
-    false    | " ==>   <== "           | ""
-    true     | " ==>   <== "           | ""
-    false    | ""                      | ""
-    false    | ""                      | ""
-    true     | ""                      | ""
+    trailing | testString    | expected
+    false    | " ==>   <== " | ""
+    false    | " ==>   <== " | ""
+    true     | " ==>   <== " | ""
+    false    | ""            | ""
+    false    | ""            | ""
+    true     | ""            | ""
   }
 
   void 'test indent and make sure IastRequestContext is called'() {
@@ -1081,19 +1081,170 @@ class StringModuleTest extends IastModuleImplTestBase {
       assert to == null
     }
     where:
-    indentation | testString                                                      | expected
-    4           | "==>123<==\n12==>3<=="                                          | "    ==>123<==\n    12==>3<=="
-    4           | "==>123<==\r\n12==>3<=="                                        | "    ==>123<==\n    12==>3<=="
-    4           | "==>123\n1<==2==>3<=="                                          | "    ==>123\n    1<==2==>3<=="
-    4           | "==>123\r\n1<==2==>3<=="                                        | "    ==>123\n    1<==2==>3<=="
-    0           | "==>123<==\r\n==>123<=="                                        | "==>123<==\n==>123<=="
-    0           | "==>123\r\n<====>123<=="                                        | "==>123\n<====>123<=="
-    0           | "==>123<==\r==>123<=="                                          | "==>123<==\n==>123<=="
-    0           | "==>123\r<====>123<=="                                          | "==>123\n<====>123<=="
-    -4          | "    ==>123<==\n    12==>3<=="                                  | "==>123<==\n12==>3<=="
-    -4          | "    ==>123<==\r\n    12==>3<=="                                | "==>123<==\n12==>3<=="
-    -4          | "    ==>123\n    1<==2==>3<=="                                  | "==>123\n1<==2==>3<=="
-    -4          | "    ==>123\r\n    1<==2==>3<=="                                | "==>123\n1<==2==>3<=="
+    indentation | testString                       | expected
+    4           | "==>123<==\n12==>3<=="           | "    ==>123<==\n    12==>3<=="
+    4           | "==>123<==\r\n12==>3<=="         | "    ==>123<==\n    12==>3<=="
+    4           | "==>123\n1<==2==>3<=="           | "    ==>123\n    1<==2==>3<=="
+    4           | "==>123\r\n1<==2==>3<=="         | "    ==>123\n    1<==2==>3<=="
+    0           | "==>123<==\r\n==>123<=="         | "==>123<==\n==>123<=="
+    0           | "==>123\r\n<====>123<=="         | "==>123\n<====>123<=="
+    0           | "==>123<==\r==>123<=="           | "==>123<==\n==>123<=="
+    0           | "==>123\r<====>123<=="           | "==>123\n<====>123<=="
+    -4          | "    ==>123<==\n    12==>3<=="   | "==>123<==\n12==>3<=="
+    -4          | "    ==>123<==\r\n    12==>3<==" | "==>123<==\n12==>3<=="
+    -4          | "    ==>123\n    1<==2==>3<=="   | "==>123\n1<==2==>3<=="
+    -4          | "    ==>123\r\n    1<==2==>3<==" | "==>123\n1<==2==>3<=="
+  }
+
+  void 'test replace with a single char and make sure IastRequestContext is called'() {
+    given:
+    final taintedObjects = ctx.getTaintedObjects()
+    def self = addFromTaintFormat(taintedObjects, testString)
+    def result = self.replace(oldChar, newChar)
+
+    when:
+    module.onStringReplace(self, oldChar as char, newChar as char, result)
+    def taintedObject = taintedObjects.get(result)
+
+    then:
+    1 * tracer.activeSpan() >> span
+    taintFormat(result, taintedObject.getRanges()) == expected
+
+    where:
+    testString       | oldChar | newChar | expected
+    "==>masquita<==" | 'a'     | 'o'     | "==>mosquito<=="
+    "==>___<=="      | '_'     | '-'     | "==>---<=="
+    "==>my_input<==" | '_'     | '-'     | "==>my-input<=="
+  }
+
+  void 'test replace with a char sequence (not tainted) and make sure IastRequestContext is called'() {
+    given:
+    final taintedObjects = ctx.getTaintedObjects()
+    def self = addFromTaintFormat(taintedObjects, testString)
+
+    when:
+    def result = module.onStringReplace(self, oldCharSeq, newCharSeq)
+    def taintedObject = taintedObjects.get(result)
+
+    then:
+    1 * tracer.activeSpan() >> span
+    taintFormat(result, taintedObject.getRanges()) == expected
+
+    where:
+    testString                                   | oldCharSeq | newCharSeq | expected
+    "==>masquita<=="                             | 'as'       | 'os'       | "==>m<==os==>quita<=="
+    "==>masquita<=="                             | 'os'       | 'as'       | "==>masquita<=="
+    "==>m<==as==>qu<==i==>ta<=="                 | 'as'       | 'os'       | "==>m<==os==>qu<==i==>ta<=="
+    "==>my_input<=="                             | 'in'       | 'out'      | "==>my_<==out==>put<=="
+    "==>my_output<=="                            | 'out'      | 'in'       | "==>my_<==in==>put<=="
+    "==>my_input<=="                             | '_'        | '-'        | "==>my<==-==>input<=="
+    "==>my<==_==>input<=="                       | 'in'       | 'out'      | "==>my<==_out==>put<=="
+    "==>my_in<==p==>ut<=="                       | 'in'       | 'out'      | "==>my_<==outp==>ut<=="
+    "==>my_<==in==>put<=="                       | 'in'       | 'out'      | "==>my_<==out==>put<=="
+    "==>my_i<==n==>put<=="                       | 'in'       | 'out'      | "==>my_<==out==>put<=="
+    "==>my_<==i==>nput<=="                       | 'in'       | 'out'      | "==>my_<==out==>put<=="
+    "==>my_o<==u==>tput<=="                      | 'out'      | 'in'       | "==>my_<==in==>put<=="
+    "==>my_o<==u==>tput<====>my_o<==u==>tput<==" | 'out'      | 'in'       | "==>my_<==in==>put<====>my_<==in==>put<=="
+    "==>my_o<==u==>tp<==ut"                      | 'output'   | 'input'    | "==>my_<==input"
+  }
+
+  void 'test replace with a char sequence (tainted) and make sure IastRequestContext is called'() {
+    given:
+    final taintedObjects = ctx.getTaintedObjects()
+    def self = addFromTaintFormat(taintedObjects, testString)
+    def inputTainted = addFromTaintFormat(taintedObjects, newCharSeq)
+
+    when:
+    def result = module.onStringReplace(self, oldCharSeq, inputTainted)
+    def taintedObject = taintedObjects.get(result)
+
+    then:
+    1 * tracer.activeSpan() >> span
+    taintFormat(result, taintedObject.getRanges()) == expected
+
+    where:
+    testString                                   | oldCharSeq | newCharSeq    | expected
+    "==>masquita<=="                             | 'as'       | '==>os<=='    | "==>m<====>os<====>quita<=="
+    "==>masquita<=="                             | 'os'       | '==>as<=='    | "==>masquita<=="
+    "masquita"                                   | 'as'       | '==>os<=='    | "m==>os<==quita"
+    "==>m<==as==>qu<==i==>ta<=="                 | 'as'       | '==>os<=='    | "==>m<====>os<====>qu<==i==>ta<=="
+    "==>my_input<=="                             | 'in'       | '==>out<=='   | "==>my_<====>out<====>put<=="
+    "==>my_output<=="                            | 'out'      | '==>in<=='    | "==>my_<====>in<====>put<=="
+    "==>my_input<=="                             | '_'        | '==>-<=='     | "==>my<====>-<====>input<=="
+    "==>my<==_==>input<=="                       | 'in'       | '==>out<=='   | "==>my<==_==>out<====>put<=="
+    "==>my_in<==p==>ut<=="                       | 'in'       | '==>out<=='   | "==>my_<====>out<==p==>ut<=="
+    "==>my_<==in==>put<=="                       | 'in'       | '==>out<=='   | "==>my_<====>out<====>put<=="
+    "==>my_i<==n==>put<=="                       | 'in'       | '==>out<=='   | "==>my_<====>out<====>put<=="
+    "==>my_<==i==>nput<=="                       | 'in'       | '==>out<=='   | "==>my_<====>out<====>put<=="
+    "==>my_o<==u==>tput<=="                      | 'out'      | '==>in<=='    | "==>my_<====>in<====>put<=="
+    "==>my_o<==u==>tput<====>my_o<==u==>tput<==" | 'out'      | '==>in<=='    | "==>my_<====>in<====>put<====>my_<====>in<====>put<=="
+    "==>my_o<==u==>tp<==ut"                      | 'output'   | '==>input<==' | "==>my_<====>input<=="
+  }
+
+  void 'test replace with a regex and replacement (not tainted) and make sure IastRequestContext is called'() {
+    given:
+    final taintedObjects = ctx.getTaintedObjects()
+    def self = addFromTaintFormat(taintedObjects, testString)
+
+    when:
+    def result = module.onStringReplace(self, regex, replacement, numReplacements)
+    def taintedObject = taintedObjects.get(result)
+
+    then:
+    1 * tracer.activeSpan() >> span
+    taintFormat(result, taintedObject.getRanges()) == expected
+
+    where:
+    testString                                   | regex    | replacement | numReplacements   | expected
+    "==>masquita<=="                             | 'as'     | 'os'        | Integer.MAX_VALUE | "==>m<==os==>quita<=="
+    "==>masquita<=="                             | 'os'     | 'as'        | Integer.MAX_VALUE | "==>masquita<=="
+    "==>m<==as==>qu<==i==>ta<=="                 | 'as'     | 'os'        | Integer.MAX_VALUE | "==>m<==os==>qu<==i==>ta<=="
+    "==>my_input<=="                             | 'in'     | 'out'       | Integer.MAX_VALUE | "==>my_<==out==>put<=="
+    "==>my_output<=="                            | 'out'    | 'in'        | Integer.MAX_VALUE | "==>my_<==in==>put<=="
+    "==>my_input<=="                             | '_'      | '-'         | Integer.MAX_VALUE | "==>my<==-==>input<=="
+    "==>my<==_==>input<=="                       | 'in'     | 'out'       | Integer.MAX_VALUE | "==>my<==_out==>put<=="
+    "==>my_in<==p==>ut<=="                       | 'in'     | 'out'       | Integer.MAX_VALUE | "==>my_<==outp==>ut<=="
+    "==>my_<==in==>put<=="                       | 'in'     | 'out'       | Integer.MAX_VALUE | "==>my_<==out==>put<=="
+    "==>my_i<==n==>put<=="                       | 'in'     | 'out'       | Integer.MAX_VALUE | "==>my_<==out==>put<=="
+    "==>my_<==i==>nput<=="                       | 'in'     | 'out'       | Integer.MAX_VALUE | "==>my_<==out==>put<=="
+    "==>my_o<==u==>tput<=="                      | 'out'    | 'in'        | Integer.MAX_VALUE | "==>my_<==in==>put<=="
+    "==>my_o<==u==>tput<====>my_o<==u==>tput<==" | 'out'    | 'in'        | Integer.MAX_VALUE | "==>my_<==in==>put<====>my_<==in==>put<=="
+    "==>my_o<==u==>tp<==ut"                      | 'output' | 'input'     | Integer.MAX_VALUE | "==>my_<==input"
+  }
+
+  void 'test replace with a regex and replacement (tainted) and make sure IastRequestContext is called'() {
+    given:
+    final taintedObjects = ctx.getTaintedObjects()
+    def self = addFromTaintFormat(taintedObjects, testString)
+    def inputTainted = addFromTaintFormat(taintedObjects, replacement)
+
+    when:
+    def result = module.onStringReplace(self, regex, inputTainted, numReplacements)
+    def taintedObject = taintedObjects.get(result)
+
+    then:
+    1 * tracer.activeSpan() >> span
+    taintFormat(result, taintedObject.getRanges()) == expected
+
+    where:
+    testString                                   | regex    | replacement   | numReplacements   | expected
+    "==>masquita<=="                             | 'as'     | '==>os<=='    | Integer.MAX_VALUE | "==>m<====>os<====>quita<=="
+    "==>masquita<=="                             | 'os'     | '==>as<=='    | Integer.MAX_VALUE | "==>masquita<=="
+    "masquita"                                   | 'as'     | '==>os<=='    | Integer.MAX_VALUE | "m==>os<==quita"
+    "==>m<==as==>qu<==i==>ta<=="                 | 'as'     | '==>os<=='    | Integer.MAX_VALUE | "==>m<====>os<====>qu<==i==>ta<=="
+    "==>my_input<=="                             | 'in'     | '==>out<=='   | Integer.MAX_VALUE | "==>my_<====>out<====>put<=="
+    "==>my_output<=="                            | 'out'    | '==>in<=='    | Integer.MAX_VALUE | "==>my_<====>in<====>put<=="
+    "==>my_input<=="                             | '_'      | '==>-<=='     | Integer.MAX_VALUE | "==>my<====>-<====>input<=="
+    "==>my<==_==>input<=="                       | 'in'     | '==>out<=='   | Integer.MAX_VALUE | "==>my<==_==>out<====>put<=="
+    "==>my_in<==p==>ut<=="                       | 'in'     | '==>out<=='   | Integer.MAX_VALUE | "==>my_<====>out<==p==>ut<=="
+    "==>my_<==in==>put<=="                       | 'in'     | '==>out<=='   | Integer.MAX_VALUE | "==>my_<====>out<====>put<=="
+    "==>my_i<==n==>put<=="                       | 'in'     | '==>out<=='   | Integer.MAX_VALUE | "==>my_<====>out<====>put<=="
+    "==>my_<==i==>nput<=="                       | 'in'     | '==>out<=='   | Integer.MAX_VALUE | "==>my_<====>out<====>put<=="
+    "==>my_o<==u==>tput<=="                      | 'out'    | '==>in<=='    | Integer.MAX_VALUE | "==>my_<====>in<====>put<=="
+    "==>my_o<==u==>tput<====>my_o<==u==>tput<==" | 'out'    | '==>in<=='    | Integer.MAX_VALUE | "==>my_<====>in<====>put<====>my_<====>in<====>put<=="
+    "==>my_o<==u==>tp<==ut"                      | 'output' | '==>input<==' | Integer.MAX_VALUE | "==>my_<====>input<=="
+    "==>my_o<==u==>tput<====>my_o<==u==>tput<==" | 'out'    | '==>in<=='    | 1                 | "==>my_<====>in<====>put<====>my_o<==u==>tput<=="
+    "==>my_o<==u==>tput<====>my_o<==u==>tput<==" | 'out'    | '==>in<=='    | 0                 | "==>my_o<==u==>tput<====>my_o<==u==>tput<=="
   }
 
   private static Date date(final String pattern, final String value) {

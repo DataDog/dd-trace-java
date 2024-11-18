@@ -5,6 +5,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.Config;
 
 // new - this instrumentation is completely new.
 // the purpose of this class is to provide us with information on consumer group and cluster ID
@@ -12,6 +13,11 @@ public class OffsetCommitCallbackInvokerInstrumentation extends InstrumenterModu
     implements Instrumenter.ForSingleType {
   public OffsetCommitCallbackInvokerInstrumentation() {
     super("kafka");
+  }
+
+  @Override
+  public boolean isEnabled() {
+    return super.isEnabled() && Config.get().isExperimentalKafkaEnabled();
   }
 
   @Override

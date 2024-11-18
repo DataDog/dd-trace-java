@@ -188,13 +188,8 @@ public final class HotspotCrashLogParser {
             state = State.DONE;
           } else {
             // Native frames: (J=compiled Java code, j=interpreted, Vv=VM code, C=native code)
-            if (line.contains("libjvm.so") || line.contains("libjavaProfiler")) {
-              message.append(line).append('\n');
-              frames.add(parseLine(line));
-            } else {
-              message.append(line.charAt(0)).append("  [redacted]\n");
-              frames.add(new StackFrame(null, 0, "[redacted]"));
-            }
+            message.append(line).append('\n');
+            frames.add(parseLine(line));
           }
           break;
         case DONE:

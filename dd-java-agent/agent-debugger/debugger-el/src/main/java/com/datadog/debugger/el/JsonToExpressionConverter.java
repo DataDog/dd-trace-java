@@ -317,7 +317,12 @@ public class JsonToExpressionConverter {
           if (numberStrValue.indexOf('.') > 0) {
             return DSL.value(Double.parseDouble(numberStrValue));
           }
-          return DSL.value(Long.parseLong(numberStrValue));
+          long longValue = Long.parseLong(numberStrValue);
+          // checks if the parsed number fits into integer range
+          if (longValue <= Integer.MAX_VALUE && longValue >= Integer.MIN_VALUE) {
+            return DSL.value((int) longValue);
+          }
+          return DSL.value(longValue);
         }
       case STRING:
         {

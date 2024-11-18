@@ -11,7 +11,7 @@ import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.TestFrameworkModule;
 import datadog.trace.civisibility.domain.TestFrameworkSession;
 import datadog.trace.civisibility.ipc.SignalClient;
-import datadog.trace.civisibility.source.MethodLinesResolver;
+import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.test.ExecutionStrategy;
 import javax.annotation.Nullable;
@@ -29,7 +29,7 @@ public class ProxyTestSession implements TestFrameworkSession {
   private final TestDecorator testDecorator;
   private final SourcePathResolver sourcePathResolver;
   private final Codeowners codeowners;
-  private final MethodLinesResolver methodLinesResolver;
+  private final LinesResolver linesResolver;
   private final CoverageStore.Factory coverageStoreFactory;
   private final ChildProcessCoverageReporter childProcessCoverageReporter;
   private final SignalClient.Factory signalClientFactory;
@@ -42,7 +42,7 @@ public class ProxyTestSession implements TestFrameworkSession {
       TestDecorator testDecorator,
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
-      MethodLinesResolver methodLinesResolver,
+      LinesResolver linesResolver,
       CoverageStore.Factory coverageStoreFactory,
       ChildProcessCoverageReporter childProcessCoverageReporter,
       SignalClient.Factory signalClientFactory,
@@ -53,7 +53,7 @@ public class ProxyTestSession implements TestFrameworkSession {
     this.testDecorator = testDecorator;
     this.sourcePathResolver = sourcePathResolver;
     this.codeowners = codeowners;
-    this.methodLinesResolver = methodLinesResolver;
+    this.linesResolver = linesResolver;
     this.coverageStoreFactory = coverageStoreFactory;
     this.childProcessCoverageReporter = childProcessCoverageReporter;
     this.signalClientFactory = signalClientFactory;
@@ -79,7 +79,7 @@ public class ProxyTestSession implements TestFrameworkSession {
         testDecorator,
         sourcePathResolver,
         codeowners,
-        methodLinesResolver,
+        linesResolver,
         coverageStoreFactory,
         childProcessCoverageReporter,
         signalClientFactory);

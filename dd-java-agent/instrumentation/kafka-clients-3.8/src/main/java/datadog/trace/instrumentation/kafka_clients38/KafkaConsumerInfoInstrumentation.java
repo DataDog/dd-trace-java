@@ -13,6 +13,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.Config;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.description.type.TypeDescription;
@@ -28,6 +29,11 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
 
   public KafkaConsumerInfoInstrumentation() {
     super("kafka");
+  }
+
+  @Override
+  public boolean isEnabled() {
+    return super.isEnabled() && Config.get().isExperimentalKafkaEnabled();
   }
 
   @Override
