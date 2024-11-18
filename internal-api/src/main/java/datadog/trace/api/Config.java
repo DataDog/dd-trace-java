@@ -761,7 +761,7 @@ public class Config {
     requestHeaderTagsCommaAllowed =
         configProvider.getBoolean(REQUEST_HEADER_TAGS_COMMA_ALLOWED, true);
 
-    baggageMapping = configProvider.getMergedMapWithOptionalMappings(null,true,BAGGAGE_MAPPING);
+    baggageMapping = configProvider.getMergedMapWithOptionalMappings(null, true, BAGGAGE_MAPPING);
 
     spanAttributeSchemaVersion = schemaVersionFromConfig();
 
