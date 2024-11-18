@@ -24,15 +24,6 @@ public class TempLocationManagerTest {
     assertTrue(Files.isReadable(tempDir));
     assertTrue(Files.isExecutable(tempDir));
     assertTrue(tempDir.endsWith("pid_" + PidHelper.getPid()));
-
-    // fake temp location
-    Path fakeTempDir = tempDir.getParent().resolve("pid_00000");
-    Files.createDirectories(fakeTempDir);
-    tempLocationManager.cleanup(false);
-    // fake temp location should be deleted
-    // real temp location should be kept
-    assertFalse(Files.exists(fakeTempDir));
-    assertTrue(Files.exists(tempDir));
   }
 
   @Test
@@ -68,5 +59,26 @@ public class TempLocationManagerTest {
     ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
     TempLocationManager tempLocationManager = new TempLocationManager(configProvider);
     assertThrows(IllegalStateException.class, tempLocationManager::getTempDir);
+  }
+
+  @Test
+  void testCleanup() throws Exception {
+    Path myDir = Paths.get(System.getProperty("java.io.tmpdir"), "test4");
+    Files.createDirectories(myDir);
+    Properties props = new Properties();
+    props.put(ProfilingConfig.PROFILING_TEMP_DIR, myDir.toString());
+    ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
+    TempLocationManager tempLocationManager = new TempLocationManager(configProvider);
+    Path tempDir = tempLocationManager.getTempDir();
+    assertNotNull(tempDir);
+
+    // fake temp location
+    Path fakeTempDir = tempDir.getParent().resolve("pid_00000");
+    Files.createDirectories(fakeTempDir);
+    tempLocationManager.cleanup(false);
+    // fake temp location should be deleted
+    // real temp location should be kept
+    assertFalse(Files.exists(fakeTempDir));
+    assertTrue(Files.exists(tempDir));
   }
 }
