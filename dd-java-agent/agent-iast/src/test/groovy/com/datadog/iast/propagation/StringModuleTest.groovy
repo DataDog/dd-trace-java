@@ -815,10 +815,10 @@ class StringModuleTest extends IastModuleImplTestBase {
     taintFormat(result, taintedObject.getRanges()) == expected
 
     where:
-    input       | expected
-    "==>123<=="                    | "==>123<=="
-    new StringBuilder("==>123<==") | "==>123<=="
-    new StringBuffer("==>123<==")  | "==>123<=="
+    input            | expected
+    "==>123<=="      | "==>123<=="
+    sb("==>123<==")  | "==>123<=="
+    sbf("==>123<==") | "==>123<=="
   }
 
   void 'onStringConstructor empty (#input)'() {
@@ -835,10 +835,10 @@ class StringModuleTest extends IastModuleImplTestBase {
     result == expected
 
     where:
-    input                 | expected
-    ""                    | ""
-    new StringBuilder("") | ""
-    new StringBuffer("")  | ""
+    input   | expected
+    ""      | ""
+    sb("")  | ""
+    sbf("") | ""
   }
 
   void 'test trim and make sure IastRequestContext is called'() {
@@ -1298,5 +1298,13 @@ class StringModuleTest extends IastModuleImplTestBase {
 
   private static StringBuilder sb(final String string) {
     return new StringBuilder(string)
+  }
+
+  private static StringBuilder sbf() {
+    return sbf('')
+  }
+
+  private static StringBuffer sbf(final String string) {
+    return new StringBuffer(string)
   }
 }
