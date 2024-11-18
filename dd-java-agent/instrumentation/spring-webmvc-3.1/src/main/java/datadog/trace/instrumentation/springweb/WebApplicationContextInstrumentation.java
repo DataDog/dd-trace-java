@@ -50,6 +50,8 @@ public class WebApplicationContextInstrumentation extends InstrumenterModule.Tra
         packageName+".ContentCachingResponseWrapper",
         packageName+".ContentCachingResponseWrapper$ResponseServletOutputStream",
         packageName+".ContentCachingResponseWrapper$ResponsePrintWriter",
+        packageName+".ContentCachingRequestWrapper",
+        packageName+".ContentCachingRequestWrapper$ContentCachingInputStream",
     };
   }
 

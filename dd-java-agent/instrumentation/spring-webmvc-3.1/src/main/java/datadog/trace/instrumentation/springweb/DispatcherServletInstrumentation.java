@@ -51,6 +51,8 @@ public final class DispatcherServletInstrumentation extends InstrumenterModule.T
       packageName+".ContentCachingResponseWrapper",
         packageName+".ContentCachingResponseWrapper$ResponseServletOutputStream",
       packageName+".ContentCachingResponseWrapper$ResponsePrintWriter",
+        packageName+".ContentCachingRequestWrapper",
+        packageName+".ContentCachingRequestWrapper$ContentCachingInputStream",
     };
   }
 

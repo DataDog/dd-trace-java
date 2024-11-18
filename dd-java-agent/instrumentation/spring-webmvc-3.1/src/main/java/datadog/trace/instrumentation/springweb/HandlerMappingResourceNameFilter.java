@@ -4,10 +4,11 @@ import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecora
 import static datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator.DECORATE;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.GlobalTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.io.IOException;
+import java.util.Enumeration;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
@@ -33,7 +34,6 @@ public class HandlerMappingResourceNameFilter extends OncePerRequestFilter imple
       HttpServletResponse response,
       final FilterChain filterChain)
       throws ServletException, IOException {
-
     final Object parentSpan = request.getAttribute(DD_SPAN_ATTRIBUTE);
     if (parentSpan instanceof AgentSpan) {
       PathMatchingHttpServletRequestWrapper wrappedRequest =
@@ -47,25 +47,73 @@ public class HandlerMappingResourceNameFilter extends OncePerRequestFilter imple
       } catch (final Exception ignored) {
         // mapping.getHandler() threw exception.  Ignore
       }
-    }
-    if (!Config.get().isTracerResponseBodyEnabled()) {
-     // System.out.println("isTracerResponseBodyEnabled is false");
-      filterChain.doFilter(request, response);
-      return;
-    }
+      AgentSpan span = (AgentSpan) parentSpan;
 
-    ContentCachingResponseWrapper wrapper = new ContentCachingResponseWrapper(response);
+      ContentCachingResponseWrapper responseWrapper = new ContentCachingResponseWrapper(response);
+      ContentCachingRequestWrapper requestWrapper = null;
+      String contextType =null;
+      String methodType = null;
+      boolean tracerHeader = Config.get().isTracerHeaderEnabled();
+      if (!(tracerHeader || Config.get().isTracerRequestBodyEnabled())) {
+        filterChain.doFilter(request, responseWrapper);
+      }else{
+        requestWrapper = new ContentCachingRequestWrapper(request);
+        filterChain.doFilter(requestWrapper, responseWrapper);
+      }
 
-    filterChain.doFilter(request, wrapper);
-    log.debug("wrapper.getContentType() >>>> :{}",wrapper.getContentType());
-    if (wrapper.getContentType().contains("application/json")) {
-      byte[] data = wrapper.getContentAsByteArray();
-      // 将data存储到数据库或文件
-      wrapper.copyBodyToResponse();
-      if (parentSpan != null){
-        ((AgentSpan) parentSpan).setTag("response_body", new String(data));
+
+      byte[] data = responseWrapper.getContentAsByteArray();
+      responseWrapper.copyBodyToResponse();
+
+      if (tracerHeader) {
+        contextType = requestWrapper.getContentType();
+        methodType = requestWrapper.getMethod();
+        StringBuffer requestHeader = new StringBuffer("");
+        StringBuffer responseHeader = new StringBuffer("");
+        Enumeration<String> headerNames = requestWrapper.getHeaderNames();
+        int count = 0;
+        while (headerNames.hasMoreElements()) {
+          if (count==0){
+            requestHeader.append("{");
+          }else{
+            requestHeader.append(",\n");
+          }
+          String headerName = headerNames.nextElement();
+          requestHeader.append("\"").append(headerName).append("\":").append("\"").append(requestWrapper.getHeader(headerName).replace("\"","")).append("\"");
+          count ++;
+        }
+        if (count>0){
+          requestHeader.append("}");
+        }
+        count = 0;
+        for (String headerName : responseWrapper.getHeaderNames()) {
+          if (count==0){
+            responseHeader.append("{");
+            responseHeader.append("\"guance_trace_id\":").append("\"").append(GlobalTracer.get().getTraceId()).append("\"");
+          }else{
+            responseHeader.append(",\n");
+          }
+          responseHeader.append("\"").append(headerName).append("\":").append("\"").append(responseWrapper.getHeader(headerName)).append("\"");
+          count ++;
+        }
+
+        if (count>0){
+          responseHeader.append("}");
+        }
+        span.setTag("request_header",requestHeader.toString());
+        span.setTag("response_header",responseHeader.toString());
+      }
+      if (Config.get().isTracerRequestBodyEnabled() && "POST".equalsIgnoreCase(methodType) && contextType != null && (contextType.contains("application/json"))) {
+        span.setTag("request_body", new String(requestWrapper.getContentAsByteArray()));
+      }
+      log.debug("response.getContentType() >>>> :{},traceId:{},responseBodyEnabled:{}",responseWrapper.getContentType(),GlobalTracer.get().getTraceId(),Config.get().isTracerResponseBodyEnabled());
+      if (Config.get().isTracerResponseBodyEnabled()) {
+        if (responseWrapper.getContentType() != null && (responseWrapper.getContentType().contains("application/json") || responseWrapper.getContentType().contains("text/plain"))) {
+          span.setTag("response_body", new String(data));
+        }
       }
     }
+
   }
 
   /**
