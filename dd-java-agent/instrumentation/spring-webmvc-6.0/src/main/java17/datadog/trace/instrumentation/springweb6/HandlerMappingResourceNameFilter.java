@@ -98,9 +98,8 @@ public class HandlerMappingResourceNameFilter extends OncePerRequestFilter imple
       if (Config.get().isTracerRequestBodyEnabled() && "POST".equalsIgnoreCase(methodType) && contextType != null && (contextType.contains("application/json"))) {
         span.setTag("request_body", new String(requestWrapper.getContentAsByteArray()));
       }
-
+      log.debug("response.getContentType() >>>> :{},traceId:{},responseBodyEnabled:{}",wrapper.getContentType(),GlobalTracer.get().getTraceId(),Config.get().isTracerResponseBodyEnabled());
       if (Config.get().isTracerResponseBodyEnabled()) {
-        log.debug("wrapper.getContentType() >>>> :{}", wrapper.getContentType());
         if (wrapper.getContentType() != null && (wrapper.getContentType().contains("application/json") || wrapper.getContentType().contains("text/plain"))) {
           byte[] data = wrapper.getContentAsByteArray();
           span.setTag("response_body", new String(data));
