@@ -319,7 +319,15 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     return spanID;
   }
 
-  // TODO: add description
+  /**
+   * Executes `SET application_name` statement on the Postgres DB to set the trace parent in
+   * `pg_stat_activity.application_name`. This is used for prepared statements where it isn't
+   * possible to propagate trace parent with the comment. Downside: makes an additional round trip
+   * to the database.
+   *
+   * @param span The span of the instrumented statement
+   * @param connection The same connection as the one that will be used for the actual statement
+   */
   public void setApplicationName(AgentSpan span, Connection connection) {
     final long startTime = System.currentTimeMillis();
     try {
