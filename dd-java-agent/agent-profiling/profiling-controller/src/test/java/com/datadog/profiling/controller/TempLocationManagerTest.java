@@ -62,8 +62,7 @@ public class TempLocationManagerTest {
   void testFromConfigNotWritable() throws Exception {
     Path myDir = Paths.get(System.getProperty("java.io.tmpdir"), "test3");
     Files.createDirectories(
-        myDir,
-        PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("r-x------")));
+        myDir, PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("r-x------")));
     Properties props = new Properties();
     props.put(ProfilingConfig.PROFILING_TEMP_DIR, myDir.toString());
     ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
