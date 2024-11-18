@@ -30,7 +30,7 @@ public final class TempLocationManager {
   }
 
   private class CleanupVisitor implements FileVisitor<Path> {
-    private boolean shouldClean = false;
+    private boolean shouldClean;
 
     private final Set<String> pidSet = PidHelper.getJavaPids();
 
