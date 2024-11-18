@@ -1,8 +1,5 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
-import static datadog.trace.api.cache.RadixTreeCache.PORTS;
-import static datadog.trace.api.cache.RadixTreeCache.UNSET_PORT;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.Functions;
@@ -10,6 +7,7 @@ import datadog.trace.api.cache.QualifiedClassNameCache;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+
 import java.lang.reflect.Method;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
@@ -17,6 +15,9 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
+
+import static datadog.trace.api.cache.RadixTreeCache.PORTS;
+import static datadog.trace.api.cache.RadixTreeCache.UNSET_PORT;
 
 public abstract class BaseDecorator {
 
@@ -38,15 +39,17 @@ public abstract class BaseDecorator {
 
   protected final boolean traceAnalyticsEnabled;
   protected final Double traceAnalyticsSampleRate;
+  protected final CharSequence  version;
 
   protected BaseDecorator() {
     final Config config = Config.get();
     final String[] instrumentationNames = instrumentationNames();
-    this.traceAnalyticsEnabled =
+    traceAnalyticsEnabled =
         instrumentationNames.length > 0
             && config.isTraceAnalyticsIntegrationEnabled(
                 traceAnalyticsDefault(), instrumentationNames);
-    this.traceAnalyticsSampleRate =
+    version = config.getVersion();
+    traceAnalyticsSampleRate =
         (double) config.getInstrumentationAnalyticsSampleRate(instrumentationNames);
   }
 
@@ -65,6 +68,9 @@ public abstract class BaseDecorator {
       span.setSpanType(spanType());
     }
     span.setTag(Tags.COMPONENT, component());
+    if (version != ""){
+      span.setTag(Tags.DD_VERSION,version);
+    }
     if (traceAnalyticsEnabled) {
       span.setMetric(DDTags.ANALYTICS_SAMPLE_RATE, traceAnalyticsSampleRate);
     }

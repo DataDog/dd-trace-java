@@ -72,6 +72,8 @@ public final class TracerConfig {
   @Deprecated public static final String HTTP_CLIENT_ERROR_STATUSES = "http.client.error.statuses";
   public static final String TRACE_HTTP_CLIENT_ERROR_STATUSES = "trace.http.client.error.statuses";
 
+  public static final String HTTP_ERROR_ENABLED = "http.error.enabled";
+
   public static final String SPLIT_BY_TAGS = "trace.split-by-tags";
 
   public static final String SCOPE_DEPTH_LIMIT = "trace.scope.depth.limit";
@@ -138,6 +140,17 @@ public final class TracerConfig {
   public static final String TRACE_FLUSH_INTERVAL = "trace.flush.interval";
 
   public static final String TRACE_POST_PROCESSING_TIMEOUT = "trace.post-processing.timeout";
+
+  public static final String TRACE_HEADER_ENABLED = "trace.headers.enabled";
+
+  public static final String TRACE_REQUEST_BODY_ENABLED = "trace.request.body.enabled";
+
+  public static final String TRACE_RESPONSE_BODY_ENABLED = "trace.response.body.enabled";
+
+  public static final String TRACE_RESPONSE_BODY_ENCODING = "trace.response.body.encoding";
+
+  public static final String TRACE_DUBBO_PROVIDER_PROPAGATE_ENABLED =
+      "trace.dubbo.provider.propagate.enabled";
 
   private TracerConfig() {}
 }

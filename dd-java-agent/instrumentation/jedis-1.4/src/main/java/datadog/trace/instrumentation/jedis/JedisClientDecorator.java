@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.jedis;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.naming.SpanNaming;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
@@ -14,7 +16,6 @@ public class JedisClientDecorator extends DBTypeProcessingDatabaseClientDecorato
   private static final String SERVICE_NAME =
       SpanNaming.instance().namingSchema().cache().service(REDIS);
   public static final JedisClientDecorator DECORATE = new JedisClientDecorator();
-
   @Override
   protected String[] instrumentationNames() {
     return new String[] {"jedis", REDIS};
@@ -53,5 +54,12 @@ public class JedisClientDecorator extends DBTypeProcessingDatabaseClientDecorato
   @Override
   protected String dbHostname(Connection connection) {
     return connection.getHost();
+  }
+
+  public AgentSpan setRaw(AgentSpan span, String raw) {
+    if (Config.get().getRedisCommandArgs()){
+      span.setTag("redis.command.args",raw);
+    }
+    return span;
   }
 }

@@ -3,11 +3,7 @@ package datadog.trace.bootstrap;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import de.thetaphi.forbiddenapis.SuppressForbidden;
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintStream;
+import java.io.*;
 import java.lang.instrument.Instrumentation;
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.Field;

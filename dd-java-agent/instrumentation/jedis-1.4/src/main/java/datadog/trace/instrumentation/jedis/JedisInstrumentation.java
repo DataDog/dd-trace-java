@@ -42,7 +42,7 @@ public final class JedisInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".JedisClientDecorator",
+        packageName + ".JedisClientDecorator",
     };
   }
 
@@ -67,6 +67,7 @@ public final class JedisInstrumentation extends InstrumenterModule.Tracing
       final AgentSpan span = startSpan(JedisClientDecorator.OPERATION_NAME);
       DECORATE.afterStart(span);
       DECORATE.onConnection(span, thiz);
+      DECORATE.setPeerPort(span,thiz.getPort());
       DECORATE.onStatement(span, command.name());
       return activateSpan(span);
     }

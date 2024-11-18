@@ -4,22 +4,19 @@
  */
 package datadog.trace.instrumentation.log4j27;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
-
-import datadog.trace.api.Config;
-import datadog.trace.api.CorrelationIdentifier;
-import datadog.trace.api.DDSpanId;
-import datadog.trace.api.DDTraceId;
-import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.api.*;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import java.util.List;
 import org.apache.logging.log4j.core.ContextDataInjector;
 import org.apache.logging.log4j.core.config.Property;
 import org.apache.logging.log4j.util.ReadOnlyStringMap;
 import org.apache.logging.log4j.util.SortedArrayStringMap;
 import org.apache.logging.log4j.util.StringMap;
+
+import java.util.List;
+
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 
 public final class SpanDecoratingContextDataInjector implements ContextDataInjector {
   private final ContextDataInjector delegate;
@@ -31,7 +28,6 @@ public final class SpanDecoratingContextDataInjector implements ContextDataInjec
   @Override
   public StringMap injectContextData(List<Property> list, StringMap reusable) {
     StringMap contextData = delegate.injectContextData(list, reusable);
-
     AgentSpan span = activeSpan();
 
     if (!traceConfig(span).isLogsInjectionEnabled()) {
@@ -53,7 +49,6 @@ public final class SpanDecoratingContextDataInjector implements ContextDataInjec
     if (null != version && !version.isEmpty()) {
       newContextData.putValue(Tags.DD_VERSION, version);
     }
-
     if (span != null) {
       DDTraceId traceId = span.context().getTraceId();
       String traceIdValue =

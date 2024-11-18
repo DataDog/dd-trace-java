@@ -25,6 +25,8 @@ import net.bytebuddy.asm.Advice;
 
 public class Servlet3Advice {
 
+  static final String APPLICATION_JSON_VALUE = "application/json";
+  static final String APPLICATION_JSON_UTF8_VALUE = "application/json;charset=UTF-8";
   @Advice.OnMethodEnter(suppress = Throwable.class, skipOn = Advice.OnNonDefaultValue.class)
   public static boolean onEnter(
       @Advice.Argument(value = 0, readOnly = false) ServletRequest request,
@@ -37,10 +39,8 @@ public class Servlet3Advice {
     if (invalidRequest) {
       return false;
     }
-
-    final HttpServletRequest httpServletRequest = (HttpServletRequest) request;
+    HttpServletRequest httpServletRequest = (HttpServletRequest) request;
     final HttpServletResponse httpServletResponse = (HttpServletResponse) response;
-
     Object dispatchSpan = request.getAttribute(DD_DISPATCH_SPAN_ATTRIBUTE);
     if (dispatchSpan instanceof AgentSpan) {
       request.removeAttribute(DD_DISPATCH_SPAN_ATTRIBUTE);
@@ -55,7 +55,6 @@ public class Servlet3Advice {
       return false;
     }
 
-    finishSpan = true;
 
     Object spanAttrValue = request.getAttribute(DD_SPAN_ATTRIBUTE);
     final boolean hasServletTrace = spanAttrValue instanceof AgentSpan;
@@ -115,7 +114,6 @@ public class Servlet3Advice {
 
     if (request instanceof HttpServletRequest && response instanceof HttpServletResponse) {
       final HttpServletResponse resp = (HttpServletResponse) response;
-
       final AgentSpan span = scope.span();
 
       if (request.isAsyncStarted()) {

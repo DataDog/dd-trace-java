@@ -1,0 +1,16 @@
+
+muzzle {
+  pass {
+    group = "org.mozilla"
+    module = "rhino"
+    versions = "[1.7.0,)"
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  compileOnly group: 'org.mozilla', name: 'rhino', version: '1.7.10'
+
+}
