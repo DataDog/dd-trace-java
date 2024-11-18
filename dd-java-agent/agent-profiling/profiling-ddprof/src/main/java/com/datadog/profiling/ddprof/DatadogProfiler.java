@@ -33,6 +33,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_T
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS_DEFAULT;
 
 import com.datadog.profiling.controller.OngoingRecording;
+import com.datadog.profiling.controller.TempLocationManager;
 import com.datadog.profiling.utils.ProfilingMode;
 import com.datadoghq.profiler.ContextSetter;
 import com.datadoghq.profiler.JavaProfiler;
@@ -43,6 +44,7 @@ import datadog.trace.bootstrap.instrumentation.api.TaskWrapper;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
@@ -106,6 +108,8 @@ public final class DatadogProfiler {
 
   private final long queueTimeThresholdMillis;
 
+  private final Path recordingsPath;
+
   private DatadogProfiler(ConfigProvider configProvider) {
     this(configProvider, getContextAttributes(configProvider));
   }
@@ -148,6 +152,19 @@ public final class DatadogProfiler {
         configProvider.getLong(
             PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS,
             PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS_DEFAULT);
+
+    this.recordingsPath = TempLocationManager.getInstance().getTempDir().resolve("recordings");
+    if (!Files.exists(recordingsPath)) {
+      try {
+        Files.createDirectories(
+            recordingsPath,
+            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
+      } catch (IOException e) {
+        log.warn("Failed to create recordings directory: {}", recordingsPath, e);
+        throw new IllegalStateException(
+            "Failed to create recordings directory: " + recordingsPath, e);
+      }
+    }
   }
 
   void addThread() {
@@ -212,7 +229,7 @@ public final class DatadogProfiler {
 
   Path newRecording() throws IOException, IllegalStateException {
     if (recordingFlag.compareAndSet(false, true)) {
-      Path recFile = Files.createTempFile("dd-profiler-", ".jfr");
+      Path recFile = Files.createTempFile(recordingsPath, "dd-profiler-", ".jfr");
       String cmd = cmdStartProfiling(recFile);
       try {
         String rslt = executeProfilerCmd(cmd);
