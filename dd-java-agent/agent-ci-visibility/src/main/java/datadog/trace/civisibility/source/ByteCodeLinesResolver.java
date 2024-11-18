@@ -16,16 +16,16 @@ import org.objectweb.asm.Type;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ByteCodeMethodLinesResolver implements MethodLinesResolver {
+public class ByteCodeLinesResolver implements LinesResolver {
 
-  private static final Logger log = LoggerFactory.getLogger(ByteCodeMethodLinesResolver.class);
+  private static final Logger log = LoggerFactory.getLogger(ByteCodeLinesResolver.class);
 
   private final DDCache<Class<?>, ClassMethodLines> methodLinesCache =
       DDCaches.newFixedSizeIdentityCache(16);
 
   @Nonnull
   @Override
-  public MethodLines getLines(@Nonnull Method method) {
+  public Lines getMethodLines(@Nonnull Method method) {
     try {
       ClassMethodLines classMethodLines =
           methodLinesCache.computeIfAbsent(method.getDeclaringClass(), ClassMethodLines::parse);
@@ -33,8 +33,14 @@ public class ByteCodeMethodLinesResolver implements MethodLinesResolver {
 
     } catch (Exception e) {
       log.error("Could not determine method borders for {}", method, e);
-      return MethodLines.EMPTY;
+      return Lines.EMPTY;
     }
+  }
+
+  @Nonnull
+  @Override
+  public Lines getClassLines(@Nonnull Class<?> clazz) {
+    return Lines.EMPTY;
   }
 
   static final class ClassMethodLines {
@@ -46,14 +52,13 @@ public class ByteCodeMethodLinesResolver implements MethodLinesResolver {
       return recorder;
     }
 
-    public MethodLines get(Method method) {
+    public Lines get(Method method) {
       String methodFingerprint = getFingerprint(method);
       MethodLinesRecorder methodLinesRecorder = recordersByMethodFingerprint.get(methodFingerprint);
       if (methodLinesRecorder != null) {
-        return new MethodLines(
-            methodLinesRecorder.startLineNumber, methodLinesRecorder.finishLineNumber);
+        return new Lines(methodLinesRecorder.startLineNumber, methodLinesRecorder.finishLineNumber);
       } else {
-        return MethodLines.EMPTY;
+        return Lines.EMPTY;
       }
     }
 
