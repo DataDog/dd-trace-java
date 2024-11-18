@@ -4558,6 +4558,8 @@ public class Config {
         + tracerHeaderEnabled
         + ", tracerRequestBodyEnabled="
         + tracerRequestBodyEnabled
+        + ", tracerResponseBodyEnabled="
+        + tracerResponseBodyEnabled
         + ", tracerResponseBodyEncoding="
         + tracerResponseBodyEncoding
         + ", dbClientSplitByInstance="
