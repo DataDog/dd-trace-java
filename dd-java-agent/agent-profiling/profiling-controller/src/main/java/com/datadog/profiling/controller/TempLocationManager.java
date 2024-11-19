@@ -158,6 +158,8 @@ public final class TempLocationManager {
     String pid = PidHelper.getPid();
 
     baseTempDir = configuredTempDir.resolve("ddprof");
+    baseTempDir.toFile().deleteOnExit();
+
     tempDir = baseTempDir.resolve("pid_" + pid);
     cleanupTask = CompletableFuture.runAsync(() -> cleanup(false));
 
@@ -180,28 +182,42 @@ public final class TempLocationManager {
    * @return the temporary directory for the current process
    */
   public Path getTempDir() {
-    return getTempDir(true);
+    return getTempDir(null);
   }
 
   /**
-   * Get the temporary directory for the current process.
+   * Get the temporary subdirectory for the current process. The directory will be removed at JVM
+   * exit.
    *
+   * @param subPath the relative subdirectory path, may be {@literal null}
+   * @return the temporary subdirectory for the current process
+   */
+  public Path getTempDir(Path subPath) {
+    return getTempDir(subPath, true);
+  }
+
+  /**
+   * Get the temporary subdirectory for the current process.
+   *
+   * @param subPath the relative subdirectory path, may be {@literal null}
    * @param create if true, create the directory if it does not exist
    * @return the temporary directory for the current process
    * @throws IllegalStateException if the directory could not be created
    */
-  public Path getTempDir(boolean create) {
-    if (create && !Files.exists(tempDir)) {
+  public Path getTempDir(Path subPath, boolean create) {
+    Path rslt =
+        subPath != null && !subPath.toString().isEmpty() ? tempDir.resolve(subPath) : tempDir;
+    if (create && !Files.exists(rslt)) {
       try {
         Files.createDirectories(
-            tempDir,
+            rslt,
             PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
       } catch (Exception e) {
         log.warn("Failed to create temp directory: {}", tempDir, e);
         throw new IllegalStateException("Failed to create temp directory: " + tempDir, e);
       }
     }
-    return tempDir;
+    return rslt;
   }
 
   void cleanup(boolean cleanSelf) {
