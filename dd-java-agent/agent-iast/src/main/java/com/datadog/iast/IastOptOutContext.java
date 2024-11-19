@@ -2,18 +2,23 @@ package com.datadog.iast;
 
 import com.datadog.iast.taint.TaintedObjects;
 import datadog.trace.api.iast.IastContext;
+import java.io.IOException;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.jetbrains.annotations.NotNull;
 
 public class IastOptOutContext implements IastContext {
 
+  @Nonnull
   @SuppressWarnings("unchecked")
   @NotNull
   @Override
   public TaintedObjects getTaintedObjects() {
     return TaintedObjects.NoOp.INSTANCE;
   }
+
+  @Override
+  public void close() throws IOException {}
 
   public static class Provider extends IastContext.Provider {
 
