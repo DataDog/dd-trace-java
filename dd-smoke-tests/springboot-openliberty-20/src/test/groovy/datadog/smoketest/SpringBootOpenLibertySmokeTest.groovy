@@ -20,6 +20,15 @@ class SpringBootOpenLibertySmokeTest extends AbstractServerSmokeTest {
   String openLibertyShadowJar = System.getProperty("datadog.smoketest.openliberty.jar.path")
 
   @Override
+  def addCrashTracking() {
+    // DQH - 2024 Nov
+    // Concatenating into a single string to use JAVA_TOOL_OPTIONS doesn't play nice
+    // with the quote currently used by crash tracking smoke testing in AbstractSmokeTest,
+    // so skipping for this test.
+    return false
+  }
+
+  @Override
   ProcessBuilder createProcessBuilder() {
     List<String> command = new ArrayList<>()
     command.add(javaPath())

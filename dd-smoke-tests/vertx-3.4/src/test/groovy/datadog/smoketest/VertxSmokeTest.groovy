@@ -14,6 +14,16 @@ class VertxSmokeTest extends AbstractServerSmokeTest {
   int totalInvocations = 1000
 
   @Override
+  def addCrashTracking() {
+    // DQH - 2024 Nov
+    // Disabled crash tracking in IAST tests for initial GA
+    // NOTE: That tests that concatenate JVM arguments into JAVA_TOOL_OPTIONS may 
+    // have trouble if this is changed.
+
+    return false
+  }
+
+  @Override
   ProcessBuilder createProcessBuilder() {
     String vertxUberJar = System.getProperty("datadog.smoketest.vertx.uberJar.path")
 

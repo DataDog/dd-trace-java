@@ -129,6 +129,9 @@ abstract class AbstractSmokeTest extends ProcessManager {
     "-Ddd.version=${VERSION}"
   ]
 
+  def addCrashTracking() {
+    return true
+  }
 
   def javaProperties() {
     def tmpDir = "/tmp"
@@ -158,10 +161,10 @@ abstract class AbstractSmokeTest extends ProcessManager {
 
     // DQH - 13 Nov 2024 - Crashtracking bash script doesn't work on OS X,
     // so skipping crash tracking on OS X
-    if (!Platform.isMac() && !Platform.isJ9()) {
+    if (addCrashTracking() && !Platform.isJ9() && !Platform.isMac()) {
       def extension = getScriptExtension()
 
-      ret += "-XX:OnError=${tmpDir}/dd_crash_uploader.${extension} %p"
+      ret += "-XX:OnError=\"${tmpDir}/dd_crash_uploader.${extension} %p\""
       // Unlike crash tracking smoke test, keep the default delay; otherwise, otherwise other tests will fail
       // ret += "-Ddd.dogstatsd.start-delay=0"
     }
@@ -172,7 +175,6 @@ abstract class AbstractSmokeTest extends ProcessManager {
   static String getScriptExtension() {
     return Platform.isWindows() ? "bat" : "sh"
   }
-
 
   def inferServiceName() {
     true
