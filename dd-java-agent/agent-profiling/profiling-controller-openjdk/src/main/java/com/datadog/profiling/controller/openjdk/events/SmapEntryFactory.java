@@ -41,12 +41,12 @@ public class SmapEntryFactory {
   }
 
   private static class SmapHeader {
-    long startAddress = 0;
+    long startAddress;
     long endAddress;
     String perms;
-    long offset = 0;
+    long offset;
     String dev;
-    int inode = 0;
+    int inode;
     String pathname;
 
     public SmapHeader(
