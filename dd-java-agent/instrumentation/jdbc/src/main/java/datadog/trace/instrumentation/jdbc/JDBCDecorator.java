@@ -19,6 +19,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionUrlParser;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.sql.Connection;
@@ -328,6 +329,9 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
    * @param span The span of the instrumented statement
    * @param connection The same connection as the one that will be used for the actual statement
    */
+  @SuppressFBWarnings(
+      value = "SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE",
+      justification = "Prepared statement not possible with SET")
   public void setApplicationName(AgentSpan span, Connection connection) {
     final long startTime = System.currentTimeMillis();
     try {
