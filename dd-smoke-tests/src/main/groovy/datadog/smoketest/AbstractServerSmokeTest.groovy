@@ -39,6 +39,10 @@ abstract class AbstractServerSmokeTest extends AbstractSmokeTest {
 
   protected OkHttpClient client = OkHttpUtils.client()
 
+  protected boolean includeCrashTracking() {
+    return true
+  }
+
   protected File createTemporaryFile() {
     return null
   }
@@ -70,7 +74,7 @@ abstract class AbstractServerSmokeTest extends AbstractSmokeTest {
       try {
         PortUtils.waitForPortToOpen(port, 240, TimeUnit.SECONDS, process)
       } catch ( Exception e ) {
-        throw new RuntimeException(e.getMessage() + " - log file " + logFilePaths[idx], e);
+        throw new RuntimeException(e.getMessage() + " - log file " + logFilePaths[idx], e)
       }
     }
   }
@@ -84,10 +88,10 @@ abstract class AbstractServerSmokeTest extends AbstractSmokeTest {
         try {
           verifyLog(idx, outputFile)
         } catch ( FileNotFoundException e ) {
-          if ( testedProcesses[idx].exitValue() == 0 ) {
+          if ( !testedProcesses[idx].isAlive() && testedProcesses[idx].exitValue() == 0 ) {
             // suppress file not found exception if process exited abnormally
             // just creates confusing noise
-            throw e;
+            throw e
           }
         }
       }
