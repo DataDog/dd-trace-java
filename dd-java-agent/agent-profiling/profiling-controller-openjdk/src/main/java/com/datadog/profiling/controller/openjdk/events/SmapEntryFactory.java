@@ -40,6 +40,33 @@ public class SmapEntryFactory {
     VM_MAP_PARSING_ERROR,
   }
 
+  private static class SmapHeader {
+    long startAddress = 0;
+    long endAddress = 0;
+    String perms;
+    long offset = 0;
+    String dev;
+    int inode = 0;
+    String pathname;
+
+    public SmapHeader(
+        long endAddress,
+        long startAddress,
+        String perms,
+        long offset,
+        String dev,
+        int inode,
+        String pathname) {
+      this.endAddress = endAddress;
+      this.startAddress = startAddress;
+      this.perms = perms;
+      this.offset = offset;
+      this.dev = dev;
+      this.inode = inode;
+      this.pathname = pathname;
+    }
+  }
+
   @Category("Datadog")
   @Name("datadog.SmapParseErrorEvent")
   @Label("Smap Parsing Error")
@@ -146,20 +173,88 @@ public class SmapEntryFactory {
     }
   }
 
+  private static SmapHeader parseLine(String line) throws IndexOutOfBoundsException {
+    StringBuilder buffer = new StringBuilder();
+    int i = 0;
+    long startAddress = 0;
+    long endAddress = 0;
+    String perms;
+    long offset = 0;
+    String dev;
+    int inode = 0;
+    String pathname = "";
+
+    while (line.charAt(i) != '-') {
+      startAddress = startAddress << 4;
+      startAddress += Character.digit(line.charAt(i), 16);
+      i++;
+    }
+
+    i++;
+
+    if (startAddress == 0xffffffffff600000L) {
+      startAddress = -0x1000 - 1;
+      endAddress = -1;
+      while (line.charAt(i) != ' ') {
+        i++;
+      }
+    } else {
+      while (line.charAt(i) != ' ') {
+        endAddress = endAddress << 4;
+        endAddress += Character.digit(line.charAt(i), 16);
+        i++;
+      }
+
+      i++;
+    }
+
+    while (line.charAt(i) != ' ') {
+      buffer.append(line.charAt(i));
+      i++;
+    }
+
+    perms = buffer.toString();
+    buffer.setLength(0);
+    i++;
+
+    while (line.charAt(i) != ' ') {
+      offset = offset << 4;
+      offset += Character.digit(line.charAt(i), 16);
+      i++;
+    }
+
+    i++;
+
+    while (line.charAt(i) != ' ') {
+      buffer.append(line.charAt(i));
+      i++;
+    }
+
+    dev = buffer.toString();
+    buffer.setLength(0);
+    i++;
+
+    while (i < line.length() && line.charAt(i) != ' ') {
+      inode *= 10;
+      inode += Character.digit(line.charAt(i), 10);
+      i++;
+    }
+
+    while (i < line.length()) {
+      buffer.append(line.charAt(i));
+      i++;
+    }
+    pathname = buffer.toString().trim();
+
+    return new SmapHeader(endAddress, startAddress, perms, offset, dev, inode, pathname);
+  }
+
   static List<? extends Event> collectEvents() {
     if (!SMAP_ENTRY_EVENT.isEnabled()) {
       return Collections.emptyList();
     }
 
     List<Event> events = new ArrayList<>();
-
-    long startAddress;
-    long endAddress;
-    String perms;
-    long offset;
-    String dev;
-    int inode;
-    String pathname;
 
     long size = 0;
     long kernelPageSize = 0;
@@ -195,83 +290,11 @@ public class SmapEntryFactory {
       StringBuilder buffer = new StringBuilder();
       while ((line = reader.readLine()) != null) {
         boolean encounteredForeignKeys = false;
-
-        buffer.setLength(0);
-        char[] chars = line.toCharArray();
-        int i = 0;
-
-        while (chars[i] != '-') {
-          buffer.append(chars[i]);
-          i++;
-        }
-
-        buffer.insert(0, PREFIX);
-        startAddress = Long.decode(buffer.toString());
-
-        if (buffer.toString().equals("0x" + VSYSCALL_START_ADDRESS)) {
-          startAddress = -0x1000 - 1;
-          endAddress = -1;
-        } else {
-          buffer.setLength(0);
-          i++;
-
-          // parse end address
-          while (chars[i] != ' ') {
-            buffer.append(chars[i]);
-            i++;
-          }
-          buffer.insert(0, PREFIX);
-          endAddress = Long.decode(buffer.toString());
-        }
-
-        buffer.setLength(0);
-        i++;
-
-        while (chars[i] != ' ') {
-          buffer.append(chars[i]);
-          i++;
-        }
-        perms = buffer.toString();
-        buffer.setLength(0);
-        i++;
-
-        while (chars[i] != ' ') {
-          buffer.append(chars[i]);
-          i++;
-        }
-        buffer.insert(0, PREFIX);
-        offset = Long.decode(buffer.toString());
-        buffer.setLength(0);
-        i++;
-
-        while (chars[i] != ' ') {
-          buffer.append(chars[i]);
-          i++;
-        }
-        dev = buffer.toString();
-        buffer.setLength(0);
-        i++;
-
-        while (chars[i] != ' ') {
-          buffer.append(chars[i]);
-          i++;
-        }
-        inode = Integer.decode(buffer.toString());
-        buffer.setLength(0);
-        i++;
-
-        while (i < chars.length) {
-          if (chars[i] != ' ') {
-            buffer.append(chars[i]);
-          }
-          i++;
-        }
-        pathname = buffer.toString();
+        SmapHeader sh = parseLine(line);
 
         while (true) {
           buffer.setLength(0);
-          String attributeLine = reader.readLine();
-          char[] attributedChars = attributeLine.toCharArray();
+          char[] attributedChars = reader.readLine().toCharArray();
           int j = 0;
           while (attributedChars[j] != ':') {
             buffer.append(attributedChars[j]);
@@ -296,77 +319,79 @@ public class SmapEntryFactory {
               buffer.append(attributedChars[j]);
               j++;
             }
+
             if ("ThpEligible".equals(attributeName)) {
               thpEligible = buffer.toString().equals("1");
             } else if ("ProtectionKey".equals(attributeName)) {
               // Original event did not include protection key attribute, so skipping for now
               encounteredForeignKeys = true;
             } else {
+              System.out.println("ATTR: " + attributeName);
               switch (attributeName) {
-                case "Size:":
+                case "Size":
                   size = Long.decode(buffer.toString()) * 1024;
                   break;
-                case "KernelPageSize:":
+                case "KernelPageSize":
                   kernelPageSize = Long.decode(buffer.toString()) * 1024;
                   break;
-                case "MMUPageSize:":
+                case "MMUPageSize":
                   mmuPageSize = Long.decode(buffer.toString()) * 1024;
                   break;
-                case "Rss:":
+                case "Rss":
                   rss = Long.decode(buffer.toString()) * 1024;
                   break;
-                case "Pss:":
+                case "Pss":
                   pss = Long.decode(buffer.toString()) * 1024;
                   break;
-                case "Pss_Dirty:":
+                case "Pss_Dirty":
                   pssDirty = Long.decode(buffer.toString()) * 1024;
                   break;
-                case "Shared_Clean:":
+                case "Shared_Clean":
                   sharedClean = Long.decode(buffer.toString()) * 1024;
                   break;
-                case "Shared_Dirty:":
+                case "Shared_Dirty":
                   sharedDirty = Long.decode(buffer.toString()) * 1024;
                   break;
-                case "Private_Clean:":
+                case "Private_Clean":
                   privateClean = Long.decode(buffer.toString()) * 1024;
                   break;
-                case "Private_Dirty:":
+                case "Private_Dirty":
                   privateDirty = Long.decode(buffer.toString()) * 1024;
                   break;
-                case "Referenced:":
+                case "Referenced":
                   referenced = Long.decode(buffer.toString()) * 1024;
                   break;
-                case "Anonymous:":
+                case "Anonymous":
                   anonymous = Long.decode(buffer.toString()) * 1024;
                   break;
-                case "KSM:":
+                case "KSM":
                   ksm = Long.decode(buffer.toString()) * 1024;
                   break;
-                case "LazyFree:":
+                case "LazyFree":
                   lazyFree = Long.decode(buffer.toString()) * 1024;
                   break;
-                case "AnonHugePages:":
+                case "AnonHugePages":
                   anonHugePages = Long.decode(buffer.toString()) * 1024;
                   break;
-                case "ShmemPmdMapped:":
+                case "ShmemPmdMapped":
                   shmemPmdMapped = Long.decode(buffer.toString()) * 1024;
                   break;
-                case "FilePmdMapped:":
+                case "FilePmdMapped":
                   filePmdMapped = Long.decode(buffer.toString()) * 1024;
                   break;
-                case "Shared_Hugetlb:":
+                case "Shared_Hugetlb":
                   sharedHugetlb = Long.decode(buffer.toString()) * 1024;
                   break;
-                case "Private_Hugetlb:":
+                case "Private_Hugetlb":
                   privateHugetlb = Long.decode(buffer.toString()) * 1024;
                   break;
-                case "Swap:":
+                case "Swap":
                   swap = Long.decode(buffer.toString()) * 1024;
                   break;
-                case "SwapPss:":
+                case "SwapPss":
                   swapPss = Long.decode(buffer.toString()) * 1024;
                   break;
-                case "Locked:":
+                case "Locked":
                   locked = Long.decode(buffer.toString()) * 1024;
                   break;
                 default:
@@ -378,20 +403,20 @@ public class SmapEntryFactory {
         }
 
         String nmtCategory;
-        if (annotatedRegions != null && annotatedRegions.containsKey(startAddress)) {
-          nmtCategory = annotatedRegions.get(startAddress);
+        if (annotatedRegions != null && annotatedRegions.containsKey(sh.startAddress)) {
+          nmtCategory = annotatedRegions.get(sh.startAddress);
         } else {
           nmtCategory = "UNKNOWN";
         }
         events.add(
             new SmapEntryEvent(
-                startAddress,
-                endAddress,
-                perms,
-                offset,
-                dev,
-                inode,
-                pathname,
+                sh.startAddress,
+                sh.endAddress,
+                sh.perms,
+                sh.offset,
+                sh.dev,
+                sh.inode,
+                sh.pathname,
                 size,
                 kernelPageSize,
                 mmuPageSize,
