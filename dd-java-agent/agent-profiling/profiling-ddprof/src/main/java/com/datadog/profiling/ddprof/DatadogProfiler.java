@@ -36,6 +36,7 @@ import com.datadog.profiling.controller.OngoingRecording;
 import com.datadog.profiling.utils.ProfilingMode;
 import com.datadoghq.profiler.ContextSetter;
 import com.datadoghq.profiler.JavaProfiler;
+import datadog.trace.api.Platform;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
@@ -258,8 +259,6 @@ public final class DatadogProfiler {
     }
     if (profilingModes.contains(CPU)) {
       // cpu profiling is enabled.
-      final int DEFAULT_J9_CPU_SAMPLING_FREQUENCY = 50;
-
       String schedulingEvent = getSchedulingEvent(configProvider);
       if (schedulingEvent != null && !schedulingEvent.isEmpty()) {
         // using a user-specified event, e.g. L1-dcache-load-misses
@@ -271,10 +270,11 @@ public final class DatadogProfiler {
       } else {
         // using cpu time schedule
         int interval = getCpuInterval();
-        interval =
-            interval == ProfilingConfig.PROFILING_DATADOG_PROFILER_CPU_INTERVAL_DEFAULT
-                ? DEFAULT_J9_CPU_SAMPLING_FREQUENCY
-                : interval;
+        if (Platform.isJ9())
+          interval =
+              interval == ProfilingConfig.PROFILING_DATADOG_PROFILER_CPU_INTERVAL_DEFAULT
+                  ? ProfilingConfig.PROFILING_DATADOG_PROFILER_J9_CPU_INTERVAL_DEFAULT
+                  : interval;
         cmd.append(",cpu=").append(interval).append('m');
       }
     }

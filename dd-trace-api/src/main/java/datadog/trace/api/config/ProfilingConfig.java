@@ -108,6 +108,8 @@ public final class ProfilingConfig {
       "profiling.ddprof.wall.interval.ms";
   public static final int PROFILING_DATADOG_PROFILER_WALL_INTERVAL_DEFAULT = 50;
 
+  public static final int PROFILING_DATADOG_PROFILER_J9_CPU_INTERVAL_DEFAULT = 50;
+
   public static final String PROFILING_DATADOG_PROFILER_WALL_COLLAPSING =
       "profiling.ddprof.wall.collapsing";
   public static final boolean PROFILING_DATADOG_PROFILER_WALL_COLLAPSING_DEFAULT = true;
