@@ -184,5 +184,10 @@ class BaseCallSiteTest extends DDSpecification {
     String type
     String method
     String descriptor
+
+    @Override
+    String toString() {
+      return descriptor
+    }
   }
 }

@@ -1135,6 +1135,12 @@ public class AgentTracer {
     public void setProduceCheckpoint(String type, String target) {}
 
     @Override
+    public void setThreadServiceName(String serviceName) {}
+
+    @Override
+    public void clearThreadServiceName() {}
+
+    @Override
     public void setConsumeCheckpoint(
         String type, String source, DataStreamsContextCarrier carrier) {}
 

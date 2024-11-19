@@ -3,6 +3,7 @@ package com.datadog.iast;
 import com.datadog.iast.taint.TaintedMap;
 import com.datadog.iast.taint.TaintedObjects;
 import datadog.trace.api.iast.IastContext;
+import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -21,6 +22,9 @@ public class IastGlobalContext implements IastContext {
   public TaintedObjects getTaintedObjects() {
     return taintedObjects;
   }
+
+  @Override
+  public void close() throws IOException {}
 
   public static class Provider extends IastContext.Provider {
 

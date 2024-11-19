@@ -2231,9 +2231,15 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   class IastIGCallbacks {
     static class Context implements IastContext {
+      @Nonnull
       @Override
       <TO> TO getTaintedObjects() {
         throw new UnsupportedOperationException()
+      }
+
+      @Override
+      void close() throws IOException {
+        // ignore
       }
     }
 

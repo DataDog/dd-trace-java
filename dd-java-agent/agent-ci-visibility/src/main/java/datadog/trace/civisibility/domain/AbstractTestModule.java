@@ -12,7 +12,7 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.decorator.TestDecorator;
-import datadog.trace.civisibility.source.MethodLinesResolver;
+import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
@@ -26,7 +26,7 @@ public abstract class AbstractTestModule {
   protected final TestDecorator testDecorator;
   protected final SourcePathResolver sourcePathResolver;
   protected final Codeowners codeowners;
-  protected final MethodLinesResolver methodLinesResolver;
+  protected final LinesResolver linesResolver;
   private final Consumer<AgentSpan> onSpanFinish;
 
   public AbstractTestModule(
@@ -39,7 +39,7 @@ public abstract class AbstractTestModule {
       TestDecorator testDecorator,
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
-      MethodLinesResolver methodLinesResolver,
+      LinesResolver linesResolver,
       Consumer<AgentSpan> onSpanFinish) {
     this.moduleName = moduleName;
     this.config = config;
@@ -47,7 +47,7 @@ public abstract class AbstractTestModule {
     this.testDecorator = testDecorator;
     this.sourcePathResolver = sourcePathResolver;
     this.codeowners = codeowners;
-    this.methodLinesResolver = methodLinesResolver;
+    this.linesResolver = linesResolver;
     this.onSpanFinish = onSpanFinish;
 
     AgentTracer.SpanBuilder spanBuilder =

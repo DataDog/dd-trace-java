@@ -11,7 +11,7 @@ import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.AbstractTestModule;
 import datadog.trace.civisibility.domain.InstrumentationType;
 import datadog.trace.civisibility.domain.TestSuiteImpl;
-import datadog.trace.civisibility.source.MethodLinesResolver;
+import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.utils.SpanUtils;
 import java.util.function.Consumer;
@@ -34,7 +34,7 @@ public class ManualApiTestModule extends AbstractTestModule implements DDTestMod
       TestDecorator testDecorator,
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
-      MethodLinesResolver methodLinesResolver,
+      LinesResolver linesResolver,
       CoverageStore.Factory coverageStoreFactory,
       Consumer<AgentSpan> onSpanFinish) {
     super(
@@ -47,7 +47,7 @@ public class ManualApiTestModule extends AbstractTestModule implements DDTestMod
         testDecorator,
         sourcePathResolver,
         codeowners,
-        methodLinesResolver,
+        linesResolver,
         onSpanFinish);
     this.coverageStoreFactory = coverageStoreFactory;
   }
@@ -73,7 +73,7 @@ public class ManualApiTestModule extends AbstractTestModule implements DDTestMod
         testDecorator,
         sourcePathResolver,
         codeowners,
-        methodLinesResolver,
+        linesResolver,
         coverageStoreFactory,
         SpanUtils.propagateCiVisibilityTagsTo(span));
   }

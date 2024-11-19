@@ -26,7 +26,7 @@ import datadog.trace.civisibility.ipc.AckResponse;
 import datadog.trace.civisibility.ipc.ModuleExecutionResult;
 import datadog.trace.civisibility.ipc.SignalResponse;
 import datadog.trace.civisibility.ipc.SignalType;
-import datadog.trace.civisibility.source.MethodLinesResolver;
+import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.utils.SpanUtils;
 import datadog.trace.util.Strings;
@@ -62,7 +62,7 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
       TestDecorator testDecorator,
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
-      MethodLinesResolver methodLinesResolver,
+      LinesResolver linesResolver,
       ModuleSignalRouter moduleSignalRouter,
       CoverageCalculator.Factory<T> coverageCalculatorFactory,
       T sessionCoverageCalculator,
@@ -79,7 +79,7 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
         testDecorator,
         sourcePathResolver,
         codeowners,
-        methodLinesResolver,
+        linesResolver,
         onSpanFinish);
     this.coverageCalculator =
         coverageCalculatorFactory.moduleCoverage(
