@@ -141,7 +141,7 @@ public class SQLCommenter {
               dbService,
               hostname,
               dbName,
-              peerService.toString(),
+              peerServiceString,
               env,
               version,
               traceParent);
