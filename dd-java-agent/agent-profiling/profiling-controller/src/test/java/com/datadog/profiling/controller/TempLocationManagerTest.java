@@ -11,7 +11,6 @@ import java.nio.file.Paths;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Properties;
 import java.util.UUID;
-
 import org.junit.jupiter.api.Test;
 
 public class TempLocationManagerTest {
@@ -30,8 +29,10 @@ public class TempLocationManagerTest {
 
   @Test
   void testFromConfig() throws Exception {
-    Path myDir = Paths.get(System.getProperty("java.io.tmpdir"), UUID.randomUUID().toString());
-    Files.createDirectories(myDir);
+    Path myDir =
+        Files.createTempDirectory(
+            "ddprof-test-",
+            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
     Properties props = new Properties();
     props.put(ProfilingConfig.PROFILING_TEMP_DIR, myDir.toString());
     ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
@@ -53,9 +54,10 @@ public class TempLocationManagerTest {
 
   @Test
   void testFromConfigNotWritable() throws Exception {
-    Path myDir = Paths.get(System.getProperty("java.io.tmpdir"), UUID.randomUUID().toString());
-    Files.createDirectories(
-        myDir, PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("r-x------")));
+    Path myDir =
+        Files.createTempDirectory(
+            "ddprof-test-",
+            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("r-x------")));
     Properties props = new Properties();
     props.put(ProfilingConfig.PROFILING_TEMP_DIR, myDir.toString());
     ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
@@ -65,8 +67,10 @@ public class TempLocationManagerTest {
 
   @Test
   void testCleanup() throws Exception {
-    Path myDir = Paths.get(System.getProperty("java.io.tmpdir"), UUID.randomUUID().toString());
-    Files.createDirectories(myDir);
+    Path myDir =
+        Files.createTempDirectory(
+            "ddprof-test-",
+            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
     Properties props = new Properties();
     props.put(ProfilingConfig.PROFILING_TEMP_DIR, myDir.toString());
     ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
