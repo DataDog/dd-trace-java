@@ -28,7 +28,6 @@ public class EventTracerInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".CurrentEventHelper",
       packageName + ".MuleDecorator",
       packageName + ".DDEventTracer",
       packageName + ".SpanState",
