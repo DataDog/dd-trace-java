@@ -112,65 +112,40 @@ public class SQLCommenter {
     final int commentSize = capacity(traceParent, parentService, dbService, env, version);
     StringBuilder sb = new StringBuilder(sql.length() + commentSize);
     boolean commentAdded = false;
+    String peerServiceString = peerService != null ? peerService.toString() : null;
+
     if (appendComment) {
       sb.append(sql);
       sb.append(SPACE);
       sb.append(OPEN_COMMENT);
-      if (peerService != null) {
-        commentAdded =
-            toComment(
-                sb,
-                injectTrace,
-                parentService,
-                dbService,
-                hostname,
-                dbName,
-                peerService.toString(),
-                env,
-                version,
-                traceParent);
-      } else {
-        commentAdded =
-            toComment(
-                sb,
-                injectTrace,
-                parentService,
-                dbService,
-                hostname,
-                dbName,
-                env,
-                version,
-                traceParent);
-      }
+      commentAdded =
+          toComment(
+              sb,
+              injectTrace,
+              parentService,
+              dbService,
+              hostname,
+              dbName,
+              peerServiceString,
+              env,
+              version,
+              traceParent);
       sb.append(CLOSE_COMMENT);
     } else {
       sb.append(OPEN_COMMENT);
-      if (peerService != null) {
-        commentAdded =
-            toComment(
-                sb,
-                injectTrace,
-                parentService,
-                dbService,
-                hostname,
-                dbName,
-                peerService.toString(),
-                env,
-                version,
-                traceParent);
-      } else {
-        commentAdded =
-            toComment(
-                sb,
-                injectTrace,
-                parentService,
-                dbService,
-                hostname,
-                dbName,
-                env,
-                version,
-                traceParent);
-      }
+      commentAdded =
+          toComment(
+              sb,
+              injectTrace,
+              parentService,
+              dbService,
+              hostname,
+              dbName,
+              peerService.toString(),
+              env,
+              version,
+              traceParent);
+
       sb.append(CLOSE_COMMENT);
       sb.append(SPACE);
       sb.append(sql);
@@ -233,6 +208,7 @@ public class SQLCommenter {
     return val;
   }
 
+  /*
   protected static boolean toComment(
       StringBuilder sb,
       final boolean injectTrace,
@@ -254,7 +230,7 @@ public class SQLCommenter {
       append(sb, TRACEPARENT, traceparent, sb.length() > emptySize);
     }
     return sb.length() > emptySize;
-  }
+  }*/
 
   protected static boolean toComment(
       StringBuilder sb,
@@ -273,7 +249,9 @@ public class SQLCommenter {
     append(sb, DATABASE_SERVICE, dbService, sb.length() > emptySize);
     append(sb, DD_HOSTNAME, hostname, sb.length() > emptySize);
     append(sb, DD_DB_NAME, dbName, sb.length() > emptySize);
-    append(sb, DD_DB_INSTANCE, dbInstance, sb.length() > emptySize);
+    if (dbInstance != null) {
+      append(sb, DD_DB_INSTANCE, dbInstance, sb.length() > emptySize);
+    }
     append(sb, DD_ENV, env, sb.length() > emptySize);
     append(sb, DD_VERSION, version, sb.length() > emptySize);
     if (injectTrace) {
