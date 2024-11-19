@@ -6,12 +6,14 @@ import datadog.trace.api.iast.propagation.StringModule
 import foo.bar.TestStringSuite
 import groovy.transform.CompileDynamic
 
+import static datadog.trace.api.config.IastConfig.IAST_ENABLED
+
 @CompileDynamic
 class StringCallSiteTest extends AgentTestRunner {
 
   @Override
   protected void configurePreAgent() {
-    injectSysConfig("dd.iast.enabled", "true")
+    injectSysConfig(IAST_ENABLED, "true")
   }
 
   def 'test string concat call site'() {
@@ -238,5 +240,23 @@ class StringCallSiteTest extends AgentTestRunner {
     args                      | expected
     ['test the test', ' ']    | ['test', 'the', 'test'] as String[]
     ['test the test', ' ', 0] | ['test', 'the', 'test'] as String[]
+  }
+
+  void 'test string replace char'() {
+    given:
+    final module = Mock(StringModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    def result = TestStringSuite.replace(input, oldChar as char, newChar as char)
+
+    then:
+    result == expected
+    1 * module.onStringReplace(input, oldChar, newChar, expected)
+
+    where:
+    input  | oldChar | newChar | expected
+    "test" | 't'     | 'T'     | "TesT"
+    "test" | 'e'     | 'E'     | "tEst"
   }
 }

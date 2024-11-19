@@ -273,6 +273,7 @@ jdk.ContainerMemoryUsage#enabled=true
 jdk.ContainerMemoryUsage#period=everyChunk
 jdk.ContainerIOUsage#enabled=true
 jdk.ContainerIOUsage#period=everyChunk
+jdk.SystemGC#enabled=true
 # Datadog events
 datadog.Scope#enabled=true
 datadog.Scope#threshold=10 ms

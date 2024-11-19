@@ -635,7 +635,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           new ContinuableScopeManager(
               config.getScopeDepthLimit(),
               config.isScopeStrictMode(),
-              config.isScopeInheritAsyncPropagation(),
               profilingContextIntegration,
               healthMetrics);
     } else {

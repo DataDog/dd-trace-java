@@ -60,7 +60,7 @@ class IteratorsTest extends Specification {
     ['hello', 'World', '!'] | ['hello', 'World', '!']
   }
 
-  void 'joined iterator'() {
+  void 'joined iterator #iterationIndex'() {
     when:
     final iterator = Iterators.join(iterators as Iterator<?>[])
 

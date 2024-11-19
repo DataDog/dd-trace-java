@@ -54,6 +54,7 @@ _Recovery:_ Manually trigger the action again on the relevant tag.
 _Trigger:_ When creating a minor or major version tag.
 
 _Actions:_
+
 * Close the milestone related to the tag,
 * Create a new milestone by incrementing minor version.
 
@@ -76,6 +77,7 @@ _Notes:_ _Download releases_ are special GitHub releases with fixed URL and tags
 _Trigger:_ When a release is published. Releases of type `prereleased` should skip this.
 
 _Action:_
+
 * Find all issues related to the release by checking the related milestone,
 * Add a comment to let know the issue was addressed by the newly published release,
 * Close all those issues.
@@ -105,10 +107,13 @@ _Recovery:_ Manually trigger the action again.
 
 _Trigger:_ When pushing commits to `master` or any pull request targeting `master`.
 
-_Action:_ 
+_Action:_
+
 * Run [DataDog Static Analysis](https://docs.datadoghq.com/static_analysis/) and upload result to DataDog Code Analysis,
-* Run [GitHub CodeQL](https://codeql.github.com/) action, upload result to GitHub security tab and DataDog Code Analysis -- do not apply to pull request, only when pushing to `master`,
-* Run [Trivy security scanner](https://github.com/aquasecurity/trivy) on built artifacts and upload result to GitHub security tab.
+* Run [GitHub CodeQL](https://codeql.github.com/) action, upload result to GitHub security tab -- do not apply to pull request, only when pushing to `master`,
+* Run [Trivy security scanner](https://github.com/aquasecurity/trivy) on built artifacts and upload result to GitHub security tab and Datadog Code Analysis.
+
+_Notes:_ Results are sent on both production and staging environments.
 
 ### comment-on-submodule-update [🔗](comment-on-submodule-update.yaml)
 

@@ -19,7 +19,8 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.get
 trait IastRequestContextPreparationTrait {
 
   static void iastSystemSetup(Closure reqEndAction = null) {
-    def ss = AgentTracer.get().getSubscriptionService(RequestContextSlot.IAST)
+    final tracer = AgentTracer.get()
+    def ss = tracer.getSubscriptionService(RequestContextSlot.IAST)
     IastSystem.start(ss, new NoopOverheadController())
 
     EventType<Supplier<Flow<Object>>> requestStarted = Events.get().requestStarted()
@@ -27,17 +28,18 @@ trait IastRequestContextPreparationTrait {
       Events.get().requestEnded()
 
     // get original callbacks
-    CallbackProvider provider = AgentTracer.get().getCallbackProvider(RequestContextSlot.IAST)
+    CallbackProvider provider = tracer.getCallbackProvider(RequestContextSlot.IAST)
     def origRequestStarted = provider.getCallback(requestStarted)
     def origRequestEnded = provider.getCallback(requestEnded)
 
     // wrap the original IG callbacks
     ss.reset()
     ss.registerCallback(requestStarted, new TaintedMapSaveStrongRefsRequestStarted(orig: origRequestStarted))
-    if (reqEndAction != null) {
-      ss.registerCallback(requestEnded, new TaintedMapSavingRequestEnded(
-        original: origRequestEnded, beforeAction: reqEndAction))
-    }
+    ss.registerCallback(
+      requestEnded,
+      reqEndAction == null
+      ? origRequestEnded
+      : new TaintedMapSavingRequestEnded(original: origRequestEnded, beforeAction: reqEndAction))
   }
 
   static void iastSystemCleanup() {

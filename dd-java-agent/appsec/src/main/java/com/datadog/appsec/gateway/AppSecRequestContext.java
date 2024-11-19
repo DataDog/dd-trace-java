@@ -125,6 +125,8 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   // keep a reference to the last published usr.id
   private volatile String userId;
+  // keep a reference to the last published usr.session_id
+  private volatile String sessionId;
 
   private static final AtomicIntegerFieldUpdater<AppSecRequestContext> TIMEOUTS_UPDATER =
       AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "timeouts");
@@ -431,6 +433,14 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public void setUserId(String userId) {
     this.userId = userId;
+  }
+
+  public void setSessionId(String sessionId) {
+    this.sessionId = sessionId;
+  }
+
+  public String getSessionId() {
+    return sessionId;
   }
 
   @Override

@@ -76,8 +76,6 @@ public final class TracerConfig {
 
   public static final String SCOPE_DEPTH_LIMIT = "trace.scope.depth.limit";
   public static final String SCOPE_STRICT_MODE = "trace.scope.strict.mode";
-  public static final String SCOPE_INHERIT_ASYNC_PROPAGATION =
-      "trace.scope.inherit.async.propagation";
   public static final String SCOPE_ITERATION_KEEP_ALIVE = "trace.scope.iteration.keep.alive";
   public static final String PARTIAL_FLUSH_ENABLED = "trace.partial.flush.enabled";
   public static final String PARTIAL_FLUSH_MIN_SPANS = "trace.partial.flush.min.spans";
