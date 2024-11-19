@@ -42,7 +42,7 @@ public class SmapEntryFactory {
 
   private static class SmapHeader {
     long startAddress = 0;
-    long endAddress = 0;
+    long endAddress;
     String perms;
     long offset = 0;
     String dev;
