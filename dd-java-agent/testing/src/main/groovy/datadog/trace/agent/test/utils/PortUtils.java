@@ -124,7 +124,7 @@ public class PortUtils {
                   + port
                   + " was opened");
         } else {
-          throw new RuntimeException("Process died before port=" + port + " was opened");
+          throw new RuntimeException("Process finished before port=" + port + " was opened");
         }
       }
 
