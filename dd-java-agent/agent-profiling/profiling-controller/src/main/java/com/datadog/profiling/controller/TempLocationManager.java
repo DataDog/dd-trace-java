@@ -11,6 +11,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import org.slf4j.Logger;
@@ -35,9 +37,11 @@ public final class TempLocationManager {
     private final Set<String> pidSet = PidHelper.getJavaPids();
 
     private final boolean cleanSelf;
+    private final Instant cutoff;
 
     CleanupVisitor(boolean cleanSelf) {
       this.cleanSelf = cleanSelf;
+      this.cutoff = Instant.now().minus(cutoffSeconds, ChronoUnit.SECONDS);
     }
 
     @Override
@@ -59,6 +63,9 @@ public final class TempLocationManager {
 
     @Override
     public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+      if (Files.getLastModifiedTime(file).toInstant().isAfter(cutoff)) {
+        return FileVisitResult.SKIP_SUBTREE;
+      }
       Files.delete(file);
       return FileVisitResult.CONTINUE;
     }
@@ -85,6 +92,7 @@ public final class TempLocationManager {
 
   private final Path baseTempDir;
   private final Path tempDir;
+  private final long cutoffSeconds;
 
   private final CompletableFuture<Void> cleanupTask;
 
@@ -117,6 +125,19 @@ public final class TempLocationManager {
   }
 
   TempLocationManager(ConfigProvider configProvider) {
+    // In order to avoid racy attempts to clean up files which are currently being processed in a
+    // JVM which is being shut down (the JVMs far in the shutdown routine may not be reported by
+    // 'jps' but still can be eg. processing JFR chunks) we will not clean up any files not older
+    // than '2 * PROFILING_UPLOAD_PERIOD' seconds.
+    // The reasoning is that even if the file is created immediately at JVM startup once it is
+    // 'PROFILING_UPLOAD_PERIOD' seconds old it gets processed to upload the final profile data and
+    // this processing will not take longer than another `PROFILING_UPLOAD_PERIOD' seconds.
+    // This is just an assumption but as long as the profiled application is working normally (eg.
+    // OS is not stalling) this assumption will hold.
+    cutoffSeconds =
+        configProvider.getLong(
+            ProfilingConfig.PROFILING_UPLOAD_PERIOD,
+            ProfilingConfig.PROFILING_UPLOAD_PERIOD_DEFAULT);
     Path configuredTempDir =
         Paths.get(
             configProvider.getString(
@@ -140,21 +161,21 @@ public final class TempLocationManager {
     tempDir = baseTempDir.resolve("pid_" + pid);
     cleanupTask = CompletableFuture.runAsync(() -> cleanup(false));
 
-    //    Runtime.getRuntime()
-    //        .addShutdownHook(
-    //            new Thread(
-    //                () -> {
-    //                  try {
-    //                    cleanupTask.join();
-    //                  } finally {
-    //                    cleanup(true);
-    //                  }
-    //                },
-    //                "Temp Location Manager Cleanup"));
+    Runtime.getRuntime()
+        .addShutdownHook(
+            new Thread(
+                () -> {
+                  try {
+                    cleanupTask.join();
+                  } finally {
+                    cleanup(true);
+                  }
+                },
+                "Temp Location Manager Cleanup"));
   }
 
   /**
-   * Get the temporary directory for the current process.
+   * Get the temporary directory for the current process. The directory will be removed at JVM exit.
    *
    * @return the temporary directory for the current process
    */
