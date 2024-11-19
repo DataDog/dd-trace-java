@@ -140,17 +140,17 @@ public final class TempLocationManager {
     tempDir = baseTempDir.resolve("pid_" + pid);
     cleanupTask = CompletableFuture.runAsync(() -> cleanup(false));
 
-    Runtime.getRuntime()
-        .addShutdownHook(
-            new Thread(
-                () -> {
-                  try {
-                    cleanupTask.join();
-                  } finally {
-                    cleanup(true);
-                  }
-                },
-                "Temp Location Manager Cleanup"));
+    //    Runtime.getRuntime()
+    //        .addShutdownHook(
+    //            new Thread(
+    //                () -> {
+    //                  try {
+    //                    cleanupTask.join();
+    //                  } finally {
+    //                    cleanup(true);
+    //                  }
+    //                },
+    //                "Temp Location Manager Cleanup"));
   }
 
   /**
