@@ -17,7 +17,7 @@ class VertxSmokeTest extends AbstractServerSmokeTest {
   def addCrashTracking() {
     // DQH - 2024 Nov
     // Disabled crash tracking in IAST tests for initial GA
-    // NOTE: That tests that concatenate JVM arguments into JAVA_TOOL_OPTIONS may 
+    // NOTE: That tests that concatenate JVM arguments into JAVA_TOOL_OPTIONS may
     // have trouble if this is changed.
 
     return false
