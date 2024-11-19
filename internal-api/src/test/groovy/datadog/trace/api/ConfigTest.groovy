@@ -739,7 +739,7 @@ class ConfigTest extends DDSpecification {
     config.mergedSpanTags == [b: "2", c: "3"]
     config.mergedJmxTags == [b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
     config.requestHeaderTags == [e: "five"]
-    config.baggageMapping == [f: "six",]
+    config.baggageMapping == [f: "six",g: "g"]
     config.httpServerErrorStatuses == toBitSet((122..457))
     config.httpClientErrorStatuses == toBitSet((111..111))
     config.httpClientSplitByDomain == true
