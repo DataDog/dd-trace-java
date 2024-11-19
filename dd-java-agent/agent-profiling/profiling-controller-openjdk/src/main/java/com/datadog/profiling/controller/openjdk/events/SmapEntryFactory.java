@@ -128,7 +128,7 @@ public class SmapEntryFactory {
             } else if (description.startsWith("INTERN")) {
               annotatedRegions.put(startAddress, "INTERN");
             } else {
-              annotatedRegions.put(startAddress, description);
+              annotatedRegions.put(startAddress, description.toUpperCase());
             }
           } else {
             annotatedRegions.put(startAddress, "UNDEFINED");
