@@ -1,29 +1,28 @@
 package datadog.trace.api.iast.securitycontrol;
 
-import datadog.trace.api.iast.VulnerabilityMarks;
-import org.slf4j.Logger;
+import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
+import datadog.trace.api.iast.VulnerabilityMarks;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-
-import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import org.slf4j.Logger;
 
 public class SecurityControlFormatter {
 
-  private static final Logger log = org.slf4j.LoggerFactory.getLogger(SecurityControlFormatter.class);
+  private static final Logger log =
+      org.slf4j.LoggerFactory.getLogger(SecurityControlFormatter.class);
 
   private static final String SECURITY_CONTROL_DELIMITER = ";";
   private static final String SECURITY_CONTROL_FIELD_DELIMITER = ":";
-  private static final String SECURITY_CONTROL_ELEMENT_DELIMITER = "," ;
+  private static final String SECURITY_CONTROL_ELEMENT_DELIMITER = ",";
 
   private static final String ALL = "*";
 
-
   @Nullable
-  public static List<SecurityControl> format (final @Nonnull String securityControlString) {
+  public static List<SecurityControl> format(final @Nonnull String securityControlString) {
 
     if (securityControlString.isEmpty()) {
       log.warn("Security control configuration is empty");
@@ -44,7 +43,6 @@ public class SecurityControlFormatter {
     }
     return securityControls.isEmpty() ? null : securityControls;
   }
-
 
   private static SecurityControl getSecurityControl(@Nonnull final String config) {
     if (config.isEmpty()) {
@@ -73,7 +71,7 @@ public class SecurityControlFormatter {
       if (elements.length > 0) {
         if (isNumeric(elements[0])) {
           parametersToMark = getParametersToMark(elements);
-        }else {
+        } else {
           parameterTypes = elements;
         }
       }
@@ -99,15 +97,10 @@ public class SecurityControlFormatter {
   }
 
   private static int[] getParametersToMark(String[] elements) {
-    return Arrays.stream(elements)
-        .mapToInt(Integer::parseInt)
-        .toArray();
+    return Arrays.stream(elements).mapToInt(Integer::parseInt).toArray();
   }
 
   private static boolean isNumeric(String str) {
     return str.matches("[0-9]+");
   }
-
-
-
 }

@@ -1,29 +1,21 @@
 package datadog.trace.api.iast.securitycontrol;
 
-import datadog.trace.api.iast.VulnerabilityMarks;
-
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class SecurityControl {
 
-  @Nonnull
-  private SecurityControlType type;
+  @Nonnull private SecurityControlType type;
 
   private int marks;
 
-  @Nonnull
-  private String className ;
+  @Nonnull private String className;
 
-  @Nonnull
-  private String method;
+  @Nonnull private String method;
 
-  @Nullable
-  private String[] parameterTypes;
+  @Nullable private String[] parameterTypes;
 
-  @Nullable
-  private int[] parametersToMark;
-
+  @Nullable private int[] parametersToMark;
 
   public SecurityControl(
       @Nonnull SecurityControlType type,
@@ -69,5 +61,4 @@ public class SecurityControl {
   public int[] getParametersToMark() {
     return parametersToMark;
   }
-
 }
