@@ -73,6 +73,7 @@ class IastSystemTest extends DDSpecification {
 
     then:
     1 * iastContext.getTaintedObjects()
+    1 * iastContext.setTaintedObjects(_)
     1 * iastContext.getMetricCollector()
     1 * traceSegment.setTagTop('_dd.iast.enabled', 1)
     1 * iastContext.getxContentTypeOptions() >> 'nosniff'

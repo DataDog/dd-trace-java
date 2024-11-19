@@ -64,6 +64,8 @@ public class TaskUnwrappingInstrumentation extends InstrumenterModule.Profiling
     "val$c",
     "io.grpc.netty.WriteQueue$RunnableCommand",
     "runnable",
+    "io.grpc.internal.LogExceptionRunnable",
+    "task",
     "akka.dispatch.TaskInvocation",
     "runnable",
     "scala.concurrent.impl.CallbackRunnable",

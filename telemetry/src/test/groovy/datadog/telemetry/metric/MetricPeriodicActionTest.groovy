@@ -12,7 +12,7 @@ import spock.lang.Specification
 
 class MetricPeriodicActionTest extends Specification {
 
-  void 'test that common metrics are joined before being sent to telemetry'() {
+  void 'test that common metrics are joined before being sent to telemetry #iterationIndex'() {
     given:
     final service = Mock(TelemetryService)
     final MetricCollector<MetricCollector.Metric> metricCollector = Mock(MetricCollector)
@@ -43,7 +43,7 @@ class MetricPeriodicActionTest extends Specification {
     [col(counter: 2L, tags: ['a:b', 'c:d']), col(counter: 6L, tags: ['a:b', 'c:d'])] | [tel(points: [[_, 2L], [_, 6L]], tags: ['a:b', 'c:d'])]
   }
 
-  void 'test that common distribution series are joined before being sent to telemetry'() {
+  void 'test that common distribution series are joined before being sent to telemetry #iterationIndex'() {
     given:
     final service = Mock(TelemetryService)
     final MetricCollector<MetricCollector.Metric> metricCollector = Mock(MetricCollector)

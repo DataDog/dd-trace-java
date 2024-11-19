@@ -174,7 +174,6 @@ public class Config {
   private final Set<String> splitByTags;
   private final int scopeDepthLimit;
   private final boolean scopeStrictMode;
-  private final boolean scopeInheritAsyncPropagation;
   private final int scopeIterationKeepAlive;
   private final int partialFlushMinSpans;
   private final boolean traceStrictWritesEnabled;
@@ -304,6 +303,7 @@ public class Config {
   private final boolean iastSourceMappingEnabled;
   private final int iastSourceMappingMaxSize;
   private final boolean iastStackTraceEnabled;
+  private final boolean iastExperimentalPropagationEnabled;
 
   private final boolean ciVisibilityTraceSanitationEnabled;
   private final boolean ciVisibilityAgentlessEnabled;
@@ -853,8 +853,6 @@ public class Config {
 
     scopeStrictMode = configProvider.getBoolean(SCOPE_STRICT_MODE, false);
 
-    scopeInheritAsyncPropagation = configProvider.getBoolean(SCOPE_INHERIT_ASYNC_PROPAGATION, true);
-
     scopeIterationKeepAlive =
         configProvider.getInteger(SCOPE_ITERATION_KEEP_ALIVE, DEFAULT_SCOPE_ITERATION_KEEP_ALIVE);
 
@@ -1309,9 +1307,10 @@ public class Config {
             IAST_ANONYMOUS_CLASSES_ENABLED, DEFAULT_IAST_ANONYMOUS_CLASSES_ENABLED);
     iastSourceMappingEnabled = configProvider.getBoolean(IAST_SOURCE_MAPPING_ENABLED, false);
     iastSourceMappingMaxSize = configProvider.getInteger(IAST_SOURCE_MAPPING_MAX_SIZE, 1000);
-
     iastStackTraceEnabled =
         configProvider.getBoolean(IAST_STACK_TRACE_ENABLED, DEFAULT_IAST_STACK_TRACE_ENABLED);
+    iastExperimentalPropagationEnabled =
+        configProvider.getBoolean(IAST_EXPERIMENTAL_PROPAGATION_ENABLED, false);
 
     ciVisibilityTraceSanitationEnabled =
         configProvider.getBoolean(CIVISIBILITY_TRACE_SANITATION_ENABLED, true);
@@ -2071,10 +2070,6 @@ public class Config {
     return scopeStrictMode;
   }
 
-  public boolean isScopeInheritAsyncPropagation() {
-    return scopeInheritAsyncPropagation;
-  }
-
   public int getScopeIterationKeepAlive() {
     return scopeIterationKeepAlive;
   }
@@ -2590,6 +2585,10 @@ public class Config {
 
   public boolean isIastStackTraceEnabled() {
     return iastStackTraceEnabled;
+  }
+
+  public boolean isIastExperimentalPropagationEnabled() {
+    return iastExperimentalPropagationEnabled;
   }
 
   public boolean isCiVisibilityEnabled() {
@@ -4162,8 +4161,6 @@ public class Config {
         + scopeDepthLimit
         + ", scopeStrictMode="
         + scopeStrictMode
-        + ", scopeInheritAsyncPropagation="
-        + scopeInheritAsyncPropagation
         + ", scopeIterationKeepAlive="
         + scopeIterationKeepAlive
         + ", partialFlushMinSpans="

@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 public class ExceptionProbe extends LogProbe implements ForceMethodInstrumentation {
   private static final Logger LOGGER = LoggerFactory.getLogger(ExceptionProbe.class);
   private final transient ExceptionProbeManager exceptionProbeManager;
+  private final transient int chainedExceptionIdx;
 
   public ExceptionProbe(
       ProbeId probeId,
@@ -28,7 +29,8 @@ public class ExceptionProbe extends LogProbe implements ForceMethodInstrumentati
       ProbeCondition probeCondition,
       Capture capture,
       Sampling sampling,
-      ExceptionProbeManager exceptionProbeManager) {
+      ExceptionProbeManager exceptionProbeManager,
+      int chainedExceptionIdx) {
     super(
         LANGUAGE,
         probeId,
@@ -42,6 +44,7 @@ public class ExceptionProbe extends LogProbe implements ForceMethodInstrumentati
         capture,
         sampling);
     this.exceptionProbeManager = exceptionProbeManager;
+    this.chainedExceptionIdx = chainedExceptionIdx;
   }
 
   @Override
@@ -116,6 +119,7 @@ public class ExceptionProbe extends LogProbe implements ForceMethodInstrumentati
       // inside the stateByThrowable map
       clearExceptionRefs(snapshot);
       // add snapshot for later to wait for triggering point (ExceptionDebugger::handleException)
+      snapshot.setChainedExceptionIdx(chainedExceptionIdx);
       exceptionProbeManager.addSnapshot(snapshot);
       LOGGER.debug(
           "committing exception probe id={}, snapshot id={}, exception id={}",

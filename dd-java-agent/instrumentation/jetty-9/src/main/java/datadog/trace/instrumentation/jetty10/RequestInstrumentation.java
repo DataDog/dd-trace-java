@@ -33,5 +33,8 @@ public final class RequestInstrumentation extends InstrumenterModule.Tracing
     transformer.applyAdvice(
         named("setServletPath").and(takesArgument(0, String.class)),
         packageName + ".SetServletPathAdvice");
+    transformer.applyAdvice(
+        named("setRequestedSessionId").and(takesArgument(0, String.class)),
+        packageName + ".SetRequestedSessionIdAdvice");
   }
 }

@@ -4,11 +4,12 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import java.io.Closeable;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /** Encapsulation for the IAST context, */
-public interface IastContext {
+public interface IastContext extends Closeable {
 
   /**
    * Get the tainted objects dictionary linked to the context, since we have no visibility over the
