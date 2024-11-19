@@ -28,8 +28,8 @@ public final class IastConfig {
       "iast.experimental.propagation.enabled";
   public static final String IAST_STACK_TRACE_ENABLED = "iast.stacktrace.enabled";
   public static final String IAST_SECURITY_CONTROLS_ENABLED = "iast.security-controls.enabled";
-  public static final String IAST_SECURITY_CONTROLS_CONFIGURATION= "iast.security-controls.configuration";
-
+  public static final String IAST_SECURITY_CONTROLS_CONFIGURATION =
+      "iast.security-controls.configuration";
 
   private IastConfig() {}
 }
