@@ -10,6 +10,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Properties;
+import java.util.UUID;
+
 import org.junit.jupiter.api.Test;
 
 public class TempLocationManagerTest {
@@ -28,7 +30,7 @@ public class TempLocationManagerTest {
 
   @Test
   void testFromConfig() throws Exception {
-    Path myDir = Paths.get(System.getProperty("java.io.tmpdir"), "test1");
+    Path myDir = Paths.get(System.getProperty("java.io.tmpdir"), UUID.randomUUID().toString());
     Files.createDirectories(myDir);
     Properties props = new Properties();
     props.put(ProfilingConfig.PROFILING_TEMP_DIR, myDir.toString());
@@ -41,7 +43,7 @@ public class TempLocationManagerTest {
 
   @Test
   void testFromConfigInvalid() {
-    Path myDir = Paths.get(System.getProperty("java.io.tmpdir"), "test2");
+    Path myDir = Paths.get(System.getProperty("java.io.tmpdir"), UUID.randomUUID().toString());
     // do not create the directory - it should trigger an exception
     Properties props = new Properties();
     props.put(ProfilingConfig.PROFILING_TEMP_DIR, myDir.toString());
@@ -51,7 +53,7 @@ public class TempLocationManagerTest {
 
   @Test
   void testFromConfigNotWritable() throws Exception {
-    Path myDir = Paths.get(System.getProperty("java.io.tmpdir"), "test3");
+    Path myDir = Paths.get(System.getProperty("java.io.tmpdir"), UUID.randomUUID().toString());
     Files.createDirectories(
         myDir, PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("r-x------")));
     Properties props = new Properties();
@@ -63,7 +65,7 @@ public class TempLocationManagerTest {
 
   @Test
   void testCleanup() throws Exception {
-    Path myDir = Paths.get(System.getProperty("java.io.tmpdir"), "test4");
+    Path myDir = Paths.get(System.getProperty("java.io.tmpdir"), UUID.randomUUID().toString());
     Files.createDirectories(myDir);
     Properties props = new Properties();
     props.put(ProfilingConfig.PROFILING_TEMP_DIR, myDir.toString());
