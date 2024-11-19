@@ -35,7 +35,19 @@ public final class EventContextInstrumentation extends InstrumenterModule.Tracin
   }
 
   @Override
+  public String[] helperClassNames() {
+    return new String[] {
+      packageName + ".SpanState",
+    };
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(isConstructor(), packageName + ".EventContextCreationAdvice");
+  }
+
+  @Override
+  public String muzzleDirective() {
+    return "before-4.5.0";
   }
 }

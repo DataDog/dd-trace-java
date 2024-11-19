@@ -48,13 +48,8 @@ public class EventTracerInstrumentation extends InstrumenterModule.Tracing
         getClass().getName() + "$SwapCoreTracerAdvice");
   }
 
-  @Override
-  public String muzzleDirective() {
-    return "mule-event-tracer";
-  }
-
   public static class SwapCoreTracerAdvice {
-    @Advice.OnMethodExit(onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void afterInit(
         @Advice.FieldValue(value = "selectedCoreEventTracer", readOnly = false)
             EventTracer<CoreEvent> eventTracer) {

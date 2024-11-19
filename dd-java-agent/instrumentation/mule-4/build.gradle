@@ -11,8 +11,14 @@ muzzle {
     group = 'org.mule.runtime'
     module = 'mule-core'
     versions = '[4.5.0,)'
-    assertInverse = true
-
+    excludeDependency 'com.google.code.findbugs:jsr305'
+  }
+  pass {
+    name = 'before-4.5.0'
+    group = 'org.mule.runtime'
+    module = 'mule-core'
+    versions = '[4.5.0,)'
+    assertInverse true
     excludeDependency 'com.google.code.findbugs:jsr305'
   }
 }

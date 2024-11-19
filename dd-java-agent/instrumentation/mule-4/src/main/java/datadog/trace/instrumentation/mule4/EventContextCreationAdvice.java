@@ -48,7 +48,8 @@ public class EventContextCreationAdvice {
     contextStore.put(zis, spanState);
   }
 
-  static void muzzleCheck(final EventTracer<?> tracer) {
+  private static void muzzleCheck(final EventTracer<?> tracer) {
     // introduced in 4.5.0
+    tracer.endCurrentSpan(null);
   }
 }

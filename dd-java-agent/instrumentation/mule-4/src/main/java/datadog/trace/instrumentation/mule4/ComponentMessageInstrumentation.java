@@ -13,6 +13,7 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatchers;
 import org.mule.runtime.api.event.EventContext;
 import org.mule.runtime.core.api.event.CoreEvent;
+import org.mule.runtime.tracer.api.EventTracer;
 
 /**
  * Tries to activate the current event context span before dispatching the event to the current
@@ -35,10 +36,7 @@ public class ComponentMessageInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".MuleDecorator",
-      packageName + ".DDEventTracer",
       packageName + ".SpanState",
-      packageName + ".NoopMuleSpan",
     };
   }
 
@@ -77,6 +75,11 @@ public class ComponentMessageInstrumentation extends InstrumenterModule.Tracing
       if (scope != null) {
         scope.close();
       }
+    }
+
+    private static void muzzleCheck(final EventTracer<?> tracer) {
+      // introduced in 4.5.0
+      tracer.endCurrentSpan(null);
     }
   }
 }
