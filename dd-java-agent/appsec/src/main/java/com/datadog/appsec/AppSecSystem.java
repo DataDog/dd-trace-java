@@ -23,7 +23,6 @@ import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.telemetry.ProductChange;
 import datadog.trace.api.telemetry.ProductChangeCollector;
 import datadog.trace.bootstrap.ActiveSubsystems;
-import datadog.trace.util.Strings;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -104,7 +103,7 @@ public class AppSecSystem {
 
     STARTED.set(true);
 
-    String startedAppSecModules = Strings.join(", ", STARTED_MODULES_INFO.values());
+    String startedAppSecModules = String.join(", ", STARTED_MODULES_INFO.values());
     if (appSecEnabledConfig == ProductActivation.FULLY_ENABLED) {
       log.info("AppSec is {} with {}", appSecEnabledConfig, startedAppSecModules);
     } else {

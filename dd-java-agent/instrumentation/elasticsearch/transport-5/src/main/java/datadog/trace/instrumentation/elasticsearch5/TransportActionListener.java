@@ -4,7 +4,6 @@ import static datadog.trace.instrumentation.elasticsearch.ElasticsearchTransport
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.util.Strings;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
@@ -37,12 +36,12 @@ public class TransportActionListener<T extends ActionResponse> implements Action
     if (request instanceof IndicesRequest) {
       final IndicesRequest req = (IndicesRequest) request;
       if (req.indices() != null) {
-        span.setTag("elasticsearch.request.indices", Strings.join(",", req.indices()));
+        span.setTag("elasticsearch.request.indices", String.join(",", req.indices()));
       }
     }
     if (request instanceof SearchRequest) {
       final SearchRequest req = (SearchRequest) request;
-      span.setTag("elasticsearch.request.search.types", Strings.join(",", req.types()));
+      span.setTag("elasticsearch.request.search.types", String.join(",", req.types()));
     }
     if (request instanceof DocumentRequest) {
       final DocumentRequest req = (DocumentRequest) request;

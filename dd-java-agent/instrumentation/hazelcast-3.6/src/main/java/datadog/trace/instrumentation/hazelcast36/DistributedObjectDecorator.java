@@ -15,7 +15,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
-import datadog.trace.util.Strings;
 import java.util.function.Function;
 
 /** Decorate Hazelcast distributed object span's with relevant contextual information. */
@@ -84,7 +83,7 @@ public class DistributedObjectDecorator extends ClientDecorator {
         QUALIFIED_NAME_CACHE.computeIfAbsent(
             Pair.of(object.getServiceName(), object.getName()), COMPUTE_QUALIFIED_NAME);
 
-    span.setResourceName(UTF8BytesString.create(Strings.join(".", objectName, methodName)));
+    span.setResourceName(UTF8BytesString.create(String.join(".", objectName, methodName)));
 
     span.setTag(HAZELCAST_SERVICE, object.getServiceName());
     span.setTag(HAZELCAST_OPERATION, methodName);

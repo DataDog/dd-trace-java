@@ -12,7 +12,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
-import datadog.trace.util.Strings;
 
 /** Decorate Hazelcast distributed object span's with relevant contextual information. */
 public class HazelcastDecorator extends ClientDecorator {
@@ -51,7 +50,7 @@ public class HazelcastDecorator extends ClientDecorator {
 
     if (objectName != null) {
       span.setResourceName(
-          UTF8BytesString.create(Strings.join(" ", operationName, objectName.toString())));
+          UTF8BytesString.create(String.join(" ", operationName, objectName.toString())));
       span.setTag(HAZELCAST_NAME, objectName.toString());
     } else {
       span.setResourceName(UTF8BytesString.create(operationName));
