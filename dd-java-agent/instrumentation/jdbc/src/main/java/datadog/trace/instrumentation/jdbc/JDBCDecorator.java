@@ -337,6 +337,10 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
         return;
       }
       final String traceParent = DECORATE.traceParent(span, priority);
+      if (traceParent == null
+          || !traceParent.matches("^00-[a-f0-9]{32}-[a-f0-9]{16}-[a-f0-9]{2}$")) {
+        throw new IllegalArgumentException("Invalid trace parent: " + traceParent);
+      }
       final String traceContext = "_DD_" + traceParent;
 
       // SET doesn't work with parameters
