@@ -39,10 +39,6 @@ abstract class AbstractServerSmokeTest extends AbstractSmokeTest {
 
   protected OkHttpClient client = OkHttpUtils.client()
 
-  protected boolean includeCrashTracking() {
-    return true
-  }
-
   protected File createTemporaryFile() {
     return null
   }
