@@ -36,7 +36,6 @@ class SLCompatHelper extends LoggerHelper {
     if (settings.showDateTime) {
       timeMillis = System.currentTimeMillis();
     }
-    System.out.println("CTE settings.jsonEnabled: " + settings.jsonEnabled);
     if (settings.jsonEnabled) {
       logJson(level, marker, SLCompatFactory.START_TIME, timeMillis, message, t);
     } else {
@@ -147,15 +146,16 @@ class SLCompatHelper extends LoggerHelper {
     StringBuilder buf = new StringBuilder(32);
 
     buf.append("{");
+    embedJson(buf, "origin", "dd.trace", true);
 
     if (timeMillis >= 0 && settings.showDateTime) {
-      embedJsonKey(buf, "time");
+      embedJsonKey(buf, "date");
       settings.dateTimeFormatter.appendFormattedDate(buf, timeMillis, startTimeMillis);
       buf.append("\",");
     }
 
     if (settings.showThreadName && threadName != null) {
-      embedJson(buf, "threadName", threadName, true);
+      embedJson(buf, "logger.thread_name", threadName, true);
     }
 
     embedJsonKey(buf, "level");
@@ -169,7 +169,7 @@ class SLCompatHelper extends LoggerHelper {
     }
 
     if (!logName.isEmpty()) {
-      embedJson(buf, "loggerName", logName, true);
+      embedJson(buf, "logger.name", logName, true);
     }
     embedJson(buf, "message", message, false);
 
