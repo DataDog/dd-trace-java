@@ -1,5 +1,6 @@
 ext {
-  maxJavaVersionForTests = JavaVersion.VERSION_17
+  maxJavaVersionForTests = JavaVersion.VERSION_11
+  forkedTestMaxJavaVersionForTests = JavaVersion.VERSION_11
 }
 
 muzzle {
