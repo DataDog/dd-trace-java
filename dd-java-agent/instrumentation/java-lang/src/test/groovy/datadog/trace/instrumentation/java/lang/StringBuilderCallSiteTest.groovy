@@ -223,10 +223,6 @@ class StringBuilderCallSiteTest extends AgentTestRunner {
     }
   }
 
-  private static StringBuilder sb() {
-    return sb('')
-  }
-
   private static StringBuilder sb(final String string) {
     return new StringBuilder(string)
   }
