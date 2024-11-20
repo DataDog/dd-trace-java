@@ -98,5 +98,16 @@ class MuleHttpServerForkedTest extends HttpServerTest<MuleTestContainer> {
     container.undeploy(String.valueOf(buildProperties.get(MuleTestApplicationConstants.TEST_APPLICATION_NAME)))
     container.stop()
   }
+}
 
+/**
+ * This test wants to check that we built otel tracing (based on the sdk) does not interfere with our
+ */
+class MuleHttpServerOTELEnabledForkedTest extends MuleHttpServerForkedTest {
+
+  @Override
+  MuleTestContainer startServer(int port) {
+    System.setProperty("mule.openTelemetry.tracer.exporter.enabled", "true")
+    return super.startServer(port)
+  }
 }
