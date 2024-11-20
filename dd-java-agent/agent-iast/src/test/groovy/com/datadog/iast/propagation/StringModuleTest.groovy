@@ -445,10 +445,10 @@ class StringModuleTest extends IastModuleImplTestBase {
     0 * _
 
     where:
-    self      | beginIndex | endIndex | mockCalls
-    ""        | 0          | 0        | 0
-    null      | 0          | 0        | 0
-    "123"     | 1          | 2        | 1
+    self  | beginIndex | endIndex | mockCalls
+    ""    | 0          | 0        | 0
+    null  | 0          | 0        | 0
+    "123" | 1          | 2        | 1
   }
 
   void 'onStringSubSequence (#self, #beginIndex, #endIndex)'() {
