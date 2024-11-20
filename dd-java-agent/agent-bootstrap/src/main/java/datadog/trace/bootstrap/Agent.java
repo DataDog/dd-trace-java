@@ -535,11 +535,14 @@ public class Agent {
       // start debugger before remote config to subscribe to it before starting to poll
       maybeStartDebugger(instrumentation, scoClass, sco);
       maybeStartRemoteConfig(scoClass, sco);
+      maybeStartIastSecurityControls(instrumentation, scoClass, sco);
 
       if (telemetryEnabled) {
         startTelemetry(instrumentation, scoClass, sco);
       }
     }
+
+
   }
 
   protected static class StartProfilingAgentCallback extends ClassLoadCallBack {
@@ -605,6 +608,31 @@ public class Agent {
     }
 
     StaticEventLogger.end("Remote Config");
+  }
+
+  private void maybeStartIastSecurityControls(Instrumentation instrumentation, Class<?> scoClass, Object sco) {
+    if(!Config.get().isIastSecurityControlsEnabled()) {
+      return;
+    }
+    if (!iastEnabled || iastFullyDisabled) {
+      log.warn("Error starting IAST Security Controls, IAST should be enabled");
+      return;
+    }
+    if(Config.get().getIastSecurityControlsConfiguration() == null){
+      log.warn("Error starting IAST Security Controls, IAST Security Controls configuration is missing");
+      return;
+    }
+    StaticEventLogger.begin("IAST Security Controls");
+    try {
+      final Class<?> appSecSysClass = AGENT_CLASSLOADER.loadClass("com.datadog.iast.IastSecurityControlsInstrumenter");
+      final Method iastInstallerMethod =
+          appSecSysClass.getMethod("start");
+      iastInstallerMethod.invoke(instrumentation);
+    } catch (Exception e) {
+      log.error("Error starting IAST Security Controls", e);
+    }
+
+    StaticEventLogger.end("IAST Security Controls");
   }
 
   private static synchronized void startDatadogAgent(
