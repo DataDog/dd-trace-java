@@ -63,7 +63,7 @@ public class ApacheHttpClientDecorator extends HttpClientDecorator<HttpUriReques
   protected String getResponseHeader(HttpResponse response, String headerName) {
     Header[] headers = response.getHeaders(headerName);
     List<String> values = new ArrayList<>();
-    if (null != headers) {
+    if (headers.length > 0) {
       for (Header header : headers) {
         values.add(header.getValue());
       }
