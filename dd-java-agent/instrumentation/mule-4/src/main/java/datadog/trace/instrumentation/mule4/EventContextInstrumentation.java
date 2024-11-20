@@ -22,6 +22,11 @@ public final class EventContextInstrumentation extends InstrumenterModule.Tracin
   }
 
   @Override
+  protected boolean defaultEnabled() {
+    return false;
+  }
+
+  @Override
   public String[] knownMatchingTypes() {
     return new String[] {
       "org.mule.runtime.core.internal.event.DefaultEventContext",

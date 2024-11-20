@@ -16,7 +16,12 @@ import org.mule.runtime.tracer.api.EventTracer;
 public class EventTracerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public EventTracerInstrumentation() {
-    super("mule", "mule-event-tracer");
+    super("mule");
+  }
+
+  @Override
+  protected boolean defaultEnabled() {
+    return false;
   }
 
   @Override

@@ -78,6 +78,7 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:aws-common')
   testImplementation project(':dd-java-agent:instrumentation:reactor-core-3.1')
   testImplementation project(':dd-java-agent:instrumentation:reactive-streams')
+  testImplementation project(':dd-java-agent:instrumentation:grizzly-2')
   testImplementation project(':dd-java-agent:instrumentation:grizzly-http-2.3.20')
   testImplementation project(':dd-java-agent:instrumentation:grizzly-client-1.9')
   testImplementation project(':dd-java-agent:instrumentation:caffeine')

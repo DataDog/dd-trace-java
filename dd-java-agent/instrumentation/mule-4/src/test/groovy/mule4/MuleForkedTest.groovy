@@ -30,10 +30,7 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
-
-    injectSysConfig("integration.grizzly-filterchain.enabled", "true")
     injectSysConfig("integration.mule.enabled", "true")
-    injectSysConfig("integration.grizzly-client.enabled", "true")
   }
 
   @AutoCleanup

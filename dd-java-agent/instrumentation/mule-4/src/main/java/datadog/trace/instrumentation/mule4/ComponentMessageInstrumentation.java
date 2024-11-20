@@ -28,6 +28,11 @@ public class ComponentMessageInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
+  protected boolean defaultEnabled() {
+    return false;
+  }
+
+  @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
         "org.mule.runtime.api.event.EventContext", packageName + ".SpanState");
