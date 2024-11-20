@@ -50,6 +50,8 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
 
   private static final boolean CLIENT_TAG_HEADERS = Config.get().isHttpClientTagHeaders();
 
+  private static final boolean APPSEC_RASP_ENABLED = Config.get().isAppSecRaspEnabled();
+
   protected abstract String method(REQUEST request);
 
   protected abstract URI url(REQUEST request) throws URISyntaxException;
@@ -186,7 +188,7 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
   }
 
   private void onNetworkConnection(final String networkConnection) {
-    if (!Config.get().isAppSecRaspEnabled()) {
+    if (!APPSEC_RASP_ENABLED) {
       return;
     }
     if (networkConnection == null) {
