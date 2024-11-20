@@ -164,7 +164,8 @@ class SLCompatHelperTest extends Specification {
   }
 
 
-  def "test log output with JSon configuration"() {
+
+  def "test log output with Json configuration key"() {
     when:
     def outputStream = new ByteArrayOutputStream()
     def printStream = new PrintStream(outputStream, true)
@@ -173,7 +174,8 @@ class SLCompatHelperTest extends Specification {
     def settings = new SLCompatSettings(props, props, warnS, showB, printStream, showS, showL, showT, dateTimeFormatter, showDT, jsonE, LogLevel.INFO, false)
     def helper = new SLCompatHelper("foo.bar", settings)
 
-    helper. log(level, null, "log", null)
+    // helper.log is where we split between logs and JSON logs
+    helper.log(level, null, "log", null)
 
     then:
     outputStream.toString() == expected
@@ -181,13 +183,51 @@ class SLCompatHelperTest extends Specification {
     where:
     level         | warnS    | showB | showS | showL | showT | dateTFS                 | showDT |  jsonE | expected
     LogLevel.WARN | null     | false | false | false | false | null                    | false  |  false | "WARN log\n"
-    LogLevel.WARN | "DANGER" | false | false | false | false | null                    | false  |  true  | "{\"level\":\"DANGER\",\"message\":\"log\"}\n"
-    LogLevel.INFO | "DANGER" | false | false | false | false | null                    | false  |  true  | "{\"level\":\"INFO\",\"message\":\"log\"}\n"
-    LogLevel.WARN | null     | true  | false | false | false | null                    | false  |  true  | "{\"level\":\"[WARN]\",\"message\":\"log\"}\n"
-    LogLevel.INFO | null     | false | true  | false | false | null                    | false  |  true  | "{\"level\":\"INFO\",\"loggerName\":\"bar\",\"message\":\"log\"}\n"
-    LogLevel.INFO | null     | true  | true  | true  | false | null                    | false  |  true  | "{\"level\":\"[INFO]\",\"loggerName\":\"bar\",\"message\":\"log\"}\n"
-    LogLevel.INFO | null     | true  | false | true  | false | null                    | false  |  true  | "{\"level\":\"[INFO]\",\"loggerName\":\"foo.bar\",\"message\":\"log\"}\n"
-    LogLevel.INFO | null     | false | false | false | true  | null                    | false  |  true  | "{\"threadName\":\"Test worker\",\"level\":\"INFO\",\"message\":\"log\"}\n"
-    LogLevel.INFO | null     | false | false | false | true  | "yyyy-MM-dd HH:mm:ss z" | false  |  true  | "{\"threadName\":\"Test worker\",\"level\":\"INFO\",\"message\":\"log\"}\n"
+    LogLevel.WARN | "DANGER" | false | false | false | false | null                    | false  |  true  | "{\"origin\":\"dd.trace\",\"level\":\"DANGER\",\"message\":\"log\"}\n"
+  }
+
+  def "test log output in Json"() {
+    when:
+    def outputStream = new ByteArrayOutputStream()
+    def printStream = new PrintStream(outputStream, true)
+    def props = new Properties()
+    def dateTimeFormatter = SLCompatSettings.DTFormatter.create(dateTFS)
+    def settings = new SLCompatSettings(props, props, warnS, showB, printStream, showS, showL, showT, dateTimeFormatter, showDT, jsonE, LogLevel.INFO, false)
+    def helper = new SLCompatHelper("foo.bar", settings)
+
+    helper.logJson(level,null,0,4711,"thread","log", null)
+
+    then:
+    outputStream.toString() == expected
+
+    where:
+    level         | warnS    | showB | showS | showL | showT | dateTFS                 | showDT |  jsonE | expected
+    LogLevel.WARN | "DANGER" | false | false | false | false | null                    | false  |  true  | "{\"origin\":\"dd.trace\",\"level\":\"DANGER\",\"message\":\"log\"}\n"
+    LogLevel.INFO | "DANGER" | false | false | false | false | null                    | false  |  true  | "{\"origin\":\"dd.trace\",\"level\":\"INFO\",\"message\":\"log\"}\n"
+    LogLevel.WARN | null     | true  | false | false | false | null                    | false  |  true  | "{\"origin\":\"dd.trace\",\"level\":\"[WARN]\",\"message\":\"log\"}\n"
+    LogLevel.INFO | null     | false | true  | false | false | null                    | false  |  true  | "{\"origin\":\"dd.trace\",\"level\":\"INFO\",\"logger.name\":\"bar\",\"message\":\"log\"}\n"
+    LogLevel.INFO | null     | true  | true  | true  | false | null                    | false  |  true  | "{\"origin\":\"dd.trace\",\"level\":\"[INFO]\",\"logger.name\":\"bar\",\"message\":\"log\"}\n"
+    LogLevel.INFO | null     | true  | false | true  | false | null                    | false  |  true  | "{\"origin\":\"dd.trace\",\"level\":\"[INFO]\",\"logger.name\":\"foo.bar\",\"message\":\"log\"}\n"
+    LogLevel.INFO | null     | false | false | false | true  | null                    | false  |  true  | "{\"origin\":\"dd.trace\",\"logger.thread_name\":\"thread\",\"level\":\"INFO\",\"message\":\"log\"}\n"
+    LogLevel.INFO | null     | false | false | false | true  | "yyyy-MM-dd HH:mm:ss z" | false  |  true  | "{\"origin\":\"dd.trace\",\"logger.thread_name\":\"thread\",\"level\":\"INFO\",\"message\":\"log\"}\n"
+    LogLevel.INFO | null     | false | false | false | true  | "yyyy-MM-dd HH:mm:ss z" | true   |  true  | "{\"origin\":\"dd.trace\",\"date\":\"${new SimpleDateFormat(dateTFS).format(new Date(4711))}\",\"logger.thread_name\":\"thread\",\"level\":\"INFO\",\"message\":\"log\"}\n"
+  }
+
+
+  def "test logging with an embedded exception in Json"() {
+    setup:
+    def outputStream = new ByteArrayOutputStream()
+    def printStream = new PrintStream(outputStream, true)
+    def props = new Properties()
+    def dateTimeFormatter = SLCompatSettings.DTFormatter.create("yyyy-MM-dd HH:mm:ss z")
+    def settings = new SLCompatSettings(props, props, null, false, printStream, false,true,false, dateTimeFormatter, false, true, LogLevel.INFO, true)
+    def helper = new SLCompatHelper("foo", settings)
+    try {
+      throw new IOException("wrong")
+    } catch(Exception exception) {
+      helper.log(LogLevel.INFO, null, "log", exception)
+    }
+    expect:
+    outputStream.toString() ==~ /^\{"origin":"dd.trace","level":"INFO","logger.name":"foo","message":"log","exception":\{"message":"wrong","stackTrace":\[.*\]\}\}\n$/
   }
 }
