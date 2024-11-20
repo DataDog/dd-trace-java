@@ -22,13 +22,6 @@ abstract class GrizzlyAsyncHttpClientTest extends HttpClientTest {
   def client = new AsyncHttpClient()
 
   @Override
-  void configurePreAgent() {
-    super.configurePreAgent()
-
-    injectSysConfig("dd.integration.grizzly-client.enabled", "true")
-  }
-
-  @Override
   int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
 
     RequestBuilder requestBuilder = new RequestBuilder(method)

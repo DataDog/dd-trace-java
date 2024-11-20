@@ -7,13 +7,6 @@ import org.glassfish.grizzly.strategies.SimpleDynamicNIOStrategy
 abstract class GrizzlyIOStrategyTest extends GrizzlyTest {
 
   @Override
-  void configurePreAgent() {
-    super.configurePreAgent()
-
-    injectSysConfig("dd.integration.grizzly-http.enabled", "true")
-  }
-
-  @Override
   HttpServer server() {
     def server = super.server() as GrizzlyServer
     server.server.getListener("grizzly").getTransport().setIOStrategy(strategy())

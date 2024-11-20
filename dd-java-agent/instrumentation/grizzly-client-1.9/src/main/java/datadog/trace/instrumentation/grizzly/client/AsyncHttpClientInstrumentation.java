@@ -28,11 +28,6 @@ public final class AsyncHttpClientInstrumentation extends InstrumenterModule.Tra
   }
 
   @Override
-  protected boolean defaultEnabled() {
-    return false;
-  }
-
-  @Override
   public String instrumentedType() {
     return "com.ning.http.client.AsyncHttpClient";
   }

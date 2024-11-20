@@ -31,13 +31,6 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_B
 
 class GrizzlyTest extends HttpServerTest<HttpServer> {
 
-  @Override
-  void configurePreAgent() {
-    super.configurePreAgent()
-
-    injectSysConfig("dd.integration.grizzly.enabled", "true")
-  }
-
   static GrizzlyTest testInstance
 
   static void markHandlerRan(boolean value) {

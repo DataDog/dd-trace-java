@@ -22,11 +22,6 @@ public final class HttpCodecFilterInstrumentation extends InstrumenterModule.Tra
   }
 
   @Override
-  protected boolean defaultEnabled() {
-    return false;
-  }
-
-  @Override
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".GrizzlyDecorator",

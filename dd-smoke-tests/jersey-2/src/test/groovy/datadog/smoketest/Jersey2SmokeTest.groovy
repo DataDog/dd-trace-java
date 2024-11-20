@@ -17,7 +17,6 @@ class Jersey2SmokeTest extends AbstractJerseySmokeTest {
     command.add(javaPath())
     command.addAll(defaultJavaProperties)
     command.addAll(iastJvmOpts())
-    command.add(withSystemProperty('integration.grizzly.enabled', true))
     if (Platform.isJavaVersionAtLeast(17)) {
       command.addAll((String[]) ['--add-opens', 'java.base/java.lang=ALL-UNNAMED'])
     }

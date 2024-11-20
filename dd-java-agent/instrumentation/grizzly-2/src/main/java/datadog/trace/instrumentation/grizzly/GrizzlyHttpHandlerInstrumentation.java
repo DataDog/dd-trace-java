@@ -29,11 +29,6 @@ public class GrizzlyHttpHandlerInstrumentation extends InstrumenterModule.Tracin
   }
 
   @Override
-  public boolean defaultEnabled() {
-    return false;
-  }
-
-  @Override
   public String instrumentedType() {
     return "org.glassfish.grizzly.http.server.HttpHandler";
   }

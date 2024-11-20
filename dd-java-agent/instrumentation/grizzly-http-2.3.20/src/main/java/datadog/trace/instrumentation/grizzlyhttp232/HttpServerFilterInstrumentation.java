@@ -22,11 +22,6 @@ public class HttpServerFilterInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  protected boolean defaultEnabled() {
-    return false;
-  }
-
-  @Override
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".GrizzlyDecorator",

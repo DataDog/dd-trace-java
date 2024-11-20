@@ -36,11 +36,6 @@ public class DefaultFilterChainInstrumentation extends InstrumenterModule.Tracin
   }
 
   @Override
-  protected boolean defaultEnabled() {
-    return false;
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
