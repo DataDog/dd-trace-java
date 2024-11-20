@@ -13,7 +13,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
-import datadog.trace.util.Strings;
 
 /** Decorate Hazelcast client invocations with relevant contextual information. */
 public class ClientInvocationDecorator extends ClientDecorator {
@@ -51,7 +50,7 @@ public class ClientInvocationDecorator extends ClientDecorator {
       long correlationId) {
 
     if (objectName != null) {
-      span.setResourceName(UTF8BytesString.create(Strings.join(" ", operationName, objectName)));
+      span.setResourceName(UTF8BytesString.create(String.join(" ", operationName, objectName)));
       span.setTag(HAZELCAST_NAME, objectName);
     } else {
       span.setResourceName(UTF8BytesString.create(operationName));
