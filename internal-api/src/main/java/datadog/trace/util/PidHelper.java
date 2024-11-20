@@ -91,7 +91,7 @@ public final class PidHelper {
                   return Collections.emptySet();
                 }
               });
-      if (p.waitFor(500, TimeUnit.MILLISECONDS)) {
+      if (p.waitFor(1200, TimeUnit.MILLISECONDS)) {
         if (p.exitValue() == 0) {
           return collecting.get();
         } else {
