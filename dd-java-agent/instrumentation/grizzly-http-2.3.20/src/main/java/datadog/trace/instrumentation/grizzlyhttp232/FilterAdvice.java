@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.grizzlyhttp232;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -15,7 +15,7 @@ public class FilterAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(
       @Advice.This BaseFilter it, @Advice.Argument(0) final FilterChainContext ctx) {
-    if (ctx.getAttributes().getAttribute(DD_SPAN_ATTRIBUTE) == null || activeScope() != null) {
+    if (ctx.getAttributes().getAttribute(DD_SPAN_ATTRIBUTE) == null || activeSpan() != null) {
       return null;
     }
     AgentScope scope =
