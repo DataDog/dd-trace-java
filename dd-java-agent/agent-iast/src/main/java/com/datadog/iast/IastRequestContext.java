@@ -15,8 +15,10 @@ import datadog.trace.api.iast.telemetry.IastMetricCollector;
 import datadog.trace.api.iast.telemetry.IastMetricCollector.HasMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import java.io.IOException;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -27,6 +29,7 @@ public class IastRequestContext implements IastContext, HasMetricCollector {
   private final VulnerabilityBatch vulnerabilityBatch;
   private final OverheadContext overheadContext;
   private TaintedObjects taintedObjects;
+  @Nullable private Consumer<IastContext> release;
   @Nullable private IastMetricCollector collector;
   @Nullable private volatile String strictTransportSecurity;
   @Nullable private volatile String xContentTypeOptions;
@@ -124,12 +127,20 @@ public class IastRequestContext implements IastContext, HasMetricCollector {
     this.taintedObjects = taintedObjects;
   }
 
+  @Override
+  public void close() throws IOException {
+    if (release != null) {
+      release.accept(this);
+      release = null;
+    }
+  }
+
   public static class Provider extends IastContext.Provider {
 
     // 16384 buckets: approx 64K
     static final int MAP_SIZE = TaintedMap.DEFAULT_CAPACITY;
 
-    final Queue<TaintedObjects> pool =
+    private final Queue<TaintedObjects> pool =
         new ArrayBlockingQueue<>(
             Math.max(
                 Config.get().getIastMaxConcurrentRequests(), DEFAULT_IAST_MAX_CONCURRENT_REQUESTS));
@@ -154,19 +165,28 @@ public class IastRequestContext implements IastContext, HasMetricCollector {
       if (taintedObjects == null) {
         taintedObjects = TaintedObjects.build(TaintedMap.build(MAP_SIZE));
       }
-      return new IastRequestContext(taintedObjects);
+      final IastRequestContext ctx = new IastRequestContext(taintedObjects);
+      ctx.release = this::releaseRequestContext;
+      return ctx;
     }
 
     @SuppressWarnings("unchecked")
     @Override
     public void releaseRequestContext(@Nonnull final IastContext context) {
-      final TaintedObjects taintedObjects = context.getTaintedObjects();
+      final IastRequestContext iastCtx = (IastRequestContext) context;
+
+      // reset tainted objects map
+      final TaintedObjects taintedObjects = iastCtx.getTaintedObjects();
       taintedObjects.clear();
-      // add the root instance to the pool
-      if (taintedObjects instanceof Wrapper) {
-        pool.offer(((Wrapper<TaintedObjects>) taintedObjects).unwrap());
-      } else {
-        pool.offer(taintedObjects);
+
+      // return to pool and update internal ref
+      final TaintedObjects unwrapped =
+          taintedObjects instanceof Wrapper
+              ? ((Wrapper<TaintedObjects>) taintedObjects).unwrap()
+              : taintedObjects;
+      if (unwrapped != TaintedObjects.NoOp.INSTANCE) {
+        pool.offer(unwrapped);
+        iastCtx.setTaintedObjects(TaintedObjects.NoOp.INSTANCE);
       }
     }
   }

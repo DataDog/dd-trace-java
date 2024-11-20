@@ -2,6 +2,7 @@ package com.datadog.iast
 
 import com.datadog.iast.model.Range
 import com.datadog.iast.taint.TaintedObjects
+import datadog.trace.api.Config
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
@@ -53,6 +54,15 @@ class IastRequestContextTest extends DDSpecification {
 
     then:
     1 * tracer.activeSpan() >> span
+    1 * span.getRequestContext() >> null
+    resolved == null
+
+    when:
+    resolved = provider.resolve()
+
+    then:
+    1 * tracer.activeSpan() >> span
+    1 * span.getRequestContext() >> reqCtx
     resolved === initialCtx
   }
 
@@ -72,5 +82,42 @@ class IastRequestContextTest extends DDSpecification {
     then:
     to.count() == 0
     provider.pool.size() == 1
+
+    when:
+    final maxPoolSize = Config.get().getIastMaxConcurrentRequests()
+    final list = (1..2 * maxPoolSize).collect {
+      provider.buildRequestContext()
+    }
+
+    then:
+    provider.pool.size() == 0
+
+    when:
+    list.each { provider.releaseRequestContext(it) }
+
+    then:
+    provider.pool.size() == maxPoolSize
+  }
+
+  void 'ensure that the context releases all tainted objects on close'() {
+    setup:
+    final ctx = provider.buildRequestContext() as IastRequestContext
+
+    when:
+    ctx.withCloseable {
+      it.taintedObjects.taint(UUID.randomUUID(), [] as Range[])
+    }
+
+    then:
+    ctx.taintedObjects.count() == 0
+
+    when:
+    ctx.withCloseable {
+      it.taintedObjects.taint(UUID.randomUUID(), [] as Range[])
+      assert it.taintedObjects.count() == 0
+    }
+
+    then:
+    ctx.taintedObjects.count() == 0
   }
 }
