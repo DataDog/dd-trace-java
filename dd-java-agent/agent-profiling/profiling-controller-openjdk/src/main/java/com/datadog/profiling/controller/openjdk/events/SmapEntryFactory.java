@@ -326,7 +326,6 @@ public class SmapEntryFactory {
               // Original event did not include protection key attribute, so skipping for now
               encounteredForeignKeys = true;
             } else {
-              System.out.println("ATTR: " + attributeName);
               switch (attributeName) {
                 case "Size":
                   size = Long.decode(buffer.toString()) * 1024;
