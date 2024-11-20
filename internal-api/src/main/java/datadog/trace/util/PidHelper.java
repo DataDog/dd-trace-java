@@ -75,23 +75,22 @@ public final class PidHelper {
       // start draining the subcommand's pipes asynchronously to avoid flooding them
       CompletableFuture<Set<String>> collecting =
           CompletableFuture.supplyAsync(
-              (Supplier<Set<String>>)
-                  () -> {
-                    try (BufferedReader br =
-                        new BufferedReader(new InputStreamReader(p.getInputStream()))) {
-                      return br.lines()
-                          .filter(l -> !l.contains("jps"))
-                          .map(
-                              l -> {
-                                int idx = l.indexOf(' ');
-                                return l.substring(0, idx);
-                              })
-                          .collect(java.util.stream.Collectors.toSet());
-                    } catch (IOException e) {
-                      log.debug("Unable to list java processes via 'jps'", e);
-                      return Collections.emptySet();
-                    }
-                  });
+              () -> {
+                try (BufferedReader br =
+                    new BufferedReader(new InputStreamReader(p.getInputStream()))) {
+                  return br.lines()
+                      .filter(l -> !l.contains("jps"))
+                      .map(
+                          l -> {
+                            int idx = l.indexOf(' ');
+                            return l.substring(0, idx);
+                          })
+                      .collect(java.util.stream.Collectors.toSet());
+                } catch (IOException e) {
+                  log.debug("Unable to list java processes via 'jps'", e);
+                  return Collections.emptySet();
+                }
+              });
       if (p.waitFor(500, TimeUnit.MILLISECONDS)) {
         if (p.exitValue() == 0) {
           return collecting.get();
@@ -99,6 +98,7 @@ public final class PidHelper {
           log.debug("Execution of 'jps' failed with exit code {}", p.exitValue());
         }
       } else {
+        p.destroyForcibly();
         log.debug("Execution of 'jps' timed out");
       }
     } catch (Exception e) {
