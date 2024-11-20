@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.FileVisitor;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -31,6 +32,33 @@ public final class TempLocationManager {
     private static final TempLocationManager INSTANCE = new TempLocationManager();
   }
 
+  interface CleanupHook extends FileVisitor<Path> {
+    CleanupHook EMPTY = new CleanupHook() {};
+
+    @Override
+    default FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
+        throws IOException {
+      return null;
+    }
+
+    @Override
+    default FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+      return null;
+    }
+
+    @Override
+    default FileVisitResult visitFileFailed(Path file, IOException exc) throws IOException {
+      return null;
+    }
+
+    @Override
+    default FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+      return null;
+    }
+
+    default void onCleanupStart() {}
+  }
+
   private class CleanupVisitor implements FileVisitor<Path> {
     private boolean shouldClean;
 
@@ -47,6 +75,8 @@ public final class TempLocationManager {
     @Override
     public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
         throws IOException {
+      cleanupTestHook.preVisitDirectory(dir, attrs);
+
       if (dir.equals(baseTempDir)) {
         return FileVisitResult.CONTINUE;
       }
@@ -63,16 +93,23 @@ public final class TempLocationManager {
 
     @Override
     public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-      if (Files.getLastModifiedTime(file).toInstant().isAfter(cutoff)) {
-        return FileVisitResult.SKIP_SUBTREE;
+      cleanupTestHook.visitFile(file, attrs);
+      try {
+        if (Files.getLastModifiedTime(file).toInstant().isAfter(cutoff)) {
+          return FileVisitResult.SKIP_SUBTREE;
+        }
+        Files.delete(file);
+      } catch (NoSuchFileException ignored) {
+        // another process has already cleaned it; ignore
       }
-      Files.delete(file);
       return FileVisitResult.CONTINUE;
     }
 
     @Override
     public FileVisitResult visitFileFailed(Path file, IOException exc) throws IOException {
-      if (log.isDebugEnabled()) {
+      cleanupTestHook.visitFileFailed(file, exc);
+      // do not log files/directories removed by another process running concurrently
+      if (!(exc instanceof NoSuchFileException) && log.isDebugEnabled()) {
         log.debug("Failed to delete file {}", file, exc);
       }
       return FileVisitResult.CONTINUE;
@@ -80,8 +117,16 @@ public final class TempLocationManager {
 
     @Override
     public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+      cleanupTestHook.postVisitDirectory(dir, exc);
+      if (exc instanceof NoSuchFileException) {
+        return FileVisitResult.CONTINUE;
+      }
       if (shouldClean) {
-        Files.delete(dir);
+        try {
+          Files.delete(dir);
+        } catch (NoSuchFileException ignored) {
+          // another process has already cleaned it; ignore
+        }
         String fileName = dir.getFileName().toString();
         // reset the flag only if we are done cleaning the top-level directory
         shouldClean = !fileName.startsWith("pid_");
@@ -95,6 +140,8 @@ public final class TempLocationManager {
   private final long cutoffSeconds;
 
   private final CompletableFuture<Void> cleanupTask;
+
+  private final CleanupHook cleanupTestHook;
 
   /**
    * Get the singleton instance of the TempLocationManager. It will run the cleanup task in the
@@ -125,6 +172,12 @@ public final class TempLocationManager {
   }
 
   TempLocationManager(ConfigProvider configProvider) {
+    this(configProvider, CleanupHook.EMPTY);
+  }
+
+  TempLocationManager(ConfigProvider configProvider, CleanupHook testHook) {
+    cleanupTestHook = testHook;
+
     // In order to avoid racy attempts to clean up files which are currently being processed in a
     // JVM which is being shut down (the JVMs far in the shutdown routine may not be reported by
     // 'jps' but still can be eg. processing JFR chunks) we will not clean up any files not older
@@ -222,6 +275,7 @@ public final class TempLocationManager {
 
   void cleanup(boolean cleanSelf) {
     try {
+      cleanupTestHook.onCleanupStart();
       Files.walkFileTree(baseTempDir, new CleanupVisitor(cleanSelf));
     } catch (IOException e) {
       if (log.isDebugEnabled()) {
@@ -232,7 +286,8 @@ public final class TempLocationManager {
     }
   }
 
-  private void waitForCleanup() {
+  // accessible for tests
+  void waitForCleanup() {
     cleanupTask.join();
   }
 }

@@ -5,12 +5,16 @@ import static org.junit.jupiter.api.Assertions.*;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.util.PidHelper;
+import java.io.IOException;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Properties;
 import java.util.UUID;
+import java.util.concurrent.Phaser;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -104,5 +108,84 @@ public class TempLocationManagerTest {
     // real temp location should be kept
     assertFalse(Files.exists(fakeTempDir));
     assertTrue(Files.exists(tempDir));
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"preVisitDirectory", "visitFile", "postVisitDirectory"})
+  void testConcurrentCleanup(String section) throws Exception {
+    /* This test simulates concurrent cleanup
+      It utilizes a special hook to create synchronization points in the filetree walking routine,
+      allowing to delete the files at various points of execution.
+      The test makes sure that the cleanup is not interrupted and the file and directory being deleted
+      stays deleted.
+    */
+    Path baseDir =
+        Files.createTempDirectory(
+            "ddprof-test-",
+            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
+
+    Path fakeTempDir = baseDir.resolve("ddprof/pid_1234/scratch");
+    Files.createDirectories(fakeTempDir);
+    Path fakeTempFile = fakeTempDir.resolve("libxxx.so");
+    Files.createFile(fakeTempFile);
+
+    fakeTempDir.toFile().deleteOnExit();
+    fakeTempFile.toFile().deleteOnExit();
+
+    Phaser phaser = new Phaser(2);
+
+    TempLocationManager.CleanupHook blocker =
+        new TempLocationManager.CleanupHook() {
+          @Override
+          public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
+              throws IOException {
+            if (section.equals("preVisitDirectory") && dir.equals(fakeTempDir)) {
+              phaser.arriveAndAwaitAdvance();
+              phaser.arriveAndAwaitAdvance();
+            }
+            return null;
+          }
+
+          @Override
+          public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
+              throws IOException {
+            if (section.equals("visitFile") && file.equals(fakeTempFile)) {
+              phaser.arriveAndAwaitAdvance();
+              phaser.arriveAndAwaitAdvance();
+            }
+            return null;
+          }
+
+          @Override
+          public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+            if (section.equals("postVisitDirectory") && dir.equals(fakeTempDir)) {
+              phaser.arriveAndAwaitAdvance();
+              phaser.arriveAndAwaitAdvance();
+            }
+            return null;
+          }
+        };
+
+    TempLocationManager mgr = instance(baseDir, blocker);
+
+    // wait for the cleanup start
+    phaser.arriveAndAwaitAdvance();
+    Files.deleteIfExists(fakeTempFile);
+    phaser.arriveAndAwaitAdvance();
+    mgr.waitForCleanup();
+
+    assertFalse(Files.exists(fakeTempFile));
+    assertFalse(Files.exists(fakeTempDir));
+  }
+
+  private TempLocationManager instance(Path baseDir, TempLocationManager.CleanupHook cleanupHook)
+      throws IOException {
+    Properties props = new Properties();
+    props.put(ProfilingConfig.PROFILING_TEMP_DIR, baseDir.toString());
+    props.put(
+        ProfilingConfig.PROFILING_UPLOAD_PERIOD,
+        "0"); // to force immediate cleanup; must be a string value!
+
+    return new TempLocationManager(ConfigProvider.withPropertiesOverride(props), cleanupHook);
   }
 }
