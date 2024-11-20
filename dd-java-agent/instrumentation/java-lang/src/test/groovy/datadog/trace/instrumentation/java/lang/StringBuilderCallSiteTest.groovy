@@ -57,7 +57,7 @@ class StringBuilderCallSiteTest extends AgentTestRunner {
     if (param.class == String) {
       1 * iastModule.onStringBuilderAppend(target, (String) param)
     } else {
-      1 * iastModule.onStringBuilderAppend(target, { it -> it.toString() == param.toString() } )
+      1 * iastModule.onStringBuilderAppend(target, { it -> it.toString() == param.toString() })
     }
     _ * TEST_PROFILING_CONTEXT_INTEGRATION._
     0 * _
@@ -174,6 +174,42 @@ class StringBuilderCallSiteTest extends AgentTestRunner {
     ex.stackTrace.find { it.className == StringBuilderCallSite.name } == null
   }
 
+  def 'test string builder substring call site'() {
+    setup:
+    final iastModule = Mock(StringModule)
+    InstrumentationBridge.registerIastModule(iastModule)
+
+    when:
+    final result = TestStringBuilderSuite.substring(param, beginIndex)
+
+    then:
+    result == expected
+    1 * iastModule.onStringSubSequence(param, beginIndex, param.length(), expected)
+    0 * _
+
+    where:
+    param        | beginIndex | expected
+    sb('012345') | 1          | '12345'
+  }
+
+  def 'test string builder substring with endIndex call site'() {
+    setup:
+    final iastModule = Mock(StringModule)
+    InstrumentationBridge.registerIastModule(iastModule)
+
+    when:
+    final result = TestStringBuilderSuite.substring(param, beginIndex, endIndex)
+
+    then:
+    result == expected
+    1 * iastModule.onStringSubSequence(param, beginIndex, endIndex, expected)
+    0 * _
+
+    where:
+    param        | beginIndex | endIndex | expected
+    sb('012345') | 1          | 5        | '1234'
+  }
+
   private static class BrokenToString {
     @Override
     String toString() {
@@ -185,5 +221,13 @@ class StringBuilderCallSiteTest extends AgentTestRunner {
     NuclearException(final String message) {
       super(message)
     }
+  }
+
+  private static StringBuilder sb() {
+    return sb('')
+  }
+
+  private static StringBuilder sb(final String string) {
+    return new StringBuilder(string)
   }
 }
