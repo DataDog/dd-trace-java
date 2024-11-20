@@ -702,6 +702,44 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     'GET'  | null | 'x-datadog-test-request-header'  | 'bar' | [ 'request_header_tag': 'bar' ]
   }
 
+  def "test response header tag mapping"() {
+    setup:
+    assumeTrue(testResponseHeadersMapping() && testEncodedQuery())
+    def endpoint = QUERY_ENCODED_BOTH
+    def method = 'GET'
+    def body = null
+    def header = 'response_header_tag'
+    def mapping = 'mapped_response_header_tag'
+    def tags = ['mapped_response_header_tag': 'response_header_value' ]
+    def more_tags = ['mapped_response_header_tag': "another_response_header_value" ]
+
+    injectSysConfig(HTTP_SERVER_TAG_QUERY_STRING, "true")
+    injectSysConfig(RESPONSE_HEADER_TAGS, "$header:$mapping")
+    def request = request(endpoint, method, body)
+    .build()
+    def response = client.newCall(request).execute()
+
+    expect:
+    response.code() == endpoint.status
+    response.body().string() == endpoint.body
+
+    and:
+    assertTraces(1) {
+      trace(spanCount(endpoint)) {
+        sortSpansByStart()
+        serverSpan(it, null, null, method, endpoint, tags)
+        serverSpan(it, null, null, method, endpoint, more_tags) // ...
+        if (hasHandlerSpan()) {
+          handlerSpan(it, endpoint)
+        }
+        controllerSpan(it)
+        if (hasResponseSpan(endpoint)) {
+          responseSpan(it, endpoint)
+        }
+      }
+    }
+  }
+
   @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/4690", suites = ["MuleHttpServerForkedTest"])
   def "test QUERY_ENCODED_BOTH with response header x-ig-response-header tag mapping"() {
     setup:
