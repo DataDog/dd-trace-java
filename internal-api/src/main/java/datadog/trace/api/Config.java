@@ -681,6 +681,8 @@ public class Config {
 
     if (agentHostFromEnvironment == null) {
       agentHost = DEFAULT_AGENT_HOST;
+    } else if (agentHostFromEnvironment.charAt(0) == '[') {
+      agentHost = agentHostFromEnvironment.substring(1, agentHostFromEnvironment.length()-2);
     } else {
       agentHost = agentHostFromEnvironment;
     }
@@ -691,11 +693,16 @@ public class Config {
       agentPort = agentPortFromEnvironment;
     }
 
-    if (rebuildAgentUrl) {
-      agentUrl = "http://" + agentHost + ":" + agentPort;
+    if (rebuildAgentUrl) { //check if agenthost contains ':'
+      if (agentHost.indexOf(':') != -1) { //Checking to see whether host address is IPv6 vs IPv4
+        agentUrl = "http://[" + agentHost + "]:" + agentPort;
+      } else {
+        agentUrl = "http://" + agentHost + ":" + agentPort;
+      }
     } else {
       agentUrl = agentUrlFromEnvironment;
     }
+
 
     if (unixSocketFromEnvironment == null) {
       unixSocketFromEnvironment = configProvider.getString(AGENT_UNIX_DOMAIN_SOCKET);
@@ -1203,7 +1210,7 @@ public class Config {
     telemetryMetricsInterval = telemetryInterval;
 
     telemetryMetricsEnabled =
-        configProvider.getBoolean(GeneralConfig.TELEMETRY_METRICS_ENABLED, true);
+        configProvider.getBoolean(TELEMETRY_METRICS_ENABLED, true);
 
     isTelemetryLogCollectionEnabled =
         instrumenterConfig.isTelemetryEnabled()
@@ -1686,16 +1693,16 @@ public class Config {
 
     boolean longRunningEnabled =
         configProvider.getBoolean(
-            TracerConfig.TRACE_LONG_RUNNING_ENABLED,
-            ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_ENABLED);
+            TRACE_LONG_RUNNING_ENABLED,
+            DEFAULT_TRACE_LONG_RUNNING_ENABLED);
     long longRunningTraceInitialFlushInterval =
         configProvider.getLong(
-            TracerConfig.TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL,
+            TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL,
             DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL);
     long longRunningTraceFlushInterval =
         configProvider.getLong(
-            TracerConfig.TRACE_LONG_RUNNING_FLUSH_INTERVAL,
-            ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL);
+            TRACE_LONG_RUNNING_FLUSH_INTERVAL,
+            DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL);
 
     if (longRunningEnabled
         && (longRunningTraceInitialFlushInterval < 10
@@ -1722,22 +1729,22 @@ public class Config {
 
     this.sparkTaskHistogramEnabled =
         configProvider.getBoolean(
-            SPARK_TASK_HISTOGRAM_ENABLED, ConfigDefaults.DEFAULT_SPARK_TASK_HISTOGRAM_ENABLED);
+            SPARK_TASK_HISTOGRAM_ENABLED, DEFAULT_SPARK_TASK_HISTOGRAM_ENABLED);
 
     this.sparkAppNameAsService =
         configProvider.getBoolean(
-            SPARK_APP_NAME_AS_SERVICE, ConfigDefaults.DEFAULT_SPARK_APP_NAME_AS_SERVICE);
+            SPARK_APP_NAME_AS_SERVICE, DEFAULT_SPARK_APP_NAME_AS_SERVICE);
 
     this.jaxRsExceptionAsErrorsEnabled =
         configProvider.getBoolean(
             JAX_RS_EXCEPTION_AS_ERROR_ENABLED,
-            ConfigDefaults.DEFAULT_JAX_RS_EXCEPTION_AS_ERROR_ENABLED);
+            DEFAULT_JAX_RS_EXCEPTION_AS_ERROR_ENABLED);
 
     axisPromoteResourceName = configProvider.getBoolean(AXIS_PROMOTE_RESOURCE_NAME, false);
 
     this.traceFlushIntervalSeconds =
         configProvider.getFloat(
-            TracerConfig.TRACE_FLUSH_INTERVAL, ConfigDefaults.DEFAULT_TRACE_FLUSH_INTERVAL);
+            TRACE_FLUSH_INTERVAL, DEFAULT_TRACE_FLUSH_INTERVAL);
     if (profilingAgentless && apiKey == null) {
       log.warn(
           "Agentless profiling activated but no api key provided. Profile uploading will likely fail");
@@ -1745,7 +1752,7 @@ public class Config {
 
     this.tracePostProcessingTimeout =
         configProvider.getLong(
-            TRACE_POST_PROCESSING_TIMEOUT, ConfigDefaults.DEFAULT_TRACE_POST_PROCESSING_TIMEOUT);
+            TRACE_POST_PROCESSING_TIMEOUT, DEFAULT_TRACE_POST_PROCESSING_TIMEOUT);
 
     if (isCiVisibilityEnabled()
         && ciVisibilityAgentlessEnabled
@@ -1757,36 +1764,36 @@ public class Config {
 
     this.telemetryDebugRequestsEnabled =
         configProvider.getBoolean(
-            GeneralConfig.TELEMETRY_DEBUG_REQUESTS_ENABLED,
-            ConfigDefaults.DEFAULT_TELEMETRY_DEBUG_REQUESTS_ENABLED);
+            TELEMETRY_DEBUG_REQUESTS_ENABLED,
+            DEFAULT_TELEMETRY_DEBUG_REQUESTS_ENABLED);
 
     this.agentlessLogSubmissionEnabled =
-        configProvider.getBoolean(GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED, false);
+        configProvider.getBoolean(AGENTLESS_LOG_SUBMISSION_ENABLED, false);
     this.agentlessLogSubmissionQueueSize =
-        configProvider.getInteger(GeneralConfig.AGENTLESS_LOG_SUBMISSION_QUEUE_SIZE, 1024);
+        configProvider.getInteger(AGENTLESS_LOG_SUBMISSION_QUEUE_SIZE, 1024);
     this.agentlessLogSubmissionLevel =
-        configProvider.getString(GeneralConfig.AGENTLESS_LOG_SUBMISSION_LEVEL, "INFO");
+        configProvider.getString(AGENTLESS_LOG_SUBMISSION_LEVEL, "INFO");
     this.agentlessLogSubmissionUrl =
-        configProvider.getString(GeneralConfig.AGENTLESS_LOG_SUBMISSION_URL);
+        configProvider.getString(AGENTLESS_LOG_SUBMISSION_URL);
     this.agentlessLogSubmissionProduct = isCiVisibilityEnabled() ? "citest" : "apm";
 
     this.cloudPayloadTaggingServices =
         configProvider.getSet(
-            TracerConfig.TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES,
-            ConfigDefaults.DEFAULT_TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES);
+            TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES,
+            DEFAULT_TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES);
     this.cloudRequestPayloadTagging =
-        configProvider.getList(TracerConfig.TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING, null);
+        configProvider.getList(TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING, null);
     this.cloudResponsePayloadTagging =
-        configProvider.getList(TracerConfig.TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING, null);
+        configProvider.getList(TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING, null);
     this.cloudPayloadTaggingMaxDepth =
-        configProvider.getInteger(TracerConfig.TRACE_CLOUD_PAYLOAD_TAGGING_MAX_DEPTH, 10);
+        configProvider.getInteger(TRACE_CLOUD_PAYLOAD_TAGGING_MAX_DEPTH, 10);
     this.cloudPayloadTaggingMaxTags =
-        configProvider.getInteger(TracerConfig.TRACE_CLOUD_PAYLOAD_TAGGING_MAX_TAGS, 758);
+        configProvider.getInteger(TRACE_CLOUD_PAYLOAD_TAGGING_MAX_TAGS, 758);
 
     timelineEventsEnabled =
         configProvider.getBoolean(
-            ProfilingConfig.PROFILING_TIMELINE_EVENTS_ENABLED,
-            ProfilingConfig.PROFILING_TIMELINE_EVENTS_ENABLED_DEFAULT);
+            PROFILING_TIMELINE_EVENTS_ENABLED,
+            PROFILING_TIMELINE_EVENTS_ENABLED_DEFAULT);
 
     if (appSecScaEnabled != null
         && appSecScaEnabled
@@ -3717,7 +3724,7 @@ public class Config {
   }
 
   public boolean isSamplingMechanismValidationDisabled() {
-    return configProvider.getBoolean(TracerConfig.SAMPLING_MECHANISM_VALIDATION_DISABLED, false);
+    return configProvider.getBoolean(SAMPLING_MECHANISM_VALIDATION_DISABLED, false);
   }
 
   public <T extends Enum<T>> T getEnumValue(

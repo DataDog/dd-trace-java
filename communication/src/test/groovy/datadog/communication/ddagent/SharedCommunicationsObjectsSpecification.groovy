@@ -1,23 +1,37 @@
 package datadog.communication.ddagent
 
+import com.squareup.moshi.JsonAdapter
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.Types
 import datadog.communication.monitor.Monitoring
 import datadog.trace.api.Config
+import datadog.trace.api.IdGenerationStrategy
 import datadog.trace.test.util.DDSpecification
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
+import okhttp3.Request
+import spock.lang.AutoCleanup
+import spock.lang.Shared
+
+import java.lang.reflect.Type
+
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT
+import static datadog.trace.api.config.TracerConfig.AGENT_HOST
 
 class SharedCommunicationsObjectsSpecification extends DDSpecification {
   SharedCommunicationObjects sco = new SharedCommunicationObjects()
 
   void 'nothing populated'() {
     given:
-    Config config = Mock()
+    injectSysConfig(AGENT_HOST, "2600:1f18:19c0:bd07:d55b::17")
+    Config config = Config.get()
+//    Config config = Mock()
 
     when:
     sco.createRemaining(config)
 
     then:
-    1 * config.agentUrl >> 'http://example.com/'
+    1 * config.agentUrl >> "http://[2600:1f18:19c0:bd07:d55b::17]:8126"
     1 * config.agentNamedPipe >> null
     1 * config.agentTimeout >> 1
     1 * config.agentUnixDomainSocket >> null
