@@ -151,6 +151,16 @@ public final class TracerConfig {
 
   public static final String TRACE_DUBBO_PROVIDER_PROPAGATE_ENABLED =
       "trace.dubbo.provider.propagate.enabled";
+  public static final String TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES =
+      "trace.cloud.payload.tagging.services";
+  public static final String TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING =
+      "trace.cloud.request.payload.tagging";
+  public static final String TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING =
+      "trace.cloud.response.payload.tagging";
+  public static final String TRACE_CLOUD_PAYLOAD_TAGGING_MAX_DEPTH =
+      "trace.cloud.payload.tagging.max-depth";
+  public static final String TRACE_CLOUD_PAYLOAD_TAGGING_MAX_TAGS =
+      "trace.cloud.payload.tagging.max-tags";
 
   private TracerConfig() {}
 }

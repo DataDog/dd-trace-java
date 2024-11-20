@@ -2,6 +2,7 @@ package datadog.trace.civisibility.domain;
 
 import static datadog.trace.api.civisibility.CIConstants.CI_VISIBILITY_INSTRUMENTATION_NAME;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.util.Strings.toJson;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.DDTestSuite;
@@ -22,6 +23,7 @@ import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.source.SourceResolutionException;
 import datadog.trace.civisibility.utils.SpanUtils;
 import java.lang.reflect.Method;
+import java.util.Collection;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -113,7 +115,7 @@ public class TestSuiteImpl implements DDTestSuite {
     this.testClass = testClass;
 
     if (config.isCiVisibilitySourceDataEnabled()) {
-      populateSourceDataTags(testClass, sourcePathResolver);
+      populateSourceDataTags(span, testClass, sourcePathResolver, codeowners);
     }
 
     testDecorator.afterStart(span);
@@ -130,17 +132,31 @@ public class TestSuiteImpl implements DDTestSuite {
     }
   }
 
-  private void populateSourceDataTags(Class<?> testClass, SourcePathResolver sourcePathResolver) {
-    if (this.testClass == null) {
+  private void populateSourceDataTags(
+      AgentSpan span,
+      Class<?> testClass,
+      SourcePathResolver sourcePathResolver,
+      Codeowners codeowners) {
+    if (testClass == null) {
       return;
     }
+
+    String sourcePath;
     try {
-      String sourcePath = sourcePathResolver.getSourcePath(testClass);
-      if (sourcePath != null && !sourcePath.isEmpty()) {
-        span.setTag(Tags.TEST_SOURCE_FILE, sourcePath);
+      sourcePath = sourcePathResolver.getSourcePath(testClass);
+      if (sourcePath == null || sourcePath.isEmpty()) {
+        return;
       }
     } catch (SourceResolutionException e) {
       log.debug("Could not populate source path for {}", testClass, e);
+      return;
+    }
+
+    span.setTag(Tags.TEST_SOURCE_FILE, sourcePath);
+
+    Collection<String> testCodeOwners = codeowners.getOwners(sourcePath);
+    if (testCodeOwners != null) {
+      span.setTag(Tags.TEST_CODEOWNERS, toJson(testCodeOwners));
     }
   }
 

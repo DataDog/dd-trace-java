@@ -147,13 +147,17 @@ public class StringTokenWriter implements SerializerWithLimits.TokenWriter {
 
   @Override
   public void handleFieldException(Exception ex, Field field) {
+    fieldNotCaptured("Cannot extract field: " + ex.toString(), field);
+  }
+
+  @Override
+  public void fieldNotCaptured(String reason, Field field) {
     if (!initial) {
       sb.append(", ");
     }
     initial = false;
-    String fieldName = field.getName();
-    sb.append(fieldName).append('=').append(Value.undefinedValue());
-    evalErrors.add(new EvaluationError(fieldName, "Cannot extract field: " + ex.toString()));
+    sb.append(field.getName()).append('=').append(Value.undefinedValue());
+    evalErrors.add(new EvaluationError(field.getName(), reason));
   }
 
   @Override

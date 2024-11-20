@@ -1,5 +1,10 @@
 package datadog.trace.instrumentation.spark;
 
+import static datadog.trace.core.datastreams.TagsProcessor.CONSUMER_GROUP_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.PARTITION_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import datadog.trace.api.Config;
@@ -23,6 +28,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -58,6 +65,7 @@ import scala.collection.JavaConverters;
  */
 public abstract class AbstractDatadogSparkListener extends SparkListener {
   private static final Logger log = LoggerFactory.getLogger(AbstractDatadogSparkListener.class);
+  private static final ObjectMapper objectMapper = new ObjectMapper();
   public static volatile AbstractDatadogSparkListener listener = null;
   public static volatile boolean finishTraceOnApplicationEnd = true;
   public static volatile boolean isPysparkShell = false;
@@ -889,6 +897,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
         batchSpan.setTag(prefix + "num_input_rows", source.numInputRows());
         batchSpan.setTag(prefix + "input_rows_per_second", source.inputRowsPerSecond());
         batchSpan.setTag(prefix + "processed_rows_per_second", source.processedRowsPerSecond());
+
+        reportKafkaOffsets(batchSpan.getServiceName(), batchSpan, source);
       }
 
       for (int i = 0; i < progress.stateOperators().length; i++) {
@@ -1182,6 +1192,49 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     return sparkAppName;
   }
 
+  private static void reportKafkaOffsets(
+      final String appName, final AgentSpan span, final SourceProgress progress) {
+    if (!span.traceConfig().isDataStreamsEnabled()
+        || progress == null
+        || progress.description() == null) {
+      return;
+    }
+
+    // check if this is a kafka source
+    if (progress.description().toLowerCase().startsWith("kafka")) {
+      try {
+        // parse offsets from endOffsets json, reported in a format:
+        // "topic" -> ["partition":value]
+        JsonNode jsonNode = objectMapper.readTree(progress.endOffset());
+        Iterator<String> topics = jsonNode.fieldNames();
+        // report offsets for all topics / partitions
+        while (topics.hasNext()) {
+          String topic = topics.next();
+          JsonNode topicNode = jsonNode.get(topic);
+          // iterate thought reported partitions
+          Iterator<String> allPartitions = topicNode.fieldNames();
+          // dsm tags
+          LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+          sortedTags.put(CONSUMER_GROUP_TAG, appName);
+          // will be overwritten
+          sortedTags.put(PARTITION_TAG, "");
+          sortedTags.put(TOPIC_TAG, topic);
+          sortedTags.put(TYPE_TAG, "kafka_commit");
+
+          while (allPartitions.hasNext()) {
+            String partition = allPartitions.next();
+            sortedTags.put(PARTITION_TAG, partition);
+            AgentTracer.get()
+                .getDataStreamsMonitoring()
+                .trackBacklog(sortedTags, topicNode.get(partition).asLong());
+          }
+        }
+      } catch (Throwable e) {
+        log.debug("Failed to parse kafka offsets", e);
+      }
+    }
+  }
+
   private static String getDatabricksRunName(SparkConf conf) {
     String allTags = conf.get("spark.databricks.clusterUsageTags.clusterAllTags", null);
     if (allTags == null) {
@@ -1191,7 +1244,6 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     try {
       // Using the jackson JSON lib used by spark
       // https://mvnrepository.com/artifact/org.apache.spark/spark-core_2.12/3.5.0
-      ObjectMapper objectMapper = new ObjectMapper();
       JsonNode jsonNode = objectMapper.readTree(allTags);
 
       for (JsonNode node : jsonNode) {

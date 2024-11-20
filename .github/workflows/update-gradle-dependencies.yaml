@@ -77,5 +77,5 @@ jobs:
             --base master \
             --head $BRANCH_NAME \
             --label "tag: dependencies" \
-            --label "tag: no release notes"
+            --label "tag: no release notes" \
             --body-file -

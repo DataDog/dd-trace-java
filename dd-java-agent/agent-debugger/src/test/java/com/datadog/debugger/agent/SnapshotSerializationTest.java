@@ -69,7 +69,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIf;
-import org.junit.jupiter.api.condition.EnabledOnJre;
+import org.junit.jupiter.api.condition.EnabledForJreRange;
 import org.junit.jupiter.api.condition.JRE;
 
 public class SnapshotSerializationTest {
@@ -103,7 +103,7 @@ public class SnapshotSerializationTest {
   }
 
   @Test
-  @EnabledOnJre(JRE.JAVA_17)
+  @EnabledForJreRange(min = JRE.JAVA_17)
   @DisabledIf("datadog.trace.api.Platform#isJ9")
   public void roundTripCapturedValue() throws IOException, URISyntaxException {
     JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
@@ -145,23 +145,17 @@ public class SnapshotSerializationTest {
     Map<String, CapturedContext.CapturedValue> notCapturedFields =
         (Map<String, CapturedContext.CapturedValue>) notCapturedLocal.getValue();
     CapturedContext.CapturedValue processLoadTicks = notCapturedFields.get("processLoadTicks");
-    Assertions.assertTrue(
-        processLoadTicks
-            .getNotCapturedReason()
-            .startsWith(
-                "java.lang.reflect.InaccessibleObjectException: Unable to make field private com.sun.management.internal.OperatingSystemImpl$ContainerCpuTicks com.sun.management.internal.OperatingSystemImpl.processLoadTicks accessible: module jdk.management does not \"opens com.sun.management.internal\" to unnamed module @"));
+    Assertions.assertEquals(
+        "Field is not accessible: module jdk.management does not opens/exports to the current module",
+        processLoadTicks.getNotCapturedReason());
     CapturedContext.CapturedValue systemLoadTicks = notCapturedFields.get("systemLoadTicks");
-    Assertions.assertTrue(
-        systemLoadTicks
-            .getNotCapturedReason()
-            .startsWith(
-                "java.lang.reflect.InaccessibleObjectException: Unable to make field private com.sun.management.internal.OperatingSystemImpl$ContainerCpuTicks com.sun.management.internal.OperatingSystemImpl.systemLoadTicks accessible: module jdk.management does not \"opens com.sun.management.internal\" to unnamed module @"));
+    Assertions.assertEquals(
+        "Field is not accessible: module jdk.management does not opens/exports to the current module",
+        systemLoadTicks.getNotCapturedReason());
     CapturedContext.CapturedValue containerMetrics = notCapturedFields.get("containerMetrics");
-    Assertions.assertTrue(
-        containerMetrics
-            .getNotCapturedReason()
-            .startsWith(
-                "java.lang.reflect.InaccessibleObjectException: Unable to make field private final jdk.internal.platform.Metrics com.sun.management.internal.OperatingSystemImpl.containerMetrics accessible: module jdk.management does not \"opens com.sun.management.internal\" to unnamed module @"));
+    Assertions.assertEquals(
+        "Field is not accessible: module jdk.management does not opens/exports to the current module",
+        containerMetrics.getNotCapturedReason());
   }
 
   @Test

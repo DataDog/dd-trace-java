@@ -14,6 +14,7 @@ import static io.opentelemetry.api.trace.StatusCode.UNSET;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
+import datadog.trace.bootstrap.instrumentation.api.WithAgentSpan;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.Span;
@@ -27,7 +28,7 @@ import java.util.concurrent.TimeUnit;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
-public class OtelSpan implements Span {
+public class OtelSpan implements Span, WithAgentSpan {
   private final AgentSpan delegate;
   private StatusCode statusCode;
   private boolean recording;
@@ -166,6 +167,11 @@ public class OtelSpan implements Span {
 
   public AgentSpan.Context getAgentSpanContext() {
     return this.delegate.context();
+  }
+
+  @Override
+  public AgentSpan asAgentSpan() {
+    return delegate;
   }
 
   private static class NoopSpan implements Span {

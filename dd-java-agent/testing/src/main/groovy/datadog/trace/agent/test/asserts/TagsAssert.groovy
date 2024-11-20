@@ -25,13 +25,16 @@ class TagsAssert {
 
   static void assertTags(DDSpan span,
     @ClosureParams(value = SimpleType, options = ['datadog.trace.agent.test.asserts.TagsAssert'])
-    @DelegatesTo(value = TagsAssert, strategy = Closure.DELEGATE_FIRST) Closure spec) {
+    @DelegatesTo(value = TagsAssert, strategy = Closure.DELEGATE_FIRST) Closure spec,
+    boolean checkAllTags = true) {
     def asserter = new TagsAssert(span)
     def clone = (Closure) spec.clone()
     clone.delegate = asserter
     clone.resolveStrategy = Closure.DELEGATE_FIRST
     clone(asserter)
-    asserter.assertTagsAllVerified()
+    if (checkAllTags) {
+      asserter.assertTagsAllVerified()
+    }
   }
 
   /**
@@ -39,7 +42,7 @@ class TagsAssert {
    * @param sourceTag the source to match
    */
   def peerServiceFrom(String sourceTag) {
-    tag(DDTags.PEER_SERVICE_SOURCE, { SpanNaming.instance().namingSchema().peerService().supports() ? it == sourceTag : it == null})
+    tag(DDTags.PEER_SERVICE_SOURCE, { SpanNaming.instance().namingSchema().peerService().supports() ? it == sourceTag : it == null })
   }
 
   def defaultTagsNoPeerService(boolean distributedRootSpan = false) {
@@ -129,6 +132,45 @@ class TagsAssert {
     if (message != null) {
       tag("error.message", message)
     }
+  }
+
+  def urlTags(String url, List<String> queryParams){
+    tag("http.url", {
+      URI uri = new URI(it.toString().split("\\?", 2)[0])
+      String scheme = uri.getScheme()
+      String host = uri.getHost()
+      int port = uri.getPort()
+      String path = uri.getPath()
+
+      String baseURL = scheme + "://" + host + ":" + port + path
+      return baseURL.equals(url)
+    })
+
+    tag("http.query.string", {
+      String paramString = it
+      System.out.println("it: " + it)
+      Set<String> spanQueryParams = new HashSet<String>()
+      if (paramString != null && !paramString.isEmpty()) {
+        String[] pairs = paramString.split("&")
+        for (String pair : pairs) {
+          int idx = pair.indexOf("=")
+          if (idx > 0) {
+            spanQueryParams.add(pair.substring(0, idx))
+          } else {
+            spanQueryParams.add(pair)
+          }
+        }
+        for(String param : queryParams){
+          if (!spanQueryParams.contains(param)){
+            System.out.println("param: " + param)
+            return false
+          }
+        }
+      } else if(queryParams != null && queryParams.size() > 0){ //if http.query.string is empty/null but we expect queryParams, return false
+        return false
+      }
+      return true
+    })
   }
 
   def tag(String name, expected) {

@@ -201,7 +201,7 @@ public abstract class BootstrapInitializationTelemetry {
 
     @Override
     public void send(JsonBuffer buffer) throws IOException {
-      ProcessBuilder builder = new ProcessBuilder(forwarderPath);
+      ProcessBuilder builder = new ProcessBuilder(forwarderPath, "library_entrypoint");
 
       Process process = builder.start();
       try (OutputStream out = process.getOutputStream()) {
@@ -209,7 +209,6 @@ public abstract class BootstrapInitializationTelemetry {
       }
 
       try {
-        //process.waitFor(1, TimeUnit.SECONDS);
         process.waitFor();
       } catch (InterruptedException e) {
         // just for hygiene, reset the interrupt status

@@ -5,6 +5,7 @@ import com.squareup.moshi.Types
 import datadog.trace.agent.test.base.WithHttpServer
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.instrumentation.aws.ExpectedQueryParams
 import okhttp3.HttpUrl
 import okhttp3.MediaType
 import okhttp3.Request
@@ -93,6 +94,7 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
     response.body().string() == "Hello Client."
     assertTraces(1) {
       trace(2) {
+        sortSpansByStart()
         span(0) {
           operationName operation()
           resourceName "GET /client-request"
@@ -178,9 +180,9 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
               "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
               "$Tags.HTTP_METHOD" "GET"
               "$Tags.HTTP_STATUS" 200
-              "$Tags.HTTP_URL" "${requestServer.address.resolve("/remote-pfe-request")}"
               "$Tags.PEER_HOSTNAME" "localhost"
               "$Tags.PEER_PORT" { true } // is this really the best way to ignore tags?
+              urlTags("${requestServer.address.resolve("/remote-pfe-request")}", ExpectedQueryParams.getExpectedQueryParams("Mule"))
               defaultTags()
             }
           }

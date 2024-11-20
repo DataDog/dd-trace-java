@@ -105,70 +105,91 @@ class ConfigurationApiImplTest extends Specification {
 
       prefix("/api/v2/ci/tests/skippable") {
         def requestJson = moshi.adapter(Map).fromJson(new String(request.body))
-        boolean expectedRequest = requestJson == [
-          "data": [
-            "type"      : "test_params",
-            "id"        : "1234",
-            "attributes": [
-              "service"       : "foo",
-              "env"           : "foo_env",
-              "repository_url": "https://github.com/DataDog/foo",
-              "branch"        : "prod",
-              "sha"           : "d64185e45d1722ab3a53c45be47accae",
-              "test_level"    : "test",
-              "configurations": [
-                "os.platform"         : "linux",
-                "os.architecture"     : "amd64",
-                "os.arch"             : "amd64",
-                "os.version"          : "bionic",
-                "runtime.name"        : "runtimeName",
-                "runtime.version"     : "runtimeVersion",
-                "runtime.vendor"      : "vendor",
-                "runtime.architecture": "amd64",
-                "custom"              : [
-                  "customTag": "customValue"
-                ]
-              ]
-            ]
-          ]
-        ]
+
+        // assert request contents
+        def requestData = requestJson['data']
+        if (requestData['type'] != "test_params"
+          || requestData['id'] != "1234"
+          ) {
+          response.status(400).send()
+          return
+        }
+
+        def requestAttrs = requestData['attributes']
+        if (requestAttrs['service'] != "foo"
+          || requestAttrs['env'] != "foo_env"
+          || requestAttrs['repository_url'] != "https://github.com/DataDog/foo"
+          || requestAttrs['branch'] != "prod"
+          || requestAttrs['sha'] != "d64185e45d1722ab3a53c45be47accae"
+          || requestAttrs['test_level'] != "test"
+          ) {
+          response.status(400).send()
+          return
+        }
+
+        def requestConfs = requestAttrs['configurations']
+        if (requestConfs['os.platform'] != "linux"
+          || requestConfs['os.architecture'] != "amd64"
+          || requestConfs['os.arch'] != "amd64"
+          || requestConfs['os.version'] != "bionic"
+          || requestConfs['runtime.name'] != "runtimeName"
+          || requestConfs['runtime.version'] != "runtimeVersion"
+          || requestConfs['runtime.vendor'] != "vendor"
+          || requestConfs['runtime.architecture'] != "amd64"
+          || requestConfs['custom']['customTag'] != "customValue"
+          ) {
+          response.status(400).send()
+          return
+        }
+
+        def moduleATest = """{
+          "id": "49968354e2091cdb",
+          "type": "test",
+          "attributes": {
+            "configurations": {
+              "test.bundle": "testBundle-a",
+              "custom": {
+                "customTag": "customValue"
+              }
+            },
+            "suite": "suite-a",
+            "name": "name-a",
+            "parameters": "parameters-a",
+            "_missing_line_code_coverage": true
+          }
+        }"""
+
+        def moduleBTest = """{
+          "id": "49968354e2091cdc",
+          "type": "test",
+          "attributes": {
+            "configurations": {
+              "test.bundle": "testBundle-b",
+              "custom": {
+                "customTag": "customValue"
+              }
+            },
+            "suite": "suite-b",
+            "name": "name-b",
+            "parameters": "parameters-b"
+          }
+        }"""
+
+        def testBundle = requestConfs['test.bundle']
+
+        def tests = []
+        if (!testBundle || testBundle == 'testBundle-a') {
+          tests << moduleATest
+        }
+        if (!testBundle || testBundle == 'testBundle-b') {
+          tests << moduleBTest
+        }
 
         def response = response
-        if (expectedRequest) {
-          def requestBody = """
+        def requestBody = """
 {
   "data": [
-    {
-      "id": "49968354e2091cdb",
-      "type": "test",
-      "attributes": {
-        "configurations": {
-          "test.bundle": "testBundle-a",
-          "custom": {
-            "customTag": "customValue"
-          }
-        },
-        "suite": "suite-a",
-        "name": "name-a",
-        "parameters": "parameters-a",
-        "_missing_line_code_coverage": true
-      }
-    },
-    {
-      "id": "49968354e2091cdc",
-      "type": "test",
-      "attributes": {
-        "configurations": {
-          "test.bundle": "testBundle-b",
-          "custom": {
-            "customTag": "customValue"
-          }
-        },
-        "suite": "suite-b",
-        "name": "name-b",
-        "parameters": "parameters-b"
-      }
-    }
+    ${tests.join(',')}
   ],
   "meta": {
     "correlation_id": "11223344",
@@ -181,17 +202,14 @@ class ConfigurationApiImplTest extends Specification {
 }
 """.bytes
 
-          def header = request.getHeader("Accept-Encoding")
-          def gzipSupported = header != null && header.contains("gzip")
-          if (gzipSupported) {
-            response.addHeader("Content-Encoding", "gzip")
-            requestBody = gzip(requestBody)
-          }
-
-          response.status(200).send(requestBody)
-        } else {
-          response.status(400).send()
+        def header = request.getHeader("Accept-Encoding")
+        def gzipSupported = header != null && header.contains("gzip")
+        if (gzipSupported) {
+          response.addHeader("Content-Encoding", "gzip")
+          requestBody = gzip(requestBody)
         }
+
+        response.status(200).send(requestBody)
       }
 
       prefix("/api/v2/ci/libraries/tests") {
@@ -338,6 +356,22 @@ class ConfigurationApiImplTest extends Specification {
     givenIntakeApi(true)  | "intake, compression enabled"
   }
 
+  def "test skippable tests request with module name"() {
+    given:
+    def tracerEnvironment = givenTracerEnvironment("testBundle-a")
+    def metricCollector = Stub(CiVisibilityMetricCollector)
+    def api = givenIntakeApi(false)
+
+    when:
+    def configurationApi = new ConfigurationApiImpl(api, metricCollector, () -> "1234")
+    def skippableTests = configurationApi.getSkippableTests(tracerEnvironment)
+
+    then:
+    skippableTests.identifiersByModule == [
+      "testBundle-a": [ new TestIdentifier("suite-a", "name-a", "parameters-a"): new TestMetadata(true), ]
+    ]
+  }
+
   private static BitSet bits(int... bits) {
     BitSet bitSet = new BitSet()
     for (int bit : bits) {
@@ -406,21 +440,22 @@ class ConfigurationApiImplTest extends Specification {
     return new IntakeApi(intakeUrl, apiKey, traceId, retryPolicyFactory, client, responseCompression)
   }
 
-  private static TracerEnvironment givenTracerEnvironment() {
+  private static TracerEnvironment givenTracerEnvironment(String testBundle = null) {
     return TracerEnvironment.builder()
-    .service("foo")
-    .env("foo_env")
-    .repositoryUrl("https://github.com/DataDog/foo")
-    .branch("prod")
-    .sha("d64185e45d1722ab3a53c45be47accae")
-    .osPlatform("linux")
-    .osArchitecture("amd64")
-    .osVersion("bionic")
-    .runtimeName("runtimeName")
-    .runtimeVersion("runtimeVersion")
-    .runtimeVendor("vendor")
-    .runtimeArchitecture("amd64")
-    .customTag("customTag", "customValue")
-    .build()
+      .service("foo")
+      .env("foo_env")
+      .repositoryUrl("https://github.com/DataDog/foo")
+      .branch("prod")
+      .sha("d64185e45d1722ab3a53c45be47accae")
+      .osPlatform("linux")
+      .osArchitecture("amd64")
+      .osVersion("bionic")
+      .runtimeName("runtimeName")
+      .runtimeVersion("runtimeVersion")
+      .runtimeVendor("vendor")
+      .runtimeArchitecture("amd64")
+      .customTag("customTag", "customValue")
+      .testBundle(testBundle)
+      .build()
   }
 }

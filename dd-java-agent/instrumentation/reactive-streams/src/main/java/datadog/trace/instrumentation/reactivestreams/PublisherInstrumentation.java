@@ -94,7 +94,7 @@ public class PublisherInstrumentation extends InstrumenterModule.Tracing
       final AgentSpan span =
           InstrumentationContext.get(Publisher.class, AgentSpan.class).remove(self);
       final AgentSpan activeSpan = activeSpan();
-      if (span == null && activeSpan == null) {
+      if (s == null || (span == null && activeSpan == null)) {
         return null;
       }
       final AgentSpan current =

@@ -8,11 +8,10 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 
 import com.datadog.debugger.agent.DebuggerAgent;
-import com.datadog.debugger.codeorigin.CodeOriginProbeManager;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.sink.Snapshot;
-import com.datadog.debugger.util.ClassNameFiltering;
 import datadog.trace.bootstrap.debugger.CapturedContext;
+import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeLocation;
@@ -31,24 +30,16 @@ public class CodeOriginProbe extends LogProbe implements ForceMethodInstrumentat
 
   private final boolean entrySpanProbe;
 
-  private final transient CodeOriginProbeManager probeManager;
-
-  public CodeOriginProbe(
-      ProbeId probeId, String signature, Where where, CodeOriginProbeManager probeManager) {
+  public CodeOriginProbe(ProbeId probeId, String signature, Where where) {
     super(LANGUAGE, probeId, null, where, MethodLocation.EXIT, null, null, true, null, null, null);
     this.signature = signature;
     this.entrySpanProbe = signature != null;
-    this.probeManager = probeManager;
   }
 
   @Override
   public boolean isLineProbe() {
     // these are always method probes even if there is a line number
     return false;
-  }
-
-  public boolean isEntrySpanProbe() {
-    return entrySpanProbe;
   }
 
   @Override
@@ -89,11 +80,6 @@ public class CodeOriginProbe extends LogProbe implements ForceMethodInstrumentat
 
   private void applySpanOriginTags(AgentSpan span, String snapshotId) {
     List<StackTraceElement> entries = getUserStackFrames();
-    recordStackFrames(span, entries, snapshotId);
-  }
-
-  private void recordStackFrames(
-      AgentSpan span, List<StackTraceElement> entries, String snapshotId) {
     List<AgentSpan> agentSpans =
         entrySpanProbe ? asList(span, span.getLocalRootSpan()) : singletonList(span);
 
@@ -114,6 +100,10 @@ public class CodeOriginProbe extends LogProbe implements ForceMethodInstrumentat
         }
       }
     }
+  }
+
+  public boolean entrySpanProbe() {
+    return entrySpanProbe;
   }
 
   /** look "back" to find exit spans that may have already come and gone */
@@ -139,20 +129,10 @@ public class CodeOriginProbe extends LogProbe implements ForceMethodInstrumentat
   }
 
   private List<StackTraceElement> getUserStackFrames() {
-    ClassNameFiltering classNameFiltering = probeManager.getClassNameFiltering();
-
     return StackWalkerFactory.INSTANCE.walk(
         stream ->
             stream
-                .filter(element -> !classNameFiltering.isExcluded(element.getClassName()))
+                .filter(element -> !DebuggerContext.isClassNameExcluded(element.getClassName()))
                 .collect(Collectors.toList()));
-  }
-
-  private static String toFileName(String className) {
-    // this has a number of issues including non-public top level classes and non-Java JVM
-    // languages it's here to fulfill the RFC requirement of a file name in the location.
-    // This part of the spec needs a little review to find consensus on how to handle this but
-    // until then this is here to fill that gap.
-    return className.replace('.', '/') + ".java";
   }
 }

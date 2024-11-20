@@ -6,6 +6,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URL;
 
 public class OkHttpClientDecorator extends HttpClientDecorator<Request, Response> {
   public static final CharSequence OKHTTP = UTF8BytesString.create("okhttp");
@@ -21,6 +22,11 @@ public class OkHttpClientDecorator extends HttpClientDecorator<Request, Response
   @Override
   protected URI url(Request request) throws URISyntaxException {
     return request.url().toURI();
+  }
+
+  @Override
+  protected URL sourceUrl(final Request request) {
+    return request.url();
   }
 
   @Override

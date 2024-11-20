@@ -223,12 +223,17 @@ public final class OpenJdkController implements Controller {
       }
     }
 
-    if (configProvider.getBoolean(
+    if (!configProvider.getBoolean(
         ProfilingConfig.PROFILING_SMAP_COLLECTION_ENABLED,
         ProfilingConfig.PROFILING_SMAP_COLLECTION_ENABLED_DEFAULT)) {
-      enableEvent(recordingSettings, "datadog.SmapEntry", "User enabled smaps collection");
-    } else {
       disableEvent(recordingSettings, "datadog.SmapEntry", "User disabled smaps collection");
+    } else if (!configProvider.getBoolean(
+        ProfilingConfig.PROFILING_SMAP_AGGREGATION_ENABLED,
+        ProfilingConfig.PROFILING_SMAP_AGGREGATION_ENABLED_DEFAULT)) {
+      disableEvent(
+          recordingSettings,
+          "datadog.AggregatedSmapEntry",
+          "User disabled aggregated smaps collection");
     }
 
     // Warn users for expensive events
@@ -260,6 +265,8 @@ public final class OpenJdkController implements Controller {
 
     // Register periodic events
     AvailableProcessorCoresEvent.register();
+
+    log.debug("JFR Recording Settings: {}", recordingSettings);
   }
 
   private static String getJfrRepositoryBase(ConfigProvider configProvider) {

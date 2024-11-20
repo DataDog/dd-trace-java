@@ -154,6 +154,18 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     hasMetric('_dd.iast.enabled', 1)
   }
 
+  void 'vulnerabilities have stacktrace'(){
+    setup:
+    final url = "http://localhost:${httpPort}/cmdi/runtime?cmd=ls"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerabilityStack()
+  }
+
   void 'weak hash vulnerability is present'() {
     setup:
     String url = "http://localhost:${httpPort}/weakhash"
@@ -710,6 +722,43 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     parameter | value
     'url'     | 'https://dd.datad0g.com/'
     'host'    | 'dd.datad0g.com'
+  }
+
+  void 'ssrf is present (#path)'() {
+    setup:
+    final url = "http://localhost:${httpPort}/ssrf/${path}"
+    final body = new FormBody.Builder().add(parameter, value).build()
+    final request = new Request.Builder().url(url).post(body).build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul ->
+      if (vul.type != 'SSRF') {
+        return false
+      }
+      final parts = vul.evidence.valueParts
+      if (parameter == 'url') {
+        return parts.size() == 1
+        && parts[0].value == value && parts[0].source.origin == 'http.request.parameter' && parts[0].source.name == parameter
+      } else if (parameter == 'host') {
+        String protocol = protocolSecure ? 'https://' : 'http://'
+        return parts.size() == 2
+        && parts[0].value == protocol + value && parts[0].source.origin == 'http.request.parameter' && parts[0].source.name == parameter
+        && parts[1].value == '/' && parts[1].source == null
+      } else {
+        throw new IllegalArgumentException("Parameter $parameter not supported")
+      }
+    }
+
+    where:
+    path                  | parameter | value                     | method               | protocolSecure
+    "apache-httpclient4"  | "url"     | "https://dd.datad0g.com/" | "apacheHttpClient4"  | false
+    "apache-httpclient4"  | "host"    | "dd.datad0g.com"          | "apacheHttpClient4"  | false
+    "commons-httpclient2" | "url"     | "https://dd.datad0g.com/" | "commonsHttpClient2" | false
+    "okHttp2"             | "url"     | "https://dd.datad0g.com/" | "okHttp2"            | false
+    "okHttp3"             | "url"     | "https://dd.datad0g.com/" | "okHttp3"            | false
   }
 
   void 'test iast metrics stored in spans'() {

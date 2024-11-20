@@ -60,7 +60,9 @@ public class SmapEntryFactory {
   public static void registerEvents() {
     // Make sure the periodic event is registered only once
     if (REGISTERED.compareAndSet(false, true) && Platform.isLinux()) {
+      // Only one of these should ever be enabled at the same time
       JfrHelper.addPeriodicEvent(SmapEntryEvent.class, SmapEntryEvent::emit);
+      JfrHelper.addPeriodicEvent(AggregatedSmapEntryEvent.class, AggregatedSmapEntryEvent::emit);
       try {
         ObjectName objectName = new ObjectName("com.sun.management:type=DiagnosticCommand");
         MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();

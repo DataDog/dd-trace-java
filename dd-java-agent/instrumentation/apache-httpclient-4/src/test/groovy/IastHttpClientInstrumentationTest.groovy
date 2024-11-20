@@ -31,7 +31,7 @@ class IastHttpClientInstrumentationTest extends AgentTestRunner {
     }
   }
 
-  void 'test ssrf httpClient execute method with args #args expecting call module with #classExpected arg'() {
+  void 'test ssrf httpClient execute method with args #args expecting call module'() {
     given:
     final ssrf = Mock(SsrfModule)
     InstrumentationBridge.registerIastModule(ssrf)
@@ -41,26 +41,23 @@ class IastHttpClientInstrumentationTest extends AgentTestRunner {
     httpClient.execute(*args)
 
     then:
-    if(classExpected == URI){
-      1 * ssrf.onURLConnection(_ as URI)
-    } else {
-      1 * ssrf.onURLConnection(_ as String, _ as String, _ as String)
-    }
+    1 * ssrf.onURLConnection(_ as URI)
 
     where:
-    args | classExpected
-    [getHttpUriRequest(server)] | URI
-    [getHttpUriRequest(server), new BasicHttpContext()] | URI
-    [getHttpUriRequest(server), new BasicResponseHandler()] | URI
-    [getHttpUriRequest(server), new BasicResponseHandler(), new BasicHttpContext()] | URI
-    [getHttpHost(server), getHttpUriRequest(server)] | URI
-    [getHttpHost(server), getHttpUriRequest(server), new BasicHttpContext()] | URI
-    [getHttpHost(server), getHttpUriRequest(server), new BasicResponseHandler()] | URI
-    [getHttpHost(server), getHttpUriRequest(server), new BasicResponseHandler(), new BasicHttpContext()] | URI
-    [getHttpHost(server), getHttpRequest(server)] | String
-    [getHttpHost(server), getHttpRequest(server), new BasicHttpContext()] | String
-    [getHttpHost(server), getHttpRequest(server), new BasicResponseHandler()] | String
-    [getHttpHost(server), getHttpRequest(server), new BasicResponseHandler(), new BasicHttpContext()] | String
+    args << [
+      [getHttpUriRequest(server)],
+      [getHttpUriRequest(server), new BasicHttpContext()],
+      [getHttpUriRequest(server), new BasicResponseHandler()],
+      [getHttpUriRequest(server), new BasicResponseHandler(), new BasicHttpContext()],
+      [getHttpHost(server), getHttpUriRequest(server)],
+      [getHttpHost(server), getHttpUriRequest(server), new BasicHttpContext()],
+      [getHttpHost(server), getHttpUriRequest(server), new BasicResponseHandler()],
+      [getHttpHost(server), getHttpUriRequest(server), new BasicResponseHandler(), new BasicHttpContext()],
+      [getHttpHost(server), getHttpRequest(server)],
+      [getHttpHost(server), getHttpRequest(server), new BasicHttpContext()],
+      [getHttpHost(server), getHttpRequest(server), new BasicResponseHandler()],
+      [getHttpHost(server), getHttpRequest(server), new BasicResponseHandler(), new BasicHttpContext()]
+    ]
   }
 
   private static org.apache.http.client.methods.HttpUriRequest getHttpUriRequest(final server){

@@ -50,8 +50,8 @@ git fetch --quiet
 git show-ref --verify --quiet "refs/remotes/origin/$PATCH_RELEASE_BRANCH" 1>/dev/null 2>&1 || { echo "Branch $PATCH_RELEASE_BRANCH does not exist"; exit 1; }
 # Check PR exists
 echo "- Checking PR exists"
-PR_COMMIT=$(gh pr view "$PR_NUMBER" --json commits --jq '.commits[].oid')
-if [ -z "$PR_COMMIT" ]; then
+PR_COMMITS=$(gh pr view "$PR_NUMBER" --json commits --jq '.commits[].oid')
+if [ -z "$PR_COMMITS" ]; then
     echo "PR $PR_NUMBER does not exist"
     exit 1
 fi
@@ -68,8 +68,10 @@ git pull
 # Create a new branch for the backport
 BRANCH_NAME="$USER/backport-pr-$PR_NUMBER"
 git checkout -b "$BRANCH_NAME"
-# Cherry-pick PR commit
-git cherry-pick "$PR_COMMIT"
+# Cherry-pick PR commits
+for PR_COMMIT in $PR_COMMITS; do
+    git cherry-pick -x "$PR_COMMIT"
+done
 # Push the branch
 git push -u origin "$BRANCH_NAME" --no-verify
 # Create a PR

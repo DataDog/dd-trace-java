@@ -32,6 +32,7 @@ import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.api.Config;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
+import datadog.trace.bootstrap.debugger.DebuggerContext.ClassNameFilter;
 import datadog.trace.bootstrap.debugger.ProbeLocation;
 import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
 import datadog.trace.core.CoreTracer;
@@ -56,7 +57,7 @@ public class ExceptionProbeInstrumentationTest {
   private final Instrumentation instr = ByteBuddyAgent.install();
   private final TestTraceInterceptor traceInterceptor = new TestTraceInterceptor();
   private ClassFileTransformer currentTransformer;
-  private final ClassNameFiltering classNameFiltering =
+  private final ClassNameFilter classNameFiltering =
       new ClassNameFiltering(
           Stream.of(
                   "java.",
@@ -130,7 +131,6 @@ public class ExceptionProbeInstrumentationTest {
     Snapshot snapshot0 = listener.snapshots.get(0);
     assertProbeId(probeIdsByMethodName, "processWithException", snapshot0.getProbe().getId());
     assertEquals("oops", snapshot0.getCaptures().getReturn().getCapturedThrowable().getMessage());
-    assertTrue(snapshot0.getCaptures().getReturn().getLocals().containsKey("@exception"));
     ProbeLocation location = snapshot0.getProbe().getLocation();
     assertEquals(
         location.getType() + "." + location.getMethod(), snapshot0.getStack().get(0).getFunction());
@@ -211,7 +211,6 @@ public class ExceptionProbeInstrumentationTest {
     assertProbeId(probeIdsByMethodName, "fiboException", snapshot0.getProbe().getId());
     assertEquals(
         "oops fibo", snapshot0.getCaptures().getReturn().getCapturedThrowable().getMessage());
-    assertTrue(snapshot0.getCaptures().getReturn().getLocals().containsKey("@exception"));
     assertEquals("1", getValue(snapshot0.getCaptures().getReturn().getArguments().get("n")));
     Snapshot snapshot1 = listener.snapshots.get(1);
     assertEquals("2", getValue(snapshot1.getCaptures().getReturn().getArguments().get("n")));
@@ -314,7 +313,7 @@ public class ExceptionProbeInstrumentationTest {
   private TestSnapshotListener setupExceptionDebugging(
       Config config,
       ExceptionProbeManager exceptionProbeManager,
-      ClassNameFiltering classNameFiltering) {
+      ClassNameFilter classNameFiltering) {
     ProbeStatusSink probeStatusSink = mock(ProbeStatusSink.class);
     ConfigurationUpdater configurationUpdater =
         new ConfigurationUpdater(
