@@ -529,7 +529,7 @@ public class Agent {
 
       installDatadogTracer(initTelemetry, scoClass, sco);
       maybeStartAppSec(scoClass, sco);
-      maybeStartIast(scoClass, sco);
+      maybeStartIast(instrumentation, scoClass, sco);
       maybeStartCiVisibility(instrumentation, scoClass, sco);
       maybeStartLogsIntake(scoClass, sco);
       // start debugger before remote config to subscribe to it before starting to poll
@@ -608,31 +608,6 @@ public class Agent {
     }
 
     StaticEventLogger.end("Remote Config");
-  }
-
-  private void maybeStartIastSecurityControls(Instrumentation instrumentation, Class<?> scoClass, Object sco) {
-    if(!Config.get().isIastSecurityControlsEnabled()) {
-      return;
-    }
-    if (!iastEnabled || iastFullyDisabled) {
-      log.warn("Error starting IAST Security Controls, IAST should be enabled");
-      return;
-    }
-    if(Config.get().getIastSecurityControlsConfiguration() == null){
-      log.warn("Error starting IAST Security Controls, IAST Security Controls configuration is missing");
-      return;
-    }
-    StaticEventLogger.begin("IAST Security Controls");
-    try {
-      final Class<?> appSecSysClass = AGENT_CLASSLOADER.loadClass("com.datadog.iast.IastSecurityControlsInstrumenter");
-      final Method iastInstallerMethod =
-          appSecSysClass.getMethod("start");
-      iastInstallerMethod.invoke(instrumentation);
-    } catch (Exception e) {
-      log.error("Error starting IAST Security Controls", e);
-    }
-
-    StaticEventLogger.end("IAST Security Controls");
   }
 
   private static synchronized void startDatadogAgent(
@@ -848,14 +823,14 @@ public class Agent {
     return true;
   }
 
-  private static void maybeStartIast(Class<?> scoClass, Object o) {
+  private static void maybeStartIast(Instrumentation instrumentation, Class<?> scoClass, Object o) {
     if (iastEnabled || !iastFullyDisabled) {
 
       StaticEventLogger.begin("IAST");
 
       try {
         SubscriptionService ss = AgentTracer.get().getSubscriptionService(RequestContextSlot.IAST);
-        startIast(ss, scoClass, o);
+        startIast(instrumentation, ss, scoClass, o);
       } catch (Exception e) {
         log.error("Error starting IAST subsystem", e);
       }
@@ -864,12 +839,12 @@ public class Agent {
     }
   }
 
-  private static void startIast(SubscriptionService ss, Class<?> scoClass, Object sco) {
+  private static void startIast(Instrumentation instrumentation, SubscriptionService ss, Class<?> scoClass, Object sco) {
     try {
       final Class<?> appSecSysClass = AGENT_CLASSLOADER.loadClass("com.datadog.iast.IastSystem");
       final Method iastInstallerMethod =
-          appSecSysClass.getMethod("start", SubscriptionService.class);
-      iastInstallerMethod.invoke(null, ss);
+          appSecSysClass.getMethod("start",Instrumentation.class, SubscriptionService.class);
+      iastInstallerMethod.invoke(null, instrumentation, ss);
     } catch (final Throwable e) {
       log.warn("Not starting IAST subsystem", e);
     }
