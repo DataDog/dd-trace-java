@@ -68,6 +68,7 @@ configurations.all {
   resolutionStrategy {
     // avoid bringing in logback based on java 11
     force libs.logback.classic
+    force libs.logback.core
   }
 }
 
@@ -102,7 +103,6 @@ tasks.named("compileLatestDepForkedTestJava").configure {
 
 dependencies {
   compileOnly group: 'org.mule.runtime', name: 'mule-core', version: muleVersion
-  //compileOnly group: 'org.mule.runtime', name: 'mule-tracer-internal-impl', version: '4.5.0'
 
   testImplementation project(':dd-java-agent:instrumentation:aws-common')
   testImplementation project(':dd-java-agent:instrumentation:reactor-core-3.1')
