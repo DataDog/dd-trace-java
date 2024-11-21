@@ -19,7 +19,7 @@ class TraceAssert {
     size = trace.size()
   }
 
-  public static final NAME_COMPARATOR = new Comparator<DDSpan>() {
+  static final NAME_COMPARATOR = new Comparator<DDSpan>() {
     @Override
     int compare(DDSpan o1, DDSpan o2) {
       int compare = o1.spanName.toString() <=> o2.spanName.toString()
