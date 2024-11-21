@@ -1269,7 +1269,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     return new StringBuilder(string)
   }
 
-  private static StringBuilder sbf(final String string) {
-    return new StringBuilder(string)
+  private static StringBuffer sbf(final String string) {
+    return new StringBuffer(string)
   }
 }
