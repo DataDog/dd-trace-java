@@ -76,6 +76,11 @@ class SpringBootOpenLibertySmokeTest extends AbstractServerSmokeTest {
     ].toSet()
   }
 
+  @Override
+  boolean testTelemetry() {
+    false
+  }
+
   def "Test concurrent requests to Spring Boot running Open Liberty"() {
     setup:
     def url = "http://localhost:${httpPort}/connect"

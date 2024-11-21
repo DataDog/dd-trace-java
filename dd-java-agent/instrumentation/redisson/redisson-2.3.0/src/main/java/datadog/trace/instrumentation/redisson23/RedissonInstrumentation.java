@@ -13,7 +13,6 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.util.Strings;
 import java.util.ArrayList;
 import java.util.List;
 import net.bytebuddy.asm.Advice;
@@ -101,7 +100,7 @@ public final class RedissonInstrumentation extends InstrumenterModule.Tracing
       for (CommandData<?, ?> commandData : command.getCommands()) {
         commandResourceNames.add(commandData.getCommand().getName());
       }
-      RedissonClientDecorator.DECORATE.onStatement(span, Strings.join(";", commandResourceNames));
+      RedissonClientDecorator.DECORATE.onStatement(span, String.join(";", commandResourceNames));
       ((RFuture<?>) command.getPromise())
           .addListener(new SpanFinishListener(AgentTracer.captureSpan(span)));
       return activateSpan(span);

@@ -12,9 +12,11 @@ class StringsTest extends DDSpecification {
     s == expected
     where:
     // spotless:off
-    className       | expected
-    "foo.bar.Class" | "foo/bar/Class.class"
-    "Class"         | "Class.class"
+    className             | expected
+    "foo.bar.Class"       | "foo/bar/Class.class"
+    "foo/bar/Class.class" | "foo/bar/Class.class"
+    "Class"               | "Class.class"
+    "Class.class"         | "Class.class"
     // spotless:on
   }
 
@@ -27,7 +29,22 @@ class StringsTest extends DDSpecification {
     // spotless:off
     resourceName          | expected
     "foo/bar/Class.class" | "foo.bar.Class"
+    "foo.bar.Class"       | "foo.bar.Class"
     "Class.class"         | "Class"
+    "Class"               | "Class"
+    // spotless:on
+  }
+
+  def "test internal name from class name"() {
+    when:
+    String s = Strings.getInternalName(resourceName)
+    then:
+    s == expected
+    where:
+    // spotless:off
+    resourceName    | expected
+    "foo.bar.Class" | "foo/bar/Class"
+    "Class"         | "Class"
     // spotless:on
   }
 
@@ -47,37 +64,6 @@ class StringsTest extends DDSpecification {
   def "test envvar from property"() {
     expect:
     "FOO_BAR_QUX" == Strings.toEnvVar("foo.bar-qux")
-  }
-
-  def "test join strings"() {
-    when:
-    String s = Strings.join(joiner, strings)
-    then:
-    s == expected
-    where:
-    // spotless:off
-    joiner | strings         | expected
-    ","    | ["a", "b", "c"] | "a,b,c"
-    ","    | ["a", "b"]      | "a,b"
-    ","    | ["a"]           | "a"
-    ","    | []              | ""
-    // spotless:on
-  }
-
-  def "test join strings varargs"() {
-    when:
-    // apparently groovy doesn't like this but it runs as if it's java
-    String s = Strings.join(joiner, strings.toArray(new CharSequence[0]))
-    then:
-    s == expected
-    where:
-    // spotless:off
-    joiner | strings         | expected
-    ","    | ["a", "b", "c"] | "a,b,c"
-    ","    | ["a", "b"]      | "a,b"
-    ","    | ["a"]           | "a"
-    ","    | []              | ""
-    // spotless:on
   }
 
   def "test replace strings"() {
