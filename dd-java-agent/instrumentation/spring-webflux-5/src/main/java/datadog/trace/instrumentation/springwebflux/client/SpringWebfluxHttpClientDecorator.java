@@ -53,11 +53,19 @@ public class SpringWebfluxHttpClientDecorator
 
   @Override
   protected String getRequestHeader(ClientRequest request, String headerName) {
-    return request.headers().getFirst(headerName);
+    System.out.println("REQUEST HEADERS: " + request.headers().getValuesAsList(headerName));
+    String result = String.join(",", request.headers().getValuesAsList(headerName));
+    System.out.println("RESULT: " + result);
+    return result;
   }
 
   @Override
   protected String getResponseHeader(ClientResponse response, String headerName) {
-    return response.headers().asHttpHeaders().getFirst(headerName);
+    System.out.println(
+        "RESPONSE HEADERS: " + response.headers().asHttpHeaders().getValuesAsList(headerName));
+    String result =
+        String.join(",", response.headers().asHttpHeaders().getValuesAsList(headerName));
+    System.out.println("RESULT: " + result);
+    return result;
   }
 }

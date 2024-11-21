@@ -5,6 +5,8 @@ import com.sun.jersey.api.client.ClientResponse;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
 
 public class JaxRsClientV1Decorator extends HttpClientDecorator<ClientRequest, ClientResponse> {
 
@@ -41,15 +43,23 @@ public class JaxRsClientV1Decorator extends HttpClientDecorator<ClientRequest, C
 
   @Override
   protected String getRequestHeader(ClientRequest request, String headerName) {
-    Object headerValue = request.getHeaders().getFirst(headerName);
-    if (null != headerValue) {
-      return headerValue.toString();
+    List<Object> headers = request.getHeaders().get(headerName);
+    if (null != headers) {
+      List<String> result = new ArrayList<>();
+      for (Object header : headers) {
+        result.add(header.toString());
+      }
+      return String.join(", ", result);
     }
     return null;
   }
 
   @Override
   protected String getResponseHeader(ClientResponse response, String headerName) {
-    return response.getHeaders().getFirst(headerName);
+    List<String> headers = response.getHeaders().get(headerName);
+    if (null != headers) {
+      return String.join(", ", headers);
+    }
+    return null;
   }
 }

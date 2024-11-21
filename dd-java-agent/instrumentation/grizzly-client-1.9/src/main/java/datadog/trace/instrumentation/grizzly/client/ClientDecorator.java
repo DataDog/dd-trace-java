@@ -42,7 +42,7 @@ public class ClientDecorator extends HttpClientDecorator<Request, Response> {
 
   @Override
   protected String getRequestHeader(Request request, String headerName) {
-    return request.getHeaders().getFirstValue(headerName);
+    return request.getHeaders().getJoinedValue(headerName, ", ");
   }
 
   @Override
