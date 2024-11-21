@@ -767,6 +767,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
   def "test request header #header tag mapping"() {
     when:
     def url = server.address.resolve("/success")
+    System.out.println("testing header, value, value2: " + header + ", " + value + ", " + value2)
     String[] headerVals = [header + ":" + value , header + ":" + value2]
     def status = (value2 == null) ? doRequest(method, url, [(header): value]) : doRequest(method, url, headerVals)
     if (isDataStreamsEnabled()) {

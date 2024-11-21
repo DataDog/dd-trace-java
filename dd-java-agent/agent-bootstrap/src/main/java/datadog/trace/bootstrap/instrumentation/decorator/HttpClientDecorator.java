@@ -82,10 +82,14 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
       String method = method(request);
       span.setTag(Tags.HTTP_METHOD, method);
 
+      System.out.println("In onRequest method in HttpClientDecorator");
       if (CLIENT_TAG_HEADERS) {
+        System.out.println("Tagging client headers...");
         for (Map.Entry<String, String> headerTag :
             traceConfig(span).getRequestHeaderTags().entrySet()) {
           String headerValue = getRequestHeader(request, headerTag.getKey());
+          System.out.println("headerTag: " + headerTag.getValue());
+          System.out.println("headerValue: " + headerValue);
           if (null != headerValue) {
             span.setTag(headerTag.getValue(), headerValue);
           }
