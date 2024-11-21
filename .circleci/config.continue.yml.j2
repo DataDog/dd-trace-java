@@ -838,16 +838,22 @@ jobs:
           no_output_timeout: 5m
           command: |
             cd system-tests
+            (
             echo "
             DEFAULT
             APM_TRACING_E2E
             APM_TRACING_E2E_SINGLE_SPAN
-            APPSEC_BLOCKING
-            APPSEC_REQUEST_BLOCKING
-            APPSEC_RASP
-            APPSEC_RUNTIME_ACTIVATION
-            REMOTE_CONFIG_MOCKED_BACKEND_ASM_DD
-            " | circleci tests split > scenarios.list
+            "
+            if ! [[ << parameters.weblog-variant >> =~ .*native ]]; then
+              echo "
+              APPSEC_BLOCKING
+              APPSEC_REQUEST_BLOCKING
+              APPSEC_RASP
+              APPSEC_RUNTIME_ACTIVATION
+              REMOTE_CONFIG_MOCKED_BACKEND_ASM_DD
+              "
+            fi
+            ) | circleci tests split > scenarios.list
             for scenario in $(<scenarios.list); do
               if [[ $scenario =~ .*_E2E.* ]]; then
                 export DD_SITE=datadoghq.com
