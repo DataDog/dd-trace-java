@@ -105,7 +105,7 @@ public class StackUtilsTest {
             true));
   }
 
-  @ParameterizedTest
+  @ParameterizedTest(name = "[{index}]")
   @MethodSource("test_generateUserCodeStackTrace_Params")
   public void test_generateUserCodeStackTrace(
       final Predicate<StackTraceElement> filter, final boolean expected) {
