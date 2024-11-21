@@ -5,6 +5,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import org.apache.hc.core5.http.Header;
 import org.apache.hc.core5.http.HttpRequest;
@@ -56,14 +57,18 @@ public class ApacheHttpClientDecorator extends HttpClientDecorator<HttpRequest, 
 
   @Override
   protected String getRequestHeader(HttpRequest request, String headerName) {
+    System.out.println("headerName: " + headerName);
+    System.out.println("headers: " + Arrays.toString(request.getHeaders(headerName)));
     Header[] headers = request.getHeaders(headerName);
     List<String> values = new ArrayList<>();
     if (headers.length > 0) {
       for (Header header : headers) {
         values.add(header.getValue());
       }
+      System.out.println("returning " + String.join(",", values));
       return String.join(",", values);
     }
+    System.out.println("returning null");
     return null;
   }
 
