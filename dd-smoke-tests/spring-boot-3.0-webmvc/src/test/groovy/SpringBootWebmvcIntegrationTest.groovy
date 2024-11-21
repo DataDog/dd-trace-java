@@ -78,4 +78,9 @@ class SpringBootWebmvcIntegrationTest extends AbstractServerSmokeTest {
     responseBodyStr.contains("banana")
     waitForTraceCount(1)
   }
+
+  @Override
+  List<String> expectedTelemetryDependencies() {
+    ['spring-core']
+  }
 }
