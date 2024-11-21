@@ -95,14 +95,21 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
 
       ssrfIastCheck(request);
 
+      System.out.println("hi im here");
       if (CLIENT_TAG_HEADERS) {
+        System.out.println("now im here");
         for (Map.Entry<String, String> headerTag :
             traceConfig(span).getRequestHeaderTags().entrySet()) {
+          System.out.println("now im inside");
           String headerValue = getRequestHeader(request, headerTag.getKey());
           if (null != headerValue) {
+            System.out.println("now im inside inside");
+            System.out.println("headerTag: " + headerTag.getValue());
+            System.out.println("headerValue: " + headerValue);
             span.setTag(headerTag.getValue(), headerValue);
           }
         }
+        System.out.println("now im outside");
       }
     }
     return span;

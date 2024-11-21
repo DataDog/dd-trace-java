@@ -51,7 +51,7 @@ public final class SynapseClientDecorator extends HttpClientDecorator<HttpReques
   protected String getRequestHeader(HttpRequest request, String headerName) {
     Header[] headers = request.getHeaders(headerName);
     List<String> values = new ArrayList<>();
-    if (null != headers) {
+    if (headers.length > 0) {
       for (Header header : headers) {
         values.add(header.getValue());
       }
@@ -64,7 +64,7 @@ public final class SynapseClientDecorator extends HttpClientDecorator<HttpReques
   protected String getResponseHeader(HttpResponse response, String headerName) {
     Header[] headers = response.getHeaders(headerName);
     List<String> values = new ArrayList<>();
-    if (null != headers) {
+    if (headers.length > 0) {
       for (Header header : headers) {
         values.add(header.getValue());
       }

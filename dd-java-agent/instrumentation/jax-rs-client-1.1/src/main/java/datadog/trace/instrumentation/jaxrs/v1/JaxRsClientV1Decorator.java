@@ -44,7 +44,7 @@ public class JaxRsClientV1Decorator extends HttpClientDecorator<ClientRequest, C
   @Override
   protected String getRequestHeader(ClientRequest request, String headerName) {
     List<Object> headers = request.getHeaders().get(headerName);
-    if (null != headers) {
+    if (!headers.isEmpty()) {
       List<String> result = new ArrayList<>();
       for (Object header : headers) {
         result.add(header.toString());
@@ -57,7 +57,7 @@ public class JaxRsClientV1Decorator extends HttpClientDecorator<ClientRequest, C
   @Override
   protected String getResponseHeader(ClientResponse response, String headerName) {
     List<String> headers = response.getHeaders().get(headerName);
-    if (null != headers) {
+    if (!headers.isEmpty()) {
       return String.join(", ", headers);
     }
     return null;

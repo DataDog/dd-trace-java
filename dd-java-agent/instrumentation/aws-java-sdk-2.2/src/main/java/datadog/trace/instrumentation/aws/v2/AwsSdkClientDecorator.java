@@ -451,7 +451,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
   @Override
   protected String getRequestHeader(SdkHttpRequest request, String headerName) {
     List<String> headers = request.headers().get(headerName);
-    if (headers != null) {
+    if (!headers.isEmpty()) {
       return String.join(", ", headers);
     }
     return null;
@@ -460,7 +460,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
   @Override
   protected String getResponseHeader(SdkHttpResponse response, String headerName) {
     List<String> headers = response.headers().get(headerName);
-    if (headers != null) {
+    if (!headers.isEmpty()) {
       return String.join(", ", headers);
     }
     return null;

@@ -4,8 +4,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Arrays;
 import org.apache.http.Header;
 import org.apache.http.HttpResponse;
 import org.apache.http.StatusLine;
@@ -55,16 +54,34 @@ public class ApacheHttpAsyncClientDecorator
     return 0;
   }
 
+  //  RUN ./gradlew :dd-java-agent:instrumentation:apache-httpasyncclient-4:test --tests
+  // "ApacheHttpAsyncClientV0Test"
   @Override
   protected String getRequestHeader(HttpUriRequest request, String headerName) {
-    Header[] headers = request.getHeaders(headerName);
-    List<String> values = new ArrayList<>();
-    if (null != headers) {
-      for (Header header : headers) {
-        values.add(header.getValue());
-      }
-      return String.join(", ", values);
+    System.out.println("HEADERNAME: " + headerName);
+    System.out.println(
+        "ALL REQUEST HEADERS: "
+            + Arrays.toString(request.getAllHeaders())); // not printing first request header
+    System.out.println(
+        "SPECIFIC REQUEST HEADERS: " + Arrays.toString(request.getHeaders(headerName)));
+    System.out.println("FIRST REQUEST HEADER: " + request.getFirstHeader(headerName));
+
+    Header header = request.getFirstHeader(headerName);
+    if (header != null) {
+      System.out.println("RETURNING " + header.getValue());
+      return header.getValue();
+
+      //    Header[] headers = request.getHeaders(headerName);
+      //    List<String> values = new ArrayList<>();
+      //    if (headers.length > 0) {
+      //      for (Header header : headers) {
+      //        values.add(header.getValue());
+      //      }
+      //      System.out.println("RETURNING " + values);
+      //      return String.join(", ", values);
+
     }
+    System.out.println("RETURNING NULL");
     return null;
   }
 
@@ -72,13 +89,18 @@ public class ApacheHttpAsyncClientDecorator
   protected String getResponseHeader(HttpContext context, String headerName) {
     final Object responseObject = context.getAttribute(HttpCoreContext.HTTP_RESPONSE);
     if (responseObject instanceof HttpResponse) {
-      Header[] headers = ((HttpResponse) responseObject).getHeaders(headerName);
-      List<String> values = new ArrayList<>();
-      if (null != headers) {
-        for (Header header : headers) {
-          values.add(header.getValue());
-        }
-        return String.join(", ", values);
+      Header header = ((HttpResponse) responseObject).getFirstHeader(headerName);
+      if (header != null) {
+        return header.getValue();
+
+        //      Header[] headers = ((HttpResponse) responseObject).getHeaders(headerName);
+        //      List<String> values = new ArrayList<>();
+        //      if (headers.length > 0) {
+        //        for (Header header : headers) {
+        //          values.add(header.getValue());
+        //        }
+        //        return String.join(", ", values);
+
       }
     }
     return null;

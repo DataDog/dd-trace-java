@@ -5,6 +5,7 @@ import org.apache.hc.client5.http.async.methods.SimpleHttpRequests
 import org.apache.hc.client5.http.config.RequestConfig
 import org.apache.hc.client5.http.impl.async.HttpAsyncClients
 import org.apache.hc.core5.http.HttpRequest
+import org.apache.hc.core5.http.message.BasicHeader
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 
@@ -49,6 +50,21 @@ abstract class ApacheHttpAsyncClient5Test<T extends HttpRequest> extends HttpCli
     def request = SimpleHttpRequests.create(method, uri)
     request.setConfig(RequestConfig.custom().setConnectTimeout(CONNECT_TIMEOUT_MS, TimeUnit.MILLISECONDS).build())
     headers.each { request.addHeader(it.key, it.value) }
+
+    def future = client.execute(request, null)
+    def response = future.get(READ_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+    callback?.call()
+    return response.code
+  }
+
+  @Override
+  int doRequest(String method, URI uri, String[] headers, String body, Closure callback) {
+    def request = SimpleHttpRequests.create(method, uri)
+    request.setConfig(RequestConfig.custom().setConnectTimeout(CONNECT_TIMEOUT_MS, TimeUnit.MILLISECONDS).build())
+    for (String header : headers) {
+      String[] keyVal = header.split(":")
+      request.addHeader(new BasicHeader(keyVal[0], keyVal[1]))
+    }
 
     def future = client.execute(request, null)
     def response = future.get(READ_TIMEOUT_MS, TimeUnit.MILLISECONDS)
