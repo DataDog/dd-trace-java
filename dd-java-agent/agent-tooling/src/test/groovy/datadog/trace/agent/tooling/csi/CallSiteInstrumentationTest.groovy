@@ -1,8 +1,12 @@
 package datadog.trace.agent.tooling.csi
 
+import datadog.trace.agent.tooling.bytebuddy.csi.CallSiteTransformer
 import net.bytebuddy.asm.AsmVisitorWrapper
 import net.bytebuddy.description.type.TypeDescription
 import net.bytebuddy.dynamic.DynamicType
+import net.bytebuddy.jar.asm.Type
+
+import java.util.concurrent.atomic.AtomicInteger
 
 class CallSiteInstrumentationTest extends BaseCallSiteTest {
 
@@ -60,6 +64,36 @@ class CallSiteInstrumentationTest extends BaseCallSiteTest {
     0 * builder.visit(_ as AsmVisitorWrapper) >> builder
   }
 
+  void 'test call site transformer with super call in ctor'() {
+    setup:
+    SuperInCtorExampleAdvice.CALLS.set(0)
+    final source = Type.getType(SuperInCtorExample)
+    final target = renameType(source, 'Test')
+    final pointcut = stringReaderPointcut()
+    final InvokeAdvice advice = new InvokeAdvice() {
+        @Override
+        void apply(CallSiteAdvice.MethodHandler handler, int opcode, String owner, String name, String descriptor, boolean isInterface) {
+          handler.dupConstructor(descriptor)
+          handler.method(opcode, owner, name, descriptor, isInterface)
+          handler.advice(
+            Type.getType(SuperInCtorExampleAdvice).internalName,
+            'onInvoke',
+            Type.getMethodType(Type.getType(StringReader), Type.getType(Object[]), Type.getType(StringReader)).getDescriptor(),
+            )
+        }
+      }
+    final callSiteTransformer = new CallSiteTransformer(mockAdvices([mockCallSites(advice, pointcut)]))
+
+    when:
+    final transformedClass = transformType(source, target, callSiteTransformer)
+    final transformed = loadClass(target, transformedClass)
+    final reader = transformed.newInstance("test")
+
+    then:
+    reader != null
+    SuperInCtorExampleAdvice.CALLS.get() > 0
+  }
+
   static class StringCallSites implements CallSites, TestCallSites {
 
     @Override
@@ -80,6 +114,16 @@ class CallSiteInstrumentationTest extends BaseCallSiteTest {
       final String descriptor,
       final boolean isInterface) {
       handler.method(opcode, owner, name, descriptor, isInterface)
+    }
+  }
+
+  static class SuperInCtorExampleAdvice {
+
+    private static final AtomicInteger CALLS = new AtomicInteger(0)
+
+    static StringReader onInvoke(Object[] args, StringReader result) {
+      CALLS.incrementAndGet()
+      return result
     }
   }
 }

@@ -150,7 +150,8 @@ public abstract class CallSiteUtils {
         dup(mv, parameters);
         break;
       case PREPEND_ARRAY:
-      case PREPEND_ARRAY_CTOR:
+      case PREPEND_ARRAY_ON_NEW_CTOR:
+      case PREPEND_ARRAY_ON_SUPER_CTOR:
       case APPEND_ARRAY:
         dupN(mv, parameters, mode);
         break;
@@ -279,9 +280,19 @@ public abstract class CallSiteUtils {
         loadArray(mv, arraySize, parameters);
         mv.visitInsn(POP);
         break;
-      case PREPEND_ARRAY_CTOR:
-        // move the array before the NEW and DUP opcodes
+      case PREPEND_ARRAY_ON_NEW_CTOR:
+        // move the array before the uninitialized entry created by NEW and DUP
+        // stack start = [uninitialized, uninitialized, arg_0, ..., arg_n]
+        // stack   end = [array, uninitialized, uninitialized, arg_0, ..., arg_n]
         mv.visitInsn(DUP_X2);
+        loadArray(mv, arraySize, parameters);
+        mv.visitInsn(POP);
+        break;
+      case PREPEND_ARRAY_ON_SUPER_CTOR:
+        // move the array before the uninitialized entry
+        // stack start = [uninitialized, arg_0, ..., arg_n]
+        // stack   end = [array, uninitialized, arg_0, ..., arg_n]
+        mv.visitInsn(DUP_X1);
         loadArray(mv, arraySize, parameters);
         mv.visitInsn(POP);
         break;

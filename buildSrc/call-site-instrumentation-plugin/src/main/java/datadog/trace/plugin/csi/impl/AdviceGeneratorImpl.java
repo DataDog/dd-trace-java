@@ -286,26 +286,31 @@ public class AdviceGeneratorImpl implements AdviceGenerator {
       body.addStatement(dupMethod);
     } else {
       final MethodCallExpr dupMethod = new MethodCallExpr().setScope(new NameExpr("handler"));
-      if (advice.includeThis()) {
-        dupMethod.setName("dupInvoke");
-        dupMethod.addArgument(new NameExpr("owner"));
+      if (advice.isConstructor() && advice instanceof AfterSpecification) {
+        dupMethod.setName("dupConstructor");
         dupMethod.addArgument(new NameExpr("descriptor"));
       } else {
-        dupMethod.setName("dupParameters");
-        dupMethod.addArgument(new NameExpr("descriptor"));
-      }
-      String mode = "COPY";
-      if (allArgsSpec != null) {
-        if (advice instanceof AfterSpecification) {
-          mode = advice.isConstructor() ? "PREPEND_ARRAY_CTOR" : "PREPEND_ARRAY";
+        if (advice.includeThis()) {
+          dupMethod.setName("dupInvoke");
+          dupMethod.addArgument(new NameExpr("owner"));
+          dupMethod.addArgument(new NameExpr("descriptor"));
         } else {
-          mode = "APPEND_ARRAY";
+          dupMethod.setName("dupParameters");
+          dupMethod.addArgument(new NameExpr("descriptor"));
         }
+        String mode = "COPY";
+        if (allArgsSpec != null) {
+          if (advice instanceof AfterSpecification) {
+            mode = "PREPEND_ARRAY";
+          } else {
+            mode = "APPEND_ARRAY";
+          }
+        }
+        dupMethod.addArgument(
+            new FieldAccessExpr()
+                .setScope(new TypeExpr(new ClassOrInterfaceType().setName(STACK_DUP_MODE_CLASS)))
+                .setName(mode));
       }
-      dupMethod.addArgument(
-          new FieldAccessExpr()
-              .setScope(new TypeExpr(new ClassOrInterfaceType().setName(STACK_DUP_MODE_CLASS)))
-              .setName(mode));
       body.addStatement(dupMethod);
     }
   }
@@ -344,12 +349,10 @@ public class AdviceGeneratorImpl implements AdviceGenerator {
       final MethodCallExpr invokeStatic =
           new MethodCallExpr()
               .setScope(new NameExpr("handler"))
-              .setName("method")
-              .addArgument(opCode("INVOKESTATIC"))
+              .setName("advice")
               .addArgument(new StringLiteralExpr(method.getOwner().getInternalName()))
               .addArgument(new StringLiteralExpr(method.getMethodName()))
-              .addArgument(new StringLiteralExpr(method.getMethodType().getDescriptor()))
-              .addArgument(new BooleanLiteralExpr(false));
+              .addArgument(new StringLiteralExpr(method.getMethodType().getDescriptor()));
       body.addStatement(invokeStatic);
     }
     if (requiresCast(advice)) {

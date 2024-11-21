@@ -9,6 +9,8 @@ import datadog.trace.agent.tooling.csi.CallSiteAdvice.StackDupMode;
 import datadog.trace.agent.tooling.csi.InvokeAdvice;
 import datadog.trace.agent.tooling.csi.InvokeDynamicAdvice;
 import java.security.ProtectionDomain;
+import java.util.Deque;
+import java.util.LinkedList;
 import javax.annotation.Nonnull;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.field.FieldDescription;
@@ -118,11 +120,21 @@ public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
   private static class CallSiteMethodVisitor extends MethodVisitor
       implements CallSiteAdvice.MethodHandler {
     private final Advices advices;
+    private final Deque<String> newInvocations = new LinkedList<>();
+    private StackDupMode ctorDupMode;
 
     private CallSiteMethodVisitor(
         @Nonnull final Advices advices, @Nonnull final MethodVisitor delegated) {
       super(ASM_API, delegated);
       this.advices = advices;
+    }
+
+    @Override
+    public void visitTypeInsn(final int opcode, final String type) {
+      if (opcode == Opcodes.NEW) {
+        newInvocations.addLast(type);
+      }
+      super.visitTypeInsn(opcode, type);
     }
 
     @Override
@@ -132,11 +144,23 @@ public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
         final String name,
         final String descriptor,
         final boolean isInterface) {
-      CallSiteAdvice advice = advices.findAdvice(owner, name, descriptor);
-      if (advice instanceof InvokeAdvice) {
-        ((InvokeAdvice) advice).apply(this, opcode, owner, name, descriptor, isInterface);
-      } else {
-        mv.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
+      try {
+        if (opcode == Opcodes.INVOKESPECIAL && "<init>".equals(name)) {
+          if (owner.equals(newInvocations.peekLast())) {
+            newInvocations.removeLast();
+            ctorDupMode = StackDupMode.PREPEND_ARRAY_ON_NEW_CTOR;
+          } else {
+            ctorDupMode = StackDupMode.PREPEND_ARRAY_ON_SUPER_CTOR;
+          }
+        }
+        CallSiteAdvice advice = advices.findAdvice(owner, name, descriptor);
+        if (advice instanceof InvokeAdvice) {
+          ((InvokeAdvice) advice).apply(this, opcode, owner, name, descriptor, isInterface);
+        } else {
+          mv.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
+        }
+      } finally {
+        ctorDupMode = null;
       }
     }
 
@@ -198,12 +222,26 @@ public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
     }
 
     @Override
+    public void advice(String owner, String name, String descriptor) {
+      if (ctorDupMode == StackDupMode.PREPEND_ARRAY_ON_SUPER_CTOR) {
+        // append this to the stack after super call
+        mv.visitIntInsn(Opcodes.ALOAD, 0);
+      }
+      mv.visitMethodInsn(Opcodes.INVOKESTATIC, owner, name, descriptor, false);
+    }
+
+    @Override
     public void invokeDynamic(
         final String name,
         final String descriptor,
         final Handle bootstrapMethodHandle,
         final Object... bootstrapMethodArguments) {
       mv.visitInvokeDynamicInsn(name, descriptor, bootstrapMethodHandle, bootstrapMethodArguments);
+    }
+
+    @Override
+    public void dupConstructor(final String methodDescriptor) {
+      dupParameters(methodDescriptor, ctorDupMode);
     }
 
     @Override

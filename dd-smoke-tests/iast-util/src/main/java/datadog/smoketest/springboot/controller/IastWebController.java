@@ -2,6 +2,7 @@ package datadog.smoketest.springboot.controller;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonParser;
+import datadog.communication.util.IOUtils;
 import datadog.smoketest.springboot.TestBean;
 import ddtest.client.sources.Hasher;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -413,6 +414,11 @@ public class IastWebController {
     return "OK";
   }
 
+  @GetMapping("/test_custom_string_reader")
+  public String testCustomStringReader(@RequestParam("param") String param) throws IOException {
+    return String.join("", IOUtils.readLines(new CustomStringReader(param)));
+  }
+
   private void withProcess(final Operation<Process> op) {
     Process process = null;
     try {
@@ -428,5 +434,12 @@ public class IastWebController {
 
   private interface Operation<E> {
     E run() throws Throwable;
+  }
+
+  public static class CustomStringReader extends StringReader {
+
+    public CustomStringReader(String s) {
+      super("Super " + s + (new StringReader("New " + s)));
+    }
   }
 }
