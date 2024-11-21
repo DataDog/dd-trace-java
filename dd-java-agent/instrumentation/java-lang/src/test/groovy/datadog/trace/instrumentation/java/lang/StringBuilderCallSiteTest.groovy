@@ -188,8 +188,9 @@ class StringBuilderCallSiteTest extends AgentTestRunner {
     0 * _
 
     where:
-    param        | beginIndex | expected
-    sb('012345') | 1          | '12345'
+    param         | beginIndex | expected
+    sb('012345')  | 1          | '12345'
+    sbf('012345') | 1          | '12345'
   }
 
   def 'test string builder substring with endIndex call site'() {
@@ -206,8 +207,9 @@ class StringBuilderCallSiteTest extends AgentTestRunner {
     0 * _
 
     where:
-    param        | beginIndex | endIndex | expected
-    sb('012345') | 1          | 5        | '1234'
+    param         | beginIndex | endIndex | expected
+    sb('012345')  | 1          | 5        | '1234'
+    sbf('012345') | 1          | 5        | '1234'
   }
 
   private static class BrokenToString {
@@ -225,5 +227,9 @@ class StringBuilderCallSiteTest extends AgentTestRunner {
 
   private static StringBuilder sb(final String string) {
     return new StringBuilder(string)
+  }
+
+  private static StringBuffer sbf(final String string) {
+    return new StringBuffer(string)
   }
 }
