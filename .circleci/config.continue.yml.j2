@@ -871,6 +871,7 @@ jobs:
           command: |
             mkdir -p artifacts
             cd system-tests
+            shopt -s nullglob
             for log_dir in logs*; do
               tar -cvzf ../artifacts/${log_dir}_<< parameters.weblog-variant >>.tar.gz $log_dir
             done
