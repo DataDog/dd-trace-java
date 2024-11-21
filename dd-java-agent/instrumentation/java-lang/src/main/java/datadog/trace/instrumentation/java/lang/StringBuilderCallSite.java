@@ -101,4 +101,37 @@ public class StringBuilderCallSite {
     }
     return result;
   }
+
+  @CallSite.After("java.lang.String java.lang.StringBuilder.substring(int)")
+  public static String afterSubstring(
+      @CallSite.This final CharSequence self,
+      @CallSite.Argument final int beginIndex,
+      @CallSite.Return final String result) {
+    final StringModule module = InstrumentationBridge.STRING;
+    if (module != null) {
+      try {
+        module.onStringSubSequence(self, beginIndex, self.length(), result);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterSubstring threw", e);
+      }
+    }
+    return result;
+  }
+
+  @CallSite.After("java.lang.String java.lang.StringBuilder.substring(int, int)")
+  public static String afterSubstring(
+      @CallSite.This final CharSequence self,
+      @CallSite.Argument final int beginIndex,
+      @CallSite.Argument final int endIndex,
+      @CallSite.Return final String result) {
+    final StringModule module = InstrumentationBridge.STRING;
+    if (module != null) {
+      try {
+        module.onStringSubSequence(self, beginIndex, endIndex, result);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterSubstring threw", e);
+      }
+    }
+    return result;
+  }
 }

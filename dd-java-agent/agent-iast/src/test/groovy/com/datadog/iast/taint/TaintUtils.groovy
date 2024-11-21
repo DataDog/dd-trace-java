@@ -74,6 +74,13 @@ class TaintUtils {
     new String(s.replace(OPEN_MARK, "").replace(CLOSE_MARK, ""))
   }
 
+  static String getStringFromTaintFormat(final Appendable appendable) {
+    if (appendable == null) {
+      return null
+    }
+    getStringFromTaintFormat(appendable.toString())
+  }
+
   static <E> E taint(final TaintedObjects tos, final E value) {
     if (value instanceof String) {
       return addFromTaintFormat(tos, value as String)

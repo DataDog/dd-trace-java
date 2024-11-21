@@ -76,4 +76,18 @@ public class TestStringBuilderSuite implements TestAbstractStringBuilderSuite<St
     LOGGER.debug("After string builder toString {}", result);
     return result;
   }
+
+  public static String substring(StringBuilder self, int beginIndex, int endIndex) {
+    LOGGER.debug("Before string builder substring {} from {} to {}", self, beginIndex, endIndex);
+    final String result = self.substring(beginIndex, endIndex);
+    LOGGER.debug("After string builder substring {}", result);
+    return result;
+  }
+
+  public static String substring(StringBuilder self, int beginIndex) {
+    LOGGER.debug("Before string builder substring {} from {}", self, beginIndex);
+    final String result = self.substring(beginIndex);
+    LOGGER.debug("After string builder substring {}", result);
+    return result;
+  }
 }
