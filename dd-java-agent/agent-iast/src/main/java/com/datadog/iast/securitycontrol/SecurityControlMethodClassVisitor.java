@@ -1,33 +1,29 @@
 package com.datadog.iast.securitycontrol;
 
+import static org.objectweb.asm.Opcodes.ASM8;
+
 import datadog.trace.api.iast.securitycontrol.SecurityControl;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.Opcodes;
-
-import static org.objectweb.asm.Opcodes.ASM7;
-import static org.objectweb.asm.Opcodes.ASM8;
+import org.objectweb.asm.Type;
 
 public class SecurityControlMethodClassVisitor extends ClassVisitor {
 
   private final SecurityControl securityControl;
 
-  public SecurityControlMethodClassVisitor(final ClassWriter cw, final SecurityControl securityControl) {
+  public SecurityControlMethodClassVisitor(
+      final ClassWriter cw, final SecurityControl securityControl) {
     super(ASM8, cw);
     this.securityControl = securityControl;
   }
 
   @Override
-  public void visit(int version, int access, String name, String signature, String superName, String[] interfaces) {
-    cv.visit(version, access, name, signature, superName, interfaces);
-  }
-
-  @Override
-  public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
+  public MethodVisitor visitMethod(
+      int access, String name, String desc, String signature, String[] exceptions) {
     MethodVisitor mv = super.visitMethod(access, name, desc, signature, exceptions);
-    if (mv != null) {
-      mv = new SecurityControlMethodAdapter(ASM8, mv, access, name, desc, securityControl);
+    if (mv != null && shouldBeAdapted(name, desc)) {
+      mv = new SecurityControlMethodAdapter(mv, securityControl, desc);
     }
     return mv;
   }
@@ -36,4 +32,27 @@ public class SecurityControlMethodClassVisitor extends ClassVisitor {
     cv.visitEnd();
   }
 
+  private boolean shouldBeAdapted(String name, String desc) {
+
+    if (!securityControl.getMethod().equals(name)) {
+      return false;
+    }
+
+    if (securityControl.getParameterTypes() == null) {
+      return true;
+    }
+
+    Type[] types = Type.getArgumentTypes(desc);
+    if (types.length != securityControl.getParameterTypes().length) {
+      return false;
+    }
+
+    for (int i = 0; i < types.length; i++) {
+      if (!types[i].getClassName().equals(securityControl.getParameterTypes()[i])) {
+        return false;
+      }
+    }
+
+    return true;
+  }
 }

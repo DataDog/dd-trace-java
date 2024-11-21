@@ -6,6 +6,7 @@ import datadog.trace.api.iast.VulnerabilityMarks;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -60,11 +61,11 @@ public class SecurityControlFormatter {
       return null;
     }
     int marks = getMarks(split[1]);
-    String className = split[2];
+    String className = split[2].replaceAll("\\.", "/");
     String method = split[3];
 
     String[] parameterTypes = null;
-    int[] parametersToMark = null;
+    Set<Integer> parametersToMark = null;
 
     if (split.length > 4) {
       String[] elements = split[4].split(SECURITY_CONTROL_ELEMENT_DELIMITER);
@@ -96,8 +97,10 @@ public class SecurityControlFormatter {
     return marks;
   }
 
-  private static int[] getParametersToMark(String[] elements) {
-    return Arrays.stream(elements).mapToInt(Integer::parseInt).toArray();
+  private static Set<Integer> getParametersToMark(String[] elements) {
+    return Arrays.stream(elements)
+        .map(Integer::parseInt)
+        .collect(java.util.stream.Collectors.toSet());
   }
 
   private static boolean isNumeric(String str) {

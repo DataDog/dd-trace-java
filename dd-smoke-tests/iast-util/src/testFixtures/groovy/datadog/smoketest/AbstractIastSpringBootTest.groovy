@@ -7,9 +7,10 @@ import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.Response
 
-import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED
 import static datadog.trace.api.config.IastConfig.IAST_DETECTION_MODE
 import static datadog.trace.api.config.IastConfig.IAST_ENABLED
+import static datadog.trace.api.config.IastConfig.IAST_SECURITY_CONTROLS_ENABLED
+import static datadog.trace.api.config.IastConfig.IAST_SECURITY_CONTROLS_CONFIGURATION
 
 abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
@@ -35,7 +36,8 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     return [
       withSystemProperty(IAST_ENABLED, true),
       withSystemProperty(IAST_DETECTION_MODE, 'FULL'),
-      withSystemProperty(IAST_DEBUG_ENABLED, true),
+      withSystemProperty(IAST_SECURITY_CONTROLS_ENABLED, true),
+      withSystemProperty(IAST_SECURITY_CONTROLS_CONFIGURATION, "SANITIZER:XSS:ddtest.securitycontrols.Sanitizer:sanitize;INPUT_VALIDATOR:XSS:ddtest.securitycontrols.InputValidator:validate"),
     ]
   }
 
@@ -1203,5 +1205,23 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     then:
     response.body().string().contains("Test")
   }
+  void 'security controls avoid vulnerabilities'() {
+    setup:
+    final url = "http://localhost:${httpPort}/xss/${method}?string=test&string2=test2"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    noVulnerability { vul -> vul.type == 'XSS' && vul.location.method == method }
+
+    where:
+    method         |  _
+    'sanitize'        | _
+    'validate'       | _
+    'validate2'     | _
+  }
+
 
 }

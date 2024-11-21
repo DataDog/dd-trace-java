@@ -653,6 +653,22 @@ public class PropagationModuleImpl implements PropagationModule {
   }
 
   @Override
+  public void markIfTainted(@org.jetbrains.annotations.Nullable Object target, int mark) {
+    if (target == null) {
+      return;
+    }
+    final IastContext ctx = IastContext.Provider.get();
+    if (ctx == null) {
+      return;
+    }
+    TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    TaintedObject taintedObject = taintedObjects.get(target);
+    if (taintedObject != null) {
+      taintedObject.setRanges(markRanges(taintedObject.getRanges(), mark));
+    }
+  }
+
+  @Override
   public boolean isTainted(@Nullable final Object target) {
     if (target == null) {
       return false;

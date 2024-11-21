@@ -535,14 +535,11 @@ public class Agent {
       // start debugger before remote config to subscribe to it before starting to poll
       maybeStartDebugger(instrumentation, scoClass, sco);
       maybeStartRemoteConfig(scoClass, sco);
-      maybeStartIastSecurityControls(instrumentation, scoClass, sco);
 
       if (telemetryEnabled) {
         startTelemetry(instrumentation, scoClass, sco);
       }
     }
-
-
   }
 
   protected static class StartProfilingAgentCallback extends ClassLoadCallBack {
@@ -839,11 +836,12 @@ public class Agent {
     }
   }
 
-  private static void startIast(Instrumentation instrumentation, SubscriptionService ss, Class<?> scoClass, Object sco) {
+  private static void startIast(
+      Instrumentation instrumentation, SubscriptionService ss, Class<?> scoClass, Object sco) {
     try {
       final Class<?> appSecSysClass = AGENT_CLASSLOADER.loadClass("com.datadog.iast.IastSystem");
       final Method iastInstallerMethod =
-          appSecSysClass.getMethod("start",Instrumentation.class, SubscriptionService.class);
+          appSecSysClass.getMethod("start", Instrumentation.class, SubscriptionService.class);
       iastInstallerMethod.invoke(null, instrumentation, ss);
     } catch (final Throwable e) {
       log.warn("Not starting IAST subsystem", e);

@@ -54,10 +54,8 @@ import datadog.trace.api.iast.telemetry.IastMetricCollector;
 import datadog.trace.api.iast.telemetry.Verbosity;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.stacktrace.StackWalkerFactory;
-
 import java.lang.instrument.Instrumentation;
 import java.lang.reflect.Constructor;
-import java.lang.reflect.Method;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.List;
 import java.util.function.BiFunction;
@@ -73,7 +71,7 @@ public class IastSystem {
   public static boolean DEBUG = false;
   public static Verbosity VERBOSITY = Verbosity.OFF;
 
-  public static void start( final SubscriptionService ss) {
+  public static void start(final SubscriptionService ss) {
     start(null, ss, null);
   }
 
@@ -82,8 +80,9 @@ public class IastSystem {
   }
 
   public static void start(
-      final Instrumentation instrumentation,
-      final SubscriptionService ss, @Nullable OverheadController overheadController) {
+      @Nullable final Instrumentation instrumentation,
+      final SubscriptionService ss,
+      @Nullable OverheadController overheadController) {
     final Config config = Config.get();
     final ProductActivation iast = config.getIastActivation();
     final ProductActivation appSec = config.getAppSecActivation();
@@ -122,15 +121,17 @@ public class IastSystem {
     LOGGER.debug("IAST started");
   }
 
-  private static void maybeApplySecurityControls(Instrumentation instrumentation) {
-    if(!Config.get().isIastSecurityControlsEnabled()) {
+  private static void maybeApplySecurityControls(@Nullable Instrumentation instrumentation) {
+    if (!Config.get().isIastSecurityControlsEnabled() || instrumentation == null) {
       return;
     }
-    if(Config.get().getIastSecurityControlsConfiguration() == null){
-      LOGGER.warn("Error starting IAST Security Controls, IAST Security Controls configuration is missing");
+    if (Config.get().getIastSecurityControlsConfiguration() == null) {
+      LOGGER.warn(
+          "Error starting IAST Security Controls, IAST Security Controls configuration is missing");
       return;
     }
-    List<SecurityControl> securityControls = SecurityControlFormatter.format(Config.get().getIastSecurityControlsConfiguration());
+    List<SecurityControl> securityControls =
+        SecurityControlFormatter.format(Config.get().getIastSecurityControlsConfiguration());
     if (securityControls == null) {
       LOGGER.warn("No security controls to apply");
       return;

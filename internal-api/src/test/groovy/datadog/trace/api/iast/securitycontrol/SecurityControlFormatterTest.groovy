@@ -16,7 +16,7 @@ class SecurityControlFormatterTest extends DDSpecification{
     def securityControl = result.get(0)
     securityControl.getType() == SecurityControlType.INPUT_VALIDATOR
     securityControl.getMarks() == VulnerabilityMarks.COMMAND_INJECTION_MARK
-    securityControl.getClassName() == "bar.foo.CustomInputValidator"
+    securityControl.getClassName() == "bar/foo/CustomInputValidator"
     securityControl.getMethod() == "validate"
     securityControl.getParameterTypes() == null
     securityControl.getParametersToMark() == null
@@ -33,7 +33,7 @@ class SecurityControlFormatterTest extends DDSpecification{
     def securityControl = result.get(0)
     securityControl.getType() == SecurityControlType.SANITIZER
     securityControl.getMarks() == VulnerabilityMarks.COMMAND_INJECTION_MARK
-    securityControl.getClassName() == "bar.foo.CustomSanitizer"
+    securityControl.getClassName() == "bar/foo/CustomSanitizer"
     securityControl.getMethod() == "sanitize"
     securityControl.getParameterTypes() == null
     securityControl.getParametersToMark() == null
@@ -50,7 +50,7 @@ class SecurityControlFormatterTest extends DDSpecification{
     def inputValidator = result.get(0)
     inputValidator.getType() == SecurityControlType.INPUT_VALIDATOR
     inputValidator.getMarks() == VulnerabilityMarks.COMMAND_INJECTION_MARK
-    inputValidator.getClassName() == "bar.foo.CustomInputValidator"
+    inputValidator.getClassName() == "bar/foo/CustomInputValidator"
     inputValidator.getMethod() == "validate"
     inputValidator.getParameterTypes() == null
     inputValidator.getParametersToMark() == null
@@ -58,7 +58,7 @@ class SecurityControlFormatterTest extends DDSpecification{
     def sanitizer = result.get(1)
     sanitizer.getType() == SecurityControlType.SANITIZER
     sanitizer.getMarks() == VulnerabilityMarks.COMMAND_INJECTION_MARK
-    sanitizer.getClassName() == "bar.foo.CustomSanitizer"
+    sanitizer.getClassName() == "bar/foo/CustomSanitizer"
     sanitizer.getMethod() == "sanitize"
     sanitizer.getParameterTypes() == null
     sanitizer.getParametersToMark() == null
@@ -75,10 +75,9 @@ class SecurityControlFormatterTest extends DDSpecification{
     def securityControl = result.get(0)
     securityControl.getType() == SecurityControlType.INPUT_VALIDATOR
     securityControl.getMarks() == (VulnerabilityMarks.COMMAND_INJECTION_MARK | VulnerabilityMarks.SQL_INJECTION_MARK)
-    securityControl.getClassName() == "bar.foo.CustomInputValidator"
+    securityControl.getClassName() == "bar/foo/CustomInputValidator"
     securityControl.getMethod() == "validate"
     securityControl.getParameterTypes() == null
     securityControl.getParametersToMark() == null
   }
-
 }
