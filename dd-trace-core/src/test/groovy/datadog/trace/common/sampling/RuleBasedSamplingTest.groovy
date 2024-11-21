@@ -328,9 +328,9 @@ class RuleBasedSamplingTest extends DDCoreSpecification {
     "*"         | "anything..."             | true
     "*"         | null                      | false
     "*"         | new StringBuilder("foo")  | true
-    "*"         | new Object() {}           | true
-    "**"        | new Object() {}           | true
-    "?"         | new Object() {}           | false
+    "*"         | object()                  | true
+    "**"        | object()                  | true
+    "?"         | object()                  | false
     "*"         | "foo"                     | true
     "**"        | "foo"                     | true
     "**"        | true                      | true
@@ -484,5 +484,14 @@ class RuleBasedSamplingTest extends DDCoreSpecification {
 
   static bigDecimal(str) {
     return new BigDecimal(str)
+  }
+
+  static object() {
+    return new Object() {
+        @Override
+        String toString() {
+          return 'object'
+        }
+      }
   }
 }
