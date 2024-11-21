@@ -2,6 +2,7 @@ package datadog.trace.civisibility.writer.ddintake;
 
 import static datadog.communication.http.OkHttpUtils.gzippedMsgpackRequestBodyOf;
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
+import static datadog.json.JsonMapper.toJson;
 
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.Writable;
@@ -20,7 +21,6 @@ import datadog.trace.common.writer.RemoteMapper;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.Metadata;
 import datadog.trace.core.MetadataConsumer;
-import datadog.trace.util.Strings;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
@@ -357,7 +357,7 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
           if (!(value instanceof Iterable)) {
             writable.writeObjectString(value, null);
           } else {
-            String serializedValue = Strings.toJson((Iterable<String>) value);
+            String serializedValue = toJson((Collection<String>) value);
             writable.writeString(serializedValue, null);
           }
         }
