@@ -30,7 +30,7 @@ public class RxJavaPluginsInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".RxJavaAsyncResultSupportExtension",
+      packageName + ".RxJavaAsyncResultExtension",
     };
   }
 
@@ -42,7 +42,7 @@ public class RxJavaPluginsInstrumentation extends InstrumenterModule.Tracing
   public static class RxJavaPluginsAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void init() {
-      RxJavaAsyncResultSupportExtension.initialize();
+      RxJavaAsyncResultExtension.initialize();
     }
   }
 }

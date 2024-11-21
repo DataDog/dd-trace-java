@@ -36,7 +36,7 @@ public class BlockingPublisherInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".ReactorAsyncResultSupportExtension",
+      packageName + ".ReactorAsyncResultExtension",
     };
   }
 
@@ -83,7 +83,7 @@ public class BlockingPublisherInstrumentation extends InstrumenterModule.Tracing
   public static class AsyncExtensionInstallAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void init() {
-      ReactorAsyncResultSupportExtension.initialize();
+      ReactorAsyncResultExtension.initialize();
     }
   }
 }

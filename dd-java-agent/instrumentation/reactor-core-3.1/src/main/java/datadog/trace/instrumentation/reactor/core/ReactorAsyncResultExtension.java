@@ -1,22 +1,22 @@
 package datadog.trace.instrumentation.reactor.core;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.decorator.AsyncResultDecorator;
-import datadog.trace.bootstrap.instrumentation.decorator.AsyncResultDecorator.AsyncResultSupportExtension;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.AsyncResultExtension;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.AsyncResultExtensions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-public class ReactorAsyncResultSupportExtension implements AsyncResultSupportExtension {
+public class ReactorAsyncResultExtension implements AsyncResultExtension {
   static {
-    AsyncResultDecorator.registerExtension(new ReactorAsyncResultSupportExtension());
+    AsyncResultExtensions.register(new ReactorAsyncResultExtension());
   }
 
   /**
-   * Register the extension as an {@link AsyncResultSupportExtension} using static class
-   * initialization.<br>
+   * Register the extension as an {@link AsyncResultExtension} using static class initialization.
+   * <br>
    * It uses an empty static method call to ensure the class loading and the one-time-only static
-   * class initialization. This will ensure this extension will only be registered once to the
-   * {@link AsyncResultDecorator}.
+   * class initialization. This will ensure this extension will only be registered once under {@link
+   * AsyncResultExtensions}.
    */
   public static void initialize() {}
 
