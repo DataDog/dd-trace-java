@@ -55,6 +55,21 @@ abstract class ApacheHttpAsyncClient5Test<T extends HttpRequest> extends HttpCli
     callback?.call()
     return response.code
   }
+
+  @Override
+  int doRequest(String method, URI uri, String[] headers, String body, Closure callback) {
+    def request = SimpleHttpRequests.create(method, uri)
+    request.setConfig(RequestConfig.custom().setConnectTimeout(CONNECT_TIMEOUT_MS, TimeUnit.MILLISECONDS).build())
+    for (String header : headers) {
+      String[] keyVal = header.split(":")
+      request.addHeader(keyVal[0], keyVal[1])
+    }
+
+    def future = client.execute(request, null)
+    def response = future.get(READ_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+    callback?.call()
+    return response.code
+  }
 }
 
 class ApacheHttpAsyncClient5NamingV0ForkedTest extends ApacheHttpAsyncClient5Test implements TestingGenericHttpNamingConventions.ClientV0 {

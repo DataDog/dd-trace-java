@@ -48,6 +48,25 @@ abstract class ApacheHttpClientTest<T extends HttpRequest> extends HttpClientTes
     }
   }
 
+  @Override
+  int doRequest(String method, URI uri, String[] headers, String body, Closure callback) {
+    def request = createRequest(method, uri)
+    for (String header : headers) {
+      String[] keyVal = header.split(":")
+      request.addHeader(new BasicHeader(keyVal[0], keyVal[1]))
+    }
+
+    CloseableHttpResponse response = null
+    try {
+      response = executeRequest(request, uri)
+      callback?.call()
+      return response.code
+    }
+    finally {
+      response?.close()
+    }
+  }
+
   abstract T createRequest(String method, URI uri)
 
   abstract CloseableHttpResponse executeRequest(T request, URI uri)
