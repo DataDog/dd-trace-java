@@ -10,24 +10,25 @@ public final class LogUtils {
 
   private static final boolean NOTE = false;
 
-  public static final void log(
-      ProcessingEnvironment processingEnv, String formatStr, Object... args) {
+  public static void log(ProcessingEnvironment processingEnv, String formatStr, Object... args) {
     String msg = String.format(formatStr, args);
 
-    processingEnv.getMessager().printMessage(Kind.NOTE, msg);
+    if (NOTE) {
+      processingEnv.getMessager().printMessage(Kind.NOTE, msg);
+    }
   }
 
-  public static final void warning(
+  public static void warning(
       ProcessingEnvironment processingEnv, Element element, String formatStr, Object... args) {
     message(processingEnv, element, Kind.WARNING, formatStr, args);
   }
 
-  public static final void error(
+  public static void error(
       ProcessingEnvironment processingEnv, Element element, String formatStr, Object... args) {
     message(processingEnv, element, Kind.ERROR, formatStr, args);
   }
 
-  public static final void message(
+  public static void message(
       ProcessingEnvironment processingEnv,
       Element element,
       Kind kind,
