@@ -97,7 +97,11 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     return key + ":" + value
   }
   static {
-    ((ch.qos.logback.classic.Logger) SERVER_LOGGER).setLevel(Level.DEBUG)
+    try {
+      ((ch.qos.logback.classic.Logger) SERVER_LOGGER).setLevel(Level.DEBUG)
+    } catch (Throwable t) {
+      SERVER_LOGGER.warn("Unable to set debug level for server logger", t)
+    }
   }
 
   @Override

@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Properties;
 import org.mule.runtime.api.exception.MuleException;
-import org.mule.runtime.api.lifecycle.InitialisationException;
 import org.mule.runtime.api.util.MuleSystemProperties;
 import org.mule.runtime.core.api.config.MuleProperties;
 import org.mule.runtime.module.launcher.DefaultMuleContainer;
@@ -17,9 +16,9 @@ import org.mule.runtime.module.launcher.DefaultMuleContainer;
  * mule directory.
  */
 public class MuleTestContainer {
-  final DefaultMuleContainer container;
+  DefaultMuleContainer container;
 
-  public MuleTestContainer(File muleBaseDirectory) throws IOException, InitialisationException {
+  public MuleTestContainer(File muleBaseDirectory) throws IOException {
     if (!muleBaseDirectory.exists()) {
       muleBaseDirectory.mkdirs();
     }
@@ -29,6 +28,7 @@ public class MuleTestContainer {
     // This is the Mule runtime folder where files are stored
     System.setProperty(MuleProperties.MULE_BASE_DIRECTORY_PROPERTY, basePath);
     System.setProperty(MuleProperties.MULE_HOME_DIRECTORY_PROPERTY, basePath);
+    System.setProperty("mule.classloader.container.jpmsModuleLayer", "false");
     // Mule is a bit picky with some directories existing, so let's create them
     for (String dirName : new String[] {"domains/default", "apps"}) {
       File dir = new File(muleBaseDirectory, dirName);
@@ -36,7 +36,19 @@ public class MuleTestContainer {
         dir.mkdirs();
       }
     }
-    this.container = new DefaultMuleContainer(new String[0]);
+    try {
+      this.container = DefaultMuleContainer.class.newInstance();
+    } catch (Throwable t) {
+      t.printStackTrace();
+      try {
+        this.container =
+            DefaultMuleContainer.class
+                .getDeclaredConstructor(String[].class)
+                .newInstance((Object) new String[0]);
+      } catch (Throwable t2) {
+        throw new RuntimeException("Unable to instantiate MuleContainer", t2);
+      }
+    }
   }
 
   public void start() throws MuleException {

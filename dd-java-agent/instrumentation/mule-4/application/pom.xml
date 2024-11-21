@@ -43,8 +43,6 @@
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.7.0</version>
         <configuration>
-          <source>1.8</source>
-          <target>1.8</target>
           <compilerArgs>
             <args>-parameters</args>
           </compilerArgs>
@@ -57,19 +55,19 @@
     <dependency>
       <groupId>org.mule.connectors</groupId>
       <artifactId>mule-http-connector</artifactId>
-      <version>1.5.23</version>
+      <version>1.9.2</version>
       <classifier>mule-plugin</classifier>
     </dependency>
     <dependency>
       <groupId>org.mule.connectors</groupId>
       <artifactId>mule-sockets-connector</artifactId>
-      <version>1.2.0</version>
+      <version>1.2.4</version>
       <classifier>mule-plugin</classifier>
     </dependency>
     <dependency>
       <groupId>org.mule.module</groupId>
       <artifactId>mule-java-module</artifactId>
-      <version>1.2.7</version>
+      <version>1.2.13</version>
       <classifier>mule-plugin</classifier>
     </dependency>
     <dependency>
