@@ -31,29 +31,10 @@ abstract class ApacheHttpClientTest<T extends HttpRequest> extends HttpClientTes
   }
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+  int doRequest(String method, URI uri, List<List<String>> headers, String body, Closure callback) {
     def request = createRequest(method, uri)
-    headers.entrySet().each {
-      request.addHeader(new BasicHeader(it.key, it.value))
-    }
-
-    CloseableHttpResponse response = null
-    try {
-      response = executeRequest(request, uri)
-      callback?.call()
-      return response.code
-    }
-    finally {
-      response?.close()
-    }
-  }
-
-  @Override
-  int doRequest(String method, URI uri, String[] headers, String body, Closure callback) {
-    def request = createRequest(method, uri)
-    for (String header : headers) {
-      String[] keyVal = header.split(":")
-      request.addHeader(new BasicHeader(keyVal[0], keyVal[1]))
+    for (List<String> header : headers) {
+      request.addHeader(new BasicHeader(header[0], header[1]))
     }
 
     CloseableHttpResponse response = null

@@ -38,27 +38,10 @@ class ApacheHttpClientResponseHandlerTest extends HttpClientTest implements Test
   }
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+  int doRequest(String method, URI uri, List<List<String>> headers, String body, Closure callback) {
     def request = new BasicClassicHttpRequest(method, uri)
-    headers.entrySet().each {
-      request.addHeader(new BasicHeader(it.key, it.value))
-    }
-
-    CloseableHttpResponse response = null
-    def status = client.execute(request, handler)
-
-    // handler execution is included within the client span, so we can't call the callback there.
-    callback?.call()
-
-    return status
-  }
-
-  @Override
-  int doRequest(String method, URI uri, String[] headers, String body, Closure callback) {
-    def request = new BasicClassicHttpRequest(method, uri)
-    for (String header : headers) {
-      String[] keyVal = header.split(":")
-      request.addHeader(new BasicHeader(keyVal[0], keyVal[1]))
+    for (List<String> header : headers) {
+      request.addHeader(new BasicHeader(header[0], header[1]))
     }
 
     CloseableHttpResponse response = null
