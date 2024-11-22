@@ -33,12 +33,12 @@ addTestSuiteForDir('latestDepForkedTest', 'test')
 
 
 def muleVersion = '4.5.0'
-def muleBaseDir = "$buildDir/mule"
 def appDir = "$projectDir/application"
-def generatedResourcesDir = "$buildDir/generated-resources/test"
 
 clean.doFirst {
-  delete muleBaseDir
+  delete "$buildDir/mule/forkedTest"
+  delete "$buildDir/mule/mule46ForkedTest"
+  delete "$buildDir/mule/latestDepForkedTest"
 }
 
 repositories {
@@ -74,13 +74,13 @@ configurations.all {
 
 sourceSets {
   test {
-    output.dir(generatedResourcesDir, builtBy: 'generateAppResources')
+    output.dir("$buildDir/generated-resources/test", builtBy: 'generateAppResources')
   }
   mule46ForkedTest {
-    output.dir(generatedResourcesDir, builtBy: 'generateAppResources')
+    output.dir("$buildDir/generated-resources/mule46ForkedTest", builtBy: 'generateAppResources46')
   }
   latestDepForkedTest {
-    output.dir(generatedResourcesDir, builtBy: 'generateAppResources')
+    output.dir("$buildDir/generated-resources/latestDepForkedTest", builtBy: 'generateAppResourcesLatest')
   }
 }
 
@@ -174,15 +174,15 @@ def copyMuleArtifacts(String configName, String muleBaseDir, Sync sync) {
 // extract the enabled services into the mule base directory
 tasks.register('extractMuleServices', Sync) {
   dependsOn configurations.muleServices
-  copyMuleArtifacts("muleServices", muleBaseDir, it)
+  copyMuleArtifacts("muleServices", "$buildDir/mule/test", it)
 }
 tasks.register('extractMule46Services', Sync) {
   dependsOn configurations.mule46Services
-  copyMuleArtifacts("mule46Services", muleBaseDir, it)
+  copyMuleArtifacts("mule46Services", "$buildDir/mule/mule46ForkedTest", it)
 }
 tasks.register('extractLatestMuleServices', Sync) {
   dependsOn configurations.latestMuleServices
-  copyMuleArtifacts("latestMuleServices", muleBaseDir, it)
+  copyMuleArtifacts("latestMuleServices", "$buildDir/mule/latestDepForkedTest", it)
 }
 
 // build the mule application via maven
@@ -195,12 +195,24 @@ tasks.register('mvnPackage', Exec) {
   inputs.file("$appDir/mule-artifact.json")
 }
 
+
 // generate a properties file so the test knows where to run mule, and what jar to deploy
 tasks.register('generateAppResources') {
-  outputs.dir generatedResourcesDir
-  doLast {
+  createAppResourceTask(it, "test")
+}
+tasks.register('generateAppResources46') {
+  createAppResourceTask(it, "mule46ForkedTest")
+}
+tasks.register('generateAppResourcesLatest') {
+  createAppResourceTask(it, "latestDepForkedTest")
+}
+
+def createAppResourceTask(Task task, String name) {
+  def generatedResourcesDir = "$buildDir/generated-resources/$name"
+  task.outputs.dir generatedResourcesDir
+  task.doLast {
     def generated = new File(generatedResourcesDir, "test-build.properties")
-    generated.text = """|mule.base=$muleBaseDir
+    generated.text = """|mule.base=$buildDir/mule/$name
                         |MuleTestApplicationConstants.jar=$buildDir/target/mule-test-application-$version-mule-application.jar
                         |MuleTestApplicationConstants.name=mule-test-application-$version-mule-application""".stripMargin()
   }
@@ -209,6 +221,18 @@ tasks.register('generateAppResources') {
 tasks.named("test").configure {
   outputs.upToDateWhen {
     !mvnPackage.didWork && !extractMuleServices.didWork
+  }
+}
+
+tasks.named("mule46ForkedTest").configure {
+  outputs.upToDateWhen {
+    !mvnPackage.didWork && !extractMule46Services.didWork
+  }
+}
+
+tasks.named("latestDepForkedTest").configure {
+  outputs.upToDateWhen {
+    !mvnPackage.didWork && !latestDepForkedTest.didWork
   }
 }
 
