@@ -9,8 +9,11 @@ import java.util.List;
 import java.util.Set;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import org.slf4j.Logger;
 
+@SuppressForbidden // Suppresses the warning for using split method
 public class SecurityControlFormatter {
 
   private static final Logger log =
