@@ -23,7 +23,7 @@ public interface StringModule extends IastModule {
       @Nonnull int[] recipeOffsets);
 
   void onStringSubSequence(
-      @Nonnull String self, int beginIndex, int endIndex, @Nullable CharSequence result);
+      @Nonnull CharSequence self, int beginIndex, int endIndex, @Nullable CharSequence result);
 
   void onStringJoin(
       @Nullable String result, @Nonnull CharSequence delimiter, @Nonnull CharSequence[] elements);

@@ -20,8 +20,9 @@ public class SsrfController {
       @RequestParam(value = "promise", required = false) final boolean promise) {
     HttpClient httpClient = HttpClient.newBuilder().build();
     try {
-      HttpRequest httpRequest = HttpRequest.newBuilder().uri(new URI(url)).build();
+      String uri = url.startsWith("http") ? url : "http://" + url;
       if (async) {
+        HttpRequest httpRequest = HttpRequest.newBuilder().uri(new URI(uri)).build();
         if (promise) {
           httpClient.sendAsync(
               httpRequest,
@@ -31,9 +32,18 @@ public class SsrfController {
           httpClient.sendAsync(httpRequest, HttpResponse.BodyHandlers.ofString());
         }
       } else {
+        HttpRequest httpRequest =
+            HttpRequest.newBuilder()
+                .uri(new URI(uri))
+                .timeout(
+                    java.time.Duration.ofSeconds(
+                        1)) // prevents Idle timeout expired in jetty servers when the client is not
+                // responding in sync mode
+                .build();
         httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
       }
     } catch (Exception e) {
+      // Do nothing
     }
     return "ok";
   }

@@ -185,7 +185,7 @@ public class StringModuleImpl implements StringModule {
   @Override
   @SuppressFBWarnings("ES_COMPARING_PARAMETER_STRING_WITH_EQ")
   public void onStringSubSequence(
-      @Nonnull String self, int beginIndex, int endIndex, @Nullable CharSequence result) {
+      @Nonnull CharSequence self, int beginIndex, int endIndex, @Nullable CharSequence result) {
     if (self == result || !canBeTainted(result)) {
       return;
     }

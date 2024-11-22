@@ -7,6 +7,7 @@ import datadog.trace.test.agent.decoder.Decoder
 import datadog.trace.test.agent.decoder.DecodedMessage
 import datadog.trace.test.agent.decoder.DecodedTrace
 import datadog.trace.util.Strings
+import groovy.json.JsonSlurper
 
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.CopyOnWriteArrayList
@@ -36,6 +37,15 @@ abstract class AbstractSmokeTest extends ProcessManager {
 
   @Shared
   private Throwable traceDecodingFailure = null
+
+  @Shared
+  protected CopyOnWriteArrayList<Map<String, Object>> telemetryMessages = new CopyOnWriteArrayList()
+
+  @Shared
+  protected CopyOnWriteArrayList<Map<String, Object>> telemetryFlatMessages = new CopyOnWriteArrayList()
+
+  @Shared
+  private Throwable telemetryDecodingFailure = null
 
   @Shared
   protected TestHttpServer.Headers lastTraceRequestHeaders = null
@@ -119,6 +129,23 @@ abstract class AbstractSmokeTest extends ProcessManager {
         response.status(200).send(remoteConfigResponse)
       }
       prefix("/telemetry/proxy/api/v2/apmtelemetry") {
+        try {
+          byte[] body = request.getBody()
+          if (body != null) {
+            Map<String, Object> msg = new JsonSlurper().parseText(new String(body, StandardCharsets.UTF_8)) as Map<String, Object>
+            telemetryMessages.add(msg)
+            if (msg.get("request_type") == "message-batch") {
+              msg.get("payload")?.each { telemetryFlatMessages.add(it as Map<String, Object>) }
+            } else {
+              telemetryFlatMessages.add(msg)
+            }
+          }
+        } catch (Throwable t) {
+          println("=== Failure during telemetry decoding ===")
+          t.printStackTrace(System.out)
+          telemetryDecodingFailure = t
+          throw t
+        }
         response.status(202).send()
       }
     }
@@ -160,6 +187,9 @@ abstract class AbstractSmokeTest extends ProcessManager {
     if (inferServiceName())  {
       ret += "-Ddd.service.name=${SERVICE_NAME}"
     }
+    if (testTelemetry()) {
+      ret += "-Ddd.telemetry.heartbeat.interval=5"
+    }
     ret as String[]
   }
 
@@ -170,6 +200,11 @@ abstract class AbstractSmokeTest extends ProcessManager {
   private static boolean isDdprofSafe() {
     // currently the J9 handling of jmethodIDs will cause frequent crashes
     return !Platform.isJ9()
+  }
+
+
+  boolean testTelemetry() {
+    return true
   }
 
   def setup() {
@@ -269,6 +304,31 @@ abstract class AbstractSmokeTest extends ProcessManager {
       trace.spans.find {
         predicate.apply(it)
       }
+    }
+  }
+
+  void waitForTelemetryCount(final int count) {
+    def conditions = new PollingConditions(timeout: 30, initialDelay: 0, delay: 1, factor: 1)
+    waitForTelemetryCount(conditions, count)
+  }
+
+  void waitForTelemetryCount(final PollingConditions poll, final int count) {
+    poll.eventually {
+      telemetryMessages.size() >= count
+    }
+  }
+
+  void waitForTelemetryFlat(final Function<Map<String, Object>, Boolean> predicate) {
+    def conditions = new PollingConditions(timeout: 30, initialDelay: 0, delay: 1, factor: 1)
+    waitForTelemetryFlat(conditions, predicate)
+  }
+
+  void waitForTelemetryFlat(final PollingConditions poll, final Function<Map<String, Object>, Boolean> predicate) {
+    poll.eventually {
+      if (telemetryDecodingFailure != null) {
+        throw telemetryDecodingFailure
+      }
+      assert telemetryFlatMessages.find { predicate.apply(it) } != null
     }
   }
 

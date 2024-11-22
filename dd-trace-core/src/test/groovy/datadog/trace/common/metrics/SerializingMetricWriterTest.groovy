@@ -14,7 +14,7 @@ import static java.util.concurrent.TimeUnit.SECONDS
 
 class SerializingMetricWriterTest extends DDSpecification {
 
-  def "should produce correct message" () {
+  def "should produce correct message #iterationIndex" () {
     setup:
     long startTime = MILLISECONDS.toNanos(System.currentTimeMillis())
     long duration = SECONDS.toNanos(10)

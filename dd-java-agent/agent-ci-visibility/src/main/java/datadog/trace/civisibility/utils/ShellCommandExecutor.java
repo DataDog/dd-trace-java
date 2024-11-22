@@ -5,7 +5,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.context.TraceScope;
 import datadog.trace.util.AgentThreadFactory;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
-import datadog.trace.util.Strings;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -124,7 +123,7 @@ public class ShellCommandExecutor {
           throw new ShellCommandFailedException(
               exitValue,
               "Command '"
-                  + Strings.join(" ", command)
+                  + String.join(" ", command)
                   + "' failed with exit code "
                   + exitValue
                   + ": "
@@ -147,7 +146,7 @@ public class ShellCommandExecutor {
         terminate(p);
         throw new TimeoutException(
             "Timeout while waiting for '"
-                + Strings.join(" ", command)
+                + String.join(" ", command)
                 + "'; "
                 + IOUtils.readFully(errorStreamConsumer.read(), Charset.defaultCharset()));
       }

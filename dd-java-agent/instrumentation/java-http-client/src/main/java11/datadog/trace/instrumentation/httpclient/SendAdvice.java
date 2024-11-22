@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.httpclient.JavaNetClientDecorator.DECORATE;
 
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -15,22 +16,29 @@ import net.bytebuddy.asm.Advice;
 public class SendAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope methodEnter(@Advice.Argument(value = 0) final HttpRequest httpRequest) {
-    // Here we avoid having the advice applied twice in case we have nested call of this intercepted
-    // method.
-    // In this particular case, in HttpClientImpl the send method is calling sendAsync under the
-    // hood and we do not want to instrument twice.
-    final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpClient.class);
-    if (callDepth > 0) {
-      return null;
+    try {
+      // Here we avoid having the advice applied twice in case we have nested call of this
+      // intercepted
+      // method.
+      // In this particular case, in HttpClientImpl the send method is calling sendAsync under the
+      // hood and we do not want to instrument twice.
+      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpClient.class);
+      if (callDepth > 0) {
+        return null;
+      }
+      final AgentSpan span = startSpan(JavaNetClientDecorator.OPERATION_NAME);
+      final AgentScope scope = activateSpan(span);
+
+      DECORATE.afterStart(span);
+      DECORATE.onRequest(span, httpRequest);
+
+      // propagation is done by another instrumentation since Headers are immutable
+      return scope;
+    } catch (BlockingException e) {
+      CallDepthThreadLocalMap.reset(HttpClient.class);
+      // re-throw blocking exceptions
+      throw e;
     }
-    final AgentSpan span = startSpan(JavaNetClientDecorator.OPERATION_NAME);
-    final AgentScope scope = activateSpan(span);
-
-    DECORATE.afterStart(span);
-    DECORATE.onRequest(span, httpRequest);
-
-    // propagation is done by another instrumentation since Headers are immutable
-    return scope;
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

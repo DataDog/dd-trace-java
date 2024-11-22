@@ -36,7 +36,7 @@ import datadog.trace.civisibility.domain.headless.HeadlessTestSession
 import datadog.trace.civisibility.events.BuildEventsHandlerImpl
 import datadog.trace.civisibility.events.TestEventsHandlerImpl
 import datadog.trace.civisibility.ipc.SignalServer
-import datadog.trace.civisibility.source.MethodLinesResolver
+import datadog.trace.civisibility.source.LinesResolver
 import datadog.trace.civisibility.source.SourcePathResolver
 import datadog.trace.civisibility.source.index.RepoIndexBuilder
 import datadog.trace.civisibility.telemetry.CiVisibilityMetricCollectorImpl
@@ -62,6 +62,8 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
   static final String DUMMY_SOURCE_PATH = "dummy_source_path"
   static final int DUMMY_TEST_METHOD_START = 12
   static final int DUMMY_TEST_METHOD_END = 18
+  static final int DUMMY_TEST_CLASS_START = 11
+  static final int DUMMY_TEST_CLASS_END = 19
   static final Collection<String> DUMMY_CODE_OWNERS = ["owner1", "owner2"]
 
   private static Path agentKeyFile
@@ -93,8 +95,9 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     def codeowners = Stub(Codeowners)
     codeowners.getOwners(DUMMY_SOURCE_PATH) >> DUMMY_CODE_OWNERS
 
-    def methodLinesResolver = Stub(MethodLinesResolver)
-    methodLinesResolver.getLines(_ as Method) >> new MethodLinesResolver.MethodLines(DUMMY_TEST_METHOD_START, DUMMY_TEST_METHOD_END)
+    def linesResolver = Stub(LinesResolver)
+    linesResolver.getMethodLines(_ as Method) >> new LinesResolver.Lines(DUMMY_TEST_METHOD_START, DUMMY_TEST_METHOD_END)
+    linesResolver.getClassLines(_ as Class<?>) >> new LinesResolver.Lines(DUMMY_TEST_CLASS_START, DUMMY_TEST_CLASS_END)
 
     def executionSettingsFactory = new ExecutionSettingsFactory() {
       @Override
@@ -139,7 +142,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       testDecorator,
       sourcePathResolver,
       codeowners,
-      methodLinesResolver,
+      linesResolver,
       coverageStoreFactory,
       new ExecutionStrategy(config, executionSettingsFactory.create(JvmInfo.CURRENT_JVM, ""))
       )
@@ -165,7 +168,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       testDecorator,
       sourcePathResolver,
       codeowners,
-      methodLinesResolver,
+      linesResolver,
       executionSettingsFactory,
       signalServer,
       repoIndexBuilder,
