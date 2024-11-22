@@ -3,14 +3,13 @@ package datadog.trace.api.iast.securitycontrol;
 import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
 
 import datadog.trace.api.iast.VulnerabilityMarks;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-
-import de.thetaphi.forbiddenapis.SuppressForbidden;
 import org.slf4j.Logger;
 
 @SuppressForbidden // Suppresses the warning for using split method
