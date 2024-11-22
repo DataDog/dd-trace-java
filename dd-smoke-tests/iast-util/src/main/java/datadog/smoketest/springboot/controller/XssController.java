@@ -203,12 +203,12 @@ public class XssController {
     }
   }
 
-  @GetMapping("/validate")
+  @GetMapping("/validateAll")
   @SuppressFBWarnings
-  public void validate(final HttpServletRequest request, final HttpServletResponse response) {
+  public void validateAll(final HttpServletRequest request, final HttpServletResponse response) {
     try {
       String s = request.getParameter("string");
-      InputValidator.validate(s);
+      InputValidator.validateAll(s);
       response.getWriter().write(s);
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -221,7 +221,20 @@ public class XssController {
     try {
       String string1 = request.getParameter("string");
       String string2 = request.getParameter("string2");
-      InputValidator.validate(string1, string2);
+      InputValidator.validateAll(string1, string2);
+      response.getWriter().write(string1 + string2);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  @GetMapping("/validate")
+  @SuppressFBWarnings
+  public void validate(final HttpServletRequest request, final HttpServletResponse response) {
+    try {
+      String string1 = request.getParameter("string");
+      String string2 = request.getParameter("string2");
+      InputValidator.validate(null, string1, string2);
       response.getWriter().write(string1 + string2);
     } catch (IOException e) {
       throw new RuntimeException(e);
