@@ -14,7 +14,7 @@ class VertxSmokeTest extends AbstractServerSmokeTest {
   int totalInvocations = 1000
 
   @Override
-  def addCrashTracking() {
+  def testCrashTracking() {
     // DQH - 2024 Nov
     // Disabled crash tracking in IAST tests for initial GA
     // NOTE: That tests that concatenate JVM arguments into JAVA_TOOL_OPTIONS may

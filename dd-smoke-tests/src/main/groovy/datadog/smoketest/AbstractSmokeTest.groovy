@@ -164,7 +164,7 @@ abstract class AbstractSmokeTest extends ProcessManager {
     "-Ddd.version=${VERSION}"
   ]
 
-  def addCrashTracking() {
+  def testCrashTracking() {
     return true
   }
 
@@ -194,9 +194,8 @@ abstract class AbstractSmokeTest extends ProcessManager {
       ret += "-Ddd.service.name=${SERVICE_NAME}"
     }
 
-    // DQH - 13 Nov 2024 - Crashtracking bash script doesn't work on OS X,
-    // so skipping crash tracking on OS X
-    if (addCrashTracking() && !Platform.isJ9() && !Platform.isMac()) {
+    // DQH - Nov 2024 - skipping for J9 which doesn't have full crash tracking support
+    if (testCrashTracking() && !Platform.isJ9()) {
       def extension = getScriptExtension()
 
       ret += "-XX:OnError=\"${tmpDir}/dd_crash_uploader.${extension} %p\""
