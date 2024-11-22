@@ -77,7 +77,7 @@ public class SecurityControlFormatter {
       String[] elements = split[4].split(SECURITY_CONTROL_ELEMENT_DELIMITER);
       if (elements.length > 0) {
         if (isNumeric(elements[0])) {
-          if (split.length != 6) {
+          if (split.length != 5) {
             log.warn("Security control configuration is invalid: {}", config);
             return null;
           }
