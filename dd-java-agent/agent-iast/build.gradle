@@ -50,7 +50,7 @@ dependencies {
   implementation project(':internal-api')
   implementation project(':internal-api:internal-api-9')
   implementation libs.moshi
-  implementation("org.ow2.asm:asm:9.7")
+  implementation libs.bundles.asm
 
   testFixturesApi project(':dd-java-agent:testing')
   testFixturesApi project(':utils:test-utils')

@@ -39,9 +39,13 @@ public class SecurityControlFormatter {
     List<SecurityControl> securityControls = new ArrayList<>(list.length);
 
     for (String s : list) {
-      SecurityControl securityControl = getSecurityControl(s);
-      if (securityControl != null) {
-        securityControls.add(securityControl);
+      try {
+        SecurityControl securityControl = getSecurityControl(s);
+        if (securityControl != null) {
+          securityControls.add(securityControl);
+        }
+      } catch (Exception e) {
+        log.warn("Security control configuration is invalid: {}", s);
       }
     }
     return securityControls.isEmpty() ? null : securityControls;
@@ -73,6 +77,10 @@ public class SecurityControlFormatter {
       String[] elements = split[4].split(SECURITY_CONTROL_ELEMENT_DELIMITER);
       if (elements.length > 0) {
         if (isNumeric(elements[0])) {
+          if (split.length != 6) {
+            log.warn("Security control configuration is invalid: {}", config);
+            return null;
+          }
           parametersToMark = getParametersToMark(elements);
         } else {
           parameterTypes = elements;
