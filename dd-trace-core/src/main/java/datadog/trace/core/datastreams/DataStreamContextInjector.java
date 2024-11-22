@@ -75,7 +75,6 @@ public class DataStreamContextInjector {
             : injectPathwayContext(pathwayContext, carrier, setter);
 
     long pathwayHash = pathwayContext.getHash();
-
     // Extract transaction ID from the carrier
     String transactionId = null;
     if (carrier instanceof DataStreamsContextCarrier) {
@@ -87,8 +86,13 @@ public class DataStreamContextInjector {
         }
       }
     }
+    System.out.println("VEER - INJECTING PATHWAY CONTEXT");
+    System.out.println("VEER - TRANSACTION" + transactionId);
+    System.out.println("VEER -  TRANSACTION" + pathwayHash);
+
 
     if (transactionId != null && pathwayHash != 0) {
+      System.out.println("VEER - REPORTING TRANSACTION");
       dataStreamsMonitoring.reportTransaction(transactionId, pathwayHash);
     }
 

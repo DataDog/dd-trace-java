@@ -261,6 +261,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
    */
   @Override
   public void reportTransaction(String transactionId, long pathwayHash) {
+    System.out.println("WE ARE REPORTING TRANSACTIONID" + transactionId + " AND PATHWAY HASH" + pathwayHash);
     log.info(
         "We are reporting the transaction with transaction id {} and pathwayHash {}",
         transactionId,
@@ -281,6 +282,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       log.warn("setConsumeCheckpoint should be called with non-empty type and source");
       return;
     }
+    System.out.println("VEER - SETTING CONSUME CHECKPOINT");
 
     AgentSpan span = activeSpan();
     if (span == null) {
@@ -294,7 +296,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     sortedTags.put(MANUAL_TAG, "true");
     sortedTags.put(TOPIC_TAG, source);
     sortedTags.put(TYPE_TAG, type);
-
+    System.out.println("VEER - SETTING CHECKPOINT");
     setCheckpoint(span, sortedTags, 0, 0);
   }
 
