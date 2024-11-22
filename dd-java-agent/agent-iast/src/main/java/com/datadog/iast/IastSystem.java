@@ -75,6 +75,10 @@ public class IastSystem {
     start(null, ss, null);
   }
 
+  public static void start(final SubscriptionService ss, OverheadController overheadController) {
+    start(null, ss, overheadController);
+  }
+
   public static void start(final Instrumentation instrumentation, final SubscriptionService ss) {
     start(instrumentation, ss, null);
   }
