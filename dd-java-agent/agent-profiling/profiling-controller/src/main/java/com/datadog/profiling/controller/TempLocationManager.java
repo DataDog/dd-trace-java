@@ -71,7 +71,7 @@ public final class TempLocationManager {
     private final Instant cutoff;
     private final Instant timeoutTarget;
 
-    private boolean terminated = false;
+    private boolean terminated;
 
     CleanupVisitor(boolean cleanSelf, long timeout, TimeUnit unit) {
       this.cleanSelf = cleanSelf;
