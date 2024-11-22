@@ -10,6 +10,9 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+/**
+ * This class provides instrumentation for {@link StringBuilder} and {@link StringBuffer} methods.
+ */
 @Propagation
 @CallSite(spi = IastCallSites.class)
 public class StringBuilderCallSite {
@@ -103,6 +106,7 @@ public class StringBuilderCallSite {
   }
 
   @CallSite.After("java.lang.String java.lang.StringBuilder.substring(int)")
+  @CallSite.After("java.lang.String java.lang.StringBuffer.substring(int)")
   public static String afterSubstring(
       @CallSite.This final CharSequence self,
       @CallSite.Argument final int beginIndex,
@@ -119,6 +123,7 @@ public class StringBuilderCallSite {
   }
 
   @CallSite.After("java.lang.String java.lang.StringBuilder.substring(int, int)")
+  @CallSite.After("java.lang.String java.lang.StringBuffer.substring(int, int)")
   public static String afterSubstring(
       @CallSite.This final CharSequence self,
       @CallSite.Argument final int beginIndex,

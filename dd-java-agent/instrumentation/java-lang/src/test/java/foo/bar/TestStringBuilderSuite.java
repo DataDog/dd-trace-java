@@ -90,4 +90,18 @@ public class TestStringBuilderSuite implements TestAbstractStringBuilderSuite<St
     LOGGER.debug("After string builder substring {}", result);
     return result;
   }
+
+  public static String substring(StringBuffer self, int beginIndex, int endIndex) {
+    LOGGER.debug("Before string buffer substring {} from {} to {}", self, beginIndex, endIndex);
+    final String result = self.substring(beginIndex, endIndex);
+    LOGGER.debug("After string buffer substring {}", result);
+    return result;
+  }
+
+  public static String substring(StringBuffer self, int beginIndex) {
+    LOGGER.debug("Before string buffer substring {} from {}", self, beginIndex);
+    final String result = self.substring(beginIndex);
+    LOGGER.debug("After string buffer substring {}", result);
+    return result;
+  }
 }
