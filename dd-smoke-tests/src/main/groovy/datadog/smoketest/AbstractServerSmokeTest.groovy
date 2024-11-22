@@ -94,10 +94,10 @@ abstract class AbstractServerSmokeTest extends AbstractSmokeTest {
             throw e
           } else {
             def logFile = logFilePaths[idx]
-              // highlight when process exited abnormally, since that may have contributed 
-              // to the log verification failure
-              throw new RuntimeException(
-                "Server process exited abnormally - exit code: ${exitCode}; check log file: ${logFile}", e)
+            // highlight when process exited abnormally, since that may have contributed
+            // to the log verification failure
+            throw new RuntimeException(
+            "Server process exited abnormally - exit code: ${exitCode}; check log file: ${logFile}", e)
           }
         }
       }
