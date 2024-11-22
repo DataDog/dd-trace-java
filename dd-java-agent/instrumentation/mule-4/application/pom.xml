@@ -72,11 +72,6 @@
       <version>1.2.13</version>
       <classifier>mule-plugin</classifier>
     </dependency>
-    <dependency>
-      <groupId>org.mule.weave</groupId>
-      <artifactId>runtime</artifactId>
-      <version>2.5.0</version>
-    </dependency>
   </dependencies>
 
   <repositories>
