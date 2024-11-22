@@ -87,8 +87,8 @@ public class DataStreamContextInjector {
       }
     }
     System.out.println("VEER - INJECTING PATHWAY CONTEXT");
-    System.out.println("VEER - TRANSACTION" + transactionId);
-    System.out.println("VEER -  TRANSACTION" + pathwayHash);
+    System.out.println("VEER - TRANSACTION ID " + transactionId);
+    System.out.println("VEER - PATHWAY HASH " + pathwayHash);
 
 
     if (transactionId != null && pathwayHash != 0) {
