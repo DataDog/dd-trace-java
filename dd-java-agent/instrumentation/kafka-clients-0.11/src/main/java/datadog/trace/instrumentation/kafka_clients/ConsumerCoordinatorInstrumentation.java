@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.kafka_clients;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.core.datastreams.TagsProcessor.CONSUMER_GROUP_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.KAFKA_CLUSTER_ID_TAG;
@@ -17,11 +18,13 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.kafka.clients.Metadata;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.consumer.internals.ConsumerCoordinator;
 import org.apache.kafka.clients.consumer.internals.RequestFuture;
+import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.common.TopicPartition;
 
 @AutoService(InstrumenterModule.class)
@@ -30,6 +33,13 @@ public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule
 
   public ConsumerCoordinatorInstrumentation() {
     super("kafka");
+  }
+
+  @Override
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+    // Avoid matching kafka 3.8 which has its own instrumentation
+    return not(
+        hasClassNamed("org.apache.kafka.clients.consumer.internals.OffsetCommitCallbackInvoker"));
   }
 
   @Override
@@ -107,10 +117,12 @@ public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule
       }
     }
 
-    public static void muzzleCheck(ConsumerRecord record) {
+    public static void muzzleCheck(ConsumerRecord record, Producer producer) {
       // KafkaConsumerInstrumentation only applies for kafka versions with headers
       // Make an explicit call so ConsumerCoordinatorInstrumentation does the same
       record.headers();
+      record.checksum();
+      producer.close(2, java.util.concurrent.TimeUnit.SECONDS);
     }
   }
 }

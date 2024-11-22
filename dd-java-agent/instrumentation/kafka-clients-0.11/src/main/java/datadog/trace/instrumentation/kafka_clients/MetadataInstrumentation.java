@@ -1,9 +1,11 @@
 package datadog.trace.instrumentation.kafka_clients;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
@@ -16,6 +18,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.kafka.clients.Metadata;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.common.Cluster;
 import org.apache.kafka.common.requests.MetadataResponse;
 
@@ -25,6 +28,12 @@ public class MetadataInstrumentation extends InstrumenterModule.Tracing
 
   public MetadataInstrumentation() {
     super("kafka");
+  }
+
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+    // Avoid matching kafka 3.8 which has its own instrumentation
+    return not(
+        hasClassNamed("org.apache.kafka.clients.consumer.internals.OffsetCommitCallbackInvoker"));
   }
 
   @Override
@@ -88,10 +97,11 @@ public class MetadataInstrumentation extends InstrumenterModule.Tracing
       }
     }
 
-    public static void muzzleCheck(ConsumerRecord record) {
+    public static void muzzleCheck(ConsumerRecord record, Producer producer) {
       // KafkaConsumerInstrumentation only applies for kafka versions with headers
-      // Make an explicit call so MetadataInstrumentation does the same
+      // Make an explicit call so ConsumerCoordinatorInstrumentation does the same
       record.headers();
+      producer.close(2, java.util.concurrent.TimeUnit.SECONDS);
     }
   }
 }

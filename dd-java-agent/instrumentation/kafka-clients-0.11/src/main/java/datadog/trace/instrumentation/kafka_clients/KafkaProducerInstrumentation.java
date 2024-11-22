@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.kafka_clients;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
@@ -18,6 +19,7 @@ import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
+import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
@@ -33,9 +35,12 @@ import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.kafka.clients.ApiVersions;
 import org.apache.kafka.clients.Metadata;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.Callback;
+import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.internals.Sender;
@@ -47,6 +52,12 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
 
   public KafkaProducerInstrumentation() {
     super("kafka");
+  }
+
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+    // Avoid matching kafka 3.8 which has its own instrumentation
+    return not(
+        hasClassNamed("org.apache.kafka.clients.consumer.internals.OffsetCommitCallbackInvoker"));
   }
 
   @Override
@@ -177,6 +188,13 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
       PRODUCER_DECORATE.beforeFinish(scope);
       scope.close();
     }
+
+    public static void muzzleCheck(ConsumerRecord record, Producer producer) {
+      // KafkaConsumerInstrumentation only applies for kafka versions with headers
+      // Make an explicit call so ConsumerCoordinatorInstrumentation does the same
+      record.headers();
+      producer.close(2, java.util.concurrent.TimeUnit.SECONDS);
+    }
   }
 
   public static class PayloadSizeAdvice {
@@ -204,6 +222,13 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
         // then send the point
         AgentTracer.get().getDataStreamsMonitoring().add(updated);
       }
+    }
+
+    public static void muzzleCheck(ConsumerRecord record, Producer producer) {
+      // KafkaConsumerInstrumentation only applies for kafka versions with headers
+      // Make an explicit call so ConsumerCoordinatorInstrumentation does the same
+      record.headers();
+      producer.close(2, java.util.concurrent.TimeUnit.SECONDS);
     }
   }
 }

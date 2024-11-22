@@ -1,10 +1,12 @@
 package datadog.trace.instrumentation.kafka_clients;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_CONSUME;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
+import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -18,9 +20,11 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.kafka.clients.Metadata;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.producer.Producer;
 
 @AutoService(InstrumenterModule.class)
 public final class KafkaConsumerInstrumentation extends InstrumenterModule.Tracing
@@ -37,6 +41,12 @@ public final class KafkaConsumerInstrumentation extends InstrumenterModule.Traci
     contextStores.put(
         "org.apache.kafka.clients.consumer.ConsumerRecords", KafkaConsumerInfo.class.getName());
     return contextStores;
+  }
+
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+    // Avoid matching kafka 3.8 which has its own instrumentation
+    return not(
+        hasClassNamed("org.apache.kafka.clients.consumer.internals.OffsetCommitCallbackInvoker"));
   }
 
   @Override
@@ -108,6 +118,14 @@ public final class KafkaConsumerInstrumentation extends InstrumenterModule.Traci
                 iterable, KAFKA_CONSUME, CONSUMER_DECORATE, group, clusterId, bootstrapServers);
       }
     }
+
+    public static void muzzleCheck(ConsumerRecord record, Producer producer) {
+      // KafkaConsumerInstrumentation only applies for kafka versions with headers
+      // Make an explicit call so ConsumerCoordinatorInstrumentation does the same
+      record.headers();
+      record.checksum();
+      producer.close(2, java.util.concurrent.TimeUnit.SECONDS);
+    }
   }
 
   public static class ListAdvice {
@@ -130,6 +148,14 @@ public final class KafkaConsumerInstrumentation extends InstrumenterModule.Traci
                 iterable, KAFKA_CONSUME, CONSUMER_DECORATE, group, clusterId, bootstrapServers);
       }
     }
+
+    public static void muzzleCheck(ConsumerRecord record, Producer producer) {
+      // KafkaConsumerInstrumentation only applies for kafka versions with headers
+      // Make an explicit call so ConsumerCoordinatorInstrumentation does the same
+      record.headers();
+      record.checksum();
+      producer.close(2, java.util.concurrent.TimeUnit.SECONDS);
+    }
   }
 
   public static class IteratorAdvice {
@@ -151,6 +177,14 @@ public final class KafkaConsumerInstrumentation extends InstrumenterModule.Traci
             new TracingIterator(
                 iterator, KAFKA_CONSUME, CONSUMER_DECORATE, group, clusterId, bootstrapServers);
       }
+    }
+
+    public static void muzzleCheck(ConsumerRecord record, Producer producer) {
+      // KafkaConsumerInstrumentation only applies for kafka versions with headers
+      // Make an explicit call so ConsumerCoordinatorInstrumentation does the same
+      record.headers();
+      record.checksum();
+      producer.close(2, java.util.concurrent.TimeUnit.SECONDS);
     }
   }
 }

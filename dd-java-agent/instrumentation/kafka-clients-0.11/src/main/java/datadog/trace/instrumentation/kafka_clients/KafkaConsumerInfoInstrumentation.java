@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.kafka_clients;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
@@ -9,6 +10,7 @@ import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_P
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
+import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -24,12 +26,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.kafka.clients.Metadata;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.internals.ConsumerCoordinator;
+import org.apache.kafka.clients.producer.Producer;
 
 /**
  * This instrumentation saves additional information from the KafkaConsumer, such as consumer group
@@ -55,6 +59,13 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
     contextStores.put(
         "org.apache.kafka.clients.consumer.KafkaConsumer", KafkaConsumerInfo.class.getName());
     return contextStores;
+  }
+
+  @Override
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+    // Avoid matching kafka 3.8 which has its own instrumentation
+    return not(
+        hasClassNamed("org.apache.kafka.clients.consumer.internals.OffsetCommitCallbackInvoker"));
   }
 
   @Override
@@ -175,5 +186,12 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
       span.finish();
       scope.close();
     }
+  }
+
+  public static void muzzleCheck(ConsumerRecord record, Producer producer) {
+    // KafkaConsumerInstrumentation only applies for kafka versions with headers
+    // Make an explicit call so ConsumerCoordinatorInstrumentation does the same
+    record.headers();
+    producer.close(2, java.util.concurrent.TimeUnit.SECONDS);
   }
 }

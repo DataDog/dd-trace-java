@@ -1,8 +1,10 @@
 package datadog.trace.instrumentation.kafka_clients;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static java.util.Collections.singletonMap;
+import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
@@ -20,6 +22,8 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.common.serialization.Deserializer;
 
 @AutoService(InstrumenterModule.class)
@@ -42,6 +46,12 @@ public class KafkaDeserializerInstrumentation extends InstrumenterModule.Iast
 
   public KafkaDeserializerInstrumentation() {
     super("kafka");
+  }
+
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+    // Avoid matching kafka 3.8 which has its own instrumentation
+    return not(
+        hasClassNamed("org.apache.kafka.clients.consumer.internals.OffsetCommitCallbackInvoker"));
   }
 
   @Override
@@ -95,6 +105,13 @@ public class KafkaDeserializerInstrumentation extends InstrumenterModule.Iast
           InstrumentationContext.get(Deserializer.class, Boolean.class);
       KafkaIastHelper.configure(store, deserializer, isKey);
     }
+
+    public static void muzzleCheck(ConsumerRecord record, Producer producer) {
+      // KafkaConsumerInstrumentation only applies for kafka versions with headers
+      // Make an explicit call so ConsumerCoordinatorInstrumentation does the same
+      record.headers();
+      producer.close(2, java.util.concurrent.TimeUnit.SECONDS);
+    }
   }
 
   @SuppressWarnings("rawtypes")
@@ -119,6 +136,13 @@ public class KafkaDeserializerInstrumentation extends InstrumenterModule.Iast
       final ContextStore<Deserializer, Boolean> store =
           InstrumentationContext.get(Deserializer.class, Boolean.class);
       KafkaIastHelper.afterDeserialize(ctx, store, deserializer, result);
+    }
+
+    public static void muzzleCheck(ConsumerRecord record, Producer producer) {
+      // KafkaConsumerInstrumentation only applies for kafka versions with headers
+      // Make an explicit call so ConsumerCoordinatorInstrumentation does the same
+      record.headers();
+      producer.close(2, java.util.concurrent.TimeUnit.SECONDS);
     }
   }
 
@@ -145,6 +169,13 @@ public class KafkaDeserializerInstrumentation extends InstrumenterModule.Iast
           InstrumentationContext.get(Deserializer.class, Boolean.class);
       KafkaIastHelper.afterDeserialize(ctx, store, deserializer, result);
     }
+
+    public static void muzzleCheck(ConsumerRecord record, Producer producer) {
+      // KafkaConsumerInstrumentation only applies for kafka versions with headers
+      // Make an explicit call so ConsumerCoordinatorInstrumentation does the same
+      record.headers();
+      producer.close(2, java.util.concurrent.TimeUnit.SECONDS);
+    }
   }
 
   @SuppressWarnings({"rawtypes", "JavaExistingMethodCanBeUsed"})
@@ -169,6 +200,13 @@ public class KafkaDeserializerInstrumentation extends InstrumenterModule.Iast
       final ContextStore<Deserializer, Boolean> store =
           InstrumentationContext.get(Deserializer.class, Boolean.class);
       KafkaIastHelper.afterDeserialize(ctx, store, deserializer, result);
+    }
+
+    public static void muzzleCheck(ConsumerRecord record, Producer producer) {
+      // KafkaConsumerInstrumentation only applies for kafka versions with headers
+      // Make an explicit call so ConsumerCoordinatorInstrumentation does the same
+      record.headers();
+      producer.close(2, java.util.concurrent.TimeUnit.SECONDS);
     }
   }
 }
