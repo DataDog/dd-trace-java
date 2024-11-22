@@ -1,5 +1,6 @@
 package datadog.smoketest
 
+import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED
 import okhttp3.FormBody
 import okhttp3.MediaType
 import okhttp3.MultipartBody
@@ -36,6 +37,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     return [
       withSystemProperty(IAST_ENABLED, true),
       withSystemProperty(IAST_DETECTION_MODE, 'FULL'),
+      withSystemProperty(IAST_DEBUG_ENABLED, true),
       withSystemProperty(IAST_SECURITY_CONTROLS_ENABLED, true),
       withSystemProperty(IAST_SECURITY_CONTROLS_CONFIGURATION, "SANITIZER:XSS:ddtest.securitycontrols.Sanitizer:sanitize;INPUT_VALIDATOR:XSS:ddtest.securitycontrols.InputValidator:validateAll;INPUT_VALIDATOR:XSS:ddtest.securitycontrols.InputValidator:validate:1,2;java.lang.Object,java.lang.String,java.lang.String"),
     ]
