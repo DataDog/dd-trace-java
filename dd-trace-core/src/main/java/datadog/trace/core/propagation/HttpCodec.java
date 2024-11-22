@@ -239,7 +239,7 @@ public class HttpCodec {
               if (comingFromTraceContext) {
                 applyTraceContextToFirstContext(context, extractedContext, extractionCache);
               }
-            } else {
+            } else if (extractedContext.getSpanId() != 0) { // Check that SpanID of secondary extracted context is valid
               // Terminate extracted context and add it as span link
               context.addTerminatedContextLink(
                   DDSpanLink.from(
