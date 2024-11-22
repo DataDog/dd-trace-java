@@ -653,7 +653,7 @@ public class PropagationModuleImpl implements PropagationModule {
   }
 
   @Override
-  public void markIfTainted(@org.jetbrains.annotations.Nullable Object target, int mark) {
+  public void markIfTainted(@Nullable Object target, int mark) {
     if (target == null) {
       return;
     }
