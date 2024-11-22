@@ -439,7 +439,11 @@ public class IastWebController {
   public static class CustomStringReader extends StringReader {
 
     public CustomStringReader(String s) {
-      super("Super " + s + (new StringReader("New " + s)));
+      super(
+          "Super "
+              + s
+              + (new StringReader(
+                  "New_1" + new StringReader("New_2" + new StringReader("New_3" + s)))));
     }
   }
 }

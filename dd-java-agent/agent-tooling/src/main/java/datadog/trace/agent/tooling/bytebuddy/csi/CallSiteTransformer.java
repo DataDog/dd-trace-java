@@ -1,5 +1,6 @@
 package datadog.trace.agent.tooling.bytebuddy.csi;
 
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static net.bytebuddy.jar.asm.ClassWriter.COMPUTE_MAXS;
 
 import datadog.trace.agent.tooling.HelperInjector;
@@ -26,8 +27,12 @@ import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.jar.asm.Type;
 import net.bytebuddy.pool.TypePool;
 import net.bytebuddy.utility.JavaModule;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
+
+  private static Logger LOGGER = LoggerFactory.getLogger(CallSiteTransformer.class);
 
   private static final Instrumenter.TransformingAdvice NO_OP =
       (builder, typeDescription, classLoader, module, pd) -> builder;
@@ -127,6 +132,17 @@ public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
         @Nonnull final Advices advices, @Nonnull final MethodVisitor delegated) {
       super(ASM_API, delegated);
       this.advices = advices;
+    }
+
+    @Override
+    public void visitEnd() {
+      super.visitEnd();
+      if (!newInvocations.isEmpty()) {
+        LOGGER.debug(
+            SEND_TELEMETRY,
+            "There is an issue handling NEW bytecodes, remaining types {}",
+            newInvocations);
+      }
     }
 
     @Override

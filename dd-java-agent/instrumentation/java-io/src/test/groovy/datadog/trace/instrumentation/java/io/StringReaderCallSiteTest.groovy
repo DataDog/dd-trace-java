@@ -31,7 +31,7 @@ class StringReaderCallSiteTest extends BaseIoCallSiteTest {
 
     then:
     // new StringReader
-    1 * iastModule.taintObjectIfTainted(
+    3 * iastModule.taintObjectIfTainted(
       { it -> !(it instanceof TestCustomStringReader) },
       { String it ->
         it.startsWith("New") }
