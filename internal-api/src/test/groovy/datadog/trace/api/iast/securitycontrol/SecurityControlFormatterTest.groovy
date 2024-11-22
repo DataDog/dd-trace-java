@@ -160,7 +160,6 @@ class SecurityControlFormatterTest extends DDSpecification{
       'INPUT_VALIDATOR',
       'INPUT_VALIDATOR:COMMAND_INJECTION',
       'INPUT_VALIDATOR:COMMAND_INJECTION:bar.foo.CustomInputValidator',
-      'INPUT_VALIDATOR:COMMAND_INJECTION:bar.foo.CustomInputValidator:validate:1,2',
       'INPUT_VALIDATOR:COMMAND_INJECTION:bar.foo.CustomInputValidator:validate:1,2:java.lang.Object,java.lang.String,java.lang.String'
     ]
   }
