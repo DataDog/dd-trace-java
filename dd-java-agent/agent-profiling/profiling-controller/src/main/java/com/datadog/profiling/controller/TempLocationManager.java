@@ -71,7 +71,7 @@ public final class TempLocationManager {
     private final Instant cutoff;
     private final Instant timeoutTarget;
 
-    private boolean terminated;
+    private boolean terminated = false;
 
     CleanupVisitor(boolean cleanSelf, long timeout, TimeUnit unit) {
       this.cleanSelf = cleanSelf;
@@ -107,7 +107,8 @@ public final class TempLocationManager {
       // the JFR repository directories are under <basedir>/pid_<pid>
       String pid = fileName.startsWith("pid_") ? fileName.substring(4) : null;
       boolean isSelfPid = pid != null && pid.equals(PidHelper.getPid());
-      shouldClean |= (cleanSelf && isSelfPid) || (!cleanSelf && !pidSet.contains(pid));
+      shouldClean |=
+          (cleanSelf && isSelfPid) || (!cleanSelf && !isSelfPid && !pidSet.contains(pid));
       if (shouldClean) {
         log.debug("Cleaning temporary location {}", dir);
       }
