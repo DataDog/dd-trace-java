@@ -3,8 +3,6 @@ package datadog.trace.instrumentation.apachehttpclient;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.List;
 import org.apache.http.Header;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpUriRequest;
@@ -49,12 +47,13 @@ public class ApacheHttpClientDecorator extends HttpClientDecorator<HttpUriReques
   @Override
   protected String getRequestHeader(HttpUriRequest request, String headerName) {
     Header[] headers = request.getHeaders(headerName);
-    List<String> values = new ArrayList<>();
     if (headers.length > 0) {
-      for (Header header : headers) {
-        values.add(header.getValue());
+      StringBuilder result = new StringBuilder(headers[0].getValue());
+      for (int i = 1; i < headers.length; i++) {
+        result.append(",").append(headers[i].getValue());
       }
-      return String.join(",", values);
+      System.out.println("returning " + result);
+      return result.toString();
     }
     return null;
   }
@@ -62,12 +61,13 @@ public class ApacheHttpClientDecorator extends HttpClientDecorator<HttpUriReques
   @Override
   protected String getResponseHeader(HttpResponse response, String headerName) {
     Header[] headers = response.getHeaders(headerName);
-    List<String> values = new ArrayList<>();
     if (headers.length > 0) {
-      for (Header header : headers) {
-        values.add(header.getValue());
+      StringBuilder result = new StringBuilder(headers[0].getValue());
+      for (int i = 1; i < headers.length; i++) {
+        result.append(",").append(headers[i].getValue());
       }
-      return String.join(",", values);
+      System.out.println("returning " + result);
+      return result.toString();
     }
     return null;
   }
