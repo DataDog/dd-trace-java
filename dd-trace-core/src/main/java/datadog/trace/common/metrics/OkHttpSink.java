@@ -70,7 +70,8 @@ public final class OkHttpSink implements Sink, EventListener {
       throw new IllegalArgumentException("Header key and value cannot be null");
     }
     this.headers.put(key, value);
-    log.info("Added/Updated header: {}={}", key, value);
+    System.out.println("Added/updated header" + " " + key + " " + value);
+//    log.info("Added/Updated header: {}={}", key, value);
   }
 
   @Override
