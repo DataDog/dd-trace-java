@@ -16,6 +16,9 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,7 +59,7 @@ public final class TempLocationManager {
       return null;
     }
 
-    default void onCleanupStart() {}
+    default void onCleanupStart(boolean selfCleanup, long timeout, TimeUnit unit) {}
   }
 
   private class CleanupVisitor implements FileVisitor<Path> {
@@ -66,15 +69,35 @@ public final class TempLocationManager {
 
     private final boolean cleanSelf;
     private final Instant cutoff;
+    private final Instant timeoutTarget;
 
-    CleanupVisitor(boolean cleanSelf) {
+    private boolean terminated = false;
+
+    CleanupVisitor(boolean cleanSelf, long timeout, TimeUnit unit) {
       this.cleanSelf = cleanSelf;
       this.cutoff = Instant.now().minus(cutoffSeconds, ChronoUnit.SECONDS);
+      this.timeoutTarget =
+          timeout > -1
+              ? Instant.now().plus(TimeUnit.MILLISECONDS.convert(timeout, unit), ChronoUnit.MILLIS)
+              : null;
+    }
+
+    boolean isTerminated() {
+      return terminated;
+    }
+
+    private boolean isTimedOut() {
+      return timeoutTarget != null && Instant.now().isAfter(timeoutTarget);
     }
 
     @Override
     public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
         throws IOException {
+      if (isTimedOut()) {
+        log.debug("Cleaning task timed out");
+        terminated = true;
+        return FileVisitResult.TERMINATE;
+      }
       cleanupTestHook.preVisitDirectory(dir, attrs);
 
       if (dir.equals(baseTempDir)) {
@@ -93,6 +116,11 @@ public final class TempLocationManager {
 
     @Override
     public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+      if (isTimedOut()) {
+        log.debug("Cleaning task timed out");
+        terminated = true;
+        return FileVisitResult.TERMINATE;
+      }
       cleanupTestHook.visitFile(file, attrs);
       try {
         if (Files.getLastModifiedTime(file).toInstant().isAfter(cutoff)) {
@@ -107,6 +135,11 @@ public final class TempLocationManager {
 
     @Override
     public FileVisitResult visitFileFailed(Path file, IOException exc) throws IOException {
+      if (isTimedOut()) {
+        log.debug("Cleaning task timed out");
+        terminated = true;
+        return FileVisitResult.TERMINATE;
+      }
       cleanupTestHook.visitFileFailed(file, exc);
       // do not log files/directories removed by another process running concurrently
       if (!(exc instanceof NoSuchFileException) && log.isDebugEnabled()) {
@@ -117,6 +150,11 @@ public final class TempLocationManager {
 
     @Override
     public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+      if (isTimedOut()) {
+        log.debug("Cleaning task timed out");
+        terminated = true;
+        return FileVisitResult.TERMINATE;
+      }
       cleanupTestHook.postVisitDirectory(dir, exc);
       if (exc instanceof NoSuchFileException) {
         return FileVisitResult.CONTINUE;
@@ -162,7 +200,11 @@ public final class TempLocationManager {
   static TempLocationManager getInstance(boolean waitForCleanup) {
     TempLocationManager instance = SingletonHolder.INSTANCE;
     if (waitForCleanup) {
-      instance.waitForCleanup();
+      try {
+        instance.waitForCleanup(5, TimeUnit.SECONDS);
+      } catch (TimeoutException ignored) {
+
+      }
     }
     return instance;
   }
@@ -216,17 +258,21 @@ public final class TempLocationManager {
     tempDir = baseTempDir.resolve("pid_" + pid);
     cleanupTask = CompletableFuture.runAsync(() -> cleanup(false));
 
-    Runtime.getRuntime()
-        .addShutdownHook(
-            new Thread(
-                () -> {
-                  try {
-                    cleanupTask.join();
-                  } finally {
-                    cleanup(true);
-                  }
-                },
-                "Temp Location Manager Cleanup"));
+    Thread selfCleanup =
+        new Thread(
+            () -> {
+              try {
+                waitForCleanup(1, TimeUnit.SECONDS);
+              } catch (TimeoutException e) {
+                log.info(
+                    "Cleanup task timed out. {} temp directory might not have been cleaned up properly",
+                    tempDir);
+              } finally {
+                cleanup(true);
+              }
+            },
+            "Temp Location Manager Cleanup");
+    Runtime.getRuntime().addShutdownHook(selfCleanup);
   }
 
   /**
@@ -273,10 +319,35 @@ public final class TempLocationManager {
     return rslt;
   }
 
-  void cleanup(boolean cleanSelf) {
+  /**
+   * Walk the base temp directory recursively and remove all inactive per-process entries. No
+   * timeout is applied.
+   *
+   * @param cleanSelf {@literal true} will call only this process' temp directory, {@literal false}
+   *     only the other processes will be cleaned up
+   * @return {@literal true} if cleanup fully succeeded or {@literal false} otherwise (eg.
+   *     interruption etc.)
+   */
+  boolean cleanup(boolean cleanSelf) {
+    return cleanup(cleanSelf, -1, TimeUnit.SECONDS);
+  }
+
+  /**
+   * Walk the base temp directory recursively and remove all inactive per-process entries
+   *
+   * @param cleanSelf {@literal true} will call only this process' temp directory, {@literal false}
+   *     only the other processes will be cleaned up
+   * @param timeout the task timeout; may be {@literal -1} to signal no timeout
+   * @param unit the task timeout unit
+   * @return {@literal true} if cleanup fully succeeded or {@literal false} otherwise (timeout,
+   *     interruption etc.)
+   */
+  boolean cleanup(boolean cleanSelf, long timeout, TimeUnit unit) {
     try {
-      cleanupTestHook.onCleanupStart();
-      Files.walkFileTree(baseTempDir, new CleanupVisitor(cleanSelf));
+      cleanupTestHook.onCleanupStart(cleanSelf, timeout, unit);
+      CleanupVisitor visitor = new CleanupVisitor(cleanSelf, timeout, unit);
+      Files.walkFileTree(baseTempDir, visitor);
+      return !visitor.isTerminated();
     } catch (IOException e) {
       if (log.isDebugEnabled()) {
         log.warn("Unable to cleanup temp location {}", baseTempDir, e);
@@ -284,10 +355,25 @@ public final class TempLocationManager {
         log.warn("Unable to cleanup temp location {}", baseTempDir);
       }
     }
+    return false;
   }
 
   // accessible for tests
-  void waitForCleanup() {
-    cleanupTask.join();
+  void waitForCleanup(long timeout, TimeUnit unit) throws TimeoutException {
+    try {
+      cleanupTask.get(timeout, unit);
+    } catch (InterruptedException e) {
+      cleanupTask.cancel(true);
+      Thread.currentThread().interrupt();
+    } catch (TimeoutException e) {
+      cleanupTask.cancel(true);
+      throw e;
+    } catch (ExecutionException e) {
+      if (log.isDebugEnabled()) {
+        log.debug("Failed to cleanup temp directory: {}", tempDir, e);
+      } else {
+        log.debug("Failed to cleanup temp directory: {}", tempDir);
+      }
+    }
   }
 }

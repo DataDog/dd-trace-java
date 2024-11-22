@@ -12,11 +12,18 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.Phaser;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.LockSupport;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 public class TempLocationManagerTest {
@@ -172,10 +179,70 @@ public class TempLocationManagerTest {
     phaser.arriveAndAwaitAdvance();
     Files.deleteIfExists(fakeTempFile);
     phaser.arriveAndAwaitAdvance();
-    mgr.waitForCleanup();
+    mgr.waitForCleanup(30, TimeUnit.SECONDS);
 
     assertFalse(Files.exists(fakeTempFile));
     assertFalse(Files.exists(fakeTempDir));
+  }
+
+  @ParameterizedTest
+  @MethodSource("timeoutTestArguments")
+  void testCleanupWithTimeout(boolean selfCleanup, String section) throws Exception {
+    long timeoutMs = 500;
+    TempLocationManager.CleanupHook delayer =
+        new TempLocationManager.CleanupHook() {
+          @Override
+          public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
+              throws IOException {
+            if (section.equals("preVisitDirectory")) {
+              LockSupport.parkNanos(timeoutMs * 1_000_000);
+            }
+            return TempLocationManager.CleanupHook.super.preVisitDirectory(dir, attrs);
+          }
+
+          @Override
+          public FileVisitResult visitFileFailed(Path file, IOException exc) throws IOException {
+            if (section.equals("visitFileFailed")) {
+              LockSupport.parkNanos(timeoutMs * 1_000_000);
+            }
+            return TempLocationManager.CleanupHook.super.visitFileFailed(file, exc);
+          }
+
+          @Override
+          public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+            if (section.equals("postVisitDirectory")) {
+              LockSupport.parkNanos(timeoutMs * 1_000_000);
+            }
+            return TempLocationManager.CleanupHook.super.postVisitDirectory(dir, exc);
+          }
+
+          @Override
+          public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
+              throws IOException {
+            if (section.equals("visitFile")) {
+              LockSupport.parkNanos(timeoutMs * 1_000_000);
+            }
+            return TempLocationManager.CleanupHook.super.visitFile(file, attrs);
+          }
+        };
+    Path baseDir =
+        Files.createTempDirectory(
+            "ddprof-test-",
+            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
+    TempLocationManager instance = instance(baseDir, delayer);
+    boolean rslt = instance.cleanup(selfCleanup, timeoutMs, TimeUnit.MILLISECONDS);
+    assertTrue(rslt);
+  }
+
+  private static Stream<Arguments> timeoutTestArguments() {
+    List<Arguments> argumentsList = new ArrayList<>();
+    for (boolean selfCleanup : new boolean[] {true, false}) {
+      for (String intercepted :
+          new String[] {"preVisitDirectory", "visitFile", "postVisitDirectory"}) {
+        argumentsList.add(Arguments.of(selfCleanup, intercepted));
+      }
+    }
+    return argumentsList.stream();
   }
 
   private TempLocationManager instance(Path baseDir, TempLocationManager.CleanupHook cleanupHook)
