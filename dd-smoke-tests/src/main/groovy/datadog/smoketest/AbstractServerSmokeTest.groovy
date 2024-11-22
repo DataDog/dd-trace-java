@@ -85,10 +85,19 @@ abstract class AbstractServerSmokeTest extends AbstractSmokeTest {
         try {
           verifyLog(idx, outputFile)
         } catch ( FileNotFoundException e ) {
-          if ( !testedProcesses[idx].isAlive() && testedProcesses[idx].exitValue() == 0 ) {
-            // suppress file not found exception if process exited abnormally
-            // just creates confusing noise
+          if ( testedProcesses[idx].isAlive() ) {
             throw e
+          }
+
+          def exitCode = testedProesses[idx].exitValue()
+          if ( exitCode == 0 ) {
+            throw e
+          } else {
+            def logFile = logFilePaths[idx]
+              // highlight when process exited abnormally, since that may have contributed 
+              // to the log verification failure
+              throw new RuntimeException(
+                "Server process exited abnormally - exit code: ${exitCode}; check log file: ${logFile}", e)
           }
         }
       }
