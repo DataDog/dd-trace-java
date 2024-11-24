@@ -207,7 +207,7 @@ class CallSiteUtilsTest extends DDSpecification {
     final visitor = mockMethodVisitor(stack)
 
     when:
-    CallSiteUtils.dup(visitor, expected*.type as Type[], PREPEND_ARRAY_ON_NEW_CTOR)
+    CallSiteUtils.dup(visitor, expected*.type as Type[], PREPEND_ARRAY_CTOR)
 
     then: 'the first element of the stack should be an array with the parameters'
     final arrayFromStack = stack.remove(0)
@@ -246,7 +246,7 @@ class CallSiteUtilsTest extends DDSpecification {
     final visitor = mockMethodVisitor(stack)
 
     when:
-    CallSiteUtils.dup(visitor, expected*.type as Type[], PREPEND_ARRAY_ON_SUPER_CTOR)
+    CallSiteUtils.dup(visitor, expected*.type as Type[], PREPEND_ARRAY_SUPER_CTOR)
 
     then: 'the first element of the stack should be an array with the parameters'
     final arrayFromStack = stack.remove(0)

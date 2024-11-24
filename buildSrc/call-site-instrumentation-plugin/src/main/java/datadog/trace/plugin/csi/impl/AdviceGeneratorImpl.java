@@ -286,31 +286,26 @@ public class AdviceGeneratorImpl implements AdviceGenerator {
       body.addStatement(dupMethod);
     } else {
       final MethodCallExpr dupMethod = new MethodCallExpr().setScope(new NameExpr("handler"));
-      if (advice.isConstructor() && advice instanceof AfterSpecification) {
-        dupMethod.setName("dupConstructor");
+      if (advice.includeThis()) {
+        dupMethod.setName("dupInvoke");
+        dupMethod.addArgument(new NameExpr("owner"));
         dupMethod.addArgument(new NameExpr("descriptor"));
       } else {
-        if (advice.includeThis()) {
-          dupMethod.setName("dupInvoke");
-          dupMethod.addArgument(new NameExpr("owner"));
-          dupMethod.addArgument(new NameExpr("descriptor"));
-        } else {
-          dupMethod.setName("dupParameters");
-          dupMethod.addArgument(new NameExpr("descriptor"));
-        }
-        String mode = "COPY";
-        if (allArgsSpec != null) {
-          if (advice instanceof AfterSpecification) {
-            mode = "PREPEND_ARRAY";
-          } else {
-            mode = "APPEND_ARRAY";
-          }
-        }
-        dupMethod.addArgument(
-            new FieldAccessExpr()
-                .setScope(new TypeExpr(new ClassOrInterfaceType().setName(STACK_DUP_MODE_CLASS)))
-                .setName(mode));
+        dupMethod.setName("dupParameters");
+        dupMethod.addArgument(new NameExpr("descriptor"));
       }
+      String mode = "COPY";
+      if (allArgsSpec != null) {
+        if (advice instanceof AfterSpecification) {
+          mode = advice.isConstructor() ? "PREPEND_ARRAY_CTOR" : "PREPEND_ARRAY";
+        } else {
+          mode = "APPEND_ARRAY";
+        }
+      }
+      dupMethod.addArgument(
+          new FieldAccessExpr()
+              .setScope(new TypeExpr(new ClassOrInterfaceType().setName(STACK_DUP_MODE_CLASS)))
+              .setName(mode));
       body.addStatement(dupMethod);
     }
   }

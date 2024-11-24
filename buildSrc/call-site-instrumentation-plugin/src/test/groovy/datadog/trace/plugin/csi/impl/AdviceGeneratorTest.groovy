@@ -140,7 +140,7 @@ final class AdviceGeneratorTest extends BaseCsiPluginTest {
       advices(0) {
         pointcut('java/net/URL', '<init>', '(Ljava/lang/String;)V')
         statements(
-          'handler.dupConstructor(descriptor);',
+          'handler.dupParameters(descriptor, StackDupMode.PREPEND_ARRAY_CTOR);',
           'handler.method(opcode, owner, name, descriptor, isInterface);',
           'handler.advice("datadog/trace/plugin/csi/impl/AdviceGeneratorTest$AfterAdviceCtor", "after", "([Ljava/lang/Object;Ljava/net/URL;)Ljava/net/URL;");',
         )
@@ -441,7 +441,7 @@ final class AdviceGeneratorTest extends BaseCsiPluginTest {
       advices(0) {
         pointcut('java/lang/StringBuilder', '<init>', '(Ljava/lang/String;)V')
         statements(
-          'handler.dupConstructor(descriptor);',
+          'handler.dupParameters(descriptor, StackDupMode.PREPEND_ARRAY_CTOR);',
           'handler.method(opcode, owner, name, descriptor, isInterface);',
           'handler.advice("datadog/trace/plugin/csi/impl/AdviceGeneratorTest$SuperTypeReturnAdvice", "after", "([Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;");',
           'handler.instruction(Opcodes.CHECKCAST, "java/lang/StringBuilder");'

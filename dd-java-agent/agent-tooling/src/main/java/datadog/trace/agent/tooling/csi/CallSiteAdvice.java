@@ -37,9 +37,6 @@ public interface CallSiteAdvice {
         Handle bootstrapMethodHandle,
         Object... bootstrapMethodArguments);
 
-    /** Duplicates all the ctor parameters in the stack just before the method is invoked. */
-    void dupConstructor(String methodDescriptor);
-
     /** Duplicates all the method parameters in the stack just before the method is invoked. */
     void dupParameters(String methodDescriptor, StackDupMode mode);
 
@@ -69,9 +66,9 @@ public interface CallSiteAdvice {
     /** Copies the parameters in an array and prepends it */
     PREPEND_ARRAY,
     /** Copies the parameters in an array and adds it between NEW and DUP opcodes */
-    PREPEND_ARRAY_ON_NEW_CTOR,
+    PREPEND_ARRAY_CTOR,
     /** Copies the parameters in an array and adds it before the uninitialized instance in a ctor */
-    PREPEND_ARRAY_ON_SUPER_CTOR,
+    PREPEND_ARRAY_SUPER_CTOR,
     /** Copies the parameters in an array and appends it */
     APPEND_ARRAY
   }

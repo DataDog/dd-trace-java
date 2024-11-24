@@ -8,6 +8,8 @@ import net.bytebuddy.jar.asm.Type
 
 import java.util.concurrent.atomic.AtomicInteger
 
+import static datadog.trace.agent.tooling.csi.CallSiteAdvice.StackDupMode.PREPEND_ARRAY_CTOR
+
 class CallSiteInstrumentationTest extends BaseCallSiteTest {
 
   def 'test instrumentation adds type advice'() {
@@ -73,7 +75,7 @@ class CallSiteInstrumentationTest extends BaseCallSiteTest {
     final InvokeAdvice advice = new InvokeAdvice() {
         @Override
         void apply(CallSiteAdvice.MethodHandler handler, int opcode, String owner, String name, String descriptor, boolean isInterface) {
-          handler.dupConstructor(descriptor)
+          handler.dupParameters(descriptor, PREPEND_ARRAY_CTOR)
           handler.method(opcode, owner, name, descriptor, isInterface)
           handler.advice(
             Type.getType(SuperInCtorExampleAdvice).internalName,
