@@ -433,6 +433,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
               }
               okHttpSink.addHeader("Data-Type", "Transaction");
               log.info("Added header successfully");
+              System.out.println("ADDED HEADER SUCCESSFULLY");
               payloadWriter.writeCompressedTransactionPayload(payloads);
             }
           }

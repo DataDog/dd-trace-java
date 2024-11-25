@@ -142,6 +142,7 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
 
   @Override
   public void writeCompressedTransactionPayload(List<TransactionPayload> payloads) {
+    System.out.println("WRITING COMPRESSED PAYLOAD " + payloads.size());
     if (payloads.isEmpty()) {
       log.warn("No transaction payloads to write.");
       return;
@@ -183,6 +184,7 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
       sink.accept(finalBuffer.messageCount(), finalBuffer.slice());
       finalBuffer.reset();
       log.info("Successfully wrote compressed transaction payload");
+      System.out.println("SUCCESSFULLY written compressed transaction payload");
 
     } catch (IOException e) {
       log.error("Failed to compress and write transaction payloads", e);
