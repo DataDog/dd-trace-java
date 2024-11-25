@@ -742,6 +742,30 @@ public class StringModuleImpl implements StringModule {
         numReplacements);
   }
 
+  @Override
+  @SuppressFBWarnings("ES_COMPARING_PARAMETER_STRING_WITH_EQ")
+  public void onStringValueOf(Object param, @Nonnull String result) {
+    if (param == null || !canBeTainted(result)) {
+      return;
+    }
+    final IastContext ctx = IastContext.Provider.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    final TaintedObject taintedParam = taintedObjects.get(param);
+    if (taintedParam == null) {
+      return;
+    }
+
+    final Range[] rangesParam = taintedParam.getRanges();
+    if (rangesParam.length == 0) {
+      return;
+    }
+
+    taintedObjects.taint(result, rangesParam);
+  }
+
   /**
    * Adds the tainted ranges belonging to the current parameter added via placeholder taking care of
    * an optional tainted placeholder.

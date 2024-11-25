@@ -1298,6 +1298,27 @@ class StringModuleTest extends IastModuleImplTestBase {
     "==>my_o<==u==>tput<====>my_o<==u==>tput<==" | 'out'    | '==>in<=='    | 0                 | "==>my_o<==u==>tput<====>my_o<==u==>tput<=="
   }
 
+  void 'test valueOf with (#param) and make sure IastRequestContext is called'() {
+    given:
+    final taintedObjects = ctx.getTaintedObjects()
+    def paramTainted = addFromTaintFormat(taintedObjects, param)
+    def result = String.valueOf(paramTainted)
+
+    when:
+    module.onStringValueOf(paramTainted, result)
+    def taintedObject = taintedObjects.get(result)
+
+    then:
+    1 * tracer.activeSpan() >> span
+    taintFormat(result, taintedObject.getRanges()) == expected
+
+    where:
+    param                 | expected
+    "==>test<=="          | "==>test<=="
+    sb("==>test<==")      | "==>test<=="
+    sbf("==>my_input<==") | "==>my_input<=="
+  }
+
   private static Date date(final String pattern, final String value) {
     return new SimpleDateFormat(pattern).parse(value)
   }

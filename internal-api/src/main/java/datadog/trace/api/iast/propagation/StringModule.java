@@ -61,4 +61,6 @@ public interface StringModule extends IastModule {
 
   String onStringReplace(
       @Nonnull String self, String regex, String replacement, int numReplacements);
+
+  void onStringValueOf(Object param, @Nullable String result);
 }
