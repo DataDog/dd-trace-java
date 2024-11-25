@@ -65,6 +65,9 @@ configurations {
 }
 
 configurations.all {
+  // WHY this is in the CI classpath and not locally?
+  exclude group: 'pull-parser', module: 'pull-parser'
+
   resolutionStrategy {
     // avoid bringing in logback based on java 11
     force libs.logback.classic
