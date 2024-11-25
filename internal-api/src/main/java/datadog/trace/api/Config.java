@@ -682,7 +682,7 @@ public class Config {
     if (agentHostFromEnvironment == null) {
       agentHost = DEFAULT_AGENT_HOST;
     } else if (agentHostFromEnvironment.charAt(0) == '[') {
-      agentHost = agentHostFromEnvironment.substring(1, agentHostFromEnvironment.length()-2);
+      agentHost = agentHostFromEnvironment.substring(1, agentHostFromEnvironment.length() - 2);
     } else {
       agentHost = agentHostFromEnvironment;
     }
@@ -693,8 +693,8 @@ public class Config {
       agentPort = agentPortFromEnvironment;
     }
 
-    if (rebuildAgentUrl) { //check if agenthost contains ':'
-      if (agentHost.indexOf(':') != -1) { //Checking to see whether host address is IPv6 vs IPv4
+    if (rebuildAgentUrl) { // check if agenthost contains ':'
+      if (agentHost.indexOf(':') != -1) { // Checking to see whether host address is IPv6 vs IPv4
         agentUrl = "http://[" + agentHost + "]:" + agentPort;
       } else {
         agentUrl = "http://" + agentHost + ":" + agentPort;
@@ -702,7 +702,6 @@ public class Config {
     } else {
       agentUrl = agentUrlFromEnvironment;
     }
-
 
     if (unixSocketFromEnvironment == null) {
       unixSocketFromEnvironment = configProvider.getString(AGENT_UNIX_DOMAIN_SOCKET);
@@ -1209,8 +1208,7 @@ public class Config {
     }
     telemetryMetricsInterval = telemetryInterval;
 
-    telemetryMetricsEnabled =
-        configProvider.getBoolean(TELEMETRY_METRICS_ENABLED, true);
+    telemetryMetricsEnabled = configProvider.getBoolean(TELEMETRY_METRICS_ENABLED, true);
 
     isTelemetryLogCollectionEnabled =
         instrumenterConfig.isTelemetryEnabled()
@@ -1692,17 +1690,14 @@ public class Config {
     apiKey = tmpApiKey;
 
     boolean longRunningEnabled =
-        configProvider.getBoolean(
-            TRACE_LONG_RUNNING_ENABLED,
-            DEFAULT_TRACE_LONG_RUNNING_ENABLED);
+        configProvider.getBoolean(TRACE_LONG_RUNNING_ENABLED, DEFAULT_TRACE_LONG_RUNNING_ENABLED);
     long longRunningTraceInitialFlushInterval =
         configProvider.getLong(
             TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL,
             DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL);
     long longRunningTraceFlushInterval =
         configProvider.getLong(
-            TRACE_LONG_RUNNING_FLUSH_INTERVAL,
-            DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL);
+            TRACE_LONG_RUNNING_FLUSH_INTERVAL, DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL);
 
     if (longRunningEnabled
         && (longRunningTraceInitialFlushInterval < 10
@@ -1732,19 +1727,16 @@ public class Config {
             SPARK_TASK_HISTOGRAM_ENABLED, DEFAULT_SPARK_TASK_HISTOGRAM_ENABLED);
 
     this.sparkAppNameAsService =
-        configProvider.getBoolean(
-            SPARK_APP_NAME_AS_SERVICE, DEFAULT_SPARK_APP_NAME_AS_SERVICE);
+        configProvider.getBoolean(SPARK_APP_NAME_AS_SERVICE, DEFAULT_SPARK_APP_NAME_AS_SERVICE);
 
     this.jaxRsExceptionAsErrorsEnabled =
         configProvider.getBoolean(
-            JAX_RS_EXCEPTION_AS_ERROR_ENABLED,
-            DEFAULT_JAX_RS_EXCEPTION_AS_ERROR_ENABLED);
+            JAX_RS_EXCEPTION_AS_ERROR_ENABLED, DEFAULT_JAX_RS_EXCEPTION_AS_ERROR_ENABLED);
 
     axisPromoteResourceName = configProvider.getBoolean(AXIS_PROMOTE_RESOURCE_NAME, false);
 
     this.traceFlushIntervalSeconds =
-        configProvider.getFloat(
-            TRACE_FLUSH_INTERVAL, DEFAULT_TRACE_FLUSH_INTERVAL);
+        configProvider.getFloat(TRACE_FLUSH_INTERVAL, DEFAULT_TRACE_FLUSH_INTERVAL);
     if (profilingAgentless && apiKey == null) {
       log.warn(
           "Agentless profiling activated but no api key provided. Profile uploading will likely fail");
@@ -1764,8 +1756,7 @@ public class Config {
 
     this.telemetryDebugRequestsEnabled =
         configProvider.getBoolean(
-            TELEMETRY_DEBUG_REQUESTS_ENABLED,
-            DEFAULT_TELEMETRY_DEBUG_REQUESTS_ENABLED);
+            TELEMETRY_DEBUG_REQUESTS_ENABLED, DEFAULT_TELEMETRY_DEBUG_REQUESTS_ENABLED);
 
     this.agentlessLogSubmissionEnabled =
         configProvider.getBoolean(AGENTLESS_LOG_SUBMISSION_ENABLED, false);
@@ -1773,14 +1764,12 @@ public class Config {
         configProvider.getInteger(AGENTLESS_LOG_SUBMISSION_QUEUE_SIZE, 1024);
     this.agentlessLogSubmissionLevel =
         configProvider.getString(AGENTLESS_LOG_SUBMISSION_LEVEL, "INFO");
-    this.agentlessLogSubmissionUrl =
-        configProvider.getString(AGENTLESS_LOG_SUBMISSION_URL);
+    this.agentlessLogSubmissionUrl = configProvider.getString(AGENTLESS_LOG_SUBMISSION_URL);
     this.agentlessLogSubmissionProduct = isCiVisibilityEnabled() ? "citest" : "apm";
 
     this.cloudPayloadTaggingServices =
         configProvider.getSet(
-            TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES,
-            DEFAULT_TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES);
+            TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES, DEFAULT_TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES);
     this.cloudRequestPayloadTagging =
         configProvider.getList(TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING, null);
     this.cloudResponsePayloadTagging =
@@ -1792,8 +1781,7 @@ public class Config {
 
     timelineEventsEnabled =
         configProvider.getBoolean(
-            PROFILING_TIMELINE_EVENTS_ENABLED,
-            PROFILING_TIMELINE_EVENTS_ENABLED_DEFAULT);
+            PROFILING_TIMELINE_EVENTS_ENABLED, PROFILING_TIMELINE_EVENTS_ENABLED_DEFAULT);
 
     if (appSecScaEnabled != null
         && appSecScaEnabled
