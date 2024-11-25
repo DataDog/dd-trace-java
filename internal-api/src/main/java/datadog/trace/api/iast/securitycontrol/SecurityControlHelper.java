@@ -13,7 +13,7 @@ public class SecurityControlHelper {
         module.markIfTainted(target, marks);
       }
     } catch (final Throwable e) {
-      module.onUnexpectedException("afterRepeat threw", e);
+      module.onUnexpectedException("setSecureMarks threw", e);
     }
   }
 }
