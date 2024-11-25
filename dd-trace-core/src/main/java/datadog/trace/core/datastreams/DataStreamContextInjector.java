@@ -21,7 +21,7 @@ public class DataStreamContextInjector {
     this.dataStreamsMonitoring = dataStreamsMonitoring;
   }
 
-  public <C> void injectPathwayContext(
+  public <C extends DataStreamsContextCarrier> void injectPathwayContext(
       AgentSpan span,
       C carrier,
       AgentPropagation.Setter<C> setter,
@@ -29,7 +29,7 @@ public class DataStreamContextInjector {
     injectPathwayContext(span, carrier, setter, sortedTags, 0, 0, true);
   }
 
-  public <C> void injectPathwayContext(
+  public <C extends DataStreamsContextCarrier> void injectPathwayContext(
       AgentSpan span,
       C carrier,
       AgentPropagation.Setter<C> setter,
@@ -41,7 +41,7 @@ public class DataStreamContextInjector {
   }
 
   /** Same as injectPathwayContext, but the stats collected in the StatsPoint are not sent. */
-  public <C> void injectPathwayContextWithoutSendingStats(
+  public <C extends DataStreamsContextCarrier> void injectPathwayContextWithoutSendingStats(
       AgentSpan span,
       C carrier,
       AgentPropagation.Setter<C> setter,
@@ -49,7 +49,7 @@ public class DataStreamContextInjector {
     injectPathwayContext(span, carrier, setter, sortedTags, 0, 0, false);
   }
 
-  private <C> void injectPathwayContext(
+  private <C extends DataStreamsContextCarrier> void injectPathwayContext(
       AgentSpan span,
       C carrier,
       AgentPropagation.Setter<C> setter,
@@ -71,15 +71,15 @@ public class DataStreamContextInjector {
     boolean injected =
         setter instanceof AgentPropagation.BinarySetter
             ? injectBinaryPathwayContext(
-                pathwayContext, carrier, (AgentPropagation.BinarySetter<C>) setter)
+            pathwayContext, carrier, (AgentPropagation.BinarySetter<C>) setter)
             : injectPathwayContext(pathwayContext, carrier, setter);
 
     long pathwayHash = pathwayContext.getHash();
+
     // Extract transaction ID from the carrier
     String transactionId = null;
     System.out.println("CAT - STARTING CHECK FOR CARRIER");
-    DataStreamsContextCarrier dsCarrier = (DataStreamsContextCarrier) carrier;
-    for (Map.Entry<String, Object> entry : dsCarrier.entries()) {
+    for (Map.Entry<String, Object> entry : carrier.entries()) {
       System.out.println("CAT - THIS ENTRY IS " + entry.getKey());
       if ("transaction.id".equals(entry.getKey())) {
         transactionId = (String) entry.getValue();
@@ -89,7 +89,6 @@ public class DataStreamContextInjector {
     System.out.println("VEER - INJECTING PATHWAY CONTEXT");
     System.out.println("VEER - TRANSACTION ID " + transactionId);
     System.out.println("VEER - PATHWAY HASH " + pathwayHash);
-
 
     if (transactionId != null && pathwayHash != 0) {
       System.out.println("VEER - REPORTING TRANSACTION");
@@ -101,7 +100,7 @@ public class DataStreamContextInjector {
     }
   }
 
-  private static <C> boolean injectBinaryPathwayContext(
+  private static <C extends DataStreamsContextCarrier> boolean injectBinaryPathwayContext(
       PathwayContext pathwayContext, C carrier, AgentPropagation.BinarySetter<C> setter) {
     try {
       byte[] encodedContext = pathwayContext.encode();
@@ -116,7 +115,7 @@ public class DataStreamContextInjector {
     return false;
   }
 
-  private static <C> boolean injectPathwayContext(
+  private static <C extends DataStreamsContextCarrier> boolean injectPathwayContext(
       PathwayContext pathwayContext, C carrier, AgentPropagation.Setter<C> setter) {
     try {
       String encodedContext = pathwayContext.strEncode();
