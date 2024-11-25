@@ -126,12 +126,7 @@ public class IastSystem {
   }
 
   private static void maybeApplySecurityControls(@Nullable Instrumentation instrumentation) {
-    if (!Config.get().isIastSecurityControlsEnabled() || instrumentation == null) {
-      return;
-    }
-    if (Config.get().getIastSecurityControlsConfiguration() == null) {
-      LOGGER.warn(
-          "Error starting IAST Security Controls, IAST Security Controls configuration is missing");
+    if (Config.get().getIastSecurityControlsConfiguration() == null || instrumentation == null) {
       return;
     }
     List<SecurityControl> securityControls =
