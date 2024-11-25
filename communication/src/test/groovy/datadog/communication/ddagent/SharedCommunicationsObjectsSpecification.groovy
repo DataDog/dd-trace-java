@@ -1,21 +1,11 @@
 package datadog.communication.ddagent
 
-import com.squareup.moshi.JsonAdapter
-import com.squareup.moshi.Moshi
-import com.squareup.moshi.Types
 import datadog.communication.monitor.Monitoring
 import datadog.trace.api.Config
-import datadog.trace.api.IdGenerationStrategy
 import datadog.trace.test.util.DDSpecification
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
-import okhttp3.Request
-import spock.lang.AutoCleanup
-import spock.lang.Shared
 
-import java.lang.reflect.Type
-
-import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT
 import static datadog.trace.api.config.TracerConfig.AGENT_HOST
 
 class SharedCommunicationsObjectsSpecification extends DDSpecification {
