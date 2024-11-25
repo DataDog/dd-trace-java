@@ -290,6 +290,34 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       log.warn("SetConsumeCheckpoint is called with no active span");
       return;
     }
+
+    // Let's do a check here for transaciton ID
+    String transactionId = null;
+    for (Map.Entry<String, Object> entry : carrier.entries()) {
+      if ("transaction.id".equals(entry.getKey())) {
+        transactionId = (String) entry.getValue();
+        break;
+      }
+    }
+    if (transactionId != null) {
+      log.info("CAAT -- transaction.id found: {}", transactionId);
+    } else {
+      log.info("CAAT -- transaction.id not found in carrier.");
+    }
+
+    // ok, now let's get the pathway hash out
+    PathwayContext pathwayContext = span.context().getPathwayContext();
+    long pathwayHash = pathwayContext.getHash();
+
+    System.out.println("CAAT - CHECKING IF WE CAN REPORT TRANSACTION");
+    System.out.println("CAAT - TRANSACTION ID " + transactionId);
+    System.out.println("CAAT - PATHWAY HASH " + pathwayHash);
+
+    if (transactionId != null && pathwayHash != 0) {
+      System.out.println("CAAT - REPORTING TRANSACTION");
+      reportTransaction(transactionId, pathwayHash);
+    }
+
     mergePathwayContextIntoSpan(span, carrier);
 
     LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
