@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.kafka_clients38;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.*;
 
@@ -9,6 +10,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import java.util.HashMap;
 import java.util.Map;
+import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule.Tracing
@@ -21,6 +23,11 @@ public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule
   @Override
   public boolean isEnabled() {
     return super.isEnabled() && Config.get().isExperimentalKafkaEnabled();
+  }
+
+  @Override
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+    return hasClassNamed("org.apache.kafka.clients.MetadataRecoveryStrategy"); // since 3.8
   }
 
   @Override
