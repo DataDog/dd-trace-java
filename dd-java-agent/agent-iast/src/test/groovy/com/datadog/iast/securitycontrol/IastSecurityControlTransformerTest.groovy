@@ -47,14 +47,16 @@ class IastSecurityControlTransformerTest extends DDSpecification{
     SecurityControlTestSuite.&"$method".call(args)
 
     then:
-    expected * iastModule.markIfTainted(toValidate, marks)
+    for (final validate : toValidate){
+      expected * iastModule.markIfTainted(validate, marks)
+    }
     0 * _
 
     where:
-    method        | args                             | toValidate | expected
-    'validateAll' | ['test']                         | 'test'     | 1
-    'validateAll' | ['test1', "test2"]               | _          | 2
-    'validate'    | ['test']                         | 'test'     | 0
-    'validate'    | [new Object(), 'test1', "test2"] | _          | 2
+    method        | args                             | toValidate         | expected
+    'validateAll' | ['test']                         | [args[0]]          | 1
+    'validateAll' | ['test1', "test2"]               | [args[0], args[1]]          | 1
+    'validate'    | ['test']                         | args[0]            | 0
+    'validate'    | [new Object(), 'test1', "test2"] | [args[1], args[2]] | 1
   }
 }
