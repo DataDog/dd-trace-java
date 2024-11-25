@@ -11,7 +11,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.Config;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -25,11 +24,6 @@ public final class KafkaConsumerInstrumentation extends InstrumenterModule.Traci
 
   public KafkaConsumerInstrumentation() {
     super("kafka");
-  }
-
-  @Override
-  public boolean isEnabled() {
-    return super.isEnabled() && Config.get().isExperimentalKafkaEnabled();
   }
 
   @Override
