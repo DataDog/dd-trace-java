@@ -13,7 +13,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 public class OffsetCommitCallbackInvokerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public OffsetCommitCallbackInvokerInstrumentation() {
-    super("kafka");
+    super("kafka", "kafka-3.8");
   }
 
   @Override

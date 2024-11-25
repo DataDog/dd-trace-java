@@ -23,7 +23,7 @@ public final class KafkaConsumerInstrumentation extends InstrumenterModule.Traci
     implements Instrumenter.ForSingleType {
 
   public KafkaConsumerInstrumentation() {
-    super("kafka");
+    super("kafka", "kafka-3.8");
   }
 
   @Override

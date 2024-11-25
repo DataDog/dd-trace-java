@@ -16,7 +16,7 @@ public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule
     implements Instrumenter.ForSingleType {
 
   public ConsumerCoordinatorInstrumentation() {
-    super("kafka");
+    super("kafka", "kafka-3.8");
   }
 
   @Override

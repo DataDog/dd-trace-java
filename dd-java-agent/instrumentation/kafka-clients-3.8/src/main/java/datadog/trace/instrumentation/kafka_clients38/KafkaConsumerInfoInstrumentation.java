@@ -28,7 +28,7 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
     implements Instrumenter.ForTypeHierarchy {
 
   public KafkaConsumerInfoInstrumentation() {
-    super("kafka");
+    super("kafka", "kafka-3.8");
   }
 
   @Override

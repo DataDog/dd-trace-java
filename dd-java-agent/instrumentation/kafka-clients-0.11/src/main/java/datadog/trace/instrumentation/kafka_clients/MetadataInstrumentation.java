@@ -26,7 +26,7 @@ public class MetadataInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
 
   public MetadataInstrumentation() {
-    super("kafka");
+    super("kafka", "kafka-0.11");
   }
 
   @Override

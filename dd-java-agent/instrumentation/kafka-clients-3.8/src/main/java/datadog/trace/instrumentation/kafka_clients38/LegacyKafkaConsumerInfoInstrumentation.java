@@ -28,7 +28,7 @@ public final class LegacyKafkaConsumerInfoInstrumentation extends InstrumenterMo
     implements Instrumenter.ForTypeHierarchy {
 
   public LegacyKafkaConsumerInfoInstrumentation() {
-    super("kafka");
+    super("kafka", "kafka-3.8");
   }
 
   @Override
