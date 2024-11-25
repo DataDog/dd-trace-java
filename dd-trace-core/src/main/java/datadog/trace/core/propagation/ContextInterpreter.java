@@ -246,7 +246,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
 
   protected TagContext build() {
     if (valid) {
-      if (fullContext && !DDTraceId.ZERO.equals(traceId)) {
+      if (fullContext && !DDTraceId.ZERO.equals(traceId) && DDSpanId.ZERO != spanId) {
         if (propagationTags == null) {
           propagationTags = propagationTagsFactory.empty();
         }
