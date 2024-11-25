@@ -20,7 +20,7 @@ class PayloadTagsProcessorTest extends DDSpecification {
     !PayloadTagsProcessor.create(Config.get())
   }
 
-  def "enabled with defaults when configured"() {
+  def "enabled with defaults when configured req #requestPayloadTagging resp #responsePayloadTagging"() {
     setup:
     requestPayloadTagging && injectSysConfig("trace.cloud.request.payload.tagging", requestPayloadTagging)
     responsePayloadTagging && injectSysConfig("trace.cloud.response.payload.tagging", responsePayloadTagging)
