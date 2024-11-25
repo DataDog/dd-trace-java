@@ -90,6 +90,24 @@ class StringBuilderCallSiteTest extends AgentTestRunner {
     new TestStringBufferSuite()  | new StringBuffer('Hello ')
   }
 
+  void 'test string builder append call site with start and end'() {
+    setup:
+    final iastModule = Mock(StringModule)
+    InstrumentationBridge.registerIastModule(iastModule)
+
+    when:
+    suite.append(target, param, start, end)
+
+    then:
+    target.toString() == expected
+    1 * iastModule.onStringBuilderAppend(target, param, start, end)
+    0 * _
+
+    where:
+    suite                        | target                      | param    | start | end | expected
+    new TestStringBuilderSuite() | new StringBuilder('Hello ') | 'World!' | 0     | 5   | 'Hello World'
+  }
+
   void 'test string builder toString call site'() {
     setup:
     final iastModule = Mock(StringModule)

@@ -38,6 +38,13 @@ public class TestStringBufferSuite implements TestAbstractStringBuilderSuite<Str
   }
 
   @Override
+  public void append(final StringBuffer builder, final CharSequence param, int start, int end) {
+    LOGGER.debug("Before string buffer append {} with start {} and end {}", param, start, end);
+    final StringBuffer result = builder.append(param, start, end);
+    LOGGER.debug("After string buffer append {}", result);
+  }
+
+  @Override
   public void append(final StringBuffer buffer, final Object param) {
     LOGGER.debug("Before string buffer append {}", param);
     final StringBuffer result = buffer.append(param);
