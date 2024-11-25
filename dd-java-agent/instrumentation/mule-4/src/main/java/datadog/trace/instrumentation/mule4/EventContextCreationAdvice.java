@@ -38,13 +38,14 @@ public class EventContextCreationAdvice {
     } else if (arg instanceof EventContext) {
       // This means that we are in the constructor for ChildContext and we should copy the span
       // from the parent EventContext which is the first argument.
-      spanState = contextStore.get((EventContext) arg);
-      if (spanState != null) {
-        spanState = spanState.copy();
-      } else {
-        spanState = new SpanState(activeSpan(), null);
+      final SpanState parentState = contextStore.get((EventContext) arg);
+      if (parentState != null) {
+        spanState = new SpanState(parentState.getEventContextSpan(), null);
       }
+      // TODO: remove me
+      System.err.println("CHILD CREATED " + " " + activeSpan() + " " + spanState);
     }
+
     contextStore.put(zis, spanState);
   }
 

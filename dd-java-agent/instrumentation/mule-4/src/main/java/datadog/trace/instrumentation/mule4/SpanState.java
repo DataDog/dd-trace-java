@@ -29,7 +29,15 @@ public class SpanState {
     return this;
   }
 
-  public SpanState copy() {
-    return new SpanState(eventContextSpan, previousState).withSpanContextSpan(spanContextSpan);
+  @Override
+  public String toString() {
+    return "SpanState{"
+        + "eventContextSpan="
+        + eventContextSpan
+        + ", previousState="
+        + previousState
+        + ", spanContextSpan="
+        + spanContextSpan
+        + '}';
   }
 }
