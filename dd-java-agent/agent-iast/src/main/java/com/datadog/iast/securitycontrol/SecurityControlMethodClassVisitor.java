@@ -56,12 +56,12 @@ public class SecurityControlMethodClassVisitor extends ClassVisitor {
     }
 
     Type[] types = Type.getArgumentTypes(desc);
-    if (types.length != securityControl.getParameterTypes().length) {
+    if (types.length != securityControl.getParameterTypes().size()) {
       return false;
     }
 
     for (int i = 0; i < types.length; i++) {
-      if (!types[i].getClassName().equals(securityControl.getParameterTypes()[i])) {
+      if (!types[i].getClassName().equals(securityControl.getParameterTypes().get(i))) {
         return false;
       }
     }
