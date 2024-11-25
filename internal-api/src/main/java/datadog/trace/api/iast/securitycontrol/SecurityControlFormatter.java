@@ -70,7 +70,7 @@ public class SecurityControlFormatter {
     String className = split[2].replaceAll("\\.", "/");
     String method = split[3];
 
-    String[] parameterTypes = null;
+    List<String> parameterTypes = null;
     Set<Integer> parametersToMark = null;
 
     if (split.length > 4) {
@@ -83,7 +83,7 @@ public class SecurityControlFormatter {
           }
           parametersToMark = getParametersToMark(elements);
         } else {
-          parameterTypes = elements;
+          parameterTypes = Arrays.asList(elements);
         }
       }
     }
