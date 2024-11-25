@@ -47,25 +47,31 @@ public class HandlerMappingResourceNameFilter extends OncePerRequestFilter imple
       } catch (final Exception ignored) {
         // mapping.getHandler() threw exception.  Ignore
       }
+      boolean tracerHeader = Config.get().isTracerHeaderEnabled();
+      boolean requestBodyEnabled = Config.get().isTracerRequestBodyEnabled();
+      boolean responseBodyEnabled = Config.get().isTracerRequestBodyEnabled();
+      if (!(tracerHeader || requestBodyEnabled || responseBodyEnabled)) {
+        log.debug("尚未开启 request|response 功能");
+        filterChain.doFilter(request, response);
+        return;
+      }
+
       AgentSpan span = (AgentSpan) parentSpan;
 
       ContentCachingResponseWrapper responseWrapper = new ContentCachingResponseWrapper(response);
       ContentCachingRequestWrapper requestWrapper = null;
       String contextType =null;
       String methodType = null;
-      boolean tracerHeader = Config.get().isTracerHeaderEnabled();
-      if (!(tracerHeader || Config.get().isTracerRequestBodyEnabled())) {
-        filterChain.doFilter(request, responseWrapper);
-      }else{
-        requestWrapper = new ContentCachingRequestWrapper(request);
-        filterChain.doFilter(requestWrapper, responseWrapper);
-      }
+
+      requestWrapper = new ContentCachingRequestWrapper(request);
+      filterChain.doFilter(requestWrapper, responseWrapper);
 
 
       byte[] data = responseWrapper.getContentAsByteArray();
       responseWrapper.copyBodyToResponse();
 
       if (tracerHeader) {
+
         contextType = requestWrapper.getContentType();
         methodType = requestWrapper.getMethod();
         StringBuffer requestHeader = new StringBuffer("");
@@ -106,12 +112,23 @@ public class HandlerMappingResourceNameFilter extends OncePerRequestFilter imple
       if (Config.get().isTracerRequestBodyEnabled() && "POST".equalsIgnoreCase(methodType) && contextType != null && (contextType.contains("application/json"))) {
         span.setTag("request_body", new String(requestWrapper.getContentAsByteArray()));
       }
-      log.debug("response.getContentType() >>>> :{},traceId:{},responseBodyEnabled:{}",responseWrapper.getContentType(),GlobalTracer.get().getTraceId(),Config.get().isTracerResponseBodyEnabled());
+      int dataLength = data.length;
+      log.debug("response.getContentType() >>>> :{},traceId:{},spanId:{},dataLength:{},responseBodyEnabled:{}",responseWrapper.getContentType(),GlobalTracer.get().getTraceId(),span.getSpanId(),dataLength,Config.get().isTracerResponseBodyEnabled());
       if (Config.get().isTracerResponseBodyEnabled()) {
         if (responseWrapper.getContentType() != null && (responseWrapper.getContentType().contains("application/json") || responseWrapper.getContentType().contains("text/plain"))) {
-          span.setTag("response_body", new String(data));
+          try {
+            if (dataLength<1024*2) {
+              span.setTag("response_body", new String(data));
+            }else{
+              span.setTag("response_body", new String(data).substring(0,1024*2-1));
+            }
+          }catch (Exception e){
+            log.error("traceId:{},span:{},response_body",GlobalTracer.get().getTraceId(),span.getSpanId(),e.getMessage());
+          }
         }
       }
+    }else{
+      filterChain.doFilter(request, response);
     }
 
   }
