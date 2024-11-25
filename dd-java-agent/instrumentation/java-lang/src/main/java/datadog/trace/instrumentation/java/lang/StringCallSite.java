@@ -303,7 +303,6 @@ public class StringCallSite {
 
   @CallSite.After("java.lang.String java.lang.String.valueOf(java.lang.Object)")
   public static String afterValueOf(
-      //      @CallSite.This final String self,
       @CallSite.Argument(0) final Object obj, @CallSite.Return final String result) {
     final StringModule module = InstrumentationBridge.STRING;
     if (module != null) {
