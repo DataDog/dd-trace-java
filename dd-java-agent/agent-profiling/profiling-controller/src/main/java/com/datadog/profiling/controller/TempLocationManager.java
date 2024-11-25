@@ -107,8 +107,7 @@ public final class TempLocationManager {
       // the JFR repository directories are under <basedir>/pid_<pid>
       String pid = fileName.startsWith("pid_") ? fileName.substring(4) : null;
       boolean isSelfPid = pid != null && pid.equals(PidHelper.getPid());
-      shouldClean |=
-          (cleanSelf && isSelfPid) || (!cleanSelf && !isSelfPid && !pidSet.contains(pid));
+      shouldClean |= cleanSelf ? isSelfPid : !isSelfPid && !pidSet.contains(pid);
       if (shouldClean) {
         log.debug("Cleaning temporary location {}", dir);
       }
