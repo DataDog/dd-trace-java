@@ -1,10 +1,11 @@
 package datadog.telemetry.dependency;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
+import java.nio.file.Paths;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
@@ -67,21 +68,16 @@ class JarReader {
           pomProperties,
           attributes,
           false,
-          () -> new FileInputStream(jarPath));
+          () -> Files.newInputStream(Paths.get(jarPath)));
     }
   }
 
-  public static Extracted readNestedJarFile(final String jarPath) throws IOException {
-    final int sepIdx = jarPath.indexOf("!/");
-    if (sepIdx == -1) {
-      throw new IllegalArgumentException("Invalid nested jar path: " + jarPath);
-    }
-    final String outerJarPath = jarPath.substring(0, sepIdx);
-    final String innerJarPath = getInnerJarPath(jarPath);
+  public static Extracted readNestedJarFile(final String outerJarPath, final String innerJarPath)
+      throws IOException {
     try (final JarFile outerJar = new JarFile(outerJarPath, false /* no verify */)) {
       final ZipEntry entry = outerJar.getEntry(innerJarPath);
       if (entry == null) {
-        throw new NoSuchFileException("Nested jar not found: " + jarPath);
+        throw new NoSuchFileException("Nested jar not found: " + innerJarPath);
       }
       if (entry.isDirectory()) {
         return new Extracted(
@@ -109,19 +105,6 @@ class JarReader {
             () -> new NestedJarInputStream(outerJarPath, innerJarPath));
       }
     }
-  }
-
-  private static String getInnerJarPath(final String jarPath) {
-    final int sepIdx = jarPath.indexOf("!/");
-    if (sepIdx == -1) {
-      throw new IllegalArgumentException("Invalid nested jar path: " + jarPath);
-    }
-    String innerJarPath = jarPath.substring(sepIdx + 2);
-    final int innerSepIdx = innerJarPath.indexOf('!');
-    if (innerSepIdx != -1) {
-      innerJarPath = innerJarPath.substring(0, innerSepIdx);
-    }
-    return innerJarPath;
   }
 
   static class NestedJarInputStream extends InputStream implements AutoCloseable {

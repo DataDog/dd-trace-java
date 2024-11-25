@@ -5,8 +5,11 @@ import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import org.eclipse.jetty.ee8.nested.ErrorHandler
 import org.eclipse.jetty.ee8.servlet.ServletContextHandler
+import org.eclipse.jetty.ee8.nested.SessionHandler as EE8SessionHandler
 import org.eclipse.jetty.server.Handler
 import org.eclipse.jetty.server.Server
+import org.eclipse.jetty.session.SessionHandler
+
 
 import javax.servlet.Servlet
 import javax.servlet.ServletException
@@ -17,8 +20,11 @@ class JettyServer implements HttpServer {
   final server = new Server(0) // select random open port
 
   JettyServer(Handler handler) {
-    server.handler = handler
+    final sessionHandler = new SessionHandler()
+    sessionHandler.handler = handler
+    server.handler = sessionHandler
     server.addBean(errorHandler)
+    server.addBean(sessionHandler.sessionIdManager, true)
   }
 
   @Override
@@ -46,6 +52,7 @@ class JettyServer implements HttpServer {
   static Handler servletHandler(Class<? extends Servlet> servlet) {
     // defaults to jakarta servlet
     ServletContextHandler handler = new ServletContextHandler(null, "/context-path")
+    handler.sessionHandler = new EE8SessionHandler()
     handler.errorHandler = errorHandler
     HttpServerTest.ServerEndpoint.values()
       .findAll { !(it in [NOT_FOUND, UNKNOWN]) }

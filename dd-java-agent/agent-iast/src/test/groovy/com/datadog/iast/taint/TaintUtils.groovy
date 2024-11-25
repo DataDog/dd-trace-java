@@ -74,6 +74,13 @@ class TaintUtils {
     new String(s.replace(OPEN_MARK, "").replace(CLOSE_MARK, ""))
   }
 
+  static String getStringFromTaintFormat(final Appendable appendable) {
+    if (appendable == null) {
+      return null
+    }
+    getStringFromTaintFormat(appendable.toString())
+  }
+
   static <E> E taint(final TaintedObjects tos, final E value) {
     if (value instanceof String) {
       return addFromTaintFormat(tos, value as String)
@@ -96,13 +103,18 @@ class TaintUtils {
     return resultString
   }
 
-  static StringBuilder addFromTaintFormat(final TaintedObjects tos, final StringBuilder sb) {
+  static Appendable addFromTaintFormat(final TaintedObjects tos, final Appendable sb) {
     final String s = sb.toString()
     final ranges = fromTaintFormat(s)
     if (ranges == null || ranges.length == 0) {
       return sb
     }
-    final result = new StringBuilder(getStringFromTaintFormat(s))
+    def result
+    if (sb instanceof StringBuffer) {
+      result = new StringBuffer(getStringFromTaintFormat(s))
+    } else {
+      result = new StringBuilder(getStringFromTaintFormat(s))
+    }
     tos.taint(result, ranges)
     return result
   }

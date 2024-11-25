@@ -2,7 +2,6 @@ package datadog.trace.agent.tooling;
 
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
-import datadog.trace.util.Strings;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicLongArray;
 import org.slf4j.Logger;
@@ -130,7 +129,7 @@ public final class InstrumenterState {
   public static String describe(int instrumentationId) {
     if (instrumentationId >= 0 && instrumentationId < instrumentationNames.length) {
       return "instrumentation.names=["
-          + Strings.join(",", instrumentationNames[instrumentationId])
+          + String.join(",", instrumentationNames[instrumentationId])
           + "] instrumentation.class="
           + instrumentationClasses[instrumentationId];
     } else {

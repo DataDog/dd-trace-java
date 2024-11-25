@@ -52,29 +52,9 @@ class JarReaderSpecification extends DepSpecification {
   void 'read nested jar'() {
     given:
     String outerPath = getJar("spring-boot-app.jar").getAbsolutePath()
-    String jarPath = "$outerPath!/BOOT-INF/lib/opentracing-util-0.33.0.jar"
 
     when:
-    def result = JarReader.readNestedJarFile(jarPath)
-
-    then:
-    result.jarName == "opentracing-util-0.33.0.jar"
-    result.pomProperties.size() == 1
-    def properties = result.pomProperties['META-INF/maven/io.opentracing/opentracing-util/pom.properties']
-    properties.groupId == "io.opentracing"
-    properties.artifactId == "opentracing-util"
-    properties.version == "0.33.0"
-    result.manifest != null
-    result.manifest.getValue("Automatic-Module-Name") == "io.opentracing.util"
-  }
-
-  void 'read nested jar with ending separator'() {
-    given:
-    String outerPath = getJar("spring-boot-app.jar").getAbsolutePath()
-    String jarPath = "$outerPath!/BOOT-INF/lib/opentracing-util-0.33.0.jar!/"
-
-    when:
-    def result = JarReader.readNestedJarFile(jarPath)
+    def result = JarReader.readNestedJarFile(outerPath, "BOOT-INF/lib/opentracing-util-0.33.0.jar")
 
     then:
     result.jarName == "opentracing-util-0.33.0.jar"
@@ -99,11 +79,8 @@ class JarReaderSpecification extends DepSpecification {
   }
 
   void 'non-existent outer jar for nested jar'() {
-    given:
-    String jarPath = "non-existent.jar!/BOOT-INF/lib/opentracing-util-0.33.0.jar!/"
-
     when:
-    JarReader.readNestedJarFile(jarPath)
+    JarReader.readNestedJarFile("non-existent.jar", "BOOT-INF/lib/opentracing-util-0.33.0.jar")
 
     then:
     thrown(IOException)
@@ -112,34 +89,27 @@ class JarReaderSpecification extends DepSpecification {
   void 'non-existent inner jar for nested jar'() {
     given:
     String outerPath = getJar("spring-boot-app.jar").getAbsolutePath()
-    String jarPath = "$outerPath!/BOOT-INF/lib/non-existent.jar"
 
     when:
-    JarReader.readNestedJarFile(jarPath)
+    JarReader.readNestedJarFile(outerPath, "BOOT-INF/lib/non-existent.jar")
 
     then:
     thrown(IOException)
   }
 
   void 'doubly nested jar path'() {
-    given:
-    String jarPath = "non-existent.jar!/BOOT-INF/lib/opentracing-util-0.33.0.jar!/third"
-
     when:
-    JarReader.readNestedJarFile(jarPath)
+    JarReader.readNestedJarFile("non-existent.jar", "BOOT-INF/lib/opentracing-util-0.33.0.jar/third")
 
     then:
     thrown(IOException)
   }
 
-  void 'lack of nested jar path'() {
-    given:
-    String jarPath = "non-existent.jar"
-
+  void 'empty nested jar path'() {
     when:
-    JarReader.readNestedJarFile(jarPath)
+    JarReader.readNestedJarFile("non-existent.jar", "")
 
     then:
-    thrown(IllegalArgumentException)
+    thrown(IOException)
   }
 }

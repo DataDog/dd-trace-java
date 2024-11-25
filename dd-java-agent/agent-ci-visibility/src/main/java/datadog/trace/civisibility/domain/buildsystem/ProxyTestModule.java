@@ -21,7 +21,7 @@ import datadog.trace.civisibility.ipc.ModuleExecutionResult;
 import datadog.trace.civisibility.ipc.ModuleSignal;
 import datadog.trace.civisibility.ipc.SignalClient;
 import datadog.trace.civisibility.ipc.TestFramework;
-import datadog.trace.civisibility.source.MethodLinesResolver;
+import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.test.ExecutionStrategy;
 import java.util.Collection;
@@ -51,7 +51,7 @@ public class ProxyTestModule implements TestFrameworkModule {
   private final TestDecorator testDecorator;
   private final SourcePathResolver sourcePathResolver;
   private final Codeowners codeowners;
-  private final MethodLinesResolver methodLinesResolver;
+  private final LinesResolver linesResolver;
   private final CoverageStore.Factory coverageStoreFactory;
   private final Collection<TestFramework> testFrameworks = ConcurrentHashMap.newKeySet();
 
@@ -64,7 +64,7 @@ public class ProxyTestModule implements TestFrameworkModule {
       TestDecorator testDecorator,
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
-      MethodLinesResolver methodLinesResolver,
+      LinesResolver linesResolver,
       CoverageStore.Factory coverageStoreFactory,
       ChildProcessCoverageReporter childProcessCoverageReporter,
       SignalClient.Factory signalClientFactory) {
@@ -78,7 +78,7 @@ public class ProxyTestModule implements TestFrameworkModule {
     this.testDecorator = testDecorator;
     this.sourcePathResolver = sourcePathResolver;
     this.codeowners = codeowners;
-    this.methodLinesResolver = methodLinesResolver;
+    this.linesResolver = linesResolver;
     this.coverageStoreFactory = coverageStoreFactory;
   }
 
@@ -171,7 +171,7 @@ public class ProxyTestModule implements TestFrameworkModule {
         testDecorator,
         sourcePathResolver,
         codeowners,
-        methodLinesResolver,
+        linesResolver,
         coverageStoreFactory,
         this::propagateTestFrameworkData);
   }

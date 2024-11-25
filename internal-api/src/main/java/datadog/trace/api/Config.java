@@ -174,7 +174,6 @@ public class Config {
   private final Set<String> splitByTags;
   private final int scopeDepthLimit;
   private final boolean scopeStrictMode;
-  private final boolean scopeInheritAsyncPropagation;
   private final int scopeIterationKeepAlive;
   private final int partialFlushMinSpans;
   private final boolean traceStrictWritesEnabled;
@@ -762,7 +761,7 @@ public class Config {
     requestHeaderTagsCommaAllowed =
         configProvider.getBoolean(REQUEST_HEADER_TAGS_COMMA_ALLOWED, true);
 
-    baggageMapping = configProvider.getMergedMap(BAGGAGE_MAPPING);
+    baggageMapping = configProvider.getMergedMapWithOptionalMappings(null, true, BAGGAGE_MAPPING);
 
     spanAttributeSchemaVersion = schemaVersionFromConfig();
 
@@ -853,8 +852,6 @@ public class Config {
     scopeDepthLimit = configProvider.getInteger(SCOPE_DEPTH_LIMIT, DEFAULT_SCOPE_DEPTH_LIMIT);
 
     scopeStrictMode = configProvider.getBoolean(SCOPE_STRICT_MODE, false);
-
-    scopeInheritAsyncPropagation = configProvider.getBoolean(SCOPE_INHERIT_ASYNC_PROPAGATION, true);
 
     scopeIterationKeepAlive =
         configProvider.getInteger(SCOPE_ITERATION_KEEP_ALIVE, DEFAULT_SCOPE_ITERATION_KEEP_ALIVE);
@@ -2071,10 +2068,6 @@ public class Config {
 
   public boolean isScopeStrictMode() {
     return scopeStrictMode;
-  }
-
-  public boolean isScopeInheritAsyncPropagation() {
-    return scopeInheritAsyncPropagation;
   }
 
   public int getScopeIterationKeepAlive() {
@@ -4168,8 +4161,6 @@ public class Config {
         + scopeDepthLimit
         + ", scopeStrictMode="
         + scopeStrictMode
-        + ", scopeInheritAsyncPropagation="
-        + scopeInheritAsyncPropagation
         + ", scopeIterationKeepAlive="
         + scopeIterationKeepAlive
         + ", partialFlushMinSpans="

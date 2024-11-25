@@ -1,23 +1,31 @@
 package datadog.trace.civisibility.source
 
-
 import org.spockframework.util.IoUtil
 import spock.lang.Specification
 
-class ByteCodeMethodLinesResolverTest extends Specification {
+class ByteCodeLinesResolverTest extends Specification {
 
   def "test method lines resolution"() {
     setup:
     def aTestMethod = NestedClass.getDeclaredMethod("aTestMethod")
 
     when:
-    def methodLinesResolver = new ByteCodeMethodLinesResolver()
-    def methodLines = methodLinesResolver.getLines(aTestMethod)
+    def linesResolver = new ByteCodeLinesResolver()
+    def methodLines = linesResolver.getMethodLines(aTestMethod)
 
     then:
     methodLines.isValid()
     methodLines.startLineNumber > 0
-    methodLines.finishLineNumber > methodLines.startLineNumber
+    methodLines.endLineNumber > methodLines.startLineNumber
+  }
+
+  def "test always invalid class lines resolution" () {
+    when:
+    def linesResolver = new ByteCodeLinesResolver()
+    def classLines = linesResolver.getClassLines(NestedClass)
+
+    then:
+    !classLines.isValid()
   }
 
   def "test invalid method lines resolution"() {
@@ -25,8 +33,8 @@ class ByteCodeMethodLinesResolverTest extends Specification {
     def aTestMethod = NestedClass.getDeclaredMethod("abstractMethod")
 
     when:
-    def methodLinesResolver = new ByteCodeMethodLinesResolver()
-    def methodLines = methodLinesResolver.getLines(aTestMethod)
+    def linesResolver = new ByteCodeLinesResolver()
+    def methodLines = linesResolver.getMethodLines(aTestMethod)
 
     then:
     !methodLines.isValid()
@@ -46,8 +54,8 @@ class ByteCodeMethodLinesResolverTest extends Specification {
     def misbehavingMethod = misbehavingClass.getDeclaredMethod("aTestMethod")
 
     when:
-    def methodLinesResolver = new ByteCodeMethodLinesResolver()
-    def methodLines = methodLinesResolver.getLines(misbehavingMethod)
+    def linesResolver = new ByteCodeLinesResolver()
+    def methodLines = linesResolver.getMethodLines(misbehavingMethod)
 
     then:
     !methodLines.isValid()
@@ -56,7 +64,7 @@ class ByteCodeMethodLinesResolverTest extends Specification {
   def "test returns empty method lines when unknown method is attempted to be resolved"() {
     setup:
     def aTestMethod = NestedClass.getDeclaredMethod("abstractMethod")
-    def classMethodLines = new ByteCodeMethodLinesResolver.ClassMethodLines()
+    def classMethodLines = new ByteCodeLinesResolver.ClassMethodLines()
 
     when:
     def methodLines = classMethodLines.get(aTestMethod)
