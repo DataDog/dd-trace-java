@@ -282,7 +282,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       log.warn("setConsumeCheckpoint should be called with non-empty type and source");
       return;
     }
-    System.out.println("VEER - SETTING CONSUME CHECKPOINT");
+    System.out.println("CAAT - SETTING CONSUME CHECKPOINT");
     System.out.println("CAAT - CARRIER IS " + carrier.entries());
 
     AgentSpan span = activeSpan();
