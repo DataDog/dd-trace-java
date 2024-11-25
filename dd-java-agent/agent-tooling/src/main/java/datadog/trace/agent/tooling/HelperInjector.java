@@ -126,8 +126,11 @@ public class HelperInjector implements Instrumenter.TransformingAdvice {
           }
         } catch (final Exception e) {
           if (log.isErrorEnabled()) {
+            // requestingName is concatenated to ensure it is sent to telemetry
             log.error(
-                "Failed to inject helper classes - instrumentation.class={} instrumentation.target.classloader={} instrumentation.target.class={}",
+                "Failed to inject helper classes - instrumentation.class="
+                    + requestingName
+                    + " instrumentation.target.classloader={} instrumentation.target.class={}",
                 requestingName,
                 classLoader,
                 typeDescription,
