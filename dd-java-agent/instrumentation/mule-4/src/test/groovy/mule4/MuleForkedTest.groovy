@@ -113,8 +113,8 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
             defaultTags()
           }
         }
-        muleSpan(it, "mule:flow")
-        muleSpan(it, "http:request")
+        muleSpan(it, "mule:flow", "MuleHttpServerClientTestFlow")
+        muleSpan(it, "http:request", "Http Request")
         span {
           childOfPrevious()
           operationName "http.request"
@@ -182,15 +182,15 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
               defaultTags()
             }
           }
-          def flowParent = muleSpan(traceAssert, "mule:flow")
-          def foreachParent = muleSpan(traceAssert, "mule:parallel-foreach", flowParent)
-          muleSpan(traceAssert, "mule:set-payload", flowParent)
+          def flowParent = muleSpan(traceAssert, "mule:flow", "MulePFETestFlow")
+          def foreachParent = muleSpan(traceAssert, "mule:parallel-foreach", "PFE", flowParent)
+          muleSpan(traceAssert, "mule:set-payload", "PFE Set Payload", flowParent)
           def iterationParents = []
           for (def pos = 1; pos <= names.size(); pos++) {
-            iterationParents += muleSpan(traceAssert, "mule:parallel-foreach:iteration", foreachParent)
+            iterationParents += muleSpan(traceAssert, "mule:parallel-foreach:iteration", "PFE", foreachParent)
           }
           iterationParents.each { parent ->
-            muleSpan(traceAssert, "http:request", parent)
+            muleSpan(traceAssert, "http:request", "PFE Request", parent)
             traceAssert.span {
               childOfPrevious()
               operationName "http.request"

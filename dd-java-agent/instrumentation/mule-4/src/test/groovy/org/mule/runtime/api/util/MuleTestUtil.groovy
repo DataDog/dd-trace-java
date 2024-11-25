@@ -7,12 +7,12 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 
 class MuleTestUtil {
-  static DDSpan muleSpan(TraceAssert traceAssert, String resource, DDSpan parent = null, boolean error = false) {
+  static DDSpan muleSpan(TraceAssert traceAssert, String componentType, String componentName, DDSpan parent = null, boolean error = false) {
     def ret
     traceAssert.span {
       ret = it.span
       operationName "mule.action"
-      resourceName resource
+      resourceName "$componentType $componentName"
       if (parent != null) {
         childOf parent
       } else {
@@ -23,7 +23,8 @@ class MuleTestUtil {
       tags {
         "$Tags.COMPONENT" "mule"
         "$Tags.SPAN_KIND" "$Tags.SPAN_KIND_INTERNAL"
-        "location" { String }
+        "mule.location" { String }
+        "mule.correlation_id" { String }
         if (error) {
           "$DDTags.ERROR_TYPE" { String }
           "$DDTags.ERROR_MSG" { String }

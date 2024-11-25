@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
+import org.mule.runtime.api.component.Component;
 import org.mule.runtime.api.event.EventContext;
 import org.mule.runtime.api.message.Error;
 import org.mule.runtime.api.profiling.tracing.Span;
@@ -16,8 +17,11 @@ import org.mule.runtime.core.api.event.CoreEvent;
 import org.mule.runtime.tracer.api.EventTracer;
 import org.mule.runtime.tracer.api.context.getter.DistributedTraceContextGetter;
 import org.mule.runtime.tracer.api.sniffer.SpanSnifferManager;
+import org.mule.runtime.tracer.api.span.info.EnrichedInitialSpanInfo;
 import org.mule.runtime.tracer.api.span.info.InitialSpanInfo;
 import org.mule.runtime.tracer.api.span.validation.Assertion;
+import org.mule.runtime.tracer.customization.impl.info.ExecutionInitialSpanInfo;
+import org.mule.runtime.tracer.customization.impl.provider.LazyInitialSpanInfo;
 
 /**
  * This class is responsible for translating span reported by mule internal observability into DD
@@ -27,11 +31,16 @@ public class DDEventTracer implements EventTracer<CoreEvent> {
   /** Holds the link between mule event context <-> ddSpan */
   private final ContextStore<EventContext, SpanState> eventContextStore;
 
+  private final ContextStore<InitialSpanInfo, Component> componentContextStore;
+
   private final EventTracer<CoreEvent> delegate;
 
   public DDEventTracer(
-      ContextStore<EventContext, SpanState> eventContextStore, EventTracer<CoreEvent> delegate) {
+      ContextStore<EventContext, SpanState> eventContextStore,
+      ContextStore<InitialSpanInfo, Component> componentContextStore,
+      EventTracer<CoreEvent> delegate) {
     this.eventContextStore = eventContextStore;
+    this.componentContextStore = componentContextStore;
     this.delegate = delegate;
   }
 
@@ -49,6 +58,17 @@ public class DDEventTracer implements EventTracer<CoreEvent> {
       return spanState.getEventContextSpan();
     }
     return activeSpan();
+  }
+
+  private Component findComponent(final InitialSpanInfo initialSpanInfo) {
+    if (initialSpanInfo instanceof ExecutionInitialSpanInfo) {
+      return componentContextStore.get(initialSpanInfo);
+    } else if (initialSpanInfo instanceof LazyInitialSpanInfo) {
+      return findComponent(((LazyInitialSpanInfo) initialSpanInfo).getDelegate());
+    } else if (initialSpanInfo instanceof EnrichedInitialSpanInfo) {
+      return findComponent(((EnrichedInitialSpanInfo) initialSpanInfo).getBaseInitialSpanInfo());
+    }
+    return null;
   }
 
   private void activateOnContext(@Nonnull final EventContext eventContext, final AgentSpan span) {
@@ -74,7 +94,8 @@ public class DDEventTracer implements EventTracer<CoreEvent> {
 
     final EventContext eventContext = event.getContext();
 
-    final AgentSpan span = DECORATE.onMuleSpan(findParent(eventContext), spanInfo);
+    final AgentSpan span =
+        DECORATE.onMuleSpan(findParent(eventContext), spanInfo, event, findComponent(spanInfo));
     activateOnContext(eventContext, span);
   }
 

@@ -35,15 +35,15 @@ class MuleHttpServerForkedTest extends HttpServerTest<MuleTestContainer> {
   @Override
   void controllerSpan(TraceAssert trace, ServerEndpoint endpoint = null) {
     def expectsError = endpoint == ServerEndpoint.EXCEPTION
-    def flowSpan = muleSpan(trace, "mule:flow", null, expectsError)
-    muleSpan(trace, "java:new", flowSpan)
-    muleSpan(trace, "java:invoke", flowSpan, expectsError)
+    def flowSpan = muleSpan(trace, "mule:flow", "MuleHttpServerTestFlow", null, expectsError)
+    muleSpan(trace, "java:new", "Create Handler", flowSpan)
+    muleSpan(trace, "java:invoke", "Handle Message", flowSpan, expectsError)
     super.controllerSpan(trace, endpoint)
     if (!expectsError) {
-      muleSpan(trace, "mule:set-variable", flowSpan)
-      muleSpan(trace, "mule:set-payload", flowSpan)
+      muleSpan(trace, "mule:set-variable", "Set Response Code", flowSpan)
+      muleSpan(trace, "mule:set-payload", "Set Response Body",flowSpan)
     } else {
-      muleSpan(trace, "mule:on-error-propagate", flowSpan)
+      muleSpan(trace, "mule:on-error-propagate", "unknown",flowSpan)
     }
   }
 

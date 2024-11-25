@@ -15,6 +15,15 @@ muzzle {
     versions = '[4.5.0,)'
     javaVersion = "17"
     excludeDependency 'com.google.code.findbugs:jsr305'
+    additionalDependencies +="org.mule.runtime:mule-tracer-customization-impl:4.5.0"
+  }
+  pass {
+    group = 'org.mule.runtime'
+    module = 'mule-tracer-customization-impl'
+    versions = '[4.5.0,)'
+    javaVersion = "17"
+    excludeDependency 'com.google.code.findbugs:jsr305'
+    additionalDependencies +="org.mule.runtime:mule-core:4.5.0"
   }
   pass {
     name = 'before-4.5.0'
@@ -101,6 +110,7 @@ tasks.named("compileLatestDepForkedTestJava").configure {
 
 dependencies {
   compileOnly group: 'org.mule.runtime', name: 'mule-core', version: muleVersion
+  compileOnly group: 'org.mule.runtime', name: 'mule-tracer-customization-impl', version: muleVersion
 
   testImplementation project(':dd-java-agent:instrumentation:aws-common')
   testImplementation project(':dd-java-agent:instrumentation:reactor-core-3.1')
