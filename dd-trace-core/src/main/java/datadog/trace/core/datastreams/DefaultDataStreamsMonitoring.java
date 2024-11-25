@@ -331,7 +331,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   }
 
   public void trackTransaction(String transactionID, DataStreamsContextCarrier carrier) {
-    System.out.println("CARRIER LOOKS LIKE: " + carrier);
+    System.out.println("TRANSACTION LOOKS LIKE: " + transactionID);
+    System.out.println("CARRIER LOOKS LIKE: " + carrier.entries());
     System.out.println("VEER - STARTING TRACK TRANSACTION");
     if (transactionID == null || transactionID.isEmpty()) {
       log.warn("trackTransaction called with invalid transactionID");
@@ -341,7 +342,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     // store the transaction ID in the carrier
     carrier.set("transaction.id", transactionID);
     System.out.println("VEER - CARRIER SET SUCCESSFULLY!");
-    System.out.println("NOW CARRIER LOOKS LIKE " + carrier);
+    System.out.println("NOW CARRIER LOOKS LIKE " + carrier.entries());
   }
 
   @Override

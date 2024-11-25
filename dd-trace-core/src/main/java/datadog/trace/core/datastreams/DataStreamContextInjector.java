@@ -77,9 +77,12 @@ public class DataStreamContextInjector {
     long pathwayHash = pathwayContext.getHash();
     // Extract transaction ID from the carrier
     String transactionId = null;
+    System.out.println("CAT - STARTING CHECK FOR CARRIER");
     if (carrier instanceof DataStreamsContextCarrier) {
+      System.out.println("CAT - WE HAVE A DSM CARRIER");
       DataStreamsContextCarrier dsCarrier = (DataStreamsContextCarrier) carrier;
       for (Map.Entry<String, Object> entry : dsCarrier.entries()) {
+        System.out.println("CAT - ENTRY IS " + entry.getKey());
         if ("transaction.id".equals(entry.getKey())) {
           transactionId = entry.getValue().toString();
           break;
