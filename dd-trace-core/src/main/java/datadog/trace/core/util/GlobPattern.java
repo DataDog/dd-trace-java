@@ -32,7 +32,7 @@ public final class GlobPattern {
         case ']':
         case '{':
         case '}':
-          sb.append("\\").append(ch);
+          sb.append('\\').append(ch);
           break;
         default:
           sb.append(ch);

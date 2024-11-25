@@ -157,7 +157,7 @@ public final class HotspotCrashLogParser {
                 pid = line.substring(pidIdx + 4, endIdx);
               }
             } else {
-              message.append(line.substring(2)).append("\n");
+              message.append(line.substring(2)).append('\n');
             }
           }
           break;

@@ -299,7 +299,7 @@ public final class DatadogProfiler {
       // wall profiling is enabled.
       cmd.append(",wall=");
       if (getWallCollapsing(configProvider)) {
-        cmd.append("~");
+        cmd.append('~');
       }
       cmd.append(getWallInterval(configProvider)).append('m');
       if (getWallContextFilter(configProvider)) {
