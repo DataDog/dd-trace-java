@@ -6,7 +6,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.Config;
 import net.bytebuddy.matcher.ElementMatcher;
 
 // new - this instrumentation is completely new.
@@ -14,12 +13,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 public class OffsetCommitCallbackInvokerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public OffsetCommitCallbackInvokerInstrumentation() {
-    super("kafka");
-  }
-
-  @Override
-  public boolean isEnabled() {
-    return super.isEnabled() && Config.get().isExperimentalKafkaEnabled();
+    super("kafka", "kafka-3.8");
   }
 
   @Override

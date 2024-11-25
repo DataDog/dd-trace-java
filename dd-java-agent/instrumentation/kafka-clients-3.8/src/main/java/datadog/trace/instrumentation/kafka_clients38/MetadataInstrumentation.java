@@ -10,7 +10,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.Config;
 import java.util.Map;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -20,12 +19,7 @@ public class MetadataInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
 
   public MetadataInstrumentation() {
-    super("kafka");
-  }
-
-  @Override
-  public boolean isEnabled() {
-    return super.isEnabled() && Config.get().isExperimentalKafkaEnabled();
+    super("kafka", "kafka-3.8");
   }
 
   @Override

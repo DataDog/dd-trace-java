@@ -43,7 +43,7 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
     implements Instrumenter.ForSingleType {
 
   public KafkaConsumerInfoInstrumentation() {
-    super("kafka");
+    super("kafka", "kafka-0.11");
   }
 
   @Override
