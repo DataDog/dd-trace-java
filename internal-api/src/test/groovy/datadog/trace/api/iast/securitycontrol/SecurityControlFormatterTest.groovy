@@ -140,17 +140,17 @@ class SecurityControlFormatterTest extends DDSpecification{
     setup:
     final formatter = new SecurityControlFormatter()
     Throwable thrown = null
+    def result = null
 
     when:
     try {
-      final result = formatter.format(config)
+      result = formatter.format(config)
     } catch (Throwable t) {
       thrown = t
     }
 
     then:
     thrown == null
-    final result = formatter.format(config)
     result == null
 
     where:
