@@ -283,6 +283,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       return;
     }
     System.out.println("VEER - SETTING CONSUME CHECKPOINT");
+    System.out.println("CAAT - CARRIER IS " + carrier);
 
     AgentSpan span = activeSpan();
     if (span == null) {
