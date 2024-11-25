@@ -32,23 +32,20 @@ public class IastSecurityControlTransformer implements ClassFileTransformer {
     if (!classFilter.contains(className)) {
       return null; // Do not transform classes that are not in the classFilter
     }
-    SecurityControl securityControl = getSecurityControl(className);
-    if (securityControl == null) {
+    List<SecurityControl> match = getSecurityControl(className);
+    if (match == null || match.isEmpty()) {
       return null; // Do not transform classes that do not have a security control
     }
     ClassReader cr = new ClassReader(classfileBuffer);
     ClassWriter cw = new ClassWriter(cr, ClassWriter.COMPUTE_FRAMES);
-    ClassVisitor cv = new SecurityControlMethodClassVisitor(cw, securityControl);
+    ClassVisitor cv = new SecurityControlMethodClassVisitor(cw, match);
     cr.accept(cv, 0);
     return cw.toByteArray();
   }
 
-  // TODO remove this and change structure to Map instead of List if this approach works
-  @Nullable
-  private SecurityControl getSecurityControl(final String className) {
+  private List<SecurityControl> getSecurityControl(final String className) {
     return securityControls.stream()
         .filter(sc -> sc.getClassName().equals(className))
-        .findFirst()
-        .orElse(null);
+        .collect(Collectors.toList());
   }
 }
