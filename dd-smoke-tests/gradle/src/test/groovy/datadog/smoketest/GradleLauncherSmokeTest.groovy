@@ -17,6 +17,7 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
     given:
     givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion)
     givenGradleProjectFiles("test-gradle-wrapper", ["gradle-wrapper.properties": ["gradle-version": gradleVersion]])
+    givenGradleWrapper(gradleVersion) // we want to check that instrumentation works with different wrapper versions too
 
     when:
     def output = whenRunningGradleLauncherWithJavaTracerInjected(gradleDaemonCmdLineParams)
@@ -41,6 +42,11 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
     "8.11.1"              | "-Duser.country=VALUE_FROM_CMD_LINE"
     LATEST_GRADLE_VERSION | null
     LATEST_GRADLE_VERSION | "-Duser.country=VALUE_FROM_CMD_LINE"
+  }
+
+  private void givenGradleWrapper(String gradleVersion) {
+    def shellCommandExecutor = new ShellCommandExecutor(projectFolder.toFile(), GRADLE_BUILD_TIMEOUT_MILLIS)
+    shellCommandExecutor.executeCommand(IOUtils::readFully, "./gradlew", "wrapper", "--gradle-version", gradleVersion)
   }
 
   private String whenRunningGradleLauncherWithJavaTracerInjected(String gradleDaemonCmdLineParams) {
