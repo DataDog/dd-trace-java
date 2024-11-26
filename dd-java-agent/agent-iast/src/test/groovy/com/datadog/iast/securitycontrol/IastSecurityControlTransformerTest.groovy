@@ -30,7 +30,7 @@ class IastSecurityControlTransformerTest extends DDSpecification{
     final marks = VulnerabilityMarks.XSS_MARK
 
     when:
-    final result = SecurityControlTestSuite.sanitize('test')
+     SecurityControlTestSuite.sanitize('test')
 
     then:
     1 * iastModule.markIfTainted('Sanitized test', marks)
