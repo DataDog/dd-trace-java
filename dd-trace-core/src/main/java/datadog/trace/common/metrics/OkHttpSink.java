@@ -64,6 +64,7 @@ public final class OkHttpSink implements Sink, EventListener {
       this.headers.put("Content-Encoding", "gzip");
     }
     this.headers.put("Data-Type", "Transaction");
+    System.out.println("HEADER TRANSACTION ADDED");
   }
 
   public void addHeader(String key, String value) {
