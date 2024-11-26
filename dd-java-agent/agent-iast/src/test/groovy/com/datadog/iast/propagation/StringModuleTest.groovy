@@ -1,8 +1,12 @@
 package com.datadog.iast.propagation
 
 import com.datadog.iast.IastModuleImplTestBase
+import com.datadog.iast.model.Source
+import com.datadog.iast.taint.TaintedObjects
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.api.iast.SourceTypes
+import datadog.trace.api.iast.Taintable
 import datadog.trace.api.iast.propagation.StringModule
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
@@ -16,6 +20,7 @@ import static com.datadog.iast.taint.TaintUtils.fromTaintFormat
 import static com.datadog.iast.taint.TaintUtils.getStringFromTaintFormat
 import static com.datadog.iast.taint.TaintUtils.taint
 import static com.datadog.iast.taint.TaintUtils.taintFormat
+import static com.datadog.iast.taint.TaintUtils.taintObject
 
 @CompileDynamic
 class StringModuleTest extends IastModuleImplTestBase {
@@ -1319,6 +1324,22 @@ class StringModuleTest extends IastModuleImplTestBase {
     sbf("==>my_input<==") | "==>my_input<=="
   }
 
+  void 'test valueOf with taintable object and make sure IastRequestContext is called'() {
+    given:
+    final taintedObjects = ctx.getTaintedObjects()
+    final source = taintedSource(null)
+    final param = taintable(taintedObjects, source)
+    def result = String.valueOf(param)
+
+    when:
+    module.onStringValueOf(param, result)
+    def taintedObject = taintedObjects.get(result)
+
+    then:
+    1 * tracer.activeSpan() >> span
+    taintFormat(result, taintedObject.getRanges()) == "==>" + param.toString() + "<=="
+  }
+
   private static Date date(final String pattern, final String value) {
     return new SimpleDateFormat(pattern).parse(value)
   }
@@ -1331,11 +1352,44 @@ class StringModuleTest extends IastModuleImplTestBase {
     return new StringBuilder(string)
   }
 
-  private static StringBuilder sbf() {
+  private static StringBuffer sbf() {
     return sbf('')
   }
 
   private static StringBuffer sbf(final String string) {
     return new StringBuffer(string)
+  }
+
+  private static Source taintedSource(String value = 'value') {
+    return new Source(SourceTypes.REQUEST_PARAMETER_VALUE, 'name', value)
+  }
+
+  private static Taintable taintable(TaintedObjects tos, Source source = null) {
+    final result = new MockTaintable()
+    if (source != null) {
+      taintObject(tos, result, source)
+    }
+    return result
+  }
+
+  private static class MockTaintable implements Taintable {
+    private Source source
+
+    @SuppressWarnings('CodeNarc')
+    @Override
+    Source $$DD$getSource() {
+      return source
+    }
+
+    @SuppressWarnings('CodeNarc')
+    @Override
+    void $$DD$setSource(Source source) {
+      this.source = source
+    }
+
+    @Override
+    String toString() {
+      return Taintable.name
+    }
   }
 }
