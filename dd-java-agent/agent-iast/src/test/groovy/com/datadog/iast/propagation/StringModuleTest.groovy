@@ -810,6 +810,47 @@ class StringModuleTest extends IastModuleImplTestBase {
     "A==>\u00cc\u00cc\u00cc<==B" | "a==>ììì<==b"          | "en"   | 5          | 5            | [[1, 3]]
   }
 
+  void 'onStringConstructor (#input)'() {
+    given:
+    final taintedObjects = ctx.getTaintedObjects()
+    final self = addFromTaintFormat(taintedObjects, input)
+    final result = new String(self)
+
+    when:
+    module.onStringConstructor(self, result)
+    def taintedObject = taintedObjects.get(result)
+
+    then:
+    1 * tracer.activeSpan() >> span
+    taintFormat(result, taintedObject.getRanges()) == expected
+
+    where:
+    input            | expected
+    "==>123<=="      | "==>123<=="
+    sb("==>123<==")  | "==>123<=="
+    sbf("==>123<==") | "==>123<=="
+  }
+
+  void 'onStringConstructor empty (#input)'() {
+    given:
+    final taintedObjects = ctx.getTaintedObjects()
+    final self = addFromTaintFormat(taintedObjects, input)
+    final result = new String(self)
+
+    when:
+    module.onStringConstructor(self, result)
+
+    then:
+    null == taintedObjects.get(result)
+    result == expected
+
+    where:
+    input   | expected
+    ""      | ""
+    sb("")  | ""
+    sbf("") | ""
+  }
+
   void 'test trim and make sure IastRequestContext is called'() {
     given:
     final taintedObjects = ctx.getTaintedObjects()
@@ -1267,6 +1308,10 @@ class StringModuleTest extends IastModuleImplTestBase {
 
   private static StringBuilder sb(final String string) {
     return new StringBuilder(string)
+  }
+
+  private static StringBuilder sbf() {
+    return sbf('')
   }
 
   private static StringBuffer sbf(final String string) {

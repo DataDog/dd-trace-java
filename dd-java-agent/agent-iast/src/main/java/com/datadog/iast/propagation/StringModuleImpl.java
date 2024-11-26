@@ -403,7 +403,7 @@ public class StringModuleImpl implements StringModule {
   }
 
   @Override
-  public void onStringConstructor(@Nonnull String self, @Nonnull String result) {
+  public void onStringConstructor(@Nonnull CharSequence self, @Nonnull String result) {
     if (!canBeTainted(self)) {
       return;
     }

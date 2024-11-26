@@ -65,7 +65,7 @@ public class EventBridgeInterceptor implements ExecutionInterceptor {
       }
 
       detailBuilder
-          .append("\"")
+          .append('\"')
           .append(PathwayContext.DATADOG_KEY)
           .append("\": ")
           .append(traceContext)
@@ -104,7 +104,7 @@ public class EventBridgeInterceptor implements ExecutionInterceptor {
         .append(RESOURCE_NAME_KEY)
         .append("\": \"")
         .append(eventBusName)
-        .append("\"");
+        .append('\"');
 
     jsonBuilder.append('}');
     return jsonBuilder.toString();

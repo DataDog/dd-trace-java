@@ -251,19 +251,19 @@ public final class Strings {
     while (entriesIter.hasNext()) {
       final Entry<String, ?> entry = entriesIter.next();
 
-      sb.append("\"").append(escapeToJson(entry.getKey())).append("\":");
+      sb.append('\"').append(escapeToJson(entry.getKey())).append("\":");
 
       if (valuesAreJson) {
         sb.append(entry.getValue());
       } else {
-        sb.append("\"").append(escapeToJson(String.valueOf(entry.getValue()))).append("\"");
+        sb.append('\"').append(escapeToJson(String.valueOf(entry.getValue()))).append('\"');
       }
 
       if (entriesIter.hasNext()) {
-        sb.append(",");
+        sb.append(',');
       }
     }
-    sb.append("}");
+    sb.append('}');
     return sb.toString();
   }
 
@@ -277,10 +277,10 @@ public final class Strings {
       String item = it.next();
       json.append('"').append(escapeToJson(item)).append('"');
       if (it.hasNext()) {
-        json.append(",");
+        json.append(',');
       }
     }
-    json.append("]");
+    json.append(']');
     return json.toString();
   }
 

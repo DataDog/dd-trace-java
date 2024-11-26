@@ -36,7 +36,7 @@ class MatchersTest extends DDSpecification {
     pattern << ["", "a", "abc", "cde"]
   }
 
-  def "a pattern matcher test"() {
+  def "a pattern matcher test #iterationIndex #pattern"() {
     when:
     def matcher = Matchers.compileGlob(pattern)
 

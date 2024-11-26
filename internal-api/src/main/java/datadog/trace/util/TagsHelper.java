@@ -79,7 +79,7 @@ public final class TagsHelper {
         continue;
       }
       sb.append(tag);
-      sb.append(",");
+      sb.append(',');
     }
     return sb.substring(0, sb.length() - 1); // Remove last comma
   }

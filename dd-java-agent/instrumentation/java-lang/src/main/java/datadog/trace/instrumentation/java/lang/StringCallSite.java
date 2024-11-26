@@ -201,13 +201,15 @@ public class StringCallSite {
   }
 
   @CallSite.After("void java.lang.String.<init>(java.lang.String)")
+  @CallSite.After("void java.lang.String.<init>(java.lang.StringBuffer)")
+  @CallSite.After("void java.lang.String.<init>(java.lang.StringBuilder)")
   public static String afterStringConstructor(
       @CallSite.AllArguments @Nonnull final Object[] params,
       @CallSite.Return @Nonnull final String result) {
     final StringModule module = InstrumentationBridge.STRING;
     try {
       if (module != null) {
-        module.onStringConstructor((String) params[0], result);
+        module.onStringConstructor((CharSequence) params[0], result);
       }
     } catch (final Throwable e) {
       module.onUnexpectedException("afterStringConstructor threw", e);

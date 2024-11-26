@@ -181,7 +181,7 @@ public class RabbitDecorator extends MessagingClientDecorator {
     final StringBuilder prefix =
         new StringBuilder(opName.length() + exchangeName.length() + routingKey.length() + 5)
             .append(opName)
-            .append(" ")
+            .append(' ')
             .append(exchangeName);
     if (Config.get().isRabbitIncludeRoutingKeyInResource()) {
       prefix.append(" -> ").append(routingKey);

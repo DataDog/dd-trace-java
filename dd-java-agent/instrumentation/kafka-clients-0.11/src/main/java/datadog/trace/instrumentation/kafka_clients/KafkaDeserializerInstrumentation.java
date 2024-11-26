@@ -45,6 +45,11 @@ public class KafkaDeserializerInstrumentation extends InstrumenterModule.Iast
   }
 
   @Override
+  public String muzzleDirective() {
+    return "since-0.11";
+  }
+
+  @Override
   public String hierarchyMarkerType() {
     return DESERIALIZER_CLASS;
   }

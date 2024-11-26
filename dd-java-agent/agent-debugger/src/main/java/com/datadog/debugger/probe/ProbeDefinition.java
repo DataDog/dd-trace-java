@@ -85,7 +85,7 @@ public abstract class ProbeDefinition implements ProbeImplementation {
     StringBuilder sb = new StringBuilder();
     for (Tag tag : tags) {
       if (sb.length() > 0) {
-        sb.append(",");
+        sb.append(',');
       }
       sb.append(tag);
     }

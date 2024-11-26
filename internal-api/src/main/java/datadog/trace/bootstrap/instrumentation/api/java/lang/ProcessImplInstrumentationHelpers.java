@@ -79,7 +79,7 @@ public class ProcessImplInstrumentationHelpers {
       sb.append(cur.replace("\\", "\\\\").replace("\"", "\\\""));
       sb.append('"');
     }
-    sb.append("]");
+    sb.append(']');
     span.setTag("cmd.exec", sb.toString());
   }
 

@@ -206,7 +206,7 @@ public final class InstrumenterMetrics {
     long value = stat.get();
     buf.append(prefix)
         .append(String.format("%-12d", value >>> COUNT_SHIFT))
-        .append(" ")
+        .append(' ')
         .append(String.format("%.1f", (value & NANOS_MASK) / 1_000_000.0))
         .append(" ms\n");
   }

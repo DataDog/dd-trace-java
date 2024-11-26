@@ -176,12 +176,18 @@ class StringCallSiteTest extends AgentTestRunner {
     InstrumentationBridge.registerIastModule(module)
 
     when:
-    final result = TestStringSuite.stringConstructor("hello")
+    final result = TestStringSuite.stringConstructor(param)
 
     then:
-    result == 'hello'
+    result == expected
     1 * module.onStringConstructor(_, _)
     0 * _
+
+    where:
+    param                      | expected
+    'hello'                    | 'hello'
+    new StringBuilder('hello') | 'hello'
+    new StringBuffer('hello')  | 'hello'
   }
 
   void 'test string format'() {

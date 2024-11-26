@@ -36,7 +36,7 @@ public interface StringModule extends IastModule {
 
   void onStringRepeat(@Nonnull String self, int count, @Nonnull String result);
 
-  void onStringConstructor(@Nonnull String self, @Nonnull String result);
+  void onStringConstructor(@Nonnull CharSequence self, @Nonnull String result);
 
   void onStringFormat(@Nonnull String pattern, @Nonnull Object[] params, @Nonnull String result);
 

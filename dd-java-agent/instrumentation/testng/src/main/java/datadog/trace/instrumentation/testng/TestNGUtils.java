@@ -77,13 +77,13 @@ public abstract class TestNGUtils {
     // Example: {"arguments":{"0":"param1","1":"param2"}}
     final StringBuilder sb = new StringBuilder("{\"arguments\":{");
     for (int i = 0; i < parameters.length; i++) {
-      sb.append("\"")
+      sb.append('\"')
           .append(i)
           .append("\":\"")
           .append(Strings.escapeToJson(String.valueOf(parameters[i])))
-          .append("\"");
+          .append('\"');
       if (i != parameters.length - 1) {
-        sb.append(",");
+        sb.append(',');
       }
     }
     sb.append("}}");

@@ -56,7 +56,7 @@ public class ClassInjectingTestInstrumentation extends TestInstrumentation
     public String getMessage() {
       StringBuilder msg = new StringBuilder(message);
       for (Class<?> iface : getClass().getInterfaces()) {
-        msg.append(":");
+        msg.append(':');
         msg.append(iface.getName());
       }
       return msg.toString();

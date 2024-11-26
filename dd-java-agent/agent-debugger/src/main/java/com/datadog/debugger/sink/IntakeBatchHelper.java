@@ -61,7 +61,7 @@ public class IntakeBatchHelper {
       List<String> payloads, int start, int count, StringBuilder sb) {
     int totalSize = 0;
     int elementCount = 0;
-    sb.append("[");
+    sb.append('[');
     for (int i = start; i < start + count; i++) {
       String jsonStr = payloads.get(i);
       totalSize += jsonStr.length();
@@ -71,13 +71,13 @@ public class IntakeBatchHelper {
         break;
       }
       sb.append(jsonStr);
-      sb.append(",");
+      sb.append(',');
       elementCount++;
     }
     if (elementCount > 0) {
       sb.delete(sb.lastIndexOf(","), sb.length());
     }
-    sb.append("]");
+    sb.append(']');
     return elementCount;
   }
 

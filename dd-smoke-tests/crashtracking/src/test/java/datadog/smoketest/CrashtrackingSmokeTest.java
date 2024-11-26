@@ -121,7 +121,7 @@ public class CrashtrackingSmokeTest {
                     .forEach(
                         l -> {
                           System.out.println(l);
-                          stdoutStr.append(l).append("\n");
+                          stdoutStr.append(l).append('\n');
                         });
               } catch (Exception e) {
                 throw new RuntimeException(e);
@@ -136,7 +136,7 @@ public class CrashtrackingSmokeTest {
                     .forEach(
                         l -> {
                           System.err.println(l);
-                          stderrStr.append(l).append("\n");
+                          stderrStr.append(l).append('\n');
                         });
               } catch (Exception e) {
                 throw new RuntimeException(e);
@@ -196,7 +196,7 @@ public class CrashtrackingSmokeTest {
                     .forEach(
                         l -> {
                           System.out.println(l);
-                          stdoutStr.append(l).append("\n");
+                          stdoutStr.append(l).append('\n');
                         });
               } catch (Exception e) {
                 throw new RuntimeException(e);
@@ -211,7 +211,7 @@ public class CrashtrackingSmokeTest {
                     .forEach(
                         l -> {
                           System.err.println(l);
-                          stderrStr.append(l).append("\n");
+                          stderrStr.append(l).append('\n');
                         });
               } catch (Exception e) {
                 throw new RuntimeException(e);
@@ -268,7 +268,7 @@ public class CrashtrackingSmokeTest {
                     .forEach(
                         l -> {
                           System.out.println(l);
-                          stdoutStr.append(l).append("\n");
+                          stdoutStr.append(l).append('\n');
                         });
               } catch (Exception e) {
                 throw new RuntimeException(e);
@@ -283,7 +283,7 @@ public class CrashtrackingSmokeTest {
                     .forEach(
                         l -> {
                           System.err.println(l);
-                          stderrStr.append(l).append("\n");
+                          stderrStr.append(l).append('\n');
                         });
               } catch (Exception e) {
                 throw new RuntimeException(e);
@@ -339,7 +339,7 @@ public class CrashtrackingSmokeTest {
                     .forEach(
                         l -> {
                           System.out.println(l);
-                          stdoutStr.append(l).append("\n");
+                          stdoutStr.append(l).append('\n');
                         });
               } catch (Exception e) {
                 throw new RuntimeException(e);
@@ -354,7 +354,7 @@ public class CrashtrackingSmokeTest {
                     .forEach(
                         l -> {
                           System.err.println(l);
-                          stderrStr.append(l).append("\n");
+                          stderrStr.append(l).append('\n');
                         });
               } catch (Exception e) {
                 throw new RuntimeException(e);

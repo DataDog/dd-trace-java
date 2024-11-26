@@ -1,8 +1,16 @@
 muzzle {
   pass {
+    name = "since-0.11"
     group = "org.apache.kafka"
     module = "kafka-clients"
     versions = "[0.11.0.0,)"
+    assertInverse = true
+  }
+  pass {
+    name = "before-3.8"
+    group = "org.apache.kafka"
+    module = "kafka-clients"
+    versions = "[0.11.0.0,3.8.0)"
     assertInverse = true
   }
 }
