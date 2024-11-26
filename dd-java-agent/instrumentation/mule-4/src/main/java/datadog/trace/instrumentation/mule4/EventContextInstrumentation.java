@@ -1,12 +1,10 @@
 package datadog.trace.instrumentation.mule4;
 
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import java.util.Map;
 
 /**
  * Events in Mule have an {@code EventContext} attached to them, that travels with the event through
@@ -14,35 +12,14 @@ import java.util.Map;
  * and activate/deactivate the span when mule changes which event it is processing.
  */
 @AutoService(InstrumenterModule.class)
-public final class EventContextInstrumentation extends InstrumenterModule.Tracing
+public final class EventContextInstrumentation extends AbstractMuleInstrumentation
     implements Instrumenter.ForKnownTypes {
-
-  public EventContextInstrumentation() {
-    super("mule");
-  }
-
-  @Override
-  protected boolean defaultEnabled() {
-    return false;
-  }
 
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
       "org.mule.runtime.core.internal.event.DefaultEventContext",
       "org.mule.runtime.core.internal.event.DefaultEventContext$ChildEventContext"
-    };
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("org.mule.runtime.api.event.EventContext", packageName + ".SpanState");
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".SpanState",
     };
   }
 

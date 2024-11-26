@@ -23,6 +23,11 @@ public class ExecutionInitialSpanInfoInstrumentation extends InstrumenterModule.
   }
 
   @Override
+  protected boolean defaultEnabled() {
+    return false;
+  }
+
+  @Override
   public String instrumentedType() {
     return "org.mule.runtime.tracer.customization.impl.info.ExecutionInitialSpanInfo";
   }

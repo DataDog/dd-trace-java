@@ -7,8 +7,6 @@ import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import java.util.Collections;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatchers;
 import org.mule.runtime.api.event.EventContext;
@@ -20,29 +18,12 @@ import org.mule.runtime.tracer.api.EventTracer;
  * handler.
  */
 @AutoService(InstrumenterModule.class)
-public class ComponentMessageInstrumentation extends InstrumenterModule.Tracing
+public class ComponentMessageInstrumentation extends AbstractMuleInstrumentation
     implements Instrumenter.ForSingleType {
 
-  public ComponentMessageInstrumentation() {
-    super("mule");
-  }
-
   @Override
-  protected boolean defaultEnabled() {
-    return false;
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap(
-        "org.mule.runtime.api.event.EventContext", packageName + ".SpanState");
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".SpanState",
-    };
+  public String instrumentedType() {
+    return "org.mule.runtime.module.extension.internal.runtime.operation.ComponentMessageProcessor";
   }
 
   @Override
@@ -54,11 +35,6 @@ public class ComponentMessageInstrumentation extends InstrumenterModule.Tracing
                 ElementMatchers.takesArgument(
                     0, NameMatchers.named("org.mule.runtime.core.api.event.CoreEvent"))),
         getClass().getName() + "$ProcessAdvice");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "org.mule.runtime.module.extension.internal.runtime.operation.ComponentMessageProcessor";
   }
 
   public static class ProcessAdvice {

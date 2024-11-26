@@ -5,8 +5,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 import datadog.trace.bootstrap.InstrumentationContext;
-import java.util.HashMap;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.mule.runtime.api.component.Component;
 import org.mule.runtime.api.event.EventContext;
@@ -15,36 +13,8 @@ import org.mule.runtime.tracer.api.EventTracer;
 import org.mule.runtime.tracer.api.span.info.InitialSpanInfo;
 
 @AutoService(InstrumenterModule.class)
-public class EventTracerInstrumentation extends InstrumenterModule.Tracing
+public class EventTracerInstrumentation extends AbstractMuleInstrumentation
     implements Instrumenter.ForSingleType {
-  public EventTracerInstrumentation() {
-    super("mule");
-  }
-
-  @Override
-  protected boolean defaultEnabled() {
-    return false;
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    final Map<String, String> contextStore = new HashMap<>();
-    contextStore.put("org.mule.runtime.api.event.EventContext", packageName + ".SpanState");
-    contextStore.put(
-        "org.mule.runtime.tracer.api.span.info.InitialSpanInfo",
-        "org.mule.runtime.api.component.Component");
-    return contextStore;
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".MuleDecorator",
-      packageName + ".DDEventTracer",
-      packageName + ".SpanState",
-      packageName + ".NoopMuleSpan",
-    };
-  }
 
   @Override
   public String instrumentedType() {

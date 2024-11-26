@@ -33,6 +33,7 @@ muzzle {
     assertInverse true
     javaVersion = "17"
     excludeDependency 'com.google.code.findbugs:jsr305'
+    additionalDependencies +="org.mule.runtime:mule-tracer-customization-impl:4.5.0"
   }
 }
 
@@ -69,7 +70,6 @@ configurations {
 }
 
 configurations.all {
-  // WHY this is in the CI classpath and not locally?
   exclude group: 'pull-parser', module: 'pull-parser'
 
   resolutionStrategy {
