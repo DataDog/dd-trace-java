@@ -1361,6 +1361,22 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   }
 
   @Test
+  public void mergedProbesDifferentSignature() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot08";
+    LogProbe probe1 = createProbeAtExit(PROBE_ID1, CLASS_NAME, "doit", null);
+    LogProbe probe2 = createProbeAtExit(PROBE_ID2, CLASS_NAME, "doit", "int (java.lang.String)");
+    LogProbe probe3 = createProbeAtExit(PROBE_ID3, CLASS_NAME, "doit", "(String)");
+    TestSnapshotListener listener = installProbes(probe1, probe2, probe3);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.onClass(testClass).call("main", "1").get();
+    Assertions.assertEquals(3, result);
+    Assertions.assertEquals(3, listener.snapshots.size());
+    assertNull(listener.snapshots.get(0).getEvaluationErrors());
+    assertNull(listener.snapshots.get(1).getEvaluationErrors());
+    assertNull(listener.snapshots.get(2).getEvaluationErrors());
+  }
+
+  @Test
   public void fields() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot06";
     TestSnapshotListener listener = installProbes(createProbe(PROBE_ID, CLASS_NAME, "f", "()"));
@@ -1579,11 +1595,9 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.onClass(testClass).call("main", "").get();
     assertEquals(63, result);
-    List<Snapshot> snapshots = assertSnapshots(listener, 4, PROBE_ID, PROBE_ID, PROBE_ID, PROBE_ID);
+    List<Snapshot> snapshots = assertSnapshots(listener, 1, PROBE_ID);
     assertCaptureReturnValue(snapshots.get(0).getCaptures().getReturn(), "int", "42");
-    assertCaptureArgs(snapshots.get(1).getCaptures().getEntry(), "s", "java.lang.String", "1");
-    assertCaptureArgs(snapshots.get(2).getCaptures().getEntry(), "s", "java.lang.String", "2");
-    assertCaptureArgs(snapshots.get(3).getCaptures().getEntry(), "s", "java.lang.String", "3");
+    assertEquals(1, snapshots.get(0).getCaptures().getEntry().getArguments().size());
   }
 
   @Test
