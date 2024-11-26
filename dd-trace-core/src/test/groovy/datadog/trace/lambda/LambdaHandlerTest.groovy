@@ -37,7 +37,7 @@ class LambdaHandlerTest extends DDCoreSpecification {
           response
             .status(200)
             .addHeader("x-datadog-trace-id", "1234")
-            .addHeader("x-datadog-span-id", "1")
+            .addHeader("x-datadog-parent-id", "1")
             .addHeader("x-datadog-sampling-priority", "2")
             .send()
         }
@@ -71,7 +71,7 @@ class LambdaHandlerTest extends DDCoreSpecification {
           response
             .status(200)
             .addHeader("x-datadog-trace-id", "5744042798732701615")
-            .addHeader("x-datadog-span-id", "1")
+            .addHeader("x-datadog-parent-id", "1")
             .addHeader("x-datadog-sampling-priority", "2")
             .addHeader("x-datadog-tags", "_dd.p.tid=1914fe7789eb32be")
             .send()
