@@ -11,6 +11,7 @@ application {
 
 dependencies {
   implementation group: 'io.opentelemetry', name: 'opentelemetry-api', version: '1.4.0'
+  implementation group: 'io.opentelemetry.instrumentation', name: 'opentelemetry-instrumentation-annotations', version: '1.20.0'
   testImplementation project(':dd-smoke-tests')
 }
 

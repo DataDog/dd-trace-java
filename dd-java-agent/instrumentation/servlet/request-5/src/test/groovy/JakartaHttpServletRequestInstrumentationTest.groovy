@@ -38,7 +38,7 @@ class JakartaHttpServletRequestInstrumentationTest extends AgentTestRunner {
     InstrumentationBridge.clearIastModules()
   }
 
-  void 'test getHeader'() {
+  void 'test getHeader #iterationIndex'() {
     setup:
     final iastModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(iastModule)
@@ -58,7 +58,7 @@ class JakartaHttpServletRequestInstrumentationTest extends AgentTestRunner {
     suite << testSuite()
   }
 
-  void 'test getHeaders'() {
+  void 'test getHeaders #iterationIndex'() {
     setup:
     final iastModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(iastModule)
@@ -79,7 +79,7 @@ class JakartaHttpServletRequestInstrumentationTest extends AgentTestRunner {
     suite << testSuite()
   }
 
-  void 'test getHeaderNames'() {
+  void 'test getHeaderNames #iterationIndex'() {
     setup:
     final iastModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(iastModule)
@@ -100,7 +100,7 @@ class JakartaHttpServletRequestInstrumentationTest extends AgentTestRunner {
     suite << testSuite()
   }
 
-  void 'test getParameter'() {
+  void 'test getParameter #iterationIndex'() {
     setup:
     final iastModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(iastModule)
@@ -120,7 +120,7 @@ class JakartaHttpServletRequestInstrumentationTest extends AgentTestRunner {
     suite << testSuite()
   }
 
-  void 'test getParameterValues'() {
+  void 'test getParameterValues #iterationIndex'() {
     setup:
     final iastModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(iastModule)
@@ -141,7 +141,7 @@ class JakartaHttpServletRequestInstrumentationTest extends AgentTestRunner {
     suite << testSuite()
   }
 
-  void 'test getParameterMap'() {
+  void 'test getParameterMap #iterationIndex'() {
     setup:
     final iastModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(iastModule)
@@ -168,7 +168,7 @@ class JakartaHttpServletRequestInstrumentationTest extends AgentTestRunner {
   }
 
 
-  void 'test getParameterNames'() {
+  void 'test getParameterNames #iterationIndex'() {
     setup:
     final iastModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(iastModule)
@@ -189,7 +189,7 @@ class JakartaHttpServletRequestInstrumentationTest extends AgentTestRunner {
     suite << testSuite()
   }
 
-  void 'test getCookies'() {
+  void 'test getCookies #iterationIndex'() {
     setup:
     final iastModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(iastModule)
@@ -210,7 +210,7 @@ class JakartaHttpServletRequestInstrumentationTest extends AgentTestRunner {
     suite << testSuite()
   }
 
-  void 'test that get headers does not fail when servlet related code fails'() {
+  void 'test that get headers does not fail when servlet related code fails #iterationIndex'() {
     setup:
     final iastModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(iastModule)
@@ -238,7 +238,7 @@ class JakartaHttpServletRequestInstrumentationTest extends AgentTestRunner {
     suite << testSuite()
   }
 
-  void 'test that get header names does not fail when servlet related code fails'() {
+  void 'test that get header names does not fail when servlet related code fails #iterationIndex'() {
     setup:
     final iastModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(iastModule)
@@ -266,7 +266,7 @@ class JakartaHttpServletRequestInstrumentationTest extends AgentTestRunner {
     suite << testSuite()
   }
 
-  void 'test get query string'() {
+  void 'test get query string #iterationIndex'() {
     setup:
     final iastModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(iastModule)
@@ -287,7 +287,7 @@ class JakartaHttpServletRequestInstrumentationTest extends AgentTestRunner {
     suite << testSuite()
   }
 
-  void 'test getInputStream'() {
+  void 'test getInputStream #iterationIndex'() {
     setup:
     final iastModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(iastModule)
@@ -308,7 +308,7 @@ class JakartaHttpServletRequestInstrumentationTest extends AgentTestRunner {
     suite << testSuite()
   }
 
-  void 'test getReader'() {
+  void 'test getReader #iterationIndex'() {
     setup:
     final iastModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(iastModule)
@@ -329,7 +329,7 @@ class JakartaHttpServletRequestInstrumentationTest extends AgentTestRunner {
     suite << testSuite()
   }
 
-  void 'test getRequestDispatcher'() {
+  void 'test getRequestDispatcher #iterationIndex'() {
     setup:
     final iastModule = Mock(UnvalidatedRedirectModule)
     InstrumentationBridge.registerIastModule(iastModule)
@@ -351,7 +351,7 @@ class JakartaHttpServletRequestInstrumentationTest extends AgentTestRunner {
     suite << testSuite()
   }
 
-  void 'test getRequestURI'() {
+  void 'test getRequestURI #iterationIndex'() {
     setup:
     final iastModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(iastModule)
@@ -372,7 +372,7 @@ class JakartaHttpServletRequestInstrumentationTest extends AgentTestRunner {
     suite << testSuiteCallSites()
   }
 
-  void 'test getPathInfo'() {
+  void 'test getPathInfo #iterationIndex'() {
     setup:
     final iastModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(iastModule)
@@ -393,7 +393,7 @@ class JakartaHttpServletRequestInstrumentationTest extends AgentTestRunner {
     suite << testSuiteCallSites()
   }
 
-  void 'test getPathTranslated'() {
+  void 'test getPathTranslated #iterationIndex'() {
     setup:
     final iastModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(iastModule)
@@ -414,7 +414,7 @@ class JakartaHttpServletRequestInstrumentationTest extends AgentTestRunner {
     suite << testSuiteCallSites()
   }
 
-  void 'test getRequestURL'() {
+  void 'test getRequestURL #iterationIndex'() {
     setup:
     final iastModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(iastModule)
@@ -435,7 +435,7 @@ class JakartaHttpServletRequestInstrumentationTest extends AgentTestRunner {
     suite << testSuiteCallSites()
   }
 
-  void 'test getSession'() {
+  void 'test getSession #iterationIndex'() {
     setup:
     final iastModule = Mock(ApplicationModule)
     InstrumentationBridge.registerIastModule(iastModule)

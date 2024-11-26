@@ -132,7 +132,7 @@ class AgentTestRunnerTest extends AgentTestRunner {
     noExceptionThrown()
   }
 
-  def "excluded classes are not instrumented"() {
+  def "excluded classes are not instrumented #iterationIndex"() {
     when:
     runUnderTrace("parent") {
       subject.run()

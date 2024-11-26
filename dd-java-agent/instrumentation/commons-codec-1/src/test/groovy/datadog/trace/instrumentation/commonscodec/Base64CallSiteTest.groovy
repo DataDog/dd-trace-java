@@ -15,7 +15,7 @@ class Base64CallSiteTest extends AgentTestRunner {
     injectSysConfig('dd.iast.enabled', 'true')
   }
 
-  void 'test encode base 64'() {
+  void 'test encode base 64 #iterationIndex'() {
     given:
     final module = Mock(CodecModule)
     InstrumentationBridge.registerIastModule(module)
@@ -33,7 +33,7 @@ class Base64CallSiteTest extends AgentTestRunner {
     'encode' | ['Hello'.bytes, new Base64()]
   }
 
-  void 'test decode base 64'() {
+  void 'test decode base 64 #iterationIndex'() {
     given:
     final module = Mock(CodecModule)
     InstrumentationBridge.registerIastModule(module)

@@ -18,7 +18,7 @@ import static excludefilter.ExcludeFilterTestInstrumentation.RunnableExcludedExe
 
 class ExcludeFilterForkedTest extends AgentTestRunner {
 
-  def "test ExcludeFilter"() {
+  def "test ExcludeFilter #runnable.class.name"() {
     expect:
     ExcludeFilter.exclude(RUNNABLE, runnable) == excluded
 
