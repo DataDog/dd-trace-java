@@ -11,7 +11,7 @@ import net.bytebuddy.agent.ByteBuddyAgent
 
 import java.lang.instrument.Instrumentation
 
-class IastSecurityControlTransformerTest extends DDSpecification{
+class IastSecurityControlTransformerForkedTest extends DDSpecification{
 
   def setupSpec() {
     final config = 'SANITIZER:XSS:foo.bar.securitycontrol.SecurityControlTestSuite:sanitize;INPUT_VALIDATOR:XSS:foo.bar.securitycontrol.SecurityControlTestSuite:validateAll;INPUT_VALIDATOR:XSS:foo.bar.securitycontrol.SecurityControlTestSuite:validate:1,2;java.lang.Object,java.lang.String,java.lang.String'
