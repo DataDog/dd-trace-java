@@ -778,7 +778,17 @@ public class StringModuleImpl implements StringModule {
         return;
       }
 
-      taintedObjects.taint(result, rangesParam);
+      // Special objects like InputStream...
+      if (rangesParam[0].getLength() == Integer.MAX_VALUE) {
+        final Source source = rangesParam[0].getSource();
+        final Range[] ranges =
+            Ranges.forCharSequence(
+                result, new Source(source.getOrigin(), source.getName(), source.getValue()));
+
+        taintedObjects.taint(result, ranges);
+      } else {
+        taintedObjects.taint(result, rangesParam);
+      }
     }
   }
 

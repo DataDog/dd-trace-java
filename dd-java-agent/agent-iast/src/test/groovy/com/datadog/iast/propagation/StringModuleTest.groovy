@@ -1324,11 +1324,17 @@ class StringModuleTest extends IastModuleImplTestBase {
     sbf("==>my_input<==") | "==>my_input<=="
   }
 
-  void 'test valueOf with taintable object and make sure IastRequestContext is called'() {
+  void 'test valueOf with taintable and special objects object and make sure IastRequestContext is called'() {
     given:
     final taintedObjects = ctx.getTaintedObjects()
-    final source = taintedSource(null)
-    final param = taintable(taintedObjects, source)
+    final source = taintedSource()
+    final param
+    if (taintable) {
+      param = taintable(taintedObjects, source)
+    } else {
+      param = new ObjectInputStream()
+      taintObject(taintedObjects, param, source)
+    }
     def result = String.valueOf(param)
 
     when:
@@ -1338,6 +1344,9 @@ class StringModuleTest extends IastModuleImplTestBase {
     then:
     1 * tracer.activeSpan() >> span
     taintFormat(result, taintedObject.getRanges()) == "==>" + param.toString() + "<=="
+
+    where:
+    taintable << [true, false]
   }
 
   private static Date date(final String pattern, final String value) {
