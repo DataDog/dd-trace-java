@@ -1332,7 +1332,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     if (taintable) {
       param = taintable(taintedObjects, source)
     } else {
-      param = new ObjectInputStream()
+      param = new ByteArrayInputStream(''.bytes)
       taintObject(taintedObjects, param, source)
     }
     def result = String.valueOf(param)
