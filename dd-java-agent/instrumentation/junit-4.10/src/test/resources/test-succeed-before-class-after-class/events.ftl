@@ -1,13 +1,55 @@
 [ {
+  "type" : "span",
+  "version" : 1,
+  "content" : {
+    "trace_id" : ${content_trace_id},
+    "span_id" : ${content_span_id},
+    "parent_id" : ${content_parent_id},
+    "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
+    "name" : "classSetup",
+    "resource" : "classSetup",
+    "start" : ${content_start},
+    "duration" : ${content_duration},
+    "error" : 0,
+    "metrics" : { },
+    "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid},
+      "test.callback" : "BeforeClass",
+      "library_version" : ${content_meta_library_version},
+      "env" : "none"
+    }
+  }
+}, {
+  "type" : "span",
+  "version" : 1,
+  "content" : {
+    "trace_id" : ${content_trace_id},
+    "span_id" : ${content_span_id_2},
+    "parent_id" : ${content_parent_id},
+    "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
+    "name" : "classTeardown",
+    "resource" : "classTeardown",
+    "start" : ${content_start_2},
+    "duration" : ${content_duration_2},
+    "error" : 0,
+    "metrics" : { },
+    "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_2},
+      "test.callback" : "AfterClass",
+      "library_version" : ${content_meta_library_version},
+      "env" : "none"
+    }
+  }
+}, {
   "type" : "test_session_end",
   "version" : 1,
   "content" : {
-    "test_session_id" : ${content_test_session_id},
+    "test_session_id" : ${content_trace_id},
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "name" : "junit.test_session",
     "resource" : "junit-4.10",
-    "start" : ${content_start},
-    "duration" : ${content_duration},
+    "start" : ${content_start_3},
+    "duration" : ${content_duration_3},
     "error" : 0,
     "metrics" : {
       "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count},
@@ -16,10 +58,10 @@
       "_dd.trace_span_attribute_schema" : 0
     },
     "meta" : {
-      "_dd.p.tid" : ${content_meta__dd_p_tid},
+      "_dd.p.tid" : ${content_meta__dd_p_tid_3},
       "test.type" : "test",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
-      "test.status" : "skip",
+      "test.status" : "pass",
       "test_session.name" : "session-name",
       "language" : "jvm",
       "env" : "none",
@@ -38,22 +80,22 @@
   "type" : "test_module_end",
   "version" : 1,
   "content" : {
-    "test_session_id" : ${content_test_session_id},
+    "test_session_id" : ${content_trace_id},
     "test_module_id" : ${content_test_module_id},
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "name" : "junit.test_module",
     "resource" : "junit-4.10",
-    "start" : ${content_start_2},
-    "duration" : ${content_duration_2},
+    "start" : ${content_start_4},
+    "duration" : ${content_duration_4},
     "error" : 0,
     "metrics" : {
       "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_2}
     },
     "meta" : {
-      "_dd.p.tid" : ${content_meta__dd_p_tid_2},
+      "_dd.p.tid" : ${content_meta__dd_p_tid_4},
       "test.type" : "test",
       "test.module" : "junit-4.10",
-      "test.status" : "skip",
+      "test.status" : "pass",
       "test_session.name" : "session-name",
       "env" : "none",
       "dummy_ci_tag" : "dummy_ci_tag_value",
@@ -68,14 +110,14 @@
   "type" : "test_suite_end",
   "version" : 1,
   "content" : {
-    "test_session_id" : ${content_test_session_id},
+    "test_session_id" : ${content_trace_id},
     "test_module_id" : ${content_test_module_id},
-    "test_suite_id" : ${content_test_suite_id},
+    "test_suite_id" : ${content_parent_id},
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "name" : "junit.test_suite",
-    "resource" : "org.example.TestFailedSuiteSetUpAssumption",
-    "start" : ${content_start_3},
-    "duration" : ${content_duration_3},
+    "resource" : "org.example.TestSucceedBeforeClassAfterClass",
+    "start" : ${content_start_5},
+    "duration" : ${content_duration_5},
     "error" : 0,
     "metrics" : {
       "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_3},
@@ -83,12 +125,11 @@
       "test.source.start" : 11
     },
     "meta" : {
-      "_dd.p.tid" : ${content_meta__dd_p_tid_3},
+      "_dd.p.tid" : ${content_meta__dd_p_tid_5},
       "test.type" : "test",
       "test.source.file" : "dummy_source_path",
       "test.module" : "junit-4.10",
-      "test.status" : "skip",
-      "test.skip_reason" : "got: <false>, expected: is <true>",
+      "test.status" : "pass",
       "test_session.name" : "session-name",
       "env" : "none",
       "dummy_ci_tag" : "dummy_ci_tag_value",
@@ -96,7 +137,7 @@
       "library_version" : ${content_meta_library_version},
       "component" : "junit",
       "span.kind" : "test_suite_end",
-      "test.suite" : "org.example.TestFailedSuiteSetUpAssumption",
+      "test.suite" : "org.example.TestSucceedBeforeClassAfterClass",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.framework" : "junit4"
     }
@@ -105,17 +146,17 @@
   "type" : "test",
   "version" : 2,
   "content" : {
-    "trace_id" : ${content_trace_id},
-    "span_id" : ${content_span_id},
-    "parent_id" : ${content_parent_id},
-    "test_session_id" : ${content_test_session_id},
+    "trace_id" : ${content_trace_id_2},
+    "span_id" : ${content_span_id_3},
+    "parent_id" : ${content_parent_id_2},
+    "test_session_id" : ${content_trace_id},
     "test_module_id" : ${content_test_module_id},
-    "test_suite_id" : ${content_test_suite_id},
+    "test_suite_id" : ${content_parent_id},
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "name" : "junit.test",
-    "resource" : "org.example.TestFailedSuiteSetUpAssumption.test_succeed",
-    "start" : ${content_start_4},
-    "duration" : ${content_duration_4},
+    "resource" : "org.example.TestSucceedBeforeClassAfterClass.testSucceed",
+    "start" : ${content_start_6},
+    "duration" : ${content_duration_6},
     "error" : 0,
     "metrics" : {
       "process_id" : ${content_metrics_process_id},
@@ -128,18 +169,17 @@
     "meta" : {
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "test.source.file" : "dummy_source_path",
-      "test.source.method" : "test_succeed()V",
+      "test.source.method" : "testSucceed()V",
       "test.module" : "junit-4.10",
-      "test.status" : "skip",
+      "test.status" : "pass",
       "language" : "jvm",
       "test.codeowners" : "[\"owner1\",\"owner2\"]",
       "library_version" : ${content_meta_library_version},
-      "test.name" : "test_succeed",
+      "test.name" : "testSucceed",
       "span.kind" : "test",
-      "test.suite" : "org.example.TestFailedSuiteSetUpAssumption",
+      "test.suite" : "org.example.TestSucceedBeforeClassAfterClass",
       "runtime-id" : ${content_meta_runtime_id},
       "test.type" : "test",
-      "test.skip_reason" : "got: <false>, expected: is <true>",
       "test_session.name" : "session-name",
       "env" : "none",
       "dummy_ci_tag" : "dummy_ci_tag_value",
@@ -147,27 +187,6 @@
       "_dd.profiling.ctx" : "test",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.framework" : "junit4"
-    }
-  }
-}, {
-  "type" : "span",
-  "version" : 1,
-  "content" : {
-    "trace_id" : ${content_test_session_id},
-    "span_id" : ${content_span_id_2},
-    "parent_id" : ${content_test_suite_id},
-    "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
-    "name" : "suiteSetup",
-    "resource" : "suiteSetup",
-    "start" : ${content_start_5},
-    "duration" : ${content_duration_5},
-    "error" : 0,
-    "metrics" : { },
-    "meta" : {
-      "_dd.p.tid" : ${content_meta__dd_p_tid_4},
-      "test.callback" : "BeforeClass",
-      "library_version" : ${content_meta_library_version},
-      "env" : "none"
     }
   }
 } ]

@@ -57,7 +57,7 @@ public class JUnit4BeforeAfterInstrumentation extends InstrumenterModule.CiVisib
       return AgentTracer.activateSpan(span);
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void finishCallSpan(@Advice.Enter final AgentScope scope) {
       AgentSpan span = scope.span();
       scope.close();
