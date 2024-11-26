@@ -761,7 +761,7 @@ public class StringModuleImpl implements StringModule {
       if (!taintable.$DD$isTainted()) {
         return;
       }
-      final Taintable.Source source = taintable.$$DD$getSource();
+      final Source source = (Source) taintable.$$DD$getSource();
       final Range[] ranges =
           Ranges.forCharSequence(
               result, new Source(source.getOrigin(), source.getName(), source.getValue()));
