@@ -220,8 +220,10 @@ onboarding_tests_installer:
         SCENARIO: [ SIMPLE_INSTALLER_AUTO_INJECTION, SIMPLE_AUTO_INJECTION_PROFILING ]
 
 onboarding_tests_k8s_injection:
-  variables:
-    WEBLOG_VARIANT: dd-lib-java-init-test-app
+  parallel:
+    matrix:
+      - WEBLOG_VARIANT: [dd-lib-java-init-test-app, dd-djm-spark-test-app]
+        SCENARIO: [ K8S_LIBRARY_INJECTION_BASIC, K8S_LIBRARY_INJECTION_DJM ]
 
 create_key:
   stage: generate-signing-key
