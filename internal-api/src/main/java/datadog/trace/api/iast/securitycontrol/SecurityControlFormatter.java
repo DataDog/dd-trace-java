@@ -1,6 +1,6 @@
 package datadog.trace.api.iast.securitycontrol;
 
-import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
+import static datadog.trace.api.iast.VulnerabilityMarks.CUSTOM_SECURITY_CONTROL_MARK;
 
 import datadog.trace.api.iast.VulnerabilityMarks;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -100,7 +100,7 @@ public class SecurityControlFormatter {
       return VulnerabilityMarks.markForAll();
     }
     String[] elements = s.split(SECURITY_CONTROL_ELEMENT_DELIMITER);
-    int marks = NOT_MARKED;
+    int marks = CUSTOM_SECURITY_CONTROL_MARK;
     for (String element : elements) {
       marks |= VulnerabilityMarks.getMarkFromVulnerabitityType(element);
     }
