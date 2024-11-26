@@ -118,20 +118,8 @@ public class CodeOriginProbe extends ProbeDefinition {
 
   @Override
   public String toString() {
-    return "CodeOriginProbe{"
-        + "id='"
-        + id
-        + '\''
-        + ", version="
-        + version
-        + ", tags="
-        + Arrays.toString(tags)
-        + ", where="
-        + where
-        + ", evaluateAt="
-        + evaluateAt
-        + ", entrySpanProbe="
-        + entrySpanProbe
-        + "} ";
+    return String.format(
+        "CodeOriginProbe{probeId=%s, entrySpanProbe=%s, signature=%s, location=%s}",
+        probeId, entrySpanProbe, signature, location);
   }
 }
