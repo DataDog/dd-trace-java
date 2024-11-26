@@ -83,6 +83,7 @@ public final class OkHttpSink implements Sink, EventListener {
     // so need to copy and buffer the request, and let it be executed
     // on the main task scheduler as a last resort
     if (!bufferingEnabled || lastRequestTime.get() < ASYNC_THRESHOLD_LATENCY) {
+      System.out.println("VC - SENDING PAYLOAD SYNC");
       send(prepareRequest(metricsUrl, headers).post(makeRequestBody(buffer)).build());
       AgentTaskScheduler.Scheduled<OkHttpSink> future = this.future;
       if (future != null && enqueuedRequests.isEmpty()) {
@@ -97,6 +98,7 @@ public final class OkHttpSink implements Sink, EventListener {
             AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
                 new Sender(enqueuedRequests), this, 1, 1, SECONDS);
       }
+      System.out.println("VC - SENDING PAYLOAD ASYNC");
       sendAsync(messageCount, buffer);
     }
   }
@@ -129,11 +131,13 @@ public final class OkHttpSink implements Sink, EventListener {
   }
 
   private void send(Request request) {
+    System.out.println("VC - SENDING PAYLOAD");
     long start = System.nanoTime();
     try (final okhttp3.Response response = client.newCall(request).execute()) {
       if (!response.isSuccessful()) {
         handleFailure(response);
       } else {
+        System.out.println("VC - RESPONSE OK");
         onEvent(OK, "");
       }
     } catch (IOException e) {
@@ -157,6 +161,8 @@ public final class OkHttpSink implements Sink, EventListener {
 
   private void handleFailure(okhttp3.Response response) throws IOException {
     final int code = response.code();
+    System.out.println("RESPONSE FAILED WITH CODE " + response.code());
+    System.out.println("RESPONSE BODY " + response.body().string());
     if (code == 404) {
       onEvent(DOWNGRADED, "could not find endpoint");
     } else if (code >= 400 && code < 500) {
