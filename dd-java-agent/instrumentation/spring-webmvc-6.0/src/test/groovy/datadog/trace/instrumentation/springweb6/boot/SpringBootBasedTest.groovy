@@ -15,6 +15,7 @@ import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.ConfigDefaults
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.DDTags
 import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
@@ -150,6 +151,18 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   @Override
   boolean testBlocking() {
     true
+  }
+
+  @Override
+  Map<String, Serializable> expectedExtraErrorInformation(ServerEndpoint endpoint) {
+    System.err.println("CALLED")
+    // latest DispatcherServlet throws if no handlers have been found
+    if (endpoint == NOT_FOUND && isLatestDepTest) {
+      return [(DDTags.ERROR_STACK): { String },
+        (DDTags.ERROR_MSG)  : {String},
+        (DDTags.ERROR_TYPE) :{String}]
+    }
+    return super.expectedExtraErrorInformation(endpoint)
   }
 
   @Override
