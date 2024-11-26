@@ -14,7 +14,7 @@ import java.lang.instrument.Instrumentation
 class IastSecurityControlTransformerForkedTest extends DDSpecification{
 
   def setupSpec() {
-    final config = 'SANITIZER:XSS:foo.bar.securitycontrol.SecurityControlTestSuite:sanitize;INPUT_VALIDATOR:XSS:foo.bar.securitycontrol.SecurityControlTestSuite:validateAll;INPUT_VALIDATOR:XSS:foo.bar.securitycontrol.SecurityControlTestSuite:validate:1,2;java.lang.Object,java.lang.String,java.lang.String'
+    final config = 'SANITIZER:XSS:foo.bar.securitycontrol.SecurityControlTestSuite:sanitize;INPUT_VALIDATOR:XSS:foo.bar.securitycontrol.SecurityControlTestSuite:validateAll;INPUT_VALIDATOR:XSS:foo.bar.securitycontrol.SecurityControlTestSuite:validate:java.lang.Object,java.lang.String,java.lang.String:1,2'
     Instrumentation instrumentation =  ByteBuddyAgent.install()
     List<SecurityControl> securityControls =
       SecurityControlFormatter.format(config)
@@ -55,8 +55,8 @@ class IastSecurityControlTransformerForkedTest extends DDSpecification{
     where:
     method        | args                             | toValidate         | expected
     'validateAll' | ['test']                         | [args[0]]          | 1
-    'validateAll' | ['test1', "test2"]               | [args[0], args[1]]          | 1
+    'validateAll' | ['test1', 'test2']               | [args[0], args[1]] | 1
     'validate'    | ['test']                         | args[0]            | 0
-    'validate'    | [new Object(), 'test1', "test2"] | [args[1], args[2]] | 1
+    'validate'    | [new Object(), 'test1', 'test2'] | [args[1], args[2]] | 1
   }
 }
