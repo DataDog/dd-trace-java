@@ -11,6 +11,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
+import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.slf4j.Logger;
@@ -24,10 +26,17 @@ public class ShellCommandExecutor {
 
   private final File executionFolder;
   private final long timeoutMillis;
+  private final Map<String, String> environment;
 
   public ShellCommandExecutor(File executionFolder, long timeoutMillis) {
+    this(executionFolder, timeoutMillis, Collections.emptyMap());
+  }
+
+  public ShellCommandExecutor(
+      File executionFolder, long timeoutMillis, Map<String, String> environment) {
     this.executionFolder = executionFolder;
     this.timeoutMillis = timeoutMillis;
+    this.environment = environment;
   }
 
   /**
@@ -91,6 +100,10 @@ public class ShellCommandExecutor {
     try (TraceScope scope = AgentTracer.get().muteTracing()) {
       ProcessBuilder processBuilder = new ProcessBuilder(command);
       processBuilder.directory(executionFolder);
+
+      if (!environment.isEmpty()) {
+        processBuilder.environment().putAll(environment);
+      }
 
       p = processBuilder.start();
 
