@@ -11,7 +11,10 @@ import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
 import org.gradle.util.DistributionLocator
 import org.gradle.util.GradleVersion
-import org.gradle.wrapper.*
+import org.gradle.wrapper.Download
+import org.gradle.wrapper.Install
+import org.gradle.wrapper.PathAssembler
+import org.gradle.wrapper.WrapperConfiguration
 import spock.lang.IgnoreIf
 import spock.lang.Shared
 import spock.lang.TempDir
