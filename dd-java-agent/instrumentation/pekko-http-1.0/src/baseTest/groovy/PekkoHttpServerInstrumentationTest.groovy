@@ -56,7 +56,7 @@ abstract class PekkoHttpServerInstrumentationTest extends HttpServerTest<PekkoHt
     def type = id & 1 ? "p" : "f"
     String url = address.resolve("/injected-id/${type}ing/$id")
     def traceId = totalInvocations + id
-    def request = new Request.Builder().url(url).get().header("x-datadog-trace-id", traceId.toString()).header("x-datadog-span-id", "1").build()
+    def request = new Request.Builder().url(url).get().addHeader("x-datadog-trace-id", traceId.toString()).addHeader("x-datadog-span-id", "1").build()
     def response = client.newCall(request).execute()
     def responseBodyStr = response.body().string()
     assert responseBodyStr == "${type}ong $id -> $traceId"
