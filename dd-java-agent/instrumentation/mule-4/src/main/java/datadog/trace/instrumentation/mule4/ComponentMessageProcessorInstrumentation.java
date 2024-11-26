@@ -1,14 +1,17 @@
 package datadog.trace.instrumentation.mule4;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
+import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
+
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.matcher.ElementMatchers;
 import org.mule.runtime.api.event.EventContext;
 import org.mule.runtime.core.api.event.CoreEvent;
 import org.mule.runtime.tracer.api.EventTracer;
@@ -18,7 +21,7 @@ import org.mule.runtime.tracer.api.EventTracer;
  * handler.
  */
 @AutoService(InstrumenterModule.class)
-public class ComponentMessageInstrumentation extends AbstractMuleInstrumentation
+public class ComponentMessageProcessorInstrumentation extends AbstractMuleInstrumentation
     implements Instrumenter.ForSingleType {
 
   @Override
@@ -29,11 +32,9 @@ public class ComponentMessageInstrumentation extends AbstractMuleInstrumentation
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        ElementMatchers.isMethod()
-            .and(NameMatchers.namedOneOf("onEvent", "onEventSynchronous"))
-            .and(
-                ElementMatchers.takesArgument(
-                    0, NameMatchers.named("org.mule.runtime.core.api.event.CoreEvent"))),
+        isMethod()
+            .and(namedOneOf("onEvent", "onEventSynchronous", "prepareAndExecuteOperation"))
+            .and(takesArgument(0, named("org.mule.runtime.core.api.event.CoreEvent"))),
         getClass().getName() + "$ProcessAdvice");
   }
 

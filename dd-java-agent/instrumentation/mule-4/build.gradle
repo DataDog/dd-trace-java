@@ -14,6 +14,7 @@ muzzle {
     module = 'mule-core'
     versions = '[4.5.0,)'
     javaVersion = "17"
+    excludeDependency 'om.google.guava:guava'
     excludeDependency 'com.google.code.findbugs:jsr305'
     additionalDependencies +="org.mule.runtime:mule-tracer-customization-impl:4.5.0"
   }
@@ -22,6 +23,7 @@ muzzle {
     module = 'mule-tracer-customization-impl'
     versions = '[4.5.0,)'
     javaVersion = "17"
+    excludeDependency 'om.google.guava:guava'
     excludeDependency 'com.google.code.findbugs:jsr305'
     additionalDependencies +="org.mule.runtime:mule-core:4.5.0"
   }
@@ -30,8 +32,9 @@ muzzle {
     group = 'org.mule.runtime'
     module = 'mule-core'
     versions = '[4.5.0,)'
-    assertInverse true
     javaVersion = "17"
+    assertInverse true
+    excludeDependency 'om.google.guava:guava'
     excludeDependency 'com.google.code.findbugs:jsr305'
     additionalDependencies +="org.mule.runtime:mule-tracer-customization-impl:4.5.0"
   }
@@ -119,6 +122,8 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:grizzly-http-2.3.20')
   testImplementation project(':dd-java-agent:instrumentation:grizzly-client-1.9')
   testImplementation project(':dd-java-agent:instrumentation:caffeine')
+  testImplementation project(':dd-java-agent:instrumentation:quartz-2')
+
 
   testImplementation group: 'org.mule.runtime', name: 'mule-module-launcher', version: muleVersion
   testImplementation group: 'org.mule.runtime', name: 'mule-core', version: muleVersion
