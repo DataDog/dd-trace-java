@@ -27,7 +27,7 @@ class IastSecurityControlTransformerForkedTest extends DDSpecification{
     given:
     final iastModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(iastModule)
-    final marks = VulnerabilityMarks.XSS_MARK
+    final marks = (VulnerabilityMarks.XSS_MARK | VulnerabilityMarks.CUSTOM_SECURITY_CONTROL_MARK)
 
     when:
     SecurityControlTestSuite.sanitize('test')
@@ -41,7 +41,7 @@ class IastSecurityControlTransformerForkedTest extends DDSpecification{
     given:
     final iastModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(iastModule)
-    final marks = VulnerabilityMarks.XSS_MARK
+    final marks = (VulnerabilityMarks.XSS_MARK | VulnerabilityMarks.CUSTOM_SECURITY_CONTROL_MARK)
 
     when:
     SecurityControlTestSuite.&"$method".call(args)
