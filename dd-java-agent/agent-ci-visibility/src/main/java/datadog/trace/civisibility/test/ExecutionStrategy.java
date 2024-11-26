@@ -99,8 +99,11 @@ public class ExecutionStrategy {
   public boolean isEarlyFlakeDetectionLimitReached() {
     int detectionsUsed = earlyFlakeDetectionsUsed.get();
     Collection<TestIdentifier> knownTests = executionSettings.getKnownTests();
-    int totalTests = knownTests.size() + detectionsUsed;
+    if (knownTests == null) {
+      return false;
+    }
 
+    int totalTests = knownTests.size() + detectionsUsed;
     EarlyFlakeDetectionSettings earlyFlakeDetectionSettings =
         executionSettings.getEarlyFlakeDetectionSettings();
     int threshold =

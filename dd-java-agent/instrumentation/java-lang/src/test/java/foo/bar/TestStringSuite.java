@@ -92,6 +92,20 @@ public class TestStringSuite {
     return result;
   }
 
+  public static String stringConstructor(StringBuffer self) {
+    LOGGER.debug("Before string stringConstructor {}", self);
+    final String result = new String(self);
+    LOGGER.debug("After string stringConstructor {}", result);
+    return result;
+  }
+
+  public static String stringConstructor(StringBuilder self) {
+    LOGGER.debug("Before string stringConstructor {}", self);
+    final String result = new String(self);
+    LOGGER.debug("After string stringConstructor {}", result);
+    return result;
+  }
+
   public static String stringConstructor(final byte[] value) {
     LOGGER.debug("Before string stringConstructor {}", value);
     final String result = new String(value);

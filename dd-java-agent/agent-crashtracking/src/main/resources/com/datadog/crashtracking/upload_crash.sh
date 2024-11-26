@@ -30,24 +30,29 @@ fi
 # The expected contents are:
 # - agent: Path to the agent jar
 # - hs_err: Path to the hs_err log file
-declare -A config
 while IFS="=" read -r key value; do
-    config["$key"]="$value"
+    declare "config_$key"="$value"
 done < "$configFile"
 
+# Exiting early if configuration is missing
+if [ -z "${config_agent}" ] || [ -z "${config_hs_err}" ]; then
+    echo "Error: Missing configuration"
+    exit 1
+fi
+
 # Debug: Print the loaded values (Optional)
-echo "Agent Jar: ${config[agent]}"
-echo "Error Log: ${config[hs_err]}"
+echo "Agent Jar: ${config_agent}"
+echo "Error Log: ${config_hs_err}"
 echo "PID: $PID"
 
 # Execute the Java command with the loaded values
-java -jar "${config[agent]}" uploadCrash "${config[hs_err]}"
+java -jar "${config_agent}" uploadCrash "${config_hs_err}"
 RC=$?
-rm -f ${configFile} # Remove the configuration file
+rm -f "${configFile}" # Remove the configuration file
 
 if [ $RC -eq 0 ]; then
-    echo "Error file ${config[hs_err]} was uploaded successfully"
+    echo "Error file ${config_hs_err} was uploaded successfully"
 else
-    echo "Error: Failed to upload error file ${config[hs_err]}"
+    echo "Error: Failed to upload error file ${config_hs_err}"
     exit $RC
 fi

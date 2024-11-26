@@ -188,8 +188,26 @@ class StringBuilderCallSiteTest extends AgentTestRunner {
     0 * _
 
     where:
-    param        | beginIndex | expected
-    sb('012345') | 1          | '12345'
+    param         | beginIndex | expected
+    sb('012345')  | 1          | '12345'
+  }
+
+  def 'test string buffer substring call site'() {
+    setup:
+    final iastModule = Mock(StringModule)
+    InstrumentationBridge.registerIastModule(iastModule)
+
+    when:
+    final result = TestStringBufferSuite.substring(param, beginIndex)
+
+    then:
+    result == expected
+    1 * iastModule.onStringSubSequence(param, beginIndex, param.length(), expected)
+    0 * _
+
+    where:
+    param         | beginIndex | expected
+    sbf('012345') | 1          | '12345'
   }
 
   def 'test string builder substring with endIndex call site'() {
@@ -206,8 +224,26 @@ class StringBuilderCallSiteTest extends AgentTestRunner {
     0 * _
 
     where:
-    param        | beginIndex | endIndex | expected
-    sb('012345') | 1          | 5        | '1234'
+    param         | beginIndex | endIndex | expected
+    sb('012345')  | 1          | 5        | '1234'
+  }
+
+  def 'test string buffer substring with endIndex call site'() {
+    setup:
+    final iastModule = Mock(StringModule)
+    InstrumentationBridge.registerIastModule(iastModule)
+
+    when:
+    final result = TestStringBufferSuite.substring(param, beginIndex, endIndex)
+
+    then:
+    result == expected
+    1 * iastModule.onStringSubSequence(param, beginIndex, endIndex, expected)
+    0 * _
+
+    where:
+    param         | beginIndex | endIndex | expected
+    sbf('012345') | 1          | 5        | '1234'
   }
 
   private static class BrokenToString {
@@ -225,5 +261,9 @@ class StringBuilderCallSiteTest extends AgentTestRunner {
 
   private static StringBuilder sb(final String string) {
     return new StringBuilder(string)
+  }
+
+  private static StringBuffer sbf(final String string) {
+    return new StringBuffer(string)
   }
 }
