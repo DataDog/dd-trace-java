@@ -38,7 +38,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
       withSystemProperty(IAST_ENABLED, true),
       withSystemProperty(IAST_DETECTION_MODE, 'FULL'),
       withSystemProperty(IAST_DEBUG_ENABLED, true),
-      withSystemProperty(IAST_SECURITY_CONTROLS_CONFIGURATION, "SANITIZER:XSS:ddtest.securitycontrols.Sanitizer:sanitize;INPUT_VALIDATOR:XSS:ddtest.securitycontrols.InputValidator:validateAll;INPUT_VALIDATOR:XSS:ddtest.securitycontrols.InputValidator:validate:1,2;java.lang.Object,java.lang.String,java.lang.String"),
+      withSystemProperty(IAST_SECURITY_CONTROLS_CONFIGURATION, "SANITIZER:XSS:ddtest.securitycontrols.Sanitizer:sanitize;INPUT_VALIDATOR:XSS:ddtest.securitycontrols.InputValidator:validateAll;INPUT_VALIDATOR:XSS:ddtest.securitycontrols.InputValidator:validate:java.lang.Object,java.lang.String,java.lang.String:1,2"),
     ]
   }
 
