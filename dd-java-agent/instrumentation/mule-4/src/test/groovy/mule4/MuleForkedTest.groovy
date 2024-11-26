@@ -127,7 +127,7 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
             "$Tags.HTTP_STATUS" 200
             "$Tags.HTTP_URL" "${requestServer.address.resolve("/remote-client-request")}"
             "$Tags.PEER_HOSTNAME" "localhost"
-            "$Tags.PEER_PORT" { true } // is this really the best way to ignore tags?
+            "$Tags.PEER_PORT" { Integer }
             defaultTags()
           }
         }
@@ -153,62 +153,93 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
     jsonAdapter.fromJson(response.body().string()) == output
 
     assertTraces(1) {
-      trace(4 + 3 * names.size(), new Comparator<DDSpan>() {
-          @Override
-          int compare(DDSpan o1, DDSpan o2) {
-            def ret = o1.parentId <=> o2.parentId
-            if (ret != 0) {
-              return ret
-            }
-            return o1.spanId <=> o2.spanId
+      trace(4 + 3 * names.size(), new TreeComparator(trace(0))) { traceAssert ->
+        for (int i = 0; i < (4 + 3 * names.size()); i++) {
+          System.err.println(span(i))
+        }
+        span {
+          operationName operation()
+          resourceName "PUT /pfe-request"
+          spanType DDSpanTypes.HTTP_SERVER
+          tags {
+            "$Tags.COMPONENT" "grizzly-filterchain-server"
+            "$Tags.SPAN_KIND" "server"
+            "$Tags.HTTP_METHOD" "PUT"
+            "$Tags.HTTP_STATUS" 200
+            "$Tags.HTTP_URL" "${address.resolve("/pfe-request")}"
+            "$Tags.HTTP_HOSTNAME" address.host
+            "$Tags.HTTP_USER_AGENT" String
+            "$Tags.PEER_HOST_IPV4" "127.0.0.1"
+            "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
+            "$Tags.PEER_PORT" { Integer }
+            defaultTags()
           }
-        }) { traceAssert ->
-
-          span {
-            operationName operation()
-            resourceName "PUT /pfe-request"
-            spanType DDSpanTypes.HTTP_SERVER
+        }
+        def flowParent = muleSpan(traceAssert, "mule:flow", "MulePFETestFlow")
+        def foreachParent = muleSpan(traceAssert, "mule:parallel-foreach", "PFE", flowParent)
+        muleSpan(traceAssert, "mule:set-payload", "PFE Set Payload", flowParent)
+        def iterationParents = []
+        for (def pos = 1; pos <= names.size(); pos++) {
+          iterationParents += muleSpan(traceAssert, "mule:parallel-foreach:iteration", "PFE", foreachParent)
+        }
+        def requestParents =[]
+        iterationParents.each { parent ->
+          requestParents  += muleSpan(traceAssert, "http:request", "PFE Request", parent)
+        }
+        requestParents.each {parent ->
+          traceAssert.span {
+            childOf parent
+            operationName "http.request"
+            resourceName "GET /remote-pfe-request"
+            spanType DDSpanTypes.HTTP_CLIENT
             tags {
-              "$Tags.COMPONENT" "grizzly-filterchain-server"
-              "$Tags.SPAN_KIND" "server"
-              "$Tags.HTTP_METHOD" "PUT"
+              "$Tags.COMPONENT" "grizzly-http-async-client"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+              "$Tags.HTTP_METHOD" "GET"
               "$Tags.HTTP_STATUS" 200
-              "$Tags.HTTP_URL" "${address.resolve("/pfe-request")}"
-              "$Tags.HTTP_HOSTNAME" address.host
-              "$Tags.HTTP_USER_AGENT" String
-              "$Tags.PEER_HOST_IPV4" "127.0.0.1"
-              "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
+              "$Tags.PEER_HOSTNAME" "localhost"
               "$Tags.PEER_PORT" { true } // is this really the best way to ignore tags?
+              urlTags("${requestServer.address.resolve("/remote-pfe-request")}", ExpectedQueryParams.getExpectedQueryParams("Mule"))
               defaultTags()
             }
           }
-          def flowParent = muleSpan(traceAssert, "mule:flow", "MulePFETestFlow")
-          def foreachParent = muleSpan(traceAssert, "mule:parallel-foreach", "PFE", flowParent)
-          muleSpan(traceAssert, "mule:set-payload", "PFE Set Payload", flowParent)
-          def iterationParents = []
-          for (def pos = 1; pos <= names.size(); pos++) {
-            iterationParents += muleSpan(traceAssert, "mule:parallel-foreach:iteration", "PFE", foreachParent)
-          }
-          iterationParents.each { parent ->
-            muleSpan(traceAssert, "http:request", "PFE Request", parent)
-            traceAssert.span {
-              childOfPrevious()
-              operationName "http.request"
-              resourceName "GET /remote-pfe-request"
-              spanType DDSpanTypes.HTTP_CLIENT
-              tags {
-                "$Tags.COMPONENT" "grizzly-http-async-client"
-                "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-                "$Tags.HTTP_METHOD" "GET"
-                "$Tags.HTTP_STATUS" 200
-                "$Tags.PEER_HOSTNAME" "localhost"
-                "$Tags.PEER_PORT" { true } // is this really the best way to ignore tags?
-                urlTags("${requestServer.address.resolve("/remote-pfe-request")}", ExpectedQueryParams.getExpectedQueryParams("Mule"))
-                defaultTags()
-              }
-            }
-          }
         }
+      }
+    }
+  }
+
+  /**
+   * Sorts the spans by level in the trace (how many parents).
+   * If in the same level, the one with lower parent it will come first.
+   */
+  private static class TreeComparator implements Comparator<DDSpan> {
+    private final Map<DDSpan, Long> levels
+
+    TreeComparator(List<DDSpan> trace) {
+      final Map<Long, DDSpan> traceMap =  trace.collectEntries { [(it.spanId): it] }
+      levels = trace.collectEntries({
+        [(it): walkUp(traceMap, it, 0)]
+      })
+    }
+
+    @Override
+    int compare(DDSpan o1, DDSpan o2) {
+      def len = levels[o1] <=> levels[o2]
+      // if they are not on the same tree level, take the one with shortest path to the root
+      if (len != 0) {
+        return len
+      }
+      if (o1.parentId == o2.parentId) {
+        return o1.spanId <=> o2.spanId
+      }
+      return o1.parentId <=> o2.parentId
+    }
+
+    def walkUp(Map<Long, DDSpan> traceMap, DDSpan span, int size) {
+      if (span.parentId == 0) {
+        return size
+      }
+      return walkUp(traceMap, traceMap.get(span.parentId), size + 1)
     }
   }
 

@@ -42,8 +42,6 @@ public class EventContextCreationAdvice {
       if (parentState != null) {
         spanState = new SpanState(parentState.getEventContextSpan(), null);
       }
-      // TODO: remove me
-      System.err.println("CHILD CREATED " + " " + activeSpan() + " " + spanState);
     }
 
     contextStore.put(zis, spanState);
