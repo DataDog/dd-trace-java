@@ -9,6 +9,7 @@ import static java.util.Collections.singletonList;
 
 import com.datadog.debugger.agent.DebuggerAgent;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
+import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.Snapshot;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
@@ -28,14 +29,11 @@ public class CodeOriginProbe extends LogProbe implements ForceMethodInstrumentat
 
   public final int maxFrames;
 
-  private final String signature;
-
   private final boolean entrySpanProbe;
 
-  public CodeOriginProbe(ProbeId probeId, String signature, Where where, int maxFrames) {
+  public CodeOriginProbe(ProbeId probeId, boolean entry, Where where, int maxFrames) {
     super(LANGUAGE, probeId, null, where, MethodLocation.EXIT, null, null, true, null, null, null);
-    this.signature = signature;
-    this.entrySpanProbe = signature != null;
+    this.entrySpanProbe = entry;
     this.maxFrames = maxFrames;
   }
 
@@ -68,16 +66,19 @@ public class CodeOriginProbe extends LogProbe implements ForceMethodInstrumentat
       return;
     }
     String snapshotId = null;
-    if (isDebuggerEnabled(span)) {
+    DebuggerSink sink = DebuggerAgent.getSink();
+    if (isDebuggerEnabled(span) && sink != null) {
       Snapshot snapshot = createSnapshot();
       if (fillSnapshot(entryContext, exitContext, caughtExceptions, snapshot)) {
         snapshotId = snapshot.getId();
         LOGGER.debug("committing code origin probe id={}, snapshot id={}", id, snapshotId);
-        commitSnapshot(snapshot, DebuggerAgent.getSink());
+        commitSnapshot(snapshot, sink);
       }
     }
     applySpanOriginTags(span, snapshotId);
-    DebuggerAgent.getSink().getProbeStatusSink().addEmitting(probeId);
+    if (sink != null) {
+      sink.getProbeStatusSink().addEmitting(probeId);
+    }
     span.getLocalRootSpan().setTag(getId(), (String) null); // clear possible span reference
   }
 
@@ -95,8 +96,8 @@ public class CodeOriginProbe extends LogProbe implements ForceMethodInstrumentat
         s.setTag(format(DD_CODE_ORIGIN_FRAME, i, "method"), info.getMethodName());
         s.setTag(format(DD_CODE_ORIGIN_FRAME, i, "line"), info.getLineNumber());
         s.setTag(format(DD_CODE_ORIGIN_FRAME, i, "type"), info.getClassName());
-        if (i == 0 && signature != null) {
-          s.setTag(format(DD_CODE_ORIGIN_FRAME, i, "signature"), signature);
+        if (i == 0 && entrySpanProbe) {
+          s.setTag(format(DD_CODE_ORIGIN_FRAME, i, "signature"), where.getSignature());
         }
         if (i == 0 && snapshotId != null) {
           s.setTag(format(DD_CODE_ORIGIN_FRAME, i, "snapshot_id"), snapshotId);
@@ -111,6 +112,9 @@ public class CodeOriginProbe extends LogProbe implements ForceMethodInstrumentat
 
   /** look "back" to find exit spans that may have already come and gone */
   private AgentSpan findSpan(AgentSpan candidate) {
+    if (candidate == null) {
+      return null;
+    }
     AgentSpan span = candidate;
     AgentSpan localRootSpan = candidate.getLocalRootSpan();
     if (localRootSpan.getTag(getId()) != null) {
