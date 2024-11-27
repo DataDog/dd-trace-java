@@ -271,10 +271,11 @@ public class CodeOriginTest extends CapturingTestBase {
 
     MutableSpan rootSpan = span.getLocalRootSpan();
     assertEquals(rootSpan.getTag(DD_CODE_ORIGIN_TYPE), "entry", keys);
-    assertNotNull(rootSpan.getTag(format(DD_CODE_ORIGIN_FRAME, 1, "file")));
-    assertNotNull(rootSpan.getTag(format(DD_CODE_ORIGIN_FRAME, 1, "line")));
-    assertNotNull(rootSpan.getTag(format(DD_CODE_ORIGIN_FRAME, 1, "method")));
-    assertNotNull(rootSpan.getTag(format(DD_CODE_ORIGIN_FRAME, 1, "type")));
+    Object file = rootSpan.getTag(format(DD_CODE_ORIGIN_FRAME, 0, "file"));
+    assertNotNull(file, rootSpan.getTags().toString());
+    assertNotNull(rootSpan.getTag(format(DD_CODE_ORIGIN_FRAME, 0, "line")));
+    assertNotNull(rootSpan.getTag(format(DD_CODE_ORIGIN_FRAME, 0, "method")));
+    assertNotNull(rootSpan.getTag(format(DD_CODE_ORIGIN_FRAME, 0, "type")));
   }
 
   private static Set<String> ldKeys(MutableSpan span) {
