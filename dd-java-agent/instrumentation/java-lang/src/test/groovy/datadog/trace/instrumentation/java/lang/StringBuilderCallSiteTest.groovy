@@ -174,13 +174,13 @@ class StringBuilderCallSiteTest extends AgentTestRunner {
     ex.stackTrace.find { it.className == StringBuilderCallSite.name } == null
   }
 
-  def 'test string builder substring call site'() {
+  def 'test string #type substring call site'() {
     setup:
     final iastModule = Mock(StringModule)
     InstrumentationBridge.registerIastModule(iastModule)
 
     when:
-    final result = TestStringBuilderSuite.substring(param, beginIndex)
+    final result = suite.substring(param, beginIndex)
 
     then:
     result == expected
@@ -188,35 +188,18 @@ class StringBuilderCallSiteTest extends AgentTestRunner {
     0 * _
 
     where:
-    param         | beginIndex | expected
-    sb('012345')  | 1          | '12345'
+    type      | suite                        | param         | beginIndex | expected
+    "builder" | new TestStringBuilderSuite() | sb('012345')  | 1          | '12345'
+    "buffer"  | new TestStringBufferSuite()  | sbf('012345') | 1          | '12345'
   }
 
-  def 'test string buffer substring call site'() {
+  def 'test string #type substring with endIndex call site'() {
     setup:
     final iastModule = Mock(StringModule)
     InstrumentationBridge.registerIastModule(iastModule)
 
     when:
-    final result = TestStringBufferSuite.substring(param, beginIndex)
-
-    then:
-    result == expected
-    1 * iastModule.onStringSubSequence(param, beginIndex, param.length(), expected)
-    0 * _
-
-    where:
-    param         | beginIndex | expected
-    sbf('012345') | 1          | '12345'
-  }
-
-  def 'test string builder/buffer #method with endIndex call site'() {
-    setup:
-    final iastModule = Mock(StringModule)
-    InstrumentationBridge.registerIastModule(iastModule)
-
-    when:
-    final result = suite."$method"(param, beginIndex, endIndex)
+    final result = suite.substring(param, beginIndex, endIndex)
 
     then:
     result == expected
@@ -224,18 +207,18 @@ class StringBuilderCallSiteTest extends AgentTestRunner {
     0 * _
 
     where:
-    suite                        | method        | param         | beginIndex | endIndex | expected
-    new TestStringBuilderSuite() | "substring"   | sb('012345')  | 1          | 5        | '1234'
-    new TestStringBufferSuite()  | "substring"   | sbf('012345') | 1          | 5        | '1234'
+    type      | suite                        | param         | beginIndex | endIndex | expected
+    "builder" | new TestStringBuilderSuite() | sb('012345')  | 1          | 5        | '1234'
+    "buffer"  | new TestStringBufferSuite()  | sbf('012345') | 1          | 5        | '1234'
   }
 
-  def 'test string builder/buffer #method with endIndex call site'() {
+  def 'test string #type subSequence with endIndex call site'() {
     setup:
     final iastModule = Mock(StringModule)
     InstrumentationBridge.registerIastModule(iastModule)
 
     when:
-    final result = suite."$method"(param, beginIndex, endIndex)
+    final result = suite.subSequence(param, beginIndex, endIndex)
 
     then:
     result == expected
@@ -243,8 +226,8 @@ class StringBuilderCallSiteTest extends AgentTestRunner {
     0 * _
 
     where:
-    suite                        | method        | param         | beginIndex | endIndex | expected
-    new TestStringBuilderSuite() | "subSequence" | sb('012345')  | 1          | 5        | '1234'
+    type      | suite                        | param         | beginIndex | endIndex | expected
+    "builder" | new TestStringBuilderSuite() | sb('012345')  | 1          | 5        | '1234'
   }
 
   private static class BrokenToString {
