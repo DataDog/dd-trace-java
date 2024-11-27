@@ -265,4 +265,24 @@ class StringCallSiteTest extends AgentTestRunner {
     "test" | 't'     | 'T'     | "TesT"
     "test" | 'e'     | 'E'     | "tEst"
   }
+
+  def 'test string valueOf call site'() {
+    setup:
+    final stringModule = Mock(StringModule)
+    InstrumentationBridge.registerIastModule(stringModule)
+
+    when:
+    final result = TestStringSuite.valueOf(input)
+
+    then:
+    result == expected
+    1 * stringModule.onStringValueOf(input, expected)
+    0 * _
+
+    where:
+    input                     | expected
+    "test"                    | "test"
+    new StringBuilder("test") | "test"
+    new StringBuffer("test")  | "test"
+  }
 }
