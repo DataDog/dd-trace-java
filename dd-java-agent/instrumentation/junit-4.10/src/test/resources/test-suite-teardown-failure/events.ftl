@@ -10,13 +10,11 @@
     "duration" : ${content_duration},
     "error" : 0,
     "metrics" : {
-      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count},
       "process_id" : ${content_metrics_process_id},
       "_dd.profiling.enabled" : 0,
       "_dd.trace_span_attribute_schema" : 0
     },
     "meta" : {
-      "_dd.p.tid" : ${content_meta__dd_p_tid},
       "test.type" : "test",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "test.status" : "fail",
@@ -46,11 +44,8 @@
     "start" : ${content_start_2},
     "duration" : ${content_duration_2},
     "error" : 0,
-    "metrics" : {
-      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_2}
-    },
+    "metrics" : { },
     "meta" : {
-      "_dd.p.tid" : ${content_meta__dd_p_tid_2},
       "test.type" : "test",
       "test.module" : "junit-4.10",
       "test.status" : "fail",
@@ -77,13 +72,8 @@
     "start" : ${content_start_3},
     "duration" : ${content_duration_3},
     "error" : 1,
-    "metrics" : {
-      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_3},
-      "test.source.end" : 19,
-      "test.source.start" : 11
-    },
+    "metrics" : { },
     "meta" : {
-      "_dd.p.tid" : ${content_meta__dd_p_tid_3},
       "test.type" : "test",
       "test.source.file" : "dummy_source_path",
       "test.module" : "junit-4.10",
@@ -91,7 +81,6 @@
       "test_session.name" : "session-name",
       "env" : "none",
       "dummy_ci_tag" : "dummy_ci_tag_value",
-      "test.codeowners" : "[\"owner1\",\"owner2\"]",
       "library_version" : ${content_meta_library_version},
       "component" : "junit",
       "error.type" : "java.lang.RuntimeException",
@@ -123,7 +112,6 @@
       "process_id" : ${content_metrics_process_id},
       "_dd.profiling.enabled" : 0,
       "_dd.trace_span_attribute_schema" : 0,
-      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_4},
       "test.source.end" : 18,
       "test.source.start" : 12
     },
@@ -170,7 +158,6 @@
       "process_id" : ${content_metrics_process_id},
       "_dd.profiling.enabled" : 0,
       "_dd.trace_span_attribute_schema" : 0,
-      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_5},
       "test.source.end" : 18,
       "test.source.start" : 12
     },
@@ -195,27 +182,6 @@
       "_dd.profiling.ctx" : "test",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.framework" : "junit4"
-    }
-  }
-}, {
-  "type" : "span",
-  "version" : 1,
-  "content" : {
-    "trace_id" : ${content_test_session_id},
-    "span_id" : ${content_span_id_3},
-    "parent_id" : ${content_test_suite_id},
-    "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
-    "name" : "suiteTearDown",
-    "resource" : "suiteTearDown",
-    "start" : ${content_start_6},
-    "duration" : ${content_duration_6},
-    "error" : 0,
-    "metrics" : { },
-    "meta" : {
-      "_dd.p.tid" : ${content_meta__dd_p_tid_4},
-      "test.callback" : "AfterClass",
-      "library_version" : ${content_meta_library_version},
-      "env" : "none"
     }
   }
 } ]
