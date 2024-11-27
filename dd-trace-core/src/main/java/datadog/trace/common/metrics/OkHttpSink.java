@@ -61,7 +61,7 @@ public final class OkHttpSink implements Sink, EventListener {
     this.headers = new HashMap<>(headers);
 
     if (compressionEnabled) {
-      this.headers.put("Content-Encoding", "vzip");
+      this.headers.put("Content-Encoding", "gzip");
     }
     this.headers.put("X-Payload-Type", "Transaction");
     System.out.println("HEADER TRANSACTION ADDED");
