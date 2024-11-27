@@ -20,7 +20,7 @@ public class MethodHandlersInstrumentation extends InstrumenterModule.Tracing
       nameEndsWith("$MethodHandlers");
 
   public MethodHandlersInstrumentation() {
-    super("grpc-server-code-origin");
+    super("grpc", "grpc-server", "grpc-server-code-origin");
   }
 
   @Override
