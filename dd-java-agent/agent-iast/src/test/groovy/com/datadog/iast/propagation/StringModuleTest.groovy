@@ -1324,29 +1324,42 @@ class StringModuleTest extends IastModuleImplTestBase {
     sbf("==>my_input<==") | "==>my_input<=="
   }
 
-  void 'test valueOf with taintable and special objects object and make sure IastRequestContext is called'() {
+  void 'test valueOf with taintable object and make sure IastRequestContext is called'() {
     given:
     final taintedObjects = ctx.getTaintedObjects()
     final source = taintedSource()
-    final param
-    if (taintable) {
-      param = taintable(taintedObjects, source)
-    } else {
-      param = new ByteArrayInputStream(''.bytes)
-      taintObject(taintedObjects, param, source)
-    }
-    def result = String.valueOf(param)
+    final param = taintable(taintedObjects, source)
+    final result = String.valueOf(param)
 
     when:
     module.onStringValueOf(param, result)
-    def taintedObject = taintedObjects.get(result)
+    final taintedObject = taintedObjects.get(result)
 
     then:
     1 * tracer.activeSpan() >> span
     taintFormat(result, taintedObject.getRanges()) == "==>" + param.toString() + "<=="
+  }
 
-    where:
-    taintable << [true, false]
+  void 'test valueOf with special objects and make sure IastRequestContext is called'() {
+    given:
+    final taintedObjects = ctx.getTaintedObjects()
+    final source = taintedSource()
+    final param = new Object() {
+        @Override
+        String toString() {
+          return "my_input"
+        }
+      }
+    taintObject(taintedObjects, param, source)
+    final result = String.valueOf(param)
+
+    when:
+    module.onStringValueOf(param, result)
+    final taintedObject = taintedObjects.get(result)
+
+    then:
+    1 * tracer.activeSpan() >> span
+    taintFormat(result, taintedObject.getRanges()) == "==>my_input<=="
   }
 
   private static Date date(final String pattern, final String value) {
