@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
 import static java.util.Collections.singletonList;
 
+import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -22,6 +23,15 @@ public final class AsyncResultExtensions {
    */
   public static void register(AsyncResultExtension extension) {
     if (extension != null) {
+      if (Platform.isNativeImageBuilder()
+          && extension
+              .getClass()
+              .getClassLoader()
+              .getClass()
+              .getName()
+              .endsWith("ThrowawayClassLoader")) {
+        return; // spring-native expects this to be thrown away, not persisted
+      }
       EXTENSIONS.add(extension);
     }
   }

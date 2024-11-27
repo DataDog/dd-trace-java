@@ -1,12 +1,9 @@
 package datadog.trace.instrumentation.rxjava2;
 
-import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
-import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class RxJavaPluginsInstrumentation extends InstrumenterModule.Tracing
@@ -36,13 +33,6 @@ public class RxJavaPluginsInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(isMethod(), getClass().getName() + "$RxJavaPluginsAdvice");
-  }
-
-  public static class RxJavaPluginsAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void init() {
-      RxJavaAsyncResultExtension.initialize();
-    }
+    // no-op
   }
 }

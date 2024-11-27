@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
@@ -69,7 +68,6 @@ public class PublisherInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(isConstructor(), this.getClass().getName() + "$PublisherAdvice");
     transformer.applyAdvice(
         isMethod()
             .and(not(isStatic()))
@@ -77,13 +75,6 @@ public class PublisherInstrumentation extends InstrumenterModule.Tracing
             .and(takesArguments(1))
             .and(takesArgument(0, hasInterface(named("org.reactivestreams.Subscriber")))),
         getClass().getName() + "$PublisherSubscribeAdvice");
-  }
-
-  public static class PublisherAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void init() {
-      ReactiveStreamsAsyncResultExtension.initialize();
-    }
   }
 
   public static class PublisherSubscribeAdvice {
