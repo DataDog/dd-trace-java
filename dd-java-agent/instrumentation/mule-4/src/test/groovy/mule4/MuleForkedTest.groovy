@@ -214,9 +214,10 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
    */
   private static class TreeComparator implements Comparator<DDSpan> {
     private final Map<DDSpan, Long> levels
+    private final Map<Long, DDSpan> traceMap
 
     TreeComparator(List<DDSpan> trace) {
-      final Map<Long, DDSpan> traceMap =  trace.collectEntries { [(it.spanId): it] }
+      traceMap =  trace.collectEntries { [(it.spanId): it] }
       levels = trace.collectEntries({
         [(it): walkUp(traceMap, it, 0)]
       })
@@ -232,7 +233,7 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
       if (o1.parentId == o2.parentId) {
         return o1.spanId <=> o2.spanId
       }
-      return o1.parentId <=> o2.parentId
+      return compare(traceMap.get(o1.parentId), traceMap.get(o2.parentId))
     }
 
     def walkUp(Map<Long, DDSpan> traceMap, DDSpan span, int size) {
