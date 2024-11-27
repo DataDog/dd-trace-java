@@ -135,6 +135,7 @@ public final class OkHttpSink implements Sink, EventListener {
     System.out.println("REQUEST iS " + request.url());
     long start = System.nanoTime();
     try (final okhttp3.Response response = client.newCall(request).execute()) {
+      System.out.println("VC - CHECKING RES...");
       if (!response.isSuccessful()) {
         System.out.println("VC - RESPONSE FAILED HANDLING FAILURE...");
         handleFailure(response);
