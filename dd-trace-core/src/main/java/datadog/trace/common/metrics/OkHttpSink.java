@@ -135,14 +135,17 @@ public final class OkHttpSink implements Sink, EventListener {
     long start = System.nanoTime();
     try (final okhttp3.Response response = client.newCall(request).execute()) {
       if (!response.isSuccessful()) {
+        System.out.println("VC - RESPONSE FAILED HANDLING FAILURE...");
         handleFailure(response);
       } else {
         System.out.println("VC - RESPONSE OK");
         onEvent(OK, "");
       }
     } catch (IOException e) {
+      System.out.println("VC - RESPONSE HAD EXCEPTION " + e.getMessage());
       onEvent(ERROR, e.getMessage());
     } finally {
+      System.out.println("VC - SENDING PAYLOAD COMPLETE");
       lastRequestTime.set(System.nanoTime() - start);
     }
   }
@@ -161,9 +164,9 @@ public final class OkHttpSink implements Sink, EventListener {
 
   private void handleFailure(okhttp3.Response response) throws IOException {
     final int code = response.code();
-    System.out.println("RESPONSE FAILED WITH CODE " + response.code());
+    System.out.println("VC - RESPONSE FAILED WITH CODE " + response.code());
     assert response.body() != null;
-    System.out.println("RESPONSE BODY " + response.body().string());
+    System.out.println("VC - RESPONSE BODY " + response.body().string());
     if (code == 404) {
       onEvent(DOWNGRADED, "could not find endpoint");
     } else if (code >= 400 && code < 500) {
