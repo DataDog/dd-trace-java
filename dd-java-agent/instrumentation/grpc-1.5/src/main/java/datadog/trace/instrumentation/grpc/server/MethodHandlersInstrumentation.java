@@ -50,16 +50,20 @@ public class MethodHandlersInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(@Advice.Argument(0) Object serviceImpl) {
-      Class<?> serviceClass = serviceImpl.getClass();
-      Class<?> superclass = serviceClass.getSuperclass();
-      if (superclass != null) {
-        for (Method method : superclass.getDeclaredMethods()) {
-          try {
-            entry(serviceClass.getDeclaredMethod(method.getName(), method.getParameterTypes()));
-          } catch (Throwable e) {
-            // service method not overridden on the impl.  skipping instrumentation.
+      try {
+        Class<?> serviceClass = serviceImpl.getClass();
+        Class<?> superclass = serviceClass.getSuperclass();
+        if (superclass != null) {
+          for (Method method : superclass.getDeclaredMethods()) {
+            try {
+              entry(serviceClass.getDeclaredMethod(method.getName(), method.getParameterTypes()));
+            } catch (Throwable e) {
+              // service method not overridden on the impl.  skipping instrumentation.
+            }
           }
         }
+      } catch (Throwable e) {
+        // this should be logged somehow
       }
     }
   }
