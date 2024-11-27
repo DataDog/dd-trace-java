@@ -36,7 +36,7 @@ public class ListenableFutureInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      this.packageName + ".GuavaAsyncResultSupportExtension",
+      this.packageName + ".GuavaAsyncResultExtension",
     };
   }
 
@@ -57,7 +57,7 @@ public class ListenableFutureInstrumentation extends InstrumenterModule.Tracing
   public static class AbstractFutureAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void init() {
-      GuavaAsyncResultSupportExtension.initialize();
+      GuavaAsyncResultExtension.initialize();
     }
   }
 

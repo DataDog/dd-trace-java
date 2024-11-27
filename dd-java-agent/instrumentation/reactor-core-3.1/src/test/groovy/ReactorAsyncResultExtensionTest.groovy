@@ -8,7 +8,7 @@ import spock.lang.Shared
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 
-class ReactorAsyncResultSupportExtensionTest extends AgentTestRunner {
+class ReactorAsyncResultExtensionTest extends AgentTestRunner {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()

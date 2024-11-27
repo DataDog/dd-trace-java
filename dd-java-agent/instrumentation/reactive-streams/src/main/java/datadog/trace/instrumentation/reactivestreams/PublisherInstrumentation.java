@@ -60,10 +60,10 @@ public class PublisherInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      this.packageName + ".ReactiveStreamsAsyncResultSupportExtension",
-      this.packageName + ".ReactiveStreamsAsyncResultSupportExtension$WrappedPublisher",
-      this.packageName + ".ReactiveStreamsAsyncResultSupportExtension$WrappedSubscriber",
-      this.packageName + ".ReactiveStreamsAsyncResultSupportExtension$WrappedSubscription",
+      this.packageName + ".ReactiveStreamsAsyncResultExtension",
+      this.packageName + ".ReactiveStreamsAsyncResultExtension$WrappedPublisher",
+      this.packageName + ".ReactiveStreamsAsyncResultExtension$WrappedSubscriber",
+      this.packageName + ".ReactiveStreamsAsyncResultExtension$WrappedSubscription",
     };
   }
 
@@ -82,7 +82,7 @@ public class PublisherInstrumentation extends InstrumenterModule.Tracing
   public static class PublisherAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void init() {
-      ReactiveStreamsAsyncResultSupportExtension.initialize();
+      ReactiveStreamsAsyncResultExtension.initialize();
     }
   }
 
