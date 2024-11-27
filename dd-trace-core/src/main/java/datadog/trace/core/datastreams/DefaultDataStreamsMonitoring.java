@@ -431,7 +431,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
                     new MsgPackDatastreamsPayloadWriter.TransactionPayload(
                         transaction.getTransactionId(), transaction.getPathwayHash()));
               }
-              okHttpSink.addHeader("Data-Type", "Transaction");
+              okHttpSink.addHeader("X-Payload-Type", "Transaction");
               log.info("Added header successfully");
               System.out.println("ADDED HEADER SUCCESSFULLY");
               payloadWriter.writeCompressedTransactionPayload(payloads);
