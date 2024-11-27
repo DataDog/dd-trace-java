@@ -132,6 +132,7 @@ public final class OkHttpSink implements Sink, EventListener {
 
   private void send(Request request) {
     System.out.println("VC - SENDING PAYLOAD");
+    System.out.println("REQUEST iS " + request.url());
     long start = System.nanoTime();
     try (final okhttp3.Response response = client.newCall(request).execute()) {
       if (!response.isSuccessful()) {
