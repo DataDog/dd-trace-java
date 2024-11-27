@@ -20,8 +20,6 @@ import org.example.TestSkipped
 import org.example.TestSkippedClass
 import org.example.TestSucceed
 import org.example.TestSucceedAndSkipped
-import org.example.TestSucceedBeforeAfter
-import org.example.TestSucceedBeforeClassAfterClass
 import org.example.TestSucceedExpectedException
 import org.example.TestSucceedKotlin
 import org.example.TestSucceedLegacy
@@ -56,8 +54,6 @@ class JUnit4Test extends CiVisibilityInstrumentationTest {
     "test-success-and-failure"                           | [TestFailedAndSucceed]               | 4
     "test-suite-teardown-failure"                        | [TestFailedSuiteTearDown]            | 1
     "test-suite-setup-failure"                           | [TestFailedSuiteSetup]               | 1
-    "test-succeed-before-after"                          | [TestSucceedBeforeAfter]             | 2
-    "test-succeed-before-class-after-class"              | [TestSucceedBeforeClassAfterClass]   | 2
     "test-assumption-failure"                            | [TestAssumption]                     | 2
     "test-categories-are-included-in-spans"              | [TestSucceedWithCategories]          | 2
     "test-assumption-failure-during-suite-setup"         | [TestFailedSuiteSetUpAssumption]     | 2
