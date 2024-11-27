@@ -90,4 +90,11 @@ public class TestStringBuilderSuite implements TestAbstractStringBuilderSuite<St
     LOGGER.debug("After string builder substring {}", result);
     return result;
   }
+
+  public static CharSequence subSequence(StringBuilder self, int beginIndex, int endIndex) {
+    LOGGER.debug("Before string builder subSequence {} from {} to {}", self, beginIndex, endIndex);
+    final CharSequence result = self.subSequence(beginIndex, endIndex);
+    LOGGER.debug("After string builder subSequence {}", result);
+    return result;
+  }
 }
