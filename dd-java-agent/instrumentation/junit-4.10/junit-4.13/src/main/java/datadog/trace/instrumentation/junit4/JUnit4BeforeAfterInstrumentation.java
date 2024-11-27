@@ -8,6 +8,8 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import net.bytebuddy.asm.Advice;
+import org.junit.runner.manipulation.InvalidOrderingException;
+import org.junit.runner.manipulation.Ordering;
 import org.junit.runners.model.FrameworkMethod;
 
 @AutoService(InstrumenterModule.class)
@@ -29,7 +31,7 @@ public class JUnit4BeforeAfterInstrumentation extends InstrumenterModule.CiVisib
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".BeforeAfterOperationsTracer",
+      packageName + ".JUnit4BeforeAfterOperationsTracer",
     };
   }
 
@@ -44,12 +46,21 @@ public class JUnit4BeforeAfterInstrumentation extends InstrumenterModule.CiVisib
   public static class RunBeforesAftersAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope startCallSpan(@Advice.Argument(0) final FrameworkMethod method) {
-      return BeforeAfterOperationsTracer.startTrace(method.getMethod());
+      return JUnit4BeforeAfterOperationsTracer.startTrace(method.getMethod());
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void finishCallSpan(@Advice.Enter final AgentScope scope) {
-      BeforeAfterOperationsTracer.endTrace(scope);
+      JUnit4BeforeAfterOperationsTracer.endTrace(scope);
+    }
+
+    // JUnit 4.13 and above
+    public static void muzzleCheck(final Ordering ord) {
+      try {
+        ord.apply(null);
+      } catch (InvalidOrderingException e) {
+        throw new RuntimeException(e);
+      }
     }
   }
 }

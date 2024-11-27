@@ -10,7 +10,7 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 
-public class BeforeAfterOperationsTracer {
+public class JUnit4BeforeAfterOperationsTracer {
   public static AgentScope startTrace(final Method method) {
     final AgentSpan span = AgentTracer.startSpan("junit", method.getName());
     if (method.isAnnotationPresent(Before.class)) {
