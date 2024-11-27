@@ -1337,7 +1337,7 @@ class StringModuleTest extends IastModuleImplTestBase {
 
     then:
     1 * tracer.activeSpan() >> span
-    taintFormat(result, taintedObject.getRanges()) == "==>" + param.toString() + "<=="
+    taintFormat(result, taintedObject.getRanges()) == "==>my_input<=="
   }
 
   void 'test valueOf with special objects and make sure IastRequestContext is called'() {
@@ -1411,7 +1411,7 @@ class StringModuleTest extends IastModuleImplTestBase {
 
     @Override
     String toString() {
-      return Taintable.name
+      return "my_input"
     }
   }
 }
