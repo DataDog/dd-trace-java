@@ -162,6 +162,7 @@ public final class OkHttpSink implements Sink, EventListener {
   private void handleFailure(okhttp3.Response response) throws IOException {
     final int code = response.code();
     System.out.println("RESPONSE FAILED WITH CODE " + response.code());
+    assert response.body() != null;
     System.out.println("RESPONSE BODY " + response.body().string());
     if (code == 404) {
       onEvent(DOWNGRADED, "could not find endpoint");
