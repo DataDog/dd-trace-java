@@ -32,9 +32,7 @@ public class LinearTask extends RecursiveTask<Integer> {
     } else {
       int next = parent + 1;
       AgentSpan span = startSpan(Integer.toString(next));
-      try (AgentScope scope = activateSpan(span)) {
-        // shouldn't be necessary with a decent API
-        scope.setAsyncPropagation(true);
+      try (AgentScope scope = activateSpan(span, true)) {
         LinearTask child = new LinearTask(next, depth);
         return child.fork().join();
       } finally {

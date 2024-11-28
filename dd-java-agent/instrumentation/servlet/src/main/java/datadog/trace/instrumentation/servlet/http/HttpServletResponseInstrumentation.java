@@ -72,9 +72,7 @@ public final class HttpServletResponseInstrumentation extends InstrumenterModule
 
       span.setResourceName(DECORATE.spanNameForMethod(HttpServletResponse.class, method));
 
-      final AgentScope scope = activateSpan(span);
-      scope.setAsyncPropagation(true);
-      return scope;
+      return activateSpan(span, true);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

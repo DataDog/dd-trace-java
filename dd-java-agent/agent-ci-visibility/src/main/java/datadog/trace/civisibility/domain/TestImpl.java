@@ -98,8 +98,7 @@ public class TestImpl implements DDTest {
 
     span = spanBuilder.start();
 
-    final AgentScope scope = activateSpan(span);
-    scope.setAsyncPropagation(true);
+    activateSpan(span, true);
 
     span.setSpanType(InternalSpanTypes.TEST);
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_TEST);

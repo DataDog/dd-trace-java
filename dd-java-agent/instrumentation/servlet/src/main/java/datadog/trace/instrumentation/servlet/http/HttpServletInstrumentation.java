@@ -84,9 +84,7 @@ public final class HttpServletInstrumentation extends InstrumenterModule.Tracing
       // Here we use the Method instead of "this.class.name" to distinguish calls to "super".
       span.setResourceName(DECORATE.spanNameForMethod(method));
 
-      final AgentScope agentScope = activateSpan(span);
-      agentScope.setAsyncPropagation(true);
-      return agentScope;
+      return activateSpan(span, true);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
