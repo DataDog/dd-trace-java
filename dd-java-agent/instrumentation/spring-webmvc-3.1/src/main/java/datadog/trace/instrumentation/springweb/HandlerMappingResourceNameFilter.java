@@ -47,6 +47,7 @@ public class HandlerMappingResourceNameFilter extends OncePerRequestFilter imple
       } catch (final Exception ignored) {
         // mapping.getHandler() threw exception.  Ignore
       }
+      response.setHeader("guance_trace_id", GlobalTracer.get().getTraceId());
       boolean tracerHeader = Config.get().isTracerHeaderEnabled();
       boolean requestBodyEnabled = Config.get().isTracerRequestBodyEnabled();
       boolean responseBodyEnabled = Config.get().isTracerRequestBodyEnabled();
@@ -95,7 +96,7 @@ public class HandlerMappingResourceNameFilter extends OncePerRequestFilter imple
         for (String headerName : responseWrapper.getHeaderNames()) {
           if (count==0){
             responseHeader.append("{");
-            responseHeader.append("\"guance_trace_id\":").append("\"").append(GlobalTracer.get().getTraceId()).append("\"");
+//            responseHeader.append("\"guance_trace_id\":").append("\"").append(GlobalTracer.get().getTraceId()).append("\"");
           }else{
             responseHeader.append(",\n");
           }
