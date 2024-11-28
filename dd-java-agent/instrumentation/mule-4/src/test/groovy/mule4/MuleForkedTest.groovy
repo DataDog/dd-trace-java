@@ -154,9 +154,6 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
 
     assertTraces(1) {
       trace(4 + 3 * names.size(), new TreeComparator(trace(0))) { traceAssert ->
-        for (int i = 0; i < (4 + 3 * names.size()); i++) {
-          System.err.println(span(i))
-        }
         span {
           operationName operation()
           resourceName "PUT /pfe-request"

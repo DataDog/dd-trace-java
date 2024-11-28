@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.mule4;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.MULE_CORRELATION_ID;
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.MULE_LOCATION;
 
 import datadog.trace.api.Functions;
 import datadog.trace.api.cache.DDCache;
@@ -73,14 +75,14 @@ public class MuleDecorator extends BaseDecorator {
     // here we have to use the forEachAttribute since each specialized InitialSpanInfo class can add
     // different things through this method. Using the map version is not the same.
     spanInfo.forEachAttribute((s, s2) -> span.setTag(TAG_CACHE.computeIfAbsent(s, TAG_ADDER), s2));
-    span.setTag("mule.correlation_id", event.getCorrelationId());
+    span.setTag(MULE_CORRELATION_ID, event.getCorrelationId());
     // cache the resource name might be complex since it depends on a couple of keys
     String extraDetail = null;
     if (component != null) {
       extraDetail = COMPONENT_DOC_CACHE.computeIfAbsent(component, COMPONENT_DOC_ADDER);
     }
     if (extraDetail == null) {
-      extraDetail = (String) span.getTag("mule.location");
+      extraDetail = (String) span.getTag(MULE_LOCATION);
     }
     if (extraDetail != null) {
       span.setResourceName(spanInfo.getName() + " " + extraDetail);

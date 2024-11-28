@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.mule4;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
@@ -10,7 +11,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import net.bytebuddy.asm.Advice;
 import org.mule.runtime.api.event.EventContext;
 import org.mule.runtime.core.api.event.CoreEvent;
@@ -47,7 +47,7 @@ public class ComponentMessageProcessorInstrumentation extends AbstractMuleInstru
       SpanState spanState =
           InstrumentationContext.get(EventContext.class, SpanState.class).get(event.getContext());
       if (spanState != null && spanState.getEventContextSpan() != null) {
-        return AgentTracer.activateSpan(spanState.getSpanContextSpan());
+        return activateSpan(spanState.getSpanContextSpan());
       }
       return null;
     }

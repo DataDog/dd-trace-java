@@ -71,19 +71,19 @@ public class DDEventTracer implements EventTracer<CoreEvent> {
     return null;
   }
 
-  private void activateOnContext(@Nonnull final EventContext eventContext, final AgentSpan span) {
+  private void linkToContext(@Nonnull final EventContext eventContext, final AgentSpan span) {
     final SpanState previousState = eventContextStore.get(eventContext);
-    final AgentSpan spanToActivate;
+    final AgentSpan spanToLink;
     if (span != null) {
-      spanToActivate = span;
+      spanToLink = span;
     } else if (previousState != null) {
-      spanToActivate = previousState.getEventContextSpan();
+      spanToLink = previousState.getEventContextSpan();
     } else {
-      spanToActivate = null;
+      spanToLink = null;
     }
 
     eventContextStore.put(
-        eventContext, new SpanState(spanToActivate, previousState).withSpanContextSpan(span));
+        eventContext, new SpanState(spanToLink, previousState).withSpanContextSpan(span));
   }
 
   private void handleNewSpan(CoreEvent event, InitialSpanInfo spanInfo) {
@@ -96,7 +96,7 @@ public class DDEventTracer implements EventTracer<CoreEvent> {
 
     final AgentSpan span =
         DECORATE.onMuleSpan(findParent(eventContext), spanInfo, event, findComponent(spanInfo));
-    activateOnContext(eventContext, span);
+    linkToContext(eventContext, span);
   }
 
   private void handleEndOfSpan(CoreEvent event) {
