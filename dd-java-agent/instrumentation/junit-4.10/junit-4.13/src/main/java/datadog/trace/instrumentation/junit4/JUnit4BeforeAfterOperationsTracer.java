@@ -25,8 +25,11 @@ public class JUnit4BeforeAfterOperationsTracer {
     return AgentTracer.activateSpan(span);
   }
 
-  public static void endTrace(final AgentScope scope) {
+  public static void endTrace(final AgentScope scope, final Throwable throwable) {
     final AgentSpan span = scope.span();
+    if (throwable != null) {
+      span.addThrowable(throwable);
+    }
     scope.close();
     span.finish();
   }

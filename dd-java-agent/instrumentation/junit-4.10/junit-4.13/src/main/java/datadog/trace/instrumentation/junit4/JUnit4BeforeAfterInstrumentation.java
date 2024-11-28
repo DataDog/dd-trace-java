@@ -50,8 +50,9 @@ public class JUnit4BeforeAfterInstrumentation extends InstrumenterModule.CiVisib
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void finishCallSpan(@Advice.Enter final AgentScope scope) {
-      JUnit4BeforeAfterOperationsTracer.endTrace(scope);
+    public static void finishCallSpan(
+        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+      JUnit4BeforeAfterOperationsTracer.endTrace(scope, throwable);
     }
 
     // JUnit 4.13 and above

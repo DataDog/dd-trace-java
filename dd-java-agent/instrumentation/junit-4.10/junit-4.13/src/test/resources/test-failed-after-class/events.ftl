@@ -19,7 +19,7 @@
       "_dd.p.tid" : ${content_meta__dd_p_tid},
       "test.type" : "test",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
-      "test.status" : "pass",
+      "test.status" : "fail",
       "test_session.name" : "session-name",
       "language" : "jvm",
       "env" : "none",
@@ -53,7 +53,7 @@
       "_dd.p.tid" : ${content_meta__dd_p_tid_2},
       "test.type" : "test",
       "test.module" : "junit-4.13",
-      "test.status" : "pass",
+      "test.status" : "fail",
       "test_session.name" : "session-name",
       "env" : "none",
       "dummy_ci_tag" : "dummy_ci_tag_value",
@@ -73,10 +73,10 @@
     "test_suite_id" : ${content_test_suite_id},
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "name" : "junit.test_suite",
-    "resource" : "org.example.TestSucceedBeforeAfter",
+    "resource" : "org.example.TestFailedAfterClass",
     "start" : ${content_start_3},
     "duration" : ${content_duration_3},
-    "error" : 0,
+    "error" : 1,
     "metrics" : {
       "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_3},
       "test.source.end" : 19,
@@ -87,15 +87,18 @@
       "test.type" : "test",
       "test.source.file" : "dummy_source_path",
       "test.module" : "junit-4.13",
-      "test.status" : "pass",
+      "test.status" : "fail",
       "test_session.name" : "session-name",
       "env" : "none",
       "dummy_ci_tag" : "dummy_ci_tag_value",
       "test.codeowners" : "[\"owner1\",\"owner2\"]",
       "library_version" : ${content_meta_library_version},
       "component" : "junit",
+      "error.type" : "java.lang.RuntimeException",
       "span.kind" : "test_suite_end",
-      "test.suite" : "org.example.TestSucceedBeforeAfter",
+      "error.message" : ${content_meta_error_message},
+      "test.suite" : "org.example.TestFailedAfterClass",
+      "error.stack" : ${content_meta_error_stack},
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.framework" : "junit4"
     }
@@ -112,7 +115,7 @@
     "test_suite_id" : ${content_test_suite_id},
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "name" : "junit.test",
-    "resource" : "org.example.TestSucceedBeforeAfter.another_test_succeed",
+    "resource" : "org.example.TestFailedAfterClass.another_test_succeed",
     "start" : ${content_start_4},
     "duration" : ${content_duration_4},
     "error" : 0,
@@ -135,7 +138,7 @@
       "library_version" : ${content_meta_library_version},
       "test.name" : "another_test_succeed",
       "span.kind" : "test",
-      "test.suite" : "org.example.TestSucceedBeforeAfter",
+      "test.suite" : "org.example.TestFailedAfterClass",
       "runtime-id" : ${content_meta_runtime_id},
       "test.type" : "test",
       "test_session.name" : "session-name",
@@ -159,7 +162,7 @@
     "test_suite_id" : ${content_test_suite_id},
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "name" : "junit.test",
-    "resource" : "org.example.TestSucceedBeforeAfter.test_succeed",
+    "resource" : "org.example.TestFailedAfterClass.test_succeed",
     "start" : ${content_start_5},
     "duration" : ${content_duration_5},
     "error" : 0,
@@ -182,7 +185,7 @@
       "library_version" : ${content_meta_library_version},
       "test.name" : "test_succeed",
       "span.kind" : "test",
-      "test.suite" : "org.example.TestSucceedBeforeAfter",
+      "test.suite" : "org.example.TestFailedAfterClass",
       "runtime-id" : ${content_meta_runtime_id},
       "test.type" : "test",
       "test_session.name" : "session-name",
@@ -198,80 +201,24 @@
   "type" : "span",
   "version" : 1,
   "content" : {
-    "trace_id" : ${content_trace_id_2},
+    "trace_id" : ${content_test_session_id},
     "span_id" : ${content_span_id_3},
-    "parent_id" : ${content_span_id_2},
+    "parent_id" : ${content_test_suite_id},
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
-    "name" : "setup",
-    "resource" : "setup",
+    "name" : "tearDown",
+    "resource" : "tearDown",
     "start" : ${content_start_6},
     "duration" : ${content_duration_6},
-    "error" : 0,
+    "error" : 1,
     "metrics" : { },
     "meta" : {
-      "test.callback" : "Before",
+      "_dd.p.tid" : ${content_meta__dd_p_tid_4},
+      "error.stack" : ${content_meta_error_stack_2},
+      "test.callback" : "AfterClass",
       "library_version" : ${content_meta_library_version},
-      "env" : "none"
-    }
-  }
-}, {
-  "type" : "span",
-  "version" : 1,
-  "content" : {
-    "trace_id" : ${content_trace_id},
-    "span_id" : ${content_span_id_4},
-    "parent_id" : ${content_span_id},
-    "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
-    "name" : "setup",
-    "resource" : "setup",
-    "start" : ${content_start_7},
-    "duration" : ${content_duration_7},
-    "error" : 0,
-    "metrics" : { },
-    "meta" : {
-      "test.callback" : "Before",
-      "library_version" : ${content_meta_library_version},
-      "env" : "none"
-    }
-  }
-}, {
-  "type" : "span",
-  "version" : 1,
-  "content" : {
-    "trace_id" : ${content_trace_id_2},
-    "span_id" : ${content_span_id_5},
-    "parent_id" : ${content_span_id_2},
-    "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
-    "name" : "tearDown",
-    "resource" : "tearDown",
-    "start" : ${content_start_8},
-    "duration" : ${content_duration_8},
-    "error" : 0,
-    "metrics" : { },
-    "meta" : {
-      "test.callback" : "After",
-      "library_version" : ${content_meta_library_version},
-      "env" : "none"
-    }
-  }
-}, {
-  "type" : "span",
-  "version" : 1,
-  "content" : {
-    "trace_id" : ${content_trace_id},
-    "span_id" : ${content_span_id_6},
-    "parent_id" : ${content_span_id},
-    "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
-    "name" : "tearDown",
-    "resource" : "tearDown",
-    "start" : ${content_start_9},
-    "duration" : ${content_duration_9},
-    "error" : 0,
-    "metrics" : { },
-    "meta" : {
-      "test.callback" : "After",
-      "library_version" : ${content_meta_library_version},
-      "env" : "none"
+      "error.type" : "java.lang.RuntimeException",
+      "env" : "none",
+      "error.message" : ${content_meta_error_message}
     }
   }
 } ]

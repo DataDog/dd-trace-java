@@ -8,13 +8,18 @@ import org.junit.Test;
 
 public class TestSucceedBeforeClassAfterClass {
   @BeforeClass
-  public static void classSetup() {}
+  public static void setup() {}
 
   @AfterClass
-  public static void classTeardown() {}
+  public static void tearDown() {}
 
   @Test
-  public void testSucceed() {
+  public void test_succeed() {
+    assertTrue(true);
+  }
+
+  @Test
+  public void another_test_succeed() {
     assertTrue(true);
   }
 }
