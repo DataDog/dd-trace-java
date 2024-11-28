@@ -50,7 +50,7 @@ class LocalFSGitInfoExtractorTest extends DDSpecification {
       )
   }
 
-  def "test git info extraction for local fs"() {
+  def "test git info extraction for local fs #gitFolder"() {
     setup:
     def sut = new LocalFSGitInfoExtractor()
 
@@ -119,7 +119,7 @@ class LocalFSGitInfoExtractorTest extends DDSpecification {
     fullMessage == null
   }
 
-  def "test repository url with different remotes"() {
+  def "test repository url with different remotes #gitFolder"() {
     setup:
     def sut = new LocalFSGitInfoExtractor()
 
