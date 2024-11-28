@@ -2,12 +2,13 @@ package datadog.trace.instrumentation.guava10;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.EagerHelper;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.AsyncResultExtension;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.AsyncResultExtensions;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 
-public class GuavaAsyncResultExtension implements AsyncResultExtension {
+public class GuavaAsyncResultExtension implements AsyncResultExtension, EagerHelper {
   static {
     AsyncResultExtensions.register(new GuavaAsyncResultExtension());
   }
@@ -19,7 +20,7 @@ public class GuavaAsyncResultExtension implements AsyncResultExtension {
    * class initialization. This will ensure this extension will only be registered once under {@link
    * AsyncResultExtensions}.
    */
-  public static void initialize() {}
+  public static void init() {}
 
   @Override
   public boolean supports(Class<?> result) {

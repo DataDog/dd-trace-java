@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.ha
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
@@ -41,13 +40,6 @@ public class BlockingPublisherInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(isConstructor(), getClass().getName() + "$AsyncExtensionInstallAdvice");
-    transformer.applyAdvice(
-        isMethod().and(nameStartsWith("block")), getClass().getName() + "$BlockingAdvice");
-  }
-
-  @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap("org.reactivestreams.Publisher", AgentSpan.class.getName());
   }
@@ -60,6 +52,12 @@ public class BlockingPublisherInstrumentation extends InstrumenterModule.Tracing
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return hasSuperType(namedOneOf("reactor.core.publisher.Mono", "reactor.core.publisher.Flux"));
+  }
+
+  @Override
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
+        isMethod().and(nameStartsWith("block")), getClass().getName() + "$BlockingAdvice");
   }
 
   public static class BlockingAdvice {
@@ -77,13 +75,6 @@ public class BlockingPublisherInstrumentation extends InstrumenterModule.Tracing
       if (scope != null) {
         scope.close();
       }
-    }
-  }
-
-  public static class AsyncExtensionInstallAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void init() {
-      ReactorAsyncResultExtension.initialize();
     }
   }
 }

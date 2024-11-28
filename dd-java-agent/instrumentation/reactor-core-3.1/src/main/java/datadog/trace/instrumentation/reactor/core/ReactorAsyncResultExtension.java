@@ -1,12 +1,13 @@
 package datadog.trace.instrumentation.reactor.core;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.EagerHelper;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.AsyncResultExtension;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.AsyncResultExtensions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-public class ReactorAsyncResultExtension implements AsyncResultExtension {
+public class ReactorAsyncResultExtension implements AsyncResultExtension, EagerHelper {
   static {
     AsyncResultExtensions.register(new ReactorAsyncResultExtension());
   }
@@ -18,7 +19,7 @@ public class ReactorAsyncResultExtension implements AsyncResultExtension {
    * class initialization. This will ensure this extension will only be registered once under {@link
    * AsyncResultExtensions}.
    */
-  public static void initialize() {}
+  public static void init() {}
 
   @Override
   public boolean supports(Class<?> result) {

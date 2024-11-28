@@ -2,6 +2,7 @@ package datadog.trace.agent.tooling;
 
 import static datadog.trace.bootstrap.AgentClassLoading.INJECTING_HELPERS;
 
+import datadog.trace.bootstrap.instrumentation.api.EagerHelper;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.security.CodeSource;
@@ -124,6 +125,18 @@ public class HelperInjector implements Instrumenter.TransformingAdvice {
             final JavaModule javaModule = JavaModule.ofType(classes.values().iterator().next());
             helperModules.add(new WeakReference<>(javaModule.unwrap()));
           }
+
+          // forcibly initialize any eager helpers
+          for (Class<?> clazz : classes.values()) {
+            if (EagerHelper.class.isAssignableFrom(clazz)) {
+              try {
+                clazz.getMethod("init").invoke(null);
+              } catch (Throwable e) {
+                log.debug("Problem initializing {}", clazz, e);
+              }
+            }
+          }
+
         } catch (final Exception e) {
           if (log.isErrorEnabled()) {
             log.error(
