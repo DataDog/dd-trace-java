@@ -219,8 +219,6 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo, ImplicitContextKeyed
 
       String getForwardedFor();
 
-      String getXForwarded();
-
       String getXForwardedFor();
 
       String getXClusterClientIp();
