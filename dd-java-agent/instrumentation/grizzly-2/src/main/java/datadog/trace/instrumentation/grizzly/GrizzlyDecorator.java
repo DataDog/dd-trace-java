@@ -4,7 +4,7 @@ import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -90,9 +90,9 @@ public class GrizzlyDecorator extends HttpServerDecorator<Request, Request, Resp
         int statusCode,
         BlockingContentType templateType,
         Map<String, String> extraHeaders) {
-      AgentScope agentScope = AgentTracer.get().activeScope();
-      if (agentScope == null) {
-        log.warn("Can't block: no active scope");
+      AgentSpan agentSpan = AgentTracer.get().activeSpan();
+      if (agentSpan == null) {
+        log.warn("Can't block: no active span");
         return false;
       }
 
@@ -102,7 +102,7 @@ public class GrizzlyDecorator extends HttpServerDecorator<Request, Request, Resp
           statusCode,
           templateType,
           extraHeaders,
-          agentScope);
+          agentSpan);
     }
   }
 }

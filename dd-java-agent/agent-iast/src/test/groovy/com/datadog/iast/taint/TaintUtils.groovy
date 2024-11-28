@@ -3,6 +3,7 @@ package com.datadog.iast.taint
 import com.datadog.iast.model.Range
 import com.datadog.iast.model.Source
 import datadog.trace.api.iast.SourceTypes
+import datadog.trace.api.iast.Taintable
 
 import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
 
@@ -81,12 +82,31 @@ class TaintUtils {
     getStringFromTaintFormat(appendable.toString())
   }
 
+  static TaintedObject getTaintedObject(final TaintedObjects tos, final Object target) {
+    if (target instanceof Taintable) {
+      final source = (target as Taintable).$$DD$getSource() as Source
+      return source == null ? null : new TaintedObject(target, Ranges.forObject(source))
+    }
+    return tos.get(target)
+  }
+
   static <E> E taint(final TaintedObjects tos, final E value) {
     if (value instanceof String) {
       return addFromTaintFormat(tos, value as String)
     }
     tos.taint(value, Ranges.forObject(new Source(SourceTypes.NONE, null, null)))
     return value
+  }
+
+  static TaintedObject taintObject(final TaintedObjects tos, final Object target, Source source, int mark = NOT_MARKED) {
+    if (target instanceof Taintable) {
+      target.$$DD$setSource(source)
+    } else if (target instanceof CharSequence) {
+      tos.taint(target, Ranges.forCharSequence(target, source, mark))
+    } else {
+      tos.taint(target, Ranges.forObject(source, mark))
+    }
+    return getTaintedObject(tos, target)
   }
 
   static String addFromTaintFormat(final TaintedObjects tos, final String s) {
