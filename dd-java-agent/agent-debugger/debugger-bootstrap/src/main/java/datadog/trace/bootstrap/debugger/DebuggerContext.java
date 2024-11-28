@@ -3,6 +3,7 @@ package datadog.trace.bootstrap.debugger;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import java.lang.reflect.Method;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -72,7 +73,9 @@ public class DebuggerContext {
   }
 
   public interface CodeOriginRecorder {
-    String captureCodeOrigin(String signature);
+    String captureCodeOrigin(boolean entry);
+
+    String captureCodeOrigin(Method method, boolean entry);
   }
 
   private static volatile ProbeResolver probeResolver;
@@ -351,11 +354,23 @@ public class DebuggerContext {
     }
   }
 
-  public static String captureCodeOrigin(String signature) {
+  public static String captureCodeOrigin(boolean entry) {
     try {
       CodeOriginRecorder recorder = codeOriginRecorder;
       if (recorder != null) {
-        return recorder.captureCodeOrigin(signature);
+        return recorder.captureCodeOrigin(entry);
+      }
+    } catch (Exception ex) {
+      LOGGER.debug("Error in captureCodeOrigin: ", ex);
+    }
+    return null;
+  }
+
+  public static String captureCodeOrigin(Method method, boolean entry) {
+    try {
+      CodeOriginRecorder recorder = codeOriginRecorder;
+      if (recorder != null) {
+        return recorder.captureCodeOrigin(method, entry);
       }
     } catch (Exception ex) {
       LOGGER.debug("Error in captureCodeOrigin: ", ex);

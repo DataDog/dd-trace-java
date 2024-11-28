@@ -4,7 +4,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 
 import java.util.concurrent.CountDownLatch
 
-class ReactiveStreamsAsyncResultSupportExtensionTest extends AgentTestRunner {
+class ReactiveStreamsAsyncResultExtensionTest extends AgentTestRunner {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()

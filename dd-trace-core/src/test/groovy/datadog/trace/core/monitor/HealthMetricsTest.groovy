@@ -175,7 +175,7 @@ class HealthMetricsTest extends DDSpecification {
     0 * _
   }
 
-  def "test onSend"() {
+  def "test onSend #iterationIndex"() {
     setup:
     def latch = new CountDownLatch(3 + (response.exception() ? 1 : 0) + (response.status() ? 1 : 0))
     def healthMetrics = new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
@@ -212,7 +212,7 @@ class HealthMetricsTest extends DDSpecification {
     sendSize = ThreadLocalRandom.current().nextInt(1, 100)
   }
 
-  def "test onFailedSend"() {
+  def "test onFailedSend #iterationIndex"() {
     setup:
     def latch = new CountDownLatch(3 + (response.exception() ? 1 : 0) + (response.status() ? 1 : 0))
     def healthMetrics = new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)

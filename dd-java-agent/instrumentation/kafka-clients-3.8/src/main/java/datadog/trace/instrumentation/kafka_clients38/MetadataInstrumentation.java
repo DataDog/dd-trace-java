@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.kafka_clients38;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static java.util.Collections.singletonMap;
@@ -9,7 +10,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.Config;
 import java.util.Map;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -19,12 +19,12 @@ public class MetadataInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
 
   public MetadataInstrumentation() {
-    super("kafka");
+    super("kafka", "kafka-3.8");
   }
 
   @Override
-  public boolean isEnabled() {
-    return super.isEnabled() && Config.get().isExperimentalKafkaEnabled();
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+    return hasClassNamed("org.apache.kafka.clients.MetadataRecoveryStrategy"); // since 3.8
   }
 
   @Override

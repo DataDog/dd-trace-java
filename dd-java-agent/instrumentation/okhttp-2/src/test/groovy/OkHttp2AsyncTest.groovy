@@ -49,7 +49,7 @@ abstract class OkHttp2AsyncTest extends OkHttp2Test {
     return responseRef.get().code()
   }
 
-  def "callbacks should carry context" () {
+  def "callbacks should carry context with error = #error" () {
 
     when:
     def captured = AgentTracer.noopSpan()

@@ -5,19 +5,13 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.trace.test.util.DDSpecification
 import org.msgpack.core.MessagePack
 import org.msgpack.jackson.dataformat.MessagePackFactory
-import spock.lang.Shared
 
 import static java.util.Collections.singletonMap
 
 class SerializationTest extends DDSpecification {
-  @Shared
-  def jsonMapper = new ObjectMapper()
-  @Shared
-  def mpMapper = new ObjectMapper(new MessagePackFactory())
-
-
   def "test json mapper serialization"() {
     setup:
+    def mapper = new ObjectMapper()
     def map = ["key1": "val1"]
     def serializedMap = mapper.writeValueAsBytes(map)
     def serializedList = "[${new String(serializedMap)}]".getBytes()
@@ -28,13 +22,13 @@ class SerializationTest extends DDSpecification {
     then:
     result == [map]
     new String(serializedList) == '[{"key1":"val1"}]'
-
-    where:
-    mapper = jsonMapper
   }
 
   def "test msgpack mapper serialization"() {
     setup:
+    def mapper = new ObjectMapper(new MessagePackFactory())
+    // GStrings get odd results in the serializer.
+    def input = (1..1).collect { singletonMap("key$it".toString(), "val$it".toString()) }
     def serializedMaps = input.collect {
       mapper.writeValueAsBytes(it)
     }
@@ -51,11 +45,5 @@ class SerializationTest extends DDSpecification {
 
     then:
     result == input
-
-    where:
-    mapper = mpMapper
-
-    // GStrings get odd results in the serializer.
-    input = (1..1).collect { singletonMap("key$it".toString(), "val$it".toString()) }
   }
 }

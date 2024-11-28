@@ -44,7 +44,7 @@ public class LambdaHandler {
   private static final String START_INVOCATION = "/lambda/start-invocation";
   private static final String END_INVOCATION = "/lambda/end-invocation";
 
-  private static final Long REQUEST_TIMEOUT_IN_S = 1L;
+  private static final Long REQUEST_TIMEOUT_IN_S = 3L;
   private static final int MAX_IDLE_CONNECTIONS = 5;
   private static final Long KEEP_ALIVE_DURATION = 300L;
 

@@ -296,7 +296,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
         NodeList versionList = doc.getElementsByTagName("latest")
         if (versionList.getLength() > 0) {
           def version = versionList.item(0).getTextContent()
-          if (!version.contains('alpha') && !version.contains('beta')) {
+          if (!version.contains('alpha') && !version.contains('beta') && !version.contains('rc')) {
             LOGGER.info("Will run the 'latest' tests with version ${version}")
             return version
           }

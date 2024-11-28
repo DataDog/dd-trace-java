@@ -1,8 +1,12 @@
 package com.datadog.iast.propagation
 
 import com.datadog.iast.IastModuleImplTestBase
+import com.datadog.iast.model.Source
+import com.datadog.iast.taint.TaintedObjects
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.api.iast.SourceTypes
+import datadog.trace.api.iast.Taintable
 import datadog.trace.api.iast.propagation.StringModule
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
@@ -16,6 +20,7 @@ import static com.datadog.iast.taint.TaintUtils.fromTaintFormat
 import static com.datadog.iast.taint.TaintUtils.getStringFromTaintFormat
 import static com.datadog.iast.taint.TaintUtils.taint
 import static com.datadog.iast.taint.TaintUtils.taintFormat
+import static com.datadog.iast.taint.TaintUtils.taintObject
 
 @CompileDynamic
 class StringModuleTest extends IastModuleImplTestBase {
@@ -481,37 +486,47 @@ class StringModuleTest extends IastModuleImplTestBase {
     }
 
     where:
-    self                      | beginIndex | endIndex | expected
-    "==>0123<=="              | 0          | 4        | "==>0123<=="
-    "0123==>456<==78"         | 0          | 5        | "0123==>4<=="
-    "01==>234<==5==>678<==90" | 0          | 8        | "01==>234<==5==>67<=="
-    "==>0123<=="              | 0          | 3        | "==>012<=="
-    "==>0123<=="              | 1          | 4        | "==>123<=="
-    "==>0123<=="              | 1          | 3        | "==>12<=="
-    "0123==>456<==78"         | 1          | 8        | "123==>456<==7"
-    "0123==>456<==78"         | 0          | 4        | "0123"
-    "0123==>456<==78"         | 7          | 9        | "78"
-    "0123==>456<==78"         | 1          | 5        | "123==>4<=="
-    "0123==>456<==78"         | 1          | 6        | "123==>45<=="
-    "0123==>456<==78"         | 4          | 7        | "==>456<=="
-    "0123==>456<==78"         | 6          | 8        | "==>6<==7"
-    "0123==>456<==78"         | 5          | 8        | "==>56<==7"
-    "0123==>456<==78"         | 4          | 6        | "==>45<=="
-    "01==>234<==5==>678<==90" | 1          | 10       | "1==>234<==5==>678<==9"
-    "01==>234<==5==>678<==90" | 1          | 2        | "1"
-    "01==>234<==5==>678<==90" | 5          | 6        | "5"
-    "01==>234<==5==>678<==90" | 9          | 10       | "9"
-    "01==>234<==5==>678<==90" | 1          | 4        | "1==>23<=="
-    "01==>234<==5==>678<==90" | 2          | 4        | "==>23<=="
-    "01==>234<==5==>678<==90" | 2          | 5        | "==>234<=="
-    "01==>234<==5==>678<==90" | 1          | 8        | "1==>234<==5==>67<=="
-    "01==>234<==5==>678<==90" | 2          | 8        | "==>234<==5==>67<=="
-    "01==>234<==5==>678<==90" | 2          | 9        | "==>234<==5==>678<=="
-    "01==>234<==5==>678<==90" | 5          | 8        | "5==>67<=="
-    "01==>234<==5==>678<==90" | 6          | 8        | "==>67<=="
-    "01==>234<==5==>678<==90" | 6          | 9        | "==>678<=="
-    "01==>234<==5==>678<==90" | 4          | 9        | "==>4<==5==>678<=="
-    "01==>234<==5==>678<==90" | 4          | 8        | "==>4<==5==>67<=="
+    self                           | beginIndex | endIndex | expected
+    "==>0123<=="                   | 0          | 4        | "==>0123<=="
+    "0123==>456<==78"              | 0          | 5        | "0123==>4<=="
+    "01==>234<==5==>678<==90"      | 0          | 8        | "01==>234<==5==>67<=="
+    "==>0123<=="                   | 0          | 3        | "==>012<=="
+    "==>0123<=="                   | 1          | 4        | "==>123<=="
+    "==>0123<=="                   | 1          | 3        | "==>12<=="
+    "0123==>456<==78"              | 1          | 8        | "123==>456<==7"
+    "0123==>456<==78"              | 0          | 4        | "0123"
+    "0123==>456<==78"              | 7          | 9        | "78"
+    "0123==>456<==78"              | 1          | 5        | "123==>4<=="
+    "0123==>456<==78"              | 1          | 6        | "123==>45<=="
+    "0123==>456<==78"              | 4          | 7        | "==>456<=="
+    "0123==>456<==78"              | 6          | 8        | "==>6<==7"
+    "0123==>456<==78"              | 5          | 8        | "==>56<==7"
+    "0123==>456<==78"              | 4          | 6        | "==>45<=="
+    "01==>234<==5==>678<==90"      | 1          | 10       | "1==>234<==5==>678<==9"
+    "01==>234<==5==>678<==90"      | 1          | 2        | "1"
+    "01==>234<==5==>678<==90"      | 5          | 6        | "5"
+    "01==>234<==5==>678<==90"      | 9          | 10       | "9"
+    "01==>234<==5==>678<==90"      | 1          | 4        | "1==>23<=="
+    "01==>234<==5==>678<==90"      | 2          | 4        | "==>23<=="
+    "01==>234<==5==>678<==90"      | 2          | 5        | "==>234<=="
+    "01==>234<==5==>678<==90"      | 1          | 8        | "1==>234<==5==>67<=="
+    "01==>234<==5==>678<==90"      | 2          | 8        | "==>234<==5==>67<=="
+    "01==>234<==5==>678<==90"      | 2          | 9        | "==>234<==5==>678<=="
+    "01==>234<==5==>678<==90"      | 5          | 8        | "5==>67<=="
+    "01==>234<==5==>678<==90"      | 6          | 8        | "==>67<=="
+    "01==>234<==5==>678<==90"      | 6          | 9        | "==>678<=="
+    "01==>234<==5==>678<==90"      | 4          | 9        | "==>4<==5==>678<=="
+    "01==>234<==5==>678<==90"      | 4          | 8        | "==>4<==5==>67<=="
+    sb("==>0123<==")               | 0          | 4        | "==>0123<=="
+    sb("0123==>456<==78")          | 0          | 5        | "0123==>4<=="
+    sb("01==>234<==5==>678<==90")  | 0          | 8        | "01==>234<==5==>67<=="
+    sb("0123==>456<==78")          | 4          | 6        | "==>45<=="
+    sb("01==>234<==5==>678<==90")  | 4          | 8        | "==>4<==5==>67<=="
+    sbf("==>0123<==")              | 0          | 4        | "==>0123<=="
+    sbf("0123==>456<==78")         | 0          | 5        | "0123==>4<=="
+    sbf("01==>234<==5==>678<==90") | 0          | 8        | "01==>234<==5==>67<=="
+    sbf("0123==>456<==78")         | 4          | 6        | "==>45<=="
+    sbf("01==>234<==5==>678<==90") | 4          | 8        | "==>4<==5==>67<=="
   }
 
   void 'onStringJoin without null delimiter or elements (#delimiter, #elements)'() {
@@ -798,6 +813,47 @@ class StringModuleTest extends IastModuleImplTestBase {
     "\u00cc\u00cc==>123<==B"     | "i̇==>̀i̇<==̀123b"     | "lt"   | 6          | 10           | [[2, 3]]
     "\u00cc\u00ccFFFF==>123<==B" | "i̇̀i̇̀==>fff<==f123b" | "lt"   | 10         | 14           | [[6, 3]]
     "A==>\u00cc\u00cc\u00cc<==B" | "a==>ììì<==b"          | "en"   | 5          | 5            | [[1, 3]]
+  }
+
+  void 'onStringConstructor (#input)'() {
+    given:
+    final taintedObjects = ctx.getTaintedObjects()
+    final self = addFromTaintFormat(taintedObjects, input)
+    final result = new String(self)
+
+    when:
+    module.onStringConstructor(self, result)
+    def taintedObject = taintedObjects.get(result)
+
+    then:
+    1 * tracer.activeSpan() >> span
+    taintFormat(result, taintedObject.getRanges()) == expected
+
+    where:
+    input            | expected
+    "==>123<=="      | "==>123<=="
+    sb("==>123<==")  | "==>123<=="
+    sbf("==>123<==") | "==>123<=="
+  }
+
+  void 'onStringConstructor empty (#input)'() {
+    given:
+    final taintedObjects = ctx.getTaintedObjects()
+    final self = addFromTaintFormat(taintedObjects, input)
+    final result = new String(self)
+
+    when:
+    module.onStringConstructor(self, result)
+
+    then:
+    null == taintedObjects.get(result)
+    result == expected
+
+    where:
+    input   | expected
+    ""      | ""
+    sb("")  | ""
+    sbf("") | ""
   }
 
   void 'test trim and make sure IastRequestContext is called'() {
@@ -1247,6 +1303,65 @@ class StringModuleTest extends IastModuleImplTestBase {
     "==>my_o<==u==>tput<====>my_o<==u==>tput<==" | 'out'    | '==>in<=='    | 0                 | "==>my_o<==u==>tput<====>my_o<==u==>tput<=="
   }
 
+  void 'test valueOf with (#param) and make sure IastRequestContext is called'() {
+    given:
+    final taintedObjects = ctx.getTaintedObjects()
+    def paramTainted = addFromTaintFormat(taintedObjects, param)
+    def result = String.valueOf(paramTainted)
+
+    when:
+    module.onStringValueOf(paramTainted, result)
+    def taintedObject = taintedObjects.get(result)
+
+    then:
+    1 * tracer.activeSpan() >> span
+    taintFormat(result, taintedObject.getRanges()) == expected
+
+    where:
+    param                 | expected
+    "==>test<=="          | "==>test<=="
+    sb("==>test<==")      | "==>test<=="
+    sbf("==>my_input<==") | "==>my_input<=="
+  }
+
+  void 'test valueOf with taintable object and make sure IastRequestContext is called'() {
+    given:
+    final taintedObjects = ctx.getTaintedObjects()
+    final source = taintedSource()
+    final param = taintable(taintedObjects, source)
+    final result = String.valueOf(param)
+
+    when:
+    module.onStringValueOf(param, result)
+    final taintedObject = taintedObjects.get(result)
+
+    then:
+    1 * tracer.activeSpan() >> span
+    taintFormat(result, taintedObject.getRanges()) == "==>my_input<=="
+  }
+
+  void 'test valueOf with special objects and make sure IastRequestContext is called'() {
+    given:
+    final taintedObjects = ctx.getTaintedObjects()
+    final source = taintedSource()
+    final param = new Object() {
+        @Override
+        String toString() {
+          return "my_input"
+        }
+      }
+    taintObject(taintedObjects, param, source)
+    final result = String.valueOf(param)
+
+    when:
+    module.onStringValueOf(param, result)
+    final taintedObject = taintedObjects.get(result)
+
+    then:
+    1 * tracer.activeSpan() >> span
+    taintFormat(result, taintedObject.getRanges()) == "==>my_input<=="
+  }
+
   private static Date date(final String pattern, final String value) {
     return new SimpleDateFormat(pattern).parse(value)
   }
@@ -1257,5 +1372,46 @@ class StringModuleTest extends IastModuleImplTestBase {
 
   private static StringBuilder sb(final String string) {
     return new StringBuilder(string)
+  }
+
+  private static StringBuffer sbf() {
+    return sbf('')
+  }
+
+  private static StringBuffer sbf(final String string) {
+    return new StringBuffer(string)
+  }
+
+  private static Source taintedSource(String value = 'value') {
+    return new Source(SourceTypes.REQUEST_PARAMETER_VALUE, 'name', value)
+  }
+
+  private static Taintable taintable(TaintedObjects tos, Source source = null) {
+    final result = new MockTaintable()
+    if (source != null) {
+      taintObject(tos, result, source)
+    }
+    return result
+  }
+
+  private static class MockTaintable implements Taintable {
+    private Source source
+
+    @SuppressWarnings('CodeNarc')
+    @Override
+    Source $$DD$getSource() {
+      return source
+    }
+
+    @SuppressWarnings('CodeNarc')
+    @Override
+    void $$DD$setSource(Source source) {
+      this.source = source
+    }
+
+    @Override
+    String toString() {
+      return "my_input"
+    }
   }
 }

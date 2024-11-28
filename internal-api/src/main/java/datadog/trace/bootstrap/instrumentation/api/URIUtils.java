@@ -294,7 +294,7 @@ public class URIUtils {
     PropagationUtils.onStringBuilderAppend(part1, sb.append(part1));
     if (addSlash) {
       // it happens for http async client 4 with relative URI
-      sb.append("/");
+      sb.append('/');
     }
     PropagationUtils.onStringBuilderAppend(part2, sb.append(part2));
     return safeParse(PropagationUtils.onStringBuilderToString(sb, sb.toString()));

@@ -118,46 +118,6 @@ public final class Strings {
     return lastDot < 0 ? "" : className.substring(0, lastDot);
   }
 
-  public static String join(CharSequence joiner, Iterable<? extends CharSequence> strings) {
-    if (strings == null) {
-      return "";
-    }
-
-    Iterator<? extends CharSequence> it = strings.iterator();
-    // no elements
-    if (!it.hasNext()) {
-      return "";
-    }
-
-    // first element
-    CharSequence first = it.next();
-    if (!it.hasNext()) {
-      return first.toString();
-    }
-
-    // remaining elements with joiner
-    StringBuilder sb = new StringBuilder(first);
-    while (it.hasNext()) {
-      sb.append(joiner).append(it.next());
-    }
-    return sb.toString();
-  }
-
-  public static String join(CharSequence joiner, CharSequence... strings) {
-    int len = strings.length;
-    if (len > 0) {
-      if (len == 1) {
-        return strings[0].toString();
-      }
-      StringBuilder sb = new StringBuilder(strings[0]);
-      for (int i = 1; i < len; ++i) {
-        sb.append(joiner).append(strings[i]);
-      }
-      return sb.toString();
-    }
-    return "";
-  }
-
   // reimplementation of string functions without regex
   public static String replace(String str, String delimiter, String replacement) {
     StringBuilder sb = new StringBuilder(str);
@@ -291,19 +251,19 @@ public final class Strings {
     while (entriesIter.hasNext()) {
       final Entry<String, ?> entry = entriesIter.next();
 
-      sb.append("\"").append(escapeToJson(entry.getKey())).append("\":");
+      sb.append('\"').append(escapeToJson(entry.getKey())).append("\":");
 
       if (valuesAreJson) {
         sb.append(entry.getValue());
       } else {
-        sb.append("\"").append(escapeToJson(String.valueOf(entry.getValue()))).append("\"");
+        sb.append('\"').append(escapeToJson(String.valueOf(entry.getValue()))).append('\"');
       }
 
       if (entriesIter.hasNext()) {
-        sb.append(",");
+        sb.append(',');
       }
     }
-    sb.append("}");
+    sb.append('}');
     return sb.toString();
   }
 
@@ -317,10 +277,10 @@ public final class Strings {
       String item = it.next();
       json.append('"').append(escapeToJson(item)).append('"');
       if (it.hasNext()) {
-        json.append(",");
+        json.append(',');
       }
     }
-    json.append("]");
+    json.append(']');
     return json.toString();
   }
 

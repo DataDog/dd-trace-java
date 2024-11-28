@@ -27,7 +27,7 @@ jobs:
             const ignoreReleaseNotes = labels.filter(label => label == 'tag: no release notes').length > 0
             const hasTypeLabel = labels.filter(label => label.startsWith('type:')).length > 0
             const hasComponentLabel = labels.filter(label => label.startsWith('comp:')).length > 0
-            const hasInstrumentationLabel = labels.filter(label => label.startsWith('instr:')).length > 0
+            const hasInstrumentationLabel = labels.filter(label => label.startsWith('inst:')).length > 0
             const labelsCheckFailed = !ignoreReleaseNotes && (!hasTypeLabel || (!hasComponentLabel && !hasInstrumentationLabel));
             if (labelsCheckFailed) {
               core.setFailed('Please add at least one type, and one component or instrumentation label to the pull request.')

@@ -201,13 +201,15 @@ public class StringCallSite {
   }
 
   @CallSite.After("void java.lang.String.<init>(java.lang.String)")
+  @CallSite.After("void java.lang.String.<init>(java.lang.StringBuffer)")
+  @CallSite.After("void java.lang.String.<init>(java.lang.StringBuilder)")
   public static String afterStringConstructor(
       @CallSite.AllArguments @Nonnull final Object[] params,
       @CallSite.Return @Nonnull final String result) {
     final StringModule module = InstrumentationBridge.STRING;
     try {
       if (module != null) {
-        module.onStringConstructor((String) params[0], result);
+        module.onStringConstructor((CharSequence) params[0], result);
       }
     } catch (final Throwable e) {
       module.onUnexpectedException("afterStringConstructor threw", e);
@@ -294,6 +296,20 @@ public class StringCallSite {
         module.onStringReplace(self, oldChar, newChar, result);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterReplaceChar threw", e);
+      }
+    }
+    return result;
+  }
+
+  @CallSite.After("java.lang.String java.lang.String.valueOf(java.lang.Object)")
+  public static String afterValueOf(
+      @CallSite.Argument(0) final Object obj, @CallSite.Return final String result) {
+    final StringModule module = InstrumentationBridge.STRING;
+    if (module != null) {
+      try {
+        module.onStringValueOf(obj, result);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterValueOf threw", e);
       }
     }
     return result;

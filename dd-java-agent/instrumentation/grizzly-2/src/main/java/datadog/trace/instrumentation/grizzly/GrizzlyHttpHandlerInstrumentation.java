@@ -87,7 +87,7 @@ public class GrizzlyHttpHandlerInstrumentation extends InstrumenterModule.Tracin
 
       Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
       if (rba != null) {
-        boolean success = GrizzlyBlockingHelper.block(request, response, rba, scope);
+        boolean success = GrizzlyBlockingHelper.block(request, response, rba, span);
         if (success) {
           return true; /* skip body */
         }
