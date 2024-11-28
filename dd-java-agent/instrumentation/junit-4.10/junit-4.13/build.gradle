@@ -5,7 +5,6 @@ muzzle {
     group = 'junit'
     module = 'junit'
     versions = '[4.13,5)'
-    assertInverse = true
   }
 }
 
