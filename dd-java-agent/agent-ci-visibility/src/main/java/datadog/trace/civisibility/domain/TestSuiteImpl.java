@@ -121,8 +121,7 @@ public class TestSuiteImpl implements DDTestSuite {
     testDecorator.afterStart(span);
 
     if (!parallelized) {
-      final AgentScope scope = activateSpan(span);
-      scope.setAsyncPropagation(true);
+      activateSpan(span, true);
     }
 
     metricCollector.add(CiVisibilityCountMetric.EVENT_CREATED, 1, instrumentation, EventType.SUITE);
