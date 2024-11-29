@@ -24,7 +24,9 @@ public class JUnit4BeforeAfterInstrumentation extends InstrumenterModule.CiVisib
   public String[] knownMatchingTypes() {
     return new String[] {
       "org.junit.internal.runners.statements.RunBefores",
-      "org.junit.internal.runners.statements.RunAfters"
+      "org.junit.internal.runners.statements.RunAfters",
+      "org.junit.runners.parameterized.BlockJUnit4ClassRunnerWithParameters$RunBeforeParams",
+      "org.junit.runners.parameterized.BlockJUnit4ClassRunnerWithParameters$RunAfterParams",
     };
   }
 
