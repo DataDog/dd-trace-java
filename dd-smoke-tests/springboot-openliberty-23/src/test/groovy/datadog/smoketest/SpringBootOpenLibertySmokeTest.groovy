@@ -7,7 +7,10 @@ import okhttp3.Request
 import spock.lang.Requires
 import spock.lang.Shared
 
-import java.util.stream.Collectors
+import java.nio.file.FileSystems
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.Paths
 
 // This test currently fails on IBM JVMs
 @Requires({ !Platform.isJ9() })
@@ -21,15 +24,20 @@ class SpringBootOpenLibertySmokeTest extends AbstractServerSmokeTest {
 
   @Override
   ProcessBuilder createProcessBuilder() {
-    List<String> command = new ArrayList<>()
-    command.add(javaPath())
+    // Make a copy of the OpenLiberty runnable JAR before injecting JVM configuration
+    def applicationJar = copyApplicationJar().toAbsolutePath().toString()
 
-    command.addAll((String[]) ["-jar", openLibertyShadowJar, "--server.port=${httpPort}"])
+    List<String> command = [
+      javaPath(),
+      "-jar",
+      applicationJar,
+      "--server.port=${httpPort}" as String
+    ]
 
-    List<String> envParams = new ArrayList<>()
-    envParams.addAll(defaultJavaProperties)
-    envParams.addAll([
-      "-Ddd.writer.type=MultiWriter:TraceStructureWriter:${output.getAbsolutePath()}:includeService,DDAgentWriter",
+    List<String> jvmOptions = new ArrayList<>()
+    jvmOptions.addAll(defaultJavaProperties)
+    jvmOptions.addAll([
+      "-Ddd.writer.type=MultiWriter:TraceStructureWriter:${output.getAbsolutePath()}:includeService,DDAgentWriter" as String,
       "-Ddd.jmxfetch.enabled=false",
       "-Ddd.appsec.enabled=true",
       "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=debug",
@@ -38,16 +46,35 @@ class SpringBootOpenLibertySmokeTest extends AbstractServerSmokeTest {
       "-Ddd.iast.request-sampling=100",
       "-Ddd.integration.spring-boot.enabled=true"
     ])
-
-
-    String javaToolOptions = envParams.stream().collect(Collectors.joining(" "))
-
+    injectOpenLibertyJvmOptions(applicationJar, jvmOptions)
 
     ProcessBuilder processBuilder = new ProcessBuilder(command)
-    System.err.println(javaToolOptions)
-    processBuilder.environment().put("JAVA_TOOL_OPTIONS", javaToolOptions)
+    processBuilder.environment().put('WLP_JAR_EXTRACT_ROOT', 'application')
     processBuilder.directory(new File(buildDirectory))
     return processBuilder
+  }
+
+  Path copyApplicationJar() {
+    def applicationJar = Paths.get(openLibertyShadowJar)
+    def randomId = System.nanoTime()
+    def uniqueName = applicationJar.fileName.toString()
+    uniqueName = uniqueName.substring(0, uniqueName.length() - 4) + "-${randomId}.jar"
+    def specificationJar = applicationJar.parent.parent.resolve(uniqueName)
+    Files.copy(applicationJar, specificationJar)
+    return specificationJar
+  }
+
+  void injectOpenLibertyJvmOptions(String applicationJar, List<String> options) {
+    def appUri = URI.create("jar:file:$applicationJar")
+    try (def fs = FileSystems.newFileSystem(appUri, [:])) {
+      def jvmOptionFile = fs.getPath( 'wlp', 'usr', 'servers', 'defaultServer', 'jvm.options')
+      try (def writer = Files.newBufferedWriter(jvmOptionFile)) {
+        options.each {
+          writer.write(it)
+          writer.newLine()
+        }
+      }
+    }
   }
 
   @Override
