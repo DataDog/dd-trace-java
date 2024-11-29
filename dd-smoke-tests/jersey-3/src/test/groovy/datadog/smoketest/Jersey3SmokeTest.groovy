@@ -19,7 +19,7 @@ class Jersey3SmokeTest extends AbstractJerseySmokeTest {
     command.add(withSystemProperty('integration.grizzly.enabled', true))
     //command.add("-Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=8000")
     //command.add("-Xdebug")
-    command.addAll((String[]) ['-jar', jarPath, httpPort])
+    command.addAll(['-jar', jarPath, Integer.toString(httpPort)])
     ProcessBuilder processBuilder = new ProcessBuilder(command)
     processBuilder.directory(new File(buildDirectory))
     return processBuilder
