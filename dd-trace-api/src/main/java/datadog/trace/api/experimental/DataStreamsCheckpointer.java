@@ -49,7 +49,7 @@ public interface DataStreamsCheckpointer {
    * @param transactionId The unique identifier of the transaction.
    * @param pathwayHash The hash associated with the pathway context.
    */
-  void reportTransaction(String transactionId, long pathwayHash);
+  void reportTransaction(String transactionId, long pathwayHash, long timestamp);
 
   final class NoOp implements DataStreamsCheckpointer {
 
@@ -67,6 +67,6 @@ public interface DataStreamsCheckpointer {
     public void trackTransaction(String transactionID, DataStreamsContextCarrier carrier) {}
 
     @Override
-    public void reportTransaction(String transactionId, long pathwayHash) {}
+    public void reportTransaction(String transactionId, long pathwayHash, long timestamp) {}
   }
 }

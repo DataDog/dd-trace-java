@@ -53,10 +53,12 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
   public static class TransactionPayload {
     private final String transactionId;
     private final long pathwayHash;
+    private final long timestamp;
 
-    public TransactionPayload(String transactionId, long pathwayHash) {
+    public TransactionPayload(String transactionId, long pathwayHash, long timestamp) {
       this.transactionId = transactionId;
       this.pathwayHash = pathwayHash;
+      this.timestamp = timestamp;
     }
 
     public String getTransactionId() {
@@ -66,6 +68,8 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
     public long getPathwayHash() {
       return pathwayHash;
     }
+
+    public long getTimestamp() { return timestamp; }
   }
 
   public MsgPackDatastreamsPayloadWriter(
@@ -154,11 +158,13 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
 
       msgPackWriter.startArray(payloads.size());
       for (TransactionPayload payload : payloads) {
-        msgPackWriter.startMap(2);
+        msgPackWriter.startMap(3);
         msgPackWriter.writeUTF8("TransactionId".getBytes(ISO_8859_1));
         msgPackWriter.writeUTF8(payload.getTransactionId().getBytes(ISO_8859_1));
         msgPackWriter.writeUTF8("PathwayHash".getBytes(ISO_8859_1));
         msgPackWriter.writeLong(payload.getPathwayHash());
+        msgPackWriter.writeUTF8("Timestamp".getBytes(ISO_8859_1));
+        msgPackWriter.writeLong(payload.getTimestamp());
       }
       msgPackWriter.flush();
 

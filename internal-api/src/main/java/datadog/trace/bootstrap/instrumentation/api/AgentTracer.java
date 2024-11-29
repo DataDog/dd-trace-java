@@ -1148,7 +1148,7 @@ public class AgentTracer {
 
     @Override
     public void reportTransaction(
-        String transactionId, long pathwayHash) {}
+        String transactionId, long pathwayHash, long timestamp) {}
   }
 
   public static class NoopPathwayContext implements PathwayContext {

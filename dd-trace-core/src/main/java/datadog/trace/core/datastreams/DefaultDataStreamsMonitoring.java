@@ -260,8 +260,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
    * @param pathwayHash The hash associated with the pathway context.
    */
   @Override
-  public void reportTransaction(String transactionId, long pathwayHash) {
-    System.out.println("WE ARE REPORTING TRANSACTIONID" + transactionId + " AND PATHWAY HASH" + pathwayHash);
+  public void reportTransaction(String transactionId, long pathwayHash, long timestamp) {
+    System.out.println("WE ARE REPORTING TRANSACTIONID" + transactionId + " AND PATHWAY HASH" + pathwayHash + " AND TIMESTAMP" + timestamp);
     log.info(
         "We are reporting the transaction with transaction id {} and pathwayHash {}",
         transactionId,
@@ -270,7 +270,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       log.warn("reportTransaction called with invalid transactionId");
       return;
     }
-    InboxItem transactionItem = new TransactionItem(transactionId, pathwayHash);
+    InboxItem transactionItem = new TransactionItem(transactionId, pathwayHash, timestamp);
     if (!transactionInbox.offer(transactionItem)) {
       log.warn("Transaction queue is full. Dropping transaction: {}", transactionId);
     }
@@ -278,6 +278,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
   @Override
   public void setConsumeCheckpoint(String type, String source, DataStreamsContextCarrier carrier) {
+    long currentTimestamp = System.currentTimeMillis();
     if (type == null || type.isEmpty() || source == null || source.isEmpty()) {
       log.warn("setConsumeCheckpoint should be called with non-empty type and source");
       return;
@@ -291,7 +292,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       return;
     }
 
-    // Let's do a check here for transaciton ID
+    // Let's do a check here for transaction ID
     String transactionId = null;
     for (Map.Entry<String, Object> entry : carrier.entries()) {
       if ("transaction.id".equals(entry.getKey())) {
@@ -315,7 +316,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
     if (transactionId != null && pathwayHash != 0) {
       System.out.println("CAAT - REPORTING TRANSACTION");
-      reportTransaction(transactionId, pathwayHash);
+      reportTransaction(transactionId, pathwayHash, currentTimestamp);
     }
 
     mergePathwayContextIntoSpan(span, carrier);
@@ -429,7 +430,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
               for (TransactionItem transaction : transactionsToFlush) {
                 payloads.add(
                     new MsgPackDatastreamsPayloadWriter.TransactionPayload(
-                        transaction.getTransactionId(), transaction.getPathwayHash()));
+                        transaction.getTransactionId(), transaction.getPathwayHash(), transaction.getTimestamp()));
               }
               okHttpSink.addHeader("X-Payload-Type", "Transaction");
               log.info("Added header successfully");
@@ -582,10 +583,12 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private static class TransactionItem implements InboxItem {
     private final String transactionId;
     private final long pathwayHash;
+    private final long timestamp;
 
-    public TransactionItem(String transactionId, long pathwayHash) {
+    public TransactionItem(String transactionId, long pathwayHash, long timestamp) {
       this.transactionId = transactionId;
       this.pathwayHash = pathwayHash;
+      this.timestamp = timestamp;
     }
 
     public String getTransactionId() {
@@ -595,5 +598,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     public long getPathwayHash() {
       return pathwayHash;
     }
+
+    public long getTimestamp() { return timestamp;}
   }
 }

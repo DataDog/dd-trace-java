@@ -96,7 +96,8 @@ public class DataStreamContextInjector {
 
     if (transactionId != null && pathwayHash != 0) {
       System.out.println("VEER - REPORTING TRANSACTION");
-      dataStreamsMonitoring.reportTransaction(transactionId, pathwayHash);
+      long currentTimestamp = System.currentTimeMillis();
+      dataStreamsMonitoring.reportTransaction(transactionId, pathwayHash, currentTimestamp);
     }
 
     if (injected && pathwayContext.getHash() != 0) {
