@@ -88,6 +88,7 @@ import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
 import datadog.trace.core.taginterceptor.RuleFlags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
+import datadog.trace.core.traceinterceptor.LatencyTraceInterceptor;
 import datadog.trace.lambda.LambdaHandler;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentTaskScheduler;
@@ -743,6 +744,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     if (config.isTraceGitMetadataEnabled()) {
       addTraceInterceptor(GitMetadataTraceInterceptor.INSTANCE);
+    }
+
+    if (config.isTraceLatencyInterceptorEnabled()) {
+      addTraceInterceptor(LatencyTraceInterceptor.INSTANCE);
     }
 
     this.instrumentationGateway = instrumentationGateway;

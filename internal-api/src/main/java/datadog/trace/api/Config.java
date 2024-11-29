@@ -176,6 +176,8 @@ public class Config {
   private final boolean scopeStrictMode;
   private final int scopeIterationKeepAlive;
   private final int partialFlushMinSpans;
+  private final int traceLatencyInterceptorValue;
+  private final boolean traceLatencyInterceptorEnabled;
   private final boolean traceStrictWritesEnabled;
   private final boolean logExtractHeaderNames;
   private final Set<PropagationStyle> propagationStylesToExtract;
@@ -859,6 +861,12 @@ public class Config {
         !partialFlushEnabled
             ? 0
             : configProvider.getInteger(PARTIAL_FLUSH_MIN_SPANS, DEFAULT_PARTIAL_FLUSH_MIN_SPANS);
+
+    traceLatencyInterceptorValue =
+        configProvider.getInteger(
+            TRACE_LATENCY_INTERCEPTOR_VALUE, DEFAULT_TRACE_LATENCY_INTERCEPTOR_VALUE);
+
+    traceLatencyInterceptorEnabled = !partialFlushEnabled && (traceLatencyInterceptorValue >= 0);
 
     traceStrictWritesEnabled = configProvider.getBoolean(TRACE_STRICT_WRITES_ENABLED, false);
 
@@ -2073,6 +2081,14 @@ public class Config {
 
   public int getPartialFlushMinSpans() {
     return partialFlushMinSpans;
+  }
+
+  public int getTraceLatencyInterceptorValue() {
+    return traceLatencyInterceptorValue;
+  }
+
+  public boolean isTraceLatencyInterceptorEnabled() {
+    return traceLatencyInterceptorEnabled;
   }
 
   public boolean isTraceStrictWritesEnabled() {
@@ -4158,6 +4174,10 @@ public class Config {
         + scopeIterationKeepAlive
         + ", partialFlushMinSpans="
         + partialFlushMinSpans
+        + ", traceLatencyInterceptorEnabled="
+        + traceLatencyInterceptorEnabled
+        + ", traceLatencyInterceptorValue="
+        + traceLatencyInterceptorValue
         + ", traceStrictWritesEnabled="
         + traceStrictWritesEnabled
         + ", tracePropagationStylesToExtract="
