@@ -25,6 +25,10 @@ public class ShellCmdRaspHelper {
     // prevent instantiation
   }
 
+  public void beforeShellCmd(@Nonnull final String[] cmdArray) {
+    // TODO
+  }
+
   public void beforeShellCmd(@Nonnull final String cmd) {
     if (!Config.get().isAppSecRaspEnabled()) {
       return;
