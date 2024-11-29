@@ -45,6 +45,4 @@ class LatencyTraceInterceptorTest  extends DDCoreSpecification {
     "false"             |       "200"      | DDTags.MANUAL_KEEP            |   300          |   2
     "false"             |       "200"      | DDTags.MANUAL_DROP            |   300          |   2
   }
-
-
 }

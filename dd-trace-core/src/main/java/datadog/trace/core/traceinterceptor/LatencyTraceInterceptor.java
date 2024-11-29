@@ -9,6 +9,16 @@ import java.util.Collection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+// This trace latency interceptor is disabled by default.
+// We can activate it by setting the value of dd.trace.latency.interceptor.value to a positive value
+// This value should be in milliseconds and this interceptor will retain any local trace who has a
+// root
+// span duration greater than this value.
+// The activation of this interceptor is ignored if partial flush is enabled.
+// Note that since we're changing the sampling priority at the end of local trace, there is no
+// guarantee to get complete traces,
+// since the original sampling priority for this trace may have been already propagated.
+
 public class LatencyTraceInterceptor extends AbstractTraceInterceptor {
   private static final Logger log = LoggerFactory.getLogger(LatencyTraceInterceptor.class);
   // duration configured in ms, need to be converted in nano seconds
