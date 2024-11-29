@@ -4,6 +4,8 @@ ext {
   latestDepForkedTestMinJavaVersionForTests = JavaVersion.VERSION_17
   latestDepForkedTestMaxJavaVersionForTests = JavaVersion.VERSION_17
 }
+def muleVersion = '4.5.0'
+def appDir = "$projectDir/application"
 
 muzzle {
   extraRepository('mulesoft-releases', 'https://repository.mulesoft.org/releases')
@@ -12,31 +14,31 @@ muzzle {
   pass {
     group = 'org.mule.runtime'
     module = 'mule-core'
-    versions = '[4.5.0,)'
+    versions = "[$muleVersion,)"
     javaVersion = "17"
     excludeDependency 'om.google.guava:guava'
     excludeDependency 'com.google.code.findbugs:jsr305'
-    additionalDependencies +="org.mule.runtime:mule-tracer-customization-impl:4.5.0"
+    additionalDependencies +="org.mule.runtime:mule-tracer-customization-impl:$muleVersion"
   }
   pass {
     group = 'org.mule.runtime'
     module = 'mule-tracer-customization-impl'
-    versions = '[4.5.0,)'
+    versions = "[$muleVersion,)"
     javaVersion = "17"
     excludeDependency 'om.google.guava:guava'
     excludeDependency 'com.google.code.findbugs:jsr305'
-    additionalDependencies +="org.mule.runtime:mule-core:4.5.0"
+    additionalDependencies +="org.mule.runtime:mule-core:$muleVersion"
   }
   pass {
     name = 'before-4.5.0'
     group = 'org.mule.runtime'
     module = 'mule-core'
-    versions = '[4.5.0,)'
+    versions = "[$muleVersion,)"
     javaVersion = "17"
     assertInverse true
     excludeDependency 'om.google.guava:guava'
     excludeDependency 'com.google.code.findbugs:jsr305'
-    additionalDependencies +="org.mule.runtime:mule-tracer-customization-impl:4.5.0"
+    additionalDependencies +="org.mule.runtime:mule-tracer-customization-impl:$muleVersion"
   }
 }
 
@@ -44,10 +46,6 @@ apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('mule46ForkedTest', 'test')
 addTestSuiteForDir('latestDepForkedTest', 'test')
-
-
-def muleVersion = '4.5.0'
-def appDir = "$projectDir/application"
 
 repositories {
   maven {
