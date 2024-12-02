@@ -128,6 +128,7 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
   def "test early flakiness detection #testcaseName"() {
     Assumptions.assumeTrue(isEFDSupported())
 
+    givenEarlyFlakinessDetectionEnabled(true)
     givenKnownTests(knownTestsList)
 
     runTests(tests)

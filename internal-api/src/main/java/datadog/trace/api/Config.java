@@ -360,6 +360,7 @@ public class Config {
   private final boolean ciVisibilityAutoInjected;
   private final String ciVisibilityRemoteEnvVarsProviderUrl;
   private final String ciVisibilityRemoteEnvVarsProviderKey;
+  private final String ciVisibilityTestOrder;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -1453,6 +1454,7 @@ public class Config {
         configProvider.getString(CIVISIBILITY_REMOTE_ENV_VARS_PROVIDER_URL);
     ciVisibilityRemoteEnvVarsProviderKey =
         configProvider.getString(CIVISIBILITY_REMOTE_ENV_VARS_PROVIDER_KEY);
+    ciVisibilityTestOrder = configProvider.getString(CIVISIBILITY_TEST_ORDER);
 
     remoteConfigEnabled =
         configProvider.getBoolean(
@@ -2835,6 +2837,10 @@ public class Config {
 
   public String getCiVisibilityRemoteEnvVarsProviderKey() {
     return ciVisibilityRemoteEnvVarsProviderKey;
+  }
+
+  public String getCiVisibilityTestOrder() {
+    return ciVisibilityTestOrder;
   }
 
   public String getAppSecRulesFile() {

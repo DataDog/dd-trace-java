@@ -1,7 +1,9 @@
 import datadog.trace.api.DisableTestTrace
+import datadog.trace.api.civisibility.CIConstants
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.instrumentation.junit5.TestEventsHandlerHolder
 import org.example.*
+import org.junit.jupiter.engine.Constants
 import org.junit.jupiter.engine.JupiterTestEngine
 import org.junit.platform.engine.DiscoverySelector
 import org.junit.platform.launcher.core.LauncherConfig
@@ -12,6 +14,12 @@ import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass
 
 @DisableTestTrace(reason = "avoid self-tracing")
 class JUnit58Test extends CiVisibilityInstrumentationTest {
+
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    givenTestsOrder(CIConstants.FAIL_FAST_TEST_ORDER)
+  }
 
   def "test #testcaseName"() {
     runTests(tests)
@@ -28,6 +36,30 @@ class JUnit58Test extends CiVisibilityInstrumentationTest {
     "test-failed-after-each"      | [TestFailedAfterEach]            | 2
   }
 
+  def "test ordering #testcaseName"() {
+    givenKnownTests(knownTestsList)
+
+    runTests(tests)
+
+    assertTestsOrder(expectedOrder)
+
+    where:
+    testcaseName                     | tests                                   | knownTestsList                                                        | expectedOrder
+    "ordering-methods"               | [TestSucceed]                           | [test("org.example.TestSucceed", "test_succeed_1")]                   | [
+      test("org.example.TestSucceed", "test_succeed_2"),
+      test("org.example.TestSucceed", "test_succeed_1")
+    ]
+    "ordering-classes"               | [TestSucceed, TestSucceedAnother]       | [test("org.example.TestSucceed", "test_succeed_1")]                   | [
+      test("org.example.TestSucceedAnother", "test_succeed_1"),
+      test("org.example.TestSucceed", "test_succeed_2"),
+      test("org.example.TestSucceed", "test_succeed_1")
+    ]
+    "ordering-parameterized-methods" | [TestParameterized]                     | [test("org.example.TestParameterized", "test_another_parameterized")] | [
+      test("org.example.TestParameterized", "test_parameterized"),
+      test("org.example.TestParameterized", "test_another_parameterized")
+    ]
+  }
+
   private static void runTests(List<Class<?>> tests) {
     TestEventsHandlerHolder.startForcefully()
 
@@ -37,6 +69,8 @@ class JUnit58Test extends CiVisibilityInstrumentationTest {
     }
 
     def launcherReq = LauncherDiscoveryRequestBuilder.request()
+      .configurationParameter(Constants.DEFAULT_TEST_CLASS_ORDER_PROPERTY_NAME, "org.junit.jupiter.api.ClassOrderer.ClassName")
+      .configurationParameter(Constants.DEFAULT_TEST_METHOD_ORDER_PROPERTY_NAME, "org.junit.jupiter.api.MethodOrderer.MethodName")
       .selectors(selectors)
       .build()
 

@@ -78,6 +78,8 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
   @Nonnull
   TestRetryPolicy retryPolicy(TestIdentifier test);
 
+  boolean isNew(TestIdentifier test);
+
   @Override
   void close();
 
