@@ -30,7 +30,6 @@ addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
   main_java17CompileOnly group: 'io.micronaut', name: 'micronaut-http-server-netty', version: '4.0.0'
-  implementation project(':dd-java-agent:instrumentation:span-origin')
 
   // Added to ensure cross compatibility:
   testImplementation project(':dd-java-agent:instrumentation:micronaut:http-server-netty-2.0')

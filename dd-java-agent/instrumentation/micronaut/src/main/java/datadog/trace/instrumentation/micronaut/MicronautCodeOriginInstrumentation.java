@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.micronaut.v4_0;
+package datadog.trace.instrumentation.micronaut;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -13,7 +13,7 @@ public class MicronautCodeOriginInstrumentation extends CodeOriginInstrumentatio
   public static final String IO_MICRONAUT_HTTP_ANNOTATION = "io.micronaut.http.annotation.";
 
   public MicronautCodeOriginInstrumentation() {
-    super("micronaut-span-origin");
+    super("micronaut", "micronaut-span-origin");
   }
 
   @Override
