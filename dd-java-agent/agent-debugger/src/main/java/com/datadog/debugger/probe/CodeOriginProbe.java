@@ -5,6 +5,7 @@ import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_FRAME;
 import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_TYPE;
 import static java.lang.String.format;
 import static java.util.Arrays.asList;
+import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 
 import com.datadog.debugger.agent.DebuggerAgent;
@@ -30,6 +31,8 @@ public class CodeOriginProbe extends LogProbe implements ForceMethodInstrumentat
   public final int maxFrames;
 
   private final boolean entrySpanProbe;
+
+  private List<StackTraceElement> stackTraceElements;
 
   public CodeOriginProbe(ProbeId probeId, boolean entry, Where where, int maxFrames) {
     super(LANGUAGE, probeId, null, where, MethodLocation.EXIT, null, null, true, null, null, null);
@@ -82,8 +85,25 @@ public class CodeOriginProbe extends LogProbe implements ForceMethodInstrumentat
     span.getLocalRootSpan().setTag(getId(), (String) null); // clear possible span reference
   }
 
+  private List<StackTraceElement> findLocation() {
+    if (entrySpanProbe && stackTraceElements == null) {
+      ProbeLocation probeLocation = getLocation();
+      List<String> lines = probeLocation.getLines();
+      int line = lines == null ? -1 : Integer.parseInt(lines.get(0));
+      stackTraceElements =
+          singletonList(
+              new StackTraceElement(
+                  probeLocation.getType(),
+                  probeLocation.getMethod(),
+                  probeLocation.getFile(),
+                  line));
+    }
+    return stackTraceElements != null ? stackTraceElements : emptyList();
+  }
+
   private void applySpanOriginTags(AgentSpan span, String snapshotId) {
-    List<StackTraceElement> entries = getUserStackFrames();
+    List<StackTraceElement> entries =
+        stackTraceElements != null ? stackTraceElements : getUserStackFrames();
     List<AgentSpan> agentSpans =
         entrySpanProbe ? asList(span, span.getLocalRootSpan()) : singletonList(span);
 
@@ -92,7 +112,8 @@ public class CodeOriginProbe extends LogProbe implements ForceMethodInstrumentat
 
       for (int i = 0; i < entries.size(); i++) {
         StackTraceElement info = entries.get(i);
-        s.setTag(format(DD_CODE_ORIGIN_FRAME, i, "file"), info.getFileName());
+        String fileName = info.getFileName();
+        s.setTag(format(DD_CODE_ORIGIN_FRAME, i, "file"), fileName);
         s.setTag(format(DD_CODE_ORIGIN_FRAME, i, "method"), info.getMethodName());
         s.setTag(format(DD_CODE_ORIGIN_FRAME, i, "line"), info.getLineNumber());
         s.setTag(format(DD_CODE_ORIGIN_FRAME, i, "type"), info.getClassName());
@@ -127,12 +148,25 @@ public class CodeOriginProbe extends LogProbe implements ForceMethodInstrumentat
   public void buildLocation(InstrumentationResult result) {
     String type = where.getTypeName();
     String method = where.getMethodName();
+    List<String> lines = null;
+
+    String file = where.getSourceFile();
+
     if (result != null) {
       type = result.getTypeName();
       method = result.getMethodName();
+      if (result.getMethodStart() != -1) {
+        lines = singletonList(String.valueOf(result.getMethodStart()));
+      }
+      if (file == null) {
+        file = result.getSourceFileName();
+      }
+      if (entrySpanProbe) {
+        stackTraceElements =
+            singletonList(new StackTraceElement(type, method, file, result.getMethodStart()));
+      }
     }
-    // drop line number for code origin probe
-    this.location = new ProbeLocation(type, method, where.getSourceFile(), null);
+    this.location = new ProbeLocation(type, method, file, lines);
   }
 
   private List<StackTraceElement> getUserStackFrames() {

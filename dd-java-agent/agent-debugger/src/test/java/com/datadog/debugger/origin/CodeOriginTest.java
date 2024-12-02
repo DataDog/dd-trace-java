@@ -8,6 +8,7 @@ import static java.lang.String.format;
 import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -234,6 +235,7 @@ public class CodeOriginTest extends CapturingTestBase {
     assertKeyPresent(span, DD_CODE_ORIGIN_TYPE);
     assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "file"));
     assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "line"));
+    assertNotEquals(-1, span.getTag(format(DD_CODE_ORIGIN_FRAME, 0, "line")));
     assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "method"));
     assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "signature"));
     assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "type"));
@@ -263,6 +265,7 @@ public class CodeOriginTest extends CapturingTestBase {
     assertKeyPresent(span, DD_CODE_ORIGIN_TYPE);
     assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "file"));
     assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "line"));
+    assertNotEquals(-1, span.getTag(format(DD_CODE_ORIGIN_FRAME, 0, "line")));
     assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "method"));
     assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "type"));
     if (includeSnapshot) {
@@ -271,10 +274,12 @@ public class CodeOriginTest extends CapturingTestBase {
 
     MutableSpan rootSpan = span.getLocalRootSpan();
     assertEquals(rootSpan.getTag(DD_CODE_ORIGIN_TYPE), "entry", keys);
-    assertNotNull(rootSpan.getTag(format(DD_CODE_ORIGIN_FRAME, 1, "file")));
-    assertNotNull(rootSpan.getTag(format(DD_CODE_ORIGIN_FRAME, 1, "line")));
-    assertNotNull(rootSpan.getTag(format(DD_CODE_ORIGIN_FRAME, 1, "method")));
-    assertNotNull(rootSpan.getTag(format(DD_CODE_ORIGIN_FRAME, 1, "type")));
+    Object file = rootSpan.getTag(format(DD_CODE_ORIGIN_FRAME, 0, "file"));
+    assertNotNull(file, rootSpan.getTags().toString());
+    assertNotNull(rootSpan.getTag(format(DD_CODE_ORIGIN_FRAME, 0, "line")));
+    assertNotEquals(-1, rootSpan.getTag(format(DD_CODE_ORIGIN_FRAME, 0, "line")));
+    assertNotNull(rootSpan.getTag(format(DD_CODE_ORIGIN_FRAME, 0, "method")));
+    assertNotNull(rootSpan.getTag(format(DD_CODE_ORIGIN_FRAME, 0, "type")));
   }
 
   private static Set<String> ldKeys(MutableSpan span) {
