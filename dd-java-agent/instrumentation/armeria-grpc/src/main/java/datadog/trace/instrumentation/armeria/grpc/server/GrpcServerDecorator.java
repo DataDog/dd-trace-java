@@ -9,6 +9,7 @@ import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ServerDecorator;
@@ -102,7 +103,8 @@ public class GrpcServerDecorator extends ServerDecorator {
   public AgentSpan onStatus(final AgentSpan span, final Status status) {
     span.setTag("status.code", status.getCode().name());
     span.setTag("status.description", status.getDescription());
-    return span.setError(SERVER_ERROR_STATUSES.get(status.getCode().value()));
+    return span.setError(
+        SERVER_ERROR_STATUSES.get(status.getCode().value()), ErrorPriorities.HTTP_SERVER_DECORATOR);
   }
 
   public AgentSpan onClose(final AgentSpan span, final Status status) {
@@ -114,7 +116,7 @@ public class GrpcServerDecorator extends ServerDecorator {
 
   @Override
   public AgentSpan onError(AgentSpan span, Throwable throwable) {
-    super.onError(span, throwable);
+    super.onError(span, throwable, ErrorPriorities.HTTP_SERVER_DECORATOR);
     if (throwable instanceof StatusRuntimeException) {
       onStatus(span, ((StatusRuntimeException) throwable).getStatus());
     } else if (throwable instanceof StatusException) {
