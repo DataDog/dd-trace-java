@@ -70,6 +70,9 @@ public final class TraceInstrumentationConfig {
 
   public static final String JDBC_CONNECTION_CLASS_NAME = "trace.jdbc.connection.class.name";
 
+  public static final String EXPERIMENTATAL_JEE_SPLIT_BY_DEPLOYMENT =
+      "trace.experimental.jee.split-by-deployment";
+
   public static final String HTTP_URL_CONNECTION_CLASS_NAME =
       "trace.http.url.connection.class.name";
 

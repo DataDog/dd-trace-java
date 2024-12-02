@@ -12,6 +12,7 @@ import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.naming.ClassloaderServiceNames;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.servlet.ServletBlockingHelper;
@@ -60,6 +61,9 @@ public class Servlet3Advice {
     Object spanAttrValue = request.getAttribute(DD_SPAN_ATTRIBUTE);
     final boolean hasServletTrace = spanAttrValue instanceof AgentSpan;
     if (hasServletTrace) {
+      final AgentSpan span = (AgentSpan) spanAttrValue;
+      ClassloaderServiceNames.maybeSetToSpan(
+          span::setServiceName, span::getServiceName, Thread.currentThread());
       // Tracing might already be applied by other instrumentation,
       // the FilterChain or a parent request (forward/include).
       return false;
