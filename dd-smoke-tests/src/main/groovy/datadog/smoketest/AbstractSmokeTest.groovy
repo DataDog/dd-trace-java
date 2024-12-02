@@ -198,7 +198,7 @@ abstract class AbstractSmokeTest extends ProcessManager {
     // DQH - Nov 2024 - skipping for J9 which doesn't have full crash tracking support
     if (testCrashTracking() && !Platform.isJ9()) {
       def extension = getScriptExtension()
-      ret += "-XX:OnError=\"${tmpDir}/dd_crash_uploader.${extension} %p\""
+      ret += "-XX:OnError=${tmpDir}/dd_crash_uploader.${extension} %p"
       // Unlike crash tracking smoke test, keep the default delay; otherwise, otherwise other tests will fail
       // ret += "-Ddd.dogstatsd.start-delay=0"
     }
