@@ -80,12 +80,19 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
                 connection, InstrumentationContext.get(Connection.class, DBInfo.class));
         final boolean injectTraceContext = DECORATE.shouldInjectTraceContext(dbInfo);
 
-        if (INJECT_COMMENT && injectTraceContext && DECORATE.isSqlServer(dbInfo)) {
-          // The span ID is pre-determined so that we can reference it when setting the context
-          final long spanID = DECORATE.setContextInfo(connection, dbInfo);
-          // we then force that pre-determined span ID for the span covering the actual query
-          span = AgentTracer.get().buildSpan(DATABASE_QUERY).withSpanId(spanID).start();
-          span.setTag(DBM_TRACE_INJECTED, true);
+        if (INJECT_COMMENT && injectTraceContext) {
+          if (DECORATE.isSqlServer(dbInfo)) {
+            // The span ID is pre-determined so that we can reference it when setting the context
+            final long spanID = DECORATE.setContextInfo(connection, dbInfo);
+            // we then force that pre-determined span ID for the span covering the actual query
+            span = AgentTracer.get().buildSpan(DATABASE_QUERY).withSpanId(spanID).start();
+            span.setTag(DBM_TRACE_INJECTED, true);
+          } else if (DECORATE.isOracle(dbInfo)) {
+            span = startSpan(DATABASE_QUERY);
+            DECORATE.setAction(span, connection);
+          } else {
+            span = startSpan(DATABASE_QUERY);
+          }
         } else {
           span = startSpan(DATABASE_QUERY);
         }
