@@ -163,7 +163,7 @@ class StringConcatFactoryCallSiteTest extends AgentTestRunner {
     0 * _
   }
 
-  void 'test string concat factory with primitives'() {
+  void 'test string concat factory with primitives #iterationIndex'() {
     setup:
     final iastModule = Mock(StringModule)
     InstrumentationBridge.registerIastModule(iastModule)

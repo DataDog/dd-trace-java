@@ -1,25 +1,26 @@
 package datadog.trace.instrumentation.reactivestreams;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.decorator.AsyncResultDecorator;
-import datadog.trace.bootstrap.instrumentation.decorator.AsyncResultDecorator.AsyncResultSupportExtension;
+import datadog.trace.bootstrap.instrumentation.api.EagerHelper;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.AsyncResultExtension;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.AsyncResultExtensions;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 
-public class ReactiveStreamsAsyncResultSupportExtension implements AsyncResultSupportExtension {
+public class ReactiveStreamsAsyncResultExtension implements AsyncResultExtension, EagerHelper {
   static {
-    AsyncResultDecorator.registerExtension(new ReactiveStreamsAsyncResultSupportExtension());
+    AsyncResultExtensions.register(new ReactiveStreamsAsyncResultExtension());
   }
 
   /**
-   * Register the extension as an {@link AsyncResultSupportExtension} using static class
-   * initialization.<br>
+   * Register the extension as an {@link AsyncResultExtension} using static class initialization.
+   * <br>
    * It uses an empty static method call to ensure the class loading and the one-time-only static
-   * class initialization. This will ensure this extension will only be registered once to the
-   * {@link AsyncResultDecorator}.
+   * class initialization. This will ensure this extension will only be registered once under {@link
+   * AsyncResultExtensions}.
    */
-  public static void initialize() {}
+  public static void init() {}
 
   @Override
   public boolean supports(Class<?> result) {

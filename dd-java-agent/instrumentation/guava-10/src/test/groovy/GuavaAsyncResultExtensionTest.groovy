@@ -8,7 +8,7 @@ import java.util.concurrent.ExecutionException
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
-class GuavaAsyncResultSupportExtensionTest extends AgentTestRunner {
+class GuavaAsyncResultExtensionTest extends AgentTestRunner {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
