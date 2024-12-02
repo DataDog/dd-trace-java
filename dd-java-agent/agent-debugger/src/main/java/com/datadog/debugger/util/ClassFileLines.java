@@ -13,7 +13,7 @@ import org.objectweb.asm.tree.MethodNode;
 
 public class ClassFileLines {
   private final Map<Integer, List<MethodNode>> methodByLine = new HashMap<>();
-  private final Map<MethodNode, Integer> methodStarts = new HashMap<>();
+  private final Map<String, Integer> methodStarts = new HashMap<>();
   private final TreeMap<Integer, LabelNode> lineLabels = new TreeMap<>();
 
   public ClassFileLines(ClassNode classNode) {
@@ -22,7 +22,7 @@ public class ClassFileLines {
       while (currentNode != null) {
         if (currentNode.getType() == AbstractInsnNode.LINE) {
           LineNumberNode lineNode = (LineNumberNode) currentNode;
-          methodStarts.putIfAbsent(methodNode, lineNode.line);
+          methodStarts.putIfAbsent(methodNode.name + methodNode.desc, lineNode.line);
           // on the same line, we can have multiple methods (lambdas, inner classes, etc)
           List<MethodNode> methodNodes =
               methodByLine.computeIfAbsent(lineNode.line, k -> new ArrayList<>());
@@ -43,7 +43,7 @@ public class ClassFileLines {
   }
 
   public int getMethodStart(MethodNode node) {
-    return methodStarts.getOrDefault(node, -1);
+    return methodStarts.getOrDefault(node.name + node.desc, -1);
   }
 
   public List<MethodNode> getMethodsByLine(int line) {
