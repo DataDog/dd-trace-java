@@ -9,6 +9,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.IastContext;
+import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.util.AgentTaskScheduler;
@@ -127,6 +128,8 @@ public interface OverheadController {
 
   class OverheadControllerImpl implements OverheadController {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(OverheadControllerImpl.class);
+
     private static final int RESET_PERIOD_SECONDS = 30;
 
     private final int sampling;
@@ -140,6 +143,8 @@ public interface OverheadController {
     final NonBlockingSemaphore availableRequests;
 
     final AtomicLong cumulativeCounter;
+
+    private volatile long lastAcquiredTimestamp = Long.MAX_VALUE;
 
     final OverheadContext globalContext =
         new OverheadContext(Config.get().getIastVulnerabilitiesPerRequest());
@@ -165,7 +170,11 @@ public interface OverheadController {
       long newValue = prevValue + sampling;
       if (newValue / 100 == prevValue / 100 + 1) {
         // Sample request
-        return availableRequests.acquire();
+        final boolean acquired = availableRequests.acquire();
+        if (acquired) {
+          lastAcquiredTimestamp = System.currentTimeMillis();
+        }
+        return acquired;
       }
       // Skipped by sampling
       return false;
@@ -222,11 +231,22 @@ public interface OverheadController {
     @Override
     public void reset() {
       globalContext.reset();
-      // Periodic reset of maximum concurrent requests. This guards us against exhausting concurrent
-      // requests if some bug led us to lose a request end event. This will lead to periodically
-      // going above the max concurrent requests. But overall, it should be self-stabilizing. So for
-      // practical purposes, the max concurrent requests is a hint.
-      availableRequests.reset();
+      if (lastAcquiredTimestamp != Long.MAX_VALUE
+          && System.currentTimeMillis() - lastAcquiredTimestamp > 1000 * 60 * 60) {
+        // If the last time a request was acquired is longer than 1h, we check the number of
+        // available requests. If it
+        // is zero, we might have lost request end events, leading to IAST not being able to acquire
+        // new requests.
+        // We report it to telemetry for further investigation.
+        if (availableRequests.available() == 0) {
+          LOGGER.debug(
+              LogCollector.SEND_TELEMETRY,
+              "IAST cannot acquire new requests, end of request events might be missing.");
+          // Once starved, do not report this again, unless this is recovered and then starved
+          // again.
+          lastAcquiredTimestamp = Long.MAX_VALUE;
+        }
+      }
     }
   }
 }

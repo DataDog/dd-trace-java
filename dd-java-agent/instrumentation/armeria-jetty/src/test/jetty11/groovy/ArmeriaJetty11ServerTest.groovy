@@ -114,4 +114,9 @@ class ArmeriaJetty11ServerTest extends HttpServerTest<ArmeriaServer> {
   boolean testEncodedPath() {
     return false
   }
+
+  @Override
+  boolean testSessionId() {
+    true
+  }
 }

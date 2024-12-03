@@ -9,7 +9,7 @@ import datadog.trace.api.sampling.PrioritySampling;
 import java.util.List;
 import java.util.Map;
 
-public interface AgentSpan extends MutableSpan, IGSpanInfo, ImplicitContextKeyed {
+public interface AgentSpan extends MutableSpan, IGSpanInfo, ImplicitContextKeyed, WithAgentSpan {
 
   DDTraceId getTraceId();
 
@@ -152,6 +152,10 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo, ImplicitContextKeyed
 
   boolean isOutbound();
 
+  default AgentSpan asAgentSpan() {
+    return this;
+  }
+
   interface Context {
     /**
      * Gets the TraceId of the span's trace.
@@ -214,8 +218,6 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo, ImplicitContextKeyed
       String getXForwardedPort();
 
       String getForwardedFor();
-
-      String getXForwarded();
 
       String getXForwardedFor();
 

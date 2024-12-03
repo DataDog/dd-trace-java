@@ -1,14 +1,28 @@
 package datadog.communication.serialization;
 
+import datadog.communication.serialization.custom.stacktrace.StackTraceEventFrameWriter;
+import datadog.communication.serialization.custom.stacktrace.StackTraceEventWriter;
+import datadog.trace.util.stacktrace.StackTraceEvent;
+import datadog.trace.util.stacktrace.StackTraceFrame;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public final class Codec extends ClassValue<ValueWriter<?>> {
 
-  public static final Codec INSTANCE = new Codec();
+  private static final Map<Class<?>, ValueWriter<?>> defaultConfig =
+      Stream.of(
+              new Object[][] {
+                {StackTraceEvent.class, new StackTraceEventWriter()},
+                {StackTraceFrame.class, new StackTraceEventFrameWriter()},
+              })
+          .collect(Collectors.toMap(data -> (Class<?>) data[0], data -> (ValueWriter<?>) data[1]));
+
+  public static final Codec INSTANCE = new Codec(defaultConfig);
 
   private final Map<Class<?>, ValueWriter<?>> config;
 

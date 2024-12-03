@@ -18,8 +18,6 @@ package com.datadog.profiling.controller.openjdk;
 import static com.datadog.profiling.controller.ProfilingSupport.*;
 import static com.datadog.profiling.controller.ProfilingSupport.isObjectCountParallelized;
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_DEBUG_CLEANUP_REPO;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_DEBUG_CLEANUP_REPO_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_HISTOGRAM_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_HISTOGRAM_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_HISTOGRAM_MODE;
@@ -33,6 +31,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_ULTRA_MINIMAL;
 import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.Controller;
 import com.datadog.profiling.controller.ControllerContext;
+import com.datadog.profiling.controller.TempLocationManager;
 import com.datadog.profiling.controller.jfr.JFRAccess;
 import com.datadog.profiling.controller.jfr.JfpUtils;
 import com.datadog.profiling.controller.openjdk.events.AvailableProcessorCoresEvent;
@@ -42,19 +41,13 @@ import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.jfr.backpressure.BackpressureProfiling;
 import datadog.trace.bootstrap.instrumentation.jfr.exceptions.ExceptionProfiling;
-import datadog.trace.util.PidHelper;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
-import java.nio.file.FileVisitResult;
-import java.nio.file.FileVisitor;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
-import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -92,14 +85,8 @@ public final class OpenJdkController implements Controller {
     // configure the JFR stackdepth before we try to load any JFR classes
     int requestedStackDepth = getConfiguredStackDepth(configProvider);
     this.jfrStackDepthApplied = JFRAccess.instance().setStackDepth(requestedStackDepth);
-    boolean shouldCleanupJfrRepository =
-        configProvider.getBoolean(
-            PROFILING_DEBUG_CLEANUP_REPO, PROFILING_DEBUG_CLEANUP_REPO_DEFAULT);
-    String jfrRepositoryBase = null;
-    if (shouldCleanupJfrRepository) {
-      jfrRepositoryBase = getJfrRepositoryBase(configProvider);
-      JFRAccess.instance().setBaseLocation(jfrRepositoryBase + "/pid_" + PidHelper.getPid());
-    }
+    String jfrRepositoryBase = getJfrRepositoryBase(configProvider);
+    JFRAccess.instance().setBaseLocation(jfrRepositoryBase);
     // Make sure we can load JFR classes before declaring that we have successfully created
     // factory and can use it.
     Class.forName("jdk.jfr.Recording");
@@ -112,10 +99,6 @@ public final class OpenJdkController implements Controller {
     Map<String, String> recordingSettings;
 
     try {
-      if (shouldCleanupJfrRepository) {
-        cleanupJfrRepositories(Paths.get(jfrRepositoryBase));
-      }
-
       recordingSettings =
           JfpUtils.readNamedJfpResource(
               ultraMinimal ? JfpUtils.SAFEPOINTS_JFP : JfpUtils.DEFAULT_JFP);
@@ -265,24 +248,32 @@ public final class OpenJdkController implements Controller {
 
     // Register periodic events
     AvailableProcessorCoresEvent.register();
+
+    log.debug("JFR Recording Settings: {}", recordingSettings);
   }
 
   private static String getJfrRepositoryBase(ConfigProvider configProvider) {
-    return configProvider.getString(
-        ProfilingConfig.PROFILING_JFR_REPOSITORY_BASE,
-        ProfilingConfig.PROFILING_JFR_REPOSITORY_BASE_DEFAULT);
-  }
-
-  private static void cleanupJfrRepositories(Path repositoryBase) {
-    try {
-      Files.walkFileTree(repositoryBase, new JfrCleanupVisitor(repositoryBase));
-    } catch (IOException e) {
-      if (log.isDebugEnabled()) {
-        log.warn("Unable to cleanup old JFR repositories", e);
-      } else {
-        log.warn("Unable to cleanup old JFR repositories");
+    String legacy =
+        configProvider.getString(
+            ProfilingConfig.PROFILING_JFR_REPOSITORY_BASE,
+            ProfilingConfig.PROFILING_JFR_REPOSITORY_BASE_DEFAULT);
+    if (!legacy.equals(ProfilingConfig.PROFILING_JFR_REPOSITORY_BASE_DEFAULT)) {
+      log.warn(
+          "The configuration key {} is deprecated. Please use {} instead.",
+          ProfilingConfig.PROFILING_JFR_REPOSITORY_BASE,
+          ProfilingConfig.PROFILING_TEMP_DIR);
+    }
+    Path repositoryPath = TempLocationManager.getInstance().getTempDir().resolve("jfr");
+    if (!Files.exists(repositoryPath)) {
+      try {
+        Files.createDirectories(repositoryPath);
+      } catch (IOException e) {
+        log.error("Failed to create JFR repository directory: {}", repositoryPath, e);
+        throw new IllegalStateException(
+            "Failed to create JFR repository directory: " + repositoryPath, e);
       }
     }
+    return repositoryPath.toString();
   }
 
   int getMaxSize() {
@@ -328,59 +319,5 @@ public final class OpenJdkController implements Controller {
   private int getConfiguredStackDepth(ConfigProvider configProvider) {
     return configProvider.getInteger(
         ProfilingConfig.PROFILING_STACKDEPTH, ProfilingConfig.PROFILING_STACKDEPTH_DEFAULT);
-  }
-
-  private static class JfrCleanupVisitor implements FileVisitor<Path> {
-    private boolean shouldClean = false;
-
-    private final Path root;
-    private final Set<String> pidSet = PidHelper.getJavaPids();
-
-    JfrCleanupVisitor(Path root) {
-      this.root = root;
-    }
-
-    @Override
-    public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
-        throws IOException {
-      if (dir.equals(root)) {
-        return FileVisitResult.CONTINUE;
-      }
-      String fileName = dir.getFileName().toString();
-      // the JFR repository directories are under <basedir>/pid_<pid>
-      String pid = fileName.startsWith("pid_") ? fileName.substring(4) : null;
-      shouldClean |= pid != null && !pidSet.contains(pid);
-      if (shouldClean) {
-        log.debug("Cleaning JFR repository under {}", dir);
-      }
-      return shouldClean ? FileVisitResult.CONTINUE : FileVisitResult.SKIP_SUBTREE;
-    }
-
-    @Override
-    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-      if (file.toString().toLowerCase().endsWith(".jfr")) {
-        Files.delete(file);
-      }
-      return FileVisitResult.CONTINUE;
-    }
-
-    @Override
-    public FileVisitResult visitFileFailed(Path file, IOException exc) throws IOException {
-      if (log.isDebugEnabled() && file.toString().toLowerCase().endsWith(".jfr")) {
-        log.debug("Failed to delete file {}", file, exc);
-      }
-      return FileVisitResult.CONTINUE;
-    }
-
-    @Override
-    public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
-      if (shouldClean) {
-        Files.delete(dir);
-        String fileName = dir.getFileName().toString();
-        // reset the flag only if we are done cleaning the top-level directory
-        shouldClean = !fileName.startsWith("pid_");
-      }
-      return FileVisitResult.CONTINUE;
-    }
   }
 }

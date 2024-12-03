@@ -14,14 +14,17 @@ import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
+import com.datadog.debugger.probe.Sampling;
 import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.probe.TriggerProbe;
+import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Types;
 import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.MethodLocation;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
 import java.util.ArrayList;
@@ -139,9 +142,7 @@ public class ConfigurationTest {
 
   @Test
   public void roundtripSerialization() throws Exception {
-    String buffer = serialize();
-    System.out.println(buffer);
-    deserialize(buffer);
+    deserialize(serialize());
   }
 
   @Test
@@ -216,7 +217,7 @@ public class ConfigurationTest {
     assertEquals(2, configs.size());
     Configuration config0 = configs.get(0);
     assertEquals("service1", config0.getService());
-    assertEquals(10.0, config0.getSampling().getSnapshotsPerSecond(), 0.1);
+    assertEquals(10.0, config0.getSampling().getEventsPerSecond(), 0.1);
     // snapshot probe
     assertEquals(2, config0.getLogProbes().size());
     List<LogProbe> logProbes0 = new ArrayList<>(config0.getLogProbes());
@@ -227,7 +228,7 @@ public class ConfigurationTest {
     assertTrue(snapshotProbe0.isCaptureSnapshot());
     assertEquals("tag1:value1", snapshotProbe0.getTags()[0].toString());
     assertEquals("tag2:value2", snapshotProbe0.getTags()[1].toString());
-    assertEquals(42.0, snapshotProbe0.getSampling().getSnapshotsPerSecond(), 0.1);
+    assertEquals(42.0, snapshotProbe0.getSampling().getEventsPerSecond(), 0.1);
     Configuration config1 = configs.get(1);
     assertEquals("service2", config1.getService());
     assertEquals(2, config1.getLogProbes().size());
@@ -272,7 +273,8 @@ public class ConfigurationTest {
             "log1", "this is a log line with arg={arg}", "java.lang.String", "indexOf", "(String)");
     SpanProbe span1 = createSpan("span1", "java.lang.String", "indexOf", "(String)");
     TriggerProbe triggerProbe =
-        createTriggerProbe("debug1", "java.lang.String", "indexOf", "(String)");
+        createTriggerProbe("debug1", "java.lang.String", "indexOf", "(String)")
+            .setSampling(new Sampling(47, 12.0));
 
     SpanDecorationProbe.Decoration decoration =
         new SpanDecorationProbe.Decoration(
@@ -406,12 +408,7 @@ public class ConfigurationTest {
 
   private static TriggerProbe createTriggerProbe(
       String id, String typeName, String methodName, String signature) {
-    return TriggerProbe.builder()
-        .language("java")
-        .probeId(id, 0)
-        .where(typeName, methodName, signature)
-        .evaluateAt(MethodLocation.ENTRY)
-        .build();
+    return new TriggerProbe(new ProbeId(id, 0), Where.of(typeName, methodName, signature));
   }
 
   private static SpanProbe createSpan(

@@ -304,6 +304,23 @@
       "envars": null
     },
     {
+      "id": "datadog_jmxfetch",
+      "description": "Skip DataDog JMXFetch",
+      "os": null,
+      "cmds": [
+        "**/java"
+      ],
+      "args": [
+        {
+          "args": [
+            "org.datadog.jmxfetch.App"
+          ],
+          "position": null
+        }
+      ],
+      "envars": null
+    },
+    {
       "id": "elasticsearch7",
       "description": "Skip Elastic Search 7+ commands",
       "os": null,
@@ -336,42 +353,6 @@
         }
       ],
       "envars": null
-    },
-    {
-      "id": "apache_hbase",
-      "description": "Skip Apache HBase",
-      "os": null,
-      "cmds": [
-        "**/java"
-      ],
-      "args": [],
-      "envars": {
-        "HBASE_HOME": null
-      }
-    },
-    {
-      "id": "apache_hadoop3",
-      "description": "Skip Apache Hadoop 3",
-      "os": null,
-      "cmds": [
-        "**/java"
-      ],
-      "args": [],
-      "envars": {
-        "HADOOP_HOME": null
-      }
-    },
-    {
-      "id": "apache_hive",
-      "description": "Skip Apache Hive",
-      "os": null,
-      "cmds": [
-        "**/java"
-      ],
-      "args": [],
-      "envars": {
-        "HIVE_HOME": null
-      }
     },
     {
       "id": "apache_solr9",

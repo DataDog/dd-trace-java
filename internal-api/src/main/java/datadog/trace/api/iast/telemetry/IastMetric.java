@@ -21,7 +21,8 @@ public enum IastMetric {
   TAINTED_FLAT_MODE("tainted.flat.mode", false, Scope.GLOBAL, Verbosity.INFORMATION),
   JSON_TAG_SIZE_EXCEED("json.tag.size.exceeded", true, Scope.GLOBAL, Verbosity.INFORMATION),
   SOURCE_MAPPING_LIMIT_REACHED(
-      "source.mapping.limit.reached", true, Scope.GLOBAL, Verbosity.INFORMATION);
+      "source.mapping.limit.reached", true, Scope.GLOBAL, Verbosity.INFORMATION),
+  EXPERIMENTAL_PROPAGATION("experimental.propagation", false, Scope.GLOBAL, Verbosity.INFORMATION);
 
   private static final int COUNT;
 

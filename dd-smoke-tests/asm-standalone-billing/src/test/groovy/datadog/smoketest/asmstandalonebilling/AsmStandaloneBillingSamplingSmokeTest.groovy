@@ -1,9 +1,11 @@
 package datadog.smoketest.asmstandalonebilling
 
 import datadog.trace.api.sampling.PrioritySampling
+import datadog.trace.test.util.Flaky
 import groovy.json.JsonSlurper
 import okhttp3.Request
 
+@Flaky
 class AsmStandaloneBillingSamplingSmokeTest extends AbstractAsmStandaloneBillingSmokeTest {
 
   @Override

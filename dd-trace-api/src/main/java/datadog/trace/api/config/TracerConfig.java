@@ -76,8 +76,6 @@ public final class TracerConfig {
 
   public static final String SCOPE_DEPTH_LIMIT = "trace.scope.depth.limit";
   public static final String SCOPE_STRICT_MODE = "trace.scope.strict.mode";
-  public static final String SCOPE_INHERIT_ASYNC_PROPAGATION =
-      "trace.scope.inherit.async.propagation";
   public static final String SCOPE_ITERATION_KEEP_ALIVE = "trace.scope.iteration.keep.alive";
   public static final String PARTIAL_FLUSH_ENABLED = "trace.partial.flush.enabled";
   public static final String PARTIAL_FLUSH_MIN_SPANS = "trace.partial.flush.min.spans";
@@ -138,6 +136,17 @@ public final class TracerConfig {
   public static final String TRACE_FLUSH_INTERVAL = "trace.flush.interval";
 
   public static final String TRACE_POST_PROCESSING_TIMEOUT = "trace.post-processing.timeout";
+
+  public static final String TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES =
+      "trace.cloud.payload.tagging.services";
+  public static final String TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING =
+      "trace.cloud.request.payload.tagging";
+  public static final String TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING =
+      "trace.cloud.response.payload.tagging";
+  public static final String TRACE_CLOUD_PAYLOAD_TAGGING_MAX_DEPTH =
+      "trace.cloud.payload.tagging.max-depth";
+  public static final String TRACE_CLOUD_PAYLOAD_TAGGING_MAX_TAGS =
+      "trace.cloud.payload.tagging.max-tags";
 
   private TracerConfig() {}
 }

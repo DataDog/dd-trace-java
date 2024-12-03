@@ -50,11 +50,28 @@ git fetch --quiet
 git show-ref --verify --quiet "refs/remotes/origin/$PATCH_RELEASE_BRANCH" 1>/dev/null 2>&1 || { echo "Branch $PATCH_RELEASE_BRANCH does not exist"; exit 1; }
 # Check PR exists
 echo "- Checking PR exists"
-PR_COMMIT=$(gh pr view "$PR_NUMBER" --json commits --jq '.commits[].oid')
-if [ -z "$PR_COMMIT" ]; then
+PR_COMMITS=$(gh pr view "$PR_NUMBER" --json commits --jq '.commits[].oid')
+if [ -z "$PR_COMMITS" ]; then
     echo "PR $PR_NUMBER does not exist"
     exit 1
 fi
+# Check PR does not contain merge commit
+echo "- Checking PR does not contain merge commit"
+for PR_COMMIT in $PR_COMMITS; do
+    PARENT_COUNT=$(git rev-list --parents -n 1 "$PR_COMMIT" | wc -w)
+    if [ "$PARENT_COUNT" -gt 2 ]; then
+        echo "PR $PR_NUMBER contains a merge commit: $PR_COMMIT"
+        echo "Merge commit changes: https://github.com/DataDog/dd-trace-java/commit/${PR_COMMIT}"
+        echo "PR commit list: https://github.com/DataDog/dd-trace-java/pull/${PR_NUMBER}/commits"
+        echo -n "Would you like to cherry-pick the PR ${PR_NUMBER} merge commit instead of each of its commits individually? (y/n) "
+        read -r ANSWER
+        if [ "$ANSWER" == "y" ]; then
+            PR_COMMITS=$(gh pr view "$PR_NUMBER" --json mergeCommit --jq '.mergeCommit.oid')
+        else
+            exit 1
+        fi
+    fi
+done
 PR_TITLE=$(gh pr view "$PR_NUMBER" --json title --jq '.title')
 PR_LABELS=$(gh pr view "$PR_NUMBER" --json labels --jq '[.labels[].name] | join(",")')
 
@@ -68,8 +85,10 @@ git pull
 # Create a new branch for the backport
 BRANCH_NAME="$USER/backport-pr-$PR_NUMBER"
 git checkout -b "$BRANCH_NAME"
-# Cherry-pick PR commit
-git cherry-pick "$PR_COMMIT"
+# Cherry-pick PR commits
+for PR_COMMIT in $PR_COMMITS; do
+    git cherry-pick -x "$PR_COMMIT"
+done
 # Push the branch
 git push -u origin "$BRANCH_NAME" --no-verify
 # Create a PR

@@ -28,6 +28,7 @@ import datadog.trace.instrumentation.iastinstrumenter.IastExclusionTrie;
 import datadog.trace.instrumentation.iastinstrumenter.SourceMapperImpl;
 import datadog.trace.util.stacktrace.StackWalker;
 import java.util.Iterator;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -226,8 +227,9 @@ public abstract class SinkModuleBase {
   }
 
   @Nullable
-  protected Evidence checkInjectionDeeply(final VulnerabilityType type, final Object value) {
-    return checkInjectionDeeply(type, value, null, null);
+  protected Evidence checkInjectionDeeply(
+      final VulnerabilityType type, final Object value, final Predicate<Class<?>> filter) {
+    return checkInjectionDeeply(type, value, filter, null, null);
   }
 
   @Nullable
@@ -235,8 +237,9 @@ public abstract class SinkModuleBase {
   protected Evidence checkInjectionDeeply(
       final VulnerabilityType type,
       final Object value,
+      final Predicate<Class<?>> filter,
       @Nullable final EvidenceBuilder evidenceBuilder) {
-    return checkInjectionDeeply(type, value, evidenceBuilder, null);
+    return checkInjectionDeeply(type, value, filter, evidenceBuilder, null);
   }
 
   @Nullable
@@ -244,14 +247,16 @@ public abstract class SinkModuleBase {
   protected Evidence checkInjectionDeeply(
       final VulnerabilityType type,
       final Object value,
+      final Predicate<Class<?>> filter,
       @Nullable final LocationSupplier locationSupplier) {
-    return checkInjectionDeeply(type, value, null, locationSupplier);
+    return checkInjectionDeeply(type, value, filter, null, locationSupplier);
   }
 
   @Nullable
   protected Evidence checkInjectionDeeply(
       final VulnerabilityType type,
       final Object value,
+      final Predicate<Class<?>> filter,
       @Nullable final EvidenceBuilder evidenceBuilder,
       @Nullable final LocationSupplier locationSupplier) {
     final IastContext ctx = IastContext.Provider.get();
@@ -261,7 +266,7 @@ public abstract class SinkModuleBase {
 
     final InjectionVisitor visitor =
         new InjectionVisitor(ctx, type, evidenceBuilder, locationSupplier);
-    ObjectVisitor.visit(value, visitor);
+    ObjectVisitor.visit(value, visitor, filter);
     return visitor.evidence;
   }
 

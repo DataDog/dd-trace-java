@@ -41,7 +41,7 @@ class ApplicationModuleTest extends IastModuleImplTestBase {
     0 * reporter._
   }
 
-  void 'check vulnerabilities'() {
+  void 'check vulnerabilities #path'() {
     given:
     final file = ClassLoader.getSystemResource(path)
     final realPath = file.path

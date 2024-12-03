@@ -185,7 +185,11 @@ excludedClassesCoverage += [
   'datadog.trace.api.profiling.Timer.TimerType',
   // tested in agent-logging
   'datadog.trace.logging.LogLevel',
-  'datadog.trace.logging.GlobalLogLevelSwitcher'
+  'datadog.trace.logging.GlobalLogLevelSwitcher',
+  //POJO
+  'datadog.trace.util.stacktrace.StackTraceBatch',
+  'datadog.trace.util.stacktrace.StackTraceEvent',
+  'datadog.trace.util.stacktrace.StackTraceFrame',
 ]
 excludedClassesBranchCoverage = [
   'datadog.trace.api.ProductActivationConfig',
@@ -205,7 +209,7 @@ dependencies {
 
   // has to be loaded by system classloader:
   // it contains annotations that are also present in the instrumented application classes
-  api "com.datadoghq:dd-javac-plugin-client:0.1.7"
+  api "com.datadoghq:dd-javac-plugin-client:0.2.2"
 
   testImplementation project(":utils:test-utils")
   testImplementation("org.assertj:assertj-core:3.20.2")

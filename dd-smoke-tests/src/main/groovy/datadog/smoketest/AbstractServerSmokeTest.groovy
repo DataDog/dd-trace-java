@@ -5,6 +5,7 @@ import datadog.trace.agent.test.utils.OkHttpUtils
 import datadog.trace.agent.test.utils.PortUtils
 import okhttp3.OkHttpClient
 import spock.lang.Shared
+import static org.junit.Assume.assumeTrue
 
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
@@ -66,7 +67,12 @@ abstract class AbstractServerSmokeTest extends AbstractSmokeTest {
     (0..<numberOfProcesses).each { idx ->
       def port = httpPorts[idx]
       def process = testedProcesses[idx]
-      PortUtils.waitForPortToOpen(port, 240, TimeUnit.SECONDS, process)
+
+      try {
+        PortUtils.waitForPortToOpen(port, 240, TimeUnit.SECONDS, process)
+      } catch ( Exception e ) {
+        throw new RuntimeException(e.getMessage() + " - log file " + logFilePaths[idx], e)
+      }
     }
   }
 
@@ -76,7 +82,23 @@ abstract class AbstractServerSmokeTest extends AbstractSmokeTest {
       if (null != (outputFile = outputs[idx])) {
         // check the structures written out to the log,
         // and fail the run if anything unexpected was recorded
-        verifyLog(idx, outputFile)
+        try {
+          verifyLog(idx, outputFile)
+        } catch (FileNotFoundException e) {
+          if (testedProcesses[idx].isAlive()) {
+            throw e
+          }
+          def exitCode = testedProcesses[idx].exitValue()
+          if (exitCode == 0) {
+            throw e
+          } else {
+            def logFile = logFilePaths[idx]
+            // highlight when process exited abnormally, since that may have contributed
+            // to the log verification failure
+            throw new RuntimeException(
+            "Server process exited abnormally - exit code: ${exitCode}; check log file: ${logFile}", e)
+          }
+        }
       }
     }
   }
@@ -115,5 +137,55 @@ abstract class AbstractServerSmokeTest extends AbstractSmokeTest {
       }
     }
     return remaining
+  }
+
+  @RunLast
+  void 'receive telemetry app-started'() {
+    when:
+    assumeTrue(testTelemetry())
+    waitForTelemetryCount(1)
+
+    then:
+    telemetryMessages.size() >= 1
+    Object msg = telemetryMessages.get(0)
+    msg['request_type'] == 'app-started'
+  }
+
+  List<String> expectedTelemetryDependencies() {
+    []
+  }
+
+  @RunLast
+  @SuppressWarnings('UnnecessaryBooleanExpression')
+  void 'receive telemetry app-dependencies-loaded'() {
+    when:
+    assumeTrue(testTelemetry())
+    // app-started + 3 message-batch
+    waitForTelemetryCount(4)
+    waitForTelemetryFlat { it.get('request_type') == 'app-dependencies-loaded' }
+
+    then: 'received some dependencies'
+    def dependenciesLoaded = telemetryFlatMessages.findAll { it.get('request_type') == 'app-dependencies-loaded' }
+    def dependencies = []
+    dependenciesLoaded.each {
+      def payload = it.get('payload') as Map<String, Object>
+      dependencies.addAll(payload.get('dependencies')) }
+    dependencies.size() > 0
+
+    Set<String> dependencyNames = dependencies.collect {
+      def dependency = it as Map<String, Object>
+      dependency.get('name') as String
+    }.toSet()
+
+    and: 'received tracer dependencies'
+    // Not exhaustive list of tracer dependencies.
+    Set<String> missingDependencyNames = ['com.github.jnr:jnr-ffi', 'net.bytebuddy:byte-buddy-agent',].toSet()
+    missingDependencyNames.removeAll(dependencyNames) || true
+    missingDependencyNames.isEmpty()
+
+    and: 'received application dependencies'
+    Set<String> missingExtraDependencyNames = expectedTelemetryDependencies().toSet()
+    missingExtraDependencyNames.removeAll(dependencyNames) || true
+    missingExtraDependencyNames.isEmpty()
   }
 }

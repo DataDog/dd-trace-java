@@ -6,14 +6,13 @@ import static java.util.Collections.emptySet;
 import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.report.AppSecEvent;
-import com.datadog.appsec.stack_trace.StackTraceCollection;
-import com.datadog.appsec.stack_trace.StackTraceEvent;
 import com.datadog.appsec.util.StandardizedLogging;
 import datadog.trace.api.Config;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.util.stacktrace.StackTraceEvent;
 import io.sqreen.powerwaf.Additive;
 import io.sqreen.powerwaf.PowerwafContext;
 import io.sqreen.powerwaf.PowerwafMetrics;
@@ -126,6 +125,8 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   // keep a reference to the last published usr.id
   private volatile String userId;
+  // keep a reference to the last published usr.session_id
+  private volatile String sessionId;
 
   private static final AtomicIntegerFieldUpdater<AppSecRequestContext> TIMEOUTS_UPDATER =
       AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "timeouts");
@@ -434,6 +435,14 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     this.userId = userId;
   }
 
+  public void setSessionId(String sessionId) {
+    this.sessionId = sessionId;
+  }
+
+  public String getSessionId() {
+    return sessionId;
+  }
+
   @Override
   public void close() {
     final AgentSpan span = AgentTracer.activeSpan();
@@ -514,22 +523,16 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return events;
   }
 
-  StackTraceCollection transferStackTracesCollection() {
+  List<StackTraceEvent> getStackTraces() {
     if (this.stackTraceEvents == null) {
       return null;
     }
-
-    Collection<StackTraceEvent> stackTraces = new ArrayList<>();
+    List<StackTraceEvent> stackTraces = new ArrayList<>();
     StackTraceEvent item;
     while ((item = this.stackTraceEvents.poll()) != null) {
       stackTraces.add(item);
     }
-
-    if (stackTraces.size() != 0) {
-      return new StackTraceCollection(stackTraces);
-    } else {
-      return null;
-    }
+    return stackTraces;
   }
 
   public void reportDerivatives(Map<String, String> data) {

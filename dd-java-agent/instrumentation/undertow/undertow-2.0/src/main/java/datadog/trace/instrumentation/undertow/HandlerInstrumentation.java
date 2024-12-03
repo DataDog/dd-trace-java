@@ -93,8 +93,7 @@ public final class HandlerInstrumentation extends InstrumenterModule.Tracing
 
       final AgentSpan.Context.Extracted extractedContext = DECORATE.extract(exchange);
       final AgentSpan span = DECORATE.startSpan(exchange, extractedContext).setMeasured(true);
-      scope = activateSpan(span);
-      scope.setAsyncPropagation(true);
+      scope = activateSpan(span, true);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, exchange, exchange, extractedContext);
 

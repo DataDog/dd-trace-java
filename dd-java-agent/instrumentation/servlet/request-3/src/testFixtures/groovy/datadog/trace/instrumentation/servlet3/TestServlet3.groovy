@@ -119,9 +119,9 @@ class TestServlet3 {
           case CUSTOM_EXCEPTION:
             throw new InputMismatchException(endpoint.body)
           case SESSION_ID:
-            def session = req.getSession(true)
+            req.getSession(true)
             resp.status = endpoint.status
-            resp.writer.print(session.id)
+            resp.writer.print(req.requestedSessionId)
             break
         }
       }
@@ -204,9 +204,9 @@ class TestServlet3 {
               context.complete()
               break
             case SESSION_ID:
-              def session = req.getSession(true)
+              req.getSession(true)
               resp.status = endpoint.status
-              resp.writer.print(session.id)
+              resp.writer.print(req.requestedSessionId)
               context.complete()
               break
           }
@@ -263,9 +263,9 @@ class TestServlet3 {
               resp.writer.print('should not be reached')
               break
             case SESSION_ID:
-              def session = req.getSession(true)
+              req.getSession(true)
               resp.status = endpoint.status
-              resp.writer.print(session.id)
+              resp.writer.print(req.requestedSessionId)
               break
           }
         }

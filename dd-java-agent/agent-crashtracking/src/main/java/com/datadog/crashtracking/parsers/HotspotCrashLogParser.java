@@ -157,7 +157,7 @@ public final class HotspotCrashLogParser {
                 pid = line.substring(pidIdx + 4, endIdx);
               }
             } else {
-              message.append(line.substring(2)).append("\n");
+              message.append(line.substring(2)).append('\n');
             }
           }
           break;
@@ -188,13 +188,8 @@ public final class HotspotCrashLogParser {
             state = State.DONE;
           } else {
             // Native frames: (J=compiled Java code, j=interpreted, Vv=VM code, C=native code)
-            if (line.contains("libjvm.so") || line.contains("libjavaProfiler")) {
-              message.append(line).append('\n');
-              frames.add(parseLine(line));
-            } else {
-              message.append(line.charAt(0)).append("  [redacted]\n");
-              frames.add(new StackFrame(null, 0, "[redacted]"));
-            }
+            message.append(line).append('\n');
+            frames.add(parseLine(line));
           }
           break;
         case DONE:

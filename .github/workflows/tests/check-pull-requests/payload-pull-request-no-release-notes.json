@@ -1,0 +1,12 @@
+{
+    "pull_request": {
+        "number": 7884,
+        "draft": false,
+        "labels": [
+            {
+                "name": "tag: no release notes"
+            }
+        ],
+        "title": "Adding some new features"
+    }
+}

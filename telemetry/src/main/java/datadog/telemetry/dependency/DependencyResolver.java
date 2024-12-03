@@ -24,21 +24,19 @@ public class DependencyResolver {
 
   static List<Dependency> internalResolve(final URI uri) throws IOException {
     final String scheme = uri.getScheme();
-    JarReader.Extracted metadata;
-    String path;
-    if ("file".equals(scheme)) {
-      File f;
-      if (uri.isOpaque()) {
-        f = new File(uri.getSchemeSpecificPart());
-      } else {
-        f = new File(uri);
-      }
-      path = f.getAbsolutePath();
-      metadata = JarReader.readJarFile(path);
-    } else if ("jar".equals(scheme) && uri.getSchemeSpecificPart().startsWith("file:")) {
-      path = uri.getSchemeSpecificPart().substring("file:".length());
-      metadata = JarReader.readNestedJarFile(path);
-    } else {
+    JarReader.Extracted metadata = null;
+    switch (scheme) {
+      case "file":
+        final File f = uri.isOpaque() ? new File(uri.getSchemeSpecificPart()) : new File(uri);
+        final String path = f.getAbsolutePath();
+        metadata = JarReader.readJarFile(path);
+        break;
+      case "jar":
+        metadata = resolveNestedJar(uri);
+        break;
+      default:
+    }
+    if (metadata == null) {
       log.debug("unsupported dependency type: {}", uri);
       return Collections.emptyList();
     }
@@ -54,6 +52,44 @@ public class DependencyResolver {
     try (final InputStream is = metadata.inputStreamSupplier.get()) {
       return Collections.singletonList(
           Dependency.guessFallbackNoPom(metadata.manifest, metadata.jarName, is));
+    }
+  }
+
+  private static JarReader.Extracted resolveNestedJar(final URI uri) throws IOException {
+    String path = uri.getSchemeSpecificPart();
+
+    // Strip optional trailing '!' or '!/'.
+    if (path.endsWith("!")) {
+      path = path.substring(0, path.length() - 1);
+    } else if (path.endsWith("!/")) {
+      path = path.substring(0, path.length() - 2);
+    }
+
+    if (path.startsWith("file:")) {
+      // Old style nested dependencies, as seen in Spring Boot 2 and others.
+      // These look like jar:file:/path/to.jar!/path/to/nested.jar!/
+      path = path.substring("file:".length());
+      final int sepIdx = path.indexOf("!/");
+      if (sepIdx == -1) {
+        throw new IllegalArgumentException("Invalid nested jar path: " + path);
+      }
+      final String outerPath = path.substring(0, sepIdx);
+      final String innerPath = path.substring(sepIdx + 2);
+      return JarReader.readNestedJarFile(outerPath, innerPath);
+    } else if (path.startsWith("nested:")) {
+      // New style nested dependencies, for Spring 3.2+.
+      // These look like jar:nested:/path/to.jar/!path/to/nested.jar!/ (yes, /!, not !/).
+      // See https://docs.spring.io/spring-boot/specification/executable-jar/jarfile-class.html
+      path = path.substring("nested:".length());
+      final int sepIdx = path.indexOf("/!");
+      if (sepIdx == -1) {
+        throw new IllegalArgumentException("Invalid nested jar path: " + path);
+      }
+      final String outerPath = path.substring(0, sepIdx);
+      final String innerPath = path.substring(sepIdx + 2);
+      return JarReader.readNestedJarFile(outerPath, innerPath);
+    } else {
+      return null;
     }
   }
 }

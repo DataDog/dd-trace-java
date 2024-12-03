@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.kafka_clients;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
@@ -9,6 +10,7 @@ import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_P
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
+import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -24,6 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.kafka.clients.Metadata;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -40,7 +43,17 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
     implements Instrumenter.ForSingleType {
 
   public KafkaConsumerInfoInstrumentation() {
-    super("kafka");
+    super("kafka", "kafka-0.11");
+  }
+
+  @Override
+  public String muzzleDirective() {
+    return "before-3.8";
+  }
+
+  @Override
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+    return not(hasClassNamed("org.apache.kafka.clients.MetadataRecoveryStrategy")); // < 3.8
   }
 
   @Override
@@ -76,7 +89,17 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
             .and(takesArgument(0, named("org.apache.kafka.clients.consumer.ConsumerConfig")))
             .and(takesArgument(1, named("org.apache.kafka.common.serialization.Deserializer")))
             .and(takesArgument(2, named("org.apache.kafka.common.serialization.Deserializer"))),
-        KafkaConsumerInfoInstrumentation.class.getName() + "$ConstructorAdvice");
+        KafkaConsumerInfoInstrumentation.class.getName() + "$ConstructorAdviceNot27");
+
+    // Note: On some Kafka versions, both constructors will be instrumented. This is OK as we will
+    // override the context,
+    // and the instrumentation will still work as expected.
+    transformer.applyAdvice(
+        isConstructor()
+            .and(takesArgument(0, Map.class))
+            .and(takesArgument(1, named("org.apache.kafka.common.serialization.Deserializer")))
+            .and(takesArgument(2, named("org.apache.kafka.common.serialization.Deserializer"))),
+        KafkaConsumerInfoInstrumentation.class.getName() + "$ConstructorAdvice27");
 
     transformer.applyAdvice(
         isMethod()
@@ -87,7 +110,7 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
         KafkaConsumerInfoInstrumentation.class.getName() + "$RecordsAdvice");
   }
 
-  public static class ConstructorAdvice {
+  public static class ConstructorAdviceNot27 {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void captureGroup(
         @Advice.This KafkaConsumer consumer,
@@ -105,6 +128,49 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
         bootstrapServers = String.join(",", bootstrapServersList);
       }
 
+      KafkaConsumerInfo kafkaConsumerInfo;
+      if (Config.get().isDataStreamsEnabled()) {
+        kafkaConsumerInfo =
+            new KafkaConsumerInfo(normalizedConsumerGroup, metadata, bootstrapServers);
+      } else {
+        kafkaConsumerInfo = new KafkaConsumerInfo(normalizedConsumerGroup, bootstrapServers);
+      }
+
+      if (kafkaConsumerInfo.getConsumerGroup() != null
+          || kafkaConsumerInfo.getClientMetadata() != null) {
+        InstrumentationContext.get(KafkaConsumer.class, KafkaConsumerInfo.class)
+            .put(consumer, kafkaConsumerInfo);
+        if (coordinator != null) {
+          InstrumentationContext.get(ConsumerCoordinator.class, KafkaConsumerInfo.class)
+              .put(coordinator, kafkaConsumerInfo);
+        }
+      }
+    }
+
+    public static void muzzleCheck(ConsumerRecord record) {
+      // KafkaConsumerInstrumentation only applies for kafka versions with headers
+      // Make an explicit call so KafkaConsumerGroupInstrumentation does the same
+      record.headers();
+    }
+  }
+
+  public static class ConstructorAdvice27 {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void captureGroup(
+        @Advice.This KafkaConsumer consumer,
+        @Advice.FieldValue("metadata") Metadata metadata,
+        @Advice.FieldValue("coordinator") ConsumerCoordinator coordinator,
+        @Advice.Argument(0) Map<String, Object> consumerConfig) {
+      Object groupID = consumerConfig.get(ConsumerConfig.GROUP_ID_CONFIG);
+      String consumerGroup = groupID instanceof String ? (String) groupID : null;
+      String normalizedConsumerGroup =
+          consumerGroup != null && !consumerGroup.isEmpty() ? consumerGroup : null;
+
+      String bootstrapServers = null;
+      Object bootstrapServersObj = consumerConfig.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG);
+      if (bootstrapServersObj instanceof String) {
+        bootstrapServers = (String) bootstrapServersObj;
+      }
       KafkaConsumerInfo kafkaConsumerInfo;
       if (Config.get().isDataStreamsEnabled()) {
         kafkaConsumerInfo =

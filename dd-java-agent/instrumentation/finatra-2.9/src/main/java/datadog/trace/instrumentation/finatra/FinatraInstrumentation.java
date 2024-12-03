@@ -76,9 +76,7 @@ public class FinatraInstrumentation extends InstrumenterModule.Tracing
       DECORATE.afterStart(span);
       span.setResourceName(DECORATE.className(clazz));
 
-      final AgentScope scope = activateSpan(span);
-      scope.setAsyncPropagation(true);
-      return scope;
+      return activateSpan(span, true);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

@@ -2,13 +2,13 @@ package com.datadog.debugger.symbol;
 
 import static com.datadog.debugger.symbol.JarScanner.trimPrefixes;
 
-import com.datadog.debugger.util.ClassNameFiltering;
 import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
 import datadog.remoteconfig.PollingRateHinter;
 import datadog.remoteconfig.state.ConfigKey;
 import datadog.remoteconfig.state.ProductListener;
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.debugger.DebuggerContext.ClassNameFilter;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.Strings;
 import java.io.ByteArrayInputStream;
@@ -48,18 +48,18 @@ public class SymDBEnablement implements ProductListener {
   private final SymbolAggregator symbolAggregator;
   private final AtomicBoolean starting = new AtomicBoolean();
   private SymbolExtractionTransformer symbolExtractionTransformer;
-  private final ClassNameFiltering classNameFiltering;
+  private final ClassNameFilter classNameFilter;
   private volatile long lastUploadTimestamp;
 
   public SymDBEnablement(
       Instrumentation instrumentation,
       Config config,
       SymbolAggregator symbolAggregator,
-      ClassNameFiltering classNameFiltering) {
+      ClassNameFilter classNameFilter) {
     this.instrumentation = instrumentation;
     this.config = config;
     this.symbolAggregator = symbolAggregator;
-    this.classNameFiltering = classNameFiltering;
+    this.classNameFilter = classNameFilter;
   }
 
   @Override
@@ -115,18 +115,15 @@ public class SymDBEnablement implements ProductListener {
                 Instant.ofEpochMilli(lastUploadTimestamp), ZoneId.systemDefault()));
         return;
       }
-      symbolAggregator.loadedClassesProcessStarted();
       try {
         symbolExtractionTransformer =
-            new SymbolExtractionTransformer(symbolAggregator, classNameFiltering);
+            new SymbolExtractionTransformer(symbolAggregator, classNameFilter);
         instrumentation.addTransformer(symbolExtractionTransformer);
         extractSymbolForLoadedClasses();
         lastUploadTimestamp = System.currentTimeMillis();
       } catch (Throwable ex) {
         // catch all Throwables because LinkageError is possible (duplicate class definition)
         LOGGER.debug("Error during symbol extraction: ", ex);
-      } finally {
-        symbolAggregator.loadedClassesProcessEnded();
       }
     } finally {
       starting.set(false);
@@ -138,7 +135,7 @@ public class SymDBEnablement implements ProductListener {
     try {
       classesToExtract =
           Arrays.stream(instrumentation.getAllLoadedClasses())
-              .filter(clazz -> !classNameFiltering.isExcluded(clazz.getTypeName()))
+              .filter(clazz -> !classNameFilter.isExcluded(clazz.getTypeName()))
               .filter(instrumentation::isModifiableClass)
               .toArray(Class<?>[]::new);
     } catch (Throwable ex) {
@@ -175,7 +172,7 @@ public class SymDBEnablement implements ProductListener {
               .filter(jarEntry -> jarEntry.getName().endsWith(".class"))
               .filter(
                   jarEntry ->
-                      !classNameFiltering.isExcluded(
+                      !classNameFilter.isExcluded(
                           Strings.getClassName(trimPrefixes(jarEntry.getName()))))
               .forEach(jarEntry -> parseJarEntry(jarEntry, jarFile, jarPath, baos, buffer));
         }
