@@ -361,8 +361,6 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
 
       try (Statement statement = connection.createStatement()) {
         statement.execute(sql.toString());
-      } catch (SQLException e) {
-        throw e;
       }
     } catch (Throwable e) {
       log.debug(
