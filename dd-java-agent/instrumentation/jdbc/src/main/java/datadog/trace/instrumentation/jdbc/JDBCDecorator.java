@@ -351,17 +351,8 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       final String traceContext = "_DD_" + traceParent;
 
       // SET doesn't work with parameters
-      final String setCommandBegin = "SET application_name = '";
-      final String setCommandEnd = "';";
-      StringBuilder sql =
-          new StringBuilder(
-              setCommandBegin.length() + traceContext.length() + setCommandEnd.length());
-      sql.append(setCommandBegin);
-      sql.append(traceContext);
-      sql.append(setCommandEnd);
-
       try (Statement statement = connection.createStatement()) {
-        statement.execute(sql.toString());
+        statement.execute("SET application_name = '" + traceContext + "';");
       }
     } catch (Throwable e) {
       log.debug(
