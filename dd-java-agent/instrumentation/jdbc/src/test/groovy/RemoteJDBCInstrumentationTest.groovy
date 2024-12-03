@@ -433,7 +433,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               }
               if (this.dbmTracePreparedStatements(driver)){
                 "$InstrumentationTags.DBM_TRACE_INJECTED" true
-                "$InstrumentationTags.TIME_MS" Long
+                "$InstrumentationTags.INSTRUMENTATION_TIME_MS" Long
               }
               peerServiceFrom(Tags.DB_INSTANCE)
               defaultTags()
@@ -564,7 +564,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               }
               if (this.dbmTracePreparedStatements(driver)){
                 "$InstrumentationTags.DBM_TRACE_INJECTED" true
-                "$InstrumentationTags.TIME_MS" Long
+                "$InstrumentationTags.INSTRUMENTATION_TIME_MS" Long
               }
               peerServiceFrom(Tags.DB_INSTANCE)
               defaultTags()
@@ -689,7 +689,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               }
               if (this.dbmTracePreparedStatements(driver)){
                 "$InstrumentationTags.DBM_TRACE_INJECTED" true
-                "$InstrumentationTags.TIME_MS" Long
+                "$InstrumentationTags.INSTRUMENTATION_TIME_MS" Long
               }
               defaultTags()
             }
