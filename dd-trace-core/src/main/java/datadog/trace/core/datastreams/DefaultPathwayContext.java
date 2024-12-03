@@ -1,5 +1,6 @@
 package datadog.trace.core.datastreams;
 
+import static datadog.trace.core.datastreams.TagsProcessor.PRODUCTS_MASK;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -52,6 +53,7 @@ public class DefaultPathwayContext implements PathwayContext {
   // direction != current direction
   private long closestOppositeDirectionHash;
   private String previousDirection;
+  private String productMaskTag;
 
   private static final Set<String> hashableTagKeys =
       new HashSet<String>(
@@ -117,6 +119,15 @@ public class DefaultPathwayContext implements PathwayContext {
     setCheckpoint(sortedTags, pointConsumer, defaultTimestamp, 0);
   }
 
+  private String getProductMaskTag() {
+    // it's fine to cache the value per context
+    if (productMaskTag == null) {
+      productMaskTag = PRODUCTS_MASK + ":" + Config.get().enabledProductsMask();
+    }
+
+    return productMaskTag;
+  }
+
   @Override
   public void setCheckpoint(
       LinkedHashMap<String, String> sortedTags,
@@ -129,7 +140,9 @@ public class DefaultPathwayContext implements PathwayContext {
     try {
       // So far, each tag key has only one tag value, so we're initializing the capacity to match
       // the number of tag keys for now. We should revisit this later if it's no longer the case.
-      List<String> allTags = new ArrayList<>(sortedTags.size());
+      List<String> allTags = new ArrayList<>(sortedTags.size() + 1);
+      allTags.add(getProductMaskTag());
+
       PathwayHashBuilder pathwayHashBuilder =
           new PathwayHashBuilder(hashOfKnownTags, serviceNameOverride);
       DataSetHashBuilder aggregationHashBuilder = new DataSetHashBuilder();

@@ -3244,6 +3244,28 @@ public class Config {
     return dataJobsEnabled;
   }
 
+  private static final int APM_PRODUCT = 1; // 00000001
+  private static final int DSM_PRODUCT = 2; // 00000010
+  private static final int DJM_PRODUCT = 4; // 00000100
+  private static final int PROFILING_PRODUCT = 8; // 00001000
+
+  // enabledProductsMask can be extended as needed
+  public long enabledProductsMask() {
+    long enabledProducts = APM_PRODUCT;
+
+    if (isDataStreamsEnabled()) {
+      enabledProducts |= DSM_PRODUCT;
+    }
+    if (isDataJobsEnabled()) {
+      enabledProducts |= DJM_PRODUCT;
+    }
+    if (isProfilingEnabled()) {
+      enabledProducts |= PROFILING_PRODUCT;
+    }
+
+    return enabledProducts;
+  }
+
   public String getDataJobsCommandPattern() {
     return dataJobsCommandPattern;
   }
