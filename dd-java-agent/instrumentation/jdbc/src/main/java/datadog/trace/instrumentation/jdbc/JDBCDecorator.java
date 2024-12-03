@@ -50,6 +50,8 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       SpanNaming.instance().namingSchema().database().service("jdbc");
   public static final String DBM_PROPAGATION_MODE_STATIC = "service";
   public static final String DBM_PROPAGATION_MODE_FULL = "full";
+  private static final Pattern traceParentPattern =
+      Pattern.compile("^00-[a-f0-9]{32}-[a-f0-9]{16}-[a-f0-9]{2}$");
 
   public static final String DBM_PROPAGATION_MODE = Config.get().getDBMPropagationMode();
   public static final boolean INJECT_COMMENT =
@@ -343,8 +345,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
         return;
       }
       final String traceParent = DECORATE.traceParent(span, priority);
-      final Pattern pattern = Pattern.compile("^00-[a-f0-9]{32}-[a-f0-9]{16}-[a-f0-9]{2}$");
-      if (traceParent == null || !pattern.matcher(traceParent).matches()) {
+      if (traceParent == null || !traceParentPattern.matcher(traceParent).matches()) {
         throw new IllegalArgumentException("Invalid trace parent: " + traceParent);
       }
       final String traceContext = "_DD_" + traceParent;
