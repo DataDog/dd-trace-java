@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.jdbc;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DBM_TRACE_INJECTED;
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.INSTRUMENTATION_TIME_MS;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.*;
 
 import datadog.trace.api.Config;
@@ -29,6 +30,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -341,8 +343,8 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
         return;
       }
       final String traceParent = DECORATE.traceParent(span, priority);
-      if (traceParent == null
-          || !traceParent.matches("^00-[a-f0-9]{32}-[a-f0-9]{16}-[a-f0-9]{2}$")) {
+      final Pattern pattern = Pattern.compile("^00-[a-f0-9]{32}-[a-f0-9]{16}-[a-f0-9]{2}$");
+      if (traceParent == null || !pattern.matcher(traceParent).matches()) {
         throw new IllegalArgumentException("Invalid trace parent: " + traceParent);
       }
       final String traceContext = "_DD_" + traceParent;
@@ -369,7 +371,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     } finally {
       span.setTag(DBM_TRACE_INJECTED, true);
       final long elapsed = System.currentTimeMillis() - startTime;
-      span.setTag("dd.instrumentation.time_ms", elapsed);
+      span.setTag(INSTRUMENTATION_TIME_MS, elapsed);
     }
   }
 
