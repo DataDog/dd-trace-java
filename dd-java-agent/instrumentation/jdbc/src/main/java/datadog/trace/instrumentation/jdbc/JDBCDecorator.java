@@ -360,7 +360,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       } catch (SQLException e) {
         throw e;
       }
-    } catch (Exception e) {
+    } catch (Throwable e) {
       log.debug(
           "Failed to set extra DBM data in application_name for trace {}. "
               + "To disable this behavior, set trace_prepared_statements to 'false'. "
