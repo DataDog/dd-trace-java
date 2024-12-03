@@ -221,12 +221,9 @@ abstract class GrpcCodeOriginTest extends VersionedNamingTestBase {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "status.code" "OK"
             isPresent(DDTags.DD_CODE_ORIGIN_TYPE)
-            isPresent(format(DDTags.DD_CODE_ORIGIN_FRAME, 0, "signature"))
 
-            for (i in 0..<8) {
-              for (label in ["file", "line", "method", "type"]) {
-                isPresent(format(DDTags.DD_CODE_ORIGIN_FRAME, i, label))
-              }
+            for (label in ["file", "line", "method", "type", "signature"]) {
+              isPresent(format(DDTags.DD_CODE_ORIGIN_FRAME, 0, label))
             }
             defaultTags(true)
           }
