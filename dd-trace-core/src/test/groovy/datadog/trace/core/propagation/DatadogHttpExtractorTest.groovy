@@ -360,6 +360,7 @@ class DatadogHttpExtractorTest extends DDSpecification {
     "${TRACE_ID_MAX + 1}" | "1"                   | null             | null
     "1"                   | "$TRACE_ID_MAX"       | DD64bTraceId.ONE | DDSpanId.MAX
     "1"                   | "${TRACE_ID_MAX + 1}" | null             | null
+    "1"                   | "1"                   | DD64bTraceId.ONE | 1
   }
 
   def "extract http headers with end to end"() {
