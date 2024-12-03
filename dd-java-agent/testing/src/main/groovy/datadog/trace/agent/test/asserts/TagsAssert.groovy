@@ -22,11 +22,16 @@ class TagsAssert {
     this.spanParentId = span.parentId
     this.tags = span.tags
   }
+  // DDSpan [ t_id=86, s_id=85, p_id=0 ]  trace=worker.org.gradle.process.internal.worker.GradleWorkerMain/http.request/GET /success *measured* tags={_dd.agent_psr=1.0, _dd.dsm.enabled=1, _dd.profiling.ctx=test, _dd.profiling.enabled=0, _dd.trace_span_attribute_schema=0, _dd.tracer_host=COMP-GHXRH1QQ7F, _sample_rate=1, component=apache-httpclient5, http.method=GET, http.status_code=200, http.url=http://localhost:54233/success, language=jvm, pathway.hash=14628910375923456673, peer.hostname=localhost, peer.port=54233, process_id=72497, request_header_tag=foo,bar,baz, runtime-id=a74ef0dc-8747-43f8-853c-02ddce42dcaa, span.kind=client, thread.id=1, thread.name=Test worker}, duration_ns=3604416, forceKeep=false, links=[]
+  // DDSpan [ t_id=86, s_id=87, p_id=85 ] trace=worker.org.gradle.process.internal.worker.GradleWorkerMain/test-http-server/test-http-server    tags={_dd.dsm.enabled=1, _dd.profiling.ctx=test, _dd.profiling.enabled=0, _dd.trace_span_attribute_schema=0, _dd.tracer_host=COMP-GHXRH1QQ7F, _sample_rate=1, language=jvm, path=/success, process_id=72497, request_header_tag=foo,bar, runtime-id=a74ef0dc-8747-43f8-853c-02ddce42dcaa, span.kind=server, thread.id=27, thread.name=qtp897087270-27}, duration_ns=58625, forceKeep=false, links=[]
 
   static void assertTags(DDSpan span,
     @ClosureParams(value = SimpleType, options = ['datadog.trace.agent.test.asserts.TagsAssert'])
     @DelegatesTo(value = TagsAssert, strategy = Closure.DELEGATE_FIRST) Closure spec,
     boolean checkAllTags = true) {
+    System.out.println("=== SARAH: START SPAN ===")
+    System.out.println(span.toString())
+    System.out.println("=== SARAH: END SPAN   ===")
     def asserter = new TagsAssert(span)
     def clone = (Closure) spec.clone()
     clone.delegate = asserter
@@ -191,6 +196,7 @@ class TagsAssert {
     } else if (expected instanceof Closure) {
       assert ((Closure) expected).call(value): "Tag \"$name\": closure call ${expected.toString()} failed with \"$value\""
     } else if (expected instanceof CharSequence) {
+      System.out.println("SARAH TAGASSERT VALUE: " + value) // wrong tag value here
       assert value == expected.toString(): "Tag \"$name\": \"$value\" != \"${expected.toString()}\""
     } else {
       assert value == expected: "Tag \"$name\": \"$value\" != \"$expected\""
@@ -210,7 +216,12 @@ class TagsAssert {
   }
 
   def addTags(Map<String, Serializable> tags) {
-    tags.each { tag(it.key, it.value) }
+    System.out.println("======= SARAH: TAGS START =======")
+    tags.each {
+      System.out.println("CHECK THAT KEY " + it.key + " HAS VALUE " + it.value)
+      tag(it.key, it.value)
+      System.out.println("======= SARAH: TAGS END   =======")
+    }
     true
   }
 
