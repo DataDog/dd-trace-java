@@ -28,9 +28,11 @@ do
   cp "$RESULT_XML_FILE" "$TEST_RESULTS_DIR/$AGGREGATED_FILE_NAME"
   # Replace Java Object hashCode by marker in testcase XML nodes to get stable test names
   sed -i '/<testcase/ s/@[0-9a-f]\{5,\}/@HASHCODE/g' "$TEST_RESULTS_DIR/$AGGREGATED_FILE_NAME"
+  # Replace random port numbers by marker in testcase XML nodes to get stable test names
+  sed -i '/<testcase/ s/localhost:[0-9]\{2,5\}/localhost:PORT/g' "$TEST_RESULTS_DIR/$AGGREGATED_FILE_NAME"
   if cmp -s "$RESULT_XML_FILE" "$TEST_RESULTS_DIR/$AGGREGATED_FILE_NAME"; then
     echo ""
   else
-    echo " (hashCode replaced)"
+    echo -n " (non-stable test names detected)"
   fi
 done <   <(find "${TEST_RESULT_DIRS[@]}" -name \*.xml -print0)
