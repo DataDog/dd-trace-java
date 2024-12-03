@@ -52,8 +52,9 @@ public class ApacheHttpClientDecorator extends HttpClientDecorator<HttpUriReques
       for (int i = 1; i < headers.length; i++) {
         result.append(",").append(headers[i].getValue());
       }
-      System.out.println("returning " + result);
-      return result.toString();
+      String x = result.toString();
+      System.out.println("returning " + x);
+      return x;
     }
     return null;
   }

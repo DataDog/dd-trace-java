@@ -22,6 +22,12 @@ public class HttpServletRequestExtractAdapter
     Enumeration<String> headerNames = carrier.getHeaderNames();
     while (headerNames.hasMoreElements()) {
       final String header = headerNames.nextElement();
+      if (header.equalsIgnoreCase("X-Datadog-Test-Request-Header")) {
+        System.out.println("========= START ACCEPT IS CALLED HERE =========");
+        System.out.println("header: " + header);
+        System.out.println("value: " + carrier.getHeader(header));
+        System.out.println("========= END ACCEPT IS CALLED HERE   =========");
+      }
       if (!classifier.accept(header, carrier.getHeader(header))) {
         return;
       }
