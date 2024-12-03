@@ -87,6 +87,7 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
         System.out.println("Tagging client headers...");
         for (Map.Entry<String, String> headerTag :
             traceConfig(span).getRequestHeaderTags().entrySet()) {
+          System.out.println("HEADERTAG: " + traceConfig(span).getRequestHeaderTags().entrySet());
           String headerValue = getRequestHeader(request, headerTag.getKey());
           System.out.println("headerTag: " + headerTag.getValue());
           System.out.println("headerValue: " + headerValue);
