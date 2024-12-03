@@ -507,3 +507,6 @@ include ':dd-java-agent:benchmark'
 include ':dd-java-agent:benchmark-integration'
 include ':dd-java-agent:benchmark-integration:jetty-perftest'
 include ':dd-java-agent:benchmark-integration:play-perftest'
+include 'dd-smoke-tests:vertx3-iast-ci'
+findProject(':dd-smoke-tests:vertx3-iast-ci')?.name = 'vertx3-iast-ci'
+

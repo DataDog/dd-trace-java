@@ -1,5 +1,7 @@
 package com.datadog.iast.overhead;
 
+import datadog.trace.api.Config;
+
 import javax.annotation.Nullable;
 
 public class Operations {
@@ -18,6 +20,9 @@ public class Operations {
 
         @Override
         public boolean consumeQuota(@Nullable final OverheadContext context) {
+//          if(Config.get().isCiVisibilityEnabled()){
+//            return true;
+//          }
           if (context == null) {
             return false;
           }
