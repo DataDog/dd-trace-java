@@ -17,6 +17,11 @@ public class MicronautCodeOriginInstrumentation extends CodeOriginInstrumentatio
   }
 
   @Override
+  public String muzzleDirective() {
+    return "micronaut-common";
+  }
+
+  @Override
   protected Set<String> getAnnotations() {
     return new HashSet<>(
         Arrays.asList(
