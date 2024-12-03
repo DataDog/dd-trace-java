@@ -3,6 +3,7 @@ package datadog.trace.agent.tooling;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.ANY_CLASS_LOADER;
 import static java.util.Collections.addAll;
 import static java.util.Collections.emptyMap;
+import static java.util.Collections.emptySet;
 import static java.util.Collections.singletonList;
 import static net.bytebuddy.matcher.ElementMatchers.isSynthetic;
 
@@ -164,6 +165,16 @@ public abstract class InstrumenterModule implements Instrumenter {
    */
   public Map<String, String> contextStore() {
     return emptyMap();
+  }
+
+  /**
+   * Defines the types that can efficiently carry a {@link datadog.context.Context} using {@link
+   * datadog.context.Context#attachTo(Object)}.
+   *
+   * @return A collection of class names.
+   */
+  public Set<String> contextCarriers() {
+    return emptySet();
   }
 
   protected boolean defaultEnabled() {

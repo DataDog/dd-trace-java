@@ -3,6 +3,7 @@ package datadog.trace.bootstrap.instrumentation.api;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 import static java.util.Collections.emptyList;
 
+import datadog.context.ContextListener;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.EndpointCheckpointer;
@@ -257,11 +258,21 @@ public class AgentTracer {
     void close();
 
     /**
-     * Attach a scope listener to the global scope manager
+     * Attach a scope listener to the global scope manager.
+     *
+     * <p>Use {@link #addContextListener(ContextListener)} instead.
      *
      * @param listener listener to attach
      */
+    @Deprecated
     void addScopeListener(ScopeListener listener);
+
+    /**
+     * Attaches a context storage listener.
+     *
+     * @param listener The listener to attach.
+     */
+    void addContextListener(ContextListener listener);
 
     SubscriptionService getSubscriptionService(RequestContextSlot slot);
 
@@ -469,6 +480,9 @@ public class AgentTracer {
 
     @Override
     public void addScopeListener(final ScopeListener listener) {}
+
+    @Override
+    public void addContextListener(ContextListener listener) {}
 
     @Override
     public SubscriptionService getSubscriptionService(RequestContextSlot slot) {
