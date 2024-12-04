@@ -2,10 +2,14 @@ package datadog.trace.core;
 
 import datadog.communication.monitor.Recording;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.flare.TracerFlare;
+import datadog.trace.api.metrics.SpanMetricRegistry;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.core.CoreTracer.ConfigSnapshot;
 import datadog.trace.core.monitor.HealthMetrics;
+
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedDeque;
@@ -13,6 +17,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.util.zip.ZipOutputStream;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -447,5 +452,11 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
     }
     PendingTrace trace = (PendingTrace) traceCollector;
     return trace.getLastWriteTime() - span.getStartTime();
+  }
+
+  public void dumpTrace(ZipOutputStream zip) throws IOException {
+    for(DDSpan span : spans){
+      TracerFlare.addText(zip, "trace_dump.txt", span.toString());
+    }
   }
 }
