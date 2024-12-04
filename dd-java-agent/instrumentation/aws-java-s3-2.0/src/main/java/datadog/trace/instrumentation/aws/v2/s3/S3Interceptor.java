@@ -1,27 +1,69 @@
 package datadog.trace.instrumentation.aws.v2.s3;
 
-import software.amazon.awssdk.core.SdkRequest;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import software.amazon.awssdk.core.interceptor.Context;
 import software.amazon.awssdk.core.interceptor.ExecutionAttributes;
 import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
+import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
+import software.amazon.awssdk.services.s3.model.CopyObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 
 public class S3Interceptor implements ExecutionInterceptor {
+  // TODO wrap with try/catch
   @Override
-  public SdkRequest modifyRequest(
-      Context.ModifyRequest context, ExecutionAttributes executionAttributes) {
-    if (context.request() instanceof PutObjectRequest) {
-      System.out.println("[DEBUG] PutObjectRequest");
-    } else if (context.request() instanceof CopyObjectRequest) {
-      System.out.println("[DEBUG] CopyObjectRequest");
-    } else if (context.request() instanceof CompleteMultipartUploadRequest) {
-      System.out.println("[DEBUG] CompleteMultipartUploadRequest");
+  public void afterExecution(
+      Context.AfterExecution context, ExecutionAttributes executionAttributes) {
+    String bucket, key, eTag;
+    Object request = context.request();
+    Object response = context.response();
+
+    // https://sdk.amazonaws.com/java/api/latest/software/amazon/awssdk/services/s3/S3Client.html
+    if (request instanceof PutObjectRequest) {
+      PutObjectRequest putObjectRequest = (PutObjectRequest) request;
+      bucket = putObjectRequest.bucket();
+      key = putObjectRequest.key();
+      eTag = ((PutObjectResponse) response).eTag();
+    } else if (request instanceof CopyObjectRequest) {
+      CopyObjectRequest copyObjectRequest = (CopyObjectRequest) request;
+      bucket = copyObjectRequest.destinationBucket();
+      key = copyObjectRequest.destinationKey();
+      eTag = ((CopyObjectResponse) response).copyObjectResult().eTag();
+    } else if (request instanceof CompleteMultipartUploadRequest) {
+      CompleteMultipartUploadRequest completeMultipartUploadRequest =
+          (CompleteMultipartUploadRequest) request;
+      bucket = completeMultipartUploadRequest.bucket();
+      key = completeMultipartUploadRequest.key();
+      eTag = ((CompleteMultipartUploadResponse) response).eTag();
     } else {
-      System.out.println("[DEBUG] unknown request");
+      return;
     }
 
-    return context.request();
+    if (eTag.startsWith("\"") && eTag.endsWith("\"")) {
+      eTag = eTag.substring(1, eTag.length() - 1);
+    }
+    System.out.printf("[DEBUG] bucket: %s, key: %s, eTag: %s%n", bucket, key, eTag);
+    String hash = generatePointerHash(new String[] {bucket, key, eTag});
+    System.out.println("[DEBUG] hash: " + hash);
+  }
+
+  private static String generatePointerHash(String[] components) {
+    try {
+      byte[] hash =
+          MessageDigest.getInstance("SHA-256")
+              .digest(String.join("|", components).getBytes(StandardCharsets.UTF_8));
+
+      StringBuilder hex = new StringBuilder(64);
+      for (byte b : hash) {
+        hex.append(String.format("%02x", b));
+      }
+      return hex.substring(0, 32);
+    } catch (NoSuchAlgorithmException e) {
+      return "";
+    }
   }
 }
