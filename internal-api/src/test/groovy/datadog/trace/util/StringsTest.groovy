@@ -88,33 +88,6 @@ class StringsTest extends DDSpecification {
     // spotless:on
   }
 
-  def "test escape javascript"() {
-    when:
-    String escaped = Strings.escapeToJson(string)
-
-    then:
-    escaped == expected
-
-    where:
-    string                   | expected
-    null                     | ""
-    ""                       | ""
-    ((char) 4096).toString() | '\\u1000'
-    ((char) 256).toString()  | '\\u0100'
-    ((char) 128).toString()  | '\\u0080'
-    "\b"                     | "\\b"
-    "\t"                     | "\\t"
-    "\n"                     | "\\n"
-    "\f"                     | "\\f"
-    "\r"                     | "\\r"
-    '"'                      | '\\"'
-    '\''                     | '\\\''
-    '/'                      | '\\/'
-    '\\'                     | '\\\\'
-    "\u000b"                 | "\\u000B"
-    "a"                      | "a"
-  }
-
   def "test sha256"() {
     when:
     String sha256 = Strings.sha256(input)
@@ -142,38 +115,6 @@ class StringsTest extends DDSpecification {
     "hi"          | 4     | "hi"
     "hélló"       | 5     | "hélló"
     "hélló wórld" | 5     | "hélló"
-  }
-
-  def "test map toJson: #input"() {
-    when:
-    String json = Strings.toJson((Map) input)
-
-    then:
-    json == expected
-
-    where:
-    input                                   | expected
-    null                                    | "{}"
-    new HashMap<>()                         | "{}"
-    ['key1': 'value1']                      | "{\"key1\":\"value1\"}"
-    ['key1': 'value1', 'key2': 'value2']    | "{\"key1\":\"value1\",\"key2\":\"value2\"}"
-    ['key1': 'va"lu"e1', 'ke"y2': 'value2'] | "{\"key1\":\"va\\\"lu\\\"e1\",\"ke\\\"y2\":\"value2\"}"
-  }
-
-  def "test iterable toJson: #input"() {
-    when:
-    String json = Strings.toJson((Iterable) input)
-
-    then:
-    json == expected
-
-    where:
-    input                  | expected
-    null                   | "[]"
-    new ArrayList<>()      | "[]"
-    ['value1']             | "[\"value1\"]"
-    ['value1', 'value2']   | "[\"value1\",\"value2\"]"
-    ['va"lu"e1', 'value2'] | "[\"va\\\"lu\\\"e1\",\"value2\"]"
   }
 
   def "test isNotBlank: #input"() {

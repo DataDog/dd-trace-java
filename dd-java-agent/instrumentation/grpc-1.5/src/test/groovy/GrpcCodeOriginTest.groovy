@@ -12,18 +12,17 @@ import io.grpc.Server
 import io.grpc.inprocess.InProcessChannelBuilder
 import io.grpc.inprocess.InProcessServerBuilder
 import io.grpc.stub.StreamObserver
-import org.mockito.internal.util.MockUtil
 
+import java.lang.reflect.Method
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
 import static datadog.trace.api.config.TraceInstrumentationConfig.*
-import org.mockito.Mockito
 
 abstract class GrpcCodeOriginTest extends VersionedNamingTestBase {
-  private CodeOriginRecorder codeOriginRecorder
+  def codeOriginRecorder
 
   @Override
   final String service() {
@@ -157,8 +156,7 @@ abstract class GrpcCodeOriginTest extends VersionedNamingTestBase {
     }.flatten().sort()
 
 
-    def invocations = MockUtil.getInvocationContainer(codeOriginRecorder)
-    assert invocations.invocations.stream().anyMatch { it.method.name == "captureCodeOrigin" }
+    assert codeOriginRecorder.invoked
     assertTraces(2) {
       trace((hasClientMessageSpans() ? clientMessageCount * serverMessageCount : 0) + 1) {
         span {
@@ -253,7 +251,20 @@ abstract class GrpcCodeOriginTest extends VersionedNamingTestBase {
 
   void codeOriginSetup() {
     injectSysConfig(CODE_ORIGIN_FOR_SPANS_ENABLED, "true", true)
-    codeOriginRecorder = Mockito.mock(CodeOriginRecorder)
+    codeOriginRecorder = new CodeOriginRecorder() {
+        def invoked = false
+        @Override
+        String captureCodeOrigin(boolean entry) {
+          invoked = true
+          return "done"
+        }
+
+        @Override
+        String captureCodeOrigin(Method method, boolean entry) {
+          invoked = true
+          return "done"
+        }
+      }
     DebuggerContext.initCodeOrigin(codeOriginRecorder)
   }
 }

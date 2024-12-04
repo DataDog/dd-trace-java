@@ -59,7 +59,7 @@ class KarateTest extends CiVisibilityInstrumentationTest {
     testcaseName                      | tests                     | expectedTracesCount | skippedTests
     "test-itr-skipping"               | [TestSucceedKarate]       | 3                   | [new TestIdentifier("[org/example/test_succeed] test succeed", "first scenario", null)]
     "test-itr-skipping-parameterized" | [TestParameterizedKarate] | 3                   | [
-      new TestIdentifier("[org/example/test_parameterized] test parameterized", "first scenario as an outline", '{"param":"\\\'a\\\'","value":"aa"}')
+      new TestIdentifier("[org/example/test_parameterized] test parameterized", "first scenario as an outline", '{"param":"\'a\'","value":"aa"}')
     ]
     "test-itr-unskippable"            | [TestUnskippableKarate]   | 3                   | [new TestIdentifier("[org/example/test_unskippable] test unskippable", "first scenario", null)]
   }
