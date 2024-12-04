@@ -10,7 +10,7 @@
                 "name": "type: enhancement"
             }
         ],
-        "title": "[API] Adding some new features",
-        "body": "# What Does This Do\n\nThis PR introduces a workflow that checks PRs contributing guidelines."
+        "title": "Adding some new features",
+        "body": "# What Does This Do\n\nThis PR introduces a workflow to check that PRs labels and title match the contributing guidelines.\nIt fixes #1234 amoung other issues."
     }
 }

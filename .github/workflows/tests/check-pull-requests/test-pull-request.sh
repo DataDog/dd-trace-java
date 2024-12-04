@@ -5,4 +5,5 @@ testworkflow pull_request instrumentation && \
 testworkflow pull_request draft && \
 testworkflow pull_request no-release-notes && \
 ! testworkflow pull_request missing-label && \
-! testworkflow pull_request title-tag
+! testworkflow pull_request title-tag && \
+! testworkflow pull_request linking-issue
