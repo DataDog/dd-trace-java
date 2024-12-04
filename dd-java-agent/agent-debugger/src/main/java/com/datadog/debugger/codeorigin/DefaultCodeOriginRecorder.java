@@ -74,9 +74,7 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
     CodeOriginProbe probe;
     AgentSpan span = AgentTracer.activeSpan();
 
-    probe =
-        new CodeOriginProbe(
-            new ProbeId(UUID.randomUUID().toString(), 0), entry, where, maxUserFrames);
+    probe = new CodeOriginProbe(new ProbeId(UUID.randomUUID().toString(), 0), entry, where);
     addFingerprint(fingerPrint, probe);
 
     installProbe(probe);

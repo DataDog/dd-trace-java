@@ -299,11 +299,7 @@ public class ConfigurationTest {
     LogProbe.Sampling globalSampling = new LogProbe.Sampling(10.0);
     return new Configuration(
         "service1",
-        asList(metric1),
-        asList(probe1, log1),
-        asList(span1),
-        asList(triggerProbe),
-        asList(spanDecoration1),
+        asList(metric1, probe1, log1, span1, triggerProbe, spanDecoration1),
         allowList,
         denyList,
         globalSampling);
@@ -347,11 +343,7 @@ public class ConfigurationTest {
     LogProbe.Sampling globalSampling = new LogProbe.Sampling(10.0);
     return new Configuration(
         "service2",
-        asList(metric2),
-        asList(probe2, log2),
-        asList(span2),
-        asList(triggerProbe),
-        asList(spanDecoration2),
+        asList(metric2, probe2, log2, span2, triggerProbe, spanDecoration2),
         allowList,
         denyList,
         globalSampling);

@@ -13,8 +13,6 @@ import static org.mockito.Mockito.when;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
-import com.datadog.debugger.probe.SpanDecorationProbe;
-import com.datadog.debugger.probe.TriggerProbe;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.util.MoshiHelper;
@@ -325,11 +323,11 @@ public class CapturingTestBase {
     return createProbeBuilder(id, typeName, methodName, signature, lines).build();
   }
 
-  protected TestSnapshotListener installProbes(LogProbe... logProbes) {
+  protected TestSnapshotListener installProbes(ProbeDefinition... probes) {
     return installProbes(
         Configuration.builder()
             .setService(CapturedSnapshotTest.SERVICE_NAME)
-            .addLogProbes(asList(logProbes))
+            .add(asList(probes))
             .build() /*, logProbes*/);
   }
 
@@ -349,8 +347,7 @@ public class CapturingTestBase {
         .sampling(new LogProbe.Sampling(100));
   }
 
-  protected TestSnapshotListener installProbes(
-      Configuration configuration, ProbeDefinition... probes) {
+  protected TestSnapshotListener installProbes(Configuration configuration) {
 
     config = mock(Config.class);
     when(config.isDebuggerEnabled()).thenReturn(true);
@@ -379,22 +376,14 @@ public class CapturingTestBase {
     DebuggerAgentHelper.injectSink(listener);
 
     DebuggerContext.initProbeResolver(
-        (encodedId) ->
-            resolver(
-                encodedId,
-                configuration.getLogProbes(),
-                configuration.getSpanDecorationProbes(),
-                configuration.getTriggerProbes()));
+        (encodedId) -> resolver(encodedId, configuration.getDefinitions()));
     DebuggerContext.initClassFilter(new DenyListHelper(null));
     DebuggerContext.initValueSerializer(new JsonSnapshotSerializer());
 
-    Collection<LogProbe> logProbes = configuration.getLogProbes();
-    if (logProbes != null) {
-      for (LogProbe probe : logProbes) {
-        if (probe.getSampling() != null) {
-          ProbeRateLimiter.setRate(
-              probe.getId(), probe.getSampling().getEventsPerSecond(), probe.isCaptureSnapshot());
-        }
+    for (LogProbe probe : configuration.getLogProbes()) {
+      if (probe.getSampling() != null) {
+        ProbeRateLimiter.setRate(
+            probe.getId(), probe.getSampling().getEventsPerSecond(), probe.isCaptureSnapshot());
       }
     }
     if (configuration.getSampling() != null) {
@@ -404,30 +393,10 @@ public class CapturingTestBase {
     return listener;
   }
 
-  public static ProbeImplementation resolver(
-      String encodedId,
-      Collection<LogProbe> logProbes,
-      Collection<SpanDecorationProbe> spanDecorationProbes,
-      Collection<TriggerProbe> triggerProbes) {
-    if (logProbes != null) {
-      for (LogProbe probe : logProbes) {
-        if (probe.getProbeId().getEncodedId().equals(encodedId)) {
-          return probe;
-        }
-      }
-    }
-    if (spanDecorationProbes != null) {
-      for (SpanDecorationProbe probe : spanDecorationProbes) {
-        if (probe.getProbeId().getEncodedId().equals(encodedId)) {
-          return probe;
-        }
-      }
-    }
-    if (triggerProbes != null) {
-      for (TriggerProbe probe : triggerProbes) {
-        if (probe.getProbeId().getEncodedId().equals(encodedId)) {
-          return probe;
-        }
+  public static ProbeImplementation resolver(String encodedId, List<ProbeDefinition> probes) {
+    for (ProbeDefinition probe : probes) {
+      if (probe.getProbeId().getEncodedId().equals(encodedId)) {
+        return probe;
       }
     }
 
