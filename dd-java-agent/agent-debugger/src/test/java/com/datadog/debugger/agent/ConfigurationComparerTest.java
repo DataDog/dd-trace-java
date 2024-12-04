@@ -222,7 +222,7 @@ class ConfigurationComparerTest {
     instrumentationResults.put(
         probe.getId(),
         new InstrumentationResult(
-            InstrumentationResult.Status.INSTALLED, null, "com.datadog.Blocked", "method"));
+            InstrumentationResult.Status.INSTALLED, "com.datadog.Blocked", "method"));
     Configuration noFilterConfig = createConfig(Collections.singletonList(probe));
     Configuration config =
         Configuration.builder()
@@ -446,7 +446,7 @@ class ConfigurationComparerTest {
     }
   }
 
-  private static Configuration createConfig(List<LogProbe> logProbes) {
-    return new Configuration(SERVICE_NAME, logProbes);
+  private static Configuration createConfig(List<ProbeDefinition> probes) {
+    return new Configuration(SERVICE_NAME, probes);
   }
 }

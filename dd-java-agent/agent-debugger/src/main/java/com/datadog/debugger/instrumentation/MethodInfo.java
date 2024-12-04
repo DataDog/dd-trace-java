@@ -30,6 +30,10 @@ public class MethodInfo {
     return classNode;
   }
 
+  public String getMethodName() {
+    return methodNode.name;
+  }
+
   public MethodNode getMethodNode() {
     return methodNode;
   }
@@ -40,5 +44,17 @@ public class MethodInfo {
 
   public int getMethodStart() {
     return classFileLines != null ? classFileLines.getMethodStart(methodNode) : -1;
+  }
+
+  public String getSignature() {
+    return methodNode.desc != null ? Types.descriptorToSignature(methodNode.desc) : null;
+  }
+
+  public String getSourceFileName() {
+    return classNode.sourceFile;
+  }
+
+  public String getTypeName() {
+    return classNode.name.replace('/', '.');
   }
 }

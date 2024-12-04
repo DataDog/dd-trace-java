@@ -264,7 +264,6 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   public void oldClass1_1() throws Exception {
     final String CLASS_NAME = "org.apache.commons.lang.BooleanUtils"; // compiled with jdk 1.1
     TestSnapshotListener listener = installSingleProbe(CLASS_NAME, "toBoolean", null);
-    when(config.isDebuggerVerifyByteCode()).thenReturn(true);
     Class<?> testClass =
         loadClass(
             CLASS_NAME, getClass().getResource("/classfiles/BooleanUtils.classfile").getFile());
@@ -1103,7 +1102,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     Configuration config =
         Configuration.builder()
             .setService(SERVICE_NAME)
-            .addLogProbes(Arrays.asList(probe1, probe2))
+            .add(probe1, probe2)
             .add(new LogProbe.Sampling(1))
             .build();
     TestSnapshotListener listener = installProbes(config);

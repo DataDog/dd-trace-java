@@ -7,7 +7,7 @@ import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.exception.ExceptionProbeManager;
 import com.datadog.debugger.exception.Fingerprinter;
-import com.datadog.debugger.instrumentation.InstrumentationResult;
+import com.datadog.debugger.instrumentation.MethodInfo;
 import com.datadog.debugger.sink.Snapshot;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.MethodLocation;
@@ -136,12 +136,12 @@ public class ExceptionProbe extends LogProbe implements ForceMethodInstrumentati
   }
 
   @Override
-  public void buildLocation(InstrumentationResult result) {
+  public void buildLocation(MethodInfo methodInfo) {
     String type = where.getTypeName();
     String method = where.getMethodName();
-    if (result != null) {
-      type = result.getTypeName();
-      method = result.getMethodName();
+    if (methodInfo != null) {
+      type = methodInfo.getTypeName();
+      method = methodInfo.getMethodName();
     }
     // drop line number for exception probe
     this.location = new ProbeLocation(type, method, where.getSourceFile(), emptyList());
