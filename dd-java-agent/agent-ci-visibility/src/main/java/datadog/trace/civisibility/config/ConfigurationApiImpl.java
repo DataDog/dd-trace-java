@@ -15,6 +15,7 @@ import datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.CoverageEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.EarlyFlakeDetectionEnabled;
+import datadog.trace.api.civisibility.telemetry.tag.FlakyTestRetriesEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.ItrEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.ItrSkipEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.RequireGit;
@@ -132,6 +133,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
         settings.getEarlyFlakeDetectionSettings().isEnabled()
             ? EarlyFlakeDetectionEnabled.TRUE
             : null,
+        settings.isFlakyTestRetriesEnabled() ? FlakyTestRetriesEnabled.TRUE : null,
         settings.isGitUploadRequired() ? RequireGit.TRUE : null);
 
     return settings;

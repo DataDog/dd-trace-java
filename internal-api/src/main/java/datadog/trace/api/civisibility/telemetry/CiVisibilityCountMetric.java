@@ -1,5 +1,6 @@
 package datadog.trace.api.civisibility.telemetry;
 
+import datadog.trace.api.civisibility.telemetry.tag.AgentlessLogSubmissionEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.AutoInjected;
 import datadog.trace.api.civisibility.telemetry.tag.BrowserDriver;
 import datadog.trace.api.civisibility.telemetry.tag.Command;
@@ -11,6 +12,8 @@ import datadog.trace.api.civisibility.telemetry.tag.Endpoint;
 import datadog.trace.api.civisibility.telemetry.tag.ErrorType;
 import datadog.trace.api.civisibility.telemetry.tag.EventType;
 import datadog.trace.api.civisibility.telemetry.tag.ExitCode;
+import datadog.trace.api.civisibility.telemetry.tag.FailFastTestOrderEnabled;
+import datadog.trace.api.civisibility.telemetry.tag.FlakyTestRetriesEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.HasCodeowner;
 import datadog.trace.api.civisibility.telemetry.tag.IsBenchmark;
 import datadog.trace.api.civisibility.telemetry.tag.IsHeadless;
@@ -33,7 +36,12 @@ public enum CiVisibilityCountMetric {
    * The number of test sessions started. This metric is separate from event_created to avoid
    * increasing the cardinality too much
    */
-  TEST_SESSION("test_session", Provider.class, AutoInjected.class),
+  TEST_SESSION(
+      "test_session",
+      Provider.class,
+      AutoInjected.class,
+      AgentlessLogSubmissionEnabled.class,
+      FailFastTestOrderEnabled.class),
   /** The number of events created */
   EVENT_CREATED(
       "event_created",
@@ -97,6 +105,7 @@ public enum CiVisibilityCountMetric {
       ItrSkipEnabled.class,
       CoverageEnabled.class,
       EarlyFlakeDetectionEnabled.class,
+      FlakyTestRetriesEnabled.class,
       RequireGit.class),
   /** The number of requests sent to the itr skippable tests endpoint */
   ITR_SKIPPABLE_TESTS_REQUEST("itr_skippable_tests.request", RequestCompressed.class),
