@@ -187,6 +187,14 @@ public class ConfigurationApiImpl implements ConfigurationApi {
   @Override
   public Map<String, Collection<TestIdentifier>> getFlakyTestsByModule(
       TracerEnvironment tracerEnvironment) throws IOException {
+    OkHttpUtils.CustomListener telemetryListener =
+        new TelemetryListener.Builder(metricCollector)
+            .requestCount(CiVisibilityCountMetric.FLAKY_TESTS_REQUEST)
+            .requestErrors(CiVisibilityCountMetric.FLAKY_TESTS_REQUEST_ERRORS)
+            .requestDuration(CiVisibilityDistributionMetric.FLAKY_TESTS_REQUEST_MS)
+            .responseBytes(CiVisibilityDistributionMetric.FLAKY_TESTS_RESPONSE_BYTES)
+            .build();
+
     String uuid = uuidGenerator.get();
     EnvelopeDto<TracerEnvironment> request =
         new EnvelopeDto<>(
@@ -198,11 +206,12 @@ public class ConfigurationApiImpl implements ConfigurationApi {
             FLAKY_TESTS_URI,
             requestBody,
             is -> testIdentifiersResponseAdapter.fromJson(Okio.buffer(Okio.source(is))).data,
-            null,
+            telemetryListener,
             false);
 
     LOGGER.debug("Received {} flaky tests in total", response.size());
 
+    int flakyTestsCount = 0;
     Map<String, Collection<TestIdentifier>> testIdentifiers = new HashMap<>();
     for (DataDto<TestIdentifierJson> dataDto : response) {
       TestIdentifierJson testIdentifierJson = dataDto.getAttributes();
@@ -211,7 +220,10 @@ public class ConfigurationApiImpl implements ConfigurationApi {
       testIdentifiers
           .computeIfAbsent(moduleName, k -> new HashSet<>())
           .add(testIdentifierJson.toTestIdentifier());
+      flakyTestsCount++;
     }
+
+    metricCollector.add(CiVisibilityDistributionMetric.FLAKY_TESTS_RESPONSE_TESTS, flakyTestsCount);
     return testIdentifiers;
   }
 
