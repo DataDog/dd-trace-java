@@ -4326,6 +4326,8 @@ public class Config {
         + debuggerSymbolIncludes
         + ", debuggerExceptionEnabled="
         + debuggerExceptionEnabled
+        + ", debuggerCodeOriginEnabled="
+        + debuggerCodeOriginEnabled
         + ", awsPropagationEnabled="
         + awsPropagationEnabled
         + ", sqsPropagationEnabled="
