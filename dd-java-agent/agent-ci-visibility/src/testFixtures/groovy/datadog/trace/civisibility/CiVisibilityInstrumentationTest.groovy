@@ -263,15 +263,13 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     ] + replacements
 
     // uncomment to generate expected data templates
-    //    def baseTemplatesPath = CiVisibilityInstrumentationTest.classLoader
-    //      .getResource("test-succeed")
-    //      .toURI()
-    //      .schemeSpecificPart
-    //      .replace('build/resources/test', 'src/test/resources')
-    //      .replace('build/resources/latestDepTest', 'src/test/resources')
-    //      .replace("test-succeed", testcaseName)
-    //    CiVisibilityTestUtils.generateTemplates(baseTemplatesPath, events, coverages, additionalReplacements)
-    //    return [:]
+    //      def clazz = this.getClass()
+    //      def resourceName = clazz.name.replace('.', '/') + ".class"
+    //      def classfilePath = clazz.getResource(resourceName).toURI().schemeSpecificPart
+    //      def modulePath = classfilePath.substring(0, classfilePath.indexOf("/build/classes"))
+    //      def baseTemplatesPath = modulePath + "/src/test/resources/" + testcaseName
+    //      CiVisibilityTestUtils.generateTemplates(baseTemplatesPath, events, coverages, additionalReplacements)
+    //      return [:]
 
     return CiVisibilityTestUtils.assertData(testcaseName, events, coverages, additionalReplacements)
   }

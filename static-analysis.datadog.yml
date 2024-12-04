@@ -16,9 +16,24 @@ rulesets:
           - "**"
       forloop-variable-count:
         max-variables: 2
+      literals-first-in-comparison:
+        ignore:
+          - "**"
+      one-declaration-per-line:
+        ignore:
+          - "**"
+      redundant-initializer:
+        ignore:
+          - "**"
   - java-code-style:
     rules:
+      avoid-dollar-signs:
+        ignore:
+          - "**"
       boolean-get-method-name:
+        ignore:
+          - "**"
+      control-statement-braces:
         ignore:
           - "**"
       generics-naming:

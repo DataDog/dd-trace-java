@@ -51,4 +51,29 @@ public class TestStringBufferSuite implements TestAbstractStringBuilderSuite<Str
     LOGGER.debug("After string buffer toString {}", result);
     return result;
   }
+
+  @Override
+  public String substring(final StringBuffer self, final int beginIndex, final int endIndex) {
+    LOGGER.debug("Before string buffer substring {} from {} to {}", self, beginIndex, endIndex);
+    final String result = self.substring(beginIndex, endIndex);
+    LOGGER.debug("After string buffer substring {}", result);
+    return result;
+  }
+
+  @Override
+  public String substring(final StringBuffer self, final int beginIndex) {
+    LOGGER.debug("Before string buffer substring {} from {}", self, beginIndex);
+    final String result = self.substring(beginIndex);
+    LOGGER.debug("After string buffer substring {}", result);
+    return result;
+  }
+
+  @Override
+  public CharSequence subSequence(
+      final StringBuffer self, final int beginIndex, final int endIndex) {
+    LOGGER.debug("Before string builder subSequence {} from {} to {}", self, beginIndex, endIndex);
+    final CharSequence result = self.subSequence(beginIndex, endIndex);
+    LOGGER.debug("After string builder subSequence {}", result);
+    return result;
+  }
 }

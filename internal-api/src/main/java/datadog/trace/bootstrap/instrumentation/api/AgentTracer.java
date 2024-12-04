@@ -1044,11 +1044,6 @@ public class AgentTracer {
     }
 
     @Override
-    public String getXForwarded() {
-      return null;
-    }
-
-    @Override
     public String getXForwardedFor() {
       return null;
     }

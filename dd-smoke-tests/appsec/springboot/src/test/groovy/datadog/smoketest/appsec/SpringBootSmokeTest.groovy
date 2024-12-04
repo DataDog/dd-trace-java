@@ -177,7 +177,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     def request = new Request.Builder()
       .url(url)
       .addHeader("User-Agent", "Arachni/v1")
-      .addHeader("X-Forwarded", 'for="[::ffff:1.2.3.4]"')
+      .addHeader("X-Client-Ip", '::ffff:1.2.3.4')
       .build()
     def response = client.newCall(request).execute()
     def responseBodyStr = response.body().string()
@@ -385,7 +385,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
 
   void 'rasp blocks on SSRF'() {
     when:
-    String url = "http://localhost:${httpPort}/ssrf/query?domain=169.254.169.254"
+    String url = "http://localhost:${httpPort}/ssrf/${variant}?domain=169.254.169.254"
     def request = new Request.Builder()
       .url(url)
       .get()
@@ -414,6 +414,14 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
       }
     }
     assert trigger != null, 'test trigger not found'
+
+    where:
+    variant               | _
+    'query'               | _
+    'okHttp3'             | _
+    'okHttp2'             | _
+    'apache-httpclient4'  | _
+    'commons-httpclient2' | _
   }
 
   void 'rasp blocks on LFI for #variant'() {

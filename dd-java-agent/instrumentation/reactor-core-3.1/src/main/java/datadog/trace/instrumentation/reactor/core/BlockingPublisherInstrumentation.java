@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.ha
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
@@ -36,15 +35,8 @@ public class BlockingPublisherInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".ReactorAsyncResultSupportExtension",
+      packageName + ".ReactorAsyncResultExtension",
     };
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(isConstructor(), getClass().getName() + "$AsyncExtensionInstallAdvice");
-    transformer.applyAdvice(
-        isMethod().and(nameStartsWith("block")), getClass().getName() + "$BlockingAdvice");
   }
 
   @Override
@@ -62,6 +54,12 @@ public class BlockingPublisherInstrumentation extends InstrumenterModule.Tracing
     return hasSuperType(namedOneOf("reactor.core.publisher.Mono", "reactor.core.publisher.Flux"));
   }
 
+  @Override
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
+        isMethod().and(nameStartsWith("block")), getClass().getName() + "$BlockingAdvice");
+  }
+
   public static class BlockingAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope before(@Advice.This final Publisher self) {
@@ -77,13 +75,6 @@ public class BlockingPublisherInstrumentation extends InstrumenterModule.Tracing
       if (scope != null) {
         scope.close();
       }
-    }
-  }
-
-  public static class AsyncExtensionInstallAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void init() {
-      ReactorAsyncResultSupportExtension.initialize();
     }
   }
 }

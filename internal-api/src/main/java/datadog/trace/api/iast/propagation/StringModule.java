@@ -23,7 +23,7 @@ public interface StringModule extends IastModule {
       @Nonnull int[] recipeOffsets);
 
   void onStringSubSequence(
-      @Nonnull String self, int beginIndex, int endIndex, @Nullable CharSequence result);
+      @Nonnull CharSequence self, int beginIndex, int endIndex, @Nullable CharSequence result);
 
   void onStringJoin(
       @Nullable String result, @Nonnull CharSequence delimiter, @Nonnull CharSequence[] elements);
@@ -36,7 +36,7 @@ public interface StringModule extends IastModule {
 
   void onStringRepeat(@Nonnull String self, int count, @Nonnull String result);
 
-  void onStringConstructor(@Nonnull String self, @Nonnull String result);
+  void onStringConstructor(@Nonnull CharSequence self, @Nonnull String result);
 
   void onStringFormat(@Nonnull String pattern, @Nonnull Object[] params, @Nonnull String result);
 
@@ -61,4 +61,6 @@ public interface StringModule extends IastModule {
 
   String onStringReplace(
       @Nonnull String self, String regex, String replacement, int numReplacements);
+
+  void onStringValueOf(Object param, @Nullable String result);
 }

@@ -22,6 +22,10 @@ class JUnit58Test extends CiVisibilityInstrumentationTest {
     testcaseName                  | tests                            | expectedTracesCount
     "test-before-each-after-each" | [TestSucceedBeforeEachAfterEach] | 2
     "test-before-all-after-all"   | [TestSucceedBeforeAllAfterAll]   | 2
+    "test-failed-before-all"      | [TestFailedBeforeAll]            | 2
+    "test-failed-after-all"       | [TestFailedAfterAll]             | 2
+    "test-failed-before-each"     | [TestFailedBeforeEach]           | 2
+    "test-failed-after-each"      | [TestFailedAfterEach]            | 2
   }
 
   private static void runTests(List<Class<?>> tests) {

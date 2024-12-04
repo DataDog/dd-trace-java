@@ -154,6 +154,11 @@ class SerializerTest extends Specification {
       this.b = b
     }
 
+    @Override
+    String toString() {
+      "$a / $b"
+    }
+
     boolean equals(o) {
       if (this.is(o)) {
         return true

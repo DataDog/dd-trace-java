@@ -37,7 +37,6 @@ public class HttpCodec {
   static final String FORWARDED_FOR_KEY = "forwarded-for";
   static final String X_FORWARDED_PROTO_KEY = "x-forwarded-proto";
   static final String X_FORWARDED_HOST_KEY = "x-forwarded-host";
-  static final String X_FORWARDED_KEY = "x-forwarded";
   static final String X_FORWARDED_FOR_KEY = "x-forwarded-for";
   static final String X_FORWARDED_PORT_KEY = "x-forwarded-port";
 

@@ -39,8 +39,7 @@ public class KafkaProducerCallback implements Callback {
     span.finish();
     if (callback != null) {
       if (parent != null) {
-        try (final AgentScope scope = activateSpan(parent)) {
-          scope.setAsyncPropagation(true);
+        try (final AgentScope scope = activateSpan(parent, true)) {
           callback.onCompletion(metadata, exception);
         }
       } else {
