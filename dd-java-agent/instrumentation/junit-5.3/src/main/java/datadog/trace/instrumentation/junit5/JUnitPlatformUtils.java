@@ -1,12 +1,13 @@
 package datadog.trace.instrumentation.junit5;
 
+import static datadog.json.JsonMapper.toJson;
+
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.util.MethodHandles;
-import datadog.trace.util.Strings;
 import java.lang.invoke.MethodHandle;
 import java.lang.reflect.Method;
 import java.util.List;
@@ -89,7 +90,7 @@ public abstract class JUnitPlatformUtils {
         || methodSource.getMethodParameterTypes().isEmpty()) {
       return null;
     }
-    return "{\"metadata\":{\"test_name\":\"" + Strings.escapeToJson(displayName) + "\"}}";
+    return "{\"metadata\":{\"test_name\":" + toJson(displayName) + "}}";
   }
 
   public static TestIdentifier toTestIdentifier(TestDescriptor testDescriptor) {
