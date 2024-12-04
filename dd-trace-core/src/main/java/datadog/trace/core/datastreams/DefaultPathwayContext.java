@@ -52,7 +52,6 @@ public class DefaultPathwayContext implements PathwayContext {
   // direction != current direction
   private long closestOppositeDirectionHash;
   private String previousDirection;
-  private String productMaskTag;
 
   private static final Set<String> hashableTagKeys =
       new HashSet<String>(
