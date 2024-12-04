@@ -119,10 +119,26 @@ public class DefaultPathwayContext implements PathwayContext {
     setCheckpoint(sortedTags, pointConsumer, defaultTimestamp, 0);
   }
 
-  private String getProductMaskTag() {
-    // it's fine to cache the value per context
+  // extend the list as needed
+  private static final int APM_PRODUCT = 1; // 00000001
+  private static final int DSM_PRODUCT = 2; // 00000010
+  private static final int DJM_PRODUCT = 4; // 00000100
+  private static final int PROFILING_PRODUCT = 8; // 00001000
+
+  public String getProductMaskTag() {
     if (productMaskTag == null) {
-      productMaskTag = PRODUCTS_MASK + ":" + Config.get().enabledProductsMask();
+      long enabledProducts = APM_PRODUCT;
+      if (Config.get().isDataStreamsEnabled()) {
+        enabledProducts |= DSM_PRODUCT;
+      }
+      if (Config.get().isDataJobsEnabled()) {
+        enabledProducts |= DJM_PRODUCT;
+      }
+      if (Config.get().isProfilingEnabled()) {
+        enabledProducts |= PROFILING_PRODUCT;
+      }
+
+      productMaskTag = PRODUCTS_MASK + ":" + enabledProducts;
     }
 
     return productMaskTag;
