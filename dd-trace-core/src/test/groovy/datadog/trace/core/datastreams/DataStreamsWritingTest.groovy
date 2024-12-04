@@ -96,7 +96,7 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     BufferedSource bufferedSource = Okio.buffer(gzipSource)
     MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(bufferedSource.inputStream())
 
-    assert unpacker.unpackMapHeader() == 7
+    assert unpacker.unpackMapHeader() == 8
     assert unpacker.unpackString() == "Env"
     assert unpacker.unpackString() == "test"
     assert unpacker.unpackString() == "Service"
@@ -161,7 +161,7 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     BufferedSource bufferedSource = Okio.buffer(gzipSource)
     MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(bufferedSource.inputStream())
 
-    assert unpacker.unpackMapHeader() == 7
+    assert unpacker.unpackMapHeader() == 8
     assert unpacker.unpackString() == "Env"
     assert unpacker.unpackString() == "test"
     assert unpacker.unpackString() == "Service"
