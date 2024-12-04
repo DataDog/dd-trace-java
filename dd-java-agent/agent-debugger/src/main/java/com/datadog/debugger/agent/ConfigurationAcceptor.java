@@ -7,7 +7,8 @@ public interface ConfigurationAcceptor {
   enum Source {
     REMOTE_CONFIG,
     CODE_ORIGIN,
-    EXCEPTION
+    EXCEPTION,
+    DEBUGGER
   }
 
   void accept(Source source, Collection<? extends ProbeDefinition> definitions);

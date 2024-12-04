@@ -7,25 +7,30 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.objectweb.asm.tree.MethodNode;
 
 /** Stores status instrumentation results */
 public class InstrumentationResult {
+
   public enum Status {
     INSTALLED,
     BLOCKED,
-    ERROR
+    ERROR;
   }
 
   private final Status status;
+
   private final Map<ProbeId, List<DiagnosticMessage>> diagnostics;
   private final String sourceFileName;
   private final String typeName;
   private final String methodName;
+  private final String signature;
   private final int methodStart;
 
   public static class Factory {
+
     public static InstrumentationResult blocked(String className) {
-      return new InstrumentationResult(Status.BLOCKED, null, className, null);
+      return new InstrumentationResult(Status.BLOCKED, null, className);
     }
 
     public static InstrumentationResult blocked(
@@ -34,47 +39,39 @@ public class InstrumentationResult {
       definitions.forEach(
           probeDefinition ->
               diagnostics.put(probeDefinition.getProbeId(), Arrays.asList(messages)));
-      return new InstrumentationResult(Status.BLOCKED, diagnostics, className, null);
+      return new InstrumentationResult(Status.BLOCKED, diagnostics, className);
     }
+  }
+
+  private InstrumentationResult(
+      Status status, Map<ProbeId, List<DiagnosticMessage>> diagnostics, String className) {
+    this(status, diagnostics, className, null);
+  }
+
+  public InstrumentationResult(
+      Status status,
+      Map<ProbeId, List<DiagnosticMessage>> diagnostics,
+      String className,
+      String method) {
+    this.status = status;
+    this.diagnostics = diagnostics;
+    this.typeName = className;
+    this.methodName = method;
+    this.sourceFileName = null;
+    this.signature = null;
+    this.methodStart = -1;
   }
 
   public InstrumentationResult(
       Status status, Map<ProbeId, List<DiagnosticMessage>> diagnostics, MethodInfo methodInfo) {
-    this(
-        status,
-        diagnostics,
-        methodInfo.getClassNode().sourceFile,
-        methodInfo.getClassNode().name.replace('/', '.'),
-        methodInfo.getMethodNode().name,
-        methodInfo.getMethodStart());
-  }
-
-  public InstrumentationResult(
-      Status status,
-      Map<ProbeId, List<DiagnosticMessage>> diagnostics,
-      String className,
-      String methodName) {
     this.status = status;
     this.diagnostics = diagnostics;
-    this.typeName = className;
-    this.methodName = methodName;
-    this.methodStart = -1;
-    this.sourceFileName = null;
-  }
-
-  public InstrumentationResult(
-      Status status,
-      Map<ProbeId, List<DiagnosticMessage>> diagnostics,
-      String sourceFileName,
-      String className,
-      String methodName,
-      int methodStart) {
-    this.status = status;
-    this.diagnostics = diagnostics;
-    this.sourceFileName = sourceFileName;
-    this.typeName = className;
-    this.methodName = methodName;
-    this.methodStart = methodStart;
+    this.sourceFileName = methodInfo.getClassNode().sourceFile;
+    this.typeName = methodInfo.getClassNode().name.replace('/', '.');
+    MethodNode methodNode = methodInfo.getMethodNode();
+    this.methodName = methodNode.name;
+    this.methodStart = methodInfo.getMethodStart();
+    this.signature = methodNode.desc != null ? Types.descriptorToSignature(methodNode.desc) : null;
   }
 
   public boolean isError() {
@@ -107,6 +104,10 @@ public class InstrumentationResult {
 
   public String getSourceFileName() {
     return sourceFileName;
+  }
+
+  public String getMethodSignature() {
+    return signature;
   }
 
   @Generated

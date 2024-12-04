@@ -27,7 +27,7 @@ public class Where {
 
   private final String typeName;
   private final String methodName;
-  private final String sourceFile;
+  private String sourceFile;
   private final String signature;
   private final SourceLine[] lines;
   // used as cache for matching signature
@@ -51,12 +51,17 @@ public class Where {
   }
 
   public static Where of(Method method) {
-    return of(
-        method.getDeclaringClass().getName(),
-        method.getName(),
-        stream(method.getParameterTypes())
-            .map(Class::getTypeName)
-            .collect(Collectors.joining(", ", "(", ")")));
+    Where where =
+        of(
+            method.getDeclaringClass().getName(),
+            method.getName(),
+            stream(method.getParameterTypes())
+                .map(Class::getTypeName)
+                .collect(Collectors.joining(", ", "(", ")")));
+
+    where.sourceFile = "blah";
+
+    return where;
   }
 
   protected static SourceLine[] sourceLines(String[] defs) {

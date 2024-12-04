@@ -1001,7 +1001,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     Configuration config =
         Configuration.builder()
             .setService(SERVICE_NAME)
-            .addLogProbes(Arrays.asList(probe1, probe2))
+            .add(probe1, probe2)
             .add(new LogProbe.Sampling(1))
             .build();
     TestSnapshotListener listener = installProbes(config);
