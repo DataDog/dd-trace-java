@@ -1,20 +1,19 @@
 package datadog.json;
 
-import static java.util.stream.Collectors.joining;
-
-import java.util.ArrayDeque;
-import java.util.Deque;
+import java.util.BitSet;
 
 /**
  * This {@link JsonStructure} performs minimal structure checks to ensure the built JSON is
  * coherent.
  */
 class SafeJsonStructure implements JsonStructure {
-  private final Deque<Boolean> structure;
+  private final BitSet structure;
+  private int depth;
   private boolean complete;
 
   SafeJsonStructure() {
-    this.structure = new ArrayDeque<>();
+    this.structure = new BitSet();
+    this.depth = -1;
     this.complete = false;
   }
 
@@ -23,12 +22,12 @@ class SafeJsonStructure implements JsonStructure {
     if (this.complete) {
       throw new IllegalStateException("Object is complete");
     }
-    this.structure.add(true);
+    this.structure.set(++this.depth);
   }
 
   @Override
   public boolean objectStarted() {
-    return !this.structure.isEmpty() && this.structure.peekLast();
+    return this.depth >= 0 && this.structure.get(this.depth);
   }
 
   @Override
@@ -36,8 +35,8 @@ class SafeJsonStructure implements JsonStructure {
     if (!objectStarted()) {
       throw new IllegalStateException("Object not started");
     }
-    this.structure.removeLast();
-    if (this.structure.isEmpty()) {
+    this.depth--;
+    if (this.depth < 0) {
       this.complete = true;
     }
   }
@@ -47,12 +46,12 @@ class SafeJsonStructure implements JsonStructure {
     if (this.complete) {
       throw new IllegalStateException("Object is complete");
     }
-    this.structure.offer(false);
+    this.structure.clear(++this.depth);
   }
 
   @Override
   public boolean arrayStarted() {
-    return !this.structure.isEmpty() && !this.structure.peekLast();
+    return this.depth >= 0 && !this.structure.get(this.depth);
   }
 
   @Override
@@ -60,8 +59,8 @@ class SafeJsonStructure implements JsonStructure {
     if (!arrayStarted()) {
       throw new IllegalStateException("Array not started");
     }
-    this.structure.removeLast();
-    if (this.structure.isEmpty()) {
+    this.depth--;
+    if (this.depth < 0) {
       this.complete = true;
     }
   }
@@ -78,16 +77,13 @@ class SafeJsonStructure implements JsonStructure {
     if (this.complete) {
       throw new IllegalStateException("Object is complete");
     }
-    if (this.structure.isEmpty()) {
+    if (this.depth < 0) {
       this.complete = true;
     }
   }
 
   @Override
   public String toString() {
-    return (this.complete ? "complete" : "")
-        + this.structure.stream()
-            .map(b -> b ? "object start" : "array start")
-            .collect(joining(","));
+    return (this.complete ? "complete" : "") + this.structure;
   }
 }
