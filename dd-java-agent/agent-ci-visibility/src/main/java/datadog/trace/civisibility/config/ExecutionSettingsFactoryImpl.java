@@ -140,12 +140,15 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
 
     Map<String, Collection<TestIdentifier>> flakyTestsByModule =
         flakyTestRetriesEnabled && config.isCiVisibilityFlakyRetryOnlyKnownFlakes()
+                || CIConstants.FAIL_FAST_TEST_ORDER.equalsIgnoreCase(
+                    config.getCiVisibilityTestOrder())
             ? getFlakyTestsByModule(tracerEnvironment)
             : null;
 
     Map<String, Collection<TestIdentifier>> knownTestsByModule =
         earlyFlakeDetectionEnabled
-                || CIConstants.FAIL_FAST_TEST_ORDER.equals(config.getCiVisibilityTestOrder())
+                || CIConstants.FAIL_FAST_TEST_ORDER.equalsIgnoreCase(
+                    config.getCiVisibilityTestOrder())
             ? getKnownTestsByModule(tracerEnvironment)
             : null;
 

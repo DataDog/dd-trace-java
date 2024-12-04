@@ -3,6 +3,8 @@ import datadog.trace.api.civisibility.CIConstants
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.instrumentation.junit5.TestEventsHandlerHolder
 import org.example.*
+import org.junit.jupiter.api.ClassOrderer
+import org.junit.jupiter.api.MethodOrderer
 import org.junit.jupiter.engine.Constants
 import org.junit.jupiter.engine.JupiterTestEngine
 import org.junit.platform.engine.DiscoverySelector
@@ -36,7 +38,7 @@ class JUnit58Test extends CiVisibilityInstrumentationTest {
     "test-failed-after-each"      | [TestFailedAfterEach]            | 2
   }
 
-  def "test ordering #testcaseName"() {
+  def "test known tests ordering #testcaseName"() {
     givenKnownTests(knownTestsList)
 
     runTests(tests)
@@ -44,19 +46,40 @@ class JUnit58Test extends CiVisibilityInstrumentationTest {
     assertTestsOrder(expectedOrder)
 
     where:
-    testcaseName                     | tests                                   | knownTestsList                                                        | expectedOrder
-    "ordering-methods"               | [TestSucceed]                           | [test("org.example.TestSucceed", "test_succeed_1")]                   | [
+    testcaseName                     | tests                             | knownTestsList                                                        | expectedOrder
+    "ordering-methods"               | [TestSucceed]                     | [test("org.example.TestSucceed", "test_succeed_1")]                   | [
       test("org.example.TestSucceed", "test_succeed_2"),
       test("org.example.TestSucceed", "test_succeed_1")
     ]
-    "ordering-classes"               | [TestSucceed, TestSucceedAnother]       | [test("org.example.TestSucceed", "test_succeed_1")]                   | [
+    "ordering-classes"               | [TestSucceed, TestSucceedAnother] | [test("org.example.TestSucceed", "test_succeed_1")]                   | [
       test("org.example.TestSucceedAnother", "test_succeed_1"),
       test("org.example.TestSucceed", "test_succeed_2"),
       test("org.example.TestSucceed", "test_succeed_1")
     ]
-    "ordering-parameterized-methods" | [TestParameterized]                     | [test("org.example.TestParameterized", "test_another_parameterized")] | [
+    "ordering-parameterized-methods" | [TestParameterized]               | [test("org.example.TestParameterized", "test_another_parameterized")] | [
       test("org.example.TestParameterized", "test_parameterized"),
       test("org.example.TestParameterized", "test_another_parameterized")
+    ]
+  }
+
+  def "test flaky tests ordering #testcaseName"() {
+    givenKnownTests(expectedOrder)
+    givenFlakyTests(flakyTestsList)
+
+    runTests(tests)
+
+    assertTestsOrder(expectedOrder)
+
+    where:
+    testcaseName       | tests                             | flakyTestsList                                             | expectedOrder
+    "ordering-methods" | [TestSucceed]                     | [test("org.example.TestSucceed", "test_succeed_2")]        | [
+      test("org.example.TestSucceed", "test_succeed_2"),
+      test("org.example.TestSucceed", "test_succeed_1")
+    ]
+    "ordering-classes" | [TestSucceed, TestSucceedAnother] | [test("org.example.TestSucceedAnother", "test_succeed_1")] | [
+      test("org.example.TestSucceedAnother", "test_succeed_1"),
+      test("org.example.TestSucceed", "test_succeed_1"),
+      test("org.example.TestSucceed", "test_succeed_2")
     ]
   }
 
@@ -69,8 +92,8 @@ class JUnit58Test extends CiVisibilityInstrumentationTest {
     }
 
     def launcherReq = LauncherDiscoveryRequestBuilder.request()
-      .configurationParameter(Constants.DEFAULT_TEST_CLASS_ORDER_PROPERTY_NAME, "org.junit.jupiter.api.ClassOrderer.ClassName")
-      .configurationParameter(Constants.DEFAULT_TEST_METHOD_ORDER_PROPERTY_NAME, "org.junit.jupiter.api.MethodOrderer.MethodName")
+      .configurationParameter(Constants.DEFAULT_TEST_CLASS_ORDER_PROPERTY_NAME, ClassOrderer.ClassName.name)
+      .configurationParameter(Constants.DEFAULT_TEST_METHOD_ORDER_PROPERTY_NAME, MethodOrderer.MethodName.name)
       .selectors(selectors)
       .build()
 

@@ -11,32 +11,34 @@ import org.junit.jupiter.api.ClassOrderer;
 import org.junit.jupiter.api.ClassOrdererContext;
 import org.junit.platform.engine.TestDescriptor;
 
-public class KnownClassesOrderer implements ClassOrderer {
+public class FailFastClassOrderer implements ClassOrderer {
 
   private final TestEventsHandler<TestDescriptor, TestDescriptor> testEventsHandler;
   private final @Nullable ClassOrderer delegate;
   private final Comparator<ClassDescriptor> knownTestSuitesComparator;
 
-  public KnownClassesOrderer(
+  public FailFastClassOrderer(
       TestEventsHandler<TestDescriptor, TestDescriptor> testEventsHandler,
       @Nullable ClassOrderer delegate) {
     this.testEventsHandler = testEventsHandler;
     this.delegate = delegate;
-    this.knownTestSuitesComparator = Comparator.comparing(this::knownTestsPercentage);
+    this.knownTestSuitesComparator = Comparator.comparing(this::knownAndStableTestsPercentage);
   }
 
-  private int knownTestsPercentage(ClassDescriptor classDescriptor) {
+  private int knownAndStableTestsPercentage(ClassDescriptor classDescriptor) {
     TestDescriptor testDescriptor = JUnit5OrderUtils.getTestDescriptor(classDescriptor);
-    return 100 - unknownTestsPercentage(testDescriptor);
+    return 100 - unknownAndFlakyTestsPercentage(testDescriptor);
   }
 
-  private int unknownTestsPercentage(TestDescriptor testDescriptor) {
+  private int unknownAndFlakyTestsPercentage(TestDescriptor testDescriptor) {
     if (testDescriptor == null) {
       return 0;
     }
     if (testDescriptor.isTest() || JUnitPlatformUtils.isParameterizedTest(testDescriptor)) {
       TestIdentifier testIdentifier = JUnitPlatformUtils.toTestIdentifier(testDescriptor);
-      return testEventsHandler.isNew(testIdentifier) ? 100 : 0;
+      return testEventsHandler.isNew(testIdentifier) || testEventsHandler.isFlaky(testIdentifier)
+          ? 100
+          : 0;
     }
     Set<? extends TestDescriptor> children = testDescriptor.getChildren();
     if (children.isEmpty()) {
@@ -45,7 +47,7 @@ public class KnownClassesOrderer implements ClassOrderer {
 
     int uknownTestsPercentage = 0;
     for (TestDescriptor child : children) {
-      uknownTestsPercentage += unknownTestsPercentage(child);
+      uknownTestsPercentage += unknownAndFlakyTestsPercentage(child);
     }
     return uknownTestsPercentage / children.size();
   }
@@ -57,7 +59,7 @@ public class KnownClassesOrderer implements ClassOrderer {
       delegate.orderClasses(classOrdererContext);
     }
     // then apply our ordering (since sorting is stable, delegate's ordering will be preserved for
-    // classes with the same "known" status)
+    // classes with the same "known/stable" status)
     classOrdererContext.getClassDescriptors().sort(knownTestSuitesComparator);
   }
 }

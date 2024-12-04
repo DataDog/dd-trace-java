@@ -271,6 +271,11 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
   }
 
   @Override
+  public boolean isFlaky(TestIdentifier test) {
+    return testModule.isFlaky(test);
+  }
+
+  @Override
   public void close() {
     testModule.end(null);
     testSession.end(null);

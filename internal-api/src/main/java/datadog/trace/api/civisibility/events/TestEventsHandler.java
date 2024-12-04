@@ -80,6 +80,8 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
 
   boolean isNew(TestIdentifier test);
 
+  boolean isFlaky(TestIdentifier test);
+
   @Override
   void close();
 

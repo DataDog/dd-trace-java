@@ -225,11 +225,14 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
 
   def givenFlakyTests(List<TestIdentifier> tests) {
     flakyTests.addAll(tests)
-    flakyRetryEnabled = true
   }
 
   def givenKnownTests(List<TestIdentifier> tests) {
     knownTests.addAll(tests)
+  }
+
+  def givenFlakyRetryEnabled(boolean flakyRetryEnabled) {
+    this.flakyRetryEnabled = flakyRetryEnabled
   }
 
   def givenEarlyFlakinessDetectionEnabled(boolean earlyFlakinessDetectionEnabled) {

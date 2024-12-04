@@ -54,8 +54,8 @@ public class JUnit5TestOrderInstrumentation extends InstrumenterModule.CiVisibil
       parentPackageName + ".TestEventsHandlerHolder",
       parentPackageName + ".JUnitPlatformUtils",
       packageName + ".JUnit5OrderUtils",
-      packageName + ".KnownClassesOrderer",
-      packageName + ".KnownMethodOrderer",
+      packageName + ".FailFastClassOrderer",
+      packageName + ".FailFastMethodOrderer",
     };
   }
 
@@ -89,7 +89,7 @@ public class JUnit5TestOrderInstrumentation extends InstrumenterModule.CiVisibil
       if (CIConstants.FAIL_FAST_TEST_ORDER.equalsIgnoreCase(testOrder)) {
         classOrderer =
             Optional.of(
-                new KnownClassesOrderer(
+                new FailFastClassOrderer(
                     TestEventsHandlerHolder.TEST_EVENTS_HANDLER, classOrderer.orElse(null)));
       } else {
         throw new IllegalArgumentException("Unknown test order: " + testOrder);
@@ -117,7 +117,7 @@ public class JUnit5TestOrderInstrumentation extends InstrumenterModule.CiVisibil
       if (CIConstants.FAIL_FAST_TEST_ORDER.equalsIgnoreCase(testOrder)) {
         methodOrderer =
             Optional.of(
-                new KnownMethodOrderer(
+                new FailFastMethodOrderer(
                     TestEventsHandlerHolder.TEST_EVENTS_HANDLER, methodOrderer.orElse(null)));
       } else {
         throw new IllegalArgumentException("Unknown test order: " + testOrder);
