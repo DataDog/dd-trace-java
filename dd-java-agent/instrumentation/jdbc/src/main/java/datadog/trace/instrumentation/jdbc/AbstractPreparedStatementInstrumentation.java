@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DBM_TRACE_INJECTED;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DATABASE_QUERY;
+import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DBM_TRACE_PREPARED_STATEMENTS;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.INJECT_COMMENT;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.logMissingQueryInfo;
@@ -80,12 +81,19 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
                 connection, InstrumentationContext.get(Connection.class, DBInfo.class));
         final boolean injectTraceContext = DECORATE.shouldInjectTraceContext(dbInfo);
 
-        if (INJECT_COMMENT && injectTraceContext && DECORATE.isSqlServer(dbInfo)) {
-          // The span ID is pre-determined so that we can reference it when setting the context
-          final long spanID = DECORATE.setContextInfo(connection, dbInfo);
-          // we then force that pre-determined span ID for the span covering the actual query
-          span = AgentTracer.get().buildSpan(DATABASE_QUERY).withSpanId(spanID).start();
-          span.setTag(DBM_TRACE_INJECTED, true);
+        if (INJECT_COMMENT && injectTraceContext) {
+          if (DECORATE.isSqlServer(dbInfo)) {
+            // The span ID is pre-determined so that we can reference it when setting the context
+            final long spanID = DECORATE.setContextInfo(connection, dbInfo);
+            // we then force that pre-determined span ID for the span covering the actual query
+            span = AgentTracer.get().buildSpan(DATABASE_QUERY).withSpanId(spanID).start();
+            span.setTag(DBM_TRACE_INJECTED, true);
+          } else if (DECORATE.isPostgres(dbInfo) && DBM_TRACE_PREPARED_STATEMENTS) {
+            span = startSpan(DATABASE_QUERY);
+            DECORATE.setApplicationName(span, connection);
+          } else {
+            span = startSpan(DATABASE_QUERY);
+          }
         } else {
           span = startSpan(DATABASE_QUERY);
         }

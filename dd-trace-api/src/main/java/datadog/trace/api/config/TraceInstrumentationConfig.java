@@ -68,6 +68,8 @@ public final class TraceInstrumentationConfig {
 
   public static final String DB_DBM_PROPAGATION_MODE_MODE = "dbm.propagation.mode";
 
+  public static final String DB_DBM_TRACE_PREPARED_STATEMENTS = "dbm.trace_prepared_statements";
+
   public static final String JDBC_CONNECTION_CLASS_NAME = "trace.jdbc.connection.class.name";
 
   public static final String HTTP_URL_CONNECTION_CLASS_NAME =
