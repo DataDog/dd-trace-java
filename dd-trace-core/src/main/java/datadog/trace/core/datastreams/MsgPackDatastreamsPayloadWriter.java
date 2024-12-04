@@ -80,7 +80,7 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
 
   @Override
   public void writePayload(Collection<StatsBucket> data, String serviceNameOverride) {
-    writer.startMap(7);
+    writer.startMap(8);
     /* 1 */
     writer.writeUTF8(ENV);
     writer.writeUTF8(wellKnownTags.getEnv());
@@ -135,6 +135,7 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
       }
     }
 
+    /* 8 */
     writer.writeUTF8(PRODUCTS_MASK);
     writer.writeLong(getProductsMask());
 
