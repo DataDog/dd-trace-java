@@ -6,6 +6,7 @@ import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.WritableFormatter;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
+import datadog.trace.api.Config;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.common.metrics.Sink;
 import java.util.Collection;
@@ -31,6 +32,7 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
   private static final byte[] PARENT_HASH = "ParentHash".getBytes(ISO_8859_1);
   private static final byte[] BACKLOG_VALUE = "Value".getBytes(ISO_8859_1);
   private static final byte[] BACKLOG_TAGS = "Tags".getBytes(ISO_8859_1);
+  private static final byte[] PRODUCTS_MASK = "ProductMask".getBytes(ISO_8859_1);
 
   private static final int INITIAL_CAPACITY = 512 * 1024;
 
@@ -53,6 +55,27 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
 
   public void reset() {
     buffer.reset();
+  }
+
+  // extend the list as needed
+  private static final int APM_PRODUCT = 1; // 00000001
+  private static final int DSM_PRODUCT = 2; // 00000010
+  private static final int DJM_PRODUCT = 4; // 00000100
+  private static final int PROFILING_PRODUCT = 8; // 00001000
+
+  public long getProductsMask() {
+    long productsMask = APM_PRODUCT;
+    if (Config.get().isDataStreamsEnabled()) {
+      productsMask |= DSM_PRODUCT;
+    }
+    if (Config.get().isDataJobsEnabled()) {
+      productsMask |= DJM_PRODUCT;
+    }
+    if (Config.get().isProfilingEnabled()) {
+      productsMask |= PROFILING_PRODUCT;
+    }
+
+    return productsMask;
   }
 
   @Override
@@ -111,6 +134,9 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
         writeBacklogs(bucket.getBacklogs(), writer);
       }
     }
+
+    writer.writeUTF8(PRODUCTS_MASK);
+    writer.writeLong(getProductsMask());
 
     buffer.mark();
     sink.accept(buffer.messageCount(), buffer.slice());

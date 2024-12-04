@@ -1,6 +1,5 @@
 package datadog.trace.core.datastreams;
 
-import static datadog.trace.core.datastreams.TagsProcessor.PRODUCTS_MASK;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -119,31 +118,6 @@ public class DefaultPathwayContext implements PathwayContext {
     setCheckpoint(sortedTags, pointConsumer, defaultTimestamp, 0);
   }
 
-  // extend the list as needed
-  private static final int APM_PRODUCT = 1; // 00000001
-  private static final int DSM_PRODUCT = 2; // 00000010
-  private static final int DJM_PRODUCT = 4; // 00000100
-  private static final int PROFILING_PRODUCT = 8; // 00001000
-
-  public String getProductMaskTag() {
-    if (productMaskTag == null) {
-      long enabledProducts = APM_PRODUCT;
-      if (Config.get().isDataStreamsEnabled()) {
-        enabledProducts |= DSM_PRODUCT;
-      }
-      if (Config.get().isDataJobsEnabled()) {
-        enabledProducts |= DJM_PRODUCT;
-      }
-      if (Config.get().isProfilingEnabled()) {
-        enabledProducts |= PROFILING_PRODUCT;
-      }
-
-      productMaskTag = PRODUCTS_MASK + ":" + enabledProducts;
-    }
-
-    return productMaskTag;
-  }
-
   @Override
   public void setCheckpoint(
       LinkedHashMap<String, String> sortedTags,
@@ -156,9 +130,7 @@ public class DefaultPathwayContext implements PathwayContext {
     try {
       // So far, each tag key has only one tag value, so we're initializing the capacity to match
       // the number of tag keys for now. We should revisit this later if it's no longer the case.
-      List<String> allTags = new ArrayList<>(sortedTags.size() + 1);
-      allTags.add(getProductMaskTag());
-
+      List<String> allTags = new ArrayList<>(sortedTags.size());
       PathwayHashBuilder pathwayHashBuilder =
           new PathwayHashBuilder(hashOfKnownTags, serviceNameOverride);
       DataSetHashBuilder aggregationHashBuilder = new DataSetHashBuilder();

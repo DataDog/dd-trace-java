@@ -262,6 +262,9 @@ class DataStreamsWritingTest extends DDCoreSpecification {
       assert unpacker.unpackString() == (hash == 1 ? "topic:testTopic" : "topic:testTopic2")
     }
 
+    assert unpacker.unpackString() == "ProductMask"
+    assert unpacker.unpackLong() == 1
+
     return true
   }
 }

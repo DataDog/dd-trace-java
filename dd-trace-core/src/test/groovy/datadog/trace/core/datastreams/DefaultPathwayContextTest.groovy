@@ -74,8 +74,8 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     pointConsumer.points.size() == 2
     verifyFirstPoint(pointConsumer.points[0])
     with(pointConsumer.points[1]) {
-      edgeTags == ["products_mask:1", "group:group", "topic:topic", "type:kafka"]
-      edgeTags.size() == 4
+      edgeTags == ["group:group", "topic:topic", "type:kafka"]
+      edgeTags.size() == 3
       parentHash == pointConsumer.points[0].hash
       hash != 0
       pathwayLatencyNano == 25
@@ -97,8 +97,8 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     context.isStarted()
     pointConsumer.points.size() == 1
     with(pointConsumer.points[0]) {
-      edgeTags == ["products_mask:1", "group:group", "topic:topic", "type:kafka"]
-      edgeTags.size() == 4
+      edgeTags == ["group:group", "topic:topic", "type:kafka"]
+      edgeTags.size() == 3
       hash != 0
       payloadSizeBytes == 72
     }
@@ -124,16 +124,16 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     pointConsumer.points.size() == 3
     verifyFirstPoint(pointConsumer.points[0])
     with(pointConsumer.points[1]) {
-      edgeTags == ["products_mask:1", "direction:in", "group:group", "topic:topic", "type:kafka"]
-      edgeTags.size() == 5
+      edgeTags == ["direction:in", "group:group", "topic:topic", "type:kafka"]
+      edgeTags.size() == 4
       parentHash == pointConsumer.points[0].hash
       hash != 0
       pathwayLatencyNano == 25
       edgeLatencyNano == 25
     }
     with(pointConsumer.points[2]) {
-      edgeTags == ["products_mask:1", "direction:in", "group:group", "topic:topic", "type:kafka"]
-      edgeTags.size() == 5
+      edgeTags == ["direction:in", "group:group", "topic:topic", "type:kafka"]
+      edgeTags.size() == 4
       // this point should have the first point as parent,
       // as the loop protection will reset the parent if two identical
       // points (same hash for tag values) are about to form a hierarchy
@@ -201,8 +201,8 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     pointConsumer.points.size() == 2
 
     with(pointConsumer.points[1]) {
-      edgeTags == ["products_mask:1", "group:group", "topic:topic", "type:kafka"]
-      edgeTags.size() == 4
+      edgeTags == ["group:group", "topic:topic", "type:kafka"]
+      edgeTags.size() == 3
       parentHash == pointConsumer.points[0].hash
       hash != 0
       pathwayLatencyNano == MILLISECONDS.toNanos(27)
@@ -221,8 +221,8 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     context.isStarted()
     pointConsumer.points.size() == 1
     with(pointConsumer.points[0]) {
-      edgeTags == ["products_mask:1", "type:internal"]
-      edgeTags.size() == 2
+      edgeTags == ["type:internal"]
+      edgeTags.size() == 1
       parentHash == 0
       hash != 0
       pathwayLatencyNano == MILLISECONDS.toNanos(200)
@@ -250,8 +250,8 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     decodedContext.isStarted()
     pointConsumer.points.size() == 2
     with(pointConsumer.points[1]) {
-      edgeTags == ["products_mask:1", "group:group", "topic:topic", "type:kafka"]
-      edgeTags.size() == 4
+      edgeTags == ["group:group", "topic:topic", "type:kafka"]
+      edgeTags.size() == 3
       parentHash == pointConsumer.points[0].hash
       hash != 0
       pathwayLatencyNano == MILLISECONDS.toNanos(26)
@@ -269,8 +269,8 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     secondDecode.isStarted()
     pointConsumer.points.size() == 3
     with(pointConsumer.points[2]) {
-      edgeTags == ["products_mask:1", "group:group", "topic:topicB", "type:kafka"]
-      edgeTags.size() == 4
+      edgeTags == ["group:group", "topic:topicB", "type:kafka"]
+      edgeTags.size() == 3
       parentHash == pointConsumer.points[1].hash
       hash != 0
       pathwayLatencyNano == MILLISECONDS.toNanos(58)
@@ -300,8 +300,8 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     decodedContext.isStarted()
     pointConsumer.points.size() == 2
     with(pointConsumer.points[1]) {
-      edgeTags == ["products_mask:1", "group:group", "topic:topic", "type:kafka"]
-      edgeTags.size() == 4
+      edgeTags == ["group:group", "topic:topic", "type:kafka"]
+      edgeTags.size() == 3
       parentHash == pointConsumer.points[0].hash
       hash != 0
       pathwayLatencyNano == MILLISECONDS.toNanos(26)
@@ -320,8 +320,8 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     secondDecode.isStarted()
     pointConsumer.points.size() == 3
     with(pointConsumer.points[2]) {
-      edgeTags == ["products_mask:1", "group:group", "topic:topicB", "type:kafka"]
-      edgeTags.size() == 4
+      edgeTags == ["group:group", "topic:topicB", "type:kafka"]
+      edgeTags.size() == 3
       parentHash == pointConsumer.points[1].hash
       hash != 0
       pathwayLatencyNano == MILLISECONDS.toNanos(58)
@@ -349,8 +349,8 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     pointConsumer.points.size() == 2
 
     with(pointConsumer.points[1]) {
-      edgeTags == ["products_mask:1", "group:group", "topic:topic", "type:kafka"]
-      edgeTags.size() == 4
+      edgeTags == ["group:group", "topic:topic", "type:kafka"]
+      edgeTags.size() == 3
       parentHash == pointConsumer.points[0].hash
       hash != 0
       pathwayLatencyNano == MILLISECONDS.toNanos(27)
@@ -378,8 +378,8 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     decodedContext.isStarted()
     pointConsumer.points.size() == 2
     with(pointConsumer.points[1]) {
-      edgeTags == ["products_mask:1", "group:group", "topic:topic", "type:kafka"]
-      edgeTags.size() == 4
+      edgeTags == ["group:group", "topic:topic", "type:kafka"]
+      edgeTags.size() == 3
       parentHash == pointConsumer.points[0].hash
       hash != 0
       pathwayLatencyNano == MILLISECONDS.toNanos(26)
@@ -397,8 +397,8 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     secondDecode.isStarted()
     pointConsumer.points.size() == 3
     with(pointConsumer.points[2]) {
-      edgeTags == ["products_mask:1", "group:group", "topic:topicB", "type:kafka"]
-      edgeTags.size() == 4
+      edgeTags == ["group:group", "topic:topicB", "type:kafka"]
+      edgeTags.size() == 3
       parentHash == pointConsumer.points[1].hash
       hash != 0
       pathwayLatencyNano == MILLISECONDS.toNanos(58)
@@ -447,8 +447,8 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     decodedContext.isStarted()
     pointConsumer.points.size() == 2
     with(pointConsumer.points[1]) {
-      edgeTags == ["products_mask:1", "group:group", "topic:topic", "type:kafka"]
-      edgeTags.size() == 4
+      edgeTags == ["group:group", "topic:topic", "type:kafka"]
+      edgeTags.size() == 3
       parentHash == pointConsumer.points[0].hash
       hash != 0
       pathwayLatencyNano == MILLISECONDS.toNanos(26)
@@ -467,8 +467,8 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     secondDecode.isStarted()
     pointConsumer.points.size() == 3
     with(pointConsumer.points[2]) {
-      edgeTags == ["products_mask:1", "group:group", "topic:topicB", "type:kafka"]
-      edgeTags.size() == 4
+      edgeTags == ["group:group", "topic:topicB", "type:kafka"]
+      edgeTags.size() == 3
       parentHash == pointConsumer.points[1].hash
       hash != 0
       pathwayLatencyNano == MILLISECONDS.toNanos(58)
@@ -498,8 +498,8 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     decodedContext.isStarted()
     pointConsumer.points.size() == 2
     with(pointConsumer.points[1]) {
-      edgeTags == ["products_mask:1", "topic:topic", "type:sqs"]
-      edgeTags.size() == 3
+      edgeTags == ["topic:topic", "type:sqs"]
+      edgeTags.size() == 2
       parentHash == pointConsumer.points[0].hash
       hash != 0
       pathwayLatencyNano == MILLISECONDS.toNanos(26)
@@ -518,8 +518,8 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     secondDecode.isStarted()
     pointConsumer.points.size() == 3
     with(pointConsumer.points[2]) {
-      edgeTags == ["products_mask:1", "topic:topicB", "type:sqs"]
-      edgeTags.size() == 3
+      edgeTags == ["topic:topicB", "type:sqs"]
+      edgeTags.size() == 2
       parentHash == pointConsumer.points[1].hash
       hash != 0
       pathwayLatencyNano == MILLISECONDS.toNanos(58)
@@ -545,15 +545,15 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     pointConsumer.points.size() == 3
     verifyFirstPoint(pointConsumer.points[0])
     with(pointConsumer.points[1]) {
-      edgeTags == ["products_mask:1", "group:group", "topic:topic", "type:type"]
-      edgeTags.size() == 4
+      edgeTags == ["group:group", "topic:topic", "type:type"]
+      edgeTags.size() == 3
       parentHash == pointConsumer.points[0].hash
       hash != 0
       pathwayLatencyNano == 25
       edgeLatencyNano == 25
     }
     with(pointConsumer.points[2]) {
-      edgeTags.size() == 1
+      edgeTags.size() == 0
       parentHash == pointConsumer.points[1].hash
       hash != 0
       pathwayLatencyNano == 50
