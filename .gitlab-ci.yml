@@ -223,7 +223,7 @@ onboarding_tests_k8s_injection:
   parallel:
     matrix:
       - WEBLOG_VARIANT: [dd-lib-java-init-test-app, dd-djm-spark-test-app]
-        SCENARIO: [ K8S_LIBRARY_INJECTION_BASIC, K8S_LIBRARY_INJECTION_DJM ]
+        SCENARIO: [ K8S_LIBRARY_INJECTION_DJM, K8S_LIBRARY_INJECTION_BASIC ]
 
 create_key:
   stage: generate-signing-key
