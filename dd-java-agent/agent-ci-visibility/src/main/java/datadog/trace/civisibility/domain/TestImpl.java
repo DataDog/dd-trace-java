@@ -1,6 +1,7 @@
 package datadog.trace.civisibility.domain;
 
 import static datadog.trace.api.civisibility.CIConstants.CI_VISIBILITY_INSTRUMENTATION_NAME;
+import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.util.Strings.toJson;
 
@@ -22,6 +23,10 @@ import datadog.trace.api.civisibility.telemetry.tag.IsNew;
 import datadog.trace.api.civisibility.telemetry.tag.IsRetry;
 import datadog.trace.api.civisibility.telemetry.tag.IsRum;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
+import datadog.trace.api.gateway.CallbackProvider;
+import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.gateway.IGSpanInfo;
+import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -35,7 +40,9 @@ import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.source.SourceResolutionException;
 import java.lang.reflect.Method;
 import java.util.Collection;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -85,12 +92,19 @@ public class TestImpl implements DDTest {
 
     this.context = new TestContextImpl(coverageStore);
 
+    Supplier<Flow<Object>> startedCbIast =
+        AgentTracer.get()
+            .getCallbackProvider(RequestContextSlot.IAST)
+            .getCallback(EVENTS.requestStarted());
+    Object contextIast = startedCbIast.get().getResult();
+
     AgentTracer.SpanBuilder spanBuilder =
         AgentTracer.get()
             .buildSpan(CI_VISIBILITY_INSTRUMENTATION_NAME, testDecorator.component() + ".test")
             .ignoreActiveSpan()
             .asChildOf(null)
-            .withRequestContextData(RequestContextSlot.CI_VISIBILITY, context);
+            .withRequestContextData(RequestContextSlot.CI_VISIBILITY, context)
+            .withRequestContextData(RequestContextSlot.IAST, contextIast);
 
     if (startTime != null) {
       spanBuilder = spanBuilder.withStartTimestamp(startTime);
@@ -220,6 +234,16 @@ public class TestImpl implements DDTest {
               + "; "
               + "expected span is: "
               + span);
+    }
+
+    CallbackProvider cbp = AgentTracer.get().getUniversalCallbackProvider();
+    RequestContext requestContext = span.getRequestContext();
+    if (cbp != null && requestContext != null) {
+      BiFunction<RequestContext, IGSpanInfo, Flow<Void>> callback =
+          cbp.getCallback(EVENTS.requestEnded());
+      if (callback != null) {
+        callback.apply(requestContext, span);
+      }
     }
 
     InstrumentationTestBridge.fireBeforeTestEnd(context);

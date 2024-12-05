@@ -1,4 +1,4 @@
-package datadog.smoketest.springboot;
+package com.example;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
