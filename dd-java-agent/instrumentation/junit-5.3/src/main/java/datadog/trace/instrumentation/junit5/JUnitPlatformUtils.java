@@ -157,6 +157,13 @@ public abstract class JUnitPlatformUtils {
         || "nested-class".equals(lastSegment.getType()); // nested JUnit test class
   }
 
+  public static boolean isParameterizedTest(TestDescriptor testDescriptor) {
+    UniqueId uniqueId = testDescriptor.getUniqueId();
+    List<UniqueId.Segment> segments = uniqueId.getSegments();
+    UniqueId.Segment lastSegment = segments.get(segments.size() - 1);
+    return "test-template".equals(lastSegment.getType());
+  }
+
   public static boolean isRetry(TestDescriptor testDescriptor) {
     UniqueId uniqueId = testDescriptor.getUniqueId();
     List<UniqueId.Segment> segments = uniqueId.getSegments();

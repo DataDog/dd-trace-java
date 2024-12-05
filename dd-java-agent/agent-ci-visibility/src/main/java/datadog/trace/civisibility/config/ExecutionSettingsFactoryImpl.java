@@ -1,6 +1,7 @@
 package datadog.trace.civisibility.config;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.CiVisibilityWellKnownTags;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestMetadata;
@@ -139,11 +140,17 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
 
     Map<String, Collection<TestIdentifier>> flakyTestsByModule =
         flakyTestRetriesEnabled && config.isCiVisibilityFlakyRetryOnlyKnownFlakes()
+                || CIConstants.FAIL_FAST_TEST_ORDER.equalsIgnoreCase(
+                    config.getCiVisibilityTestOrder())
             ? getFlakyTestsByModule(tracerEnvironment)
             : null;
 
     Map<String, Collection<TestIdentifier>> knownTestsByModule =
-        earlyFlakeDetectionEnabled ? getKnownTestsByModule(tracerEnvironment) : null;
+        earlyFlakeDetectionEnabled
+                || CIConstants.FAIL_FAST_TEST_ORDER.equalsIgnoreCase(
+                    config.getCiVisibilityTestOrder())
+            ? getKnownTestsByModule(tracerEnvironment)
+            : null;
 
     Set<String> moduleNames = new HashSet<>(Collections.singleton(DEFAULT_SETTINGS));
     moduleNames.addAll(skippableTestIdentifiers.keySet());
