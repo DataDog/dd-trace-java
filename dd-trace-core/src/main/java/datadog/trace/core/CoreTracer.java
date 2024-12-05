@@ -88,6 +88,7 @@ import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
 import datadog.trace.core.taginterceptor.RuleFlags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
+import datadog.trace.core.util.TracerDump;
 import datadog.trace.lambda.LambdaHandler;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentTaskScheduler;
@@ -249,6 +250,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   public void onRootSpanFinished(AgentSpan root, EndpointTracker tracker) {
     if (!root.isOutbound()) {
       profilingContextIntegration.onRootSpanFinished(root, tracker);
+      TracerDump.suspendSpansFromRootSpan(root);
     }
   }
 
@@ -1298,6 +1300,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private DDSpan buildSpan() {
       addTerminatedContextAsLinks();
       DDSpan span = DDSpan.create(instrumentationName, timestampMicro, buildSpanContext(), links);
+      TracerDump.addActiveSpan(span, span.isLocalRootSpan());
       if (span.isLocalRootSpan()) {
         EndpointTracker tracker = tracer.onRootSpanStarted(span);
         if (tracker != null) {
