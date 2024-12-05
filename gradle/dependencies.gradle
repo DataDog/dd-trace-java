@@ -10,6 +10,7 @@ final class CachedData {
     excludeShared        : (Closure) {
       // projects bundled with shared or on bootstrap
       exclude(project(':dd-java-agent:agent-bootstrap'))
+      exclude(project(':dd-java-agent:agent-debugger:debugger-bootstrap'))
       exclude(project(':dd-java-agent:agent-logging'))
       exclude(project(':dd-trace-api'))
       exclude(project(':internal-api'))
