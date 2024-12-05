@@ -62,8 +62,28 @@ public class JUnit5Instrumentation extends InstrumenterModule.CiVisibility
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
+        named("discover")
+            .and(
+                takesArgument(0, named("org.junit.platform.engine.EngineDiscoveryRequest"))
+                    .and(takesArgument(1, named("org.junit.platform.engine.UniqueId")))),
+        JUnit5Instrumentation.class.getName() + "$ContextStoreAdvice");
+    transformer.applyAdvice(
         named("execute").and(takesArgument(0, named("org.junit.platform.engine.ExecutionRequest"))),
         JUnit5Instrumentation.class.getName() + "$JUnit5Advice");
+  }
+
+  public static class ContextStoreAdvice {
+    @SuppressFBWarnings(
+        value = "UC_USELESS_OBJECT",
+        justification = "executionRequest is the argument of the original method")
+    @Advice.OnMethodEnter
+    public static void setContextStores() {
+      ContextStore<TestDescriptor, Object> contextStore =
+          InstrumentationContext.get(TestDescriptor.class, Object.class);
+      TestEventsHandlerHolder.setContextStores(
+          (ContextStore) contextStore, (ContextStore) contextStore);
+      TestEventsHandlerHolder.start();
+    }
   }
 
   public static class JUnit5Advice {
@@ -93,12 +113,6 @@ public class JUnit5Instrumentation extends InstrumenterModule.CiVisibility
         // as a separate module
         return;
       }
-
-      ContextStore<TestDescriptor, Object> contextStore =
-          InstrumentationContext.get(TestDescriptor.class, Object.class);
-      TestEventsHandlerHolder.setContextStores(
-          (ContextStore) contextStore, (ContextStore) contextStore);
-      TestEventsHandlerHolder.start();
 
       TracingListener tracingListener = new TracingListener(testEngine);
       EngineExecutionListener originalListener = executionRequest.getEngineExecutionListener();
