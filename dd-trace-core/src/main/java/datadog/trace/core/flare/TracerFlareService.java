@@ -9,6 +9,7 @@ import datadog.trace.api.flare.TracerFlare;
 import datadog.trace.api.time.TimeUtils;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDTraceCoreInfo;
+import datadog.trace.core.util.TracerDump;
 import datadog.trace.logging.GlobalLogLevelSwitcher;
 import datadog.trace.logging.LogLevel;
 import datadog.trace.util.AgentTaskScheduler;
@@ -215,6 +216,7 @@ final class TracerFlareService {
       addRuntime(zip);
       tracer.addTracerReportToFlare(zip);
       TracerFlare.addReportsToFlare(zip);
+      TracerDump.dumpTrace(zip);
       if (dumpThreads) {
         addThreadDump(zip);
       }
