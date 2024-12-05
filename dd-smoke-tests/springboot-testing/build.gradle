@@ -1,0 +1,20 @@
+plugins {
+  id 'org.springframework.boot' version '2.7.15'
+  id 'io.spring.dependency-management' version '1.0.15.RELEASE'
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+description = 'SpringBoot Testing Smoke Tests.'
+
+java {
+  sourceCompatibility = '1.8'
+}
+
+repositories {
+  mavenCentral()
+}
+
+dependencies {
+  implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '1.5.18.RELEASE'
+  testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '1.5.18.RELEASE'
+}
