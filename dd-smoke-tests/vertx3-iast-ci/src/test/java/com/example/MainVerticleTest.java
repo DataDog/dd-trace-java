@@ -64,6 +64,20 @@ public class MainVerticleTest {
     assert true;
   }
 
+  @Test
+  public void testCmdInjectionEndpoint() {
+    Async async = context.async();
+
+    vertx.createHttpClient().getNow(8080, "localhost", "/cmd_injection?param=cmd", response -> {
+      context.assertEquals(200, response.statusCode());
+
+      response.bodyHandler(body -> {
+        context.assertEquals("cmd injection", body.toString());
+        async.complete();
+      });
+    });
+  }
+
 
 
 }

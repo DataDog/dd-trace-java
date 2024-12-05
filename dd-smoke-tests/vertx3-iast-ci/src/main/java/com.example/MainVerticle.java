@@ -2,11 +2,11 @@ package com.example;
 
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
+import io.vertx.core.http.HttpServerRequest;
 import io.vertx.ext.web.Router;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.Arrays;
 
 public class MainVerticle extends AbstractVerticle {
 
@@ -38,6 +38,13 @@ public class MainVerticle extends AbstractVerticle {
             }
         });
 
+      router.get("/cmd_injection").handler(ctx -> {
+        final HttpServerRequest request = ctx.request();
+        final String param = request.getParam("param");
+        runProcess(param);
+        ctx.response().end("cmd injection");
+      });
+
         // Iniciar servidor HTTP
         vertx.createHttpServer()
                 .requestHandler(router)
@@ -50,4 +57,17 @@ public class MainVerticle extends AbstractVerticle {
                     }
                 });
     }
+
+  private void runProcess(final String cmd) {
+    Process process = null;
+    try {
+      process =Runtime.getRuntime().exec(cmd);
+    } catch (final Throwable e) {
+      // ignore it
+    } finally {
+      if (process != null && process.isAlive()) {
+        process.destroyForcibly();
+      }
+    }
+  }
 }

@@ -1,10 +1,12 @@
 package datadog.trace.core;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.core.monitor.HealthMetrics;
 import java.util.Collections;
+import java.util.WeakHashMap;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import javax.annotation.Nonnull;
 
@@ -14,11 +16,13 @@ public class StreamingTraceCollector extends TraceCollector {
     private final CoreTracer tracer;
     private final TimeSource timeSource;
     private final HealthMetrics healthMetrics;
+    private final WeakHashMap<DDTraceId, StreamingTraceCollector> traceCollectors;
 
     Factory(CoreTracer tracer, TimeSource timeSource, HealthMetrics healthMetrics) {
       this.tracer = tracer;
       this.timeSource = timeSource;
       this.healthMetrics = healthMetrics;
+      this.traceCollectors = Config.get().isCiVisibilityEnabled() ? new WeakHashMap<>() : null;
     }
 
     @Override
@@ -29,6 +33,11 @@ public class StreamingTraceCollector extends TraceCollector {
     @Override
     public StreamingTraceCollector create(
         @Nonnull DDTraceId traceId, CoreTracer.ConfigSnapshot traceConfig) {
+      if (traceCollectors != null) {
+        return traceCollectors.computeIfAbsent(
+            traceId,
+            key -> new StreamingTraceCollector(tracer, traceConfig, timeSource, healthMetrics));
+      }
       return new StreamingTraceCollector(tracer, traceConfig, timeSource, healthMetrics);
     }
   }
