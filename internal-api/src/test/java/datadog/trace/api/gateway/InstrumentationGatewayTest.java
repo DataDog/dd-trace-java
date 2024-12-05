@@ -56,6 +56,11 @@ public class InstrumentationGatewayTest {
           public BlockResponseFunction getBlockResponseFunction() {
             return null;
           }
+
+          @Override
+          public <T> T getOrCreateMetaStructTop(String key, Function<String, T> defaultValue) {
+            return null;
+          }
         };
     flow = new Flow.ResultFlow<>(null);
     callback = new Callback(context, flow);
@@ -206,6 +211,16 @@ public class InstrumentationGatewayTest {
     cbp.getCallback(events.databaseSqlQuery()).apply(null, null);
     ss.registerCallback(events.networkConnection(), callback);
     cbp.getCallback(events.networkConnection()).apply(null, null);
+    ss.registerCallback(events.fileLoaded(), callback);
+    cbp.getCallback(events.fileLoaded()).apply(null, null);
+    ss.registerCallback(events.userId(), callback);
+    cbp.getCallback(events.userId()).apply(null, null, null);
+    ss.registerCallback(events.requestSession(), callback);
+    cbp.getCallback(events.requestSession()).apply(null, null);
+    ss.registerCallback(events.loginSuccess(), callback);
+    cbp.getCallback(events.loginSuccess()).apply(null, null, null);
+    ss.registerCallback(events.loginFailure(), callback);
+    cbp.getCallback(events.loginFailure()).apply(null, null, null);
     assertThat(callback.count).isEqualTo(Events.MAX_EVENTS);
   }
 
@@ -264,6 +279,16 @@ public class InstrumentationGatewayTest {
     cbp.getCallback(events.databaseSqlQuery()).apply(null, null);
     ss.registerCallback(events.networkConnection(), throwback);
     cbp.getCallback(events.networkConnection()).apply(null, null);
+    ss.registerCallback(events.fileLoaded(), throwback);
+    cbp.getCallback(events.fileLoaded()).apply(null, null);
+    ss.registerCallback(events.userId(), throwback);
+    cbp.getCallback(events.userId()).apply(null, null, null);
+    ss.registerCallback(events.requestSession(), throwback);
+    cbp.getCallback(events.requestSession()).apply(null, null);
+    ss.registerCallback(events.loginSuccess(), throwback);
+    cbp.getCallback(events.loginSuccess()).apply(null, null, null);
+    ss.registerCallback(events.loginFailure(), throwback);
+    cbp.getCallback(events.loginFailure()).apply(null, null, null);
     assertThat(throwback.count).isEqualTo(Events.MAX_EVENTS);
   }
 

@@ -92,8 +92,7 @@ class ValueRefExpressionTest {
     assertEquals("Hello there", expression.evaluate(resolver).getValue());
     assertEquals("msg", print(expression));
     expression = DSL.ref("i");
-    assertEquals(
-        (long) 6, expression.evaluate(resolver).getValue()); // int value is widened to long
+    assertEquals(6, expression.evaluate(resolver).getValue()); // int value is widened to long
     assertEquals("i", print(expression));
     ValueRefExpression invalidExpression = ref(ValueReferences.synthetic("invalid"));
     RuntimeException runtimeException =

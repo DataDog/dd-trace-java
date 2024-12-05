@@ -15,6 +15,7 @@ import com.datadog.debugger.sink.SymbolSink;
 import com.datadog.debugger.util.ClassNameFiltering;
 import datadog.remoteconfig.state.ParsedConfigKey;
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.debugger.DebuggerContext.ClassNameFilter;
 import datadog.trace.util.Strings;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -86,7 +87,7 @@ class SymDBEnablementTest {
         ArgumentCaptor.forClass(SymbolExtractionTransformer.class);
     verify(instr).addTransformer(captor.capture());
     SymbolExtractionTransformer transformer = captor.getValue();
-    ClassNameFiltering classNameFiltering = transformer.getClassNameFiltering();
+    ClassNameFilter classNameFiltering = transformer.getClassNameFiltering();
     assertTrue(classNameFiltering.isExcluded("com.datadog.debugger.test.TestClass"));
     assertFalse(classNameFiltering.isExcluded("org.foobar.test.TestClass"));
   }

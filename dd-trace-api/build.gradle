@@ -11,6 +11,7 @@ excludedClassesCoverage += [
   'datadog.trace.api.DDTags',
   'datadog.trace.api.DDTraceApiInfo',
   'datadog.trace.api.DDTraceId',
+  'datadog.trace.api.EventTracker',
   'datadog.trace.api.GlobalTracer*',
   'datadog.trace.api.PropagationStyle',
   'datadog.trace.api.TracePropagationStyle',
@@ -37,6 +38,8 @@ excludedClassesCoverage += [
   'datadog.appsec.api.blocking.*',
   'datadog.trace.context.NoopTraceScope.NoopContinuation',
   'datadog.trace.context.NoopTraceScope',
+  'datadog.trace.payloadtags.PayloadTagsData',
+  'datadog.trace.payloadtags.PayloadTagsData.PathAndValue',
 ]
 
 description = 'dd-trace-api'

@@ -37,6 +37,11 @@ public class JavaNetClientDecorator extends HttpClientDecorator<HttpRequest, Htt
   }
 
   @Override
+  protected Object sourceUrl(final HttpRequest request) {
+    return request.uri();
+  }
+
+  @Override
   protected int status(HttpResponse<?> httpResponse) {
     return httpResponse.statusCode();
   }

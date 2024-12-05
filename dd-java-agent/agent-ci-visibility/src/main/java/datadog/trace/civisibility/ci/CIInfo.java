@@ -2,6 +2,7 @@ package datadog.trace.civisibility.ci;
 
 import static datadog.trace.api.git.GitUtils.filterSensitiveInfo;
 
+import datadog.trace.civisibility.ci.env.CiEnvironment;
 import datadog.trace.civisibility.utils.FileUtils;
 import java.io.File;
 import java.util.HashMap;
@@ -11,11 +12,13 @@ import java.util.Objects;
 public class CIInfo {
   public static final CIInfo NOOP = new CIInfo();
 
-  public static Builder builder() {
-    return new Builder();
+  public static Builder builder(CiEnvironment environment) {
+    return new Builder(environment);
   }
 
   public static final class Builder {
+    private final CiEnvironment environment;
+
     private String ciProviderName;
     private String ciPipelineId;
     private String ciPipelineName;
@@ -28,6 +31,11 @@ public class CIInfo {
     private String ciNodeName;
     private String ciNodeLabels;
     private Map<String, String> ciEnvVars;
+    private Map<String, String> additionalTags;
+
+    public Builder(CiEnvironment environment) {
+      this.environment = environment;
+    }
 
     public Builder ciProviderName(String ciProviderName) {
       this.ciProviderName = ciProviderName;
@@ -91,11 +99,16 @@ public class CIInfo {
 
       ciEnvVars = new HashMap<>();
       for (String ciEnvVarKey : ciEnvVarKeysArray) {
-        final String envVarVal = filterSensitiveInfo(System.getenv(ciEnvVarKey));
+        final String envVarVal = filterSensitiveInfo(environment.get(ciEnvVarKey));
         if (envVarVal != null && !envVarVal.isEmpty()) {
           ciEnvVars.put(ciEnvVarKey, envVarVal);
         }
       }
+      return this;
+    }
+
+    public Builder additionalTags(Map<String, String> additionalTags) {
+      this.additionalTags = additionalTags;
       return this;
     }
 
@@ -112,7 +125,8 @@ public class CIInfo {
           ciWorkspace,
           ciNodeName,
           ciNodeLabels,
-          ciEnvVars);
+          ciEnvVars,
+          additionalTags);
     }
   }
 
@@ -128,9 +142,10 @@ public class CIInfo {
   private final String ciNodeName;
   private final String ciNodeLabels;
   private final Map<String, String> ciEnvVars;
+  private final Map<String, String> additionalTags;
 
   public CIInfo() {
-    this(null, null, null, null, null, null, null, null, null, null, null, null);
+    this(null, null, null, null, null, null, null, null, null, null, null, null, null);
   }
 
   public CIInfo(
@@ -145,7 +160,8 @@ public class CIInfo {
       String ciWorkspace,
       String ciNodeName,
       String ciNodeLabels,
-      Map<String, String> ciEnvVars) {
+      Map<String, String> ciEnvVars,
+      Map<String, String> additionalTags) {
     this.ciProviderName = ciProviderName;
     this.ciPipelineId = ciPipelineId;
     this.ciPipelineName = ciPipelineName;
@@ -158,6 +174,7 @@ public class CIInfo {
     this.ciNodeName = ciNodeName;
     this.ciNodeLabels = ciNodeLabels;
     this.ciEnvVars = ciEnvVars;
+    this.additionalTags = additionalTags;
   }
 
   public String getCiProviderName() {
@@ -220,6 +237,10 @@ public class CIInfo {
     return ciEnvVars;
   }
 
+  public Map<String, String> getAdditionalTags() {
+    return additionalTags;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -240,7 +261,8 @@ public class CIInfo {
         && Objects.equals(ciWorkspace, ciInfo.ciWorkspace)
         && Objects.equals(ciNodeName, ciInfo.ciNodeName)
         && Objects.equals(ciNodeLabels, ciInfo.ciNodeLabels)
-        && Objects.equals(ciEnvVars, ciInfo.ciEnvVars);
+        && Objects.equals(ciEnvVars, ciInfo.ciEnvVars)
+        && Objects.equals(additionalTags, ciInfo.additionalTags);
   }
 
   @Override
@@ -258,6 +280,7 @@ public class CIInfo {
     hash = 31 * hash + (ciNodeName == null ? 0 : ciNodeName.hashCode());
     hash = 31 * hash + (ciNodeLabels == null ? 0 : ciNodeLabels.hashCode());
     hash = 31 * hash + (ciEnvVars == null ? 0 : ciEnvVars.hashCode());
+    hash = 31 * hash + (additionalTags == null ? 0 : additionalTags.hashCode());
     return hash;
   }
 
@@ -299,6 +322,9 @@ public class CIInfo {
         + '\''
         + ", ciEnvVars='"
         + ciEnvVars
+        + '\''
+        + ", additionalTags='"
+        + additionalTags
         + '\''
         + '}';
   }

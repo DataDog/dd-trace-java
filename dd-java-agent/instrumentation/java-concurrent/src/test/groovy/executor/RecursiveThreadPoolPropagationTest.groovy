@@ -20,7 +20,7 @@ class RecursiveThreadPoolPropagationTest extends AgentTestRunner {
   @Shared
   def mixedSubmissionAndExecution = { executor, depth -> executor.submit(new RecursiveThreadPoolMixedSubmissionAndExecution(executor, depth, 0)) }
 
-  def "propagate context in #executor with #parallelism threads #depth times"() {
+  def "propagate context in #executor.class.name with #parallelism threads #depth times"() {
     when:
     test(executor, depth)
     then:

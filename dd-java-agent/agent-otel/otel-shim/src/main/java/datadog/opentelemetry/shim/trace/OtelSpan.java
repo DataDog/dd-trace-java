@@ -2,6 +2,10 @@ package datadog.opentelemetry.shim.trace;
 
 import static datadog.opentelemetry.shim.trace.OtelConventions.applyNamingConvention;
 import static datadog.opentelemetry.shim.trace.OtelConventions.applyReservedAttribute;
+import static datadog.opentelemetry.shim.trace.OtelConventions.applySpanEventExceptionAttributesAsTags;
+import static datadog.opentelemetry.shim.trace.OtelConventions.setEventsAsTag;
+import static datadog.opentelemetry.shim.trace.OtelSpanEvent.EXCEPTION_SPAN_EVENT_NAME;
+import static datadog.opentelemetry.shim.trace.OtelSpanEvent.initializeExceptionAttributes;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static io.opentelemetry.api.trace.StatusCode.ERROR;
 import static io.opentelemetry.api.trace.StatusCode.OK;
@@ -10,7 +14,7 @@ import static io.opentelemetry.api.trace.StatusCode.UNSET;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
-import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
+import datadog.trace.bootstrap.instrumentation.api.WithAgentSpan;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.Span;
@@ -18,15 +22,18 @@ import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.TraceFlags;
 import io.opentelemetry.api.trace.TraceState;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
-public class OtelSpan implements Span {
+public class OtelSpan implements Span, WithAgentSpan {
   private final AgentSpan delegate;
   private StatusCode statusCode;
   private boolean recording;
+  /** Span events ({@code null} until an event is added). */
+  private List<OtelSpanEvent> events;
 
   public OtelSpan(AgentSpan delegate) {
     this.delegate = delegate;
@@ -71,13 +78,23 @@ public class OtelSpan implements Span {
 
   @Override
   public Span addEvent(String name, Attributes attributes) {
-    // Not supported
+    if (this.recording) {
+      if (this.events == null) {
+        this.events = new ArrayList<>();
+      }
+      this.events.add(new OtelSpanEvent(name, attributes));
+    }
     return this;
   }
 
   @Override
   public Span addEvent(String name, Attributes attributes, long timestamp, TimeUnit unit) {
-    // Not supported
+    if (this.recording) {
+      if (this.events == null) {
+        this.events = new ArrayList<>();
+      }
+      this.events.add(new OtelSpanEvent(name, attributes, timestamp, unit));
+    }
     return this;
   }
 
@@ -100,8 +117,12 @@ public class OtelSpan implements Span {
   @Override
   public Span recordException(Throwable exception, Attributes additionalAttributes) {
     if (this.recording) {
-      // Store exception as span tags as span events are not supported yet
-      this.delegate.addThrowable(exception, ErrorPriorities.UNSET);
+      if (this.events == null) {
+        this.events = new ArrayList<>();
+      }
+      additionalAttributes = initializeExceptionAttributes(exception, additionalAttributes);
+      applySpanEventExceptionAttributesAsTags(this.delegate, additionalAttributes);
+      this.events.add(new OtelSpanEvent(EXCEPTION_SPAN_EVENT_NAME, additionalAttributes));
     }
     return this;
   }
@@ -118,6 +139,7 @@ public class OtelSpan implements Span {
   public void end() {
     this.recording = false;
     applyNamingConvention(this.delegate);
+    setEventsAsTag(this.delegate, this.events);
     this.delegate.finish();
   }
 
@@ -125,6 +147,7 @@ public class OtelSpan implements Span {
   public void end(long timestamp, TimeUnit unit) {
     this.recording = false;
     applyNamingConvention(this.delegate);
+    setEventsAsTag(this.delegate, this.events);
     this.delegate.finish(unit.toMicros(timestamp));
   }
 
@@ -144,6 +167,11 @@ public class OtelSpan implements Span {
 
   public AgentSpan.Context getAgentSpanContext() {
     return this.delegate.context();
+  }
+
+  @Override
+  public AgentSpan asAgentSpan() {
+    return delegate;
   }
 
   private static class NoopSpan implements Span {

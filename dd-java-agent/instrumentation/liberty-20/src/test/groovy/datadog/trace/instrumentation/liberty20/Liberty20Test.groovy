@@ -123,6 +123,11 @@ abstract class Liberty20Test extends HttpServerTest<Server> {
   }
 
   @Override
+  boolean testSessionId() {
+    true
+  }
+
+  @Override
   String expectedResourceName(ServerEndpoint endpoint, String method, URI address) {
     if (endpoint.path == '/not-found') {
       'GET /testapp/not-found'

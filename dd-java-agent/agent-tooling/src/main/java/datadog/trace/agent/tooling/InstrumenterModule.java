@@ -249,9 +249,14 @@ public abstract class InstrumenterModule implements Instrumenter {
 
     @Override
     public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-      return enabledSystems.contains(TargetSystem.IAST)
-          || (isOptOutEnabled()
-              && InstrumenterConfig.get().getAppSecActivation() == ProductActivation.FULLY_ENABLED);
+      if (enabledSystems.contains(TargetSystem.IAST)) {
+        return true;
+      }
+      final InstrumenterConfig cfg = InstrumenterConfig.get();
+      if (!isOptOutEnabled() || cfg.isIastFullyDisabled()) {
+        return false;
+      }
+      return cfg.getAppSecActivation() == ProductActivation.FULLY_ENABLED;
     }
 
     /**

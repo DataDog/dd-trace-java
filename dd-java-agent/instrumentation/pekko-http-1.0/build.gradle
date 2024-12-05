@@ -63,6 +63,7 @@ dependencies {
   iastTestImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
   iastTestCompileOnly group: 'de.thetaphi', name: 'forbiddenapis', version: '3.4'
   iastTestRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core')
+  iastTestRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core:jackson-core-2.12')
   iastTestRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
 
   latestDepTestImplementation libs.scala213
@@ -78,6 +79,7 @@ dependencies {
   latestDepIastTestImplementation group: 'com.github.pjfanning', name: 'pekko-http-jackson_2.13', version: '2.+'
   latestDepIastTestImplementation group: 'org.scala-lang.modules', name: 'scala-java8-compat_2.13', version: '1.0.+'
   latestDepIastTestImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
+  latestDepIastTestImplementation project(':dd-java-agent:instrumentation:jackson-core:jackson-core-2.16')
 }
 
 tasks.named("test").configure {

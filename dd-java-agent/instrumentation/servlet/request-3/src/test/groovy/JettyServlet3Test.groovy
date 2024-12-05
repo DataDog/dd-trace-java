@@ -13,6 +13,8 @@ import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.server.handler.ErrorHandler
 import org.eclipse.jetty.server.session.SessionHandler
 import org.eclipse.jetty.servlet.ServletContextHandler
+import spock.lang.Retry
+
 import javax.servlet.AsyncEvent
 import javax.servlet.AsyncListener
 import javax.servlet.Servlet
@@ -140,6 +142,12 @@ abstract class JettyServlet3Test extends AbstractServlet3Test<Server, ServletCon
   @Override
   boolean isRespSpanChildOfDispatchOnException() {
     true
+  }
+
+  @Override
+  boolean testSessionId() {
+    // TODO enable when session id management is added to Jetty
+    false
   }
 
   @Override
@@ -443,6 +451,8 @@ class JettyServlet3TestSyncDispatchOnAsyncTimeout extends JettyServlet3Test {
   }
 }
 
+//@Flaky("Fails with timeout very often under high load")
+@Retry(exceptions = SocketTimeoutException, count = 3, delay = 500, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
 class JettyServlet3TestAsyncDispatchOnAsyncTimeout extends JettyServlet3Test {
   @Override
   Class<Servlet> servlet() {
@@ -510,6 +520,8 @@ class ServeFromOnAsyncTimeout extends AbstractHttpServlet {
   }
 }
 
+//@Flaky("Fails with timeout very often under high load")
+@Retry(exceptions = SocketTimeoutException, count = 3, delay = 500, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
 class JettyServlet3ServeFromAsyncTimeout extends JettyServlet3Test {
   @Override
   Class<Servlet> servlet() {

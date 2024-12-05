@@ -184,6 +184,7 @@ class AdapterFactory implements JsonAdapter.Factory {
     private final boolean sensitive;
     private boolean sensitiveRanges;
     @Nullable private String redactedValue;
+    @Nullable private Set<VulnerabilityType> markedTypes;
 
     public RedactionContext(final Source source) {
       this.source = source;
@@ -192,6 +193,7 @@ class AdapterFactory implements JsonAdapter.Factory {
       if (this.sensitive) {
         this.redactedValue = handler.redactSource(source);
       }
+      this.markedTypes = null;
     }
 
     public Source getSource() {
@@ -216,6 +218,15 @@ class AdapterFactory implements JsonAdapter.Factory {
       if (redactedValue == null) {
         redactedValue = SensitiveHandler.get().redactSource(source);
       }
+    }
+
+    public void setMarkedTypes(@Nullable Set<VulnerabilityType> markedTypes) {
+      this.markedTypes = markedTypes;
+    }
+
+    @Nullable
+    public Set<VulnerabilityType> getMarkedTypes() {
+      return markedTypes;
     }
   }
 }

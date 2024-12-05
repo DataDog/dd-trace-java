@@ -1,29 +1,23 @@
 package datadog.trace.bootstrap.debugger.spanorigin;
 
 import static datadog.trace.bootstrap.debugger.DebuggerContext.captureCodeOrigin;
-import static java.util.Arrays.stream;
 
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.lang.reflect.Method;
-import java.util.stream.Collectors;
 
 public class CodeOriginInfo {
   public static void entry(Method method) {
     if (InstrumenterConfig.get().isCodeOriginEnabled()) {
-      String signature =
-          stream(method.getParameterTypes())
-              .map(Class::getName)
-              .collect(Collectors.joining(",", "(", ")"));
-      captureCodeOrigin(signature);
+      captureCodeOrigin(method, true);
     }
   }
 
   public static void exit(AgentSpan span) {
     if (InstrumenterConfig.get().isCodeOriginEnabled()) {
-      String probeId = captureCodeOrigin(null);
+      String probeId = captureCodeOrigin(false);
       if (span != null) {
-        span.getLocalRootSpan().setTag(probeId, span);
+        span.getLocalRootSpan().setTag(probeId, span.getSpanId());
       }
     }
   }

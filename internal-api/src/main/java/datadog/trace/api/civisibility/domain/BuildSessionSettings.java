@@ -4,13 +4,20 @@ import java.util.List;
 
 public class BuildSessionSettings {
 
-  private final List<String> coverageEnabledPackages;
+  private final List<String> coverageIncludedPackages;
+  private final List<String> coverageExcludedPackages;
 
-  public BuildSessionSettings(List<String> coverageEnabledPackages) {
-    this.coverageEnabledPackages = coverageEnabledPackages;
+  public BuildSessionSettings(
+      List<String> coverageIncludedPackages, List<String> coverageExcludedPackages) {
+    this.coverageIncludedPackages = coverageIncludedPackages;
+    this.coverageExcludedPackages = coverageExcludedPackages;
   }
 
-  public List<String> getCoverageEnabledPackages() {
-    return coverageEnabledPackages;
+  public List<String> getCoverageIncludedPackages() {
+    return coverageIncludedPackages;
+  }
+
+  public List<String> getCoverageExcludedPackages() {
+    return coverageExcludedPackages;
   }
 }

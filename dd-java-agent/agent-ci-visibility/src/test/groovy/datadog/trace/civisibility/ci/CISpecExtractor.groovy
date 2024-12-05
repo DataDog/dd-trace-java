@@ -29,14 +29,15 @@ class CISpecExtractor {
 
   static extract(String ciProviderName) {
     if ("unknown" == ciProviderName) {
-      return Arrays.asList(new CISpec(Collections.EMPTY_MAP, Collections.EMPTY_MAP))
+      return Arrays.asList(new CISpec(ciProviderName, 0, Collections.EMPTY_MAP, Collections.EMPTY_MAP))
     }
 
-    List<List<Map<String, String>>> spec = JSON_SLURPER.parse(CISpecExtractor.getClassLoader().getResourceAsStream(String.format("ci/%s.json", ciProviderName)))
+    List<List<Map<String, String>>> specs = JSON_SLURPER.parse(CISpecExtractor.getClassLoader().getResourceAsStream(String.format("ci/%s.json", ciProviderName)))
 
     def ciSpecs = new ArrayList<CISpec>()
-    spec.each {
-      ciSpecs.add(new CISpec(it.get(0), it.get(1)))
+    for (i in 0..<specs.size()) {
+      def spec = specs.get(i)
+      ciSpecs.add(new CISpec(ciProviderName, i, spec.get(0), spec.get(1)))
     }
 
     return ciSpecs
@@ -44,12 +45,34 @@ class CISpecExtractor {
 
   static class CISpec {
 
+    private final String providerName
+    private final int idx
+    private final String testCaseName
     private final Map<String, String> env
     private final Map<String, String> tags
 
-    CISpec(env, tags) {
+    CISpec(providerName, idx, env, tags) {
+      this.providerName = providerName
+      this.idx = idx
+      if (env['DD_TEST_CASE_NAME']) {
+        this.testCaseName =  ' - ' + env['DD_TEST_CASE_NAME']
+      } else {
+        this.testCaseName = ''
+      }
       this.env = env
       this.tags = tags
+    }
+
+    String getProviderName() {
+      return providerName
+    }
+
+    int getIdx() {
+      return idx
+    }
+
+    String getTestCaseName() {
+      return testCaseName
     }
 
     Collection<String> getTagMismatches(Map<String, String> ciTags) {

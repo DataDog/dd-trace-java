@@ -5,6 +5,7 @@ import static org.objectweb.asm.Type.getMethodDescriptor;
 import static org.objectweb.asm.Type.getObjectType;
 
 import com.datadog.debugger.agent.Generated;
+import datadog.trace.util.Strings;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
@@ -17,6 +18,7 @@ import org.objectweb.asm.Type;
 import org.objectweb.asm.signature.SignatureReader;
 import org.objectweb.asm.signature.SignatureVisitor;
 import org.objectweb.asm.tree.AbstractInsnNode;
+import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldInsnNode;
 import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.tree.InsnList;
@@ -244,19 +246,33 @@ public class ASMHelper {
     // https://docs.oracle.com/javase/specs/jvms/se8/html/jvms-2.html#jvms-2.6.1
     // so we reassigned local var in arg slots if they are empty
     if (argTypes.length < localVars.length) {
+      List<LocalVariableNode> uniqueSortedLocalVars = dedupLocalVars(sortedLocalVars);
       int slot = isStatic ? 0 : 1;
       int localVarTableIdx = slot;
       for (org.objectweb.asm.Type t : argTypes) {
         if (slot >= localVars.length) {
           break;
         }
-        if (localVars[slot] == null && localVarTableIdx < sortedLocalVars.size()) {
-          localVars[slot] = sortedLocalVars.get(localVarTableIdx);
+        if (localVars[slot] == null && localVarTableIdx < uniqueSortedLocalVars.size()) {
+          localVars[slot] = uniqueSortedLocalVars.get(localVarTableIdx);
         }
         slot += t.getSize();
         localVarTableIdx++;
       }
     }
+  }
+
+  private static List<LocalVariableNode> dedupLocalVars(List<LocalVariableNode> sortedLocalVars) {
+    List<LocalVariableNode> uniqueSortedLocalVars = new ArrayList<>();
+    int maxIndex = sortedLocalVars.get(sortedLocalVars.size() - 1).index;
+    boolean[] usedIndexes = new boolean[maxIndex + 1];
+    for (LocalVariableNode localVariableNode : sortedLocalVars) {
+      if (!usedIndexes[localVariableNode.index]) {
+        uniqueSortedLocalVars.add(localVariableNode);
+        usedIndexes[localVariableNode.index] = true;
+      }
+    }
+    return uniqueSortedLocalVars;
   }
 
   public static void newInstance(InsnList insnList, org.objectweb.asm.Type type) {
@@ -315,6 +331,13 @@ public class ASMHelper {
         return org.objectweb.asm.Type.INT;
     }
     return sort;
+  }
+
+  public static String extractSuperClass(ClassNode classNode) {
+    if (classNode.superName == null) {
+      return Object.class.getTypeName();
+    }
+    return Strings.getClassName(classNode.superName);
   }
 
   /** Wraps ASM's {@link org.objectweb.asm.Type} with associated generic types */

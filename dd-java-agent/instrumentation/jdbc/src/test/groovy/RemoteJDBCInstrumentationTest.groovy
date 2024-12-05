@@ -183,7 +183,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     mysql.start()
     PortUtils.waitForPortToOpen(mysql.getHost(), mysql.getMappedPort(MySQLContainer.MYSQL_PORT), 5, TimeUnit.SECONDS)
     jdbcUrls.put(MYSQL, "${mysql.getJdbcUrl()}")
-    sqlserver = new MSSQLServerContainer().acceptLicense().withPassword(jdbcPasswords.get(SQLSERVER))
+    sqlserver = new MSSQLServerContainer(MSSQLServerContainer.IMAGE).acceptLicense().withPassword(jdbcPasswords.get(SQLSERVER))
     sqlserver.start()
     PortUtils.waitForPortToOpen(sqlserver.getHost(), sqlserver.getMappedPort(MSSQLServerContainer.MS_SQL_SERVER_PORT), 5, TimeUnit.SECONDS)
     jdbcUrls.put(SQLSERVER, "${sqlserver.getJdbcUrl()};DatabaseName=${dbName.get(SQLSERVER)}")
@@ -242,6 +242,9 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               // since Connection.getClientInfo will not provide the username
               "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
               "$Tags.DB_OPERATION" operation
+              if (usingHikari) {
+                "$Tags.DB_POOL_NAME" String
+              }
               if (addDbmTag) {
                 "$InstrumentationTags.DBM_TRACE_INJECTED" true
               }
@@ -271,6 +274,12 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               "$Tags.PEER_HOSTNAME" String
               "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
               "$Tags.DB_OPERATION" operation
+              if (usingHikari) {
+                "$Tags.DB_POOL_NAME" String
+              }
+              if (addDbmTag) {
+                "$InstrumentationTags.DBM_TRACE_INJECTED" true
+              }
               peerServiceFrom(Tags.DB_INSTANCE)
               defaultTags()
             }
@@ -291,6 +300,9 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               "$Tags.PEER_HOSTNAME" String
               "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
               "$Tags.DB_OPERATION" "set"
+              if (usingHikari) {
+                "$Tags.DB_POOL_NAME" String
+              }
               "dd.instrumentation" true
               peerServiceFrom(Tags.DB_INSTANCE)
               defaultTags()
@@ -305,19 +317,19 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     connection.close()
 
     where:
-    driver     | connection                                              | renameService | query                   | operation | obfuscatedQuery
-    MYSQL      | connectTo(driver, peerConnectionProps(driver))          | false         | "SELECT 3"              | "SELECT"  | "SELECT ?"
-    POSTGRESQL | connectTo(driver, peerConnectionProps(driver))          | false         | "SELECT 3 FROM pg_user" | "SELECT"  | "SELECT ? FROM pg_user"
-    SQLSERVER  | connectTo(driver, peerConnectionProps(driver))          | false         | "SELECT 3"              | "SELECT"  | "SELECT ?"
-    MYSQL      | cpDatasources.get("tomcat").get(driver).getConnection() | false         | "SELECT 3"              | "SELECT"  | "SELECT ?"
-    POSTGRESQL | cpDatasources.get("tomcat").get(driver).getConnection() | false         | "SELECT 3 FROM pg_user" | "SELECT"  | "SELECT ? FROM pg_user"
-    SQLSERVER  | cpDatasources.get("tomcat").get(driver).getConnection() | false         | "SELECT 3"              | "SELECT"  | "SELECT ?"
-    MYSQL      | cpDatasources.get("hikari").get(driver).getConnection() | false         | "SELECT 3"              | "SELECT"  | "SELECT ?"
-    POSTGRESQL | cpDatasources.get("hikari").get(driver).getConnection() | false         | "SELECT 3 FROM pg_user" | "SELECT"  | "SELECT ? FROM pg_user"
-    SQLSERVER  | cpDatasources.get("hikari").get(driver).getConnection() | false         | "SELECT 3"              | "SELECT"  | "SELECT ?"
-    MYSQL      | cpDatasources.get("c3p0").get(driver).getConnection()   | false         | "SELECT 3"              | "SELECT"  | "SELECT ?"
-    POSTGRESQL | cpDatasources.get("c3p0").get(driver).getConnection()   | false         | "SELECT 3 FROM pg_user" | "SELECT"  | "SELECT ? FROM pg_user"
-    SQLSERVER  | cpDatasources.get("c3p0").get(driver).getConnection()   | false         | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    driver     | connection                                              | renameService | query                   | operation | obfuscatedQuery         | usingHikari
+    MYSQL      | connectTo(driver, peerConnectionProps(driver))          | false         | "SELECT 3"              | "SELECT"  | "SELECT ?"              | false
+    POSTGRESQL | connectTo(driver, peerConnectionProps(driver))          | false         | "SELECT 3 FROM pg_user" | "SELECT"  | "SELECT ? FROM pg_user" | false
+    SQLSERVER  | connectTo(driver, peerConnectionProps(driver))          | false         | "SELECT 3"              | "SELECT"  | "SELECT ?"              | false
+    MYSQL      | cpDatasources.get("tomcat").get(driver).getConnection() | false         | "SELECT 3"              | "SELECT"  | "SELECT ?"              | false
+    POSTGRESQL | cpDatasources.get("tomcat").get(driver).getConnection() | false         | "SELECT 3 FROM pg_user" | "SELECT"  | "SELECT ? FROM pg_user" | false
+    SQLSERVER  | cpDatasources.get("tomcat").get(driver).getConnection() | false         | "SELECT 3"              | "SELECT"  | "SELECT ?"              | false
+    MYSQL      | cpDatasources.get("hikari").get(driver).getConnection() | false         | "SELECT 3"              | "SELECT"  | "SELECT ?"              | true
+    POSTGRESQL | cpDatasources.get("hikari").get(driver).getConnection() | false         | "SELECT 3 FROM pg_user" | "SELECT"  | "SELECT ? FROM pg_user" | true
+    SQLSERVER  | cpDatasources.get("hikari").get(driver).getConnection() | false         | "SELECT 3"              | "SELECT"  | "SELECT ?"              | true
+    MYSQL      | cpDatasources.get("c3p0").get(driver).getConnection()   | false         | "SELECT 3"              | "SELECT"  | "SELECT ?"              | false
+    POSTGRESQL | cpDatasources.get("c3p0").get(driver).getConnection()   | false         | "SELECT 3 FROM pg_user" | "SELECT"  | "SELECT ? FROM pg_user" | false
+    SQLSERVER  | cpDatasources.get("c3p0").get(driver).getConnection()   | false         | "SELECT 3"              | "SELECT"  | "SELECT ?"              | false
   }
 
   def "prepared statement execute on #driver with #connection.getClass().getCanonicalName() generates a span"() {
@@ -334,7 +346,8 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     then:
     resultSet.next()
     resultSet.getInt(1) == 3
-    if (driver == POSTGRESQL || driver == MYSQL || !dbmTraceInjected()) {
+    def addDbmTag = dbmTraceInjected()
+    if (driver == POSTGRESQL || driver == MYSQL || !addDbmTag) {
       assertTraces(1) {
         trace(2) {
           basicSpan(it, "parent")
@@ -358,6 +371,9 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               // since Connection.getClientInfo will not provide the username
               "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
               "$Tags.DB_OPERATION" operation
+              if (usingHikari) {
+                "$Tags.DB_POOL_NAME" String
+              }
               peerServiceFrom(Tags.DB_INSTANCE)
               defaultTags()
             }
@@ -384,6 +400,12 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               "$Tags.PEER_HOSTNAME" String
               "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
               "$Tags.DB_OPERATION" operation
+              if (usingHikari) {
+                "$Tags.DB_POOL_NAME" String
+              }
+              if (addDbmTag) {
+                "$InstrumentationTags.DBM_TRACE_INJECTED" true
+              }
               peerServiceFrom(Tags.DB_INSTANCE)
               defaultTags()
             }
@@ -404,6 +426,9 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               "$Tags.PEER_HOSTNAME" String
               "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
               "$Tags.DB_OPERATION" "set"
+              if (usingHikari) {
+                "$Tags.DB_POOL_NAME" String
+              }
               "dd.instrumentation" true
               peerServiceFrom(Tags.DB_INSTANCE)
               defaultTags()
@@ -418,19 +443,19 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     connection.close()
 
     where:
-    driver     | connection                                              | query                   | operation | obfuscatedQuery
-    MYSQL      | connectTo(driver, peerConnectionProps(driver))          | "SELECT 3"              | "SELECT"  | "SELECT ?"
-    POSTGRESQL | connectTo(driver, peerConnectionProps(driver))          | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
-    SQLSERVER  | connectTo(driver, peerConnectionProps(driver))          | "SELECT 3"              | "SELECT"  | "SELECT ?"
-    MYSQL      | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
-    POSTGRESQL | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
-    SQLSERVER  | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
-    MYSQL      | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
-    POSTGRESQL | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
-    SQLSERVER  | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
-    MYSQL      | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3"              | "SELECT"  | "SELECT ?"
-    POSTGRESQL | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
-    SQLSERVER  | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    driver     | connection                                              | query                   | operation | obfuscatedQuery         | usingHikari
+    MYSQL      | connectTo(driver, peerConnectionProps(driver))          | "SELECT 3"              | "SELECT"  | "SELECT ?"              | false
+    POSTGRESQL | connectTo(driver, peerConnectionProps(driver))          | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user" | false
+    SQLSERVER  | connectTo(driver, peerConnectionProps(driver))          | "SELECT 3"              | "SELECT"  | "SELECT ?"              | false
+    MYSQL      | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"              | false
+    POSTGRESQL | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user" | false
+    SQLSERVER  | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"              | false
+    MYSQL      | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"              | true
+    POSTGRESQL | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user" | true
+    SQLSERVER  | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"              | true
+    MYSQL      | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3"              | "SELECT"  | "SELECT ?"              | false
+    POSTGRESQL | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user" | false
+    SQLSERVER  | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3"              | "SELECT"  | "SELECT ?"              | false
   }
 
   def "prepared statement query on #driver with #connection.getClass().getCanonicalName() generates a span"() {
@@ -469,6 +494,9 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               // since Connection.getClientInfo will not provide the username
               "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
               "$Tags.DB_OPERATION" operation
+              if (conPoolType == "hikari") {
+                "$Tags.DB_POOL_NAME" String
+              }
               peerServiceFrom(Tags.DB_INSTANCE)
               defaultTags()
             }
@@ -499,6 +527,10 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               // since Connection.getClientInfo will not provide the username
               "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
               "$Tags.DB_OPERATION" operation
+              if (conPoolType == "hikari") {
+                "$Tags.DB_POOL_NAME" String
+              }
+              "$InstrumentationTags.DBM_TRACE_INJECTED" true
               peerServiceFrom(Tags.DB_INSTANCE)
               defaultTags()
             }
@@ -519,6 +551,9 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               "$Tags.PEER_HOSTNAME" String
               "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
               "$Tags.DB_OPERATION" "set"
+              if (conPoolType == "hikari") {
+                "$Tags.DB_POOL_NAME" String
+              }
               "dd.instrumentation" true
               peerServiceFrom(Tags.DB_INSTANCE)
               defaultTags()
@@ -533,19 +568,19 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     connection.close()
 
     where:
-    driver     | connection                                              | query                   | operation | obfuscatedQuery
-    MYSQL      | connectTo(driver, peerConnectionProps(driver))          | "SELECT 3"              | "SELECT"  | "SELECT ?"
-    POSTGRESQL | connectTo(driver, peerConnectionProps(driver))          | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
-    SQLSERVER  | connectTo(driver, peerConnectionProps(driver))          | "SELECT 3"              | "SELECT"  | "SELECT ?"
-    MYSQL      | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
-    POSTGRESQL | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
-    SQLSERVER  | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
-    MYSQL      | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
-    POSTGRESQL | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
-    SQLSERVER  | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
-    MYSQL      | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3"              | "SELECT"  | "SELECT ?"
-    POSTGRESQL | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
-    SQLSERVER  | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    driver     | conPoolType | connection                                                 | query                   | operation | obfuscatedQuery
+    MYSQL      | ""          | connectTo(driver, peerConnectionProps(driver))             | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    POSTGRESQL | ""          | connectTo(driver, peerConnectionProps(driver))             | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
+    SQLSERVER  | ""          | connectTo(driver, peerConnectionProps(driver))             | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    MYSQL      | "tomcat"    | cpDatasources.get(conPoolType).get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    POSTGRESQL | "tomcat"    | cpDatasources.get(conPoolType).get(driver).getConnection() | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
+    SQLSERVER  | "tomcat"    | cpDatasources.get(conPoolType).get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    MYSQL      | "hikari"    | cpDatasources.get(conPoolType).get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    POSTGRESQL | "hikari"    | cpDatasources.get(conPoolType).get(driver).getConnection() | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
+    SQLSERVER  | "hikari"    | cpDatasources.get(conPoolType).get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    MYSQL      | "c3p0"      | cpDatasources.get(conPoolType).get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    POSTGRESQL | "c3p0"      | cpDatasources.get(conPoolType).get(driver).getConnection() | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
+    SQLSERVER  | "c3p0"      | cpDatasources.get(conPoolType).get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
   }
 
   def "prepared call on #driver with #connection.getClass().getCanonicalName() generates a span"() {
@@ -584,6 +619,9 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               // since Connection.getClientInfo will not provide the username
               "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
               "${Tags.DB_OPERATION}" operation
+              if (conPoolType == "hikari") {
+                "$Tags.DB_POOL_NAME" String
+              }
               defaultTags()
             }
           }
@@ -609,6 +647,10 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               "$Tags.PEER_HOSTNAME" String
               "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
               "${Tags.DB_OPERATION}" operation
+              if (conPoolType == "hikari") {
+                "$Tags.DB_POOL_NAME" String
+              }
+              "$InstrumentationTags.DBM_TRACE_INJECTED" true
               defaultTags()
             }
           }
@@ -629,6 +671,9 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
               "$Tags.DB_OPERATION" "set"
               "dd.instrumentation" true
+              if (conPoolType == "hikari") {
+                "$Tags.DB_POOL_NAME" String
+              }
               peerServiceFrom(Tags.DB_INSTANCE)
               defaultTags()
             }
@@ -642,19 +687,19 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     connection.close()
 
     where:
-    driver     | connection                                              | query                   | operation | obfuscatedQuery
-    MYSQL      | connectTo(driver, peerConnectionProps(driver))          | "SELECT 3"              | "SELECT"  | "SELECT ?"
-    POSTGRESQL | connectTo(driver, peerConnectionProps(driver))          | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
-    SQLSERVER  | connectTo(driver, peerConnectionProps(driver))          | "SELECT 3"              | "SELECT"  | "SELECT ?"
-    MYSQL      | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
-    POSTGRESQL | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
-    SQLSERVER  | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
-    MYSQL      | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
-    POSTGRESQL | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
-    SQLSERVER  | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
-    MYSQL      | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3"              | "SELECT"  | "SELECT ?"
-    POSTGRESQL | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
-    SQLSERVER  | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    driver     | conPoolType  | connection                                                 | query                   | operation | obfuscatedQuery
+    MYSQL      | ""           | connectTo(driver, peerConnectionProps(driver))             | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    POSTGRESQL | ""           | connectTo(driver, peerConnectionProps(driver))             | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
+    SQLSERVER  | ""           | connectTo(driver, peerConnectionProps(driver))             | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    MYSQL      | "tomcat"     | cpDatasources.get(conPoolType).get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    POSTGRESQL | "tomcat"     | cpDatasources.get(conPoolType).get(driver).getConnection() | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
+    SQLSERVER  | "tomcat"     | cpDatasources.get(conPoolType).get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    MYSQL      | "hikari"     | cpDatasources.get(conPoolType).get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    POSTGRESQL | "hikari"     | cpDatasources.get(conPoolType).get(driver).getConnection() | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
+    SQLSERVER  | "hikari"     | cpDatasources.get(conPoolType).get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    MYSQL      | "c3p0"       | cpDatasources.get(conPoolType).get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    POSTGRESQL | "c3p0"       | cpDatasources.get(conPoolType).get(driver).getConnection() | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
+    SQLSERVER  | "c3p0"       | cpDatasources.get(conPoolType).get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
   }
 
   def "statement update on #driver with #connection.getClass().getCanonicalName() generates a span"() {
@@ -697,6 +742,9 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               if (addDbmTag) {
                 "$InstrumentationTags.DBM_TRACE_INJECTED" true
               }
+              if (conPoolType == "hikari") {
+                "$Tags.DB_POOL_NAME" String
+              }
               peerServiceFrom(Tags.DB_INSTANCE)
               defaultTags()
             }
@@ -726,6 +774,13 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               // since Connection.getClientInfo will not provide the username
               "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
               "${Tags.DB_OPERATION}" operation
+              if (addDbmTag) {
+                "$InstrumentationTags.DBM_TRACE_INJECTED" true
+              }
+              if (conPoolType == "hikari") {
+                "$Tags.DB_POOL_NAME" String
+              }
+              "$InstrumentationTags.DBM_TRACE_INJECTED" true
               peerServiceFrom(Tags.DB_INSTANCE)
               defaultTags()
             }
@@ -746,6 +801,9 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               "$Tags.PEER_HOSTNAME" String
               "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
               "$Tags.DB_OPERATION" "set"
+              if (conPoolType == "hikari") {
+                "$Tags.DB_POOL_NAME" String
+              }
               "dd.instrumentation" true
               peerServiceFrom(Tags.DB_INSTANCE)
               defaultTags()
@@ -761,19 +819,19 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     connection.close()
 
     where:
-    driver     | connection                                              | query                                                                            | operation
-    MYSQL      | connectTo(driver, peerConnectionProps(driver))          | "CREATE TEMPORARY TABLE s_test_ (id INTEGER not NULL, PRIMARY KEY ( id ))"       | "CREATE"
-    POSTGRESQL | connectTo(driver, peerConnectionProps(driver))          | "CREATE TEMPORARY TABLE s_test (id INTEGER not NULL, PRIMARY KEY ( id ))"        | "CREATE"
-    SQLSERVER  | connectTo(driver, peerConnectionProps(driver))          | "CREATE TABLE #s_test_ (id INTEGER not NULL, PRIMARY KEY ( id ))"                | "CREATE"
-    MYSQL      | cpDatasources.get("tomcat").get(driver).getConnection() | "CREATE TEMPORARY TABLE s_tomcat_test (id INTEGER not NULL, PRIMARY KEY ( id ))" | "CREATE"
-    POSTGRESQL | cpDatasources.get("tomcat").get(driver).getConnection() | "CREATE TEMPORARY TABLE s_tomcat_test (id INTEGER not NULL, PRIMARY KEY ( id ))" | "CREATE"
-    SQLSERVER  | cpDatasources.get("tomcat").get(driver).getConnection() | "CREATE TABLE #s_tomcat_test (id INTEGER not NULL, PRIMARY KEY ( id ))"          | "CREATE"
-    MYSQL      | cpDatasources.get("hikari").get(driver).getConnection() | "CREATE TEMPORARY TABLE s_hikari_test (id INTEGER not NULL, PRIMARY KEY ( id ))" | "CREATE"
-    POSTGRESQL | cpDatasources.get("hikari").get(driver).getConnection() | "CREATE TEMPORARY TABLE s_hikari_test (id INTEGER not NULL, PRIMARY KEY ( id ))" | "CREATE"
-    SQLSERVER  | cpDatasources.get("hikari").get(driver).getConnection() | "CREATE TABLE #s_hikari_test (id INTEGER not NULL, PRIMARY KEY ( id ))"          | "CREATE"
-    MYSQL      | cpDatasources.get("c3p0").get(driver).getConnection()   | "CREATE TEMPORARY TABLE s_c3p0_test (id INTEGER not NULL, PRIMARY KEY ( id ))"   | "CREATE"
-    POSTGRESQL | cpDatasources.get("c3p0").get(driver).getConnection()   | "CREATE TEMPORARY TABLE s_c3p0_test (id INTEGER not NULL, PRIMARY KEY ( id ))"   | "CREATE"
-    SQLSERVER  | cpDatasources.get("c3p0").get(driver).getConnection()   | "CREATE TABLE #s_c3p0_test (id INTEGER not NULL, PRIMARY KEY ( id ))"            | "CREATE"
+    driver     | conPoolType | connection                                                 | query                                                                            | operation
+    MYSQL      | ""          | connectTo(driver, peerConnectionProps(driver))             | "CREATE TEMPORARY TABLE s_test_ (id INTEGER not NULL, PRIMARY KEY ( id ))"       | "CREATE"
+    POSTGRESQL | ""          | connectTo(driver, peerConnectionProps(driver))             | "CREATE TEMPORARY TABLE s_test (id INTEGER not NULL, PRIMARY KEY ( id ))"        | "CREATE"
+    SQLSERVER  | ""          | connectTo(driver, peerConnectionProps(driver))             | "CREATE TABLE #s_test_ (id INTEGER not NULL, PRIMARY KEY ( id ))"                | "CREATE"
+    MYSQL      | "tomcat"    | cpDatasources.get(conPoolType).get(driver).getConnection() | "CREATE TEMPORARY TABLE s_tomcat_test (id INTEGER not NULL, PRIMARY KEY ( id ))" | "CREATE"
+    POSTGRESQL | "tomcat"    | cpDatasources.get(conPoolType).get(driver).getConnection() | "CREATE TEMPORARY TABLE s_tomcat_test (id INTEGER not NULL, PRIMARY KEY ( id ))" | "CREATE"
+    SQLSERVER  | "tomcat"    | cpDatasources.get(conPoolType).get(driver).getConnection() | "CREATE TABLE #s_tomcat_test (id INTEGER not NULL, PRIMARY KEY ( id ))"          | "CREATE"
+    MYSQL      | "hikari"    | cpDatasources.get(conPoolType).get(driver).getConnection() | "CREATE TEMPORARY TABLE s_hikari_test (id INTEGER not NULL, PRIMARY KEY ( id ))" | "CREATE"
+    POSTGRESQL | "hikari"    | cpDatasources.get(conPoolType).get(driver).getConnection() | "CREATE TEMPORARY TABLE s_hikari_test (id INTEGER not NULL, PRIMARY KEY ( id ))" | "CREATE"
+    SQLSERVER  | "hikari"    | cpDatasources.get(conPoolType).get(driver).getConnection() | "CREATE TABLE #s_hikari_test (id INTEGER not NULL, PRIMARY KEY ( id ))"          | "CREATE"
+    MYSQL      | "c3p0"      | cpDatasources.get(conPoolType).get(driver).getConnection() | "CREATE TEMPORARY TABLE s_c3p0_test (id INTEGER not NULL, PRIMARY KEY ( id ))"   | "CREATE"
+    POSTGRESQL | "c3p0"      | cpDatasources.get(conPoolType).get(driver).getConnection() | "CREATE TEMPORARY TABLE s_c3p0_test (id INTEGER not NULL, PRIMARY KEY ( id ))"   | "CREATE"
+    SQLSERVER  | "c3p0"      | cpDatasources.get(conPoolType).get(driver).getConnection() | "CREATE TABLE #s_c3p0_test (id INTEGER not NULL, PRIMARY KEY ( id ))"            | "CREATE"
   }
 
 
@@ -877,7 +935,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     MYSQL      | cpDatasources.get("hikari").get(driver).getConnection() | "CALL dummy(?)"
     SQLSERVER  | cpDatasources.get("hikari").get(driver).getConnection() | "{CALL dummy(?)}"
     POSTGRESQL | cpDatasources.get("tomcat").get(driver).getConnection() | "CALL dummy(?)"
-    MYSQL      | cpDatasources.get("tomcat").get(driver).getConnection() | "CALL dummy(?)"
+    MYSQL      | cpDatasources.get("tomcat").get(driver).getConnection() | "{CALL dummy(?)}"
     SQLSERVER  | cpDatasources.get("tomcat").get(driver).getConnection() | "{CALL dummy(?)}"
     POSTGRESQL | cpDatasources.get("c3p0").get(driver).getConnection()   | "CALL dummy(?)"
     MYSQL      | cpDatasources.get("c3p0").get(driver).getConnection()   | "CALL dummy(?)"

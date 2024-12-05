@@ -62,9 +62,9 @@ class ContinuableScope implements AgentScope, AttachableWrapper {
     final boolean alive = decrementReferences();
     scopeManager.healthMetrics.onCloseScope();
     if (!alive) {
+      scopeState.close();
       cleanup(scopeStack);
     }
-    scopeState.close();
   }
 
   void cleanup(final ScopeStack scopeStack) {

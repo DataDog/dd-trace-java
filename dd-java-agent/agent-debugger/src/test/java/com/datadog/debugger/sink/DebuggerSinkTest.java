@@ -322,7 +322,7 @@ public class DebuggerSinkTest {
     DebuggerSink sink = createDebuggerSink(diagnosticUploader, false);
     StringBuilder largeMessageBuilder = new StringBuilder(100_001);
     for (int i = 0; i < 100_000; i++) {
-      largeMessageBuilder.append("f");
+      largeMessageBuilder.append('f');
     }
     String largeMessage = largeMessageBuilder.toString();
     for (int i = 0; i < 100; i++) {
@@ -342,7 +342,7 @@ public class DebuggerSinkTest {
     DebuggerSink sink = createDebuggerSink(diagnosticUploader, true);
     StringBuilder largeMessageBuilder = new StringBuilder(100_001);
     for (int i = 0; i < 100_000; i++) {
-      largeMessageBuilder.append("f");
+      largeMessageBuilder.append('f');
     }
     String largeMessage = largeMessageBuilder.toString();
     for (int i = 0; i < 100; i++) {
@@ -362,7 +362,7 @@ public class DebuggerSinkTest {
     DebuggerSink sink = createDefaultDebuggerSink();
     StringBuilder tooLargeMessageBuilder = new StringBuilder(MAX_PAYLOAD + 1);
     for (int i = 0; i < MAX_PAYLOAD; i++) {
-      tooLargeMessageBuilder.append("f");
+      tooLargeMessageBuilder.append('f');
     }
     String tooLargeMessage = tooLargeMessageBuilder.toString();
     sink.getProbeDiagnosticsSink().addError(new ProbeId("1", 1), tooLargeMessage);
@@ -483,7 +483,10 @@ public class DebuggerSinkTest {
     DebuggerMetrics debuggerMetrics = spy(DebuggerMetrics.getInstance(config));
     SnapshotSink snapshotSink =
         new SnapshotSink(
-            config, "", new BatchUploader(config, config.getFinalDebuggerSnapshotUrl()));
+            config,
+            "",
+            new BatchUploader(
+                config, config.getFinalDebuggerSnapshotUrl(), SnapshotSink.RETRY_POLICY));
     SymbolSink symbolSink = new SymbolSink(config);
     DebuggerSink sink =
         new DebuggerSink(config, "", debuggerMetrics, probeStatusSink, snapshotSink, symbolSink);

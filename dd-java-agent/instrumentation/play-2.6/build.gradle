@@ -104,7 +104,7 @@ dependencies {
 
   testRuntimeOnly project(':dd-java-agent:instrumentation:netty-4.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:netty-4.1')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:akka-http-10.0')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:akka-http:akka-http-10.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:akka-concurrent')
   testRuntimeOnly project(':dd-java-agent:instrumentation:akka-init')
   testRuntimeOnly project(':dd-java-agent:instrumentation:scala-concurrent')

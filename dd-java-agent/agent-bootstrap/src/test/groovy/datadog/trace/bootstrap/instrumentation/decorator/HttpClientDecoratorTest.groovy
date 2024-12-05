@@ -1,6 +1,14 @@
 package datadog.trace.bootstrap.instrumentation.decorator
 
 import datadog.trace.api.DDTags
+import datadog.trace.api.config.AppSecConfig
+import datadog.trace.api.gateway.CallbackProvider
+import static datadog.trace.api.gateway.Events.EVENTS
+import datadog.trace.api.gateway.RequestContext
+import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.api.internal.TraceSegment
+import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.sink.SsrfModule
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities
@@ -10,10 +18,38 @@ import spock.lang.Shared
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_TAG_QUERY_STRING
 
+import java.util.function.BiFunction
+
 class HttpClientDecoratorTest extends ClientDecoratorTest {
 
   @Shared
   def testUrl = new URI("http://myhost:123/somepath")
+
+  @Shared
+  protected static final ORIGINAL_TRACER = AgentTracer.get()
+
+  protected traceSegment
+  protected reqCtx
+  protected span2
+  protected tracer
+
+  void setup() {
+    traceSegment = Stub(TraceSegment)
+    reqCtx = Stub(RequestContext) {
+      getTraceSegment() >> traceSegment
+    }
+    span2 = Stub(AgentSpan) {
+      getRequestContext() >> reqCtx
+    }
+    tracer = Stub(AgentTracer.TracerAPI) {
+      activeSpan() >> span2
+    }
+    AgentTracer.forceRegister(tracer)
+  }
+
+  void cleanup() {
+    AgentTracer.forceRegister(ORIGINAL_TRACER)
+  }
 
   def span = Mock(AgentSpan)
 
@@ -29,6 +65,8 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
     if (req) {
       1 * span.setTag(Tags.HTTP_METHOD, req.method)
       1 * span.setTag(Tags.HTTP_URL, {it.toString() == "$req.url"})
+      1 * span.setTag(DDTags.HTTP_QUERY, null)
+      1 * span.setTag(DDTags.HTTP_FRAGMENT, null)
       1 * span.setTag(Tags.PEER_HOSTNAME, req.url.host)
       1 * span.setTag(Tags.PEER_PORT, req.url.port)
       1 * span.setResourceName({ it as String == req.method.toUpperCase() + " " + req.path }, ResourceNamePriorities.HTTP_PATH_NORMALIZER)
@@ -169,6 +207,52 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
     null   | null           | false
   }
 
+  def "test ssrfIastCheck is called"() {
+    setup:
+    injectSysConfig('dd.iast.enabled', input)
+    def decorator = newDecorator()
+    final module = Mock(SsrfModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    decorator.onRequest(span, req)
+
+    then:
+    if (input == 'true') {
+      1 * module.onURLConnection(_)
+    } else {
+      0 * module.onURLConnection(_)
+    }
+    if (req) {
+      1 * span.traceConfig() >> AgentTracer.traceConfig()
+    }
+
+    where:
+    input  | req
+    'true' | [method: "test-method", url: testUrl, path: '/somepath']
+    'false' | [method: "test-method", url: testUrl, path: '/somepath']
+  }
+
+  void "test SSRF Exploit prevention onResponse"(){
+    setup:
+    injectSysConfig(AppSecConfig.APPSEC_ENABLED, 'true')
+    injectSysConfig(AppSecConfig.APPSEC_RASP_ENABLED, 'true')
+
+    final callbackProvider = Mock(CallbackProvider)
+    final listener = Mock(BiFunction)
+    tracer.getCallbackProvider(RequestContextSlot.APPSEC) >> callbackProvider
+
+    final decorator = newDecorator()
+    final req = [method: "GET", url: new URI("http://localhost:1234/somepath")]
+
+    when:
+    decorator.onRequest(span2,  req)
+
+    then:
+    1 * callbackProvider.getCallback(EVENTS.networkConnection()) >> listener
+    1 * listener.apply(reqCtx, _ as String)
+  }
+
   @Override
   def newDecorator(String serviceName = "test-service") {
     return new HttpClientDecorator<Map, Map>() {
@@ -194,6 +278,11 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
 
         @Override
         protected URI url(Map m) {
+          return m.url
+        }
+
+        @Override
+        protected String sourceUrl(Map m) {
           return m.url
         }
 

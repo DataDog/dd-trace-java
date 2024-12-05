@@ -6,6 +6,7 @@
       <Package name="io.sqreen.testapp.sampleapp" />
       <Package name="datadog.trace.bootstrap.instrumentation.decorator.http.utils" />
       <Package name="datadog.smoketest.appsec.springboot.controller" />
+      <Package name="datadog.smoketest.appsec.springboot.service" />
       <!-- these are auto-generated -->
       <Package name="com.datadog.appsec.report.raw.contexts._definitions" />
       <Package name="com.datadog.appsec.report.raw.contexts.actor" />

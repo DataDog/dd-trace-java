@@ -126,6 +126,29 @@ abstract class AbstractIastServerSmokeTest extends AbstractServerSmokeTest {
     }
   }
 
+  protected void hasVulnerabilityStack() {
+    try {
+      waitForSpan(pollingConditions()) { span ->
+        final json = span.meta.get(TAG_NAME)
+        if (!json) {
+          return false
+        }
+        final vulnerabilities = parseVulnerabilities(json)
+        def stack = span.metaStruct.get('_dd.stack')
+        if (stack == null) {
+          return false
+        }
+        def stackVulnerabilities = stack.get('vulnerability')
+        if (stackVulnerabilities == null) {
+          return false
+        }
+        return stackVulnerabilities.size() == vulnerabilities.size()
+      }
+    } catch (SpockTimeoutError toe) {
+      throw new AssertionError("Some error occurred while checking vulnerability stack")
+    }
+  }
+
   protected void noVulnerability(@ClosureParams(value = SimpleType, options = ['datadog.smoketest.model.Vulnerability'])
     final Closure<Boolean> matcher) {
     final found = []

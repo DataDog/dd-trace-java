@@ -9,12 +9,14 @@ import datadog.trace.civisibility.ipc.AckResponse;
 import datadog.trace.civisibility.ipc.ModuleCoverageDataJacoco;
 import datadog.trace.civisibility.ipc.SignalResponse;
 import datadog.trace.civisibility.ipc.SignalType;
+import datadog.trace.civisibility.source.SourceResolutionException;
 import datadog.trace.civisibility.source.index.RepoIndex;
 import datadog.trace.civisibility.source.index.RepoIndexProvider;
 import datadog.trace.util.Strings;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -42,6 +44,7 @@ import org.jacoco.report.FileMultiReportOutput;
 import org.jacoco.report.IReportVisitor;
 import org.jacoco.report.InputStreamSourceFileLocator;
 import org.jacoco.report.html.HTMLFormatter;
+import org.jacoco.report.xml.XMLFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -289,12 +292,23 @@ public class JacocoCoverageCalculator implements CoverageCalculator {
     }
     try {
       final HTMLFormatter htmlFormatter = new HTMLFormatter();
-      final IReportVisitor visitor =
+
+      final IReportVisitor htmlVisitor =
           htmlFormatter.createVisitor(new FileMultiReportOutput(reportFolder));
-      visitor.visitInfo(Collections.emptyList(), Collections.emptyList());
-      visitor.visitBundle(
+      htmlVisitor.visitInfo(Collections.emptyList(), Collections.emptyList());
+      htmlVisitor.visitBundle(
           coverageBundle, new RepoIndexFileLocator(repoIndexProvider.getIndex(), repoRoot));
-      visitor.visitEnd();
+      htmlVisitor.visitEnd();
+
+      File xmlReport = new File(reportFolder, "jacoco.xml");
+      try (FileOutputStream xmlReportStream = new FileOutputStream(xmlReport)) {
+        XMLFormatter xmlFormatter = new XMLFormatter();
+        IReportVisitor xmlVisitor = xmlFormatter.createVisitor(xmlReportStream);
+        xmlVisitor.visitInfo(Collections.emptyList(), Collections.emptyList());
+        xmlVisitor.visitBundle(
+            coverageBundle, new RepoIndexFileLocator(repoIndexProvider.getIndex(), repoRoot));
+        xmlVisitor.visitEnd();
+      }
     } catch (Exception e) {
       LOGGER.error("Error while creating report in {}", reportFolder, e);
     }
@@ -312,13 +326,19 @@ public class JacocoCoverageCalculator implements CoverageCalculator {
 
     @Override
     protected InputStream getSourceStream(String path) throws IOException {
-      String relativePath = repoIndex.getSourcePath(path);
-      if (relativePath == null) {
+      try {
+        String relativePath = repoIndex.getSourcePath(path);
+        if (relativePath == null) {
+          return null;
+        }
+        String absolutePath =
+            repoRoot + (!repoRoot.endsWith(File.separator) ? File.separator : "") + relativePath;
+        return new BufferedInputStream(Files.newInputStream(Paths.get(absolutePath)));
+
+      } catch (SourceResolutionException e) {
+        LOGGER.debug("Could not resolve source for path {}", path, e);
         return null;
       }
-      String absolutePath =
-          repoRoot + (!repoRoot.endsWith(File.separator) ? File.separator : "") + relativePath;
-      return new BufferedInputStream(Files.newInputStream(Paths.get(absolutePath)));
     }
   }
 
@@ -354,7 +374,13 @@ public class JacocoCoverageCalculator implements CoverageCalculator {
         String fileName = sourceFile.getName();
         String pathRelativeToSourceRoot =
             (Strings.isNotBlank(packageName) ? packageName + "/" : "") + fileName;
-        String pathRelativeToIndexRoot = repoIndex.getSourcePath(pathRelativeToSourceRoot);
+        String pathRelativeToIndexRoot;
+        try {
+          pathRelativeToIndexRoot = repoIndex.getSourcePath(pathRelativeToSourceRoot);
+        } catch (SourceResolutionException e) {
+          LOGGER.debug("Could not resolve source for path {}", pathRelativeToSourceRoot, e);
+          continue;
+        }
 
         BitSet sourceFileCoveredLines = getCoveredLines(sourceFile);
         // backendCoverageData contains data for all modules in the repo,

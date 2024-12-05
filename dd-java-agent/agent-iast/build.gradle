@@ -56,6 +56,7 @@ dependencies {
   testImplementation libs.bytebuddy
   testImplementation('org.skyscreamer:jsonassert:1.5.1')
   testImplementation('org.codehaus.groovy:groovy-yaml:3.0.17')
+  testImplementation libs.guava
 
   testImplementation group: 'io.grpc', name: 'grpc-core', version: grpcVersion
   testImplementation group: 'io.grpc', name: 'grpc-protobuf', version: grpcVersion
@@ -85,6 +86,7 @@ ext {
   excludedClassesCoverage = [
     // Avoid coverage measurement of model getters atm
     'com.datadog.iast.model.Evidence',
+    'com.datadog.iast.sink.SinkModuleBase.EvidenceBuilder',
     'com.datadog.iast.model.Range',
     'com.datadog.iast.model.Source',
     'com.datadog.iast.model.Vulnerability',

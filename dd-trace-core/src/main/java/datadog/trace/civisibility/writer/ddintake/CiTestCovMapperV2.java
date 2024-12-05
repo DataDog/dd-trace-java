@@ -7,6 +7,7 @@ import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.coverage.TestReport;
 import datadog.trace.api.civisibility.coverage.TestReportFileEntry;
@@ -77,7 +78,7 @@ public class CiTestCovMapperV2 implements RemoteMapper {
         continue;
       }
 
-      Long testSessionId = testReport.getTestSessionId();
+      DDTraceId testSessionId = testReport.getTestSessionId();
       Long testSuiteId = testReport.getTestSuiteId();
 
       int fieldCount = 2 + (testSessionId != null ? 1 : 0) + (testSuiteId != null ? 1 : 0);
@@ -86,7 +87,7 @@ public class CiTestCovMapperV2 implements RemoteMapper {
 
       if (testSessionId != null) {
         writable.writeUTF8(TEST_SESSION_ID);
-        writable.writeLong(testSessionId);
+        writable.writeLong(testSessionId.toLong());
       }
 
       if (testSuiteId != null) {

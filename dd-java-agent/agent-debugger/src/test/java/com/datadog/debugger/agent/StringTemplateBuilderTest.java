@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIf;
-import org.junit.jupiter.api.condition.EnabledOnJre;
+import org.junit.jupiter.api.condition.EnabledForJreRange;
 import org.junit.jupiter.api.condition.JRE;
 
 class StringTemplateBuilderTest {
@@ -226,7 +226,7 @@ class StringTemplateBuilderTest {
   }
 
   @Test
-  @EnabledOnJre(JRE.JAVA_17)
+  @EnabledForJreRange(min = JRE.JAVA_17)
   @DisabledIf("datadog.trace.api.Platform#isJ9")
   public void argInaccessibleFieldTemplate() {
     LogProbe probe = createLogProbe("{obj}");
@@ -242,10 +242,15 @@ class StringTemplateBuilderTest {
     assertEquals(
         "{containerMetrics=UNDEFINED, systemLoadTicks=UNDEFINED, processLoadTicks=UNDEFINED, jvm=UNDEFINED, loadavg=UNDEFINED}",
         message);
+    assertTrue(status.hasLogTemplateErrors());
     List<EvaluationError> evaluationErrors = status.getErrors();
     assertEquals(5, evaluationErrors.size());
     for (int i = 0; i < 5; i++) {
-      assertTrue(evaluationErrors.get(i).getMessage().contains("Cannot extract field:"));
+      String msg = evaluationErrors.get(i).getMessage();
+      assertTrue(
+          msg.matches(
+              "Field is not accessible: module (java|jdk).management does not opens/exports to the current module"),
+          msg);
     }
   }
 

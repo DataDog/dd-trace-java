@@ -12,6 +12,7 @@ jobs:
   comment_on_submodule_update:
     permissions:
       issues: write # Required to create a comment on the pull request
+      pull-requests: write # Required to create a comment on the pull request
     runs-on: ubuntu-latest
 
     steps:

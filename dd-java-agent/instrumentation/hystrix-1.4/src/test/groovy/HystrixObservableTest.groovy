@@ -3,6 +3,7 @@ import com.netflix.hystrix.HystrixObservableCommand
 import com.netflix.hystrix.exception.HystrixRuntimeException
 import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.test.util.Flaky
 import rx.Observable
 import rx.schedulers.Schedulers
 
@@ -241,6 +242,7 @@ class HystrixObservableTest extends HystrixTestRunner {
     }
   }
 
+  @Flaky("https://github.com/DataDog/dd-trace-java/issues/7725")
   def "test no fallback results in error for #action"() {
     setup:
     def observeOnFn = observeOn

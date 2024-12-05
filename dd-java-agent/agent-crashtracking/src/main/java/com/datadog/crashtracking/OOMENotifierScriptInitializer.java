@@ -42,7 +42,7 @@ public final class OOMENotifierScriptInitializer {
     }
     Path scriptPath = getOOMEScripPath(onOutOfMemoryVal);
     if (scriptPath == null) {
-      LOG.info(
+      LOG.debug(
           "OOME notifier script value ({}) does not follow the expected format: <path>/dd_ome_notifier.(sh|bat) %p. OOME tracking is disabled.",
           onOutOfMemoryVal);
       return;
@@ -124,7 +124,11 @@ public final class OOMENotifierScriptInitializer {
           Files.walkFileTree(dir, new ScriptCleanupVisitor());
         }
       } catch (IOException e) {
-        LOG.warn("Failed cleaning up process specific files in {}", dir, e);
+        if (LOG.isDebugEnabled()) {
+          LOG.info("Failed cleaning up process specific files in {}", dir, e);
+        } else {
+          LOG.info("Failed cleaning up process specific files in {}: {}", dir, e.toString());
+        }
       }
     }
 

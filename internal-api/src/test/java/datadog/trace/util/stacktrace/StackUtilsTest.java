@@ -1,9 +1,25 @@
 package datadog.trace.util.stacktrace;
 
 import static com.google.common.truth.Truth.assertThat;
+import static datadog.trace.util.stacktrace.StackUtils.META_STRUCT_KEY;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
+import datadog.trace.api.gateway.RequestContext;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 public class StackUtilsTest {
 
@@ -79,6 +95,46 @@ public class StackUtilsTest {
 
     final Throwable noRemoval = StackUtils.filterUntil(withStack(stack), entry -> false);
     assertThat(noRemoval.getStackTrace()).isEqualTo(stack);
+  }
+
+  private static Stream<Arguments> test_generateUserCodeStackTrace_Params() {
+    return Stream.of(
+        Arguments.of((Predicate<StackTraceElement>) stack -> true, false),
+        Arguments.of(
+            (Predicate<StackTraceElement>) stack -> !stack.getClassName().startsWith("org.junit"),
+            true));
+  }
+
+  @ParameterizedTest(name = "[{index}]")
+  @MethodSource("test_generateUserCodeStackTrace_Params")
+  public void test_generateUserCodeStackTrace(
+      final Predicate<StackTraceElement> filter, final boolean expected) {
+    List<StackTraceFrame> userCodeStack = StackUtils.generateUserCodeStackTrace(filter);
+    assertThat(userCodeStack).isNotNull();
+    int junitFramesCounter = 0;
+    for (StackTraceFrame frame : userCodeStack) {
+      if (frame.getClass_name() != null && frame.getClass_name().startsWith("org.junit")) {
+        junitFramesCounter++;
+      }
+    }
+    if (expected) {
+      assertThat(junitFramesCounter).isEqualTo(0);
+    } else {
+      assertThat(junitFramesCounter).isGreaterThan(0);
+    }
+  }
+
+  @Test
+  public void addStacktraceEventsToAvailableMetaStruct() {
+    final RequestContext reqCtx = mock(RequestContext.class);
+    final Map<String, List<StackTraceEvent>> batch = new HashMap<>();
+    when(reqCtx.getOrCreateMetaStructTop(eq(META_STRUCT_KEY), any())).thenReturn(batch);
+    final String productTest = "test";
+    final StackTraceEvent event = new StackTraceEvent(new ArrayList<>(0), "java", "id", "message");
+    StackUtils.addStacktraceEventsToMetaStruct(
+        reqCtx, productTest, Collections.singletonList(event));
+    assertThat(batch).containsKey(productTest);
+    assertThat(batch.get(productTest)).containsExactly(event);
   }
 
   private static Throwable withStack(final StackTraceElement... stack) {

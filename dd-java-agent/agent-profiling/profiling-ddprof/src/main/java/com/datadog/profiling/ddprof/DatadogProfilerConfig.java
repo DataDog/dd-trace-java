@@ -43,6 +43,8 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILE
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_INTERVAL;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_INTERVAL_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_JVMTI;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_JVMTI_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_TRACK_GENERATIONS;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_TRACK_GENERATIONS_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED;
@@ -170,19 +172,23 @@ public class DatadogProfilerConfig {
   }
 
   public static boolean isAllocationProfilingEnabled(ConfigProvider configProvider) {
-    boolean dflt = isJmethodIDSafe();
-    boolean enableDdprofAlloc =
-        getBoolean(
-            configProvider,
-            PROFILING_ALLOCATION_ENABLED,
-            dflt,
-            PROFILING_DATADOG_PROFILER_ALLOC_ENABLED);
+    // JVMTI Allocation Sampler is available since Java 11
+    if (Platform.isJavaVersionAtLeast(11)) {
+      boolean dflt = isJmethodIDSafe();
+      boolean enableDdprofAlloc =
+          getBoolean(
+              configProvider,
+              PROFILING_ALLOCATION_ENABLED,
+              dflt,
+              PROFILING_DATADOG_PROFILER_ALLOC_ENABLED);
 
-    if (!dflt && enableDdprofAlloc) {
-      log.warn(
-          "Allocation profiling was enabled although it is not considered stable on this JVM version.");
+      if (!dflt && enableDdprofAlloc) {
+        log.warn(
+            "Allocation profiling was enabled although it is not considered stable on this JVM version.");
+      }
+      return enableDdprofAlloc;
     }
-    return enableDdprofAlloc;
+    return false;
   }
 
   public static boolean isAllocationProfilingEnabled() {
@@ -407,6 +413,13 @@ public class DatadogProfilerConfig {
 
   public static long getLong(ConfigProvider configProvider, String key) {
     return configProvider.getLong(key, configProvider.getLong(normalizeKey(key), -1));
+  }
+
+  public static boolean useJvmtiWallclockSampler(ConfigProvider configProvider) {
+    return getBoolean(
+        configProvider,
+        PROFILING_DATADOG_PROFILER_WALL_JVMTI,
+        PROFILING_DATADOG_PROFILER_WALL_JVMTI_DEFAULT);
   }
 
   private static String normalizeKey(String key) {

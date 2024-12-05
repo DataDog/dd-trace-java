@@ -8,7 +8,6 @@ import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.aws.v2.sns.TextMapInjectAdapter.SETTER;
 
-import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.InstanceStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.nio.charset.StandardCharsets;
@@ -37,13 +36,13 @@ public class SnsInterceptor implements ExecutionInterceptor {
       ExecutionAttributes executionAttributes, String snsTopicName) {
     final AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
     StringBuilder jsonBuilder = new StringBuilder();
-    jsonBuilder.append("{");
-    propagate().inject(span, jsonBuilder, SETTER, TracePropagationStyle.DATADOG);
+    jsonBuilder.append('{');
+    propagate().inject(span, jsonBuilder, SETTER);
     if (traceConfig().isDataStreamsEnabled()) {
       propagate().injectPathwayContext(span, jsonBuilder, SETTER, getTags(snsTopicName));
     }
     jsonBuilder.setLength(jsonBuilder.length() - 1); // Remove the last comma
-    jsonBuilder.append("}");
+    jsonBuilder.append('}');
     return SdkBytes.fromString(jsonBuilder.toString(), StandardCharsets.UTF_8);
   }
 

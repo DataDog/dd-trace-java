@@ -6,7 +6,6 @@ import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.PropagationModule
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.TagContext
-import freemarker.template.Configuration
 import freemarker.template.DefaultObjectWrapper
 
 class ObjectWrapperInstrumentationTest extends  AgentTestRunner {
@@ -32,7 +31,7 @@ class ObjectWrapperInstrumentationTest extends  AgentTestRunner {
     given:
     final module = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(module)
-    final objectWrapper = new DefaultObjectWrapper(Configuration.VERSION_2_3_32)
+    final objectWrapper = new DefaultObjectWrapper()
     final String wrapped = "test"
 
     when:

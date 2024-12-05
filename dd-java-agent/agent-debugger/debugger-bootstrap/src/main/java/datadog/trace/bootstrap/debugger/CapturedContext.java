@@ -9,6 +9,7 @@ import datadog.trace.bootstrap.debugger.el.Values;
 import datadog.trace.bootstrap.debugger.util.Redaction;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import datadog.trace.bootstrap.debugger.util.WellKnownClasses;
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -35,6 +36,7 @@ public class CapturedContext implements ValueReferenceResolver {
   private String spanId;
   private long duration;
   private final Map<String, Status> statusByProbeId = new LinkedHashMap<>();
+  private Map<String, CapturedValue> watches;
 
   public CapturedContext() {}
 
@@ -182,6 +184,10 @@ public class CapturedContext implements ValueReferenceResolver {
     return new CapturedContext(this, extensions);
   }
 
+  public void removeExtension(String name) {
+    extensions.remove(name);
+  }
+
   private void addExtension(String name, Object value) {
     extensions.put(name, value);
   }
@@ -267,6 +273,10 @@ public class CapturedContext implements ValueReferenceResolver {
     return staticFields;
   }
 
+  public Map<String, CapturedValue> getWatches() {
+    return watches;
+  }
+
   public Limits getLimits() {
     return limits;
   }
@@ -288,6 +298,11 @@ public class CapturedContext implements ValueReferenceResolver {
    * instance representation into the corresponding string value.
    */
   public void freeze(TimeoutChecker timeoutChecker) {
+    if (watches != null) {
+      // freeze only watches
+      watches.values().forEach(capturedValue -> capturedValue.freeze(timeoutChecker));
+      return;
+    }
     if (arguments != null) {
       arguments.values().forEach(capturedValue -> capturedValue.freeze(timeoutChecker));
     }
@@ -381,6 +396,13 @@ public class CapturedContext implements ValueReferenceResolver {
       staticFields = new HashMap<>();
     }
     staticFields.put(name, value);
+  }
+
+  public void addWatch(CapturedValue value) {
+    if (watches == null) {
+      watches = new HashMap<>();
+    }
+    watches.put(value.name, value);
   }
 
   public static class Status {
@@ -625,7 +647,7 @@ public class CapturedContext implements ValueReferenceResolver {
   public static class CapturedThrowable {
     private final String type;
     private final String message;
-    private final transient Throwable throwable;
+    private final transient WeakReference<Throwable> throwable;
 
     /*
      * Need to exclude stacktrace from equals/hashCode computation.
@@ -646,7 +668,7 @@ public class CapturedContext implements ValueReferenceResolver {
       this.type = type;
       this.message = message;
       this.stacktrace = new ArrayList<>(stacktrace);
-      this.throwable = t;
+      this.throwable = new WeakReference<>(t);
     }
 
     public String getType() {
@@ -662,7 +684,7 @@ public class CapturedContext implements ValueReferenceResolver {
     }
 
     public Throwable getThrowable() {
-      return throwable;
+      return throwable.get();
     }
 
     private static List<CapturedStackFrame> captureFrames(StackTraceElement[] stackTrace) {

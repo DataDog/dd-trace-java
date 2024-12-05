@@ -9,12 +9,12 @@ public interface SourcePathResolver {
    *     root. {@code null} is returned if the path could not be resolved
    */
   @Nullable
-  String getSourcePath(@Nonnull Class<?> c);
+  String getSourcePath(@Nonnull Class<?> c) throws SourceResolutionException;
 
   /**
    * @param relativePath Path to a resource in current run's repository, relative to a resource root
    * @return Path relative to repository root
    */
   @Nullable
-  String getResourcePath(@Nullable String relativePath);
+  String getResourcePath(@Nullable String relativePath) throws SourceResolutionException;
 }

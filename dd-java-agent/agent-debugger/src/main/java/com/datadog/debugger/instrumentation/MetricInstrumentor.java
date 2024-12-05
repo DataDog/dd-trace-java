@@ -637,7 +637,7 @@ public class MetricInstrumentor extends Instrumentor {
 
     @Override
     public VisitorResult visit(NumericValue numericValue) {
-      Number number = numericValue.getValue();
+      Number number = numericValue.getWidenValue();
       InsnList insnList = new InsnList();
       if (number instanceof Long) {
         ldc(insnList, number.longValue());
@@ -697,8 +697,8 @@ public class MetricInstrumentor extends Instrumentor {
       int slot = instrumentor.isStatic ? 0 : 1;
       for (Type argType : argTypes) {
         String currentArgName = null;
-        if (instrumentor.localVarsBySlot.length > 0) {
-          LocalVariableNode localVarNode = instrumentor.localVarsBySlot[slot];
+        if (instrumentor.localVarsBySlotArray.length > 0) {
+          LocalVariableNode localVarNode = instrumentor.localVarsBySlotArray[slot];
           currentArgName = localVarNode != null ? localVarNode.name : null;
         }
         if (currentArgName == null) {

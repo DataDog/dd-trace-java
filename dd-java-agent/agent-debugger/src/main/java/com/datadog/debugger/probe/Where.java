@@ -1,5 +1,7 @@
 package com.datadog.debugger.probe;
 
+import static java.util.Arrays.stream;
+
 import com.datadog.debugger.agent.Generated;
 import com.datadog.debugger.instrumentation.Types;
 import com.datadog.debugger.util.ClassFileLines;
@@ -7,12 +9,14 @@ import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.MethodNode;
 
@@ -42,13 +46,21 @@ public class Where {
     this(typeName, methodName, signature, sourceLines(lines), sourceFile);
   }
 
-  public static Where convertLineToMethod(
-      String typeName, String methodName, String signature, String... lines) {
+  public static Where of(String typeName, String methodName, String signature, String... lines) {
     return new Where(typeName, methodName, signature, lines, null);
   }
 
+  public static Where of(Method method) {
+    return of(
+        method.getDeclaringClass().getName(),
+        method.getName(),
+        stream(method.getParameterTypes())
+            .map(Class::getTypeName)
+            .collect(Collectors.joining(", ", "(", ")")));
+  }
+
   protected static SourceLine[] sourceLines(String[] defs) {
-    if (defs == null) {
+    if (defs == null || defs.length == 0) {
       return null;
     }
     SourceLine[] lines = new SourceLine[defs.length];
@@ -65,10 +77,15 @@ public class Where {
       if (methodsByLine != null && !methodsByLine.isEmpty()) {
         // pick the first method, as we can have multiple methods (lambdas) on the same line
         MethodNode method = methodsByLine.get(0);
-        return new Where(lineWhere.typeName, method.name, method.desc, (SourceLine[]) null, null);
+        return new Where(
+            lineWhere.typeName,
+            method.name,
+            Types.descriptorToSignature(method.desc),
+            (SourceLine[]) null,
+            null);
       }
     }
-    throw new IllegalArgumentException("Invalid where to convert from line to method " + lineWhere);
+    return lineWhere;
   }
 
   public String getTypeName() {

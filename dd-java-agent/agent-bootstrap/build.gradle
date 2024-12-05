@@ -21,6 +21,8 @@ dependencies {
   api project(':internal-api')
   api project(':internal-api:internal-api-9')
   api project(':dd-java-agent:agent-logging')
+  api project(':dd-java-agent:agent-debugger:debugger-bootstrap')
+  api project(':components:json')
   api libs.slf4j
   // ^ Generally a bad idea for libraries, but we're shadowing.
 

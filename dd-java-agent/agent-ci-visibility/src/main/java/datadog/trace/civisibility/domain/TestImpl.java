@@ -1,9 +1,11 @@
 package datadog.trace.civisibility.domain;
 
+import static datadog.json.JsonMapper.toJson;
+import static datadog.trace.api.civisibility.CIConstants.CI_VISIBILITY_INSTRUMENTATION_NAME;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.util.Strings.toJson;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.api.civisibility.InstrumentationBridge;
@@ -28,8 +30,9 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.decorator.TestDecorator;
-import datadog.trace.civisibility.source.MethodLinesResolver;
+import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
+import datadog.trace.civisibility.source.SourceResolutionException;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.function.Consumer;
@@ -44,14 +47,13 @@ public class TestImpl implements DDTest {
   private final CiVisibilityMetricCollector metricCollector;
   private final TestFrameworkInstrumentation instrumentation;
   private final AgentSpan span;
-  private final long sessionId;
+  private final DDTraceId sessionId;
   private final long suiteId;
   private final Consumer<AgentSpan> onSpanFinish;
   private final TestContext context;
 
   public TestImpl(
-      long sessionId,
-      long moduleId,
+      AgentSpan.Context moduleSpanContext,
       long suiteId,
       String moduleName,
       String testSuiteName,
@@ -67,13 +69,13 @@ public class TestImpl implements DDTest {
       CiVisibilityMetricCollector metricCollector,
       TestDecorator testDecorator,
       SourcePathResolver sourcePathResolver,
-      MethodLinesResolver methodLinesResolver,
+      LinesResolver linesResolver,
       Codeowners codeowners,
       CoverageStore.Factory coverageStoreFactory,
       Consumer<AgentSpan> onSpanFinish) {
     this.instrumentation = instrumentation;
     this.metricCollector = metricCollector;
-    this.sessionId = sessionId;
+    this.sessionId = moduleSpanContext.getTraceId();
     this.suiteId = suiteId;
     this.onSpanFinish = onSpanFinish;
 
@@ -85,7 +87,7 @@ public class TestImpl implements DDTest {
 
     AgentTracer.SpanBuilder spanBuilder =
         AgentTracer.get()
-            .buildSpan(testDecorator.component() + ".test")
+            .buildSpan(CI_VISIBILITY_INSTRUMENTATION_NAME, testDecorator.component() + ".test")
             .ignoreActiveSpan()
             .asChildOf(null)
             .withRequestContextData(RequestContextSlot.CI_VISIBILITY, context);
@@ -96,8 +98,7 @@ public class TestImpl implements DDTest {
 
     span = spanBuilder.start();
 
-    final AgentScope scope = activateSpan(span);
-    scope.setAsyncPropagation(true);
+    activateSpan(span, true);
 
     span.setSpanType(InternalSpanTypes.TEST);
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_TEST);
@@ -108,8 +109,8 @@ public class TestImpl implements DDTest {
     span.setTag(Tags.TEST_MODULE, moduleName);
 
     span.setTag(Tags.TEST_SUITE_ID, suiteId);
-    span.setTag(Tags.TEST_MODULE_ID, moduleId);
-    span.setTag(Tags.TEST_SESSION_ID, sessionId);
+    span.setTag(Tags.TEST_MODULE_ID, moduleSpanContext.getSpanId());
+    span.setTag(Tags.TEST_SESSION_ID, moduleSpanContext.getTraceId());
 
     span.setTag(Tags.TEST_STATUS, TestStatus.pass);
 
@@ -119,7 +120,7 @@ public class TestImpl implements DDTest {
 
     if (config.isCiVisibilitySourceDataEnabled()) {
       populateSourceDataTags(
-          span, testClass, testMethod, sourcePathResolver, methodLinesResolver, codeowners);
+          span, testClass, testMethod, sourcePathResolver, linesResolver, codeowners);
     }
 
     if (itrCorrelationId != null) {
@@ -140,24 +141,30 @@ public class TestImpl implements DDTest {
       Class<?> testClass,
       Method testMethod,
       SourcePathResolver sourcePathResolver,
-      MethodLinesResolver methodLinesResolver,
+      LinesResolver linesResolver,
       Codeowners codeowners) {
     if (testClass == null) {
       return;
     }
 
-    String sourcePath = sourcePathResolver.getSourcePath(testClass);
-    if (sourcePath == null || sourcePath.isEmpty()) {
+    String sourcePath;
+    try {
+      sourcePath = sourcePathResolver.getSourcePath(testClass);
+      if (sourcePath == null || sourcePath.isEmpty()) {
+        return;
+      }
+    } catch (SourceResolutionException e) {
+      log.debug("Could not populate source path for {}", testClass, e);
       return;
     }
 
     span.setTag(Tags.TEST_SOURCE_FILE, sourcePath);
 
     if (testMethod != null) {
-      MethodLinesResolver.MethodLines testMethodLines = methodLinesResolver.getLines(testMethod);
+      LinesResolver.Lines testMethodLines = linesResolver.getMethodLines(testMethod);
       if (testMethodLines.isValid()) {
         span.setTag(Tags.TEST_SOURCE_START, testMethodLines.getStartLineNumber());
-        span.setTag(Tags.TEST_SOURCE_END, testMethodLines.getFinishLineNumber());
+        span.setTag(Tags.TEST_SOURCE_END, testMethodLines.getEndLineNumber());
       }
     }
 

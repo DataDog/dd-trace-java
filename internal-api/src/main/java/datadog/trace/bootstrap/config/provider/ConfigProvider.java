@@ -222,7 +222,7 @@ public final class ConfigProvider {
       }
       return defaultValue;
     } else {
-      return ConfigConverter.parseList(getString(key));
+      return ConfigConverter.parseList(list);
     }
   }
 
@@ -234,7 +234,7 @@ public final class ConfigProvider {
       }
       return defaultValue;
     } else {
-      return new HashSet(ConfigConverter.parseList(getString(key)));
+      return new HashSet(ConfigConverter.parseList(list));
     }
   }
 
@@ -309,8 +309,8 @@ public final class ConfigProvider {
     return merged;
   }
 
-  public BitSet getIntegerRange(final String key, final BitSet defaultValue) {
-    final String value = getString(key);
+  public BitSet getIntegerRange(final String key, final BitSet defaultValue, String... aliases) {
+    final String value = getString(key, null, aliases);
     try {
       if (value != null) {
         return ConfigConverter.parseIntegerRangeSet(value, key);

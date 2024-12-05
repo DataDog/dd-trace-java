@@ -25,7 +25,7 @@ class DataBundleMapWrapperSpecification extends DDSpecification {
     def elem
 
     expect:
-    iter.hasNext() == true
+    iter.hasNext()
 
     when:
     elem = iter.next()
@@ -46,7 +46,7 @@ class DataBundleMapWrapperSpecification extends DDSpecification {
     then:
     elem.key == KnownAddresses.REQUEST_CLIENT_IP.key
     elem.value == [:]
-    iter.hasNext() == false
+    !iter.hasNext()
 
     when:
     iter.remove()
@@ -71,7 +71,7 @@ class DataBundleMapWrapperSpecification extends DDSpecification {
     thrown(UnsupportedOperationException)
   }
 
-  void 'methods other than entrySet and size are not supported'() {
+  void 'methods other than entrySet and size are not supported: #methodName'() {
     when:
     method(mapWrapper)
 
@@ -79,17 +79,16 @@ class DataBundleMapWrapperSpecification extends DDSpecification {
     thrown(UnsupportedOperationException)
 
     where:
-    method << [
-      { it.values() },
-      { it.keySet() },
-      { it.clear() },
-      { it.putAll([:]) },
-      { it.remove('a') },
-      { it.put('b', 'a') },
-      { it.get('a') },
-      { it.containsValue('b') },
-      { it.containsKey('a') },
-      { it.isEmpty() },
-    ]
+    methodName      | method
+    "values"        | { it.values() }
+    "keySet"        | { it.keySet() }
+    "clean"         | { it.clear() }
+    "putAll"        | { it.putAll([:]) }
+    "remove"        | { it.remove('a') }
+    "put"           | { it.put('b', 'a') }
+    "get"           | { it.get('a') }
+    "containsValue" | { it.containsValue('b') }
+    "containsKey"   | { it.containsKey('a') }
+    "empty"         | { it.isEmpty() }
   }
 }

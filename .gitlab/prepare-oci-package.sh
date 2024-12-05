@@ -10,3 +10,4 @@ fi
 mkdir -p sources
 cp ../workspace/dd-java-agent/build/libs/*.jar sources/dd-java-agent.jar
 echo -n "$VERSION" > sources/version
+cp ../metadata/requirements.json sources/

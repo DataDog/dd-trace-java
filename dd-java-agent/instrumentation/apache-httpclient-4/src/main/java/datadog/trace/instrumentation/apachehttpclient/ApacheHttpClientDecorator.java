@@ -35,6 +35,11 @@ public class ApacheHttpClientDecorator extends HttpClientDecorator<HttpUriReques
   }
 
   @Override
+  protected URI sourceUrl(final HttpUriRequest request) {
+    return request.getURI();
+  }
+
+  @Override
   protected int status(final HttpResponse httpResponse) {
     return httpResponse.getStatusLine().getStatusCode();
   }

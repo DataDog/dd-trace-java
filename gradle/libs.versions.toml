@@ -26,10 +26,10 @@ commons = "3.2"
 mockito = '4.4.0'
 jctools = '3.3.0'
 moshi = '1.11.0'
-testcontainers = '1.19.3'
+testcontainers = '1.20.1'
 jmc = "8.1.0"
 autoservice = "1.0-rc7"
-ddprof = "1.13.0"
+ddprof = "1.17.0"
 asm = "9.7"
 cafe_crypto = "0.1.0"
 lz4 = "1.7.1"
@@ -75,6 +75,8 @@ byte-buddy-agent = { module = "net.bytebuddy:byte-buddy-agent", version.ref = "b
 testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }
 
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
+logback-core = { module = "ch.qos.logback:logback-core", version.ref = "logback" }
+
 log4j-over-slf4j = { module = "org.slf4j:log4j-over-slf4j", version.ref = "slf4j" }
 jcl-over-slf4j = { module = "org.slf4j:jcl-over-slf4j", version.ref = "slf4j" }
 jul-to-slf4j = { module = "org.slf4j:jul-to-slf4j", version.ref = "slf4j" }

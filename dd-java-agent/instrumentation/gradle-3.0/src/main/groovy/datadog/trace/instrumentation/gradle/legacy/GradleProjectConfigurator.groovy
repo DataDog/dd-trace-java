@@ -203,13 +203,19 @@ class GradleProjectConfigurator {
       }
     }
 
-    def coverageEnabledPackages = sessionSettings.getCoverageEnabledPackages()
+    def coverageIncludedPackages = sessionSettings.getCoverageIncludedPackages()
+    def coverageExcludedPackages = sessionSettings.getCoverageExcludedPackages()
     forEveryTestTask project, { task ->
       task.jacoco.excludeClassLoaders += [DatadogClassLoader.name]
 
-      for (String coverageEnabledPackage : coverageEnabledPackages) {
-        if (Strings.isNotBlank(coverageEnabledPackage)) {
-          task.jacoco.includes += coverageEnabledPackage
+      for (String includedPackage : coverageIncludedPackages) {
+        if (Strings.isNotBlank(includedPackage)) {
+          task.jacoco.includes += includedPackage
+        }
+      }
+      for (String excludedPackage : coverageExcludedPackages) {
+        if (Strings.isNotBlank(excludedPackage)) {
+          task.jacoco.excludes += excludedPackage
         }
       }
     }

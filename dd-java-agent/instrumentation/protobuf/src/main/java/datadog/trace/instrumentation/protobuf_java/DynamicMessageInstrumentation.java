@@ -9,8 +9,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import com.google.protobuf.Descriptors.Descriptor;
+import com.google.protobuf.DynamicMessage;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
@@ -50,7 +52,16 @@ public final class DynamicMessageInstrumentation extends InstrumenterModule.Trac
   public static class ParseFromAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(@Advice.Argument(0) final Descriptor descriptor) {
+      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(DynamicMessage.class);
+      if (callDepth > 0) {
+        return;
+      }
       SchemaExtractor.attachSchemaOnSpan(descriptor, activeSpan(), SchemaExtractor.deserialization);
+    }
+
+    @Advice.OnMethodExit()
+    public static void trackDepth() {
+      CallDepthThreadLocalMap.decrementCallDepth(DynamicMessage.class);
     }
   }
 }

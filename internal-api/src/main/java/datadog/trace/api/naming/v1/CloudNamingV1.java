@@ -2,7 +2,6 @@ package datadog.trace.api.naming.v1;
 
 import datadog.trace.api.naming.NamingSchema;
 import datadog.trace.api.naming.SpanNaming;
-import datadog.trace.util.Strings;
 import java.util.Locale;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -34,7 +33,7 @@ public class CloudNamingV1 implements NamingSchema.ForCloud {
         return SpanNaming.instance().namingSchema().messaging().outboundOperation("sns");
       default:
         final String lowercaseService = cloudService.toLowerCase(Locale.ROOT);
-        return Strings.join(".", provider, lowercaseService, "request"); // aws.s3.request
+        return String.join(".", provider, lowercaseService, "request"); // aws.s3.request
     }
   }
 

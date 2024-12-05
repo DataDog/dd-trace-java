@@ -1,13 +1,16 @@
 package datadog.trace.bootstrap;
 
+import datadog.json.JsonWriter;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /** Thread safe telemetry class used to relay information about tracer activation. */
 public abstract class BootstrapInitializationTelemetry {
   /** Returns a singleton no op instance of initialization telemetry */
-  public static final BootstrapInitializationTelemetry noOpInstance() {
+  public static BootstrapInitializationTelemetry noOpInstance() {
     return NoOp.INSTANCE;
   }
 
@@ -17,8 +20,7 @@ public abstract class BootstrapInitializationTelemetry {
    *
    * @param forwarderPath - a String - path to forwarding executable
    */
-  public static final BootstrapInitializationTelemetry createFromForwarderPath(
-      String forwarderPath) {
+  public static BootstrapInitializationTelemetry createFromForwarderPath(String forwarderPath) {
     return new JsonBased(new ForwarderJsonSender(forwarderPath));
   }
 
@@ -85,27 +87,29 @@ public abstract class BootstrapInitializationTelemetry {
   public static final class JsonBased extends BootstrapInitializationTelemetry {
     private final JsonSender sender;
 
-    private JsonBuffer metaBuffer = new JsonBuffer();
-    private JsonBuffer pointsBuffer = new JsonBuffer();
+    private final List<String> meta;
+    private final List<String> points;
 
     // one way false to true
     private volatile boolean incomplete = false;
 
     JsonBased(JsonSender sender) {
       this.sender = sender;
+      this.meta = new ArrayList<>();
+      this.points = new ArrayList<>();
     }
 
     @Override
     public void initMetaInfo(String attr, String value) {
-      synchronized (metaBuffer) {
-        metaBuffer.name(attr).value(value);
+      synchronized (this.meta) {
+        this.meta.add(attr);
+        this.meta.add(value);
       }
     }
 
     @Override
     public void onAbort(String reasonCode) {
       onPoint("library_entrypoint.abort", "reason:" + reasonCode);
-
       markIncomplete();
     }
 
@@ -117,7 +121,6 @@ public abstract class BootstrapInitializationTelemetry {
     @Override
     public void onFatalError(Throwable t) {
       onError(t);
-
       markIncomplete();
     }
 
@@ -126,62 +129,48 @@ public abstract class BootstrapInitializationTelemetry {
       onPoint("library_entrypoint.error", "error_type:" + reasonCode);
     }
 
+    private void onPoint(String name, String tag) {
+      synchronized (this.points) {
+        this.points.add(name);
+        this.points.add(tag);
+      }
+    }
+
     @Override
     public void markIncomplete() {
-      incomplete = true;
-    }
-
-    void onPoint(String pointName) {
-      synchronized (pointsBuffer) {
-        pointsBuffer.beginObject();
-        pointsBuffer.name("name").value(pointName);
-        pointsBuffer.endObject();
-      }
-    }
-
-    void onPoint(String pointName, String tag) {
-      synchronized (pointsBuffer) {
-        pointsBuffer.beginObject();
-        pointsBuffer.name("name").value(pointName);
-        pointsBuffer.name("tags").array(tag);
-        pointsBuffer.endObject();
-      }
-    }
-
-    void onPoint(String pointName, String[] tags) {
-      synchronized (pointsBuffer) {
-        pointsBuffer.beginObject();
-        pointsBuffer.name("name").value(pointName);
-        pointsBuffer.name("tags").array(tags);
-        pointsBuffer.endObject();
-      }
+      this.incomplete = true;
     }
 
     @Override
     public void finish() {
-      if (!incomplete) {
-        onPoint("library_entrypoint.complete");
-      }
+      try (JsonWriter writer = new JsonWriter()) {
+        writer.beginObject();
+        writer.name("metadata").beginObject();
+        synchronized (this.meta) {
+          for (int i = 0; i + 1 < this.meta.size(); i = i + 2) {
+            writer.name(this.meta.get(i));
+            writer.value(this.meta.get(i + 1));
+          }
+        }
+        writer.endObject();
 
-      JsonBuffer buffer = new JsonBuffer();
-      buffer.beginObject();
+        writer.name("points").beginArray();
+        synchronized (this.points) {
+          for (int i = 0; i + 1 < this.points.size(); i = i + 2) {
+            writer.beginObject();
+            writer.name("name").value(this.points.get(i));
+            writer.name("tags").beginArray().value(this.points.get(i + 1)).endArray();
+            writer.endObject();
+          }
+          this.points.clear();
+        }
+        if (!this.incomplete) {
+          writer.beginObject().name("name").value("library_entrypoint.complete").endObject();
+        }
+        writer.endArray();
+        writer.endObject();
 
-      buffer.name("metadata");
-      synchronized (metaBuffer) {
-        buffer.object(metaBuffer);
-      }
-
-      buffer.name("points");
-      synchronized (pointsBuffer) {
-        buffer.array(pointsBuffer);
-
-        pointsBuffer.reset();
-      }
-
-      buffer.endObject();
-
-      try {
-        sender.send(buffer);
+        this.sender.send(writer.toByteArray());
       } catch (Throwable t) {
         // Since this is the reporting mechanism, there's little recourse here
         // Decided to simply ignore - arguably might want to write to stderr
@@ -189,8 +178,8 @@ public abstract class BootstrapInitializationTelemetry {
     }
   }
 
-  public static interface JsonSender {
-    public abstract void send(JsonBuffer buffer) throws IOException;
+  public interface JsonSender {
+    void send(byte[] payload) throws IOException;
   }
 
   public static final class ForwarderJsonSender implements JsonSender {
@@ -201,12 +190,12 @@ public abstract class BootstrapInitializationTelemetry {
     }
 
     @Override
-    public void send(JsonBuffer buffer) throws IOException {
-      ProcessBuilder builder = new ProcessBuilder(forwarderPath);
+    public void send(byte[] payload) throws IOException {
+      ProcessBuilder builder = new ProcessBuilder(forwarderPath, "library_entrypoint");
 
       Process process = builder.start();
       try (OutputStream out = process.getOutputStream()) {
-        out.write(buffer.toByteArray());
+        out.write(payload);
       }
 
       try {

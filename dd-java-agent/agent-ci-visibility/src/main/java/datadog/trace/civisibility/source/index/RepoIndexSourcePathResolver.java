@@ -1,6 +1,7 @@
 package datadog.trace.civisibility.source.index;
 
 import datadog.trace.civisibility.source.SourcePathResolver;
+import datadog.trace.civisibility.source.SourceResolutionException;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -14,13 +15,13 @@ public class RepoIndexSourcePathResolver implements SourcePathResolver {
 
   @Nullable
   @Override
-  public String getSourcePath(@Nonnull Class<?> c) {
+  public String getSourcePath(@Nonnull Class<?> c) throws SourceResolutionException {
     return indexProvider.getIndex().getSourcePath(c);
   }
 
   @Nullable
   @Override
-  public String getResourcePath(@Nullable String relativePath) {
+  public String getResourcePath(@Nullable String relativePath) throws SourceResolutionException {
     return indexProvider.getIndex().getSourcePath(relativePath);
   }
 }

@@ -1,7 +1,7 @@
 package datadog.trace.api.telemetry;
 
 public enum RuleType {
-  LIF("lfi"),
+  LFI("lfi"),
   SQL_INJECTION("sql_injection"),
   SSRF("ssrf");
 

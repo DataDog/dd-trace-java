@@ -9,14 +9,15 @@ import datadog.trace.bootstrap.InitializationTelemetry;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.Method;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -74,16 +75,17 @@ public final class AgentCLI {
   }
 
   public static void uploadCrash(final String[] args) throws Exception {
-    List<InputStream> files = new ArrayList<>();
+    CrashUploader uploader = new CrashUploader();
+    List<Path> files = new ArrayList<>(args.length);
     for (String arg : args) {
-      try {
-        files.add(new FileInputStream(arg));
-        new CrashUploader().upload(files);
-      } catch (FileNotFoundException | SecurityException e) {
-        log.error("Failed to open {}", arg, e);
+      Path path = Paths.get(arg);
+      if (!Files.exists(path)) {
+        log.error("Crash log {} does not exist", arg);
         System.exit(1);
       }
+      files.add(Paths.get(arg));
     }
+    uploader.upload(files);
   }
 
   public static void sendOomeEvent(String taglist) throws Exception {

@@ -45,8 +45,9 @@ excludedClassesCoverage += [
   "datadog.trace.api.EndpointCheckpointerHolder",
   "datadog.trace.api.iast.IastAdvice.Kind",
   "datadog.trace.api.UserEventTrackingMode",
-  // This is almost fully abstract class so nothing to test
+  // These are almost fully abstract classes so nothing to test
   'datadog.trace.api.profiling.RecordingData',
+  'datadog.trace.api.appsec.AppSecEventTracker',
   // A plain enum
   'datadog.trace.api.profiling.RecordingType',
   "datadog.trace.bootstrap.ActiveSubsystems",
@@ -119,6 +120,7 @@ excludedClassesCoverage += [
   "datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric",
   "datadog.trace.api.civisibility.telemetry.CiVisibilityMetricData",
   "datadog.trace.api.civisibility.telemetry.NoOpMetricCollector",
+  "datadog.trace.api.civisibility.CiVisibilityWellKnownTags",
   "datadog.trace.api.civisibility.InstrumentationBridge",
   "datadog.trace.api.civisibility.InstrumentationTestBridge",
   // POJO
@@ -183,7 +185,11 @@ excludedClassesCoverage += [
   'datadog.trace.api.profiling.Timer.TimerType',
   // tested in agent-logging
   'datadog.trace.logging.LogLevel',
-  'datadog.trace.logging.GlobalLogLevelSwitcher'
+  'datadog.trace.logging.GlobalLogLevelSwitcher',
+  //POJO
+  'datadog.trace.util.stacktrace.StackTraceBatch',
+  'datadog.trace.util.stacktrace.StackTraceEvent',
+  'datadog.trace.util.stacktrace.StackTraceFrame',
 ]
 excludedClassesBranchCoverage = [
   'datadog.trace.api.ProductActivationConfig',
@@ -203,7 +209,7 @@ dependencies {
 
   // has to be loaded by system classloader:
   // it contains annotations that are also present in the instrumented application classes
-  api "com.datadoghq:dd-javac-plugin-client:0.1.7"
+  api "com.datadoghq:dd-javac-plugin-client:0.2.2"
 
   testImplementation project(":utils:test-utils")
   testImplementation("org.assertj:assertj-core:3.20.2")

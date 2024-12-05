@@ -66,12 +66,11 @@ class GrpcRequestMessageHandlerTest extends IastModuleImplTestBase {
     given:
     final visitor = Mock(ObjectVisitor.Visitor) {
       visit(_ as String, _ as Object) >> {
-        println 'feo'
         return CONTINUE
       }
     }
     final nonProtobufMessage = new VisitableClass(name: 'test')
-    final filter = GrpcRequestMessageHandler::isProtobufArtifact
+    final filter = GrpcRequestMessageHandler::visitProtobufArtifact
 
     when: 'the message is not a protobuf instance'
     ObjectVisitor.visit(nonProtobufMessage, visitor, filter)

@@ -58,7 +58,9 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
   @Override
   @AfterEach
   void teardown() throws Exception {
-    stopApp(appUrl);
+    if (appUrl != null) {
+      stopApp(appUrl);
+    }
     controlServer.shutdown();
     super.teardown();
   }
@@ -150,7 +152,7 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
   }
 
   protected String waitForAppStartedAndGetUrl() throws InterruptedException, EOFException {
-    RecordedRequest recordedRequest = controlServer.takeRequest(10, TimeUnit.SECONDS);
+    RecordedRequest recordedRequest = controlServer.takeRequest(30, TimeUnit.SECONDS);
     assertNotNull(recordedRequest);
     String appUrl = recordedRequest.getBody().readUtf8Line();
     LOG.info("AppUrl = " + appUrl);

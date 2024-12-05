@@ -1,5 +1,5 @@
 variables:
-  EXPLORATION_TESTS_IMAGE: $REGISTRY/ci/dd-trace-java:exploration-tests
+  EXPLORATION_TESTS_IMAGE: registry.ddbuild.io/ci/dd-trace-java:exploration-tests
 
 build-exploration-tests-image:
   stage: exploration-tests
@@ -18,14 +18,16 @@ build-exploration-tests-image:
     - ./gradlew :dd-java-agent:shadowJar --no-scan
     - cp workspace/dd-java-agent/build/libs/*.jar /exploration-tests/dd-java-agent.jar
     - cp dd-java-agent/agent-debugger/exploration-tests/run-exploration-tests.sh /exploration-tests
-    - cp dd-java-agent/agent-debugger/exploration-tests/exclude*.txt /exploration-tests
+    - cp dd-java-agent/agent-debugger/exploration-tests/exclude_*.txt /exploration-tests
+    - cp dd-java-agent/agent-debugger/exploration-tests/include_*.txt /exploration-tests
     - cd /exploration-tests
   after_script:
+    - echo "$PROJECT"
     - cd $CI_PROJECT_DIR
-    - cp /exploration-tests/$PROJECT/agent.log agent.log
-    - gzip agent.log
-    - tar czf surefire-reports.tar.gz /exploration-tests/$PROJECT/target/surefire-reports
-    - tar czf debugger-dumps.tar.gz /tmp/debugger
+    - cp /exploration-tests/$PROJECT/agent.log ${PROJECT}_agent.log
+    - gzip ${PROJECT}_agent.log
+    - tar czf ${PROJECT}_surefire-reports.tar.gz /exploration-tests/${PROJECT}/target/surefire-reports
+    - tar czf ${PROJECT}_debugger-dumps.tar.gz /tmp/debugger
   stage: exploration-tests
   when: manual
   tags: [ "runner:main"]
@@ -33,9 +35,16 @@ build-exploration-tests-image:
   image: $EXPLORATION_TESTS_IMAGE
   artifacts:
     paths:
-      - agent.log.gz
-      - surefire-reports.tar.gz
-      - debugger-dumps.tar.gz
+      - ${PROJECT}_agent.log.gz
+      - ${PROJECT}_surefire-reports.tar.gz
+      - ${PROJECT}_debugger-dumps.tar.gz
+
+exploration-tests-jsoup:
+  variables:
+    PROJECT: jsoup
+  <<: *common-exploration-tests
+  script:
+    - ./run-exploration-tests.sh "$PROJECT" "mvn verify" "include_jsoup.txt" "exclude_jsoup.txt"
 
 
 exploration-tests-jackson-core:

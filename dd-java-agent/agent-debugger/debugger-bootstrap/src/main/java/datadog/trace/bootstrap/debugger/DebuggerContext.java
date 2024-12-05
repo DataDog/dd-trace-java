@@ -3,6 +3,7 @@ package datadog.trace.bootstrap.debugger;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import java.lang.reflect.Method;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -30,6 +31,10 @@ public class DebuggerContext {
 
   public interface ClassFilter {
     boolean isDenied(String fullyQualifiedClassName);
+  }
+
+  public interface ClassNameFilter {
+    boolean isExcluded(String className);
   }
 
   public enum MetricKind {
@@ -68,11 +73,14 @@ public class DebuggerContext {
   }
 
   public interface CodeOriginRecorder {
-    String captureCodeOrigin(String signature);
+    String captureCodeOrigin(boolean entry);
+
+    String captureCodeOrigin(Method method, boolean entry);
   }
 
   private static volatile ProbeResolver probeResolver;
   private static volatile ClassFilter classFilter;
+  private static volatile ClassNameFilter classNameFilter;
   private static volatile MetricForwarder metricForwarder;
   private static volatile Tracer tracer;
   private static volatile ValueSerializer valueSerializer;
@@ -93,6 +101,10 @@ public class DebuggerContext {
 
   public static void initClassFilter(ClassFilter classFilter) {
     DebuggerContext.classFilter = classFilter;
+  }
+
+  public static void initClassNameFilter(ClassNameFilter classNameFilter) {
+    DebuggerContext.classNameFilter = classNameFilter;
   }
 
   public static void initValueSerializer(ValueSerializer valueSerializer) {
@@ -342,11 +354,23 @@ public class DebuggerContext {
     }
   }
 
-  public static String captureCodeOrigin(String signature) {
+  public static String captureCodeOrigin(boolean entry) {
     try {
       CodeOriginRecorder recorder = codeOriginRecorder;
       if (recorder != null) {
-        return recorder.captureCodeOrigin(signature);
+        return recorder.captureCodeOrigin(entry);
+      }
+    } catch (Exception ex) {
+      LOGGER.debug("Error in captureCodeOrigin: ", ex);
+    }
+    return null;
+  }
+
+  public static String captureCodeOrigin(Method method, boolean entry) {
+    try {
+      CodeOriginRecorder recorder = codeOriginRecorder;
+      if (recorder != null) {
+        return recorder.captureCodeOrigin(method, entry);
       }
     } catch (Exception ex) {
       LOGGER.debug("Error in captureCodeOrigin: ", ex);
@@ -363,6 +387,15 @@ public class DebuggerContext {
       exDebugger.handleException(t, span);
     } catch (Exception ex) {
       LOGGER.debug("Error in handleException: ", ex);
+    }
+  }
+
+  public static boolean isClassNameExcluded(String className) {
+    try {
+      return classNameFilter != null && classNameFilter.isExcluded(className);
+    } catch (Exception ex) {
+      LOGGER.debug("Error in isClassNameExcluded: ", ex);
+      return false;
     }
   }
 }

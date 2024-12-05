@@ -2,9 +2,10 @@
 set -uo pipefail
 NAME=$1
 COMMAND=$2
-PROJECT_EXCLUDE_FILE=${3:-}
+PROJECT_INCLUDE_FILE=${3:-}
+PROJECT_EXCLUDE_FILE=${4:-}
 echo " === running debugger java exploration tests === "
-export JAVA_TOOL_OPTIONS="-javaagent:`pwd`/dd-java-agent.jar -Ddatadog.slf4j.simpleLogger.log.com.datadog.debugger=debug -Ddd.trace.enabled=false -Ddd.dynamic.instrumentation.enabled=true -Ddd.dynamic.instrumentation.instrument.the.world=true -Ddd.dynamic.instrumentation.classfile.dump.enabled=true -Ddd.dynamic.instrumentation.verify.bytecode=true -Ddd.dynamic.instrumentation.exclude.files=/exploration-tests/exclude.txt,/exploration-tests/$PROJECT_EXCLUDE_FILE"
+export JAVA_TOOL_OPTIONS="-javaagent:`pwd`/dd-java-agent.jar -Ddatadog.slf4j.simpleLogger.log.com.datadog.debugger=debug -Ddd.trace.enabled=false -Ddd.dynamic.instrumentation.enabled=true -Ddd.dynamic.instrumentation.instrument.the.world=true -Ddd.dynamic.instrumentation.classfile.dump.enabled=true -Ddd.dynamic.instrumentation.verify.bytecode=false -Ddd.dynamic.instrumentation.include.files=/exploration-tests/$PROJECT_INCLUDE_FILE -Ddd.dynamic.instrumentation.exclude.files=/exploration-tests/$PROJECT_EXCLUDE_FILE"
 echo "$JAVA_TOOL_OPTIONS"
 cd $NAME
 echo "Building repository $NAME..."

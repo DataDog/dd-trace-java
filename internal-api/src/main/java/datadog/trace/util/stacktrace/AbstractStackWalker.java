@@ -18,6 +18,8 @@ public abstract class AbstractStackWalker implements StackWalker {
 
   static boolean isNotDatadogTraceStackElement(final StackTraceElement el) {
     final String clazz = el.getClassName();
-    return !clazz.startsWith("datadog.trace.") && !clazz.startsWith("com.datadog.iast.");
+    return !clazz.startsWith("datadog.trace.")
+        && !clazz.startsWith("com.datadog.iast.")
+        && !clazz.startsWith("com.datadog.appsec.");
   }
 }

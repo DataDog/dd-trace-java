@@ -14,8 +14,8 @@ public enum ComparisonOperator {
     @Override
     public Boolean apply(Value<?> left, Value<?> right) {
       if (left instanceof NumericValue && right instanceof NumericValue) {
-        Number leftNumber = (Number) left.getValue();
-        Number rightNumber = (Number) right.getValue();
+        Number leftNumber = ((NumericValue) left).getWidenValue();
+        Number rightNumber = ((NumericValue) right).getWidenValue();
         if (isNan(leftNumber, rightNumber)) {
           return Boolean.FALSE;
         }
@@ -152,8 +152,8 @@ public enum ComparisonOperator {
 
   protected static Integer compare(Value<?> left, Value<?> right) {
     if (left instanceof NumericValue && right instanceof NumericValue) {
-      Number leftNumber = (Number) left.getValue();
-      Number rightNumber = (Number) right.getValue();
+      Number leftNumber = ((NumericValue) left).getWidenValue();
+      Number rightNumber = ((NumericValue) right).getWidenValue();
       if (isNan(leftNumber, rightNumber)) {
         return null;
       }

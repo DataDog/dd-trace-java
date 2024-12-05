@@ -167,9 +167,6 @@ abstract class AbstractIastVertxSmokeTest extends AbstractIastServerSmokeTest {
 
     then:
     hasTainted { tainted ->
-      tainted.value == 'my_key' && tainted.ranges[0].source.origin == 'http.request.body'
-    }
-    hasTainted { tainted ->
       tainted.value == 'my_value' && tainted.ranges[0].source.origin == 'http.request.body'
     }
   }

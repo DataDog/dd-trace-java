@@ -55,7 +55,7 @@ jobs:
             const nextMilestoneTitle = versionNumbers.join('.')
             core.info(`Creating next version milestone: ${nextMilestoneTitle}`)
             // Create the next milestone
-            await github.issues.createMilestone({
+            await github.rest.issues.createMilestone({
               owner: context.repo.owner,
               repo: context.repo.repo,
               title: nextMilestoneTitle

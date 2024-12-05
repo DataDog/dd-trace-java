@@ -200,6 +200,10 @@ class JDBCConnectionUrlParserTest extends AgentTestRunner {
 
     // redshift
     "jdbc:redshift://redshift-cluster-1.c7arcolffyvk.us-east-2.redshift.amazonaws.com:5439/dev"                                                                                                                                                 | null     | "redshift"   | null          | null          | "redshift-cluster-1.c7arcolffyvk.us-east-2.redshift.amazonaws.com"  | 5439  | "redshift-cluster-1"               | "dev"
+    // Intersys IRIS
+    "jdbc:IRIS://dbhostname:1972/namespace"                                                                                                                                                                                                     | null     | "iris"       | null          | null          | "dbhostname"  | 1972  | null               | "namespace"
+    "jdbc:IRIS://dbhostname:1972/namespace/+myjdbc.log"                                                                                                                                                                                                     | null     | "iris"       | null          | null          | "dbhostname"  | 1972  | null               | "namespace"
+    "jdbc:IRIS://dbhostname:1972/namespace/::false"                                                                                                                                                                                             | null     | "iris"       | null          | null          | "dbhostname"  | 1972  | null               | "namespace"
 
     expected = new DBInfo.Builder().type(type).subtype(subtype).user(user).instance(instance).db(db).host(host).port(port).build()
   }

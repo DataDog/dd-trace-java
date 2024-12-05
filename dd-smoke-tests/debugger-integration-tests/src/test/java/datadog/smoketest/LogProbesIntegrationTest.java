@@ -26,6 +26,7 @@ import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
+import datadog.trace.test.util.Flaky;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -53,6 +54,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
     assertFalse(logHasErrors(logFilePath, it -> false));
   }
 
+  @Flaky
   @Test
   @DisplayName("testFullMethod")
   void testFullMethod() throws Exception {

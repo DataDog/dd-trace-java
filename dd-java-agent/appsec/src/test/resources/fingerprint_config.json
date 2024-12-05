@@ -79,7 +79,52 @@
           }
         ]
       },
-      "evaluate": true,
+      "evaluate": false,
+      "output": true
+    },
+    {
+      "id": "processor-004",
+      "generator": "session_fingerprint",
+      "conditions": [
+        {
+          "operator": "equals",
+          "parameters": {
+            "inputs": [
+              {
+                "address": "waf.context.processor",
+                "key_path": [
+                  "fingerprint"
+                ]
+              }
+            ],
+            "value": true,
+            "type": "boolean"
+          }
+        }
+      ],
+      "parameters": {
+        "mappings": [
+          {
+            "cookies": [
+              {
+                "address": "server.request.cookies"
+              }
+            ],
+            "session_id": [
+              {
+                "address": "usr.session_id"
+              }
+            ],
+            "user_id": [
+              {
+                "address": "usr.id"
+              }
+            ],
+            "output": "_dd.appsec.fp.session"
+          }
+        ]
+      },
+      "evaluate": false,
       "output": true
     }
   ]

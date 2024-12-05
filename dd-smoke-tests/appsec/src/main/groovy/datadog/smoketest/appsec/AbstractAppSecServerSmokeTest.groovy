@@ -82,16 +82,21 @@ abstract class AbstractAppSecServerSmokeTest extends AbstractServerSmokeTest {
   }
 
   /**
-   * This method fetches default ruleset included in the agent and appends the selected rules, then it points
+   * This method fetches default ruleset included in the agent and merges the selected rules, then it points
    * the {@code dd.appsec.rules} variable to the new file
    */
-  void appendRules(final String path, final List<Map<String, Object>> customRules) {
+  void mergeRules(final String path, final List<Map<String, Object>> customRules) {
     // Prepare a file with the new rules
     final jarFile = new JarFile(shadowJarPath)
     final zipEntry = jarFile.getEntry("appsec/default_config.json")
     final content = IOUtils.toString(jarFile.getInputStream(zipEntry), StandardCharsets.UTF_8)
     final json = new JsonSlurper().parseText(content) as Map<String, Object>
     final rules = json.rules as List<Map<String, Object>>
+
+    // remove already existing rules for merge
+    List<Object> customRulesNames = customRules.collect { it.id }
+    rules.removeIf { it.id in customRulesNames }
+
     rules.addAll(customRules)
     final gen = new JsonGenerator.Options().build()
     IOUtils.write(gen.toJson(json), new FileOutputStream(path, false), StandardCharsets.UTF_8)

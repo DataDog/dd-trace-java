@@ -1,7 +1,8 @@
 package datadog.smoketest;
 
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 import datadog.trace.api.Platform;
@@ -23,6 +24,10 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+/*
+ * NOTE: The current implementation of crash tracking doesn't work with ancient version of bash
+ * that ships with OS X by default.
+ */
 public class CrashtrackingSmokeTest {
   private MockWebServer tracingServer;
 
@@ -76,6 +81,10 @@ public class CrashtrackingSmokeTest {
     return Platform.isWindows() ? "bat" : "sh";
   }
 
+  /*
+   * NOTE: The current implementation of crash tracking doesn't work with ancient version of bash
+   * that ships with OS X by default.
+   */
   @Test
   void testCrashTracking() throws Exception {
     Path script = tempDir.resolve("dd_crash_uploader." + getExtension());
@@ -112,7 +121,7 @@ public class CrashtrackingSmokeTest {
                     .forEach(
                         l -> {
                           System.out.println(l);
-                          stdoutStr.append(l).append("\n");
+                          stdoutStr.append(l).append('\n');
                         });
               } catch (Exception e) {
                 throw new RuntimeException(e);
@@ -127,7 +136,7 @@ public class CrashtrackingSmokeTest {
                     .forEach(
                         l -> {
                           System.err.println(l);
-                          stderrStr.append(l).append("\n");
+                          stderrStr.append(l).append('\n');
                         });
               } catch (Exception e) {
                 throw new RuntimeException(e);
@@ -140,14 +149,17 @@ public class CrashtrackingSmokeTest {
 
     assertNotEquals(0, p.waitFor(), "Application should have crashed");
 
-    assertTrue(stdoutStr.toString().contains(" was uploaded successfully"));
-    assertTrue(
-        stderrStr
-            .toString()
-            .contains(
-                "com.datadog.crashtracking.CrashUploader - Successfully uploaded the crash files"));
+    assertThat(stdoutStr.toString(), containsString(" was uploaded successfully"));
+    assertThat(
+        stderrStr.toString(),
+        containsString(
+            "com.datadog.crashtracking.CrashUploader - Successfully uploaded the crash files"));
   }
 
+  /*
+   * NOTE: The current implementation of crash tracking doesn't work with ancient version of bash
+   * that ships with OS X by default.
+   */
   @Test
   void testCrashTrackingLegacy() throws Exception {
     Path script = tempDir.resolve("dd_crash_uploader." + getExtension());
@@ -184,7 +196,7 @@ public class CrashtrackingSmokeTest {
                     .forEach(
                         l -> {
                           System.out.println(l);
-                          stdoutStr.append(l).append("\n");
+                          stdoutStr.append(l).append('\n');
                         });
               } catch (Exception e) {
                 throw new RuntimeException(e);
@@ -199,7 +211,7 @@ public class CrashtrackingSmokeTest {
                     .forEach(
                         l -> {
                           System.err.println(l);
-                          stderrStr.append(l).append("\n");
+                          stderrStr.append(l).append('\n');
                         });
               } catch (Exception e) {
                 throw new RuntimeException(e);
@@ -212,14 +224,17 @@ public class CrashtrackingSmokeTest {
 
     assertNotEquals(0, p.waitFor(), "Application should have crashed");
 
-    assertTrue(stdoutStr.toString().contains(" was uploaded successfully"));
-    assertTrue(
-        stderrStr
-            .toString()
-            .contains(
-                "com.datadog.crashtracking.CrashUploader - Successfully uploaded the crash files"));
+    assertThat(stdoutStr.toString(), containsString(" was uploaded successfully"));
+    assertThat(
+        stderrStr.toString(),
+        containsString(
+            "com.datadog.crashtracking.CrashUploader - Successfully uploaded the crash files"));
   }
 
+  /*
+   * NOTE: The current implementation of crash tracking doesn't work with ancient version of bash
+   * that ships with OS X by default.
+   */
   @Test
   void testOomeTracking() throws Exception {
     Path script = tempDir.resolve("dd_oome_notifier." + getExtension());
@@ -253,7 +268,7 @@ public class CrashtrackingSmokeTest {
                     .forEach(
                         l -> {
                           System.out.println(l);
-                          stdoutStr.append(l).append("\n");
+                          stdoutStr.append(l).append('\n');
                         });
               } catch (Exception e) {
                 throw new RuntimeException(e);
@@ -268,7 +283,7 @@ public class CrashtrackingSmokeTest {
                     .forEach(
                         l -> {
                           System.err.println(l);
-                          stderrStr.append(l).append("\n");
+                          stderrStr.append(l).append('\n');
                         });
               } catch (Exception e) {
                 throw new RuntimeException(e);
@@ -281,9 +296,10 @@ public class CrashtrackingSmokeTest {
 
     assertNotEquals(0, p.waitFor(), "Application should have crashed");
 
-    assertTrue(
-        stderrStr.toString().contains("com.datadog.crashtracking.OOMENotifier - OOME event sent"));
-    assertTrue(stdoutStr.toString().contains("OOME Event generated successfully"));
+    assertThat(
+        stderrStr.toString(),
+        containsString("com.datadog.crashtracking.OOMENotifier - OOME event sent"));
+    assertThat(stdoutStr.toString(), containsString("OOME Event generated successfully"));
   }
 
   @Test
@@ -323,7 +339,7 @@ public class CrashtrackingSmokeTest {
                     .forEach(
                         l -> {
                           System.out.println(l);
-                          stdoutStr.append(l).append("\n");
+                          stdoutStr.append(l).append('\n');
                         });
               } catch (Exception e) {
                 throw new RuntimeException(e);
@@ -338,7 +354,7 @@ public class CrashtrackingSmokeTest {
                     .forEach(
                         l -> {
                           System.err.println(l);
-                          stderrStr.append(l).append("\n");
+                          stderrStr.append(l).append('\n');
                         });
               } catch (Exception e) {
                 throw new RuntimeException(e);
@@ -352,16 +368,16 @@ public class CrashtrackingSmokeTest {
     assertNotEquals(0, p.waitFor(), "Application should have crashed");
 
     // Crash uploader did get triggered
-    assertTrue(stdoutStr.toString().contains(" was uploaded successfully"));
-    assertTrue(
-        stderrStr
-            .toString()
-            .contains(
-                "com.datadog.crashtracking.CrashUploader - Successfully uploaded the crash files"));
+    assertThat(stdoutStr.toString(), containsString(" was uploaded successfully"));
+    assertThat(
+        stderrStr.toString(),
+        containsString(
+            "com.datadog.crashtracking.CrashUploader - Successfully uploaded the crash files"));
 
     // OOME notifier did get triggered
-    assertTrue(
-        stderrStr.toString().contains("com.datadog.crashtracking.OOMENotifier - OOME event sent"));
-    assertTrue(stdoutStr.toString().contains("OOME Event generated successfully"));
+    assertThat(
+        stderrStr.toString(),
+        containsString("com.datadog.crashtracking.OOMENotifier - OOME event sent"));
+    assertThat(stdoutStr.toString(), containsString("OOME Event generated successfully"));
   }
 }

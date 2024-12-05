@@ -27,7 +27,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 class ComparisonExpressionTest {
 
-  @ParameterizedTest
+  @ParameterizedTest(name = "[{index}] {4}")
   @MethodSource("expressions")
   void evaluateOperator(
       ValueExpression<?> left,
@@ -156,10 +156,10 @@ class ComparisonExpressionTest {
             "null instanceof \"java.lang.String\""),
         Arguments.of(
             new NumericValue(1),
-            new StringValue("java.lang.Long"),
+            new StringValue("java.lang.Integer"),
             INSTANCEOF,
             true,
-            "1 instanceof \"java.lang.Long\""),
+            "1 instanceof \"java.lang.Integer\""),
         Arguments.of(
             new NumericValue(1.0),
             new StringValue("java.lang.Double"),

@@ -35,7 +35,10 @@ public class PowerWAFStatsReporter implements TraceSegmentPostProcessor {
       segment.setTagTop(RASP_TOTAL_DURATION_US_TAG, raspMetrics.getTotalRunTimeNs() / 1000L);
       segment.setTagTop(
           RASP_TOTAL_DDWAF_RUN_DURATION_US_TAG, raspMetrics.getTotalDdwafRunTimeNs() / 1000L);
-      segment.setTagTop(RASP_RULE_EVAL, ctx.getRaspMetricsCounter().get());
+      final int raspCount = ctx.getRaspMetricsCounter().get();
+      if (raspCount > 0) {
+        segment.setTagTop(RASP_RULE_EVAL, raspCount);
+      }
     }
 
     String rulesVersion = this.rulesVersion;

@@ -31,7 +31,7 @@ public class StringTokenWriter implements SerializerWithLimits.TokenWriter {
   @Override
   public void prologue(Object value, String type) {
     if (inMapEntry && !initial) {
-      sb.append("=");
+      sb.append('=');
     } else if (inCollection && !initial) {
       sb.append(", ");
     }
@@ -85,7 +85,7 @@ public class StringTokenWriter implements SerializerWithLimits.TokenWriter {
 
   @Override
   public void collectionPrologue(Object value) {
-    sb.append("[");
+    sb.append('[');
     initial = true;
     inCollection = true;
   }
@@ -98,7 +98,7 @@ public class StringTokenWriter implements SerializerWithLimits.TokenWriter {
 
   @Override
   public void mapPrologue(Object value) {
-    sb.append("{");
+    sb.append('{');
     initial = true;
     inCollection = true;
   }
@@ -108,14 +108,14 @@ public class StringTokenWriter implements SerializerWithLimits.TokenWriter {
     if (!initial) {
       sb.append(", ");
     }
-    sb.append("[");
+    sb.append('[');
     initial = true;
     inMapEntry = true;
   }
 
   @Override
   public void mapEntryEpilogue(Map.Entry<?, ?> entry) {
-    sb.append("]");
+    sb.append(']');
     inMapEntry = false;
   }
 
@@ -127,7 +127,7 @@ public class StringTokenWriter implements SerializerWithLimits.TokenWriter {
 
   @Override
   public void objectPrologue(Object value) {
-    sb.append("{");
+    sb.append('{');
     initial = true;
   }
 
@@ -137,23 +137,27 @@ public class StringTokenWriter implements SerializerWithLimits.TokenWriter {
       sb.append(", ");
     }
     initial = false;
-    sb.append(fieldName).append("=");
+    sb.append(fieldName).append('=');
   }
 
   @Override
   public void objectEpilogue(Object value) {
-    sb.append("}");
+    sb.append('}');
   }
 
   @Override
   public void handleFieldException(Exception ex, Field field) {
+    fieldNotCaptured("Cannot extract field: " + ex.toString(), field);
+  }
+
+  @Override
+  public void fieldNotCaptured(String reason, Field field) {
     if (!initial) {
       sb.append(", ");
     }
     initial = false;
-    String fieldName = field.getName();
-    sb.append(fieldName).append('=').append(Value.undefinedValue());
-    evalErrors.add(new EvaluationError(fieldName, "Cannot extract field: " + ex.toString()));
+    sb.append(field.getName()).append('=').append(Value.undefinedValue());
+    evalErrors.add(new EvaluationError(field.getName(), reason));
   }
 
   @Override
@@ -163,16 +167,16 @@ public class StringTokenWriter implements SerializerWithLimits.TokenWriter {
         sb.append("...");
         break;
       case TIMEOUT:
-        sb.append("{").append(TIMEOUT_REASON).append("}");
+        sb.append('{').append(TIMEOUT_REASON).append('}');
         break;
       case FIELD_COUNT:
         sb.append(", ...");
         break;
       case REDACTED_IDENT:
-        sb.append("{").append(REDACTED_IDENT_REASON).append("}");
+        sb.append('{').append(REDACTED_IDENT_REASON).append('}');
         break;
       case REDACTED_TYPE:
-        sb.append("{").append(REDACTED_TYPE_REASON).append("}");
+        sb.append('{').append(REDACTED_TYPE_REASON).append('}');
         break;
       default:
         throw new RuntimeException("Unsupported NotCapturedReason: " + reason);
@@ -181,6 +185,6 @@ public class StringTokenWriter implements SerializerWithLimits.TokenWriter {
 
   @Override
   public void notCaptured(String reason) throws Exception {
-    sb.append("(Error: ").append(reason).append(")");
+    sb.append("(Error: ").append(reason).append(')');
   }
 }

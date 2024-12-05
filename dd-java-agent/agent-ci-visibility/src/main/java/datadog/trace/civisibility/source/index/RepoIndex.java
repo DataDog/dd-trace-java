@@ -1,7 +1,9 @@
 package datadog.trace.civisibility.source.index;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.domain.Language;
 import datadog.trace.civisibility.ipc.Serializer;
+import datadog.trace.civisibility.source.SourceResolutionException;
 import datadog.trace.civisibility.source.Utils;
 import datadog.trace.util.ClassNameTrie;
 import java.io.ByteArrayInputStream;
@@ -11,6 +13,7 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -23,16 +26,25 @@ public class RepoIndex {
 
   static final RepoIndex EMPTY =
       new RepoIndex(
-          ClassNameTrie.Builder.EMPTY_TRIE, Collections.emptyList(), Collections.emptyList());
+          ClassNameTrie.Builder.EMPTY_TRIE,
+          Collections.emptyList(),
+          Collections.emptyList(),
+          Collections.emptyList());
 
   private static final Logger log = LoggerFactory.getLogger(RepoIndex.class);
 
   private final ClassNameTrie trie;
+  private final Collection<String> duplicateTrieKeys;
   private final List<SourceRoot> sourceRoots;
   private final List<String> rootPackages;
 
-  RepoIndex(ClassNameTrie trie, List<SourceRoot> sourceRoots, List<String> rootPackages) {
+  RepoIndex(
+      ClassNameTrie trie,
+      Collection<String> duplicateTrieKeys,
+      List<SourceRoot> sourceRoots,
+      List<String> rootPackages) {
     this.trie = trie;
+    this.duplicateTrieKeys = duplicateTrieKeys;
     this.sourceRoots = sourceRoots;
     this.rootPackages = rootPackages;
   }
@@ -42,7 +54,7 @@ public class RepoIndex {
   }
 
   @Nullable
-  public String getSourcePath(@Nonnull Class<?> c) {
+  public String getSourcePath(@Nonnull Class<?> c) throws SourceResolutionException {
     String topLevelClassName = Utils.stripNestedClassNames(c.getName());
     String sourcePath = doGetSourcePath(topLevelClassName);
     return sourcePath != null ? sourcePath : getFallbackSourcePath(c);
@@ -54,7 +66,7 @@ public class RepoIndex {
    * retrieved from the bytecode.
    */
   @Nullable
-  private String getFallbackSourcePath(@Nonnull Class<?> c) {
+  private String getFallbackSourcePath(@Nonnull Class<?> c) throws SourceResolutionException {
     try {
       String fileName = Utils.getFileName(c);
       if (fileName == null) {
@@ -75,7 +87,8 @@ public class RepoIndex {
   }
 
   @Nullable
-  public String getSourcePath(@Nullable String pathRelativeToSourceRoot) {
+  public String getSourcePath(@Nullable String pathRelativeToSourceRoot)
+      throws SourceResolutionException {
     if (pathRelativeToSourceRoot == null) {
       return null;
     }
@@ -84,7 +97,13 @@ public class RepoIndex {
   }
 
   @Nullable
-  private String doGetSourcePath(String key) {
+  private String doGetSourcePath(String key) throws SourceResolutionException {
+    if (Config.get().isCiVisibilityRepoIndexDuplicateKeyCheckEnabled()) {
+      if (!duplicateTrieKeys.isEmpty() && duplicateTrieKeys.contains(key)) {
+        throw new SourceResolutionException("There are multiple repo index entries for " + key);
+      }
+    }
+
     int sourceRootIdx = trie.apply(key);
     if (sourceRootIdx < 0) {
       log.debug("Could not find source root for {}", key);
@@ -110,6 +129,7 @@ public class RepoIndex {
 
     Serializer s = new Serializer();
     s.write(serializedTrie);
+    s.write(duplicateTrieKeys);
     s.write(sourceRoots, SourceRoot::serialize);
     s.write(rootPackages);
     return s.flush();
@@ -132,9 +152,10 @@ public class RepoIndex {
       }
     }
 
+    Collection<String> duplicateTrieKeys = Serializer.readSet(buffer, Serializer::readString);
     List<SourceRoot> sourceRoots = Serializer.readList(buffer, SourceRoot::deserialize);
     List<String> rootPackages = Serializer.readStringList(buffer);
-    return new RepoIndex(trie, sourceRoots, rootPackages);
+    return new RepoIndex(trie, duplicateTrieKeys, sourceRoots, rootPackages);
   }
 
   static final class SourceRoot {

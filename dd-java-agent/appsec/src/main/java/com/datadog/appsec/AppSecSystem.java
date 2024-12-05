@@ -8,6 +8,7 @@ import com.datadog.appsec.event.EventDispatcher;
 import com.datadog.appsec.event.ReplaceableEventProducerService;
 import com.datadog.appsec.gateway.GatewayBridge;
 import com.datadog.appsec.powerwaf.PowerWAFModule;
+import com.datadog.appsec.user.AppSecEventTrackerImpl;
 import com.datadog.appsec.util.AbortStartupException;
 import com.datadog.appsec.util.StandardizedLogging;
 import datadog.appsec.api.blocking.Blocking;
@@ -17,11 +18,11 @@ import datadog.communication.monitor.Monitoring;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductActivation;
+import datadog.trace.api.appsec.AppSecEventTracker;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.telemetry.ProductChange;
 import datadog.trace.api.telemetry.ProductChangeCollector;
 import datadog.trace.bootstrap.ActiveSubsystems;
-import datadog.trace.util.Strings;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -98,9 +99,11 @@ public class AppSecSystem {
 
     Blocking.setBlockingService(new BlockingServiceImpl(REPLACEABLE_EVENT_PRODUCER));
 
+    AppSecEventTracker.setEventTracker(new AppSecEventTrackerImpl());
+
     STARTED.set(true);
 
-    String startedAppSecModules = Strings.join(", ", STARTED_MODULES_INFO.values());
+    String startedAppSecModules = String.join(", ", STARTED_MODULES_INFO.values());
     if (appSecEnabledConfig == ProductActivation.FULLY_ENABLED) {
       log.info("AppSec is {} with {}", appSecEnabledConfig, startedAppSecModules);
     } else {

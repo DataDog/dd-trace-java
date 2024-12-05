@@ -10,7 +10,7 @@ import spock.lang.Requires
 })
 class AdvicesInvokeDynamicTest extends BaseCallSiteTest {
 
-  void 'test constant pool introspector with invoke dynamic'() {
+  void 'test constant pool introspector with invoke dynamic #pointcutName'() {
     setup:
     final type = new TypeDescription.ForLoadedType(StringPlusExample)
     final advice = Stub(InvokeDynamicAdvice)
@@ -29,9 +29,10 @@ class AdvicesInvokeDynamicTest extends BaseCallSiteTest {
     pointcutMock                  | emptyAdvices | adviceFound
     stringConcatPointcut()        | true         | false
     stringConcatFactoryPointcut() | false        | true
+    pointcutName = pointcutMock.descriptor
   }
 
-  void 'test constant pool introspector with invoke dynamic and constants'() {
+  void 'test constant pool introspector with invoke dynamic and constants #pointcutName'() {
     setup:
     final type = new TypeDescription.ForLoadedType(StringPlusConstantsExample)
     final advice = Stub(InvokeDynamicAdvice)
@@ -50,5 +51,6 @@ class AdvicesInvokeDynamicTest extends BaseCallSiteTest {
     pointcutMock                  | emptyAdvices | adviceFound
     stringConcatPointcut()        | true         | false
     stringConcatFactoryPointcut() | false        | true
+    pointcutName = pointcutMock.descriptor
   }
 }

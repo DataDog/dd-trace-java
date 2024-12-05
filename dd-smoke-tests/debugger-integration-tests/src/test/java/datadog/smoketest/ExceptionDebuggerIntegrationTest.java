@@ -34,6 +34,8 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
     commandParams.add("-Ddd.exception.replay.enabled=true"); // enable exception replay
     commandParams.add("-Ddd.internal.exception.replay.only.local.root=false"); // for all spans
     commandParams.add("-Ddd.third.party.excludes=datadog.smoketest");
+    // disable DI to make sure exception debugger works alone
+    commandParams.remove("-Ddd.dynamic.instrumentation.enabled=true");
     return ProcessBuilderHelper.createProcessBuilder(
         commandParams, logFilePath, getAppClass(), params);
   }

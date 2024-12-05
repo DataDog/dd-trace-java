@@ -6,6 +6,8 @@ enum TestEndpoint {
   NOT_FOUND("not-found", 404, "not found"),
   UNKNOWN("", 451, null), // This needs to have a valid status code
   CUSTOM("custom", 302, ""),
+  SUCCESS("success", 200, ""),
+  SDK("sdk", 200, "OK"),
 
   private final String path
   private final String rawPath

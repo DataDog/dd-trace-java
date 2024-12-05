@@ -11,7 +11,7 @@ import java.util.function.Function
 
 class FunctionsTest extends DDSpecification {
 
-  def "test common string functions"() {
+  def "test common string functions #iterationIndex"() {
     when:
     CharSequence output = fn.apply(input)
     then:
@@ -46,14 +46,14 @@ class FunctionsTest extends DDSpecification {
     "value" | "value.test"
   }
 
-  def "test join strings"() {
+  def "test join strings #iterationIndex"() {
     when:
     CharSequence output = fn.apply(left, right)
     then:
     String.valueOf(output) == expected
     where:
     fn                                                | left | right | expected
-    Functions.PrefixJoin.of("~", Function.identity()) | "x" | "y" | "x~y"
+    Functions.PrefixJoin.of("~", Function.identity()) | "x"  | "y"   | "x~y"
     Functions.PrefixJoin.of("~")                      | "x"  | "y"   | "x~y"
     Functions.SuffixJoin.of("~", Function.identity()) | "x"  | "y"   | "x~y"
     Functions.SuffixJoin.of("~")                      | "x"  | "y"   | "x~y"

@@ -27,7 +27,7 @@ class TypeConverter {
     if (span == null) {
       return null;
     } else if (span instanceof OTSpan) {
-      return ((OTSpan) span).getDelegate();
+      return ((OTSpan) span).asAgentSpan();
     } else {
       // NOOP Span
       return AgentTracer.NoopAgentSpan.INSTANCE;

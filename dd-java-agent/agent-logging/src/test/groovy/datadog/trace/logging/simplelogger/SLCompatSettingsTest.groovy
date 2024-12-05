@@ -192,7 +192,7 @@ class SLCompatSettingsTest extends Specification {
     ["bar": "trace", "foo.bar.baz": "warn"]     | [LogLevel.INFO, LogLevel.INFO, LogLevel.WARN]
   }
 
-  def "test DTFormatter"() {
+  def "test DTFormatter #iterationIndex"() {
     when:
     def formatted = new StringBuilder()
     dtFormatter.appendFormattedDate(formatted, timeMillis, startTimeMillis)

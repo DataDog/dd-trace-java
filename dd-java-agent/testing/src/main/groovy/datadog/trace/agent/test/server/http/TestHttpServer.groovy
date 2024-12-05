@@ -281,7 +281,7 @@ class TestHttpServer implements AutoCloseable {
 
     @Override
     void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-      if (request.method == method) {
+      if (request.method.equalsIgnoreCase(method)) {
         super.handle(target, baseRequest, request, response)
       }
     }

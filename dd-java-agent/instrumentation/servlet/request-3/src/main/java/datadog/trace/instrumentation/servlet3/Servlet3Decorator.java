@@ -71,6 +71,11 @@ public class Servlet3Decorator
   }
 
   @Override
+  protected String requestedSessionId(final HttpServletRequest request) {
+    return request.getRequestedSessionId();
+  }
+
+  @Override
   public AgentSpan onRequest(
       final AgentSpan span,
       final HttpServletRequest connection,

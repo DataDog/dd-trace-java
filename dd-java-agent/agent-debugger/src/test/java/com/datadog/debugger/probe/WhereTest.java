@@ -1,5 +1,7 @@
 package com.datadog.debugger.probe;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -9,6 +11,7 @@ import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.objectweb.asm.tree.MethodNode;
@@ -80,6 +83,19 @@ public class WhereTest {
     Assertions.assertEquals(new Where.SourceLine(12), lines[0]);
     Assertions.assertEquals(new Where.SourceLine(40, 42), lines[1]);
     Assertions.assertEquals(linesJson, adapter.toJson(lines));
+  }
+
+  @Test
+  public void convertLineToMethod() {
+    Where wherePut = Where.of("java.util.Map", "put", "(Object, Object)", "42");
+    ClassFileLines classFileLines = mock(ClassFileLines.class);
+    MethodNode methodNode = createMethodNode("put", "(Ljava/lang/Object;Ljava/lang/Object;)V");
+    when(classFileLines.getMethodsByLine(42)).thenReturn(Collections.singletonList(methodNode));
+    Where whereMapPut = Where.convertLineToMethod(wherePut, classFileLines);
+    assertEquals("java.util.Map", whereMapPut.getTypeName());
+    assertEquals("put", whereMapPut.getMethodName());
+    assertEquals("(java.lang.Object, java.lang.Object)", whereMapPut.getSignature());
+    assertNull(whereMapPut.getLines());
   }
 
   @Test

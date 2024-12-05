@@ -1,10 +1,13 @@
 package datadog.smoketest.appsec
 
+import datadog.trace.agent.test.utils.OkHttpUtils
 import datadog.trace.agent.test.utils.ThreadUtils
 import okhttp3.MediaType
 import okhttp3.Request
 import okhttp3.RequestBody
 import spock.lang.Shared
+
+import java.nio.charset.StandardCharsets
 
 class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
 
@@ -15,7 +18,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
 
   def prepareCustomRules() {
     // Prepare ruleset with additional test rules
-    appendRules(
+    mergeRules(
       customRulesPath,
       [
         [
@@ -103,6 +106,50 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
           ],
           transformers: [],
           on_match    : ['block']
+        ],
+        [
+          id          : 'rasp-930-100',     // to replace default rule
+          name        : 'Local File Inclusion  exploit',
+          enable      : 'true',
+          tags        : [
+            type      : 'lfi',
+            category  : 'vulnerability_trigger',
+            cwe       : '98',
+            capec     : '252',
+            confidence: '0',
+            module    : 'rasp'
+          ],
+          conditions  : [
+            [
+              parameters: [
+                resource: [[address: 'server.io.fs.file']],
+                params  : [[address: 'server.request.query']],
+              ],
+              operator  : "lfi_detector",
+            ],
+          ],
+          transformers: [],
+          on_match    : ['block']
+        ],
+        [
+          id          : '__test_session_id_block',
+          name        : 'test rule to block on any session id',
+          tags        : [
+            type      : 'test',
+            category  : 'test',
+            confidence: '1',
+          ],
+          conditions  : [
+            [
+              parameters: [
+                inputs: [[address: 'usr.session_id']],
+                regex : '[a-zA-Z0-9]+',
+              ],
+              operator  : 'match_regex',
+            ]
+          ],
+          transformers: [],
+          on_match    : ['block']
         ]
       ])
   }
@@ -130,7 +177,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     def request = new Request.Builder()
       .url(url)
       .addHeader("User-Agent", "Arachni/v1")
-      .addHeader("X-Forwarded", 'for="[::ffff:1.2.3.4]"')
+      .addHeader("X-Client-Ip", '::ffff:1.2.3.4')
       .build()
     def response = client.newCall(request).execute()
     def responseBodyStr = response.body().string()
@@ -298,6 +345,8 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     rootSpan.span.metaStruct != null
     def stack = rootSpan.span.metaStruct.get('_dd.stack')
     assert stack != null, 'stack is not set'
+    def exploit = stack.get('exploit')
+    assert exploit != null, 'exploit is not set'
   }
 
   void 'rasp blocks on sql injection'() {
@@ -336,7 +385,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
 
   void 'rasp blocks on SSRF'() {
     when:
-    String url = "http://localhost:${httpPort}/ssrf/query?domain=169.254.169.254"
+    String url = "http://localhost:${httpPort}/ssrf/${variant}?domain=169.254.169.254"
     def request = new Request.Builder()
       .url(url)
       .get()
@@ -360,6 +409,94 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     def trigger = null
     for (t in rootSpan.triggers) {
       if (t['rule']['id'] == '__test_ssrf_block') {
+        trigger = t
+        break
+      }
+    }
+    assert trigger != null, 'test trigger not found'
+
+    where:
+    variant               | _
+    'query'               | _
+    'okHttp3'             | _
+    'okHttp2'             | _
+    'apache-httpclient4'  | _
+    'commons-httpclient2' | _
+  }
+
+  void 'rasp blocks on LFI for #variant'() {
+    when:
+    String url = "http://localhost:${httpPort}/lfi/"+variant+"?path=." + URLEncoder.encode("../../../etc/passwd", StandardCharsets.UTF_8.name())
+    def request = new Request.Builder()
+      .url(url)
+      .get()
+      .build()
+    def response = client.newCall(request).execute()
+    def responseBodyStr = response.body().string()
+
+    then:
+    response.code() == 403
+    responseBodyStr.contains('You\'ve been blocked')
+
+    when:
+    waitForTraceCount(1)
+
+    then:
+    def rootSpan = findFirstMatchingSpan(variant)
+    assert rootSpan.meta.get('appsec.blocked') == 'true', 'appsec.blocked is not set'
+    assert rootSpan.meta.get('_dd.appsec.json') != null, '_dd.appsec.json is not set'
+    def trigger = null
+    for (t in rootSpan.triggers) {
+      if (t['rule']['id'] == 'rasp-930-100') {
+        trigger = t
+        break
+      }
+    }
+    assert trigger != null, 'test trigger not found'
+
+    where:
+    variant | _
+    'paths'    | _
+    'file'    | _
+    'path'    | _
+
+  }
+
+  def findFirstMatchingSpan(String resource) {
+    return this.rootSpans.toList().find { (it.span.resource == 'GET /lfi/' + resource) }
+  }
+
+
+  void 'session id tracking'() {
+    given:
+    def url = "http://localhost:${httpPort}/session"
+    def cookieJar = OkHttpUtils.cookieJar()
+    def client = OkHttpUtils.clientBuilder().cookieJar(cookieJar).build()
+    def request = new Request.Builder()
+      .url(url)
+      .get()
+      .build()
+
+    when: 'initial request creating the session'
+    def firstResponse = client.newCall(request).execute()
+
+    then:
+    firstResponse.code() == 200
+
+    when: 'second request with a session'
+    def secondResponse = client.newCall(request).execute()
+
+    then:
+    waitForTraceCount(2)
+    secondResponse.code() == 403
+    secondResponse.body().string().contains('You\'ve been blocked')
+    final rootSpan = this.rootSpans.find { it.meta['usr.session_id'] != null }
+    rootSpan != null
+    assert rootSpan.meta.get('appsec.blocked') == 'true', 'appsec.blocked is not set'
+    assert rootSpan.meta.get('_dd.appsec.json') != null, '_dd.appsec.json is not set'
+    def trigger = null
+    for (t in rootSpan.triggers) {
+      if (t['rule']['id'] == '__test_session_id_block') {
         trigger = t
         break
       }

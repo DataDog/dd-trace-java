@@ -9,7 +9,7 @@ import static com.datadog.iast.IastTag.Enabled.SKIPPED
 
 class IastTagTest extends DDSpecification {
 
-  void 'tags are sent on the segment'() {
+  void 'tags are sent on the segment (#tagName)'() {
     given:
     final segment = Mock(TraceSegment)
 
@@ -20,12 +20,12 @@ class IastTagTest extends DDSpecification {
     1 * segment.setTagTop(tag.key(), tag.value())
 
     where:
-    tag              | _
-    ANALYZED | _
-    SKIPPED | _
+    tagName    | tag
+    "analyzed" | ANALYZED
+    "skipped"  | SKIPPED
   }
 
-  void 'tags dont fail with null segment'() {
+  void 'tags dont fail with null segment (#tagName)'() {
     when:
     tag.setTagTop(null)
 
@@ -33,12 +33,12 @@ class IastTagTest extends DDSpecification {
     noExceptionThrown()
 
     where:
-    tag              | _
-    ANALYZED | _
-    SKIPPED | _
+    tagName    | tag
+    "analyzed" | ANALYZED
+    "skipped"  | SKIPPED
   }
 
-  void 'tags are sent on the span'() {
+  void 'tags are sent on the span (#tagName)'() {
     given:
     final span = Mock(AgentSpan)
 
@@ -49,12 +49,12 @@ class IastTagTest extends DDSpecification {
     1 * span.setTag(tag.key(), tag.value())
 
     where:
-    tag              | _
-    ANALYZED | _
-    SKIPPED | _
+    tagName    | tag
+    "analyzed" | ANALYZED
+    "skipped"  | SKIPPED
   }
 
-  void 'tags dont fail with null span'() {
+  void 'tags dont fail with null span (#tagName)'() {
     when:
     tag.setTag(null)
 
@@ -62,9 +62,9 @@ class IastTagTest extends DDSpecification {
     noExceptionThrown()
 
     where:
-    tag              | _
-    ANALYZED | _
-    SKIPPED | _
+    tagName    | tag
+    "analyzed" | ANALYZED
+    "skipped"  | SKIPPED
   }
 
   void 'enabled tags are not set if IAST is opt-out'() {

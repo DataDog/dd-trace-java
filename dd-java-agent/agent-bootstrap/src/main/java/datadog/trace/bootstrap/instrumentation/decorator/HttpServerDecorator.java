@@ -95,6 +95,10 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
 
   protected abstract int status(RESPONSE response);
 
+  protected String requestedSessionId(REQUEST request) {
+    return null;
+  }
+
   public CharSequence operationName() {
     return SpanNaming.instance()
         .namingSchema()
@@ -165,6 +169,11 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
         if (brf != null) {
           requestContext.setBlockResponseFunction(brf);
         }
+      }
+      Flow<Void> flow = callIGCallbackRequestSessionId(span, request);
+      Flow.Action action = flow.getAction();
+      if (action instanceof Flow.Action.RequestBlockingAction) {
+        span.setRequestBlockingAction((Flow.Action.RequestBlockingAction) flow.getAction());
       }
     }
 
@@ -430,6 +439,25 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       }
     }
     return Flow.ResultFlow.empty();
+  }
+
+  @SuppressWarnings("UnusedReturnValue")
+  private Flow<Void> callIGCallbackRequestSessionId(final AgentSpan span, final REQUEST request) {
+    final String sessionId = requestedSessionId(request);
+    if (sessionId == null) {
+      return Flow.ResultFlow.empty();
+    }
+    final CallbackProvider cbp = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
+    final RequestContext requestContext = span.getRequestContext();
+    if (cbp == null || requestContext == null) {
+      return Flow.ResultFlow.empty();
+    }
+    final BiFunction<RequestContext, String, Flow<Void>> addrCallback =
+        cbp.getCallback(EVENTS.requestSession());
+    if (addrCallback == null) {
+      return Flow.ResultFlow.empty();
+    }
+    return addrCallback.apply(requestContext, sessionId);
   }
 
   private Flow<Void> callIGCallbackResponseAndHeaders(

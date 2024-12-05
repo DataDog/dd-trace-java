@@ -1,6 +1,8 @@
 package datadog.trace.civisibility.config;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.CIConstants;
+import datadog.trace.api.civisibility.CiVisibilityWellKnownTags;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestMetadata;
 import datadog.trace.api.git.GitInfo;
@@ -79,19 +81,16 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
       }
     }
 
-    /*
-     * IMPORTANT: JVM and OS properties should match tags
-     * set in datadog.trace.civisibility.decorator.TestDecoratorImpl
-     */
+    CiVisibilityWellKnownTags wellKnownTags = config.getCiVisibilityWellKnownTags();
     return builder
         .service(config.getServiceName())
         .env(config.getEnv())
         .repositoryUrl(gitInfo.getRepositoryURL())
         .branch(gitInfo.getBranch())
         .sha(gitInfo.getCommit().getSha())
-        .osPlatform(System.getProperty("os.name"))
-        .osArchitecture(System.getProperty("os.arch"))
-        .osVersion(System.getProperty("os.version"))
+        .osPlatform(wellKnownTags.getOsPlatform().toString())
+        .osArchitecture(wellKnownTags.getOsArch().toString())
+        .osVersion(wellKnownTags.getOsVersion().toString())
         .runtimeName(jvmInfo.getName())
         .runtimeVersion(jvmInfo.getVersion())
         .runtimeVendor(jvmInfo.getVendor())
@@ -141,11 +140,17 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
 
     Map<String, Collection<TestIdentifier>> flakyTestsByModule =
         flakyTestRetriesEnabled && config.isCiVisibilityFlakyRetryOnlyKnownFlakes()
+                || CIConstants.FAIL_FAST_TEST_ORDER.equalsIgnoreCase(
+                    config.getCiVisibilityTestOrder())
             ? getFlakyTestsByModule(tracerEnvironment)
             : null;
 
     Map<String, Collection<TestIdentifier>> knownTestsByModule =
-        earlyFlakeDetectionEnabled ? getKnownTestsByModule(tracerEnvironment) : null;
+        earlyFlakeDetectionEnabled
+                || CIConstants.FAIL_FAST_TEST_ORDER.equalsIgnoreCase(
+                    config.getCiVisibilityTestOrder())
+            ? getKnownTestsByModule(tracerEnvironment)
+            : null;
 
     Set<String> moduleNames = new HashSet<>(Collections.singleton(DEFAULT_SETTINGS));
     moduleNames.addAll(skippableTestIdentifiers.keySet());

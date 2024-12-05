@@ -9,8 +9,6 @@ public final class CiVisibilityConfig {
   public static final String CIVISIBILITY_AGENTLESS_ENABLED = "civisibility.agentless.enabled";
   public static final String CIVISIBILITY_AGENTLESS_URL = "civisibility.agentless.url";
   public static final String CIVISIBILITY_SOURCE_DATA_ENABLED = "civisibility.source.data.enabled";
-  public static final String CIVISIBILITY_SESSION_ID = "civisibility.session.id";
-  public static final String CIVISIBILITY_MODULE_ID = "civisibility.module.id";
   public static final String CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED =
       "civisibility.build.instrumentation.enabled";
   public static final String CIVISIBILITY_AGENT_JAR_URI = "civisibility.agent.jar.uri";
@@ -43,8 +41,8 @@ public final class CiVisibilityConfig {
       "civisibility.test.skipping.enabled";
   public static final String CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED =
       "civisibility.ciprovider.integration.enabled";
-  public static final String CIVISIBILITY_REPO_INDEX_SHARING_ENABLED =
-      "civisibility.repo.index.sharing.enabled";
+  public static final String CIVISIBILITY_REPO_INDEX_DUPLICATE_KEY_CHECK_ENABLED =
+      "civisibility.repo.index.duplicate.key.check.enabled";
   public static final String CIVISIBILITY_EXECUTION_SETTINGS_CACHE_SIZE =
       "civisibility.execution.settings.cache.size";
   public static final String CIVISIBILITY_JVM_INFO_CACHE_SIZE = "civisibility.jvm.info.cache.size";
@@ -63,11 +61,17 @@ public final class CiVisibilityConfig {
   public static final String CIVISIBILITY_TOTAL_FLAKY_RETRY_COUNT =
       "civisibility.total.flaky.retry.count";
   public static final String CIVISIBILITY_MODULE_NAME = "civisibility.module.name";
+  public static final String CIVISIBILITY_TEST_COMMAND = "civisibility.test.command";
   public static final String CIVISIBILITY_TELEMETRY_ENABLED = "civisibility.telemetry.enabled";
   public static final String CIVISIBILITY_RUM_FLUSH_WAIT_MILLIS =
       "civisibility.rum.flush.wait.millis";
   public static final String CIVISIBILITY_AUTO_INSTRUMENTATION_PROVIDER =
       "civisibility.auto.instrumentation.provider";
+  public static final String CIVISIBILITY_REMOTE_ENV_VARS_PROVIDER_URL =
+      "civisibility.remote.env.vars.provider.url";
+  public static final String CIVISIBILITY_REMOTE_ENV_VARS_PROVIDER_KEY =
+      "civisibility.remote.env.vars.provider.key";
+  public static final String CIVISIBILITY_TEST_ORDER = "civisibility.test.order";
 
   /* COVERAGE SETTINGS */
   public static final String CIVISIBILITY_CODE_COVERAGE_ENABLED =
@@ -85,6 +89,8 @@ public final class CiVisibilityConfig {
   public static final String CIVISIBILITY_JACOCO_PLUGIN_VERSION =
       "civisibility.jacoco.plugin.version";
   public static final String CIVISIBILITY_GRADLE_SOURCE_SETS = "civisibility.gradle.sourcesets";
+
+  public static final String TEST_SESSION_NAME = "test.session.name";
 
   private CiVisibilityConfig() {}
 }

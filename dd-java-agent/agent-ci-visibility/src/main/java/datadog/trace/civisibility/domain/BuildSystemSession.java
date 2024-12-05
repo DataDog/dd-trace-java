@@ -3,6 +3,7 @@ package datadog.trace.civisibility.domain;
 import datadog.trace.api.civisibility.domain.BuildModuleLayout;
 import datadog.trace.api.civisibility.domain.BuildSessionSettings;
 import datadog.trace.api.civisibility.domain.JavaAgent;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.civisibility.config.JvmInfo;
 import java.nio.file.Path;
 import java.util.Collection;
@@ -24,6 +25,8 @@ public interface BuildSystemSession {
       JvmInfo jvmInfo,
       @Nullable Collection<Path> classpath,
       @Nullable JavaAgent jacocoAgent);
+
+  AgentSpan testTaskStart(String taskName);
 
   BuildSessionSettings getSettings();
 

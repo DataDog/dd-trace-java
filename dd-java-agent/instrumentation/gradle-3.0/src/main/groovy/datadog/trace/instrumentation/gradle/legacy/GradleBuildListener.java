@@ -8,6 +8,7 @@ import datadog.trace.api.civisibility.domain.BuildSessionSettings;
 import datadog.trace.api.civisibility.domain.JavaAgent;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import java.nio.file.Path;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -95,13 +96,14 @@ public class GradleBuildListener extends BuildAdapter {
 
     @Override
     public void beforeExecute(@Nonnull Task task) {
-      if (!GradleUtils.isTestTask(task)) {
-        return;
-      }
-
       Project project = task.getProject();
       Gradle gradle = project.getGradle();
       String taskPath = task.getPath();
+
+      if (!GradleUtils.isTestTask(task)) {
+        buildEventsHandler.onBuildTaskStart(gradle, taskPath, Collections.emptyMap());
+        return;
+      }
 
       List<String> sourceSetNames = Config.get().getCiVisibilityJacocoGradleSourceSets();
       BuildModuleLayout moduleLayout = GradleUtils.getModuleLayout(project, sourceSetNames);
@@ -118,15 +120,19 @@ public class GradleBuildListener extends BuildAdapter {
 
     @Override
     public void afterExecute(@Nonnull Task task, @Nonnull TaskState state) {
-      if (!GradleUtils.isTestTask(task)) {
-        return;
-      }
-
       Project project = task.getProject();
       Gradle gradle = project.getGradle();
       String taskPath = task.getPath();
-
       Throwable failure = state.getFailure();
+
+      if (!GradleUtils.isTestTask(task)) {
+        if (failure != null) {
+          buildEventsHandler.onBuildTaskFail(gradle, taskPath, failure);
+        }
+        buildEventsHandler.onBuildTaskFinish(gradle, taskPath);
+        return;
+      }
+
       if (failure != null) {
         buildEventsHandler.onTestModuleFail(gradle, taskPath, failure);
 

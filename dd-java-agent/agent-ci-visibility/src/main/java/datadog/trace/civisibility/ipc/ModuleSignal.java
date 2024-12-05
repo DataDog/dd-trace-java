@@ -1,16 +1,18 @@
 package datadog.trace.civisibility.ipc;
 
+import datadog.trace.api.DDTraceId;
+
 public abstract class ModuleSignal implements Signal {
 
-  protected final long sessionId;
+  protected final DDTraceId sessionId;
   protected final long moduleId;
 
-  protected ModuleSignal(long sessionId, long moduleId) {
+  protected ModuleSignal(DDTraceId sessionId, long moduleId) {
     this.sessionId = sessionId;
     this.moduleId = moduleId;
   }
 
-  public long getSessionId() {
+  public DDTraceId getSessionId() {
     return sessionId;
   }
 

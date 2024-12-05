@@ -51,18 +51,25 @@ public class ValueScriptTest {
         new Object[] {
           "hello",
           "hello",
-          10L,
+          10,
           100_000_000_000L,
-          2.5D,
+          2.5F,
           3.14D,
           "a",
           "b",
-          5L,
-          3L,
+          5,
+          3,
           "el",
           Values.NULL_OBJECT,
           Boolean.TRUE,
-          Boolean.FALSE
+          Boolean.FALSE,
+          42,
+          Integer.MAX_VALUE,
+          -42,
+          Integer.MIN_VALUE,
+          17315993717L,
+          -17315993717L,
+          3.14
         };
     List<String> lines = loadLinesFromResource("/test_one_liner_value_expr_02.txt");
     int i = 0;

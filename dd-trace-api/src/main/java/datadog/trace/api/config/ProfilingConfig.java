@@ -72,9 +72,6 @@ public final class ProfilingConfig {
   public static final String PROFILING_JFR_REPOSITORY_BASE_DEFAULT =
       System.getProperty("java.io.tmpdir") + "/dd/jfr";
 
-  public static final String PROFILING_JFR_REPOSITORY_CLEANUP = "profiling.jfr.repository.cleanup";
-  public static final boolean PROFILING_JFR_REPOSITORY_CLEANUP_DEFAULT = true;
-
   public static final String PROFILING_DATADOG_PROFILER_ENABLED = "profiling.ddprof.enabled";
 
   public static final String PROFILING_DIRECT_ALLOCATION_ENABLED =
@@ -87,8 +84,7 @@ public final class ProfilingConfig {
   // Java profiler lib needs to be extracted from JAR and placed into the scratch location
   // By default the scratch is the os temp directory but can be overridden by user
   public static final String PROFILING_DATADOG_PROFILER_SCRATCH = "profiling.ddprof.scratch";
-  public static final String PROFILING_DATADOG_PROFILER_SCRATCH_DEFAULT =
-      System.getProperty("java.io.tmpdir");
+
   public static final String PROFILING_DATADOG_PROFILER_LIBPATH = "profiling.ddprof.debug.lib";
   public static final String PROFILING_DATADOG_PROFILER_ALLOC_ENABLED =
       "profiling.ddprof.alloc.enabled";
@@ -106,7 +102,9 @@ public final class ProfilingConfig {
   public static final boolean PROFILING_DATADOG_PROFILER_WALL_ENABLED_DEFAULT = true;
   public static final String PROFILING_DATADOG_PROFILER_WALL_INTERVAL =
       "profiling.ddprof.wall.interval.ms";
-  public static final int PROFILING_DATADOG_PROFILER_WALL_INTERVAL_DEFAULT = 10;
+  public static final int PROFILING_DATADOG_PROFILER_WALL_INTERVAL_DEFAULT = 50;
+
+  public static final int PROFILING_DATADOG_PROFILER_J9_CPU_INTERVAL_DEFAULT = 50;
 
   public static final String PROFILING_DATADOG_PROFILER_WALL_COLLAPSING =
       "profiling.ddprof.wall.collapsing";
@@ -115,6 +113,10 @@ public final class ProfilingConfig {
   public static final String PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER =
       "profiling.ddprof.wall.context.filter";
   public static final boolean PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER_DEFAULT = true;
+
+  public static final String PROFILING_DATADOG_PROFILER_WALL_JVMTI =
+      "profiling.experimental.ddprof.wall.jvmti";
+  public static final boolean PROFILING_DATADOG_PROFILER_WALL_JVMTI_DEFAULT = false;
 
   public static final String PROFILING_DATADOG_PROFILER_SCHEDULING_EVENT =
       "profiling.experimental.ddprof.scheduling.event";
@@ -178,6 +180,9 @@ public final class ProfilingConfig {
   public static final String PROFILING_UPLOAD_SUMMARY_ON_413 = "profiling.upload.summary-on-413";
   public static final boolean PROFILING_UPLOAD_SUMMARY_ON_413_DEFAULT = false;
 
+  public static final String PROFILING_TEMP_DIR = "profiling.tempdir";
+  public static final String PROFILING_TEMP_DIR_DEFAULT = System.getProperty("java.io.tmpdir");
+
   // Not intended for production use
   public static final String PROFILING_AGENTLESS = "profiling.agentless";
   public static final boolean PROFILING_AGENTLESS_DEFAULT = false;
@@ -187,9 +192,6 @@ public final class ProfilingConfig {
 
   public static final String PROFILING_DEBUG_DUMP_PATH = "profiling.debug.dump_path";
   public static final String PROFILING_DEBUG_JFR_DISABLED = "profiling.debug.jfr.disabled";
-
-  public static final String PROFILING_DEBUG_CLEANUP_REPO = "profiling.debug.cleanup.jfr.repo";
-  public static final boolean PROFILING_DEBUG_CLEANUP_REPO_DEFAULT = false;
 
   public static final String PROFILING_CONTEXT_ATTRIBUTES = "profiling.context.attributes";
 
@@ -207,6 +209,11 @@ public final class ProfilingConfig {
       "profiling.smap.collection.enabled";
 
   public static final boolean PROFILING_SMAP_COLLECTION_ENABLED_DEFAULT = true;
+
+  public static final String PROFILING_SMAP_AGGREGATION_ENABLED =
+      "profiling.smap.aggregation.enabled";
+
+  public static final boolean PROFILING_SMAP_AGGREGATION_ENABLED_DEFAULT = true;
 
   public static final String PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS =
       "profiling.queueing.time.threshold.millis";

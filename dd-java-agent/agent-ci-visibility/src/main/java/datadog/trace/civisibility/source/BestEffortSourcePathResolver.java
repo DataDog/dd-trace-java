@@ -13,7 +13,7 @@ public class BestEffortSourcePathResolver implements SourcePathResolver {
 
   @Nullable
   @Override
-  public String getSourcePath(@Nonnull Class<?> c) {
+  public String getSourcePath(@Nonnull Class<?> c) throws SourceResolutionException {
     for (SourcePathResolver delegate : delegates) {
       String sourcePath = delegate.getSourcePath(c);
       if (sourcePath != null) {
@@ -25,7 +25,7 @@ public class BestEffortSourcePathResolver implements SourcePathResolver {
 
   @Nullable
   @Override
-  public String getResourcePath(@Nullable String relativePath) {
+  public String getResourcePath(@Nullable String relativePath) throws SourceResolutionException {
     for (SourcePathResolver delegate : delegates) {
       String resourcePath = delegate.getResourcePath(relativePath);
       if (resourcePath != null) {

@@ -5,7 +5,8 @@ import java.util.concurrent.atomic.AtomicReference;
 public enum UserIdCollectionMode {
   IDENTIFICATION("identification", "ident"),
   ANONYMIZATION("anonymization", "anon"),
-  DISABLED("disabled");
+  DISABLED("disabled"),
+  SDK("sdk");
 
   private static final AtomicReference<UserIdCollectionMode> CURRENT_MODE =
       new AtomicReference<>(IDENTIFICATION);
@@ -68,9 +69,12 @@ public enum UserIdCollectionMode {
     return false;
   }
 
-  @Override
-  public String toString() {
+  public String fullName() {
     return values[0];
+  }
+
+  public String shortName() {
+    return values[values.length - 1];
   }
 
   public static UserIdCollectionMode get() {
