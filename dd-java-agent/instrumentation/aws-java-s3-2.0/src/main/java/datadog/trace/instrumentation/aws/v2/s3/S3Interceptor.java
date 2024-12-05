@@ -1,9 +1,14 @@
 package datadog.trace.instrumentation.aws.v2.s3;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
+import static datadog.trace.bootstrap.instrumentation.spanpointers.SpanPointersHelper.S3_PTR_KIND;
+import static datadog.trace.bootstrap.instrumentation.spanpointers.SpanPointersHelper.addSpanPointer;
+
+import datadog.trace.bootstrap.InstanceStore;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.core.interceptor.Context;
+import software.amazon.awssdk.core.interceptor.ExecutionAttribute;
 import software.amazon.awssdk.core.interceptor.ExecutionAttributes;
 import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
@@ -14,14 +19,26 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 
 public class S3Interceptor implements ExecutionInterceptor {
-  // TODO wrap with try/catch
+  private static final Logger log = LoggerFactory.getLogger(S3Interceptor.class);
+
+  public static final ExecutionAttribute<AgentSpan> SPAN_ATTRIBUTE =
+      InstanceStore.of(ExecutionAttribute.class)
+          .putIfAbsent("DatadogSpan", () -> new ExecutionAttribute<>("DatadogSpan"));
+
   @Override
   public void afterExecution(
       Context.AfterExecution context, ExecutionAttributes executionAttributes) {
+    AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
+    if (span == null) {
+      log.debug("Unable to find S3 request span. Not creating span pointer.");
+      return;
+    }
+
     String bucket, key, eTag;
     Object request = context.request();
     Object response = context.response();
 
+    // Get bucket, key, and eTag for hash calculation.
     // https://sdk.amazonaws.com/java/api/latest/software/amazon/awssdk/services/s3/S3Client.html
     if (request instanceof PutObjectRequest) {
       PutObjectRequest putObjectRequest = (PutObjectRequest) request;
@@ -43,27 +60,14 @@ public class S3Interceptor implements ExecutionInterceptor {
       return;
     }
 
+    // Hash calculation rules:
+    // https://github.com/DataDog/dd-span-pointer-rules/blob/main/AWS/S3/Object/README.md
     if (eTag.startsWith("\"") && eTag.endsWith("\"")) {
       eTag = eTag.substring(1, eTag.length() - 1);
     }
-    System.out.printf("[DEBUG] bucket: %s, key: %s, eTag: %s%n", bucket, key, eTag);
-    String hash = generatePointerHash(new String[] {bucket, key, eTag});
-    System.out.println("[DEBUG] hash: " + hash);
-  }
-
-  private static String generatePointerHash(String[] components) {
-    try {
-      byte[] hash =
-          MessageDigest.getInstance("SHA-256")
-              .digest(String.join("|", components).getBytes(StandardCharsets.UTF_8));
-
-      StringBuilder hex = new StringBuilder(64);
-      for (byte b : hash) {
-        hex.append(String.format("%02x", b));
-      }
-      return hex.substring(0, 32);
-    } catch (NoSuchAlgorithmException e) {
-      return "";
+    String[] components = new String[] {bucket, key, eTag};
+    if (addSpanPointer(span, S3_PTR_KIND, components)) {
+      log.debug("Unable to add span pointer.");
     }
   }
 }

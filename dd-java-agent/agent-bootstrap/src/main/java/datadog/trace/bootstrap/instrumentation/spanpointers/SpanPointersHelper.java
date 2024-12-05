@@ -1,0 +1,69 @@
+package datadog.trace.bootstrap.instrumentation.spanpointers;
+
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
+import datadog.trace.bootstrap.instrumentation.api.SpanLink;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+
+public final class SpanPointersHelper {
+  public static final String S3_PTR_KIND = "aws.s3.object";
+  private static final String LINK_KIND = "span-pointer";
+
+  // The pointer direction will always be down. The agent handles cases where the direction is up.
+  private static final String DOWN_DIRECTION = "d";
+
+  /**
+   * Generates a unique hash from an array of strings by joining them with | before hashing. Used to
+   * uniquely identify AWS requests for span pointers.
+   *
+   * @param components Array of strings to hash
+   * @return A 32-character hash uniquely identifying the components
+   * @throws NoSuchAlgorithmException this should never happen; only if SHA-256 is somehow not
+   *     found.
+   */
+  private static String generatePointerHash(String[] components) throws NoSuchAlgorithmException {
+    byte[] hash =
+        MessageDigest.getInstance("SHA-256")
+            .digest(String.join("|", components).getBytes(StandardCharsets.UTF_8));
+
+    StringBuilder hex = new StringBuilder(32);
+    for (int i = 0; i < 32; i++) {
+      hex.append(String.format("%02x", hash[i]));
+    }
+
+    return hex.toString();
+  }
+
+  /**
+   * Adds a span pointer to the given span using component-based hashing.
+   *
+   * @param span The span to add the pointer to
+   * @param kind Identifies which hashing rules to follow
+   * @param components Array of strings to hash, following span pointer rules
+   * @return true if pointer was successfully added, false otherwise
+   * @see <a href="https://github.com/DataDog/dd-span-pointer-rules/tree/main">Span pointer
+   *     rules</a>
+   */
+  public static boolean addSpanPointer(AgentSpan span, String kind, String[] components) {
+    try {
+      SpanAttributes attributes =
+          (SpanAttributes)
+              SpanAttributes.builder()
+                  .put("ptr.kind", kind)
+                  .put("ptr.dir", DOWN_DIRECTION)
+                  .put("ptr.hash", generatePointerHash(components))
+                  .put("link.kind", LINK_KIND)
+                  .build();
+
+      AgentTracer.NoopContext zeroContext = AgentTracer.NoopContext.INSTANCE;
+      span.addLink(SpanLink.from(zeroContext, AgentSpanLink.DEFAULT_FLAGS, "", attributes));
+      return true;
+    } catch (Exception ignored) {
+      return false;
+    }
+  }
+}
