@@ -5,6 +5,7 @@ import datadog.communication.serialization.GrowableBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.Config
+import datadog.trace.api.civisibility.CIConstants
 import datadog.trace.api.civisibility.DDTest
 import datadog.trace.api.civisibility.DDTestSuite
 import datadog.trace.api.civisibility.InstrumentationBridge
@@ -36,7 +37,7 @@ import datadog.trace.civisibility.domain.headless.HeadlessTestSession
 import datadog.trace.civisibility.events.BuildEventsHandlerImpl
 import datadog.trace.civisibility.events.TestEventsHandlerImpl
 import datadog.trace.civisibility.ipc.SignalServer
-import datadog.trace.civisibility.source.MethodLinesResolver
+import datadog.trace.civisibility.source.LinesResolver
 import datadog.trace.civisibility.source.SourcePathResolver
 import datadog.trace.civisibility.source.index.RepoIndexBuilder
 import datadog.trace.civisibility.telemetry.CiVisibilityMetricCollectorImpl
@@ -62,6 +63,8 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
   static final String DUMMY_SOURCE_PATH = "dummy_source_path"
   static final int DUMMY_TEST_METHOD_START = 12
   static final int DUMMY_TEST_METHOD_END = 18
+  static final int DUMMY_TEST_CLASS_START = 11
+  static final int DUMMY_TEST_CLASS_END = 19
   static final Collection<String> DUMMY_CODE_OWNERS = ["owner1", "owner2"]
 
   private static Path agentKeyFile
@@ -93,8 +96,9 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     def codeowners = Stub(Codeowners)
     codeowners.getOwners(DUMMY_SOURCE_PATH) >> DUMMY_CODE_OWNERS
 
-    def methodLinesResolver = Stub(MethodLinesResolver)
-    methodLinesResolver.getLines(_ as Method) >> new MethodLinesResolver.MethodLines(DUMMY_TEST_METHOD_START, DUMMY_TEST_METHOD_END)
+    def linesResolver = Stub(LinesResolver)
+    linesResolver.getMethodLines(_ as Method) >> new LinesResolver.Lines(DUMMY_TEST_METHOD_START, DUMMY_TEST_METHOD_END)
+    linesResolver.getClassLines(_ as Class<?>) >> new LinesResolver.Lines(DUMMY_TEST_CLASS_START, DUMMY_TEST_CLASS_END)
 
     def executionSettingsFactory = new ExecutionSettingsFactory() {
       @Override
@@ -121,7 +125,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
         skippableTestsWithMetadata,
         [:],
         flakyTests,
-        earlyFlakinessDetectionEnabled ? knownTests : null)
+        earlyFlakinessDetectionEnabled || CIConstants.FAIL_FAST_TEST_ORDER.equalsIgnoreCase(Config.get().ciVisibilityTestOrder) ? knownTests : null)
       }
     }
 
@@ -139,7 +143,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       testDecorator,
       sourcePathResolver,
       codeowners,
-      methodLinesResolver,
+      linesResolver,
       coverageStoreFactory,
       new ExecutionStrategy(config, executionSettingsFactory.create(JvmInfo.CURRENT_JVM, ""))
       )
@@ -165,7 +169,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       testDecorator,
       sourcePathResolver,
       codeowners,
-      methodLinesResolver,
+      linesResolver,
       executionSettingsFactory,
       signalServer,
       repoIndexBuilder,
@@ -221,12 +225,22 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
 
   def givenFlakyTests(List<TestIdentifier> tests) {
     flakyTests.addAll(tests)
-    flakyRetryEnabled = true
   }
 
   def givenKnownTests(List<TestIdentifier> tests) {
     knownTests.addAll(tests)
-    earlyFlakinessDetectionEnabled = true
+  }
+
+  def givenFlakyRetryEnabled(boolean flakyRetryEnabled) {
+    this.flakyRetryEnabled = flakyRetryEnabled
+  }
+
+  def givenEarlyFlakinessDetectionEnabled(boolean earlyFlakinessDetectionEnabled) {
+    this.earlyFlakinessDetectionEnabled = earlyFlakinessDetectionEnabled
+  }
+
+  def givenTestsOrder(String testsOrder) {
+    injectSysConfig(CiVisibilityConfig.CIVISIBILITY_TEST_ORDER, testsOrder)
   }
 
   @Override
@@ -260,17 +274,42 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     ] + replacements
 
     // uncomment to generate expected data templates
-    //    def baseTemplatesPath = CiVisibilityInstrumentationTest.classLoader
-    //      .getResource("test-succeed")
-    //      .toURI()
-    //      .schemeSpecificPart
-    //      .replace('build/resources/test', 'src/test/resources')
-    //      .replace('build/resources/latestDepTest', 'src/test/resources')
-    //      .replace("test-succeed", testcaseName)
-    //    CiVisibilityTestUtils.generateTemplates(baseTemplatesPath, events, coverages, additionalReplacements)
-    //    return [:]
+    //      def clazz = this.getClass()
+    //      def resourceName = clazz.name.replace('.', '/') + ".class"
+    //      def classfilePath = clazz.getResource(resourceName).toURI().schemeSpecificPart
+    //      def modulePath = classfilePath.substring(0, classfilePath.indexOf("/build/classes"))
+    //      def baseTemplatesPath = modulePath + "/src/test/resources/" + testcaseName
+    //      CiVisibilityTestUtils.generateTemplates(baseTemplatesPath, events, coverages, additionalReplacements)
+    //      return [:]
 
     return CiVisibilityTestUtils.assertData(testcaseName, events, coverages, additionalReplacements)
+  }
+
+  def assertTestsOrder(List<TestIdentifier> expectedOrder) {
+    TEST_WRITER.waitForTraces(expectedOrder.size() + 1)
+    def traces = TEST_WRITER.toList()
+    def events = getEventsAsJson(traces)
+    def identifiers = getTestIdentifiers(events)
+    if (identifiers != expectedOrder) {
+      throw new AssertionError("Expected order: $expectedOrder, but got: $identifiers")
+    }
+    return true
+  }
+
+  def getTestIdentifiers(List<Map> events) {
+    events.sort(Comparator.comparing { it['content']['start'] as Long })
+    def testIdentifiers = []
+    for (Map event : events) {
+      if (event['content']['meta']['test.name']) {
+        testIdentifiers.add(test(event['content']['meta']['test.suite'] as String, event['content']['meta']['test.name'] as String))
+      }
+    }
+    return testIdentifiers
+  }
+
+  def test(String suite, String name, String parameters = null) {
+
+    return new TestIdentifier(suite, name, parameters)
   }
 
   def getEventsAsJson(List<List<DDSpan>> traces) {

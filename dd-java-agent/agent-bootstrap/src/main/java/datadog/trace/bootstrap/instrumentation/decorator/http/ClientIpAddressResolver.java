@@ -92,14 +92,6 @@ public class ClientIpAddressResolver {
       result = coalesce(result, addr);
     }
 
-    addr = tryHeader(context.getXForwarded(), FORWARDED_PARSER);
-    if (addr != null) {
-      if (!isIpAddrPrivate(addr)) {
-        return addr;
-      }
-      result = coalesce(result, addr);
-    }
-
     addr = tryHeader(context.getForwardedFor(), PLAIN_IP_ADDRESS_PARSER);
     if (addr != null) {
       if (!isIpAddrPrivate(addr)) {

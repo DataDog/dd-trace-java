@@ -15,6 +15,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.stacktrace.StackWalkerFactory;
+import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -27,61 +28,65 @@ import org.slf4j.LoggerFactory;
 public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
   private static final Logger LOG = LoggerFactory.getLogger(DefaultCodeOriginRecorder.class);
 
-  private final Config config;
-
   private final ConfigurationUpdater configurationUpdater;
 
-  private final Map<String, CodeOriginProbe> fingerprints = new HashMap<>();
+  private final Map<String, CodeOriginProbe> probesByFingerprint = new HashMap<>();
 
   private final Map<String, CodeOriginProbe> probes = new ConcurrentHashMap<>();
 
-  private final AgentTaskScheduler taskScheduler = AgentTaskScheduler.INSTANCE;
+  private final int maxUserFrames;
 
   public DefaultCodeOriginRecorder(Config config, ConfigurationUpdater configurationUpdater) {
-    this.config = config;
     this.configurationUpdater = configurationUpdater;
+    maxUserFrames = config.getDebuggerCodeOriginMaxUserFrames();
   }
 
   @Override
-  public String captureCodeOrigin(String signature) {
+  public String captureCodeOrigin(boolean entry) {
     StackTraceElement element = findPlaceInStack();
     String fingerprint = Fingerprinter.fingerprint(element);
-    if (fingerprint == null) {
-      LOG.debug("Unable to fingerprint stack trace");
-      return null;
-    }
-    CodeOriginProbe probe;
-
-    AgentSpan span = AgentTracer.activeSpan();
-    if (!isAlreadyInstrumented(fingerprint)) {
+    CodeOriginProbe probe = probesByFingerprint.get(fingerprint);
+    if (probe == null) {
       Where where =
           Where.of(
               element.getClassName(),
               element.getMethodName(),
-              signature,
+              null,
               String.valueOf(element.getLineNumber()));
-
-      probe =
-          new CodeOriginProbe(
-              new ProbeId(UUID.randomUUID().toString(), 0),
-              where.getSignature(),
-              where,
-              config.getDebuggerCodeOriginMaxUserFrames());
-      addFingerprint(fingerprint, probe);
-
-      installProbe(probe);
-      if (span != null) {
-        //  committing here manually so that first run probe encounters decorate the span until the
-        // instrumentation gets installed
-        probe.commit(
-            CapturedContext.EMPTY_CONTEXT, CapturedContext.EMPTY_CONTEXT, Collections.emptyList());
-      }
-
-    } else {
-      probe = fingerprints.get(fingerprint);
+      probe = createProbe(fingerprint, entry, where);
+      LOG.debug("Creating probe for location {}", where);
     }
-
     return probe.getId();
+  }
+
+  @Override
+  public String captureCodeOrigin(Method method, boolean entry) {
+    String fingerprint = method.toString();
+    CodeOriginProbe probe = probesByFingerprint.get(fingerprint);
+    if (probe == null) {
+      probe = createProbe(fingerprint, entry, Where.of(method));
+      LOG.debug("Creating probe for method {}", fingerprint);
+    }
+    return probe.getId();
+  }
+
+  private CodeOriginProbe createProbe(String fingerPrint, boolean entry, Where where) {
+    CodeOriginProbe probe;
+    AgentSpan span = AgentTracer.activeSpan();
+
+    probe =
+        new CodeOriginProbe(
+            new ProbeId(UUID.randomUUID().toString(), 0), entry, where, maxUserFrames);
+    addFingerprint(fingerPrint, probe);
+
+    installProbe(probe);
+    // committing here manually so that first run probe encounters decorate the span until the
+    // instrumentation gets installed
+    if (span != null) {
+      probe.commit(
+          CapturedContext.EMPTY_CONTEXT, CapturedContext.EMPTY_CONTEXT, Collections.emptyList());
+    }
+    return probe;
   }
 
   private StackTraceElement findPlaceInStack() {
@@ -93,21 +98,16 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
                 .orElse(null));
   }
 
-  public boolean isAlreadyInstrumented(String fingerprint) {
-    return fingerprints.containsKey(fingerprint);
-  }
-
   void addFingerprint(String fingerprint, CodeOriginProbe probe) {
-    fingerprints.putIfAbsent(fingerprint, probe);
+    probesByFingerprint.putIfAbsent(fingerprint, probe);
   }
 
-  public String installProbe(CodeOriginProbe probe) {
+  public void installProbe(CodeOriginProbe probe) {
     CodeOriginProbe installed = probes.putIfAbsent(probe.getId(), probe);
     if (installed == null) {
-      taskScheduler.execute(() -> configurationUpdater.accept(CODE_ORIGIN, getProbes()));
-      return probe.getId();
+      AgentTaskScheduler.INSTANCE.execute(
+          () -> configurationUpdater.accept(CODE_ORIGIN, getProbes()));
     }
-    return installed.getId();
   }
 
   public CodeOriginProbe getProbe(String probeId) {

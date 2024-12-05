@@ -1,5 +1,7 @@
 package test
 
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.google.common.util.concurrent.ListenableFuture
 import com.twilio.Twilio
@@ -10,7 +12,9 @@ import com.twilio.http.TwilioRestClient
 import com.twilio.rest.api.v2010.account.Call
 import com.twilio.rest.api.v2010.account.Message
 import com.twilio.type.PhoneNumber
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
+import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.apache.http.HttpEntity
@@ -23,9 +27,7 @@ import org.apache.http.impl.client.HttpClientBuilder
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
 
-import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-
-class TwilioClientTest extends AgentTestRunner {
+abstract class TwilioClientTest extends VersionedNamingTestBase {
 
   // Made up Twilio Account IDs and Auth token
   final static String SHORT_SID = "abc"
@@ -113,6 +115,13 @@ class TwilioClientTest extends AgentTestRunner {
     Twilio.setRestClient(null)
   }
 
+  abstract String httpClientOperation()
+
+  @Override
+  String operation() {
+    return "twilio.sdk"
+  }
+
   def "synchronous message"() {
     setup:
     twilioRestClient.getObjectMapper() >> new ObjectMapper()
@@ -143,8 +152,8 @@ class TwilioClientTest extends AgentTestRunner {
           }
         }
         span {
-          serviceName "twilio-sdk"
-          operationName "twilio.sdk"
+          serviceName service()
+          operationName operation()
           resourceName "api.v2010.account.MessageCreator.create"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
@@ -156,7 +165,7 @@ class TwilioClientTest extends AgentTestRunner {
             "twilio.account" "$LONG_SID"
             "twilio.sid" "MMXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
             "twilio.status" "sent"
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -195,8 +204,8 @@ class TwilioClientTest extends AgentTestRunner {
           }
         }
         span {
-          serviceName "twilio-sdk"
-          operationName "twilio.sdk"
+          serviceName service()
+          operationName operation()
           resourceName "api.v2010.account.CallCreator.create"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
@@ -208,7 +217,7 @@ class TwilioClientTest extends AgentTestRunner {
             "twilio.account" "ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
             "twilio.sid" "CAXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
             "twilio.status" "completed"
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -269,8 +278,8 @@ class TwilioClientTest extends AgentTestRunner {
           }
         }
         span {
-          serviceName "twilio-sdk"
-          operationName "twilio.sdk"
+          serviceName service()
+          operationName operation()
           resourceName "api.v2010.account.MessageCreator.create"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
@@ -282,12 +291,12 @@ class TwilioClientTest extends AgentTestRunner {
             "twilio.account" "$LONG_SID"
             "twilio.sid" "MMXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
             "twilio.status" "sent"
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
         span {
-          serviceName "twilio-sdk"
-          operationName "http.request"
+          serviceName service()
+          operationName httpClientOperation()
           resourceName "POST /?/Accounts/abc/Messages.json"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
@@ -375,8 +384,8 @@ class TwilioClientTest extends AgentTestRunner {
           }
         }
         span {
-          serviceName "twilio-sdk"
-          operationName "twilio.sdk"
+          serviceName service()
+          operationName operation()
           resourceName "api.v2010.account.MessageCreator.create"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
@@ -388,12 +397,12 @@ class TwilioClientTest extends AgentTestRunner {
             "twilio.account" "$LONG_SID"
             "twilio.sid" "MMXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
             "twilio.status" "sent"
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
         span {
-          serviceName "twilio-sdk"
-          operationName "http.request"
+          serviceName service()
+          operationName httpClientOperation()
           resourceName "POST /?/Accounts/abc/Messages.json"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
@@ -409,8 +418,8 @@ class TwilioClientTest extends AgentTestRunner {
           }
         }
         span {
-          serviceName "twilio-sdk"
-          operationName "http.request"
+          serviceName service()
+          operationName httpClientOperation()
           resourceName "POST /?/Accounts/abc/Messages.json"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
@@ -505,8 +514,8 @@ class TwilioClientTest extends AgentTestRunner {
           }
         }
         span {
-          serviceName "twilio-sdk"
-          operationName "twilio.sdk"
+          serviceName service()
+          operationName operation()
           resourceName "api.v2010.account.MessageCreator.createAsync"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
@@ -518,12 +527,12 @@ class TwilioClientTest extends AgentTestRunner {
             "twilio.account" "$LONG_SID"
             "twilio.sid" "MMXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
             "twilio.status" "sent"
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
         span {
-          serviceName "twilio-sdk"
-          operationName "twilio.sdk"
+          serviceName service()
+          operationName operation()
           resourceName "api.v2010.account.MessageCreator.create"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
@@ -535,14 +544,14 @@ class TwilioClientTest extends AgentTestRunner {
             "twilio.account" "$LONG_SID"
             "twilio.sid" "MMXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
             "twilio.status" "sent"
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
         // Spans are reported in reverse order of completion,
         // so the error span is last even though it happened first.
         span {
-          serviceName "twilio-sdk"
-          operationName "http.request"
+          serviceName service()
+          operationName httpClientOperation()
           resourceName "POST /?/Accounts/abc/Messages.json"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
@@ -558,8 +567,8 @@ class TwilioClientTest extends AgentTestRunner {
           }
         }
         span {
-          serviceName "twilio-sdk"
-          operationName "http.request"
+          serviceName service()
+          operationName httpClientOperation()
           resourceName "POST /?/Accounts/abc/Messages.json"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
@@ -616,8 +625,8 @@ class TwilioClientTest extends AgentTestRunner {
           }
         }
         span {
-          serviceName "twilio-sdk"
-          operationName "twilio.sdk"
+          serviceName service()
+          operationName operation()
           resourceName "api.v2010.account.MessageCreator.create"
           spanType DDSpanTypes.HTTP_CLIENT
           errored true
@@ -626,7 +635,7 @@ class TwilioClientTest extends AgentTestRunner {
             "$Tags.COMPONENT" "twilio-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             errorTags(ApiException, "Testing Failure")
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -652,8 +661,8 @@ class TwilioClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
-          serviceName "twilio-sdk"
-          operationName "twilio.sdk"
+          serviceName service()
+          operationName operation()
           resourceName "api.v2010.account.MessageCreator.create"
           parent()
           spanType DDSpanTypes.HTTP_CLIENT
@@ -666,7 +675,7 @@ class TwilioClientTest extends AgentTestRunner {
             "twilio.account" "$LONG_SID"
             "twilio.sid" "MMXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
             "twilio.status" "sent"
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -714,8 +723,8 @@ class TwilioClientTest extends AgentTestRunner {
           }
         }
         span {
-          serviceName "twilio-sdk"
-          operationName "twilio.sdk"
+          serviceName service()
+          operationName operation()
           resourceName "api.v2010.account.MessageCreator.createAsync"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
@@ -727,12 +736,12 @@ class TwilioClientTest extends AgentTestRunner {
             "twilio.account" "$LONG_SID"
             "twilio.sid" "MMXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
             "twilio.status" "sent"
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
         span {
-          serviceName "twilio-sdk"
-          operationName "twilio.sdk"
+          serviceName service()
+          operationName operation()
           resourceName "api.v2010.account.MessageCreator.create"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
@@ -744,7 +753,7 @@ class TwilioClientTest extends AgentTestRunner {
             "twilio.account" "$LONG_SID"
             "twilio.sid" "MMXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
             "twilio.status" "sent"
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
@@ -800,8 +809,8 @@ class TwilioClientTest extends AgentTestRunner {
           }
         }
         span {
-          serviceName "twilio-sdk"
-          operationName "twilio.sdk"
+          serviceName service()
+          operationName operation()
           resourceName "api.v2010.account.MessageCreator.createAsync"
           spanType DDSpanTypes.HTTP_CLIENT
           errored true
@@ -810,12 +819,12 @@ class TwilioClientTest extends AgentTestRunner {
             "$Tags.COMPONENT" "twilio-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             errorTags(ApiException, "Testing Failure")
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
         span {
-          serviceName "twilio-sdk"
-          operationName "twilio.sdk"
+          serviceName service()
+          operationName operation()
           resourceName "api.v2010.account.MessageCreator.create"
           spanType DDSpanTypes.HTTP_CLIENT
           errored true
@@ -824,10 +833,46 @@ class TwilioClientTest extends AgentTestRunner {
             "$Tags.COMPONENT" "twilio-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             errorTags(ApiException, "Testing Failure")
-            defaultTags()
+            defaultTagsNoPeerService()
           }
         }
       }
     }
+  }
+}
+
+class TwilioClientV0Test extends TwilioClientTest {
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return "twilio-sdk"
+  }
+
+  @Override
+  String httpClientOperation() {
+    return new TestingGenericHttpNamingConventions.ClientV0(){}.operation()
+  }
+}
+
+class TwilioClientV1ForkedTest extends TwilioClientTest {
+
+  @Override
+  int version() {
+    return 1
+  }
+
+  @Override
+  String service() {
+    return Config.get().getServiceName()
+  }
+
+  @Override
+  String httpClientOperation() {
+    return new TestingGenericHttpNamingConventions.ClientV1(){}.operation()
   }
 }

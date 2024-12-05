@@ -688,7 +688,7 @@ class PropagationModuleTest extends IastModuleImplTestBase {
   }
 
   private Date date(Source source = null, int mark = NOT_MARKED) {
-    final result = new Date()
+    final result = new Date(1234567890) // Use a fixed date
     if (source != null) {
       taintObject(result, source, mark)
     }

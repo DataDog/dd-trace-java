@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.opensearch;
 import static datadog.trace.instrumentation.opensearch.OpensearchTransportClientDecorator.DECORATE;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.util.Strings;
 import org.opensearch.action.ActionListener;
 import org.opensearch.action.ActionRequest;
 import org.opensearch.action.ActionResponse;
@@ -32,7 +31,7 @@ public class TransportActionListener<T extends ActionResponse> implements Action
     if (request instanceof IndicesRequest) {
       final IndicesRequest req = (IndicesRequest) request;
       if (req.indices() != null) {
-        span.setTag("opensearch.request.indices", Strings.join(",", req.indices()));
+        span.setTag("opensearch.request.indices", String.join(",", req.indices()));
       }
     }
     if (request instanceof DocWriteRequest) {

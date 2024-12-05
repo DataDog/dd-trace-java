@@ -11,13 +11,13 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.civisibility.codeowners.NoCodeowners
 import datadog.trace.civisibility.decorator.TestDecoratorImpl
-import datadog.trace.civisibility.source.MethodLinesResolver
+import datadog.trace.civisibility.source.LinesResolver
 import datadog.trace.civisibility.source.SourcePathResolver
 import datadog.trace.civisibility.telemetry.CiVisibilityMetricCollectorImpl
 import datadog.trace.civisibility.utils.SpanUtils
 
 class TestSuiteImplTest extends SpanWriterTest {
-  def "test suite span is generated and test.codeowners populated"() {
+  def "test suite span is generated and tags populated"() {
     setup:
     def testSuite = givenATestSuite()
 
@@ -31,6 +31,8 @@ class TestSuiteImplTest extends SpanWriterTest {
           spanType DDSpanTypes.TEST_SUITE_END
           tags(false) {
             "$Tags.TEST_CODEOWNERS" "[\"@global-owner1\",\"@global-owner2\"]"
+            "$Tags.TEST_SOURCE_START" 10
+            "$Tags.TEST_SOURCE_END" 20
           }
         }
       }
@@ -52,7 +54,10 @@ class TestSuiteImplTest extends SpanWriterTest {
     def config = Config.get()
     def metricCollector = Stub(CiVisibilityMetricCollectorImpl)
     def testDecorator = new TestDecoratorImpl("component", "session-name", "test-command", [:])
-    def methodLinesResolver = { it -> MethodLinesResolver.MethodLines.EMPTY }
+
+    def linesResolver = Stub(LinesResolver)
+    def classLines = new LinesResolver.Lines(10, 20)
+    linesResolver.getClassLines(MyClass) >> classLines
 
     def resolver = Stub(SourcePathResolver)
     resolver.getSourcePath(MyClass) >> "MyClass.java"
@@ -75,7 +80,7 @@ class TestSuiteImplTest extends SpanWriterTest {
       testDecorator,
       resolver,
       codeowners,
-      methodLinesResolver,
+      linesResolver,
       coverageStoreFactory,
       SpanUtils.DO_NOT_PROPAGATE_CI_VISIBILITY_TAGS
       )

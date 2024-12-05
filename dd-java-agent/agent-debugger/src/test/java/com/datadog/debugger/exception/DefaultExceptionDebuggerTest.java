@@ -3,10 +3,11 @@ package com.datadog.debugger.exception;
 import static com.datadog.debugger.exception.DefaultExceptionDebugger.SNAPSHOT_ID_TAG_FMT;
 import static com.datadog.debugger.util.TestHelper.assertWithTimeout;
 import static java.util.Collections.emptyList;
-import static java.util.Collections.emptySet;
+import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -36,9 +37,12 @@ import java.io.PrintWriter;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.time.Duration;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Deque;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BinaryOperator;
@@ -58,7 +62,9 @@ public class DefaultExceptionDebuggerTest {
   @BeforeEach
   public void setUp() {
     configurationUpdater = mock(ConfigurationUpdater.class);
-    classNameFiltering = new ClassNameFiltering(emptySet());
+    classNameFiltering =
+        new ClassNameFiltering(
+            new HashSet<>(singletonList("com.datadog.debugger.exception.ThirdPartyCode")));
     exceptionDebugger =
         new DefaultExceptionDebugger(
             configurationUpdater, classNameFiltering, Duration.ofHours(1), 100);
@@ -221,6 +227,51 @@ public class DefaultExceptionDebuggerTest {
   }
 
   @Test
+  public void innermostExceptionFullThirdParty() {
+    RuntimeException exception = ThirdPartyCode.createThirdPartyException();
+    AgentSpan span = mock(AgentSpan.class);
+    doAnswer(this::recordTags).when(span).setTag(anyString(), anyString());
+    exceptionDebugger.handleException(exception, span);
+    // no probes created as all frames are filtered out (third-party code
+    assertTrue(exceptionDebugger.getExceptionProbeManager().getProbes().isEmpty());
+  }
+
+  @Test
+  public void nestedExceptionFullThirdParty() {
+    RuntimeException thirdPartyException = ThirdPartyCode.createThirdPartyException();
+    RuntimeException exception = createTest2Exception(thirdPartyException);
+    String fingerprint = Fingerprinter.fingerprint(exception, classNameFiltering);
+    AgentSpan span = mock(AgentSpan.class);
+    doAnswer(this::recordTags).when(span).setTag(anyString(), anyString());
+    exceptionDebugger.handleException(exception, span);
+    assertWithTimeout(
+        () -> exceptionDebugger.getExceptionProbeManager().isAlreadyInstrumented(fingerprint),
+        Duration.ofSeconds(30));
+    generateSnapshots(exception);
+    exception.printStackTrace();
+    exceptionDebugger.handleException(exception, span);
+    ExceptionProbeManager.ThrowableState state =
+        exceptionDebugger
+            .getExceptionProbeManager()
+            .getStateByThrowable(ExceptionHelper.getInnerMostThrowable(exception));
+    assertEquals(
+        state.getExceptionId(), spanTags.get(DefaultExceptionDebugger.DD_DEBUG_ERROR_EXCEPTION_ID));
+    Map<String, Snapshot> snapshotMap =
+        listener.snapshots.stream().collect(toMap(Snapshot::getId, Function.identity()));
+    List<String> lines = parseStackTrace(exception);
+    int expectedFrameIndex =
+        findFrameIndex(
+            lines,
+            "com.datadog.debugger.exception.DefaultExceptionDebuggerTest.createTest2Exception");
+    assertSnapshot(
+        spanTags,
+        snapshotMap,
+        expectedFrameIndex,
+        "com.datadog.debugger.exception.DefaultExceptionDebuggerTest",
+        "createTest2Exception");
+  }
+
+  @Test
   public void filteringOutErrors() {
     ExceptionProbeManager manager = mock(ExceptionProbeManager.class);
     exceptionDebugger =
@@ -278,58 +329,68 @@ public class DefaultExceptionDebuggerTest {
   }
 
   private void generateSnapshots(RuntimeException exception) {
-    BinaryOperator<ExceptionProbe> dropMerger = (oldValue, newValue) -> oldValue;
-    Map<String, ExceptionProbe> probesByLocation =
-        exceptionDebugger.getExceptionProbeManager().getProbes().stream()
-            .collect(
-                toMap(
-                    probe ->
-                        probe.getWhere().getTypeName()
-                            + "::"
-                            + probe.getWhere().getMethodName()
-                            + ":"
-                            + probe.getWhere().getLines()[0],
-                    Function.identity(),
-                    dropMerger));
-    Throwable innerMost = ExceptionHelper.getInnerMostThrowable(exception);
-    int framesToRemove = -1;
-    for (StackTraceElement element : innerMost.getStackTrace()) {
-      framesToRemove++;
-      ExceptionProbe exceptionProbe =
-          probesByLocation.get(
-              element.getClassName()
-                  + "::"
-                  + element.getMethodName()
-                  + ":"
-                  + element.getLineNumber());
-      if (exceptionProbe == null) {
-        continue;
+    Map<String, ExceptionProbe> probesByLocation = buildProbesByLocation();
+    Deque<Throwable> chainedExceptions = new ArrayDeque<>();
+    ExceptionHelper.getInnerMostThrowable(exception, chainedExceptions);
+    for (Throwable throwable : chainedExceptions) {
+      int framesToRemove = -1;
+      for (StackTraceElement element : throwable.getStackTrace()) {
+        framesToRemove++;
+        String probeLocation =
+            element.getClassName() + "::" + element.getMethodName() + ":" + element.getLineNumber();
+        ExceptionProbe exceptionProbe = probesByLocation.get(probeLocation);
+        if (exceptionProbe == null) {
+          continue;
+        }
+        evalAndCommitProbe(exception, exceptionProbe);
+        rewriteSnapshotStacktrace(exception, throwable, framesToRemove);
       }
-      exceptionProbe.buildLocation(null);
-      CapturedContext capturedContext = new CapturedContext();
-      capturedContext.addThrowable(exception);
-      capturedContext.evaluate(
-          exceptionProbe.getProbeId().getEncodedId(),
-          exceptionProbe,
-          "",
-          System.currentTimeMillis(),
-          MethodLocation.EXIT);
-      exceptionProbe.commit(CapturedContext.EMPTY_CAPTURING_CONTEXT, capturedContext, emptyList());
-      //  rewrite snapshot stacktrace
-      ExceptionProbeManager.ThrowableState state =
-          exceptionDebugger
-              .getExceptionProbeManager()
-              .getStateByThrowable(ExceptionHelper.getInnerMostThrowable(exception));
-      Snapshot lastSnapshot = state.getSnapshots().get(state.getSnapshots().size() - 1);
-      lastSnapshot.getStack().clear();
-      lastSnapshot
-          .getStack()
-          .addAll(
-              Arrays.stream(innerMost.getStackTrace())
-                  .skip(framesToRemove)
-                  .map(CapturedStackFrame::from)
-                  .collect(toList()));
     }
+  }
+
+  private void rewriteSnapshotStacktrace(
+      RuntimeException exception, Throwable throwable, int framesToRemove) {
+    ExceptionProbeManager.ThrowableState state =
+        exceptionDebugger
+            .getExceptionProbeManager()
+            .getStateByThrowable(ExceptionHelper.getInnerMostThrowable(exception));
+    Snapshot lastSnapshot = state.getSnapshots().get(state.getSnapshots().size() - 1);
+    lastSnapshot.getStack().clear();
+    lastSnapshot
+        .getStack()
+        .addAll(
+            Arrays.stream(throwable.getStackTrace())
+                .skip(framesToRemove)
+                .map(CapturedStackFrame::from)
+                .collect(toList()));
+  }
+
+  private void evalAndCommitProbe(RuntimeException exception, ExceptionProbe exceptionProbe) {
+    exceptionProbe.buildLocation(null);
+    CapturedContext capturedContext = new CapturedContext();
+    capturedContext.addThrowable(exception);
+    capturedContext.evaluate(
+        exceptionProbe.getProbeId().getEncodedId(),
+        exceptionProbe,
+        "",
+        System.currentTimeMillis(),
+        MethodLocation.EXIT);
+    exceptionProbe.commit(CapturedContext.EMPTY_CAPTURING_CONTEXT, capturedContext, emptyList());
+  }
+
+  private Map<String, ExceptionProbe> buildProbesByLocation() {
+    BinaryOperator<ExceptionProbe> dropMerger = (oldValue, newValue) -> oldValue;
+    return exceptionDebugger.getExceptionProbeManager().getProbes().stream()
+        .collect(
+            toMap(
+                probe ->
+                    probe.getWhere().getTypeName()
+                        + "::"
+                        + probe.getWhere().getMethodName()
+                        + ":"
+                        + probe.getWhere().getLines()[0],
+                Function.identity(),
+                dropMerger));
   }
 
   private RuntimeException createNestException() {
@@ -354,5 +415,26 @@ public class DefaultExceptionDebuggerTest {
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
     when(config.getDebuggerUploadBatchSize()).thenReturn(100);
     return config;
+  }
+}
+
+// Hacky way to generate an exception with a stacktrace that does not contain the test class
+// we are starting a thread and create an exception in that thread and return it
+class ThirdPartyCode extends Thread {
+  volatile RuntimeException ex;
+
+  public void run() {
+    ex = new RuntimeException("third party code");
+  }
+
+  public static RuntimeException createThirdPartyException() {
+    ThirdPartyCode thirdPartyCode = new ThirdPartyCode();
+    thirdPartyCode.start();
+    try {
+      thirdPartyCode.join();
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    }
+    return thirdPartyCode.ex;
   }
 }

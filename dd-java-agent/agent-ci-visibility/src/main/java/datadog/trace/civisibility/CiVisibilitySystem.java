@@ -215,7 +215,7 @@ public class CiVisibilitySystem {
           testDecorator,
           repoServices.sourcePathResolver,
           repoServices.codeowners,
-          services.methodLinesResolver,
+          services.linesResolver,
           repoServices.executionSettingsFactory,
           signalServer,
           repoServices.repoIndexProvider,
@@ -244,7 +244,7 @@ public class CiVisibilitySystem {
           testDecorator,
           repoServices.sourcePathResolver,
           repoServices.codeowners,
-          services.methodLinesResolver,
+          services.linesResolver,
           coverageServices.coverageStoreFactory,
           coverageServices.coverageReporter,
           services.signalClientFactory,
@@ -275,7 +275,7 @@ public class CiVisibilitySystem {
           testDecorator,
           repoServices.sourcePathResolver,
           repoServices.codeowners,
-          services.methodLinesResolver,
+          services.linesResolver,
           coverageServices.coverageStoreFactory,
           executionStrategy);
     };
@@ -303,7 +303,7 @@ public class CiVisibilitySystem {
           testDecorator,
           repoServices.sourcePathResolver,
           repoServices.codeowners,
-          services.methodLinesResolver,
+          services.linesResolver,
           coverageServices.coverageStoreFactory);
     };
   }

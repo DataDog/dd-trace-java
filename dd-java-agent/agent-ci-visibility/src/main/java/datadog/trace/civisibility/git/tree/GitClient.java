@@ -484,7 +484,7 @@ public class GitClient {
     return executeCommand(
         Command.PACK_OBJECTS,
         () -> {
-          byte[] input = Strings.join("\n", objectHashes).getBytes(Charset.defaultCharset());
+          byte[] input = String.join("\n", objectHashes).getBytes(Charset.defaultCharset());
 
           Path tempDirectory = createTempDirectory();
           String basename = Strings.random(8);

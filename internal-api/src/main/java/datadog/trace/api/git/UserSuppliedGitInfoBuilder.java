@@ -13,6 +13,8 @@ import static datadog.trace.api.git.GitInfo.DD_GIT_REPOSITORY_URL;
 import static datadog.trace.api.git.GitInfo.DD_GIT_TAG;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.ConfigCollector;
+import datadog.trace.api.ConfigOrigin;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import javax.annotation.Nullable;
@@ -49,6 +51,9 @@ public class UserSuppliedGitInfoBuilder implements GitInfoBuilder {
     if (gitCommitSha == null) {
       gitCommitSha = Config.get().getGlobalTags().get(Tags.GIT_COMMIT_SHA);
     }
+
+    ConfigCollector.get().put(DD_GIT_REPOSITORY_URL, gitRepositoryUrl, ConfigOrigin.ENV);
+    ConfigCollector.get().put(DD_GIT_COMMIT_SHA, gitCommitSha, ConfigOrigin.ENV);
 
     final String gitCommitMessage = System.getenv(DD_GIT_COMMIT_MESSAGE);
     final String gitCommitAuthorName = System.getenv(DD_GIT_COMMIT_AUTHOR_NAME);
