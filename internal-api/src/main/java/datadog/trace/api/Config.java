@@ -176,8 +176,8 @@ public class Config {
   private final boolean scopeStrictMode;
   private final int scopeIterationKeepAlive;
   private final int partialFlushMinSpans;
-  private final int traceLatencyInterceptorValue;
-  private final boolean traceLatencyInterceptorEnabled;
+  private final int traceKeepLatencyThreshold;
+  private final boolean traceKeepLatencyThresholdEnabled;
   private final boolean traceStrictWritesEnabled;
   private final boolean logExtractHeaderNames;
   private final Set<PropagationStyle> propagationStylesToExtract;
@@ -862,11 +862,11 @@ public class Config {
             ? 0
             : configProvider.getInteger(PARTIAL_FLUSH_MIN_SPANS, DEFAULT_PARTIAL_FLUSH_MIN_SPANS);
 
-    traceLatencyInterceptorValue =
+    traceKeepLatencyThreshold =
         configProvider.getInteger(
-            TRACE_LATENCY_INTERCEPTOR_VALUE, DEFAULT_TRACE_LATENCY_INTERCEPTOR_VALUE);
+            TRACE_KEEP_LATENCY_THRESHOLD_MS, DEFAULT_TRACE_KEEP_LATENCY_THRESHOLD_MS);
 
-    traceLatencyInterceptorEnabled = !partialFlushEnabled && (traceLatencyInterceptorValue >= 0);
+    traceKeepLatencyThresholdEnabled = !partialFlushEnabled && (traceKeepLatencyThreshold > 0);
 
     traceStrictWritesEnabled = configProvider.getBoolean(TRACE_STRICT_WRITES_ENABLED, false);
 
@@ -2083,12 +2083,12 @@ public class Config {
     return partialFlushMinSpans;
   }
 
-  public int getTraceLatencyInterceptorValue() {
-    return traceLatencyInterceptorValue;
+  public int getTraceKeepLatencyThreshold() {
+    return traceKeepLatencyThreshold;
   }
 
-  public boolean isTraceLatencyInterceptorEnabled() {
-    return traceLatencyInterceptorEnabled;
+  public boolean isTraceKeepLatencyThresholdEnabled() {
+    return traceKeepLatencyThresholdEnabled;
   }
 
   public boolean isTraceStrictWritesEnabled() {
@@ -4174,10 +4174,10 @@ public class Config {
         + scopeIterationKeepAlive
         + ", partialFlushMinSpans="
         + partialFlushMinSpans
-        + ", traceLatencyInterceptorEnabled="
-        + traceLatencyInterceptorEnabled
-        + ", traceLatencyInterceptorValue="
-        + traceLatencyInterceptorValue
+        + ", traceKeepLatencyThresholdEnabled="
+        + traceKeepLatencyThresholdEnabled
+        + ", traceKeepLatencyThreshold="
+        + traceKeepLatencyThreshold
         + ", traceStrictWritesEnabled="
         + traceStrictWritesEnabled
         + ", tracePropagationStylesToExtract="

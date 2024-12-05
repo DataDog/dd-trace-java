@@ -15,7 +15,7 @@ class LatencyTraceInterceptorTest  extends DDCoreSpecification {
     setup:
 
     injectSysConfig("trace.partial.flush.enabled", partialFlushEnabled)
-    injectSysConfig("trace.latency.interceptor.value", latencyThreshold)
+    injectSysConfig("trace.keep.latency.threshold.ms", latencyThreshold)
 
     when:
     def writer = new ListWriter()

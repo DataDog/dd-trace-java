@@ -746,7 +746,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       addTraceInterceptor(GitMetadataTraceInterceptor.INSTANCE);
     }
 
-    if (config.isTraceLatencyInterceptorEnabled()) {
+    if (config.isTraceKeepLatencyThresholdEnabled()) {
       addTraceInterceptor(LatencyTraceInterceptor.INSTANCE);
     }
 
