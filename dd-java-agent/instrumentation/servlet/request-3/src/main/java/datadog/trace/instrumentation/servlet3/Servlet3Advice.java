@@ -62,8 +62,7 @@ public class Servlet3Advice {
     final boolean hasServletTrace = spanAttrValue instanceof AgentSpan;
     if (hasServletTrace) {
       final AgentSpan span = (AgentSpan) spanAttrValue;
-      ClassloaderServiceNames.maybeSetToSpan(
-          span::setServiceName, span::getServiceName, Thread.currentThread());
+      ClassloaderServiceNames.maybeSetToSpan(span, Thread.currentThread());
       // Tracing might already be applied by other instrumentation,
       // the FilterChain or a parent request (forward/include).
       return false;

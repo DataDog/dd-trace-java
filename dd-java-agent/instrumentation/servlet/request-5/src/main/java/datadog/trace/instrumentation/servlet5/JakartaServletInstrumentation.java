@@ -63,8 +63,7 @@ public class JakartaServletInstrumentation extends InstrumenterModule.Tracing
               "datadog.span"); // hardcode to avoid injecting HttpServiceDecorator just for this
       if (span instanceof AgentSpan) {
         agentSpan = (AgentSpan) span;
-        ClassloaderServiceNames.maybeSetToSpan(
-            agentSpan::setServiceName, agentSpan::getServiceName, Thread.currentThread());
+        ClassloaderServiceNames.maybeSetToSpan(agentSpan, Thread.currentThread());
       }
       return CallDepthThreadLocalMap.incrementCallDepth(HttpServletRequest.class) == 0;
     }

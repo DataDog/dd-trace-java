@@ -4,8 +4,8 @@ import datadog.trace.api.Config;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.env.CapturedEnvironment;
 import datadog.trace.api.remoteconfig.ServiceNameCollector;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.WeakHashMap;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
@@ -49,27 +49,23 @@ public class ClassloaderServiceNames {
   }
 
   public static boolean maybeSetToSpan(
-      @Nonnull final Consumer<String> setter,
-      @Nonnull final Supplier<String> getter,
-      @Nonnull final Thread thread) {
-    return maybeSetToSpan(setter, getter, thread.getContextClassLoader());
+      @Nonnull final AgentSpan span, @Nonnull final Thread thread) {
+    return maybeSetToSpan(span, thread.getContextClassLoader());
   }
 
   public static boolean maybeSetToSpan(
-      @Nonnull final Consumer<String> setter,
-      @Nonnull final Supplier<String> getter,
-      @Nonnull final ClassLoader classLoader) {
+      @Nonnull final AgentSpan span, @Nonnull final ClassLoader classLoader) {
     if (!Lazy.INSTANCE.enabled) {
       return false;
     }
-    final String currentServiceName = getter.get();
+    final String currentServiceName = span.getServiceName();
     if (currentServiceName != null
         && !currentServiceName.equals(Lazy.INSTANCE.inferredServiceName)) {
       return false;
     }
     final String service = maybeGet(classLoader);
     if (service != null) {
-      setter.accept(service);
+      span.setServiceName(service);
       ServiceNameCollector.get().addService(service);
       return true;
     }
