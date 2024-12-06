@@ -177,7 +177,7 @@ class TagInterceptorTest extends DDCoreSpecification {
       .sampler(new AllSampler())
       // equivalent to split-by-tags: tag
       .tagInterceptor(new TagInterceptor(true, "my-service",
-      Collections.singleton(tag), new RuleFlags()))
+      Collections.singleton(tag), new RuleFlags(), false))
       .build()
   }
 
@@ -700,7 +700,7 @@ class TagInterceptorTest extends DDCoreSpecification {
     ServiceNameCollector.INSTANCE = extraServiceProvider
     final ruleFlags = Mock(RuleFlags)
     ruleFlags.isEnabled(_) >> true
-    final interceptor = new TagInterceptor(true, "my-service", Collections.singleton(DDTags.SERVICE_NAME), ruleFlags)
+    final interceptor = new TagInterceptor(true, "my-service", Collections.singleton(DDTags.SERVICE_NAME), ruleFlags, false)
 
     when:
     interceptor.interceptServiceName(null, Mock(DDSpanContext), "some-service")
@@ -715,7 +715,7 @@ class TagInterceptorTest extends DDCoreSpecification {
     ServiceNameCollector.INSTANCE = extraServiceProvider
     final ruleFlags = Mock(RuleFlags)
     ruleFlags.isEnabled(_) >> true
-    final interceptor = new TagInterceptor(true, "my-service", Collections.singleton("servlet.context"), ruleFlags)
+    final interceptor = new TagInterceptor(true, "my-service", Collections.singleton("servlet.context"), ruleFlags, false)
 
     when:
     interceptor.interceptServletContext(Mock(DDSpanContext), value)
