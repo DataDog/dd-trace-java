@@ -113,7 +113,7 @@ public final class LibertyServerInstrumentation extends InstrumenterModule.Traci
         if (webapp != null) {
           final ClassLoader cl = webapp.getClassLoader();
           if (cl != null) {
-            ClassloaderServiceNames.maybeSetToSpan(span::setServiceName, span::getServiceName, cl);
+            ClassloaderServiceNames.maybeSetToSpan(span, cl);
           }
         }
       }
