@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.akkahttp.iast.helpers;
 
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.propagation.PropagationModule;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import scala.compat.java8.JFunction1;
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
@@ -12,9 +12,9 @@ public class TaintFutureHelper {
       Future<T> f, Object input, PropagationModule mod, ExecutionContext ec) {
     JFunction1<T, T> mapf =
         t -> {
-          IastContext ctx = IastContext.Provider.get(AgentTracer.activeSpan());
-          if (ctx != null) {
-            mod.taintObjectIfTainted(ctx, t, input);
+          final TaintedObjects to = IastContext.Provider.taintedObjects();
+          if (to != null) {
+            mod.taintObjectIfTainted(to, t, input);
           }
           return t;
         };

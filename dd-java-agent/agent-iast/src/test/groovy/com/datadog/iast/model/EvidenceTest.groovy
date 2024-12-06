@@ -2,6 +2,8 @@ package com.datadog.iast.model
 
 import com.datadog.iast.model.json.VulnerabilityEncoding
 import datadog.trace.api.iast.SourceTypes
+import datadog.trace.api.iast.taint.Range
+import datadog.trace.api.iast.taint.Source
 import datadog.trace.test.util.DDSpecification
 import groovy.json.JsonSlurper
 
@@ -42,7 +44,7 @@ class EvidenceTest extends DDSpecification {
     final Reference<?> ref = new WeakReference<>(name)
 
     when:
-    final source = new Source(SourceTypes.REQUEST_PARAMETER_NAME, ref, "a random value")
+    final source = new SourceImpl(SourceTypes.REQUEST_PARAMETER_NAME, ref, "a random value")
     final batch = vulnBatchForSource(source)
 
     then:
@@ -54,14 +56,14 @@ class EvidenceTest extends DDSpecification {
     ref.clear()
 
     then:
-    source.getName() == Source.GARBAGE_COLLECTED_REF
+    source.getName() == SourceImpl.GARBAGE_COLLECTED_REF
     final parsedAfter = new JsonSlurper().parseText(VulnerabilityEncoding.toJson(batch))
     parsedAfter["sources"][0]["name"] == name
   }
 
   private static VulnerabilityBatch vulnBatchForSource(final Source source) {
     final location = Location.forClassAndMethodAndLine(EvidenceTest.name, 'vulnBatchForSource', 69)
-    final evidence = new Evidence("test", [new Range(0, 4, source, NOT_MARKED)] as Range[])
+    final evidence = new Evidence("test", [new RangeImpl(0, 4, source, NOT_MARKED)] as Range[])
     final vuln = new Vulnerability(VulnerabilityType.INSECURE_COOKIE, location, evidence)
     final batch = new VulnerabilityBatch()
     batch.add(vuln)

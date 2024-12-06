@@ -6,17 +6,14 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
-import datadog.trace.advice.ActiveRequestContext;
-import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.gateway.RequestContext;
-import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import java.util.List;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -48,14 +45,11 @@ public class FormInstrumentation extends InstrumenterModule.Iast
     };
   }
 
-  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class AsMapAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
     public static void onExit(
-        @Advice.Return Map<String, List<String>> form,
-        @Advice.This Object self,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @Advice.Return Map<String, List<String>> form, @Advice.This Object self) {
       if (form == null || form.isEmpty()) {
         return;
       }
@@ -63,15 +57,15 @@ public class FormInstrumentation extends InstrumenterModule.Iast
       if (module == null) {
         return;
       }
-      final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-      if (!module.isTainted(ctx, self)) {
+      final TaintedObjects to = IastContext.Provider.taintedObjects();
+      if (!module.isTainted(to, self)) {
         return;
       }
-      if (module.isTainted(ctx, form)) {
+      if (module.isTainted(to, form)) {
         return;
       }
-      module.taintObject(ctx, form, SourceTypes.REQUEST_PARAMETER_VALUE);
-      taintMultiValuedMap(ctx, module, SourceTypes.REQUEST_PARAMETER_VALUE, form);
+      module.taintObject(to, form, SourceTypes.REQUEST_PARAMETER_VALUE);
+      taintMultiValuedMap(to, module, SourceTypes.REQUEST_PARAMETER_VALUE, form);
     }
   }
 }

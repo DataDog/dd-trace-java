@@ -4,8 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
-import datadog.trace.api.iast.Taintable
 import datadog.trace.api.iast.propagation.PropagationModule
+import datadog.trace.api.iast.taint.Source
 import groovy.json.JsonOutput
 
 import java.nio.charset.Charset
@@ -34,10 +34,10 @@ class JsonParserInstrumentationTest extends AgentTestRunner {
 
     then:
     JsonOutput.toJson(taintedResult) == JSON_STRING
-    _ * module.taintObjectIfTainted(_, _)
-    _ * module.findSource(_) >> source
-    1 * module.taintString(_, 'root', source.origin, 'root', JSON_STRING)
-    1 * module.taintString(_, 'nested', source.origin, 'nested', JSON_STRING)
+    _ * module.taintObjectIfTainted(_, _, _)
+    _ * module.findSource(_, _) >> source
+    1 * module.taintObject(_, 'root', source.origin, 'root', JSON_STRING)
+    1 * module.taintObject(_, 'nested', source.origin, 'nested', JSON_STRING)
     0 * _
   }
 
@@ -56,8 +56,8 @@ class JsonParserInstrumentationTest extends AgentTestRunner {
 
     then:
     JsonOutput.toJson(taintedResult) == JSON_STRING
-    _ * module.taintObjectIfTainted(_, _)
-    _ * module.findSource(_) >> source
+    _ * module.taintObjectIfTainted(_, _, _)
+    _ * module.findSource(_, _) >> source
     0 * _
   }
 
@@ -74,8 +74,8 @@ class JsonParserInstrumentationTest extends AgentTestRunner {
 
     then:
     JsonOutput.toJson(taintedResult) == JSON_STRING
-    _ * module.taintObjectIfTainted(_, _)
-    _ * module.findSource(_) >> null
+    _ * module.taintObjectIfTainted(_, _, _)
+    _ * module.findSource(_, _) >> null
     0 * _
 
     where:
@@ -86,9 +86,24 @@ class JsonParserInstrumentationTest extends AgentTestRunner {
     return [JSON_STRING, new ByteArrayInputStream(JSON_STRING.getBytes(Charset.defaultCharset()))]
   }
 
-  private static class SourceImpl implements Taintable.Source {
+  private static class SourceImpl implements Source {
     byte origin
     String name
     String value
+
+    @Override
+    Source attachValue(Object newValue) {
+      return new SourceImpl(origin: origin, name: name, value: newValue as String)
+    }
+
+    @Override
+    boolean isReference() {
+      return false
+    }
+
+    @Override
+    Object getRawValue() {
+      return value
+    }
   }
 }

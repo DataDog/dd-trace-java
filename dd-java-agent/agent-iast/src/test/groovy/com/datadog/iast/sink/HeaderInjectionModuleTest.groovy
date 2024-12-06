@@ -2,8 +2,9 @@ package com.datadog.iast.sink
 
 import com.datadog.iast.IastModuleImplTestBase
 import com.datadog.iast.Reporter
-import com.datadog.iast.model.Range
-import com.datadog.iast.model.Source
+import com.datadog.iast.model.RangeImpl
+import com.datadog.iast.model.SourceImpl
+import datadog.trace.api.iast.taint.Range
 import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityType
 import datadog.trace.api.iast.VulnerabilityMarks
@@ -154,7 +155,7 @@ class HeaderInjectionModuleTest extends IastModuleImplTestBase {
   }
 
   private static Range source(byte origin, String name, String value) {
-    return new Range(0, value.length(), new Source(origin, name, value), NOT_MARKED)
+    return new RangeImpl(0, value.length(), new SourceImpl(origin, name, value), NOT_MARKED)
   }
 
   private String mapTainted(final String value, final int mark) {

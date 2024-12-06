@@ -1,8 +1,8 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
-import datadog.trace.api.iast.Taintable.Source
 import datadog.trace.api.iast.propagation.PropagationModule
+import datadog.trace.api.iast.taint.Source
 import groovy.json.JsonOutput
 import org.codehaus.jackson.map.ObjectMapper
 
@@ -31,14 +31,14 @@ class Json1ParserInstrumentationTest extends AgentTestRunner {
 
     then:
     JsonOutput.toJson(taintedResult) == JSON_STRING
-    _ * module.taintObjectIfTainted(_, _)
-    _ * module.findSource(_) >> source
-    1 * module.taintString(_, 'root', source.origin, 'root', JSON_STRING)
-    1 * module.taintString(_, 'root_value', source.origin, 'root', JSON_STRING)
-    1 * module.taintString(_, 'nested', source.origin, 'nested', JSON_STRING)
-    1 * module.taintString(_, 'nested_array', source.origin, 'nested_array', JSON_STRING)
-    1 * module.taintString(_, 'array_0', source.origin, 'nested_array', JSON_STRING)
-    1 * module.taintString(_, 'array_1', source.origin, 'nested_array', JSON_STRING)
+    _ * module.taintObjectIfTainted(_, _, _)
+    _ * module.findSource(_, _) >> source
+    1 * module.taintObject(_, 'root', source.origin, 'root', JSON_STRING)
+    1 * module.taintObject(_, 'root_value', source.origin, 'root', JSON_STRING)
+    1 * module.taintObject(_, 'nested', source.origin, 'nested', JSON_STRING)
+    1 * module.taintObject(_, 'nested_array', source.origin, 'nested_array', JSON_STRING)
+    1 * module.taintObject(_, 'array_0', source.origin, 'nested_array', JSON_STRING)
+    1 * module.taintObject(_, 'array_1', source.origin, 'nested_array', JSON_STRING)
     0 * _
 
     where:
@@ -58,8 +58,8 @@ class Json1ParserInstrumentationTest extends AgentTestRunner {
 
     then:
     JsonOutput.toJson(taintedResult) == JSON_STRING
-    _ * module.taintObjectIfTainted(_, _)
-    _ * module.findSource(_) >> null
+    _ * module.taintObjectIfTainted(_, _, _)
+    _ * module.findSource(_, _) >> null
     0 * _
 
     where:
@@ -74,5 +74,20 @@ class Json1ParserInstrumentationTest extends AgentTestRunner {
     byte origin
     String name
     String value
+
+    @Override
+    Source attachValue(Object newValue) {
+      return new SourceImpl(origin: origin, name: name, value: newValue as String)
+    }
+
+    @Override
+    boolean isReference() {
+      return false
+    }
+
+    @Override
+    Object getRawValue() {
+      return value
+    }
   }
 }

@@ -2,8 +2,9 @@ package com.datadog.iast.taint;
 
 import static com.datadog.iast.taint.TaintedMap.POSITIVE_MASK;
 
-import com.datadog.iast.model.Range;
 import datadog.trace.api.Config;
+import datadog.trace.api.iast.taint.Range;
+import datadog.trace.api.iast.taint.TaintedObject;
 import java.lang.ref.WeakReference;
 import java.util.Arrays;
 import javax.annotation.Nonnull;
@@ -11,20 +12,20 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class TaintedObject extends WeakReference<Object> {
+public class TaintedObjectEntry extends WeakReference<Object> implements TaintedObject {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(TaintedObject.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(TaintedObjectEntry.class);
 
   public static final int MAX_RANGE_COUNT = Config.get().getIastMaxRangeCount();
 
   final int positiveHashCode;
-  @Nullable TaintedObject next;
+  @Nullable TaintedObjectEntry next;
   private Range[] ranges;
 
   /** generation of the tainted for max age purging purposes */
   boolean generation;
 
-  public TaintedObject(final @Nonnull Object obj, final @Nonnull Range[] ranges) {
+  public TaintedObjectEntry(final @Nonnull Object obj, final @Nonnull Range[] ranges) {
     super(obj);
     validateRanges(ranges);
     this.positiveHashCode = System.identityHashCode(obj) & POSITIVE_MASK;
@@ -42,10 +43,12 @@ public class TaintedObject extends WeakReference<Object> {
    * instances.
    */
   @Nonnull
+  @Override
   public Range[] getRanges() {
     return ranges;
   }
 
+  @Override
   public void setRanges(@Nonnull final Range[] ranges) {
     try {
       validateRanges(ranges);

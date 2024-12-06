@@ -3,10 +3,10 @@ package com.datadog.iast.sink;
 import static com.datadog.iast.taint.Tainteds.canBeTainted;
 
 import com.datadog.iast.Dependencies;
-import com.datadog.iast.model.Range;
 import com.datadog.iast.model.VulnerabilityType;
 import com.datadog.iast.util.RangeBuilder;
 import datadog.trace.api.iast.sink.ReflectionInjectionModule;
+import datadog.trace.api.iast.taint.Range;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 

@@ -1,8 +1,12 @@
 package com.datadog.iast.taint
 
-import com.datadog.iast.model.Range
-import com.datadog.iast.model.Source
+import com.datadog.iast.model.RangeImpl
+import datadog.trace.api.iast.taint.Range
+import datadog.trace.api.iast.taint.Source
+import com.datadog.iast.model.SourceImpl
 import datadog.trace.api.iast.SourceTypes
+import datadog.trace.api.iast.taint.TaintedObject
+import datadog.trace.api.iast.taint.TaintedObjects
 import datadog.trace.api.iast.Taintable
 
 import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
@@ -58,7 +62,7 @@ class TaintUtils {
         assert length >= 0
         int from = i + OPEN_MARK.length()
         String value = s.substring(from, from + length)
-        ranges.add(new Range(start, length, new Source(SourceTypes.NONE, null, value), mark))
+        ranges.add(new RangeImpl(start, length, new SourceImpl(SourceTypes.NONE, null, value), mark))
         pos += length
         i += OPEN_MARK.length() + length + CLOSE_MARK.length() - 1
       } else {
@@ -85,7 +89,7 @@ class TaintUtils {
   static TaintedObject getTaintedObject(final TaintedObjects tos, final Object target) {
     if (target instanceof Taintable) {
       final source = (target as Taintable).$$DD$getSource() as Source
-      return source == null ? null : new TaintedObject(target, Ranges.forObject(source))
+      return source == null ? null : new TaintedObjectEntry(target, Ranges.forObject(source))
     }
     return tos.get(target)
   }
@@ -94,7 +98,7 @@ class TaintUtils {
     if (value instanceof String) {
       return addFromTaintFormat(tos, value as String)
     }
-    tos.taint(value, Ranges.forObject(new Source(SourceTypes.NONE, null, null)))
+    tos.taint(value, Ranges.forObject(new SourceImpl(SourceTypes.NONE, null, null)))
     return value
   }
 
@@ -145,7 +149,7 @@ class TaintUtils {
 
   static Range toRange(String string, int start, int length) {
     final value = string.substring(start, start + length)
-    new Range(start, length, new Source(SourceTypes.NONE, null, value), NOT_MARKED)
+    new RangeImpl(start, length, new SourceImpl(SourceTypes.NONE, null, value), NOT_MARKED)
   }
 
   static Range[] toRanges(String string, List<List<Integer>> lst) {

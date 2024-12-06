@@ -2,7 +2,7 @@ package com.datadog.iast.sink
 
 import com.datadog.iast.IastModuleImplTestBase
 import com.datadog.iast.Reporter
-import com.datadog.iast.model.Source
+import com.datadog.iast.model.SourceImpl
 import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityType
 import com.datadog.iast.taint.Ranges
@@ -49,6 +49,6 @@ class UntrustedDeserializationModuleTest extends IastModuleImplTestBase {
   }
 
   private void taint(final Object value) {
-    ctx.getTaintedObjects().taint(value, Ranges.forObject(new Source(SourceTypes.REQUEST_BODY, 'name', value.toString())))
+    ctx.getTaintedObjects().taint(value, Ranges.forObject(new SourceImpl(SourceTypes.REQUEST_BODY, 'name', value.toString())))
   }
 }

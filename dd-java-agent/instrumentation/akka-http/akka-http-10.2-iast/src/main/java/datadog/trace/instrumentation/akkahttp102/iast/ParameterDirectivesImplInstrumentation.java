@@ -11,16 +11,13 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import akka.http.scaladsl.server.Directive;
 import akka.http.scaladsl.server.util.Tupler$;
 import com.google.auto.service.AutoService;
-import datadog.trace.advice.ActiveRequestContext;
-import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
-import datadog.trace.api.gateway.RequestContext;
-import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import datadog.trace.instrumentation.akkahttp102.iast.helpers.TaintParametersFunction;
 import net.bytebuddy.asm.Advice;
 
@@ -73,38 +70,38 @@ public class ParameterDirectivesImplInstrumentation extends InstrumenterModule.I
         ParameterDirectivesImplInstrumentation.class.getName() + "$RepeatedFilterAdvice");
   }
 
-  @RequiresRequestContext(RequestContextSlot.IAST)
   static class FilterAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
     static void after(
         @Advice.Argument(0) String paramName,
-        @Advice.Return(readOnly = false) Directive /*<Tuple1<?>>*/ retval,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @Advice.Return(readOnly = false) Directive /*<Tuple1<?>>*/ retval) {
       try {
-        IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-        retval =
-            retval.tmap(
-                new TaintParametersFunction(ctx, paramName), Tupler$.MODULE$.forTuple(null));
+        final TaintedObjects to = IastContext.Provider.taintedObjects();
+        if (to != null) {
+          retval =
+              retval.tmap(
+                  new TaintParametersFunction<>(to, paramName), Tupler$.MODULE$.forTuple(null));
+        }
       } catch (Exception e) {
         throw new RuntimeException(e); // propagate so it's logged
       }
     }
   }
 
-  @RequiresRequestContext(RequestContextSlot.IAST)
   static class RepeatedFilterAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
     static void after(
         @Advice.Argument(0) String paramName,
-        @Advice.Return(readOnly = false) Directive /*<Tuple1<Iterable<?>>>*/ retval,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @Advice.Return(readOnly = false) Directive /*<Tuple1<Iterable<?>>>*/ retval) {
       try {
-        IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-        retval =
-            retval.tmap(
-                new TaintParametersFunction(ctx, paramName), Tupler$.MODULE$.forTuple(null));
+        final TaintedObjects to = IastContext.Provider.taintedObjects();
+        if (to != null) {
+          retval =
+              retval.tmap(
+                  new TaintParametersFunction<>(to, paramName), Tupler$.MODULE$.forTuple(null));
+        }
       } catch (Exception e) {
         throw new RuntimeException(e); // propagate so it's logged
       }

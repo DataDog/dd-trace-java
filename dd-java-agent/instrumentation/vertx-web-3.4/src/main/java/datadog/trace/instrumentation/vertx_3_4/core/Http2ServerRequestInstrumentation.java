@@ -6,16 +6,13 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
-import datadog.trace.advice.ActiveRequestContext;
-import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.gateway.RequestContext;
-import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -41,7 +38,6 @@ public class Http2ServerRequestInstrumentation extends AbstractHttpServerRequest
         Http2ServerRequestInstrumentation.class.getName() + "$HeadersAdvice");
   }
 
-  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class HeadersAdvice {
 
     @Advice.OnMethodEnter
@@ -55,14 +51,13 @@ public class Http2ServerRequestInstrumentation extends AbstractHttpServerRequest
     @Source(SourceTypes.REQUEST_HEADER_VALUE)
     public static void onExit(
         @Advice.Local("beforeHeaders") final Object beforeHeaders,
-        @Advice.Return final Object multiMap,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @Advice.Return final Object multiMap) {
       // only taint the map the first time
       if (beforeHeaders != multiMap) {
         final PropagationModule module = InstrumentationBridge.PROPAGATION;
         if (module != null) {
-          final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-          module.taintObject(ctx, multiMap, SourceTypes.REQUEST_HEADER_VALUE);
+          final TaintedObjects to = IastContext.Provider.taintedObjects();
+          module.taintObject(to, multiMap, SourceTypes.REQUEST_HEADER_VALUE);
         }
       }
     }

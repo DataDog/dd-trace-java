@@ -5,17 +5,14 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
-import datadog.trace.advice.ActiveRequestContext;
-import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.gateway.RequestContext;
-import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
@@ -46,14 +43,10 @@ public class ContainerRequestInstrumentation extends InstrumenterModule.Iast
     };
   }
 
-  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class SetPropertyAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
-    public static void onExit(
-        @Advice.Argument(0) String name,
-        @Advice.Argument(1) Object value,
-        @ActiveRequestContext RequestContext reqCtx) {
+    public static void onExit(@Advice.Argument(0) String name, @Advice.Argument(1) Object value) {
 
       if (!"jersey.config.server.representation.decoded.form".equals(name)
           && !"jersey.config.server.representation.form".equals(name)) {
@@ -65,11 +58,11 @@ public class ContainerRequestInstrumentation extends InstrumenterModule.Iast
         return;
       }
 
-      final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-      if (prop.isTainted(ctx, value)) {
+      final TaintedObjects to = IastContext.Provider.taintedObjects();
+      if (prop.isTainted(to, value)) {
         return;
       }
-      prop.taintObject(ctx, value, SourceTypes.REQUEST_BODY);
+      prop.taintObject(to, value, SourceTypes.REQUEST_BODY);
     }
   }
 }

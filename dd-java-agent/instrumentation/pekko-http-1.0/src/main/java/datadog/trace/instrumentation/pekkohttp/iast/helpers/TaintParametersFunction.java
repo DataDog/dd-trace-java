@@ -4,7 +4,7 @@ import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import scala.Function1;
 import scala.Option;
 import scala.Tuple1;
@@ -34,8 +34,8 @@ public class TaintParametersFunction<T> implements Function1<Tuple1<T>, Tuple1<T
       value = option.get();
     }
 
-    IastContext ctx = IastContext.Provider.get(AgentTracer.activeSpan());
-    if (ctx == null) {
+    final TaintedObjects to = IastContext.Provider.taintedObjects();
+    if (to == null) {
       return v1;
     }
 
@@ -44,11 +44,11 @@ public class TaintParametersFunction<T> implements Function1<Tuple1<T>, Tuple1<T
       while (iterator.hasNext()) {
         Object o = iterator.next();
         if (o instanceof String) {
-          mod.taintString(ctx, (String) o, SourceTypes.REQUEST_PARAMETER_VALUE, paramName);
+          mod.taintObject(to, o, SourceTypes.REQUEST_PARAMETER_VALUE, paramName);
         }
       }
     } else if (value instanceof String) {
-      mod.taintString(ctx, (String) value, SourceTypes.REQUEST_PARAMETER_VALUE, paramName);
+      mod.taintObject(to, value, SourceTypes.REQUEST_PARAMETER_VALUE, paramName);
     }
 
     return v1;

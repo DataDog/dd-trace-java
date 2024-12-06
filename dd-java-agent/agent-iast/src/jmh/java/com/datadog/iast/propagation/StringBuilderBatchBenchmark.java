@@ -4,7 +4,7 @@ import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 
 import com.datadog.iast.IastRequestContext;
-import com.datadog.iast.model.Range;
+import com.datadog.iast.model.RangeImpl;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.instrumentation.java.lang.StringBuilderCallSite;
 import java.util.ArrayList;
@@ -36,7 +36,8 @@ public class StringBuilderBatchBenchmark
       final String value;
       if (current < limit) {
         value =
-            tainted(context, UUID.randomUUID().toString(), new Range(3, 6, source(), NOT_MARKED));
+            tainted(
+                context, UUID.randomUUID().toString(), new RangeImpl(3, 6, source(), NOT_MARKED));
       } else {
         value = notTainted(UUID.randomUUID().toString());
       }

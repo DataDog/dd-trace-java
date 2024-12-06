@@ -7,13 +7,9 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
-import datadog.trace.advice.ActiveRequestContext;
-import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
-import datadog.trace.api.gateway.RequestContext;
-import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Sink;
@@ -22,6 +18,7 @@ import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
 
@@ -56,32 +53,28 @@ public class IastRoutingContextImplInstrumentation extends InstrumenterModule.Ia
         className + "$RerouteAdvice");
   }
 
-  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class CookiesAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_COOKIE_VALUE)
-    public static void onCookies(
-        @Advice.Return final Set<Object> cookies, @ActiveRequestContext RequestContext reqCtx) {
+    public static void onCookies(@Advice.Return final Set<Object> cookies) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null && cookies != null && !cookies.isEmpty()) {
-        final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+        final TaintedObjects to = IastContext.Provider.taintedObjects();
         for (final Object cookie : cookies) {
-          module.taintObject(ctx, cookie, SourceTypes.REQUEST_COOKIE_VALUE);
+          module.taintObject(to, cookie, SourceTypes.REQUEST_COOKIE_VALUE);
         }
       }
     }
   }
 
-  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class GetCookieAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_COOKIE_VALUE)
-    public static void onGetCookie(
-        @Advice.Return final Object cookie, @ActiveRequestContext RequestContext reqCtx) {
+    public static void onGetCookie(@Advice.Return final Object cookie) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-        module.taintObject(ctx, cookie, SourceTypes.REQUEST_COOKIE_VALUE);
+        final TaintedObjects to = IastContext.Provider.taintedObjects();
+        module.taintObject(to, cookie, SourceTypes.REQUEST_COOKIE_VALUE);
       }
     }
   }

@@ -3,7 +3,7 @@ package com.datadog.iast.sensitive;
 import static datadog.trace.api.iast.sink.SqlInjectionModule.DATABASE_PARAMETER;
 
 import com.datadog.iast.model.Evidence;
-import com.datadog.iast.util.Ranged;
+import datadog.trace.api.iast.util.Ranged;
 import java.util.*;
 import java.util.function.Predicate;
 import java.util.function.Supplier;

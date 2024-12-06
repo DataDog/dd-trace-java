@@ -3,6 +3,7 @@ import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.propagation.PropagationModule
+import datadog.trace.api.iast.taint.TaintedObjects
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 
@@ -10,6 +11,7 @@ import datadog.trace.bootstrap.instrumentation.api.TagContext
 class MultipartInstrumentationTest extends AgentTestRunner {
 
   private Object iastCtx
+  private Object to
 
   @Override
   protected void configurePreAgent() {
@@ -18,7 +20,10 @@ class MultipartInstrumentationTest extends AgentTestRunner {
 
   @Override
   void setup() {
-    iastCtx = Stub(IastContext)
+    to = Stub(TaintedObjects)
+    iastCtx = Stub(IastContext) {
+      getTaintedObjects() >> to
+    }
   }
 
   @Override
@@ -41,8 +46,8 @@ class MultipartInstrumentationTest extends AgentTestRunner {
     }
 
     then:
-    1 * module.taintString(iastCtx, 'file', SourceTypes.REQUEST_MULTIPART_PARAMETER, 'name')
-    1 * module.taintString(iastCtx, _, SourceTypes.REQUEST_MULTIPART_PARAMETER, 'filename')
+    1 * module.taintObject(to, 'file', SourceTypes.REQUEST_MULTIPART_PARAMETER, 'name')
+    1 * module.taintObject(to, _, SourceTypes.REQUEST_MULTIPART_PARAMETER, 'filename')
     0 * _
 
     where:

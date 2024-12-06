@@ -3,6 +3,7 @@ import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.propagation.PropagationModule
+import datadog.trace.api.iast.taint.TaintedObjects
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import foo.bar.smoketest.MockPart
@@ -10,6 +11,7 @@ import foo.bar.smoketest.MockPart
 class JakartaMultipartInstrumentationTest extends AgentTestRunner {
 
   private Object iastCtx
+  private Object to
 
   @Override
   protected void configurePreAgent() {
@@ -17,7 +19,10 @@ class JakartaMultipartInstrumentationTest extends AgentTestRunner {
   }
 
   void setup() {
-    iastCtx = Stub(IastContext)
+    to = Stub(TaintedObjects)
+    iastCtx = Stub(IastContext) {
+      getTaintedObjects() >> to
+    }
   }
 
   @Override
@@ -35,7 +40,7 @@ class JakartaMultipartInstrumentationTest extends AgentTestRunner {
     runUnderIastTrace { part.getName() }
 
     then:
-    1 * module.taintString(iastCtx, 'partName', SourceTypes.REQUEST_MULTIPART_PARAMETER, 'Content-Disposition')
+    1 * module.taintObject(to, 'partName', SourceTypes.REQUEST_MULTIPART_PARAMETER, 'Content-Disposition')
     0 * _
   }
 
@@ -49,7 +54,7 @@ class JakartaMultipartInstrumentationTest extends AgentTestRunner {
     runUnderIastTrace { part.getHeader('headerName') }
 
     then:
-    1 * module.taintString(iastCtx, 'headerValue', SourceTypes.REQUEST_MULTIPART_PARAMETER, 'headerName')
+    1 * module.taintObject(to, 'headerValue', SourceTypes.REQUEST_MULTIPART_PARAMETER, 'headerName')
     0 * _
   }
 
@@ -63,7 +68,7 @@ class JakartaMultipartInstrumentationTest extends AgentTestRunner {
     runUnderIastTrace { part.getHeaders('headerName') }
 
     then:
-    1 * module.taintString(iastCtx, 'headerValue', SourceTypes.REQUEST_MULTIPART_PARAMETER, 'headerName')
+    1 * module.taintObject(to, 'headerValue', SourceTypes.REQUEST_MULTIPART_PARAMETER, 'headerName')
     0 * _
   }
 
@@ -77,7 +82,7 @@ class JakartaMultipartInstrumentationTest extends AgentTestRunner {
     runUnderIastTrace { part.getHeaderNames() }
 
     then:
-    1 * module.taintString(iastCtx, 'headerName', SourceTypes.REQUEST_MULTIPART_PARAMETER)
+    1 * module.taintObject(to, 'headerName', SourceTypes.REQUEST_MULTIPART_PARAMETER)
     0 * _
   }
 
@@ -92,7 +97,7 @@ class JakartaMultipartInstrumentationTest extends AgentTestRunner {
     runUnderIastTrace { part.getInputStream() }
 
     then:
-    1 * module.taintObject(iastCtx, inputStream, SourceTypes.REQUEST_MULTIPART_PARAMETER)
+    1 * module.taintObject(to, inputStream, SourceTypes.REQUEST_MULTIPART_PARAMETER)
     0 * _
   }
 

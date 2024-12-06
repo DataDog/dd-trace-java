@@ -1,11 +1,13 @@
 package com.datadog.iast.util
 
-import com.datadog.iast.model.Range
-import com.datadog.iast.model.Source
-import com.datadog.iast.taint.TaintedObjects
+import com.datadog.iast.model.RangeImpl
+import com.datadog.iast.model.SourceImpl
+import datadog.trace.api.iast.taint.Range
+import datadog.trace.api.iast.taint.TaintedObjects
 import spock.lang.Specification
 
 import java.util.regex.Pattern
+
 import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
 
 class StringUtilsTest extends Specification {
@@ -123,6 +125,6 @@ class StringUtilsTest extends Specification {
   }
 
   Range range(final int start, final int length, final String name = 'name', final String value = 'value') {
-    return new Range(start, length, new Source((byte) 1, name, value), NOT_MARKED)
+    return new RangeImpl(start, length, new SourceImpl((byte) 1, name, value), NOT_MARKED)
   }
 }

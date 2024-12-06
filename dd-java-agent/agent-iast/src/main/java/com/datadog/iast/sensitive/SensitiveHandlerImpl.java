@@ -7,9 +7,9 @@ import static java.util.regex.Pattern.CASE_INSENSITIVE;
 import static java.util.regex.Pattern.MULTILINE;
 
 import com.datadog.iast.model.Evidence;
-import com.datadog.iast.model.Source;
 import com.datadog.iast.model.VulnerabilityType;
 import datadog.trace.api.Config;
+import datadog.trace.api.iast.taint.Source;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Pattern;

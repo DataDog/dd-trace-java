@@ -3,14 +3,15 @@ package com.datadog.iast.propagation;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 import com.datadog.iast.IastSystem;
-import com.datadog.iast.model.Range;
-import com.datadog.iast.model.Source;
-import com.datadog.iast.taint.TaintedObjects;
+import com.datadog.iast.model.SourceImpl;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.gateway.InstrumentationGateway;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.IastContext;
+import datadog.trace.api.iast.taint.Range;
+import datadog.trace.api.iast.taint.Source;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -95,7 +96,7 @@ public abstract class AbstractBenchmark<C extends AbstractBenchmark.BenchmarkCon
   }
 
   protected Source source() {
-    return new Source((byte) 0, "key", "value");
+    return new SourceImpl((byte) 0, "key", "value");
   }
 
   private static long computeHash(final Object value) {

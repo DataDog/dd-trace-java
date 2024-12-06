@@ -1,9 +1,11 @@
 package com.datadog.iast.test
 
-import com.datadog.iast.model.Range
-import com.datadog.iast.model.Source
-import com.datadog.iast.taint.TaintedObject
-import com.datadog.iast.taint.TaintedObjects
+import com.datadog.iast.model.SourceImpl
+import datadog.trace.api.iast.taint.Range
+import datadog.trace.api.iast.taint.Source
+import com.datadog.iast.taint.TaintedObjectEntry
+import datadog.trace.api.iast.taint.TaintedObject
+import datadog.trace.api.iast.taint.TaintedObjects
 import groovy.transform.Canonical
 import groovy.transform.CompileStatic
 import org.hamcrest.BaseMatcher
@@ -23,7 +25,7 @@ import static org.hamcrest.Matchers.nullValue
 
 class TaintedObjectCollection {
   private final TaintedObjects taintedObjects // holds strong references to the tainted objects
-  private final List<TaintedObject> coll
+  private final List<TaintedObjectEntry> coll
 
   TaintedObjectCollection(TaintedObjects tobjs) {
     this.taintedObjects = tobjs
@@ -43,7 +45,7 @@ class TaintedObjectCollection {
     "TO{${to.get()}, ranges=${to.ranges}"
   }
 
-  static class MatchingDelegate extends BaseMatcher<TaintedObject> {
+  static class MatchingDelegate extends BaseMatcher<TaintedObjectEntry> {
     private Matcher valueMatcher
     List<RangeMatcher> ranges = []
 
@@ -92,10 +94,10 @@ class TaintedObjectCollection {
 
     @Override
     boolean matches(Object obj) {
-      if (!(obj instanceof TaintedObject)) {
+      if (!(obj instanceof TaintedObjectEntry)) {
         return false
       }
-      TaintedObject tobj = obj
+      TaintedObjectEntry tobj = obj
       valueMatcher.matches(tobj.get()) &&
         ranges.every { RangeMatcher rm ->
           tobj.ranges.any { range ->
@@ -125,11 +127,11 @@ class TaintedObjectCollection {
     }
 
     private boolean matchesName(final Source source) {
-      source.name == Source.GARBAGE_COLLECTED_REF || name.matches(source.name)
+      source.name == SourceImpl.GARBAGE_COLLECTED_REF || name.matches(source.name)
     }
 
     private boolean matchesValue(final Source source) {
-      source.value == Source.GARBAGE_COLLECTED_REF || value.matches(source.value)
+      source.value == SourceImpl.GARBAGE_COLLECTED_REF || value.matches(source.value)
     }
 
     @Override

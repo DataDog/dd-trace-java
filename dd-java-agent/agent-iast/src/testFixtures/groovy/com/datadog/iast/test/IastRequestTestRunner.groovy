@@ -1,11 +1,11 @@
 package com.datadog.iast.test
 
 import com.datadog.iast.IastRequestContext
-import com.datadog.iast.taint.TaintedObjects
 import datadog.trace.agent.test.utils.OkHttpUtils
 import datadog.trace.api.gateway.IGSpanInfo
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.api.iast.taint.TaintedObjects
 import okhttp3.OkHttpClient
 
 import java.util.concurrent.LinkedBlockingQueue

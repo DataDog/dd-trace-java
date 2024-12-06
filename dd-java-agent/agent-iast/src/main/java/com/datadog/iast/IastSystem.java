@@ -112,9 +112,9 @@ public class IastSystem {
   private static IastContext.Provider contextProvider(
       final ProductActivation iast, final boolean global) {
     if (iast != FULLY_ENABLED) {
-      return new IastOptOutContext.Provider();
+      return new IastOptOutContextProvider();
     } else {
-      return global ? new IastGlobalContext.Provider() : new IastRequestContext.Provider();
+      return global ? new IastGlobalContextProvider() : new IastRequestContext.Provider();
     }
   }
 

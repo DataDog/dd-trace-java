@@ -4,8 +4,9 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
-import datadog.trace.api.iast.Taintable
 import datadog.trace.api.iast.propagation.PropagationModule
+import datadog.trace.api.iast.taint.Source
+import datadog.trace.api.iast.taint.TaintedObjects
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import groovy.transform.CompileDynamic
@@ -23,6 +24,7 @@ import static datadog.trace.api.iast.SourceTypes.namedSource
 class MultiMapInstrumentationTest extends AgentTestRunner {
 
   private Object iastCtx
+  private Object to
 
   @Override
   protected void configurePreAgent() {
@@ -30,7 +32,10 @@ class MultiMapInstrumentationTest extends AgentTestRunner {
   }
 
   void setup() {
-    iastCtx = Stub(IastContext)
+    to = Stub(TaintedObjects)
+    iastCtx = Stub(IastContext) {
+      getTaintedObjects() >> to
+    }
   }
 
   void 'test that #name get() is instrumented'() {
@@ -44,15 +49,15 @@ class MultiMapInstrumentationTest extends AgentTestRunner {
     runUnderIastTrace { instance.get('key') }
 
     then:
-    1 * module.findSource(iastCtx, instance) >> { null }
+    1 * module.findSource(to, instance) >> { null }
     0 * _
 
     when:
     runUnderIastTrace { instance.get('key') }
 
     then:
-    1 * module.findSource(iastCtx, instance) >> { mockedSource(origin) }
-    1 * module.taintString(iastCtx, 'value', origin, 'key')
+    1 * module.findSource(to, instance) >> { mockedSource(origin) }
+    1 * module.taintObject(to, 'value', origin, 'key')
 
     where:
     instance << multiMaps()
@@ -70,16 +75,16 @@ class MultiMapInstrumentationTest extends AgentTestRunner {
     runUnderIastTrace { instance.getAll('key') }
 
     then:
-    1 * module.findSource(iastCtx, instance) >> { null }
+    1 * module.findSource(to, instance) >> { null }
     0 * _
 
     when:
     runUnderIastTrace { instance.getAll('key') }
 
     then:
-    1 * module.findSource(iastCtx, instance) >> { mockedSource(origin) }
-    1 * module.taintString(iastCtx, 'value1', origin, 'key')
-    1 * module.taintString(iastCtx, 'value2', origin, 'key')
+    1 * module.findSource(to, instance) >> { mockedSource(origin) }
+    1 * module.taintObject(to, 'value1', origin, 'key')
+    1 * module.taintObject(to, 'value2', origin, 'key')
 
     where:
     instance << multiMaps()
@@ -97,15 +102,15 @@ class MultiMapInstrumentationTest extends AgentTestRunner {
     runUnderIastTrace { instance.names() }
 
     then:
-    1 * module.findSource(iastCtx, instance) >> { null }
+    1 * module.findSource(to, instance) >> { null }
     0 * _
 
     when:
     runUnderIastTrace { instance.names() }
 
     then:
-    1 * module.findSource(iastCtx, instance) >> { mockedSource(origin) }
-    1 * module.taintString(iastCtx, 'key', namedSource(origin), 'key')
+    1 * module.findSource(to, instance) >> { mockedSource(origin) }
+    1 * module.taintObject(to, 'key', namedSource(origin), 'key')
 
     where:
     instance << multiMaps()
@@ -125,17 +130,17 @@ class MultiMapInstrumentationTest extends AgentTestRunner {
     runUnderIastTrace { instance.entries() }
 
     then:
-    1 * module.findSource(iastCtx, instance) >> { null }
+    1 * module.findSource(to, instance) >> { null }
     0 * _
 
     when:
     runUnderIastTrace { instance.entries() }
 
     then:
-    1 * module.findSource(iastCtx, instance) >> { mockedSource(origin) }
-    1 * module.taintString(iastCtx, 'key', namedSource(origin), 'key')
-    1 * module.taintString(iastCtx, 'value1', origin, 'key')
-    1 * module.taintString(iastCtx, 'value2', origin, 'key')
+    1 * module.findSource(to, instance) >> { mockedSource(origin) }
+    1 * module.taintObject(to, 'key', namedSource(origin), 'key')
+    1 * module.taintObject(to, 'value1', origin, 'key')
+    1 * module.taintObject(to, 'value2', origin, 'key')
 
     where:
     instance << multiMaps()
@@ -153,7 +158,7 @@ class MultiMapInstrumentationTest extends AgentTestRunner {
   }
 
   private mockedSource(final byte origin) {
-    return Mock(Taintable.Source) {
+    return Mock(Source) {
       getOrigin() >> origin
     }
   }

@@ -4,10 +4,12 @@ import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
 
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastCallSites;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.CodecModule;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import java.nio.charset.Charset;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -148,7 +150,8 @@ public class StringFullDetectionCallSite {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.taintObjectIfTainted(result, self, true, NOT_MARKED);
+        final TaintedObjects to = IastContext.Provider.taintedObjects();
+        module.taintObjectIfTainted(to, result, self, true, NOT_MARKED);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterToCharArray threw", e);
       }

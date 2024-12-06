@@ -2,6 +2,7 @@ package datadog.trace.agent.tooling.bytebuddy.iast
 
 import datadog.trace.agent.tooling.bytebuddy.LoadedTaintableClass
 import datadog.trace.api.iast.Taintable
+import datadog.trace.api.iast.taint.Source
 import datadog.trace.test.util.DDSpecification
 import net.bytebuddy.ByteBuddy
 import net.bytebuddy.agent.ByteBuddyAgent
@@ -31,7 +32,7 @@ class TaintableVisitorTest extends DDSpecification {
   void 'test taintable visitor'() {
     given:
     final className = 'datadog.trace.agent.tooling.bytebuddy.iast.TaintableTest'
-    final source = Mock(Taintable.Source)
+    final source = Mock(Source)
     final builder = new ByteBuddy()
       .subclass(Object)
       .name(className)
@@ -66,7 +67,7 @@ class TaintableVisitorTest extends DDSpecification {
   void 'test taintable visitor with existing interface'() {
     given:
     final className = 'datadog.trace.agent.tooling.bytebuddy.iast.TaintableTest'
-    final source = Mock(Taintable.Source)
+    final source = Mock(Source)
     final builder = new ByteBuddy()
       .subclass(Cloneable)
       .name(className)

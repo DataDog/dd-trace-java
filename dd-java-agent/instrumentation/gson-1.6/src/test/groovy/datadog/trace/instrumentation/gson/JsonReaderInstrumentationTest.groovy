@@ -23,13 +23,13 @@ class JsonReaderInstrumentationTest extends AgentTestRunner {
     final reader = new JsonReader(new StringReader(json))
 
     then:
-    1 * module.taintObjectIfTainted(_ as JsonReader, _ as StringReader)
+    1 * module.taintObjectIfTainted(_, _ as JsonReader, _ as StringReader)
 
     when:
     gson.fromJson(reader, clazz)
 
     then:
-    calls * module.taintStringIfTainted(_ as String, _ as JsonReader)
+    calls * module.taintObjectIfTainted(_, _ as String, _ as JsonReader)
     0 * _
 
     where:

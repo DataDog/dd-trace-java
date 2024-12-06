@@ -3,8 +3,8 @@ package datadog.trace.bootstrap.instrumentation.iast
 
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
-import datadog.trace.api.iast.Taintable.Source
 import datadog.trace.api.iast.propagation.PropagationModule
+import datadog.trace.api.iast.taint.Source
 import datadog.trace.bootstrap.ContextStore
 import datadog.trace.test.util.DDSpecification
 
@@ -31,14 +31,14 @@ class NamedContextTest extends DDSpecification {
 
     then:
     1 * store.get(target) >> null
-    1 * module.findSource(target) >> source
+    1 * module.findSource(_, target) >> source
     1 * store.put(target, _)
 
     when:
     context.taintName(name)
 
     then:
-    1 * module.taintString(_, name, source.origin, name, source.value)
+    1 * module.taintObject(_, name, source.origin, name, source.value)
 
     when:
     context.taintName(name)
@@ -50,7 +50,7 @@ class NamedContextTest extends DDSpecification {
     context.taintValue(value)
 
     then:
-    1 * module.taintString(_, value, source.origin, name, source.value)
+    1 * module.taintObject(_, value, source.origin, name, source.value)
     0 * _
   }
 
@@ -62,7 +62,7 @@ class NamedContextTest extends DDSpecification {
     final ctx = NamedContext.getOrCreate(store, target)
 
     then:
-    1 * module.findSource(target) >> null
+    1 * module.findSource(_, target) >> null
     1 * store.put(target, _)
 
     when:
@@ -82,5 +82,20 @@ class NamedContextTest extends DDSpecification {
     byte origin
     String name
     String value
+
+    @Override
+    Source attachValue(Object newValue) {
+      return new SourceImpl(origin: origin, name: name, value: newValue as String)
+    }
+
+    @Override
+    boolean isReference() {
+      return false
+    }
+
+    @Override
+    Object getRawValue() {
+      return value
+    }
   }
 }

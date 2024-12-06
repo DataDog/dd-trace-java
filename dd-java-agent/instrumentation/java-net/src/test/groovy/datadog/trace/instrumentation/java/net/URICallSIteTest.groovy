@@ -60,14 +60,14 @@ class URICallSIteTest extends AgentTestRunner {
     TestURICallSiteSuite.&"$method".call(args as Object[])
 
     then:
-    1 * module."taint${target}IfTainted"(_, _ as URI, keepRanges, _)
+    1 * module.taintObjectIfTainted(_, _, _ as URI, keepRanges, _)
 
     where:
-    method          | target   | args                                                           | keepRanges
-    'normalize'     | 'Object' | [new URI('http://test.com/index?name=value#fragment')]         | true
-    'normalize'     | 'Object' | [new URI('http://test.com/test/../index?name=value#fragment')] | false
-    'toASCIIString' | 'String' | [new URI('http://test.com/index?name=value#fragment')]         | true
-    'toASCIIString' | 'String' | [new URI('http://test.com/漢/index?name=value#fragment')]      | false
-    'toString'      | 'String' | [new URI('http://test.com/index?name=value#fragment')]         | true
+    method          | args                                                           | keepRanges
+    'normalize'     | [new URI('http://test.com/index?name=value#fragment')]         | true
+    'normalize'     | [new URI('http://test.com/test/../index?name=value#fragment')] | false
+    'toASCIIString' | [new URI('http://test.com/index?name=value#fragment')]         | true
+    'toASCIIString' | [new URI('http://test.com/漢/index?name=value#fragment')]      | false
+    'toString'      | [new URI('http://test.com/index?name=value#fragment')]         | true
   }
 }

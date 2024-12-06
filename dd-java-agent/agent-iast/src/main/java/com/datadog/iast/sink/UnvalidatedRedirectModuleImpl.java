@@ -7,10 +7,10 @@ import static com.datadog.iast.util.HttpHeader.REFERER;
 
 import com.datadog.iast.Dependencies;
 import com.datadog.iast.model.Location;
-import com.datadog.iast.model.Range;
 import com.datadog.iast.model.VulnerabilityType;
 import com.datadog.iast.util.RangeBuilder;
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule;
+import datadog.trace.api.iast.taint.Range;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.net.URI;
 import javax.annotation.Nonnull;

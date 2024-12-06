@@ -17,7 +17,7 @@ class StringReaderCallSiteTest extends BaseIoCallSiteTest {
     TestStringReaderSuite.init(input)
 
     then:
-    1 * iastModule.taintObjectIfTainted(_ as StringReader, input)
+    1 * iastModule.taintObjectIfTainted(_, _ as StringReader, input)
   }
 
   void 'test super call to StringReader.<init>'() {
@@ -32,6 +32,7 @@ class StringReaderCallSiteTest extends BaseIoCallSiteTest {
     then:
     // new StringReader
     3 * iastModule.taintObjectIfTainted(
+      _,
       { it -> !(it instanceof TestCustomStringReader) },
       { String it ->
         it.startsWith("New") }
@@ -39,6 +40,7 @@ class StringReaderCallSiteTest extends BaseIoCallSiteTest {
 
     // super(...)
     1 * iastModule.taintObjectIfTainted(
+      _,
       { it instanceof TestCustomStringReader },
       { String it -> it.startsWith("Super") })
   }

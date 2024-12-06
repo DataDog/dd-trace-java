@@ -6,17 +6,14 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
-import datadog.trace.advice.ActiveRequestContext;
-import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.gateway.RequestContext;
-import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import net.bytebuddy.asm.Advice;
 
 /**
@@ -46,12 +43,10 @@ public class PathMatcherInstrumentation extends InstrumenterModule.Iast
         PathMatcherInstrumentation.class.getName() + "$PathMatcherAdvice");
   }
 
-  @RequiresRequestContext(RequestContextSlot.IAST)
   static class PathMatcherAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_PATH_PARAMETER)
-    static void onExit(
-        @Advice.Argument(1) Object extractions, @ActiveRequestContext RequestContext reqCtx) {
+    static void onExit(@Advice.Argument(1) Object extractions) {
       if (!(extractions instanceof scala.Tuple1)) {
         return;
       }
@@ -65,14 +60,14 @@ public class PathMatcherInstrumentation extends InstrumenterModule.Iast
       }
       final String stringValue = (String) value;
 
-      final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+      final TaintedObjects to = IastContext.Provider.taintedObjects();
 
       // in the test, 4 instances of PathMatcher$Match are created, all with the same value
-      if (module.isTainted(ctx, stringValue)) {
+      if (module.isTainted(to, stringValue)) {
         return;
       }
 
-      module.taintString(ctx, stringValue, SourceTypes.REQUEST_PATH_PARAMETER);
+      module.taintObject(to, stringValue, SourceTypes.REQUEST_PATH_PARAMETER);
     }
   }
 }

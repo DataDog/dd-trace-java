@@ -2,6 +2,7 @@ package datadog.trace.api.iast;
 
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.io.Closeable;
@@ -16,7 +17,7 @@ public interface IastContext extends Closeable {
    * {@code TaintedObject} class from here, we use a dirty generics hack.
    */
   @Nonnull
-  <TO> TO getTaintedObjects();
+  TaintedObjects getTaintedObjects();
 
   enum Mode {
     GLOBAL,
@@ -32,16 +33,16 @@ public interface IastContext extends Closeable {
     }
 
     /**
-     * Gets an active IAST context, there are two possibilities:
+     * Gets the current tainted objects, there are two possibilities:
      *
      * <ul>
-     *   <li>dd.iast.context.mode=GLOBAL: It returns the global IAST context instance
+     *   <li>dd.iast.context.mode=GLOBAL: It returns the global IAST tainted objects instance
      *   <li>dd.iast.context.mode=REQUEST: Fetches the active request context and extracts the IAST
-     *       context, {@code null} if there is no active request context
+     *       tainted objects, {@code null} if there is no active request context
      * </ul>
      */
     @Nullable
-    public abstract IastContext resolve();
+    public abstract TaintedObjects resolveTaintedObjects();
 
     /** Builds a new context to be scoped to the request */
     public abstract IastContext buildRequestContext();
@@ -50,17 +51,24 @@ public interface IastContext extends Closeable {
     public abstract void releaseRequestContext(@Nonnull IastContext context);
 
     /**
-     * Gets the current active IAST context, if no provider is configured this method defaults to
-     * fetching the current request context
+     * Gets the current active tainted objects dictionary, if no provider is configured this method
+     * defaults to fetching the dictionary included in the current request context
      *
-     * @see Provider#resolve()
+     * @see Provider#taintedObjects()
      */
     @Nullable
-    public static IastContext get() {
+    public static TaintedObjects taintedObjects() {
       if (INSTANCE == null) {
-        return get(AgentTracer.activeSpan());
+        final IastContext ctx = get();
+        return ctx == null ? null : ctx.getTaintedObjects();
       }
-      return INSTANCE.resolve();
+      return INSTANCE.resolveTaintedObjects();
+    }
+
+    /** Gets the current active IAST context */
+    @Nullable
+    public static IastContext get() {
+      return get(AgentTracer.activeSpan());
     }
 
     /** Gets the current IAST context associated with the request context inside the span */

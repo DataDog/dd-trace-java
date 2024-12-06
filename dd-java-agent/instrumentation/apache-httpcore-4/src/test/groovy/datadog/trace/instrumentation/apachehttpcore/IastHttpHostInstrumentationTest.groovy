@@ -21,12 +21,12 @@ class IastHttpHostInstrumentationTest extends AgentTestRunner {
     HttpHost.newInstance(*args)
 
     then:
-    1 * module.taintObjectIfTainted( _ as HttpHost, 'localhost')
+    1 * module.taintObjectIfTainted(_, _ as HttpHost, 'localhost')
 
     where:
-    args | _
-    ['localhost'] | _
-    ['localhost', 8080] | _
+    args                        | _
+    ['localhost']               | _
+    ['localhost', 8080]         | _
     ['localhost', 8080, 'http'] | _
   }
 
@@ -41,7 +41,7 @@ class IastHttpHostInstrumentationTest extends AgentTestRunner {
     httpHost.toURI()
 
     then:
-    1 * module.taintObjectIfTainted(result, _ as HttpHost)
+    1 * module.taintObjectIfTainted(_, result, _ as HttpHost)
 
     where:
     hostname    | _

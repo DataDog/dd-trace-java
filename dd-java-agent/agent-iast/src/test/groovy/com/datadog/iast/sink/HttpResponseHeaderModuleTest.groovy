@@ -6,10 +6,10 @@ import com.datadog.iast.Reporter
 import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityType
 import com.datadog.iast.overhead.Operations
-import com.datadog.iast.taint.TaintedObjects
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.HeaderInjectionModule
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule
+import datadog.trace.api.iast.taint.TaintedObjects
 import datadog.trace.api.iast.util.Cookie
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 

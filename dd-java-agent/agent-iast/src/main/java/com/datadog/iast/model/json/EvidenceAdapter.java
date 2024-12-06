@@ -1,22 +1,23 @@
 package com.datadog.iast.model.json;
 
 import static com.datadog.iast.model.json.TruncationUtils.writeTruncableValue;
+import static com.datadog.iast.taint.Ranges.getMarkedVulnerabilities;
 
 import com.datadog.iast.model.Evidence;
-import com.datadog.iast.model.Range;
-import com.datadog.iast.model.Source;
 import com.datadog.iast.model.Vulnerability;
 import com.datadog.iast.model.VulnerabilityType;
 import com.datadog.iast.model.json.AdapterFactory.Context;
 import com.datadog.iast.model.json.AdapterFactory.RedactionContext;
+import com.datadog.iast.model.json.AdapterFactory.SourceIndexAdapter;
 import com.datadog.iast.sensitive.SensitiveHandler;
 import com.datadog.iast.sensitive.SensitiveHandler.Tokenizer;
-import com.datadog.iast.util.Ranged;
 import com.datadog.iast.util.RangedDeque;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonWriter;
-import com.squareup.moshi.Moshi;
 import datadog.trace.api.Config;
+import datadog.trace.api.iast.taint.Range;
+import datadog.trace.api.iast.taint.Source;
+import datadog.trace.api.iast.util.Ranged;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -43,8 +44,8 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
   private final JsonAdapter<Evidence> defaultAdapter;
   private final JsonAdapter<Evidence> redactedAdapter;
 
-  public EvidenceAdapter(@Nonnull final Moshi moshi) {
-    sourceAdapter = moshi.adapter(Source.class, SourceIndex.class);
+  public EvidenceAdapter() {
+    sourceAdapter = new SourceIndexAdapter();
     defaultAdapter = new DefaultEvidenceAdapter();
     redactedAdapter = new RedactedEvidenceAdapter();
   }
@@ -143,7 +144,7 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
       if (range != null) {
         writer.name("source");
         sourceAdapter.toJson(writer, range.getSource());
-        writeSecureMarks(writer, range.getMarkedVulnerabilities());
+        writeSecureMarks(writer, getMarkedVulnerabilities(range));
       }
       writer.endObject();
     }
@@ -422,7 +423,7 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
               .sorted(Comparator.comparing(Ranged::getStart))
               .collect(Collectors.toList());
 
-      this.markedTypes = range.getMarkedVulnerabilities();
+      this.markedTypes = getMarkedVulnerabilities(range);
     }
 
     @Override

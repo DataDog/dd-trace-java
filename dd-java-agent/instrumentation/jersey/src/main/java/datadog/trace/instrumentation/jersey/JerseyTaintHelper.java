@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.jersey;
 
-import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import java.util.List;
 import java.util.Map;
 
@@ -11,7 +11,7 @@ public abstract class JerseyTaintHelper {
   private JerseyTaintHelper() {}
 
   public static void taintMultiValuedMap(
-      final IastContext ctx,
+      final TaintedObjects to,
       final PropagationModule module,
       final byte type,
       final Map<String, List<String>> target) {
@@ -20,16 +20,16 @@ public abstract class JerseyTaintHelper {
     for (Map.Entry<String, List<String>> entry : target.entrySet()) {
       final String name = entry.getKey();
       if (reportName) {
-        module.taintString(ctx, name, nameType, name);
+        module.taintObject(to, name, nameType, name);
       }
       for (String value : entry.getValue()) {
-        module.taintString(ctx, value, type, name);
+        module.taintObject(to, value, type, name);
       }
     }
   }
 
   public static void taintMap(
-      final IastContext ctx,
+      final TaintedObjects to,
       final PropagationModule module,
       final byte type,
       final Map<?, ?> target) {
@@ -40,15 +40,15 @@ public abstract class JerseyTaintHelper {
       if (key instanceof String) {
         final String name = (String) key;
         if (reportName) {
-          module.taintString(ctx, name, nameType, name);
+          module.taintObject(to, name, nameType, name);
         }
         final Object value = entry.getValue();
         if (value instanceof String) {
-          module.taintString(ctx, (String) value, type, name);
+          module.taintObject(to, value, type, name);
         } else if (value instanceof List) {
           for (final Object item : (List<?>) value) {
             if (item instanceof String) {
-              module.taintString(ctx, (String) item, type, name);
+              module.taintObject(to, item, type, name);
             }
           }
         }

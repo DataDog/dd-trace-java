@@ -1,5 +1,7 @@
 package com.datadog.iast.model
 
+import com.datadog.iast.taint.Ranges
+
 import static com.datadog.iast.model.VulnerabilityType.SQL_INJECTION
 import static com.datadog.iast.model.VulnerabilityType.XSS
 import datadog.trace.api.iast.SourceTypes
@@ -16,8 +18,8 @@ class RangeTest extends DDSpecification {
 
   def 'shift'() {
     given:
-    final source = new Source(SourceTypes.NONE, null, null)
-    final orig = new Range(start, length, source, SQL_INJECTION_MARK)
+    final source = new SourceImpl(SourceTypes.NONE, null, null)
+    final orig = new RangeImpl(start, length, source, SQL_INJECTION_MARK)
 
     when:
     final result = orig.shift(shift)
@@ -42,8 +44,8 @@ class RangeTest extends DDSpecification {
 
   def 'shift zero'() {
     given:
-    final source = new Source(SourceTypes.NONE, null, null)
-    final orig = new Range(0, 1, source, NOT_MARKED)
+    final source = new SourceImpl(SourceTypes.NONE, null, null)
+    final orig = new RangeImpl(0, 1, source, NOT_MARKED)
 
     when:
     final result = orig.shift(0)
@@ -56,11 +58,11 @@ class RangeTest extends DDSpecification {
 
   void 'test getMarkedVulnerabilities #marks'() {
     given:
-    final source = new Source(SourceTypes.NONE, null, null)
-    final range = new Range(0, 1, source, marks)
+    final source = new SourceImpl(SourceTypes.NONE, null, null)
+    final range = new RangeImpl(0, 1, source, marks)
 
     when:
-    final vulnerabilities = range.getMarkedVulnerabilities()
+    final vulnerabilities = Ranges.getMarkedVulnerabilities(range)
 
     then:
     vulnerabilities == expected

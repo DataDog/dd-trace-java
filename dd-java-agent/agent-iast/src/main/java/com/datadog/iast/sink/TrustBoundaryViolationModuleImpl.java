@@ -2,7 +2,6 @@ package com.datadog.iast.sink;
 
 import com.datadog.iast.Dependencies;
 import com.datadog.iast.model.VulnerabilityType;
-import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.sink.TrustBoundaryViolationModule;
 import datadog.trace.util.ClassNameTrie;
 import java.util.Map;
@@ -28,10 +27,6 @@ public class TrustBoundaryViolationModuleImpl extends SinkModuleBase
 
   @Override
   public void onSessionValue(@Nonnull String name, Object value) {
-    final IastContext ctx = IastContext.Provider.get();
-    if (ctx == null) {
-      return;
-    }
     checkInjection(VulnerabilityType.TRUST_BOUNDARY_VIOLATION, name);
     if (value != null) {
       checkInjectionDeeply(

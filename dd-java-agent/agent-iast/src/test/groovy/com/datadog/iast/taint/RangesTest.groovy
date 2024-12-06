@@ -1,7 +1,8 @@
 package com.datadog.iast.taint
 
-import com.datadog.iast.model.Range
-import com.datadog.iast.model.Source
+import com.datadog.iast.model.RangeImpl
+import com.datadog.iast.model.SourceImpl
+import datadog.trace.api.iast.taint.Range
 import com.datadog.iast.model.VulnerabilityType
 import datadog.trace.api.Config
 import datadog.trace.api.iast.SourceTypes
@@ -23,7 +24,7 @@ class RangesTest extends DDSpecification {
 
   void 'forString'() {
     given:
-    final source = new Source(SourceTypes.NONE, null, null)
+    final source = new SourceImpl(SourceTypes.NONE, null, null)
 
     when:
     final result = Ranges.forCharSequence(s, source, VulnerabilityMarks.SQL_INJECTION_MARK)
@@ -76,7 +77,7 @@ class RangesTest extends DDSpecification {
 
   void 'forObject'() {
     given:
-    final source = new Source(SourceTypes.NONE, null, null)
+    final source = new SourceImpl(SourceTypes.NONE, null, null)
 
     when:
     final result = Ranges.forObject(source, VulnerabilityMarks.SQL_INJECTION_MARK)
@@ -92,10 +93,10 @@ class RangesTest extends DDSpecification {
 
   void 'highestPriorityRange'() {
     given:
-    final range1 = new Range(0, 1, null, NOT_MARKED)
-    final range2 = new Range(0, 1, null, VulnerabilityMarks.SQL_INJECTION_MARK)
-    final range3 = new Range(0, 1, null, NOT_MARKED)
-    final range4 = new Range(0, 1, null, NEGATIVE_MARK)
+    final range1 = new RangeImpl(0, 1, null, NOT_MARKED)
+    final range2 = new RangeImpl(0, 1, null, VulnerabilityMarks.SQL_INJECTION_MARK)
+    final range3 = new RangeImpl(0, 1, null, NOT_MARKED)
+    final range4 = new RangeImpl(0, 1, null, NEGATIVE_MARK)
     final Range[] allNotMarked = [range1, range3]
     final Range[] notAllMarked = [range1, range2, range3, range4]
     final Range[] allMarked = [range2, range4]
@@ -121,8 +122,8 @@ class RangesTest extends DDSpecification {
 
   void 'copyWithPosition'() {
     given:
-    final source = new Source(SourceTypes.NONE, null, null)
-    final range = new Range(0, 1, source, VulnerabilityMarks.SQL_INJECTION_MARK)
+    final source = new SourceImpl(SourceTypes.NONE, null, null)
+    final range = new RangeImpl(0, 1, source, VulnerabilityMarks.SQL_INJECTION_MARK)
 
     when:
     final result = Ranges.copyWithPosition(range, 2, 4)
@@ -138,10 +139,10 @@ class RangesTest extends DDSpecification {
   void 'getNotMarkedRanges'(final int mark) {
     given:
 
-    final range1 = new Range(0, 1, null, NOT_MARKED)
-    final range2 = new Range(0, 1, null, mark)
-    final range3 = new Range(0, 1, null, NOT_MARKED)
-    final range4 = new Range(0, 1, null, mark)
+    final range1 = new RangeImpl(0, 1, null, NOT_MARKED)
+    final range2 = new RangeImpl(0, 1, null, mark)
+    final range3 = new RangeImpl(0, 1, null, NOT_MARKED)
+    final range4 = new RangeImpl(0, 1, null, mark)
     final Range[] allNotMarked = [range1, range3]
     final Range[] notAllMarked = [range1, range2, range3, range4]
     final Range[] allMarked = [range2, range4]
@@ -385,36 +386,36 @@ class RangesTest extends DDSpecification {
       if (spec[i] == null) {
         continue
       }
-      ranges[i] = new Range(
+      ranges[i] = new RangeImpl(
         spec[i][0] as int,
         spec[i][1] as int,
-        new Source(SourceTypes.NONE, String.valueOf(j), null),
+        new SourceImpl(SourceTypes.NONE, String.valueOf(j), null),
         NOT_MARKED)
       j++
     }
     ranges
   }
 
-  TaintedObject ranged(final int rangeCount) {
+  TaintedObjectEntry ranged(final int rangeCount) {
     final Range[] ranges = new Range[rangeCount]
-    return Mock(TaintedObject) {
+    return Mock(TaintedObjectEntry) {
       getRanges() >> ranges
     }
   }
 
   Range rangeFor(final int index) {
-    return new Range(index, 1, new Source(REQUEST_HEADER_NAME, 'a', 'b'), NOT_MARKED)
+    return new RangeImpl(index, 1, new SourceImpl(REQUEST_HEADER_NAME, 'a', 'b'), NOT_MARKED)
   }
 
   Range rangeWithSource(final byte source, final String name = 'name', final String value = 'value') {
-    return new Range(0, 10, new Source(source, name, value), NOT_MARKED)
+    return new RangeImpl(0, 10, new SourceImpl(source, name, value), NOT_MARKED)
   }
 
   Range range(final int start, final int length) {
-    return new Range(start, length, new Source(REQUEST_HEADER_NAME, 'a', 'b'), NOT_MARKED)
+    return new RangeImpl(start, length, new SourceImpl(REQUEST_HEADER_NAME, 'a', 'b'), NOT_MARKED)
   }
 
   Range rangeWithSource(final int start, final int length, final byte source, final String name = 'name', final String value = 'value') {
-    return new Range(start, length, new Source(source, name, value), NOT_MARKED)
+    return new RangeImpl(start, length, new SourceImpl(source, name, value), NOT_MARKED)
   }
 }

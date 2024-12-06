@@ -2,24 +2,23 @@ package com.datadog.iast.model;
 
 import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
 
-import com.datadog.iast.model.json.SourceIndex;
-import com.datadog.iast.util.Ranged;
-import java.util.HashSet;
+import datadog.trace.api.iast.taint.Range;
+import datadog.trace.api.iast.taint.Source;
+import datadog.trace.api.iast.util.Ranged;
 import java.util.Objects;
-import java.util.Set;
 import java.util.StringJoiner;
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
-public final class Range implements Ranged {
+public final class RangeImpl implements Ranged, Range {
 
   private final @Nonnegative int start;
   private final @Nonnegative int length;
-  private final @Nonnull @SourceIndex Source source;
+  private final @Nonnull Source source;
   private final int marks;
 
-  public Range(final int start, final int length, @Nonnull final Source source, final int marks) {
+  public RangeImpl(
+      final int start, final int length, @Nonnull final Source source, final int marks) {
     this.start = start;
     this.length = length;
     this.source = source;
@@ -54,7 +53,9 @@ public final class Range implements Ranged {
       return false;
     }
     Range range = (Range) o;
-    return start == range.start && length == range.length && Objects.equals(source, range.source);
+    return start == range.getStart()
+        && length == range.getLength()
+        && Objects.equals(source, range.getSource());
   }
 
   @Override
@@ -79,9 +80,10 @@ public final class Range implements Ranged {
     if (offset == 0) {
       return this;
     }
-    return new Range(start + offset, length, source, marks);
+    return new RangeImpl(start + offset, length, source, marks);
   }
 
+  @Override
   public boolean isMarked(final int mark) {
     return (marks & mark) != NOT_MARKED;
   }
@@ -91,20 +93,10 @@ public final class Range implements Ranged {
     if (!source.isReference()) {
       return this;
     }
-    return new Range(
-        start, length, new Source(source.getOrigin(), source.getName(), source.getValue()), marks);
-  }
-
-  public @Nullable Set<VulnerabilityType> getMarkedVulnerabilities() {
-    if (marks == NOT_MARKED) {
-      return null;
-    }
-    Set<VulnerabilityType> vulnerabilities = new HashSet<>();
-    for (VulnerabilityType type : VulnerabilityType.MARKED_VULNERABILITIES) {
-      if ((marks & type.mark()) != 0) {
-        vulnerabilities.add(type);
-      }
-    }
-    return vulnerabilities;
+    return new RangeImpl(
+        start,
+        length,
+        new SourceImpl(source.getOrigin(), source.getName(), source.getValue()),
+        marks);
   }
 }

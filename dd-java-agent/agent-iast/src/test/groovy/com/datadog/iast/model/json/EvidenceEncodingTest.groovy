@@ -1,11 +1,14 @@
 package com.datadog.iast.model.json
 
 import com.datadog.iast.model.Evidence
-import com.datadog.iast.model.Range
-import com.datadog.iast.model.Source
+import com.datadog.iast.model.RangeImpl
+import com.datadog.iast.model.SourceImpl
 import com.squareup.moshi.JsonAdapter
 import com.squareup.moshi.Moshi
 import datadog.trace.api.config.IastConfig
+import datadog.trace.api.iast.taint.Range
+import datadog.trace.api.iast.taint.Source
+
 import static datadog.trace.api.iast.VulnerabilityMarks.XSS_MARK
 import datadog.trace.test.util.DDSpecification
 import org.skyscreamer.jsonassert.JSONAssert
@@ -15,7 +18,7 @@ import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
 
 class EvidenceEncodingTest extends DDSpecification {
 
-  private static final List<Source> SOURCES_SUITE = (0..2).collect { new Source((byte) it, "name$it", "value$it") }
+  private static final List<Source> SOURCES_SUITE = (0..2).collect { new SourceImpl((byte) it, "name$it", "value$it") }
 
   @Shared
   private JsonAdapter<Evidence> evidenceAdapter
@@ -31,7 +34,6 @@ class EvidenceEncodingTest extends DDSpecification {
     AdapterFactory.Context.set(context)
 
     evidenceAdapter = new Moshi.Builder()
-      .add(new SourceTypeAdapter())
       .add(new AdapterFactory())
       .build()
       .adapter(Evidence)
@@ -73,7 +75,7 @@ class EvidenceEncodingTest extends DDSpecification {
   }
 
   private static Range range(final int start, final int length, final Source source, final int mark) {
-    return new Range(start, length, source, mark)
+    return new RangeImpl(start, length, source, mark)
   }
 
   private static Source source(final int index) {

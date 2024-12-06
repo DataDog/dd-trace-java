@@ -7,21 +7,22 @@ import com.datadog.iast.Dependencies;
 import com.datadog.iast.Reporter;
 import com.datadog.iast.model.Evidence;
 import com.datadog.iast.model.Location;
-import com.datadog.iast.model.Range;
-import com.datadog.iast.model.Source;
+import com.datadog.iast.model.RangeImpl;
 import com.datadog.iast.model.Vulnerability;
 import com.datadog.iast.model.VulnerabilityType;
 import com.datadog.iast.overhead.Operations;
 import com.datadog.iast.overhead.OverheadController;
 import com.datadog.iast.taint.Ranges;
-import com.datadog.iast.taint.TaintedObject;
-import com.datadog.iast.taint.TaintedObjects;
 import com.datadog.iast.util.ObjectVisitor;
 import com.datadog.iast.util.RangeBuilder;
 import datadog.trace.api.Config;
 import datadog.trace.api.Pair;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.Taintable;
+import datadog.trace.api.iast.taint.Range;
+import datadog.trace.api.iast.taint.Source;
+import datadog.trace.api.iast.taint.TaintedObject;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.instrumentation.iastinstrumenter.IastExclusionTrie;
@@ -95,26 +96,26 @@ public abstract class SinkModuleBase {
   @Nullable
   protected final Evidence checkInjection(
       final VulnerabilityType type,
-      final Object value,
+      Object value,
       @Nullable final EvidenceBuilder evidenceBuilder,
       @Nullable final LocationSupplier locationSupplier) {
-    final IastContext ctx = IastContext.Provider.get();
-    if (ctx == null) {
+
+    final TaintedObjects to = IastContext.Provider.taintedObjects();
+    if (to == null) {
       return null;
     }
 
-    return checkInjection(ctx, type, value, evidenceBuilder, locationSupplier);
+    return checkInjection(to, type, value, evidenceBuilder, locationSupplier);
   }
 
   @Nullable
   protected final Evidence checkInjection(
-      final IastContext ctx,
+      final TaintedObjects to,
       final VulnerabilityType type,
       Object value,
       @Nullable final EvidenceBuilder evidenceBuilder,
       @Nullable final LocationSupplier locationSupplier) {
 
-    final TaintedObjects to = ctx.getTaintedObjects();
     final Range[] valueRanges;
     if (value instanceof Taintable) {
       final Taintable taintable = (Taintable) value;
@@ -187,12 +188,22 @@ public abstract class SinkModuleBase {
       final Iterator<?> items,
       @Nullable final EvidenceBuilder evidenceBuilder,
       @Nullable final LocationSupplier locationSupplier) {
-    final IastContext ctx = IastContext.Provider.get();
-    if (ctx == null) {
+    final TaintedObjects to = IastContext.Provider.taintedObjects();
+    if (to == null) {
       return null;
     }
 
-    final TaintedObjects to = ctx.getTaintedObjects();
+    return checkInjection(to, type, items, evidenceBuilder, locationSupplier);
+  }
+
+  @Nullable
+  protected final Evidence checkInjection(
+      final TaintedObjects to,
+      final VulnerabilityType type,
+      final Iterator<?> items,
+      @Nullable final EvidenceBuilder evidenceBuilder,
+      @Nullable final LocationSupplier locationSupplier) {
+
     final StringBuilder evidence = new StringBuilder();
     final RangeBuilder ranges = new RangeBuilder();
     boolean spanFetched = false;
@@ -259,13 +270,12 @@ public abstract class SinkModuleBase {
       final Predicate<Class<?>> filter,
       @Nullable final EvidenceBuilder evidenceBuilder,
       @Nullable final LocationSupplier locationSupplier) {
-    final IastContext ctx = IastContext.Provider.get();
-    if (ctx == null) {
+    final TaintedObjects to = IastContext.Provider.taintedObjects();
+    if (to == null) {
       return null;
     }
-
     final InjectionVisitor visitor =
-        new InjectionVisitor(ctx, type, evidenceBuilder, locationSupplier);
+        new InjectionVisitor(to, type, evidenceBuilder, locationSupplier);
     ObjectVisitor.visit(value, visitor, filter);
     return visitor.evidence;
   }
@@ -312,7 +322,7 @@ public abstract class SinkModuleBase {
         if (unbound != null) {
           // use a single range covering the whole value for unbound items
           final Source source = unbound.getSource();
-          ranges.add(new Range(offset, evidence.length() - offset, source, unbound.getMarks()));
+          ranges.add(new RangeImpl(offset, evidence.length() - offset, source, unbound.getMarks()));
         } else {
           ranges.add(valueRanges, offset);
         }
@@ -385,18 +395,18 @@ public abstract class SinkModuleBase {
 
   private class InjectionVisitor implements ObjectVisitor.Visitor {
 
-    private final IastContext ctx;
+    private final TaintedObjects to;
     private final VulnerabilityType type;
     @Nullable private final EvidenceBuilder evidenceBuilder;
     @Nullable private final LocationSupplier locationSupplier;
     @Nullable private Evidence evidence;
 
     private InjectionVisitor(
-        final IastContext ctx,
+        final TaintedObjects to,
         final VulnerabilityType type,
         @Nullable final EvidenceBuilder evidenceBuilder,
         @Nullable final LocationSupplier locationSupplier) {
-      this.ctx = ctx;
+      this.to = to;
       this.type = type;
       this.evidenceBuilder = evidenceBuilder;
       this.locationSupplier = locationSupplier;
@@ -405,7 +415,7 @@ public abstract class SinkModuleBase {
     @Nonnull
     @Override
     public ObjectVisitor.State visit(@Nonnull final String path, @Nonnull final Object value) {
-      evidence = checkInjection(ctx, type, value, evidenceBuilder, locationSupplier);
+      evidence = checkInjection(to, type, value, evidenceBuilder, locationSupplier);
       return evidence != null ? EXIT : CONTINUE; // report first tainted value only
     }
   }

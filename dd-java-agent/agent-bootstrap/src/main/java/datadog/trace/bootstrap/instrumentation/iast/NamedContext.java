@@ -2,8 +2,9 @@ package datadog.trace.bootstrap.instrumentation.iast;
 
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
-import datadog.trace.api.iast.Taintable.Source;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.api.iast.taint.Source;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import datadog.trace.bootstrap.ContextStore;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import javax.annotation.Nonnull;
@@ -30,7 +31,8 @@ public abstract class NamedContext {
     }
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
-      final Source source = module.findSource(target);
+      final TaintedObjects to = IastContext.Provider.taintedObjects();
+      final Source source = module.findSource(to, target);
       if (source != null) {
         result = new NamedContextImpl(module, source);
       }
@@ -60,7 +62,7 @@ public abstract class NamedContext {
     @Nullable private String currentName;
 
     private boolean fetched;
-    @Nullable private IastContext context;
+    @Nullable private TaintedObjects to;
 
     public NamedContextImpl(@Nonnull final PropagationModule module, @Nonnull final Source source) {
       this.module = module;
@@ -69,7 +71,7 @@ public abstract class NamedContext {
 
     @Override
     public void taintValue(@Nullable final String value) {
-      module.taintString(iastCtx(), value, source.getOrigin(), currentName, source.getValue());
+      module.taintObject(to(), value, source.getOrigin(), currentName, source.getValue());
     }
 
     @Override
@@ -79,7 +81,7 @@ public abstract class NamedContext {
       // prevent tainting the same name more than once
       if (currentName != name) {
         currentName = name;
-        module.taintString(iastCtx(), name, source.getOrigin(), name, source.getValue());
+        module.taintObject(to(), name, source.getOrigin(), name, source.getValue());
       }
     }
 
@@ -88,12 +90,12 @@ public abstract class NamedContext {
       currentName = name;
     }
 
-    private IastContext iastCtx() {
+    private TaintedObjects to() {
       if (!fetched) {
         fetched = true;
-        context = IastContext.Provider.get();
+        to = IastContext.Provider.taintedObjects();
       }
-      return context;
+      return to;
     }
   }
 }

@@ -6,6 +6,7 @@ import datadog.trace.api.Config
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.IastContext
+import datadog.trace.api.iast.taint.TaintedObjects
 import datadog.trace.api.internal.TraceSegment
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
@@ -28,6 +29,8 @@ class IastModuleImplTestBase extends DDSpecification {
 
   protected IastRequestContext ctx
 
+  protected TaintedObjects to
+
   protected TraceSegment traceSegment
 
   protected RequestContext reqCtx
@@ -49,6 +52,7 @@ class IastModuleImplTestBase extends DDSpecification {
   void setup() {
     contextProvider = buildIastContextProvider()
     ctx = buildIastRequestContext()
+    to = ctx.taintedObjects
     traceSegment = buildTraceSegment()
     reqCtx = buildRequestContext()
     span = buildAgentSpan()
@@ -73,7 +77,7 @@ class IastModuleImplTestBase extends DDSpecification {
 
   protected IastContext.Provider buildIastContextProvider() {
     return Config.get().getIastContextMode() == GLOBAL
-      ? new IastGlobalContext.Provider()
+      ? new IastGlobalContextProvider()
       : new IastRequestContext.Provider()
   }
 

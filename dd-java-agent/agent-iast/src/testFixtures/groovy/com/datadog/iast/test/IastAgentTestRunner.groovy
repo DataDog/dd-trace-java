@@ -1,7 +1,6 @@
 package com.datadog.iast.test
 
-import com.datadog.iast.model.Source
-import com.datadog.iast.taint.TaintedObjects
+import com.datadog.iast.model.SourceImpl
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableVisitor
 import datadog.trace.api.gateway.CallbackProvider
@@ -9,6 +8,7 @@ import datadog.trace.api.gateway.Events
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.SourceTypes
+import datadog.trace.api.iast.taint.TaintedObjects
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.TagContext
@@ -16,7 +16,7 @@ import datadog.trace.core.DDSpan
 
 
 class IastAgentTestRunner extends AgentTestRunner implements IastRequestContextPreparationTrait {
-  public static final EMPTY_SOURCE = new Source(SourceTypes.NONE, '', '')
+  public static final EMPTY_SOURCE = new SourceImpl(SourceTypes.NONE, '', '')
 
   void configurePreAgent() {
     super.configurePreAgent()

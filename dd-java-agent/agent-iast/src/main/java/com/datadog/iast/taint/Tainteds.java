@@ -1,5 +1,7 @@
 package com.datadog.iast.taint;
 
+import datadog.trace.api.iast.taint.TaintedObject;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import java.util.List;
 import java.util.RandomAccess;
 import javax.annotation.Nonnull;

@@ -6,17 +6,14 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
-import datadog.trace.advice.ActiveRequestContext;
-import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.gateway.RequestContext;
-import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import java.io.InputStream;
 import java.util.Collection;
 import net.bytebuddy.asm.Advice;
@@ -64,93 +61,81 @@ public class MultipartInstrumentation extends InstrumenterModule.Iast
         getClass().getName() + "$GetInputStreamAdvice");
   }
 
-  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class GetNameAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_MULTIPART_PARAMETER)
-    public static String onExit(
-        @Advice.Return final String name, @ActiveRequestContext RequestContext reqCtx) {
+    public static String onExit(@Advice.Return final String name) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-        module.taintString(
-            ctx, name, SourceTypes.REQUEST_MULTIPART_PARAMETER, "Content-Disposition");
+        final TaintedObjects to = IastContext.Provider.taintedObjects();
+        module.taintObject(
+            to, name, SourceTypes.REQUEST_MULTIPART_PARAMETER, "Content-Disposition");
       }
       return name;
     }
   }
 
-  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class GetHeaderAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_MULTIPART_PARAMETER)
     public static String onExit(
-        @Advice.Return final String value,
-        @Advice.Argument(0) final String name,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @Advice.Return final String value, @Advice.Argument(0) final String name) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-        module.taintString(ctx, value, SourceTypes.REQUEST_MULTIPART_PARAMETER, name);
+        final TaintedObjects to = IastContext.Provider.taintedObjects();
+        module.taintObject(to, value, SourceTypes.REQUEST_MULTIPART_PARAMETER, name);
       }
       return value;
     }
   }
 
-  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class GetHeadersAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_MULTIPART_PARAMETER)
     public static void onExit(
         @Advice.Argument(0) final String headerName,
-        @Advice.Return Collection<String> headerValues,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @Advice.Return Collection<String> headerValues) {
       if (null == headerValues || headerValues.isEmpty()) {
         return;
       }
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+        final TaintedObjects to = IastContext.Provider.taintedObjects();
         for (final String value : headerValues) {
-          module.taintString(ctx, value, SourceTypes.REQUEST_MULTIPART_PARAMETER, headerName);
+          module.taintObject(to, value, SourceTypes.REQUEST_MULTIPART_PARAMETER, headerName);
         }
       }
     }
   }
 
-  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class GetHeaderNamesAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_MULTIPART_PARAMETER)
-    public static void onExit(
-        @Advice.Return final Collection<String> headerNames,
-        @ActiveRequestContext RequestContext reqCtx) {
+    public static void onExit(@Advice.Return final Collection<String> headerNames) {
       if (null == headerNames || headerNames.isEmpty()) {
         return;
       }
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+        final TaintedObjects to = IastContext.Provider.taintedObjects();
         for (final String name : headerNames) {
-          module.taintString(ctx, name, SourceTypes.REQUEST_MULTIPART_PARAMETER);
+          module.taintObject(to, name, SourceTypes.REQUEST_MULTIPART_PARAMETER);
         }
       }
     }
   }
 
-  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class GetInputStreamAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_MULTIPART_PARAMETER)
-    public static void onExit(
-        @Advice.Return final InputStream inputStream, @ActiveRequestContext RequestContext reqCtx) {
+    public static void onExit(@Advice.Return final InputStream inputStream) {
       if (null == inputStream) {
         return;
       }
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-        module.taintObject(ctx, inputStream, SourceTypes.REQUEST_MULTIPART_PARAMETER);
+        final TaintedObjects to = IastContext.Provider.taintedObjects();
+        module.taintObject(to, inputStream, SourceTypes.REQUEST_MULTIPART_PARAMETER);
       }
     }
   }

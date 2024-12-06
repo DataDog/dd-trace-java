@@ -1,12 +1,12 @@
 package com.datadog.iast.test
 
+import datadog.trace.api.iast.taint.Range
 import com.datadog.iast.IastRequestContext
 import com.datadog.iast.IastSystem
-import com.datadog.iast.model.Range
-import com.datadog.iast.taint.TaintedObject
-import com.datadog.iast.taint.TaintedObjects
 import datadog.trace.api.gateway.*
 import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.taint.TaintedObject
+import datadog.trace.api.iast.taint.TaintedObjects
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory

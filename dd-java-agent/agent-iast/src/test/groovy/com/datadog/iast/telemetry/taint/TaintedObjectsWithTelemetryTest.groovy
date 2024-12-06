@@ -1,7 +1,7 @@
 package com.datadog.iast.telemetry.taint
 
 import com.datadog.iast.IastModuleImplTestBase
-import com.datadog.iast.model.Range
+import datadog.trace.api.iast.taint.Range
 import datadog.trace.api.iast.telemetry.IastMetric
 import datadog.trace.api.iast.telemetry.IastMetricCollector
 import datadog.trace.api.iast.telemetry.Verbosity

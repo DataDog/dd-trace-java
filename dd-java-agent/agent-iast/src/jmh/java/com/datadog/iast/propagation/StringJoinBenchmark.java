@@ -3,10 +3,11 @@ package com.datadog.iast.propagation;
 import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
 
 import com.datadog.iast.IastRequestContext;
-import com.datadog.iast.model.Range;
-import com.datadog.iast.model.Source;
+import com.datadog.iast.model.RangeImpl;
+import com.datadog.iast.model.SourceImpl;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.taint.Range;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;
 
@@ -23,7 +24,8 @@ public class StringJoinBenchmark extends AbstractBenchmark<StringJoinBenchmark.C
         .taint(
             tainted,
             new Range[] {
-              new Range(0, tainted.length(), new Source((byte) 0, "key", "value"), NOT_MARKED)
+              new RangeImpl(
+                  0, tainted.length(), new SourceImpl((byte) 0, "key", "value"), NOT_MARKED)
             });
 
     final String taintedDelimiter = new String("-");
@@ -32,8 +34,11 @@ public class StringJoinBenchmark extends AbstractBenchmark<StringJoinBenchmark.C
         .taint(
             taintedDelimiter,
             new Range[] {
-              new Range(
-                  0, taintedDelimiter.length(), new Source((byte) 1, "key", "value"), NOT_MARKED)
+              new RangeImpl(
+                  0,
+                  taintedDelimiter.length(),
+                  new SourceImpl((byte) 1, "key", "value"),
+                  NOT_MARKED)
             });
 
     return new StringJoinBenchmark.Context(

@@ -6,6 +6,7 @@ import static datadog.trace.api.iast.SourceTypes.KAFKA_MESSAGE_VALUE;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.ContextStore;
 import java.nio.ByteBuffer;
@@ -23,7 +24,7 @@ public class KafkaIastHelper {
     }
   }
 
-  public static IastContext beforeDeserialize(
+  public static TaintedObjects beforeDeserialize(
       final ContextStore<Deserializer, Boolean> store,
       final Deserializer<?> deserializer,
       final Object data) {
@@ -35,23 +36,19 @@ public class KafkaIastHelper {
     if (module == null) {
       return null;
     }
-    final IastContext ctx = IastContext.Provider.get();
-    if (ctx == null) {
+    final TaintedObjects to = IastContext.Provider.taintedObjects();
+    if (to == null) {
       return null;
     }
-    if (module.isTainted(ctx, data)) {
-      return ctx; // prevent double tainting on reentrant calls
+    if (module.isTainted(to, data)) {
+      return to; // prevent double tainting on reentrant calls
     }
     final byte source = getSource(store, deserializer);
-    if (data instanceof String) {
-      module.taintString(ctx, (String) data, source);
-    } else {
-      module.taintObject(ctx, data, source);
-    }
-    return ctx;
+    module.taintObject(to, data, source);
+    return to;
   }
 
-  public static IastContext beforeDeserialize(
+  public static TaintedObjects beforeDeserialize(
       final ContextStore<Deserializer, Boolean> store,
       final Deserializer<?> deserializer,
       final ByteBuffer data) {
@@ -63,24 +60,24 @@ public class KafkaIastHelper {
     if (module == null) {
       return null;
     }
-    final IastContext ctx = IastContext.Provider.get();
-    if (ctx == null) {
+    final TaintedObjects to = IastContext.Provider.taintedObjects();
+    if (to == null) {
       return null;
     }
-    if (module.isTainted(ctx, data)) {
-      return ctx; // prevent double tainting on reentrant calls
+    if (module.isTainted(to, data)) {
+      return to; // prevent double tainting on reentrant calls
     }
     final byte source = getSource(store, deserializer);
     int start = data.position();
     if (data.hasArray()) {
       start += data.arrayOffset();
     }
-    module.taintObjectRange(ctx, data, source, start, data.remaining());
-    return ctx;
+    module.taintObjectRange(to, data, source, start, data.remaining());
+    return to;
   }
 
   public static void afterDeserialize(
-      final IastContext ctx,
+      final TaintedObjects to,
       final ContextStore<Deserializer, Boolean> store,
       final Deserializer<?> deserializer,
       final Object result) {
@@ -93,11 +90,7 @@ public class KafkaIastHelper {
       return;
     }
     final byte source = getSource(store, deserializer);
-    if (result instanceof String) {
-      module.taintString(ctx, (String) result, source);
-    } else {
-      module.taintObject(ctx, result, source);
-    }
+    module.taintObject(to, result, source);
   }
 
   private static byte getSource(

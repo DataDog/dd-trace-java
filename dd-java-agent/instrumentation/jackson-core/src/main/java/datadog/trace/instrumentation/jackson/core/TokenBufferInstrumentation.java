@@ -11,9 +11,11 @@ import com.fasterxml.jackson.databind.util.TokenBuffer;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import net.bytebuddy.asm.Advice;
 
 /**
@@ -50,7 +52,8 @@ public class TokenBufferInstrumentation extends InstrumenterModule.Iast
         @Advice.This TokenBuffer tokenBuffer, @Advice.Return JsonParser parser) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        module.taintObjectIfTainted(parser, tokenBuffer);
+        final TaintedObjects to = IastContext.Provider.taintedObjects();
+        module.taintObjectIfTainted(to, parser, tokenBuffer);
       }
     }
   }

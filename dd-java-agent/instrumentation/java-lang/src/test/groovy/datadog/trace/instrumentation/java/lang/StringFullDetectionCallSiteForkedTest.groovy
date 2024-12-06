@@ -71,7 +71,7 @@ class StringFullDetectionCallSiteForkedTest extends AgentTestRunner {
 
     then:
     result != null && result.length > 0
-    1 * module.taintObjectIfTainted(_ as char[], string, true, VulnerabilityMarks.NOT_MARKED)
+    1 * module.taintObjectIfTainted(_, _ as char[], string, true, VulnerabilityMarks.NOT_MARKED)
     0 * _
   }
 

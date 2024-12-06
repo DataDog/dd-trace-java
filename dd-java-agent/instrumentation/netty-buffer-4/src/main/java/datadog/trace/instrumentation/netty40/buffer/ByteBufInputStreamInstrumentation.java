@@ -10,9 +10,11 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableVisitor;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
@@ -54,7 +56,8 @@ public class ByteBufInputStreamInstrumentation extends InstrumenterModule.Iast
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       try {
         if (module != null) {
-          module.taintObjectIfTainted(self, buffer);
+          final TaintedObjects to = IastContext.Provider.taintedObjects();
+          module.taintObjectIfTainted(to, self, buffer);
         }
       } catch (final Throwable e) {
         module.onUnexpectedException("ByteBufInputStream ctor threw", e);

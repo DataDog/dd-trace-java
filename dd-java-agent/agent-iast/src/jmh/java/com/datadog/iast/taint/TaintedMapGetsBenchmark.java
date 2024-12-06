@@ -3,7 +3,7 @@ package com.datadog.iast.taint;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
-import com.datadog.iast.model.Range;
+import datadog.trace.api.iast.taint.Range;
 import java.util.ArrayList;
 import java.util.List;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -45,12 +45,12 @@ public class TaintedMapGetsBenchmark {
     for (int i = 0; i < INITIAL_OP_COUNT; i++) {
       final Object k = new Object();
       initialObjectList.add(k);
-      map.put(new TaintedObject(k, new Range[0]));
+      map.put(new TaintedObjectEntry(k, new Range[0]));
     }
     for (int i = 0; i < OP_COUNT; i++) {
       final Object k = new Object();
       objectList.add(k);
-      map.put(new TaintedObject(k, new Range[0]));
+      map.put(new TaintedObjectEntry(k, new Range[0]));
     }
   }
 

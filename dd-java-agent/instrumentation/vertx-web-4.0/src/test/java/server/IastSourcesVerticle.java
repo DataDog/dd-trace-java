@@ -1,7 +1,7 @@
 package server;
 
-import com.datadog.iast.taint.TaintedObjects;
 import datadog.trace.api.iast.IastContext;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Promise;
@@ -137,11 +137,10 @@ public class IastSourcesVerticle extends AbstractVerticle {
           final JsonObject payload = (JsonObject) message.body();
           final String name = payload.getString("name");
           try {
-            final IastContext ctx = IastContext.Provider.get();
-            if (ctx == null) {
+            final TaintedObjects to = IastContext.Provider.taintedObjects();
+            if (to == null) {
               throw new IllegalStateException("No IAST context present");
             }
-            final TaintedObjects to = ctx.getTaintedObjects();
             final boolean tainted = to.get(name) != null;
             message.reply(tainted ? "OK" : "NO_OK");
           } catch (Throwable e) {

@@ -10,18 +10,15 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
-import datadog.trace.advice.ActiveRequestContext;
-import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.gateway.RequestContext;
-import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import net.bytebuddy.asm.Advice;
 import org.apache.pekko.http.scaladsl.model.HttpHeader;
@@ -62,58 +59,56 @@ public class HttpRequestInstrumentation extends InstrumenterModule.Iast
   }
 
   @SuppressFBWarnings("BC_IMPOSSIBLE_INSTANCEOF")
-  @RequiresRequestContext(RequestContextSlot.IAST)
   static class RequestHeadersAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_HEADER_VALUE)
     static void onExit(
-        @Advice.This HttpRequest thiz,
-        @Advice.Return(readOnly = false) Seq<HttpHeader> headers,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @Advice.This HttpRequest thiz, @Advice.Return(readOnly = false) Seq<HttpHeader> headers) {
       PropagationModule propagation = InstrumentationBridge.PROPAGATION;
       if (propagation == null || headers == null || headers.isEmpty()) {
         return;
       }
 
-      final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+      final TaintedObjects to = IastContext.Provider.taintedObjects();
 
-      if (!propagation.isTainted(ctx, thiz)) {
+      if (!propagation.isTainted(to, thiz)) {
         return;
       }
 
       Iterator<HttpHeader> iterator = headers.iterator();
       while (iterator.hasNext()) {
         HttpHeader h = iterator.next();
-        if (propagation.isTainted(ctx, h)) {
+        if (propagation.isTainted(to, h)) {
           continue;
         }
         // unfortunately, the call to h.value() is instrumented, but
         // because the call to taint() only happens after, the call is a noop
-        propagation.taintObject(ctx, h, SourceTypes.REQUEST_HEADER_VALUE, h.name(), h.value());
+        propagation.taintObject(to, h, SourceTypes.REQUEST_HEADER_VALUE, h.name(), h.value());
       }
     }
   }
 
-  @RequiresRequestContext(RequestContextSlot.IAST)
   static class EntityAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Propagation
     static void onExit(
         @Advice.This HttpRequest thiz,
-        @Advice.Return(readOnly = false, typing = DYNAMIC) Object entity,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @Advice.Return(readOnly = false, typing = DYNAMIC) Object entity) {
       PropagationModule propagation = InstrumentationBridge.PROPAGATION;
       if (propagation == null || entity == null) {
         return;
       }
 
-      IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-
-      if (propagation.isTainted(ctx, entity)) {
+      final TaintedObjects to = IastContext.Provider.taintedObjects();
+      if (to == null) {
         return;
       }
 
-      propagation.taintObjectIfTainted(ctx, entity, thiz);
+      if (propagation.isTainted(to, entity)) {
+        return;
+      }
+
+      propagation.taintObjectIfTainted(to, entity, thiz);
     }
   }
 }

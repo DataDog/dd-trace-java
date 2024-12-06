@@ -59,7 +59,7 @@ class GrpcRequestMessageHandlerTest extends IastModuleImplTestBase {
     handler.apply(reqCtx, target)
 
     then:
-    1 * propagation.taintObjectDeeply(ctx, target, SourceTypes.GRPC_BODY, _ as Predicate<Class<?>>)
+    1 * propagation.taintObjectDeeply(to, target, SourceTypes.GRPC_BODY, _ as Predicate<Class<?>>)
   }
 
   void 'the handler only takes into account protobuf v.#protobufVersion related messages'() {

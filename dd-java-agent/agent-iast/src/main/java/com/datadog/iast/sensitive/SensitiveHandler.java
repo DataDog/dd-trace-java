@@ -1,9 +1,9 @@
 package com.datadog.iast.sensitive;
 
 import com.datadog.iast.model.Evidence;
-import com.datadog.iast.model.Source;
 import com.datadog.iast.model.VulnerabilityType;
-import com.datadog.iast.util.Ranged;
+import datadog.trace.api.iast.taint.Source;
+import datadog.trace.api.iast.util.Ranged;
 import java.util.NoSuchElementException;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;

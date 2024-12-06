@@ -23,6 +23,7 @@ import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.HashMap;
@@ -189,6 +190,7 @@ public class TemplateAndMatrixVariablesInstrumentation extends InstrumenterModul
         if (iastRequestContext != null) {
           PropagationModule module = InstrumentationBridge.PROPAGATION;
           if (module != null) {
+            final TaintedObjects to = iastRequestContext.getTaintedObjects();
             if (templateVars instanceof Map) {
               for (Map.Entry<String, String> e : ((Map<String, String>) templateVars).entrySet()) {
                 String parameterName = e.getKey();
@@ -196,8 +198,7 @@ public class TemplateAndMatrixVariablesInstrumentation extends InstrumenterModul
                 if (parameterName == null || value == null) {
                   continue; // should not happen
                 }
-                module.taintString(
-                    iastRequestContext, value, SourceTypes.REQUEST_PATH_PARAMETER, parameterName);
+                module.taintObject(to, value, SourceTypes.REQUEST_PATH_PARAMETER, parameterName);
               }
             }
 
@@ -213,20 +214,14 @@ public class TemplateAndMatrixVariablesInstrumentation extends InstrumenterModul
                 for (Map.Entry<String, Iterable<String>> ie : value.entrySet()) {
                   String innerKey = ie.getKey();
                   if (innerKey != null) {
-                    module.taintString(
-                        iastRequestContext,
-                        innerKey,
-                        SourceTypes.REQUEST_MATRIX_PARAMETER,
-                        parameterName);
+                    module.taintObject(
+                        to, innerKey, SourceTypes.REQUEST_MATRIX_PARAMETER, parameterName);
                   }
                   Iterable<String> innerValues = ie.getValue();
                   if (innerValues != null) {
                     for (String iv : innerValues) {
-                      module.taintString(
-                          iastRequestContext,
-                          iv,
-                          SourceTypes.REQUEST_MATRIX_PARAMETER,
-                          parameterName);
+                      module.taintObject(
+                          to, iv, SourceTypes.REQUEST_MATRIX_PARAMETER, parameterName);
                     }
                   }
                 }

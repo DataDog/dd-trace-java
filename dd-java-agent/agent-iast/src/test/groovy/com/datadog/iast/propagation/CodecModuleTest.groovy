@@ -1,10 +1,10 @@
 package com.datadog.iast.propagation
 
 import com.datadog.iast.IastModuleImplTestBase
-import com.datadog.iast.model.Range
-import com.datadog.iast.model.Source
+import com.datadog.iast.model.RangeImpl
+import com.datadog.iast.model.SourceImpl
+import datadog.trace.api.iast.taint.Range
 import com.datadog.iast.taint.Ranges
-import com.datadog.iast.taint.TaintedObjects
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.VulnerabilityMarks
 import datadog.trace.api.iast.propagation.CodecModule
@@ -32,22 +32,6 @@ class CodecModuleTest extends IastModuleImplTestBase {
       activeSpan() >> span
       getTraceSegment() >> traceSegment
     }
-  }
-
-  void '#method null'() {
-    when:
-    module.&"$method".call(args.toArray())
-
-    then:
-    0 * _
-
-    where:
-    method              | args
-    'onUrlDecode'       | ['test', 'utf-8', null]
-    'onStringGetBytes'  | ['test', 'utf-8', null]
-    'onStringFromBytes' | ['test'.bytes, 0, 2, 'utf-8', null]
-    'onBase64Encode'    | ['test'.bytes, null]
-    'onBase64Decode'    | ['test'.bytes, null]
   }
 
   void '#method no context'() {
@@ -276,10 +260,10 @@ class CodecModuleTest extends IastModuleImplTestBase {
     final charset = StandardCharsets.UTF_8
     final string = "Hello World!"
     final bytes = string.getBytes(charset) // 1 byte pe char
-    final TaintedObjects to = ctx.taintedObjects
+    final to = ctx.taintedObjects
     final ranges = [
-      new Range(0, 5, new Source((byte) 0, 'name1', 'Hello'), VulnerabilityMarks.NOT_MARKED),
-      new Range(6, 6, new Source((byte) 1, 'name2', 'World!'), VulnerabilityMarks.NOT_MARKED)
+      new RangeImpl(0, 5, new SourceImpl((byte) 0, 'name1', 'Hello'), VulnerabilityMarks.NOT_MARKED),
+      new RangeImpl(6, 6, new SourceImpl((byte) 1, 'name2', 'World!'), VulnerabilityMarks.NOT_MARKED)
     ]
     to.taint(bytes, ranges as Range[])
 

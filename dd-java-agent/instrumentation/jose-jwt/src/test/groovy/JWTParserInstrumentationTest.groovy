@@ -3,12 +3,14 @@ import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.propagation.PropagationModule
+import datadog.trace.api.iast.taint.TaintedObjects
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 
 class JWTParserInstrumentationTest extends AgentTestRunner {
 
   private Object iastCtx
+  private Object to
 
   @Override
   protected void configurePreAgent() {
@@ -16,7 +18,10 @@ class JWTParserInstrumentationTest extends AgentTestRunner {
   }
 
   void setup() {
-    iastCtx = Stub(IastContext)
+    to = Stub(TaintedObjects)
+    iastCtx = Stub(IastContext) {
+      getTaintedObjects() >> to
+    }
   }
 
   void 'oauth jwt parser'() {
@@ -29,7 +34,7 @@ class JWTParserInstrumentationTest extends AgentTestRunner {
     runUnderIastTrace { new com.auth0.jwt.impl.JWTParser().parsePayload(payload) }
 
     then:
-    1 * propagationModule.taintString(iastCtx, payload, SourceTypes.REQUEST_HEADER_VALUE)
+    1 * propagationModule.taintObject(to, payload, SourceTypes.REQUEST_HEADER_VALUE)
     0 * _
   }
 
@@ -43,11 +48,11 @@ class JWTParserInstrumentationTest extends AgentTestRunner {
     runUnderIastTrace { com.nimbusds.jose.util.JSONObjectUtils.parse(json) }
 
     then:
-    1 * propagationModule.taintString(iastCtx, 'http://foobar.com', SourceTypes.REQUEST_HEADER_VALUE, 'iss')
-    1 * propagationModule.taintString(iastCtx, 'foo', SourceTypes.REQUEST_HEADER_VALUE, 'sub')
-    1 * propagationModule.taintString(iastCtx, 'foobar', SourceTypes.REQUEST_HEADER_VALUE, 'aud')
-    1 * propagationModule.taintString(iastCtx, 'Mr Foo Bar', SourceTypes.REQUEST_HEADER_VALUE, 'name')
-    1 * propagationModule.taintString(iastCtx, 'read', SourceTypes.REQUEST_HEADER_VALUE, 'scope')
+    1 * propagationModule.taintObject(to, 'http://foobar.com', SourceTypes.REQUEST_HEADER_VALUE, 'iss')
+    1 * propagationModule.taintObject(to, 'foo', SourceTypes.REQUEST_HEADER_VALUE, 'sub')
+    1 * propagationModule.taintObject(to, 'foobar', SourceTypes.REQUEST_HEADER_VALUE, 'aud')
+    1 * propagationModule.taintObject(to, 'Mr Foo Bar', SourceTypes.REQUEST_HEADER_VALUE, 'name')
+    1 * propagationModule.taintObject(to, 'read', SourceTypes.REQUEST_HEADER_VALUE, 'scope')
     0 * _
   }
 

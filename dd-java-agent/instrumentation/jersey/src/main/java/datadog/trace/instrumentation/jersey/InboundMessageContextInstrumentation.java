@@ -9,17 +9,14 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
-import datadog.trace.advice.ActiveRequestContext;
-import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.gateway.RequestContext;
-import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import java.util.List;
 import java.util.Map;
@@ -75,13 +72,10 @@ public class InboundMessageContextInstrumentation extends InstrumenterModule.Ias
     }
   }
 
-  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class GetHeadersAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_HEADER_VALUE)
-    public static void onExit(
-        @Advice.Return Map<String, List<String>> headers,
-        @ActiveRequestContext RequestContext reqCtx) {
+    public static void onExit(@Advice.Return Map<String, List<String>> headers) {
       // ignore internal calls populating headers
       if (CallDepthThreadLocalMap.getCallDepth(InboundMessageContext.class) != 0) {
         return;
@@ -94,21 +88,19 @@ public class InboundMessageContextInstrumentation extends InstrumenterModule.Ias
       if (prop == null) {
         return;
       }
-      final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-      if (prop.isTainted(ctx, headers)) {
+      final TaintedObjects to = IastContext.Provider.taintedObjects();
+      if (prop.isTainted(to, headers)) {
         return;
       }
-      prop.taintObject(headers, SourceTypes.REQUEST_HEADER_VALUE);
-      taintMultiValuedMap(ctx, prop, SourceTypes.REQUEST_HEADER_VALUE, headers);
+      prop.taintObject(to, headers, SourceTypes.REQUEST_HEADER_VALUE);
+      taintMultiValuedMap(to, prop, SourceTypes.REQUEST_HEADER_VALUE, headers);
     }
   }
 
-  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class CookiesAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_COOKIE_VALUE)
-    public static void onExit(
-        @Advice.Return Map<String, Object> cookies, @ActiveRequestContext RequestContext reqCtx) {
+    public static void onExit(@Advice.Return Map<String, Object> cookies) {
       if (cookies == null || cookies.isEmpty()) {
         return;
       }
@@ -116,19 +108,17 @@ public class InboundMessageContextInstrumentation extends InstrumenterModule.Ias
       if (module == null) {
         return;
       }
-      final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+      final TaintedObjects to = IastContext.Provider.taintedObjects();
       for (final Map.Entry<String, Object> entry : cookies.entrySet()) {
-        module.taintObject(ctx, entry.getValue(), SourceTypes.REQUEST_COOKIE_VALUE, entry.getKey());
+        module.taintObject(to, entry.getValue(), SourceTypes.REQUEST_COOKIE_VALUE, entry.getKey());
       }
     }
   }
 
-  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class ReadEntityAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_BODY)
-    public static void onExit(
-        @Advice.Return Object result, @ActiveRequestContext RequestContext reqCtx) {
+    public static void onExit(@Advice.Return Object result) {
       if (result == null) {
         return;
       }
@@ -136,13 +126,13 @@ public class InboundMessageContextInstrumentation extends InstrumenterModule.Ias
       if (module == null) {
         return;
       }
-      final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-      if (module.isTainted(ctx, result)) {
+      final TaintedObjects to = IastContext.Provider.taintedObjects();
+      if (module.isTainted(to, result)) {
         return;
       }
-      module.taintObject(ctx, result, SourceTypes.REQUEST_BODY);
+      module.taintObject(to, result, SourceTypes.REQUEST_BODY);
       if (result instanceof Map) {
-        taintMap(ctx, module, SourceTypes.REQUEST_PARAMETER_VALUE, (Map<?, ?>) result);
+        taintMap(to, module, SourceTypes.REQUEST_PARAMETER_VALUE, (Map<?, ?>) result);
       }
     }
   }
