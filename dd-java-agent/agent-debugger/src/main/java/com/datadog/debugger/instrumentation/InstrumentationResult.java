@@ -7,6 +7,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.objectweb.asm.tree.MethodNode;
 
 /** Stores status instrumentation results */
 public class InstrumentationResult {
@@ -67,9 +68,10 @@ public class InstrumentationResult {
     this.diagnostics = diagnostics;
     this.sourceFileName = methodInfo.getClassNode().sourceFile;
     this.typeName = methodInfo.getClassNode().name.replace('/', '.');
-    this.methodName = methodInfo.getMethodNode().name;
-    this.signature = methodInfo.getMethodNode().signature;
+    MethodNode methodNode = methodInfo.getMethodNode();
+    this.methodName = methodNode.name;
     this.methodStart = methodInfo.getMethodStart();
+    this.signature = Types.descriptorToSignature(methodNode.desc);
   }
 
   public boolean isError() {

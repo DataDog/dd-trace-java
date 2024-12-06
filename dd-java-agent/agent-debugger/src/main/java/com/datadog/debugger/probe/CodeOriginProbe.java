@@ -1,12 +1,16 @@
 package com.datadog.debugger.probe;
 
+import static com.datadog.debugger.probe.LogProbe.Capture.toLimits;
 import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_FRAME;
 import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_TYPE;
 import static java.lang.String.format;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 
+import com.datadog.debugger.instrumentation.CapturedContextInstrumentor;
+import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
+import com.datadog.debugger.instrumentation.MethodInfo;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.CapturedContext.CapturedThrowable;
 import datadog.trace.bootstrap.debugger.MethodLocation;
@@ -23,9 +27,19 @@ public class CodeOriginProbe extends LogProbe implements ForceMethodInstrumentat
 
   private final boolean entrySpanProbe;
 
+  private String signature;
+
   public CodeOriginProbe(ProbeId probeId, boolean entry, Where where) {
     super(LANGUAGE, probeId, null, where, MethodLocation.EXIT, null, null, true, null, null, null);
     this.entrySpanProbe = entry;
+  }
+
+  @Override
+  public InstrumentationResult.Status instrument(
+      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<ProbeId> probeIds) {
+    return new CapturedContextInstrumentor(
+            this, methodInfo, diagnostics, probeIds, isCaptureSnapshot(), toLimits(null))
+        .instrument();
   }
 
   @Override
@@ -56,9 +70,9 @@ public class CodeOriginProbe extends LogProbe implements ForceMethodInstrumentat
       int i = 0;
       s.setTag(format(DD_CODE_ORIGIN_FRAME, i, "file"), location.getFile());
       s.setTag(format(DD_CODE_ORIGIN_FRAME, i, "method"), location.getMethod());
-      s.setTag(format(DD_CODE_ORIGIN_FRAME, i, "line"), "-1");
+      s.setTag(format(DD_CODE_ORIGIN_FRAME, i, "line"), location.getLines().get(0));
       s.setTag(format(DD_CODE_ORIGIN_FRAME, i, "type"), location.getType());
-      //      s.setTag(format(DD_CODE_ORIGIN_FRAME, i, "signature"), signature);
+      s.setTag(format(DD_CODE_ORIGIN_FRAME, i, "signature"), signature);
     }
   }
 
@@ -83,6 +97,7 @@ public class CodeOriginProbe extends LogProbe implements ForceMethodInstrumentat
       if (file == null) {
         file = result.getSourceFileName();
       }
+      signature = result.getMethodSignature();
     }
     this.location = new ProbeLocation(type, method, file, lines);
   }

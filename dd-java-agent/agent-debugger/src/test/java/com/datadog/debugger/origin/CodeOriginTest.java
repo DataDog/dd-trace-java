@@ -118,7 +118,7 @@ public class CodeOriginTest extends CapturingTestBase {
     } catch (InterruptedException e) {
       throw new RuntimeException(e);
     }
-    checkResults(testClass, "debug_1", true);
+    checkResults(testClass, "debug_1", false);
   }
 
   @Test

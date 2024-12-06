@@ -7,7 +7,6 @@ import com.datadog.debugger.exception.Fingerprinter;
 import com.datadog.debugger.probe.CodeOriginProbe;
 import com.datadog.debugger.probe.Where;
 import datadog.trace.api.Config;
-import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.DebuggerContext.CodeOriginRecorder;
 import datadog.trace.bootstrap.debugger.ProbeId;
@@ -17,7 +16,6 @@ import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.stacktrace.StackWalkerFactory;
 import java.lang.reflect.Method;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -81,8 +79,9 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
     // committing here manually so that first run probe encounters decorate the span until the
     // instrumentation gets installed
     if (span != null) {
-      probe.commit(
-          CapturedContext.EMPTY_CONTEXT, CapturedContext.EMPTY_CONTEXT, Collections.emptyList());
+      //      probe.commit(
+      //          CapturedContext.EMPTY_CONTEXT, CapturedContext.EMPTY_CONTEXT,
+      // Collections.emptyList());
     }
     return probe;
   }
