@@ -12,6 +12,8 @@ import org.spockframework.runtime.SpockTimeoutError
 import spock.lang.Shared
 import spock.util.concurrent.PollingConditions
 
+import java.nio.file.Files
+import java.nio.file.Paths
 import java.util.concurrent.TimeoutException
 
 @CompileDynamic
@@ -21,6 +23,21 @@ abstract class AbstractIastServerSmokeTest extends AbstractServerSmokeTest {
 
   @Shared
   private final JsonSlurper jsonSlurper = new JsonSlurper()
+
+  @Override
+  def javaProperties() {
+    def source = Paths.get(AbstractIastServerSmokeTest.protectionDomain.codeSource.location.toURI())
+    while (source != null && !source.endsWith('dd-trace-java')) {
+      source = source.parent
+    }
+    final nativeLib = source.resolve('native-agent').resolve('libdd-java-agent.so')
+    if (!Files.exists(nativeLib)) {
+      throw new IllegalArgumentException('Native agent missing')
+    }
+    final props = ["-agentpath:$nativeLib".toString()]
+    super.javaProperties().each { props.add(it) }
+    return props.toArray(new String[0])
+  }
 
   @Override
   String logLevel() {

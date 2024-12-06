@@ -4,6 +4,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_MAX_CONCURRENT_REQUE
 
 import com.datadog.iast.model.VulnerabilityBatch;
 import com.datadog.iast.overhead.OverheadContext;
+import com.datadog.iast.taint.NativeTaintedObjectsAdapter;
 import com.datadog.iast.taint.TaintedMap;
 import com.datadog.iast.taint.TaintedObjectsMap;
 import com.datadog.iast.util.Wrapper;
@@ -12,6 +13,7 @@ import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.taint.TaintedObjects;
 import datadog.trace.api.iast.telemetry.IastMetricCollector;
 import datadog.trace.api.iast.telemetry.IastMetricCollector.HasMetricCollector;
+import datadog.trace.api.nagent.NativeAgent;
 import java.io.IOException;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -144,6 +146,15 @@ public class IastRequestContext implements IastContext, HasMetricCollector {
     @Nullable
     @Override
     public TaintedObjects resolveTaintedObjects() {
+      if (NativeAgent.isInstalled()) {
+        return new NativeTaintedObjectsAdapter(this::resolveTaintedObjectsFn);
+      } else {
+        return resolveTaintedObjectsFn();
+      }
+    }
+
+    @Nullable
+    private TaintedObjects resolveTaintedObjectsFn() {
       final IastContext ctx = get();
       return ctx == null ? null : ctx.getTaintedObjects();
     }
@@ -153,6 +164,9 @@ public class IastRequestContext implements IastContext, HasMetricCollector {
       TaintedObjects taintedObjects = pool.poll();
       if (taintedObjects == null) {
         taintedObjects = TaintedObjectsMap.build(TaintedMap.build(MAP_SIZE));
+        if (NativeAgent.isInstalled()) {
+          taintedObjects = new NativeTaintedObjectsAdapter(taintedObjects);
+        }
       }
       final IastRequestContext ctx = new IastRequestContext(taintedObjects);
       ctx.release = this::releaseRequestContext;
