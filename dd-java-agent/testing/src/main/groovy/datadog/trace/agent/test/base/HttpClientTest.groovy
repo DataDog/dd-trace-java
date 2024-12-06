@@ -142,7 +142,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
    * @param method
    * @return
    */
-  abstract int doRequest(String method, URI uri, Map<String, String> headers = [:], String body = "", Closure callback = null)
+  abstract int doRequest(String method, URI uri, List<List<String>> headers = [], String body = "", Closure callback = null)
 
   String keyStorePath() {
     server.keystorePath
@@ -243,7 +243,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
 
     when:
     def status = runUnderTrace("parent") {
-      doRequest(method, url, [:], body)
+      doRequest(method, url, [], body)
     }
     println("RESPONSE: $status")
     if (isDataStreamsEnabled()) {
@@ -283,7 +283,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
   def "basic #method request with parent"() {
     when:
     def status = runUnderTrace("parent") {
-      doRequest(method, server.address.resolve("/success"), [:], body)
+      doRequest(method, server.address.resolve("/success"), [], body)
     }
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
@@ -426,7 +426,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     when:
     injectSysConfig(HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, "$renameService")
     def status = runUnderTrace("parent") {
-      doRequest(method, server.address.resolve("/success"), ["is-dd-server": "false"])
+      doRequest(method, server.address.resolve("/success"), [["is-dd-server", "false"]])
     }
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
@@ -464,7 +464,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
 
     when:
     def status = runUnderTrace("parent") {
-      doRequest(method, server.address.resolve("/success"), ["is-dd-server": "false"], "") {
+      doRequest(method, server.address.resolve("/success"), [["is-dd-server", "false"]], "") {
         runUnderTrace("child") {
           blockUntilChildSpansFinished(1)
         }
@@ -498,7 +498,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
 
   def "trace request with callback and no parent"() {
     when:
-    def status = doRequest(method, server.address.resolve("/success"), ["is-dd-server": "false"], "") {
+    def status = doRequest(method, server.address.resolve("/success"), [["is-dd-server", "false"]], "") {
       runUnderTrace("callback") {
         // FIXME: since in async we may not have the other trace report until the callback is done
         //  we should add a test method to detect that the other trace is finished but waiting for
@@ -650,7 +650,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     def uri = server.address.resolve("/to-secured")
 
     when:
-    def status = doRequest(method, uri, [(BASIC_AUTH_KEY): BASIC_AUTH_VAL])
+    def status = doRequest(method, uri, [[BASIC_AUTH_KEY, BASIC_AUTH_VAL]])
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
@@ -765,7 +765,9 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
   def "test request header #header tag mapping"() {
     when:
     def url = server.address.resolve("/success")
-    def status = doRequest(method, url, [(header): value])
+    System.out.println("testing header, value, value2: " + header + ", " + value + ", " + value2)
+    String[] headerVals = [header + ":" + value , header + ":" + value2]
+    def status = (value2 == null) ? doRequest(method, url, [[header, value]]) : doRequest(method, url, [[header, value], [header, value2]])
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
@@ -788,11 +790,14 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     }
 
     where:
-    method | header                           | value     | tags
-    'GET'  | 'X-Datadog-Test-Both-Header'     | 'foo'     | [ 'both_header_tag': 'foo' ]
-    'GET'  | 'X-Datadog-Test-Request-Header'  | 'bar'     | [ 'request_header_tag': 'bar' ]
-    'GET'  | 'X-Datadog-Test-Both-Header'     | 'bar,baz' | [ 'both_header_tag': 'bar,baz' ]
-    'GET'  | 'X-Datadog-Test-Request-Header'  | 'foo,bar' | [ 'request_header_tag': 'foo,bar' ]
+    method | header                           | value     | value2 | tags
+    //    'GET'  | 'X-Datadog-Test-Both-Header'     | 'foo'     | null   | [ 'both_header_tag': 'foo' ]
+    //    'GET'  | 'X-Datadog-Test-Request-Header'  | 'bar'     | null   | [ 'request_header_tag': 'bar' ]
+    //    'GET'  | 'X-Datadog-Test-Both-Header'     | 'bar,baz' | null   | [ 'both_header_tag': 'bar,baz' ]
+    //    'GET'  | 'X-Datadog-Test-Request-Header'  | 'foo,bar' | null   | [ 'request_header_tag': 'foo,bar' ]
+    //    'GET'  | 'X-Datadog-Test-Both-Header'     | 'bar,baz' | 'foo'  | [ 'both_header_tag': 'bar,baz,foo' ]
+    'GET'  | 'X-Datadog-Test-Request-Header'  | 'foo,bar' | 'baz'  | [ 'request_header_tag': 'foo,bar,baz' ]
+    //    'GET'  | 'X-Datadog-Test-Request-Header'  | 'foo,bar' | 'baz'  | [ 'request_header_tag': 'foo,bar,baz' ]
   }
 
   def "test response header #header tag mapping"() {

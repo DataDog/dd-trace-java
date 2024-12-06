@@ -22,6 +22,16 @@ public class HttpServletRequestExtractAdapter
     Enumeration<String> headerNames = carrier.getHeaderNames();
     while (headerNames.hasMoreElements()) {
       final String header = headerNames.nextElement();
+      if (header.equalsIgnoreCase("X-Datadog-Test-Request-Header")) {
+        System.out.println("========= START ACCEPT IS CALLED HERE =========");
+        System.out.println("header: " + header);
+        System.out.println("value: " + carrier.getHeader(header));
+        System.out.println("========= END ACCEPT IS CALLED HERE   =========");
+      }
+      // ISSUE HERE
+      // `getHeader` in Request.class:604 calls `get` in HttpFields.class:164
+      //  which returns only the first value for the header, instead of all values
+      //  for the header name.
       if (!classifier.accept(header, carrier.getHeader(header))) {
         return;
       }
