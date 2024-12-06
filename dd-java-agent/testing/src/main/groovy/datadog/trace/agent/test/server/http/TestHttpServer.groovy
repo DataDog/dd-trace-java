@@ -342,7 +342,7 @@ class TestHttpServer implements AutoCloseable {
       clone.resolveStrategy = Closure.DELEGATE_FIRST
 
       try {
-        clone(api) // come back to here!!!
+        clone(api)
       } catch (Exception e) {
         api.response.status(500).send(e.getMessage())
         e.printStackTrace()
@@ -379,7 +379,6 @@ class TestHttpServer implements AutoCloseable {
         isDDServer = Boolean.parseBoolean(request.getHeader("is-dd-server"))
       }
       if (isDDServer) {
-        // breakpoint with condition: this.req.headers.headers.get("X-Datadog-Test-Request-Header") != null
         final AgentSpan.Context extractedContext = propagate().extract(req.orig, GETTER)
         if (extractedContext != null) {
           System.out.println("EXTRACTEDCONTEXT: " + extractedContext)
@@ -503,19 +502,10 @@ class TestHttpServer implements AutoCloseable {
   static class Headers {
     private final Map<String, String> headers
 
-    // FIX THIS...... setting header to wrong value, but also fails when header is hardcoded to correct value
     private Headers(Request request) {
       this.headers = [:]
       request.getHeaderNames().each {
-        String tag = request.getHeader(it)
-        System.out.println("tag: " + tag)
-        if (tag == "foo,bar") {
-          headers.put(it, "foo,bar,baz")
-          System.out.println("set " + it + " to " + headers.get(it))
-        } else {
-          headers.put(it, tag)
-        }
-        //        headers.put(it, request.getHeader(it))
+        headers.put(it, request.getHeader(it))
       }
     }
 
