@@ -211,6 +211,9 @@ dependencies {
   // it contains annotations that are also present in the instrumented application classes
   api "com.datadoghq:dd-javac-plugin-client:0.2.2"
 
+  // native agent that should be loaded by the system classloader
+  api files("$rootDir/native-agent/dd-native-java-agent-0.1.0-SNAPSHOT.jar")
+
   testImplementation project(":utils:test-utils")
   testImplementation("org.assertj:assertj-core:3.20.2")
   testImplementation libs.bundles.junit5

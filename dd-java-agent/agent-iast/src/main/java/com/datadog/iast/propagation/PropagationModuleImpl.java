@@ -278,7 +278,7 @@ public class PropagationModuleImpl implements PropagationModule {
       }
     } else if (to != null) {
       final TaintedObject tainted = to.get(object);
-      return tainted == null ? null : tainted.getRanges();
+      return tainted == null ? null : (Range[]) tainted.getRanges();
     } else {
       return null;
     }
@@ -350,7 +350,7 @@ public class PropagationModuleImpl implements PropagationModule {
       final TaintedObject tainted = to.get(value);
       if (tainted != null) {
         // append ranges
-        final Range[] newRanges = Ranges.mergeRangesSorted(tainted.getRanges(), ranges);
+        final Range[] newRanges = Ranges.mergeRangesSorted((Range[]) tainted.getRanges(), ranges);
         tainted.setRanges(newRanges);
       } else {
         // taint new value

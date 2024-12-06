@@ -94,6 +94,8 @@ ext {
     'com.datadog.iast.model.json.FormattingAdapter',
     'com.datadog.iast.model.json.SourceTypeAdapter',
     'com.datadog.iast.model.json.VulnerabilityTypeAdapter',
+    // native component not testable without the lib
+    'com.datadog.iast.taint.NativeTaintedObjectsAdapter'
   ]
   excludedClassesBranchCoverage = []
   excludedClassesInstructionCoverage = []

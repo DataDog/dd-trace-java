@@ -26,7 +26,7 @@ public class TaintedObjectAdapter {
       writer.value(target == null ? "[Value GCed]" : target.toString());
       writer.name("ranges");
       writer.beginArray();
-      for (final Range range : value.getRanges()) {
+      for (final Range range : (Range[]) value.getRanges()) {
         toJson(writer, range);
       }
       writer.endArray();

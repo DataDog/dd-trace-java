@@ -44,15 +44,15 @@ public class TaintedObjectEntry extends WeakReference<Object> implements Tainted
    */
   @Nonnull
   @Override
-  public Range[] getRanges() {
+  public Object[] getRanges() {
     return ranges;
   }
 
   @Override
-  public void setRanges(@Nonnull final Range[] ranges) {
+  public void setRanges(@Nonnull final Object[] value) {
     try {
-      validateRanges(ranges);
-      this.ranges = ranges;
+      validateRanges(value);
+      this.ranges = (Range[]) value;
     } catch (Throwable e) {
       LOGGER.debug("Error tainting object with custom ranges, ranges won't be updated", e);
     }
@@ -72,11 +72,15 @@ public class TaintedObjectEntry extends WeakReference<Object> implements Tainted
         + " ranges)";
   }
 
-  private void validateRanges(final Range[] ranges) {
+  private void validateRanges(final Object[] ranges) {
     if (ranges == null) {
       throw new IllegalArgumentException("ranges cannot be null");
     }
-    for (Range range : ranges) {
+    if (!(ranges instanceof Range[])) {
+      throw new IllegalArgumentException(
+          "wrong ranges type, should be " + Range.class + " but found " + ranges.getClass());
+    }
+    for (Range range : (Range[]) ranges) {
       if (range == null) {
         throw new IllegalArgumentException("found null range in " + Arrays.toString(ranges));
       }

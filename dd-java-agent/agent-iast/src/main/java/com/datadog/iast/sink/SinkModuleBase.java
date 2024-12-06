@@ -126,7 +126,7 @@ public abstract class SinkModuleBase {
       final Object origin = source.getRawValue();
       final TaintedObject tainted = origin == null ? null : to.get(origin);
       if (origin != null && tainted != null) {
-        valueRanges = Ranges.getNotMarkedRanges(tainted.getRanges(), type.mark());
+        valueRanges = Ranges.getNotMarkedRanges((Range[]) tainted.getRanges(), type.mark());
         value = origin;
       } else {
         valueRanges = Ranges.forObject((Source) taintable.$$DD$getSource(), type.mark());
@@ -137,7 +137,7 @@ public abstract class SinkModuleBase {
       if (tainted == null) {
         return null;
       }
-      valueRanges = Ranges.getNotMarkedRanges(tainted.getRanges(), type.mark());
+      valueRanges = Ranges.getNotMarkedRanges((Range[]) tainted.getRanges(), type.mark());
     }
 
     if (valueRanges == null || valueRanges.length == 0) {
@@ -217,7 +217,7 @@ public abstract class SinkModuleBase {
       final TaintedObject tainted = to.get(value);
       Range[] valueRanges = null;
       if (tainted != null) {
-        valueRanges = Ranges.getNotMarkedRanges(tainted.getRanges(), type.mark());
+        valueRanges = Ranges.getNotMarkedRanges((Range[]) tainted.getRanges(), type.mark());
       }
       addToEvidence(type, evidence, ranges, value, valueRanges, evidenceBuilder);
 
@@ -415,7 +415,10 @@ public abstract class SinkModuleBase {
     @Nonnull
     @Override
     public ObjectVisitor.State visit(@Nonnull final String path, @Nonnull final Object value) {
-      evidence = checkInjection(to, type, value, evidenceBuilder, locationSupplier);
+      if (value instanceof CharSequence) {
+        // ignore non printable fields
+        evidence = checkInjection(to, type, value, evidenceBuilder, locationSupplier);
+      }
       return evidence != null ? EXIT : CONTINUE; // report first tainted value only
     }
   }
