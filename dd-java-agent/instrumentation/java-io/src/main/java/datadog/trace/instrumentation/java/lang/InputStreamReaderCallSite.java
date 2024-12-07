@@ -2,9 +2,11 @@ package datadog.trace.instrumentation.java.lang;
 
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastCallSites;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import java.io.InputStreamReader;
 import javax.annotation.Nonnull;
 
@@ -20,7 +22,8 @@ public class InputStreamReaderCallSite {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.taintObjectIfTainted(result, params[0]);
+        final TaintedObjects to = IastContext.Provider.taintedObjects();
+        module.taintObjectIfTainted(to, result, params[0]);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterInit threw", e);
       }

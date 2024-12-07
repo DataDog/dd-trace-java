@@ -1,10 +1,10 @@
 package com.datadog.iast
 
-import com.datadog.iast.model.Range
-import com.datadog.iast.taint.TaintedObjects
+import datadog.trace.api.iast.taint.Range
 import datadog.trace.api.Config
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.api.iast.taint.TaintedObjects
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.test.util.DDSpecification
@@ -43,27 +43,27 @@ class IastRequestContextTest extends DDSpecification {
     reqCtx.getData(RequestContextSlot.IAST) >> initialCtx
 
     when:
-    def resolved = provider.resolve()
+    def to = provider.resolveTaintedObjects()
 
     then:
     1 * tracer.activeSpan() >> null
-    resolved == null
+    to == null
 
     when:
-    resolved = provider.resolve()
+    to = provider.resolveTaintedObjects()
 
     then:
     1 * tracer.activeSpan() >> span
     1 * span.getRequestContext() >> null
-    resolved == null
+    to == null
 
     when:
-    resolved = provider.resolve()
+    to = provider.resolveTaintedObjects()
 
     then:
     1 * tracer.activeSpan() >> span
     1 * span.getRequestContext() >> reqCtx
-    resolved === initialCtx
+    to === initialCtx.taintedObjects
   }
 
   void 'provider uses a pool of tainted objects'() {

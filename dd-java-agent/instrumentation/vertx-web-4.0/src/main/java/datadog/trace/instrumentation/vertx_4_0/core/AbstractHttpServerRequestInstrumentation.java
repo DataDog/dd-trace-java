@@ -9,17 +9,14 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
-import datadog.trace.advice.ActiveRequestContext;
-import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
-import datadog.trace.api.gateway.RequestContext;
-import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -64,7 +61,6 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
         className + "$GetCookieAdvice");
   }
 
-  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class ParamsAdvice {
 
     @Advice.OnMethodEnter
@@ -78,20 +74,18 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
     @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
     public static void onExit(
         @Advice.Local("beforeParams") final Object beforeParams,
-        @Advice.Return final Object multiMap,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @Advice.Return final Object multiMap) {
       // only taint the map the first time
       if (beforeParams != multiMap) {
         final PropagationModule module = InstrumentationBridge.PROPAGATION;
         if (module != null) {
-          final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-          module.taintObject(ctx, multiMap, SourceTypes.REQUEST_PARAMETER_VALUE);
+          final TaintedObjects to = IastContext.Provider.taintedObjects();
+          module.taintObject(to, multiMap, SourceTypes.REQUEST_PARAMETER_VALUE);
         }
       }
     }
   }
 
-  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class AttributesAdvice {
 
     @Advice.OnMethodEnter
@@ -105,77 +99,68 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
     @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
     public static void onExit(
         @Advice.Local("beforeAttributes") final Object beforeAttributes,
-        @Advice.Return final Object multiMap,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @Advice.Return final Object multiMap) {
       // only taint the map the first time
       if (beforeAttributes != multiMap) {
         final PropagationModule module = InstrumentationBridge.PROPAGATION;
         if (module != null) {
-          final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-          module.taintObject(ctx, multiMap, SourceTypes.REQUEST_PARAMETER_VALUE);
+          final TaintedObjects to = IastContext.Provider.taintedObjects();
+          module.taintObject(to, multiMap, SourceTypes.REQUEST_PARAMETER_VALUE);
         }
       }
     }
   }
 
-  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class HeadersAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_HEADER_VALUE)
-    public static void onExit(
-        @Advice.Return final Object multiMap, @ActiveRequestContext RequestContext reqCtx) {
+    public static void onExit(@Advice.Return final Object multiMap) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-        module.taintObject(ctx, multiMap, SourceTypes.REQUEST_HEADER_VALUE);
+        final TaintedObjects to = IastContext.Provider.taintedObjects();
+        module.taintObject(to, multiMap, SourceTypes.REQUEST_HEADER_VALUE);
       }
     }
   }
 
-  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class DataAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_BODY)
-    public static void onExit(
-        @Advice.Argument(0) final Object data, @ActiveRequestContext RequestContext reqCtx) {
+    public static void onExit(@Advice.Argument(0) final Object data) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-        module.taintObject(ctx, data, SourceTypes.REQUEST_BODY);
+        final TaintedObjects to = IastContext.Provider.taintedObjects();
+        module.taintObject(to, data, SourceTypes.REQUEST_BODY);
       }
     }
   }
 
-  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class CookiesAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_COOKIE_VALUE)
-    public static void onExit(
-        @Advice.Return final Set<Object> cookies, @ActiveRequestContext RequestContext reqCtx) {
+    public static void onExit(@Advice.Return final Set<Object> cookies) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null && cookies != null && !cookies.isEmpty()) {
-        final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+        final TaintedObjects to = IastContext.Provider.taintedObjects();
         for (final Object cookie : cookies) {
-          module.taintObject(ctx, cookie, SourceTypes.REQUEST_COOKIE_VALUE);
+          module.taintObject(to, cookie, SourceTypes.REQUEST_COOKIE_VALUE);
         }
       }
     }
   }
 
-  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class GetCookieAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_COOKIE_VALUE)
-    public static void onExit(
-        @Advice.Return final Object cookie, @ActiveRequestContext RequestContext reqCtx) {
+    public static void onExit(@Advice.Return final Object cookie) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-        module.taintObject(ctx, cookie, SourceTypes.REQUEST_COOKIE_VALUE);
+        final TaintedObjects to = IastContext.Provider.taintedObjects();
+        module.taintObject(to, cookie, SourceTypes.REQUEST_COOKIE_VALUE);
       }
     }
   }

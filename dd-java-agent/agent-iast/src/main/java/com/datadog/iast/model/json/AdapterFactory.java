@@ -1,7 +1,6 @@
 package com.datadog.iast.model.json;
 
 import com.datadog.iast.model.Evidence;
-import com.datadog.iast.model.Source;
 import com.datadog.iast.model.Vulnerability;
 import com.datadog.iast.model.VulnerabilityBatch;
 import com.datadog.iast.model.VulnerabilityType;
@@ -10,6 +9,7 @@ import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
+import datadog.trace.api.iast.taint.Source;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
@@ -69,18 +69,14 @@ class AdapterFactory implements JsonAdapter.Factory {
       @Nonnull final Set<? extends Annotation> annotations,
       @Nonnull final Moshi moshi) {
     final Class<?> rawType = Types.getRawType(type);
-    if (Source.class.equals(rawType)) {
-      if (hasSourceIndexAnnotation(annotations)) {
-        return new SourceIndexAdapter();
-      } else {
-        return new SourceAdapter();
-      }
+    if (Source.class.isAssignableFrom(rawType)) {
+      return new SourceAdapter();
     } else if (VulnerabilityBatch.class.equals(rawType)) {
       return new VulnerabilityBatchAdapter(moshi);
     } else if (Vulnerability.class.equals(rawType)) {
       return new VulnerabilityAdapter(this, moshi);
     } else if (Evidence.class.equals(rawType)) {
-      return new EvidenceAdapter(moshi);
+      return new EvidenceAdapter();
     } else if (VulnerabilityType.class.equals(rawType)) {
       return new VulnerabilityTypeAdapter();
     } else if (TruncatedVulnerabilities.class.equals(rawType)) {
@@ -89,15 +85,10 @@ class AdapterFactory implements JsonAdapter.Factory {
     return null;
   }
 
-  protected boolean hasSourceIndexAnnotation(@Nonnull final Set<? extends Annotation> annotations) {
-    return annotations.stream()
-        .anyMatch(annotation -> annotation.annotationType() == SourceIndex.class);
-  }
-
   public static class SourceIndexAdapter extends FormattingAdapter<Source> {
 
     @Override
-    public void toJson(@Nonnull final JsonWriter writer, @Nullable @SourceIndex final Source value)
+    public void toJson(@Nonnull final JsonWriter writer, @Nullable final Source value)
         throws IOException {
       if (value == null) {
         writer.nullValue();

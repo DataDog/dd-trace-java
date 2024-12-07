@@ -7,7 +7,7 @@ import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import org.apache.pekko.http.javadsl.model.HttpHeader;
 
 /**
@@ -29,11 +29,11 @@ public class HeaderNameCallSite {
       return result;
     }
     try {
-      final IastContext ctx = IastContext.Provider.get(AgentTracer.activeSpan());
-      if (ctx == null) {
+      final TaintedObjects to = IastContext.Provider.taintedObjects();
+      if (to == null) {
         return result;
       }
-      module.taintStringIfTainted(ctx, result, header, SourceTypes.REQUEST_HEADER_NAME, result);
+      module.taintObjectIfTainted(to, result, header, SourceTypes.REQUEST_HEADER_NAME, result);
     } catch (final Throwable e) {
       module.onUnexpectedException("onHeaderNames threw", e);
     }

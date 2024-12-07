@@ -4,10 +4,10 @@ import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
-import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.propagation.PropagationModule
+import datadog.trace.api.iast.taint.TaintedObjects
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator
@@ -203,7 +203,7 @@ class UrlHandlerMappingTest extends HttpServerTest<ConfigurableApplicationContex
     TEST_WRITER.waitForTraces(1)
 
     then:
-    1 * mod.taintString(_ as IastContext, '123', SourceTypes.REQUEST_PATH_PARAMETER, 'id')
+    1 * mod.taintObject(_ as TaintedObjects, '123', SourceTypes.REQUEST_PATH_PARAMETER, 'id')
     0 * mod._
 
     cleanup:

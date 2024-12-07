@@ -74,8 +74,7 @@ class IastOkHttp3InstrumentationTest extends AgentTestRunner {
     }
 
     final propagation = Mock(PropagationModule) {
-      taintStringIfTainted(*_) >> { taint(it[0], [it[1]]) }
-      taintObjectIfTainted(*_) >> { taint(it[0], [it[1]]) }
+      taintObjectIfTainted(*_) >> { taint(it[1], [it[2]]) }
     }
     InstrumentationBridge.registerIastModule(propagation)
 

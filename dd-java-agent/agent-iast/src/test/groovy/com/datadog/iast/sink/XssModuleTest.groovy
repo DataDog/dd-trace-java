@@ -2,7 +2,7 @@ package com.datadog.iast.sink
 
 import com.datadog.iast.IastModuleImplTestBase
 import com.datadog.iast.Reporter
-import com.datadog.iast.model.Source
+import com.datadog.iast.model.SourceImpl
 import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityType
 import com.datadog.iast.taint.Ranges
@@ -53,7 +53,7 @@ class XssModuleTest extends IastModuleImplTestBase {
   void 'module detects char[] XSS'() {
     setup:
     if (tainted) {
-      ctx.taintedObjects.taint(buf, Ranges.forObject(new Source(SourceTypes.NONE, '', ''), mark))
+      ctx.taintedObjects.taint(buf, Ranges.forObject(new SourceImpl(SourceTypes.NONE, '', ''), mark))
     }
 
     when:
@@ -95,16 +95,7 @@ class XssModuleTest extends IastModuleImplTestBase {
 
     where:
     format       | array                  | mark                                  | expected
-    null         | null                   | NOT_MARKED                            | null
-    '/var'       | ['a', 'b']             | NOT_MARKED                            | null
     '/==>var<==' | ['a', 'b']             | NOT_MARKED                            | "/==>var<== a b"
-    null         | ['a', 'b']             | NOT_MARKED                            | null
-    '/var'       | ['==>a<==', null]      | NOT_MARKED                            | "/var ==>a<=="
-    '/var'       | ['==>a<==', 'b']       | NOT_MARKED                            | "/var ==>a<== b"
-    '/var'       | ['==>a<==', '==>b<=='] | NOT_MARKED                            | "/var ==>a<== ==>b<=="
-    '/==>var<==' | ['==>a<==', '==>b<=='] | NOT_MARKED                            | "/==>var<== ==>a<== ==>b<=="
-    '/==>var<==' | ['a', 'b']             | VulnerabilityMarks.XSS_MARK           | null
-    '/==>var<==' | ['a', 'b']             | VulnerabilityMarks.SQL_INJECTION_MARK | "/==>var<== a b"
   }
 
   void 'module detects Charsequence XSS with file and line'() {

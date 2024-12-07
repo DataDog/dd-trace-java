@@ -10,9 +10,11 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import net.bytebuddy.asm.Advice;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -53,7 +55,8 @@ public class JSONArrayInstrumentation extends InstrumenterModule.Iast
     public static void afterInit(@Advice.This Object self, @Advice.Argument(0) final Object input) {
       final PropagationModule iastModule = InstrumentationBridge.PROPAGATION;
       if (iastModule != null && input != null) {
-        iastModule.taintObjectIfTainted(self, input);
+        final TaintedObjects to = IastContext.Provider.taintedObjects();
+        iastModule.taintObjectIfTainted(to, self, input);
       }
     }
   }
@@ -69,11 +72,8 @@ public class JSONArrayInstrumentation extends InstrumenterModule.Iast
       }
       final PropagationModule iastModule = InstrumentationBridge.PROPAGATION;
       if (iastModule != null) {
-        if (isString) {
-          iastModule.taintStringIfTainted((String) result, self);
-        } else {
-          iastModule.taintObjectIfTainted(result, self);
-        }
+        final TaintedObjects to = IastContext.Provider.taintedObjects();
+        iastModule.taintObjectIfTainted(to, result, self);
       }
     }
   }
@@ -89,11 +89,8 @@ public class JSONArrayInstrumentation extends InstrumenterModule.Iast
       }
       final PropagationModule iastModule = InstrumentationBridge.PROPAGATION;
       if (iastModule != null) {
-        if (isString) {
-          iastModule.taintStringIfTainted((String) result, self);
-        } else {
-          iastModule.taintObjectIfTainted(result, self);
-        }
+        final TaintedObjects to = IastContext.Provider.taintedObjects();
+        iastModule.taintObjectIfTainted(to, result, self);
       }
     }
   }

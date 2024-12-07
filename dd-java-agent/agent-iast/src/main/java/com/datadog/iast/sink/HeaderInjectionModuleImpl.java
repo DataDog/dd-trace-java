@@ -15,11 +15,11 @@ import static com.datadog.iast.util.HttpHeader.UPGRADE;
 import static datadog.trace.api.iast.SourceTypes.REQUEST_HEADER_NAME;
 
 import com.datadog.iast.Dependencies;
-import com.datadog.iast.model.Range;
 import com.datadog.iast.model.VulnerabilityType;
 import com.datadog.iast.util.HttpHeader;
 import com.datadog.iast.util.RangeBuilder;
 import datadog.trace.api.iast.sink.HeaderInjectionModule;
+import datadog.trace.api.iast.taint.Range;
 import java.util.EnumSet;
 import java.util.Set;
 import javax.annotation.Nonnull;

@@ -6,7 +6,7 @@ import static datadog.trace.util.stacktrace.StackTraceEvent.DEFAULT_LANGUAGE;
 
 import com.datadog.iast.model.Vulnerability;
 import com.datadog.iast.model.VulnerabilityBatch;
-import com.datadog.iast.taint.TaintedObjects;
+import com.datadog.iast.taint.TaintedObjectsMap;
 import datadog.trace.api.Config;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
@@ -137,7 +137,7 @@ public class Reporter {
   private AgentSpan startNewSpan() {
     final AgentSpan.Context tagContext =
         new TagContext()
-            .withRequestContextDataIast(new IastRequestContext(TaintedObjects.NoOp.INSTANCE));
+            .withRequestContextDataIast(new IastRequestContext(TaintedObjectsMap.NoOp.INSTANCE));
     final AgentSpan span =
         tracer()
             .startSpan("iast", VULNERABILITY_SPAN_NAME, tagContext)

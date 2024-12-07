@@ -8,17 +8,14 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
-import datadog.trace.advice.ActiveRequestContext;
-import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.gateway.RequestContext;
-import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import net.bytebuddy.asm.Advice;
 import org.apache.pekko.http.javadsl.model.HttpHeader;
 import org.apache.pekko.http.scaladsl.model.headers.Cookie;
@@ -54,20 +51,17 @@ public class CookieHeaderInstrumentation extends InstrumenterModule.Iast
         CookieHeaderInstrumentation.class.getName() + "$TaintAllCookiesAdvice");
   }
 
-  @RequiresRequestContext(RequestContextSlot.IAST)
   static class TaintAllCookiesAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_COOKIE_VALUE)
     static void after(
-        @Advice.This HttpHeader cookie,
-        @Advice.Return Seq<HttpCookiePair> cookiePairs,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @Advice.This HttpHeader cookie, @Advice.Return Seq<HttpCookiePair> cookiePairs) {
       PropagationModule prop = InstrumentationBridge.PROPAGATION;
       if (prop == null || cookiePairs == null || cookiePairs.isEmpty()) {
         return;
       }
-      final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-      if (!prop.isTainted(ctx, cookie)) {
+      final TaintedObjects to = IastContext.Provider.taintedObjects();
+      if (!prop.isTainted(to, cookie)) {
         return;
       }
 
@@ -75,8 +69,8 @@ public class CookieHeaderInstrumentation extends InstrumenterModule.Iast
       while (iterator.hasNext()) {
         HttpCookiePair pair = iterator.next();
         final String name = pair.name(), value = pair.value();
-        prop.taintString(ctx, name, SourceTypes.REQUEST_COOKIE_NAME, name);
-        prop.taintString(ctx, value, SourceTypes.REQUEST_COOKIE_VALUE, name);
+        prop.taintObject(to, name, SourceTypes.REQUEST_COOKIE_NAME, name);
+        prop.taintObject(to, value, SourceTypes.REQUEST_COOKIE_VALUE, name);
       }
     }
   }

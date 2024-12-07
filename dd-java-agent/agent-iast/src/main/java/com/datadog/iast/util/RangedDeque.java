@@ -1,6 +1,7 @@
 package com.datadog.iast.util;
 
 import com.datadog.iast.sensitive.SensitiveHandler.Tokenizer;
+import datadog.trace.api.iast.util.Ranged;
 import java.util.Deque;
 import java.util.LinkedList;
 import javax.annotation.Nonnull;

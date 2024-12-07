@@ -8,9 +8,11 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import net.bytebuddy.asm.Advice;
 import org.apache.http.HttpHost;
 
@@ -44,7 +46,8 @@ public class IastHttpHostInstrumentation extends InstrumenterModule.Iast
         @Advice.This final Object self, @Advice.Argument(0) final Object argument) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        module.taintObjectIfTainted(self, argument);
+        final TaintedObjects to = IastContext.Provider.taintedObjects();
+        module.taintObjectIfTainted(to, self, argument);
       }
     }
   }
@@ -55,7 +58,8 @@ public class IastHttpHostInstrumentation extends InstrumenterModule.Iast
     public static void methodExit(@Advice.This HttpHost self, @Advice.Return String result) {
       final PropagationModule propagationModule = InstrumentationBridge.PROPAGATION;
       if (propagationModule != null) {
-        propagationModule.taintObjectIfTainted(result, self);
+        final TaintedObjects to = IastContext.Provider.taintedObjects();
+        propagationModule.taintObjectIfTainted(to, result, self);
       }
     }
   }

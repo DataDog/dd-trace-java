@@ -6,17 +6,14 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
-import datadog.trace.advice.ActiveRequestContext;
-import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.gateway.RequestContext;
-import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
@@ -39,18 +36,16 @@ public class AbstractServerHttpRequestInstrumentation extends InstrumenterModule
         getClass().getName() + "$TaintHeadersAdvice");
   }
 
-  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class TaintHeadersAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_HEADER_VALUE)
-    public static void after(
-        @Advice.Return Object object, @ActiveRequestContext RequestContext reqCtx) {
+    public static void after(@Advice.Return Object object) {
       PropagationModule propagation = InstrumentationBridge.PROPAGATION;
       if (propagation == null) {
         return;
       }
-      IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-      propagation.taintObject(ctx, object, SourceTypes.REQUEST_HEADER_VALUE);
+      final TaintedObjects to = IastContext.Provider.taintedObjects();
+      propagation.taintObject(to, object, SourceTypes.REQUEST_HEADER_VALUE);
     }
   }
 }

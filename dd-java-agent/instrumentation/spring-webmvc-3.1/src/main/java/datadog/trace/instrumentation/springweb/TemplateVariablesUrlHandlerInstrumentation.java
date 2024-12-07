@@ -23,6 +23,7 @@ import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.Map;
@@ -148,14 +149,14 @@ public class TemplateVariablesUrlHandlerInstrumentation extends InstrumenterModu
         if (iastRequestContext != null) {
           PropagationModule module = InstrumentationBridge.PROPAGATION;
           if (module != null) {
+            final TaintedObjects to = iastRequestContext.getTaintedObjects();
             for (Map.Entry<String, String> e : map.entrySet()) {
               String parameterName = e.getKey();
               String value = e.getValue();
               if (parameterName == null || value == null) {
                 continue; // should not happen
               }
-              module.taintString(
-                  iastRequestContext, value, SourceTypes.REQUEST_PATH_PARAMETER, parameterName);
+              module.taintObject(to, value, SourceTypes.REQUEST_PATH_PARAMETER, parameterName);
             }
           }
         }

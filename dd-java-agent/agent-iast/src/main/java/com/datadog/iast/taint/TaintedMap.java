@@ -3,6 +3,7 @@ package com.datadog.iast.taint;
 import com.datadog.iast.IastSystem;
 import com.datadog.iast.util.Wrapper;
 import datadog.trace.api.Config;
+import datadog.trace.api.iast.taint.TaintedObject;
 import datadog.trace.api.iast.telemetry.IastMetric;
 import datadog.trace.api.iast.telemetry.IastMetricCollector;
 import datadog.trace.api.iast.telemetry.Verbosity;
@@ -25,8 +26,8 @@ import org.slf4j.LoggerFactory;
  * concurrency.
  *
  * <p>This is intentionally a smaller API compared to {@link java.util.Map}. It is a hardcoded
- * interface for {@link TaintedObject} entries, which can be used themselves directly as hash table
- * entries and weak references.
+ * interface for {@link TaintedObjectEntry} entries, which can be used themselves directly as hash
+ * table entries and weak references.
  *
  * <p>This implementation is subject to the following characteristics:
  *
@@ -81,9 +82,9 @@ public interface TaintedMap extends Iterable<TaintedObject> {
   }
 
   @Nullable
-  TaintedObject get(@Nonnull Object key);
+  TaintedObjectEntry get(@Nonnull Object key);
 
-  void put(final @Nonnull TaintedObject entry);
+  void put(final @Nonnull TaintedObjectEntry entry);
 
   int count();
 
@@ -91,7 +92,7 @@ public interface TaintedMap extends Iterable<TaintedObject> {
 
   class TaintedMapImpl implements TaintedMap, Runnable {
 
-    protected final TaintedObject[] table;
+    protected final TaintedObjectEntry[] table;
 
     /** Bitmask for fast modulo with table length. */
     protected final int lengthMask;
@@ -141,7 +142,7 @@ public interface TaintedMap extends Iterable<TaintedObject> {
         final int maxAge,
         @Nullable final TimeUnit maxAgeUnit,
         @Nullable final AgentTaskScheduler scheduler) {
-      table = new TaintedObject[capacity];
+      table = new TaintedObjectEntry[capacity];
       lengthMask = table.length - 1;
       generation = true;
       this.maxBucketSize = maxBucketSize;
@@ -161,9 +162,9 @@ public interface TaintedMap extends Iterable<TaintedObject> {
      */
     @Nullable
     @Override
-    public TaintedObject get(final @Nonnull Object key) {
+    public TaintedObjectEntry get(final @Nonnull Object key) {
       final int index = indexObject(key);
-      TaintedObject entry = head(index);
+      TaintedObjectEntry entry = head(index);
       while (entry != null) {
         if (key == entry.get()) {
           return entry;
@@ -174,22 +175,22 @@ public interface TaintedMap extends Iterable<TaintedObject> {
     }
 
     /**
-     * Put a new {@link TaintedObject} in the hash table, always to the tail of the chain. It will
-     * not insert the element if it is already present in the map. This method will lose puts in
-     * concurrent scenarios.
+     * Put a new {@link TaintedObjectEntry} in the hash table, always to the tail of the chain. It
+     * will not insert the element if it is already present in the map. This method will lose puts
+     * in concurrent scenarios.
      *
      * @param entry Tainted object.
      */
     @Override
-    public void put(final @Nonnull TaintedObject entry) {
+    public void put(final @Nonnull TaintedObjectEntry entry) {
       final int index = index(entry.positiveHashCode);
-      TaintedObject cur = head(index);
+      TaintedObjectEntry cur = head(index);
       if (cur == null) {
         table[index] = entry;
         entry.generation = generation;
       } else {
         int bucketSize = 1;
-        TaintedObject next;
+        TaintedObjectEntry next;
         while ((next = next(cur)) != null) {
           if (cur.positiveHashCode == entry.positiveHashCode && cur.get() == entry.get()) {
             // Duplicate, exit early.
@@ -225,7 +226,7 @@ public interface TaintedMap extends Iterable<TaintedObject> {
     public int count() {
       int size = 0;
       for (int i = 0; i < table.length; i++) {
-        TaintedObject entry = table[i];
+        TaintedObjectEntry entry = table[i];
         while (entry != null) {
           entry = entry.next;
           size++;
@@ -237,7 +238,7 @@ public interface TaintedMap extends Iterable<TaintedObject> {
     private Iterator<TaintedObject> iterator(final int start, final int stop) {
       return new Iterator<TaintedObject>() {
         int currentIndex = start;
-        @Nullable TaintedObject currentSubPos;
+        @Nullable TaintedObjectEntry currentSubPos;
 
         @Override
         public boolean hasNext() {
@@ -253,14 +254,14 @@ public interface TaintedMap extends Iterable<TaintedObject> {
         }
 
         @Override
-        public TaintedObject next() {
+        public TaintedObjectEntry next() {
           if (currentSubPos != null) {
-            TaintedObject toReturn = currentSubPos;
+            TaintedObjectEntry toReturn = currentSubPos;
             currentSubPos = toReturn.next;
             return toReturn;
           }
           for (; currentIndex < stop; currentIndex++) {
-            final TaintedObject entry = table[currentIndex];
+            final TaintedObjectEntry entry = table[currentIndex];
             if (entry != null) {
               currentSubPos = entry.next;
               currentIndex++;
@@ -285,22 +286,22 @@ public interface TaintedMap extends Iterable<TaintedObject> {
     }
 
     @Nullable
-    protected TaintedObject head(final int index) {
-      final TaintedObject head = findAlive(table[index]);
+    protected TaintedObjectEntry head(final int index) {
+      final TaintedObjectEntry head = findAlive(table[index]);
       table[index] = head;
       return head;
     }
 
     @Nullable
-    protected TaintedObject next(@Nonnull final TaintedObject item) {
-      final TaintedObject next = findAlive(item.next);
+    protected TaintedObjectEntry next(@Nonnull final TaintedObjectEntry item) {
+      final TaintedObjectEntry next = findAlive(item.next);
       item.next = next;
       return next;
     }
 
     /** Gets the first reachable reference that has not been GC'ed */
     @Nullable
-    protected TaintedObject findAlive(@Nullable TaintedObject item) {
+    protected TaintedObjectEntry findAlive(@Nullable TaintedObjectEntry item) {
       while (item != null && item.get() == null) {
         item = item.next;
       }
@@ -311,7 +312,7 @@ public interface TaintedMap extends Iterable<TaintedObject> {
     @Override
     public void run() {
       for (int bucket = 0; bucket < table.length; bucket++) {
-        for (TaintedObject cur = head(bucket), prev = null; cur != null; cur = next(cur)) {
+        for (TaintedObjectEntry cur = head(bucket), prev = null; cur != null; cur = next(cur)) {
           if (cur.generation != generation) { // entry added to the map in previous generation
             if (prev == null) {
               table[bucket] = cur.next;
@@ -344,7 +345,7 @@ public interface TaintedMap extends Iterable<TaintedObject> {
     }
 
     @Override
-    public void put(@Nonnull final TaintedObject entry) {
+    public void put(@Nonnull final TaintedObjectEntry entry) {
       delegate.put(entry);
       final long putOps = puts.updateAndGet(current -> current == Long.MAX_VALUE ? 0 : current + 1);
       if (putOps % COMPUTE_STATISTICS_INTERVAL == 0 && LOGGER.isDebugEnabled()) {
@@ -354,7 +355,7 @@ public interface TaintedMap extends Iterable<TaintedObject> {
 
     @Nullable
     @Override
-    public TaintedObject get(@Nonnull final Object key) {
+    public TaintedObjectEntry get(@Nonnull final Object key) {
       return delegate.get(key);
     }
 
@@ -380,12 +381,12 @@ public interface TaintedMap extends Iterable<TaintedObject> {
     }
 
     protected void computeStatistics() {
-      final TaintedObject[] table = delegate.table;
+      final TaintedObjectEntry[] table = delegate.table;
       final int[] chains = new int[table.length];
       long stale = 0;
       long count = 0;
       for (int bucket = 0; bucket < table.length; bucket++) {
-        TaintedObject cur = table[bucket];
+        TaintedObjectEntry cur = table[bucket];
         int chainLength = 0;
         while (cur != null) {
           count++;
@@ -448,12 +449,12 @@ public interface TaintedMap extends Iterable<TaintedObject> {
 
     @Nullable
     @Override
-    public TaintedObject get(@Nonnull Object key) {
+    public TaintedObjectEntry get(@Nonnull Object key) {
       return null;
     }
 
     @Override
-    public void put(@Nonnull TaintedObject entry) {}
+    public void put(@Nonnull TaintedObjectEntry entry) {}
 
     @Override
     public int count() {
