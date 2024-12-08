@@ -422,7 +422,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
       ClassLoader loader,
       String classFilePath,
       ClassNode classNode) {
-    if (classNode.version < Opcodes.V1_8) {
+    if ((classNode.version & 0xFF) < Opcodes.V1_8) {
       // Class file version must be at least 1.8 (52)
       classNode.version = Opcodes.V1_8;
     }
