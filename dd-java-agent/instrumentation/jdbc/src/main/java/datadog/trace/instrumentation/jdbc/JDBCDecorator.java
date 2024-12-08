@@ -252,6 +252,10 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     return "sqlserver".equals(dbInfo.getType());
   }
 
+  public boolean isOracle(final DBInfo dbInfo) {
+    return "oracle".equals(dbInfo.getType());
+  }
+
   /**
    * Executes a `SET CONTEXT_INFO` statement on the DB with the active trace ID and the given span
    * ID. This context will be "attached" to future queries on the same connection. See <a
@@ -310,6 +314,38 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       instrumentationSpan.finish();
     }
     return spanID;
+  }
+
+  /**
+   * Executes `connection.setClientInfo("OCSID.ACTION", traceContext)` statement on the Oracle DB to
+   * set the trace parent in `v$session.action`. This is used because it isn't possible to propagate
+   * trace parent with the comment.
+   *
+   * @param span The span of the instrumented statement
+   * @param connection The same connection as the one that will be used for the actual statement
+   */
+  public void setAction(AgentSpan span, Connection connection) {
+    try {
+
+      Integer priority = span.forceSamplingDecision();
+      if (priority == null) {
+        return;
+      }
+      final String traceContext = "_DD_" + DECORATE.traceParent(span, priority);
+
+      connection.setClientInfo("OCSID.ACTION", traceContext);
+
+    } catch (Throwable e) {
+      log.debug(
+          "Failed to set extra DBM data in application_name for trace {}. "
+              + "To disable this behavior, set trace_prepared_statements to 'false'. "
+              + "See https://docs.datadoghq.com/database_monitoring/connect_dbm_and_apm/ for more info.{}",
+          span.getTraceId().toHexString(),
+          e);
+      DECORATE.onError(span, e);
+    } finally {
+      span.setTag("_dd.dbm_trace_injected", true);
+    }
   }
 
   @Override
