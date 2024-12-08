@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.java.lang;
 
 import datadog.trace.agent.tooling.csi.CallSite;
+import datadog.trace.api.appsec.RaspCallSites;
 import datadog.trace.api.iast.IastCallSites;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Sink;
@@ -10,34 +11,24 @@ import java.io.File;
 import javax.annotation.Nullable;
 
 @Sink(VulnerabilityTypes.COMMAND_INJECTION)
-@CallSite(spi = IastCallSites.class)
+@CallSite(
+    spi = {IastCallSites.class, RaspCallSites.class},
+    helpers = ShellCmdRaspHelper.class)
 public class RuntimeCallSite {
 
   @CallSite.Before("java.lang.Process java.lang.Runtime.exec(java.lang.String)")
   public static void beforeStart(@CallSite.Argument @Nullable final String command) {
     if (command != null) { // runtime fails if null
-      final CommandInjectionModule module = InstrumentationBridge.COMMAND_INJECTION;
-      if (module != null) {
-        try {
-          module.onRuntimeExec(command);
-        } catch (final Throwable e) {
-          module.onUnexpectedException("beforeExec threw", e);
-        }
-      }
+      iastCallback(command);
+      raspCallback(command);
     }
   }
 
   @CallSite.Before("java.lang.Process java.lang.Runtime.exec(java.lang.String[])")
   public static void beforeExec(@CallSite.Argument @Nullable final String[] cmdArray) {
     if (cmdArray != null && cmdArray.length > 0) { // runtime fails if null or empty
-      final CommandInjectionModule module = InstrumentationBridge.COMMAND_INJECTION;
-      if (module != null) {
-        try {
-          module.onRuntimeExec(cmdArray);
-        } catch (final Throwable e) {
-          module.onUnexpectedException("beforeExec threw", e);
-        }
-      }
+      iastCallback(cmdArray);
+      raspCallback(cmdArray);
     }
   }
 
@@ -46,14 +37,8 @@ public class RuntimeCallSite {
       @CallSite.Argument @Nullable final String command,
       @CallSite.Argument @Nullable final String[] envp) {
     if (command != null) { // runtime fails if null
-      final CommandInjectionModule module = InstrumentationBridge.COMMAND_INJECTION;
-      if (module != null) {
-        try {
-          module.onRuntimeExec(envp, command);
-        } catch (final Throwable e) {
-          module.onUnexpectedException("beforeExec threw", e);
-        }
-      }
+      iastCallback(envp, command);
+      raspCallback(command);
     }
   }
 
@@ -63,14 +48,8 @@ public class RuntimeCallSite {
       @CallSite.Argument @Nullable final String[] cmdArray,
       @CallSite.Argument @Nullable final String[] envp) {
     if (cmdArray != null && cmdArray.length > 0) { // runtime fails if null or empty
-      final CommandInjectionModule module = InstrumentationBridge.COMMAND_INJECTION;
-      if (module != null) {
-        try {
-          module.onRuntimeExec(envp, cmdArray);
-        } catch (final Throwable e) {
-          module.onUnexpectedException("beforeExec threw", e);
-        }
-      }
+      iastCallback(envp, cmdArray);
+      raspCallback(cmdArray);
     }
   }
 
@@ -81,14 +60,8 @@ public class RuntimeCallSite {
       @CallSite.Argument @Nullable final String[] envp,
       @CallSite.Argument @Nullable final File dir) {
     if (command != null) { // runtime fails if null
-      final CommandInjectionModule module = InstrumentationBridge.COMMAND_INJECTION;
-      if (module != null) {
-        try {
-          module.onRuntimeExec(envp, command);
-        } catch (final Throwable e) {
-          module.onUnexpectedException("beforeExec threw", e);
-        }
-      }
+      iastCallback(envp, command);
+      raspCallback(command);
     }
   }
 
@@ -99,14 +72,60 @@ public class RuntimeCallSite {
       @CallSite.Argument @Nullable final String[] envp,
       @CallSite.Argument @Nullable final File dir) {
     if (cmdArray != null && cmdArray.length > 0) { // runtime fails if null or empty
-      final CommandInjectionModule module = InstrumentationBridge.COMMAND_INJECTION;
-      if (module != null) {
-        try {
-          module.onRuntimeExec(envp, cmdArray);
-        } catch (final Throwable e) {
-          module.onUnexpectedException("beforeExec threw", e);
-        }
+      iastCallback(envp, cmdArray);
+      raspCallback(cmdArray);
+    }
+  }
+
+  private static void iastCallback(String command) {
+    final CommandInjectionModule module = InstrumentationBridge.COMMAND_INJECTION;
+    if (module != null) {
+      try {
+        module.onRuntimeExec(command);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("iastCallback threw", e);
       }
     }
+  }
+
+  private static void iastCallback(String[] cmdArray) {
+    final CommandInjectionModule module = InstrumentationBridge.COMMAND_INJECTION;
+    if (module != null) {
+      try {
+        module.onRuntimeExec(cmdArray);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("iastCallback threw", e);
+      }
+    }
+  }
+
+  private static void iastCallback(String[] envp, String command) {
+    final CommandInjectionModule module = InstrumentationBridge.COMMAND_INJECTION;
+    if (module != null) {
+      try {
+        module.onRuntimeExec(envp, command);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("iastCallback threw", e);
+      }
+    }
+  }
+
+  private static void iastCallback(String[] envp, String[] cmdArray) {
+    final CommandInjectionModule module = InstrumentationBridge.COMMAND_INJECTION;
+    if (module != null) {
+      try {
+        module.onRuntimeExec(envp, cmdArray);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("iastCallback threw", e);
+      }
+    }
+  }
+
+  private static void raspCallback(String command) {
+    ShellCmdRaspHelper.INSTANCE.beforeShellCmd(command);
+  }
+
+  private static void raspCallback(String[] cmdArray) {
+    ShellCmdRaspHelper.INSTANCE.beforeShellCmd(cmdArray);
   }
 }

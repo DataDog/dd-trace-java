@@ -13,6 +13,7 @@ import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_HEADER_FINGERPRIN
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_IP_BLOCKING;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_NETWORK_FINGERPRINT;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_LFI;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_SHI;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_SQLI;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_SSRF;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_REQUEST_BLOCKING;
@@ -118,6 +119,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       capabilities |= CAPABILITY_ASM_RASP_SQLI;
       capabilities |= CAPABILITY_ASM_RASP_SSRF;
       capabilities |= CAPABILITY_ASM_RASP_LFI;
+      capabilities |= CAPABILITY_ASM_RASP_SHI;
     }
     this.configurationPoller.addCapabilities(capabilities);
   }
@@ -362,6 +364,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
             | CAPABILITY_ASM_RASP_SQLI
             | CAPABILITY_ASM_RASP_SSRF
             | CAPABILITY_ASM_RASP_LFI
+            | CAPABILITY_ASM_RASP_SHI
             | CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE
             | CAPABILITY_ENDPOINT_FINGERPRINT
             | CAPABILITY_ASM_SESSION_FINGERPRINT
