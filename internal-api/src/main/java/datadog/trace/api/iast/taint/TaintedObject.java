@@ -4,7 +4,7 @@ public interface TaintedObject {
 
   Object get();
 
-  Range[] getRanges();
+  Object[] getRanges();
 
-  void setRanges(final Range[] ranges);
+  void setRanges(final Object[] ranges);
 }

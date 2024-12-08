@@ -4,6 +4,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_MAX_CONCURRENT_REQUE
 
 import com.datadog.iast.model.VulnerabilityBatch;
 import com.datadog.iast.overhead.OverheadContext;
+import com.datadog.iast.taint.NativeTaintedObjectsAdapter;
 import com.datadog.iast.taint.TaintedMap;
 import com.datadog.iast.taint.TaintedObjectsMap;
 import com.datadog.iast.util.Wrapper;
@@ -12,6 +13,7 @@ import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.taint.TaintedObjects;
 import datadog.trace.api.iast.telemetry.IastMetricCollector;
 import datadog.trace.api.iast.telemetry.IastMetricCollector.HasMetricCollector;
+import datadog.trace.api.nagent.NativeAgent;
 import java.io.IOException;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -144,15 +146,24 @@ public class IastRequestContext implements IastContext, HasMetricCollector {
     @Nullable
     @Override
     public TaintedObjects resolveTaintedObjects() {
-      final IastContext ctx = get();
-      return ctx == null ? null : ctx.getTaintedObjects();
+      if (NativeAgent.isInstalled()) {
+        return NativeTaintedObjectsAdapter.INSTANCE;
+      } else {
+        final IastContext ctx = get();
+        return ctx == null ? null : ctx.getTaintedObjects();
+      }
     }
 
     @Override
     public IastContext buildRequestContext() {
-      TaintedObjects taintedObjects = pool.poll();
-      if (taintedObjects == null) {
-        taintedObjects = TaintedObjectsMap.build(TaintedMap.build(MAP_SIZE));
+      TaintedObjects taintedObjects;
+      if (NativeAgent.isInstalled()) {
+        taintedObjects = NativeTaintedObjectsAdapter.INSTANCE;
+      } else {
+        taintedObjects = pool.poll();
+        if (taintedObjects == null) {
+          taintedObjects = TaintedObjectsMap.build(TaintedMap.build(MAP_SIZE));
+        }
       }
       final IastRequestContext ctx = new IastRequestContext(taintedObjects);
       ctx.release = this::releaseRequestContext;
@@ -164,18 +175,20 @@ public class IastRequestContext implements IastContext, HasMetricCollector {
     public void releaseRequestContext(@Nonnull final IastContext context) {
       final IastRequestContext iastCtx = (IastRequestContext) context;
 
-      // reset tainted objects map
-      final TaintedObjects taintedObjects = iastCtx.getTaintedObjects();
-      taintedObjects.clear();
+      if (!NativeAgent.isInstalled()) {
+        // reset tainted objects map
+        final TaintedObjects taintedObjects = iastCtx.getTaintedObjects();
+        taintedObjects.clear();
 
-      // return to pool and update internal ref
-      final TaintedObjects unwrapped =
-          taintedObjects instanceof Wrapper
-              ? ((Wrapper<TaintedObjects>) taintedObjects).unwrap()
-              : taintedObjects;
-      if (unwrapped != TaintedObjects.NoOp.INSTANCE) {
-        pool.offer(unwrapped);
-        iastCtx.setTaintedObjects(TaintedObjects.NoOp.INSTANCE);
+        // return to pool and update internal ref
+        final TaintedObjects unwrapped =
+            taintedObjects instanceof Wrapper
+                ? ((Wrapper<TaintedObjects>) taintedObjects).unwrap()
+                : taintedObjects;
+        if (unwrapped != TaintedObjects.NoOp.INSTANCE) {
+          pool.offer(unwrapped);
+          iastCtx.setTaintedObjects(TaintedObjects.NoOp.INSTANCE);
+        }
       }
     }
   }

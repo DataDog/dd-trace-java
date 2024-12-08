@@ -8,6 +8,7 @@ export UTILS_DIR="${SCRIPT_DIR}/utils"
 export SHELL_UTILS_DIR="${UTILS_DIR}/shell"
 export K6_UTILS_DIR="${UTILS_DIR}/k6"
 export TRACER="${SCRIPT_DIR}/tracer/dd-java-agent.jar"
+export NATIVE_TRACER=$(readlink --canonicalize "${SCRIPT_DIR}/../native-agent/libdd-java-agent.so")
 export NO_AGENT_VARIANT="no_agent"
 
 run_benchmarks() {

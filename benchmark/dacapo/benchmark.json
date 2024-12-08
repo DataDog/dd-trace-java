@@ -35,6 +35,12 @@
         "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.iast.enabled=true"
       }
     },
+    "iast_NATIVE": {
+      "env": {
+        "VARIANT": "iast_NATIVE",
+        "JAVA_OPTS": "-agentpath:${NATIVE_TRACER} -javaagent:${TRACER} -Ddd.iast.enabled=true"
+      }
+    },
     "iast_GLOBAL": {
       "env": {
         "VARIANT": "iast_GLOBAL",

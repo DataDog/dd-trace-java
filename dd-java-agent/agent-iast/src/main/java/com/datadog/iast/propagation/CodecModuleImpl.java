@@ -7,6 +7,7 @@ import com.datadog.iast.util.RangeBuilder;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.propagation.CodecModule;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.api.iast.taint.Range;
 import datadog.trace.api.iast.taint.TaintedObject;
 import datadog.trace.api.iast.taint.TaintedObjects;
 import java.net.URI;
@@ -116,7 +117,7 @@ public class CodecModuleImpl implements CodecModule {
         hasTainted = true;
         final int offset = toString.indexOf(arg.toString());
         if (offset >= 0) {
-          builder.add(tainted.getRanges(), offset);
+          builder.add((Range[]) tainted.getRanges(), offset);
         }
       }
     }

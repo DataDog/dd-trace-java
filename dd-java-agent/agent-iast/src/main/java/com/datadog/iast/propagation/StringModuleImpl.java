@@ -70,12 +70,14 @@ public class StringModuleImpl implements StringModule {
     }
     final Range[] ranges;
     if (taintedRight == null) {
-      ranges = taintedLeft.getRanges();
+      ranges = (Range[]) taintedLeft.getRanges();
     } else if (taintedLeft == null) {
       ranges = new Range[taintedRight.getRanges().length];
-      Ranges.copyShift(taintedRight.getRanges(), ranges, 0, left.length());
+      Ranges.copyShift((Range[]) taintedRight.getRanges(), ranges, 0, left.length());
     } else {
-      ranges = mergeRanges(left.length(), taintedLeft.getRanges(), taintedRight.getRanges());
+      ranges =
+          mergeRanges(
+              left.length(), (Range[]) taintedLeft.getRanges(), (Range[]) taintedRight.getRanges());
     }
     to.taint(result, ranges);
   }
@@ -94,7 +96,7 @@ public class StringModuleImpl implements StringModule {
     if (paramTainted == null) {
       return;
     }
-    to.taint(builder, paramTainted.getRanges());
+    to.taint(builder, (Range[]) paramTainted.getRanges());
   }
 
   @Override
@@ -114,13 +116,13 @@ public class StringModuleImpl implements StringModule {
     final TaintedObject builderTainted = to.get(builder);
     final int shift = builder.length() - param.length();
     if (builderTainted == null) {
-      final Range[] paramRanges = paramTainted.getRanges();
+      final Range[] paramRanges = (Range[]) paramTainted.getRanges();
       final Range[] ranges = new Range[paramRanges.length];
       Ranges.copyShift(paramRanges, ranges, 0, shift);
       to.taint(builder, ranges);
     } else {
-      final Range[] builderRanges = builderTainted.getRanges();
-      final Range[] paramRanges = paramTainted.getRanges();
+      final Range[] builderRanges = (Range[]) builderTainted.getRanges();
+      final Range[] paramRanges = (Range[]) paramTainted.getRanges();
       final Range[] ranges = mergeRanges(shift, builderRanges, paramRanges);
       builderTainted.setRanges(ranges);
     }
@@ -140,7 +142,7 @@ public class StringModuleImpl implements StringModule {
     if (tainted == null) {
       return;
     }
-    to.taint(result, tainted.getRanges());
+    to.taint(result, (Range[]) tainted.getRanges());
   }
 
   @Override
@@ -195,7 +197,7 @@ public class StringModuleImpl implements StringModule {
     if (selfTainted == null) {
       return;
     }
-    final Range[] rangesSelf = selfTainted.getRanges();
+    final Range[] rangesSelf = (Range[]) selfTainted.getRanges();
     if (rangesSelf.length == 0) {
       return;
     }
@@ -303,7 +305,7 @@ public class StringModuleImpl implements StringModule {
     if (taintedSelf == null) {
       return;
     }
-    final Range[] rangesSelf = taintedSelf.getRanges();
+    final Range[] rangesSelf = (Range[]) taintedSelf.getRanges();
     if (null == rangesSelf || rangesSelf.length == 0) {
       return;
     }
@@ -355,7 +357,7 @@ public class StringModuleImpl implements StringModule {
   }
 
   private static Range[] getRanges(@Nullable final TaintedObject taintedObject) {
-    return taintedObject == null ? EMPTY : taintedObject.getRanges();
+    return taintedObject == null ? EMPTY : (Range[]) taintedObject.getRanges();
   }
 
   @Override
@@ -383,7 +385,7 @@ public class StringModuleImpl implements StringModule {
 
     int resultLength = result.length();
 
-    final Range[] rangesSelf = taintedSelf.getRanges();
+    final Range[] rangesSelf = (Range[]) taintedSelf.getRanges();
     if (null == rangesSelf || rangesSelf.length == 0) {
       return;
     }
@@ -433,7 +435,7 @@ public class StringModuleImpl implements StringModule {
     final Deque<Range> formatRanges = new LinkedList<>();
     final TaintedObject formatTainted = to.get(format);
     if (formatTainted != null) {
-      formatRanges.addAll(Arrays.asList(formatTainted.getRanges()));
+      formatRanges.addAll(Arrays.asList((Range[]) formatTainted.getRanges()));
     }
     // params can appear zero or multiple times in the pattern so the final number of ranges is
     // unknown beforehand
@@ -470,7 +472,8 @@ public class StringModuleImpl implements StringModule {
       final Ranged placeholderPos = Ranged.build(matcher.start(), placeholder.length());
       final Range placeholderRange =
           addFormatTaintedRanges(placeholderPos, offset, formatRanges, finalRanges);
-      final Range[] paramRanges = taintedObject == null ? null : taintedObject.getRanges();
+      final Range[] paramRanges =
+          taintedObject == null ? null : (Range[]) taintedObject.getRanges();
       final int shift = placeholderPos.getStart() + offset;
       addParameterTaintedRanges(
           placeholderRange, parameter, formattedValue, shift, paramRanges, finalRanges);
@@ -521,7 +524,7 @@ public class StringModuleImpl implements StringModule {
       if (it.hasNext() && paramIndex < parameters.length) {
         final Object parameter = parameters[paramIndex++];
         final TaintedObject tainted = to.get(parameter);
-        final Range[] parameterRanges = tainted == null ? null : tainted.getRanges();
+        final Range[] parameterRanges = tainted == null ? null : (Range[]) tainted.getRanges();
         final String formatted = String.valueOf(parameter);
         addParameterTaintedRanges(null, parameter, formatted, offset, parameterRanges, finalRanges);
         offset += formatted.length();
@@ -552,7 +555,7 @@ public class StringModuleImpl implements StringModule {
     if (taintedString == null) {
       return;
     }
-    Range priorityRange = highestPriorityRange(taintedString.getRanges());
+    Range priorityRange = highestPriorityRange((Range[]) taintedString.getRanges());
     for (String s : result) {
       to.taint(s, new Range[] {Ranges.copyWithPosition(priorityRange, 0, s.length())});
     }
@@ -573,7 +576,7 @@ public class StringModuleImpl implements StringModule {
       return;
     }
 
-    final Range[] rangesSelf = taintedSelf.getRanges();
+    final Range[] rangesSelf = (Range[]) taintedSelf.getRanges();
     if (rangesSelf.length == 0) {
       return;
     }
@@ -609,7 +612,7 @@ public class StringModuleImpl implements StringModule {
       return;
     }
 
-    final Range[] rangesSelf = taintedSelf.getRanges();
+    final Range[] rangesSelf = (Range[]) taintedSelf.getRanges();
     if (rangesSelf.length == 0) {
       return;
     }
@@ -636,7 +639,7 @@ public class StringModuleImpl implements StringModule {
       return;
     }
 
-    final Range[] rangesSelf = taintedSelf.getRanges();
+    final Range[] rangesSelf = (Range[]) taintedSelf.getRanges();
     if (rangesSelf.length == 0) {
       return;
     }
@@ -656,13 +659,13 @@ public class StringModuleImpl implements StringModule {
     final TaintedObject taintedSelf = to.get(self);
     Range[] rangesSelf = new Range[0];
     if (taintedSelf != null) {
-      rangesSelf = taintedSelf.getRanges();
+      rangesSelf = (Range[]) taintedSelf.getRanges();
     }
 
     final TaintedObject taintedInput = to.get(newCharSeq);
     Range[] rangesInput = null;
     if (taintedInput != null) {
-      rangesInput = taintedInput.getRanges();
+      rangesInput = (Range[]) taintedInput.getRanges();
     }
 
     if (rangesSelf.length == 0 && rangesInput == null) {
@@ -699,13 +702,13 @@ public class StringModuleImpl implements StringModule {
     final TaintedObject taintedSelf = to.get(self);
     Range[] rangesSelf = new Range[0];
     if (taintedSelf != null) {
-      rangesSelf = taintedSelf.getRanges();
+      rangesSelf = (Range[]) taintedSelf.getRanges();
     }
 
     final TaintedObject taintedInput = to.get(replacement);
     Range[] rangesInput = null;
     if (taintedInput != null) {
-      rangesInput = taintedInput.getRanges();
+      rangesInput = (Range[]) taintedInput.getRanges();
     }
 
     if (rangesSelf.length == 0 && rangesInput == null) {
@@ -748,7 +751,7 @@ public class StringModuleImpl implements StringModule {
         return;
       }
 
-      final Range[] rangesParam = taintedParam.getRanges();
+      final Range[] rangesParam = (Range[]) taintedParam.getRanges();
       if (rangesParam.length == 0) {
         return;
       }
