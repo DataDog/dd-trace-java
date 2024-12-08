@@ -272,6 +272,7 @@
 0 org.springframework.boot.context.embedded.EmbeddedWebApplicationContext
 0 org.springframework.boot.context.embedded.tomcat.TomcatEmbeddedServletContainer$*
 0 org.springframework.boot.context.embedded.tomcat.TomcatEmbeddedWebappClassLoader
+0 org.springframework.boot.devtools.restart.classloader.RestartClassLoader
 0 org.springframework.boot.web.embedded.netty.NettyWebServer$*
 0 org.springframework.boot.web.embedded.tomcat.TomcatEmbeddedWebappClassLoader
 0 org.springframework.boot.web.embedded.tomcat.TomcatWebServer$1
