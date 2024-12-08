@@ -13,6 +13,9 @@ public interface StringModule extends IastModule {
 
   void onStringBuilderAppend(@Nonnull CharSequence builder, @Nullable CharSequence param);
 
+  void onStringBuilderAppend(
+      @Nonnull CharSequence builder, @Nullable CharSequence param, int start, int end);
+
   void onStringBuilderToString(@Nonnull CharSequence builder, @Nonnull String result);
 
   void onStringConcatFactory(
