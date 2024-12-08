@@ -39,6 +39,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.context.TraceScope;
 import datadog.trace.util.PidHelper;
 import datadog.trace.util.Strings;
+import datadog.trace.util.SystemUtils;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.BufferedReader;
@@ -549,7 +550,7 @@ public class Config {
     this.instrumenterConfig = instrumenterConfig;
     configFileStatus = configProvider.getConfigFileStatus();
     runtimeIdEnabled = configProvider.getBoolean(RUNTIME_ID_ENABLED, true);
-    runtimeVersion = System.getProperty("java.version", "unknown");
+    runtimeVersion = SystemUtils.getPropertyOrDefault("java.version", "unknown");
 
     // Note: We do not want APiKey to be loaded from property for security reasons
     // Note: we do not use defined default here
@@ -1803,6 +1804,19 @@ public class Config {
           "AppSec SCA is enabled but telemetry is disabled. AppSec SCA will not work.");
     }
 
+    // check if the security manager is causing us trouble
+    if (!SystemUtils.canAccessEnvironmentVariables()) {
+      log.warn(
+          "The Java Security Manager is preventing the Datadog Tracer from accessing some environment variables. "
+              + "Consider granting AllPermission to the dd-java-agent jar.");
+    }
+
+    if (!SystemUtils.canAccessSystemProperties()) {
+      log.warn(
+          "The Java Security Manager is preventing the Datadog Tracer from accessing some system properties. "
+              + "Consider granting AllPermission to the dd-java-agent jar.");
+    }
+
     log.debug("New instance: {}", this);
   }
 
@@ -2404,8 +2418,8 @@ public class Config {
     // don't want to put this logic (which will evolve) in the public ProfilingConfig, and can't
     // access Platform there
     if (!Platform.isJ9() && Platform.isJavaVersion(8)) {
-      String arch = System.getProperty("os.arch");
-      if ("aarch64".equalsIgnoreCase(arch) || "arm64".equalsIgnoreCase(arch)) {
+      String arch = SystemUtils.tryGetProperty("os.arch");
+      if (arch == null || "aarch64".equalsIgnoreCase(arch) || "arm64".equalsIgnoreCase(arch)) {
         return false;
       }
     }
@@ -3313,12 +3327,12 @@ public class Config {
         getRuntimeId(),
         getEnv(),
         LANGUAGE_TAG_VALUE,
-        System.getProperty("java.runtime.name"),
-        System.getProperty("java.version"),
-        System.getProperty("java.vendor"),
-        System.getProperty("os.arch"),
-        System.getProperty("os.name"),
-        System.getProperty("os.version"));
+        SystemUtils.tryGetProperty("java.runtime.name"),
+        SystemUtils.tryGetProperty("java.version"),
+        SystemUtils.tryGetProperty("java.vendor"),
+        SystemUtils.tryGetProperty("os.arch"),
+        SystemUtils.tryGetProperty("os.name"),
+        SystemUtils.tryGetProperty("os.version"));
   }
 
   public String getPrimaryTag() {
@@ -4007,7 +4021,7 @@ public class Config {
   }
 
   private static String getEnv(String name) {
-    String value = System.getenv(name);
+    String value = SystemUtils.tryGetEnv(name);
     if (value != null) {
       ConfigCollector.get().put(name, value, ConfigOrigin.ENV);
     }
@@ -4030,7 +4044,7 @@ public class Config {
   }
 
   private static String getProp(String name, String def) {
-    String value = System.getProperty(name, def);
+    String value = SystemUtils.getPropertyOrDefault(name, def);
     if (value != null) {
       ConfigCollector.get().put(name, value, ConfigOrigin.JVM_PROP);
     }

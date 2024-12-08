@@ -151,6 +151,7 @@ excludedClassesCoverage += [
   "datadog.trace.util.PidHelper.Fallback",
   "datadog.trace.util.ProcessUtils",
   "datadog.trace.util.PropagationUtils",
+  "datadog.trace.util.SystemUtils",
   "datadog.trace.util.UnsafeUtils",
   "datadog.trace.api.ConfigCollector",
   "datadog.trace.api.Config.HostNameHolder",
