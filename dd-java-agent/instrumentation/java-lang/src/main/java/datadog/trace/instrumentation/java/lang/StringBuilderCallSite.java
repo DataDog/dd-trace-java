@@ -141,6 +141,7 @@ public class StringBuilderCallSite {
   }
 
   @CallSite.After("java.lang.CharSequence java.lang.StringBuilder.subSequence(int, int)")
+  @CallSite.After("java.lang.CharSequence java.lang.StringBuffer.subSequence(int, int)")
   public static CharSequence afterSubSequence(
       @CallSite.This final CharSequence self,
       @CallSite.Argument final int beginIndex,
