@@ -2,6 +2,7 @@ package datadog.trace.api.iast.util;
 
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.propagation.CodecModule;
+import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.api.iast.propagation.StringModule;
 import java.net.URI;
 
@@ -43,5 +44,16 @@ public abstract class PropagationUtils {
       }
     }
     return sb;
+  }
+
+  public static void taintObjectIfTainted(final Object target, final Object input) {
+    final PropagationModule module = InstrumentationBridge.PROPAGATION;
+    if (module != null) {
+      try {
+        module.taintObjectIfTainted(target, input);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("taintObjectIfTainted threw", e);
+      }
+    }
   }
 }
