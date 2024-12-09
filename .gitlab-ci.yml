@@ -1,6 +1,6 @@
 include:
   - remote: https://gitlab-templates.ddbuild.io/libdatadog/include/ci_authenticated_job.yml
-  - remote: https://gitlab-templates.ddbuild.io/libdatadog/include/one-pipeline.yml
+  - remote: https://gitlab-templates.ddbuild.io/libdatadog/include-wip/liangzhou.yi/add-djm-k8s-ssi-test/one-pipeline.yml
   - local: ".gitlab/benchmarks.yml"
   - local: ".gitlab/macrobenchmarks.yml"
   - local: ".gitlab/exploration-tests.yml"
@@ -220,8 +220,10 @@ onboarding_tests_installer:
         SCENARIO: [ SIMPLE_INSTALLER_AUTO_INJECTION, SIMPLE_AUTO_INJECTION_PROFILING ]
 
 onboarding_tests_k8s_injection:
-  variables:
-    WEBLOG_VARIANT: dd-lib-java-init-test-app
+  parallel:
+    matrix:
+      - WEBLOG_VARIANT: [dd-lib-java-init-test-app, dd-djm-spark-test-app]
+        SCENARIO: [ K8S_LIBRARY_INJECTION_DJM, K8S_LIBRARY_INJECTION_BASIC ]
 
 create_key:
   stage: generate-signing-key
