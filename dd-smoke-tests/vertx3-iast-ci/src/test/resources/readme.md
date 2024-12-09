@@ -1,0 +1,9 @@
+./gradlew dd-smoke-tests:vertx3-iast-ci:test --rerun-tasks -Dorg.gradle.jvmargs=\
+-javaagent:/Users/alejandro.gonzalez/IdeaProjects/dd-trace-java/dd-java-agent/build/libs/dd-java-agent-1.44.0-SNAPSHOT.jar=\
+dd.civisibility.enabled=true,\
+dd.env=local,\
+dd.service=dd—java-trace-vertx-iw-q42024,\
+dd.iast.enabled=true,\
+dd.iast.detection.mode=FULL,\
+dd.iast.context.mode=GLOBAL,\
+dd.civisibility.debug.port=5005
