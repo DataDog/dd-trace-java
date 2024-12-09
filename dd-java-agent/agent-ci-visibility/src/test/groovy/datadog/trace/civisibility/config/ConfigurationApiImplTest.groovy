@@ -142,12 +142,14 @@ class ConfigurationApiImplTest extends Specification {
           return
         }
 
+        def testBundle = requestConfs['test.bundle']
+
         def moduleATest = """{
           "id": "49968354e2091cdb",
           "type": "test",
           "attributes": {
             "configurations": {
-              "test.bundle": "testBundle-a",
+              ${!testBundle ? '"test.bundle": "testBundle-a",' : ""}
               "custom": {
                 "customTag": "customValue"
               }
@@ -164,7 +166,7 @@ class ConfigurationApiImplTest extends Specification {
           "type": "test",
           "attributes": {
             "configurations": {
-              "test.bundle": "testBundle-b",
+              ${!testBundle ? '"test.bundle": "testBundle-b",' : ""}
               "custom": {
                 "customTag": "customValue"
               }
@@ -175,7 +177,114 @@ class ConfigurationApiImplTest extends Specification {
           }
         }"""
 
+        def tests = []
+        if (!testBundle || testBundle == 'testBundle-a') {
+          tests << moduleATest
+        }
+        if (!testBundle || testBundle == 'testBundle-b') {
+          tests << moduleBTest
+        }
+
+        def response = response
+        def requestBody = """
+{
+  "data": [
+    ${tests.join(',')}
+  ],
+  "meta": {
+    "correlation_id": "11223344",
+    "coverage": {
+        "src/main/java/Calculator.java": "/8AA/w==",
+        "src/main/java/utils/Math.java": "AAAAf+AA/A==",
+        "src/test/java/CalculatorTest.java": "//AAeAAA/A=="
+    }
+  }
+}
+""".bytes
+
+        def header = request.getHeader("Accept-Encoding")
+        def gzipSupported = header != null && header.contains("gzip")
+        if (gzipSupported) {
+          response.addHeader("Content-Encoding", "gzip")
+          requestBody = gzip(requestBody)
+        }
+
+        response.status(200).send(requestBody)
+      }
+
+      prefix("/api/v2/ci/libraries/tests/flaky") {
+        def requestJson = moshi.adapter(Map).fromJson(new String(request.body))
+
+        // assert request contents
+        def requestData = requestJson['data']
+        if (requestData['type'] != "flaky_test_from_libraries_params"
+          || requestData['id'] != "1234"
+          ) {
+          response.status(400).send()
+          return
+        }
+
+        def requestAttrs = requestData['attributes']
+        if (requestAttrs['service'] != "foo"
+          || requestAttrs['env'] != "foo_env"
+          || requestAttrs['repository_url'] != "https://github.com/DataDog/foo"
+          || requestAttrs['branch'] != "prod"
+          || requestAttrs['sha'] != "d64185e45d1722ab3a53c45be47accae"
+          || requestAttrs['test_level'] != "test"
+          ) {
+          response.status(400).send()
+          return
+        }
+
+        def requestConfs = requestAttrs['configurations']
+        if (requestConfs['os.platform'] != "linux"
+          || requestConfs['os.architecture'] != "amd64"
+          || requestConfs['os.arch'] != "amd64"
+          || requestConfs['os.version'] != "bionic"
+          || requestConfs['runtime.name'] != "runtimeName"
+          || requestConfs['runtime.version'] != "runtimeVersion"
+          || requestConfs['runtime.vendor'] != "vendor"
+          || requestConfs['runtime.architecture'] != "amd64"
+          || requestConfs['custom']['customTag'] != "customValue"
+          ) {
+          response.status(400).send()
+          return
+        }
+
         def testBundle = requestConfs['test.bundle']
+
+        def moduleATest = """{
+          "id": "49968354e2091cdb",
+          "type": "test",
+          "attributes": {
+            "configurations": {
+              ${!testBundle ? '"test.bundle": "testBundle-a",' : ""}
+              "custom": {
+                "customTag": "customValue"
+              }
+            },
+            "suite": "suite-a",
+            "name": "name-a",
+            "parameters": "parameters-a",
+            "_missing_line_code_coverage": true
+          }
+        }"""
+
+        def moduleBTest = """{
+          "id": "49968354e2091cdc",
+          "type": "test",
+          "attributes": {
+            "configurations": {
+              ${!testBundle ? '"test.bundle": "testBundle-b",' : ""}
+              "custom": {
+                "customTag": "customValue"
+              }
+            },
+            "suite": "suite-b",
+            "name": "name-b",
+            "parameters": "parameters-b"
+          }
+        }"""
 
         def tests = []
         if (!testBundle || testBundle == 'testBundle-a') {
@@ -369,6 +478,45 @@ class ConfigurationApiImplTest extends Specification {
     then:
     skippableTests.identifiersByModule == [
       "testBundle-a": [ new TestIdentifier("suite-a", "name-a", "parameters-a"): new TestMetadata(true), ]
+    ]
+  }
+
+  def "test flaky tests request: #displayName"() {
+    given:
+    def tracerEnvironment = givenTracerEnvironment()
+    def metricCollector = Stub(CiVisibilityMetricCollector)
+
+    when:
+    def configurationApi = new ConfigurationApiImpl(api, metricCollector, () -> "1234")
+    def flakyTests = configurationApi.getFlakyTestsByModule(tracerEnvironment)
+
+    then:
+    flakyTests == [
+      "testBundle-a": new HashSet<>([ new TestIdentifier("suite-a", "name-a", "parameters-a") ]),
+      "testBundle-b": new HashSet<>([ new TestIdentifier("suite-b", "name-b", "parameters-b") ]),
+    ]
+
+    where:
+    api                   | displayName
+    givenEvpProxy(false)  | "EVP proxy, compression disabled"
+    givenEvpProxy(true)   | "EVP proxy, compression enabled"
+    givenIntakeApi(false) | "intake, compression disabled"
+    givenIntakeApi(true)  | "intake, compression enabled"
+  }
+
+  def "test flaky tests request with module name"() {
+    given:
+    def tracerEnvironment = givenTracerEnvironment("testBundle-a")
+    def metricCollector = Stub(CiVisibilityMetricCollector)
+    def api = givenIntakeApi(false)
+
+    when:
+    def configurationApi = new ConfigurationApiImpl(api, metricCollector, () -> "1234")
+    def flakyTests = configurationApi.getFlakyTestsByModule(tracerEnvironment)
+
+    then:
+    flakyTests == [
+      "testBundle-a": new HashSet<>([ new TestIdentifier("suite-a", "name-a", "parameters-a") ])
     ]
   }
 
