@@ -7,14 +7,13 @@ import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
+import com.datadog.debugger.uploader.BatchUploader;
 import com.datadog.debugger.util.MoshiHelper;
 import com.datadog.debugger.util.MoshiSnapshotTestHelper;
 import com.datadog.debugger.util.SerializerWithLimits;
@@ -38,6 +37,7 @@ import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -328,7 +328,7 @@ public class CapturingTestBase {
         Configuration.builder()
             .setService(CapturedSnapshotTest.SERVICE_NAME)
             .add(asList(probes))
-            .build() /*, logProbes*/);
+            .build());
   }
 
   public static LogProbe.Builder createProbeBuilder(
@@ -349,16 +349,22 @@ public class CapturingTestBase {
 
   protected TestSnapshotListener installProbes(Configuration configuration) {
 
-    config = mock(Config.class);
-    when(config.isDebuggerEnabled()).thenReturn(true);
-    when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
-    when(config.isDebuggerVerifyByteCode()).thenReturn(false);
-    when(config.getFinalDebuggerSnapshotUrl())
-        .thenReturn("http://localhost:8126/debugger/v1/input");
-    when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
-    when(config.getDebuggerCodeOriginMaxUserFrames()).thenReturn(20);
+    System.setProperty("java.io.tmpdir", "build/instrumented");
+    config = Config.get();
+    setFieldInConfig(config, "debuggerEnabled", true);
+    setFieldInConfig(config, "debuggerClassFileDumpEnabled", true);
+    setFieldInConfig(config, "debuggerVerifyByteCode", false);
+    setFieldInConfig(config, "debuggerCodeOriginMaxUserFrames", 20);
+    //    when(config.isDebuggerEnabled()).thenReturn(true);
+    //    when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
+    //    when(config.isDebuggerVerifyByteCode()).thenReturn(false);
+    //    when(config.getFinalDebuggerSnapshotUrl())
+    //        .thenReturn("http://localhost:8126/debugger/v1/input");
+    //
+    // when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
+    //    when(config.getDebuggerCodeOriginMaxUserFrames()).thenReturn(20);
     instrumentationListener = new MockInstrumentationListener();
-    probeStatusSink = mock(ProbeStatusSink.class);
+    probeStatusSink = new ProbeStatusSink(config, new MockBatchUploader(config), false);
 
     TestSnapshotListener listener = new TestSnapshotListener(config, probeStatusSink);
 
@@ -393,14 +399,14 @@ public class CapturingTestBase {
     return listener;
   }
 
-  public static ProbeImplementation resolver(String encodedId, List<ProbeDefinition> probes) {
+  public ProbeImplementation resolver(String encodedId, List<ProbeDefinition> probes) {
     for (ProbeDefinition probe : probes) {
       if (probe.getProbeId().getEncodedId().equals(encodedId)) {
         return probe;
       }
     }
 
-    return null;
+    return configurationUpdater.resolve(encodedId);
   }
 
   protected TestSnapshotListener installSingleProbeAtExit(
@@ -428,6 +434,38 @@ public class CapturingTestBase {
     @Override
     public void instrumentationResult(ProbeDefinition definition, InstrumentationResult result) {
       results.put(definition.getId(), result);
+    }
+  }
+
+  public static class MockBatchUploader extends BatchUploader {
+
+    public MockBatchUploader(Config config) {
+      super(config, "http://example.com", null);
+    }
+
+    @Override
+    public void upload(byte[] batch) {
+      System.out.println("****** MockBatchUploader.upload " + "batch = " + Arrays.toString(batch));
+    }
+
+    @Override
+    public void upload(byte[] batch, String tags) {
+      System.out.println(
+          "****** MockBatchUploader.upload "
+              + "batch = "
+              + Arrays.toString(batch)
+              + ", tags = "
+              + tags);
+    }
+
+    @Override
+    public void uploadAsMultipart(String tags, MultiPartContent... parts) {
+      System.out.println(
+          "****** MockBatchUploader.uploadAsMultipart "
+              + "tags = "
+              + tags
+              + ", parts = "
+              + Arrays.deepToString(parts));
     }
   }
 

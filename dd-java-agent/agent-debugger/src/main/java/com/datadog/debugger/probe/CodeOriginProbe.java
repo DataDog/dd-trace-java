@@ -56,7 +56,6 @@ public class CodeOriginProbe extends ProbeDefinition {
       List<CapturedThrowable> caughtExceptions) {
     recordCodeOrigin();
     if (isDebuggerEnabled(AgentTracer.activeSpan())) {
-      System.out.println("Adding log probe");
       ((DefaultCodeOriginRecorder) DebuggerContext.codeOriginRecorder).registerLogProbe(this);
     }
   }

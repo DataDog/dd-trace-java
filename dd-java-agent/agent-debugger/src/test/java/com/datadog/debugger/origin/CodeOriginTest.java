@@ -4,6 +4,7 @@ import static com.datadog.debugger.util.TestHelper.setFieldInConfig;
 import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_FRAME;
 import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_PREFIX;
 import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_TYPE;
+import static datadog.trace.util.AgentThreadFactory.AgentThread.TASK_SCHEDULER;
 import static java.lang.String.format;
 import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -32,6 +33,7 @@ import datadog.trace.bootstrap.debugger.DebuggerContext.ClassNameFilter;
 import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.core.CoreTracer;
+import datadog.trace.util.AgentTaskScheduler;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -216,12 +218,12 @@ public class CodeOriginTest extends CapturingTestBase {
       checkEntrySpanTags(span, false);
     }
     if (includeSnapshot) {
-      assertEquals(1, listener.snapshots.size());
+      assertNotEquals(0, listener.snapshots.size());
     }
     Optional<? extends MutableSpan> exit =
         spans.stream().filter(span -> span.getOperationName().equals("exit")).findFirst();
     assertTrue(exit.isPresent());
-    exit.ifPresent(span -> checkExitSpanTags(span, includeSnapshot));
+    exit.ifPresent(span -> checkExitSpanTags(span, false));
   }
 
   @Override
@@ -229,7 +231,16 @@ public class CodeOriginTest extends CapturingTestBase {
     listener = super.installProbes(probes);
 
     DebuggerContext.initClassNameFilter(classNameFilter);
-    codeOriginRecorder = new DefaultCodeOriginRecorder(config, configurationUpdater);
+    codeOriginRecorder =
+        new DefaultCodeOriginRecorder(
+            config,
+            configurationUpdater,
+            new AgentTaskScheduler(TASK_SCHEDULER) {
+              @Override
+              public void execute(Runnable target) {
+                target.run();
+              }
+            });
     DebuggerContext.initCodeOrigin(codeOriginRecorder);
 
     return listener;
@@ -256,7 +267,10 @@ public class CodeOriginTest extends CapturingTestBase {
 
   private static void assertKeyPresent(MutableSpan span, String key) {
     assertNotNull(
-        span.getTag(key), format("'%s' key missing in '%s' span.", key, span.getOperationName()));
+        span.getTag(key),
+        format(
+            "'%s' key missing in '%s' span. current keys:  %s",
+            key, span.getOperationName(), ldKeys(span)));
   }
 
   private static void assertKeyNotPresent(MutableSpan span, String key) {

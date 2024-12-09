@@ -40,9 +40,17 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
 
   private final int maxUserFrames;
 
+  private AgentTaskScheduler scheduler = AgentTaskScheduler.INSTANCE;
+
   public DefaultCodeOriginRecorder(Config config, ConfigurationUpdater configurationUpdater) {
+    this(config, configurationUpdater, AgentTaskScheduler.INSTANCE);
+  }
+
+  public DefaultCodeOriginRecorder(
+      Config config, ConfigurationUpdater configurationUpdater, AgentTaskScheduler scheduler) {
     this.configurationUpdater = configurationUpdater;
     maxUserFrames = config.getDebuggerCodeOriginMaxUserFrames();
+    this.scheduler = scheduler;
   }
 
   @Override
@@ -65,6 +73,12 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
 
   @Override
   public String captureCodeOrigin(Method method, boolean entry) {
+    System.out.println(
+        "****** DefaultCodeOriginRecorder.captureCodeOrigin "
+            + "method = "
+            + method
+            + ", entry = "
+            + entry);
     String fingerprint = method.toString();
     CodeOriginProbe probe = probesByFingerprint.get(fingerprint);
     if (probe == null) {
@@ -99,6 +113,7 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
     AgentSpan span = AgentTracer.activeSpan();
 
     probe = new CodeOriginProbe(new ProbeId(UUID.randomUUID().toString(), 0), entry, where);
+    System.out.println("****** DefaultCodeOriginRecorder.createProbe probe = " + probe);
     addFingerprint(fingerPrint, probe);
 
     CodeOriginProbe installed = probes.putIfAbsent(probe.getId(), probe);
@@ -130,8 +145,7 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
   }
 
   public void installProbes() {
-    AgentTaskScheduler.INSTANCE.execute(
-        () -> configurationUpdater.accept(CODE_ORIGIN, getProbes()));
+    scheduler.execute(() -> configurationUpdater.accept(CODE_ORIGIN, getProbes()));
   }
 
   public CodeOriginProbe getProbe(String probeId) {
