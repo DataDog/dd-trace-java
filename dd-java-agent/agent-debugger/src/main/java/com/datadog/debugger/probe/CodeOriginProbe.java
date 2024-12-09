@@ -1,17 +1,21 @@
 package com.datadog.debugger.probe;
 
+import static com.datadog.debugger.codeorigin.DebuggerConfiguration.isDebuggerEnabled;
 import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_FRAME;
 import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_TYPE;
 import static java.lang.String.format;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 
+import com.datadog.debugger.codeorigin.DefaultCodeOriginRecorder;
 import com.datadog.debugger.instrumentation.BasicProbeInstrumentor;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
+import com.datadog.debugger.instrumentation.InstrumentationResult.Status;
 import com.datadog.debugger.instrumentation.MethodInfo;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.CapturedContext.CapturedThrowable;
+import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeLocation;
@@ -34,7 +38,7 @@ public class CodeOriginProbe extends ProbeDefinition {
   }
 
   @Override
-  public InstrumentationResult.Status instrument(
+  public Status instrument(
       MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<ProbeId> probeIds) {
     return new BasicProbeInstrumentor(this, methodInfo, diagnostics, probeIds).instrument();
   }
@@ -51,6 +55,10 @@ public class CodeOriginProbe extends ProbeDefinition {
       CapturedContext exitContext,
       List<CapturedThrowable> caughtExceptions) {
     recordCodeOrigin();
+    if (isDebuggerEnabled(AgentTracer.activeSpan())) {
+      System.out.println("Adding log probe");
+      ((DefaultCodeOriginRecorder) DebuggerContext.codeOriginRecorder).registerLogProbe(this);
+    }
   }
 
   private void recordCodeOrigin() {

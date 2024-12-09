@@ -5,8 +5,11 @@ import static com.datadog.debugger.agent.ConfigurationAcceptor.Source.CODE_ORIGI
 import com.datadog.debugger.agent.ConfigurationUpdater;
 import com.datadog.debugger.exception.Fingerprinter;
 import com.datadog.debugger.probe.CodeOriginProbe;
+import com.datadog.debugger.probe.LogProbe;
+import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.Where;
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.DebuggerContext.CodeOriginRecorder;
 import datadog.trace.bootstrap.debugger.ProbeId;
@@ -15,8 +18,10 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.stacktrace.StackWalkerFactory;
 import java.lang.reflect.Method;
-import java.util.Collection;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -31,6 +36,7 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
   private final Map<String, CodeOriginProbe> probesByFingerprint = new HashMap<>();
 
   private final Map<String, CodeOriginProbe> probes = new ConcurrentHashMap<>();
+  private final Map<String, LogProbe> logProbes = new ConcurrentHashMap<>();
 
   private final int maxUserFrames;
 
@@ -68,6 +74,26 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
     return probe.getId();
   }
 
+  public void registerLogProbe(CodeOriginProbe probe) {
+    if (!logProbes.containsKey(probe.getId())) {
+      LogProbe logProbe =
+          new LogProbe(
+              ProbeDefinition.LANGUAGE,
+              ProbeId.newId(),
+              (String[]) null,
+              probe.getWhere(),
+              probe.getEvaluateAt(),
+              "",
+              Collections.emptyList(),
+              true,
+              null,
+              null,
+              null);
+      logProbes.put(probe.getId(), logProbe);
+      installProbes();
+    }
+  }
+
   private CodeOriginProbe createProbe(String fingerPrint, boolean entry, Where where) {
     CodeOriginProbe probe;
     AgentSpan span = AgentTracer.activeSpan();
@@ -75,13 +101,17 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
     probe = new CodeOriginProbe(new ProbeId(UUID.randomUUID().toString(), 0), entry, where);
     addFingerprint(fingerPrint, probe);
 
-    installProbe(probe);
+    CodeOriginProbe installed = probes.putIfAbsent(probe.getId(), probe);
+
+    // i think this check is unnecessary at this point time but leaving for now to be safe
+    if (installed == null) {
+      installProbes();
+    }
     // committing here manually so that first run probe encounters decorate the span until the
     // instrumentation gets installed
     if (span != null) {
-      //      probe.commit(
-      //          CapturedContext.EMPTY_CONTEXT, CapturedContext.EMPTY_CONTEXT,
-      // Collections.emptyList());
+      probe.commit(
+          CapturedContext.EMPTY_CONTEXT, CapturedContext.EMPTY_CONTEXT, Collections.emptyList());
     }
     return probe;
   }
@@ -99,19 +129,19 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
     probesByFingerprint.putIfAbsent(fingerprint, probe);
   }
 
-  public void installProbe(CodeOriginProbe probe) {
-    CodeOriginProbe installed = probes.putIfAbsent(probe.getId(), probe);
-    if (installed == null) {
-      AgentTaskScheduler.INSTANCE.execute(
-          () -> configurationUpdater.accept(CODE_ORIGIN, getProbes()));
-    }
+  public void installProbes() {
+    AgentTaskScheduler.INSTANCE.execute(
+        () -> configurationUpdater.accept(CODE_ORIGIN, getProbes()));
   }
 
   public CodeOriginProbe getProbe(String probeId) {
     return probes.get(probeId);
   }
 
-  public Collection<CodeOriginProbe> getProbes() {
-    return probes.values();
+  public List<ProbeDefinition> getProbes() {
+    List<ProbeDefinition> all = new ArrayList<>();
+    all.addAll(probes.values());
+    all.addAll(logProbes.values());
+    return all;
   }
 }

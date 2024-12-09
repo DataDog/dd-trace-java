@@ -86,7 +86,7 @@ public class DebuggerContext {
   private static volatile Tracer tracer;
   private static volatile ValueSerializer valueSerializer;
   private static volatile ExceptionDebugger exceptionDebugger;
-  private static volatile CodeOriginRecorder codeOriginRecorder;
+  public static volatile CodeOriginRecorder codeOriginRecorder;
 
   public static void initProbeResolver(ProbeResolver probeResolver) {
     DebuggerContext.probeResolver = probeResolver;

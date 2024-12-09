@@ -55,6 +55,8 @@ public class CodeOriginTest extends CapturingTestBase {
 
   private DefaultCodeOriginRecorder codeOriginRecorder;
 
+  private TestSnapshotListener listener;
+
   private TestTraceInterceptor traceInterceptor;
 
   public static ClassNameFilter classNameFilter =
@@ -99,6 +101,7 @@ public class CodeOriginTest extends CapturingTestBase {
     final String className = "com.datadog.debugger.CodeOrigin02";
     installProbes(codeOriginProbes(className));
     final Class<?> testClass = compileAndLoadClass(className);
+    checkResults(testClass, "debug_1", false);
     checkResults(testClass, "debug_1", true);
   }
 
@@ -210,7 +213,10 @@ public class CodeOriginTest extends CapturingTestBase {
             .collect(Collectors.toList());
 
     for (MutableSpan span : list) {
-      checkEntrySpanTags(span, includeSnapshot);
+      checkEntrySpanTags(span, false);
+    }
+    if (includeSnapshot) {
+      assertEquals(1, listener.snapshots.size());
     }
     Optional<? extends MutableSpan> exit =
         spans.stream().filter(span -> span.getOperationName().equals("exit")).findFirst();
@@ -220,7 +226,7 @@ public class CodeOriginTest extends CapturingTestBase {
 
   @Override
   protected TestSnapshotListener installProbes(ProbeDefinition... probes) {
-    TestSnapshotListener listener = super.installProbes(probes);
+    listener = super.installProbes(probes);
 
     DebuggerContext.initClassNameFilter(classNameFilter);
     codeOriginRecorder = new DefaultCodeOriginRecorder(config, configurationUpdater);
