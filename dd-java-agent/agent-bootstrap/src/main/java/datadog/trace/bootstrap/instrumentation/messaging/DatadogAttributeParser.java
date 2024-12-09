@@ -26,7 +26,6 @@ public final class DatadogAttributeParser {
         acceptJsonProperty(classifier, json, "x-datadog-sampling-priority");
       }
       if (Config.get().isDataStreamsEnabled()) {
-        System.out.println("DSM ENABLED!!!: " + json);
         acceptJsonProperty(classifier, json, "dd-pathway-ctx-base64");
       }
     } catch (Exception e) {

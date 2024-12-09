@@ -4,6 +4,7 @@ import com.amazonaws.services.sqs.model.Message;
 import com.amazonaws.services.sqs.model.MessageAttributeValue;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.messaging.DatadogAttributeParser;
 
@@ -18,6 +19,8 @@ public final class MessageExtractAdapter implements AgentPropagation.ContextVisi
   private static final Logger log = LoggerFactory.getLogger(MessageExtractAdapter.class);
 
   public static final MessageExtractAdapter GETTER = new MessageExtractAdapter();
+  public static final boolean SHOULD_EXTRACT_CONTEXT_FROM_BODY =
+      Config.get().isSqsBodyPropagationEnabled();
 
   @Override
   public void forEachKey(Message carrier, AgentPropagation.KeyClassifier classifier) {
@@ -34,7 +37,7 @@ public final class MessageExtractAdapter implements AgentPropagation.ContextVisi
       } else if ("Binary".equals(datadog.getDataType())) {
         DatadogAttributeParser.forEachProperty(classifier, datadog.getBinaryValue());
       }
-    } else {
+    } else if (SHOULD_EXTRACT_CONTEXT_FROM_BODY) {
       try {
         this.forEachKeyInBody(carrier.getBody(), classifier);
       } catch (IOException e) {
