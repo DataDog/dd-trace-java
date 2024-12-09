@@ -12,6 +12,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.naming.ClassloaderServiceNames;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import jakarta.servlet.ServletRequest;
@@ -51,30 +52,35 @@ public class JakartaServletInstrumentation extends InstrumenterModule.Tracing
 
   public static class ExtractPrincipalAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static boolean before(@Advice.Argument(0) final ServletRequest request) {
+    public static AgentSpan before(@Advice.Argument(0) final ServletRequest request) {
       if (!(request instanceof HttpServletRequest)) {
-        return false;
+        return null;
       }
-      return CallDepthThreadLocalMap.incrementCallDepth(HttpServletRequest.class) == 0;
+      Object span =
+          request.getAttribute(
+              "datadog.span"); // hardcode to avoid injecting HttpServiceDecorator just for this
+      if (span instanceof AgentSpan
+          && CallDepthThreadLocalMap.incrementCallDepth(HttpServletRequest.class) == 0) {
+        final AgentSpan agentSpan = (AgentSpan) span;
+        ClassloaderServiceNames.maybeSetToSpan(agentSpan, Thread.currentThread());
+        return agentSpan;
+      }
+      return null;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(
-        @Advice.Enter boolean advice, @Advice.Argument(0) final ServletRequest request) {
-      if (advice) {
-        CallDepthThreadLocalMap.reset(HttpServletRequest.class);
-        final HttpServletRequest httpServletRequest =
-            (HttpServletRequest) request; // at this point the cast should be safe
-        if (Config.get().isServletPrincipalEnabled()
-            && httpServletRequest.getUserPrincipal() != null) {
-          Object span =
-              request.getAttribute(
-                  "datadog.span"); // hardcode to avoid injecting HttpServiceDecorator just for this
-          if (span instanceof AgentSpan) {
-            ((AgentSpan) span)
-                .setTag(DDTags.USER_NAME, httpServletRequest.getUserPrincipal().getName());
-          }
-        }
+        @Advice.Enter final AgentSpan span, @Advice.Argument(0) final ServletRequest request) {
+      if (span == null) {
+        return;
+      }
+
+      CallDepthThreadLocalMap.reset(HttpServletRequest.class);
+      final HttpServletRequest httpServletRequest =
+          (HttpServletRequest) request; // at this point the cast should be safe
+      if (Config.get().isServletPrincipalEnabled()
+          && httpServletRequest.getUserPrincipal() != null) {
+        span.setTag(DDTags.USER_NAME, httpServletRequest.getUserPrincipal().getName());
       }
     }
   }

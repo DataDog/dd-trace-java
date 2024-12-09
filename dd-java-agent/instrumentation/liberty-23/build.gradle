@@ -34,6 +34,7 @@ dependencies {
   testImplementation testFixtures(project(':dd-java-agent:appsec'))
   testRuntimeOnly project(':dd-java-agent:instrumentation:osgi-4.3')
   testRuntimeOnly files({ tasks.filterLogbackClassic.filteredLogbackDir })
+  testRuntimeOnly project(':dd-java-agent:instrumentation:liberty-20')
   testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-5')
   testRuntimeOnly files({ tasks.shadowJar.archiveFile })
 

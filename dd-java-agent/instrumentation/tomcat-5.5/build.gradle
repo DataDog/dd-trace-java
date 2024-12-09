@@ -98,6 +98,7 @@ dependencies {
 
   latest10TestImplementation(project(':dd-java-agent:instrumentation:tomcat-appsec-6'))
   latest10TestImplementation(project(':dd-java-agent:instrumentation:tomcat-appsec-7'))
+  latest10TestImplementation(project(':dd-java-agent:instrumentation:tomcat-classloading-9'))
 
   latestDepTestImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '11.+'
   latestDepTestImplementation group: 'org.apache.tomcat', name: 'jakartaee-migration', version: '1.+'
@@ -105,6 +106,7 @@ dependencies {
 
   latestDepTestRuntimeOnly(project(':dd-java-agent:instrumentation:tomcat-appsec-6'))
   latestDepTestRuntimeOnly(project(':dd-java-agent:instrumentation:tomcat-appsec-7'))
+  latestDepTestRuntimeOnly(project(':dd-java-agent:instrumentation:tomcat-classloading-9'))
 }
 
 // Exclude all the dependencies from test for latestDepTest since the names are completely different.

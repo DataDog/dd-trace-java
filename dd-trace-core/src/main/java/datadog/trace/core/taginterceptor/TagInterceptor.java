@@ -51,20 +51,23 @@ public class TagInterceptor {
 
   private final boolean shouldSet404ResourceName;
   private final boolean shouldSetUrlResourceAsName;
+  private final boolean jeeSplitByDeployment;
 
   public TagInterceptor(RuleFlags ruleFlags) {
     this(
         Config.get().isServiceNameSetByUser(),
         CapturedEnvironment.get().getProperties().get(GeneralConfig.SERVICE_NAME),
         Config.get().getSplitByTags(),
-        ruleFlags);
+        ruleFlags,
+        Config.get().isJeeSplitByDeployment());
   }
 
   public TagInterceptor(
       boolean isServiceNameSetByUser,
       String inferredServiceName,
       Set<String> splitServiceTags,
-      RuleFlags ruleFlags) {
+      RuleFlags ruleFlags,
+      boolean jeeSplitByDeployment) {
     this.isServiceNameSetByUser = isServiceNameSetByUser;
     this.inferredServiceName = inferredServiceName;
     this.splitServiceTags = splitServiceTags;
@@ -76,6 +79,7 @@ public class TagInterceptor {
             && ruleFlags.isEnabled(STATUS_404)
             && ruleFlags.isEnabled(STATUS_404_DECORATOR);
     shouldSetUrlResourceAsName = ruleFlags.isEnabled(URL_AS_RESOURCE_NAME);
+    this.jeeSplitByDeployment = jeeSplitByDeployment;
   }
 
   public boolean interceptTag(DDSpanContext span, String tag, Object value) {
@@ -276,6 +280,7 @@ public class TagInterceptor {
     // so will always return false here.
     if (!splitByServletContext
         && (isServiceNameSetByUser
+            || jeeSplitByDeployment
             || !ruleFlags.isEnabled(RuleFlags.Feature.SERVLET_CONTEXT)
             || !span.getServiceName().isEmpty()
                 && !span.getServiceName().equals(inferredServiceName)

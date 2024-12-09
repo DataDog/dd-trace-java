@@ -58,6 +58,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION = true;
   static final boolean DEFAULT_SERIALVERSIONUID_FIELD_INJECTION = true;
 
+  static final boolean DEFAULT_EXPERIMENTATAL_JEE_SPLIT_BY_DEPLOYMENT = false;
   static final boolean DEFAULT_PRIORITY_SAMPLING_ENABLED = true;
   static final String DEFAULT_PRIORITY_SAMPLING_FORCE = null;
   static final boolean DEFAULT_TRACE_RESOLVER_ENABLED = true;

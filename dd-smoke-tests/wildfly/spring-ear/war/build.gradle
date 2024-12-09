@@ -7,4 +7,6 @@ repositories {
 
 dependencies {
   compileOnly 'org.springframework:spring-webmvc:5.3.0'
+  compileOnly group: 'javax', name: 'javaee-api', version: '8.0.1'
+  implementation group: 'com.datadoghq', name: 'dd-trace-api', version: '1.43.0'
 }
