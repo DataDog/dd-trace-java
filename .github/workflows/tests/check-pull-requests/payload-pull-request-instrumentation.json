@@ -10,6 +10,7 @@
                 "name": "type: bug"
             }
         ],
-        "title": "Adding some new features"
+        "title": "Adding some new features",
+        "body": "# What Does This Do\n\nThis PR introduces a workflow that checks PRs contributing guidelines."
     }
 }
