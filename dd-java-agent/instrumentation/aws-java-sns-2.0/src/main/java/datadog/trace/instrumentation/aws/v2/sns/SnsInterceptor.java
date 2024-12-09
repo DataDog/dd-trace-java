@@ -36,13 +36,13 @@ public class SnsInterceptor implements ExecutionInterceptor {
       ExecutionAttributes executionAttributes, String snsTopicName) {
     final AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
     StringBuilder jsonBuilder = new StringBuilder();
-    jsonBuilder.append("{");
+    jsonBuilder.append('{');
     propagate().inject(span, jsonBuilder, SETTER);
     if (traceConfig().isDataStreamsEnabled()) {
       propagate().injectPathwayContext(span, jsonBuilder, SETTER, getTags(snsTopicName));
     }
     jsonBuilder.setLength(jsonBuilder.length() - 1); // Remove the last comma
-    jsonBuilder.append("}");
+    jsonBuilder.append('}');
     return SdkBytes.fromString(jsonBuilder.toString(), StandardCharsets.UTF_8);
   }
 

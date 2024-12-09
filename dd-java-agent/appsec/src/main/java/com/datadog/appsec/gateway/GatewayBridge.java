@@ -154,7 +154,7 @@ public class GatewayBridge {
       final Address<String> address) {
     return (ctx_, mode, userId) -> {
       final AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-      if (ctx == null) {
+      if (userId == null || ctx == null) {
         return NoopFlow.INSTANCE;
       }
       final TraceSegment segment = ctx_.getTraceSegment();
@@ -203,9 +203,14 @@ public class GatewayBridge {
 
   private Flow<Void> onRequestSession(final RequestContext ctx_, final String sessionId) {
     final AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-    if (ctx == null) {
+    if (sessionId == null || ctx == null) {
       return NoopFlow.INSTANCE;
     }
+    if (sessionId.equals(ctx.getSessionId())) {
+      return NoopFlow.INSTANCE;
+    }
+    // unlikely that multiple threads will update the value at the same time
+    ctx.setSessionId(sessionId);
     final TraceSegment segment = ctx_.getTraceSegment();
     segment.setTagTop("usr.session_id", sessionId);
     while (true) {

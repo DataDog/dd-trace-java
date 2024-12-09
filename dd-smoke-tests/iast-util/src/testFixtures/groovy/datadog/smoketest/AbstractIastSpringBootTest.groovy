@@ -1192,5 +1192,16 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     hasVulnerability { vul -> vul.type == 'UNTRUSTED_DESERIALIZATION' }
   }
 
+  void 'test custom string reader'() {
+    setup:
+    final url = "http://localhost:${httpPort}/test_custom_string_reader?param=Test"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    final response = client.newCall(request).execute()
+
+    then:
+    response.body().string().contains("Test")
+  }
 
 }

@@ -240,6 +240,44 @@ class CallSiteUtilsTest extends DDSpecification {
     ] | items.subList(2, items.size())
   }
 
+  void 'test stack dup with array before super ctor of #items'() {
+    setup:
+    final stack = buildStack(items)
+    final visitor = mockMethodVisitor(stack)
+
+    when:
+    CallSiteUtils.dup(visitor, expected*.type as Type[], PREPEND_ARRAY_SUPER_CTOR)
+
+    then: 'the first element of the stack should be an array with the parameters'
+    final arrayFromStack = stack.remove(0)
+    arrayFromStack.type.descriptor == '[Ljava/lang/Object;'
+    final array = (arrayFromStack.value as Object[]).toList() as List<StackObject>
+    [array, expected].transpose().each { arrayItem, expectedItem ->
+      assert arrayItem.value == expectedItem.value // some of the items might be boxed so be careful
+    }
+
+    then: 'the rest of the stack should contain the original values'
+    final result = fromStack(stack)
+    result == items
+
+    where:
+    items                                                                      | expected
+    [forObject('uninitialized'), forInt(1)]                                    | items.subList(1, items.size())
+    [forObject('uninitialized'), forInt(1), forInt(2)]                         | items.subList(1, items.size())
+    [forObject('uninitialized'), forLong(1L)]                                  | items.subList(1, items.size())
+    [forObject('uninitialized'), forLong(1L), forLong(2L)]                     | items.subList(1, items.size())
+    [forObject('uninitialized'), forInt(1), forLong(2L)]                       | items.subList(1, items.size())
+    [forObject('uninitialized'), forInt(1), forInt(2), forLong(3L)]            | items.subList(1, items.size())
+    [forObject('uninitialized'), forInt(1), forInt(2), forInt(3), forLong(4L)] | items.subList(1, items.size())
+    [
+      forObject('uninitialized'),
+      forObject('PI = '),
+      forDouble(3.14D),
+      forChar((char) '?'),
+      forBoolean(true)
+    ]                                                                          | items.subList(1, items.size())
+  }
+
   private MethodVisitor mockMethodVisitor(final List<StackObject> stack) {
     return Mock(MethodVisitor) {
       visitInsn(Opcodes.DUP) >> { handleDUP(stack) }

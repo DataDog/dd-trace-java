@@ -18,8 +18,10 @@ public class InstrumentationResult {
 
   private final Status status;
   private final Map<ProbeId, List<DiagnosticMessage>> diagnostics;
-  private String typeName;
-  private String methodName;
+  private final String sourceFileName;
+  private final String typeName;
+  private final String methodName;
+  private final int methodStart;
 
   public static class Factory {
     public static InstrumentationResult blocked(String className) {
@@ -41,8 +43,10 @@ public class InstrumentationResult {
     this(
         status,
         diagnostics,
+        methodInfo.getClassNode().sourceFile,
         methodInfo.getClassNode().name.replace('/', '.'),
-        methodInfo.getMethodNode().name);
+        methodInfo.getMethodNode().name,
+        methodInfo.getMethodStart());
   }
 
   public InstrumentationResult(
@@ -54,6 +58,23 @@ public class InstrumentationResult {
     this.diagnostics = diagnostics;
     this.typeName = className;
     this.methodName = methodName;
+    this.methodStart = -1;
+    this.sourceFileName = null;
+  }
+
+  public InstrumentationResult(
+      Status status,
+      Map<ProbeId, List<DiagnosticMessage>> diagnostics,
+      String sourceFileName,
+      String className,
+      String methodName,
+      int methodStart) {
+    this.status = status;
+    this.diagnostics = diagnostics;
+    this.sourceFileName = sourceFileName;
+    this.typeName = className;
+    this.methodName = methodName;
+    this.methodStart = methodStart;
   }
 
   public boolean isError() {
@@ -78,6 +99,14 @@ public class InstrumentationResult {
 
   public String getMethodName() {
     return methodName;
+  }
+
+  public int getMethodStart() {
+    return methodStart;
+  }
+
+  public String getSourceFileName() {
+    return sourceFileName;
   }
 
   @Generated

@@ -176,12 +176,18 @@ class StringCallSiteTest extends AgentTestRunner {
     InstrumentationBridge.registerIastModule(module)
 
     when:
-    final result = TestStringSuite.stringConstructor("hello")
+    final result = TestStringSuite.stringConstructor(param)
 
     then:
-    result == 'hello'
+    result == expected
     1 * module.onStringConstructor(_, _)
     0 * _
+
+    where:
+    param                      | expected
+    'hello'                    | 'hello'
+    new StringBuilder('hello') | 'hello'
+    new StringBuffer('hello')  | 'hello'
   }
 
   void 'test string format'() {
@@ -258,5 +264,25 @@ class StringCallSiteTest extends AgentTestRunner {
     input  | oldChar | newChar | expected
     "test" | 't'     | 'T'     | "TesT"
     "test" | 'e'     | 'E'     | "tEst"
+  }
+
+  def 'test string valueOf call site'() {
+    setup:
+    final stringModule = Mock(StringModule)
+    InstrumentationBridge.registerIastModule(stringModule)
+
+    when:
+    final result = TestStringSuite.valueOf(input)
+
+    then:
+    result == expected
+    1 * stringModule.onStringValueOf(input, expected)
+    0 * _
+
+    where:
+    input                     | expected
+    "test"                    | "test"
+    new StringBuilder("test") | "test"
+    new StringBuffer("test")  | "test"
   }
 }

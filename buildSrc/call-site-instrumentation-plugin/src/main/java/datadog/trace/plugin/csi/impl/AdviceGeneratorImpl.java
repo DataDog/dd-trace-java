@@ -344,12 +344,10 @@ public class AdviceGeneratorImpl implements AdviceGenerator {
       final MethodCallExpr invokeStatic =
           new MethodCallExpr()
               .setScope(new NameExpr("handler"))
-              .setName("method")
-              .addArgument(opCode("INVOKESTATIC"))
+              .setName("advice")
               .addArgument(new StringLiteralExpr(method.getOwner().getInternalName()))
               .addArgument(new StringLiteralExpr(method.getMethodName()))
-              .addArgument(new StringLiteralExpr(method.getMethodType().getDescriptor()))
-              .addArgument(new BooleanLiteralExpr(false));
+              .addArgument(new StringLiteralExpr(method.getMethodType().getDescriptor()));
       body.addStatement(invokeStatic);
     }
     if (requiresCast(advice)) {

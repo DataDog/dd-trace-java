@@ -13,7 +13,6 @@ import datadog.trace.logging.GlobalLogLevelSwitcher;
 import datadog.trace.logging.LogLevel;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentTaskScheduler.Scheduled;
-import datadog.trace.util.Strings;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
@@ -239,8 +238,7 @@ final class TracerFlareService {
   private void addRuntime(ZipOutputStream zip) throws IOException {
     try {
       RuntimeMXBean runtimeMXBean = ManagementFactory.getRuntimeMXBean();
-      TracerFlare.addText(
-          zip, "jvm_args.txt", Strings.join(" ", runtimeMXBean.getInputArguments()));
+      TracerFlare.addText(zip, "jvm_args.txt", String.join(" ", runtimeMXBean.getInputArguments()));
       TracerFlare.addText(zip, "classpath.txt", runtimeMXBean.getClassPath());
       TracerFlare.addText(zip, "library_path.txt", runtimeMXBean.getLibraryPath());
       if (runtimeMXBean.isBootClassPathSupported()) {

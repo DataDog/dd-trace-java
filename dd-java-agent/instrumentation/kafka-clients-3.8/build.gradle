@@ -6,7 +6,7 @@ muzzle {
     group = "org.apache.kafka"
     module = "kafka-clients"
     versions = "[3.8.0,)"
-    assertInverse = false
+    assertInverse = true
   }
 }
 

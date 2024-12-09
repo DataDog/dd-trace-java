@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.server.http.TestHttpServer
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.SsrfModule
 import org.apache.http.HttpHost
@@ -31,7 +32,7 @@ class IastHttpClientInstrumentationTest extends AgentTestRunner {
     }
   }
 
-  void 'test ssrf httpClient execute method with args #args expecting call module'() {
+  void 'test ssrf httpClient execute method expecting call module #iterationIndex'() {
     given:
     final ssrf = Mock(SsrfModule)
     InstrumentationBridge.registerIastModule(ssrf)
@@ -68,7 +69,7 @@ class IastHttpClientInstrumentationTest extends AgentTestRunner {
     return new BasicHttpRequest("GET", server.address.toString())
   }
 
-  private static HttpHost getHttpHost(final server){
+  private static HttpHost getHttpHost(final TestHttpServer server){
     return new HttpHost(server.address.host, server.address.port, server.address.scheme)
   }
 }

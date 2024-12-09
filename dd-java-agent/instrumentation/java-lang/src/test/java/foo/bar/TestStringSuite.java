@@ -92,6 +92,20 @@ public class TestStringSuite {
     return result;
   }
 
+  public static String stringConstructor(StringBuffer self) {
+    LOGGER.debug("Before string stringConstructor {}", self);
+    final String result = new String(self);
+    LOGGER.debug("After string stringConstructor {}", result);
+    return result;
+  }
+
+  public static String stringConstructor(StringBuilder self) {
+    LOGGER.debug("Before string stringConstructor {}", self);
+    final String result = new String(self);
+    LOGGER.debug("After string stringConstructor {}", result);
+    return result;
+  }
+
   public static String stringConstructor(final byte[] value) {
     LOGGER.debug("Before string stringConstructor {}", value);
     final String result = new String(value);
@@ -223,6 +237,13 @@ public class TestStringSuite {
     LOGGER.debug("Before replace first {} {} {}", string, regex, replacement);
     String result = string.replaceFirst(regex, replacement);
     LOGGER.debug("After replace first {}", result);
+    return result;
+  }
+
+  public static String valueOf(final Object param) {
+    LOGGER.debug("Before valueOf {}", param);
+    String result = String.valueOf(param);
+    LOGGER.debug("After valueOf {}", result);
     return result;
   }
 }

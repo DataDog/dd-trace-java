@@ -49,6 +49,11 @@ class TagsAssert {
     defaultTags(distributedRootSpan, false)
   }
 
+  def isPresent(String name) {
+    tag(name, { it != null })
+  }
+
+
   /**
    * @param distributedRootSpan set to true if current span has a parent span but still considered 'root' for current service
    */

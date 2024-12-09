@@ -43,6 +43,11 @@ public class ExecutionStrategy {
     return knownTests != null && !knownTests.contains(test.withoutParameters());
   }
 
+  public boolean isFlaky(TestIdentifier test) {
+    Collection<TestIdentifier> flakyTests = executionSettings.getFlakyTests();
+    return flakyTests != null && flakyTests.contains(test.withoutParameters());
+  }
+
   public boolean shouldBeSkipped(TestIdentifier test) {
     if (test == null) {
       return false;
@@ -99,8 +104,11 @@ public class ExecutionStrategy {
   public boolean isEarlyFlakeDetectionLimitReached() {
     int detectionsUsed = earlyFlakeDetectionsUsed.get();
     Collection<TestIdentifier> knownTests = executionSettings.getKnownTests();
-    int totalTests = knownTests.size() + detectionsUsed;
+    if (knownTests == null) {
+      return false;
+    }
 
+    int totalTests = knownTests.size() + detectionsUsed;
     EarlyFlakeDetectionSettings earlyFlakeDetectionSettings =
         executionSettings.getEarlyFlakeDetectionSettings();
     int threshold =

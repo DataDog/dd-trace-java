@@ -304,6 +304,23 @@
       "envars": null
     },
     {
+      "id": "datadog_jmxfetch",
+      "description": "Skip DataDog JMXFetch",
+      "os": null,
+      "cmds": [
+        "**/java"
+      ],
+      "args": [
+        {
+          "args": [
+            "org.datadog.jmxfetch.App"
+          ],
+          "position": null
+        }
+      ],
+      "envars": null
+    },
+    {
       "id": "elasticsearch7",
       "description": "Skip Elastic Search 7+ commands",
       "os": null,

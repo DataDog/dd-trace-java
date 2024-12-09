@@ -1044,11 +1044,6 @@ public class AgentTracer {
     }
 
     @Override
-    public String getXForwarded() {
-      return null;
-    }
-
-    @Override
     public String getXForwardedFor() {
       return null;
     }
@@ -1133,6 +1128,12 @@ public class AgentTracer {
 
     @Override
     public void setProduceCheckpoint(String type, String target) {}
+
+    @Override
+    public void setThreadServiceName(String serviceName) {}
+
+    @Override
+    public void clearThreadServiceName() {}
 
     @Override
     public void setConsumeCheckpoint(

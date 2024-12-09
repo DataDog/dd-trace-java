@@ -55,6 +55,23 @@ if [ -z "$PR_COMMITS" ]; then
     echo "PR $PR_NUMBER does not exist"
     exit 1
 fi
+# Check PR does not contain merge commit
+echo "- Checking PR does not contain merge commit"
+for PR_COMMIT in $PR_COMMITS; do
+    PARENT_COUNT=$(git rev-list --parents -n 1 "$PR_COMMIT" | wc -w)
+    if [ "$PARENT_COUNT" -gt 2 ]; then
+        echo "PR $PR_NUMBER contains a merge commit: $PR_COMMIT"
+        echo "Merge commit changes: https://github.com/DataDog/dd-trace-java/commit/${PR_COMMIT}"
+        echo "PR commit list: https://github.com/DataDog/dd-trace-java/pull/${PR_NUMBER}/commits"
+        echo -n "Would you like to cherry-pick the PR ${PR_NUMBER} merge commit instead of each of its commits individually? (y/n) "
+        read -r ANSWER
+        if [ "$ANSWER" == "y" ]; then
+            PR_COMMITS=$(gh pr view "$PR_NUMBER" --json mergeCommit --jq '.mergeCommit.oid')
+        else
+            exit 1
+        fi
+    fi
+done
 PR_TITLE=$(gh pr view "$PR_NUMBER" --json title --jq '.title')
 PR_LABELS=$(gh pr view "$PR_NUMBER" --json labels --jq '[.labels[].name] | join(",")')
 

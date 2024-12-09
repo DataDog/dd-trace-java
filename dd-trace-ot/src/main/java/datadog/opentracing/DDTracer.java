@@ -123,7 +123,10 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
       return this;
     }
 
+    @Deprecated
     public DDTracerBuilder scopeManager(ScopeManager scopeManager) {
+      log.warn(
+          "Custom ScopeManagers are deprecated and will be removed in a future release of dd-trace-ot");
       this.scopeManager = scopeManager;
       return this;
     }

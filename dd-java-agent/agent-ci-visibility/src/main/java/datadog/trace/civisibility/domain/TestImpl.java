@@ -1,8 +1,8 @@
 package datadog.trace.civisibility.domain;
 
+import static datadog.json.JsonMapper.toJson;
 import static datadog.trace.api.civisibility.CIConstants.CI_VISIBILITY_INSTRUMENTATION_NAME;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.util.Strings.toJson;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
@@ -30,7 +30,7 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.decorator.TestDecorator;
-import datadog.trace.civisibility.source.MethodLinesResolver;
+import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.source.SourceResolutionException;
 import java.lang.reflect.Method;
@@ -69,7 +69,7 @@ public class TestImpl implements DDTest {
       CiVisibilityMetricCollector metricCollector,
       TestDecorator testDecorator,
       SourcePathResolver sourcePathResolver,
-      MethodLinesResolver methodLinesResolver,
+      LinesResolver linesResolver,
       Codeowners codeowners,
       CoverageStore.Factory coverageStoreFactory,
       Consumer<AgentSpan> onSpanFinish) {
@@ -98,8 +98,7 @@ public class TestImpl implements DDTest {
 
     span = spanBuilder.start();
 
-    final AgentScope scope = activateSpan(span);
-    scope.setAsyncPropagation(true);
+    activateSpan(span, true);
 
     span.setSpanType(InternalSpanTypes.TEST);
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_TEST);
@@ -121,7 +120,7 @@ public class TestImpl implements DDTest {
 
     if (config.isCiVisibilitySourceDataEnabled()) {
       populateSourceDataTags(
-          span, testClass, testMethod, sourcePathResolver, methodLinesResolver, codeowners);
+          span, testClass, testMethod, sourcePathResolver, linesResolver, codeowners);
     }
 
     if (itrCorrelationId != null) {
@@ -142,7 +141,7 @@ public class TestImpl implements DDTest {
       Class<?> testClass,
       Method testMethod,
       SourcePathResolver sourcePathResolver,
-      MethodLinesResolver methodLinesResolver,
+      LinesResolver linesResolver,
       Codeowners codeowners) {
     if (testClass == null) {
       return;
@@ -162,10 +161,10 @@ public class TestImpl implements DDTest {
     span.setTag(Tags.TEST_SOURCE_FILE, sourcePath);
 
     if (testMethod != null) {
-      MethodLinesResolver.MethodLines testMethodLines = methodLinesResolver.getLines(testMethod);
+      LinesResolver.Lines testMethodLines = linesResolver.getMethodLines(testMethod);
       if (testMethodLines.isValid()) {
         span.setTag(Tags.TEST_SOURCE_START, testMethodLines.getStartLineNumber());
-        span.setTag(Tags.TEST_SOURCE_END, testMethodLines.getFinishLineNumber());
+        span.setTag(Tags.TEST_SOURCE_END, testMethodLines.getEndLineNumber());
       }
     }
 

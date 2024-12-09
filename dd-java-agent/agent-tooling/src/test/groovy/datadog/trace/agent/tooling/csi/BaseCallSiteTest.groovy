@@ -15,6 +15,8 @@ import net.bytebuddy.jar.asm.Type
 import net.bytebuddy.matcher.ElementMatcher
 import net.bytebuddy.utility.JavaModule
 import net.bytebuddy.utility.nullability.MaybeNull
+
+import java.lang.reflect.Constructor
 import java.security.MessageDigest
 
 
@@ -81,6 +83,10 @@ class BaseCallSiteTest extends DDSpecification {
     return buildPointcut(String.getDeclaredMethod('concat', String))
   }
 
+  protected static Pointcut stringReaderPointcut() {
+    return buildPointcut(StringReader.getDeclaredConstructor(String))
+  }
+
   protected static Pointcut messageDigestGetInstancePointcut() {
     return buildPointcut(MessageDigest.getDeclaredMethod('getInstance', String))
   }
@@ -98,6 +104,10 @@ class BaseCallSiteTest extends DDSpecification {
 
   protected static Pointcut buildPointcut(final Method executable) {
     return buildPointcut(Type.getType(executable.getDeclaringClass()).internalName, executable.name, Type.getType(executable).descriptor)
+  }
+
+  protected static Pointcut buildPointcut(final Constructor<?> executable) {
+    return buildPointcut(Type.getType(executable.getDeclaringClass()).internalName, "<init>", Type.getType(executable).descriptor)
   }
 
   protected static Pointcut buildPointcut(final String type, final String method, final String descriptor) {
@@ -157,6 +167,13 @@ class BaseCallSiteTest extends DDSpecification {
     return clazz.getConstructor().newInstance()
   }
 
+  protected static Class<?> loadClass(final Type type,
+  final byte[] data,
+  final ClassLoader loader = Thread.currentThread().contextClassLoader) {
+    final classLoader = new ByteArrayClassLoader(loader, [(type.className): data])
+    return classLoader.loadClass(type.className)
+  }
+
   protected static byte[] transformType(final Type source,
   final Type target,
   final CallSiteTransformer transformer,
@@ -184,5 +201,10 @@ class BaseCallSiteTest extends DDSpecification {
     String type
     String method
     String descriptor
+
+    @Override
+    String toString() {
+      return descriptor
+    }
   }
 }
