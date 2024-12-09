@@ -52,36 +52,35 @@ public class JakartaServletInstrumentation extends InstrumenterModule.Tracing
 
   public static class ExtractPrincipalAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static boolean before(
-        @Advice.Argument(0) final ServletRequest request,
-        @Advice.Local("span") AgentSpan agentSpan) {
+    public static AgentSpan before(@Advice.Argument(0) final ServletRequest request) {
       if (!(request instanceof HttpServletRequest)) {
-        return false;
+        return null;
       }
       Object span =
           request.getAttribute(
               "datadog.span"); // hardcode to avoid injecting HttpServiceDecorator just for this
-      if (span instanceof AgentSpan) {
-        agentSpan = (AgentSpan) span;
+      if (span instanceof AgentSpan
+          && CallDepthThreadLocalMap.incrementCallDepth(HttpServletRequest.class) == 0) {
+        final AgentSpan agentSpan = (AgentSpan) span;
         ClassloaderServiceNames.maybeSetToSpan(agentSpan, Thread.currentThread());
+        return agentSpan;
       }
-      return CallDepthThreadLocalMap.incrementCallDepth(HttpServletRequest.class) == 0;
+      return null;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(
-        @Advice.Enter boolean advice,
-        @Advice.Argument(0) final ServletRequest request,
-        @Advice.Local("span") AgentSpan span) {
-      if (advice) {
-        CallDepthThreadLocalMap.reset(HttpServletRequest.class);
-        final HttpServletRequest httpServletRequest =
-            (HttpServletRequest) request; // at this point the cast should be safe
-        if (span != null
-            && Config.get().isServletPrincipalEnabled()
-            && httpServletRequest.getUserPrincipal() != null) {
-          span.setTag(DDTags.USER_NAME, httpServletRequest.getUserPrincipal().getName());
-        }
+        @Advice.Enter final AgentSpan span, @Advice.Argument(0) final ServletRequest request) {
+      if (span == null) {
+        return;
+      }
+
+      CallDepthThreadLocalMap.reset(HttpServletRequest.class);
+      final HttpServletRequest httpServletRequest =
+          (HttpServletRequest) request; // at this point the cast should be safe
+      if (Config.get().isServletPrincipalEnabled()
+          && httpServletRequest.getUserPrincipal() != null) {
+        span.setTag(DDTags.USER_NAME, httpServletRequest.getUserPrincipal().getName());
       }
     }
   }
