@@ -2,6 +2,7 @@ package datadog.trace.api.iast.util
 
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.CodecModule
+import datadog.trace.api.iast.propagation.PropagationModule
 import datadog.trace.api.iast.propagation.StringModule
 import datadog.trace.test.util.DDSpecification
 
@@ -106,6 +107,23 @@ class PropagationUtilsTest extends DDSpecification {
     value << ['http://test.com']
   }
 
+  void 'test taintObjectIfTainted'() {
+    setup:
+    final iastModule = Mock(PropagationModule)
+    InstrumentationBridge.registerIastModule(iastModule)
+    String inputTest = "test"
+
+    when:
+    PropagationUtils.taintObjectIfTainted(value, inputTest)
+
+    then:
+    1 * iastModule.taintObjectIfTainted(value, inputTest)
+    0 * _
+
+    where:
+    value << ['http://test.com']
+  }
+
   void 'test onUriCreate throw exception'() {
     setup:
     final iastModule = Mock(CodecModule)
@@ -157,6 +175,24 @@ class PropagationUtilsTest extends DDSpecification {
     result == sb
     1 * iastModule.onStringBuilderAppend(_ as StringBuilder, _ as String) >> { throw new Exception("test exception") }
     1 * iastModule.onUnexpectedException("onStringBuilderAppend threw", _ as Exception)
+    0 * _
+
+    where:
+    value << ['http://test.com']
+  }
+
+  void 'test taintObjectIfTainted throw exception'() {
+    setup:
+    final iastModule = Mock(PropagationModule)
+    InstrumentationBridge.registerIastModule(iastModule)
+    String inputTest = "test"
+
+    when:
+    PropagationUtils.taintObjectIfTainted(value, inputTest)
+
+    then:
+    1 * iastModule.taintObjectIfTainted(value, inputTest) >> { throw new Exception("test exception") }
+    1 * iastModule.onUnexpectedException("taintObjectIfTainted threw", _ as Exception)
     0 * _
 
     where:

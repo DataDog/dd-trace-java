@@ -168,7 +168,8 @@ public class ConfigurationApiImpl implements ConfigurationApi {
     for (DataDto<TestIdentifierJson> dataDto : response.data) {
       TestIdentifierJson testIdentifierJson = dataDto.getAttributes();
       Configurations conf = testIdentifierJson.getConfigurations();
-      String moduleName = (conf != null ? conf : requestConf).getTestBundle();
+      String moduleName =
+          (conf != null && conf.getTestBundle() != null ? conf : requestConf).getTestBundle();
       testIdentifiersByModule
           .computeIfAbsent(moduleName, k -> new HashMap<>())
           .put(testIdentifierJson.toTestIdentifier(), testIdentifierJson.toTestMetadata());
@@ -211,12 +212,15 @@ public class ConfigurationApiImpl implements ConfigurationApi {
 
     LOGGER.debug("Received {} flaky tests in total", response.size());
 
+    Configurations requestConf = tracerEnvironment.getConfigurations();
+
     int flakyTestsCount = 0;
     Map<String, Collection<TestIdentifier>> testIdentifiers = new HashMap<>();
     for (DataDto<TestIdentifierJson> dataDto : response) {
       TestIdentifierJson testIdentifierJson = dataDto.getAttributes();
-      Configurations configurations = testIdentifierJson.getConfigurations();
-      String moduleName = configurations.getTestBundle();
+      Configurations conf = testIdentifierJson.getConfigurations();
+      String moduleName =
+          (conf != null && conf.getTestBundle() != null ? conf : requestConf).getTestBundle();
       testIdentifiers
           .computeIfAbsent(moduleName, k -> new HashSet<>())
           .add(testIdentifierJson.toTestIdentifier());
