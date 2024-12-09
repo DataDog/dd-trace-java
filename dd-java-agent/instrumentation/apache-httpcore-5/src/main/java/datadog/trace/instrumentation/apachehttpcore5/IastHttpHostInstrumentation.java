@@ -37,7 +37,7 @@ public class IastHttpHostInstrumentation extends InstrumenterModule.Iast
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Propagation
     public static void afterCtor(
-        @Advice.This final Object self, @Advice.Argument(2) final Object host) {
+        @Advice.This final Object self, @Advice.Argument(2) final String host) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         module.taintObjectIfTainted(self, host);
