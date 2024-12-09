@@ -5,16 +5,13 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_MAX_CONCURRENT_REQUE
 import com.datadog.iast.model.VulnerabilityBatch;
 import com.datadog.iast.overhead.OverheadContext;
 import com.datadog.iast.taint.TaintedMap;
-import com.datadog.iast.taint.TaintedObjects;
+import com.datadog.iast.taint.TaintedObjectsMap;
 import com.datadog.iast.util.Wrapper;
 import datadog.trace.api.Config;
-import datadog.trace.api.gateway.RequestContext;
-import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.IastContext;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import datadog.trace.api.iast.telemetry.IastMetricCollector;
 import datadog.trace.api.iast.telemetry.IastMetricCollector.HasMetricCollector;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.io.IOException;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -44,7 +41,7 @@ public class IastRequestContext implements IastContext, HasMetricCollector {
   @Deprecated
   public IastRequestContext() {
     // map without purge (it will be cleared on request end)
-    this(TaintedObjects.build(TaintedMap.build(MAP_SIZE)));
+    this(TaintedObjectsMap.build(TaintedMap.build(MAP_SIZE)));
   }
 
   public IastRequestContext(final TaintedObjects taintedObjects) {
@@ -106,7 +103,6 @@ public class IastRequestContext implements IastContext, HasMetricCollector {
     return overheadContext;
   }
 
-  @SuppressWarnings("unchecked")
   @Nonnull
   @Override
   public TaintedObjects getTaintedObjects() {
@@ -147,23 +143,16 @@ public class IastRequestContext implements IastContext, HasMetricCollector {
 
     @Nullable
     @Override
-    public IastContext resolve() {
-      final AgentSpan span = AgentTracer.activeSpan();
-      if (span == null) {
-        return null;
-      }
-      final RequestContext ctx = span.getRequestContext();
-      if (ctx == null) {
-        return null;
-      }
-      return ctx.getData(RequestContextSlot.IAST);
+    public TaintedObjects resolveTaintedObjects() {
+      final IastContext ctx = get();
+      return ctx == null ? null : ctx.getTaintedObjects();
     }
 
     @Override
     public IastContext buildRequestContext() {
       TaintedObjects taintedObjects = pool.poll();
       if (taintedObjects == null) {
-        taintedObjects = TaintedObjects.build(TaintedMap.build(MAP_SIZE));
+        taintedObjects = TaintedObjectsMap.build(TaintedMap.build(MAP_SIZE));
       }
       final IastRequestContext ctx = new IastRequestContext(taintedObjects);
       ctx.release = this::releaseRequestContext;

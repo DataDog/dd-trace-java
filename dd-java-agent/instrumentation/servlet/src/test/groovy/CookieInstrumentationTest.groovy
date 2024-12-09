@@ -3,6 +3,7 @@ import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.propagation.PropagationModule
+import datadog.trace.api.iast.taint.TaintedObjects
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import groovy.transform.CompileDynamic
@@ -16,6 +17,7 @@ class CookieInstrumentationTest extends AgentTestRunner {
   private static final String VALUE = 'value'
 
   private Object iastCtx
+  private Object to
 
   @Override
   protected void configurePreAgent() {
@@ -24,7 +26,10 @@ class CookieInstrumentationTest extends AgentTestRunner {
 
   @Override
   void setup() {
-    iastCtx = Stub(IastContext)
+    to = Stub(TaintedObjects)
+    iastCtx = Stub(IastContext) {
+      getTaintedObjects() >> to
+    }
   }
 
   void 'test getName'() {
@@ -38,7 +43,7 @@ class CookieInstrumentationTest extends AgentTestRunner {
 
     then:
     result == NAME
-    1 * iastModule.taintStringIfTainted(iastCtx, NAME, cookie, SourceTypes.REQUEST_COOKIE_NAME, NAME)
+    1 * iastModule.taintObjectIfTainted(to, NAME, cookie, SourceTypes.REQUEST_COOKIE_NAME, NAME)
   }
 
   void 'test getValue'() {
@@ -52,7 +57,7 @@ class CookieInstrumentationTest extends AgentTestRunner {
 
     then:
     result == VALUE
-    1 * iastModule.taintStringIfTainted(iastCtx, VALUE, cookie, SourceTypes.REQUEST_COOKIE_VALUE, NAME)
+    1 * iastModule.taintObjectIfTainted(to, VALUE, cookie, SourceTypes.REQUEST_COOKIE_VALUE, NAME)
   }
 
   protected <E> E runUnderIastTrace(Closure<E> cl) {

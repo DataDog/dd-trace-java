@@ -1,16 +1,31 @@
 package core
 
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.Taintable
 import datadog.trace.api.iast.propagation.PropagationModule
+import datadog.trace.api.iast.taint.Source
+import datadog.trace.api.iast.taint.TaintedObjects
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.bootstrap.instrumentation.api.TagContext
 import groovy.transform.CompileDynamic
 import io.vertx.core.buffer.Buffer
 import io.vertx.core.buffer.impl.BufferImpl
 
 @CompileDynamic
 class BufferInstrumentationTest extends AgentTestRunner {
+
+  private Object iastCtx
+  private Object to
+
+  void setup() {
+    to = Stub(TaintedObjects)
+    iastCtx = Stub(IastContext) {
+      getTaintedObjects() >> to
+    }
+  }
 
   @Override
   protected void configurePreAgent() {
@@ -24,10 +39,12 @@ class BufferInstrumentationTest extends AgentTestRunner {
     final buffer = taintedInstance(SourceTypes.REQUEST_BODY)
 
     when:
-    method.call(buffer)
+    runUnderIastTrace {
+      method.call(buffer)
+    }
 
     then:
-    1 * module.taintStringIfTainted(_, buffer)
+    1 * module.taintObjectIfTainted(to, _, buffer)
 
     where:
     methodName         | method
@@ -43,10 +60,12 @@ class BufferInstrumentationTest extends AgentTestRunner {
     final tainted = taintedInstance(SourceTypes.REQUEST_BODY)
 
     when:
-    method.call(buffer, tainted)
+    runUnderIastTrace {
+      method.call(buffer, tainted)
+    }
 
     then:
-    1 * module.taintObjectIfTainted(buffer, tainted)
+    1 * module.taintObjectIfTainted(to, buffer, tainted)
 
     where:
     methodName                       | method
@@ -57,11 +76,21 @@ class BufferInstrumentationTest extends AgentTestRunner {
   private Buffer taintedInstance(final byte origin) {
     final buffer = new BufferImpl('Hello World!')
     if (buffer instanceof Taintable) {
-      final source = Mock(Taintable.Source) {
+      final source = Mock(Source) {
         getOrigin() >> origin
       }
       (buffer as Taintable).$$DD$setSource(source)
     }
     return buffer
+  }
+
+  protected <E> E runUnderIastTrace(Closure<E> cl) {
+    final ddctx = new TagContext().withRequestContextDataIast(iastCtx)
+    final span = TEST_TRACER.startSpan("test", "test-iast-span", ddctx)
+    try {
+      return AgentTracer.activateSpan(span).withCloseable(cl)
+    } finally {
+      span.finish()
+    }
   }
 }

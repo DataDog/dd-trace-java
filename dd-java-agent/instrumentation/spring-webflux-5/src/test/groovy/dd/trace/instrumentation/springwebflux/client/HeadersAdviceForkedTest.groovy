@@ -5,6 +5,7 @@ import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.propagation.PropagationModule
+import datadog.trace.api.iast.taint.TaintedObjects
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import foo.bar.DummyRequest
@@ -13,6 +14,7 @@ import org.springframework.http.server.ServletServerHttpRequest
 class HeadersAdviceForkedTest extends AgentTestRunner {
 
   private Object iastCtx
+  private Object to
 
   @Override
   protected void configurePreAgent() {
@@ -21,7 +23,10 @@ class HeadersAdviceForkedTest extends AgentTestRunner {
 
   @Override
   void setup() {
-    iastCtx = Stub(IastContext)
+    to = Stub(TaintedObjects)
+    iastCtx = Stub(IastContext) {
+      getTaintedObjects() >> to
+    }
   }
 
   void 'Headers instrumentation'() {
@@ -35,7 +40,7 @@ class HeadersAdviceForkedTest extends AgentTestRunner {
     runUnderIastTrace { request.getHeaders() }
 
     then:
-    2 * module.taintObject(iastCtx , _ as Object, SourceTypes.REQUEST_HEADER_VALUE)
+    2 * module.taintObject(to , _ as Object, SourceTypes.REQUEST_HEADER_VALUE)
     0 * _
   }
 

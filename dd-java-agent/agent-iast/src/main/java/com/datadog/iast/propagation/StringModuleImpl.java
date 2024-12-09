@@ -7,17 +7,18 @@ import static com.datadog.iast.taint.Tainteds.canBeTainted;
 import static com.datadog.iast.taint.Tainteds.getTainted;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 
-import com.datadog.iast.model.Range;
-import com.datadog.iast.model.Source;
+import com.datadog.iast.model.SourceImpl;
 import com.datadog.iast.taint.Ranges;
-import com.datadog.iast.taint.TaintedObject;
-import com.datadog.iast.taint.TaintedObjects;
 import com.datadog.iast.util.RangeBuilder;
-import com.datadog.iast.util.Ranged;
 import com.datadog.iast.util.StringUtils;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.Taintable;
 import datadog.trace.api.iast.propagation.StringModule;
+import datadog.trace.api.iast.taint.Range;
+import datadog.trace.api.iast.taint.Source;
+import datadog.trace.api.iast.taint.TaintedObject;
+import datadog.trace.api.iast.taint.TaintedObjects;
+import datadog.trace.api.iast.util.Ranged;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Arrays;
@@ -58,13 +59,12 @@ public class StringModuleImpl implements StringModule {
     if (!canBeTainted(left) && !canBeTainted(right)) {
       return;
     }
-    final IastContext ctx = IastContext.Provider.get();
-    if (ctx == null) {
+    final TaintedObjects to = IastContext.Provider.taintedObjects();
+    if (to == null) {
       return;
     }
-    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
-    final TaintedObject taintedLeft = getTainted(taintedObjects, left);
-    final TaintedObject taintedRight = getTainted(taintedObjects, right);
+    final TaintedObject taintedLeft = getTainted(to, left);
+    final TaintedObject taintedRight = getTainted(to, right);
     if (taintedLeft == null && taintedRight == null) {
       return;
     }
@@ -77,7 +77,7 @@ public class StringModuleImpl implements StringModule {
     } else {
       ranges = mergeRanges(left.length(), taintedLeft.getRanges(), taintedRight.getRanges());
     }
-    taintedObjects.taint(result, ranges);
+    to.taint(result, ranges);
   }
 
   @Override
@@ -86,16 +86,15 @@ public class StringModuleImpl implements StringModule {
     if (!canBeTainted(param)) {
       return;
     }
-    final IastContext ctx = IastContext.Provider.get();
-    if (ctx == null) {
+    final TaintedObjects to = IastContext.Provider.taintedObjects();
+    if (to == null) {
       return;
     }
-    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
-    final TaintedObject paramTainted = taintedObjects.get(param);
+    final TaintedObject paramTainted = to.get(param);
     if (paramTainted == null) {
       return;
     }
-    taintedObjects.taint(builder, paramTainted.getRanges());
+    to.taint(builder, paramTainted.getRanges());
   }
 
   @Override
@@ -104,22 +103,21 @@ public class StringModuleImpl implements StringModule {
     if (!canBeTainted(builder) || !canBeTainted(param)) {
       return;
     }
-    final IastContext ctx = IastContext.Provider.get();
-    if (ctx == null) {
+    final TaintedObjects to = IastContext.Provider.taintedObjects();
+    if (to == null) {
       return;
     }
-    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
-    final TaintedObject paramTainted = taintedObjects.get(param);
+    final TaintedObject paramTainted = to.get(param);
     if (paramTainted == null) {
       return;
     }
-    final TaintedObject builderTainted = taintedObjects.get(builder);
+    final TaintedObject builderTainted = to.get(builder);
     final int shift = builder.length() - param.length();
     if (builderTainted == null) {
       final Range[] paramRanges = paramTainted.getRanges();
       final Range[] ranges = new Range[paramRanges.length];
       Ranges.copyShift(paramRanges, ranges, 0, shift);
-      taintedObjects.taint(builder, ranges);
+      to.taint(builder, ranges);
     } else {
       final Range[] builderRanges = builderTainted.getRanges();
       final Range[] paramRanges = paramTainted.getRanges();
@@ -134,16 +132,15 @@ public class StringModuleImpl implements StringModule {
     if (!canBeTainted(builder) || !canBeTainted(result)) {
       return;
     }
-    final IastContext ctx = IastContext.Provider.get();
-    if (ctx == null) {
-      return;
-    }
-    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
-    final TaintedObject to = taintedObjects.get(builder);
+    final TaintedObjects to = IastContext.Provider.taintedObjects();
     if (to == null) {
       return;
     }
-    taintedObjects.taint(result, to.getRanges());
+    final TaintedObject tainted = to.get(builder);
+    if (tainted == null) {
+      return;
+    }
+    to.taint(result, tainted.getRanges());
   }
 
   @Override
@@ -156,12 +153,11 @@ public class StringModuleImpl implements StringModule {
     if (!canBeTainted(result) || !canBeTainted(args)) {
       return;
     }
-    final IastContext ctx = IastContext.Provider.get();
-    if (ctx == null) {
+    final TaintedObjects to = IastContext.Provider.taintedObjects();
+    if (to == null) {
       return;
     }
 
-    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
     final RangeBuilder targetRanges = new RangeBuilder();
     int offset = 0;
     for (int item : recipeOffsets) {
@@ -169,7 +165,7 @@ public class StringModuleImpl implements StringModule {
         offset += -item;
       } else {
         final String argument = args[item];
-        final Range[] ranges = getRanges(getTainted(taintedObjects, argument));
+        final Range[] ranges = getRanges(getTainted(to, argument));
         if (ranges.length > 0) {
           targetRanges.add(ranges, offset);
           if (targetRanges.isFull()) {
@@ -180,7 +176,7 @@ public class StringModuleImpl implements StringModule {
       }
     }
     if (!targetRanges.isEmpty()) {
-      taintedObjects.taint(result, targetRanges.toArray());
+      to.taint(result, targetRanges.toArray());
     }
   }
 
@@ -191,12 +187,11 @@ public class StringModuleImpl implements StringModule {
     if (self == result || !canBeTainted(result)) {
       return;
     }
-    final IastContext ctx = IastContext.Provider.get();
-    if (ctx == null) {
+    final TaintedObjects to = IastContext.Provider.taintedObjects();
+    if (to == null) {
       return;
     }
-    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
-    final TaintedObject selfTainted = taintedObjects.get(self);
+    final TaintedObject selfTainted = to.get(self);
     if (selfTainted == null) {
       return;
     }
@@ -206,7 +201,7 @@ public class StringModuleImpl implements StringModule {
     }
     Range[] newRanges = Ranges.forSubstring(beginIndex, result.length(), rangesSelf);
     if (newRanges != null && newRanges.length > 0) {
-      taintedObjects.taint(result, newRanges);
+      to.taint(result, newRanges);
     }
   }
 
@@ -216,22 +211,21 @@ public class StringModuleImpl implements StringModule {
     if (!canBeTainted(result)) {
       return;
     }
-    final IastContext ctx = IastContext.Provider.get();
-    if (ctx == null) {
+    final TaintedObjects to = IastContext.Provider.taintedObjects();
+    if (to == null) {
       return;
     }
-    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
     // String.join may internally call StringJoiner, if StringJoiner did the job don't do it twice
-    if (getTainted(taintedObjects, result) != null) {
+    if (getTainted(to, result) != null) {
       return;
     }
-    final Range[] delimiterRanges = getRanges(getTainted(taintedObjects, delimiter));
+    final Range[] delimiterRanges = getRanges(getTainted(to, delimiter));
     final RangeBuilder targetRanges = new RangeBuilder();
     int delimiterLength = getToStringLength(delimiter), offset = 0;
     for (int i = 0; i < elements.length; i++) {
       // insert element ranges
       final CharSequence element = elements[i];
-      final Range[] ranges = getRanges(getTainted(taintedObjects, element));
+      final Range[] ranges = getRanges(getTainted(to, element));
       if (ranges.length > 0) {
         targetRanges.add(ranges, offset);
         if (targetRanges.isFull()) {
@@ -250,7 +244,7 @@ public class StringModuleImpl implements StringModule {
       }
     }
     if (!targetRanges.isEmpty()) {
-      taintedObjects.taint(result, targetRanges.toArray());
+      to.taint(result, targetRanges.toArray());
     }
   }
 
@@ -260,12 +254,11 @@ public class StringModuleImpl implements StringModule {
     if (!canBeTainted(self) || !canBeTainted(result) || self == result) {
       return;
     }
-    final IastContext ctx = IastContext.Provider.get();
-    if (ctx == null) {
+    final TaintedObjects to = IastContext.Provider.taintedObjects();
+    if (to == null) {
       return;
     }
-    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
-    final Range[] selfRanges = getRanges(taintedObjects.get(self));
+    final Range[] selfRanges = getRanges(to.get(self));
     if (selfRanges.length == 0) {
       return;
     }
@@ -277,7 +270,7 @@ public class StringModuleImpl implements StringModule {
         break;
       }
     }
-    taintedObjects.taint(result, ranges);
+    to.taint(result, ranges);
   }
 
   private static int getToStringLength(@Nullable final CharSequence s) {
@@ -302,12 +295,11 @@ public class StringModuleImpl implements StringModule {
     if (self == result) {
       return;
     }
-    final IastContext ctx = IastContext.Provider.get();
-    if (ctx == null) {
+    final TaintedObjects to = IastContext.Provider.taintedObjects();
+    if (to == null) {
       return;
     }
-    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
-    final TaintedObject taintedSelf = taintedObjects.get(self);
+    final TaintedObject taintedSelf = to.get(self);
     if (taintedSelf == null) {
       return;
     }
@@ -316,14 +308,14 @@ public class StringModuleImpl implements StringModule {
       return;
     }
     if (result.length() == self.length()) {
-      taintedObjects.taint(result, rangesSelf);
+      to.taint(result, rangesSelf);
       return;
     }
     if (result.length() >= self.length()) {
-      taintedObjects.taint(result, rangesSelf);
+      to.taint(result, rangesSelf);
     } // Pathological case where the string's length actually becomes smaller
     else {
-      stringCaseChangedWithReducedSize(rangesSelf, taintedObjects, result);
+      stringCaseChangedWithReducedSize(rangesSelf, to, result);
     }
   }
 
@@ -375,12 +367,11 @@ public class StringModuleImpl implements StringModule {
     if (self == result) {
       return;
     }
-    final IastContext ctx = IastContext.Provider.get();
-    if (ctx == null) {
+    final TaintedObjects to = IastContext.Provider.taintedObjects();
+    if (to == null) {
       return;
     }
-    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
-    final TaintedObject taintedSelf = taintedObjects.get(self);
+    final TaintedObject taintedSelf = to.get(self);
     if (taintedSelf == null) {
       return;
     }
@@ -400,7 +391,7 @@ public class StringModuleImpl implements StringModule {
     final Range[] newRanges = Ranges.forSubstring(offset, resultLength, rangesSelf);
 
     if (null != newRanges) {
-      taintedObjects.taint(result, newRanges);
+      to.taint(result, newRanges);
     }
   }
 
@@ -409,16 +400,15 @@ public class StringModuleImpl implements StringModule {
     if (!canBeTainted(self)) {
       return;
     }
-    final IastContext ctx = IastContext.Provider.get();
-    if (ctx == null) {
+    final TaintedObjects to = IastContext.Provider.taintedObjects();
+    if (to == null) {
       return;
     }
-    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
-    final Range[] selfRanges = getRanges(taintedObjects.get(self));
+    final Range[] selfRanges = getRanges(to.get(self));
     if (selfRanges.length == 0) {
       return;
     }
-    taintedObjects.taint(result, selfRanges);
+    to.taint(result, selfRanges);
   }
 
   @Override
@@ -436,11 +426,10 @@ public class StringModuleImpl implements StringModule {
     if (!canBeTainted(result)) {
       return;
     }
-    final IastContext ctx = IastContext.Provider.get();
-    if (ctx == null) {
+    final TaintedObjects to = IastContext.Provider.taintedObjects();
+    if (to == null) {
       return;
     }
-    final TaintedObjects to = ctx.getTaintedObjects();
     final Deque<Range> formatRanges = new LinkedList<>();
     final TaintedObject formatTainted = to.get(format);
     if (formatTainted != null) {
@@ -519,11 +508,10 @@ public class StringModuleImpl implements StringModule {
     if (!canBeTainted(result)) {
       return;
     }
-    final IastContext ctx = IastContext.Provider.get();
-    if (ctx == null) {
+    final TaintedObjects to = IastContext.Provider.taintedObjects();
+    if (to == null) {
       return;
     }
-    final TaintedObjects to = ctx.getTaintedObjects();
     // since we might join ranges the final number is unknown beforehand
     final RangeBuilder finalRanges = new RangeBuilder();
     int offset = 0, paramIndex = 0;
@@ -556,11 +544,10 @@ public class StringModuleImpl implements StringModule {
     if (result.length == 1 && result[0] == self) {
       return;
     }
-    final IastContext ctx = IastContext.Provider.get();
-    if (ctx == null) {
+    final TaintedObjects to = IastContext.Provider.taintedObjects();
+    if (to == null) {
       return;
     }
-    final TaintedObjects to = ctx.getTaintedObjects();
     TaintedObject taintedString = to.get(self);
     if (taintedString == null) {
       return;
@@ -577,12 +564,11 @@ public class StringModuleImpl implements StringModule {
     if (self == result || !canBeTainted(result)) {
       return;
     }
-    final IastContext ctx = IastContext.Provider.get();
-    if (ctx == null) {
+    final TaintedObjects to = IastContext.Provider.taintedObjects();
+    if (to == null) {
       return;
     }
-    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
-    final TaintedObject taintedSelf = taintedObjects.get(self);
+    final TaintedObject taintedSelf = to.get(self);
     if (taintedSelf == null) {
       return;
     }
@@ -604,7 +590,7 @@ public class StringModuleImpl implements StringModule {
     final Range[] newRanges = Ranges.forSubstring(offset, resultLength, rangesSelf);
 
     if (newRanges != null) {
-      taintedObjects.taint(result, newRanges);
+      to.taint(result, newRanges);
     }
   }
 
@@ -614,12 +600,11 @@ public class StringModuleImpl implements StringModule {
     if (self == result || !canBeTainted(self)) {
       return;
     }
-    final IastContext ctx = IastContext.Provider.get();
-    if (ctx == null) {
+    final TaintedObjects to = IastContext.Provider.taintedObjects();
+    if (to == null) {
       return;
     }
-    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
-    final TaintedObject taintedSelf = taintedObjects.get(self);
+    final TaintedObject taintedSelf = to.get(self);
     if (taintedSelf == null) {
       return;
     }
@@ -631,7 +616,7 @@ public class StringModuleImpl implements StringModule {
 
     final Range[] newRanges = Ranges.forIndentation(self, indentation, rangesSelf);
     if (newRanges != null) {
-      taintedObjects.taint(result, newRanges);
+      to.taint(result, newRanges);
     }
   }
 
@@ -642,12 +627,11 @@ public class StringModuleImpl implements StringModule {
     if (self == result || !canBeTainted(result)) {
       return;
     }
-    final IastContext ctx = IastContext.Provider.get();
-    if (ctx == null) {
+    final TaintedObjects to = IastContext.Provider.taintedObjects();
+    if (to == null) {
       return;
     }
-    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
-    final TaintedObject taintedSelf = taintedObjects.get(self);
+    final TaintedObject taintedSelf = to.get(self);
     if (taintedSelf == null) {
       return;
     }
@@ -657,7 +641,7 @@ public class StringModuleImpl implements StringModule {
       return;
     }
 
-    taintedObjects.taint(result, rangesSelf);
+    to.taint(result, rangesSelf);
   }
 
   /** This method is used to make an {@code CallSite.Around} of the {@code String.replace} method */
@@ -665,18 +649,17 @@ public class StringModuleImpl implements StringModule {
   @SuppressFBWarnings("ES_COMPARING_PARAMETER_STRING_WITH_EQ")
   public String onStringReplace(
       @Nonnull String self, CharSequence oldCharSeq, CharSequence newCharSeq) {
-    final IastContext ctx = IastContext.Provider.get();
-    if (ctx == null) {
+    final TaintedObjects to = IastContext.Provider.taintedObjects();
+    if (to == null) {
       return self.replace(oldCharSeq, newCharSeq);
     }
-    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
-    final TaintedObject taintedSelf = taintedObjects.get(self);
+    final TaintedObject taintedSelf = to.get(self);
     Range[] rangesSelf = new Range[0];
     if (taintedSelf != null) {
       rangesSelf = taintedSelf.getRanges();
     }
 
-    final TaintedObject taintedInput = taintedObjects.get(newCharSeq);
+    final TaintedObject taintedInput = to.get(newCharSeq);
     Range[] rangesInput = null;
     if (taintedInput != null) {
       rangesInput = taintedInput.getRanges();
@@ -687,7 +670,7 @@ public class StringModuleImpl implements StringModule {
     }
 
     return StringUtils.replaceAndTaint(
-        taintedObjects,
+        to,
         self,
         Pattern.compile((String) oldCharSeq),
         (String) newCharSeq,
@@ -704,8 +687,8 @@ public class StringModuleImpl implements StringModule {
   @SuppressForbidden
   public String onStringReplace(
       @Nonnull String self, String regex, String replacement, int numReplacements) {
-    final IastContext ctx = IastContext.Provider.get();
-    if (ctx == null) {
+    final TaintedObjects to = IastContext.Provider.taintedObjects();
+    if (to == null) {
       if (numReplacements > 1) {
         return self.replaceAll(regex, replacement);
       } else {
@@ -713,14 +696,13 @@ public class StringModuleImpl implements StringModule {
       }
     }
 
-    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
-    final TaintedObject taintedSelf = taintedObjects.get(self);
+    final TaintedObject taintedSelf = to.get(self);
     Range[] rangesSelf = new Range[0];
     if (taintedSelf != null) {
       rangesSelf = taintedSelf.getRanges();
     }
 
-    final TaintedObject taintedInput = taintedObjects.get(replacement);
+    final TaintedObject taintedInput = to.get(replacement);
     Range[] rangesInput = null;
     if (taintedInput != null) {
       rangesInput = taintedInput.getRanges();
@@ -735,13 +717,7 @@ public class StringModuleImpl implements StringModule {
     }
 
     return StringUtils.replaceAndTaint(
-        taintedObjects,
-        self,
-        Pattern.compile(regex),
-        replacement,
-        rangesSelf,
-        rangesInput,
-        numReplacements);
+        to, self, Pattern.compile(regex), replacement, rangesSelf, rangesInput, numReplacements);
   }
 
   @Override
@@ -750,25 +726,24 @@ public class StringModuleImpl implements StringModule {
     if (param == null || !canBeTainted(result)) {
       return;
     }
-    final IastContext ctx = IastContext.Provider.get();
-    if (ctx == null) {
+    final TaintedObjects to = IastContext.Provider.taintedObjects();
+    if (to == null) {
       return;
     }
-    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
 
     if (param instanceof Taintable) {
       final Taintable taintable = (Taintable) param;
       if (!taintable.$DD$isTainted()) {
         return;
       }
-      final Source source = (Source) taintable.$$DD$getSource();
+      final Source source = taintable.$$DD$getSource();
       final Range[] ranges =
           Ranges.forCharSequence(
-              result, new Source(source.getOrigin(), source.getName(), source.getValue()));
+              result, new SourceImpl(source.getOrigin(), source.getName(), source.getValue()));
 
-      taintedObjects.taint(result, ranges);
+      to.taint(result, ranges);
     } else {
-      final TaintedObject taintedParam = taintedObjects.get(param);
+      final TaintedObject taintedParam = to.get(param);
       if (taintedParam == null) {
         return;
       }
@@ -783,11 +758,11 @@ public class StringModuleImpl implements StringModule {
         final Source source = rangesParam[0].getSource();
         final Range[] ranges =
             Ranges.forCharSequence(
-                result, new Source(source.getOrigin(), source.getName(), source.getValue()));
+                result, new SourceImpl(source.getOrigin(), source.getName(), source.getValue()));
 
-        taintedObjects.taint(result, ranges);
+        to.taint(result, ranges);
       } else {
-        taintedObjects.taint(result, rangesParam);
+        to.taint(result, rangesParam);
       }
     }
   }

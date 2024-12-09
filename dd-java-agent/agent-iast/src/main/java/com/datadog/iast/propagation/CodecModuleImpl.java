@@ -3,12 +3,12 @@ package com.datadog.iast.propagation;
 import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
 import static datadog.trace.api.iast.VulnerabilityMarks.XSS_MARK;
 
-import com.datadog.iast.taint.TaintedObject;
-import com.datadog.iast.taint.TaintedObjects;
 import com.datadog.iast.util.RangeBuilder;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.propagation.CodecModule;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.api.iast.taint.TaintedObject;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import java.net.URI;
 import java.net.URL;
 import javax.annotation.Nonnull;
@@ -29,14 +29,16 @@ public class CodecModuleImpl implements CodecModule {
   @Override
   public void onUrlDecode(
       @Nonnull final String value, @Nullable final String encoding, @Nonnull final String result) {
-    propagationModule.taintStringIfTainted(result, value);
+    final TaintedObjects to = IastContext.Provider.taintedObjects();
+    propagationModule.taintObjectIfTainted(to, result, value);
   }
 
   @Override
   public void onUrlEncode(
       @Nonnull final String value, @Nullable final String encoding, @Nonnull final String result) {
     // the new string should be safe to be used in
-    propagationModule.taintStringIfTainted(result, value, false, XSS_MARK);
+    final TaintedObjects to = IastContext.Provider.taintedObjects();
+    propagationModule.taintObjectIfTainted(to, result, value, false, XSS_MARK);
   }
 
   @Override
@@ -47,41 +49,45 @@ public class CodecModuleImpl implements CodecModule {
       @Nullable final String charset,
       @Nonnull final String result) {
     // create a new range shifted to the result string coordinates
-    propagationModule.taintStringIfRangeTainted(result, value, offset, length, false, NOT_MARKED);
+    final TaintedObjects to = IastContext.Provider.taintedObjects();
+    propagationModule.taintObjectIfRangeTainted(
+        to, result, value, offset, length, false, NOT_MARKED);
   }
 
   @Override
   public void onStringGetBytes(
       @Nonnull final String value, @Nullable final String charset, @Nonnull final byte[] result) {
-    propagationModule.taintObjectIfTainted(result, value);
+    final TaintedObjects to = IastContext.Provider.taintedObjects();
+    propagationModule.taintObjectIfTainted(to, result, value);
   }
 
   @Override
   public void onBase64Encode(@Nullable byte[] value, @Nullable byte[] result) {
-    propagationModule.taintObjectIfTainted(result, value);
+    final TaintedObjects to = IastContext.Provider.taintedObjects();
+    propagationModule.taintObjectIfTainted(to, result, value);
   }
 
   @Override
   public void onBase64Decode(@Nullable byte[] value, @Nullable byte[] result) {
-    propagationModule.taintObjectIfTainted(result, value);
+    final TaintedObjects to = IastContext.Provider.taintedObjects();
+    propagationModule.taintObjectIfTainted(to, result, value);
   }
 
   @Override
   public void onUriCreate(@Nonnull final URI result, final Object... args) {
-    final IastContext ctx = IastContext.Provider.get();
-    if (ctx == null) {
+    final TaintedObjects to = IastContext.Provider.taintedObjects();
+    if (to == null) {
       return;
     }
-    taintUrlIfAnyTainted(ctx.getTaintedObjects(), result, args);
+    taintUrlIfAnyTainted(to, result, args);
   }
 
   @Override
   public void onUrlCreate(@Nonnull final URL result, final Object... args) {
-    final IastContext ctx = IastContext.Provider.get();
-    if (ctx == null) {
+    final TaintedObjects to = IastContext.Provider.taintedObjects();
+    if (to == null) {
       return;
     }
-    final TaintedObjects to = ctx.getTaintedObjects();
     if (args.length > 0 && args[0] instanceof URL) {
       final TaintedObject tainted = to.get(args[0]);
       if (tainted != null) {
@@ -119,7 +125,7 @@ public class CodecModuleImpl implements CodecModule {
     }
     if (builder.isEmpty()) {
       // no mappings of tainted values in the URL, resort to fully tainting it
-      propagationModule.taintObjectIfAnyTainted(url, args);
+      propagationModule.taintObjectIfAnyTainted(to, url, args);
     } else {
       to.taint(url, builder.toArray());
     }

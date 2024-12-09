@@ -3,8 +3,9 @@ package com.datadog.iast.taint
 import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.Logger
 import com.datadog.iast.IastSystem
-import com.datadog.iast.model.Source
+import com.datadog.iast.model.SourceImpl
 import datadog.trace.api.iast.SourceTypes
+import datadog.trace.api.iast.taint.TaintedObjects
 import datadog.trace.test.util.DDSpecification
 import groovy.transform.CompileDynamic
 
@@ -19,7 +20,7 @@ class TaintedObjectsLogTest extends DDSpecification {
 
   void setup() {
     defaultDebug = IastSystem.DEBUG
-    logger = TaintedObjects.TaintedObjectsDebugAdapter.LOGGER as Logger
+    logger = TaintedObjectsDebugAdapter.LOGGER as Logger
     defaultLevel = logger.getLevel()
   }
 
@@ -36,7 +37,7 @@ class TaintedObjectsLogTest extends DDSpecification {
     final value = "A"
 
     when:
-    def tainted = taintedObjects.taint(value, Ranges.forCharSequence(value, new Source(SourceTypes.NONE, null, null)))
+    def tainted = taintedObjects.taint(value, Ranges.forCharSequence(value, new SourceImpl(SourceTypes.NONE, null, null)))
 
     then:
     noExceptionThrown()
@@ -56,7 +57,7 @@ class TaintedObjectsLogTest extends DDSpecification {
     logger.level = Level.ALL
     TaintedObjects taintedObjects = taintedObjects()
     final obj = 'A'
-    taintedObjects.taint(obj, Ranges.forCharSequence(obj, new Source(SourceTypes.NONE, null, null)))
+    taintedObjects.taint(obj, Ranges.forCharSequence(obj, new SourceImpl(SourceTypes.NONE, null, null)))
 
     when:
     taintedObjects.clear()
@@ -73,7 +74,7 @@ class TaintedObjectsLogTest extends DDSpecification {
     final obj = 'A'
 
     when:
-    taintedObjects.taint(obj, Ranges.forCharSequence(obj, new Source(SourceTypes.NONE, null, null)))
+    taintedObjects.taint(obj, Ranges.forCharSequence(obj, new SourceImpl(SourceTypes.NONE, null, null)))
 
     then:
     taintedObjects.size() == 1

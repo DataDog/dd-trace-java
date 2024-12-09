@@ -9,12 +9,14 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.Sink;
 import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.api.iast.sink.SsrfModule;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import java.io.InputStream;
 import java.io.Reader;
 import java.net.URL;
@@ -63,7 +65,8 @@ public class Json2FactoryInstrumentation extends InstrumenterModule.Iast
       if (input != null) {
         final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
         if (propagation != null) {
-          propagation.taintObjectIfTainted(parser, input);
+          final TaintedObjects to = IastContext.Provider.taintedObjects();
+          propagation.taintObjectIfTainted(to, parser, input);
         }
         if (input instanceof URL) {
           final SsrfModule ssrf = InstrumentationBridge.SSRF;
@@ -87,7 +90,9 @@ public class Json2FactoryInstrumentation extends InstrumenterModule.Iast
       if (input != null || length <= 0) {
         final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
         if (propagation != null) {
-          propagation.taintObjectIfRangeTainted(parser, input, offset, length, false, NOT_MARKED);
+          final TaintedObjects to = IastContext.Provider.taintedObjects();
+          propagation.taintObjectIfRangeTainted(
+              to, parser, input, offset, length, false, NOT_MARKED);
         }
       }
     }

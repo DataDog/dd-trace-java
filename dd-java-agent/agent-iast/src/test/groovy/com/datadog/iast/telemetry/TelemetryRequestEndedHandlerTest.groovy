@@ -2,7 +2,7 @@ package com.datadog.iast.telemetry
 
 import com.datadog.iast.IastModuleImplTestBase
 import com.datadog.iast.RequestEndedHandler
-import com.datadog.iast.model.Source
+import com.datadog.iast.model.SourceImpl
 import com.datadog.iast.taint.Ranges
 import com.datadog.iast.telemetry.taint.TaintedObjectsWithTelemetry
 import datadog.trace.api.iast.InstrumentationBridge
@@ -54,7 +54,7 @@ class TelemetryRequestEndedHandlerTest extends IastModuleImplTestBase {
     given:
     final handler = new TelemetryRequestEndedHandler(delegate)
     final toTaint = 'hello'
-    final source = new Source(SourceTypes.REQUEST_PARAMETER_VALUE, 'name', 'value')
+    final source = new SourceImpl(SourceTypes.REQUEST_PARAMETER_VALUE, 'name', 'value')
     ctx.taintedObjects.taint(toTaint, Ranges.forCharSequence(toTaint, source))
 
     when:

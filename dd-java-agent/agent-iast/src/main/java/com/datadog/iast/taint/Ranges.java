@@ -1,15 +1,19 @@
 package com.datadog.iast.taint;
 
-import static com.datadog.iast.taint.TaintedObject.MAX_RANGE_COUNT;
+import static com.datadog.iast.taint.TaintedObjectEntry.MAX_RANGE_COUNT;
 import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
 
-import com.datadog.iast.model.Range;
-import com.datadog.iast.model.Source;
+import com.datadog.iast.model.RangeImpl;
+import com.datadog.iast.model.VulnerabilityType;
 import com.datadog.iast.util.HttpHeader;
 import com.datadog.iast.util.RangeBuilder;
-import com.datadog.iast.util.Ranged;
 import com.datadog.iast.util.StringUtils;
 import datadog.trace.api.iast.SourceTypes;
+import datadog.trace.api.iast.taint.Range;
+import datadog.trace.api.iast.taint.Source;
+import datadog.trace.api.iast.util.Ranged;
+import java.util.HashSet;
+import java.util.Set;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -27,7 +31,7 @@ public final class Ranges {
 
   public static Range[] forCharSequence(
       final @Nonnull CharSequence obj, final @Nonnull Source source, final int mark) {
-    return new Range[] {new Range(0, obj.length(), source, mark)};
+    return new Range[] {new RangeImpl(0, obj.length(), source, mark)};
   }
 
   public static Range[] forObject(final @Nonnull Source source) {
@@ -35,7 +39,7 @@ public final class Ranges {
   }
 
   public static Range[] forObject(final @Nonnull Source source, final int mark) {
-    return new Range[] {new Range(0, Integer.MAX_VALUE, source, mark)};
+    return new Range[] {new RangeImpl(0, Integer.MAX_VALUE, source, mark)};
   }
 
   @Nullable
@@ -52,7 +56,7 @@ public final class Ranges {
       final Ranged intersection = targetRange.intersection(range);
       if (intersection != null) {
         targetRanges.add(
-            new Range(
+            new RangeImpl(
                 intersection.getStart() + offset,
                 intersection.getLength(),
                 range.getSource(),
@@ -238,6 +242,21 @@ public final class Ranges {
     return result;
   }
 
+  public static @Nullable Set<VulnerabilityType> getMarkedVulnerabilities(
+      @Nonnull final Range range) {
+    final int marks = range.getMarks();
+    if (marks == NOT_MARKED) {
+      return null;
+    }
+    Set<VulnerabilityType> vulnerabilities = new HashSet<>();
+    for (VulnerabilityType type : VulnerabilityType.MARKED_VULNERABILITIES) {
+      if ((marks & type.mark()) != 0) {
+        vulnerabilities.add(type);
+      }
+    }
+    return vulnerabilities;
+  }
+
   @Nullable
   public static Range[] getNotMarkedRanges(@Nullable final Range[] ranges, final int mark) {
     if (ranges == null) {
@@ -267,7 +286,7 @@ public final class Ranges {
   }
 
   public static Range copyWithPosition(final Range range, final int offset, final int length) {
-    return new Range(offset, length, range.getSource(), range.getMarks());
+    return new RangeImpl(offset, length, range.getSource(), range.getMarks());
   }
 
   /** Returns a new array of ranges with the indentation applied to each line */

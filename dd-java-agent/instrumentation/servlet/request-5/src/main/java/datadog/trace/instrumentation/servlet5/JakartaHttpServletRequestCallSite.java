@@ -7,7 +7,7 @@ import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import jakarta.servlet.http.HttpServletRequest;
 
 /**
@@ -31,9 +31,9 @@ public class JakartaHttpServletRequestCallSite {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         try {
-          final IastContext ctx = IastContext.Provider.get(AgentTracer.activeSpan());
-          if (ctx != null) {
-            module.taintString(ctx, retValue, SourceTypes.REQUEST_PATH);
+          final TaintedObjects to = IastContext.Provider.taintedObjects();
+          if (to != null) {
+            module.taintObject(to, retValue, SourceTypes.REQUEST_PATH);
           }
         } catch (final Throwable e) {
           module.onUnexpectedException("afterPath threw", e);
@@ -53,9 +53,9 @@ public class JakartaHttpServletRequestCallSite {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         try {
-          final IastContext ctx = IastContext.Provider.get(AgentTracer.activeSpan());
-          if (ctx != null) {
-            module.taintObject(ctx, retValue, SourceTypes.REQUEST_URI);
+          final TaintedObjects to = IastContext.Provider.taintedObjects();
+          if (to != null) {
+            module.taintObject(to, retValue, SourceTypes.REQUEST_URI);
           }
         } catch (final Throwable e) {
           module.onUnexpectedException("afterGetRequestURL threw", e);
