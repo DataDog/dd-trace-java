@@ -1,13 +1,12 @@
 package com.datadog.debugger.probe;
 
-import static com.datadog.debugger.probe.LogProbe.Capture.toLimits;
 import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_FRAME;
 import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_TYPE;
 import static java.lang.String.format;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 
-import com.datadog.debugger.instrumentation.CapturedContextInstrumentor;
+import com.datadog.debugger.instrumentation.BasicProbeInstrumentor;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.instrumentation.MethodInfo;
@@ -22,7 +21,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class CodeOriginProbe extends LogProbe implements ForceMethodInstrumentation {
+public class CodeOriginProbe extends ProbeDefinition {
   private static final Logger LOGGER = LoggerFactory.getLogger(CodeOriginProbe.class);
 
   private final boolean entrySpanProbe;
@@ -30,16 +29,14 @@ public class CodeOriginProbe extends LogProbe implements ForceMethodInstrumentat
   private String signature;
 
   public CodeOriginProbe(ProbeId probeId, boolean entry, Where where) {
-    super(LANGUAGE, probeId, null, where, MethodLocation.EXIT, null, null, true, null, null, null);
+    super(LANGUAGE, probeId, (Tag[]) null, where, MethodLocation.ENTRY);
     this.entrySpanProbe = entry;
   }
 
   @Override
   public InstrumentationResult.Status instrument(
       MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<ProbeId> probeIds) {
-    return new CapturedContextInstrumentor(
-            this, methodInfo, diagnostics, probeIds, isCaptureSnapshot(), toLimits(null))
-        .instrument();
+    return new BasicProbeInstrumentor(this, methodInfo, diagnostics, probeIds).instrument();
   }
 
   @Override

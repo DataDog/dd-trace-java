@@ -110,7 +110,7 @@ public class CodeOriginTest extends CapturingTestBase {
             .capture(1, 100, 255, Limits.DEFAULT_FIELD_COUNT)
             .build();
     List<ProbeDefinition> probes = codeOriginProbes(CLASS_NAME);
-    probes.add(logProbe);
+    //    probes.add(logProbe);
     installProbes(probes);
     final Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     try {
@@ -234,10 +234,6 @@ public class CodeOriginTest extends CapturingTestBase {
   }
 
   private static void checkEntrySpanTags(MutableSpan span, boolean includeSnapshot) {
-    String keys = format("Existing keys for %s: %s", span.getOperationName(), ldKeys(span));
-
-    //    assertEquals(span.getTag(DD_CODE_ORIGIN_TYPE), "entry", keys);
-    //    assertKeyPresent(span, DD_CODE_ORIGIN_TYPE);
     assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "file"));
     assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "line"));
     assertNotEquals(-1, span.getTag(format(DD_CODE_ORIGIN_FRAME, 0, "line")));

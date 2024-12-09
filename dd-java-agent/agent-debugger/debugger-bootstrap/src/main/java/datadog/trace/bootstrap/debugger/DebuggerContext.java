@@ -7,6 +7,7 @@ import java.lang.reflect.Method;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -253,6 +254,7 @@ public class DebuggerContext {
     IN_PROBE.set(Boolean.TRUE);
     return true;
   }
+
   /**
    * resolve probe details based on probe ids and evaluate the captured context regarding summary &
    * conditions This is for method probes
@@ -316,6 +318,14 @@ public class DebuggerContext {
       }
     } catch (Exception ex) {
       LOGGER.debug("Error in evalContextAndCommit: ", ex);
+    }
+  }
+
+  public static void codeOrigin(String probeId) {
+    ProbeImplementation probe = probeResolver.resolve(probeId);
+    if (probe != null) {
+      probe.commit(
+          CapturedContext.EMPTY_CONTEXT, CapturedContext.EMPTY_CONTEXT, Collections.emptyList());
     }
   }
 
