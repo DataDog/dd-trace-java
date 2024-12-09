@@ -10,9 +10,9 @@ import static net.bytebuddy.asm.Advice.OnMethodEnter;
 import static net.bytebuddy.asm.Advice.OnMethodExit;
 import static net.bytebuddy.asm.Advice.Origin;
 import static net.bytebuddy.asm.Advice.This;
-import static net.bytebuddy.implementation.bytecode.assign.Assigner.Typing.DYNAMIC;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
+import static net.bytebuddy.matcher.ElementMatchers.returns;
 
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.google.auto.service.AutoService;
@@ -27,14 +27,14 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
-public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
+public class LambdaStreamHandlerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
 
   // these must remain as String literals so they can be easily be shared (copied) with the nested
   // advice classes
   private static final String HANDLER_ENV_NAME = "_HANDLER";
 
-  public LambdaHandlerInstrumentation() {
+  public LambdaStreamHandlerInstrumentation() {
     super("aws-lambda");
   }
 
@@ -65,11 +65,12 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    // two args
+    // three args (streaming)
     transformer.applyAdvice(
         isMethod()
             .and(named("handleRequest"))
-            .and(takesArgument(1, named("com.amazonaws.services.lambda.runtime.Context"))),
+            .and(returns(named("void")))
+            .and(takesArgument(2, named("com.amazonaws.services.lambda.runtime.Context"))),
         getClass().getName() + "$ExtensionCommunicationAdvice");
     // full spec here : https://docs.aws.amazon.com/lambda/latest/dg/java-handler.html
   }
@@ -81,7 +82,7 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
         @Advice.Argument(0) final Object event,
         @Origin("#m") final String methodName) {
 
-      System.out.println("Not-Streaming ExtensionCommunicationAdvice.enter()");
+      System.out.println("Streaming ExtensionCommunicationAdvice.enter()");
 
       if (CallDepthThreadLocalMap.incrementCallDepth(RequestHandler.class) > 0) {
         System.out.println("returning");
@@ -103,10 +104,9 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
     static void exit(
         @Origin String method,
         @Enter final AgentScope scope,
-        @Advice.Return(typing = DYNAMIC) final Object result,
         @Advice.Thrown final Throwable throwable) {
 
-      System.out.println("Not-Streaming ExtensionCommunicationAdvice.exit()");
+      System.out.println("Streaming ExtensionCommunicationAdvice.exit()");
 
       if (scope == null) {
         System.out.println("returning");
@@ -118,7 +118,7 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
       try {
         final AgentSpan span = scope.span();
         span.finish();
-        AgentTracer.get().notifyExtensionEnd(span, result, null != throwable);
+        AgentTracer.get().notifyExtensionEnd(span, null, null != throwable);
       } finally {
         scope.close();
       }
