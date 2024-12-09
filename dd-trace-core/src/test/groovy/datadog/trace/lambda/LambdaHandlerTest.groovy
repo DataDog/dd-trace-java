@@ -25,6 +25,11 @@ class LambdaHandlerTest extends DDCoreSpecification {
       this.field1 = "toto"
       this.field2 = true
     }
+
+    @Override
+    String toString() {
+      "$field1 / $field2}"
+    }
   }
 
   def "test start invocation success"() {

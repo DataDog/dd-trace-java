@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.kafka_clients;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
@@ -18,6 +19,7 @@ import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
+import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
@@ -33,6 +35,7 @@ import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.kafka.clients.ApiVersions;
 import org.apache.kafka.clients.Metadata;
 import org.apache.kafka.clients.producer.Callback;
@@ -46,7 +49,17 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
     implements Instrumenter.ForSingleType {
 
   public KafkaProducerInstrumentation() {
-    super("kafka");
+    super("kafka", "kafka-0.11");
+  }
+
+  @Override
+  public String muzzleDirective() {
+    return "before-3.8";
+  }
+
+  @Override
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+    return not(hasClassNamed("org.apache.kafka.clients.MetadataRecoveryStrategy")); // < 3.8
   }
 
   @Override

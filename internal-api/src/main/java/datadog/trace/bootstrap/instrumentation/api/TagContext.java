@@ -126,11 +126,6 @@ public class TagContext implements AgentSpan.Context.Extracted {
   }
 
   @Override
-  public String getXForwarded() {
-    return httpHeaders.xForwarded;
-  }
-
-  @Override
   public String getXForwardedFor() {
     return httpHeaders.xForwardedFor;
   }
@@ -264,12 +259,11 @@ public class TagContext implements AgentSpan.Context.Extracted {
     public String fastlyClientIp;
     public String cfConnectingIp;
     public String cfConnectingIpv6;
-    public String xForwarded;
-    public String forwarded;
     public String xForwardedProto;
     public String xForwardedHost;
     public String xForwardedPort;
     public String xForwardedFor;
+    public String forwarded;
     public String forwardedFor;
     public String xClusterClientIp;
     public String xRealIp;

@@ -60,9 +60,9 @@ class MavenProjectConfigurator {
       addedArgLine
           .append("-D")
           .append(e.getKey())
-          .append("=")
+          .append('=')
           .append(escapeForCommandLine(e.getValue()))
-          .append(" ");
+          .append(' ');
     }
 
     Integer ciVisibilityDebugPort = config.getCiVisibilityDebugPort();
@@ -70,12 +70,12 @@ class MavenProjectConfigurator {
       addedArgLine
           .append("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=")
           .append(ciVisibilityDebugPort)
-          .append(" ");
+          .append(' ');
     }
 
     String additionalArgs = config.getCiVisibilityAdditionalChildProcessJvmArgs();
     if (additionalArgs != null) {
-      addedArgLine.append(additionalArgs).append(" ");
+      addedArgLine.append(additionalArgs).append(' ');
     }
 
     File agentJar = config.getCiVisibilityAgentJarFile();

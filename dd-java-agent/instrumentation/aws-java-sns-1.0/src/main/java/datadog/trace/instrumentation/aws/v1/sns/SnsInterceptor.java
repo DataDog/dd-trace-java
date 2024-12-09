@@ -36,13 +36,13 @@ public class SnsInterceptor extends RequestHandler2 {
       AmazonWebServiceRequest request, String snsTopicName) {
     final AgentSpan span = newSpan(request);
     StringBuilder jsonBuilder = new StringBuilder();
-    jsonBuilder.append("{");
+    jsonBuilder.append('{');
     propagate().inject(span, jsonBuilder, SETTER, TracePropagationStyle.DATADOG);
     if (traceConfig().isDataStreamsEnabled()) {
       propagate().injectPathwayContext(span, jsonBuilder, SETTER, getTags(snsTopicName));
     }
     jsonBuilder.setLength(jsonBuilder.length() - 1); // Remove the last comma
-    jsonBuilder.append("}");
+    jsonBuilder.append('}');
     return ByteBuffer.wrap(jsonBuilder.toString().getBytes(StandardCharsets.UTF_8));
   }
 

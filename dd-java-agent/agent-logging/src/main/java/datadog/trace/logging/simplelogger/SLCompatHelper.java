@@ -108,12 +108,12 @@ class SLCompatHelper extends LoggerHelper {
     if (t != null) {
       buf.append(" [exception:");
       buf.append(t.toString());
-      buf.append(".");
+      buf.append('.');
       for (StackTraceElement element : t.getStackTrace()) {
         buf.append(" at ");
         buf.append(element.toString());
       }
-      buf.append("]");
+      buf.append(']');
     }
   }
 }

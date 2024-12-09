@@ -17,7 +17,7 @@ class Json1ParserInstrumentationTest extends AgentTestRunner {
     injectSysConfig("dd.iast.enabled", "true")
   }
 
-  void 'test json parsing (tainted)'() {
+  void 'test json parsing #iterationIndex (tainted)'() {
     given:
     final source = new SourceImpl(origin: SourceTypes.REQUEST_BODY, name: 'body', value: JSON_STRING)
     final module = Mock(PropagationModule)
@@ -45,7 +45,7 @@ class Json1ParserInstrumentationTest extends AgentTestRunner {
     target << testSuite()
   }
 
-  void 'test json parsing (not tainted)'() {
+  void 'test json parsing #iterationIndex (not tainted)'() {
     given:
     final module = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(module)

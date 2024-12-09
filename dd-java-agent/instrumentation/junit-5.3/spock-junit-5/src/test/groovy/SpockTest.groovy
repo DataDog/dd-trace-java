@@ -1,4 +1,5 @@
 import datadog.trace.api.DisableTestTrace
+import datadog.trace.api.civisibility.CIConstants
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.instrumentation.junit5.TestEventsHandlerHolder
@@ -26,6 +27,12 @@ import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass
 
 @DisableTestTrace(reason = "avoid self-tracing")
 class SpockTest extends CiVisibilityInstrumentationTest {
+
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    givenTestsOrder(CIConstants.FAIL_FAST_TEST_ORDER)
+  }
 
   def "test #testcaseName"() {
     runTests(tests)
@@ -63,6 +70,7 @@ class SpockTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test flaky retries #testcaseName"() {
+    givenFlakyRetryEnabled(true)
     givenFlakyTests(retriedTests)
 
     runTests(tests)
@@ -83,6 +91,7 @@ class SpockTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test early flakiness detection #testcaseName"() {
+    givenEarlyFlakinessDetectionEnabled(true)
     givenKnownTests(knownTestsList)
 
     runTests(tests)

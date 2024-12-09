@@ -242,7 +242,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     StringBuilder sb = new StringBuilder(55);
     sb.append("00-");
     sb.append(span.getTraceId().toHexString());
-    sb.append("-");
+    sb.append('-');
     sb.append(DDSpanId.toHexStringPadded(span.getSpanId()));
     sb.append(samplingPriority > 0 ? "-01" : "-00");
     return sb.toString();

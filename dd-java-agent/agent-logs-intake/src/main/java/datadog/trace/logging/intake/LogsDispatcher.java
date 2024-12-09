@@ -66,21 +66,21 @@ public class LogsDispatcher {
       }
 
       if (batchCount + 1 > maxBatchRecords || batchLength + bytes.length >= maxBatchBytes) {
-        flush(batch.append("]"));
+        flush(batch.append(']'));
         batch = new StringBuilder("[");
         batchCount = 0;
         batchLength = 0;
       }
 
       if (batchCount != 0) {
-        batch.append(",");
+        batch.append(',');
       }
       batch.append(json);
       batchCount += 1;
       batchLength += bytes.length;
     }
 
-    flush(batch.append("]"));
+    flush(batch.append(']'));
   }
 
   private void flush(StringBuilder batch) {

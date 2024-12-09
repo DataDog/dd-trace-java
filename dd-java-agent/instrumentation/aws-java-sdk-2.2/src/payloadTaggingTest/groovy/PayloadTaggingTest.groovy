@@ -184,7 +184,7 @@ class PayloadTaggingExpansionForkedTest extends AbstractPayloadTaggingTest {
     injectSysConfig(TracerConfig.TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING, "\$.MessageId,\$.SubscriptionArn,\$[*].phoneNumbers")
   }
 
-  def "support various types, embedded JSON in string and binary format"() {
+  def "support various types, embedded JSON in string and binary format #expectedReqTag"() {
     setup:
     TEST_WRITER.clear()
 
@@ -261,7 +261,7 @@ class PayloadTaggingMaxDepthForkedTest extends AbstractPayloadTaggingTest {
     injectSysConfig(TracerConfig.TRACE_CLOUD_PAYLOAD_TAGGING_MAX_DEPTH, "4")
   }
 
-  def "generate tags up to the specified max depth"() {
+  def "generate tags up to the specified max depth #expectedReqTag"() {
     setup:
     TEST_WRITER.clear()
 
@@ -315,7 +315,7 @@ class PayloadTaggingMaxTagsForkedTest extends AbstractPayloadTaggingTest {
     injectSysConfig(TracerConfig.TRACE_CLOUD_PAYLOAD_TAGGING_MAX_TAGS, "5")
   }
 
-  def "generate tags up to the specified max number"() {
+  def "generate tags up to the specified max number #iterationIndex"() {
     setup:
     TEST_WRITER.clear()
 

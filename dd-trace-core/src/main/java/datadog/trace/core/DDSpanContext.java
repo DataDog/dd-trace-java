@@ -890,9 +890,9 @@ public class DDSpanContext
             .append(parentId)
             .append(" ] trace=")
             .append(getServiceName())
-            .append("/")
+            .append('/')
             .append(getOperationName())
-            .append("/")
+            .append('/')
             .append(getResourceName());
     if (errorFlag) {
       s.append(" *errored*");

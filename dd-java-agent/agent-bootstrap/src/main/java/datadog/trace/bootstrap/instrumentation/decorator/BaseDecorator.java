@@ -9,6 +9,7 @@ import datadog.trace.api.Functions;
 import datadog.trace.api.cache.QualifiedClassNameCache;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.lang.reflect.Method;
 import java.net.Inet4Address;
@@ -86,8 +87,14 @@ public abstract class BaseDecorator {
   }
 
   public AgentSpan onError(final AgentSpan span, final Throwable throwable) {
+    return onError(span, throwable, ErrorPriorities.DEFAULT);
+  }
+
+  public AgentSpan onError(final AgentSpan span, final Throwable throwable, byte errorPriority) {
     if (throwable != null) {
-      span.addThrowable(throwable instanceof ExecutionException ? throwable.getCause() : throwable);
+      span.addThrowable(
+          throwable instanceof ExecutionException ? throwable.getCause() : throwable,
+          errorPriority);
     }
     return span;
   }
