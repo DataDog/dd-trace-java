@@ -73,7 +73,9 @@ public final class TracerConfig {
   public static final String TRACE_HTTP_CLIENT_ERROR_STATUSES = "trace.http.client.error.statuses";
 
   public static final String SPLIT_BY_TAGS = "trace.split-by-tags";
-
+  // trace latency interceptor value should be in ms
+  public static final String TRACE_KEEP_LATENCY_THRESHOLD_MS =
+      "trace.experimental.keep.latency.threshold.ms";
   public static final String SCOPE_DEPTH_LIMIT = "trace.scope.depth.limit";
   public static final String SCOPE_STRICT_MODE = "trace.scope.strict.mode";
   public static final String SCOPE_ITERATION_KEEP_ALIVE = "trace.scope.iteration.keep.alive";

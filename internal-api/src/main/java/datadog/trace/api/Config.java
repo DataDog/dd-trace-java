@@ -176,6 +176,8 @@ public class Config {
   private final boolean scopeStrictMode;
   private final int scopeIterationKeepAlive;
   private final int partialFlushMinSpans;
+  private final int traceKeepLatencyThreshold;
+  private final boolean traceKeepLatencyThresholdEnabled;
   private final boolean traceStrictWritesEnabled;
   private final boolean logExtractHeaderNames;
   private final Set<PropagationStyle> propagationStylesToExtract;
@@ -360,6 +362,7 @@ public class Config {
   private final boolean ciVisibilityAutoInjected;
   private final String ciVisibilityRemoteEnvVarsProviderUrl;
   private final String ciVisibilityRemoteEnvVarsProviderKey;
+  private final String ciVisibilityTestOrder;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -410,6 +413,7 @@ public class Config {
 
   private final boolean awsPropagationEnabled;
   private final boolean sqsPropagationEnabled;
+  private final boolean sqsBodyPropagationEnabled;
 
   private final boolean kafkaClientPropagationEnabled;
   private final Set<String> kafkaClientPropagationDisabledTopics;
@@ -859,6 +863,12 @@ public class Config {
         !partialFlushEnabled
             ? 0
             : configProvider.getInteger(PARTIAL_FLUSH_MIN_SPANS, DEFAULT_PARTIAL_FLUSH_MIN_SPANS);
+
+    traceKeepLatencyThreshold =
+        configProvider.getInteger(
+            TRACE_KEEP_LATENCY_THRESHOLD_MS, DEFAULT_TRACE_KEEP_LATENCY_THRESHOLD_MS);
+
+    traceKeepLatencyThresholdEnabled = !partialFlushEnabled && (traceKeepLatencyThreshold > 0);
 
     traceStrictWritesEnabled = configProvider.getBoolean(TRACE_STRICT_WRITES_ENABLED, false);
 
@@ -1453,6 +1463,7 @@ public class Config {
         configProvider.getString(CIVISIBILITY_REMOTE_ENV_VARS_PROVIDER_URL);
     ciVisibilityRemoteEnvVarsProviderKey =
         configProvider.getString(CIVISIBILITY_REMOTE_ENV_VARS_PROVIDER_KEY);
+    ciVisibilityTestOrder = configProvider.getString(CIVISIBILITY_TEST_ORDER);
 
     remoteConfigEnabled =
         configProvider.getBoolean(
@@ -1561,6 +1572,7 @@ public class Config {
 
     awsPropagationEnabled = isPropagationEnabled(true, "aws", "aws-sdk");
     sqsPropagationEnabled = isPropagationEnabled(true, "sqs");
+    sqsBodyPropagationEnabled = configProvider.getBoolean(SQS_BODY_PROPAGATION_ENABLED, false);
 
     kafkaClientPropagationEnabled = isPropagationEnabled(true, "kafka", "kafka.client");
     kafkaClientPropagationDisabledTopics =
@@ -2073,6 +2085,14 @@ public class Config {
 
   public int getPartialFlushMinSpans() {
     return partialFlushMinSpans;
+  }
+
+  public int getTraceKeepLatencyThreshold() {
+    return traceKeepLatencyThreshold;
+  }
+
+  public boolean isTraceKeepLatencyThresholdEnabled() {
+    return traceKeepLatencyThresholdEnabled;
   }
 
   public boolean isTraceStrictWritesEnabled() {
@@ -2837,6 +2857,10 @@ public class Config {
     return ciVisibilityRemoteEnvVarsProviderKey;
   }
 
+  public String getCiVisibilityTestOrder() {
+    return ciVisibilityTestOrder;
+  }
+
   public String getAppSecRulesFile() {
     return appSecRulesFile;
   }
@@ -3024,6 +3048,10 @@ public class Config {
 
   public boolean isSqsPropagationEnabled() {
     return sqsPropagationEnabled;
+  }
+
+  public boolean isSqsBodyPropagationEnabled() {
+    return sqsBodyPropagationEnabled;
   }
 
   public boolean isKafkaClientPropagationEnabled() {
@@ -4158,6 +4186,10 @@ public class Config {
         + scopeIterationKeepAlive
         + ", partialFlushMinSpans="
         + partialFlushMinSpans
+        + ", traceKeepLatencyThresholdEnabled="
+        + traceKeepLatencyThresholdEnabled
+        + ", traceKeepLatencyThreshold="
+        + traceKeepLatencyThreshold
         + ", traceStrictWritesEnabled="
         + traceStrictWritesEnabled
         + ", tracePropagationStylesToExtract="
