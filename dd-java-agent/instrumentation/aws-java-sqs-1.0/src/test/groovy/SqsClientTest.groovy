@@ -614,6 +614,37 @@ class SqsClientV1DataStreamsForkedTest extends SqsClientTest {
     cleanup:
     client.shutdown()
   }
+
+
+  def "Data streams context not extracted from message body when message is not a Json"() {
+    setup:
+    def client = AmazonSQSClientBuilder.standard()
+      .withEndpointConfiguration(endpoint)
+      .withCredentials(credentialsProvider)
+      .build()
+    def queueUrl = client.createQueue('somequeue').queueUrl
+    TEST_WRITER.clear()
+
+    when:
+    injectSysConfig(GeneralConfig.DATA_STREAMS_ENABLED, "false")
+    client.sendMessage(queueUrl, '{"Message": "not a json"')
+    injectSysConfig(GeneralConfig.DATA_STREAMS_ENABLED, "true")
+    def messages = client.receiveMessage(queueUrl).messages
+    messages.forEach {}
+
+    TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+
+    then:
+    StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+
+    verifyAll(first) {
+      edgeTags == ["direction:in", "topic:somequeue", "type:sqs"]
+      edgeTags.size() == 3
+    }
+
+    cleanup:
+    client.shutdown()
+  }
 }
 
 
