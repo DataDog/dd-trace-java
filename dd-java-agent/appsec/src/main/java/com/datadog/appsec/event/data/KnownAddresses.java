@@ -131,10 +131,10 @@ public interface KnownAddresses {
   /** Login success business event */
   Address<String> LOGIN_SUCCESS = new Address<>("server.business_logic.users.login.success");
 
-  Address<Map<String, Object>> WAF_CONTEXT_PROCESSOR = new Address<>("waf.context.processor");
-
   /** The Shell command being executed */
   Address<String> SHELL_CMD = new Address<>("server.sys.shell.cmd");
+
+  Address<Map<String, Object>> WAF_CONTEXT_PROCESSOR = new Address<>("waf.context.processor");
 
   static Address<?> forName(String name) {
     switch (name) {
