@@ -11,10 +11,10 @@ import java.security.NoSuchAlgorithmException;
 
 public final class SpanPointersHelper {
   public static final String S3_PTR_KIND = "aws.s3.object";
-  private static final String LINK_KIND = "span-pointer";
+  public static final String LINK_KIND = "span-pointer";
 
   // The pointer direction will always be down. The agent handles cases where the direction is up.
-  private static final String DOWN_DIRECTION = "d";
+  public static final String DOWN_DIRECTION = "d";
 
   /**
    * Generates a unique hash from an array of strings by joining them with | before hashing. Used to
