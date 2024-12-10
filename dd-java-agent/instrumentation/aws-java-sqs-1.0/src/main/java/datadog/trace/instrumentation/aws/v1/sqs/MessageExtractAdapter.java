@@ -39,8 +39,8 @@ public final class MessageExtractAdapter implements AgentPropagation.ContextVisi
     } else if (SHOULD_EXTRACT_CONTEXT_FROM_BODY) {
       try {
         this.forEachKeyInBody(carrier.getBody(), classifier);
-      } catch (IOException e) {
-        log.warn("Error extracting Datadog context from SQS message body", e);
+      } catch (Throwable e) {
+        log.debug("Error extracting Datadog context from SQS message body", e);
       }
     }
   }
