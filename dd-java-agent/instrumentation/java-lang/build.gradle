@@ -12,8 +12,3 @@ addTestSuiteForDir('latestDepTest', 'test')
 dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
 }
-
-tasks.compileTestJava.configure {
-  setJavaVersion(it, 8)
-}
-
