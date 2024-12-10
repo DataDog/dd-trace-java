@@ -208,6 +208,8 @@ public interface KnownAddresses {
         return LOGIN_SUCCESS;
       case "server.business_logic.users.login.failure":
         return LOGIN_FAILURE;
+      case "server.sys.shell.cmd":
+        return SHELL_CMD;
       default:
         return null;
     }

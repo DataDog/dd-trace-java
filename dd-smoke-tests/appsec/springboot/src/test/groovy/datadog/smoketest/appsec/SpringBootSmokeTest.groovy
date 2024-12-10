@@ -2,6 +2,7 @@ package datadog.smoketest.appsec
 
 import datadog.trace.agent.test.utils.OkHttpUtils
 import datadog.trace.agent.test.utils.ThreadUtils
+import okhttp3.FormBody
 import okhttp3.MediaType
 import okhttp3.Request
 import okhttp3.RequestBody
@@ -167,7 +168,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
             [
               parameters: [
                 resource: [[address: 'server.sys.shell.cmd']],
-                params  : [[address: 'server.request.query']],
+                params  : [[address: 'server.request.body']],
               ],
               operator  : "shi_detector",
             ],
@@ -188,6 +189,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
 
     List<String> command = new ArrayList<>()
     command.add(javaPath())
+    command.add("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005")
     command.addAll(defaultJavaProperties)
     command.addAll(defaultAppSecProperties)
     command.addAll((String[]) ["-jar", springBootShadowJar, "--server.port=${httpPort}"])
@@ -530,10 +532,11 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
 
   void 'rasp blocks on SHI'() {
     when:
-    String url = "http://localhost:${httpPort}/shi/cmd?cmd=%0Aid%0A"
+    String url = "http://localhost:${httpPort}/shi/cmd"
+    final body = new FormBody.Builder().add("cmd", "cat etc/password").build()
     def request = new Request.Builder()
       .url(url)
-      .get()
+      .post(body)
       .build()
     def response = client.newCall(request).execute()
     def responseBodyStr = response.body().string()
