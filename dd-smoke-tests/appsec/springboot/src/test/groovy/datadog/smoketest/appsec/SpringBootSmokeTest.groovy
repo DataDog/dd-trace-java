@@ -531,8 +531,17 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
 
   void 'rasp blocks on SHI'() {
     when:
-    String url = "http://localhost:${httpPort}/shi/cmd"
-    final body = new FormBody.Builder().add("cmd", "cat etc/password").build()
+    String url = "http://localhost:${httpPort}/shi/"+endpoint
+    def formBuilder = new FormBody.Builder()
+    for (s in cmd) {
+      formBuilder.add("cmd", s)
+    }
+    if (params != null) {
+      for (s in params) {
+        formBuilder.add("params", s)
+      }
+    }
+    final body = formBuilder.build()
     def request = new Request.Builder()
       .url(url)
       .post(body)
@@ -561,6 +570,15 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
       }
     }
     assert trigger != null, 'test trigger not found'
+
+    where:
+    endpoint   | cmd | params
+    'cmd'      | ['cat etc/password'] | null
+    'arrayCmd' | ['cat etc/password', 'cat etc/password'] | null
+    'cmdWithParams'      | ['cat etc/password'] | ['param']
+    'arrayCmdWithParams' | ['cat etc/password', 'cat etc/password'] | ['param']
+    'cmdParamsAndFile'      | ['cat etc/password'] | ['param']
+    'arrayCmdWithParamsAndFile' | ['cat etc/password', 'cat etc/password'] | ['param']
   }
 
 }
