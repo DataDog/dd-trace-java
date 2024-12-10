@@ -28,11 +28,15 @@ public class HttpServletRequestExtractAdapter
         System.out.println("value: " + carrier.getHeader(header));
         System.out.println("========= END ACCEPT IS CALLED HERE   =========");
       }
-      // ISSUE HERE
-      // `getHeader` in Request.class:604 calls `get` in HttpFields.class:164
-      //  which returns only the first value for the header, instead of all values
-      //  for the header name.
-      if (!classifier.accept(header, carrier.getHeader(header))) {
+      StringBuilder val = new StringBuilder();
+      Enumeration<String> headers = carrier.getHeaders(header);
+      while (headers.hasMoreElements()) {
+        val.append(headers.nextElement());
+        if (headers.hasMoreElements()) {
+          val.append(',');
+        }
+      }
+      if (!classifier.accept(header, val.toString())) {
         return;
       }
     }
