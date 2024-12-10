@@ -7,9 +7,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.messaging.DatadogAttributeParser;
-
-import java.nio.ByteBuffer;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.Base64;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -46,7 +45,8 @@ public final class MessageExtractAdapter implements AgentPropagation.ContextVisi
     }
   }
 
-  public void forEachKeyInBody(String body, AgentPropagation.KeyClassifier classifier) throws IOException {
+  public void forEachKeyInBody(String body, AgentPropagation.KeyClassifier classifier)
+      throws IOException {
     ObjectMapper objectMapper = new ObjectMapper();
 
     // Parse the JSON string into a JsonNode
