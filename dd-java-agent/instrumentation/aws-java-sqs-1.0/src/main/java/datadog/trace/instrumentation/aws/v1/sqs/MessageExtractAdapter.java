@@ -16,8 +16,8 @@ import org.slf4j.LoggerFactory;
 
 public final class MessageExtractAdapter implements AgentPropagation.ContextVisitor<Message> {
   private static final Logger log = LoggerFactory.getLogger(MessageExtractAdapter.class);
-
   public static final MessageExtractAdapter GETTER = new MessageExtractAdapter();
+  private static final ObjectMapper MAPPER = new ObjectMapper();
   public static final boolean SHOULD_EXTRACT_CONTEXT_FROM_BODY =
       Config.get().isSqsBodyPropagationEnabled();
 
@@ -47,10 +47,8 @@ public final class MessageExtractAdapter implements AgentPropagation.ContextVisi
 
   public void forEachKeyInBody(String body, AgentPropagation.KeyClassifier classifier)
       throws IOException {
-    ObjectMapper objectMapper = new ObjectMapper();
-
     // Parse the JSON string into a JsonNode
-    JsonNode rootNode = objectMapper.readTree(body);
+    JsonNode rootNode = MAPPER.readTree(body);
 
     // Navigate to MessageAttributes._datadog
     JsonNode messageAttributes = rootNode.path("MessageAttributes").path("_datadog");
