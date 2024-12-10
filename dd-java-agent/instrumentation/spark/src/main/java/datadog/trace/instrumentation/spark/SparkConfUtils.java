@@ -70,6 +70,7 @@ public class SparkConfUtils {
 
   private static String getDatabricksRunName(SparkConf conf) {
     String allTags = conf.get("spark.databricks.clusterUsageTags.clusterAllTags", null);
+    System.out.println("### AllTags: " + allTags);
     if (allTags == null) {
       return null;
     }
@@ -81,12 +82,15 @@ public class SparkConfUtils {
 
       for (JsonNode node : jsonNode) {
         String key = node.get("key").asText();
+        System.out.println("### Key node: " + key + ", value: " + node.get("value").asText());
         if ("RunName".equals(key)) {
+          System.out.println("### Key value: " + node.get("value").asText());
           // Databricks jobs launched by Azure Data Factory have an uuid at the end of the name
           return removeUuidFromEndOfString(node.get("value").asText());
         }
       }
-    } catch (Exception ignored) {
+    } catch (Exception e) {
+      System.out.println("### Failed to parse databricks run tags - " + e.getMessage());
     }
 
     return null;
