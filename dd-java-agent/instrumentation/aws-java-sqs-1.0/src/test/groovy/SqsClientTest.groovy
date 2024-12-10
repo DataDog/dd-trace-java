@@ -44,7 +44,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
     // Set a service name that gets sorted early with SORT_BY_NAMES
     injectSysConfig(GeneralConfig.SERVICE_NAME, "A-service")
     injectSysConfig(GeneralConfig.DATA_STREAMS_ENABLED, isDataStreamsEnabled().toString())
-    injectSysConfig("sqs.body.propagation.enabled", "true")
+    injectSysConfig("trace.sqs.body.propagation.enabled", "true")
   }
 
   @Shared
@@ -585,6 +585,35 @@ class SqsClientV1DataStreamsForkedTest extends SqsClientTest {
     client.shutdown()
   }
 
+  def "Data streams context not extracted from message body when message attributes are not present"() {
+    setup:
+    def client = AmazonSQSClientBuilder.standard()
+      .withEndpointConfiguration(endpoint)
+      .withCredentials(credentialsProvider)
+      .build()
+    def queueUrl = client.createQueue('somequeue').queueUrl
+    TEST_WRITER.clear()
+
+    when:
+    injectSysConfig(GeneralConfig.DATA_STREAMS_ENABLED, "false")
+    client.sendMessage(queueUrl, '{"Message": "sometext"}')
+    injectSysConfig(GeneralConfig.DATA_STREAMS_ENABLED, "true")
+    def messages = client.receiveMessage(queueUrl).messages
+    messages.forEach {}
+
+    TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+
+    then:
+    StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+
+    verifyAll(first) {
+      edgeTags == ["direction:in", "topic:somequeue", "type:sqs"]
+      edgeTags.size() == 3
+    }
+
+    cleanup:
+    client.shutdown()
+  }
 }
 
 
