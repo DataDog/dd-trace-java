@@ -92,7 +92,7 @@ class GatewayBridgeSpecification extends DDSpecification {
   TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>> userIdCB
   TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>> loginSuccessCB
   TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>> loginFailureCB
-  BiFunction<RequestContext, String, Flow<Void>> shellCmdCB
+  BiFunction<RequestContext, Object, Flow<Void>> shellCmdCB
 
   void setup() {
     callInitAndCaptureCBs()
