@@ -199,6 +199,12 @@ public class WebController {
     return "EXECUTED";
   }
 
+  @PostMapping("/shi/processBuilder")
+  public String shiProcessBuilder(@RequestParam("cmd") String[] cmd) {
+    withProcess(() -> new ProcessBuilder(cmd).start());
+    return "EXECUTED";
+  }
+
   private void withProcess(final Operation<Process> op) {
     Process process = null;
     try {
