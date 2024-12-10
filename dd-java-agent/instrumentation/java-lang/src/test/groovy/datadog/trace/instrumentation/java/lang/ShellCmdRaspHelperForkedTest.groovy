@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.java.lang
 
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.config.AppSecConfig
-import datadog.trace.api.config.IastConfig
 import datadog.trace.api.gateway.CallbackProvider
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContext

@@ -39,13 +39,16 @@ class KnownAddressesSpecification extends Specification {
       'usr.session_id',
       'server.business_logic.users.login.failure',
       'server.business_logic.users.login.success',
-      'waf.context.processor',
+      'server.io.net.url',
+      'server.io.fs.file',
+      'server.sys.shell.cmd',
+      'waf.context.processor'
     ]
   }
 
   void 'number of known addresses is expected number'() {
     expect:
-    Address.instanceCount() == 35
+    Address.instanceCount() == 36
     KnownAddresses.WAF_CONTEXT_PROCESSOR.serial == Address.instanceCount() - 1
   }
 }
