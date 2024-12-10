@@ -4,10 +4,12 @@ import static datadog.trace.core.datastreams.TagsProcessor.CONSUMER_GROUP_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.PARTITION_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
+import static datadog.trace.instrumentation.spark.SparkConfUtils.getDatabricksClusterName;
+import static datadog.trace.instrumentation.spark.SparkConfUtils.getIsRunningOnDatabricks;
+import static datadog.trace.instrumentation.spark.SparkConfUtils.getServiceNameOverride;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -110,8 +112,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   private final boolean isRunningOnDatabricks;
   private final String databricksClusterName;
-  private final String databricksServiceName;
-  private final String sparkServiceName;
+  private final String serviceNameOverride;
 
   private boolean lastJobFailed = false;
   private String lastJobFailedMessage;
@@ -130,10 +131,9 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     this.appId = appId;
     this.sparkVersion = sparkVersion;
 
-    isRunningOnDatabricks = sparkConf.contains("spark.databricks.sparkContextId");
-    databricksClusterName = sparkConf.get("spark.databricks.clusterUsageTags.clusterName", null);
-    databricksServiceName = getDatabricksServiceName(sparkConf, databricksClusterName);
-    sparkServiceName = getSparkServiceName(sparkConf, isRunningOnDatabricks);
+    isRunningOnDatabricks = getIsRunningOnDatabricks(sparkConf);
+    databricksClusterName = getDatabricksClusterName(sparkConf);
+    serviceNameOverride = getServiceNameOverride(sparkConf);
 
     // If JVM exiting with System.exit(code), it bypass the code closing the application span
     //
@@ -924,10 +924,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     AgentTracer.SpanBuilder builder =
         tracer.buildSpan(spanName).withSpanType("spark").withTag("app_id", appId);
 
-    if (databricksServiceName != null) {
-      builder.withServiceName(databricksServiceName);
-    } else if (sparkServiceName != null) {
-      builder.withServiceName(sparkServiceName);
+    if (serviceNameOverride != null) {
+      builder.withServiceName(serviceNameOverride);
     }
 
     addPropertiesTags(builder, properties);
@@ -1153,45 +1151,6 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     return batchKey.substring(batchKey.lastIndexOf(".") + 1);
   }
 
-  private static String getDatabricksServiceName(SparkConf conf, String databricksClusterName) {
-    if (Config.get().isServiceNameSetByUser()) {
-      return null;
-    }
-
-    String serviceName = null;
-    String runName = getDatabricksRunName(conf);
-    if (runName != null) {
-      serviceName = "databricks.job-cluster." + runName;
-    } else if (databricksClusterName != null) {
-      serviceName = "databricks.all-purpose-cluster." + databricksClusterName;
-    }
-
-    return serviceName;
-  }
-
-  private static String getSparkServiceName(SparkConf conf, boolean isRunningOnDatabricks) {
-    // If config is not set or running on databricks, not changing the service name
-    if (!Config.get().useSparkAppNameAsService() || isRunningOnDatabricks) {
-      return null;
-    }
-
-    // Keep service set by user, except if it is only "spark" or "hadoop" that can be set by USM
-    String serviceName = Config.get().getServiceName();
-    if (Config.get().isServiceNameSetByUser()
-        && !"spark".equals(serviceName)
-        && !"hadoop".equals(serviceName)) {
-      log.debug("Service '{}' explicitly set by user, not using the application name", serviceName);
-      return null;
-    }
-
-    String sparkAppName = conf.get("spark.app.name", null);
-    if (sparkAppName != null) {
-      log.info("Using Spark application name '{}' as the Datadog service name", sparkAppName);
-    }
-
-    return sparkAppName;
-  }
-
   private static void reportKafkaOffsets(
       final String appName, final AgentSpan span, final SourceProgress progress) {
     if (!span.traceConfig().isDataStreamsEnabled()
@@ -1233,35 +1192,5 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
         log.debug("Failed to parse kafka offsets", e);
       }
     }
-  }
-
-  private static String getDatabricksRunName(SparkConf conf) {
-    String allTags = conf.get("spark.databricks.clusterUsageTags.clusterAllTags", null);
-    if (allTags == null) {
-      return null;
-    }
-
-    try {
-      // Using the jackson JSON lib used by spark
-      // https://mvnrepository.com/artifact/org.apache.spark/spark-core_2.12/3.5.0
-      JsonNode jsonNode = objectMapper.readTree(allTags);
-
-      for (JsonNode node : jsonNode) {
-        String key = node.get("key").asText();
-        if ("RunName".equals(key)) {
-          // Databricks jobs launched by Azure Data Factory have an uuid at the end of the name
-          return removeUuidFromEndOfString(node.get("value").asText());
-        }
-      }
-    } catch (Exception ignored) {
-    }
-
-    return null;
-  }
-
-  @SuppressForbidden // called at most once per spark application
-  private static String removeUuidFromEndOfString(String input) {
-    return input.replaceAll(
-        "_[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$", "");
   }
 }

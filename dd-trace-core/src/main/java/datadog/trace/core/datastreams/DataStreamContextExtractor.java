@@ -12,19 +12,16 @@ public class DataStreamContextExtractor implements HttpCodec.Extractor {
   private final TimeSource timeSource;
   private final Supplier<TraceConfig> traceConfigSupplier;
   private final long hashOfKnownTags;
-  private final String serviceNameOverride;
 
   public DataStreamContextExtractor(
       HttpCodec.Extractor delegate,
       TimeSource timeSource,
       Supplier<TraceConfig> traceConfigSupplier,
-      long hashOfKnownTags,
-      String serviceNameOverride) {
+      long hashOfKnownTags) {
     this.delegate = delegate;
     this.timeSource = timeSource;
     this.traceConfigSupplier = traceConfigSupplier;
     this.hashOfKnownTags = hashOfKnownTags;
-    this.serviceNameOverride = serviceNameOverride;
   }
 
   @Override
@@ -40,8 +37,7 @@ public class DataStreamContextExtractor implements HttpCodec.Extractor {
 
       if (shouldExtractPathwayContext) {
         DefaultPathwayContext pathwayContext =
-            DefaultPathwayContext.extract(
-                carrier, getter, this.timeSource, this.hashOfKnownTags, serviceNameOverride);
+            DefaultPathwayContext.extract(carrier, getter, this.timeSource, this.hashOfKnownTags);
 
         extracted.withPathwayContext(pathwayContext);
       }
@@ -49,8 +45,7 @@ public class DataStreamContextExtractor implements HttpCodec.Extractor {
       return extracted;
     } else if (traceConfigSupplier.get().isDataStreamsEnabled()) {
       DefaultPathwayContext pathwayContext =
-          DefaultPathwayContext.extract(
-              carrier, getter, this.timeSource, this.hashOfKnownTags, serviceNameOverride);
+          DefaultPathwayContext.extract(carrier, getter, this.timeSource, this.hashOfKnownTags);
 
       if (pathwayContext != null) {
         extracted = new TagContext();

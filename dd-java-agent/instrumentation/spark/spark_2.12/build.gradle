@@ -41,13 +41,24 @@ dependencies {
   testImplementation group: 'org.apache.spark', name: "spark-sql_$scalaVersion", version: "$sparkVersion"
   testImplementation group: 'org.apache.spark', name: "spark-yarn_$scalaVersion", version: "$sparkVersion"
 
+  testImplementation group: 'org.apache.spark', name:"spark-sql-kafka-0-10_$scalaVersion", version: "$sparkVersion"
+  testImplementation group: 'org.apache.kafka', name: "kafka_$scalaVersion", version: '2.4.0'
+  testImplementation group: 'org.apache.kafka', name: 'kafka-clients', version: '2.4.0'
+  testImplementation group: 'org.springframework.kafka', name: 'spring-kafka', version: '2.4.0.RELEASE'
+  testImplementation group: 'org.springframework.kafka', name: 'spring-kafka-test', version: '2.4.0.RELEASE'
+
+  testRuntimeOnly project(':dd-java-agent:instrumentation:kafka-clients-0.11')
+
   test_spark24Implementation group: 'org.apache.spark', name: "spark-core_$scalaVersion", version: "2.4.8"
   test_spark24Implementation group: 'org.apache.spark', name: "spark-sql_$scalaVersion", version: "2.4.8"
   test_spark24Implementation group: 'org.apache.spark', name: "spark-yarn_$scalaVersion", version: "2.4.8"
+  test_spark24Implementation group: 'org.apache.spark', name:"spark-sql-kafka-0-10_$scalaVersion", version: "2.4.8"
 
   test_spark32Implementation group: 'org.apache.spark', name: "spark-core_$scalaVersion", version: "3.2.4"
   test_spark32Implementation group: 'org.apache.spark', name: "spark-sql_$scalaVersion", version: "3.2.4"
   test_spark32Implementation group: 'org.apache.spark', name: "spark-yarn_$scalaVersion", version: "3.2.4"
+  test_spark24Implementation group: 'org.apache.spark', name:"spark-sql-kafka-0-10_$scalaVersion", version: "3.2.4"
+
   // We do not support netty versions older than this because of a change to the number of parameters to the
   // PooledByteBufAllocator constructor. See this PR where the new constructor (the only one we support) was introduced:
   // https://github.com/netty/netty/pull/10267
@@ -56,6 +67,7 @@ dependencies {
   latestDepTestImplementation group: 'org.apache.spark', name: "spark-core_$scalaVersion", version: '+'
   latestDepTestImplementation group: 'org.apache.spark', name: "spark-sql_$scalaVersion", version: '+'
   latestDepTestImplementation group: 'org.apache.spark', name: "spark-yarn_$scalaVersion", version: '+'
+  latestDepTestImplementation group: 'org.apache.spark', name:"spark-sql-kafka-0-10_$scalaVersion", version: "+"
 }
 
 tasks.named("test").configure {
