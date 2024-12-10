@@ -45,8 +45,7 @@ public class SpannedMethodInvocation implements MethodInvocation {
 
   private Object invokeWithSpan(CharSequence spanName) throws Throwable {
     AgentSpan span = startSpan(spanName);
-    try (AgentScope scope = activateSpan(span)) {
-      scope.setAsyncPropagation(true);
+    try (AgentScope scope = activateSpan(span, true)) {
       return delegate.proceed();
     } finally {
       span.finish();

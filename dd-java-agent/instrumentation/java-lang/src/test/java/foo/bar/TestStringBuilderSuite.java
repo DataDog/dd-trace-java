@@ -77,17 +77,28 @@ public class TestStringBuilderSuite implements TestAbstractStringBuilderSuite<St
     return result;
   }
 
-  public static String substring(StringBuilder self, int beginIndex, int endIndex) {
+  @Override
+  public String substring(final StringBuilder self, final int beginIndex, final int endIndex) {
     LOGGER.debug("Before string builder substring {} from {} to {}", self, beginIndex, endIndex);
     final String result = self.substring(beginIndex, endIndex);
     LOGGER.debug("After string builder substring {}", result);
     return result;
   }
 
-  public static String substring(StringBuilder self, int beginIndex) {
+  @Override
+  public String substring(final StringBuilder self, final int beginIndex) {
     LOGGER.debug("Before string builder substring {} from {}", self, beginIndex);
     final String result = self.substring(beginIndex);
     LOGGER.debug("After string builder substring {}", result);
+    return result;
+  }
+
+  @Override
+  public CharSequence subSequence(
+      final StringBuilder self, final int beginIndex, final int endIndex) {
+    LOGGER.debug("Before string builder subSequence {} from {} to {}", self, beginIndex, endIndex);
+    final CharSequence result = self.subSequence(beginIndex, endIndex);
+    LOGGER.debug("After string builder subSequence {}", result);
     return result;
   }
 }

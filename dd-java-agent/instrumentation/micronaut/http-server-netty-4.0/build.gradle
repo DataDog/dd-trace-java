@@ -30,11 +30,13 @@ addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
   main_java17CompileOnly group: 'io.micronaut', name: 'micronaut-http-server-netty', version: '4.0.0'
+  implementation project(':dd-java-agent:instrumentation:micronaut')
 
   // Added to ensure cross compatibility:
   testImplementation project(':dd-java-agent:instrumentation:micronaut:http-server-netty-2.0')
   testImplementation project(':dd-java-agent:instrumentation:micronaut:http-server-netty-3.0')
   testImplementation project(':dd-java-agent:instrumentation:netty-4.1')
+  testImplementation project(':dd-java-agent:agent-debugger')
   testImplementation group: 'io.micronaut', name: 'micronaut-http-server-netty', version: '4.0.0', {
     exclude group: 'org.slf4j', module: 'slf4j-api'
     exclude group: 'ch.qos.logback', module: 'logback-classic'

@@ -155,8 +155,7 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
 
       final AgentSpan.Context.Extracted extractedContext = DECORATE.extract(req);
       span = DECORATE.startSpan(req, extractedContext);
-      final AgentScope scope = activateSpan(span);
-      scope.setAsyncPropagation(true);
+      final AgentScope scope = activateSpan(span, true);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, req, req, extractedContext);
 

@@ -28,7 +28,11 @@ public class OkHttpUtils {
   private static final Logger CLIENT_LOGGER = LoggerFactory.getLogger("http-client");
 
   static {
-    ((ch.qos.logback.classic.Logger) CLIENT_LOGGER).setLevel(ch.qos.logback.classic.Level.DEBUG);
+    try {
+      ((ch.qos.logback.classic.Logger) CLIENT_LOGGER).setLevel(ch.qos.logback.classic.Level.DEBUG);
+    } catch (Throwable t) {
+      CLIENT_LOGGER.warn("Unable to set debug level to client logger", t);
+    }
   }
 
   private static final HttpLoggingInterceptor LOGGING_INTERCEPTOR =

@@ -115,7 +115,17 @@ public class PortUtils {
       }
 
       if (!process.isAlive()) {
-        throw new RuntimeException("Process died before port " + port + " was opened");
+        int exitCode = process.exitValue();
+        if (exitCode != 0) {
+          throw new RuntimeException(
+              "Process exited abnormally exitCode="
+                  + exitCode
+                  + " before port="
+                  + port
+                  + " was opened");
+        } else {
+          throw new RuntimeException("Process finished before port=" + port + " was opened");
+        }
       }
 
       if (isPortOpen(port)) {

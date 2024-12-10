@@ -11,7 +11,6 @@ import static datadog.trace.core.propagation.HttpCodec.X_CLIENT_IP_KEY;
 import static datadog.trace.core.propagation.HttpCodec.X_CLUSTER_CLIENT_IP_KEY;
 import static datadog.trace.core.propagation.HttpCodec.X_FORWARDED_FOR_KEY;
 import static datadog.trace.core.propagation.HttpCodec.X_FORWARDED_HOST_KEY;
-import static datadog.trace.core.propagation.HttpCodec.X_FORWARDED_KEY;
 import static datadog.trace.core.propagation.HttpCodec.X_FORWARDED_PORT_KEY;
 import static datadog.trace.core.propagation.HttpCodec.X_FORWARDED_PROTO_KEY;
 import static datadog.trace.core.propagation.HttpCodec.X_REAL_IP_KEY;
@@ -120,10 +119,6 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     }
     if (X_FORWARDED_PORT_KEY.equalsIgnoreCase(key)) {
       getHeaders().xForwardedPort = value;
-      return true;
-    }
-    if (X_FORWARDED_KEY.equalsIgnoreCase(key)) {
-      getHeaders().xForwarded = value;
       return true;
     }
     return false;

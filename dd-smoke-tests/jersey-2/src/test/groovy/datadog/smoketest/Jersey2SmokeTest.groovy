@@ -21,7 +21,7 @@ class Jersey2SmokeTest extends AbstractJerseySmokeTest {
     if (Platform.isJavaVersionAtLeast(17)) {
       command.addAll((String[]) ['--add-opens', 'java.base/java.lang=ALL-UNNAMED'])
     }
-    command.addAll((String[]) ['-jar', jarPath, httpPort])
+    command.addAll(['-jar', jarPath, Integer.toString(httpPort)])
     ProcessBuilder processBuilder = new ProcessBuilder(command)
     processBuilder.directory(new File(buildDirectory))
     return processBuilder

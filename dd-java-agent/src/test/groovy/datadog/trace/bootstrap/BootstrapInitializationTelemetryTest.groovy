@@ -1,8 +1,8 @@
-package datadog.trace.agent
+package datadog.trace.bootstrap
 
-import datadog.trace.bootstrap.BootstrapInitializationTelemetry
-import datadog.trace.bootstrap.JsonBuffer
 import spock.lang.Specification
+
+import static java.nio.charset.StandardCharsets.UTF_8
 
 class BootstrapInitializationTelemetryTest extends Specification {
   def initTelemetry, capture
@@ -77,14 +77,14 @@ class BootstrapInitializationTelemetryTest extends Specification {
   }
 
   static class Capture implements BootstrapInitializationTelemetry.JsonSender {
-    JsonBuffer buffer
+    String json
 
-    void send(JsonBuffer buffer) {
-      this.buffer = buffer
+    void send(byte[] payload) {
+      this.json = new String(payload, UTF_8)
     }
 
     String json() {
-      return this.buffer.toString()
+      return this.json
     }
   }
 }

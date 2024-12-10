@@ -26,12 +26,11 @@ public class SprayHttpServerRunSealedRouteAdvice {
       extractedContext = null;
       span = startSpan(DECORATE.spanName());
     }
-    final AgentScope scope = activateSpan(span);
-    scope.setAsyncPropagation(true);
+    final AgentScope scope = activateSpan(span, true);
 
     DECORATE.afterStart(span);
 
-    ctx = SprayHelper.wrapRequestContext(ctx, scope.span(), extractedContext);
+    ctx = SprayHelper.wrapRequestContext(ctx, span, extractedContext);
     return scope;
   }
 

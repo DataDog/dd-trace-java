@@ -67,9 +67,7 @@ public final class DataSourceInstrumentation extends InstrumenterModule.Tracing
 
       span.setResourceName(DECORATE.spanNameForMethod(ds.getClass(), "getConnection"));
 
-      final AgentScope agentScope = activateSpan(span);
-      agentScope.setAsyncPropagation(true);
-      return agentScope;
+      return activateSpan(span, true);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

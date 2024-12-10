@@ -91,11 +91,9 @@ public class IgniteCacheAsyncInstrumentation extends AbstractIgniteCacheInstrume
           span, InstrumentationContext.get(IgniteCache.class, Ignite.class).get(that));
       DECORATE.onOperation(span, that.getName(), methodName);
 
-      final AgentScope scope = activateSpan(span);
       // Enable async propagation, so the newly spawned task will be associated back with this
       // original trace.
-      scope.setAsyncPropagation(true);
-      return scope;
+      return activateSpan(span, true);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -149,11 +147,9 @@ public class IgniteCacheAsyncInstrumentation extends AbstractIgniteCacheInstrume
           span, InstrumentationContext.get(IgniteCache.class, Ignite.class).get(that));
       DECORATE.onOperation(span, that.getName(), methodName, key);
 
-      final AgentScope scope = activateSpan(span);
       // Enable async propagation, so the newly spawned task will be associated back with this
       // original trace.
-      scope.setAsyncPropagation(true);
-      return scope;
+      return activateSpan(span, true);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

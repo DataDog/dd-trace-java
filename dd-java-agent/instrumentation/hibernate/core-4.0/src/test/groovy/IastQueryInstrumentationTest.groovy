@@ -25,7 +25,7 @@ class IastQueryInstrumentationTest extends AbstractHibernateTest {
     session.close()
   }
 
-  void 'test sql query'() {
+  void 'test sql query [#iterationIndex] #queryString'() {
     given:
     final module = Mock(SqlInjectionModule)
     InstrumentationBridge.registerIastModule(module)
@@ -48,7 +48,7 @@ class IastQueryInstrumentationTest extends AbstractHibernateTest {
     'select * from value'                               | { Query query -> query.scroll(ScrollMode.FORWARD_ONLY) }
   }
 
-  void 'test hql query'() {
+  void 'test hql query [#iterationIndex] #queryString'() {
     given:
     final module = Mock(SqlInjectionModule)
     InstrumentationBridge.registerIastModule(module)

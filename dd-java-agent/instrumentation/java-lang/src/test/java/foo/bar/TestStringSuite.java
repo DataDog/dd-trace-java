@@ -239,4 +239,11 @@ public class TestStringSuite {
     LOGGER.debug("After replace first {}", result);
     return result;
   }
+
+  public static String valueOf(final Object param) {
+    LOGGER.debug("Before valueOf {}", param);
+    String result = String.valueOf(param);
+    LOGGER.debug("After valueOf {}", result);
+    return result;
+  }
 }

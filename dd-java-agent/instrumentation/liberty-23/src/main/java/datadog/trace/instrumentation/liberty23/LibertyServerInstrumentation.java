@@ -105,8 +105,7 @@ public final class LibertyServerInstrumentation extends InstrumenterModule.Traci
       final AgentSpan.Context.Extracted extractedContext = DECORATE.extract(request);
       request.setAttribute(DD_EXTRACTED_CONTEXT_ATTRIBUTE, extractedContext);
       final AgentSpan span = DECORATE.startSpan(request, extractedContext);
-      scope = activateSpan(span);
-      scope.setAsyncPropagation(true);
+      scope = activateSpan(span, true);
 
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request, request, extractedContext);

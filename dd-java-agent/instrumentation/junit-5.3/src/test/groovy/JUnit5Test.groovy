@@ -97,6 +97,7 @@ class JUnit5Test extends CiVisibilityInstrumentationTest {
   }
 
   def "test flaky retries #testcaseName"() {
+    givenFlakyRetryEnabled(true)
     givenFlakyTests(retriedTests)
 
     runTests(tests)
@@ -117,6 +118,7 @@ class JUnit5Test extends CiVisibilityInstrumentationTest {
   }
 
   def "test early flakiness detection #testcaseName"() {
+    givenEarlyFlakinessDetectionEnabled(true)
     givenKnownTests(knownTestsList)
 
     runTests(tests)

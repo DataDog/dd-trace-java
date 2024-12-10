@@ -96,7 +96,7 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     BufferedSource bufferedSource = Okio.buffer(gzipSource)
     MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(bufferedSource.inputStream())
 
-    assert unpacker.unpackMapHeader() == 7
+    assert unpacker.unpackMapHeader() == 8
     assert unpacker.unpackString() == "Env"
     assert unpacker.unpackString() == "test"
     assert unpacker.unpackString() == "Service"
@@ -161,7 +161,7 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     BufferedSource bufferedSource = Okio.buffer(gzipSource)
     MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(bufferedSource.inputStream())
 
-    assert unpacker.unpackMapHeader() == 7
+    assert unpacker.unpackMapHeader() == 8
     assert unpacker.unpackString() == "Env"
     assert unpacker.unpackString() == "test"
     assert unpacker.unpackString() == "Service"
@@ -261,6 +261,9 @@ class DataStreamsWritingTest extends DDCoreSpecification {
       assert unpacker.unpackString() == "group:testGroup"
       assert unpacker.unpackString() == (hash == 1 ? "topic:testTopic" : "topic:testTopic2")
     }
+
+    assert unpacker.unpackString() == "ProductMask"
+    assert unpacker.unpackLong() == 1
 
     return true
   }

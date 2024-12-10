@@ -456,8 +456,12 @@ class MuzzlePlugin implements Plugin<Project> {
       config.dependencies.add(dep)
     }
     for (String additionalDependency : muzzleDirective.additionalDependencies) {
-      config.dependencies.add(instrumentationProject.dependencies.create(additionalDependency) {
-        transitive = true
+      config.dependencies.add(instrumentationProject.dependencies.create(additionalDependency) { dep ->
+        for (String excluded : muzzleDirective.excludedDependencies) {
+          String[] parts = excluded.split(':')
+          dep.exclude group: parts[0], module: parts[1]
+        }
+        dep.transitive = true
       })
     }
 

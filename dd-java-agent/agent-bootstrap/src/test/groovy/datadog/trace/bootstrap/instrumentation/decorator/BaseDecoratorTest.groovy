@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.decorator
 
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
@@ -62,11 +63,7 @@ class BaseDecoratorTest extends DDSpecification {
 
     then:
     if (error) {
-      if (errorPriority != null) {
-        1 * span.addThrowable(error, errorPriority)
-      } else {
-        1 * span.addThrowable(error)
-      }
+      1 * span.addThrowable(error, errorPriority != null ? errorPriority : ErrorPriorities.DEFAULT)
     }
     0 * _
 

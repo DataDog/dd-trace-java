@@ -88,6 +88,11 @@ public class ProxyTestModule implements TestFrameworkModule {
   }
 
   @Override
+  public boolean isFlaky(TestIdentifier test) {
+    return executionStrategy.isFlaky(test);
+  }
+
+  @Override
   public boolean shouldBeSkipped(TestIdentifier test) {
     return executionStrategy.shouldBeSkipped(test);
   }

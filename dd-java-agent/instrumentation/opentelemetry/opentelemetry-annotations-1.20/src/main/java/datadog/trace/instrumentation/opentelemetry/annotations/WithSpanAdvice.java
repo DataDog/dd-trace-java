@@ -14,9 +14,7 @@ public class WithSpanAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(@Advice.Origin final Method method) {
     AgentSpan span = DECORATE.startMethodSpan(method);
-    AgentScope scope = activateSpan(span);
-    scope.setAsyncPropagation(true);
-    return scope;
+    return activateSpan(span, true);
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

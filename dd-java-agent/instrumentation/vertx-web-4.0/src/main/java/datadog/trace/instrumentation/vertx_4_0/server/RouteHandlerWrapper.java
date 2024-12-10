@@ -50,8 +50,7 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
     }
 
     try (final AgentScope scope =
-        span != null ? activateSpan(span) : AgentTracer.NoopAgentScope.INSTANCE) {
-      scope.setAsyncPropagation(true);
+        span != null ? activateSpan(span, true) : AgentTracer.NoopAgentScope.INSTANCE) {
       try {
         actual.handle(routingContext);
       } catch (final Throwable t) {

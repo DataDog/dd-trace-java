@@ -129,9 +129,7 @@ public final class RequestDispatcherInstrumentation extends InstrumenterModule.T
       requestSpan = request.getAttribute(DD_SPAN_ATTRIBUTE);
       request.setAttribute(DD_SPAN_ATTRIBUTE, span);
 
-      final AgentScope agentScope = activateSpan(span);
-      agentScope.setAsyncPropagation(true);
-      return agentScope;
+      return activateSpan(span, true);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

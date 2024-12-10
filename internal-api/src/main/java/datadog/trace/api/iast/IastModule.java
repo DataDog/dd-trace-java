@@ -12,7 +12,7 @@ public interface IastModule {
   Logger LOG = LoggerFactory.getLogger(IastModule.class);
 
   default void onUnexpectedException(final String message, final Throwable error) {
-    LOG.warn(message, error);
+    LOG.debug(message, error);
   }
 
   @Retention(RetentionPolicy.RUNTIME)

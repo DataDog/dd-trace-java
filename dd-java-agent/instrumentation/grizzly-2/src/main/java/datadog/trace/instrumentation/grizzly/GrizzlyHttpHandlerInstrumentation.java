@@ -78,8 +78,7 @@ public class GrizzlyHttpHandlerInstrumentation extends InstrumenterModule.Tracin
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request, request, parentContext);
 
-      scope = activateSpan(span);
-      scope.setAsyncPropagation(true);
+      scope = activateSpan(span, true);
 
       request.setAttribute(DD_SPAN_ATTRIBUTE, span);
       request.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());
@@ -87,7 +86,7 @@ public class GrizzlyHttpHandlerInstrumentation extends InstrumenterModule.Tracin
 
       Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
       if (rba != null) {
-        boolean success = GrizzlyBlockingHelper.block(request, response, rba, scope);
+        boolean success = GrizzlyBlockingHelper.block(request, response, rba, span);
         if (success) {
           return true; /* skip body */
         }

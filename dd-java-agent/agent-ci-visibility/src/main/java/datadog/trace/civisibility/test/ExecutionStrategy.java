@@ -43,6 +43,11 @@ public class ExecutionStrategy {
     return knownTests != null && !knownTests.contains(test.withoutParameters());
   }
 
+  public boolean isFlaky(TestIdentifier test) {
+    Collection<TestIdentifier> flakyTests = executionSettings.getFlakyTests();
+    return flakyTests != null && flakyTests.contains(test.withoutParameters());
+  }
+
   public boolean shouldBeSkipped(TestIdentifier test) {
     if (test == null) {
       return false;

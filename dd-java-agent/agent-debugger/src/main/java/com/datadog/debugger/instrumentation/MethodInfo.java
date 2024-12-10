@@ -37,4 +37,8 @@ public class MethodInfo {
   public ClassFileLines getClassFileLines() {
     return classFileLines;
   }
+
+  public int getMethodStart() {
+    return classFileLines != null ? classFileLines.getMethodStart(methodNode) : -1;
+  }
 }

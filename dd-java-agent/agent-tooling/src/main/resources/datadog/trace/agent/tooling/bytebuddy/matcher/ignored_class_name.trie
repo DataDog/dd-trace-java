@@ -314,6 +314,7 @@
 0 org.springframework.core.io.buffer.DataBuffer
 0 org.springframework.core.io.buffer.DefaultDataBuffer
 0 org.springframework.core.io.buffer.NettyDataBuffer
+0 org.springframework.core.io.buffer.SubscriberInputStream
 # There are some Mono implementation that get instrumented
 0 org.springframework.http.server.reactive.*
 2 org.springframework.instrument.*

@@ -16,6 +16,7 @@
       "_dd.trace_span_attribute_schema" : 0
     },
     "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid},
       "test.type" : "test",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "test.status" : "pass",
@@ -49,6 +50,7 @@
       "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_2}
     },
     "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_2},
       "test.type" : "test",
       "test.module" : "junit-5.8",
       "test.status" : "pass",
@@ -76,9 +78,12 @@
     "duration" : ${content_duration_3},
     "error" : 0,
     "metrics" : {
-      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_3}
+      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_3},
+      "test.source.end" : 19,
+      "test.source.start" : 11
     },
     "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_3},
       "test.type" : "test",
       "test.source.file" : "dummy_source_path",
       "test.module" : "junit-5.8",
@@ -86,6 +91,7 @@
       "test_session.name" : "session-name",
       "env" : "none",
       "dummy_ci_tag" : "dummy_ci_tag_value",
+      "test.codeowners" : "[\"owner1\",\"owner2\"]",
       "library_version" : ${content_meta_library_version},
       "component" : "junit",
       "span.kind" : "test_suite_end",
@@ -125,6 +131,7 @@
       "test.module" : "junit-5.8",
       "test.status" : "pass",
       "language" : "jvm",
+      "test.is_new" : "true",
       "test.codeowners" : "[\"owner1\",\"owner2\"]",
       "library_version" : ${content_meta_library_version},
       "test.name" : "another_test_succeed",
@@ -172,6 +179,7 @@
       "test.module" : "junit-5.8",
       "test.status" : "pass",
       "language" : "jvm",
+      "test.is_new" : "true",
       "test.codeowners" : "[\"owner1\",\"owner2\"]",
       "library_version" : ${content_meta_library_version},
       "test.name" : "test_succeed",
@@ -192,9 +200,9 @@
   "type" : "span",
   "version" : 1,
   "content" : {
-    "trace_id" : ${content_trace_id_2},
+    "trace_id" : ${content_trace_id},
     "span_id" : ${content_span_id_3},
-    "parent_id" : ${content_span_id_2},
+    "parent_id" : ${content_span_id},
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "name" : "setUp",
     "resource" : "setUp",
@@ -212,9 +220,9 @@
   "type" : "span",
   "version" : 1,
   "content" : {
-    "trace_id" : ${content_trace_id},
+    "trace_id" : ${content_trace_id_2},
     "span_id" : ${content_span_id_4},
-    "parent_id" : ${content_span_id},
+    "parent_id" : ${content_span_id_2},
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "name" : "setUp",
     "resource" : "setUp",
@@ -232,9 +240,9 @@
   "type" : "span",
   "version" : 1,
   "content" : {
-    "trace_id" : ${content_trace_id_2},
+    "trace_id" : ${content_trace_id},
     "span_id" : ${content_span_id_5},
-    "parent_id" : ${content_span_id_2},
+    "parent_id" : ${content_span_id},
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "name" : "tearDown",
     "resource" : "tearDown",
@@ -252,9 +260,9 @@
   "type" : "span",
   "version" : 1,
   "content" : {
-    "trace_id" : ${content_trace_id},
+    "trace_id" : ${content_trace_id_2},
     "span_id" : ${content_span_id_6},
-    "parent_id" : ${content_span_id},
+    "parent_id" : ${content_span_id_2},
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "name" : "tearDown",
     "resource" : "tearDown",

@@ -1,6 +1,6 @@
 package datadog.trace.civisibility.ci;
 
-import static datadog.trace.util.Strings.toJson;
+import static datadog.json.JsonMapper.toJson;
 
 import datadog.trace.api.DDTags;
 import datadog.trace.api.git.GitInfo;

@@ -29,8 +29,7 @@ public class HandleAdvice {
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, req, req, extractedContext);
 
-    final AgentScope scope = activateSpan(span);
-    scope.setAsyncPropagation(true);
+    final AgentScope scope = activateSpan(span, true);
     req.setAttribute(DD_SPAN_ATTRIBUTE, span);
     req.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());
     req.setAttribute(CorrelationIdentifier.getSpanIdKey(), GlobalTracer.get().getSpanId());

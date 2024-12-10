@@ -27,8 +27,7 @@ public class RequestFilterHelper {
         parent = activeSpan();
         span = startSpan(JAX_RS_REQUEST_ABORT);
 
-        final AgentScope scope = activateSpan(span);
-        scope.setAsyncPropagation(true);
+        final AgentScope scope = activateSpan(span, true);
 
         DECORATE.afterStart(span);
         DECORATE.onJaxRsSpan(span, parent, resourceClass, method);

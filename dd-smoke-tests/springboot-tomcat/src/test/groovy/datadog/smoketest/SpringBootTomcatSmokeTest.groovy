@@ -24,7 +24,7 @@ class SpringBootTomcatSmokeTest extends AbstractServerSmokeTest {
       def permissions = new HashSet<>(Files.getPosixFilePermissions(catalinaPath))
       permissions.add(PosixFilePermission.OWNER_EXECUTE)
       Files.setPosixFilePermissions(catalinaPath, permissions)
-    } catch (Exception e) {
+    } catch (Exception ignored) {
       // not posix ... continue
     }
     Files.copy(springBootShadowWar, tomcatDirectory.resolve("webapps/smoke.war"), StandardCopyOption.REPLACE_EXISTING)
@@ -40,9 +40,12 @@ class SpringBootTomcatSmokeTest extends AbstractServerSmokeTest {
     ProcessBuilder processBuilder =
       new ProcessBuilder("bin/catalina.sh", "run")
     processBuilder.directory(tomcatDirectory.toFile())
-    defaultJavaProperties += "-Ddd.writer.type=TraceStructureWriter:${output.getAbsolutePath()}:includeService:includeResource"
-    defaultJavaProperties += "-Ddd.integration.spring-boot.enabled=true"
-    processBuilder.environment().put("CATALINA_OPTS", defaultJavaProperties.join(" "))
+    List<String> catalinaOpts = [
+      *defaultJavaProperties,
+      "-Ddd.writer.type=TraceStructureWriter:${output.getAbsolutePath()}:includeService:includeResource",
+      "-Ddd.integration.spring-boot.enabled=true"
+    ]
+    processBuilder.environment().put("CATALINA_OPTS", catalinaOpts.collect({ it.replace(' ', '\\ ')}).join(" "))
     return processBuilder
   }
 

@@ -10,4 +10,6 @@ public interface CIConstants {
   String SELENIUM_BROWSER_DRIVER = "selenium";
 
   String CI_VISIBILITY_INSTRUMENTATION_NAME = "civisibility";
+
+  String FAIL_FAST_TEST_ORDER = "FAILFAST";
 }

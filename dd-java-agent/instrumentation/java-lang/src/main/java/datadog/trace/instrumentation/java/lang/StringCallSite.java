@@ -300,4 +300,18 @@ public class StringCallSite {
     }
     return result;
   }
+
+  @CallSite.After("java.lang.String java.lang.String.valueOf(java.lang.Object)")
+  public static String afterValueOf(
+      @CallSite.Argument(0) final Object obj, @CallSite.Return final String result) {
+    final StringModule module = InstrumentationBridge.STRING;
+    if (module != null) {
+      try {
+        module.onStringValueOf(obj, result);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterValueOf threw", e);
+      }
+    }
+    return result;
+  }
 }

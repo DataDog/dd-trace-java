@@ -164,13 +164,18 @@ abstract class AbstractSmokeTest extends ProcessManager {
     "-Ddd.version=${VERSION}"
   ]
 
+  def testCrashTracking() {
+    return true
+  }
 
   def javaProperties() {
+    def tmpDir = "/tmp"
+
     def ret = [
       "${getMaxMemoryArgumentForFork()}",
       "${getMinMemoryArgumentForFork()}",
       "-javaagent:${shadowJarPath}",
-      isIBM ? "-Xdump:directory=/tmp" : "-XX:ErrorFile=/tmp/hs_err_pid%p.log",
+      isIBM ? "-Xdump:directory=${tmpDir}" : "-XX:ErrorFile=${tmpDir}/hs_err_pid%p.log",
       "-Ddd.trace.agent.port=${server.address.port}",
       "-Ddd.env=${ENV}",
       "-Ddd.version=${VERSION}",
@@ -190,7 +195,18 @@ abstract class AbstractSmokeTest extends ProcessManager {
     if (testTelemetry()) {
       ret += "-Ddd.telemetry.heartbeat.interval=5"
     }
+    // DQH - Nov 2024 - skipping for J9 which doesn't have full crash tracking support
+    if (testCrashTracking() && !Platform.isJ9()) {
+      def extension = getScriptExtension()
+      ret += "-XX:OnError=${tmpDir}/dd_crash_uploader.${extension} %p"
+      // Unlike crash tracking smoke test, keep the default delay; otherwise, otherwise other tests will fail
+      // ret += "-Ddd.dogstatsd.start-delay=0"
+    }
     ret as String[]
+  }
+
+  static String getScriptExtension() {
+    return Platform.isWindows() ? "bat" : "sh"
   }
 
   def inferServiceName() {

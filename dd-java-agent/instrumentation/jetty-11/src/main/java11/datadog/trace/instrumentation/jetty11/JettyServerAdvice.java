@@ -27,8 +27,7 @@ public class JettyServerAdvice {
 
       final AgentSpan.Context.Extracted extractedContext = DECORATE.extract(req);
       span = DECORATE.startSpan(req, extractedContext);
-      final AgentScope scope = activateSpan(span);
-      scope.setAsyncPropagation(true);
+      final AgentScope scope = activateSpan(span, true);
       span.setMeasured(true);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, req, req, extractedContext);

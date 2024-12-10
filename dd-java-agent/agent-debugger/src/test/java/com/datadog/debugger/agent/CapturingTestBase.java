@@ -351,6 +351,7 @@ public class CapturingTestBase {
 
   protected TestSnapshotListener installProbes(
       Configuration configuration, ProbeDefinition... probes) {
+
     config = mock(Config.class);
     when(config.isDebuggerEnabled()).thenReturn(true);
     when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);

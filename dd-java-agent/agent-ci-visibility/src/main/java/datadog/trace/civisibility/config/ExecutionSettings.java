@@ -114,7 +114,6 @@ public class ExecutionSettings {
 
   @Nullable
   public Collection<TestIdentifier> getFlakyTests() {
-    // backend does not store module info for flaky tests yet
     return flakyTests;
   }
 

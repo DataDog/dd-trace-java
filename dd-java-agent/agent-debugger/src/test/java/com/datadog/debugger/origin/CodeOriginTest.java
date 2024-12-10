@@ -8,6 +8,7 @@ import static java.lang.String.format;
 import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -119,7 +120,7 @@ public class CodeOriginTest extends CapturingTestBase {
     final String CLASS_NAME = "com.datadog.debugger.CodeOrigin04";
     installProbes(
         new CodeOriginProbe(
-            CODE_ORIGIN_ID1, null, Where.of(CLASS_NAME, "exit", "()", "39"), MAX_FRAMES));
+            CODE_ORIGIN_ID1, true, Where.of(CLASS_NAME, "exit", "()", "39"), MAX_FRAMES));
 
     Class<?> testClass = compileAndLoadClass("com.datadog.debugger.CodeOrigin04");
     countFrames(testClass, 10);
@@ -139,27 +140,54 @@ public class CodeOriginTest extends CapturingTestBase {
   }
 
   @Test
-  public void testCaptureCodeOriginWithSignature() {
+  public void testCaptureCodeOriginEntry() {
     installProbes();
-    CodeOriginProbe probe = codeOriginRecorder.getProbe(codeOriginRecorder.captureCodeOrigin("()"));
+    CodeOriginProbe probe = codeOriginRecorder.getProbe(codeOriginRecorder.captureCodeOrigin(true));
     assertNotNull(probe);
     assertTrue(probe.entrySpanProbe());
   }
 
   @Test
-  public void testCaptureCodeOriginWithNullSignature() {
+  public void testCaptureCodeOriginExit() {
     installProbes();
-    CodeOriginProbe probe = codeOriginRecorder.getProbe(codeOriginRecorder.captureCodeOrigin(null));
+    CodeOriginProbe probe =
+        codeOriginRecorder.getProbe(codeOriginRecorder.captureCodeOrigin(false));
     assertNotNull(probe);
     assertFalse(probe.entrySpanProbe());
+  }
+
+  @Test
+  public void testCaptureCodeOriginWithExplicitInfo()
+      throws IOException, URISyntaxException, NoSuchMethodException {
+    final String CLASS_NAME = "com.datadog.debugger.CodeOrigin04";
+    final Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    installProbes();
+    CodeOriginProbe probe =
+        codeOriginRecorder.getProbe(
+            codeOriginRecorder.captureCodeOrigin(testClass.getMethod("main", int.class), true));
+    assertNotNull(probe, "The probe should have been created.");
+    assertTrue(probe.entrySpanProbe(), "Should be an entry probe.");
+  }
+
+  @Test
+  public void testDuplicateInstrumentations()
+      throws IOException, URISyntaxException, NoSuchMethodException {
+    final String CLASS_NAME = "com.datadog.debugger.CodeOrigin04";
+    final Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    installProbes();
+    String probe1 =
+        codeOriginRecorder.captureCodeOrigin(testClass.getMethod("main", int.class), true);
+    String probe2 =
+        codeOriginRecorder.captureCodeOrigin(testClass.getMethod("main", int.class), true);
+    assertEquals(probe1, probe2);
   }
 
   @NotNull
   private List<LogProbe> codeOriginProbes(String type) {
     CodeOriginProbe entry =
-        new CodeOriginProbe(CODE_ORIGIN_ID1, "()", Where.of(type, "entry", "()", "53"), MAX_FRAMES);
+        new CodeOriginProbe(CODE_ORIGIN_ID1, true, Where.of(type, "entry", "()", "53"), MAX_FRAMES);
     CodeOriginProbe exit =
-        new CodeOriginProbe(CODE_ORIGIN_ID2, null, Where.of(type, "exit", "()", "60"), MAX_FRAMES);
+        new CodeOriginProbe(CODE_ORIGIN_ID2, false, Where.of(type, "exit", "()", "60"), MAX_FRAMES);
     return new ArrayList<>(asList(entry, exit));
   }
 
@@ -207,6 +235,7 @@ public class CodeOriginTest extends CapturingTestBase {
     assertKeyPresent(span, DD_CODE_ORIGIN_TYPE);
     assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "file"));
     assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "line"));
+    assertNotEquals(-1, span.getTag(format(DD_CODE_ORIGIN_FRAME, 0, "line")));
     assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "method"));
     assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "signature"));
     assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "type"));
@@ -236,6 +265,7 @@ public class CodeOriginTest extends CapturingTestBase {
     assertKeyPresent(span, DD_CODE_ORIGIN_TYPE);
     assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "file"));
     assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "line"));
+    assertNotEquals(-1, span.getTag(format(DD_CODE_ORIGIN_FRAME, 0, "line")));
     assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "method"));
     assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "type"));
     if (includeSnapshot) {
@@ -244,10 +274,12 @@ public class CodeOriginTest extends CapturingTestBase {
 
     MutableSpan rootSpan = span.getLocalRootSpan();
     assertEquals(rootSpan.getTag(DD_CODE_ORIGIN_TYPE), "entry", keys);
-    assertNotNull(rootSpan.getTag(format(DD_CODE_ORIGIN_FRAME, 1, "file")));
-    assertNotNull(rootSpan.getTag(format(DD_CODE_ORIGIN_FRAME, 1, "line")));
-    assertNotNull(rootSpan.getTag(format(DD_CODE_ORIGIN_FRAME, 1, "method")));
-    assertNotNull(rootSpan.getTag(format(DD_CODE_ORIGIN_FRAME, 1, "type")));
+    Object file = rootSpan.getTag(format(DD_CODE_ORIGIN_FRAME, 0, "file"));
+    assertNotNull(file, rootSpan.getTags().toString());
+    assertNotNull(rootSpan.getTag(format(DD_CODE_ORIGIN_FRAME, 0, "line")));
+    assertNotEquals(-1, rootSpan.getTag(format(DD_CODE_ORIGIN_FRAME, 0, "line")));
+    assertNotNull(rootSpan.getTag(format(DD_CODE_ORIGIN_FRAME, 0, "method")));
+    assertNotNull(rootSpan.getTag(format(DD_CODE_ORIGIN_FRAME, 0, "type")));
   }
 
   private static Set<String> ldKeys(MutableSpan span) {

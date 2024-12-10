@@ -5,7 +5,6 @@ import static datadog.trace.instrumentation.grizzly.GrizzlyDecorator.DECORATE;
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.io.OutputStream;
 import java.lang.invoke.MethodHandle;
@@ -36,14 +35,14 @@ public class GrizzlyBlockingHelper {
   private GrizzlyBlockingHelper() {}
 
   public static boolean block(
-      Request request, Response response, Flow.Action.RequestBlockingAction rba, AgentScope scope) {
+      Request request, Response response, Flow.Action.RequestBlockingAction rba, AgentSpan span) {
     return block(
         request,
         response,
         rba.getStatusCode(),
         rba.getBlockingContentType(),
         rba.getExtraHeaders(),
-        scope);
+        span);
   }
 
   public static boolean block(
@@ -52,7 +51,7 @@ public class GrizzlyBlockingHelper {
       int statusCode,
       BlockingContentType bct,
       Map<String, String> extraHeaders,
-      AgentScope scope) {
+      AgentSpan span) {
     if (GET_OUTPUT_STREAM == null) {
       return false;
     }
@@ -77,15 +76,13 @@ public class GrizzlyBlockingHelper {
       os.close();
       response.finish();
 
-      scope.span().getRequestContext().getTraceSegment().effectivelyBlocked();
+      span.getRequestContext().getTraceSegment().effectivelyBlocked();
       SpanClosingListener.LISTENER.onAfterService(request);
     } catch (Throwable e) {
       log.info("Error committing blocking response", e);
-      final AgentSpan span = scope.span();
       DECORATE.onError(span, e);
       DECORATE.beforeFinish(span);
       span.finish();
-      scope.close();
     }
 
     return true;

@@ -47,7 +47,7 @@ abstract class Play28OTelSmokeTest extends AbstractServerSmokeTest {
       new ProcessBuilder("${playDirectory}/bin/${command}")
     processBuilder.directory(playDirectory)
     processBuilder.environment().put("JAVA_OPTS",
-      defaultJavaProperties.join(" ")
+      defaultJavaProperties.collect({ it.replace(' ', '\\ ')}).join(" ")
       + " -Dconfig.file=${playDirectory}/conf/application.conf"
       + " -Dhttp.port=${httpPort}"
       + " -Dhttp.address=127.0.0.1"

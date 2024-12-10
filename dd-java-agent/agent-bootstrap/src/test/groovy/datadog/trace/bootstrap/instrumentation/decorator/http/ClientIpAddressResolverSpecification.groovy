@@ -60,15 +60,6 @@ class ClientIpAddressResolverSpecification extends Specification {
     'x-real-ip' | '42' | '0.0.0.42'
 
     'x-client-ip' | '2.2.2.2' | '2.2.2.2'
-    'x-forwarded' | 'for="[2001::1]:1111"' | '2001::1'
-    'x-forwarded' | 'fOr="[2001::1]:1111"' | '2001::1'
-    'x-forwarded' | 'for=some_host' | null
-    'x-forwarded' | 'for=127.0.0.1, FOR=1.1.1.1' | '1.1.1.1'
-    'x-forwarded' |'for="\"foobar";proto=http,FOR="1.1.1.1"' | '1.1.1.1'
-    'x-forwarded' | 'for="8.8.8.8:2222",' | '8.8.8.8'
-    'x-forwarded' | 'for="8.8.8.8' | null  // quote not closed
-    'x-forwarded' | 'far="8.8.8.8",for=4.4.4.4;' | '4.4.4.4'
-    'x-forwarded' | '   for=127.0.0.1,for= for=,for=;"for = for="" ,; for=8.8.8.8;' | '8.8.8.8'
 
     'x-cluster-client-ip' | '2.2.2.2' | '2.2.2.2'
 
@@ -118,9 +109,6 @@ class ClientIpAddressResolverSpecification extends Specification {
 
     then:
     1 * context.getXClientIp() >> null
-
-    then:
-    1 * context.getXForwarded() >> null
 
     then:
     1 * context.getForwardedFor() >> null
@@ -174,7 +162,6 @@ class ClientIpAddressResolverSpecification extends Specification {
     1 * context.getXForwardedFor() >> '127.0.0.1'
     1 * context.getXRealIp() >> '127.0.0.2'
     1 * context.getXClientIp() >> '127.0.0.3'
-    1 * context.getXForwarded() >> 'for=127.0.0.4'
     1 * context.getXClusterClientIp() >> '127.0.0.5'
     1 * context.getForwardedFor() >> '127.0.0.6'
     1 * context.getTrueClientIp() >> '127.0.0.9'
