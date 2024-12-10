@@ -2,7 +2,7 @@ muzzle {
   pass {
     group = "software.amazon.awssdk"
     module = "s3"
-    versions = "[2.0,3)"
+    versions = "[2.10.36,3)"
     assertInverse = true
   }
 }
