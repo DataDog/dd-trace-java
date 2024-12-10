@@ -572,13 +572,14 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     assert trigger != null, 'test trigger not found'
 
     where:
-    endpoint   | cmd | params
-    'cmd'      | ['cat etc/password'] | null
-    'arrayCmd' | ['cat etc/password', 'cat etc/password'] | null
-    'cmdWithParams'      | ['cat etc/password'] | ['param']
-    'arrayCmdWithParams' | ['cat etc/password', 'cat etc/password'] | ['param']
-    'cmdParamsAndFile'      | ['cat etc/password'] | ['param']
+    endpoint                    | cmd                                      | params
+    'cmd'                       | ['cat etc/password']                     | null
+    'arrayCmd'                  | ['cat etc/password', 'cat etc/password'] | null
+    'cmdWithParams'             | ['cat etc/password']                     | ['param']
+    'arrayCmdWithParams'        | ['cat etc/password', 'cat etc/password'] | ['param']
+    'cmdParamsAndFile'          | ['cat etc/password']                     | ['param']
     'arrayCmdWithParamsAndFile' | ['cat etc/password', 'cat etc/password'] | ['param']
+    'processBuilder'            | ['cat etc/password', 'cat etc/password'] | null
   }
 
 }

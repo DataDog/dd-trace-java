@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.java.lang;
 
 import datadog.trace.agent.tooling.csi.CallSite;
+import datadog.trace.api.appsec.RaspCallSites;
 import datadog.trace.api.iast.IastCallSites;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Sink;
@@ -11,7 +12,9 @@ import javax.annotation.Nullable;
 
 // TODO deal with the environment
 @Sink(VulnerabilityTypes.COMMAND_INJECTION)
-@CallSite(spi = IastCallSites.class)
+@CallSite(
+    spi = {IastCallSites.class, RaspCallSites.class},
+    helpers = ShellCmdRaspHelper.class)
 public class ProcessBuilderCallSite {
 
   @CallSite.Before("java.lang.Process java.lang.ProcessBuilder.start()")
@@ -22,14 +25,23 @@ public class ProcessBuilderCallSite {
     // be careful when fetching the environment as it does mutate the instance
     final List<String> cmd = self.command();
     if (cmd != null && cmd.size() > 0) {
-      final CommandInjectionModule module = InstrumentationBridge.COMMAND_INJECTION;
-      if (module != null) {
-        try {
-          module.onProcessBuilderStart(cmd);
-        } catch (final Throwable e) {
-          module.onUnexpectedException("beforeStart threw", e);
-        }
+      iastCallback(cmd);
+      raspCallback(cmd);
+    }
+  }
+
+  private static void iastCallback(List<String> cmd) {
+    final CommandInjectionModule module = InstrumentationBridge.COMMAND_INJECTION;
+    if (module != null) {
+      try {
+        module.onProcessBuilderStart(cmd);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("beforeStart threw", e);
       }
     }
+  }
+
+  private static void raspCallback(List<String> list) {
+    ShellCmdRaspHelper.INSTANCE.beforeShellCmd(list.toArray(new String[0]));
   }
 }
