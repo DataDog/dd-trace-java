@@ -46,7 +46,6 @@ class ShellCmdRaspHelperForkedTest  extends  AgentTestRunner {
 
   @Override
   protected void configurePreAgent() {
-    injectSysConfig(IastConfig.IAST_ENABLED, 'true')
     injectSysConfig(AppSecConfig.APPSEC_ENABLED, 'true')
     injectSysConfig(AppSecConfig.APPSEC_RASP_ENABLED, 'true')
   }
@@ -67,7 +66,8 @@ class ShellCmdRaspHelperForkedTest  extends  AgentTestRunner {
     1 * listener.apply(reqCtx, expected) >> flow
 
     where:
-    args                                                            | expected
-    ['&lt;!--#exec%20cmd=&quot;/bin/cat%20/etc/passwd&quot;--&gt;'] | '&lt;!--#exec%20cmd=&quot;/bin/cat%20/etc/passwd&quot;--&gt;'
+    args                 | expected
+    ['cat etc/password'] | 'cat etc/password'
+    [['cat etc/password', 'cat etc/password'] as String[]] | ['cat etc/password', 'cat etc/password']
   }
 }

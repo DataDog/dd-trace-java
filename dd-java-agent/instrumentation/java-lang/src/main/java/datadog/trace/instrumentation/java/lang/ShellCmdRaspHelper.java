@@ -26,15 +26,19 @@ public class ShellCmdRaspHelper {
   }
 
   public void beforeShellCmd(@Nonnull final String[] cmdArray) {
-    // TODO
+    shellCmd(cmdArray);
   }
 
   public void beforeShellCmd(@Nonnull final String cmd) {
+    shellCmd(cmd);
+  }
+
+  private void shellCmd(Object cmd) {
     if (!Config.get().isAppSecRaspEnabled()) {
       return;
     }
     try {
-      final BiFunction<RequestContext, String, Flow<Void>> shellCmdCallback =
+      final BiFunction<RequestContext, Object, Flow<Void>> shellCmdCallback =
           AgentTracer.get()
               .getCallbackProvider(RequestContextSlot.APPSEC)
               .getCallback(EVENTS.shellCmd());

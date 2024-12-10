@@ -419,13 +419,26 @@ public class InstrumentationGateway {
       case DATABASE_SQL_QUERY_ID:
       case NETWORK_CONNECTION_ID:
       case FILE_LOADED_ID:
-      case SHELL_CDM_ID:
         return (C)
             new BiFunction<RequestContext, String, Flow<Void>>() {
               @Override
               public Flow<Void> apply(RequestContext ctx, String arg) {
                 try {
                   return ((BiFunction<RequestContext, String, Flow<Void>>) callback)
+                      .apply(ctx, arg);
+                } catch (Throwable t) {
+                  log.warn("Callback for {} threw.", eventType, t);
+                  return Flow.ResultFlow.empty();
+                }
+              }
+            };
+      case SHELL_CDM_ID:
+        return (C)
+            new BiFunction<RequestContext, Object, Flow<Void>>() {
+              @Override
+              public Flow<Void> apply(RequestContext ctx, Object arg) {
+                try {
+                  return ((BiFunction<RequestContext, Object, Flow<Void>>) callback)
                       .apply(ctx, arg);
                 } catch (Throwable t) {
                   log.warn("Callback for {} threw.", eventType, t);
