@@ -32,7 +32,6 @@ abstract class ApacheHttpClientTest<T extends HttpRequest> extends HttpClientTes
 
   @Override
   int doRequest(String method, URI uri, List<List<String>> headers, String body, Closure callback) {
-    System.out.println(getClass().getSimpleName())
     def request = createRequest(method, uri)
     for (List<String> header : headers) {
       request.addHeader(new BasicHeader(header[0], header[1]))
