@@ -434,11 +434,11 @@ public class InstrumentationGateway {
             };
       case SHELL_CDM_ID:
         return (C)
-            new BiFunction<RequestContext, Object, Flow<Void>>() {
+            new BiFunction<RequestContext, String[], Flow<Void>>() {
               @Override
-              public Flow<Void> apply(RequestContext ctx, Object arg) {
+              public Flow<Void> apply(RequestContext ctx, String[] arg) {
                 try {
-                  return ((BiFunction<RequestContext, Object, Flow<Void>>) callback)
+                  return ((BiFunction<RequestContext, String[], Flow<Void>>) callback)
                       .apply(ctx, arg);
                 } catch (Throwable t) {
                   log.warn("Callback for {} threw.", eventType, t);

@@ -9,13 +9,14 @@ import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.internal.TraceSegment
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.bootstrap.instrumentation.api.java.lang.ProcessImplInstrumentationHelpers
 import spock.lang.Shared
 
 import java.util.function.BiFunction
 
 import static datadog.trace.api.gateway.Events.EVENTS
 
-class ShellCmdRaspHelperForkedTest  extends  AgentTestRunner {
+class ProcessImplInstrumentationShellCmdRaspForkedTest extends  AgentTestRunner {
 
   @Shared
   protected static final ORIGINAL_TRACER = AgentTracer.get()
@@ -49,7 +50,7 @@ class ShellCmdRaspHelperForkedTest  extends  AgentTestRunner {
     injectSysConfig(AppSecConfig.APPSEC_RASP_ENABLED, 'true')
   }
 
-  void 'test Helper'() {
+  void 'test shiRaspCheck'() {
 
     setup:
     final callbackProvider = Mock(CallbackProvider)
@@ -58,15 +59,10 @@ class ShellCmdRaspHelperForkedTest  extends  AgentTestRunner {
     tracer.getCallbackProvider(RequestContextSlot.APPSEC) >> callbackProvider
 
     when:
-    ShellCmdRaspHelper.INSTANCE.beforeShellCmd(*args)
+    ProcessImplInstrumentationHelpers.shiRaspCheck(['cat etc/password'] as String[])
 
     then:
     1 * callbackProvider.getCallback(EVENTS.shellCmd()) >> listener
-    1 * listener.apply(reqCtx, expected) >> flow
-
-    where:
-    args                 | expected
-    ['cat etc/password'] | 'cat etc/password'
-    [['cat etc/password', 'cat etc/password'] as String[]] | ['cat etc/password', 'cat etc/password']
+    1 * listener.apply(reqCtx, ['cat etc/password']) >> flow
   }
 }
