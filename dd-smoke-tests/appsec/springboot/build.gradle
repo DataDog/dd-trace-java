@@ -1,5 +1,6 @@
 plugins {
   id "com.github.johnrengelman.shadow"
+  id "war"
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -13,7 +14,12 @@ jar {
   }
 }
 
+war {
+  enabled = true
+}
+
 dependencies {
+  implementation group: 'org.springframework.boot', name: 'spring-boot-starter-tomcat', version: '2.6.0'
   implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.6.0'
   implementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.6.0')
   implementation group: 'com.h2database', name: 'h2', version: '2.1.212'

@@ -425,6 +425,11 @@ public class PowerWAFModule implements AppSecModule {
         WafMetricCollector.get().raspRuleEval(gwCtx.raspRuleType);
       }
 
+      Moshi moshi = new Moshi.Builder().build();
+      JsonAdapter<Map> jsonAdapter = moshi.adapter(Map.class);
+      String json = jsonAdapter.indent("  ").toJson(newData.get(KnownAddresses.SERVER_APP_CONFIG));
+      System.out.println(json);
+
       try {
         resultWithData = doRunPowerwaf(reqCtx, newData, ctxAndAddr, gwCtx);
       } catch (TimeoutPowerwafException tpe) {

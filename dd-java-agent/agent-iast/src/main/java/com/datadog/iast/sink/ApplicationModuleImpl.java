@@ -2,6 +2,7 @@ package com.datadog.iast.sink;
 
 import static com.datadog.iast.util.StringUtils.endsWithIgnoreCase;
 import static com.datadog.iast.util.StringUtils.substringTrim;
+import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 
 import com.datadog.iast.Dependencies;
@@ -9,12 +10,24 @@ import com.datadog.iast.model.Evidence;
 import com.datadog.iast.model.Location;
 import com.datadog.iast.model.Vulnerability;
 import com.datadog.iast.model.VulnerabilityType;
+import datadog.trace.api.function.TriFunction;
+import datadog.trace.api.gateway.CallbackProvider;
+import datadog.trace.api.gateway.Events;
+import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.sink.ApplicationModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+
+import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.DirectoryStream;
 import java.nio.file.FileVisitOption;
 import java.nio.file.FileVisitResult;
 import java.nio.file.FileVisitor;
@@ -22,17 +35,31 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Deque;
 import java.util.EnumSet;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
+import java.util.function.BiFunction;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import javax.xml.stream.XMLInputFactory;
+import javax.xml.stream.XMLStreamConstants;
+import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.XMLStreamReader;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,6 +112,9 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
               JETTY_TEST_APP));
   public static final String WEB_INF = "WEB-INF";
   public static final String WEB_XML = "web.xml";
+
+  public static final String TOMCAT_USERS_XML = "tomcat-users.xml";
+  public static final String TOMCAT_SERVER_XML = "server.xml";
   public static final String WEBLOGIC_XML = "weblogic.xml";
   public static final String IBM_WEB_EXT_XMI = "ibm-web-ext.xmi";
   public static final String IBM_WEB_EXT_XML = "ibm-web-ext.xml";
@@ -124,7 +154,7 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
    * @param realPath the real path of the application
    */
   @Override
-  public void onRealPath(final @Nullable String realPath) {
+  public void onRealPath(String serverInfo, final @Nullable String realPath) {
     if (realPath == null) {
       return;
     }
@@ -133,8 +163,15 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
       return;
     }
     final AgentSpan span = AgentTracer.activeSpan();
+
+    if (serverInfo != null) {
+      if (serverInfo.contains("Tomcat")) {
+        checkTomcatVulnerabilities(serverInfo, root, span);
+      }
+    }
+
     checkInsecureJSPLayout(root, span);
-    checkWebXmlVulnerabilities(root, span);
+    checkWebXmlVulnerabilities(serverInfo, root, span);
     // WEBLOGIC
     checkWeblogicVulnerabilities(root, span);
     // WEBSPHERE
@@ -159,6 +196,87 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
             VulnerabilityType.SESSION_REWRITING,
             Location.forSpan(span),
             new Evidence(SESSION_REWRITING_EVIDENCE_VALUE)));
+  }
+
+  private void checkTomcatVulnerabilities(String serverInfo, @Nonnull final Path path, final AgentSpan span) {
+    String tomcatPath = System.getProperty("catalina.home");
+
+    RequestContext reqCtx = span.getRequestContext();
+    CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+    TriFunction<RequestContext, String, Map<String, ?>, Flow<Void>> callback =
+            cbp.getCallback(EVENTS.configurationData());
+    if (reqCtx == null || callback == null) {
+      return;
+    }
+
+    try {
+
+      // Check for default tomcat applications (Manager, Host Manager, etc)
+      Path tomcatWebappsPath = Paths.get(tomcatPath, "webapps");
+
+      Map<String, Object> webapps = new LinkedHashMap<>();
+      List<String> appNames = new ArrayList<>();
+      webapps.put("webapps", appNames);
+      try (DirectoryStream<Path> stream = Files.newDirectoryStream(tomcatWebappsPath, Files::isDirectory)) {
+        for (Path p : stream) {
+          //System.out.println("Folder: " + p.getFileName());
+          appNames.add(p.getFileName().toString());
+        }
+
+        Flow<Void> flow = callback.apply(reqCtx, serverInfo, webapps);
+      } catch (IOException e) {
+        System.err.println("Error reading directory: " + e.getMessage());
+      }
+
+
+      // Check for Weak credentials in tomcat-users.xml
+      Path tomcatUsersXmlPath = Paths.get(tomcatPath, "conf", TOMCAT_USERS_XML);
+      Map<String, List<Map<String, Object>>> tomcatUsersXmlConfig = getParsedXmlContent(tomcatUsersXmlPath);
+      if (tomcatUsersXmlConfig != null) {
+        List<Map<String, Object>> userTags = tomcatUsersXmlConfig.get("user");
+        if (userTags != null) {
+          for (Map<String, Object> userTag : userTags) {
+            Flow<Void> flow = callback.apply(reqCtx, serverInfo, userTag);
+          }
+        }
+      }
+
+
+      // Check server.xml
+      Path serverXmlPath = Paths.get(tomcatPath, "conf", TOMCAT_SERVER_XML);
+      Map<String, List<Map<String, Object>>> serverXmlConfig = getParsedXmlContent(serverXmlPath);
+
+      if (serverXmlConfig != null) {
+        List<Map<String, Object>> valveTags = serverXmlConfig.get("Valve");
+        if (valveTags != null) {
+          for (Map<String, Object> valveTag : valveTags) {
+            Flow<Void> flow = callback.apply(reqCtx, serverInfo, valveTag);
+          }
+        }
+        List<Map<String, Object>> connectorTags = serverXmlConfig.get("Connector");
+        if (connectorTags != null) {
+          for (Map<String, Object> connectorTag : connectorTags) {
+            Map<String, Object> serviceTag = new LinkedHashMap<>();
+            serviceTag.put("Connector", connectorTag);
+            Flow<Void> flow = callback.apply(reqCtx, serverInfo, serviceTag);
+          }
+        }
+      }
+
+      // Check jvm properties
+      Properties properties = System.getProperties();
+      Map<String, Object> jvmProperties = new LinkedHashMap<>();
+      Map<String, Object> propertiesTag = new LinkedHashMap<>();
+      for (String key : properties.stringPropertyNames()) {
+        propertiesTag.put(key, properties.getProperty(key));
+      }
+      jvmProperties.put("Properties", propertiesTag);
+      Flow<Void> flow = callback.apply(reqCtx, serverInfo, jvmProperties);
+
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+
   }
 
   private void checkWebsphereVulnerabilities(@Nonnull final Path path, final AgentSpan span) {
@@ -199,7 +317,109 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
     }
   }
 
-  private void checkWebXmlVulnerabilities(@Nonnull final Path path, final AgentSpan span) {
+  public static Map<String, List<Map<String, Object>>> parseXmlFromString(String xmlInput) throws XMLStreamException {
+    XMLInputFactory factory = XMLInputFactory.newInstance();
+    try (InputStream xmlStream = new ByteArrayInputStream(xmlInput.getBytes())) {
+      XMLStreamReader reader = factory.createXMLStreamReader(xmlStream);
+      return parseGroupedElements(reader);
+    } catch (IOException e) {
+      throw new RuntimeException("Error reading XML input", e);
+    }
+  }
+
+  private static Map<String, List<Map<String, Object>>> parseGroupedElements(XMLStreamReader reader) throws XMLStreamException {
+    Map<String, List<Map<String, Object>>> groupedMap = new LinkedHashMap<>();
+
+    while (reader.hasNext()) {
+      int eventType = reader.next();
+
+      switch (eventType) {
+        case XMLStreamConstants.START_ELEMENT:
+          String currentElement = reader.getLocalName();
+          Map<String, String> attributes = getAttributes(reader);
+
+          // Создаем элемент
+          Map<String, Object> element = new LinkedHashMap<>(attributes);
+
+          // Добавляем элемент в общую структуру
+          groupedMap.computeIfAbsent(currentElement, k -> new ArrayList<>()).add(element);
+          break;
+
+        case XMLStreamConstants.END_ELEMENT:
+          // Просто выходим из цикла на конец элемента
+          break;
+
+        case XMLStreamConstants.CHARACTERS:
+          // Игнорируем текст, так как у нас только атрибуты нужны
+          break;
+      }
+    }
+    return groupedMap;
+  }
+
+  private static Map<String, String> getAttributes(XMLStreamReader reader) {
+    Map<String, String> attributes = new LinkedHashMap<>();
+    for (int i = 0; i < reader.getAttributeCount(); i++) {
+      attributes.put(reader.getAttributeLocalName(i), reader.getAttributeValue(i));
+    }
+    return attributes;
+  }
+
+
+//  public static Map<String, Object> parseXmlFromString(String xmlContent) throws Exception {
+//    Map<String, Object> result = new LinkedHashMap<>();
+//    Deque<Map<String, Object>> stack = new ArrayDeque<>();
+//    stack.push(result);
+//
+//    XMLInputFactory factory = XMLInputFactory.newInstance();
+//    XMLStreamReader reader = factory.createXMLStreamReader(new StringReader(xmlContent));
+//
+//    String currentElement = null;
+//    while (reader.hasNext()) {
+//      int event = reader.next();
+//      switch (event) {
+//        case XMLStreamConstants.START_ELEMENT:
+//          currentElement = reader.getLocalName();
+//          Map<String, Object> newElement = new LinkedHashMap<>();
+//          stack.peek().merge(currentElement, newElement, (oldValue, newValue) -> {
+//            if (oldValue instanceof List) {
+//              ((List<Object>) oldValue).add(newValue);
+//              return oldValue;
+//            } else {
+//              List<Object> list = new ArrayList<>();
+//              list.add(oldValue);
+//              list.add(newValue);
+//              return list;
+//            }
+//          });
+//          stack.push(newElement);
+//          break;
+//        case XMLStreamConstants.CHARACTERS:
+//          if (!reader.isWhiteSpace()) {
+//            stack.peek().merge(currentElement, reader.getText().trim(), (oldValue, newValue) -> {
+//              if (oldValue instanceof List) {
+//                ((List<Object>) oldValue).add(newValue);
+//                return oldValue;
+//              } else {
+//                List<Object> list = new ArrayList<>();
+//                list.add(oldValue);
+//                list.add(newValue);
+//                return list;
+//              }
+//            });
+//          }
+//          break;
+//        case XMLStreamConstants.END_ELEMENT:
+//          stack.pop();
+//          break;
+//      }
+//    }
+//    return result;
+//  }
+
+
+  private void checkWebXmlVulnerabilities(final String serverInfo, final Path path, final AgentSpan span) {
+
     String webXmlContent = getXmlContent(path, WEB_XML);
     if (webXmlContent == null) {
       return;
@@ -377,8 +597,7 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
   }
 
   @Nullable
-  private static String getXmlContent(final Path realPath, final String fileName) {
-    Path path = realPath.resolve(WEB_INF).resolve(fileName);
+  private static String readXmlContent(final Path path) {
     if (Files.exists(path)) {
       try {
         return new String(Files.readAllBytes(path), StandardCharsets.UTF_8);
@@ -387,6 +606,26 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
       }
     }
     return null;
+  }
+
+  @Nullable
+  private static Map<String, List<Map<String, Object>>> getParsedXmlContent(final Path path) {
+    String xmlContent = readXmlContent(path);
+    if (xmlContent == null) {
+      return null;
+    }
+    try {
+      return parseXmlFromString(xmlContent);
+    } catch (Exception e) {
+      LOGGER.debug(SEND_TELEMETRY, "Failed to parse {}", path, e);
+    }
+    return null;
+  }
+
+  @Nullable
+  private static String getXmlContent(final Path realPath, final String fileName) {
+    Path path = realPath.resolve(WEB_INF).resolve(fileName);
+    return readXmlContent(path);
   }
 
   private static Collection<Path> findInsecureJspPaths(final Path root) {

@@ -1,5 +1,6 @@
 package datadog.trace.api.gateway;
 
+import static datadog.trace.api.gateway.Events.CONFIGURATION_DATA_ID;
 import static datadog.trace.api.gateway.Events.DATABASE_CONNECTION_ID;
 import static datadog.trace.api.gateway.Events.DATABASE_SQL_QUERY_ID;
 import static datadog.trace.api.gateway.Events.FILE_LOADED_ID;
@@ -431,6 +432,25 @@ public class InstrumentationGateway {
                 }
               }
             };
+      case CONFIGURATION_DATA_ID:
+        return (C)
+            new TriFunction<RequestContext, String, Map<String, Object>, Flow<Void>>() {
+              @Override
+              public Flow<Void> apply(RequestContext ctx, String str, Map<String, Object> map) {
+                try {
+                  return ((TriFunction<RequestContext, String, Map<String, Object>, Flow<Void>>) callback)
+                      .apply(ctx, str, map);
+                } catch (Throwable t) {
+                  log.warn("Callback for {} threw.", eventType, t);
+                  return Flow.ResultFlow.empty();
+                }
+              }
+              // Make testing easier by delegating equals
+              @Override
+              public boolean equals(Object obj) {
+                return callback.equals(obj);
+              }
+        };
       default:
         log.warn("Unwrapped callback for {}", eventType);
         return callback;

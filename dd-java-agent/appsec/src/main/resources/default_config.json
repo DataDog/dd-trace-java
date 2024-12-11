@@ -5,6 +5,369 @@
   },
   "rules": [
     {
+      "id": "java-cfg-001-001",
+      "name": "Tomcat outputs stack trace in the response body. Reporting is not explicitly disabled via org.apache.catalina.valves.ErrorReportValve",
+      "tags": {
+        "type": "response-logs",
+        "category": "misconfiguration"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.app.language"
+              }
+            ],
+            "type": "string",
+            "value": "java"
+          },
+          "operator": "equals"
+        },
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.app.config",
+                "key_path": ["className"]
+              }
+            ],
+            "type": "string",
+            "value": "org.apache.catalina.valves.ErrorReportValve"
+          },
+          "operator": "equals"
+        }
+      ],
+      "transformers": [],
+      "on_match": []
+    },
+    {
+      "id": "java-cfg-002-001",
+      "name": "Tomcat contains default applications (Manager and Host Manager). Default example application and documentation should be removed to reduce the attack surface",
+      "tags": {
+        "type": "response-logs",
+        "category": "misconfiguration"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.app.language"
+              }
+            ],
+            "type": "string",
+            "value": "java"
+          },
+          "operator": "equals"
+        },
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.app.config",
+                "key_path": ["webapps"]
+              }
+            ],
+            "type": "string",
+            "value": "host-manager"
+          },
+          "operator": "equals"
+        }
+      ],
+      "transformers": [],
+      "on_match": []
+    },
+    {
+      "id": "java-cfg-002-002",
+      "name": "Tomcat contains default applications (Manager and Host Manager). Default example application and documentation should be removed to reduce the attack surface",
+      "tags": {
+        "type": "response-logs",
+        "category": "misconfiguration"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.app.language"
+              }
+            ],
+            "type": "string",
+            "value": "java"
+          },
+          "operator": "equals"
+        },
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.app.config",
+                "key_path": ["webapps"]
+              }
+            ],
+            "type": "string",
+            "value": "manager"
+          },
+          "operator": "equals"
+        }
+      ],
+      "transformers": [],
+      "on_match": []
+    },
+    {
+      "id": "java-cfg-003-001",
+      "name": "Tomcat accounts should have strong passwords to prevent unauthorized access. Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character",
+      "tags": {
+        "type": "response-logs",
+        "category": "misconfiguration"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.app.language"
+              }
+            ],
+            "type": "string",
+            "value": "java"
+          },
+          "operator": "equals"
+        },
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.app.config",
+                "key_path": ["password"]
+              }
+            ],
+            "regex": "^[^A-Z]*$",
+            "options": {
+              "case_sensitive": true
+            }
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "transformers": [],
+      "on_match": []
+    },
+    {
+      "id": "java-cfg-003-002",
+      "name": "Tomcat accounts should have strong passwords to prevent unauthorized access. Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character",
+      "tags": {
+        "type": "response-logs",
+        "category": "misconfiguration"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.app.language"
+              }
+            ],
+            "type": "string",
+            "value": "java"
+          },
+          "operator": "equals"
+        },
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.app.config",
+                "key_path": ["password"]
+              }
+            ],
+            "regex": "^[^a-z]*$",
+            "options": {
+              "case_sensitive": true
+            }
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "transformers": [],
+      "on_match": []
+    },
+    {
+      "id": "java-cfg-003-003",
+      "name": "Tomcat accounts should have strong passwords to prevent unauthorized access. Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character",
+      "tags": {
+        "type": "response-logs",
+        "category": "misconfiguration"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.app.language"
+              }
+            ],
+            "type": "string",
+            "value": "java"
+          },
+          "operator": "equals"
+        },
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.app.config",
+                "key_path": ["password"]
+              }
+            ],
+            "regex": "^[^0-9]*$",
+            "options": {
+              "case_sensitive": true
+            }
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "transformers": [],
+      "on_match": []
+    },
+    {
+      "id": "java-cfg-003-004",
+      "name": "Tomcat accounts should have strong passwords to prevent unauthorized access. Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character",
+      "tags": {
+        "type": "response-logs",
+        "category": "misconfiguration"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.app.language"
+              }
+            ],
+            "type": "string",
+            "value": "java"
+          },
+          "operator": "equals"
+        },
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.app.config",
+                "key_path": ["password"]
+              }
+            ],
+            "regex": "^[^!@#\\$\\%\\^&*\\(\\)\\-_=+\\\\/~]*$",
+            "options": {
+              "case_sensitive": true
+            }
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "transformers": [],
+      "on_match": []
+    },
+    {
+      "id": "java-cfg-004-001",
+      "name": "Tomcat allows unlimited request sizes by default. Configure size limits for incoming requests to safeguard against buffer overflow attacks.",
+      "tags":
+      {
+        "type": "response-logs",
+        "category": "misconfiguration"
+      },
+      "conditions":
+      [
+        {
+          "parameters":
+          {
+            "inputs":
+            [
+              {
+                "address": "server.app.config",
+                "key_path": ["Connector"]
+              }
+            ],
+            "type": "string",
+            "value": "maxPostSize"
+          },
+          "operator": "!equals"
+        },
+        {
+          "parameters":
+          {
+            "inputs":
+            [
+              {
+                "address": "server.app.config"
+              }
+            ],
+            "type": "string",
+            "value": "Connector"
+          },
+          "operator": "equals"
+        }
+      ],
+      "transformers":
+      [
+        "keys_only"
+      ],
+      "on_match":
+      []
+    },
+    {
+      "id": "java-cfg-005-001",
+      "name": "Tomcat uses unsecured JMX Remote Management. Ensure JMX is secured with authentication and network restrictions to prevent unauthorized access.",
+      "tags":
+      {
+        "type": "response-logs",
+        "category": "misconfiguration"
+      },
+      "conditions":
+      [
+        {
+          "parameters":
+          {
+            "inputs":
+            [
+              {
+                "address": "server.app.language"
+              }
+            ],
+            "type": "string",
+            "value": "java"
+          },
+          "operator": "equals"
+        },
+        {
+          "parameters":
+          {
+            "inputs":
+            [
+              {
+                "address": "server.app.config",
+                "key_path":
+                [
+                  "Properties",
+                  "com.sun.management.jmxremote.ssl"
+                ]
+              }
+            ],
+            "type": "string",
+            "value": "false"
+          },
+          "operator": "equals"
+        }
+      ],
+      "transformers":
+      [],
+      "on_match":
+      []
+    },
+    {
       "id": "blk-001-001",
       "name": "Block IP Addresses",
       "tags": {

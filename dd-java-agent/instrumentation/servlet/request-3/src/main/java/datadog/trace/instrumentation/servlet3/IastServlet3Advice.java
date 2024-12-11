@@ -28,7 +28,7 @@ public class IastServlet3Advice {
     }
     InstrumentationContext.get(ServletContext.class, Boolean.class).put(context, true);
     if (applicationModule != null) {
-      applicationModule.onRealPath(context.getRealPath("/"));
+      applicationModule.onRealPath(context.getServerInfo(), context.getRealPath("/"));
     }
   }
 }

@@ -37,6 +37,11 @@ public class WebController {
     return "Sup AppSec Dawg";
   }
 
+  @RequestMapping("/exception")
+  public String exception() {
+    throw new RuntimeException("This is a test exception");
+  }
+
   @GetMapping("/id/{id}")
   public String pathParam(@PathVariable("id") String id) {
     return id;

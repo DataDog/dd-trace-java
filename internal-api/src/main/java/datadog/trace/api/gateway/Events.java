@@ -308,6 +308,18 @@ public final class Events<D> {
         LOGIN_FAILURE;
   }
 
+  static final int CONFIGURATION_DATA_ID = 25;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType CONFIGURATION_DATA = new ET<>("configuration.data", CONFIGURATION_DATA_ID);
+
+  /** The configuration data */
+  @SuppressWarnings("unchecked")
+  public EventType<TriFunction<RequestContext, String, Map<String, ?>, Flow<Void>>> configurationData() {
+    return (EventType<TriFunction<RequestContext, String, Map<String, ?>, Flow<Void>>>) CONFIGURATION_DATA;
+  }
+
+
   static final int MAX_EVENTS = nextId.get();
 
   private static final class ET<T> extends EventType<T> {

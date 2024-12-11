@@ -74,7 +74,7 @@ public class IastJakartaServletInstrumentation extends InstrumenterModule.Iast
       }
       InstrumentationContext.get(ServletContext.class, Boolean.class).put(context, true);
       if (applicationModule != null) {
-        applicationModule.onRealPath(context.getRealPath("/"));
+        applicationModule.onRealPath(context.getServerInfo(), context.getRealPath("/"));
       }
     }
   }

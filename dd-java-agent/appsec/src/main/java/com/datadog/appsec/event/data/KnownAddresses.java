@@ -131,6 +131,10 @@ public interface KnownAddresses {
   /** Login success business event */
   Address<String> LOGIN_SUCCESS = new Address<>("server.business_logic.users.login.success");
 
+  Address<String> SERVER_APP_LANGUAGE = new Address<>("server.app.language");
+  Address<String> SERVER_APP_FRAMEWORK = new Address<>("server.app.framework");
+  Address<Map<String, ?>> SERVER_APP_CONFIG = new Address<>("server.app.config");
+
   Address<Map<String, Object>> WAF_CONTEXT_PROCESSOR = new Address<>("waf.context.processor");
 
   static Address<?> forName(String name) {
@@ -205,6 +209,12 @@ public interface KnownAddresses {
         return LOGIN_SUCCESS;
       case "server.business_logic.users.login.failure":
         return LOGIN_FAILURE;
+      case "server.app.language":
+        return SERVER_APP_LANGUAGE;
+      case "server.app.framework":
+        return SERVER_APP_FRAMEWORK;
+      case "server.app.config":
+        return SERVER_APP_CONFIG;
       default:
         return null;
     }

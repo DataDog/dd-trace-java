@@ -1,6 +1,7 @@
 package com.datadog.appsec.gateway;
 
 import static com.datadog.appsec.event.data.MapDataBundle.Builder.CAPACITY_0_2;
+import static com.datadog.appsec.event.data.MapDataBundle.Builder.CAPACITY_3_4;
 import static com.datadog.appsec.event.data.MapDataBundle.Builder.CAPACITY_6_10;
 import static com.datadog.appsec.gateway.AppSecRequestContext.DEFAULT_REQUEST_HEADERS_ALLOW_LIST;
 import static com.datadog.appsec.gateway.AppSecRequestContext.REQUEST_HEADERS_ALLOW_LIST;
@@ -92,6 +93,7 @@ public class GatewayBridge {
   private volatile DataSubscriberInfo ioNetUrlSubInfo;
   private volatile DataSubscriberInfo ioFileSubInfo;
   private volatile DataSubscriberInfo sessionIdSubInfo;
+  private volatile DataSubscriberInfo serverAppConfigSubInfo;
   private final ConcurrentHashMap<Address<String>, DataSubscriberInfo> userIdSubInfo =
       new ConcurrentHashMap<>();
 
@@ -140,6 +142,7 @@ public class GatewayBridge {
         EVENTS.loginSuccess(), this.onUserEvent(KnownAddresses.LOGIN_SUCCESS));
     subscriptionService.registerCallback(
         EVENTS.loginFailure(), this.onUserEvent(KnownAddresses.LOGIN_FAILURE));
+    subscriptionService.registerCallback(EVENTS.configurationData(), this::onConfiguration);
 
     if (additionalIGEvents.contains(EVENTS.requestPathParams())) {
       subscriptionService.registerCallback(EVENTS.requestPathParams(), this::onRequestPathParams);
@@ -682,6 +685,37 @@ public class GatewayBridge {
       ctx.addCookies(cookies);
     } else {
       ctx.addRequestHeader(name, value);
+    }
+  }
+
+  private Flow<Void> onConfiguration(RequestContext ctx_, String framework, Map<String, ?> cfg) {
+    AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx == null) {
+      return NoopFlow.INSTANCE;
+    }
+    while (true) {
+      DataSubscriberInfo subInfo = serverAppConfigSubInfo;
+      if (subInfo == null) {
+        subInfo = producerService.getDataSubscribers(KnownAddresses.SERVER_APP_CONFIG);
+        serverAppConfigSubInfo = subInfo;
+      }
+      if (subInfo == null || subInfo.isEmpty()) {
+        return NoopFlow.INSTANCE;
+      }
+
+      DataBundle bundle =
+              new MapDataBundle.Builder(CAPACITY_3_4)
+                      .add(KnownAddresses.SERVER_APP_LANGUAGE, "java")
+                      .add(KnownAddresses.SERVER_APP_FRAMEWORK, framework)
+                      .add(KnownAddresses.SERVER_APP_CONFIG, cfg)
+                      .build();
+
+      try {
+        GatewayContext gwCtx = new GatewayContext(true);
+        return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
+      } catch (ExpiredSubscriberInfoException e) {
+        serverAppConfigSubInfo = null;
+      }
     }
   }
 
