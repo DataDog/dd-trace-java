@@ -8,6 +8,7 @@ dependencies {
   api project(':dd-java-agent:testing')
   api project(':utils:test-utils')
   api project(':utils:test-agent-utils:decoder')
+  api project(':utils:test-agent-utils:junit5-extension')
 }
 
 Project parent_project = project
