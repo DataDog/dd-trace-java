@@ -189,7 +189,7 @@ public class DebuggerTransformerTest {
   private void doTestMultiProbes(
       Function<Class<?>, String> getClassName, ProbeTestInfo... probeInfos) {
     Config config = createConfig();
-    List<ProbeDefinition> logProbes = new ArrayList<>();
+    List<LogProbe> logProbes = new ArrayList<>();
     for (ProbeTestInfo probeInfo : probeInfos) {
       String className = getClassName.apply(probeInfo.clazz);
       LogProbe logProbe =
@@ -240,7 +240,7 @@ public class DebuggerTransformerTest {
   @Test
   public void testBlockedProbes() {
     Config config = createConfig();
-    List<ProbeDefinition> logProbes =
+    List<LogProbe> logProbes =
         Arrays.asList(
             LogProbe.builder()
                 .language(LANGUAGE)

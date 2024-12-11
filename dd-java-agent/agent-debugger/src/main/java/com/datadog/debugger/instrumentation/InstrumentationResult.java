@@ -71,7 +71,7 @@ public class InstrumentationResult {
     MethodNode methodNode = methodInfo.getMethodNode();
     this.methodName = methodNode.name;
     this.methodStart = methodInfo.getMethodStart();
-    this.signature = Types.descriptorToSignature(methodNode.desc);
+    this.signature = methodNode.desc != null ? Types.descriptorToSignature(methodNode.desc) : null;
   }
 
   public boolean isError() {

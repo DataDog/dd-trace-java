@@ -7,6 +7,7 @@ import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
 
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.LogProbe;
@@ -364,7 +365,7 @@ public class CapturingTestBase {
     // when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
     //    when(config.getDebuggerCodeOriginMaxUserFrames()).thenReturn(20);
     instrumentationListener = new MockInstrumentationListener();
-    probeStatusSink = new ProbeStatusSink(config, new MockBatchUploader(config), false);
+    probeStatusSink = mock(ProbeStatusSink.class);
 
     TestSnapshotListener listener = new TestSnapshotListener(config, probeStatusSink);
 

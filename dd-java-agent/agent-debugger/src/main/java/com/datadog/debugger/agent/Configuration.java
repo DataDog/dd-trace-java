@@ -13,6 +13,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Stores debugger configuration for a service with: - Probe definitions - filters (allow/deny) -
@@ -23,7 +24,6 @@ public class Configuration {
   /** Stores classes & packages filtering (allow or deny lists) */
   public static class FilterList {
     private final List<String> packagePrefixes;
-
     private final List<String> classes;
 
     public FilterList(List<String> packagePrefixes, List<String> classes) {
@@ -48,12 +48,8 @@ public class Configuration {
     @Generated
     @Override
     public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
       FilterList allowList = (FilterList) o;
       return Objects.equals(packagePrefixes, allowList.packagePrefixes)
           && Objects.equals(classes, allowList.classes);
@@ -69,61 +65,71 @@ public class Configuration {
   @Json(name = "id")
   private final String service;
 
-  private final List<ProbeDefinition> probes = new ArrayList<>();
-
+  private transient List<ProbeDefinition> probes = new ArrayList<>();
+  private Collection<MetricProbe> metricProbes = new ArrayList<>();
+  private Collection<LogProbe> logProbes = new ArrayList<>();
+  private Collection<SpanProbe> spanProbes = new ArrayList<>();
+  private Collection<TriggerProbe> triggerProbes = new ArrayList<>();
+  private Collection<SpanDecorationProbe> spanDecorationProbes = new ArrayList<>();
   private final FilterList allowList;
-
   private final FilterList denyList;
-
   private final LogProbe.Sampling sampling;
 
-  public Configuration(String serviceName, List<ProbeDefinition> probes) {
+  public Configuration(String serviceName, List<? extends ProbeDefinition> probes) {
     this(serviceName, probes, null, null, null);
   }
 
   public Configuration(
       String serviceName,
-      List<ProbeDefinition> probes,
+      List<? extends ProbeDefinition> probes,
       FilterList allowList,
       FilterList denyList,
       LogProbe.Sampling sampling) {
     this.service = serviceName;
-    this.probes.addAll(probes);
     this.allowList = allowList;
     this.denyList = denyList;
     this.sampling = sampling;
+    probes.forEach(this::add);
+  }
+
+  private void add(ProbeDefinition p) {
+    if (p instanceof LogProbe) {
+      logProbes.add((LogProbe) p);
+    } else if (p instanceof MetricProbe) {
+      metricProbes.add((MetricProbe) p);
+    } else if (p instanceof SpanProbe) {
+      spanProbes.add((SpanProbe) p);
+    } else if (p instanceof SpanDecorationProbe) {
+      spanDecorationProbes.add((SpanDecorationProbe) p);
+    } else if (p instanceof TriggerProbe) {
+      triggerProbes.add((TriggerProbe) p);
+    } else {
+      probes.add(p);
+    }
   }
 
   public String getService() {
     return service;
   }
 
-  @SuppressWarnings("unchecked")
-  public <T extends ProbeDefinition> List<T> getProbes(Class<T> type) {
-    return (List<T>)
-        probes.stream()
-            .filter(probe -> probe.getClass().isAssignableFrom(type))
-            .collect(Collectors.toList());
-  }
-
   public Collection<MetricProbe> getMetricProbes() {
-    return getProbes(MetricProbe.class);
+    return metricProbes;
   }
 
   public Collection<LogProbe> getLogProbes() {
-    return getProbes(LogProbe.class);
+    return logProbes;
   }
 
   public Collection<SpanProbe> getSpanProbes() {
-    return getProbes(SpanProbe.class);
+    return spanProbes;
   }
 
   public Collection<TriggerProbe> getTriggerProbes() {
-    return getProbes(TriggerProbe.class);
+    return triggerProbes;
   }
 
   public Collection<SpanDecorationProbe> getSpanDecorationProbes() {
-    return getProbes(SpanDecorationProbe.class);
+    return spanDecorationProbes;
   }
 
   public FilterList getAllowList() {
@@ -139,7 +145,11 @@ public class Configuration {
   }
 
   public List<ProbeDefinition> getDefinitions() {
-    return new ArrayList<>(probes);
+    return Stream.of(
+            triggerProbes, metricProbes, logProbes, spanProbes, spanDecorationProbes, probes)
+        .filter(Objects::nonNull)
+        .flatMap(Collection::stream)
+        .collect(Collectors.toList());
   }
 
   @Generated
@@ -149,7 +159,7 @@ public class Configuration {
         + "service="
         + service
         + ", probes="
-        + probes
+        + getDefinitions()
         + ", allowList="
         + allowList
         + ", denyList="

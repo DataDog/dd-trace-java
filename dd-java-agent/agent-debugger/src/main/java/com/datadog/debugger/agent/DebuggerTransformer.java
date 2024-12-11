@@ -409,7 +409,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
     return true;
   }
 
-  public ClassNode parseClassFile(String classFilePath, byte[] classfileBuffer) {
+  private ClassNode parseClassFile(String classFilePath, byte[] classfileBuffer) {
     ClassReader reader = new ClassReader(classfileBuffer);
     dumpOriginalClassFile(classFilePath, classfileBuffer);
     ClassNode classNode = new ClassNode();

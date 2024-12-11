@@ -25,10 +25,6 @@ public class TestSnapshotListener extends DebuggerSink {
 
   @Override
   public void addSnapshot(Snapshot snapshot) {
-    new Exception(
-            "\"TestSnapshotListener.addSnapshot\" trace: "
-                + snapshot.getCaptures().getLines().keySet())
-        .printStackTrace(System.out);
     snapshots.add(snapshot);
   }
 
