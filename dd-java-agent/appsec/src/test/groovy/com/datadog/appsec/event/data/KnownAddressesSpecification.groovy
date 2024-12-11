@@ -41,7 +41,7 @@ class KnownAddressesSpecification extends Specification {
       'server.business_logic.users.login.success',
       'server.io.net.url',
       'server.io.fs.file',
-      'server.sys.shell.cmd',
+      'server.sys.exec.cmd',
       'waf.context.processor'
     ]
   }

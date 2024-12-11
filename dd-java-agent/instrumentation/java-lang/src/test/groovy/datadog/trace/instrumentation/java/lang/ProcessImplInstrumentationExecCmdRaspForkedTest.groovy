@@ -16,7 +16,7 @@ import java.util.function.BiFunction
 
 import static datadog.trace.api.gateway.Events.EVENTS
 
-class ProcessImplInstrumentationShellCmdRaspForkedTest extends  AgentTestRunner {
+class ProcessImplInstrumentationExecCmdRaspForkedTest extends  AgentTestRunner {
 
   @Shared
   protected static final ORIGINAL_TRACER = AgentTracer.get()
@@ -50,7 +50,7 @@ class ProcessImplInstrumentationShellCmdRaspForkedTest extends  AgentTestRunner 
     injectSysConfig(AppSecConfig.APPSEC_RASP_ENABLED, 'true')
   }
 
-  void 'test shiRaspCheck'() {
+  void 'test cmdiRaspCheck'() {
 
     setup:
     final callbackProvider = Mock(CallbackProvider)
@@ -59,10 +59,10 @@ class ProcessImplInstrumentationShellCmdRaspForkedTest extends  AgentTestRunner 
     tracer.getCallbackProvider(RequestContextSlot.APPSEC) >> callbackProvider
 
     when:
-    ProcessImplInstrumentationHelpers.shiRaspCheck(['cat etc/password'] as String[])
+    ProcessImplInstrumentationHelpers.cmdiRaspCheck(['/bin/../usr/bin/reboot', '-f'] as String[])
 
     then:
-    1 * callbackProvider.getCallback(EVENTS.shellCmd()) >> listener
-    1 * listener.apply(reqCtx, ['cat etc/password']) >> flow
+    1 * callbackProvider.getCallback(EVENTS.execCmd()) >> listener
+    1 * listener.apply(reqCtx, ['/bin/../usr/bin/reboot', '-f']) >> flow
   }
 }

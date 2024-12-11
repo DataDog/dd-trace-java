@@ -92,7 +92,7 @@ class GatewayBridgeSpecification extends DDSpecification {
   TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>> userIdCB
   TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>> loginSuccessCB
   TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>> loginFailureCB
-  BiFunction<RequestContext, String[], Flow<Void>> shellCmdCB
+  BiFunction<RequestContext, String[], Flow<Void>> execCmdCB
 
   void setup() {
     callInitAndCaptureCBs()
@@ -432,7 +432,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * ig.registerCallback(EVENTS.userId(), _) >> { userIdCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.loginSuccess(), _) >> { loginSuccessCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.loginFailure(), _) >> { loginFailureCB = it[1]; null }
-    1 * ig.registerCallback(EVENTS.shellCmd(), _) >> { shellCmdCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.execCmd(), _) >> { execCmdCB = it[1]; null }
     0 * ig.registerCallback(_, _)
 
     bridge.init()
@@ -835,20 +835,20 @@ class GatewayBridgeSpecification extends DDSpecification {
     gatewayContext.isRasp == true
   }
 
-  void 'process shell cmd'() {
+  void 'process exec cmd'() {
     setup:
-    final cmd = '&lt;!--#exec%20cmd=&quot;/bin/cat%20/etc/passwd&quot;--&gt;'
-    eventDispatcher.getDataSubscribers({ KnownAddresses.SHELL_CMD in it }) >> nonEmptyDsInfo
+    final cmd = ['/bin/../usr/bin/reboot', '-f'] as String[]
+    eventDispatcher.getDataSubscribers({ KnownAddresses.EXEC_CMD in it }) >> nonEmptyDsInfo
     DataBundle bundle
     GatewayContext gatewayContext
 
     when:
-    Flow<?> flow = shellCmdCB.apply(ctx, cmd)
+    Flow<?> flow = execCmdCB.apply(ctx, cmd)
 
     then:
     1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
     { a, b, db, gw -> bundle = db; gatewayContext = gw; NoopFlow.INSTANCE }
-    bundle.get(KnownAddresses.SHELL_CMD) == cmd
+    bundle.get(KnownAddresses.EXEC_CMD) == cmd
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
     gatewayContext.isTransient == true
