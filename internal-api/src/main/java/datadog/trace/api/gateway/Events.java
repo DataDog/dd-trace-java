@@ -308,6 +308,16 @@ public final class Events<D> {
         LOGIN_FAILURE;
   }
 
+  static final int EXEC_CMD_ID = 25;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType EXEC_CMD = new ET<>("exec.cmd", EXEC_CMD_ID);
+
+  @SuppressWarnings("unchecked")
+  public EventType<BiFunction<RequestContext, String[], Flow<Void>>> execCmd() {
+    return (EventType<BiFunction<RequestContext, String[], Flow<Void>>>) EXEC_CMD;
+  }
+
   static final int MAX_EVENTS = nextId.get();
 
   private static final class ET<T> extends EventType<T> {

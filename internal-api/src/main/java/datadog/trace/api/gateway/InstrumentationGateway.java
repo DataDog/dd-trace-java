@@ -2,6 +2,7 @@ package datadog.trace.api.gateway;
 
 import static datadog.trace.api.gateway.Events.DATABASE_CONNECTION_ID;
 import static datadog.trace.api.gateway.Events.DATABASE_SQL_QUERY_ID;
+import static datadog.trace.api.gateway.Events.EXEC_CMD_ID;
 import static datadog.trace.api.gateway.Events.FILE_LOADED_ID;
 import static datadog.trace.api.gateway.Events.GRAPHQL_SERVER_REQUEST_MESSAGE_ID;
 import static datadog.trace.api.gateway.Events.GRPC_SERVER_METHOD_ID;
@@ -424,6 +425,20 @@ public class InstrumentationGateway {
               public Flow<Void> apply(RequestContext ctx, String arg) {
                 try {
                   return ((BiFunction<RequestContext, String, Flow<Void>>) callback)
+                      .apply(ctx, arg);
+                } catch (Throwable t) {
+                  log.warn("Callback for {} threw.", eventType, t);
+                  return Flow.ResultFlow.empty();
+                }
+              }
+            };
+      case EXEC_CMD_ID:
+        return (C)
+            new BiFunction<RequestContext, String[], Flow<Void>>() {
+              @Override
+              public Flow<Void> apply(RequestContext ctx, String[] arg) {
+                try {
+                  return ((BiFunction<RequestContext, String[], Flow<Void>>) callback)
                       .apply(ctx, arg);
                 } catch (Throwable t) {
                   log.warn("Callback for {} threw.", eventType, t);
