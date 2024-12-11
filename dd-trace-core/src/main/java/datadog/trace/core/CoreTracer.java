@@ -152,6 +152,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   /** Nanosecond offset to counter clock drift */
   private volatile long counterDrift;
 
+  private final SharedCommunicationObjects sco;
+
   private final TracerFlarePoller tracerFlarePoller;
 
   private final TracingConfigPoller tracingConfigPoller;
@@ -652,6 +654,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
     sharedCommunicationObjects.monitoring = monitoring;
     sharedCommunicationObjects.createRemaining(config);
+    sco = sharedCommunicationObjects;
 
     tracerFlarePoller = new TracerFlarePoller(dynamicConfig);
     if (pollForTracerFlareRequests) {
@@ -1146,6 +1149,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     dataStreamsMonitoring.close();
     externalAgentLauncher.close();
     tracerFlarePoller.stop();
+  }
+
+  @Override
+  public void pause() {
+    sco.okHttpClient.connectionPool().evictAll();
   }
 
   @Override

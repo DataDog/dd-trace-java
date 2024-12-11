@@ -1,0 +1,13 @@
+muzzle {
+  pass {
+    group = "org.crac"
+    module = "crac"
+    versions = "[1.3,)"
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  compileOnly group: 'org.crac', name: 'crac', version: '1.3.0'
+}

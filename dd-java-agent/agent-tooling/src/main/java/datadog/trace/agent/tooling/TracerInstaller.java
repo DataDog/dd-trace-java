@@ -24,7 +24,7 @@ public class TracerInstaller {
                 .pollForTracerFlareRequests()
                 .pollForTracingConfiguration()
                 .build();
-        installGlobalTracer(tracer);
+        forceInstallGlobalTracer(tracer);
       } else {
         log.debug("GlobalTracer already registered.");
       }

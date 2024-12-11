@@ -256,6 +256,8 @@ public class AgentTracer {
 
     void close();
 
+    void pause();
+
     /**
      * Attach a scope listener to the global scope manager
      *
@@ -411,6 +413,9 @@ public class AgentTracer {
 
     @Override
     public void close() {}
+
+    @Override
+    public void pause() {}
 
     @Override
     public void addScopeListener(

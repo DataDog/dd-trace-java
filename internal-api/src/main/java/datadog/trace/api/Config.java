@@ -991,7 +991,7 @@ public class Config {
     statsDClientSocketBuffer = configProvider.getInteger(STATSD_CLIENT_SOCKET_BUFFER);
     statsDClientSocketTimeout = configProvider.getInteger(STATSD_CLIENT_SOCKET_TIMEOUT);
 
-    runtimeMetricsEnabled = configProvider.getBoolean(RUNTIME_METRICS_ENABLED, true);
+    runtimeMetricsEnabled = configProvider.getBoolean(RUNTIME_METRICS_ENABLED, false);
 
     jmxFetchEnabled =
         runtimeMetricsEnabled
@@ -1229,9 +1229,7 @@ public class Config {
                 TELEMETRY_LOG_COLLECTION_ENABLED, DEFAULT_TELEMETRY_LOG_COLLECTION_ENABLED);
 
     isTelemetryDependencyServiceEnabled =
-        configProvider.getBoolean(
-            TELEMETRY_DEPENDENCY_COLLECTION_ENABLED,
-            DEFAULT_TELEMETRY_DEPENDENCY_COLLECTION_ENABLED);
+        configProvider.getBoolean(TELEMETRY_DEPENDENCY_COLLECTION_ENABLED, false);
     telemetryDependencyResolutionQueueSize =
         configProvider.getInteger(
             TELEMETRY_DEPENDENCY_RESOLUTION_QUEUE_SIZE,
