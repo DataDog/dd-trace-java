@@ -2,6 +2,7 @@ package datadog.trace.api.gateway;
 
 import static datadog.trace.api.gateway.Events.DATABASE_CONNECTION_ID;
 import static datadog.trace.api.gateway.Events.DATABASE_SQL_QUERY_ID;
+import static datadog.trace.api.gateway.Events.EXEC_CMD_ID;
 import static datadog.trace.api.gateway.Events.FILE_LOADED_ID;
 import static datadog.trace.api.gateway.Events.GRAPHQL_SERVER_REQUEST_MESSAGE_ID;
 import static datadog.trace.api.gateway.Events.GRPC_SERVER_METHOD_ID;
@@ -25,7 +26,6 @@ import static datadog.trace.api.gateway.Events.REQUEST_STARTED_ID;
 import static datadog.trace.api.gateway.Events.RESPONSE_HEADER_DONE_ID;
 import static datadog.trace.api.gateway.Events.RESPONSE_HEADER_ID;
 import static datadog.trace.api.gateway.Events.RESPONSE_STARTED_ID;
-import static datadog.trace.api.gateway.Events.SHELL_CDM_ID;
 import static datadog.trace.api.gateway.Events.USER_ID;
 
 import datadog.trace.api.UserIdCollectionMode;
@@ -432,7 +432,7 @@ public class InstrumentationGateway {
                 }
               }
             };
-      case SHELL_CDM_ID:
+      case EXEC_CMD_ID:
         return (C)
             new BiFunction<RequestContext, String[], Flow<Void>>() {
               @Override

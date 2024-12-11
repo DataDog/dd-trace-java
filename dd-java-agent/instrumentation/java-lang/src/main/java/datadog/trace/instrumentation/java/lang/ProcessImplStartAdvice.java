@@ -23,7 +23,7 @@ class ProcessImplStartAdvice {
     span.setResourceName(ProcessImplInstrumentationHelpers.determineResource(command));
     span.setTag("component", "subprocess");
     ProcessImplInstrumentationHelpers.setTags(span, command);
-    ProcessImplInstrumentationHelpers.shiRaspCheck(command);
+    ProcessImplInstrumentationHelpers.cmdiRaspCheck(command);
     return span;
   }
 

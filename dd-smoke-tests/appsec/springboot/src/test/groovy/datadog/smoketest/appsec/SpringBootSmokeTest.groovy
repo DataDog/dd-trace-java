@@ -153,8 +153,8 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
           on_match    : ['block']
         ],
         [
-          id          : '__test_shi_block',
-          name        : 'Shell injection exploit',
+          id          : 'rasp-932-100',  // to replace default rule
+          name        : 'Command injection exploit',
           enable      : 'true',
           tags        : [
             type: 'command_injection',
@@ -167,10 +167,10 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
           conditions  : [
             [
               parameters: [
-                resource: [[address: 'server.sys.shell.cmd']],
+                resource: [[address: 'server.sys.exec.cmd']],
                 params  : [[address: 'server.request.body']],
               ],
-              operator  : "shi_detector",
+              operator  : "cmdi_detector",
             ],
           ],
           transformers: [],
@@ -529,9 +529,9 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     assert trigger != null, 'test trigger not found'
   }
 
-  void 'rasp blocks on SHI'() {
+  void 'rasp blocks on CMDI'() {
     when:
-    String url = "http://localhost:${httpPort}/shi/"+endpoint
+    String url = "http://localhost:${httpPort}/cmdi/"+endpoint
     def formBuilder = new FormBody.Builder()
     for (s in cmd) {
       formBuilder.add("cmd", s)
@@ -564,7 +564,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     assert rootSpan.meta.get('_dd.appsec.json') != null, '_dd.appsec.json is not set'
     def trigger = null
     for (t in rootSpan.triggers) {
-      if (t['rule']['id'] == '__test_shi_block') {
+      if (t['rule']['id'] == 'rasp-932-100') {
         trigger = t
         break
       }
@@ -573,14 +573,11 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
 
     where:
     endpoint                    | cmd                                      | params
-    //TODO these test that receive String cmd instead of String[] cmd are not working due to internally are converted to ["cat", "etc/password"] and the WAF is not blocking them
-    //    'cmd'    | ['cat etc/password'] | null
-    //    'cmdWithParams'      | ['cat etc/password'] | ['param']
-    //    'cmdParamsAndFile'      | ['cat etc/password'] | ['param']
-    'arrayCmd'                  | ['cat etc/password', 'cat etc/password'] | null
-    'arrayCmdWithParams'        | ['cat etc/password', 'cat etc/password'] | ['param']
-    'arrayCmdWithParamsAndFile' | ['cat etc/password', 'cat etc/password'] | ['param']
-    'processBuilder'            | ['cat etc/password', 'cat etc/password'] | null
+    'arrayCmd'                  | ['/bin/evilCommand'] | null
+    'arrayCmdWithParams'        | ['/bin/../usr/bin/reboot', '-f'] | ['param']
+    'arrayCmdWithParamsAndFile' | ['/bin/../usr/bin/reboot', '-f'] | ['param']
+    'processBuilder'            | ['/bin/evilCommand'] | null
+
   }
 
 }

@@ -308,14 +308,14 @@ public final class Events<D> {
         LOGIN_FAILURE;
   }
 
-  static final int SHELL_CDM_ID = 25;
+  static final int EXEC_CMD_ID = 25;
 
   @SuppressWarnings("rawtypes")
-  private static final EventType SHELL_CMD = new ET<>("shell.cmd", SHELL_CDM_ID);
+  private static final EventType EXEC_CMD = new ET<>("exec.cmd", EXEC_CMD_ID);
 
   @SuppressWarnings("unchecked")
-  public EventType<BiFunction<RequestContext, String[], Flow<Void>>> shellCmd() {
-    return (EventType<BiFunction<RequestContext, String[], Flow<Void>>>) SHELL_CMD;
+  public EventType<BiFunction<RequestContext, String[], Flow<Void>>> execCmd() {
+    return (EventType<BiFunction<RequestContext, String[], Flow<Void>>>) EXEC_CMD;
   }
 
   static final int MAX_EVENTS = nextId.get();

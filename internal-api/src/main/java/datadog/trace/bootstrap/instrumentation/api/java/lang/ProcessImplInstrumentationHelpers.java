@@ -201,19 +201,19 @@ public class ProcessImplInstrumentationHelpers {
   }
 
   /*
-   Check if there is a shell injection attempt to block it
+   Check if there is a cmd injection attempt to block it
   */
-  public static void shiRaspCheck(@Nonnull final String[] cmdArray) {
+  public static void cmdiRaspCheck(@Nonnull final String[] cmdArray) {
     if (!Config.get().isAppSecRaspEnabled()) {
       return;
     }
     try {
-      final BiFunction<RequestContext, String[], Flow<Void>> shellCmdCallback =
+      final BiFunction<RequestContext, String[], Flow<Void>> execCmdCallback =
           AgentTracer.get()
               .getCallbackProvider(RequestContextSlot.APPSEC)
-              .getCallback(EVENTS.shellCmd());
+              .getCallback(EVENTS.execCmd());
 
-      if (shellCmdCallback == null) {
+      if (execCmdCallback == null) {
         return;
       }
 
@@ -227,7 +227,7 @@ public class ProcessImplInstrumentationHelpers {
         return;
       }
 
-      Flow<Void> flow = shellCmdCallback.apply(ctx, cmdArray);
+      Flow<Void> flow = execCmdCallback.apply(ctx, cmdArray);
       Flow.Action action = flow.getAction();
       if (action instanceof Flow.Action.RequestBlockingAction) {
         BlockResponseFunction brf = ctx.getBlockResponseFunction();
@@ -239,14 +239,14 @@ public class ProcessImplInstrumentationHelpers {
               rba.getBlockingContentType(),
               rba.getExtraHeaders());
         }
-        throw new BlockingException("Blocked request (for SHI attempt)");
+        throw new BlockingException("Blocked request (for CMDI attempt)");
       }
     } catch (final BlockingException e) {
       // re-throw blocking exceptions
       throw e;
     } catch (final Throwable e) {
       // suppress anything else
-      LOGGER.debug("Exception during SHI rasp callback", e);
+      LOGGER.debug("Exception during CMDI rasp callback", e);
     }
   }
 

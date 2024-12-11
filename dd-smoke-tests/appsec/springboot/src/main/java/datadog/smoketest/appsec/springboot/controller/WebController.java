@@ -159,47 +159,27 @@ public class WebController {
     return new ResponseEntity<>(session.getId(), HttpStatus.OK);
   }
 
-  @PostMapping("/shi/arrayCmd")
+  @PostMapping("/cmdi/arrayCmd")
   public String shiArrayCmd(@RequestParam("cmd") String[] arrayCmd) {
     withProcess(() -> Runtime.getRuntime().exec(arrayCmd));
     return "EXECUTED";
   }
 
-  @PostMapping("/shi/cmd")
-  public String shiCmd(@RequestParam("cmd") String cmd) {
-    withProcess(() -> Runtime.getRuntime().exec(cmd));
-    return "EXECUTED";
-  }
-
-  @PostMapping("/shi/arrayCmdWithParams")
+  @PostMapping("/cmdi/arrayCmdWithParams")
   public String shiArrayCmdWithParams(
       @RequestParam("cmd") String[] arrayCmd, @RequestParam("params") String[] params) {
     withProcess(() -> Runtime.getRuntime().exec(arrayCmd, params));
     return "EXECUTED";
   }
 
-  @PostMapping("/shi/cmdWithParams")
-  public String shiCmdWithParams(
-      @RequestParam("cmd") String cmd, @RequestParam("params") String[] params) {
-    withProcess(() -> Runtime.getRuntime().exec(cmd, params));
-    return "EXECUTED";
-  }
-
-  @PostMapping("/shi/arrayCmdWithParamsAndFile")
+  @PostMapping("/cmdi/arrayCmdWithParamsAndFile")
   public String shiArrayCmdWithParamsAndFile(
       @RequestParam("cmd") String[] arrayCmd, @RequestParam("params") String[] params) {
     withProcess(() -> Runtime.getRuntime().exec(arrayCmd, params, new File("")));
     return "EXECUTED";
   }
 
-  @PostMapping("/shi/cmdParamsAndFile")
-  public String shiCmdParamsAndFile(
-      @RequestParam("cmd") String cmd, @RequestParam("params") String[] params) {
-    withProcess(() -> Runtime.getRuntime().exec(cmd, params, new File("")));
-    return "EXECUTED";
-  }
-
-  @PostMapping("/shi/processBuilder")
+  @PostMapping("/cmdi/processBuilder")
   public String shiProcessBuilder(@RequestParam("cmd") String[] cmd) {
     withProcess(() -> new ProcessBuilder(cmd).start());
     return "EXECUTED";
