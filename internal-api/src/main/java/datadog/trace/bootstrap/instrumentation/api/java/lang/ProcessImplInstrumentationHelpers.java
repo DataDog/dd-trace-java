@@ -1,7 +1,14 @@
 package datadog.trace.bootstrap.instrumentation.api.java.lang;
 
+import static datadog.trace.api.gateway.Events.EVENTS;
 import static java.lang.invoke.MethodType.methodType;
 
+import datadog.appsec.api.blocking.BlockingException;
+import datadog.trace.api.Config;
+import datadog.trace.api.gateway.BlockResponseFunction;
+import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -14,10 +21,18 @@ import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.function.BiFunction;
 import java.util.regex.Pattern;
+import javax.annotation.Nonnull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** This class is included here because it needs to injected into the bootstrap clasloader. */
 public class ProcessImplInstrumentationHelpers {
+
+  private static final Logger LOGGER =
+      LoggerFactory.getLogger(ProcessImplInstrumentationHelpers.class);
+
   private static final int LIMIT = 4096;
   public static final boolean ONLINE;
   private static final MethodHandle PROCESS_ON_EXIT;
@@ -183,6 +198,56 @@ public class ProcessImplInstrumentationHelpers {
       return first;
     }
     return first.substring(pos + 1);
+  }
+
+  /*
+   Check if there is a shell injection attempt to block it
+  */
+  public static void shiRaspCheck(@Nonnull final String[] cmdArray) {
+    if (!Config.get().isAppSecRaspEnabled()) {
+      return;
+    }
+    try {
+      final BiFunction<RequestContext, String[], Flow<Void>> shellCmdCallback =
+          AgentTracer.get()
+              .getCallbackProvider(RequestContextSlot.APPSEC)
+              .getCallback(EVENTS.shellCmd());
+
+      if (shellCmdCallback == null) {
+        return;
+      }
+
+      final AgentSpan span = AgentTracer.get().activeSpan();
+      if (span == null) {
+        return;
+      }
+
+      final RequestContext ctx = span.getRequestContext();
+      if (ctx == null) {
+        return;
+      }
+
+      Flow<Void> flow = shellCmdCallback.apply(ctx, cmdArray);
+      Flow.Action action = flow.getAction();
+      if (action instanceof Flow.Action.RequestBlockingAction) {
+        BlockResponseFunction brf = ctx.getBlockResponseFunction();
+        if (brf != null) {
+          Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+          brf.tryCommitBlockingResponse(
+              ctx.getTraceSegment(),
+              rba.getStatusCode(),
+              rba.getBlockingContentType(),
+              rba.getExtraHeaders());
+        }
+        throw new BlockingException("Blocked request (for SHI attempt)");
+      }
+    } catch (final BlockingException e) {
+      // re-throw blocking exceptions
+      throw e;
+    } catch (final Throwable e) {
+      // suppress anything else
+      LOGGER.debug("Exception during SHI rasp callback", e);
+    }
   }
 
   private static AgentScope.Continuation captureContinuation() {

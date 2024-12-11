@@ -260,7 +260,7 @@ public class GatewayBridge {
     }
   }
 
-  private Flow<Void> onShellCmd(RequestContext ctx_, Object command) {
+  private Flow<Void> onShellCmd(RequestContext ctx_, String[] command) {
     AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
     if (ctx == null) {
       return NoopFlow.INSTANCE;

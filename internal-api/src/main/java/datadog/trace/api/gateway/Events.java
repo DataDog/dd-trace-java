@@ -314,8 +314,8 @@ public final class Events<D> {
   private static final EventType SHELL_CMD = new ET<>("shell.cmd", SHELL_CDM_ID);
 
   @SuppressWarnings("unchecked")
-  public EventType<BiFunction<RequestContext, Object, Flow<Void>>> shellCmd() {
-    return (EventType<BiFunction<RequestContext, Object, Flow<Void>>>) SHELL_CMD;
+  public EventType<BiFunction<RequestContext, String[], Flow<Void>>> shellCmd() {
+    return (EventType<BiFunction<RequestContext, String[], Flow<Void>>>) SHELL_CMD;
   }
 
   static final int MAX_EVENTS = nextId.get();
