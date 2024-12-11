@@ -9,6 +9,7 @@ okio = "1.17.6" # Datadog fork
 spock = "2.2-groovy-3.0"
 groovy = "3.0.17"
 junit5 = "5.9.2"
+junit-platform = "1.11.3"
 logback = "1.2.3"
 bytebuddy = "1.14.18"
 scala = "2.11.12" # Last version to support Java 7 (2.12+ require Java 8+)
@@ -63,6 +64,8 @@ spock-junit4 = { module = "org.spockframework:spock-junit4", version.ref = "spoc
 objenesis = { module = "org.objenesis:objenesis", version = "3.3" } # Used by Spock for mocking:
 
 groovy = { module = "org.codehaus.groovy:groovy-all", version.ref = "groovy" }
+
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junit-platform"}
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit5" }
 junit-jupiter-params = { module = "org.junit.jupiter:junit-jupiter-params", version.ref = "junit5" }
 
