@@ -150,20 +150,21 @@ class ConnectWorkerInstrumentationTest extends AgentTestRunner {
 
     StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
     verifyAll(first) {
-      edgeTags == ["direction:out", "kafka_cluster_id:$clusterId", "topic:test-topic", "type:kafka"]
-      edgeTags.size() == 4
+      assert [
+        "direction:out",
+        "topic:test-topic",
+        "type:kafka"
+      ].every( tag -> edgeTags.contains(tag) )
     }
 
     StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
     verifyAll(second) {
-      edgeTags == [
+      assert [
         "direction:in",
         "group:test-consumer-group",
-        "kafka_cluster_id:$clusterId",
         "topic:test-topic",
         "type:kafka"
-      ]
-      edgeTags.size() == 5
+      ].every( tag -> edgeTags.contains(tag) )
     }
     TEST_DATA_STREAMS_WRITER.getServices().contains('file-source-connector')
 

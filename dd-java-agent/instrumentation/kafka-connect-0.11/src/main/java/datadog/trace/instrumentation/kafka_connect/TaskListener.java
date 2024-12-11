@@ -19,8 +19,11 @@ public class TaskListener implements Listener {
 
   @Override
   public void onPause(ConnectorTaskId connectorTaskId) {
-    delegate.onPause(connectorTaskId);
-    AgentTracer.get().getDataStreamsMonitoring().clearThreadServiceName();
+    try {
+      delegate.onPause(connectorTaskId);
+    } finally {
+      AgentTracer.get().getDataStreamsMonitoring().clearThreadServiceName();
+    }
   }
 
   @Override
@@ -31,13 +34,19 @@ public class TaskListener implements Listener {
 
   @Override
   public void onFailure(ConnectorTaskId connectorTaskId, Throwable throwable) {
-    delegate.onFailure(connectorTaskId, throwable);
-    AgentTracer.get().getDataStreamsMonitoring().clearThreadServiceName();
+    try {
+      delegate.onFailure(connectorTaskId, throwable);
+    } finally {
+      AgentTracer.get().getDataStreamsMonitoring().clearThreadServiceName();
+    }
   }
 
   @Override
   public void onShutdown(ConnectorTaskId connectorTaskId) {
-    delegate.onShutdown(connectorTaskId);
-    AgentTracer.get().getDataStreamsMonitoring().clearThreadServiceName();
+    try {
+      delegate.onShutdown(connectorTaskId);
+    } finally {
+      AgentTracer.get().getDataStreamsMonitoring().clearThreadServiceName();
+    }
   }
 }

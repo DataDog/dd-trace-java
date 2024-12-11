@@ -29,6 +29,9 @@ dependencies {
   // Spring Kafka Test library
   testImplementation 'org.springframework.kafka:spring-kafka-test:2.7.9'  // Version compatible with Kafka 2.7.x
   testRuntimeOnly project(':dd-java-agent:instrumentation:kafka-clients-0.11')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:kafka-clients-3.8')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:kafka-streams-0.11')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:kafka-streams-1.0')
 }
 
 configurations.testRuntimeClasspath {
