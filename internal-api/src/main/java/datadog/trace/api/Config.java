@@ -306,6 +306,7 @@ public class Config {
   private final int iastSourceMappingMaxSize;
   private final boolean iastStackTraceEnabled;
   private final boolean iastExperimentalPropagationEnabled;
+  private final int iastDbRowsToTaint;
 
   private final boolean ciVisibilityTraceSanitationEnabled;
   private final boolean ciVisibilityAgentlessEnabled;
@@ -1318,6 +1319,8 @@ public class Config {
         configProvider.getBoolean(IAST_STACK_TRACE_ENABLED, DEFAULT_IAST_STACK_TRACE_ENABLED);
     iastExperimentalPropagationEnabled =
         configProvider.getBoolean(IAST_EXPERIMENTAL_PROPAGATION_ENABLED, false);
+    iastDbRowsToTaint =
+        configProvider.getInteger(IAST_DB_ROWS_TO_TAINT, DEFAULT_IAST_DB_ROWS_TO_TAINT);
 
     ciVisibilityTraceSanitationEnabled =
         configProvider.getBoolean(CIVISIBILITY_TRACE_SANITATION_ENABLED, true);
@@ -2604,6 +2607,10 @@ public class Config {
 
   public boolean isIastExperimentalPropagationEnabled() {
     return iastExperimentalPropagationEnabled;
+  }
+
+  public int getIastDbRowsToTaint() {
+    return iastDbRowsToTaint;
   }
 
   public boolean isCiVisibilityEnabled() {

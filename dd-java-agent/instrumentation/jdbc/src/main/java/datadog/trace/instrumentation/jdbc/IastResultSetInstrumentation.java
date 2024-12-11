@@ -1,9 +1,9 @@
 package datadog.trace.instrumentation.jdbc;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
@@ -11,7 +11,7 @@ import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
+import datadog.trace.api.Config;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.IastContext;
@@ -42,7 +42,7 @@ public class IastResultSetInstrumentation extends InstrumenterModule.Iast
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(NameMatchers.named("java.sql.ResultSet"));
+    return implementsInterface(named("java.sql.ResultSet"));
   }
 
   @Override
@@ -71,7 +71,9 @@ public class IastResultSetInstrumentation extends InstrumenterModule.Iast
           InstrumentationContext.get(ResultSet.class, Integer.class);
       if (contextStore.get(resultSet) != null) {
         contextStore.put(resultSet, contextStore.get(resultSet) + 1);
-        return;
+        if (contextStore.get(resultSet) > Config.get().getIastDbRowsToTaint()) {
+          return;
+        }
       } else {
         // first time
         contextStore.put(resultSet, 1);

@@ -27,6 +27,7 @@ public final class IastConfig {
   public static final String IAST_SOURCE_MAPPING_MAX_SIZE = "iast.source-mapping.max-size";
   public static final String IAST_EXPERIMENTAL_PROPAGATION_ENABLED =
       "iast.experimental.propagation.enabled";
+  public static final String IAST_DB_ROWS_TO_TAINT = "iast.db.rows.to.taint";
 
   public static final String IAST_STACK_TRACE_ENABLED = "iast.stacktrace.enabled";
 
