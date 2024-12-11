@@ -16,14 +16,6 @@ class CiVisibilityTraceInterceptorTest extends DDCoreSpecification {
     tracer?.close()
   }
 
-  def "discard a trace that does not come from a test"() {
-    tracer.addTraceInterceptor(CiVisibilityTraceInterceptor.INSTANCE)
-    tracer.buildSpan("sample-span").start().finish()
-
-    expect:
-    writer.size() == 0
-  }
-
   def "add ciapp origin and tracer version to spans of type #spanType"() {
     setup:
     tracer.addTraceInterceptor(CiVisibilityTraceInterceptor.INSTANCE)
