@@ -12,13 +12,13 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 
-public class Trace {
+public class AgentTrace {
   private static JsonAdapter<List<AgentSpan>> singleAdapter;
   private static JsonAdapter<List<List<AgentSpan>>> collectionAdapter;
 
   private final List<AgentSpan> spans;
 
-  public Trace(List<AgentSpan> spans) {
+  public AgentTrace(List<AgentSpan> spans) {
     this.spans = spans;
   }
 
@@ -26,34 +26,39 @@ public class Trace {
     return this.spans;
   }
 
-  public static Trace fromJson(String json) throws IOException {
+  @Override
+  public String toString() {
+    return this.spans.toString();
+  }
+
+  public static AgentTrace fromJson(String json) throws IOException {
     checkAdapters();
-    List<AgentSpan> spans = Trace.singleAdapter.fromJson(json);
+    List<AgentSpan> spans = AgentTrace.singleAdapter.fromJson(json);
     if (spans == null) {
       return null;
     }
-    return new Trace(spans);
+    return new AgentTrace(spans);
   }
 
-  public static List<Trace> fromJsonArray(String json) throws IOException {
+  public static List<AgentTrace> fromJsonArray(String json) throws IOException {
     checkAdapters();
-    List<List<AgentSpan>> traces = Trace.collectionAdapter.fromJson(json);
+    List<List<AgentSpan>> traces = AgentTrace.collectionAdapter.fromJson(json);
     if (traces == null) {
       return emptyList();
     }
-    return traces.stream().map(Trace::new).collect(toList());
+    return traces.stream().map(AgentTrace::new).collect(toList());
   }
 
   private static void checkAdapters() {
-    if (Trace.singleAdapter == null || Trace.collectionAdapter == null) {
+    if (AgentTrace.singleAdapter == null || AgentTrace.collectionAdapter == null) {
       Moshi moshi = new Moshi.Builder()
           .add(Duration.class, new AgentSpan.DurationAdapter())
           .add(Instant.class, new AgentSpan.InstantAdapter())
           .build();
       Type traceType = Types.newParameterizedType(List.class, AgentSpan.class);
-      Trace.singleAdapter = moshi.adapter(traceType);
+      AgentTrace.singleAdapter = moshi.adapter(traceType);
       Type traceArray = Types.newParameterizedType(List.class, traceType);
-      Trace.collectionAdapter = moshi.adapter(traceArray);
+      AgentTrace.collectionAdapter = moshi.adapter(traceArray);
     }
   }
 }

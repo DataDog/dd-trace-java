@@ -80,6 +80,22 @@ public class AgentSpan {
     return this.error;
   }
 
+  @Override
+  public String toString() {
+    return "{" +
+        "service='" + service + '\'' +
+        ", name='" + name + '\'' +
+        ", resource='" + resource + '\'' +
+        ", traceId=" + traceId +
+        ", spanId=" + spanId +
+        ", parentId=" + parentId +
+        ", start=" + start +
+        ", duration=" + duration +
+        ", type='" + type + '\'' +
+        ", error=" + error +
+        '}';
+  }
+
   static class DurationAdapter extends JsonAdapter<Duration> {
     @Override
     public Duration fromJson(JsonReader jsonReader) throws IOException {

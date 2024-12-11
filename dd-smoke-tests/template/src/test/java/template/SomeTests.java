@@ -1,14 +1,15 @@
 package template;
 
 
-import static java.util.Collections.emptyList;
+import static datadog.test.agent.assertions.AgentSpanMatcher.span;
+import static datadog.test.agent.assertions.AgentTraceAssertions.IGNORE_ADDITIONAL_TRACES;
+import static datadog.test.agent.assertions.AgentTraceAssertions.assertTraces;
+import static datadog.test.agent.assertions.AgentTraceMatcher.trace;
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import datadog.test.agent.TestAgentClient;
-import datadog.test.agent.Trace;
 import datadog.test.agent.junit5.TestAgentExtension;
 import datadog.trace.agent.test.utils.OkHttpUtils;
 import okhttp3.OkHttpClient;
@@ -18,7 +19,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import java.io.File;
 import java.io.IOException;
-import java.util.List;
 
 @ExtendWith(TestAgentExtension.class)
 public class SomeTests {
@@ -46,6 +46,10 @@ public class SomeTests {
         "-Ddd.trace.agent.port=" + this.agent.port(),
         "-Ddd.env=smoketest",
         "-Ddd.version=99",
+
+        // Disable JDBC for flakiness
+        "-Ddd.integration.jdbc.enabled=false",
+
 //        "-Ddd.profiling.enabled=true",
 //        "-Ddd.profiling.start-delay=${PROFILING_START_DELAY_SECONDS}",
 //        "-Ddd.profiling.upload.period=${PROFILING_RECORDING_UPLOAD_PERIOD_SECONDS}",
@@ -128,10 +132,37 @@ public class SomeTests {
     } finally {
       stopProcess(process);
     }
-    sleep(5_000);
-    List<Trace> traces = this.agent.traces();
-    System.out.println(">>> " + traces);
-    assertEquals(emptyList(), traces, "Traces should be empty");
+
+    assertTraces(this.agent,
+        IGNORE_ADDITIONAL_TRACES,
+//        AgentTraceAssertions.Options::ignoredAdditionalTraces,
+        trace(
+            span()
+                .withServiceName("root-servlet"),
+            span()
+                .withServiceName("root-servlet"),
+            span()
+                .withServiceName("root-servlet")
+        ),
+        trace(
+            span(),
+            span(),
+            span()
+        ),
+        trace(
+            span()
+        ),
+        trace(
+            span()
+        ),
+        trace(
+            span()
+        )
+    );
+
+//    List<AgentTrace> traces = this.agent.traces();
+//    System.out.println(">>> " + traces);
+//    assertEquals(emptyList(), traces, "Traces should be empty");
   }
 
   private static void sleep(long millis) {

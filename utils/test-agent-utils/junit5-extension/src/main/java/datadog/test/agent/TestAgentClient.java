@@ -8,6 +8,7 @@ import okhttp3.Response;
 import okhttp3.ResponseBody;
 import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.TimeoutException;
 
 public class TestAgentClient {
 
@@ -27,17 +28,39 @@ public class TestAgentClient {
     return this.port;
   }
 
-  public List<Trace> traces() {
+  public List<AgentTrace> traces() {
     Request request = new Request.Builder().url(this.baseUrl + "test/traces").build();
     try (Response response = this.client.newCall(request).execute()) {
       ResponseBody body = response.body();
       if (body == null) {
         return emptyList();
       } else {
-        return Trace.fromJsonArray(body.string());
+        return AgentTrace.fromJsonArray(body.string());
       }
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  public List<AgentTrace> waitForTraces(int traceCount) throws TimeoutException {
+    List<AgentTrace> traces;
+    // Retry every 500ms during 20s max
+    int retry = 0;
+    int maxRetries = 40;
+    int retryDelay = 500;
+    do {
+      traces = traces();
+      if (traces.size() >= traceCount) {
+        return traces;
+      }
+      retry++;
+      try {
+        Thread.sleep(retryDelay);
+      } catch (InterruptedException e) {
+        throw new RuntimeException(e);
+      }
+    } while (retry < maxRetries);
+    throw new TimeoutException("Failed to retrieve " + traceCount + " traces from trace agent. Only get " + traces.size() + " trace(s).")
+    ;
   }
 }
