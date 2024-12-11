@@ -45,10 +45,12 @@ abstract class ApacheHttpAsyncClient5Test<T extends HttpRequest> extends HttpCli
   }
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+  int doRequest(String method, URI uri, List<List<String>> headers, String body, Closure callback) {
     def request = SimpleHttpRequests.create(method, uri)
     request.setConfig(RequestConfig.custom().setConnectTimeout(CONNECT_TIMEOUT_MS, TimeUnit.MILLISECONDS).build())
-    headers.each { request.addHeader(it.key, it.value) }
+    for (String header : headers) {
+      request.addHeader(header[0], header[1])
+    }
 
     def future = client.execute(request, null)
     def response = future.get(READ_TIMEOUT_MS, TimeUnit.MILLISECONDS)

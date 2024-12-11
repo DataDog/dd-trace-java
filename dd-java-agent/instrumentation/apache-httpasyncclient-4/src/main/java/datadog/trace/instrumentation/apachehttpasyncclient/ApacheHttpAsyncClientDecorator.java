@@ -60,9 +60,13 @@ public class ApacheHttpAsyncClientDecorator
 
   @Override
   protected String getRequestHeader(HttpUriRequest request, String headerName) {
-    Header header = request.getFirstHeader(headerName);
-    if (header != null) {
-      return header.getValue();
+    Header[] headers = request.getHeaders(headerName);
+    if (headers.length > 0) {
+      StringBuilder result = new StringBuilder(headers[0].getValue());
+      for (int i = 1; i < headers.length; i++) {
+        result.append(",").append(headers[i].getValue());
+      }
+      return result.toString();
     }
     return null;
   }
@@ -71,9 +75,13 @@ public class ApacheHttpAsyncClientDecorator
   protected String getResponseHeader(HttpContext context, String headerName) {
     final Object responseObject = context.getAttribute(HttpCoreContext.HTTP_RESPONSE);
     if (responseObject instanceof HttpResponse) {
-      Header header = ((HttpResponse) responseObject).getFirstHeader(headerName);
-      if (header != null) {
-        return header.getValue();
+      Header[] headers = ((HttpResponse) responseObject).getHeaders(headerName);
+      if (headers.length > 0) {
+        StringBuilder result = new StringBuilder(headers[0].getValue());
+        for (int i = 1; i < headers.length; i++) {
+          result.append(",").append(headers[i].getValue());
+        }
+        return result.toString();
       }
     }
     return null;

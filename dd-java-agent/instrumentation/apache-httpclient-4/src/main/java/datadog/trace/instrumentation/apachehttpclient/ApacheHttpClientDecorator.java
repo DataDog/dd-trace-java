@@ -46,18 +46,29 @@ public class ApacheHttpClientDecorator extends HttpClientDecorator<HttpUriReques
 
   @Override
   protected String getRequestHeader(HttpUriRequest request, String headerName) {
-    Header header = request.getFirstHeader(headerName);
-    if (null != header) {
-      return header.getValue();
+    Header[] headers = request.getHeaders(headerName);
+    if (headers.length > 0) {
+      StringBuilder result = new StringBuilder(headers[0].getValue());
+      for (int i = 1; i < headers.length; i++) {
+        result.append(",").append(headers[i].getValue());
+      }
+      String x = result.toString();
+      System.out.println("returning " + x);
+      return x;
     }
     return null;
   }
 
   @Override
   protected String getResponseHeader(HttpResponse response, String headerName) {
-    Header header = response.getFirstHeader(headerName);
-    if (null != header) {
-      return header.getValue();
+    Header[] headers = response.getHeaders(headerName);
+    if (headers.length > 0) {
+      StringBuilder result = new StringBuilder(headers[0].getValue());
+      for (int i = 1; i < headers.length; i++) {
+        result.append(",").append(headers[i].getValue());
+      }
+      System.out.println("returning " + result);
+      return result.toString();
     }
     return null;
   }
