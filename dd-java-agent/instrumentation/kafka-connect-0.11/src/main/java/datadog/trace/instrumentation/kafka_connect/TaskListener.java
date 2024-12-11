@@ -25,8 +25,8 @@ public class TaskListener implements Listener {
 
   @Override
   public void onResume(ConnectorTaskId connectorTaskId) {
-    delegate.onResume(connectorTaskId);
     AgentTracer.get().getDataStreamsMonitoring().setThreadServiceName(connectorTaskId.connector());
+    delegate.onResume(connectorTaskId);
   }
 
   @Override
