@@ -71,11 +71,8 @@ class IastResultSetInstrumentationTest extends IastAgentTestRunner {
 
   void 'returned string is tainted with source values as sql table but second value is not tainted'() {
     when:
-    def firstValue
-    def secondValue
-    TaintedObject firstTaintedObject
-    TaintedObject secondTaintedObject
-    boolean isFirst = true
+    List<String> valuesRead = []
+    List<TaintedObject> taintedObjects = []
     runUnderIastTrace {
       String sql = 'SELECT name FROM TEST LIMIT 2'
       Connection constWrapper = new IastInstrumentedConnection(conn: connection)
@@ -83,31 +80,68 @@ class IastResultSetInstrumentationTest extends IastAgentTestRunner {
       constWrapper.prepareStatement(sql).withCloseable { stmt ->
         stmt.executeQuery().withCloseable { rs ->
           while (rs.next()) {
-            if (isFirst) {
-              firstValue = rs.getString("name")
-              isFirst = false
-            } else {
-              secondValue = rs.getString("name")
-            }
+            valuesRead.add(rs.getString("name"))
           }
         }
       }
 
-      firstTaintedObject = localTaintedObjects.get(firstValue)
-      secondTaintedObject = localTaintedObjects.get(secondValue)
+      taintedObjects.add(localTaintedObjects.get(valuesRead[0]))
+      taintedObjects.add(localTaintedObjects.get(valuesRead[1]))
     }
 
     then:
-    firstValue == "foo"
-    firstTaintedObject != null
-    with(firstTaintedObject) {
+    valuesRead[0] == "foo"
+    taintedObjects[0] != null
+    with(taintedObjects[0]) {
       with(ranges[0]) {
         source.origin == SourceTypes.SQL_TABLE
-        source.value == firstValue
+        source.value == valuesRead[0]
       }
     }
-    secondValue == "bar"
-    secondTaintedObject == null
+    valuesRead[1] == "bar"
+    taintedObjects[1] == null
+  }
+
+  void 'returned string is tainted with source values as sql table and can taint up to two values'() {
+    given:
+    injectSysConfig('dd.iast.db.rows.to.taint', "2")
+
+    when:
+    List<String> valuesRead = []
+    List<TaintedObject> taintedObjects = []
+    runUnderIastTrace {
+      String sql = 'SELECT name FROM TEST LIMIT 2'
+      Connection constWrapper = new IastInstrumentedConnection(conn: connection)
+
+      constWrapper.prepareStatement(sql).withCloseable { stmt ->
+        stmt.executeQuery().withCloseable { rs ->
+          while (rs.next()) {
+            valuesRead.add(rs.getString("name"))
+          }
+        }
+      }
+
+      taintedObjects.add(localTaintedObjects.get(valuesRead[0]))
+      taintedObjects.add(localTaintedObjects.get(valuesRead[1]))
+    }
+
+    then:
+    valuesRead[0] == "foo"
+    taintedObjects[0] != null
+    with(taintedObjects[0]) {
+      with(ranges[0]) {
+        source.origin == SourceTypes.SQL_TABLE
+        source.value == valuesRead[0]
+      }
+    }
+    valuesRead[1] == "bar"
+    taintedObjects[1] != null
+    with(taintedObjects[1]) {
+      with(ranges[0]) {
+        source.origin == SourceTypes.SQL_TABLE
+        source.value == valuesRead[1]
+      }
+    }
   }
 
   void 'when returned value is not a string does not taint the result' () {
