@@ -10,6 +10,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.connect.runtime.TaskStatus.Listener;
 import org.apache.kafka.connect.util.ConnectorTaskId;
 
@@ -56,6 +57,12 @@ public final class ConnectWorkerInstrumentation extends InstrumenterModule.Traci
         @Advice.Argument(value = 0, readOnly = true) ConnectorTaskId id,
         @Advice.Argument(value = 1, readOnly = false) Listener statusListener) {
       statusListener = new TaskListener(statusListener);
+    }
+
+    public static void muzzleCheck(ConsumerRecord record) {
+      // KafkaConsumerInstrumentation only applies for kafka versions with headers
+      // Make an explicit call so ConsumerCoordinatorInstrumentation does the same
+      record.headers();
     }
   }
 }
