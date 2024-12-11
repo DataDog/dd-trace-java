@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.jdbc;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
+import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -10,7 +11,6 @@ import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.agent.tooling.bytebuddy.iast.TaintableDbVisitor;
 import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
@@ -18,24 +18,22 @@ import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
-import datadog.trace.api.iast.TaintableDb;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.bootstrap.ContextStore;
+import datadog.trace.bootstrap.InstrumentationContext;
+import java.sql.ResultSet;
+import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class IastResultSetInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasTypeAdvice {
+    implements Instrumenter.ForTypeHierarchy {
 
   public IastResultSetInstrumentation() {
     super("jdbc", "resultset");
   }
-
-  //  @Override
-  //  public String instrumentedType() {
-  //    return "java.sql.ResultSet";
-  //  }
 
   @Override
   public String hierarchyMarkerType() {
@@ -48,15 +46,17 @@ public class IastResultSetInstrumentation extends InstrumenterModule.Iast
   }
 
   @Override
-  public void typeAdvice(TypeTransformer transformer) {
-    transformer.applyAdvice(new TaintableDbVisitor(hierarchyMarkerType()));
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
+        isMethod()
+            .and(named("getString"))
+            .and(takesArguments(int.class).or(takesArguments(String.class))),
+        IastResultSetInstrumentation.class.getName() + "$GetParameterAdvice");
   }
 
   @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(named("getInt")).and(takesArguments(int.class)),
-        IastResultSetInstrumentation.class.getName() + "$GetParameterAdvice");
+  public Map<String, String> contextStore() {
+    return singletonMap("java.sql.ResultSet", Integer.class.getName());
   }
 
   @RequiresRequestContext(RequestContextSlot.IAST)
@@ -64,16 +64,18 @@ public class IastResultSetInstrumentation extends InstrumenterModule.Iast
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.SQL_TABLE)
     public static void onExit(
-        @Advice.Argument(0) final int columnIndex,
-        @Advice.Return final Object value,
-        @Advice.This final TaintableDb resultSet,
+        @Advice.Return final String value,
+        @Advice.This final ResultSet resultSet,
         @ActiveRequestContext RequestContext reqCtx) {
-      //      int recordsRead = resultSet.$$DD$RecordsRead;
-      //      int recordsRead = resultSet.$$DD$getRecordsRead();
-      //      resultSet.$$DD$setRecordsRead(recordsRead + 1);
-      //      if (recordsRead > 1) {
-      //        return;
-      //      }
+      ContextStore<ResultSet, Integer> contextStore =
+          InstrumentationContext.get(ResultSet.class, Integer.class);
+      if (contextStore.get(resultSet) != null) {
+        contextStore.put(resultSet, contextStore.get(resultSet) + 1);
+        return;
+      } else {
+        // first time
+        contextStore.put(resultSet, 1);
+      }
       if (value == null) {
         return;
       }
@@ -82,7 +84,7 @@ public class IastResultSetInstrumentation extends InstrumenterModule.Iast
         return;
       }
       IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-      module.taintString(ctx, String.valueOf(value), SourceTypes.SQL_TABLE);
+      module.taintString(ctx, value, SourceTypes.SQL_TABLE);
     }
   }
 }
