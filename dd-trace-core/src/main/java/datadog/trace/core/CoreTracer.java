@@ -286,7 +286,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     if (!root.isOutbound()) {
       return profilingContextIntegration.onRootSpanStarted(root);
     }
-    TracerDump.addActiveSpan(root);
+    TracerDump.addUnfinishedRootSpan(root);
     return null;
   }
 
