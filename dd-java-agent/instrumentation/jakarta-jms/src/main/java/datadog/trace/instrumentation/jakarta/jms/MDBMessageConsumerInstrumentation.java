@@ -19,11 +19,13 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import jakarta.jms.Destination;
 import jakarta.jms.JMSException;
 import jakarta.jms.Message;
+import jakarta.jms.MessageListener;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -72,6 +74,9 @@ public final class MDBMessageConsumerInstrumentation extends InstrumenterModule.
   public static class MDBAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope methodEnter(@Advice.Argument(0) final Message message) {
+      if (CallDepthThreadLocalMap.incrementCallDepth(MessageListener.class) > 0) {
+        return null;
+      }
       AgentSpan.Context propagatedContext = propagate().extract(message, GETTER);
       AgentSpan span = startSpan(JMS_CONSUME, propagatedContext);
       CONSUMER_DECORATE.afterStart(span);
@@ -93,6 +98,7 @@ public final class MDBMessageConsumerInstrumentation extends InstrumenterModule.
     public static void methodExit(
         @Advice.Enter AgentScope scope, @Advice.Thrown final Throwable throwable) {
       if (null != scope) {
+        CallDepthThreadLocalMap.reset(MessageListener.class);
         CONSUMER_DECORATE.onError(scope, throwable);
         scope.close();
         scope.span().finish();

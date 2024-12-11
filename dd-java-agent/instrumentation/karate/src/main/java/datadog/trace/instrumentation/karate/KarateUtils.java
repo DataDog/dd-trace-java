@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.karate;
 
+import static datadog.json.JsonMapper.toJson;
+
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureRuntime;
 import com.intuit.karate.core.Result;
@@ -76,7 +78,7 @@ public abstract class KarateUtils {
   }
 
   public static String getParameters(Scenario scenario) {
-    return scenario.getExampleData() != null ? Strings.toJson(scenario.getExampleData()) : null;
+    return scenario.getExampleData() != null ? toJson(scenario.getExampleData()) : null;
   }
 
   public static TestIdentifier toTestIdentifier(Scenario scenario) {

@@ -110,6 +110,7 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test flaky retries #testcaseName"() {
+    givenFlakyRetryEnabled(true)
     givenFlakyTests(retriedTests)
     runTests(tests, null)
 
@@ -128,6 +129,7 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
   def "test early flakiness detection #testcaseName"() {
     Assumptions.assumeTrue(isEFDSupported())
 
+    givenEarlyFlakinessDetectionEnabled(true)
     givenKnownTests(knownTestsList)
 
     runTests(tests)

@@ -30,7 +30,7 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
 
   private final ConfigurationUpdater configurationUpdater;
 
-  private final Map<String, CodeOriginProbe> fingerprints = new HashMap<>();
+  private final Map<String, CodeOriginProbe> probesByFingerprint = new HashMap<>();
 
   private final Map<String, CodeOriginProbe> probes = new ConcurrentHashMap<>();
 
@@ -45,36 +45,28 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
   public String captureCodeOrigin(boolean entry) {
     StackTraceElement element = findPlaceInStack();
     String fingerprint = Fingerprinter.fingerprint(element);
-    CodeOriginProbe probe;
-
-    if (isAlreadyInstrumented(fingerprint)) {
-      probe = fingerprints.get(fingerprint);
-    } else {
-      probe =
-          createProbe(
-              fingerprint,
-              entry,
-              Where.of(
-                  element.getClassName(),
-                  element.getMethodName(),
-                  null,
-                  String.valueOf(element.getLineNumber())));
+    CodeOriginProbe probe = probesByFingerprint.get(fingerprint);
+    if (probe == null) {
+      Where where =
+          Where.of(
+              element.getClassName(),
+              element.getMethodName(),
+              null,
+              String.valueOf(element.getLineNumber()));
+      probe = createProbe(fingerprint, entry, where);
+      LOG.debug("Creating probe for location {}", where);
     }
-
     return probe.getId();
   }
 
   @Override
   public String captureCodeOrigin(Method method, boolean entry) {
-    CodeOriginProbe probe;
-
-    String fingerPrint = method.toString();
-    if (isAlreadyInstrumented(fingerPrint)) {
-      probe = fingerprints.get(fingerPrint);
-    } else {
-      probe = createProbe(fingerPrint, entry, Where.of(method));
+    String fingerprint = method.toString();
+    CodeOriginProbe probe = probesByFingerprint.get(fingerprint);
+    if (probe == null) {
+      probe = createProbe(fingerprint, entry, Where.of(method));
+      LOG.debug("Creating probe for method {}", fingerprint);
     }
-
     return probe.getId();
   }
 
@@ -106,22 +98,16 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
                 .orElse(null));
   }
 
-  public boolean isAlreadyInstrumented(String fingerprint) {
-    return fingerprints.containsKey(fingerprint);
-  }
-
   void addFingerprint(String fingerprint, CodeOriginProbe probe) {
-    fingerprints.putIfAbsent(fingerprint, probe);
+    probesByFingerprint.putIfAbsent(fingerprint, probe);
   }
 
-  public String installProbe(CodeOriginProbe probe) {
+  public void installProbe(CodeOriginProbe probe) {
     CodeOriginProbe installed = probes.putIfAbsent(probe.getId(), probe);
     if (installed == null) {
       AgentTaskScheduler.INSTANCE.execute(
           () -> configurationUpdater.accept(CODE_ORIGIN, getProbes()));
-      return probe.getId();
     }
-    return installed.getId();
   }
 
   public CodeOriginProbe getProbe(String probeId) {

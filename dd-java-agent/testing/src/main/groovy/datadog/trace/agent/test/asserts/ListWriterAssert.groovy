@@ -1,5 +1,7 @@
 package datadog.trace.agent.test.asserts
 
+import static TraceAssert.assertTrace
+
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.DDSpan
 import groovy.transform.stc.ClosureParams
@@ -10,8 +12,6 @@ import org.spockframework.runtime.ConditionNotSatisfiedError
 import org.spockframework.runtime.model.TextPosition
 
 import java.util.concurrent.atomic.AtomicInteger
-
-import static TraceAssert.assertTrace
 
 class ListWriterAssert {
   public static final Comparator<List<DDSpan>> SORT_TRACES_BY_ID = new SortTracesById()
@@ -108,8 +108,13 @@ class ListWriterAssert {
     @DelegatesTo(value = TraceAssert, strategy = Closure.DELEGATE_FIRST) Closure spec) {
     trace(expectedSize, false, spec)
   }
-
   void trace(int expectedSize, boolean sortByName,
+    @ClosureParams(value = SimpleType, options = ['datadog.trace.agent.test.asserts.TraceAssert'])
+    @DelegatesTo(value = TraceAssert, strategy = Closure.DELEGATE_FIRST) Closure spec) {
+    trace(expectedSize, sortByName ? TraceAssert.NAME_COMPARATOR : null, spec)
+  }
+
+  void trace(int expectedSize, Comparator<DDSpan> sorter,
     @ClosureParams(value = SimpleType, options = ['datadog.trace.agent.test.asserts.TraceAssert'])
     @DelegatesTo(value = TraceAssert, strategy = Closure.DELEGATE_FIRST) Closure spec) {
     def index = traceAssertCount.getAndIncrement()
@@ -121,7 +126,7 @@ class ListWriterAssert {
       throw new ConcurrentModificationException("ListWriter modified during assertion")
     }
     assertedIndexes.add(index)
-    assertTrace(trace(index), expectedSize, sortByName, spec)
+    assertTrace(trace(index), expectedSize, sorter, spec)
   }
 
   void assertTracesAllVerified() {

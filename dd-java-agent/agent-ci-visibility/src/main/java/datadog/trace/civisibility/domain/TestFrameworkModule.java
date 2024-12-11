@@ -25,6 +25,8 @@ public interface TestFrameworkModule {
    */
   boolean isNew(TestIdentifier test);
 
+  boolean isFlaky(TestIdentifier test);
+
   /**
    * Checks if a given test should be skipped with Intelligent Test Runner or not
    *

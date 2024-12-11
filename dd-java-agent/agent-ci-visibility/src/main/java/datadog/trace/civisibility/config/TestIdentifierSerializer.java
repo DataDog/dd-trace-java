@@ -13,8 +13,10 @@ public abstract class TestIdentifierSerializer {
   }
 
   public static TestIdentifier deserialize(ByteBuffer buffer) {
+    String suiteName = Serializer.readString(buffer);
     return new TestIdentifier(
-        Serializer.readString(buffer),
+        // suite name repeats a lot; interning it to save memory
+        suiteName != null ? suiteName.intern() : null,
         Serializer.readString(buffer),
         Serializer.readString(buffer));
   }

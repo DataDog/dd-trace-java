@@ -17,7 +17,7 @@ public class CodeOriginInfo {
     if (InstrumenterConfig.get().isCodeOriginEnabled()) {
       String probeId = captureCodeOrigin(false);
       if (span != null) {
-        span.getLocalRootSpan().setTag(probeId, span.getSpanId());
+        span.getLocalRootSpan().setTag(probeId, span);
       }
     }
   }

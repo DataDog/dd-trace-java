@@ -116,4 +116,7 @@ public class InstrumentationTags {
 
   public static final String TIBCO_NODE = "tibco.node";
   public static final String TIBCO_VERSION = "tibco.version";
+
+  public static final String MULE_CORRELATION_ID = "mule.correlation_id";
+  public static final String MULE_LOCATION = "mule.location";
 }
