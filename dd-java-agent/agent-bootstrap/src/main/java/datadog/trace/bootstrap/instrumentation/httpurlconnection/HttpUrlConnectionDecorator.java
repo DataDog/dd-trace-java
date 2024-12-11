@@ -50,7 +50,6 @@ public class HttpUrlConnectionDecorator
 
   @Override
   protected String getRequestHeader(HttpURLConnection connection, String headerName) {
-    System.out.println(getClass().getSimpleName());
     return connection.getRequestProperty(headerName);
   }
 
