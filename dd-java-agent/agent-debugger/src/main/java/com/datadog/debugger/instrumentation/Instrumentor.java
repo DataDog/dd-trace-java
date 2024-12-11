@@ -150,12 +150,15 @@ public abstract class Instrumentor {
 
   protected void processInstructions() {
     AbstractInsnNode node = methodNode.instructions.getFirst();
-    while (node != null && !node.equals(returnHandlerLabel)) {
+    LabelNode sentinelNode = new LabelNode();
+    methodNode.instructions.add(sentinelNode);
+    while (node != null && !node.equals(sentinelNode)) {
       if (node.getType() != AbstractInsnNode.LINE) {
         node = processInstruction(node);
       }
       node = node.getNext();
     }
+    methodNode.instructions.remove(sentinelNode);
     if (returnHandlerLabel == null) {
       // if no return found, fallback to use the last instruction as last resort
       returnHandlerLabel = new LabelNode();
@@ -197,9 +200,8 @@ public abstract class Instrumentor {
     if (exitNode.getNext() != null || exitNode.getPrevious() != null) {
       throw new IllegalArgumentException("exitNode is not removed from original instruction list");
     }
-    if (returnHandlerLabel != null) {
-      return returnHandlerLabel;
-    }
+    // Create the returnHandlerLabel every time because the stack state could be different
+    // for each return (suspend method in Kotlin)
     returnHandlerLabel = new LabelNode();
     methodNode.instructions.add(returnHandlerLabel);
     // stack top is return value (if any)
