@@ -16,6 +16,7 @@ import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.util.Strings;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
+import java.security.CodeSource;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -52,6 +53,8 @@ public abstract class InstrumenterModule implements Instrumenter {
   }
 
   private static final Logger log = LoggerFactory.getLogger(InstrumenterModule.class);
+
+  protected static final String[] NO_HELPERS = {};
 
   private final List<String> instrumentationNames;
   private final String instrumentationPrimaryName;
@@ -105,7 +108,14 @@ public abstract class InstrumenterModule implements Instrumenter {
 
   /** @return Class names of helpers to inject into the user's classloader */
   public String[] helperClassNames() {
-    return new String[0];
+    return NO_HELPERS;
+  }
+
+  /**
+   * @return {@code true} if helper classes should be injected with the agent's {@link CodeSource}
+   */
+  public boolean useAgentCodeSource() {
+    return false;
   }
 
   /** Override this to automatically inject all (non-bootstrap) helper dependencies. */
@@ -134,7 +144,7 @@ public abstract class InstrumenterModule implements Instrumenter {
   }
 
   /** Override this to supply additional class-loader requirements. */
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     return ANY_CLASS_LOADER;
   }
 
@@ -239,9 +249,14 @@ public abstract class InstrumenterModule implements Instrumenter {
 
     @Override
     public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-      return enabledSystems.contains(TargetSystem.IAST)
-          || (isOptOutEnabled()
-              && InstrumenterConfig.get().getAppSecActivation() == ProductActivation.FULLY_ENABLED);
+      if (enabledSystems.contains(TargetSystem.IAST)) {
+        return true;
+      }
+      final InstrumenterConfig cfg = InstrumenterConfig.get();
+      if (!isOptOutEnabled() || cfg.isIastFullyDisabled()) {
+        return false;
+      }
+      return cfg.getAppSecActivation() == ProductActivation.FULLY_ENABLED;
     }
 
     /**

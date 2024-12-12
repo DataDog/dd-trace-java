@@ -37,6 +37,7 @@ public class MoshiSnapshotHelper {
   public static final String CAUGHT_EXCEPTIONS = "caughtExceptions";
   public static final String ARGUMENTS = "arguments";
   public static final String LOCALS = "locals";
+  public static final String WATCHES = "watches";
   public static final String THROWABLE = "throwable";
   public static final String STATIC_FIELDS = "staticFields";
   public static final String THIS = "this";
@@ -152,6 +153,20 @@ public class MoshiSnapshotHelper {
         return;
       }
       jsonWriter.beginObject();
+      if (capturedContext.getWatches() != null) {
+        // only watches are serialized into the snapshot
+        jsonWriter.name(WATCHES);
+        jsonWriter.beginObject();
+        SerializationResult resultWatches =
+            toJsonCapturedValues(
+                jsonWriter,
+                capturedContext.getWatches(),
+                capturedContext.getLimits(),
+                timeoutChecker);
+        jsonWriter.endObject(); // / watches
+        jsonWriter.endObject();
+        return;
+      }
       jsonWriter.name(ARGUMENTS);
       jsonWriter.beginObject();
       SerializationResult resultArgs =
@@ -288,7 +303,7 @@ public class MoshiSnapshotHelper {
     }
 
     private static class JsonTokenWriter implements SerializerWithLimits.TokenWriter {
-      private static final Logger LOG = LoggerFactory.getLogger(JsonTokenWriter.class);
+      private static final Logger LOGGER = LoggerFactory.getLogger(JsonTokenWriter.class);
 
       private final JsonWriter jsonWriter;
 
@@ -424,10 +439,18 @@ public class MoshiSnapshotHelper {
 
       @Override
       public void handleFieldException(Exception ex, Field field) {
-        LOG.debug(
-            "Exception when extracting field={} exception={}",
-            field.getName(),
-            ExceptionHelper.foldExceptionStackTrace(ex));
+        if (LOGGER.isDebugEnabled()) {
+          // foldExceptionStackTrace can be expensive, only do it if debug is enabled
+          LOGGER.debug(
+              "Exception when extracting field={} exception={}",
+              field.getName(),
+              ExceptionHelper.foldExceptionStackTrace(ex));
+        }
+        fieldNotCaptured(ex.toString(), field);
+      }
+
+      @Override
+      public void fieldNotCaptured(String reason, Field field) {
         String fieldName = field.getName();
         try {
           jsonWriter.name(fieldName);
@@ -435,10 +458,10 @@ public class MoshiSnapshotHelper {
           jsonWriter.name(TYPE);
           jsonWriter.value(field.getType().getTypeName());
           jsonWriter.name(NOT_CAPTURED_REASON);
-          jsonWriter.value(ex.toString());
+          jsonWriter.value(reason);
           jsonWriter.endObject();
         } catch (IOException e) {
-          LOG.debug("Serialization error: failed to extract field", e);
+          LOGGER.debug("Serialization error: failed to extract field", e);
         }
       }
 

@@ -4,6 +4,6 @@ public interface RepoIndexProvider {
   RepoIndex getIndex();
 
   interface Factory {
-    RepoIndexProvider create(String repoRoot, String scanRoot);
+    RepoIndexProvider create(String repoRoot);
   }
 }

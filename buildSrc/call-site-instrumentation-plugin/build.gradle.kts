@@ -34,11 +34,11 @@ dependencies {
   compileOnly("com.google.code.findbugs", "jsr305", "3.0.2")
 
   implementation("org.freemarker", "freemarker", "2.3.30")
-  implementation("org.ow2.asm", "asm", "9.0")
-  implementation("org.ow2.asm", "asm-tree", "9.0")
+  implementation("org.ow2.asm", "asm", "9.7")
+  implementation("org.ow2.asm", "asm-tree", "9.7")
   implementation("com.github.javaparser", "javaparser-symbol-solver-core", "3.24.4")
 
-  testImplementation("net.bytebuddy", "byte-buddy", "1.14.13")
+  testImplementation("net.bytebuddy", "byte-buddy", "1.14.18")
   testImplementation("org.spockframework", "spock-core", "2.0-groovy-3.0")
   testImplementation("org.objenesis", "objenesis", "3.0.1")
   testImplementation("org.codehaus.groovy", "groovy-all", "3.0.17")

@@ -19,11 +19,11 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
 }
 
-final scalaVersions = [deps.scala211, deps.scala212, deps.scala213, 'org.scala-lang:scala3-library_3:3.3.0'] as List<String>
+final scalaVersions = [libs.scala211, libs.scala212, libs.scala213, libs.scala33]
 
 final testTasks = scalaVersions.collect { scalaLibrary ->
 
-  final version = scalaLibrary.substring(scalaLibrary.lastIndexOf(':') + 1).replaceAll('\\.', '_')
+  final version = scalaLibrary.get().version.replaceAll('\\.', '_')
   def (major, minor) = version.split('_').collect(Integer.&valueOf)
   final javaConcatenation = major > 2 || minor > 11 // after 2.11 scala uses java.lang.StringBuilder to perform concatenation
 
@@ -31,7 +31,7 @@ final testTasks = scalaVersions.collect { scalaLibrary ->
 
   dependencies { handler ->
     handler.add(configuration.name, scalaLibrary)
-    handler.add(configuration.name, deps.slf4j)
+    handler.add(configuration.name, libs.slf4j)
     if (javaConcatenation) {
       handler.add(configuration.name, project(':dd-java-agent:instrumentation:java-lang'))
     }

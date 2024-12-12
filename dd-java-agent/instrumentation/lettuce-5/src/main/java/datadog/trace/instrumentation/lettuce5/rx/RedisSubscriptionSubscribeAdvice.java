@@ -34,8 +34,11 @@ public class RedisSubscriptionSubscribeAdvice {
 
     AgentScope parentScope = null;
     RedisSubscriptionState state =
-        InstrumentationContext.get(Subscription.class, RedisSubscriptionState.class)
-            .get(subscription);
+        (RedisSubscriptionState)
+            InstrumentationContext.get(
+                    "io.lettuce.core.RedisPublisher$RedisSubscription",
+                    "datadog.trace.instrumentation.lettuce5.rx.RedisSubscriptionState")
+                .get(subscription);
     AgentSpan parentSpan = state != null ? state.parentSpan : null;
     if (parentSpan != null) {
       parentScope = activateSpan(parentSpan);

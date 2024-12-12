@@ -77,7 +77,7 @@ dependencies {
 
   testRuntimeOnly project(':dd-java-agent:instrumentation:netty-4.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:netty-4.1')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:akka-http-10.0')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:akka-http:akka-http-10.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:akka-concurrent')
   testRuntimeOnly project(':dd-java-agent:instrumentation:akka-init')
   testRuntimeOnly project(':dd-java-agent:instrumentation:scala-concurrent')
@@ -125,7 +125,7 @@ sourceSets {
   }
 }
 dependencies {
-  routeGeneratorImplementation deps.scala211
+  routeGeneratorImplementation libs.scala211
   routeGeneratorImplementation group: 'com.typesafe.play', name: "routes-compiler_2.11", version: '2.5.0'
 }
 configurations {

@@ -18,10 +18,10 @@ excludedClassesCoverage += [
 dependencies {
   implementation project(':dd-java-agent:agent-debugger:debugger-bootstrap')
 
-  implementation deps.slf4j
-  implementation deps.moshi
-  testImplementation deps.junit5
+  implementation libs.slf4j
+  implementation libs.moshi
+  testImplementation libs.bundles.junit5
   testImplementation("org.junit.jupiter:junit-jupiter-params:5.8.1")
-  testImplementation deps.mockito
+  testImplementation libs.bundles.mockito
   testImplementation project(':internal-api')
 }

@@ -59,9 +59,16 @@ spotless {
     }
   }
 
+  format 'markdown', {
+    toggleOffOn()
+    target '*.md', '.github/**/*.md', 'src/**/*.md', 'application/**/*.md'
+    indentWithSpaces()
+    endWithNewline()
+  }
+
   format 'misc', {
     toggleOffOn()
-    target '.gitignore', '*.md', '.github/**/*.md', 'src/**/*.md', 'application/**/*.md', '*.sh', 'tooling/*.sh', '.circleci/*.sh'
+    target '.gitignore', '*.sh', 'tooling/*.sh', '.circleci/*.sh'
     indentWithSpaces()
     trimTrailingWhitespace()
     endWithNewline()

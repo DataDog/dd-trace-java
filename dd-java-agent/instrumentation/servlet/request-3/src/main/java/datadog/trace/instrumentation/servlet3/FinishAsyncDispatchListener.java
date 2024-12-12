@@ -55,7 +55,7 @@ public class FinishAsyncDispatchListener implements AsyncListener, Runnable {
         }
       }
       DECORATE.beforeFinish(span);
-      span.finish();
+      maybeFinishSpan();
     }
   }
 
@@ -63,7 +63,7 @@ public class FinishAsyncDispatchListener implements AsyncListener, Runnable {
   public void run() {
     if (activated.compareAndSet(false, true)) {
       DECORATE.beforeFinish(span);
-      span.finish();
+      maybeFinishSpan();
     }
   }
 
@@ -75,7 +75,7 @@ public class FinishAsyncDispatchListener implements AsyncListener, Runnable {
       }
       span.setTag(TIMEOUT, event.getAsyncContext().getTimeout());
       DECORATE.beforeFinish(span);
-      span.finish();
+      maybeFinishSpan();
     }
   }
 
@@ -84,7 +84,7 @@ public class FinishAsyncDispatchListener implements AsyncListener, Runnable {
     if (event.getThrowable() != null && activated.compareAndSet(false, true)) {
       DECORATE.onError(span, event.getThrowable());
       DECORATE.beforeFinish(span);
-      span.finish();
+      maybeFinishSpan();
     }
   }
 
@@ -92,5 +92,11 @@ public class FinishAsyncDispatchListener implements AsyncListener, Runnable {
   @Override
   public void onStartAsync(final AsyncEvent event) throws IOException {
     event.getAsyncContext().addListener(this);
+  }
+
+  private void maybeFinishSpan() {
+    if (span.phasedFinish()) {
+      span.publish();
+    }
   }
 }

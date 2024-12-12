@@ -1,0 +1,192 @@
+version: 1.1
+suite:
+  - type: 'VULNERABILITIES'
+    description: 'Sensitive tainted range (source matches)'
+    input: >
+      [
+        {
+          "type": "SQL_INJECTION",
+          "evidence": {
+            "value": "select * from users where username = 'john'",
+            "ranges": [
+              { "start" : 26, "length" : 17, "source": { "origin": "http.request.parameter", "name": "clause", "value": "username = 'john'" } , "secure_marks": ["XSS"]}
+            ]
+          }
+        }
+      ]
+    expected: >
+      {
+        "sources": [
+          { "origin": "http.request.parameter", "name": "clause", "redacted": true, "pattern": "abcdefghijklmnopq" }
+        ],
+        "vulnerabilities": [
+          {
+            "type": "SQL_INJECTION",
+            "hash": 0,
+            "evidence": {
+              "valueParts": [
+                { "value": "select * from users where " },
+                { "source": 0, "value": "username = '" , "secure_marks": ["XSS"] },
+                { "source": 0, "redacted": true, "pattern": "mnop", "secure_marks": ["XSS"]  },
+                { "source": 0, "value": "'" , "secure_marks": ["XSS"] }
+              ]
+            }
+          }
+        ]
+      }
+  - type: 'VULNERABILITIES'
+    description: 'Query without sensitive data'
+    input: >
+      [
+        {
+          "type": "SQL_INJECTION",
+          "evidence": {
+            "value": "select * from users",
+            "ranges": [
+              { "start" : 14, "length" : 5, "source": { "origin": "http.request.parameter", "name": "table", "value": "users" }, "secure_marks": ["XSS"]  }
+            ]
+          }
+        }
+      ]
+    expected: >
+      {
+        "sources": [
+          { "origin": "http.request.parameter", "name": "table", "value": "users" }
+        ],
+        "vulnerabilities": [
+          {
+            "type": "SQL_INJECTION",
+            "hash": 0,
+            "evidence": {
+              "valueParts": [
+                { "value": "select * from " },
+                { "source": 0, "value": "users", "secure_marks": ["XSS"]  }
+              ]
+            }
+          }
+        ]
+      }
+  - type: 'VULNERABILITIES'
+    description: 'Query with sensitive source'
+    input: >
+      [
+        {
+          "type": "SQL_INJECTION",
+          "evidence": {
+            "value": "select * from users",
+            "ranges": [
+              { "start" : 14, "length" : 5, "source": { "origin": "http.request.parameter", "name": "secret", "value": "users" }, "secure_marks": ["XSS"] }
+            ]
+          }
+        }
+      ]
+    expected: >
+      {
+        "sources": [
+          { "origin": "http.request.parameter", "name": "secret", "redacted": true, "pattern": "abcde" }
+        ],
+        "vulnerabilities": [
+          {
+            "type": "SQL_INJECTION",
+            "hash": 0,
+            "evidence": {
+              "valueParts": [
+                { "value": "select * from " },
+                { "source": 0, "redacted": true, "pattern": "abcde" , "secure_marks": ["XSS"] }
+              ]
+            }
+          }
+        ]
+      }
+  - type: 'VULNERABILITIES'
+    description: 'Query with multiple ranges and literals'
+    input: >
+      [
+        {
+          "type": "SQL_INJECTION",
+          "evidence": {
+            "value": "select id as \"super user id\"\n\tfrom users\n\twhere username = 'john:doe' and password LIKE 'super_secure%' and user_id_123 > 00000",
+            "ranges": [
+              { "start" : 60, "length" : 4, "source": { "origin": "http.request.parameter", "name": "first_name", "value": "john" } },
+              { "start" : 65, "length" : 3, "source": { "origin": "http.request.parameter", "name": "last_name", "value": "doe" } , "secure_marks": ["XSS"]},
+              { "start" : 89, "length" : 12, "source": { "origin": "http.request.parameter", "name": "password", "value": "super_secure" }, "secure_marks": ["XSS", "HEADER_INJECTION"] }
+            ]
+          }
+        }
+      ]
+    expected: >
+      {
+        "sources": [
+          { "origin": "http.request.parameter", "name": "first_name", "redacted": true, "pattern": "abcd" },
+          { "origin": "http.request.parameter", "name": "last_name", "redacted": true, "pattern": "abc" },
+          { "origin": "http.request.parameter", "name": "password", "redacted": true, "pattern": "abcdefghijkl" }
+        ],
+        "vulnerabilities": [
+          {
+            "type": "SQL_INJECTION",
+            "hash": 0,
+            "evidence": {
+              "valueParts": [
+                { "value": "select id as \"super user id\"\n\tfrom users\n\twhere username = '" },
+                { "source": 0, "redacted": true, "pattern": "abcd" },
+                { "redacted": true },
+                { "source": 1, "redacted": true, "pattern": "abc" , "secure_marks": ["XSS"] },
+                { "value": "' and password LIKE '" },
+                { "source": 2, "redacted": true, "pattern": "abcdefghijkl" , "secure_marks": ["XSS", "HEADER_INJECTION"] },
+                { "redacted": true },
+                { "value": "' and user_id_123 > " },
+                { "redacted": true } 
+              ]
+            }
+          }
+        ]
+      }
+  - type: 'VULNERABILITIES'
+    description: 'Ldap complex search'
+    input: >
+      [
+        {
+          "type": "LDAP_INJECTION",
+          "evidence": {
+            "value": "(cn=Babs Jensen)\n(!(cn=Tim Howes))\n(&(objectClass=Person)(|(sn=Jensen)(cn=Babs J*)))\n(o=univ*of*mich*)\n(seeAlso=)",
+            "ranges": [
+              { "start" : 4, "length" : 11, "source": { "origin": "http.request.parameter", "name": "cn", "value": "Babs Jensen" } , "secure_marks": ["XSS"]},
+              { "start" : 63, "length" : 6, "source": { "origin": "http.request.parameter", "name": "cn", "value": "Babs Jensen" } },
+              { "start" : 74, "length" : 6, "source": { "origin": "http.request.parameter", "name": "cn", "value": "Babs Jensen" } , "secure_marks": ["HEADER_INJECTION"] }
+            ]
+          }
+        }
+      ]
+    expected: >
+      {
+        "sources": [
+          { "origin": "http.request.parameter", "name": "cn", "redacted": true, "pattern": "abcdefghijk" }
+        ],
+        "vulnerabilities": [
+          {
+            "type": "LDAP_INJECTION",
+            "hash": 0,
+            "evidence": {
+              "valueParts": [
+                { "value": "(cn=" },
+                { "source": 0, "redacted": true, "pattern": "abcdefghijk", "secure_marks": ["XSS"] },
+                { "value": ")\n(!(cn=" },
+                { "redacted": true },
+                { "value": "))\n(&(objectClass=" },
+                { "redacted": true },
+                { "value": ")(|(sn=" },
+                { "source": 0, "redacted": true, "pattern": "fghijk" },
+                { "value": ")(cn=" },
+                { "source": 0, "redacted": true, "pattern": "abcdef" , "secure_marks": ["HEADER_INJECTION"] },
+                { "redacted": true },
+                { "value": ")))\n(o=" },
+                { "redacted": true },
+                { "value": ")\n(seeAlso=)" }
+              ]
+            }
+          }
+        ]
+      }
+      
+ 
+

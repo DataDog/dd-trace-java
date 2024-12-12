@@ -12,7 +12,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
-import datadog.trace.api.experimental.DataStreamsContextCarrier.NoOp;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -198,7 +197,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
             try (AgentScope scope = AgentTracer.activateSpan(span)) {
               AgentTracer.get()
                   .getDataStreamsMonitoring()
-                  .setProduceCheckpoint("kinesis", streamArn, NoOp.INSTANCE);
+                  .setProduceCheckpoint("kinesis", streamArn);
             }
             break;
           case PUT_RECORDS_OPERATION_NAME:
@@ -207,7 +206,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
               for (Object ignored : records) {
                 AgentTracer.get()
                     .getDataStreamsMonitoring()
-                    .setProduceCheckpoint("kinesis", streamArn, NoOp.INSTANCE);
+                    .setProduceCheckpoint("kinesis", streamArn);
               }
             }
             break;
@@ -218,18 +217,14 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
         switch (awsOperation.getSimpleName()) {
           case PUBLISH_OPERATION_NAME:
             try (AgentScope scope = AgentTracer.activateSpan(span)) {
-              AgentTracer.get()
-                  .getDataStreamsMonitoring()
-                  .setProduceCheckpoint("sns", topicName, NoOp.INSTANCE);
+              AgentTracer.get().getDataStreamsMonitoring().setProduceCheckpoint("sns", topicName);
             }
             break;
           case PUBLISH_BATCH_OPERATION_NAME:
             try (AgentScope scope = AgentTracer.activateSpan(span)) {
               List entries = access.getEntries(originalRequest);
               for (Object ignored : entries) {
-                AgentTracer.get()
-                    .getDataStreamsMonitoring()
-                    .setProduceCheckpoint("sns", topicName, NoOp.INSTANCE);
+                AgentTracer.get().getDataStreamsMonitoring().setProduceCheckpoint("sns", topicName);
               }
             }
             break;

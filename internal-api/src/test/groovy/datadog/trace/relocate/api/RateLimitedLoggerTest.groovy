@@ -1,5 +1,6 @@
 package datadog.trace.relocate.api
 
+import datadog.trace.api.telemetry.LogCollector
 import datadog.trace.api.time.ControllableTimeSource
 import datadog.trace.test.util.DDSpecification
 import org.slf4j.Logger
@@ -23,7 +24,7 @@ class RateLimitedLoggerTest extends DDSpecification {
     rateLimitedLog.warn("test {} {}", "message", exception)
 
     then:
-    2 * log.warn("test {} {}", "message", exception)
+    2 * log.warn(null, "test {} {}", "message", exception)
   }
 
   def "default warning once"() {
@@ -38,7 +39,7 @@ class RateLimitedLoggerTest extends DDSpecification {
     def secondLog = defaultRateLimitedLog.warn("test {} {}", "message", exception)
 
     then:
-    1 * log.warn("test {} {} (Will not log warnings for 5 minutes)", "message", exception)
+    1 * log.warn(null, "test {} {} (Will not log warnings for 5 minutes)", "message", exception)
     firstLog
     !secondLog
   }
@@ -56,7 +57,7 @@ class RateLimitedLoggerTest extends DDSpecification {
     def firstLog = rateLimitedLog.warn("test {} {}", "message", exception)
 
     then:
-    1 * log.warn("test {} {} (Will not log warnings for 1 minute)", "message", exception)
+    1 * log.warn(null, "test {} {} (Will not log warnings for 1 minute)", "message", exception)
     firstLog
 
     when:
@@ -80,7 +81,7 @@ class RateLimitedLoggerTest extends DDSpecification {
     def firstLog = rateLimitedLog.warn("test {} {}", "message", exception)
 
     then:
-    1 * log.warn("test {} {} (Will not log warnings for 5 nanoseconds)", "message", exception)
+    1 * log.warn(null, "test {} {} (Will not log warnings for 5 nanoseconds)", "message", exception)
     firstLog
 
     when:
@@ -105,7 +106,7 @@ class RateLimitedLoggerTest extends DDSpecification {
     def firstLog = rateLimitedLog.warn("test {} {}", "message", exception)
 
     then:
-    1 * log.warn("test {} {} (Will not log warnings for 5 nanoseconds)", "message", exception)
+    1 * log.warn(null, "test {} {} (Will not log warnings for 5 nanoseconds)", "message", exception)
     firstLog
 
     when:
@@ -128,7 +129,7 @@ class RateLimitedLoggerTest extends DDSpecification {
     def firstLog = rateLimitedLog.warn("test {} {}", "message", exception)
 
     then:
-    1 * log.warn("test {} {} (Will not log warnings for 7 nanoseconds)", "message", exception)
+    1 * log.warn(null, "test {} {} (Will not log warnings for 7 nanoseconds)", "message", exception)
     firstLog
 
     when:
@@ -136,7 +137,7 @@ class RateLimitedLoggerTest extends DDSpecification {
     def secondLog = rateLimitedLog.warn("test {} {}", "message", exception)
 
     then:
-    1 * log.warn("test {} {} (Will not log warnings for 7 nanoseconds)", "message", exception)
+    1 * log.warn(null, "test {} {} (Will not log warnings for 7 nanoseconds)", "message", exception)
     secondLog
   }
 
@@ -152,6 +153,21 @@ class RateLimitedLoggerTest extends DDSpecification {
     rateLimitedLog.warn("test")
 
     then:
-    1 * log.warn("test (Will not log warnings for 1 millisecond)")
+    1 * log.warn(null, "test (Will not log warnings for 1 millisecond)")
+  }
+
+  def "with marker"() {
+    setup:
+    Logger log = Mock(Logger)
+    ControllableTimeSource timeSource = new ControllableTimeSource()
+    RatelimitedLogger rateLimitedLog = new RatelimitedLogger(log, 1, MILLISECONDS, timeSource)
+    log.isWarnEnabled() >> true
+    log.isDebugEnabled() >> false
+
+    when:
+    rateLimitedLog.warn(LogCollector.SEND_TELEMETRY, "test")
+
+    then:
+    1 * log.warn(LogCollector.SEND_TELEMETRY, "test (Will not log warnings for 1 millisecond)")
   }
 }

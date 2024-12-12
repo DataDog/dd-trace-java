@@ -25,20 +25,20 @@ dependencies {
   testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: '5.8.2'
 
   testImplementation (group: 'com.intuit.karate', name: 'karate-core', version: '1.0.0') {
-    // excluding logback to avoid conflicts with deps.testLogging
+    // excluding logback to avoid conflicts with libs.bundles.test.logging
     exclude group: 'ch.qos.logback', module: 'logback-classic'
   }
   testImplementation (group: 'com.intuit.karate', name: 'karate-junit5', version: '1.0.0') {
-    // excluding logback to avoid conflicts with deps.testLogging
+    // excluding logback to avoid conflicts with libs.bundles.test.logging
     exclude group: 'ch.qos.logback', module: 'logback-classic'
   }
 
   latestDepTestImplementation (group: 'com.intuit.karate', name: 'karate-core', version: '+') {
-    // excluding logback to avoid conflicts with deps.testLogging
+    // excluding logback to avoid conflicts with libs.bundles.test.logging
     exclude group: 'ch.qos.logback', module: 'logback-classic'
   }
   latestDepTestImplementation (group: 'com.intuit.karate', name: 'karate-junit5', version: '+') {
-    // excluding logback to avoid conflicts with deps.testLogging
+    // excluding logback to avoid conflicts with libs.bundles.test.logging
     exclude group: 'ch.qos.logback', module: 'logback-classic'
   }
 }

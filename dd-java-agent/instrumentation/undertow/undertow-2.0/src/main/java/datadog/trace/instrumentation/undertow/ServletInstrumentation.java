@@ -54,6 +54,11 @@ public final class ServletInstrumentation extends InstrumenterModule.Tracing
     };
   }
 
+  @Override
+  public String muzzleDirective() {
+    return "javax.servlet";
+  }
+
   public static class DispatchAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void enter(

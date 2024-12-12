@@ -25,7 +25,7 @@ class ByteBufferTest extends AgentTestRunner {
     TestByteBufferSuite.wrap(message)
 
     then:
-    1 * module.taintIfTainted(_ as ByteBuffer, message, true, VulnerabilityMarks.NOT_MARKED)
+    1 * module.taintObjectIfTainted(_ as ByteBuffer, message, true, VulnerabilityMarks.NOT_MARKED)
   }
 
   void 'test array method'() {
@@ -39,6 +39,6 @@ class ByteBufferTest extends AgentTestRunner {
 
     then:
     result == message.array()
-    1 * module.taintIfTainted(_ as byte[], message, true, VulnerabilityMarks.NOT_MARKED)
+    1 * module.taintObjectIfTainted(_ as byte[], message, true, VulnerabilityMarks.NOT_MARKED)
   }
 }

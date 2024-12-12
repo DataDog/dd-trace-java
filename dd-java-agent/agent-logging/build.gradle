@@ -15,10 +15,12 @@ excludedClassesCoverage += [
   'datadog.trace.logging.ddlogger.DDLoggerFactory',
   'datadog.trace.logging.simplelogger.SLCompatFactory',
   'datadog.trace.logging.simplelogger.SLCompatSettings',
+  'datadog.trace.logging.PrintStreamWrapper',
+  'datadog.trace.logging.LogReporter',
 ]
 
 dependencies {
   // This is fine since this project is shadowed into the agent-jar by dd-java-agent:agent-bootstrap
-  api group: 'org.slf4j', name: 'slf4j-api', version: versions.slf4j
+  api libs.slf4j
   api project(':internal-api')
 }

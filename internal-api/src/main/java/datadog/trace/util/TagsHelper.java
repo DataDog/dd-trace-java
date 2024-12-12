@@ -75,8 +75,11 @@ public final class TagsHelper {
     }
     StringBuilder sb = new StringBuilder();
     for (String tag : tags) {
+      if (tag == null) {
+        continue;
+      }
       sb.append(tag);
-      sb.append(",");
+      sb.append(',');
     }
     return sb.substring(0, sb.length() - 1); // Remove last comma
   }

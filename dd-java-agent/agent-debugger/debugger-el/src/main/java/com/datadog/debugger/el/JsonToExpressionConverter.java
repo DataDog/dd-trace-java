@@ -6,6 +6,7 @@ import static com.squareup.moshi.JsonReader.Token.NUMBER;
 import static com.squareup.moshi.JsonReader.Token.STRING;
 
 import com.datadog.debugger.el.expressions.BooleanExpression;
+import com.datadog.debugger.el.expressions.ContainsExpression;
 import com.datadog.debugger.el.expressions.StringPredicateExpression;
 import com.datadog.debugger.el.expressions.ValueExpression;
 import com.datadog.debugger.el.values.StringValue;
@@ -41,12 +42,15 @@ public class JsonToExpressionConverter {
               "or",
               "and",
               "hasAny",
+              "any",
               "hasAll",
+              "all",
               "isEmpty",
               "startsWith",
               "endsWith",
               "contains",
-              "matches"));
+              "matches",
+              "instanceof"));
 
   @FunctionalInterface
   interface BinaryPredicateExpressionFunction<T extends Expression> {
@@ -194,6 +198,7 @@ public class JsonToExpressionConverter {
           return expr;
         }
       case "hasAny":
+      case "any":
         {
           JsonReader.Token token = reader.peek();
           if (token != BEGIN_ARRAY) {
@@ -206,6 +211,7 @@ public class JsonToExpressionConverter {
           return expr;
         }
       case "hasAll":
+      case "all":
         {
           JsonReader.Token token = reader.peek();
           if (token != BEGIN_ARRAY) {
@@ -245,7 +251,16 @@ public class JsonToExpressionConverter {
         }
       case "contains":
         {
-          return createStringPredicateExpression(reader, DSL::contains);
+          JsonReader.Token token = reader.peek();
+          if (token != BEGIN_ARRAY) {
+            throw new UnsupportedOperationException(
+                "Operation 'contains' expects the arguments to be defined as array");
+          }
+          reader.beginArray();
+          ContainsExpression expr =
+              DSL.contains(asValueExpression(reader), asValueExpression(reader));
+          reader.endArray();
+          return expr;
         }
       case "matches":
         {
@@ -302,7 +317,12 @@ public class JsonToExpressionConverter {
           if (numberStrValue.indexOf('.') > 0) {
             return DSL.value(Double.parseDouble(numberStrValue));
           }
-          return DSL.value(Long.parseLong(numberStrValue));
+          long longValue = Long.parseLong(numberStrValue);
+          // checks if the parsed number fits into integer range
+          if (longValue <= Integer.MAX_VALUE && longValue >= Integer.MIN_VALUE) {
+            return DSL.value((int) longValue);
+          }
+          return DSL.value(longValue);
         }
       case STRING:
         {
@@ -400,6 +420,11 @@ public class JsonToExpressionConverter {
         {
           reader.nextNull();
           return DSL.nullValue();
+        }
+      case BOOLEAN:
+        {
+          boolean boolValue = reader.nextBoolean();
+          return DSL.value(boolValue);
         }
       default:
         throw new UnsupportedOperationException(

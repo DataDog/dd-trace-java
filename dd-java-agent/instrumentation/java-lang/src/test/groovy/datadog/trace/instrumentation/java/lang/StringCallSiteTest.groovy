@@ -2,21 +2,18 @@ package datadog.trace.instrumentation.java.lang
 
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
-import datadog.trace.api.iast.VulnerabilityMarks
-import datadog.trace.api.iast.propagation.CodecModule
-import datadog.trace.api.iast.propagation.PropagationModule
 import datadog.trace.api.iast.propagation.StringModule
 import foo.bar.TestStringSuite
 import groovy.transform.CompileDynamic
 
-import java.nio.charset.Charset
+import static datadog.trace.api.config.IastConfig.IAST_ENABLED
 
 @CompileDynamic
 class StringCallSiteTest extends AgentTestRunner {
 
   @Override
   protected void configurePreAgent() {
-    injectSysConfig("dd.iast.enabled", "true")
+    injectSysConfig(IAST_ENABLED, "true")
   }
 
   def 'test string concat call site'() {
@@ -179,53 +176,18 @@ class StringCallSiteTest extends AgentTestRunner {
     InstrumentationBridge.registerIastModule(module)
 
     when:
-    final result = TestStringSuite.stringConstructor("hello")
+    final result = TestStringSuite.stringConstructor(param)
 
     then:
-    result == 'hello'
+    result == expected
     1 * module.onStringConstructor(_, _)
     0 * _
-  }
-
-  void 'test get bytes'() {
-    given:
-    final module = Mock(CodecModule)
-    InstrumentationBridge.registerIastModule(module)
-
-    when:
-    final byte[] bytes = TestStringSuite.&"$method".call(args as Object[])
-
-    then:
-    bytes != null && bytes.length > 0
-    1 * module.onStringGetBytes(args[0] as String, charset, _ as byte[])
 
     where:
-    method     | charset                         | args
-    'getBytes' | null                            | ['Hello']
-    'getBytes' | 'UTF-8'                         | ['Hello', charset]
-    'getBytes' | Charset.defaultCharset().name() | ['Hello', Charset.forName(charset)]
-  }
-
-  void 'test string constructor with byte array'() {
-    given:
-    final module = Mock(CodecModule)
-    InstrumentationBridge.registerIastModule(module)
-
-    when:
-    final result = TestStringSuite.&stringConstructor.call(args as Object[])
-
-    then:
-    result != null && !result.empty
-    1 * module.onStringFromBytes(args[0] as byte[], offset, length, charset, _ as String)
-
-    where:
-    charset                         | offset | length | args
-    null                            | 0      | 5      | ['Hello'.bytes]
-    null                            | 0      | 5      | ['Hello'.bytes, offset, length]
-    'UTF-8'                         | 0      | 5      | ['Hello'.getBytes(charset), charset]
-    'UTF-8'                         | 0      | 2      | ['Hello'.getBytes(charset), offset, length, charset]
-    Charset.defaultCharset().name() | 0      | 5      | ['Hello'.getBytes(charset), Charset.forName(charset)]
-    Charset.defaultCharset().name() | 0      | 2      | ['Hello'.getBytes(charset), offset, length, Charset.forName(charset)]
+    param                      | expected
+    'hello'                    | 'hello'
+    new StringBuilder('hello') | 'hello'
+    new StringBuffer('hello')  | 'hello'
   }
 
   void 'test string format'() {
@@ -265,21 +227,6 @@ class StringCallSiteTest extends AgentTestRunner {
     Locale.getDefault() | '%s'    | ['Hello']
   }
 
-  void 'test string toCharArray'() {
-    given:
-    final module = Mock(PropagationModule)
-    InstrumentationBridge.registerIastModule(module)
-    final string = 'test'
-
-    when:
-    final char[] result = TestStringSuite.toCharArray(string)
-
-    then:
-    result != null && result.length > 0
-    1 * module.taintIfTainted(_ as char[], string, true, VulnerabilityMarks.NOT_MARKED)
-    0 * _
-  }
-
   void 'test string split'() {
     final module = Mock(StringModule)
     InstrumentationBridge.registerIastModule(module)
@@ -299,5 +246,43 @@ class StringCallSiteTest extends AgentTestRunner {
     args                      | expected
     ['test the test', ' ']    | ['test', 'the', 'test'] as String[]
     ['test the test', ' ', 0] | ['test', 'the', 'test'] as String[]
+  }
+
+  void 'test string replace char'() {
+    given:
+    final module = Mock(StringModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    def result = TestStringSuite.replace(input, oldChar as char, newChar as char)
+
+    then:
+    result == expected
+    1 * module.onStringReplace(input, oldChar, newChar, expected)
+
+    where:
+    input  | oldChar | newChar | expected
+    "test" | 't'     | 'T'     | "TesT"
+    "test" | 'e'     | 'E'     | "tEst"
+  }
+
+  def 'test string valueOf call site'() {
+    setup:
+    final stringModule = Mock(StringModule)
+    InstrumentationBridge.registerIastModule(stringModule)
+
+    when:
+    final result = TestStringSuite.valueOf(input)
+
+    then:
+    result == expected
+    1 * stringModule.onStringValueOf(input, expected)
+    0 * _
+
+    where:
+    input                     | expected
+    "test"                    | "test"
+    new StringBuilder("test") | "test"
+    new StringBuffer("test")  | "test"
   }
 }

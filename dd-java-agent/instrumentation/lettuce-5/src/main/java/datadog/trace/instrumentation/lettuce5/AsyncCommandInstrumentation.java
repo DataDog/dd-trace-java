@@ -65,7 +65,7 @@ public class AsyncCommandInstrumentation extends InstrumenterModule.Profiling
     @SuppressWarnings("rawtypes")
     @Advice.OnMethodExit
     public static void after(@Advice.This AsyncCommand asyncCommand) {
-      capture(InstrumentationContext.get(AsyncCommand.class, State.class), asyncCommand, false);
+      capture(InstrumentationContext.get(AsyncCommand.class, State.class), asyncCommand);
     }
   }
 

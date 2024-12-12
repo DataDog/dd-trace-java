@@ -13,7 +13,7 @@ import org.slf4j.Marker;
 
 public class DDLoggerFactory implements ILoggerFactory, LogLevelSwitcher {
 
-  private final boolean telemetryLogCollectionEnabled = getLogCollectionEnabled(false);
+  private final boolean telemetryLogCollectionEnabled = isLogCollectionEnabled();
 
   private volatile LoggerHelperFactory helperFactory = null;
   private volatile LogLevel override = null;
@@ -88,17 +88,25 @@ public class DDLoggerFactory implements ILoggerFactory, LogLevelSwitcher {
     helperFactory = null;
   }
 
-  // DDLoggerFactory can be called at very early stage, before Config loaded
+  // DDLoggerFactory can be called at very early stage, before Config is loaded
   // So to get property/env we use this custom function
-  private static boolean getLogCollectionEnabled(boolean defaultValue) {
-    String value = System.getProperty("dd.telemetry.log-collection.enabled");
+  private static boolean isLogCollectionEnabled() {
+    return isFlagEnabled(
+            "dd.instrumentation.telemetry.enabled", "DD_INSTRUMENTATION_TELEMETRY_ENABLED", true)
+        && isFlagEnabled(
+            "dd.telemetry.log-collection.enabled", "DD_TELEMETRY_LOG_COLLECTION_ENABLED", true);
+  }
+
+  private static boolean isFlagEnabled(
+      final String systemProperty, final String envVar, final boolean defaultValue) {
+    String value = System.getProperty(systemProperty);
     if ("true".equalsIgnoreCase(value)) {
       return true;
     }
     if ("false".equalsIgnoreCase(value)) {
       return false;
     }
-    value = System.getenv("DD_TELEMETRY_LOG_COLLECTION_ENABLED");
+    value = System.getenv(envVar);
     if ("true".equalsIgnoreCase(value)) {
       return true;
     }

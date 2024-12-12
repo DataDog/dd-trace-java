@@ -9,6 +9,7 @@ import datadog.trace.api.Config
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.DDSpan
 import datadog.trace.core.datastreams.StatsGroup
 import datadog.trace.test.util.Flaky
@@ -32,6 +33,7 @@ import org.springframework.kafka.listener.MessageListener
 import org.springframework.kafka.test.rule.KafkaEmbedded
 import org.springframework.kafka.test.utils.ContainerTestUtils
 import org.springframework.kafka.test.utils.KafkaTestUtils
+import spock.lang.Shared
 
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.Future
@@ -53,11 +55,56 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
 
   public static final LinkedHashMap<String, String> PRODUCER_PATHWAY_EDGE_TAGS
 
+  // filter out Kafka poll, since the function is called in a loop, giving inconsistent results
+  @Shared
+  static final ListWriter.Filter DROP_KAFKA_POLL = new ListWriter.Filter() {
+    @Override
+    boolean accept(List<DDSpan> trace) {
+      return !(trace.size() == 1 &&
+        trace.get(0).getResourceName().toString().equals("kafka.poll"))
+    }
+  }
+
+  final ListWriter.Filter dropEmptyKafkaPoll = new ListWriter.Filter() {
+    @Override
+    boolean accept(List<DDSpan> trace) {
+      return !(trace.size() == 1 &&
+        trace.get(0).getResourceName().toString().equals("kafka.poll") &&
+        trace.get(0).getTag(InstrumentationTags.KAFKA_RECORDS_COUNT).equals(0))
+    }
+  }
+
+  // TraceID, start times & names changed based on the configuration, so overriding the sort to give consistent test results
+  private static class SortKafkaTraces implements Comparator<List<DDSpan>> {
+    @Override
+    int compare(List<DDSpan> o1, List<DDSpan> o2) {
+      return rootSpanTrace(o1) - rootSpanTrace(o2)
+    }
+
+    int rootSpanTrace(List<DDSpan> trace) {
+      assert !trace.isEmpty()
+      def rootSpan = trace.get(0).localRootSpan
+      switch (rootSpan.operationName.toString()) {
+        case "parent":
+          return 3
+        case "kafka.poll":
+          return 2
+        default:
+          return 1
+      }
+    }
+  }
+
+
   static {
     PRODUCER_PATHWAY_EDGE_TAGS = new LinkedHashMap<>(3)
     PRODUCER_PATHWAY_EDGE_TAGS.put("direction", "out")
     PRODUCER_PATHWAY_EDGE_TAGS.put("topic", SHARED_TOPIC)
     PRODUCER_PATHWAY_EDGE_TAGS.put("type", "kafka")
+  }
+
+  def setup() {
+    TEST_WRITER.setFilter(DROP_KAFKA_POLL)
   }
 
   @Override
@@ -124,9 +171,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
       }
     }
 
-    if (isDataStreamsEnabled()) {
-    }
-
     cleanup:
     producer.close()
   }
@@ -137,6 +181,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       senderProps.put(ProducerConfig.METADATA_MAX_AGE_CONFIG, 1000)
     }
+    TEST_WRITER.setFilter(dropEmptyKafkaPoll)
     KafkaProducer<String, String> producer = new KafkaProducer<>(senderProps, new StringSerializer(), new StringSerializer())
     String clusterId = ""
     if (isDataStreamsEnabled()) {
@@ -203,28 +248,37 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     received.value() == greeting
     received.key() == null
 
-    assertTraces(2, SORT_TRACES_BY_ID) {
+    int nTraces = isDataStreamsEnabled() ? 3 : 2
+    int produceTraceIdx = nTraces - 1
+    TEST_WRITER.waitForTraces(nTraces)
+    def traces = (Arrays.asList(TEST_WRITER.toArray()) as List<List<DDSpan>>)
+    Collections.sort(traces, new SortKafkaTraces())
+    assertTraces(nTraces, new SortKafkaTraces()) {
+      if (hasQueueSpan()) {
+        trace(2) {
+          consumerSpan(it, consumerProperties, span(1))
+          queueSpan(it, trace(produceTraceIdx)[2])
+        }
+      } else {
+        trace(1) {
+          consumerSpan(it, consumerProperties, trace(produceTraceIdx)[2])
+        }
+      }
+      if (isDataStreamsEnabled()) {
+        trace(1, {
+          pollSpan(it)
+        })
+      }
       trace(3) {
         basicSpan(it, "parent")
         basicSpan(it, "producer callback", span(0))
         producerSpan(it, senderProps, span(0), false)
       }
-      if (hasQueueSpan()) {
-        trace(2) {
-          consumerSpan(it, consumerProperties, trace(1)[1])
-          queueSpan(it, trace(0)[2])
-        }
-      } else {
-        trace(1) {
-          consumerSpan(it, consumerProperties, trace(0)[2])
-        }
-      }
     }
-
     def headers = received.headers()
     headers.iterator().hasNext()
-    new String(headers.headers("x-datadog-trace-id").iterator().next().value()) == "${TEST_WRITER[0][2].traceId}"
-    new String(headers.headers("x-datadog-parent-id").iterator().next().value()) == "${TEST_WRITER[0][2].spanId}"
+    new String(headers.headers("x-datadog-trace-id").iterator().next().value()) == "${traces[produceTraceIdx][2].traceId}"
+    new String(headers.headers("x-datadog-parent-id").iterator().next().value()) == "${traces[produceTraceIdx][2].spanId}"
 
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
@@ -246,15 +300,15 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
       }
       List<String> produce = [
         "kafka_cluster_id:$clusterId",
-        "partition:"+received.partition(),
-        "topic:"+SHARED_TOPIC,
+        "partition:" + received.partition(),
+        "topic:" + SHARED_TOPIC,
         "type:kafka_produce"
       ]
       List<String> commit = [
         "consumer_group:sender",
         "kafka_cluster_id:$clusterId",
-        "partition:"+received.partition(),
-        "topic:"+SHARED_TOPIC,
+        "partition:" + received.partition(),
+        "topic:" + SHARED_TOPIC,
         "type:kafka_commit"
       ]
       verifyAll(TEST_DATA_STREAMS_WRITER.backlogs) {
@@ -399,15 +453,15 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
       }
       List<String> produce = [
         "kafka_cluster_id:$clusterId".toString(),
-        "partition:"+received.partition(),
-        "topic:"+SHARED_TOPIC,
+        "partition:" + received.partition(),
+        "topic:" + SHARED_TOPIC,
         "type:kafka_produce"
       ]
       List<String> commit = [
         "consumer_group:sender",
         "kafka_cluster_id:$clusterId".toString(),
-        "partition:"+received.partition(),
-        "topic:"+SHARED_TOPIC,
+        "partition:" + received.partition(),
+        "topic:" + SHARED_TOPIC,
         "type:kafka_commit"
       ]
       verifyAll(TEST_DATA_STREAMS_WRITER.backlogs) {
@@ -961,7 +1015,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
 
   def producerSpan(
     TraceAssert trace,
-    Map<String,?> config,
+    Map<String, ?> config,
     DDSpan parentSpan = null,
     boolean partitioned = true,
     boolean tombstone = false,
@@ -989,7 +1043,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
         if (tombstone) {
           "$InstrumentationTags.TOMBSTONE" true
         }
-        if ({isDataStreamsEnabled()}) {
+        if ({ isDataStreamsEnabled() }) {
           "$DDTags.PATHWAY_HASH" { String }
           if (schema != null) {
             "$DDTags.SCHEMA_DEFINITION" schema
@@ -1010,7 +1064,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     DDSpan parentSpan = null
   ) {
     trace.span {
-      serviceName splitByDestination() ? "$SHARED_TOPIC" :  serviceForTimeInQueue()
+      serviceName splitByDestination() ? "$SHARED_TOPIC" : serviceForTimeInQueue()
       operationName "kafka.deliver"
       resourceName "$SHARED_TOPIC"
       spanType "queue"
@@ -1031,7 +1085,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
 
   def consumerSpan(
     TraceAssert trace,
-    Map<String,Object> config,
+    Map<String, Object> config,
     DDSpan parentSpan = null,
     Range offset = 0..0,
     boolean tombstone = false,
@@ -1061,7 +1115,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
         if (tombstone) {
           "$InstrumentationTags.TOMBSTONE" true
         }
-        if ({isDataStreamsEnabled()}) {
+        if ({ isDataStreamsEnabled() }) {
           "$DDTags.PATHWAY_HASH" { String }
         }
         defaultTags(distributedRootSpan)
@@ -1069,12 +1123,33 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     }
   }
 
+  def pollSpan(
+    TraceAssert trace,
+    int recordCount = 1,
+    DDSpan parentSpan = null,
+    Range offset = 0..0,
+    boolean tombstone = false,
+    boolean distributedRootSpan = !hasQueueSpan()
+  ) {
+    trace.span {
+      serviceName Config.get().getServiceName()
+      operationName "kafka.poll"
+      resourceName "kafka.poll"
+      errored false
+      measured false
+      tags {
+        "$InstrumentationTags.KAFKA_RECORDS_COUNT" recordCount
+        defaultTags(true)
+      }
+    }
+  }
+
   def waitForKafkaMetadataUpdate(KafkaTemplate kafkaTemplate) {
     kafkaTemplate.flush()
     Producer<String, String> wrappedProducer = kafkaTemplate.getTheProducer()
-    assert(wrappedProducer instanceof DefaultKafkaProducerFactory.CloseSafeProducer)
+    assert (wrappedProducer instanceof DefaultKafkaProducerFactory.CloseSafeProducer)
     Producer<String, String> producer = wrappedProducer.delegate
-    assert(producer instanceof KafkaProducer)
+    assert (producer instanceof KafkaProducer)
     String clusterId = producer.metadata.cluster.clusterResource().clusterId()
     while (clusterId == null || clusterId.isEmpty()) {
       Thread.sleep(1500)
@@ -1191,12 +1266,12 @@ abstract class KafkaClientLegacyTracingForkedTest extends KafkaClientTestBase {
   }
 }
 
-class KafkaClientLegacyTracingV0ForkedTest extends KafkaClientLegacyTracingForkedTest{
+class KafkaClientLegacyTracingV0ForkedTest extends KafkaClientLegacyTracingForkedTest {
 
 
 }
 
-class KafkaClientLegacyTracingV1ForkedTest extends KafkaClientLegacyTracingForkedTest{
+class KafkaClientLegacyTracingV1ForkedTest extends KafkaClientLegacyTracingForkedTest {
 
   @Override
   int version() {

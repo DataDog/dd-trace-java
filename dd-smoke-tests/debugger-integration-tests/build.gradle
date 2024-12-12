@@ -9,7 +9,7 @@ description = 'Debugger Integration Tests.'
 dependencies {
   implementation project(':dd-trace-api')
   implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.4.5'
-  implementation group: 'com.squareup.okhttp3', name: 'mockwebserver', version: versions.okhttp_legacy
+  implementation group: 'com.squareup.okhttp3', name: 'mockwebserver', version: libs.versions.okhttp.legacy.get()
 
   testImplementation project(':dd-smoke-tests')
   testImplementation project(':dd-java-agent:agent-debugger')
@@ -17,8 +17,8 @@ dependencies {
   testImplementation project(':dd-java-agent:agent-debugger:debugger-bootstrap')
   // dependency on some helper classes made only for tests
   testImplementation project(':dd-java-agent:agent-debugger').sourceSets.test.output
-  testImplementation deps.junit5
-  testImplementation deps.mockito
+  testImplementation libs.bundles.junit5
+  testImplementation libs.bundles.mockito
 }
 
 // TODO latest-jdk-app fails too often with a jgit failure, so disable until fixed

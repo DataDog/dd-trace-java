@@ -46,6 +46,13 @@ public final class ProfilingConfig {
       "profiling.exception.record.message";
   public static final boolean PROFILING_EXCEPTION_RECORD_MESSAGE_DEFAULT = true;
 
+  public static final String PROFILING_BACKPRESSURE_SAMPLING_ENABLED =
+      "profiling.backpressure.sampling.enabled";
+  public static final boolean PROFILING_BACKPRESSURE_SAMPLING_ENABLED_DEFAULT = false;
+  public static final String PROFILING_BACKPRESSURE_SAMPLE_LIMIT =
+      "profiling.backpressure.sample.limit";
+  public static final int PROFILING_BACKPRESSURE_SAMPLE_LIMIT_DEFAULT = 10_000;
+
   public static final String PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT =
       "profiling.direct.allocation.sample.limit";
   public static final int PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT_DEFAULT = 2_000;
@@ -65,9 +72,6 @@ public final class ProfilingConfig {
   public static final String PROFILING_JFR_REPOSITORY_BASE_DEFAULT =
       System.getProperty("java.io.tmpdir") + "/dd/jfr";
 
-  public static final String PROFILING_JFR_REPOSITORY_CLEANUP = "profiling.jfr.repository.cleanup";
-  public static final boolean PROFILING_JFR_REPOSITORY_CLEANUP_DEFAULT = true;
-
   public static final String PROFILING_DATADOG_PROFILER_ENABLED = "profiling.ddprof.enabled";
 
   public static final String PROFILING_DIRECT_ALLOCATION_ENABLED =
@@ -80,8 +84,7 @@ public final class ProfilingConfig {
   // Java profiler lib needs to be extracted from JAR and placed into the scratch location
   // By default the scratch is the os temp directory but can be overridden by user
   public static final String PROFILING_DATADOG_PROFILER_SCRATCH = "profiling.ddprof.scratch";
-  public static final String PROFILING_DATADOG_PROFILER_SCRATCH_DEFAULT =
-      System.getProperty("java.io.tmpdir");
+
   public static final String PROFILING_DATADOG_PROFILER_LIBPATH = "profiling.ddprof.debug.lib";
   public static final String PROFILING_DATADOG_PROFILER_ALLOC_ENABLED =
       "profiling.ddprof.alloc.enabled";
@@ -99,15 +102,21 @@ public final class ProfilingConfig {
   public static final boolean PROFILING_DATADOG_PROFILER_WALL_ENABLED_DEFAULT = true;
   public static final String PROFILING_DATADOG_PROFILER_WALL_INTERVAL =
       "profiling.ddprof.wall.interval.ms";
-  public static final int PROFILING_DATADOG_PROFILER_WALL_INTERVAL_DEFAULT = 10;
+  public static final int PROFILING_DATADOG_PROFILER_WALL_INTERVAL_DEFAULT = 50;
+
+  public static final int PROFILING_DATADOG_PROFILER_J9_CPU_INTERVAL_DEFAULT = 50;
 
   public static final String PROFILING_DATADOG_PROFILER_WALL_COLLAPSING =
       "profiling.ddprof.wall.collapsing";
-  public static final boolean PROFILING_DATADOG_PROFILER_WALL_COLLAPSING_DEFAULT = false;
+  public static final boolean PROFILING_DATADOG_PROFILER_WALL_COLLAPSING_DEFAULT = true;
 
   public static final String PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER =
       "profiling.ddprof.wall.context.filter";
   public static final boolean PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER_DEFAULT = true;
+
+  public static final String PROFILING_DATADOG_PROFILER_WALL_JVMTI =
+      "profiling.experimental.ddprof.wall.jvmti";
+  public static final boolean PROFILING_DATADOG_PROFILER_WALL_JVMTI_DEFAULT = false;
 
   public static final String PROFILING_DATADOG_PROFILER_SCHEDULING_EVENT =
       "profiling.experimental.ddprof.scheduling.event";
@@ -155,6 +164,11 @@ public final class ProfilingConfig {
   public static final String PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE =
       "profiling.ddprof.liveheap.track_size.enabled";
   public static final boolean PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE_DEFAFULT = true;
+  public static final String PROFILING_DATADOG_PROFILER_LIVEHEAP_SAMPLE_PERCENT =
+      "profiling.ddprof.liveheap.sample_percent";
+  public static final int PROFILING_DATADOG_PROFILER_LIVEHEAP_SAMPLE_PERCENT_DEFAULT =
+      50; // default to 10% of allocation samples
+
   public static final String PROFILING_ENDPOINT_COLLECTION_ENABLED =
       "profiling.endpoint.collection.enabled";
   public static final boolean PROFILING_ENDPOINT_COLLECTION_ENABLED_DEFAULT = true;
@@ -166,6 +180,9 @@ public final class ProfilingConfig {
   public static final String PROFILING_UPLOAD_SUMMARY_ON_413 = "profiling.upload.summary-on-413";
   public static final boolean PROFILING_UPLOAD_SUMMARY_ON_413_DEFAULT = false;
 
+  public static final String PROFILING_TEMP_DIR = "profiling.tempdir";
+  public static final String PROFILING_TEMP_DIR_DEFAULT = System.getProperty("java.io.tmpdir");
+
   // Not intended for production use
   public static final String PROFILING_AGENTLESS = "profiling.agentless";
   public static final boolean PROFILING_AGENTLESS_DEFAULT = false;
@@ -175,9 +192,6 @@ public final class ProfilingConfig {
 
   public static final String PROFILING_DEBUG_DUMP_PATH = "profiling.debug.dump_path";
   public static final String PROFILING_DEBUG_JFR_DISABLED = "profiling.debug.jfr.disabled";
-
-  public static final String PROFILING_DEBUG_CLEANUP_REPO = "profiling.debug.cleanup.jfr.repo";
-  public static final boolean PROFILING_DEBUG_CLEANUP_REPO_DEFAULT = false;
 
   public static final String PROFILING_CONTEXT_ATTRIBUTES = "profiling.context.attributes";
 
@@ -190,6 +204,16 @@ public final class ProfilingConfig {
   public static final String PROFILING_QUEUEING_TIME_ENABLED = "profiling.queueing.time.enabled";
 
   public static final boolean PROFILING_QUEUEING_TIME_ENABLED_DEFAULT = true;
+
+  public static final String PROFILING_SMAP_COLLECTION_ENABLED =
+      "profiling.smap.collection.enabled";
+
+  public static final boolean PROFILING_SMAP_COLLECTION_ENABLED_DEFAULT = true;
+
+  public static final String PROFILING_SMAP_AGGREGATION_ENABLED =
+      "profiling.smap.aggregation.enabled";
+
+  public static final boolean PROFILING_SMAP_AGGREGATION_ENABLED_DEFAULT = true;
 
   public static final String PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS =
       "profiling.queueing.time.threshold.millis";
@@ -204,9 +228,15 @@ public final class ProfilingConfig {
   public static final String PROFILING_HEAP_HISTOGRAM_MODE = "profiling.heap.histogram.mode";
   public static final String PROFILING_HEAP_HISTOGRAM_MODE_DEFAULT = "aftergc";
 
+  public static final String PROFILING_HEAP_TRACK_GENERATIONS = "profiling.heap.track.generations";
+  public static final boolean PROFILING_HEAP_TRACK_GENERATIONS_DEFAULT = false;
+
   public static final String PROFILING_TIMELINE_EVENTS_ENABLED =
       "profiling.timeline.events.enabled";
-  public static final boolean PROFILING_TIMELINE_EVENTS_ENABLED_DEFAULT = false;
+  public static final boolean PROFILING_TIMELINE_EVENTS_ENABLED_DEFAULT = true;
+
+  public static final String PROFILING_DETAILED_DEBUG_LOGGING = "profiling.detailed.debug.logging";
+  public static final boolean PROFILING_DETAILED_DEBUG_LOGGING_DEFAULT = false;
 
   private ProfilingConfig() {}
 }

@@ -72,7 +72,7 @@ public class PathMatcherInstrumentation extends InstrumenterModule.Iast
         return;
       }
 
-      module.taint(ctx, stringValue, SourceTypes.REQUEST_PATH_PARAMETER);
+      module.taintString(ctx, stringValue, SourceTypes.REQUEST_PATH_PARAMETER);
     }
   }
 }

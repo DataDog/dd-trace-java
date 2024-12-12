@@ -98,7 +98,7 @@ public final class ScalaForkJoinTaskInstrumentation extends InstrumenterModule.T
     @Advice.OnMethodEnter
     public static <T> void fork(@Advice.This ForkJoinTask<T> task) {
       if (!exclude(FORK_JOIN_TASK, task)) {
-        capture(InstrumentationContext.get(ForkJoinTask.class, State.class), task, true);
+        capture(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
       }
     }
   }

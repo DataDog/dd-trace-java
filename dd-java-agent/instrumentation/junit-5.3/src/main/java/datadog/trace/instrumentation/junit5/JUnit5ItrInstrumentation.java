@@ -33,7 +33,7 @@ public class JUnit5ItrInstrumentation extends InstrumenterModule.CiVisibility
 
   @Override
   public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems) && Config.get().isCiVisibilityItrEnabled();
+    return super.isApplicable(enabledSystems) && Config.get().isCiVisibilityTestSkippingEnabled();
   }
 
   @Override

@@ -30,7 +30,7 @@ public class ScalatestItrInstrumentation extends InstrumenterModule.CiVisibility
 
   @Override
   public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems) && Config.get().isCiVisibilityItrEnabled();
+    return super.isApplicable(enabledSystems) && Config.get().isCiVisibilityTestSkippingEnabled();
   }
 
   @Override
@@ -118,7 +118,7 @@ public class ScalatestItrInstrumentation extends InstrumenterModule.CiVisibility
       ) {
         return;
       }
-      TestIdentifier test = new TestIdentifier(suiteId, testName, null, null);
+      TestIdentifier test = new TestIdentifier(suiteId, testName, null);
       RunContext runContext =
           InstrumentationContext.get(Filter.class, RunContext.class).get(filter);
       if (runContext.skip(test, tags)) {

@@ -1,0 +1,23 @@
+name: Prune old pull requests
+on:
+  schedule:
+    - cron: '0 3 1 * *'
+  workflow_dispatch:
+
+jobs:
+  prune-old-pull-requests:
+    name: Prune old pull requests
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+    - name: Prune old pull requests
+      uses: actions/stale@28ca1036281a5e5922ead5184a1bbf96e5fc984e # v9.0.0
+      with:
+        days-before-stale: -1 # Disable general stale bot
+        days-before-pr-stale: 90 # Only enable stale bot for PRs with no activity for 90 days
+        stale-pr-message: 'This pull request has been marked as stale because it has not had activity over the past quarter. It will be closed in 7 days if no further activity occurs. Feel free to reopen the PR if you are still working on it.'
+        close-pr-message: 'This pull request has been closed because it has not had activity over the past quarter. Feel free to reopen the PR if you are still working on it.'
+        stale-pr-label: 'tag: stale'
+        operations-per-run: 500

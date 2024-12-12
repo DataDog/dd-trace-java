@@ -27,4 +27,9 @@ public class TestSnapshotListener extends DebuggerSink {
   public void addSnapshot(Snapshot snapshot) {
     snapshots.add(snapshot);
   }
+
+  @Override
+  public void addHighRateSnapshot(Snapshot snapshot) {
+    snapshots.add(snapshot);
+  }
 }

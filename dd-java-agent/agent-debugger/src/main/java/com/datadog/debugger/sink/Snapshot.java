@@ -2,6 +2,7 @@ package com.datadog.debugger.sink;
 
 import com.datadog.debugger.agent.Generated;
 import datadog.trace.bootstrap.debugger.CapturedContext;
+import datadog.trace.bootstrap.debugger.CapturedContext.CapturedThrowable;
 import datadog.trace.bootstrap.debugger.CapturedStackFrame;
 import datadog.trace.bootstrap.debugger.EvaluationError;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
@@ -32,9 +33,9 @@ public class Snapshot {
   private transient String message;
   private final transient int maxDepth;
   private String exceptionId;
+  private transient int chainedExceptionIdx;
 
   public Snapshot(java.lang.Thread thread, ProbeImplementation probeImplementation, int maxDepth) {
-    this.id = UUID.randomUUID().toString();
     this.version = VERSION;
     this.timestamp = System.currentTimeMillis();
     this.captures = new Captures();
@@ -50,10 +51,10 @@ public class Snapshot {
       long timestamp,
       long duration,
       List<CapturedStackFrame> stack,
-      Snapshot.Captures captures,
+      Captures captures,
       ProbeImplementation probeImplementation,
       String language,
-      Snapshot.CapturedThread thread,
+      CapturedThread thread,
       String traceId,
       String spanId,
       int maxDepth) {
@@ -91,20 +92,28 @@ public class Snapshot {
     this.exceptionId = exceptionId;
   }
 
+  public void setChainedExceptionIdx(int chainedExceptionIdx) {
+    this.chainedExceptionIdx = chainedExceptionIdx;
+  }
+
   public void addLine(CapturedContext context, int line) {
     captures.addLine(line, context);
   }
 
-  public void addCaughtExceptions(List<CapturedContext.CapturedThrowable> throwables) {
+  public void addCaughtExceptions(List<CapturedThrowable> throwables) {
     if (throwables == null) {
       return;
     }
-    for (CapturedContext.CapturedThrowable throwable : throwables) {
+    for (CapturedThrowable throwable : throwables) {
       captures.addCaughtException(throwable);
     }
   }
 
   public String getId() {
+    // lazily generates snapshot id
+    if (id == null) {
+      id = UUID.randomUUID().toString();
+    }
     return id;
   }
 
@@ -174,6 +183,10 @@ public class Snapshot {
     return exceptionId;
   }
 
+  public int getChainedExceptionIdx() {
+    return chainedExceptionIdx;
+  }
+
   public void recordStackTrace(int offset) {
     stack.clear();
     int cntr = 0;
@@ -209,7 +222,7 @@ public class Snapshot {
     // returnValue encoded into a local of CapturedContext
     private CapturedContext _return;
 
-    private List<CapturedContext.CapturedThrowable> caughtExceptions;
+    private List<CapturedThrowable> caughtExceptions;
 
     public CapturedContext getEntry() {
       return entry;
@@ -223,7 +236,7 @@ public class Snapshot {
       return _return;
     }
 
-    public List<CapturedContext.CapturedThrowable> getCaughtExceptions() {
+    public List<CapturedThrowable> getCaughtExceptions() {
       return caughtExceptions;
     }
 
@@ -242,7 +255,7 @@ public class Snapshot {
       lines.put(line, context); // /!\ boxing /!\
     }
 
-    public void addCaughtException(CapturedContext.CapturedThrowable context) {
+    public void addCaughtException(CapturedThrowable context) {
       if (caughtExceptions == null) {
         caughtExceptions = new ArrayList<>();
       }
@@ -287,7 +300,7 @@ public class Snapshot {
     private final long id;
     private final String name;
 
-    public CapturedThread(java.lang.Thread thread) {
+    public CapturedThread(Thread thread) {
       this(thread.getId(), thread.getName());
     }
 

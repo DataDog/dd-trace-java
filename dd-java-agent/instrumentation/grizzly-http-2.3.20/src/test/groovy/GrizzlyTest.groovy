@@ -1,5 +1,6 @@
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.instrumentation.grizzlyhttp232.GrizzlyDecorator
+import datadog.trace.test.util.Flaky
 import org.glassfish.grizzly.http.server.HttpServer
 
 class GrizzlyTest extends HttpServerTest<HttpServer> {
@@ -53,9 +54,10 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
     true
   }
 
+  @Flaky("https://github.com/DataDog/dd-trace-java/issues/6933")
   @Override
   boolean testBlocking() {
-    true
+    "false" != System.getProperty("run.flaky.tests") // Set when using -PskipFlakyTests gradle parameter
   }
 
   //@Ignore("https://github.com/DataDog/dd-trace-java/pull/5213")

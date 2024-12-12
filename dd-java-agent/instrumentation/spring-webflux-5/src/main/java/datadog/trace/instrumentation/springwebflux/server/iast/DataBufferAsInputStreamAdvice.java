@@ -18,6 +18,6 @@ public class DataBufferAsInputStreamAdvice {
       return;
     }
 
-    mod.taintIfTainted(is, dataBuffer);
+    mod.taintObjectIfTainted(is, dataBuffer);
   }
 }

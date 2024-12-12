@@ -138,7 +138,7 @@ class DDSpanTest extends DDCoreSpecification {
 
     then: "has no effect"
     span.durationNano == 0
-    span.context().trace.pendingReferenceCount == 1
+    span.context().traceCollector.pendingReferenceCount == 1
     writer.size() == 0
 
     when:
@@ -147,8 +147,8 @@ class DDSpanTest extends DDCoreSpecification {
 
     then:
     finish
-    span.context().trace.pendingReferenceCount == 1
-    span.context().trace.spans.isEmpty()
+    span.context().traceCollector.pendingReferenceCount == 1
+    span.context().traceCollector.spans.isEmpty()
     writer.isEmpty()
 
     and: "duration is recorded as negative to allow publishing"
@@ -166,8 +166,8 @@ class DDSpanTest extends DDCoreSpecification {
 
     then: "have no effect"
     !finish
-    span.context().trace.pendingReferenceCount == 1
-    span.context().trace.spans.isEmpty()
+    span.context().traceCollector.pendingReferenceCount == 1
+    span.context().traceCollector.spans.isEmpty()
     writer.isEmpty()
 
     when:
@@ -176,14 +176,14 @@ class DDSpanTest extends DDCoreSpecification {
     then: "duration is flipped to positive"
     span.durationNano > 0
     span.durationNano == actualDurationNano
-    span.context().trace.pendingReferenceCount == 0
+    span.context().traceCollector.pendingReferenceCount == 0
     writer.size() == 1
 
     when: "duplicate call to publish"
     span.publish()
 
     then: "has no effect"
-    span.context().trace.pendingReferenceCount == 0
+    span.context().traceCollector.pendingReferenceCount == 0
     writer.size() == 1
   }
 
@@ -362,7 +362,7 @@ class DDSpanTest extends DDCoreSpecification {
       false,
       "fakeType",
       0,
-      tracer.pendingTraceFactory.create(DDTraceId.ONE),
+      tracer.traceCollectorFactory.create(DDTraceId.ONE),
       null,
       null,
       NoopPathwayContext.INSTANCE,

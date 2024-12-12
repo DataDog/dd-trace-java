@@ -12,18 +12,20 @@ public class SchemaSampler {
     this.lastSampleMillis = 0;
   }
 
-  public int shouldSample(long currentTimeMillis) {
-    weight.incrementAndGet();
+  public int trySample(long currentTimeMillis) {
     if (currentTimeMillis >= lastSampleMillis + SAMPLE_INTERVAL_MILLIS) {
       synchronized (this) {
         if (currentTimeMillis >= lastSampleMillis + SAMPLE_INTERVAL_MILLIS) {
           lastSampleMillis = currentTimeMillis;
-          int currentWeight = weight.get();
-          weight.set(0);
-          return currentWeight;
+          return weight.getAndSet(0);
         }
       }
     }
     return 0;
+  }
+
+  public boolean canSample(long currentTimeMillis) {
+    weight.incrementAndGet();
+    return currentTimeMillis >= lastSampleMillis + SAMPLE_INTERVAL_MILLIS;
   }
 }

@@ -52,7 +52,7 @@ dependencies {
 
   testImplementation group: 'com.datastax.cassandra', name: 'cassandra-driver-core', version: '3.2.0'
   testImplementation group: 'com.github.jbellis', name: 'jamm', version: '0.3.3'
-  testImplementation ('org.testcontainers:cassandra:1.17.6') {
+  testImplementation (group: 'org.testcontainers', name: 'cassandra', version: libs.versions.testcontainers.get()) {
     exclude group: 'com.datastax.cassandra', module: 'cassandra-driver-core'
   }
 

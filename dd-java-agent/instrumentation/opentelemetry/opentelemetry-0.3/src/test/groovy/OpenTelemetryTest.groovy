@@ -274,7 +274,7 @@ class OpenTelemetryTest extends AgentTestRunner {
     def expectedTraceparent = "00-${span.delegate.traceId.toHexStringPadded(32)}" +
       "-${DDSpanId.toHexStringPadded(span.delegate.spanId)}" +
       "-" + (propagatedPriority > 0 ? "01" : "00")
-    def expectedTracestate = "dd=s:${propagatedPriority}"
+    def expectedTracestate = "dd=s:${propagatedPriority};p:${DDSpanId.toHexStringPadded(span.delegate.spanId)}"
     def expectedDatadogTags = null
     if (propagatedMechanism != UNKNOWN) {
       expectedDatadogTags = "_dd.p.dm=-" + propagatedMechanism

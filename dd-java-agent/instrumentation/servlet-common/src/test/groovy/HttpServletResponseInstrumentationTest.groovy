@@ -182,7 +182,7 @@ class HttpServletResponseInstrumentationTest extends AgentTestRunner {
 
     then:
     noExceptionThrown()
-    1 * module.taintIfTainted(_, "http://dummy.url.com")
+    1 * module.taintStringIfTainted(_, "http://dummy.url.com")
     0 * _
   }
 
@@ -197,7 +197,7 @@ class HttpServletResponseInstrumentationTest extends AgentTestRunner {
 
     then:
     noExceptionThrown()
-    1 * module.taintIfTainted(_, "http://dummy.url.com")
+    1 * module.taintStringIfTainted(_, "http://dummy.url.com")
     0 * _
   }
 

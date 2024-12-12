@@ -29,5 +29,15 @@ public class DatadogProfilerSettings extends ProfilerSettingsSupport {
     datadogProfiler.recordSetting(JFR_IMPLEMENTATION_KEY, "ddprof");
     datadogProfiler.recordSetting(STACK_DEPTH_KEY, String.valueOf(stackDepth));
     datadogProfiler.recordSetting(SELINUX_STATUS_KEY, seLinuxStatus);
+    if (serviceInstrumentationType != null) {
+      datadogProfiler.recordSetting(SERVICE_INSTRUMENTATION_TYPE, serviceInstrumentationType);
+    }
+    if (serviceInjection != null) {
+      datadogProfiler.recordSetting(SERVICE_INJECTION, serviceInjection);
+    }
+    datadogProfiler.recordSetting(
+        PROFILER_ACTIVATION, profilerActivationSetting.enablement.getAlias());
+    datadogProfiler.recordSetting(
+        SSI_MECHANISM, profilerActivationSetting.ssiMechanism.name().toLowerCase());
   }
 }

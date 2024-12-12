@@ -24,6 +24,10 @@ public class CapturedSnapshot07 {
       cs7.strValue = arg;
       return cs7.capturingLambda(arg);
     }
+    if (mode.equals("multi")) {
+      CapturedSnapshot07 cs7 = new CapturedSnapshot07();
+      return cs7.multiLambda(arg);
+    }
     return 0;
   }
 
@@ -47,5 +51,11 @@ public class CapturedSnapshot07 {
       return strValue.substring(0);
     };
     return func.apply(arg).length();
+  }
+
+  private int multiLambda(String arg) {
+    return (int)Arrays.stream(arg.split(","))
+        .map(s -> s.toUpperCase()).filter(s -> s.startsWith("FOO"))
+        .count();
   }
 }

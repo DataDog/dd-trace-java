@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 /**
  * When calling extract, we allow for grabbing other configured headers as tags. Those tags are
@@ -22,7 +23,7 @@ public class TagContext implements AgentSpan.Context.Extracted {
   private static final HttpHeaders EMPTY_HTTP_HEADERS = new HttpHeaders();
 
   private final CharSequence origin;
-  private final Map<String, String> tags;
+  private Map<String, String> tags;
   private List<AgentSpanLink> terminatedContextLinks;
   private Object requestContextDataAppSec;
   private Object requestContextDataIast;
@@ -33,13 +34,14 @@ public class TagContext implements AgentSpan.Context.Extracted {
   private final int samplingPriority;
   private final TraceConfig traceConfig;
   private final TracePropagationStyle propagationStyle;
+  private final DDTraceId traceId;
 
   public TagContext() {
     this(null, null);
   }
 
-  public TagContext(final String origin, final Map<String, String> tags) {
-    this(origin, tags, null, null, PrioritySampling.UNSET, null, NONE);
+  public TagContext(final CharSequence origin, final Map<String, String> tags) {
+    this(origin, tags, null, null, PrioritySampling.UNSET, null, NONE, DDTraceId.ZERO);
   }
 
   public TagContext(
@@ -49,7 +51,8 @@ public class TagContext implements AgentSpan.Context.Extracted {
       final Map<String, String> baggage,
       final int samplingPriority,
       final TraceConfig traceConfig,
-      final TracePropagationStyle propagationStyle) {
+      final TracePropagationStyle propagationStyle,
+      final DDTraceId traceId) {
     this.origin = origin;
     this.tags = tags;
     this.terminatedContextLinks = null;
@@ -58,6 +61,7 @@ public class TagContext implements AgentSpan.Context.Extracted {
     this.samplingPriority = samplingPriority;
     this.traceConfig = traceConfig;
     this.propagationStyle = propagationStyle;
+    this.traceId = traceId;
   }
 
   public TraceConfig getTraceConfig() {
@@ -125,11 +129,6 @@ public class TagContext implements AgentSpan.Context.Extracted {
   }
 
   @Override
-  public String getXForwarded() {
-    return httpHeaders.xForwarded;
-  }
-
-  @Override
   public String getXForwardedFor() {
     return httpHeaders.xForwardedFor;
   }
@@ -168,6 +167,13 @@ public class TagContext implements AgentSpan.Context.Extracted {
     return tags;
   }
 
+  public void putTag(final String key, final String value) {
+    if (this.tags.isEmpty()) {
+      this.tags = new TreeMap<>();
+    }
+    this.tags.put(key, value);
+  }
+
   @Override
   public final int getSamplingPriority() {
     return samplingPriority;
@@ -184,7 +190,7 @@ public class TagContext implements AgentSpan.Context.Extracted {
 
   @Override
   public DDTraceId getTraceId() {
-    return DDTraceId.ZERO;
+    return traceId;
   }
 
   @Override
@@ -193,8 +199,8 @@ public class TagContext implements AgentSpan.Context.Extracted {
   }
 
   @Override
-  public final AgentTrace getTrace() {
-    return AgentTracer.NoopAgentTrace.INSTANCE;
+  public final AgentTraceCollector getTraceCollector() {
+    return AgentTracer.NoopAgentTraceCollector.INSTANCE;
   }
 
   public final Object getRequestContextDataAppSec() {
@@ -256,12 +262,11 @@ public class TagContext implements AgentSpan.Context.Extracted {
     public String fastlyClientIp;
     public String cfConnectingIp;
     public String cfConnectingIpv6;
-    public String xForwarded;
-    public String forwarded;
     public String xForwardedProto;
     public String xForwardedHost;
     public String xForwardedPort;
     public String xForwardedFor;
+    public String forwarded;
     public String forwardedFor;
     public String xClusterClientIp;
     public String xRealIp;

@@ -29,7 +29,7 @@ public final class Evidence {
 
   public Evidence(@Nonnull final String value, @Nullable final Range[] ranges) {
     this.value = value;
-    this.ranges = ranges;
+    this.ranges = consolidate(ranges);
   }
 
   @Nonnull
@@ -59,6 +59,23 @@ public final class Evidence {
   public int hashCode() {
     int result = Objects.hash(value);
     result = 31 * result + Arrays.hashCode(ranges);
+    return result;
+  }
+
+  /**
+   * This method ensures that once a vulnerability has been found, all of it range names and values
+   * are strongly reachable preventing the GC from freeing them before the vul is reported. The
+   * newly created ranges have a lifespan equal to the target vulnerability.
+   */
+  @Nullable
+  private static Range[] consolidate(@Nullable final Range[] ranges) {
+    if (ranges == null || ranges.length == 0) {
+      return ranges;
+    }
+    final Range[] result = new Range[ranges.length];
+    for (int i = 0; i < ranges.length; i++) {
+      result[i] = ranges[i].consolidate();
+    }
     return result;
   }
 

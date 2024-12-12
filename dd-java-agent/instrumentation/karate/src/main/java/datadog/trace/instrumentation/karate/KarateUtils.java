@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.karate;
 
+import static datadog.json.JsonMapper.toJson;
+
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureRuntime;
 import com.intuit.karate.core.Result;
@@ -28,6 +30,10 @@ public abstract class KarateUtils {
       METHOD_HANDLES.privateFieldGetter(FeatureRuntime.class, "feature");
   private static final MethodHandle FEATURE_RUNTIME_FEATURE_CALL_GETTER =
       METHOD_HANDLES.privateFieldGetter(FeatureRuntime.class, "featureCall");
+  private static final MethodHandle FEATURE_RUNTIME_BEFORE_HOOK_DONE_GETTER =
+      METHOD_HANDLES.privateFieldGetter(FeatureRuntime.class, "beforeHookDone");
+  private static final MethodHandle FEATURE_RUNTIME_BEFORE_HOOK_DONE_SETTER =
+      METHOD_HANDLES.privateFieldSetter(FeatureRuntime.class, "beforeHookDone");
   private static final MethodHandle FEATURE_CALL_FEATURE_GETTER =
       METHOD_HANDLES.privateFieldGetter("com.intuit.karate.core.FeatureCall", "feature");
   private static final MethodHandle ABORTED_RESULT_DURATION_NANOS =
@@ -72,7 +78,7 @@ public abstract class KarateUtils {
   }
 
   public static String getParameters(Scenario scenario) {
-    return scenario.getExampleData() != null ? Strings.toJson(scenario.getExampleData()) : null;
+    return scenario.getExampleData() != null ? toJson(scenario.getExampleData()) : null;
   }
 
   public static TestIdentifier toTestIdentifier(Scenario scenario) {
@@ -80,7 +86,7 @@ public abstract class KarateUtils {
     String featureName = feature.getNameForReport();
     String scenarioName = KarateUtils.getScenarioName(scenario);
     String parameters = KarateUtils.getParameters(scenario);
-    return new TestIdentifier(featureName, scenarioName, parameters, null);
+    return new TestIdentifier(featureName, scenarioName, parameters);
   }
 
   public static TestDescriptor toTestDescriptor(ScenarioRuntime scenarioRuntime) {
@@ -107,5 +113,15 @@ public abstract class KarateUtils {
       long durationNanos = 1;
       return METHOD_HANDLES.invoke(ABORTED_RESULT_DURATION_NANOS, durationNanos);
     }
+  }
+
+  public static boolean isBeforeHookExecuted(FeatureRuntime featureRuntime) {
+    Boolean beforeHookDone =
+        METHOD_HANDLES.invoke(FEATURE_RUNTIME_BEFORE_HOOK_DONE_GETTER, featureRuntime);
+    return beforeHookDone != null ? beforeHookDone : true;
+  }
+
+  public static void resetBeforeHook(FeatureRuntime featureRuntime) {
+    METHOD_HANDLES.invoke(FEATURE_RUNTIME_BEFORE_HOOK_DONE_SETTER, featureRuntime, false);
   }
 }

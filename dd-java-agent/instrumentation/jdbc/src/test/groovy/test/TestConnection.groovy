@@ -28,6 +28,7 @@ class TestConnection implements Connection {
     }
   }
 
+  private DatabaseMetaData metadata
 
   @Override
   Statement createStatement() throws SQLException {
@@ -36,7 +37,7 @@ class TestConnection implements Connection {
 
   @Override
   PreparedStatement prepareStatement(String sql) throws SQLException {
-    return new TestPreparedStatement(this)
+    return new TestPreparedStatement(this, sql)
   }
 
   @Override
@@ -77,7 +78,14 @@ class TestConnection implements Connection {
 
   @Override
   DatabaseMetaData getMetaData() throws SQLException {
-    return new TestDatabaseMetaData()
+    if (metadata == null) {
+      return new TestDatabaseMetaData()
+    }
+    return metadata
+  }
+
+  void setMetaData(DatabaseMetaData metadata) {
+    this.metadata = metadata
   }
 
   @Override

@@ -76,7 +76,7 @@ public class AsmSpecificationBuilder implements SpecificationBuilder {
     private boolean isCallSite;
     private final List<AdviceSpecification> advices = new ArrayList<>();
     private final Set<Type> helpers = new HashSet<>();
-    private Type spi;
+    private final Set<Type> spi = new HashSet<>();
     private List<String> enabled = new ArrayList<>();
     private CallSiteSpecification result;
 
@@ -101,16 +101,17 @@ public class AsmSpecificationBuilder implements SpecificationBuilder {
       if (isCallSite) {
         helpers.add(clazz);
         return new AnnotationVisitor(ASM_API_VERSION) {
-          @Override
-          public void visit(final String key, final Object value) {
-            if ("spi".equals(key)) {
-              spi = (Type) value;
-            }
-          }
 
           @Override
           public AnnotationVisitor visitArray(final String name) {
-            if ("helpers".equals(name)) {
+            if ("spi".equals(name)) {
+              return new AnnotationVisitor(ASM_API_VERSION) {
+                @Override
+                public void visit(final String name, final Object value) {
+                  spi.add((Type) value);
+                }
+              };
+            } else if ("helpers".equals(name)) {
               return new AnnotationVisitor(ASM_API_VERSION) {
                 @Override
                 public void visit(final String name, final Object value) {

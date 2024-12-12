@@ -1,14 +1,18 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.api.DDTags.PARENT_ID;
 import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT;
+import static datadog.trace.core.propagation.DatadogHttpCodec.SPAN_ID_KEY;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DD128bTraceId;
 import datadog.trace.api.DD64bTraceId;
+import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.DDSpanLink;
@@ -33,7 +37,6 @@ public class HttpCodec {
   static final String FORWARDED_FOR_KEY = "forwarded-for";
   static final String X_FORWARDED_PROTO_KEY = "x-forwarded-proto";
   static final String X_FORWARDED_HOST_KEY = "x-forwarded-host";
-  static final String X_FORWARDED_KEY = "x-forwarded";
   static final String X_FORWARDED_FOR_KEY = "x-forwarded-for";
   static final String X_FORWARDED_PORT_KEY = "x-forwarded-port";
 
@@ -233,14 +236,17 @@ public class HttpCodec {
             if (traceIdMatch(context.getTraceId(), extractedContext.getTraceId())) {
               boolean comingFromTraceContext = extracted.getPropagationStyle() == TRACECONTEXT;
               if (comingFromTraceContext) {
-                // Propagate newly extracted W3C tracestate to first valid context
-                String extractedTracestate =
-                    extractedContext.getPropagationTags().getW3CTracestate();
-                context.getPropagationTags().updateW3CTracestate(extractedTracestate);
+                applyTraceContextToFirstContext(context, extractedContext, extractionCache);
               }
             } else {
               // Terminate extracted context and add it as span link
-              context.addTerminatedContextLink(DDSpanLink.from((ExtractedContext) extracted));
+              context.addTerminatedContextLink(
+                  DDSpanLink.from(
+                      (ExtractedContext) extracted,
+                      SpanAttributes.builder()
+                          .put("reason", "terminated_context")
+                          .put("context_headers", extracted.getPropagationStyle().toString())
+                          .build()));
               // TODO Note: Other vendor tracestate will be lost here
             }
           }
@@ -262,6 +268,36 @@ public class HttpCodec {
         return null;
       }
     }
+
+    /**
+     * Applies span ID from W3C trace context over any other valid context previously found.
+     *
+     * @param firstContext The first valid context found.
+     * @param traceContext The trace context to apply.
+     * @param extractionCache The extraction cache to get quick access to any extra information.
+     * @param <C> The carrier type.
+     */
+    private <C> void applyTraceContextToFirstContext(
+        ExtractedContext firstContext,
+        ExtractedContext traceContext,
+        ExtractionCache<C> extractionCache) {
+      // Propagate newly extracted W3C tracestate to first valid context
+      String extractedTracestate = traceContext.getPropagationTags().getW3CTracestate();
+      firstContext.getPropagationTags().updateW3CTracestate(extractedTracestate);
+      // Check if parent spans differ to reconcile them
+      if (firstContext.getSpanId() != traceContext.getSpanId()) {
+        // Override parent span id with W3C one
+        firstContext.overrideSpanId(traceContext.getSpanId());
+        // Add last parent ID as a span tag (check W3C first, else Datadog)
+        CharSequence lastParentId = traceContext.getPropagationTags().getLastParentId();
+        if (lastParentId == null) {
+          lastParentId = extractionCache.getDatadogSpanIdHex();
+        }
+        if (lastParentId != null) {
+          firstContext.putTag(PARENT_ID, lastParentId.toString());
+        }
+      }
+    }
   }
 
   private static class ExtractionCache<C>
@@ -269,6 +305,11 @@ public class HttpCodec {
           AgentPropagation.ContextVisitor<ExtractionCache<?>> {
     /** Cached context key-values (even indexes are header names, odd indexes are header values). */
     private final List<String> keysAndValues;
+    /**
+     * The parent span identifier from {@link DatadogHttpCodec#SPAN_ID_KEY} header formatted as 16
+     * hexadecimal characters, {@code null} if absent or invalid.
+     */
+    private String datadogSpanIdHex;
 
     public ExtractionCache(C carrier, AgentPropagation.ContextVisitor<C> getter) {
       this.keysAndValues = new ArrayList<>(32);
@@ -279,7 +320,22 @@ public class HttpCodec {
     public boolean accept(String key, String value) {
       this.keysAndValues.add(key);
       this.keysAndValues.add(value);
+      cacheDatadogSpanId(key, value);
       return true;
+    }
+
+    private void cacheDatadogSpanId(String key, String value) {
+      if (SPAN_ID_KEY.equalsIgnoreCase(key)) {
+        try {
+          // Parse numeric header value to format it as 16 hexadecimal character format
+          this.datadogSpanIdHex = DDSpanId.toHexStringPadded(DDSpanId.from(value));
+        } catch (NumberFormatException ignored) {
+        }
+      }
+    }
+
+    private String getDatadogSpanIdHex() {
+      return this.datadogSpanIdHex;
     }
 
     @Override

@@ -74,7 +74,7 @@ public final class TPEHelper {
 
   public static void capture(ContextStore<Runnable, State> contextStore, Runnable task) {
     if (task != null && !exclude(RUNNABLE, task)) {
-      AdviceUtils.capture(contextStore, task, true);
+      AdviceUtils.capture(contextStore, task);
     }
   }
 

@@ -3,6 +3,7 @@ package datadog.trace.bootstrap.debugger;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import java.lang.reflect.Method;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -30,6 +31,10 @@ public class DebuggerContext {
 
   public interface ClassFilter {
     boolean isDenied(String fullyQualifiedClassName);
+  }
+
+  public interface ClassNameFilter {
+    boolean isExcluded(String className);
   }
 
   public enum MetricKind {
@@ -67,12 +72,20 @@ public class DebuggerContext {
     void handleException(Throwable t, AgentSpan span);
   }
 
+  public interface CodeOriginRecorder {
+    String captureCodeOrigin(boolean entry);
+
+    String captureCodeOrigin(Method method, boolean entry);
+  }
+
   private static volatile ProbeResolver probeResolver;
   private static volatile ClassFilter classFilter;
+  private static volatile ClassNameFilter classNameFilter;
   private static volatile MetricForwarder metricForwarder;
   private static volatile Tracer tracer;
   private static volatile ValueSerializer valueSerializer;
   private static volatile ExceptionDebugger exceptionDebugger;
+  private static volatile CodeOriginRecorder codeOriginRecorder;
 
   public static void initProbeResolver(ProbeResolver probeResolver) {
     DebuggerContext.probeResolver = probeResolver;
@@ -90,12 +103,20 @@ public class DebuggerContext {
     DebuggerContext.classFilter = classFilter;
   }
 
+  public static void initClassNameFilter(ClassNameFilter classNameFilter) {
+    DebuggerContext.classNameFilter = classNameFilter;
+  }
+
   public static void initValueSerializer(ValueSerializer valueSerializer) {
     DebuggerContext.valueSerializer = valueSerializer;
   }
 
   public static void initExceptionDebugger(ExceptionDebugger exceptionDebugger) {
     DebuggerContext.exceptionDebugger = exceptionDebugger;
+  }
+
+  public static void initCodeOrigin(CodeOriginRecorder codeOriginRecorder) {
+    DebuggerContext.codeOriginRecorder = codeOriginRecorder;
   }
 
   /**
@@ -143,6 +164,7 @@ public class DebuggerContext {
           break;
         case DISTRIBUTION:
           forwarder.distribution(probeId, name, value, tags);
+          break;
         default:
           throw new IllegalArgumentException("Unsupported metric kind: " + kind);
       }
@@ -332,6 +354,30 @@ public class DebuggerContext {
     }
   }
 
+  public static String captureCodeOrigin(boolean entry) {
+    try {
+      CodeOriginRecorder recorder = codeOriginRecorder;
+      if (recorder != null) {
+        return recorder.captureCodeOrigin(entry);
+      }
+    } catch (Exception ex) {
+      LOGGER.debug("Error in captureCodeOrigin: ", ex);
+    }
+    return null;
+  }
+
+  public static String captureCodeOrigin(Method method, boolean entry) {
+    try {
+      CodeOriginRecorder recorder = codeOriginRecorder;
+      if (recorder != null) {
+        return recorder.captureCodeOrigin(method, entry);
+      }
+    } catch (Exception ex) {
+      LOGGER.debug("Error in captureCodeOrigin: ", ex);
+    }
+    return null;
+  }
+
   public static void handleException(Throwable t, AgentSpan span) {
     try {
       ExceptionDebugger exDebugger = exceptionDebugger;
@@ -341,6 +387,15 @@ public class DebuggerContext {
       exDebugger.handleException(t, span);
     } catch (Exception ex) {
       LOGGER.debug("Error in handleException: ", ex);
+    }
+  }
+
+  public static boolean isClassNameExcluded(String className) {
+    try {
+      return classNameFilter != null && classNameFilter.isExcluded(className);
+    } catch (Exception ex) {
+      LOGGER.debug("Error in isClassNameExcluded: ", ex);
+      return false;
     }
   }
 }

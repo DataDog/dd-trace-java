@@ -113,7 +113,7 @@ public abstract class CucumberUtils {
           getFeatureAndScenarioNames(testDescriptor, classpathResourceName);
       String testSuiteName = names.getLeft();
       String testName = names.getRight();
-      return new TestIdentifier(testSuiteName, testName, null, null);
+      return new TestIdentifier(testSuiteName, testName, null);
 
     } else {
       return null;

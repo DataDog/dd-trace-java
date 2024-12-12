@@ -19,6 +19,7 @@ public final class LoggingStatsDClient implements StatsDClient {
   private static final String HISTOGRAM_FORMAT = "{}:{}|h{}";
   private static final String DISTRIBUTION_FORMAT = "{}:{}|d{}";
   private static final String SERVICE_CHECK_FORMAT = "_sc|{}|{}{}{}";
+  private static final String EVENT_FORMAT = "_e|{}|{}|{}|{}|{}";
 
   private static final DecimalFormat DECIMAL_FORMAT;
 
@@ -109,6 +110,12 @@ public final class LoggingStatsDClient implements StatsDClient {
   @Override
   public int getErrorCount() {
     return 0;
+  }
+
+  @Override
+  public void recordEvent(
+      String type, String source, String eventName, String message, String... tags) {
+    log.info(EVENT_FORMAT, type, source, eventName, message, join(tagMapping.apply(tags)));
   }
 
   @Override

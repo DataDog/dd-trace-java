@@ -49,7 +49,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     final result = specificationBuilder.build(advice).orElseThrow(RuntimeException::new)
 
     then:
-    result.spi == Type.getType(WithSpiClass.Spi)
+    result.spi == [Type.getType(WithSpiClass.Spi)] as Type[]
   }
 
   @CallSite(spi = CallSites, helpers = [SampleHelper1.class, SampleHelper2.class])

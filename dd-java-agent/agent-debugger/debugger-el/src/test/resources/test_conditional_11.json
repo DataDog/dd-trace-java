@@ -5,6 +5,7 @@
       {"isEmpty": {"ref": "emptyStr"}},
       {"isEmpty": {"ref": "emptyList"}},
       {"isEmpty": {"ref": "emptyMap"}},
+      {"isEmpty": {"ref": "emptySet"}},
       {"isEmpty": {"ref": "emptyArray"}},
       {"not": {"isDefined":  {"ref": "@exception"}}}
     ]

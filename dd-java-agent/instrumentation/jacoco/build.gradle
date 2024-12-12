@@ -10,6 +10,6 @@ muzzle {
 }
 
 dependencies {
-  implementation deps.asm
+  implementation libs.asm
   compileOnly group: 'org.jacoco', name: 'org.jacoco.agent', version: '0.8.9', classifier: 'runtime'
 }

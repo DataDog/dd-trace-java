@@ -31,6 +31,7 @@ class MUnitTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test flaky retries #testcaseName"() {
+    givenFlakyRetryEnabled(true)
     givenFlakyTests(retriedTests)
 
     runTests(tests)
@@ -40,11 +41,12 @@ class MUnitTest extends CiVisibilityInstrumentationTest {
     where:
     testcaseName               | tests                        | expectedTracesCount | retriedTests
     "test-failed"              | [TestFailedMUnit]            | 2                   | []
-    "test-retry-failed"        | [TestFailedMUnit]            | 6                   | [new TestIdentifier("org.example.TestFailedMUnit", "Calculator.add", null, null)]
-    "test-failed-then-succeed" | [TestFailedThenSucceedMUnit] | 4                   | [new TestIdentifier("org.example.TestFailedThenSucceedMUnit", "Calculator.add", null, null)]
+    "test-retry-failed"        | [TestFailedMUnit]            | 6                   | [new TestIdentifier("org.example.TestFailedMUnit", "Calculator.add", null)]
+    "test-failed-then-succeed" | [TestFailedThenSucceedMUnit] | 4                   | [new TestIdentifier("org.example.TestFailedThenSucceedMUnit", "Calculator.add", null)]
   }
 
   def "test early flakiness detection #testcaseName"() {
+    givenEarlyFlakinessDetectionEnabled(true)
     givenKnownTests(knownTestsList)
 
     runTests(tests)
@@ -53,7 +55,7 @@ class MUnitTest extends CiVisibilityInstrumentationTest {
 
     where:
     testcaseName             | tests                  | expectedTracesCount | knownTestsList
-    "test-efd-known-test"    | [TestSucceedMUnit]     | 2                   | [new TestIdentifier("org.example.TestSucceedMUnit", "Calculator.add", null, null)]
+    "test-efd-known-test"    | [TestSucceedMUnit]     | 2                   | [new TestIdentifier("org.example.TestSucceedMUnit", "Calculator.add", null)]
     "test-efd-new-test"      | [TestSucceedMUnit]     | 4                   | []
     "test-efd-new-slow-test" | [TestSucceedMUnitSlow] | 3                   | [] // is executed only twice
   }

@@ -74,7 +74,7 @@ class W3CHttpCodec {
       StringBuilder sb = new StringBuilder(TRACE_PARENT_LENGTH);
       sb.append("00-");
       sb.append(context.getTraceId().toHexString());
-      sb.append("-");
+      sb.append('-');
       sb.append(DDSpanId.toHexStringPadded(context.getSpanId()));
       sb.append(context.getSamplingPriority() > 0 ? "-01" : "-00");
       setter.set(carrier, TRACE_PARENT_KEY, sb.toString());
@@ -83,6 +83,17 @@ class W3CHttpCodec {
     private <C> void injectTraceState(
         DDSpanContext context, C carrier, AgentPropagation.Setter<C> setter) {
       PropagationTags propagationTags = context.getPropagationTags();
+      if (propagationTags.getLastParentId() == null) {
+        if (context.isRemote()) {
+          CharSequence lastParentId = context.getLastParentId();
+          if (lastParentId != null) {
+            propagationTags.updateLastParentId(lastParentId);
+          }
+        } else {
+          propagationTags.updateLastParentId(DDSpanId.toHexStringPadded(context.getSpanId()));
+        }
+      }
+
       String tracestate = propagationTags.headerValue(W3C);
       if (tracestate != null && !tracestate.isEmpty()) {
         setter.set(carrier, TRACE_STATE_KEY, tracestate);
@@ -323,6 +334,7 @@ class W3CHttpCodec {
       } else {
         this.propagationTags = this.propagationTagsFactory.fromHeaderValue(W3C, tracestate);
       }
+      this.lastParentId = this.propagationTags.getLastParentId();
       int ptagsPriority = this.propagationTags.getSamplingPriority();
       int contextPriority = this.samplingPriority;
       if ((contextPriority == SAMPLER_DROP && ptagsPriority > 0)

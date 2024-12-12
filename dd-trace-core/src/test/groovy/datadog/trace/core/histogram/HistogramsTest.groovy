@@ -36,7 +36,7 @@ class HistogramsTest extends DDSpecification {
   @Shared
   Double[] quantiles = [0.5D, 0.75D, 0.9D, 0.95D, 0.99D]
 
-  def "test quantiles have 1% relative error"() {
+  def "test quantiles have 1% relative error #iterationIndex"() {
     setup:
     def histogram
 

@@ -37,8 +37,7 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
     }
 
     // We want the callback in the scope of the parent, not the client span
-    try (final AgentScope scope = activateSpan(parent)) {
-      scope.setAsyncPropagation(true);
+    try (final AgentScope scope = activateSpan(parent, true)) {
       ctx.fireChannelRead(msg);
     }
   }
@@ -59,8 +58,7 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
       }
     }
     // We want the callback in the scope of the parent, not the client span
-    try (final AgentScope scope = activateSpan(parent)) {
-      scope.setAsyncPropagation(true);
+    try (final AgentScope scope = activateSpan(parent, true)) {
       super.exceptionCaught(ctx, cause);
     }
   }
@@ -71,15 +69,14 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
     parentAttr.setIfAbsent(noopSpan());
     final AgentSpan parent = parentAttr.get();
     final AgentSpan span = ctx.channel().attr(SPAN_ATTRIBUTE_KEY).getAndSet(parent);
-    if (span != null) {
+    if (span != null && span != parent) {
       try (final AgentScope scope = activateSpan(span)) {
         DECORATE.beforeFinish(span);
         span.finish();
       }
     }
     // We want the callback in the scope of the parent, not the client span
-    try (final AgentScope scope = activateSpan(parent)) {
-      scope.setAsyncPropagation(true);
+    try (final AgentScope scope = activateSpan(parent, true)) {
       super.channelInactive(ctx);
     }
   }

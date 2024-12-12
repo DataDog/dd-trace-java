@@ -1,18 +1,21 @@
 package com.datadog.debugger.el.expressions;
 
 import com.datadog.debugger.el.Visitor;
+import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 
 public enum BinaryOperator {
   AND("&&") {
     @Override
-    public Boolean apply(Boolean left, Boolean right) {
-      return left && right;
+    public Boolean apply(
+        BooleanExpression left, BooleanExpression right, ValueReferenceResolver resolver) {
+      return left.evaluate(resolver) && right.evaluate(resolver);
     }
   },
   OR("||") {
     @Override
-    public Boolean apply(Boolean left, Boolean right) {
-      return left || right;
+    public Boolean apply(
+        BooleanExpression left, BooleanExpression right, ValueReferenceResolver resolver) {
+      return left.evaluate(resolver) || right.evaluate(resolver);
     }
   };
 
@@ -22,7 +25,8 @@ public enum BinaryOperator {
     this.symbol = symbol;
   }
 
-  public abstract Boolean apply(Boolean left, Boolean right);
+  public abstract Boolean apply(
+      BooleanExpression left, BooleanExpression right, ValueReferenceResolver resolver);
 
   public <R> R accept(Visitor<R> visitor) {
     return visitor.visit(this);

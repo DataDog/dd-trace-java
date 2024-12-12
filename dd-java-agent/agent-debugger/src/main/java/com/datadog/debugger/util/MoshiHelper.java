@@ -50,4 +50,8 @@ public class MoshiHelper {
   public static Moshi createMoshiSymbol() {
     return new Moshi.Builder().build();
   }
+
+  public static Moshi createMoshiWatches() {
+    return new Moshi.Builder().add(ValueScript.class, new ValueScript.ValueScriptAdapter()).build();
+  }
 }

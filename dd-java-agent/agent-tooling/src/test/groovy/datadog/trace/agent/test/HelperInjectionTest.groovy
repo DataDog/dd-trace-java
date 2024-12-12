@@ -19,7 +19,7 @@ class HelperInjectionTest extends DDSpecification {
   //@Flaky("awaitGC usage is flaky")
   def "helpers injected to non-delegating classloader"() {
     setup:
-    HelperInjector injector = new HelperInjector("test", HELPER_CLASS_NAME)
+    HelperInjector injector = new HelperInjector(false, "test", HELPER_CLASS_NAME)
     AtomicReference<URLClassLoader> emptyLoader = new AtomicReference<>(new URLClassLoader(new URL[0], (ClassLoader) null))
 
     when:

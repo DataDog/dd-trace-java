@@ -22,11 +22,6 @@ public abstract class InstrumentationBridge {
   }
 
   public static <SuiteKey, TestKey> TestEventsHandler<SuiteKey, TestKey> createTestEventsHandler(
-      String component) {
-    return TEST_EVENTS_HANDLER_FACTORY.create(component);
-  }
-
-  public static <SuiteKey, TestKey> TestEventsHandler<SuiteKey, TestKey> createTestEventsHandler(
       String component,
       ContextStore<SuiteKey, DDTestSuite> suiteStore,
       ContextStore<TestKey, DDTest> testStore) {

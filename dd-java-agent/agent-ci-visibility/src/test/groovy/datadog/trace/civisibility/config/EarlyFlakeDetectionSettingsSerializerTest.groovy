@@ -1,12 +1,12 @@
 package datadog.trace.civisibility.config
 
-import datadog.trace.api.civisibility.config.EarlyFlakeDetectionSettings
+
 import datadog.trace.civisibility.ipc.Serializer
 import spock.lang.Specification
 
 class EarlyFlakeDetectionSettingsSerializerTest extends Specification {
 
-  def "test serialization: #settings"() {
+  def "test serialization: #iterationIndex"() {
     when:
     Serializer s = new Serializer()
     EarlyFlakeDetectionSettingsSerializer.serialize(s, settings)

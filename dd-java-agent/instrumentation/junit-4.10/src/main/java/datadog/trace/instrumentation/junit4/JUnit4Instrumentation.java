@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.junit4;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -26,6 +27,8 @@ import org.junit.runner.notification.RunNotifier;
 public class JUnit4Instrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForTypeHierarchy {
 
+  static final int ORDER = 0;
+
   public JUnit4Instrumentation() {
     super("ci-visibility", "junit-4");
   }
@@ -36,6 +39,11 @@ public class JUnit4Instrumentation extends InstrumenterModule.CiVisibility
   }
 
   @Override
+  public int order() {
+    return ORDER;
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return extendsClass(named(hierarchyMarkerType()))
         // do not instrument our internal runner
@@ -43,7 +51,14 @@ public class JUnit4Instrumentation extends InstrumenterModule.CiVisibility
         .and(not(extendsClass(named("datadog.trace.agent.test.SpockRunner"))))
         // do not instrument Karate JUnit 4 runner
         // since Karate has a dedicated instrumentation
-        .and(not(extendsClass(named("com.intuit.karate.junit4.Karate"))));
+        .and(not(extendsClass(named("com.intuit.karate.junit4.Karate"))))
+        // PowerMock runner is being instrumented,
+        // so do not instrument its internal delegates
+        .and(
+            not(
+                implementsInterface(
+                    named(
+                        "org.powermock.modules.junit4.common.internal.PowerMockJUnitRunnerDelegate"))));
   }
 
   @Override

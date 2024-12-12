@@ -1,25 +1,32 @@
 package datadog.trace.civisibility.domain;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.api.TracePropagationStyle.NONE;
+import static datadog.trace.api.civisibility.CIConstants.CI_VISIBILITY_INSTRUMENTATION_NAME;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.DDTraceId;
+import datadog.trace.api.IdGenerationStrategy;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.TagValue;
+import datadog.trace.api.civisibility.telemetry.tag.AgentlessLogSubmissionEnabled;
+import datadog.trace.api.civisibility.telemetry.tag.AutoInjected;
 import datadog.trace.api.civisibility.telemetry.tag.EventType;
+import datadog.trace.api.civisibility.telemetry.tag.FailFastTestOrderEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.HasCodeowner;
 import datadog.trace.api.civisibility.telemetry.tag.IsHeadless;
 import datadog.trace.api.civisibility.telemetry.tag.IsUnsupportedCI;
+import datadog.trace.api.civisibility.telemetry.tag.Provider;
+import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.civisibility.InstrumentationType;
 import datadog.trace.civisibility.codeowners.Codeowners;
-import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
-import datadog.trace.civisibility.source.MethodLinesResolver;
+import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -27,7 +34,8 @@ import java.util.Collections;
 import javax.annotation.Nullable;
 
 public abstract class AbstractTestSession {
-  protected final boolean supportedCiProvider;
+
+  protected final Provider ciProvider;
   protected final InstrumentationType instrumentationType;
   protected final AgentSpan span;
   protected final Config config;
@@ -35,44 +43,62 @@ public abstract class AbstractTestSession {
   protected final TestDecorator testDecorator;
   protected final SourcePathResolver sourcePathResolver;
   protected final Codeowners codeowners;
-  protected final MethodLinesResolver methodLinesResolver;
-  protected final CoverageProbeStoreFactory coverageProbeStoreFactory;
+  protected final LinesResolver linesResolver;
 
   public AbstractTestSession(
       String projectName,
       @Nullable Long startTime,
       InstrumentationType instrumentationType,
-      boolean supportedCiProvider,
+      Provider ciProvider,
       Config config,
       CiVisibilityMetricCollector metricCollector,
       TestDecorator testDecorator,
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
-      MethodLinesResolver methodLinesResolver,
-      CoverageProbeStoreFactory coverageProbeStoreFactory) {
-    this.supportedCiProvider = supportedCiProvider;
+      LinesResolver linesResolver) {
+    this.ciProvider = ciProvider;
     this.instrumentationType = instrumentationType;
     this.config = config;
     this.metricCollector = metricCollector;
     this.testDecorator = testDecorator;
     this.sourcePathResolver = sourcePathResolver;
     this.codeowners = codeowners;
-    this.methodLinesResolver = methodLinesResolver;
-    this.coverageProbeStoreFactory = coverageProbeStoreFactory;
+    this.linesResolver = linesResolver;
+
+    // CI Test Cycle protocol requires session's trace ID and span ID to be the same
+    IdGenerationStrategy idGenerationStrategy = config.getIdGenerationStrategy();
+    DDTraceId traceId = idGenerationStrategy.generateTraceId();
+    AgentSpan.Context traceContext =
+        new TagContext(
+            CIConstants.CIAPP_TEST_ORIGIN,
+            Collections.emptyMap(),
+            null,
+            null,
+            PrioritySampling.UNSET,
+            null,
+            NONE,
+            traceId);
+
+    AgentTracer.SpanBuilder spanBuilder =
+        AgentTracer.get()
+            .buildSpan(
+                CI_VISIBILITY_INSTRUMENTATION_NAME, testDecorator.component() + ".test_session")
+            .asChildOf(traceContext)
+            .withSpanId(traceId.toLong());
 
     if (startTime != null) {
-      span = startSpan(testDecorator.component() + ".test_session", startTime);
-    } else {
-      span = startSpan(testDecorator.component() + ".test_session");
+      spanBuilder = spanBuilder.withStartTimestamp(startTime);
     }
+
+    span = spanBuilder.start();
 
     span.setSpanType(InternalSpanTypes.TEST_SESSION_END);
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_TEST_SESSION);
-    span.setTag(Tags.TEST_SESSION_ID, span.getSpanId());
+    span.setTag(Tags.TEST_SESSION_ID, span.getTraceId());
 
     // setting status to skip initially,
     // as we do not know in advance whether the session will have any children
-    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_SKIP);
+    span.setTag(Tags.TEST_STATUS, TestStatus.skip);
 
     span.setResourceName(projectName);
 
@@ -92,7 +118,17 @@ public abstract class AbstractTestSession {
         EventType.SESSION,
         instrumentationType == InstrumentationType.HEADLESS ? IsHeadless.TRUE : null,
         codeowners.exist() ? HasCodeowner.TRUE : null,
-        !supportedCiProvider ? IsUnsupportedCI.TRUE : null);
+        ciProvider == Provider.UNSUPPORTED ? IsUnsupportedCI.TRUE : null);
+
+    metricCollector.add(
+        CiVisibilityCountMetric.TEST_SESSION,
+        1,
+        ciProvider,
+        config.isCiVisibilityAutoInjected() ? AutoInjected.TRUE : null,
+        config.isAgentlessLogSubmissionEnabled() ? AgentlessLogSubmissionEnabled.TRUE : null,
+        CIConstants.FAIL_FAST_TEST_ORDER.equalsIgnoreCase(config.getCiVisibilityTestOrder())
+            ? FailFastTestOrderEnabled.TRUE
+            : null);
 
     if (instrumentationType == InstrumentationType.MANUAL_API) {
       metricCollector.add(CiVisibilityCountMetric.MANUAL_API_EVENTS, 1, EventType.SESSION);
@@ -106,11 +142,11 @@ public abstract class AbstractTestSession {
   public void setErrorInfo(Throwable error) {
     span.setError(true);
     span.addThrowable(error);
-    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_FAIL);
+    span.setTag(Tags.TEST_STATUS, TestStatus.fail);
   }
 
   public void setSkipReason(String skipReason) {
-    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_SKIP);
+    span.setTag(Tags.TEST_STATUS, TestStatus.skip);
     if (skipReason != null) {
       span.setTag(Tags.TEST_SKIP_REASON, skipReason);
     }
@@ -140,7 +176,7 @@ public abstract class AbstractTestSession {
     if (codeowners.exist()) {
       telemetryTags.add(HasCodeowner.TRUE);
     }
-    if (!supportedCiProvider) {
+    if (ciProvider == Provider.UNSUPPORTED) {
       telemetryTags.add(IsUnsupportedCI.TRUE);
     }
     telemetryTags.addAll(additionalTelemetryTags());

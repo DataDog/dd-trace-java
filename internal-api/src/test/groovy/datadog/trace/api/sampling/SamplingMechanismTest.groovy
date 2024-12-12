@@ -1,10 +1,10 @@
 package datadog.trace.api.sampling
 
-import spock.lang.Specification
+import datadog.trace.test.util.DDSpecification
 import static datadog.trace.api.sampling.PrioritySampling.*
 import static datadog.trace.api.sampling.SamplingMechanism.*
 
-class SamplingMechanismTest extends Specification {
+class SamplingMechanismTest extends DDSpecification {
 
   static userDropX = USER_DROP - 1
   static userKeepX = USER_KEEP + 1
@@ -47,13 +47,13 @@ class SamplingMechanismTest extends Specification {
     REMOTE_AUTO_RATE  | userDropX    | false
     REMOTE_AUTO_RATE  | userKeepX    | false
 
-    RULE              | UNSET        | false
-    RULE              | SAMPLER_DROP | false
-    RULE              | SAMPLER_KEEP | false
-    RULE              | USER_DROP    | true
-    RULE              | USER_KEEP    | true
-    RULE              | userDropX    | false
-    RULE              | userKeepX    | false
+    LOCAL_USER_RULE   | UNSET        | false
+    LOCAL_USER_RULE   | SAMPLER_DROP | false
+    LOCAL_USER_RULE   | SAMPLER_KEEP | false
+    LOCAL_USER_RULE   | USER_DROP    | true
+    LOCAL_USER_RULE   | USER_KEEP    | true
+    LOCAL_USER_RULE   | userDropX    | false
+    LOCAL_USER_RULE   | userKeepX    | false
 
     MANUAL            | UNSET        | false
     MANUAL            | SAMPLER_DROP | false
@@ -72,8 +72,8 @@ class SamplingMechanismTest extends Specification {
     REMOTE_USER_RATE  | userKeepX    | false
 
     APPSEC            | UNSET        | false
-    APPSEC            | SAMPLER_DROP | false
-    APPSEC            | SAMPLER_KEEP | false
+    APPSEC            | SAMPLER_DROP | true
+    APPSEC            | SAMPLER_KEEP | true
     APPSEC            | USER_DROP    | false
     APPSEC            | USER_KEEP    | true
     APPSEC            | userDropX    | false
@@ -94,5 +94,27 @@ class SamplingMechanismTest extends Specification {
     EXTERNAL_OVERRIDE | USER_KEEP    | false
     EXTERNAL_OVERRIDE | userDropX    | false
     EXTERNAL_OVERRIDE | userKeepX    | false
+  }
+
+  void 'Test canAvoidSamplingPriorityLock'(){
+    setup:
+    injectSysConfig("dd.experimental.appsec.standalone.enabled", "true")
+
+    expect:
+    canAvoidSamplingPriorityLock(priority, mechanism) == valid
+
+    where:
+    mechanism         | priority     | valid
+    APPSEC            | UNSET        | true
+    APPSEC            | SAMPLER_KEEP | true
+    UNKNOWN           | SAMPLER_KEEP | false
+    DEFAULT           | SAMPLER_KEEP | false
+    AGENT_RATE        | SAMPLER_KEEP | false
+    REMOTE_AUTO_RATE  | SAMPLER_KEEP | false
+    LOCAL_USER_RULE   | SAMPLER_KEEP | false
+    MANUAL            | SAMPLER_KEEP | false
+    REMOTE_USER_RATE  | SAMPLER_KEEP | false
+    DATA_JOBS         | SAMPLER_KEEP | false
+    EXTERNAL_OVERRIDE | SAMPLER_KEEP | false
   }
 }

@@ -28,8 +28,9 @@ abstract class MongoCore37ClientTest extends MongoBaseTest {
     client = null
   }
 
-  def "test create collection"() {
+  def "test create collection with renameService=#renameService"() {
     setup:
+    String collectionName = randomCollectionName()
     MongoDatabase db = client.getDatabase(databaseName)
     injectSysConfig(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService")
 
@@ -45,12 +46,12 @@ abstract class MongoCore37ClientTest extends MongoBaseTest {
     }
 
     where:
-    collectionName = randomCollectionName()
     renameService << [false, true]
   }
 
   def "test create collection no description"() {
     setup:
+    String collectionName = randomCollectionName()
     MongoDatabase db = MongoClients.create("mongodb://localhost:$port").getDatabase(databaseName)
 
     when:
@@ -62,13 +63,11 @@ abstract class MongoCore37ClientTest extends MongoBaseTest {
         mongoSpan(it, 0, "create", "{\"create\":\"$collectionName\",\"capped\":\"?\"}", false, databaseName)
       }
     }
-
-    where:
-    collectionName = randomCollectionName()
   }
 
   def "test get collection"() {
     setup:
+    String collectionName = randomCollectionName()
     MongoDatabase db = client.getDatabase(databaseName)
 
     when:
@@ -81,13 +80,11 @@ abstract class MongoCore37ClientTest extends MongoBaseTest {
         mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}", false, "some-instance")
       }
     }
-
-    where:
-    collectionName = randomCollectionName()
   }
 
   def "test insert"() {
     setup:
+    String collectionName = randomCollectionName()
     DDSpan setupSpan = null
     MongoCollection<Document> collection = runUnderTrace("setup") {
       setupSpan = activeSpan() as DDSpan
@@ -113,13 +110,11 @@ abstract class MongoCore37ClientTest extends MongoBaseTest {
         mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}", false, "some-instance")
       }
     }
-
-    where:
-    collectionName = randomCollectionName()
   }
 
   def "test update"() {
     setup:
+    String collectionName = randomCollectionName()
     DDSpan setupSpan = null
     MongoCollection<Document> collection = runUnderTrace("setup") {
       setupSpan = activeSpan() as DDSpan
@@ -150,13 +145,11 @@ abstract class MongoCore37ClientTest extends MongoBaseTest {
         mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}", false, "some-instance")
       }
     }
-
-    where:
-    collectionName = randomCollectionName()
   }
 
   def "test delete"() {
     setup:
+    String collectionName = randomCollectionName()
     DDSpan setupSpan = null
     MongoCollection<Document> collection = runUnderTrace("setup") {
       setupSpan = activeSpan() as DDSpan
@@ -185,13 +178,11 @@ abstract class MongoCore37ClientTest extends MongoBaseTest {
         mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}", false, "some-instance")
       }
     }
-
-    where:
-    collectionName = randomCollectionName()
   }
 
   def "test error"() {
     setup:
+    String collectionName = randomCollectionName()
     DDSpan setupSpan = null
     MongoCollection<Document> collection = runUnderTrace("setup") {
       setupSpan = activeSpan() as DDSpan
@@ -209,13 +200,11 @@ abstract class MongoCore37ClientTest extends MongoBaseTest {
     thrown(IllegalArgumentException)
     // Unfortunately not caught by our instrumentation.
     assertTraces(0) {}
-
-    where:
-    collectionName = randomCollectionName()
   }
 
   def "test client failure"() {
     setup:
+    String collectionName = randomCollectionName()
     def client = MongoClients.create("mongodb://localhost:$UNUSABLE_PORT/?serverselectiontimeoutms=10")
 
     when:
@@ -226,9 +215,6 @@ abstract class MongoCore37ClientTest extends MongoBaseTest {
     thrown(MongoTimeoutException)
     // Unfortunately not caught by our instrumentation.
     assertTraces(0) {}
-
-    where:
-    collectionName = randomCollectionName()
   }
 }
 

@@ -1,12 +1,16 @@
 package datadog.trace.util;
 
 import datadog.trace.api.Platform;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.context.TraceScope;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.lang.management.ManagementFactory;
 import java.util.Collections;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
@@ -66,24 +70,35 @@ public final class PidHelper {
     // any time -
     //  also, no guarantee it will work with all JVMs
     ProcessBuilder pb = new ProcessBuilder("jps");
-    try {
+    try (TraceScope ignored = AgentTracer.get().muteTracing()) {
       Process p = pb.start();
-      if (p.waitFor(500, TimeUnit.MILLISECONDS)) {
+      // start draining the subcommand's pipes asynchronously to avoid flooding them
+      CompletableFuture<Set<String>> collecting =
+          CompletableFuture.supplyAsync(
+              () -> {
+                try (BufferedReader br =
+                    new BufferedReader(new InputStreamReader(p.getInputStream()))) {
+                  return br.lines()
+                      .filter(l -> !l.contains("jps"))
+                      .map(
+                          l -> {
+                            int idx = l.indexOf(' ');
+                            return l.substring(0, idx);
+                          })
+                      .collect(java.util.stream.Collectors.toSet());
+                } catch (IOException e) {
+                  log.debug("Unable to list java processes via 'jps'", e);
+                  return Collections.emptySet();
+                }
+              });
+      if (p.waitFor(1200, TimeUnit.MILLISECONDS)) {
         if (p.exitValue() == 0) {
-          try (BufferedReader br = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
-            return br.lines()
-                .filter(l -> !l.contains("jps"))
-                .map(
-                    l -> {
-                      int idx = l.indexOf(' ');
-                      return l.substring(0, idx);
-                    })
-                .collect(java.util.stream.Collectors.toSet());
-          }
+          return collecting.get();
         } else {
           log.debug("Execution of 'jps' failed with exit code {}", p.exitValue());
         }
       } else {
+        p.destroyForcibly();
         log.debug("Execution of 'jps' timed out");
       }
     } catch (Exception e) {

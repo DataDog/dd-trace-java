@@ -54,7 +54,7 @@ public final class JaxRsAnnotationsInstrumentation extends InstrumenterModule.Tr
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     // Avoid matching JAX-RS 2 which has its own instrumentation.
     return not(hasClassNamed("javax.ws.rs.container.AsyncResponse"));
   }
@@ -100,9 +100,7 @@ public final class JaxRsAnnotationsInstrumentation extends InstrumenterModule.Tr
       DECORATE.onJaxRsSpan(span, parent, target.getClass(), method);
       DECORATE.afterStart(span);
 
-      final AgentScope scope = activateSpan(span);
-      scope.setAsyncPropagation(true);
-      return scope;
+      return activateSpan(span, true);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

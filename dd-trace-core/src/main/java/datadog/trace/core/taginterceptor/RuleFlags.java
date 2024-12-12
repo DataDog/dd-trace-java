@@ -14,6 +14,7 @@ public class RuleFlags {
     DB_STATEMENT("DBStatementRule"),
     FORCE_MANUAL_DROP("ForceManualDropTagInterceptor"),
     FORCE_MANUAL_KEEP("ForceManualKeepTagInterceptor"),
+    FORCE_SAMPLING_PRIORITY("ForceSamplingPriorityTagInterceptor"),
     PEER_SERVICE("PeerServiceTagInterceptor", false),
     SERVICE_NAME("ServiceNameTagInterceptor"),
     SERVLET_CONTEXT("ServletContextTagInterceptor");

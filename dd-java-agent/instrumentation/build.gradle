@@ -6,7 +6,7 @@ buildscript {
   }
 
   dependencies {
-    classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:${versions.kotlin}"
+    classpath group: 'org.jetbrains.kotlin', name: 'kotlin-gradle-plugin', version: libs.versions.kotlin.get()
   }
 }
 plugins {
@@ -49,15 +49,16 @@ subprojects { Project subProj ->
       // Apply common dependencies for instrumentation.
       implementation project(':dd-trace-api')
       implementation project(':dd-java-agent:agent-tooling')
-      implementation deps.bytebuddy
+      implementation libs.bytebuddy
       if (jdkCompile) {
         "$jdkCompile" project(':dd-trace-api')
         "$jdkCompile" project(':dd-java-agent:agent-tooling')
-        "$jdkCompile" deps.bytebuddy
+        "$jdkCompile" libs.bytebuddy
       }
 
-      annotationProcessor deps.autoserviceProcessor
-      compileOnly deps.autoserviceAnnotation
+      annotationProcessor project(':dd-java-agent:instrumentation-annotation-processor')
+      annotationProcessor libs.autoservice.processor
+      compileOnly libs.autoservice.annotation
 
       // Include instrumentations instrumenting core JDK classes to ensure interoperability with other instrumentation
       testImplementation project(':dd-java-agent:instrumentation:java-concurrent')
@@ -67,8 +68,8 @@ subprojects { Project subProj ->
       testImplementation project(':dd-java-agent:instrumentation:classloading')
 
       testImplementation project(':dd-java-agent:testing')
-      testAnnotationProcessor deps.autoserviceProcessor
-      testCompileOnly deps.autoserviceAnnotation
+      testAnnotationProcessor libs.autoservice.processor
+      testCompileOnly libs.autoservice.annotation
 
       instrumentPluginClasspath project(path: ':dd-java-agent:agent-tooling', configuration: 'instrumentPluginClasspath')
     }
@@ -96,8 +97,6 @@ subprojects { Project subProj ->
         // See SpockRunner comment above
         useJUnit()
       }
-
-      onlyIf { !project.rootProject.hasProperty("skipInstTests") }
 
       if (subTask.name in ['latestDepTest', 'latestDepForkedTest']) {
         subTask.jvmArgs '-Dtest.dd.latestDepTest=true'
@@ -144,7 +143,7 @@ tasks.named('shadowJar').configure {
 tasks.register('generateInstrumenterIndex', JavaExec) {
   // temporary config to add slf4j-simple so we get logging from instrumenters while indexing
   def slf4jSimple = project.configurations.maybeCreate('slf4j-simple')
-  project.dependencies.add('slf4j-simple', "org.slf4j:slf4j-simple:${versions.slf4j}")
+  project.dependencies.add('slf4j-simple', "org.slf4j:slf4j-simple:${libs.versions.slf4j.get()}")
 
   def resourcesDir = "${sourceSets.main.output.resourcesDir}"
   def indexFile = "${resourcesDir}/instrumenter.index"
@@ -163,7 +162,7 @@ tasks.register('generateInstrumenterIndex', JavaExec) {
 tasks.register('generateKnownTypesIndex', JavaExec) {
   // temporary config to add slf4j-simple so we get logging from instrumenters while indexing
   def slf4jSimple = project.configurations.maybeCreate('slf4j-simple')
-  project.dependencies.add('slf4j-simple', "org.slf4j:slf4j-simple:${versions.slf4j}")
+  project.dependencies.add('slf4j-simple', "org.slf4j:slf4j-simple:${libs.versions.slf4j.get()}")
 
   def resourcesDir = "${sourceSets.main.output.resourcesDir}"
   def indexFile = "${resourcesDir}/known-types.index"

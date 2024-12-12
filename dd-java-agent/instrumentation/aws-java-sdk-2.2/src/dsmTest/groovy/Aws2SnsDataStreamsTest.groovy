@@ -4,6 +4,7 @@ import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.datastreams.StatsGroup
+import datadog.trace.instrumentation.aws.ExpectedQueryParams
 import org.eclipse.jetty.http2.server.HTTP2CServerConnectionFactory
 import org.eclipse.jetty.server.HttpConfiguration
 import org.eclipse.jetty.server.HttpConnectionFactory
@@ -170,7 +171,6 @@ abstract class Aws2SnsDataStreamsTest extends VersionedNamingTestBase {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.PEER_HOSTNAME" "localhost"
             "$Tags.PEER_PORT" server.address.port
-            "$Tags.HTTP_URL" "${server.address}${path}"
             "$Tags.HTTP_METHOD" "$method"
             "$Tags.HTTP_STATUS" 200
             "aws.service" "$service"
@@ -182,6 +182,7 @@ abstract class Aws2SnsDataStreamsTest extends VersionedNamingTestBase {
             "topicname" "mytopic"
             "$DDTags.PATHWAY_HASH" { String }
             checkPeerService = true
+            urlTags("${server.address}${path}", ExpectedQueryParams.getExpectedQueryParams(operation))
             defaultTags(false, checkPeerService)
           }
         }
@@ -268,7 +269,6 @@ abstract class Aws2SnsDataStreamsTest extends VersionedNamingTestBase {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.PEER_HOSTNAME" "localhost"
             "$Tags.PEER_PORT" server.address.port
-            "$Tags.HTTP_URL" "${server.address}${path}"
             "$Tags.HTTP_METHOD" "$method"
             "$Tags.HTTP_STATUS" 200
             "aws.service" "$service"
@@ -279,6 +279,7 @@ abstract class Aws2SnsDataStreamsTest extends VersionedNamingTestBase {
             "aws.topic.name" "mytopic"
             "topicname" "mytopic"
             "$DDTags.PATHWAY_HASH" { String }
+            urlTags("${server.address}${path}", ExpectedQueryParams.getExpectedQueryParams(operation))
             defaultTags(false, true)
           }
         }

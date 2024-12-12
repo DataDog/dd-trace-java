@@ -5,6 +5,7 @@ import com.twilio.rest.api.v2010.account.Call;
 import com.twilio.rest.api.v2010.account.Message;
 import datadog.trace.api.Functions;
 import datadog.trace.api.cache.QualifiedClassNameCache;
+import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -23,6 +24,11 @@ public class TwilioClientDecorator extends ClientDecorator {
   public static final CharSequence TWILIO_SDK = UTF8BytesString.create("twilio.sdk");
 
   private static final CharSequence COMPONENT_NAME = UTF8BytesString.create("twilio-sdk");
+
+  private static final String SERVICE_NAME =
+      SpanNaming.instance().namingSchema().allowInferredServices()
+          ? COMPONENT_NAME.toString()
+          : null;
 
   private static final QualifiedClassNameCache NAMES =
       new QualifiedClassNameCache(
@@ -54,7 +60,7 @@ public class TwilioClientDecorator extends ClientDecorator {
 
   @Override
   protected String service() {
-    return COMPONENT_NAME.toString();
+    return SERVICE_NAME;
   }
 
   /** Decorate trace based on service execution metadata. */

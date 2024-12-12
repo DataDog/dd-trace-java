@@ -45,7 +45,7 @@ public class ReaderInterceptorExecutorInstrumentation extends InstrumenterModule
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-        module.taint(ctx, inputStream, SourceTypes.REQUEST_BODY);
+        module.taintObject(ctx, inputStream, SourceTypes.REQUEST_BODY);
       }
     }
   }

@@ -1,0 +1,77 @@
+{
+  "version": "2.1",
+  "metadata": {
+    "rules_version": "rules_suspicious_attacker_blocking"
+  },
+  "actions": [
+    {
+      "id": "block_402",
+      "type": "block_request",
+      "parameters": {
+        "status_code": 402,
+        "type": "auto"
+      }
+    }
+  ],
+  "exclusions": [
+    {
+      "id": "exc-000-001",
+      "on_match": "block_402",
+      "conditions": [
+        {
+          "operator": "ip_match",
+          "parameters": {
+            "data": "suspicious_ips_data_id",
+            "inputs": [
+              {
+                "address": "http.client_ip"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "exclusion_data": [
+    {
+      "id": "suspicious_ips_data_id",
+      "type": "ip_with_expiration",
+      "data": [
+        {
+          "value": "127.0.0.1"
+        }
+      ]
+    }
+  ],
+  "rules": [
+    {
+      "id": "ua0-600-12x",
+      "name": "Arachni",
+      "tags": {
+        "type": "attack_tool",
+        "category": "attack_attempt",
+        "cwe": "200",
+        "capec": "1000/118/169",
+        "tool_name": "Arachni",
+        "confidence": "1"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.headers.no_cookies",
+                "key_path": [
+                  "user-agent"
+                ]
+              }
+            ],
+            "regex": "^Arachni\\/v"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "transformers": []
+    }
+  ]
+}

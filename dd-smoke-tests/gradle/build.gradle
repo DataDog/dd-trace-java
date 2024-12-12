@@ -1,3 +1,6 @@
+import java.time.Duration
+import java.time.temporal.ChronoUnit
+
 plugins {
   id "com.github.johnrengelman.shadow"
 }
@@ -6,14 +9,17 @@ apply from: "$rootDir/gradle/java.gradle"
 description = 'Gradle Daemon Instrumentation Smoke Tests.'
 
 dependencies {
-  testImplementation project(':dd-smoke-tests')
   testImplementation gradleTestKit()
-  testImplementation testFixtures(project(':dd-java-agent:agent-ci-visibility'))
+  testImplementation project(':dd-smoke-tests:backend-mock')
 }
 
 test {
   testLogging {
     events "passed", "skipped", "failed", "standardOut", "standardError"
   }
+
+  // overriding the default timeout of 9 minutes set in configure_tests.gradle,
+  // as Gradle smoke tests might run for a longer duration
+  timeout = Duration.of(15, ChronoUnit.MINUTES)
 }
 

@@ -75,7 +75,7 @@ public class CallbackRunnableInstrumentation extends InstrumenterModule.Tracing
   public static final class Construct {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static <T> void onConstruct(@Advice.This CallbackRunnable<T> task) {
-      capture(InstrumentationContext.get(CallbackRunnable.class, State.class), task, true);
+      capture(InstrumentationContext.get(CallbackRunnable.class, State.class), task);
     }
   }
 
@@ -111,7 +111,7 @@ public class CallbackRunnableInstrumentation extends InstrumenterModule.Tracing
       }
       // If nothing else has been picked up, then try to pick up the current Scope
       if (null == state) {
-        capture(contextStore, task, true);
+        capture(contextStore, task);
       }
     }
   }

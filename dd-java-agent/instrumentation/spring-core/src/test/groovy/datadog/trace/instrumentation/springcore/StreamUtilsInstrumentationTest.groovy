@@ -24,7 +24,7 @@ class StreamUtilsInstrumentationTest extends AgentTestRunner {
     StreamUtils.copyToString(new ByteArrayInputStream("test".getBytes()), StandardCharsets.ISO_8859_1)
 
     then:
-    1 * module.taintIfTainted(_ as String, _ as InputStream)
+    1 * module.taintStringIfTainted(_ as String, _ as InputStream)
     0 * _
   }
 }

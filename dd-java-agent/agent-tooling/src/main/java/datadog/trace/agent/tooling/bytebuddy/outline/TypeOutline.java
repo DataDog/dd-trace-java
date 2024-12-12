@@ -31,6 +31,7 @@ final class TypeOutline extends WithName {
   private final String superName;
   private final String[] interfaces;
   private String declaringName;
+  private boolean anonymousType;
 
   private List<AnnotationDescription> declaredAnnotations;
 
@@ -110,6 +111,11 @@ final class TypeOutline extends WithName {
     return declaredMethods.isEmpty() ? NO_METHODS : new MethodList.Explicit<>(declaredMethods);
   }
 
+  @Override
+  public boolean isAnonymousType() {
+    return anonymousType;
+  }
+
   void declaredBy(String declaringName) {
     this.declaringName = declaringName;
   }
@@ -133,5 +139,9 @@ final class TypeOutline extends WithName {
     if (null != method) {
       declaredMethods.add(method);
     }
+  }
+
+  void anonymousType() {
+    anonymousType = true;
   }
 }

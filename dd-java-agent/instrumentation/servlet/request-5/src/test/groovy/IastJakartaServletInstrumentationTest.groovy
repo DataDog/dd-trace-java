@@ -8,8 +8,6 @@ import jakarta.servlet.Servlet
 import jakarta.servlet.ServletRequest
 import jakarta.servlet.ServletResponse
 
-
-
 class IastJakartaServletInstrumentationTest extends AgentTestRunner{
 
   @Override
@@ -45,7 +43,6 @@ class IastJakartaServletInstrumentationTest extends AgentTestRunner{
 
     then:
     1 *  module.onRealPath(_)
-    1 *  module.checkSessionTrackingModes(['COOKIE', 'URL'] as Set<String>)
     0 * _
   }
 }

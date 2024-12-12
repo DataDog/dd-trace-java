@@ -3,7 +3,6 @@ package datadog.trace.core.scopemanager
 import datadog.trace.agent.test.utils.ThreadUtils
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.Stateful
-import datadog.trace.api.TraceConfig
 import datadog.trace.api.interceptor.MutableSpan
 import datadog.trace.api.interceptor.TraceInterceptor
 import datadog.trace.api.scopemanager.ExtendedScopeListener
@@ -219,7 +218,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     then:
     scopeManager.active() == childScope
     childScope.span().context().parentId == parentScope.span().context().spanId
-    childScope.span().context().trace == parentScope.span().context().trace
+    childScope.span().context().traceCollector == parentScope.span().context().traceCollector
 
     when:
     childScope.close()
@@ -477,30 +476,35 @@ class ScopeManagerTest extends DDCoreSpecification {
   def "test activating same span multiple times"() {
     setup:
     def span = tracer.buildSpan("test").start()
+    def state = Mock(Stateful)
 
     when:
     AgentScope scope1 = scopeManager.activate(span, ScopeSource.INSTRUMENTATION)
 
     then:
     assertEvents([ACTIVATE])
+    1 * profilingContext.newScopeState(_) >> state
 
     when:
     AgentScope scope2 = scopeManager.activate(span, ScopeSource.INSTRUMENTATION)
 
     then: 'Activating the same span multiple times does not create a new scope'
     assertEvents([ACTIVATE])
+    0 * profilingContext.newScopeState(_)
 
     when:
     scope2.close()
 
     then: 'Closing a scope once that has been activated multiple times does not close'
     assertEvents([ACTIVATE])
+    0 * state.close()
 
     when:
     scope1.close()
 
     then:
     assertEvents([ACTIVATE, CLOSE])
+    1 * state.close()
   }
 
   def "opening and closing multiple scopes"() {
@@ -1114,7 +1118,7 @@ class EventCountingExtendedListener implements ExtendedScopeListener {
   }
 
   @Override
-  void afterScopeActivated(DDTraceId traceId, long localRootSpanId, long spanId, TraceConfig traceConfig) {
+  void afterScopeActivated(DDTraceId traceId, long spanId) {
     synchronized (events) {
       events.add(ACTIVATE)
     }

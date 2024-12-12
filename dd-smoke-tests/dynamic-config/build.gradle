@@ -8,7 +8,7 @@ dependencies {
   implementation project(':dd-trace-api')
   implementation group: 'io.opentracing', name: 'opentracing-api', version: '0.32.0'
   implementation group: 'io.opentracing', name: 'opentracing-util', version: '0.32.0'
-  implementation deps.slf4j
+  implementation libs.slf4j
 
   testImplementation project(':dd-smoke-tests')
 }

@@ -1,10 +1,11 @@
 package datadog.trace.instrumentation.junit4;
 
+import static datadog.json.JsonMapper.toJson;
+
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
 import datadog.trace.util.MethodHandles;
-import datadog.trace.util.Strings;
 import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodHandle;
 import java.lang.reflect.Method;
@@ -201,7 +202,7 @@ public abstract class JUnit4Utils {
 
     // No public access to the test parameters map in JUnit4.
     // In this case, we store the fullTestName in the "metadata.test_name" object.
-    return "{\"metadata\":{\"test_name\":\"" + Strings.escapeToJson(methodName) + "\"}}";
+    return "{\"metadata\":{\"test_name\":" + toJson(methodName) + "}}";
   }
 
   public static List<String> getCategories(Class<?> testClass, @Nullable Method testMethod) {
@@ -295,7 +296,7 @@ public abstract class JUnit4Utils {
     String suite = description.getClassName();
     String name = JUnit4Utils.getTestName(description, testMethod);
     String parameters = JUnit4Utils.getParameters(description);
-    return new TestIdentifier(suite, name, parameters, null);
+    return new TestIdentifier(suite, name, parameters);
   }
 
   public static TestDescriptor toTestDescriptor(Description description) {
@@ -310,7 +311,8 @@ public abstract class JUnit4Utils {
   public static TestSuiteDescriptor toSuiteDescriptor(Description description) {
     Class<?> testClass = description.getTestClass();
     String testSuiteName = JUnit4Utils.getSuiteName(testClass, description);
-    return new TestSuiteDescriptor(testSuiteName, testClass);
+    // relying exclusively on class name: some runners (such as PowerMock) may redefine test classes
+    return new TestSuiteDescriptor(testSuiteName, null);
   }
 
   /**

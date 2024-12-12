@@ -126,6 +126,7 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
 
   @Test
   @DisplayName("testProbeStatusError")
+  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
   public void testProbeStatusError() throws Exception {
     LogProbe logProbe =
         LogProbe.builder()

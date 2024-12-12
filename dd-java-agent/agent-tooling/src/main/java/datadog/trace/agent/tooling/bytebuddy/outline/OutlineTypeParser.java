@@ -91,6 +91,7 @@ final class OutlineTypeParser implements TypeParser {
     TypeOutline typeOutline;
     FieldOutline fieldOutline;
     MethodOutline methodOutline;
+    boolean selfContained = true;
 
     OutlineTypeExtractor() {
       super(OpenedClassReader.ASM_API);
@@ -108,9 +109,18 @@ final class OutlineTypeParser implements TypeParser {
     }
 
     @Override
+    public void visitOuterClass(String owner, String name, String descriptor) {
+      selfContained = false;
+    }
+
+    @Override
     public void visitInnerClass(String name, String outerName, String innerName, int access) {
-      if (null != outerName && typeOutline.getInternalName().equals(name)) {
-        typeOutline.declaredBy(outerName);
+      if (typeOutline.getInternalName().equals(name)) {
+        if (null != outerName) {
+          typeOutline.declaredBy(outerName);
+        } else if (null == innerName && !selfContained) {
+          typeOutline.anonymousType();
+        }
       }
     }
 

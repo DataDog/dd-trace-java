@@ -36,7 +36,7 @@ class VertxHttpHeadersInstrumentationTest extends AgentTestRunner {
     runUnderIastTrace { headers.get('key') }
 
     then:
-    1 * module.taintIfTainted(iastCtx, 'value', headers, SourceTypes.REQUEST_HEADER_VALUE, 'key')
+    1 * module.taintStringIfTainted(iastCtx, 'value', headers, SourceTypes.REQUEST_HEADER_VALUE, 'key')
   }
 
   void 'test that getAll() is instrumented'() {
@@ -58,8 +58,8 @@ class VertxHttpHeadersInstrumentationTest extends AgentTestRunner {
 
     then:
     1 * module.isTainted(iastCtx, headers) >> { true }
-    1 * module.taint(iastCtx, 'value1', SourceTypes.REQUEST_HEADER_VALUE, 'key')
-    1 * module.taint(iastCtx, 'value2', SourceTypes.REQUEST_HEADER_VALUE, 'key')
+    1 * module.taintString(iastCtx, 'value1', SourceTypes.REQUEST_HEADER_VALUE, 'key')
+    1 * module.taintString(iastCtx, 'value2', SourceTypes.REQUEST_HEADER_VALUE, 'key')
   }
 
   void 'test that names() is instrumented'() {
@@ -81,7 +81,7 @@ class VertxHttpHeadersInstrumentationTest extends AgentTestRunner {
 
     then:
     1 * module.isTainted(iastCtx, headers) >> { true }
-    1 * module.taint(iastCtx, 'key', SourceTypes.REQUEST_HEADER_NAME, 'key')
+    1 * module.taintString(iastCtx, 'key', SourceTypes.REQUEST_HEADER_NAME, 'key')
   }
 
   void 'test that entries() is instrumented'() {
@@ -104,10 +104,10 @@ class VertxHttpHeadersInstrumentationTest extends AgentTestRunner {
     then:
     module.isTainted(iastCtx, headers) >> { true }
     result.collect { it.key }.unique().each {
-      (1.._) * module.taint(iastCtx, it, SourceTypes.REQUEST_HEADER_NAME, it) // entries relies on names() on some impls
+      (1.._) * module.taintString(iastCtx, it, SourceTypes.REQUEST_HEADER_NAME, it) // entries relies on names() on some impls
     }
     result.each {
-      1 * module.taint(iastCtx, it.value, SourceTypes.REQUEST_HEADER_VALUE, it.key)
+      1 * module.taintString(iastCtx, it.value, SourceTypes.REQUEST_HEADER_VALUE, it.key)
     }
   }
 

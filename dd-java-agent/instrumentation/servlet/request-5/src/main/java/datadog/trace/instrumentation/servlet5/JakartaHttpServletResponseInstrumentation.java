@@ -120,7 +120,7 @@ public final class JakartaHttpServletResponseInstrumentation extends Instrumente
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         if (null != url && !url.isEmpty() && null != encoded && !encoded.isEmpty()) {
-          module.taintIfTainted(encoded, url);
+          module.taintStringIfTainted(encoded, url);
         }
       }
     }

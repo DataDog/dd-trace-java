@@ -4,6 +4,9 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import datadog.trace.api.Config;
 import java.lang.reflect.Field;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
 import org.junit.jupiter.api.Test;
 
 class RedactionTest {
@@ -45,6 +48,20 @@ class RedactionTest {
       assertTrue(Redaction.isRedactedType("javax.security.SecurityContext"));
     } finally {
       Redaction.clearUserDefinedTypes();
+    }
+  }
+
+  @Test
+  public void exclusions() {
+    Config config = Config.get();
+    setFieldInConfig(
+        config, "debuggerRedactionExcludedIdentifiers", new HashSet<>(Arrays.asList("password")));
+    Redaction.initKeywords();
+    try {
+      assertFalse(Redaction.isRedactedKeyword("password"));
+    } finally {
+      setFieldInConfig(config, "debuggerRedactionExcludedIdentifiers", Collections.emptySet());
+      Redaction.initKeywords();
     }
   }
 

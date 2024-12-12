@@ -39,7 +39,7 @@ public class AkkaEnvelopeInstrumentation extends InstrumenterModule.Tracing
   public static class ConstructAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterInit(@Advice.This Envelope zis) {
-      capture(InstrumentationContext.get(Envelope.class, State.class), zis, true);
+      capture(InstrumentationContext.get(Envelope.class, State.class), zis);
     }
   }
 }

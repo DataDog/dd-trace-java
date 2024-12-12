@@ -63,7 +63,7 @@ public class HttpServerRequestInstrumentation extends AbstractHttpServerRequestI
         final PropagationModule module = InstrumentationBridge.PROPAGATION;
         if (module != null) {
           final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-          module.taint(ctx, multiMap, SourceTypes.REQUEST_HEADER_VALUE);
+          module.taintObject(ctx, multiMap, SourceTypes.REQUEST_HEADER_VALUE);
         }
       }
     }

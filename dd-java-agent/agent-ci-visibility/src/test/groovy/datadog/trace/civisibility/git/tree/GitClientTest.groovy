@@ -3,7 +3,7 @@ package datadog.trace.civisibility.git.tree
 import datadog.trace.civisibility.telemetry.CiVisibilityMetricCollectorImpl
 import datadog.trace.civisibility.git.GitObject
 import datadog.trace.civisibility.git.pack.V2PackGitInfoExtractor
-import datadog.trace.civisibility.utils.IOUtils
+import datadog.communication.util.IOUtils
 import spock.lang.Specification
 import spock.lang.TempDir
 

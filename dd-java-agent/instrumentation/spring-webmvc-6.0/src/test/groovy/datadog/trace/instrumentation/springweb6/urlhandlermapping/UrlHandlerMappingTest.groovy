@@ -1,10 +1,17 @@
 package datadog.trace.instrumentation.springweb6.urlhandlermapping
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static java.util.Collections.singletonMap
+
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.ConfigDefaults
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.DDTags
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.propagation.PropagationModule
@@ -18,13 +25,6 @@ import okhttp3.Response
 import org.springframework.boot.SpringApplication
 import org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext
 import org.springframework.context.ConfigurableApplicationContext
-
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.LOGIN
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
-import static java.util.Collections.singletonMap
 
 /**
  * Test instrumentation of UriTemplateVariablesHandlerInterceptor
@@ -136,11 +136,19 @@ class UrlHandlerMappingTest extends HttpServerTest<ConfigurableApplicationContex
   }
 
   @Override
+  Map<String, Serializable> expectedExtraErrorInformation(ServerEndpoint endpoint) {
+    // latest DispatcherServlet throws if no handlers have been found
+    if (endpoint == NOT_FOUND && isLatestDepTest) {
+      return [(DDTags.ERROR_STACK): { String },
+        (DDTags.ERROR_MSG): {String},
+        (DDTags.ERROR_TYPE):{String}]
+    }
+    return super.expectedExtraErrorInformation(endpoint)
+  }
+
+  @Override
   Serializable expectedServerSpanRoute(ServerEndpoint endpoint) {
     switch (endpoint) {
-      case LOGIN:
-      case NOT_FOUND:
-        return null
       case PATH_PARAM:
         return testPathParam()
       default:
@@ -207,7 +215,7 @@ class UrlHandlerMappingTest extends HttpServerTest<ConfigurableApplicationContex
     TEST_WRITER.waitForTraces(1)
 
     then:
-    1 * mod.taint(_, '123', SourceTypes.REQUEST_PATH_PARAMETER, 'id')
+    1 * mod.taintString(_, '123', SourceTypes.REQUEST_PATH_PARAMETER, 'id')
     0 * mod._
 
     cleanup:

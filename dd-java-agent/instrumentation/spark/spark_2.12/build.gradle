@@ -48,6 +48,10 @@ dependencies {
   test_spark32Implementation group: 'org.apache.spark', name: "spark-core_$scalaVersion", version: "3.2.4"
   test_spark32Implementation group: 'org.apache.spark', name: "spark-sql_$scalaVersion", version: "3.2.4"
   test_spark32Implementation group: 'org.apache.spark', name: "spark-yarn_$scalaVersion", version: "3.2.4"
+  // We do not support netty versions older than this because of a change to the number of parameters to the
+  // PooledByteBufAllocator constructor. See this PR where the new constructor (the only one we support) was introduced:
+  // https://github.com/netty/netty/pull/10267
+  test_spark32Implementation group: 'io.netty', name: 'netty-buffer', version: '4.1.52.Final'
 
   latestDepTestImplementation group: 'org.apache.spark', name: "spark-core_$scalaVersion", version: '+'
   latestDepTestImplementation group: 'org.apache.spark', name: "spark-sql_$scalaVersion", version: '+'

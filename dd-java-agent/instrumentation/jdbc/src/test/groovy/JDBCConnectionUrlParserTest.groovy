@@ -51,6 +51,9 @@ class JDBCConnectionUrlParserTest extends AgentTestRunner {
 
     where:
     url                                                                                                                                                                                                                                         | props    | type         | subtype       | user          | host                                                                | port  | instance                           | db
+    // snowflake
+    "jdbc:snowflake://sza96462.us-east-1.snowflakecomputing.com:443/?db=DATA_OBSERVABILITY_SANDBOX&user=user"                                                                                                                                   | null     | "snowflake"  | null          | "user"        | "sza96462.us-east-1.snowflakecomputing.com"                         | 443   | null                               | "data_observability_sandbox"
+
     // https://jdbc.postgresql.org/documentation/94/connect.html
     "jdbc:postgresql:///"                                                                                                                                                                                                                       | null     | "postgresql" | null          | null          | "localhost"                                                         | 5432  | null                               | null
     "jdbc:postgresql:///"                                                                                                                                                                                                                       | stdProps | "postgresql" | null          | "stdUserName" | "stdServerName"                                                     | 9999  | null                               | "stdDatabaseName"
@@ -197,6 +200,10 @@ class JDBCConnectionUrlParserTest extends AgentTestRunner {
 
     // redshift
     "jdbc:redshift://redshift-cluster-1.c7arcolffyvk.us-east-2.redshift.amazonaws.com:5439/dev"                                                                                                                                                 | null     | "redshift"   | null          | null          | "redshift-cluster-1.c7arcolffyvk.us-east-2.redshift.amazonaws.com"  | 5439  | "redshift-cluster-1"               | "dev"
+    // Intersys IRIS
+    "jdbc:IRIS://dbhostname:1972/namespace"                                                                                                                                                                                                     | null     | "iris"       | null          | null          | "dbhostname"  | 1972  | null               | "namespace"
+    "jdbc:IRIS://dbhostname:1972/namespace/+myjdbc.log"                                                                                                                                                                                                     | null     | "iris"       | null          | null          | "dbhostname"  | 1972  | null               | "namespace"
+    "jdbc:IRIS://dbhostname:1972/namespace/::false"                                                                                                                                                                                             | null     | "iris"       | null          | null          | "dbhostname"  | 1972  | null               | "namespace"
 
     expected = new DBInfo.Builder().type(type).subtype(subtype).user(user).instance(instance).db(db).host(host).port(port).build()
   }

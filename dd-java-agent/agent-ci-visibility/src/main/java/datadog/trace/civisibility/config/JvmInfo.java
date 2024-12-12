@@ -1,16 +1,24 @@
 package datadog.trace.civisibility.config;
 
+import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.CiVisibilityWellKnownTags;
 import datadog.trace.civisibility.ipc.Serializer;
 import java.nio.ByteBuffer;
 import java.util.Objects;
 
 public class JvmInfo {
 
-  public static final JvmInfo CURRENT_JVM =
-      new JvmInfo(
-          System.getProperty("java.runtime.name"),
-          System.getProperty("java.version"),
-          System.getProperty("java.vendor"));
+  public static final JvmInfo CURRENT_JVM;
+
+  static {
+    Config config = Config.get();
+    CiVisibilityWellKnownTags wellKnownTags = config.getCiVisibilityWellKnownTags();
+    CURRENT_JVM =
+        new JvmInfo(
+            wellKnownTags.getRuntimeName().toString(),
+            wellKnownTags.getRuntimeVersion().toString(),
+            wellKnownTags.getRuntimeVendor().toString());
+  }
 
   private final String name;
   private final String version;

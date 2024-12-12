@@ -18,7 +18,7 @@ import org.openjdk.jmh.infra.Blackhole;
 public class PendingTraceWrite {
 
   CoreTracer tracer;
-  PendingTrace trace;
+  TraceCollector traceCollector;
 
   @Param({"10", "100"})
   int depthPerThread;
@@ -37,7 +37,7 @@ public class PendingTraceWrite {
             .strictTraceWrites(false)
             .build();
     DDTraceId traceId = DDTraceId.ONE;
-    trace = tracer.createTrace(traceId);
+    traceCollector = tracer.createTraceCollector(traceId);
     root =
         DDSpan.create(
             "benchmark",
@@ -56,7 +56,7 @@ public class PendingTraceWrite {
                 false,
                 "type",
                 0,
-                trace,
+                traceCollector,
                 null,
                 null,
                 NoopPathwayContext.INSTANCE,
@@ -81,7 +81,7 @@ public class PendingTraceWrite {
                 false,
                 "type",
                 0,
-                trace,
+                traceCollector,
                 null,
                 null,
                 NoopPathwayContext.INSTANCE,
@@ -93,13 +93,13 @@ public class PendingTraceWrite {
   @Threads(4)
   @Benchmark
   public void writeTraces() {
-    trace.registerSpan(root);
+    traceCollector.registerSpan(root);
     for (int i = 0; i < depthPerThread; ++i) {
-      trace.registerSpan(span);
+      traceCollector.registerSpan(span);
     }
     for (int i = 0; i < depthPerThread; ++i) {
-      trace.onPublish(span);
+      traceCollector.onPublish(span);
     }
-    trace.onPublish(root);
+    traceCollector.onPublish(root);
   }
 }

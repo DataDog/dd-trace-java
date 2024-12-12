@@ -13,6 +13,6 @@ public class TestSucceed {
 
   @Test
   public void test_to_skip_with_itr() {
-    assertTrue(true);
+    assertTrue(Calculator.subtract(3, 2) == 1);
   }
 }

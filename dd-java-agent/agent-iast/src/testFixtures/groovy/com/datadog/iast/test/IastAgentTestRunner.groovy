@@ -6,7 +6,6 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableVisitor
 import datadog.trace.api.gateway.CallbackProvider
 import datadog.trace.api.gateway.Events
-import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.SourceTypes
@@ -15,7 +14,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.core.DDSpan
 
-import java.util.function.Supplier
 
 class IastAgentTestRunner extends AgentTestRunner implements IastRequestContextPreparationTrait {
   public static final EMPTY_SOURCE = new Source(SourceTypes.NONE, '', '')
@@ -40,13 +38,10 @@ class IastAgentTestRunner extends AgentTestRunner implements IastRequestContextP
     IastContext.Provider.get().taintedObjects
   }
 
-  protected TaintedObjectCollection getLocalTaintedObjectCollection() {
-    new TaintedObjectCollection(localTaintedObjects)
-  }
-
   protected DDSpan runUnderIastTrace(Closure cl) {
     CallbackProvider iastCbp = TEST_TRACER.getCallbackProvider(RequestContextSlot.IAST)
-    Supplier<Flow<Object>> reqStartCb = iastCbp.getCallback(Events.EVENTS.requestStarted())
+    def reqStartCb = iastCbp.getCallback(Events.EVENTS.requestStarted())
+    def reqEndCb = iastCbp.getCallback(Events.EVENTS.requestEnded())
 
     def iastCtx = reqStartCb.get().result
     def ddctx = new TagContext().withRequestContextDataIast(iastCtx)
@@ -54,6 +49,7 @@ class IastAgentTestRunner extends AgentTestRunner implements IastRequestContextP
     try {
       AgentTracer.activateSpan(span).withCloseable cl
     } finally {
+      reqEndCb.apply(span.requestContext, span)
       span.finish()
     }
 

@@ -15,6 +15,7 @@ public class Spark213Instrumentation extends AbstractSparkInstrumentation {
     return new String[] {
       packageName + ".AbstractDatadogSparkListener",
       packageName + ".DatabricksParentContext",
+      packageName + ".OpenlineageParentContext",
       packageName + ".DatadogSpark213Listener",
       packageName + ".RemoveEldestHashMap",
       packageName + ".SparkAggregatedTaskMetrics",

@@ -57,6 +57,11 @@ class TomcatServletTest extends AbstractServletTest<Tomcat, Context> {
   }
 
   @Override
+  boolean testSessionId() {
+    true
+  }
+
+  @Override
   Map<String, Serializable> expectedExtraErrorInformation(ServerEndpoint endpoint) {
     if (endpoint.throwsException) {
       // Exception classes get wrapped in ServletException
@@ -196,6 +201,15 @@ class TomcatServletTest extends AbstractServletTest<Tomcat, Context> {
         e.printStackTrace()
       }
     }
+  }
+}
+
+class TomcatServletClassloaderNamingForkedTest extends TomcatServletTest {
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    // will not set the service name according to the servlet context value
+    injectSysConfig("trace.experimental.jee.split-by-deployment", "true")
   }
 }
 

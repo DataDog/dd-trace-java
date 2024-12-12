@@ -67,7 +67,7 @@ public class RequestContextInstrumentation extends InstrumenterModule.Iast
         return;
       }
 
-      propagation.taintIfTainted(ctx, request, requestContext);
+      propagation.taintObjectIfTainted(ctx, request, requestContext);
     }
   }
 }

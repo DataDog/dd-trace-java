@@ -1,5 +1,8 @@
 package com.datadog.debugger.sink;
 
+import static com.datadog.debugger.uploader.BatchUploader.APPLICATION_JSON;
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
+
 import com.datadog.debugger.agent.ProbeStatus;
 import com.datadog.debugger.agent.ProbeStatus.Builder;
 import com.datadog.debugger.agent.ProbeStatus.Status;
@@ -9,6 +12,7 @@ import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.ProbeId;
+import datadog.trace.relocate.api.RatelimitedLogger;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -18,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import okhttp3.HttpUrl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,6 +33,8 @@ public class ProbeStatusSink {
   private static final Logger LOGGER = LoggerFactory.getLogger(ProbeStatusSink.class);
   private static final JsonAdapter<ProbeStatus> PROBE_STATUS_ADAPTER =
       MoshiHelper.createMoshiProbeStatus().adapter(ProbeStatus.class);
+  private static final int MINUTES_BETWEEN_ERROR_LOG = 5;
+  public static final BatchUploader.RetryPolicy RETRY_POLICY = new BatchUploader.RetryPolicy(10);
 
   private final BatchUploader diagnosticUploader;
   private final Builder messageBuilder;
@@ -35,11 +42,13 @@ public class ProbeStatusSink {
   private final ArrayBlockingQueue<ProbeStatus> queue;
   private final Duration interval;
   private final int batchSize;
+  private final RatelimitedLogger ratelimitedLogger =
+      new RatelimitedLogger(LOGGER, MINUTES_BETWEEN_ERROR_LOG, TimeUnit.MINUTES);
   private final boolean isInstrumentTheWorld;
   private final boolean useMultiPart;
 
   public ProbeStatusSink(Config config, String diagnosticsEndpoint, boolean useMultiPart) {
-    this(config, new BatchUploader(config, diagnosticsEndpoint), useMultiPart);
+    this(config, new BatchUploader(config, diagnosticsEndpoint, RETRY_POLICY), useMultiPart);
   }
 
   ProbeStatusSink(Config config, BatchUploader diagnosticUploader, boolean useMultiPart) {
@@ -50,6 +59,10 @@ public class ProbeStatusSink {
     this.batchSize = config.getDebuggerUploadBatchSize();
     this.queue = new ArrayBlockingQueue<>(2 * this.batchSize);
     this.isInstrumentTheWorld = config.isDebuggerInstrumentTheWorld();
+  }
+
+  public void stop() {
+    diagnosticUploader.shutdown();
   }
 
   public void addReceived(ProbeId probeId) {
@@ -92,7 +105,8 @@ public class ProbeStatusSink {
     for (byte[] batch : batches) {
       if (useMultiPart) {
         diagnosticUploader.uploadAsMultipart(
-            tags, new BatchUploader.MultiPartContent(batch, "event", "event.json"));
+            tags,
+            new BatchUploader.MultiPartContent(batch, "event", "event.json", APPLICATION_JSON));
       } else {
         diagnosticUploader.upload(batch, tags);
       }
@@ -185,6 +199,11 @@ public class ProbeStatusSink {
               : message.getMessage())) {
         message.setLastEmit(now);
       } else {
+        ratelimitedLogger.warn(
+            SEND_TELEMETRY,
+            "Diagnostic message queue is full. Dropping probe status[{}] for probe id: {}",
+            message.getMessage().getDiagnostics().getStatus(),
+            message.getMessage().getDiagnostics().getProbeId().getId());
         return false;
       }
     }

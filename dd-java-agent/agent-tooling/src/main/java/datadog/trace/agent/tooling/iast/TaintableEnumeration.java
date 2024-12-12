@@ -58,7 +58,7 @@ public class TaintableEnumeration implements Enumeration<String> {
       throw e;
     }
     try {
-      module.taint(context, next, origin, name(next));
+      module.taintString(context, next, origin, name(next));
     } catch (final Throwable e) {
       module.onUnexpectedException("Failed to taint enumeration", e);
     }

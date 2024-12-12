@@ -7,18 +7,17 @@ import datadog.trace.api.civisibility.CIVisibility;
 import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.api.civisibility.DDTestSuite;
 import datadog.trace.api.civisibility.InstrumentationBridge;
-import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
-import datadog.trace.api.civisibility.coverage.CoverageBridge;
-import datadog.trace.api.civisibility.coverage.CoverageDataSupplier;
+import datadog.trace.api.civisibility.coverage.CoveragePerTestBridge;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.NoOpMetricCollector;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.bootstrap.ContextStore;
+import datadog.trace.civisibility.config.ExecutionSettings;
 import datadog.trace.civisibility.config.JvmInfo;
-import datadog.trace.civisibility.coverage.instrumentation.CoverageClassTransformer;
-import datadog.trace.civisibility.coverage.instrumentation.CoverageInstrumentationFilter;
+import datadog.trace.civisibility.coverage.file.instrumentation.CoverageClassTransformer;
+import datadog.trace.civisibility.coverage.file.instrumentation.CoverageInstrumentationFilter;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.decorator.TestDecoratorImpl;
 import datadog.trace.civisibility.domain.BuildSystemSession;
@@ -26,21 +25,21 @@ import datadog.trace.civisibility.domain.TestFrameworkModule;
 import datadog.trace.civisibility.domain.TestFrameworkSession;
 import datadog.trace.civisibility.domain.buildsystem.BuildSystemSessionImpl;
 import datadog.trace.civisibility.domain.buildsystem.ProxyTestSession;
-import datadog.trace.civisibility.domain.buildsystem.TestModuleRegistry;
 import datadog.trace.civisibility.domain.headless.HeadlessTestSession;
 import datadog.trace.civisibility.domain.manualapi.ManualApiTestSession;
 import datadog.trace.civisibility.events.BuildEventsHandlerImpl;
 import datadog.trace.civisibility.events.TestEventsHandlerImpl;
 import datadog.trace.civisibility.ipc.SignalServer;
+import datadog.trace.civisibility.source.index.RepoIndex;
 import datadog.trace.civisibility.telemetry.CiVisibilityMetricCollectorImpl;
+import datadog.trace.civisibility.test.ExecutionStrategy;
 import datadog.trace.civisibility.utils.ConcurrentHashMapContextStore;
-import datadog.trace.civisibility.utils.ProcessHierarchyUtils;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
 import java.lang.instrument.Instrumentation;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.List;
 import java.util.function.Predicate;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -80,26 +79,29 @@ public class CiVisibilitySystem {
     InstrumentationBridge.registerBuildEventsHandlerFactory(buildEventsHandlerFactory(services));
     CIVisibility.registerSessionFactory(manualApiSessionFactory(services));
 
-    if (ProcessHierarchyUtils.isChild() || ProcessHierarchyUtils.isHeadless()) {
+    if (services.processHierarchy.isChild() || services.processHierarchy.isHeadless()) {
       CiVisibilityRepoServices repoServices = services.repoServices(getCurrentPath());
 
-      ModuleExecutionSettings executionSettings =
-          repoServices.moduleExecutionSettingsFactory.create(
+      ExecutionSettings executionSettings =
+          repoServices.executionSettingsFactory.create(
               JvmInfo.CURRENT_JVM, repoServices.moduleName);
       if (executionSettings.isCodeCoverageEnabled()
           &&
-          // coverage with code segments is built on top of Jacoco,
-          // so if segments are explicitly enabled,
+          // lines coverage is built on top of Jacoco,
+          // so if lines are explicitly enabled,
           // we rely on Jacoco instrumentation rather than on our own coverage mechanism
-          !config.isCiVisibilityCoverageSegmentsEnabled()) {
+          !config.isCiVisibilityCoverageLinesEnabled()) {
         Predicate<String> instrumentationFilter =
-            createCoverageInstrumentationFilter(config, executionSettings);
+            createCoverageInstrumentationFilter(services, repoServices);
         inst.addTransformer(new CoverageClassTransformer(instrumentationFilter));
       }
 
+      CiVisibilityCoverageServices.Child coverageServices =
+          new CiVisibilityCoverageServices.Child(services, repoServices, executionSettings);
       InstrumentationBridge.registerTestEventsHandlerFactory(
-          new TestEventsHandlerFactory(services, repoServices, executionSettings));
-      CoverageBridge.registerCoverageProbeStoreRegistry(services.coverageProbeStoreFactory);
+          new TestEventsHandlerFactory(
+              services, repoServices, coverageServices, executionSettings));
+      CoveragePerTestBridge.registerCoverageStoreRegistry(coverageServices.coverageStoreFactory);
     }
   }
 
@@ -113,21 +115,14 @@ public class CiVisibilitySystem {
   }
 
   private static Predicate<String> createCoverageInstrumentationFilter(
-      Config config, ModuleExecutionSettings moduleExecutionSettings) {
-    List<String> coverageEnabledPackages = moduleExecutionSettings.getCoverageEnabledPackages();
-    int idx = 0;
-    String[] includedPackages = new String[coverageEnabledPackages.size()];
-    for (String coveragePackage : coverageEnabledPackages) {
-      includedPackages[idx++] =
-          coveragePackage
-              .replace('.', '/')
-              .substring(0, coveragePackage.length() - 1); // trim trailing *
+      CiVisibilityServices services, CiVisibilityRepoServices repoServices) {
+    String[] includedPackages = services.config.getCiVisibilityCodeCoverageIncludedPackages();
+    if (includedPackages.length == 0 && services.processHierarchy.isHeadless()) {
+      RepoIndex repoIndex = repoServices.repoIndexProvider.getIndex();
+      includedPackages =
+          Config.convertJacocoExclusionFormatToPackagePrefixes(repoIndex.getRootPackages());
     }
-
-    String[] excludedPackages = config.getCiVisibilityCodeCoverageExcludedPackages();
-    if (excludedPackages == null) {
-      excludedPackages = new String[0];
-    }
+    String[] excludedPackages = services.config.getCiVisibilityCodeCoverageExcludedPackages();
     return new CoverageInstrumentationFilter(includedPackages, excludedPackages);
   }
 
@@ -150,34 +145,35 @@ public class CiVisibilitySystem {
     private TestEventsHandlerFactory(
         CiVisibilityServices services,
         CiVisibilityRepoServices repoServices,
-        ModuleExecutionSettings executionSettings) {
+        CiVisibilityCoverageServices.Child coverageServices,
+        ExecutionSettings executionSettings) {
       this.services = services;
       this.repoServices = repoServices;
-      if (ProcessHierarchyUtils.isChild()) {
+      if (services.processHierarchy.isChild()) {
         sessionFactory =
-            childTestFrameworkSessionFactory(services, repoServices, executionSettings);
+            childTestFrameworkSessionFactory(
+                services, repoServices, coverageServices, executionSettings);
       } else {
         sessionFactory =
-            headlessTestFrameworkEssionFactory(services, repoServices, executionSettings);
+            headlessTestFrameworkEssionFactory(
+                services, repoServices, coverageServices, executionSettings);
       }
-    }
-
-    @Override
-    public <SuiteKey, TestKey> TestEventsHandler<SuiteKey, TestKey> create(String component) {
-      return create(
-          component, new ConcurrentHashMapContextStore<>(), new ConcurrentHashMapContextStore<>());
     }
 
     @Override
     public <SuiteKey, TestKey> TestEventsHandler<SuiteKey, TestKey> create(
         String component,
-        ContextStore<SuiteKey, DDTestSuite> suiteStore,
-        ContextStore<TestKey, DDTest> testStore) {
+        @Nullable ContextStore<SuiteKey, DDTestSuite> suiteStore,
+        @Nullable ContextStore<TestKey, DDTest> testStore) {
       TestFrameworkSession testSession =
           sessionFactory.startSession(repoServices.moduleName, component, null);
       TestFrameworkModule testModule = testSession.testModuleStart(repoServices.moduleName, null);
       return new TestEventsHandlerImpl<>(
-          services.metricCollector, testSession, testModule, suiteStore, testStore);
+          services.metricCollector,
+          testSession,
+          testModule,
+          suiteStore != null ? suiteStore : new ConcurrentHashMapContextStore<>(),
+          testStore != null ? testStore : new ConcurrentHashMapContextStore<>());
     }
   }
 
@@ -198,79 +194,90 @@ public class CiVisibilitySystem {
 
       repoServices.gitDataUploader.startOrObserveGitDataUpload();
 
-      TestDecorator testDecorator = new TestDecoratorImpl(buildSystemName, repoServices.ciTags);
-      TestModuleRegistry testModuleRegistry = new TestModuleRegistry();
+      String sessionName = services.config.getCiVisibilitySessionName();
+      TestDecorator testDecorator =
+          new TestDecoratorImpl(buildSystemName, sessionName, startCommand, repoServices.ciTags);
 
       String signalServerHost = services.config.getCiVisibilitySignalServerHost();
       int signalServerPort = services.config.getCiVisibilitySignalServerPort();
       SignalServer signalServer = new SignalServer(signalServerHost, signalServerPort);
 
-      return new BuildSystemSessionImpl(
+      CiVisibilityCoverageServices.Parent coverageServices =
+          new CiVisibilityCoverageServices.Parent(services, repoServices);
+      return new BuildSystemSessionImpl<>(
           projectName,
-          repoServices.repoRoot,
           startCommand,
           startTime,
-          repoServices.supportedCiProvider,
+          repoServices.ciProvider,
           services.config,
           services.metricCollector,
-          testModuleRegistry,
+          coverageServices.moduleSignalRouter,
           testDecorator,
           repoServices.sourcePathResolver,
           repoServices.codeowners,
-          services.methodLinesResolver,
-          repoServices.moduleExecutionSettingsFactory,
-          services.coverageProbeStoreFactory,
+          services.linesResolver,
+          repoServices.executionSettingsFactory,
           signalServer,
-          repoServices.repoIndexProvider);
+          repoServices.repoIndexProvider,
+          coverageServices.coverageCalculatorFactory);
     };
   }
 
   private static TestFrameworkSession.Factory childTestFrameworkSessionFactory(
       CiVisibilityServices services,
       CiVisibilityRepoServices repoServices,
-      ModuleExecutionSettings moduleExecutionSettings) {
+      CiVisibilityCoverageServices.Child coverageServices,
+      ExecutionSettings executionSettings) {
     return (String projectName, String component, Long startTime) -> {
-      long parentProcessSessionId = ProcessHierarchyUtils.getParentSessionId();
-      long parentProcessModuleId = ProcessHierarchyUtils.getParentModuleId();
-      CoverageDataSupplier coverageDataSupplier = CoverageBridge::getCoverageData;
+      String sessionName = services.config.getCiVisibilitySessionName();
+      String testCommand = services.config.getCiVisibilityTestCommand();
+      TestDecorator testDecorator =
+          new TestDecoratorImpl(component, sessionName, testCommand, repoServices.ciTags);
 
-      TestDecorator testDecorator = new TestDecoratorImpl(component, repoServices.ciTags);
+      ExecutionStrategy executionStrategy =
+          new ExecutionStrategy(services.config, executionSettings);
+
       return new ProxyTestSession(
-          parentProcessSessionId,
-          parentProcessModuleId,
+          services.processHierarchy.parentProcessModuleContext,
           services.config,
           services.metricCollector,
           testDecorator,
           repoServices.sourcePathResolver,
           repoServices.codeowners,
-          services.methodLinesResolver,
-          services.coverageProbeStoreFactory,
-          coverageDataSupplier,
+          services.linesResolver,
+          coverageServices.coverageStoreFactory,
+          coverageServices.coverageReporter,
           services.signalClientFactory,
-          moduleExecutionSettings);
+          executionStrategy);
     };
   }
 
   private static TestFrameworkSession.Factory headlessTestFrameworkEssionFactory(
       CiVisibilityServices services,
       CiVisibilityRepoServices repoServices,
-      ModuleExecutionSettings moduleExecutionSettings) {
+      CiVisibilityCoverageServices.Child coverageServices,
+      ExecutionSettings executionSettings) {
     return (String projectName, String component, Long startTime) -> {
       repoServices.gitDataUploader.startOrObserveGitDataUpload();
 
-      TestDecorator testDecorator = new TestDecoratorImpl(component, repoServices.ciTags);
+      String sessionName = services.config.getCiVisibilitySessionName();
+      TestDecorator testDecorator =
+          new TestDecoratorImpl(component, sessionName, projectName, repoServices.ciTags);
+
+      ExecutionStrategy executionStrategy =
+          new ExecutionStrategy(services.config, executionSettings);
       return new HeadlessTestSession(
           projectName,
           startTime,
-          repoServices.supportedCiProvider,
+          repoServices.ciProvider,
           services.config,
           services.metricCollector,
           testDecorator,
           repoServices.sourcePathResolver,
           repoServices.codeowners,
-          services.methodLinesResolver,
-          services.coverageProbeStoreFactory,
-          moduleExecutionSettings);
+          services.linesResolver,
+          coverageServices.coverageStoreFactory,
+          executionStrategy);
     };
   }
 
@@ -278,18 +285,26 @@ public class CiVisibilitySystem {
       CiVisibilityServices services) {
     return (String projectName, Path projectRoot, String component, Long startTime) -> {
       CiVisibilityRepoServices repoServices = services.repoServices(projectRoot);
-      TestDecorator testDecorator = new TestDecoratorImpl(component, repoServices.ciTags);
+
+      String sessionName = services.config.getCiVisibilitySessionName();
+      TestDecorator testDecorator =
+          new TestDecoratorImpl(component, sessionName, projectName, repoServices.ciTags);
+
+      ExecutionSettings executionSettings =
+          repoServices.executionSettingsFactory.create(JvmInfo.CURRENT_JVM, null);
+      CiVisibilityCoverageServices.Child coverageServices =
+          new CiVisibilityCoverageServices.Child(services, repoServices, executionSettings);
       return new ManualApiTestSession(
           projectName,
           startTime,
-          repoServices.supportedCiProvider,
+          repoServices.ciProvider,
           services.config,
           services.metricCollector,
           testDecorator,
           repoServices.sourcePathResolver,
           repoServices.codeowners,
-          services.methodLinesResolver,
-          services.coverageProbeStoreFactory);
+          services.linesResolver,
+          coverageServices.coverageStoreFactory);
     };
   }
 }

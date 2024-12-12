@@ -72,6 +72,9 @@ class DatadogPropagationTagsTest extends DDCoreSpecification {
     "_dd.p.tid=123456789ABCDEF0"                                                                                                 | null                                       | ["_dd.propagation_error": "malformed_tid 123456789ABCDEF0"] // invalid tid tag value: upper-case characters
     "_dd.p.tid=123456789abcdefg"                                                                                                 | null                                       | ["_dd.propagation_error": "malformed_tid 123456789abcdefg"] // invalid tid tag value: non-hexadecimal characters
     "_dd.p.tid=-123456789abcdef"                                                                                                 | null                                       | ["_dd.propagation_error": "malformed_tid -123456789abcdef"] // invalid tid tag value: non-hexadecimal characters
+    "_dd.p.appsec=1"                                                                                                             | "_dd.p.appsec=1"                           | ["_dd.p.appsec": "1"]
+    "_dd.p.appsec=0"                                                                                                             | null                                       | [:]
+    "_dd.p.appsec=foo"                                                                                                           | null                                       | ["_dd.propagation_error":"decoding_error"]
   }
 
   def "datadog propagation tags should translate to w3c tags #headerValue"() {
@@ -91,6 +94,7 @@ class DatadogPropagationTagsTest extends DDCoreSpecification {
     headerValue                            | expectedHeaderValue               | tags
     '_dd.p.dm=934086a686-4'                | 'dd=t.dm:934086a686-4'            | ['_dd.p.dm': '934086a686-4']
     '_dd.p.dm=934086a686-4,_dd.p.f=w00t==' | 'dd=t.dm:934086a686-4;t.f:w00t~~' | ['_dd.p.dm': '934086a686-4', '_dd.p.f': 'w00t==']
+    '_dd.p.dm=934086a686-4,_dd.p.appsec=1' | 'dd=t.dm:934086a686-4;t.appsec:1' | ['_dd.p.dm': '934086a686-4', '_dd.p.appsec': '1']
   }
 
   def "update propagation tags sampling mechanism #originalTagSet"() {
@@ -132,6 +136,30 @@ class DatadogPropagationTagsTest extends DDCoreSpecification {
     "_dd.p.anytag=123"                                          | SAMPLER_KEEP | UNKNOWN    | "_dd.p.anytag=123"                                          | ["_dd.p.anytag": "123"]
     // invalid input
     ",_dd.p.dm=Value"                                           | SAMPLER_KEEP | AGENT_RATE | "_dd.p.dm=-1"                                               | ["_dd.propagation_error": "decoding_error", "_dd.p.dm": "-1"]
+  }
+
+  def "update propagation tags appsec propagation #originalTagSet"() {
+    setup:
+    def config = Mock(Config)
+    config.getxDatadogTagsMaxLength() >> 512
+    def propagationTagsFactory = PropagationTags.factory(config)
+    def propagationTags = propagationTagsFactory.fromHeaderValue(PropagationTags.HeaderType.DATADOG, originalTagSet)
+
+    when:
+    propagationTags.updateAppsecPropagation(enabled)
+
+    then:
+    propagationTags.headerValue(PropagationTags.HeaderType.DATADOG) == expectedHeaderValue
+    propagationTags.createTagMap() == tags
+
+    where:
+    originalTagSet                         | enabled       | expectedHeaderValue   | tags
+    // keep the existing dm tag as is
+    "_dd.p.appsec=1"                       | true          | "_dd.p.appsec=1"      | ["_dd.p.appsec": "1"]
+    "_dd.p.appsec=0"                       | false         | null      | [:]
+    ""                                     | false         | null                  | [:]
+    //Invalid input
+    "_dd.p.appsec=foo"                       | false         | null                  | ["_dd.propagation_error": "decoding_error"]
   }
 
   def extractionLimitExceeded() {

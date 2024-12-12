@@ -33,10 +33,10 @@ public class TaintMultiMapFunction
     while (entriesIterator.hasNext()) {
       Tuple2<String, List<String>> e = entriesIterator.next();
       final String name = e._1();
-      mod.taint(ctx, name, SourceTypes.REQUEST_PARAMETER_NAME, name);
+      mod.taintString(ctx, name, SourceTypes.REQUEST_PARAMETER_NAME, name);
       List<String> values = e._2();
       for (final String value : ScalaToJava.listAsList(values)) {
-        mod.taint(ctx, value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
+        mod.taintString(ctx, value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
       }
     }
 

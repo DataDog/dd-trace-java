@@ -6,7 +6,7 @@ apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
   jmh project(':dd-trace-api')
-  jmh deps.bytebuddyagent
+  jmh libs.bytebuddyagent
 }
 
 jmh {

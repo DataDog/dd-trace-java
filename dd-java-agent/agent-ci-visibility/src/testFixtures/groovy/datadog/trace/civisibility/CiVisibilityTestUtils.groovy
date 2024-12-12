@@ -36,20 +36,25 @@ abstract class CiVisibilityTestUtils {
     path("content.meta.['error.message']"),
     path("content.meta.library_version"),
     path("content.meta.runtime-id"),
+    path("content.meta.['_dd.tracer_host']"),
     // Different events might or might not have the same start or duration.
     // Regardless, the values of these fields should be treated as different
     path("content.start", false),
     path("content.duration", false),
+    path("content.metrics.['_dd.host.vcpu_count']", false),
     path("content.meta.['_dd.p.tid']", false),
     path("content.meta.['error.stack']", false),
   ]
 
   static final List<DynamicPath> COVERAGE_DYNAMIC_PATHS = [path("test_session_id"), path("test_suite_id"), path("span_id"),]
 
-  private static final Comparator<Map<?,?>> EVENT_RESOURCE_COMPARATOR = Comparator.comparing((Map m) -> {
+  private static final Comparator<Map<?,?>> EVENT_RESOURCE_COMPARATOR = Comparator.<Map<?,?>, String> comparing((Map m) -> {
     def content = (Map) m.get("content")
     return content.get("resource")
-  })
+  }).thenComparing(Comparator.<Map<?,?>, String> comparing((Map m) -> {
+    // module and session have the same resource name in headless mode
+    return m.get("type")
+  }).reversed())
 
   /**
    * Use this method to generate expected data templates
@@ -79,7 +84,7 @@ abstract class CiVisibilityTestUtils {
       replacementMap.put(labelGenerator.forKey(e.key), "\"$e.value\"")
     }
 
-    def expectedEvents = getFreemarkerTemplate(baseTemplatesPath + "/events.ftl", replacementMap)
+    def expectedEvents = getFreemarkerTemplate(baseTemplatesPath + "/events.ftl", replacementMap, events)
     def actualEvents = JSON_MAPPER.writeValueAsString(events)
     try {
       JSONAssert.assertEquals(expectedEvents, actualEvents, JSONCompareMode.LENIENT)
@@ -87,7 +92,7 @@ abstract class CiVisibilityTestUtils {
       throw new org.opentest4j.AssertionFailedError("Events mismatch", expectedEvents, actualEvents, e)
     }
 
-    def expectedCoverages = getFreemarkerTemplate(baseTemplatesPath + "/coverages.ftl", replacementMap)
+    def expectedCoverages = getFreemarkerTemplate(baseTemplatesPath + "/coverages.ftl", replacementMap, coverages)
     def actualCoverages = JSON_MAPPER.writeValueAsString(coverages)
     try {
       JSONAssert.assertEquals(expectedCoverages, actualCoverages, JSONCompareMode.LENIENT)
@@ -118,11 +123,15 @@ abstract class CiVisibilityTestUtils {
     }
   }
 
-  private static String getFreemarkerTemplate(String templatePath, Map<String, Object> replacements) {
-    Template coveragesTemplate = FREEMARKER.getTemplate(templatePath)
-    StringWriter coveragesOut = new StringWriter()
-    coveragesTemplate.process(replacements, coveragesOut)
-    return coveragesOut.toString()
+  private static String getFreemarkerTemplate(String templatePath, Map<String, Object> replacements, List<Map<?, ?>> replacementsSource) {
+    try {
+      Template coveragesTemplate = FREEMARKER.getTemplate(templatePath)
+      StringWriter coveragesOut = new StringWriter()
+      coveragesTemplate.process(replacements, coveragesOut)
+      return coveragesOut.toString()
+    } catch (Exception e) {
+      throw new RuntimeException("Could not get Freemarker template " + templatePath + "; replacements map: " + replacements + "; replacements source: " + replacementsSource, e)
+    }
   }
 
   private static final class TemplateGenerator {

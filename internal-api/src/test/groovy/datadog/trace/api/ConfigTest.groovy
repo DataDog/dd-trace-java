@@ -41,6 +41,7 @@ import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_BATCH_SIZE
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_FLUSH_INTERVAL
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_TIMEOUT
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_VERIFY_BYTECODE
+import static datadog.trace.api.config.DebuggerConfig.EXCEPTION_REPLAY_ENABLED
 import static datadog.trace.api.config.GeneralConfig.API_KEY
 import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE
 import static datadog.trace.api.config.GeneralConfig.CONFIGURATION_FILE
@@ -74,7 +75,9 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PASSWORD
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PORT
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_USERNAME
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_DELAY
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_DELAY_DEFAULT
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_FORCE_FIRST
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_FORCE_FIRST_DEFAULT
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_TAGS
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_COMPRESSION
@@ -181,7 +184,7 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(SPAN_TAGS, "c:3")
     prop.setProperty(JMX_TAGS, "d:4")
     prop.setProperty(HEADER_TAGS, "e:five")
-    prop.setProperty(BAGGAGE_MAPPING, "f:six")
+    prop.setProperty(BAGGAGE_MAPPING, "f:six,g")
     prop.setProperty(HTTP_SERVER_ERROR_STATUSES, "123-456,457,124-125,122")
     prop.setProperty(HTTP_CLIENT_ERROR_STATUSES, "111")
     prop.setProperty(HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, "true")
@@ -246,6 +249,7 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(DEBUGGER_VERIFY_BYTECODE, "true")
     prop.setProperty(DEBUGGER_INSTRUMENT_THE_WORLD, "true")
     prop.setProperty(DEBUGGER_EXCLUDE_FILES, "exclude file")
+    prop.setProperty(EXCEPTION_REPLAY_ENABLED, "true")
     prop.setProperty(TRACE_X_DATADOG_TAGS_MAX_LENGTH, "128")
 
     when:
@@ -269,7 +273,7 @@ class ConfigTest extends DDSpecification {
     config.mergedSpanTags == [b: "2", c: "3"]
     config.mergedJmxTags == [b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
     config.requestHeaderTags == [e: "five"]
-    config.baggageMapping == [f: "six"]
+    config.baggageMapping == [f: "six", g: "g"]
     config.httpServerErrorStatuses == toBitSet((122..457))
     config.httpClientErrorStatuses == toBitSet((111..111))
     config.httpClientSplitByDomain == true
@@ -337,6 +341,7 @@ class ConfigTest extends DDSpecification {
     config.debuggerVerifyByteCode == true
     config.debuggerInstrumentTheWorld == true
     config.debuggerExcludeFiles == "exclude file"
+    config.debuggerExceptionEnabled == true
 
     config.xDatadogTagsMaxLength == 128
   }
@@ -360,7 +365,7 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + SPAN_TAGS, "c:3")
     System.setProperty(PREFIX + JMX_TAGS, "d:4")
     System.setProperty(PREFIX + HEADER_TAGS, "e:five")
-    System.setProperty(PREFIX + BAGGAGE_MAPPING, "f:six")
+    System.setProperty(PREFIX + BAGGAGE_MAPPING, "f:six,g")
     System.setProperty(PREFIX + HTTP_SERVER_ERROR_STATUSES, "123-456,457,124-125,122")
     System.setProperty(PREFIX + HTTP_CLIENT_ERROR_STATUSES, "111")
     System.setProperty(PREFIX + HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, "true")
@@ -448,7 +453,7 @@ class ConfigTest extends DDSpecification {
     config.mergedSpanTags == [b: "2", c: "3"]
     config.mergedJmxTags == [b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
     config.requestHeaderTags == [e: "five"]
-    config.baggageMapping == [f: "six"]
+    config.baggageMapping == [f: "six", g: "g"]
     config.httpServerErrorStatuses == toBitSet((122..457))
     config.httpClientErrorStatuses == toBitSet((111..111))
     config.httpClientSplitByDomain == true
@@ -701,7 +706,7 @@ class ConfigTest extends DDSpecification {
     properties.setProperty(SPAN_TAGS, "c:3")
     properties.setProperty(JMX_TAGS, "d:4")
     properties.setProperty(HEADER_TAGS, "e:five")
-    properties.setProperty(BAGGAGE_MAPPING, "f:six")
+    properties.setProperty(BAGGAGE_MAPPING, "f:six,g")
     properties.setProperty(HTTP_SERVER_ERROR_STATUSES, "123-456,457,124-125,122")
     properties.setProperty(HTTP_CLIENT_ERROR_STATUSES, "111")
     properties.setProperty(HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, "true")
@@ -734,7 +739,7 @@ class ConfigTest extends DDSpecification {
     config.mergedSpanTags == [b: "2", c: "3"]
     config.mergedJmxTags == [b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
     config.requestHeaderTags == [e: "five"]
-    config.baggageMapping == [f: "six"]
+    config.baggageMapping == [f: "six",g: "g"]
     config.httpServerErrorStatuses == toBitSet((122..457))
     config.httpClientErrorStatuses == toBitSet((111..111))
     config.httpClientSplitByDomain == true
@@ -2033,8 +2038,45 @@ class ConfigTest extends DDSpecification {
     !config.perfMetricsEnabled
   }
 
-  def "trace_agent_url overrides either host and port or unix domain"() {
+  def "trace_agent_url overrides default host and port or unix domain"() {
     setup:
+    if (configuredUrl != null) {
+      System.setProperty(PREFIX + TRACE_AGENT_URL, configuredUrl)
+    } else {
+      System.clearProperty(PREFIX + TRACE_AGENT_URL)
+    }
+
+    when:
+    def config = new Config()
+
+    then:
+    config.agentUrl == expectedUrl
+    config.agentHost == expectedHost
+    config.agentPort == expectedPort
+    config.agentUnixDomainSocket == expectedUnixDomainSocket
+
+    where:
+    // spotless:off
+    configuredUrl                     | expectedUrl                       | expectedHost | expectedPort | expectedUnixDomainSocket
+    null                              | "http://localhost:8126"           | "localhost"  | 8126         | null
+    ""                                | "http://localhost:8126"           | "localhost"  | 8126         | null
+    "http://localhost:1234"           | "http://localhost:1234"           | "localhost"  | 1234         | null
+    "http://somehost"                 | "http://somehost:8126"            | "somehost"   | 8126         | null
+    "http://somehost:80"              | "http://somehost:80"              | "somehost"   | 80           | null
+    "https://somehost:8143"           | "https://somehost:8143"           | "somehost"   | 8143         | null
+    "unix:///another/socket/path"     | "unix:///another/socket/path"     | "localhost"  | 8126         | "/another/socket/path"
+    "unix:///another%2Fsocket%2Fpath" | "unix:///another%2Fsocket%2Fpath" | "localhost"  | 8126         | "/another/socket/path"
+    "http:"                           | "http://localhost:8126"           | "localhost"  | 8126         | null
+    "unix:"                           | "http://localhost:8126"           | "localhost"  | 8126         | null
+    "1234"                            | "http://localhost:8126"           | "localhost"  | 8126         | null
+    ":1234"                           | "http://localhost:8126"           | "localhost"  | 8126         | null
+    // spotless:on
+  }
+
+  def "trace_agent_url overrides configured host and port or unix domain"() {
+    setup:
+    System.setProperty(PREFIX + AGENT_HOST, "test-host")
+    System.setProperty(PREFIX + TRACE_AGENT_PORT, "8888")
     System.setProperty(PREFIX + AGENT_UNIX_DOMAIN_SOCKET, "/path/to/socket")
     if (configuredUrl != null) {
       System.setProperty(PREFIX + TRACE_AGENT_URL, configuredUrl)
@@ -2053,19 +2095,19 @@ class ConfigTest extends DDSpecification {
 
     where:
     // spotless:off
-    configuredUrl                     | expectedUrl             | expectedHost | expectedPort | expectedUnixDomainSocket
-    null                              | "http://localhost:8126" | "localhost"  | 8126         | "/path/to/socket"
-    ""                                | "http://localhost:8126" | "localhost"  | 8126         | "/path/to/socket"
-    "http://localhost:1234"           | "http://localhost:1234" | "localhost"  | 1234         | "/path/to/socket"
-    "http://somehost"                 | "http://somehost:8126"  | "somehost"   | 8126         | "/path/to/socket"
-    "http://somehost:80"              | "http://somehost:80"    | "somehost"   | 80           | "/path/to/socket"
-    "https://somehost:8143"           | "https://somehost:8143" | "somehost"   | 8143         | "/path/to/socket"
-    "unix:///another/socket/path"     | "http://localhost:8126" | "localhost"  | 8126         | "/another/socket/path"
-    "unix:///another%2Fsocket%2Fpath" | "http://localhost:8126" | "localhost"  | 8126         | "/another/socket/path"
-    "http:"                           | "http://localhost:8126" | "localhost"  | 8126         | "/path/to/socket"
-    "unix:"                           | "http://localhost:8126" | "localhost"  | 8126         | "/path/to/socket"
-    "1234"                            | "http://localhost:8126" | "localhost"  | 8126         | "/path/to/socket"
-    ":1234"                           | "http://localhost:8126" | "localhost"  | 8126         | "/path/to/socket"
+    configuredUrl                     | expectedUrl                       | expectedHost | expectedPort | expectedUnixDomainSocket
+    null                              | "http://test-host:8888"           | "test-host"  | 8888         | "/path/to/socket"
+    ""                                | "http://test-host:8888"           | "test-host"  | 8888         | "/path/to/socket"
+    "http://localhost:1234"           | "http://localhost:1234"           | "localhost"  | 1234         | "/path/to/socket"
+    "http://somehost"                 | "http://somehost:8888"            | "somehost"   | 8888         | "/path/to/socket"
+    "http://somehost:80"              | "http://somehost:80"              | "somehost"   | 80           | "/path/to/socket"
+    "https://somehost:8143"           | "https://somehost:8143"           | "somehost"   | 8143         | "/path/to/socket"
+    "unix:///another/socket/path"     | "unix:///another/socket/path"     | "localhost"  | 8126         | "/another/socket/path"
+    "unix:///another%2Fsocket%2Fpath" | "unix:///another%2Fsocket%2Fpath" | "localhost"  | 8126         | "/another/socket/path"
+    "http:"                           | "http://test-host:8888"           | "test-host"  | 8888         | "/path/to/socket"
+    "unix:"                           | "http://test-host:8888"           | "test-host"  | 8888         | "/path/to/socket"
+    "1234"                            | "http://test-host:8888"           | "test-host"  | 8888         | "/path/to/socket"
+    ":1234"                           | "http://test-host:8888"           | "test-host"  | 8888         | "/path/to/socket"
     // spotless:on
   }
 
@@ -2399,5 +2441,42 @@ class ConfigTest extends DDSpecification {
     null                     | 47                        | 47
     true                     | 11                        | 11
     false                    | 17                        | 0
+  }
+
+  def "check profiling SSI auto-enablement"() {
+    when:
+    def prop = new Properties()
+    prop.setProperty(PROFILING_ENABLED, enablementMode)
+    prop.setProperty(PROFILING_START_DELAY, "1")
+    prop.setProperty(PROFILING_START_FORCE_FIRST, "true")
+
+    Config config = Config.get(prop)
+
+    then:
+    config.profilingEnabled == expectedEnabled
+    config.profilingStartDelay == expectedStartDelay
+    config.profilingStartForceFirst == expectedStartForceFirst
+
+    where:
+    // spotless:off
+    enablementMode | expectedEnabled | expectedStartDelay             | expectedStartForceFirst
+    "true"         | true            | 1                              | true
+    "false"        | false           | 1                              | true
+    "auto"         | true            | PROFILING_START_DELAY_DEFAULT  | PROFILING_START_FORCE_FIRST_DEFAULT
+    // spotless:on
+  }
+
+  def "url for debugger with unix domain socket"() {
+    when:
+    def prop = new Properties()
+    prop.setProperty(AGENT_HOST, "myhost")
+    prop.setProperty(TRACE_AGENT_PORT, "1234")
+    prop.setProperty(TRACE_AGENT_URL, "unix:///path/to/socket")
+
+    Config config = Config.get(prop)
+
+    then:
+    config.finalDebuggerSnapshotUrl == "http://localhost:8126/debugger/v1/input"
+    config.finalDebuggerSymDBUrl == "http://localhost:8126/symdb/v1/input"
   }
 }

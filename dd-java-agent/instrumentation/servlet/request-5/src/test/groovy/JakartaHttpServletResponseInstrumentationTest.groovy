@@ -219,7 +219,7 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
     result = response.encodeRedirectURL(url)
 
     then:
-    1 * module.taintIfTainted(_, url) >> { args -> expected = args[0] }
+    1 * module.taintStringIfTainted(_, url) >> { args -> expected = args[0] }
     0 * _
     result == expected
   }
@@ -236,7 +236,7 @@ class JakartaHttpServletResponseInstrumentationTest extends AgentTestRunner {
     result = response.encodeURL(url)
 
     then:
-    1 * module.taintIfTainted(_, url) >> { args -> expected = args[0] }
+    1 * module.taintStringIfTainted(_, url) >> { args -> expected = args[0] }
     0 * _
     expected == result
   }

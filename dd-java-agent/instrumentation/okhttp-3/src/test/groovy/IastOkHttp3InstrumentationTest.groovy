@@ -1,5 +1,6 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.propagation.CodecModule
 import datadog.trace.api.iast.propagation.PropagationModule
 import datadog.trace.api.iast.sink.SsrfModule
 import datadog.trace.instrumentation.okhttp3.IastHttpUrlInstrumentation
@@ -66,13 +67,21 @@ class IastOkHttp3InstrumentationTest extends AgentTestRunner {
   }
 
   private void mockPropagation() {
-    final propagation = Mock(PropagationModule) {
-      taintIfTainted(_, _) >> {
-        if (tainteds.containsKey(it[1])) {
-          tainteds.put(it[0], null)
-        }
+    final Closure taint = { target, inputs ->
+      if (inputs.any { input -> tainteds.containsKey(input) }) {
+        tainteds.put(target, null)
       }
     }
+
+    final propagation = Mock(PropagationModule) {
+      taintStringIfTainted(*_) >> { taint(it[0], [it[1]]) }
+      taintObjectIfTainted(*_) >> { taint(it[0], [it[1]]) }
+    }
     InstrumentationBridge.registerIastModule(propagation)
+
+    final codec = Mock(CodecModule) {
+      onUrlCreate(*_) >> { taint(it[0], it[1] as List) }
+    }
+    InstrumentationBridge.registerIastModule(codec)
   }
 }

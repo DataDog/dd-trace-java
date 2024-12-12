@@ -63,6 +63,11 @@ public final class VMRuntimeInstrumentation extends AbstractNativeImageInstrumen
           GlobalLogLevelSwitcher.get().switchLevel(LogLevel.DEBUG);
           configLogger.debug("New instance: {}", Config.get());
         }
+      } else {
+        String logLevel = Config.get().getLogLevel();
+        if (null != logLevel) {
+          GlobalLogLevelSwitcher.get().switchLevel(LogLevel.fromString(logLevel));
+        }
       }
 
       datadog.trace.agent.tooling.nativeimage.TracerActivation.activate();

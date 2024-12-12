@@ -4,7 +4,6 @@ import static com.datadog.iast.util.ObjectVisitor.State.CONTINUE;
 import static com.datadog.iast.util.ObjectVisitor.State.EXIT;
 
 import datadog.trace.api.Platform;
-import datadog.trace.instrumentation.iastinstrumenter.IastExclusionTrie;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -19,11 +18,9 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@SuppressWarnings("JavaReflectionMemberAccess")
 public class ObjectVisitor {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ObjectVisitor.class);
-
   private static final int MAX_VISITED_OBJECTS = 1000;
   private static final int MAX_DEPTH = 10;
   @Nullable private static final Method TRY_SET_ACCESSIBLE;
@@ -32,23 +29,11 @@ public class ObjectVisitor {
     TRY_SET_ACCESSIBLE = fetchTrySetAccessibleMethod();
   }
 
-  public static void visit(@Nonnull final Object object, @Nonnull final Visitor visitor) {
-    visit(object, visitor, ObjectVisitor::inspectClass);
-  }
-
   public static void visit(
       @Nonnull final Object object,
       @Nonnull final Visitor visitor,
       @Nonnull final Predicate<Class<?>> classFilter) {
     visit(object, visitor, classFilter, MAX_DEPTH, MAX_VISITED_OBJECTS);
-  }
-
-  public static void visit(
-      @Nonnull final Object object,
-      @Nonnull final Visitor visitor,
-      final int maxDepth,
-      final int maxObjects) {
-    visit(object, visitor, ObjectVisitor::inspectClass, maxDepth, maxObjects);
   }
 
   public static void visit(
@@ -122,6 +107,9 @@ public class ObjectVisitor {
   }
 
   private State visitMap(final int depth, final String path, final Map<?, ?> map) {
+    if (!classFilter.test(map.getClass())) {
+      return CONTINUE;
+    }
     final int mapDepth = depth + 1;
     for (final Map.Entry<?, ?> entry : map.entrySet()) {
       final Object key = entry.getKey();
@@ -145,6 +133,9 @@ public class ObjectVisitor {
   }
 
   private State visitIterable(final int depth, final String path, final Iterable<?> iterable) {
+    if (!classFilter.test(iterable.getClass())) {
+      return CONTINUE;
+    }
     final int iterableDepth = depth + 1;
     int index = 0;
     for (final Object item : iterable) {
@@ -186,13 +177,6 @@ public class ObjectVisitor {
       klass = klass.getSuperclass();
     }
     return ObjectVisitor.State.CONTINUE;
-  }
-
-  public static boolean inspectClass(final Class<?> cls) {
-    if (cls.isPrimitive()) {
-      return false; // skip primitives
-    }
-    return IastExclusionTrie.apply(cls.getName()) < 1;
   }
 
   private static boolean inspectField(final Field field) {

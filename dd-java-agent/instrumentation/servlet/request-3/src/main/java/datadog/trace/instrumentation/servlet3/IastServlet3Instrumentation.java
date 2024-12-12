@@ -29,7 +29,7 @@ public final class IastServlet3Instrumentation extends InstrumenterModule.Iast
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     // Avoid matching servlet 2 which has its own instrumentation
     return hasClassNamed("javax.servlet.AsyncEvent");
   }
@@ -58,5 +58,10 @@ public final class IastServlet3Instrumentation extends InstrumenterModule.Iast
             .and(takesArgument(1, named("javax.servlet.ServletResponse")))
             .and(isPublic()),
         packageName + ".IastServlet3Advice");
+  }
+
+  @Override
+  protected boolean isOptOutEnabled() {
+    return true;
   }
 }

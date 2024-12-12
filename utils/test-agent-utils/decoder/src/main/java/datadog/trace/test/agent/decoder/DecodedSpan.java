@@ -23,6 +23,8 @@ public interface DecodedSpan {
 
   Map<String, String> getMeta();
 
+  Map<String, Object> getMetaStruct();
+
   Map<String, Number> getMetrics();
 
   String getType();

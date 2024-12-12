@@ -34,6 +34,11 @@ class TestProfilingContextIntegration implements ProfilingContextIntegration {
     detachments.incrementAndGet()
   }
 
+  void clear() {
+    attachments.set(0)
+    detachments.set(0)
+  }
+
   @Override
   String name() {
     return "test"
@@ -94,7 +99,7 @@ class TestProfilingContextIntegration implements ProfilingContextIntegration {
     }
 
     @Override
-    void close() {
+    void report() {
       counter.decrementAndGet()
       AgentSpan span = AgentTracer.activeSpan()
       long activeSpanId = span == null ? 0 : span.getSpanId()
@@ -104,6 +109,10 @@ class TestProfilingContextIntegration implements ProfilingContextIntegration {
       closedTimings.offer(this)
     }
 
+    @Override
+    boolean sample() {
+      return true
+    }
 
     @Override
     String toString() {

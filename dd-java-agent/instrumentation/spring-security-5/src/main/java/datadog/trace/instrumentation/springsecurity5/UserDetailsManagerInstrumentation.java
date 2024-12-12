@@ -9,8 +9,11 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.bootstrap.ActiveSubsystems;
+import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+import org.springframework.security.core.userdetails.UserDetails;
 
 @AutoService(InstrumenterModule.class)
 public class UserDetailsManagerInstrumentation extends InstrumenterModule.AppSec
@@ -46,6 +49,18 @@ public class UserDetailsManagerInstrumentation extends InstrumenterModule.AppSec
                 takesArgument(
                     0, named("org.springframework.security.core.userdetails.UserDetails")))
             .and(isPublic()),
-        packageName + ".UserDetailsManagerAdvice");
+        getClass().getName() + "$UserDetailsManagerAdvice");
+  }
+
+  public static class UserDetailsManagerAdvice {
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void onExit(
+        @Advice.Argument(value = 0, readOnly = false) UserDetails user,
+        @Advice.Thrown Throwable throwable) {
+      if (ActiveSubsystems.APPSEC_ACTIVE) {
+        SpringSecurityUserEventDecorator.DECORATE.onSignup(user, throwable);
+      }
+    }
   }
 }

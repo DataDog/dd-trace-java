@@ -116,6 +116,47 @@ class DDAgentStatsDClientTest extends DDSpecification {
     // spotless:on
   }
 
+  def "single statsd client with event"() {
+    setup:
+    injectSysConfig(DOGSTATSD_START_DELAY, '0')
+    def server = new StatsDServer()
+    server.start()
+
+    def client = statsDClientManager().statsDClient('127.0.0.1', server.socket.localPort, null, namespace, constantTags as String[], false)
+
+    String[] tags = ["type:BufferPool", "jmx_domain:java.nio"]
+
+    expect:
+    client.recordEvent(eventType, "test", "test.event", "test event", tags)
+    def event = server.waitForMessage()
+    event.startsWith("_e{10,10}:test.event|test event|d:") && event.contains("|t:$expectedType|s:test|#$expectedTags")
+
+    cleanup:
+    client.close()
+    server.close()
+
+    where:
+    // spotless:off
+    namespace | eventType   | expectedType  | constantTags                        | expectedTags
+    null      | "INFO"      | "info"        | null                                | "jmx_domain:java.nio,type:BufferPool"
+    null      | "INFO"      | "info"        | ["lang:java", "lang_version:1.8.0"] | "jmx_domain:java.nio,type:BufferPool,lang:java,lang_version:1.8.0"
+    "example" | "INFO"      | "info"        | null                                | "jmx_domain:java.nio,type:BufferPool"
+    "example" | "INFO"      | "info"        | ["lang:java", "lang_version:1.8.0"] | "jmx_domain:java.nio,type:BufferPool,lang:java,lang_version:1.8.0"
+    null      | "WARNING"   | "warning"     | null                                | "jmx_domain:java.nio,type:BufferPool"
+    null      | "WARNING"   | "warning"     | ["lang:java", "lang_version:1.8.0"] | "jmx_domain:java.nio,type:BufferPool,lang:java,lang_version:1.8.0"
+    "example" | "WARNING"   | "warning"     | null                                | "jmx_domain:java.nio,type:BufferPool"
+    "example" | "WARNING"   | "warning"     | ["lang:java", "lang_version:1.8.0"] | "jmx_domain:java.nio,type:BufferPool,lang:java,lang_version:1.8.0"
+    null      | "ERROR"     | "error"       | null                                | "jmx_domain:java.nio,type:BufferPool"
+    null      | "ERROR"     | "error"       | ["lang:java", "lang_version:1.8.0"] | "jmx_domain:java.nio,type:BufferPool,lang:java,lang_version:1.8.0"
+    "example" | "ERROR"     | "error"       | null                                | "jmx_domain:java.nio,type:BufferPool"
+    "example" | "ERROR"     | "error"       | ["lang:java", "lang_version:1.8.0"] | "jmx_domain:java.nio,type:BufferPool,lang:java,lang_version:1.8.0"
+    null      | "SUCCESS"   | "success"     | null                                | "jmx_domain:java.nio,type:BufferPool"
+    null      | "SUCCESS"   | "success"     | ["lang:java", "lang_version:1.8.0"] | "jmx_domain:java.nio,type:BufferPool,lang:java,lang_version:1.8.0"
+    "example" | "SUCCESS"   | "success"     | null                                | "jmx_domain:java.nio,type:BufferPool"
+    "example" | "SUCCESS"   | "success"     | ["lang:java", "lang_version:1.8.0"] | "jmx_domain:java.nio,type:BufferPool,lang:java,lang_version:1.8.0"
+    // spotless:on
+  }
+
   def "multiple statsd clients"() {
     setup:
     injectSysConfig(DOGSTATSD_START_DELAY, '0')

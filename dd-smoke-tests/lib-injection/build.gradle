@@ -1,0 +1,29 @@
+plugins {
+  id 'application'
+  id 'com.github.johnrengelman.shadow'
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+description = 'Lib-injection Smoke Tests'
+
+application {
+  mainClass = 'datadog.smoketest.Application'
+}
+
+jar {
+  manifest {
+    attributes(
+      'Premain-Class': 'datadog.smoketest.Agent',
+      )
+  }
+}
+
+dependencies {
+  implementation group: 'io.opentelemetry', name: 'opentelemetry-api', version: '1.4.0'
+  testImplementation project(':dd-smoke-tests')
+}
+
+tasks.withType(Test).configureEach {
+  dependsOn 'shadowJar'
+  jvmArgs "-Ddatadog.smoketest.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+}

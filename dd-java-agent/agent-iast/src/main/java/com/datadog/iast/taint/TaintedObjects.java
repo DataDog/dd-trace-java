@@ -18,6 +18,8 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings("UnusedReturnValue")
 public interface TaintedObjects extends Iterable<TaintedObject> {
 
+  Logger LOGGER = LoggerFactory.getLogger(TaintedObjects.class);
+
   static TaintedObjects build(@Nonnull final TaintedMap map) {
     final TaintedObjectsImpl taintedObjects = new TaintedObjectsImpl(map);
     return IastSystem.DEBUG ? new TaintedObjectsDebugAdapter(taintedObjects) : taintedObjects;
@@ -41,12 +43,17 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
       this.map = map;
     }
 
-    @Nonnull
+    @Nullable
     @Override
     public TaintedObject taint(final @Nonnull Object obj, final @Nonnull Range[] ranges) {
-      final TaintedObject tainted = new TaintedObject(obj, ranges);
-      map.put(tainted);
-      return tainted;
+      try {
+        final TaintedObject tainted = new TaintedObject(obj, ranges);
+        map.put(tainted);
+        return tainted;
+      } catch (Throwable e) {
+        LOGGER.debug("Error tainting object, it won't be tainted", e);
+        return null;
+      }
     }
 
     @Nullable
@@ -73,7 +80,6 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
   }
 
   final class TaintedObjectsDebugAdapter implements TaintedObjects, Wrapper<TaintedObjectsImpl> {
-    static final Logger LOGGER = LoggerFactory.getLogger(TaintedObjects.class);
 
     private final TaintedObjectsImpl delegated;
     private final UUID id;
@@ -125,10 +131,14 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
       return delegated.iterator();
     }
 
-    private void logTainted(final TaintedObject tainted) {
+    private void logTainted(@Nullable final TaintedObject tainted) {
       if (LOGGER.isDebugEnabled()) {
         try {
-          LOGGER.debug("taint {}: tainted={}", id, TaintedObjectEncoding.toJson(tainted));
+          if (tainted == null) {
+            LOGGER.debug("taint {}: ignored", id);
+          } else {
+            LOGGER.debug("taint {}: tainted={}", id, TaintedObjectEncoding.toJson(tainted));
+          }
         } catch (final Throwable e) {
           LOGGER.error("Failed to debug new tainted object", e);
         }

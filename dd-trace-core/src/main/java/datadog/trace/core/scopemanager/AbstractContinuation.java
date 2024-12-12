@@ -2,7 +2,7 @@ package datadog.trace.core.scopemanager;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
+import datadog.trace.bootstrap.instrumentation.api.AgentTraceCollector;
 
 /**
  * This class must not be a nested class of ContinuableScope to avoid an unconstrained chain of
@@ -13,18 +13,18 @@ abstract class AbstractContinuation implements AgentScope.Continuation {
   final ContinuableScopeManager scopeManager;
   final AgentSpan spanUnderScope;
   final byte source;
-  final AgentTrace trace;
+  final AgentTraceCollector traceCollector;
 
   public AbstractContinuation(
       ContinuableScopeManager scopeManager, AgentSpan spanUnderScope, byte source) {
     this.scopeManager = scopeManager;
     this.spanUnderScope = spanUnderScope;
     this.source = source;
-    this.trace = spanUnderScope.context().getTrace();
+    this.traceCollector = spanUnderScope.context().getTraceCollector();
   }
 
   AbstractContinuation register() {
-    trace.registerContinuation(this);
+    traceCollector.registerContinuation(this);
     return this;
   }
 

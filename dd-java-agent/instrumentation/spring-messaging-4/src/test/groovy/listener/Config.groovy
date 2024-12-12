@@ -8,6 +8,7 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Import
 import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider
+import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.sqs.SqsAsyncClient
 
 import jakarta.annotation.PreDestroy
@@ -34,6 +35,7 @@ class Config {
     def sqsAddress = sqsRestServer().waitUntilStarted().localAddress()
     return SqsAsyncClient.builder()
       .credentialsProvider(AnonymousCredentialsProvider.create())
+      .region(Region.AWS_GLOBAL)
       .endpointOverride(new URI("http://localhost:${sqsAddress.port}"))
       .build()
   }

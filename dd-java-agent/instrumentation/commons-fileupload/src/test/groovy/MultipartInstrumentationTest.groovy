@@ -26,7 +26,7 @@ class MultipartInstrumentationTest extends AgentTestRunner {
     InstrumentationBridge.clearIastModules()
   }
 
-  void 'test commons fileupload2 ParameterParser.parse'() {
+  void 'test commons fileupload ParameterParser.parse'() {
     given:
     final module = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(module)
@@ -41,8 +41,8 @@ class MultipartInstrumentationTest extends AgentTestRunner {
     }
 
     then:
-    1 * module.taint(iastCtx, 'file', SourceTypes.REQUEST_MULTIPART_PARAMETER, 'name')
-    1 * module.taint(iastCtx, _, SourceTypes.REQUEST_MULTIPART_PARAMETER, 'filename')
+    1 * module.taintString(iastCtx, 'file', SourceTypes.REQUEST_MULTIPART_PARAMETER, 'name')
+    1 * module.taintString(iastCtx, _, SourceTypes.REQUEST_MULTIPART_PARAMETER, 'filename')
     0 * _
 
     where:

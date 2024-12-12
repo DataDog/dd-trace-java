@@ -7,10 +7,10 @@ import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
-import datadog.trace.api.experimental.DataStreamsContextCarrier.NoOp;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.InstanceStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentDataStreamsMonitoring;
@@ -24,16 +24,21 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import datadog.trace.core.datastreams.TagsProcessor;
+import datadog.trace.payloadtags.PayloadTagsData;
 import java.net.URI;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import javax.annotation.Nonnull;
 import software.amazon.awssdk.awscore.AwsResponse;
+import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.core.SdkField;
 import software.amazon.awssdk.core.SdkPojo;
 import software.amazon.awssdk.core.SdkRequest;
@@ -116,6 +121,12 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     final String awsOperationName = attributes.getAttribute(SdkExecutionAttribute.OPERATION_NAME);
     onOperation(span, awsServiceName, awsOperationName);
 
+    Config config = Config.get();
+    if (config.isCloudRequestPayloadTaggingEnabled()
+        && config.isCloudPayloadTaggingEnabledFor(awsServiceName)) {
+      awsPojoToTags(span, ConfigDefaults.DEFAULT_TRACE_CLOUD_PAYLOAD_REQUEST_TAG, request);
+    }
+
     // S3
     request.getValueForField("Bucket", String.class).ifPresent(name -> setBucketName(span, name));
     if ("s3".equalsIgnoreCase(awsServiceName) && span.traceConfig().isDataStreamsEnabled()) {
@@ -182,7 +193,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
         for (Object ignored : records) {
           AgentTracer.get()
               .getDataStreamsMonitoring()
-              .setProduceCheckpoint("kinesis", kinesisStreamArn.get(), NoOp.INSTANCE);
+              .setProduceCheckpoint("kinesis", kinesisStreamArn.get());
         }
       } else if (snsTopicName.isPresent()
           && "sns".equalsIgnoreCase(awsServiceName)
@@ -195,7 +206,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
         for (Object ignored : entries) {
           AgentTracer.get()
               .getDataStreamsMonitoring()
-              .setProduceCheckpoint("sns", snsTopicName.get(), NoOp.INSTANCE);
+              .setProduceCheckpoint("sns", snsTopicName.get());
         }
       }
     }
@@ -296,6 +307,14 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
       final SdkResponse response,
       final SdkHttpResponse httpResponse,
       final ExecutionAttributes attributes) {
+
+    Config config = Config.get();
+    String serviceName = attributes.getAttribute(SdkExecutionAttribute.SERVICE_NAME);
+    if (config.isCloudResponsePayloadTaggingEnabled()
+        && config.isCloudPayloadTaggingEnabledFor(serviceName)) {
+      awsPojoToTags(span, ConfigDefaults.DEFAULT_TRACE_CLOUD_PAYLOAD_RESPONSE_TAG, response);
+    }
+
     if (response instanceof AwsResponse) {
       span.setTag(
           InstrumentationTags.AWS_REQUEST_ID,
@@ -437,5 +456,47 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
   @Override
   protected String getResponseHeader(SdkHttpResponse response, String headerName) {
     return response.firstMatchingHeader(headerName).orElse(null);
+  }
+
+  private void awsPojoToTags(AgentSpan span, String tagsPrefix, Object pojo) {
+    Collection<PayloadTagsData.PathAndValue> payloadTagsData = new ArrayList<>();
+    List<Object> path = new ArrayList<>();
+    collectPayloadTagsData(payloadTagsData, path, pojo);
+    span.setTag(
+        tagsPrefix,
+        new PayloadTagsData(payloadTagsData.toArray(new PayloadTagsData.PathAndValue[0])));
+  }
+
+  private void collectPayloadTagsData(
+      Collection<PayloadTagsData.PathAndValue> payloadTagsData, List<Object> path, Object object) {
+    if (object instanceof SdkPojo) {
+      SdkPojo pojo = (SdkPojo) object;
+      for (SdkField<?> field : pojo.sdkFields()) {
+        Object val = field.getValueOrDefault(pojo);
+        path.add(field.locationName());
+        collectPayloadTagsData(payloadTagsData, path, val);
+        path.remove(path.size() - 1);
+      }
+    } else if (object instanceof Collection) {
+      int index = 0;
+      for (Object value : (Collection<?>) object) {
+        path.add(index);
+        collectPayloadTagsData(payloadTagsData, path, value);
+        path.remove(path.size() - 1);
+        index++;
+      }
+    } else if (object instanceof Map) {
+      Map<?, ?> map = (Map<?, ?>) object;
+      for (Map.Entry<?, ?> entry : map.entrySet()) {
+        path.add(entry.getKey().toString());
+        collectPayloadTagsData(payloadTagsData, path, entry.getValue());
+        path.remove(path.size() - 1);
+      }
+    } else if (object instanceof SdkBytes) {
+      SdkBytes bytes = (SdkBytes) object;
+      payloadTagsData.add(new PayloadTagsData.PathAndValue(path.toArray(), bytes.asInputStream()));
+    } else if (object != null) {
+      payloadTagsData.add(new PayloadTagsData.PathAndValue(path.toArray(), object));
+    }
   }
 }

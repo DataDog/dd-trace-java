@@ -16,6 +16,7 @@ import com.datadog.debugger.el.values.ObjectValue;
 import com.datadog.debugger.el.values.StringValue;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import java.math.BigDecimal;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Random;
 import java.util.stream.Stream;
@@ -26,7 +27,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 class ComparisonExpressionTest {
 
-  @ParameterizedTest
+  @ParameterizedTest(name = "[{index}] {4}")
   @MethodSource("expressions")
   void evaluateOperator(
       ValueExpression<?> left,
@@ -155,16 +156,46 @@ class ComparisonExpressionTest {
             "null instanceof \"java.lang.String\""),
         Arguments.of(
             new NumericValue(1),
-            new StringValue("java.lang.Long"),
+            new StringValue("java.lang.Integer"),
             INSTANCEOF,
             true,
-            "1 instanceof \"java.lang.Long\""),
+            "1 instanceof \"java.lang.Integer\""),
         Arguments.of(
             new NumericValue(1.0),
             new StringValue("java.lang.Double"),
             INSTANCEOF,
             true,
-            "1.0 instanceof \"java.lang.Double\""));
+            "1.0 instanceof \"java.lang.Double\""),
+        Arguments.of(
+            new ObjectValue(StandardOpenOption.READ),
+            new StringValue("READ"),
+            EQ,
+            true,
+            "java.nio.file.StandardOpenOption == \"READ\""),
+        Arguments.of(
+            new ObjectValue(StandardOpenOption.READ),
+            new StringValue("StandardOpenOption.READ"),
+            EQ,
+            true,
+            "java.nio.file.StandardOpenOption == \"StandardOpenOption.READ\""),
+        Arguments.of(
+            new ObjectValue(StandardOpenOption.READ),
+            new StringValue("java.nio.file.StandardOpenOption.READ"),
+            EQ,
+            true,
+            "java.nio.file.StandardOpenOption == \"java.nio.file.StandardOpenOption.READ\""),
+        Arguments.of(
+            new ObjectValue(StandardOpenOption.CREATE),
+            new StringValue("READ"),
+            EQ,
+            false,
+            "java.nio.file.StandardOpenOption == \"READ\""),
+        Arguments.of(
+            new StringValue("READ"),
+            new ObjectValue(StandardOpenOption.READ),
+            EQ,
+            true,
+            "\"READ\" == java.nio.file.StandardOpenOption"));
   }
 
   @ParameterizedTest

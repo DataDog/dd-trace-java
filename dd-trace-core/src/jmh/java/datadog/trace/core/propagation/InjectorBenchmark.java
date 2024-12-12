@@ -121,7 +121,7 @@ public class InjectorBenchmark {
             false,
             "type",
             0,
-            tracer.createTrace(traceId),
+            tracer.createTraceCollector(traceId),
             null,
             null,
             null,

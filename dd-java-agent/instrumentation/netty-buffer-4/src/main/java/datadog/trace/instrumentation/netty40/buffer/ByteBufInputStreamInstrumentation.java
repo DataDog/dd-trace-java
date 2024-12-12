@@ -54,7 +54,7 @@ public class ByteBufInputStreamInstrumentation extends InstrumenterModule.Iast
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       try {
         if (module != null) {
-          module.taintIfTainted(self, buffer);
+          module.taintObjectIfTainted(self, buffer);
         }
       } catch (final Throwable e) {
         module.onUnexpectedException("ByteBufInputStream ctor threw", e);

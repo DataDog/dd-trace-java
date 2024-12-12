@@ -26,7 +26,7 @@ public class MicronautDecorator
 
   @Override
   protected String[] instrumentationNames() {
-    return new String[0];
+    return new String[] {"micronaut"};
   }
 
   @Override

@@ -31,7 +31,7 @@ public class OpensearchTransportClientInstrumentation extends InstrumenterModule
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     return hasClassNamed("org.opensearch.action.ActionType");
   }
 

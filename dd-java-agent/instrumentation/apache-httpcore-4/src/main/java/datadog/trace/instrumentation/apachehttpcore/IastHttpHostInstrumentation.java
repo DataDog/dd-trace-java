@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.apachehttpcore;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
+import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
@@ -10,6 +12,7 @@ import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import net.bytebuddy.asm.Advice;
+import org.apache.http.HttpHost;
 
 @AutoService(InstrumenterModule.class)
 public class IastHttpHostInstrumentation extends InstrumenterModule.Iast
@@ -29,6 +32,9 @@ public class IastHttpHostInstrumentation extends InstrumenterModule.Iast
     transformer.applyAdvice(
         isConstructor().and(takesArguments(String.class, int.class, String.class)),
         IastHttpHostInstrumentation.class.getName() + "$CtorAdvice");
+    transformer.applyAdvice(
+        named("toURI").and(isMethod()).and(takesArguments(0)),
+        IastHttpHostInstrumentation.class.getName() + "$ToUriAdvice");
   }
 
   public static class CtorAdvice {
@@ -38,7 +44,18 @@ public class IastHttpHostInstrumentation extends InstrumenterModule.Iast
         @Advice.This final Object self, @Advice.Argument(0) final Object argument) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        module.taintIfTainted(self, argument);
+        module.taintObjectIfTainted(self, argument);
+      }
+    }
+  }
+
+  public static class ToUriAdvice {
+    @Advice.OnMethodExit()
+    @Propagation
+    public static void methodExit(@Advice.This HttpHost self, @Advice.Return String result) {
+      final PropagationModule propagationModule = InstrumentationBridge.PROPAGATION;
+      if (propagationModule != null) {
+        propagationModule.taintObjectIfTainted(result, self);
       }
     }
   }

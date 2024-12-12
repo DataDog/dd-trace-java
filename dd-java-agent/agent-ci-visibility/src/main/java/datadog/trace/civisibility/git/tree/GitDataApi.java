@@ -3,13 +3,13 @@ package datadog.trace.civisibility.git.tree;
 import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
+import datadog.communication.BackendApi;
 import datadog.communication.http.OkHttpUtils;
+import datadog.communication.util.IOUtils;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
-import datadog.trace.civisibility.communication.BackendApi;
 import datadog.trace.civisibility.communication.TelemetryListener;
-import datadog.trace.civisibility.utils.IOUtils;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -78,7 +78,8 @@ public class GitDataApi {
             SEARCH_COMMITS_URI,
             requestBody,
             is -> searchCommitsResponseAdapter.fromJson(Okio.buffer(Okio.source(is))),
-            telemetryListener);
+            telemetryListener,
+            false);
 
     return response.data.stream().map(Commit::getId).collect(Collectors.toSet());
   }
@@ -119,7 +120,8 @@ public class GitDataApi {
             .build();
 
     String response =
-        backendApi.post(UPLOAD_PACKFILES_URI, requestBody, IOUtils::readFully, telemetryListener);
+        backendApi.post(
+            UPLOAD_PACKFILES_URI, requestBody, IOUtils::readFully, telemetryListener, false);
     LOGGER.debug("Uploading pack file {} returned response {}", packFile, response);
   }
 

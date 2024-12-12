@@ -29,11 +29,28 @@ public interface AgentDataStreamsMonitoring extends DataStreamsCheckpointer {
   void add(StatsPoint statsPoint);
 
   /**
-   * shouldSampleSchema is used to determine if we should extract schema from the message or not.
+   * trySampleSchema is used to determine if we should extract schema from the message or not.
    *
    * @param topic Kafka topic
    * @return the weight of the schema, indicating how many messages have been sent to the topic
    *     without having been sampled.
    */
-  int shouldSampleSchema(String topic);
+  int trySampleSchema(String topic);
+
+  boolean canSampleSchema(String topic);
+
+  Schema getSchema(String schemaName, SchemaIterator iterator);
+
+  void setProduceCheckpoint(String type, String target);
+
+  /**
+   * setServiceNameOverride is used override service name for all DataStreams payloads produced
+   * within Thread.currentThread()
+   *
+   * @param serviceName new service name to use for DSM checkpoints.
+   */
+  void setThreadServiceName(String serviceName);
+
+  /** clearThreadServiceName clears up service name override for Thread.currentThread() */
+  void clearThreadServiceName();
 }

@@ -258,7 +258,7 @@ final class InstrumenterIndex {
       }
     }
     // enforce module ordering (lowest-value first) before indexing
-    modules.sort(Comparator.comparing(InstrumenterModule::order));
+    modules.sort(Comparator.comparingInt(InstrumenterModule::order));
     return modules;
   }
 

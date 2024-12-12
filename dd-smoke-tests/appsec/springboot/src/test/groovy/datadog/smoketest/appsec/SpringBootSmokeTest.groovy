@@ -1,16 +1,13 @@
 package datadog.smoketest.appsec
 
+import datadog.trace.agent.test.utils.OkHttpUtils
 import datadog.trace.agent.test.utils.ThreadUtils
-import groovy.json.JsonGenerator
-import groovy.json.JsonSlurper
 import okhttp3.MediaType
 import okhttp3.Request
 import okhttp3.RequestBody
-import org.apache.commons.io.IOUtils
 import spock.lang.Shared
 
 import java.nio.charset.StandardCharsets
-import java.util.jar.JarFile
 
 class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
 
@@ -21,33 +18,140 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
 
   def prepareCustomRules() {
     // Prepare ruleset with additional test rules
-    final jarFile = new JarFile(shadowJarPath)
-    final zipEntry = jarFile.getEntry("appsec/default_config.json")
-    final content = IOUtils.toString(jarFile.getInputStream(zipEntry), StandardCharsets.UTF_8)
-    final json = new JsonSlurper().parseText(content) as Map<String, Object>
-    final rules = json.rules as List<Map<String, Object>>
-    rules.add([
-      id: '__test_request_body_block',
-      name: 'test rule to block on request body',
-      tags: [
-        type: 'test',
-        category: 'test',
-        confidence: '1',
-      ],
-      conditions: [
+    mergeRules(
+      customRulesPath,
+      [
         [
-          parameters: [
-            inputs: [ [ address: 'server.request.body' ] ],
-            regex: 'dd-test-request-body-block',
+          id          : '__test_request_body_block',
+          name        : 'test rule to block on request body',
+          tags        : [
+            type      : 'test',
+            category  : 'test',
+            confidence: '1',
           ],
-          operator: 'match_regex',
+          conditions  : [
+            [
+              parameters: [
+                inputs: [[address: 'server.request.body']],
+                regex : 'dd-test-request-body-block',
+              ],
+              operator  : 'match_regex',
+            ]
+          ],
+          transformers: [],
+          on_match    : ['block']
+        ],
+        [
+          id          : '__test_sqli_stacktrace_on_query',
+          name        : 'test rule to generate stacktrace on sqli',
+          tags        : [
+            type      : 'test',
+            category  : 'test',
+            confidence: '1',
+          ],
+          conditions: [
+            [
+              parameters: [
+                resource: [[address: "server.db.statement"]],
+                params: [[ address: "server.request.query" ]],
+                db_type: [[ address: "server.db.system" ]],
+              ],
+              operator: "sqli_detector",
+            ],
+          ],
+          transformers: [],
+          on_match    : ['stack_trace']
+        ],
+        [
+          id          : '__test_sqli_block_on_header',
+          name        : 'test rule to block on sqli',
+          tags        : [
+            type      : 'test',
+            category  : 'test',
+            confidence: '1',
+          ],
+          conditions: [
+            [
+              parameters: [
+                resource: [[address: "server.db.statement"]],
+                params: [[ address: "server.request.headers.no_cookies" ]],
+                db_type: [[ address: "server.db.system" ]],
+              ],
+              operator: "sqli_detector",
+            ],
+          ],
+          transformers: [],
+          on_match    : ['block']
+        ],
+        [
+          id          : '__test_ssrf_block',
+          name        : 'Server-side request forgery exploit',
+          enable      : 'true',
+          tags        : [
+            type      : 'ssrf',
+            category  : 'vulnerability_trigger',
+            cwe       : '918',
+            capec     : '1000/225/115/664',
+            confidence: '0',
+            module    : 'rasp'
+          ],
+          conditions  : [
+            [
+              parameters: [
+                resource: [[address: 'server.io.net.url']],
+                params  : [[address: 'server.request.query']],
+              ],
+              operator  : "ssrf_detector",
+            ],
+          ],
+          transformers: [],
+          on_match    : ['block']
+        ],
+        [
+          id          : 'rasp-930-100',     // to replace default rule
+          name        : 'Local File Inclusion  exploit',
+          enable      : 'true',
+          tags        : [
+            type      : 'lfi',
+            category  : 'vulnerability_trigger',
+            cwe       : '98',
+            capec     : '252',
+            confidence: '0',
+            module    : 'rasp'
+          ],
+          conditions  : [
+            [
+              parameters: [
+                resource: [[address: 'server.io.fs.file']],
+                params  : [[address: 'server.request.query']],
+              ],
+              operator  : "lfi_detector",
+            ],
+          ],
+          transformers: [],
+          on_match    : ['block']
+        ],
+        [
+          id          : '__test_session_id_block',
+          name        : 'test rule to block on any session id',
+          tags        : [
+            type      : 'test',
+            category  : 'test',
+            confidence: '1',
+          ],
+          conditions  : [
+            [
+              parameters: [
+                inputs: [[address: 'usr.session_id']],
+                regex : '[a-zA-Z0-9]+',
+              ],
+              operator  : 'match_regex',
+            ]
+          ],
+          transformers: [],
+          on_match    : ['block']
         ]
-      ],
-      transformers: [],
-      on_match: [ 'block' ]
-    ])
-    final gen = new JsonGenerator.Options().build()
-    IOUtils.write(gen.toJson(json), new FileOutputStream(customRulesPath, false), StandardCharsets.UTF_8)
+      ])
   }
 
   @Override
@@ -62,7 +166,6 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     command.add(javaPath())
     command.addAll(defaultJavaProperties)
     command.addAll(defaultAppSecProperties)
-    command.add("-Ddd.appsec.rules=${customRulesPath}" as String)
     command.addAll((String[]) ["-jar", springBootShadowJar, "--server.port=${httpPort}"])
 
     ProcessBuilder processBuilder = new ProcessBuilder(command)
@@ -74,7 +177,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     def request = new Request.Builder()
       .url(url)
       .addHeader("User-Agent", "Arachni/v1")
-      .addHeader("X-Forwarded", 'for="[::ffff:1.2.3.4]"')
+      .addHeader("X-Client-Ip", '::ffff:1.2.3.4')
       .build()
     def response = client.newCall(request).execute()
     def responseBodyStr = response.body().string()
@@ -206,5 +309,198 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     rootSpans.each {
       assert it.meta.get('appsec.blocked') != null, 'appsec.blocked is not set'
     }
+  }
+
+  void 'rasp reports stacktrace on sql injection'() {
+    when:
+    String url = "http://localhost:${httpPort}/sqli/query?id=' OR 1=1 --"
+    def request = new Request.Builder()
+      .url(url)
+      .get()
+      .build()
+    def response = client.newCall(request).execute()
+    def responseBodyStr = response.body().string()
+
+    then:
+    response.code() == 200
+    responseBodyStr == 'EXECUTED'
+
+    when:
+    waitForTraceCount(1)
+
+    then:
+    def rootSpans = this.rootSpans.toList()
+    rootSpans.size() == 1
+    def rootSpan = rootSpans[0]
+    assert rootSpan.meta.get('appsec.blocked') == null, 'appsec.blocked is set'
+    assert rootSpan.meta.get('_dd.appsec.json') != null, '_dd.appsec.json is not set'
+    def trigger
+    for (t in rootSpan.triggers) {
+      if (t['rule']['id'] == '__test_sqli_stacktrace_on_query') {
+        trigger = t
+        break
+      }
+    }
+    assert trigger != null, 'test trigger not found'
+    rootSpan.span.metaStruct != null
+    def stack = rootSpan.span.metaStruct.get('_dd.stack')
+    assert stack != null, 'stack is not set'
+    def exploit = stack.get('exploit')
+    assert exploit != null, 'exploit is not set'
+  }
+
+  void 'rasp blocks on sql injection'() {
+    when:
+    String url = "http://localhost:${httpPort}/sqli/header"
+    def request = new Request.Builder()
+      .url(url)
+      .header("x-custom-header", "' OR 1=1 --")
+      .get()
+      .build()
+    def response = client.newCall(request).execute()
+    def responseBodyStr = response.body().string()
+
+    then:
+    response.code() == 403
+    responseBodyStr == '{"errors":[{"title":"You\'ve been blocked","detail":"Sorry, you cannot access this page. Please contact the customer service team. Security provided by Datadog."}]}\n'
+
+    when:
+    waitForTraceCount(1)
+
+    then:
+    def rootSpans = this.rootSpans.toList()
+    rootSpans.size() == 1
+    def rootSpan = rootSpans[0]
+    assert rootSpan.meta.get('appsec.blocked') == 'true', 'appsec.blocked is not set'
+    assert rootSpan.meta.get('_dd.appsec.json') != null, '_dd.appsec.json is not set'
+    def trigger = null
+    for (t in rootSpan.triggers) {
+      if (t['rule']['id'] == '__test_sqli_block_on_header') {
+        trigger = t
+        break
+      }
+    }
+    assert trigger != null, 'test trigger not found'
+  }
+
+  void 'rasp blocks on SSRF'() {
+    when:
+    String url = "http://localhost:${httpPort}/ssrf/${variant}?domain=169.254.169.254"
+    def request = new Request.Builder()
+      .url(url)
+      .get()
+      .build()
+    def response = client.newCall(request).execute()
+    def responseBodyStr = response.body().string()
+
+    then:
+    response.code() == 403
+    responseBodyStr.contains('You\'ve been blocked')
+
+    when:
+    waitForTraceCount(1)
+
+    then:
+    def rootSpans = this.rootSpans.toList()
+    rootSpans.size() == 1
+    def rootSpan = rootSpans[0]
+    assert rootSpan.meta.get('appsec.blocked') == 'true', 'appsec.blocked is not set'
+    assert rootSpan.meta.get('_dd.appsec.json') != null, '_dd.appsec.json is not set'
+    def trigger = null
+    for (t in rootSpan.triggers) {
+      if (t['rule']['id'] == '__test_ssrf_block') {
+        trigger = t
+        break
+      }
+    }
+    assert trigger != null, 'test trigger not found'
+
+    where:
+    variant               | _
+    'query'               | _
+    'okHttp3'             | _
+    'okHttp2'             | _
+    'apache-httpclient4'  | _
+    'commons-httpclient2' | _
+  }
+
+  void 'rasp blocks on LFI for #variant'() {
+    when:
+    String url = "http://localhost:${httpPort}/lfi/"+variant+"?path=." + URLEncoder.encode("../../../etc/passwd", StandardCharsets.UTF_8.name())
+    def request = new Request.Builder()
+      .url(url)
+      .get()
+      .build()
+    def response = client.newCall(request).execute()
+    def responseBodyStr = response.body().string()
+
+    then:
+    response.code() == 403
+    responseBodyStr.contains('You\'ve been blocked')
+
+    when:
+    waitForTraceCount(1)
+
+    then:
+    def rootSpan = findFirstMatchingSpan(variant)
+    assert rootSpan.meta.get('appsec.blocked') == 'true', 'appsec.blocked is not set'
+    assert rootSpan.meta.get('_dd.appsec.json') != null, '_dd.appsec.json is not set'
+    def trigger = null
+    for (t in rootSpan.triggers) {
+      if (t['rule']['id'] == 'rasp-930-100') {
+        trigger = t
+        break
+      }
+    }
+    assert trigger != null, 'test trigger not found'
+
+    where:
+    variant | _
+    'paths'    | _
+    'file'    | _
+    'path'    | _
+
+  }
+
+  def findFirstMatchingSpan(String resource) {
+    return this.rootSpans.toList().find { (it.span.resource == 'GET /lfi/' + resource) }
+  }
+
+
+  void 'session id tracking'() {
+    given:
+    def url = "http://localhost:${httpPort}/session"
+    def cookieJar = OkHttpUtils.cookieJar()
+    def client = OkHttpUtils.clientBuilder().cookieJar(cookieJar).build()
+    def request = new Request.Builder()
+      .url(url)
+      .get()
+      .build()
+
+    when: 'initial request creating the session'
+    def firstResponse = client.newCall(request).execute()
+
+    then:
+    firstResponse.code() == 200
+
+    when: 'second request with a session'
+    def secondResponse = client.newCall(request).execute()
+
+    then:
+    waitForTraceCount(2)
+    secondResponse.code() == 403
+    secondResponse.body().string().contains('You\'ve been blocked')
+    final rootSpan = this.rootSpans.find { it.meta['usr.session_id'] != null }
+    rootSpan != null
+    assert rootSpan.meta.get('appsec.blocked') == 'true', 'appsec.blocked is not set'
+    assert rootSpan.meta.get('_dd.appsec.json') != null, '_dd.appsec.json is not set'
+    def trigger = null
+    for (t in rootSpan.triggers) {
+      if (t['rule']['id'] == '__test_session_id_block') {
+        trigger = t
+        break
+      }
+    }
+    assert trigger != null, 'test trigger not found'
   }
 }

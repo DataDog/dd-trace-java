@@ -29,6 +29,8 @@ public class KafkaDecorator extends MessagingClientDecorator {
   public static final CharSequence KAFKA_CONSUME =
       UTF8BytesString.create(
           SpanNaming.instance().namingSchema().messaging().inboundOperation(KAFKA));
+
+  public static final CharSequence KAFKA_POLL = UTF8BytesString.create("kafka.poll");
   public static final CharSequence KAFKA_PRODUCE =
       UTF8BytesString.create(
           SpanNaming.instance().namingSchema().messaging().outboundOperation(KAFKA));

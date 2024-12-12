@@ -1,0 +1,13 @@
+{
+  "dsl": "",
+  "json": {
+    "and": [
+      {"eq": [{"count": {"ref": "intArray"}}, 3]},
+      {"eq": [{"len": {"ref": "intArray"}}, 3]},
+      {"eq": [{"count": {"ref": "strArray"}}, 2]},
+      {"eq": [{"count": {"ref": "strMap"}}, 2]},
+      {"eq": [{"count": {"ref": "strSet"}}, 1]},
+      {"eq": [{"count": {"ref": "strList"}}, 1]}
+    ]
+  }
+}

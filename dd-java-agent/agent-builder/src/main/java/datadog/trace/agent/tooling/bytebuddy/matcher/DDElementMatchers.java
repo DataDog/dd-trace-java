@@ -23,21 +23,21 @@ public class DDElementMatchers implements HierarchyMatchers.Supplier {
   @Override
   @SuppressForbidden
   public ElementMatcher.Junction<TypeDescription> declaresAnnotation(
-      ElementMatcher.Junction<? super NamedElement> matcher) {
+      ElementMatcher<? super NamedElement> matcher) {
     return ElementMatchers.isAnnotatedWith(matcher);
   }
 
   @Override
   @SuppressForbidden
   public ElementMatcher.Junction<TypeDescription> declaresField(
-      ElementMatcher.Junction<? super FieldDescription> matcher) {
+      ElementMatcher<? super FieldDescription> matcher) {
     return ElementMatchers.declaresField(matcher);
   }
 
   @Override
   @SuppressForbidden
   public ElementMatcher.Junction<TypeDescription> declaresMethod(
-      ElementMatcher.Junction<? super MethodDescription> matcher) {
+      ElementMatcher<? super MethodDescription> matcher) {
     return ElementMatchers.declaresMethod(matcher);
   }
 
@@ -49,31 +49,31 @@ public class DDElementMatchers implements HierarchyMatchers.Supplier {
 
   @Override
   public ElementMatcher.Junction<TypeDescription> extendsClass(
-      ElementMatcher.Junction<? super TypeDescription> matcher) {
+      ElementMatcher<? super TypeDescription> matcher) {
     return new SafeHasSuperTypeMatcher<>(matcher, false, true, false);
   }
 
   @Override
   public ElementMatcher.Junction<TypeDescription> implementsInterface(
-      ElementMatcher.Junction<? super TypeDescription> matcher) {
+      ElementMatcher<? super TypeDescription> matcher) {
     return new SafeHasSuperTypeMatcher<>(matcher, true, true, true);
   }
 
   @Override
   public ElementMatcher.Junction<TypeDescription> hasInterface(
-      ElementMatcher.Junction<? super TypeDescription> matcher) {
+      ElementMatcher<? super TypeDescription> matcher) {
     return new SafeHasSuperTypeMatcher<>(matcher, true, false, true);
   }
 
   @Override
   public ElementMatcher.Junction<TypeDescription> hasSuperType(
-      ElementMatcher.Junction<? super TypeDescription> matcher) {
+      ElementMatcher<? super TypeDescription> matcher) {
     return new SafeHasSuperTypeMatcher<>(matcher, false, true, true);
   }
 
   @Override
   public ElementMatcher.Junction<MethodDescription> hasSuperMethod(
-      ElementMatcher.Junction<? super MethodDescription> matcher) {
+      ElementMatcher<? super MethodDescription> matcher) {
     return new HasSuperMethodMatcher<>(matcher);
   }
 

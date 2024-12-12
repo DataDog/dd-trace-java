@@ -75,8 +75,8 @@ public class CookieHeaderInstrumentation extends InstrumenterModule.Iast
       while (iterator.hasNext()) {
         HttpCookiePair pair = iterator.next();
         final String name = pair.name(), value = pair.value();
-        prop.taint(ctx, name, SourceTypes.REQUEST_COOKIE_NAME, name);
-        prop.taint(ctx, value, SourceTypes.REQUEST_COOKIE_VALUE, name);
+        prop.taintString(ctx, name, SourceTypes.REQUEST_COOKIE_NAME, name);
+        prop.taintString(ctx, value, SourceTypes.REQUEST_COOKIE_VALUE, name);
       }
     }
   }

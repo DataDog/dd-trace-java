@@ -6,8 +6,10 @@ on:
   workflow_dispatch:
 jobs:
   update-releases:
+    permissions:
+      contents: write # Required to update releases content
     runs-on: ubuntu-latest
     steps:
       - name: Update download releases
         if: ${{ github.event_name == 'workflow_dispatch' || ( !github.event.release.draft && !github.event.release.prerelease && !startsWith(github.event.release.name, 'download-latest') ) }}
-        uses: DataDog/download-release-action@ea1f13c0cad08eafeebec8b7d9b2d6ee74efb92a # 0.0.2
+        uses: DataDog/download-release-action@eeefd56e9d1f0102ad1e6f6c8a170c7bfbc5b613 # 0.0.3

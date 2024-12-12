@@ -1,7 +1,13 @@
 package datadog.trace.instrumentation.springsecurity5
 
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.LoggingEvent
+import ch.qos.logback.core.Appender
 import com.datadog.appsec.AppSecHttpServerTest
+import com.datadog.appsec.gateway.AppSecRequestContext
 import datadog.trace.agent.test.base.HttpServer
+import datadog.trace.api.config.AppSecConfig
 import datadog.trace.core.DDSpan
 import okhttp3.FormBody
 import okhttp3.HttpUrl
@@ -12,17 +18,24 @@ import org.springframework.boot.web.servlet.context.ServletWebServerApplicationC
 import org.springframework.context.ConfigurableApplicationContext
 import spock.lang.Shared
 
-import static datadog.trace.instrumentation.springsecurity5.TestEndpoint.LOGIN
+import static datadog.trace.agent.test.utils.OkHttpUtils.clientBuilder
+import static datadog.trace.agent.test.utils.OkHttpUtils.cookieJar
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.instrumentation.springsecurity5.TestEndpoint.REGISTER
-import static datadog.trace.instrumentation.springsecurity5.TestEndpoint.UNKNOWN
+import static datadog.trace.instrumentation.springsecurity5.TestEndpoint.CUSTOM
+import static datadog.trace.instrumentation.springsecurity5.TestEndpoint.LOGIN
 import static datadog.trace.instrumentation.springsecurity5.TestEndpoint.NOT_FOUND
-
+import static datadog.trace.instrumentation.springsecurity5.TestEndpoint.REGISTER
+import static datadog.trace.instrumentation.springsecurity5.TestEndpoint.SDK
+import static datadog.trace.instrumentation.springsecurity5.TestEndpoint.SUCCESS
+import static datadog.trace.instrumentation.springsecurity5.TestEndpoint.UNKNOWN
 
 class SpringBootBasedTest extends AppSecHttpServerTest<ConfigurableApplicationContext> {
 
   @Shared
   def context
+
+  def reqCtxLogAppender
+  def reqCtxLogDefaultLevel
 
   SpringApplication application() {
     return new SpringApplication(AppConfig, UserController, SecurityConfig)
@@ -80,16 +93,25 @@ class SpringBootBasedTest extends AppSecHttpServerTest<ConfigurableApplicationCo
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
-    injectSysConfig('dd.appsec.automated-user-events-tracking', 'extended')
+    injectSysConfig(AppSecConfig.APPSEC_AUTO_USER_INSTRUMENTATION_MODE, 'identification')
   }
 
-  def setupSpec() {
-    server = server()
-    server.start()
-    address = server.address()
-    assert address.port > 0
-    assert address.path.endsWith("/")
-    println "$server started at: $address"
+  @Override
+  void setup() {
+    def reqCtxLogger = AppSecRequestContext.log as Logger
+    reqCtxLogDefaultLevel = reqCtxLogger.level
+    reqCtxLogger.level = Level.DEBUG
+    reqCtxLogAppender = Mock(Appender) {
+      getName() >> 'mock'
+    }
+    reqCtxLogger.addAppender(reqCtxLogAppender)
+  }
+
+  @Override
+  void cleanup() {
+    def reqCtxLogger = AppSecRequestContext.log as Logger
+    reqCtxLogger.detachAppender('mock')
+    reqCtxLogger.level = reqCtxLogDefaultLevel
   }
 
   Request.Builder request(TestEndpoint uri, String method, RequestBody body) {
@@ -130,7 +152,7 @@ class SpringBootBasedTest extends AppSecHttpServerTest<ConfigurableApplicationCo
     response.body().string() == REGISTER.body
     !span.getTags().isEmpty()
     span.getTag("appsec.events.users.signup.track") == true
-    span.getTag("_dd.appsec.events.users.signup.auto.mode") == 'EXTENDED'
+    span.getTag("_dd.appsec.events.users.signup.auto.mode") == 'identification'
     span.getTag("usr.id") == 'admin'
     span.getTag("appsec.events.users.signup")['enabled'] == 'true'
     span.getTag("appsec.events.users.signup")['authorities'] == 'ROLE_USER'
@@ -156,7 +178,7 @@ class SpringBootBasedTest extends AppSecHttpServerTest<ConfigurableApplicationCo
     response.body().string() == LOGIN.body
     !span.getTags().isEmpty()
     span.getTag("appsec.events.users.login.failure.track") == true
-    span.getTag("_dd.appsec.events.users.login.failure.auto.mode") == 'EXTENDED'
+    span.getTag("_dd.appsec.events.users.login.failure.auto.mode") == 'identification'
     span.getTag("appsec.events.users.login.failure.usr.exists") == false
     span.getTag("appsec.events.users.login.failure.usr.id") == 'not_existing_user'
   }
@@ -180,7 +202,7 @@ class SpringBootBasedTest extends AppSecHttpServerTest<ConfigurableApplicationCo
     response.body().string() == LOGIN.body
     !span.getTags().isEmpty()
     span.getTag("appsec.events.users.login.failure.track") == true
-    span.getTag("_dd.appsec.events.users.login.failure.auto.mode") == 'EXTENDED'
+    span.getTag("_dd.appsec.events.users.login.failure.auto.mode") == 'identification'
     // TODO: Ideally should be `false` but we have no reliable method to detect it it is just absent. See APPSEC-12765.
     span.getTag("appsec.events.users.login.failure.usr.exists") == null
     span.getTag("appsec.events.users.login.failure.usr.id") == 'admin'
@@ -206,12 +228,123 @@ class SpringBootBasedTest extends AppSecHttpServerTest<ConfigurableApplicationCo
     response.body().string() == LOGIN.body
     !span.getTags().isEmpty()
     span.getTag("appsec.events.users.login.success.track") == true
-    span.getTag("_dd.appsec.events.users.login.success.auto.mode") == 'EXTENDED'
+    span.getTag("_dd.appsec.events.users.login.success.auto.mode") == 'identification'
     span.getTag("usr.id") == 'admin'
     span.getTag("appsec.events.users.login.success")['credentialsNonExpired'] == 'true'
     span.getTag("appsec.events.users.login.success")['accountNonExpired'] == 'true'
     span.getTag("appsec.events.users.login.success")['enabled'] == 'true'
     span.getTag("appsec.events.users.login.success")['authorities'] == 'ROLE_USER'
     span.getTag("appsec.events.users.login.success")['accountNonLocked'] == 'true'
+
+    span.getTag("appsec.events.users.login.failure.track") == null
+  }
+
+  void 'test failed signup'() {
+    setup:
+    final formBody = new FormBody.Builder()
+      .add('username', 'cant_create_me')
+      .add('password', 'cant_create_me')
+      .build()
+
+    final request = request(REGISTER, 'POST', formBody).build()
+
+    when:
+    final response = client.newCall(request).execute()
+    TEST_WRITER.waitForTraces(1)
+    final span = TEST_WRITER.flatten().first() as DDSpan
+
+    then:
+    response.code() == 500
+    span.getTags().findAll { it.key.startsWith('appsec.events.users.signup') }.isEmpty()
+  }
+
+  void 'test skipped authentication'() {
+    setup:
+    final appender = Mock(Appender)
+    final logger = SpringSecurityUserEventDecorator.LOGGER as Logger
+    logger.addAppender(appender)
+
+    and:
+    final requestCount = 3
+    final request = request(CUSTOM, "GET", null).addHeader('X-Custom-User', 'batman').build()
+
+    when:
+    final response = (1..requestCount).collect { client.newCall(request).execute() }.first()
+    TEST_WRITER.waitForTraces(3)
+    final span = TEST_WRITER.flatten().first() as DDSpan
+    logger.detachAppender(appender) // cant add cleanup
+
+    then:
+    response.code() == CUSTOM.status
+    span.context().resourceName.contains(CUSTOM.path)
+    span.getTags().findAll { key, value -> key.startsWith('appsec.events.users.login') }.isEmpty()
+    // single call to the appender
+    1 * appender.doAppend(_) >> {
+      assert it[0].toString().contains('Skipped authentication, auth=org.springframework.security.authentication.AbstractAuthenticationToken')
+    }
+    0 * appender._
+  }
+
+  void 'test user event'() {
+    setup:
+    def client = clientBuilder().cookieJar(cookieJar()).followRedirects(false).build()
+    def formBody = new FormBody.Builder()
+      .add("username", "admin")
+      .add("password", "admin")
+      .build()
+
+    def loginRequest = request(LOGIN, "POST", formBody).build()
+    def loginResponse = client.newCall(loginRequest).execute()
+    assert loginResponse.code() == LOGIN.status
+    assert loginResponse.body().string() == LOGIN.body
+    TEST_WRITER.waitForTraces(1)
+    TEST_WRITER.start() // clear all traces
+
+    when:
+    def request = request(SUCCESS, "GET", null).build()
+    def response = client.newCall(request).execute()
+    TEST_WRITER.waitForTraces(1)
+    def span = TEST_WRITER.flatten().first() as DDSpan
+
+    then:
+    response.code() == SUCCESS.status
+    response.body().string() == SUCCESS.body
+    span.getResourceName().toString() == 'GET /success'
+    !span.getTags().isEmpty()
+    span.getTag("usr.id") == 'admin'
+    span.getTag("_dd.appsec.user.collection_mode") == 'ident'
+  }
+
+  void 'test multiple user ids do not cause warn messages'() {
+    setup:
+    def logMessagePrefix = 'Attempt to replace'
+    def client = clientBuilder().cookieJar(cookieJar()).followRedirects(false).build()
+    def formBody = new FormBody.Builder()
+      .add('username', 'admin')
+      .add('password', 'admin')
+      .build()
+    def loginRequest = request(LOGIN, 'POST', formBody).build()
+    def loginResponse = client.newCall(loginRequest).execute()
+    assert loginResponse.code() == LOGIN.status
+
+    when: 'sdk with different user'
+    def sdkBody = new FormBody.Builder().add("sdkUser", "sdkUser").build()
+    def sdkRequest = request(SDK, 'POST', sdkBody).build()
+    client.newCall(sdkRequest).execute()
+
+    then:
+    1 * reqCtxLogAppender.doAppend({ LoggingEvent event ->
+      event.level.levelInt == Level.DEBUG_INT && event.message.startsWith(logMessagePrefix)
+    })
+
+    when: 'sdk with same user'
+    sdkBody = new FormBody.Builder().add("sdkUser", "admin").build()
+    sdkRequest = request(SDK, 'POST', sdkBody).build()
+    client.newCall(sdkRequest).execute()
+
+    then:
+    0 * reqCtxLogAppender.doAppend({ LoggingEvent event ->
+      event.message.startsWith(logMessagePrefix)
+    })
   }
 }

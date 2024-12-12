@@ -3,6 +3,7 @@ import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.instrumentation.karate.TestEventsHandlerHolder
+import org.example.TestFailedBuiltInRetryKarate
 import org.example.TestFailedKarate
 import org.example.TestFailedParameterizedKarate
 import org.example.TestFailedThenSucceedKarate
@@ -35,13 +36,14 @@ class KarateTest extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName, expectedTracesCount)
 
     where:
-    testcaseName            | tests                       | expectedTracesCount | assumption
-    "test-succeed"          | [TestSucceedKarate]         | 3                   | true
-    "test-succeed-parallel" | [TestSucceedParallelKarate] | 3                   | true
-    "test-with-setup"       | [TestWithSetupKarate]       | 3                   | isSetupTagSupported(FileUtils.KARATE_VERSION)
-    "test-parameterized"    | [TestParameterizedKarate]   | 3                   | true
-    "test-failed"           | [TestFailedKarate]          | 3                   | true
-    "test-skipped-feature"  | [TestSkippedFeatureKarate]  | 1                   | true
+    testcaseName            | tests                          | expectedTracesCount | assumption
+    "test-succeed"          | [TestSucceedKarate]            | 3                   | true
+    "test-succeed-parallel" | [TestSucceedParallelKarate]    | 3                   | true
+    "test-with-setup"       | [TestWithSetupKarate]          | 3                   | isSetupTagSupported(FileUtils.KARATE_VERSION)
+    "test-parameterized"    | [TestParameterizedKarate]      | 3                   | true
+    "test-failed"           | [TestFailedKarate]             | 3                   | true
+    "test-skipped-feature"  | [TestSkippedFeatureKarate]     | 1                   | true
+    "test-built-in-retry"   | [TestFailedBuiltInRetryKarate] | 4                   | true
   }
 
   def "test ITR #testcaseName"() {
@@ -55,14 +57,15 @@ class KarateTest extends CiVisibilityInstrumentationTest {
 
     where:
     testcaseName                      | tests                     | expectedTracesCount | skippedTests
-    "test-itr-skipping"               | [TestSucceedKarate]       | 3                   | [new TestIdentifier("[org/example/test_succeed] test succeed", "first scenario", null, null)]
+    "test-itr-skipping"               | [TestSucceedKarate]       | 3                   | [new TestIdentifier("[org/example/test_succeed] test succeed", "first scenario", null)]
     "test-itr-skipping-parameterized" | [TestParameterizedKarate] | 3                   | [
-      new TestIdentifier("[org/example/test_parameterized] test parameterized", "first scenario as an outline", '{"param":"\\\'a\\\'","value":"aa"}', null)
+      new TestIdentifier("[org/example/test_parameterized] test parameterized", "first scenario as an outline", '{"param":"\'a\'","value":"aa"}')
     ]
-    "test-itr-unskippable"            | [TestUnskippableKarate]   | 3                   | [new TestIdentifier("[org/example/test_unskippable] test unskippable", "first scenario", null, null)]
+    "test-itr-unskippable"            | [TestUnskippableKarate]   | 3                   | [new TestIdentifier("[org/example/test_unskippable] test unskippable", "first scenario", null)]
   }
 
   def "test flaky retries #testcaseName"() {
+    givenFlakyRetryEnabled(true)
     givenFlakyTests(retriedTests)
 
     runTests(tests)
@@ -72,16 +75,17 @@ class KarateTest extends CiVisibilityInstrumentationTest {
     where:
     testcaseName               | tests                           | expectedTracesCount | retriedTests
     "test-failed"              | [TestFailedKarate]              | 3                   | []
-    "test-retry-failed"        | [TestFailedKarate]              | 3                   | [new TestIdentifier("[org/example/test_failed] test failed", "second scenario", null, null)]
+    "test-retry-failed"        | [TestFailedKarate]              | 3                   | [new TestIdentifier("[org/example/test_failed] test failed", "second scenario", null)]
     "test-failed-then-succeed" | [TestFailedThenSucceedKarate]   | 3                   | [
-      new TestIdentifier("[org/example/test_failed_then_succeed] test failed", "flaky scenario", null, null)
+      new TestIdentifier("[org/example/test_failed_then_succeed] test failed", "flaky scenario", null)
     ]
     "test-retry-parameterized" | [TestFailedParameterizedKarate] | 3                   | [
-      new TestIdentifier("[org/example/test_failed_parameterized] test parameterized", "first scenario as an outline", null, null)
+      new TestIdentifier("[org/example/test_failed_parameterized] test parameterized", "first scenario as an outline", null)
     ]
   }
 
   def "test early flakiness detection #testcaseName"() {
+    givenEarlyFlakinessDetectionEnabled(true)
     givenKnownTests(knownTestsList)
 
     runTests(tests)
@@ -91,10 +95,10 @@ class KarateTest extends CiVisibilityInstrumentationTest {
     where:
     testcaseName                        | tests                              | expectedTracesCount | knownTestsList
     "test-efd-known-test"               | [TestSucceedOneCaseKarate]         | 2                   | [
-      new TestIdentifier("[org/example/test_succeed_one_case] test succeed", "first scenario", null, null)
+      new TestIdentifier("[org/example/test_succeed_one_case] test succeed", "first scenario", null)
     ]
     "test-efd-known-parameterized-test" | [TestParameterizedKarate]          | 3                   | [
-      new TestIdentifier("[org/example/test_parameterized] test parameterized", "first scenario as an outline", null, null)
+      new TestIdentifier("[org/example/test_parameterized] test parameterized", "first scenario as an outline", null)
     ]
     "test-efd-new-test"                 | [TestSucceedOneCaseKarate]         | 4                   | []
     "test-efd-new-parameterized-test"   | [TestParameterizedKarate]          | 7                   | []

@@ -49,7 +49,7 @@ abstract class OkHttp3AsyncTest extends OkHttp3Test {
     return responseRef.get().code()
   }
 
-  def "callbacks should carry context" () {
+  def "callbacks should carry context with error = #error" () {
 
     when:
     def captured = AgentTracer.noopSpan()

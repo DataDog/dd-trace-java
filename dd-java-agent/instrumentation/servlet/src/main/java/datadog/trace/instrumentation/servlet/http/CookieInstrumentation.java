@@ -59,7 +59,7 @@ public class CookieInstrumentation extends InstrumenterModule.Iast
       if (module != null) {
         try {
           IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-          module.taintIfTainted(ctx, result, self, SourceTypes.REQUEST_COOKIE_NAME, result);
+          module.taintStringIfTainted(ctx, result, self, SourceTypes.REQUEST_COOKIE_NAME, result);
         } catch (final Throwable e) {
           module.onUnexpectedException("afterGetName threw", e);
         }
@@ -81,7 +81,7 @@ public class CookieInstrumentation extends InstrumenterModule.Iast
       if (module != null) {
         try {
           IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-          module.taintIfTainted(ctx, result, self, SourceTypes.REQUEST_COOKIE_VALUE, name);
+          module.taintStringIfTainted(ctx, result, self, SourceTypes.REQUEST_COOKIE_VALUE, name);
         } catch (final Throwable e) {
           module.onUnexpectedException("getValue threw", e);
         }

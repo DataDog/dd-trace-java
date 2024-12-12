@@ -1,11 +1,11 @@
 package datadog.trace.core.datastreams;
 
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V01_DATASTREAMS_ENDPOINT;
-import static datadog.trace.api.DDTags.PATHWAY_HASH;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.MANUAL_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.DATA_STREAMS_MONITORING;
@@ -24,6 +24,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Backlog;
 import datadog.trace.bootstrap.instrumentation.api.InboxItem;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
+import datadog.trace.bootstrap.instrumentation.api.Schema;
+import datadog.trace.bootstrap.instrumentation.api.SchemaIterator;
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
 import datadog.trace.common.metrics.EventListener;
 import datadog.trace.common.metrics.OkHttpSink;
@@ -37,13 +39,13 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import org.jctools.queues.MpscBlockingConsumerArrayQueue;
+import org.jctools.queues.MpscArrayQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,16 +55,16 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   static final long FEATURE_CHECK_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(5);
 
   private static final StatsPoint REPORT =
-      new StatsPoint(Collections.emptyList(), 0, 0, 0, 0, 0, 0, 0);
+      new StatsPoint(Collections.emptyList(), 0, 0, 0, 0, 0, 0, 0, null);
   private static final StatsPoint POISON_PILL =
-      new StatsPoint(Collections.emptyList(), 0, 0, 0, 0, 0, 0, 0);
+      new StatsPoint(Collections.emptyList(), 0, 0, 0, 0, 0, 0, 0, null);
 
-  private final Map<Long, StatsBucket> timeToBucket = new HashMap<>();
-  private final BlockingQueue<InboxItem> inbox = new MpscBlockingConsumerArrayQueue<>(1024);
+  private final Map<Long, Map<String, StatsBucket>> timeToBucket = new HashMap<>();
+  private final MpscArrayQueue<InboxItem> inbox = new MpscArrayQueue<>(1024);
   private final DatastreamsPayloadWriter payloadWriter;
   private final DDAgentFeaturesDiscovery features;
   private final TimeSource timeSource;
-  private final WellKnownTags wellKnownTags;
+  private final long hashOfKnownTags;
   private final Supplier<TraceConfig> traceConfigSupplier;
   private final long bucketDurationNanos;
   private final DataStreamContextInjector injector;
@@ -73,6 +75,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private volatile boolean agentSupportsDataStreams = false;
   private volatile boolean configSupportsDataStreams = false;
   private final ConcurrentHashMap<String, SchemaSampler> schemaSamplers;
+  private static final ThreadLocal<String> serviceNameOverride = new ThreadLocal<>();
 
   public DefaultDataStreamsMonitoring(
       Config config,
@@ -121,7 +124,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     this.features = features;
     this.timeSource = timeSource;
     this.traceConfigSupplier = traceConfigSupplier;
-    this.wellKnownTags = wellKnownTags;
+    this.hashOfKnownTags = DefaultPathwayContext.getBaseHash(wellKnownTags);
     this.payloadWriter = payloadWriter;
     this.bucketDurationNanos = bucketDurationNanos;
     this.injector = new DataStreamContextInjector(this);
@@ -162,15 +165,50 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   }
 
   @Override
-  public int shouldSampleSchema(String topic) {
+  public int trySampleSchema(String topic) {
     SchemaSampler sampler = schemaSamplers.computeIfAbsent(topic, t -> new SchemaSampler());
-    return sampler.shouldSample(timeSource.getCurrentTimeMillis());
+    return sampler.trySample(timeSource.getCurrentTimeMillis());
+  }
+
+  @Override
+  public boolean canSampleSchema(String topic) {
+    SchemaSampler sampler = schemaSamplers.computeIfAbsent(topic, t -> new SchemaSampler());
+    return sampler.canSample(timeSource.getCurrentTimeMillis());
+  }
+
+  @Override
+  public Schema getSchema(String schemaName, SchemaIterator iterator) {
+    return SchemaBuilder.getSchema(schemaName, iterator);
+  }
+
+  @Override
+  public void setProduceCheckpoint(String type, String target) {
+    setProduceCheckpoint(type, target, DataStreamsContextCarrier.NoOp.INSTANCE, false);
+  }
+
+  @Override
+  public void setThreadServiceName(String serviceName) {
+    if (serviceName == null) {
+      clearThreadServiceName();
+      return;
+    }
+
+    serviceNameOverride.set(serviceName);
+  }
+
+  @Override
+  public void clearThreadServiceName() {
+    serviceNameOverride.remove();
+  }
+
+  private static String getThreadServiceName() {
+    return serviceNameOverride.get();
   }
 
   @Override
   public PathwayContext newPathwayContext() {
     if (configSupportsDataStreams) {
-      return new DefaultPathwayContext(timeSource, wellKnownTags);
+      return new DefaultPathwayContext(timeSource, hashOfKnownTags, getThreadServiceName());
     } else {
       return AgentTracer.NoopPathwayContext.INSTANCE;
     }
@@ -178,7 +216,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
   @Override
   public HttpCodec.Extractor extractor(HttpCodec.Extractor delegate) {
-    return new DataStreamContextExtractor(delegate, timeSource, traceConfigSupplier, wellKnownTags);
+    return new DataStreamContextExtractor(
+        delegate, timeSource, traceConfigSupplier, hashOfKnownTags, getThreadServiceName());
   }
 
   @Override
@@ -194,7 +233,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
               carrier,
               DataStreamsContextCarrierAdapter.INSTANCE,
               this.timeSource,
-              this.wellKnownTags);
+              this.hashOfKnownTags,
+              getThreadServiceName());
       ((DDSpan) span).context().mergePathwayContext(pathwayContext);
     }
   }
@@ -208,7 +248,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       }
       tags.add(tag);
     }
-    inbox.offer(new Backlog(tags, value, timeSource.getCurrentTimeNanos()));
+    inbox.offer(new Backlog(tags, value, timeSource.getCurrentTimeNanos(), getThreadServiceName()));
   }
 
   @Override
@@ -220,9 +260,6 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     PathwayContext pathwayContext = span.context().getPathwayContext();
     if (pathwayContext != null) {
       pathwayContext.setCheckpoint(sortedTags, this::add, defaultTimestamp, payloadSizeBytes);
-      if (pathwayContext.getHash() != 0) {
-        span.setTag(PATHWAY_HASH, Long.toUnsignedString(pathwayContext.getHash()));
-      }
     }
   }
 
@@ -242,14 +279,15 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
     LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
     sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
+    sortedTags.put(MANUAL_TAG, "true");
     sortedTags.put(TOPIC_TAG, source);
     sortedTags.put(TYPE_TAG, type);
 
     setCheckpoint(span, sortedTags, 0, 0);
   }
 
-  @Override
-  public void setProduceCheckpoint(String type, String target, DataStreamsContextCarrier carrier) {
+  public void setProduceCheckpoint(
+      String type, String target, DataStreamsContextCarrier carrier, boolean manualCheckpoint) {
     if (type == null || type.isEmpty() || target == null || target.isEmpty()) {
       log.warn("SetProduceCheckpoint should be called with non-empty type and target");
       return;
@@ -263,11 +301,19 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
     LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
     sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
+    if (manualCheckpoint) {
+      sortedTags.put(MANUAL_TAG, "true");
+    }
     sortedTags.put(TOPIC_TAG, target);
     sortedTags.put(TYPE_TAG, type);
 
     this.injector.injectPathwayContext(
         span, carrier, DataStreamsContextCarrierAdapter.INSTANCE, sortedTags);
+  }
+
+  @Override
+  public void setProduceCheckpoint(String type, String target, DataStreamsContextCarrier carrier) {
+    setProduceCheckpoint(type, target, carrier, true);
   }
 
   @Override
@@ -284,12 +330,25 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   }
 
   private class InboxProcessor implements Runnable {
+
+    private StatsBucket getStatsBucket(final long timestamp, final String serviceNameOverride) {
+      long bucket = currentBucket(timestamp);
+      Map<String, StatsBucket> statsBucketMap =
+          timeToBucket.computeIfAbsent(bucket, startTime -> new HashMap<>(1));
+      return statsBucketMap.computeIfAbsent(
+          serviceNameOverride, s -> new StatsBucket(bucket, bucketDurationNanos));
+    }
+
     @Override
     public void run() {
       Thread currentThread = Thread.currentThread();
       while (!currentThread.isInterrupted()) {
         try {
-          InboxItem payload = inbox.take();
+          InboxItem payload = inbox.poll();
+          if (payload == null) {
+            Thread.sleep(10);
+            continue;
+          }
 
           if (payload == REPORT) {
             checkDynamicConfig();
@@ -307,22 +366,17 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
           } else if (supportsDataStreams) {
             if (payload instanceof StatsPoint) {
               StatsPoint statsPoint = (StatsPoint) payload;
-              Long bucket = currentBucket(statsPoint.getTimestampNanos());
               StatsBucket statsBucket =
-                  timeToBucket.computeIfAbsent(
-                      bucket, startTime -> new StatsBucket(startTime, bucketDurationNanos));
+                  getStatsBucket(
+                      statsPoint.getTimestampNanos(), statsPoint.getServiceNameOverride());
               statsBucket.addPoint(statsPoint);
             } else if (payload instanceof Backlog) {
               Backlog backlog = (Backlog) payload;
-              Long bucket = currentBucket(backlog.getTimestampNanos());
               StatsBucket statsBucket =
-                  timeToBucket.computeIfAbsent(
-                      bucket, startTime -> new StatsBucket(startTime, bucketDurationNanos));
+                  getStatsBucket(backlog.getTimestampNanos(), backlog.getServiceNameOverride());
               statsBucket.addBacklog(backlog);
             }
           }
-        } catch (InterruptedException e) {
-          currentThread.interrupt();
         } catch (Exception e) {
           log.debug("Error monitoring data streams", e);
         }
@@ -337,21 +391,32 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private void flush(long timestampNanos) {
     long currentBucket = currentBucket(timestampNanos);
 
-    List<StatsBucket> includedBuckets = new ArrayList<>();
-    Iterator<Map.Entry<Long, StatsBucket>> mapIterator = timeToBucket.entrySet().iterator();
+    // stats are grouped by time buckets and service names
+    Map<String, List<StatsBucket>> includedBuckets = new HashMap<>();
+    Iterator<Map.Entry<Long, Map<String, StatsBucket>>> mapIterator =
+        timeToBucket.entrySet().iterator();
 
     while (mapIterator.hasNext()) {
-      Map.Entry<Long, StatsBucket> entry = mapIterator.next();
-
+      Map.Entry<Long, Map<String, StatsBucket>> entry = mapIterator.next();
       if (entry.getKey() < currentBucket) {
         mapIterator.remove();
-        includedBuckets.add(entry.getValue());
+        for (Map.Entry<String, StatsBucket> buckets : entry.getValue().entrySet()) {
+          if (!includedBuckets.containsKey(buckets.getKey())) {
+            includedBuckets.put(buckets.getKey(), new LinkedList<>());
+          }
+
+          includedBuckets.get(buckets.getKey()).add(buckets.getValue());
+        }
       }
     }
 
     if (!includedBuckets.isEmpty()) {
-      log.debug("Flushing {} buckets", includedBuckets.size());
-      payloadWriter.writePayload(includedBuckets);
+      for (Map.Entry<String, List<StatsBucket>> entry : includedBuckets.entrySet()) {
+        if (!entry.getValue().isEmpty()) {
+          log.debug("Flushing {} buckets ({})", entry.getValue(), entry.getKey());
+          payloadWriter.writePayload(entry.getValue(), entry.getKey());
+        }
+      }
     }
   }
 

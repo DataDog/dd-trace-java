@@ -144,6 +144,7 @@ class TraceGenerator {
     private final Metadata metadata
     private short httpStatusCode
     private final int samplingPriority
+    private final Map<String, Object> metaStruct = [:]
 
     PojoSpan(
     String serviceName,
@@ -407,6 +408,21 @@ class TraceGenerator {
     @Override
     boolean hasSamplingPriority() {
       return samplingPriority != UNSET
+    }
+
+    @Override
+    Map<String, Object> getMetaStruct() {
+      return metaStruct
+    }
+
+    @Override
+    PojoSpan setMetaStruct(String field, Object value) {
+      if (value == null) {
+        metaStruct.remove(field)
+      } else {
+        metaStruct[field] = value
+      }
+      return this
     }
   }
 }

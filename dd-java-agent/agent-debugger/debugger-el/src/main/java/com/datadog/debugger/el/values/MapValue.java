@@ -44,7 +44,10 @@ public final class MapValue implements CollectionValue<Object>, ValueExpression<
 
   public boolean isEmpty() {
     if (mapHolder instanceof Map) {
-      return ((Map<?, ?>) mapHolder).isEmpty();
+      if (WellKnownClasses.isSafe((Map<?, ?>) mapHolder)) {
+        return ((Map<?, ?>) mapHolder).isEmpty();
+      }
+      throw new RuntimeException("Unsupported Map class: " + mapHolder.getClass().getTypeName());
     } else if (mapHolder instanceof Value) {
       Value<?> val = (Value<?>) mapHolder;
       return val.isNull() || val.isUndefined();
@@ -54,11 +57,10 @@ public final class MapValue implements CollectionValue<Object>, ValueExpression<
 
   public int count() {
     if (mapHolder instanceof Map) {
-      if (WellKnownClasses.isSizeSafe((Map<?, ?>) mapHolder)) {
+      if (WellKnownClasses.isSafe((Map<?, ?>) mapHolder)) {
         return ((Map<?, ?>) mapHolder).size();
-      } else {
-        throw new RuntimeException("Unsupported Map class: " + mapHolder.getClass().getTypeName());
       }
+      throw new RuntimeException("Unsupported Map class: " + mapHolder.getClass().getTypeName());
     } else if (mapHolder == Value.nullValue()) {
       return 0;
     }
@@ -67,8 +69,11 @@ public final class MapValue implements CollectionValue<Object>, ValueExpression<
 
   public Set<Value<?>> getKeys() {
     if (mapHolder instanceof Map) {
-      Map<?, ?> map = (Map<?, ?>) mapHolder;
-      return map.keySet().stream().map(Value::of).collect(Collectors.toSet());
+      if (WellKnownClasses.isSafe((Map<?, ?>) mapHolder)) {
+        Map<?, ?> map = (Map<?, ?>) mapHolder;
+        return map.keySet().stream().map(Value::of).collect(Collectors.toSet());
+      }
+      throw new RuntimeException("Unsupported Map class: " + mapHolder.getClass().getTypeName());
     }
     log.warn("{} is not a map", mapHolder);
     return Collections.singleton(Value.undefinedValue());
@@ -83,20 +88,44 @@ public final class MapValue implements CollectionValue<Object>, ValueExpression<
     }
 
     if (mapHolder instanceof Map) {
-      Map<?, ?> map = (Map<?, ?>) mapHolder;
-      key = key instanceof Value ? ((Value<?>) key).getValue() : key;
-      Object value = map.containsKey(key) ? map.get(key) : Value.undefinedValue();
-      return value != null ? Value.of(value) : Value.nullValue();
+      if (WellKnownClasses.isSafe((Map<?, ?>) mapHolder)) {
+        Map<?, ?> map = (Map<?, ?>) mapHolder;
+        key = key instanceof Value ? ((Value<?>) key).getValue() : key;
+        Object value = map.get(key);
+        return value != null ? Value.of(value) : Value.nullValue();
+      }
+      throw new RuntimeException("Unsupported Map class: " + mapHolder.getClass().getTypeName());
     }
     // the result will be either Value.nullValue() or Value.undefinedValue() depending on the holder
     // value
     return (Value<?>) mapHolder;
   }
 
+  @Override
+  public boolean contains(Value<?> val) {
+    if (mapHolder instanceof Map) {
+      if (WellKnownClasses.isSafe((Map<?, ?>) mapHolder)) {
+        Map<?, ?> map = (Map<?, ?>) mapHolder;
+        if (val == null || val.isNull()) {
+          return map.containsKey(null);
+        }
+        if (WellKnownClasses.isEqualsSafe(val.getValue().getClass())) {
+          return map.containsKey(val.getValue());
+        }
+        throw new RuntimeException(
+            "Unsupported key class: " + val.getValue().getClass().getTypeName());
+      }
+      throw new RuntimeException("Unsupported Map class: " + mapHolder.getClass().getTypeName());
+    }
+    return false;
+  }
+
+  @Override
   public boolean isNull() {
     return mapHolder == null || (mapHolder instanceof Value && ((Value<?>) mapHolder).isNull());
   }
 
+  @Override
   public boolean isUndefined() {
     return mapHolder instanceof Value && ((Value<?>) mapHolder).isUndefined();
   }

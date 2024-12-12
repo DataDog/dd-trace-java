@@ -26,7 +26,7 @@ public class GlobalTracerInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     // Avoid matching OT 0.32+ which has its own instrumentation.
     return not(hasClassNamed("io.opentracing.tag.Tag"));
   }

@@ -6,8 +6,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
@@ -17,6 +19,10 @@ public class Serializer {
 
   public void write(byte b) {
     baos.write(b);
+  }
+
+  public void write(boolean b) {
+    baos.write((byte) (b ? 1 : 0));
   }
 
   public void write(int i) {
@@ -104,6 +110,11 @@ public class Serializer {
     return byteBuffer.get();
   }
 
+  public static boolean readBoolean(ByteBuffer byteBuffer) {
+    byte b = byteBuffer.get();
+    return b == 1;
+  }
+
   public static int readInt(ByteBuffer byteBuffer) {
     return byteBuffer.getInt();
   }
@@ -142,6 +153,12 @@ public class Serializer {
       c.add(elementDeserializer.apply(byteBuffer));
     }
     return c;
+  }
+
+  public static <T> Set<T> readSet(
+      ByteBuffer byteBuffer, Function<ByteBuffer, T> elementDeserializer) {
+    List<T> list = readList(byteBuffer, elementDeserializer);
+    return list != null ? new HashSet<>(list) : null;
   }
 
   public static Map<String, String> readStringMap(ByteBuffer byteBuffer) {

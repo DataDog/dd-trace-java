@@ -12,6 +12,7 @@ public class Tags {
   public static final String SPAN_KIND_TEST_SUITE = "test_suite_end";
   public static final String SPAN_KIND_TEST_MODULE = "test_module_end";
   public static final String SPAN_KIND_TEST_SESSION = "test_session_end";
+  public static final String SPAN_KIND_INTERNAL = "internal";
 
   public static final String HTTP_URL = "http.url";
   public static final String HTTP_HOSTNAME = "http.hostname";
@@ -42,8 +43,13 @@ public class Tags {
   public static final String DB_USER = "db.user";
   public static final String DB_OPERATION = "db.operation";
   public static final String DB_STATEMENT = "db.statement";
+  public static final String DB_WAREHOUSE = "db.warehouse";
+  public static final String DB_HOST = "db.host";
+  public static final String DB_SCHEMA = "db.schema";
   public static final String MESSAGE_BUS_DESTINATION = "message_bus.destination";
+  public static final String DB_POOL_NAME = "db.pool.name";
 
+  public static final String TEST_SESSION_NAME = "test_session.name";
   public static final String TEST_MODULE = "test.module";
   public static final String TEST_SUITE = "test.suite";
   public static final String TEST_NAME = "test.name";
@@ -70,6 +76,7 @@ public class Tags {
   public static final String TEST_BROWSER_DRIVER_VERSION = "test.browser.driver_version";
   public static final String TEST_BROWSER_NAME = "test.browser.name";
   public static final String TEST_BROWSER_VERSION = "test.browser.version";
+  public static final String TEST_CALLBACK = "test.callback";
 
   public static final String TEST_SESSION_ID = "test_session_id";
   public static final String TEST_MODULE_ID = "test_module_id";
@@ -77,6 +84,7 @@ public class Tags {
   public static final String ITR_CORRELATION_ID = "itr_correlation_id";
   public static final String TEST_CODE_COVERAGE_ENABLED = "test.code_coverage.enabled";
   public static final String TEST_CODE_COVERAGE_LINES_PERCENTAGE = "test.code_coverage.lines_pct";
+  public static final String TEST_CODE_COVERAGE_BACKFILLED = "test.code_coverage.backfilled";
   public static final String TEST_ITR_TESTS_SKIPPING_ENABLED = "test.itr.tests_skipping.enabled";
   public static final String TEST_ITR_TESTS_SKIPPING_TYPE = "test.itr.tests_skipping.type";
   public static final String TEST_ITR_TESTS_SKIPPING_COUNT = "test.itr.tests_skipping.count";
@@ -123,4 +131,10 @@ public class Tags {
   public static final String DD_ENV = "dd.env";
 
   public static final String ENV = "env";
+
+  /** ASM force tracer to keep the trace */
+  public static final String ASM_KEEP = "asm.keep";
+
+  public static final String PROPAGATED_APPSEC = "_dd.p.appsec";
+  public static final String PROPAGATED_DEBUG = "_dd.p.debug";
 }

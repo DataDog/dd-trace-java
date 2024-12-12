@@ -113,6 +113,11 @@ abstract class Liberty23Test extends HttpServerTest<Server> {
   }
 
   @Override
+  boolean testSessionId() {
+    true
+  }
+
+  @Override
   String expectedResourceName(ServerEndpoint endpoint, String method, URI address) {
     if (endpoint.path == '/not-found') {
       'GET /testapp/not-found'
@@ -164,4 +169,18 @@ class Liberty23V0ForkedTest extends Liberty23Test implements TestingGenericHttpN
   System.getProperty('java.vm.name') == 'IBM J9 VM' &&
   System.getProperty('java.specification.version') == '1.8' })
 class Liberty23V1ForkedTest extends Liberty23Test implements TestingGenericHttpNamingConventions.ServerV1 {
+}
+
+@IgnoreIf({
+  // failing because org.apache.xalan.transformer.TransformerImpl is
+  // instrumented while on the the global ignores list
+  System.getProperty('java.vm.name') == 'IBM J9 VM' &&
+  System.getProperty('java.specification.version') == '1.8' })
+class LibertyServletClassloaderNamingForkedTest extends Liberty23V0ForkedTest {
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    // will not set the service name according to the servlet context value
+    injectSysConfig("trace.experimental.jee.split-by-deployment", "true")
+  }
 }

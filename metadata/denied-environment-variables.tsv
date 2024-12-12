@@ -1,0 +1,2 @@
+# Identifier    EnvironmentVariable     Description
+apache_solr9    SOLR_PORT               Skip Apache Solr 9

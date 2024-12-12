@@ -7,7 +7,7 @@ import datadog.communication.serialization.msgpack.MsgPackWriter
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.StatsDClient
-import datadog.trace.api.WellKnownTags
+import datadog.trace.api.civisibility.CiVisibilityWellKnownTags
 import datadog.trace.api.intake.TrackType
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
@@ -43,7 +43,10 @@ import static datadog.trace.common.writer.ddagent.Prioritization.ENSURE_TRACE
 class DDIntakeWriterCombinedTest extends DDCoreSpecification {
 
   @Shared
-  def wellKnownTags = new WellKnownTags("my-runtime-id","my-hostname","my-env","my-service","my-version","my-language")
+  def wellKnownTags = new CiVisibilityWellKnownTags(
+  "my-runtime-id", "my-env", "my-language",
+  "my-runtime-name", "my-runtime-version", "my-runtime-vendor",
+  "my-os-arch", "my-os-platform", "my-os-version")
 
   def conditions = new PollingConditions(timeout: 5, initialDelay: 0, factor: 1.25)
   def monitoring = new MonitoringImpl(StatsDClient.NO_OP, 1, TimeUnit.SECONDS)
@@ -741,7 +744,7 @@ class DDIntakeWriterCombinedTest extends DDCoreSpecification {
   def createMinimalTrace() {
     def context = createMinimalContext()
     def minimalSpan = new DDSpan("test", 0, context, null)
-    context.getTrace().getRootSpan() >> minimalSpan
+    context.getTraceCollector().getRootSpan() >> minimalSpan
     def minimalTrace = [minimalSpan]
 
     return minimalTrace

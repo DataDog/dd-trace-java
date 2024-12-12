@@ -359,7 +359,7 @@ class RxJava2Test extends AgentTestRunner {
     "basic flowable" | 2         | { -> Flowable.fromIterable([1, 2]).map(addOne) }
   }
 
-  def "Flowables produce the right number of results '#scheduler'"() {
+  def "Flowables produce the right number of results on '#schedulerName' scheduler"() {
     when:
     List<String> values = Flowable.fromIterable(Arrays.asList(1, 2, 3, 4))
       .parallel()
@@ -373,12 +373,11 @@ class RxJava2Test extends AgentTestRunner {
     values.size() == 4
 
     where:
-    scheduler << [
-      Schedulers.newThread(),
-      Schedulers.computation(),
-      Schedulers.single(),
-      Schedulers.trampoline()
-    ]
+    schedulerName | scheduler
+    "new-thread"   | Schedulers.newThread()
+    "computation" | Schedulers.computation()
+    "single"      | Schedulers.single()
+    "trampoline"  | Schedulers.trampoline()
   }
 
   @Trace(operationName = "trace-parent", resourceName = "trace-parent")

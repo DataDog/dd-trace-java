@@ -10,7 +10,9 @@ import datadog.telemetry.log.LogPeriodicAction;
 import datadog.telemetry.metric.CiVisibilityMetricPeriodicAction;
 import datadog.telemetry.metric.CoreMetricsPeriodicAction;
 import datadog.telemetry.metric.IastMetricPeriodicAction;
+import datadog.telemetry.metric.OtelEnvMetricPeriodicAction;
 import datadog.telemetry.metric.WafMetricPeriodicAction;
+import datadog.telemetry.products.ProductChangeAction;
 import datadog.trace.api.Config;
 import datadog.trace.api.iast.telemetry.Verbosity;
 import datadog.trace.util.AgentThreadFactory;
@@ -43,10 +45,10 @@ public class TelemetrySystem {
       DependencyService dependencyService,
       boolean telemetryMetricsEnabled) {
     DEPENDENCY_SERVICE = dependencyService;
-
     List<TelemetryPeriodicAction> actions = new ArrayList<>();
     if (telemetryMetricsEnabled) {
       actions.add(new CoreMetricsPeriodicAction());
+      actions.add(new OtelEnvMetricPeriodicAction());
       actions.add(new IntegrationPeriodicAction());
       actions.add(new WafMetricPeriodicAction());
       if (Verbosity.OFF != Config.get().getIastTelemetryVerbosity()) {
@@ -63,6 +65,7 @@ public class TelemetrySystem {
       actions.add(new LogPeriodicAction());
       log.debug("Telemetry log collection enabled");
     }
+    actions.add(new ProductChangeAction());
 
     TelemetryRunnable telemetryRunnable = new TelemetryRunnable(telemetryService, actions);
     return AgentThreadFactory.newAgentThread(

@@ -8,7 +8,6 @@ import com.squareup.moshi.JsonAdapter;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
-import java.util.Map;
 
 /** Serializes snapshots in Json using Moshi */
 public class JsonSnapshotSerializer implements DebuggerContext.ValueSerializer {
@@ -47,28 +46,6 @@ public class JsonSnapshotSerializer implements DebuggerContext.ValueSerializer {
   private void handleCorrelationFields(Snapshot snapshot, IntakeRequest request) {
     request.traceId = snapshot.getTraceId();
     request.spanId = snapshot.getSpanId();
-    CapturedContext entry = snapshot.getCaptures().getEntry();
-    if (entry != null) {
-      removeTraceSpanId(entry);
-    }
-    if (snapshot.getCaptures().getLines() != null) {
-      for (CapturedContext context : snapshot.getCaptures().getLines().values()) {
-        removeTraceSpanId(context);
-      }
-    }
-    removeTraceSpanId(snapshot.getCaptures().getReturn());
-  }
-
-  private void removeTraceSpanId(CapturedContext context) {
-    if (context == null) {
-      return;
-    }
-    Map<String, CapturedContext.CapturedValue> fields = context.getFields();
-    if (fields == null) {
-      return;
-    }
-    fields.remove(DD_TRACE_ID);
-    fields.remove(DD_SPAN_ID);
   }
 
   public static class IntakeRequest {

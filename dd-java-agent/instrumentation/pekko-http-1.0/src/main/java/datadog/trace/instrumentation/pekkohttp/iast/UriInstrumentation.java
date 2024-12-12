@@ -80,7 +80,7 @@ public class UriInstrumentation extends InstrumenterModule.Iast
         return;
       }
       IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-      mod.taintIfTainted(ctx, ret.get(), uri);
+      mod.taintStringIfTainted(ctx, ret.get(), uri);
     }
   }
 
@@ -108,8 +108,8 @@ public class UriInstrumentation extends InstrumenterModule.Iast
       while (iterator.hasNext()) {
         Tuple2<String, String> pair = iterator.next();
         final String name = pair._1(), value = pair._2();
-        prop.taint(ctx, name, SourceTypes.REQUEST_PARAMETER_NAME, name);
-        prop.taint(ctx, value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
+        prop.taintString(ctx, name, SourceTypes.REQUEST_PARAMETER_NAME, name);
+        prop.taintString(ctx, value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
       }
     }
   }

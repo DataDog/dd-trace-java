@@ -2,6 +2,7 @@ package datadog.trace.api;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CODE_ORIGIN_FOR_SPANS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_INTEGRATIONS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_MEASURE_METHODS;
@@ -30,7 +31,10 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATI
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED_DEFAULT;
 import static datadog.trace.api.config.TraceInstrumentationConfig.AXIS_TRANSPORT_CLASS_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.EXPERIMENTAL_DEFER_INTEGRATIONS_UNTIL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_URL_CONNECTION_CLASS_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.INSTRUMENTATION_CONFIG_ID;
 import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATIONS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JAX_RS_ADDITIONAL_ANNOTATIONS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CONNECTION_CLASS_NAME;
@@ -50,11 +54,13 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ANNOTATI
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ANNOTATION_ASYNC;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSES_EXCLUDE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSES_EXCLUDE_FILE;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSLOADERS_DEFER;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSLOADERS_EXCLUDE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CODESOURCES_EXCLUDE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXECUTORS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXECUTORS_ALL;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXTENSIONS_PATH;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_OTEL_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_THREAD_POOL_EXECUTORS_EXCLUDE;
@@ -62,6 +68,7 @@ import static datadog.trace.api.config.UsmConfig.USM_ENABLED;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 
+import datadog.trace.api.profiling.ProfilingEnablement;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.reflect.Method;
@@ -93,15 +100,19 @@ public class InstrumenterConfig {
 
   private final boolean integrationsEnabled;
 
+  private final boolean codeOriginEnabled;
   private final boolean traceEnabled;
   private final boolean traceOtelEnabled;
   private final boolean logs128bTraceIdEnabled;
-  private final boolean profilingEnabled;
+  private final ProfilingEnablement profilingEnabled;
   private final boolean ciVisibilityEnabled;
   private final ProductActivation appSecActivation;
   private final ProductActivation iastActivation;
+  private final boolean iastFullyDisabled;
   private final boolean usmEnabled;
   private final boolean telemetryEnabled;
+
+  private final String traceExtensionsPath;
 
   private final boolean traceExecutorsAll;
   private final List<String> traceExecutors;
@@ -115,10 +126,15 @@ public class InstrumenterConfig {
 
   private final boolean directAllocationProfilingEnabled;
 
+  private final String instrumentationConfigId;
+
   private final List<String> excludedClasses;
   private final String excludedClassesFile;
   private final Set<String> excludedClassLoaders;
   private final List<String> excludedCodeSources;
+  private final Set<String> deferredClassLoaders;
+
+  private final String deferIntegrationsUntil;
 
   private final ResolverCacheConfig resolverCacheConfig;
   private final String resolverCacheDir;
@@ -158,12 +174,17 @@ public class InstrumenterConfig {
     integrationsEnabled =
         configProvider.getBoolean(INTEGRATIONS_ENABLED, DEFAULT_INTEGRATIONS_ENABLED);
 
+    codeOriginEnabled =
+        configProvider.getBoolean(
+            CODE_ORIGIN_FOR_SPANS_ENABLED, DEFAULT_CODE_ORIGIN_FOR_SPANS_ENABLED);
     traceEnabled = configProvider.getBoolean(TRACE_ENABLED, DEFAULT_TRACE_ENABLED);
     traceOtelEnabled = configProvider.getBoolean(TRACE_OTEL_ENABLED, DEFAULT_TRACE_OTEL_ENABLED);
     logs128bTraceIdEnabled =
         configProvider.getBoolean(
             TRACE_128_BIT_TRACEID_LOGGING_ENABLED, DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED);
-    profilingEnabled = configProvider.getBoolean(PROFILING_ENABLED, PROFILING_ENABLED_DEFAULT);
+    profilingEnabled =
+        ProfilingEnablement.of(
+            configProvider.getString(PROFILING_ENABLED, String.valueOf(PROFILING_ENABLED_DEFAULT)));
 
     if (!Platform.isNativeImageBuilder()) {
       ciVisibilityEnabled =
@@ -174,6 +195,8 @@ public class InstrumenterConfig {
       iastActivation =
           ProductActivation.fromString(
               configProvider.getStringNotEmpty(IAST_ENABLED, DEFAULT_IAST_ENABLED));
+      final Boolean iastEnabled = configProvider.getBoolean(IAST_ENABLED);
+      iastFullyDisabled = iastEnabled != null && !iastEnabled;
       usmEnabled = configProvider.getBoolean(USM_ENABLED, DEFAULT_USM_ENABLED);
       telemetryEnabled = configProvider.getBoolean(TELEMETRY_ENABLED, DEFAULT_TELEMETRY_ENABLED);
     } else {
@@ -181,9 +204,12 @@ public class InstrumenterConfig {
       ciVisibilityEnabled = false;
       appSecActivation = ProductActivation.FULLY_DISABLED;
       iastActivation = ProductActivation.FULLY_DISABLED;
+      iastFullyDisabled = true;
       telemetryEnabled = false;
       usmEnabled = false;
     }
+
+    traceExtensionsPath = configProvider.getString(TRACE_EXTENSIONS_PATH);
 
     traceExecutorsAll = configProvider.getBoolean(TRACE_EXECUTORS_ALL, DEFAULT_TRACE_EXECUTORS_ALL);
     traceExecutors = tryMakeImmutableList(configProvider.getList(TRACE_EXECUTORS));
@@ -205,6 +231,9 @@ public class InstrumenterConfig {
     excludedClassesFile = configProvider.getString(TRACE_CLASSES_EXCLUDE_FILE);
     excludedClassLoaders = tryMakeImmutableSet(configProvider.getList(TRACE_CLASSLOADERS_EXCLUDE));
     excludedCodeSources = tryMakeImmutableList(configProvider.getList(TRACE_CODESOURCES_EXCLUDE));
+    deferredClassLoaders = tryMakeImmutableSet(configProvider.getList(TRACE_CLASSLOADERS_DEFER));
+
+    deferIntegrationsUntil = configProvider.getString(EXPERIMENTAL_DEFER_INTEGRATIONS_UNTIL);
 
     resolverCacheConfig =
         configProvider.getEnum(
@@ -228,6 +257,8 @@ public class InstrumenterConfig {
         configProvider.getBoolean(
             SERIALVERSIONUID_FIELD_INJECTION, DEFAULT_SERIALVERSIONUID_FIELD_INJECTION);
 
+    instrumentationConfigId = configProvider.getString(INSTRUMENTATION_CONFIG_ID, "");
+
     traceAnnotations = configProvider.getString(TRACE_ANNOTATIONS, DEFAULT_TRACE_ANNOTATIONS);
     traceAnnotationAsync =
         configProvider.getBoolean(TRACE_ANNOTATION_ASYNC, DEFAULT_TRACE_ANNOTATION_ASYNC);
@@ -243,6 +274,10 @@ public class InstrumenterConfig {
         tryMakeImmutableSet(configProvider.getList(JAX_RS_ADDITIONAL_ANNOTATIONS));
   }
 
+  public boolean isCodeOriginEnabled() {
+    return codeOriginEnabled;
+  }
+
   public boolean isTriageEnabled() {
     return triageEnabled;
   }
@@ -251,9 +286,35 @@ public class InstrumenterConfig {
     return integrationsEnabled;
   }
 
+  /**
+   * isIntegrationEnabled determines whether an integration under the specified name(s) is enabled
+   * according to the following list of configurations, from highest to lowest precedence:
+   * trace.name.enabled, trace.integration.name.enabled, integration.name.enabled. If none of these
+   * configurations is set, the defaultEnabled value is used. All system properties take precedence
+   * over all env vars.
+   *
+   * @param integrationNames the name(s) that represent(s) the integration
+   * @param defaultEnabled true if enabled by default, else false
+   * @return boolean on whether the integration is enabled
+   */
   public boolean isIntegrationEnabled(
       final Iterable<String> integrationNames, final boolean defaultEnabled) {
-    return configProvider.isEnabled(integrationNames, "integration.", ".enabled", defaultEnabled);
+    // If default is enabled, we want to disable individually.
+    // If default is disabled, we want to enable individually.
+    boolean anyEnabled = defaultEnabled;
+    for (final String name : integrationNames) {
+      final String primaryKey = "trace." + name + ".enabled";
+      final String[] aliases = {
+        "trace.integration." + name + ".enabled", "integration." + name + ".enabled"
+      }; // listed in order of precedence
+      final boolean configEnabled = configProvider.getBoolean(primaryKey, defaultEnabled, aliases);
+      if (defaultEnabled) {
+        anyEnabled &= configEnabled;
+      } else {
+        anyEnabled |= configEnabled;
+      }
+    }
+    return anyEnabled;
   }
 
   public boolean isIntegrationShortcutMatchingEnabled(
@@ -275,7 +336,7 @@ public class InstrumenterConfig {
   }
 
   public boolean isProfilingEnabled() {
-    return profilingEnabled;
+    return profilingEnabled.isActive();
   }
 
   public boolean isCiVisibilityEnabled() {
@@ -290,12 +351,20 @@ public class InstrumenterConfig {
     return iastActivation;
   }
 
+  public boolean isIastFullyDisabled() {
+    return iastFullyDisabled;
+  }
+
   public boolean isUsmEnabled() {
     return usmEnabled;
   }
 
   public boolean isTelemetryEnabled() {
     return telemetryEnabled;
+  }
+
+  public String getTraceExtensionsPath() {
+    return traceExtensionsPath;
   }
 
   public boolean isTraceExecutorsAll() {
@@ -346,6 +415,14 @@ public class InstrumenterConfig {
     return excludedCodeSources;
   }
 
+  public Set<String> getDeferredClassLoaders() {
+    return deferredClassLoaders;
+  }
+
+  public String deferIntegrationsUntil() {
+    return deferIntegrationsUntil;
+  }
+
   public int getResolverNoMatchesSize() {
     return resolverCacheConfig.noMatchesSize();
   }
@@ -376,6 +453,10 @@ public class InstrumenterConfig {
 
   public String getResolverCacheDir() {
     return resolverCacheDir;
+  }
+
+  public String getInstrumentationConfigId() {
+    return instrumentationConfigId;
   }
 
   public boolean isResolverNamesAreUnique() {
@@ -481,6 +562,8 @@ public class InstrumenterConfig {
         + usmEnabled
         + ", telemetryEnabled="
         + telemetryEnabled
+        + ", traceExtensionsPath="
+        + traceExtensionsPath
         + ", traceExecutorsAll="
         + traceExecutorsAll
         + ", traceExecutors="
@@ -505,6 +588,10 @@ public class InstrumenterConfig {
         + excludedClassLoaders
         + ", excludedCodeSources="
         + excludedCodeSources
+        + ", deferredClassLoaders="
+        + deferredClassLoaders
+        + ", deferIntegrationsUntil="
+        + deferIntegrationsUntil
         + ", resolverCacheConfig="
         + resolverCacheConfig
         + ", resolverCacheDir="
@@ -523,6 +610,8 @@ public class InstrumenterConfig {
         + runtimeContextFieldInjection
         + ", serialVersionUIDFieldInjection="
         + serialVersionUIDFieldInjection
+        + ", codeOriginEnabled="
+        + codeOriginEnabled
         + ", traceAnnotations='"
         + traceAnnotations
         + '\''

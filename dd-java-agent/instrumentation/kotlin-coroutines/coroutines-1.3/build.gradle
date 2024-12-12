@@ -29,10 +29,10 @@ tasks.named("compileLatestDepTestGroovy").configure {
 dependencies {
   def coroutinesVersion = '1.3.0'
   implementation project(':dd-java-agent:instrumentation:kotlin-coroutines')
-  compileOnly deps.kotlin
+  compileOnly libs.kotlin
   compileOnly "org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVersion"
 
-  testImplementation deps.kotlin
+  testImplementation libs.kotlin
   testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVersion"
   testImplementation testFixtures(project(':dd-java-agent:instrumentation:kotlin-coroutines'))
 

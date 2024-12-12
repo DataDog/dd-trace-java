@@ -1,12 +1,13 @@
 package datadog.trace.instrumentation.junit5;
 
+import static datadog.json.JsonMapper.toJson;
+
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.util.MethodHandles;
-import datadog.trace.util.Strings;
 import java.lang.invoke.MethodHandle;
 import java.lang.reflect.Method;
 import java.util.List;
@@ -89,7 +90,7 @@ public abstract class JUnitPlatformUtils {
         || methodSource.getMethodParameterTypes().isEmpty()) {
       return null;
     }
-    return "{\"metadata\":{\"test_name\":\"" + Strings.escapeToJson(displayName) + "\"}}";
+    return "{\"metadata\":{\"test_name\":" + toJson(displayName) + "}}";
   }
 
   public static TestIdentifier toTestIdentifier(TestDescriptor testDescriptor) {
@@ -100,7 +101,7 @@ public abstract class JUnitPlatformUtils {
       String testName = methodSource.getMethodName();
       String displayName = testDescriptor.getDisplayName();
       String testParameters = getParameters(methodSource, displayName);
-      return new TestIdentifier(testSuiteName, testName, testParameters, null);
+      return new TestIdentifier(testSuiteName, testName, testParameters);
 
     } else {
       return null;
@@ -154,6 +155,13 @@ public abstract class JUnitPlatformUtils {
     UniqueId.Segment lastSegment = segments.get(segments.size() - 1);
     return "class".equals(lastSegment.getType()) // "regular" JUnit test class
         || "nested-class".equals(lastSegment.getType()); // nested JUnit test class
+  }
+
+  public static boolean isParameterizedTest(TestDescriptor testDescriptor) {
+    UniqueId uniqueId = testDescriptor.getUniqueId();
+    List<UniqueId.Segment> segments = uniqueId.getSegments();
+    UniqueId.Segment lastSegment = segments.get(segments.size() - 1);
+    return "test-template".equals(lastSegment.getType());
   }
 
   public static boolean isRetry(TestDescriptor testDescriptor) {

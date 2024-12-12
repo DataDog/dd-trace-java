@@ -1,17 +1,27 @@
 package com.datadog.appsec.gateway;
 
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
+import static java.util.Collections.emptySet;
+
 import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.util.StandardizedLogging;
+import datadog.trace.api.Config;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.util.stacktrace.StackTraceEvent;
 import io.sqreen.powerwaf.Additive;
 import io.sqreen.powerwaf.PowerwafContext;
 import io.sqreen.powerwaf.PowerwafMetrics;
 import java.io.Closeable;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,34 +33,57 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   // Values MUST be lowercase! Lookup with Ignore Case
   // was removed due performance reason
-  public static final Set<String> HEADERS_ALLOW_LIST =
+  // request headers that will always be set when appsec is enabled
+  public static final Set<String> DEFAULT_REQUEST_HEADERS_ALLOW_LIST =
+      new TreeSet<>(
+          Arrays.asList(
+              "content-type",
+              "user-agent",
+              "accept",
+              "x-amzn-trace-id",
+              "cloudfront-viewer-ja3-fingerprint",
+              "cf-ray",
+              "x-cloud-trace-context",
+              "x-appgw-trace-id",
+              "x-sigsci-requestid",
+              "x-sigsci-tags",
+              "akamai-user-risk"));
+
+  // request headers when there are security events
+  public static final Set<String> REQUEST_HEADERS_ALLOW_LIST =
       new TreeSet<>(
           Arrays.asList(
               "x-forwarded-for",
-              "x-client-ip",
               "x-real-ip",
-              "x-forwarded",
-              "x-cluster-client-ip",
-              "forwarded-for",
-              "forwarded",
-              "via",
-              "client-ip",
               "true-client-ip",
+              "x-client-ip",
+              "x-forwarded",
+              "forwarded-for",
+              "x-cluster-client-ip",
               "fastly-client-ip",
               "cf-connecting-ip",
               "cf-connecting-ipv6",
+              "forwarded",
+              "via",
               "content-length",
-              "content-type",
               "content-encoding",
               "content-language",
               "host",
-              "user-agent",
-              "accept",
               "accept-encoding",
               "accept-language"));
 
+  // response headers when there are security events
+  public static final Set<String> RESPONSE_HEADERS_ALLOW_LIST =
+      new TreeSet<>(
+          Arrays.asList("content-length", "content-type", "content-encoding", "content-language"));
+
+  static {
+    REQUEST_HEADERS_ALLOW_LIST.addAll(DEFAULT_REQUEST_HEADERS_ALLOW_LIST);
+  }
+
   private final ConcurrentHashMap<Address<?>, Object> persistentData = new ConcurrentHashMap<>();
-  private Collection<AppSecEvent> collectedEvents; // guarded by this
+  private volatile Queue<AppSecEvent> appSecEvents;
+  private volatile Queue<StackTraceEvent> stackTraceEvents;
 
   // assume these will always be written and read by the same thread
   private String scheme;
@@ -58,7 +91,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private String savedRawURI;
   private final Map<String, List<String>> requestHeaders = new LinkedHashMap<>();
   private final Map<String, List<String>> responseHeaders = new LinkedHashMap<>();
-  private Map<String, List<String>> collectedCookies;
+  private volatile Map<String, List<String>> collectedCookies;
   private boolean finishedRequestHeaders;
   private boolean finishedResponseHeaders;
   private String peerAddress;
@@ -66,6 +99,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private String inferredClientIp;
 
   private volatile StoredBodySupplier storedRequestBodySupplier;
+  private String dbType;
 
   private int responseStatus;
 
@@ -74,14 +108,25 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private boolean convertedReqBodyPublished;
   private boolean respDataPublished;
   private boolean pathParamsPublished;
-  private Map<String, String> apiSchemas;
+  private volatile Map<String, String> derivatives;
+
+  private final AtomicBoolean rateLimited = new AtomicBoolean(false);
+  private volatile boolean throttled;
 
   // should be guarded by this
-  private Additive additive;
+  private volatile Additive additive;
+  private volatile boolean additiveClosed;
   // set after additive is set
   private volatile PowerwafMetrics wafMetrics;
+  private volatile PowerwafMetrics raspMetrics;
+  private final AtomicInteger raspMetricsCounter = new AtomicInteger(0);
   private volatile boolean blocked;
   private volatile int timeouts;
+
+  // keep a reference to the last published usr.id
+  private volatile String userId;
+  // keep a reference to the last published usr.session_id
+  private volatile String sessionId;
 
   private static final AtomicIntegerFieldUpdater<AppSecRequestContext> TIMEOUTS_UPDATER =
       AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "timeouts");
@@ -92,14 +137,14 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       Address<?> address = entry.getKey();
       Object value = entry.getValue();
       if (value == null) {
-        log.warn("Address {} ignored, because contains null value.", address);
+        log.debug(SEND_TELEMETRY, "Address {} ignored, because contains null value.", address);
         continue;
       }
       Object prev = persistentData.putIfAbsent(address, value);
-      if (prev == value) {
+      if (prev == value || value.equals(prev)) {
         continue;
       } else if (prev != null) {
-        log.warn("Illegal attempt to replace context value for {}", address);
+        log.debug(SEND_TELEMETRY, "Attempt to replace context value for {}", address);
       }
       if (log.isDebugEnabled()) {
         StandardizedLogging.addressPushed(log, address);
@@ -109,6 +154,14 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public PowerwafMetrics getWafMetrics() {
     return wafMetrics;
+  }
+
+  public PowerwafMetrics getRaspMetrics() {
+    return raspMetrics;
+  }
+
+  public AtomicInteger getRaspMetricsCounter() {
+    return raspMetricsCounter;
   }
 
   public void setBlocked() {
@@ -127,7 +180,17 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return timeouts;
   }
 
-  public Additive getOrCreateAdditive(PowerwafContext ctx, boolean createMetrics) {
+  public Additive getOrCreateAdditive(PowerwafContext ctx, boolean createMetrics, boolean isRasp) {
+
+    if (createMetrics) {
+      if (wafMetrics == null) {
+        this.wafMetrics = ctx.createMetrics();
+      }
+      if (isRasp && raspMetrics == null) {
+        this.raspMetrics = ctx.createMetrics();
+      }
+    }
+
     Additive curAdditive;
     synchronized (this) {
       curAdditive = this.additive;
@@ -137,21 +200,19 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       curAdditive = ctx.openAdditive();
       this.additive = curAdditive;
     }
-
-    // new additive was created
-    if (createMetrics) {
-      this.wafMetrics = ctx.createMetrics();
-    }
     return curAdditive;
   }
 
   public void closeAdditive() {
-    synchronized (this) {
-      if (additive != null) {
-        try {
-          additive.close();
-        } finally {
-          additive = null;
+    if (additive != null) {
+      synchronized (this) {
+        if (additive != null) {
+          try {
+            additiveClosed = true;
+            additive.close();
+          } finally {
+            additive = null;
+          }
         }
       }
     }
@@ -310,6 +371,14 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     this.storedRequestBodySupplier = storedRequestBodySupplier;
   }
 
+  public String getDbType() {
+    return dbType;
+  }
+
+  public void setDbType(String dbType) {
+    this.dbType = dbType;
+  }
+
   public int getResponseStatus() {
     return responseStatus;
   }
@@ -358,21 +427,51 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     this.respDataPublished = respDataPublished;
   }
 
+  public String getUserId() {
+    return userId;
+  }
+
+  public void setUserId(String userId) {
+    this.userId = userId;
+  }
+
+  public void setSessionId(String sessionId) {
+    this.sessionId = sessionId;
+  }
+
+  public String getSessionId() {
+    return sessionId;
+  }
+
   @Override
   public void close() {
-    synchronized (this) {
-      if (additive == null) {
-        return;
-      }
-    }
-
-    log.warn("WAF object had not been closed (probably missed request-end event)");
-    closeAdditive();
+    final AgentSpan span = AgentTracer.activeSpan();
+    close(span != null && span.isRequiresPostProcessing());
   }
 
   /* end interface for GatewayBridge */
 
   /* Should be accessible from the modules */
+
+  public void close(boolean requiresPostProcessing) {
+    if (additive != null || derivatives != null) {
+      log.debug(
+          SEND_TELEMETRY, "WAF object had not been closed (probably missed request-end event)");
+      closeAdditive();
+      derivatives = null;
+    }
+
+    // check if we might need to further post process data related to the span in order to not free
+    // related data
+    if (requiresPostProcessing) {
+      return;
+    }
+
+    collectedCookies = null;
+    requestHeaders.clear();
+    responseHeaders.clear();
+    persistentData.clear();
+  }
 
   /** @return the portion of the body read so far, if any */
   public CharSequence getStoredRequestBody() {
@@ -383,50 +482,91 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return storedRequestBodySupplier.get();
   }
 
-  public void reportEvents(Collection<AppSecEvent> events) {
-    for (AppSecEvent event : events) {
+  public void reportEvents(Collection<AppSecEvent> appSecEvents) {
+    for (AppSecEvent event : appSecEvents) {
       StandardizedLogging.attackDetected(log, event);
     }
-    synchronized (this) {
-      if (this.collectedEvents == null) {
-        this.collectedEvents = new ArrayList<>();
+    if (this.appSecEvents == null) {
+      synchronized (this) {
+        if (this.appSecEvents == null) {
+          this.appSecEvents = new ConcurrentLinkedQueue<>();
+        }
       }
-      try {
-        this.collectedEvents.addAll(events);
-      } catch (UnsupportedOperationException e) {
-        throw new IllegalStateException("Events cannot be added anymore");
+    }
+    this.appSecEvents.addAll(appSecEvents);
+  }
+
+  public void reportStackTrace(StackTraceEvent stackTraceEvent) {
+    if (this.stackTraceEvents == null) {
+      synchronized (this) {
+        if (this.stackTraceEvents == null) {
+          this.stackTraceEvents = new ConcurrentLinkedQueue<>();
+        }
       }
+    }
+    if (stackTraceEvents.size() <= Config.get().getAppSecMaxStackTraces()) {
+      this.stackTraceEvents.add(stackTraceEvent);
     }
   }
 
   Collection<AppSecEvent> transferCollectedEvents() {
-    Collection<AppSecEvent> events;
-    synchronized (this) {
-      events = this.collectedEvents;
-      this.collectedEvents = Collections.emptyList();
-    }
-    if (events != null) {
-      return events;
-    } else {
+    if (this.appSecEvents == null) {
       return Collections.emptyList();
     }
+
+    Collection<AppSecEvent> events = new ArrayList<>();
+    AppSecEvent item;
+    while ((item = this.appSecEvents.poll()) != null) {
+      events.add(item);
+    }
+
+    return events;
   }
 
-  public void reportApiSchemas(Map<String, String> schemas) {
-    if (schemas == null || schemas.isEmpty()) return;
+  List<StackTraceEvent> getStackTraces() {
+    if (this.stackTraceEvents == null) {
+      return null;
+    }
+    List<StackTraceEvent> stackTraces = new ArrayList<>();
+    StackTraceEvent item;
+    while ((item = this.stackTraceEvents.poll()) != null) {
+      stackTraces.add(item);
+    }
+    return stackTraces;
+  }
 
-    if (apiSchemas == null) {
-      apiSchemas = schemas;
+  public void reportDerivatives(Map<String, String> data) {
+    if (data == null || data.isEmpty()) return;
+
+    if (derivatives == null) {
+      derivatives = data;
     } else {
-      apiSchemas.putAll(schemas);
+      derivatives.putAll(data);
     }
   }
 
-  boolean commitApiSchemas(TraceSegment traceSegment) {
-    if (traceSegment == null || apiSchemas == null) {
+  boolean commitDerivatives(TraceSegment traceSegment) {
+    if (traceSegment == null || derivatives == null) {
       return false;
     }
-    apiSchemas.forEach(traceSegment::setTagTop);
+    derivatives.forEach(traceSegment::setTagTop);
+    derivatives = null;
     return true;
+  }
+
+  // Mainly used for testing and logging
+  Set<String> getDerivativeKeys() {
+    return derivatives == null ? emptySet() : new HashSet<>(derivatives.keySet());
+  }
+
+  public boolean isThrottled(RateLimiter rateLimiter) {
+    if (rateLimiter != null && rateLimited.compareAndSet(false, true)) {
+      throttled = rateLimiter.isThrottled();
+    }
+    return throttled;
+  }
+
+  public boolean isAdditiveClosed() {
+    return additiveClosed;
   }
 }

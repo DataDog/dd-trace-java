@@ -4,6 +4,7 @@ import static com.datadog.debugger.util.LogProbeTestHelper.parseTemplate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.debugger.agent.JsonSnapshotSerializer;
@@ -99,6 +100,8 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
     Snapshot snapshot = request.getDebugger().getSnapshot();
     assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
     assertEquals(42, snapshot.getCaptures().getEntry().getArguments().get("argInt").getValue());
+    // no locals captured
+    assertNull(snapshot.getCaptures().getEntry().getLocals());
     assertTrue(Pattern.matches("[0-9a-f]+", request.getTraceId()));
     assertTrue(Pattern.matches("\\d+", request.getSpanId()));
   }

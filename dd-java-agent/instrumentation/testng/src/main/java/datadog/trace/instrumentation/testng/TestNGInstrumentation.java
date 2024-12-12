@@ -4,11 +4,17 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.DDTest;
+import datadog.trace.bootstrap.ContextStore;
+import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.testng.retry.RetryAnnotationTransformer;
+import java.util.Collections;
+import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import org.testng.ITestListener;
 import org.testng.ITestNGListener;
+import org.testng.ITestResult;
 import org.testng.TestNG;
 import org.testng.annotations.DataProvider;
 
@@ -43,6 +49,12 @@ public class TestNGInstrumentation extends InstrumenterModule.CiVisibility
     };
   }
 
+  @Override
+  public Map<String, String> contextStore() {
+    return Collections.singletonMap(
+        "org.testng.ITestResult", "datadog.trace.api.civisibility.DDTest");
+  }
+
   public static class TestNGAdvice {
     @Advice.OnMethodExit
     public static void addTracingListener(@Advice.This final TestNG testNG) {
@@ -51,6 +63,11 @@ public class TestNGInstrumentation extends InstrumenterModule.CiVisibility
           return;
         }
       }
+
+      ContextStore<ITestResult, DDTest> contextStore =
+          InstrumentationContext.get(ITestResult.class, DDTest.class);
+      TestEventsHandlerHolder.setContextStore(contextStore);
+      TestEventsHandlerHolder.start();
 
       final TracingListener tracingListener = new TracingListener();
       testNG.addListener((ITestNGListener) tracingListener);

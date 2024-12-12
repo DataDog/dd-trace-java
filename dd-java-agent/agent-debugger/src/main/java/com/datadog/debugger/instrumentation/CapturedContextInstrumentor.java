@@ -1,5 +1,6 @@
 package com.datadog.debugger.instrumentation;
 
+import static com.datadog.debugger.instrumentation.ASMHelper.extractSuperClass;
 import static com.datadog.debugger.instrumentation.ASMHelper.getStatic;
 import static com.datadog.debugger.instrumentation.ASMHelper.invokeConstructor;
 import static com.datadog.debugger.instrumentation.ASMHelper.invokeStatic;
@@ -36,10 +37,15 @@ import datadog.trace.bootstrap.debugger.CorrelationAccess;
 import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
-import datadog.trace.util.Strings;
+import datadog.trace.bootstrap.debugger.util.Redaction;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.objectweb.asm.Opcodes;
@@ -48,6 +54,7 @@ import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldInsnNode;
 import org.objectweb.asm.tree.FieldNode;
+import org.objectweb.asm.tree.IincInsnNode;
 import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.InsnNode;
 import org.objectweb.asm.tree.JumpInsnNode;
@@ -57,8 +64,11 @@ import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.TryCatchBlockNode;
 import org.objectweb.asm.tree.TypeInsnNode;
 import org.objectweb.asm.tree.VarInsnNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class CapturedContextInstrumentor extends Instrumentor {
+  private static final Logger log = LoggerFactory.getLogger(CapturedContextInstrumentor.class);
   private final boolean captureSnapshot;
   private final Limits limits;
   private final LabelNode contextInitLabel = new LabelNode();
@@ -66,6 +76,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
   private int exitContextVar = -1;
   private int timestampStartVar = -1;
   private int throwableListVar = -1;
+  private Collection<LocalVariableNode> unscopedLocalVars;
 
   public CapturedContextInstrumentor(
       ProbeDefinition definition,
@@ -189,6 +200,10 @@ public class CapturedContextInstrumentor extends Instrumentor {
         && (current.getType() == AbstractInsnNode.LABEL
             || current.getType() == AbstractInsnNode.LINE)) {
       current = current.getNext();
+    }
+    if (current == null) {
+      reportWarning("Cannot add exception local variable to catch block - no instructions.");
+      return -1;
     }
     if (current.getOpcode() != Opcodes.ASTORE) {
       reportWarning("Cannot add exception local variable to catch block - no store instruction.");
@@ -381,6 +396,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
     if (methodNode.tryCatchBlocks.size() > 0) {
       throwableListVar = declareThrowableList(insnList);
     }
+    unscopedLocalVars = initAndHoistLocalVars(insnList);
     insnList.add(contextInitLabel);
     if (definition instanceof SpanDecorationProbe
         && definition.getEvaluateAt() == MethodLocation.EXIT) {
@@ -444,6 +460,208 @@ public class CapturedContextInstrumentor extends Instrumentor {
     // stack []
     insnList.add(gotoNode);
     methodNode.instructions.insert(methodEnterLabel, insnList);
+  }
+
+  // Initialize and hoist local variables to the top of the method
+  // if there is name/slot conflict, do nothing for the conflicting local variable
+  private Collection<LocalVariableNode> initAndHoistLocalVars(InsnList insnList) {
+    if (methodNode.localVariables == null || methodNode.localVariables.isEmpty()) {
+      return Collections.emptyList();
+    }
+    Map<String, LocalVariableNode> localVarsByName = new HashMap<>();
+    Map<Integer, LocalVariableNode> localVarsBySlot = new HashMap<>();
+    Map<String, Set<LocalVariableNode>> hoistableVarByName = new HashMap<>();
+    for (LocalVariableNode localVar : methodNode.localVariables) {
+      int idx = localVar.index - localVarBaseOffset;
+      if (idx < argOffset) {
+        // this is an argument
+        continue;
+      }
+      checkHoistableLocalVar(localVar, localVarsByName, localVarsBySlot, hoistableVarByName);
+    }
+    removeDuplicatesFromArgs(hoistableVarByName, localVarsBySlotArray);
+    // hoist vars
+    List<LocalVariableNode> results = new ArrayList<>();
+    for (Map.Entry<String, Set<LocalVariableNode>> entry : hoistableVarByName.entrySet()) {
+      Set<LocalVariableNode> hoistableVars = entry.getValue();
+      LocalVariableNode newVarNode;
+      if (hoistableVars.size() > 1) {
+        // merge variables
+        LocalVariableNode firstHoistableVar = hoistableVars.iterator().next();
+        String name = firstHoistableVar.name;
+        String desc = firstHoistableVar.desc;
+        Type localVarType = getType(desc);
+        int newSlot = newVar(localVarType); // new slot for the local variable
+        newVarNode = new LocalVariableNode(name, desc, null, null, null, newSlot);
+        Set<LabelNode> endLabels = new HashSet<>();
+        for (LocalVariableNode localVar : hoistableVars) {
+          // rewrite each usage of the old var to the new slot
+          rewriteLocalVarInsn(localVar, localVar.index, newSlot);
+          endLabels.add(localVar.end);
+        }
+        hoistVar(insnList, newVarNode);
+        newVarNode.end = findLatestLabel(methodNode.instructions, endLabels);
+        // remove previous local variables
+        methodNode.localVariables.removeIf(hoistableVars::contains);
+        methodNode.localVariables.add(newVarNode);
+      } else {
+        // hoist the single variable and rewrite all its local var instructions
+        newVarNode = hoistableVars.iterator().next();
+        int oldIndex = newVarNode.index;
+        newVarNode.index = newVar(getType(newVarNode.desc)); // new slot for the local variable
+        rewriteLocalVarInsn(newVarNode, oldIndex, newVarNode.index);
+        hoistVar(insnList, newVarNode);
+      }
+      results.add(newVarNode);
+    }
+    return results;
+  }
+
+  private void removeDuplicatesFromArgs(
+      Map<String, Set<LocalVariableNode>> hoistableVarByName,
+      LocalVariableNode[] localVarsBySlotArray) {
+    for (int idx = 0; idx < argOffset; idx++) {
+      LocalVariableNode localVar = localVarsBySlotArray[idx];
+      if (localVar == null) {
+        continue;
+      }
+      // we are removing local variables that are arguments
+      hoistableVarByName.remove(localVar.name);
+    }
+  }
+
+  private LabelNode findLatestLabel(InsnList instructions, Set<LabelNode> endLabels) {
+    for (AbstractInsnNode insn = instructions.getLast(); insn != null; insn = insn.getPrevious()) {
+      if (insn instanceof LabelNode && endLabels.contains(insn)) {
+        return (LabelNode) insn;
+      }
+    }
+    return null;
+  }
+
+  private void hoistVar(InsnList insnList, LocalVariableNode varNode) {
+    LabelNode labelNode = new LabelNode(); // new start label for the local variable
+    insnList.add(labelNode);
+    varNode.start = labelNode; // update the start label of the local variable
+    Type localVarType = getType(varNode.desc);
+    addStore0Insn(insnList, varNode, localVarType);
+  }
+
+  private static void addStore0Insn(
+      InsnList insnList, LocalVariableNode localVar, Type localVarType) {
+    switch (localVarType.getSort()) {
+      case Type.BOOLEAN:
+      case Type.CHAR:
+      case Type.BYTE:
+      case Type.SHORT:
+      case Type.INT:
+        insnList.add(new InsnNode(Opcodes.ICONST_0));
+        break;
+      case Type.LONG:
+        insnList.add(new InsnNode(Opcodes.LCONST_0));
+        break;
+      case Type.FLOAT:
+        insnList.add(new InsnNode(Opcodes.FCONST_0));
+        break;
+      case Type.DOUBLE:
+        insnList.add(new InsnNode(Opcodes.DCONST_0));
+        break;
+      default:
+        insnList.add(new InsnNode(Opcodes.ACONST_NULL));
+        break;
+    }
+    insnList.add(new VarInsnNode(localVarType.getOpcode(Opcodes.ISTORE), localVar.index));
+  }
+
+  private void checkHoistableLocalVar(
+      LocalVariableNode localVar,
+      Map<String, LocalVariableNode> localVarsByName,
+      Map<Integer, LocalVariableNode> localVarsBySlot,
+      Map<String, Set<LocalVariableNode>> hoistableVarByName) {
+    LocalVariableNode previousVarBySlot = localVarsBySlot.putIfAbsent(localVar.index, localVar);
+    LocalVariableNode previousVarByName = localVarsByName.putIfAbsent(localVar.name, localVar);
+    if (previousVarBySlot != null) {
+      // there are multiple local variables with the same slot but different names
+      // by hoisting in a new slot, we can avoid the conflict
+      hoistableVarByName.computeIfAbsent(localVar.name, k -> new HashSet<>()).add(localVar);
+    }
+    if (previousVarByName != null) {
+      // there are multiple local variables with the same name
+      // checking type to see if they are compatible
+      Type previousType = getType(previousVarByName.desc);
+      Type currentType = getType(localVar.desc);
+      if (!ASMHelper.isStoreCompatibleType(previousType, currentType)) {
+        reportWarning(
+            "Local variable "
+                + localVar.name
+                + " has multiple definitions with incompatible types: "
+                + previousVarByName.desc
+                + " and "
+                + localVar.desc);
+        // remove name from hoistable
+        hoistableVarByName.remove(localVar.name);
+        return;
+      }
+      // Merge variables because compatible type
+    }
+    // by default, there is no conflict => hoistable
+    hoistableVarByName.computeIfAbsent(localVar.name, k -> new HashSet<>()).add(localVar);
+  }
+
+  private void rewriteLocalVarInsn(LocalVariableNode localVar, int oldSlot, int newSlot) {
+    rewritePreviousStoreInsn(localVar, oldSlot, newSlot);
+    for (AbstractInsnNode insn = localVar.start;
+        insn != null && insn != localVar.end;
+        insn = insn.getNext()) {
+      if (insn instanceof VarInsnNode) {
+        VarInsnNode varInsnNode = (VarInsnNode) insn;
+        if (varInsnNode.var == oldSlot) {
+          varInsnNode.var = newSlot;
+        }
+      }
+      if (insn instanceof IincInsnNode) {
+        IincInsnNode iincInsnNode = (IincInsnNode) insn;
+        if (iincInsnNode.var == oldSlot) {
+          iincInsnNode.var = newSlot;
+        }
+      }
+    }
+  }
+
+  // Previous insn(s) to local var range could be a store to index that need to be rewritten as well
+  // LocalVariableTable ranges starts after the init of the local var.
+  // ex:
+  //    9: iconst_0
+  //   10: astore_1
+  //   11: aload_1
+  // range for slot 1 starts at 11
+  // javac always starts the range right after the init of the local var, so we can just look for
+  // the previous instruction
+  // for kotlinc, many instructions can separate the init and the range start
+  // ex:
+  //    LocalVariableTable:
+  //    Start  Length  Slot  Name   Signature
+  //    70     121     4 $i$f$map   I
+  //
+  //    64: istore        4
+  //    66: aload_2
+  //    67: iconst_2
+  //    68: iconst_1
+  //    69: bastore
+  //    70: aload_3
+  private static void rewritePreviousStoreInsn(
+      LocalVariableNode localVar, int oldSlot, int newSlot) {
+    AbstractInsnNode previous = localVar.start.getPrevious();
+    while (previous != null
+        && (!(previous instanceof VarInsnNode) || ((VarInsnNode) previous).var != oldSlot)) {
+      previous = previous.getPrevious();
+    }
+    if (previous != null) {
+      VarInsnNode varInsnNode = (VarInsnNode) previous;
+      if (varInsnNode.var == oldSlot) {
+        varInsnNode.var = newSlot;
+      }
+    }
   }
 
   private void createInProbeFinallyHandler(LabelNode inProbeStartLabel, LabelNode inProbeEndLabel) {
@@ -547,17 +765,19 @@ public class CapturedContextInstrumentor extends Instrumentor {
     // stack: [capturedcontext]
     collectStaticFields(insnList);
     // stack: [capturedcontext]
-    collectFields(insnList);
+    collectCorrelationInfo(insnList);
     // stack: [capturedcontext]
-    if (kind != Snapshot.Kind.UNHANDLED_EXCEPTION) {
-      /*
-       * It makes no sense collecting local variables for exceptions - the ones contributing to the exception
-       * are most likely to be outside of the scope in the exception handler block and there is no way to figure
-       * out the originating location just from bytecode.
-       */
-      collectLocalVariables(location, insnList);
-      // stack: [capturedcontext]
-    }
+    /*
+     * It makes no sense collecting local variables for exceptions - the ones contributing to the exception
+     * are most likely to be outside of the scope in the exception handler block and there is no way to figure
+     * out the originating location just from bytecode.
+     *
+     * However, it is very useful, in particular for Exception Debugging (Replay) to collect local variables.
+     * Thus, we are hoisting the local variable scope by initializing them at the beginning of the method
+     * with the method initLocalVars. It allows us to collect local variables at any point.
+     */
+    collectLocalVariables(location, insnList);
+    // stack: [capturedcontext]
     if (kind == Snapshot.Kind.RETURN) {
       collectReturnValue(location, insnList);
       // stack: [capturedcontext]
@@ -589,8 +809,8 @@ public class CapturedContextInstrumentor extends Instrumentor {
     int slot = isStatic ? 0 : 1;
     for (Type argType : argTypes) {
       String currentArgName = null;
-      if (slot < localVarsBySlot.length) {
-        LocalVariableNode localVarNode = localVarsBySlot[slot];
+      if (slot < localVarsBySlotArray.length) {
+        LocalVariableNode localVarNode = localVarsBySlotArray[slot];
         currentArgName = localVarNode != null ? localVarNode.name : null;
       }
       if (currentArgName == null) {
@@ -605,12 +825,16 @@ public class CapturedContextInstrumentor extends Instrumentor {
       // stack: [capturedcontext, capturedcontext, array, array, int, string]
       ldc(insnList, argType.getClassName());
       // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name]
-      insnList.add(new VarInsnNode(argType.getOpcode(Opcodes.ILOAD), slot));
-      // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name, arg]
-      tryBox(argType, insnList);
-      // stack: [capturedcontext, capturedcontext, array, array, int, type_name, object]
-      addCapturedValueOf(insnList, limits);
-      // stack: [capturedcontext, capturedcontext, array, array, int, typed_value]
+      if (Redaction.isRedactedKeyword(currentArgName)) {
+        addCapturedValueRedacted(insnList);
+      } else {
+        insnList.add(new VarInsnNode(argType.getOpcode(Opcodes.ILOAD), slot));
+        // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name, arg]
+        tryBox(argType, insnList);
+        // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name, object]
+        addCapturedValueOf(insnList, limits);
+      }
+      // stack: [capturedcontext, capturedcontext, array, array, int, captured_value]
       insnList.add(new InsnNode(Opcodes.AASTORE));
       // stack: [capturedcontext, capturedcontext, array]
       slot += argType.getSize();
@@ -635,6 +859,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
     // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name]
     insnList.add(new VarInsnNode(Opcodes.ALOAD, 0));
     // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name, this]
+    // no need to test redaction, 'this' is never redacted
     addCapturedValueOf(insnList, limits);
     // stack: [capturedcontext, capturedcontext, array, array, int, field_value]
     insnList.add(new InsnNode(Opcodes.AASTORE));
@@ -663,12 +888,25 @@ public class CapturedContextInstrumentor extends Instrumentor {
       // no local variables info - bail out
       return;
     }
-
+    Collection<LocalVariableNode> localVarNodes;
+    if (definition.isLineProbe()) {
+      localVarNodes = methodNode.localVariables;
+    } else {
+      localVarNodes = unscopedLocalVars;
+    }
     List<LocalVariableNode> applicableVars = new ArrayList<>();
-    for (LocalVariableNode variableNode : methodNode.localVariables) {
+    boolean isLineProbe = definition.isLineProbe();
+    for (LocalVariableNode variableNode : localVarNodes) {
       int idx = variableNode.index - localVarBaseOffset;
-      if (idx >= argOffset && isInScope(variableNode, location)) {
-        applicableVars.add(variableNode);
+      if (idx >= argOffset) {
+        // var is local not arg
+        if (isLineProbe) {
+          if (ASMHelper.isInScope(methodNode, variableNode, location)) {
+            applicableVars.add(variableNode);
+          }
+        } else {
+          applicableVars.add(variableNode);
+        }
       }
     }
 
@@ -689,12 +927,16 @@ public class CapturedContextInstrumentor extends Instrumentor {
       Type varType = Type.getType(variableNode.desc);
       ldc(insnList, Type.getType(variableNode.desc).getClassName());
       // stack: [capturedcontext, capturedcontext, array, array, int, name, type_name]
-      insnList.add(new VarInsnNode(varType.getOpcode(Opcodes.ILOAD), variableNode.index));
-      // stack: [capturedcontext, capturedcontext, array, array, int, name, type_name, value]
-      tryBox(varType, insnList);
-      // stack: [capturedcontext, capturedcontext, array, array, int, name, type_name, object]
-      addCapturedValueOf(insnList, limits);
-      // stack: [capturedcontext, capturedcontext, array, array, int, typed_value]
+      if (Redaction.isRedactedKeyword(variableNode.name)) {
+        addCapturedValueRedacted(insnList);
+      } else {
+        insnList.add(new VarInsnNode(varType.getOpcode(Opcodes.ILOAD), variableNode.index));
+        // stack: [capturedcontext, capturedcontext, array, array, int, name, type_name, value]
+        tryBox(varType, insnList);
+        // stack: [capturedcontext, capturedcontext, array, array, int, name, type_name, object]
+        addCapturedValueOf(insnList, limits);
+      }
+      // stack: [capturedcontext, capturedcontext, array, array, int, captured_value]
       insnList.add(new InsnNode(Opcodes.AASTORE));
       // stack: [capturedcontext, capturedcontext, array]
     }
@@ -745,6 +987,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
     // stack: [ret_value, capturedcontext, capturedcontext, null, type_name, ret_value]
     tryBox(returnType, insnList);
     // stack: [ret_value, capturedcontext, capturedcontext, null, type_name, ret_value]
+    // no name, no redaction
     addCapturedValueOf(insnList, limits);
     // stack: [ret_value, capturedcontext, capturedcontext, capturedvalue]
     invokeVirtual(insnList, CAPTURED_CONTEXT_TYPE, "addReturn", Type.VOID_TYPE, CAPTURED_VALUE);
@@ -815,14 +1058,18 @@ public class CapturedContextInstrumentor extends Instrumentor {
       Type fieldType = Type.getType(fieldNode.desc);
       ldc(insnList, fieldType.getClassName());
       // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name]
-      insnList.add(
-          new FieldInsnNode(Opcodes.GETSTATIC, classNode.name, fieldNode.name, fieldNode.desc));
-      // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
-      // field_value]
-      tryBox(fieldType, insnList);
-      // stack: [capturedcontext, capturedcontext, array, array, int, type_name, object]
-      addCapturedValueOf(insnList, limits);
-      // stack: [capturedcontext, capturedcontext, array, array, int, typed_value]
+      if (Redaction.isRedactedKeyword(fieldNode.name)) {
+        addCapturedValueRedacted(insnList);
+      } else {
+        insnList.add(
+            new FieldInsnNode(Opcodes.GETSTATIC, classNode.name, fieldNode.name, fieldNode.desc));
+        // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
+        // field_value]
+        tryBox(fieldType, insnList);
+        // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name, object]
+        addCapturedValueOf(insnList, limits);
+      }
+      // stack: [capturedcontext, capturedcontext, array, array, int, captured_value]
       insnList.add(new InsnNode(Opcodes.AASTORE));
       // stack: [capturedcontext, capturedcontext, array]
     }
@@ -835,7 +1082,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
     // stack: [capturedcontext]
   }
 
-  private void collectFields(InsnList insnList) {
+  private void collectCorrelationInfo(InsnList insnList) {
     // expected stack top: [capturedcontext]
     /*
      * We are cheating a bit with CorrelationAccess - utilizing the knowledge that it is a singleton loaded by the
@@ -847,92 +1094,27 @@ public class CapturedContextInstrumentor extends Instrumentor {
       // static method and no correlation info, no need to capture fields
       return;
     }
-    List<FieldNode> fieldsToCapture =
-        extractInstanceField(classNode, isStatic, classLoader, limits);
-    if (fieldsToCapture.isEmpty()) {
-      // bail out if no fields
-      return;
-    }
+    extractSpecialId(insnList, "dd.trace_id", "getTraceId", "addTraceId");
+    // stack: [capturedcontext]
+    extractSpecialId(insnList, "dd.span_id", "getSpanId", "addSpanId");
+    // stack: [capturedcontext]
+  }
+
+  private void extractSpecialId(
+      InsnList insnList, String fieldName, String getMethodName, String addMethodName) {
     insnList.add(new InsnNode(Opcodes.DUP));
     // stack: [capturedcontext, capturedcontext]
-    ldc(insnList, fieldsToCapture.size());
-    // stack: [capturedcontext, capturedcontext, int]
-    insnList.add(new TypeInsnNode(Opcodes.ANEWARRAY, CAPTURED_VALUE.getInternalName()));
-    // stack: [capturedcontext, capturedcontext, array]
-    int counter = 0;
-    for (FieldNode fieldNode : fieldsToCapture) {
-      insnList.add(new InsnNode(Opcodes.DUP));
-      // stack: [capturedcontext, capturedcontext, array, array]
-      ldc(insnList, counter++);
-      // stack: [capturedcontext, capturedcontext, array, array, int]
-      if (!isAccessible(fieldNode)) {
-        insnList.add(new VarInsnNode(Opcodes.ALOAD, 0));
-        // stack: [capturedcontext, capturedcontext, array, array, int, this]
-        ldc(insnList, fieldNode.name);
-        // stack: [capturedcontext, capturedcontext, array, array, int, this, string]
-        invokeStatic(
-            insnList,
-            REFLECTIVE_FIELD_VALUE_RESOLVER_TYPE,
-            "getFieldAsCapturedValue",
-            CAPTURED_VALUE,
-            OBJECT_TYPE,
-            STRING_TYPE);
-        // stack: [capturedcontext, capturedcontext, array, array, int, CapturedValue]
-        insnList.add(new InsnNode(Opcodes.AASTORE));
-        // stack: [capturedcontext, capturedcontext, array]
-        continue;
-      }
-      ldc(insnList, fieldNode.name);
-      // stack: [capturedcontext, capturedcontext, array, array, int, string]
-      Type fieldType = Type.getType(fieldNode.desc);
-      ldc(insnList, fieldType.getClassName());
-      // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name]
-      switch (fieldNode.name) {
-        case "dd.trace_id":
-          {
-            invokeStatic(insnList, CORRELATION_ACCESS_TYPE, "instance", CORRELATION_ACCESS_TYPE);
-            // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
-            // access]
-            invokeVirtual(insnList, CORRELATION_ACCESS_TYPE, "getTraceId", STRING_TYPE);
-            // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
-            // field_value]
-            break;
-          }
-        case "dd.span_id":
-          {
-            invokeStatic(insnList, CORRELATION_ACCESS_TYPE, "instance", CORRELATION_ACCESS_TYPE);
-            // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
-            // access]
-            invokeVirtual(insnList, CORRELATION_ACCESS_TYPE, "getSpanId", STRING_TYPE);
-            // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
-            // field_value]
-            break;
-          }
-        default:
-          {
-            insnList.add(new VarInsnNode(Opcodes.ALOAD, 0));
-            // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
-            // this]
-            insnList.add(
-                new FieldInsnNode(
-                    Opcodes.GETFIELD, classNode.name, fieldNode.name, fieldNode.desc));
-            // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
-            // field_value]
-          }
-      }
-      tryBox(fieldType, insnList);
-      // stack: [capturedcontext, capturedcontext, array, array, int, type_name, object]
-      addCapturedValueOf(insnList, limits);
-      // stack: [capturedcontext, capturedcontext, array, array, int, CapturedValue]
-      insnList.add(new InsnNode(Opcodes.AASTORE));
-      // stack: [capturedcontext, capturedcontext, array]
-    }
-    invokeVirtual(
-        insnList,
-        CAPTURED_CONTEXT_TYPE,
-        "addFields",
-        Type.VOID_TYPE,
-        Types.asArray(CAPTURED_VALUE, 1));
+    ldc(insnList, fieldName);
+    // stack: [capturedcontext, capturedcontext, name]
+    ldc(insnList, STRING_TYPE.getClassName());
+    // stack: [capturedcontext, capturedcontext, name, type_name]
+    invokeStatic(insnList, CORRELATION_ACCESS_TYPE, "instance", CORRELATION_ACCESS_TYPE);
+    // stack: [capturedcontext, capturedcontext, name, type_name, access]
+    invokeVirtual(insnList, CORRELATION_ACCESS_TYPE, getMethodName, STRING_TYPE);
+    // stack: [capturedcontext, capturedcontext, name, type_name, id]
+    addCapturedValueOf(insnList, limits);
+    // stack: [capturedcontext, capturedcontext, captured_value]
+    invokeVirtual(insnList, CAPTURED_CONTEXT_TYPE, addMethodName, Type.VOID_TYPE, CAPTURED_VALUE);
     // stack: [capturedcontext]
   }
 
@@ -979,7 +1161,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
       Limits limits,
       List<FieldNode> results,
       int fieldCount) {
-    String superClassName = Strings.getClassName(classNode.superName);
+    String superClassName = extractSuperClass(classNode);
     while (!superClassName.equals(Object.class.getTypeName())) {
       Class<?> clazz;
       try {
@@ -1018,7 +1200,12 @@ public class CapturedContextInstrumentor extends Instrumentor {
         }
       }
     }
-    addInheritedStaticFields(classNode, classLoader, limits, results, fieldCount);
+    if (!Config.get().isDebuggerInstrumentTheWorld()) {
+      // Collects inherited static fields only if the ITW mode is not enabled
+      // because it can lead to LinkageError: attempted duplicate class definition
+      // for example, when a probe is located in method overridden in enum element
+      addInheritedStaticFields(classNode, classLoader, limits, results, fieldCount);
+    }
     return results;
   }
 
@@ -1028,7 +1215,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
       Limits limits,
       List<FieldNode> results,
       int fieldCount) {
-    String superClassName = Strings.getClassName(classNode.superName);
+    String superClassName = extractSuperClass(classNode);
     while (!superClassName.equals(Object.class.getTypeName())) {
       Class<?> clazz;
       try {
@@ -1036,37 +1223,26 @@ public class CapturedContextInstrumentor extends Instrumentor {
       } catch (ClassNotFoundException ex) {
         break;
       }
-      for (Field field : clazz.getDeclaredFields()) {
-        if (isStaticField(field) && !isFinalField(field)) {
-          String desc = Type.getDescriptor(field.getType());
-          FieldNode fieldNode =
-              new FieldNode(field.getModifiers(), field.getName(), desc, null, field);
-          results.add(fieldNode);
-          fieldCount++;
-          if (fieldCount > limits.maxFieldCount) {
-            return;
+      try {
+        for (Field field : clazz.getDeclaredFields()) {
+          if (isStaticField(field) && !isFinalField(field)) {
+            String desc = Type.getDescriptor(field.getType());
+            FieldNode fieldNode =
+                new FieldNode(field.getModifiers(), field.getName(), desc, null, field);
+            results.add(fieldNode);
+            log.debug("Adding static inherited field {}", fieldNode.name);
+            fieldCount++;
+            if (fieldCount > limits.maxFieldCount) {
+              return;
+            }
           }
         }
+      } catch (ClassCircularityError ex) {
+        break;
       }
       clazz = clazz.getSuperclass();
       superClassName = clazz.getTypeName();
     }
-  }
-
-  private boolean isInScope(LocalVariableNode variableNode, AbstractInsnNode location) {
-    AbstractInsnNode startScope =
-        variableNode.start != null ? variableNode.start : methodNode.instructions.getFirst();
-    AbstractInsnNode endScope =
-        variableNode.end != null ? variableNode.end : methodNode.instructions.getLast();
-
-    AbstractInsnNode insn = startScope;
-    while (insn != null && insn != endScope) {
-      if (insn == location) {
-        return true;
-      }
-      insn = insn.getNext();
-    }
-    return false;
   }
 
   private int declareContextVar(InsnList insnList) {
@@ -1121,7 +1297,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
       ldc(insnList, limits.getMaxLength());
       ldc(insnList, limits.getMaxFieldCount());
     }
-    // expected stack: [type_name, value, int, int, int, int]
+    // expected stack: [name, type_name, value, int, int, int, int]
     invokeStatic(
         insnList,
         CAPTURED_VALUE,
@@ -1134,6 +1310,12 @@ public class CapturedContextInstrumentor extends Instrumentor {
         INT_TYPE,
         INT_TYPE,
         INT_TYPE);
+    // stack: [captured_value]
+  }
+
+  private void addCapturedValueRedacted(InsnList insnList) {
+    // expected stack: [name, type_name]
+    invokeStatic(insnList, CAPTURED_VALUE, "redacted", CAPTURED_VALUE, STRING_TYPE, STRING_TYPE);
     // stack: [captured_value]
   }
 }

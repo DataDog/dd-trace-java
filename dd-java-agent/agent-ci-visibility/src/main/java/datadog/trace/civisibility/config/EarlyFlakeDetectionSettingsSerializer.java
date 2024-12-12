@@ -1,6 +1,5 @@
 package datadog.trace.civisibility.config;
 
-import datadog.trace.api.civisibility.config.EarlyFlakeDetectionSettings;
 import datadog.trace.civisibility.ipc.Serializer;
 import java.nio.ByteBuffer;
 import java.util.List;

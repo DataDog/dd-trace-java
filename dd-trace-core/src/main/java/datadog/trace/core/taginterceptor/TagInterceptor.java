@@ -5,10 +5,12 @@ import static datadog.trace.api.DDTags.MEASURED;
 import static datadog.trace.api.DDTags.ORIGIN_KEY;
 import static datadog.trace.api.DDTags.SPAN_TYPE;
 import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
+import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_METHOD;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_STATUS;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_URL;
 import static datadog.trace.core.taginterceptor.RuleFlags.Feature.FORCE_MANUAL_DROP;
+import static datadog.trace.core.taginterceptor.RuleFlags.Feature.FORCE_SAMPLING_PRIORITY;
 import static datadog.trace.core.taginterceptor.RuleFlags.Feature.PEER_SERVICE;
 import static datadog.trace.core.taginterceptor.RuleFlags.Feature.RESOURCE_NAME;
 import static datadog.trace.core.taginterceptor.RuleFlags.Feature.SERVICE_NAME;
@@ -49,20 +51,23 @@ public class TagInterceptor {
 
   private final boolean shouldSet404ResourceName;
   private final boolean shouldSetUrlResourceAsName;
+  private final boolean jeeSplitByDeployment;
 
   public TagInterceptor(RuleFlags ruleFlags) {
     this(
         Config.get().isServiceNameSetByUser(),
         CapturedEnvironment.get().getProperties().get(GeneralConfig.SERVICE_NAME),
         Config.get().getSplitByTags(),
-        ruleFlags);
+        ruleFlags,
+        Config.get().isJeeSplitByDeployment());
   }
 
   public TagInterceptor(
       boolean isServiceNameSetByUser,
       String inferredServiceName,
       Set<String> splitServiceTags,
-      RuleFlags ruleFlags) {
+      RuleFlags ruleFlags,
+      boolean jeeSplitByDeployment) {
     this.isServiceNameSetByUser = isServiceNameSetByUser;
     this.inferredServiceName = inferredServiceName;
     this.splitServiceTags = splitServiceTags;
@@ -74,6 +79,7 @@ public class TagInterceptor {
             && ruleFlags.isEnabled(STATUS_404)
             && ruleFlags.isEnabled(STATUS_404_DECORATOR);
     shouldSetUrlResourceAsName = ruleFlags.isEnabled(URL_AS_RESOURCE_NAME);
+    this.jeeSplitByDeployment = jeeSplitByDeployment;
   }
 
   public boolean interceptTag(DDSpanContext span, String tag, Object value) {
@@ -98,6 +104,20 @@ public class TagInterceptor {
       case DDTags.MANUAL_DROP:
         return interceptSamplingPriority(
             FORCE_MANUAL_DROP, USER_DROP, SamplingMechanism.MANUAL, span, value);
+      case Tags.ASM_KEEP:
+        if (asBoolean(value)) {
+          span.forceKeep(SamplingMechanism.APPSEC);
+          return true;
+        }
+        return false;
+      case Tags.SAMPLING_PRIORITY:
+        return interceptSamplingPriority(span, value);
+      case Tags.PROPAGATED_APPSEC:
+        span.updateAppsecPropagation(asBoolean(value));
+        return true;
+      case Tags.PROPAGATED_DEBUG:
+        span.updateDebugPropagation(String.valueOf(value));
+        return true;
       case InstrumentationTags.SERVLET_CONTEXT:
         return interceptServletContext(span, value);
       case SPAN_TYPE:
@@ -241,6 +261,18 @@ public class TagInterceptor {
     return false;
   }
 
+  private boolean interceptSamplingPriority(DDSpanContext span, Object value) {
+    if (ruleFlags.isEnabled(FORCE_SAMPLING_PRIORITY)) {
+      Number samplingPriority = getOrTryParse(value);
+      if (null != samplingPriority) {
+        span.setSamplingPriority(
+            samplingPriority.intValue() > 0 ? USER_KEEP : USER_DROP, SamplingMechanism.MANUAL);
+      }
+      return true;
+    }
+    return false;
+  }
+
   private boolean interceptServletContext(DDSpanContext span, Object value) {
     // even though this tag is sometimes used to set the service name
     // (which has the side effect of marking the span as eligible for metrics
@@ -248,6 +280,7 @@ public class TagInterceptor {
     // so will always return false here.
     if (!splitByServletContext
         && (isServiceNameSetByUser
+            || jeeSplitByDeployment
             || !ruleFlags.isEnabled(RuleFlags.Feature.SERVLET_CONTEXT)
             || !span.getServiceName().isEmpty()
                 && !span.getServiceName().equals(inferredServiceName)

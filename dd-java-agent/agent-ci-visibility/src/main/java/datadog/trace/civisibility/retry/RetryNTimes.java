@@ -1,7 +1,7 @@
 package datadog.trace.civisibility.retry;
 
-import datadog.trace.api.civisibility.config.EarlyFlakeDetectionSettings;
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.civisibility.config.EarlyFlakeDetectionSettings;
 
 /** Retries a test case N times (N depends on test duration) regardless of success or failure. */
 public class RetryNTimes implements TestRetryPolicy {

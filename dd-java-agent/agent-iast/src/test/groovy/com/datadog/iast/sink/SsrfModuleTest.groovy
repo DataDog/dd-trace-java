@@ -32,14 +32,6 @@ class SsrfModuleTest extends IastModuleImplTestBase {
     0 * _
   }
 
-  void 'test null value'() {
-    when:
-    module.onURLConnection(null, null, null)
-
-    then:
-    0 * _
-  }
-
   void 'test SSRF detection'() {
     when:
     module.onURLConnection(url)
@@ -85,50 +77,7 @@ class SsrfModuleTest extends IastModuleImplTestBase {
     0 * reporter.report(_, _)
   }
 
-  void 'test SSRF detection for host and uri'() {
-    when:
-    module.onURLConnection(value, host, uri)
-
-    then: 'report is not called if no active span'
-    tracer.activeSpan() >> null
-    0 * reporter.report(_, _)
-
-    when:
-    module.onURLConnection(value, host, uri)
-
-    then: 'report is not called if host or uri are not tainted'
-    tracer.activeSpan() >> span
-    0 * reporter.report(_, _)
-
-    when:
-    if (toTaint == 'both') {
-      taint(host)
-      taint(uri)
-    } else {
-      taint(toTaint == 'host' ? host : uri)
-    }
-    module.onURLConnection(value, host, uri)
-
-    then: 'report is called when the host or uri are tainted'
-    tracer.activeSpan() >> span
-    1 * reporter.report(span, {
-      Vulnerability vul ->
-      vul.type == VulnerabilityType.SSRF
-      && vul.evidence.value == value
-      && vul.evidence.ranges.length == 1
-      && vul.evidence.ranges[0].start == 0
-      && vul.evidence.ranges[0].length == value.length()
-    })
-
-
-    where:
-    value             | host         | uri                               | toTaint
-    'http://test.com' | new Object() | new URI('http://test.com/tested') | 'host'
-    'http://test.com' | new Object() | new URI('http://test.com/tested') | 'uri'
-    'http://test.com' | new Object() | new URI('http://test.com/tested') | 'both'
-  }
-
-  private void taint(final Object value) {
+  private taint(final Object value) {
     ctx.getTaintedObjects().taint(value, Ranges.forObject(new Source(SourceTypes.REQUEST_PARAMETER_VALUE, 'name', value.toString())))
   }
 }

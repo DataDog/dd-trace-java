@@ -4,6 +4,7 @@ import static com.datadog.debugger.el.PrettyPrintVisitor.print;
 import static com.datadog.debugger.el.TestHelper.setFieldInConfig;
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.RedactedException;
 import com.datadog.debugger.el.RefResolverHelper;
 import com.datadog.debugger.el.Value;
@@ -76,7 +77,10 @@ class IndexExpressionTest {
   @Test
   void undefined() {
     IndexExpression expr = new IndexExpression(ValueExpression.UNDEFINED, new NumericValue(1));
-    assertEquals(Value.undefined(), expr.evaluate(RefResolverHelper.createResolver(this)));
+    EvaluationException exception =
+        assertThrows(
+            EvaluationException.class, () -> expr.evaluate(RefResolverHelper.createResolver(this)));
+    assertEquals("Cannot evaluate the expression for undefined value", exception.getMessage());
   }
 
   @Test

@@ -33,7 +33,7 @@ public class HeaderNameCallSite {
       if (ctx == null) {
         return result;
       }
-      module.taintIfTainted(ctx, result, header, SourceTypes.REQUEST_HEADER_NAME, result);
+      module.taintStringIfTainted(ctx, result, header, SourceTypes.REQUEST_HEADER_NAME, result);
     } catch (final Throwable e) {
       module.onUnexpectedException("onHeaderNames threw", e);
     }

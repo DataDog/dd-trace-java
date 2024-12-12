@@ -2,6 +2,7 @@ package smoketest
 
 import datadog.smoketest.AbstractIastServerSmokeTest
 import datadog.trace.api.Platform
+import datadog.trace.api.config.IastConfig
 import okhttp3.Request
 import spock.lang.IgnoreIf
 
@@ -18,14 +19,14 @@ class ResteasySmokeTest extends AbstractIastServerSmokeTest {
     command.add(javaPath())
     command.addAll(defaultJavaProperties)
     command.addAll([
-      withSystemProperty(datadog.trace.api.config.IastConfig.IAST_ENABLED, true),
-      withSystemProperty(datadog.trace.api.config.IastConfig.IAST_DETECTION_MODE, 'FULL'),
-      withSystemProperty(datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED, true)
+      withSystemProperty(IastConfig.IAST_ENABLED, true),
+      withSystemProperty(IastConfig.IAST_DETECTION_MODE, 'FULL'),
+      withSystemProperty(IastConfig.IAST_DEBUG_ENABLED, true)
     ])
     if (Platform.isJavaVersionAtLeast(17)) {
-      command.addAll((String[]) ["--add-opens", "java.base/java.lang=ALL-UNNAMED"])
+      command.addAll(["--add-opens", "java.base/java.lang=ALL-UNNAMED"])
     }
-    command.addAll((String[]) ["-jar", jarPath, httpPort])
+    command.addAll(["-jar", jarPath, Integer.toString(httpPort)])
     ProcessBuilder processBuilder = new ProcessBuilder(command)
     processBuilder.directory(new File(buildDirectory))
   }

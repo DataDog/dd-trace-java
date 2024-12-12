@@ -4,8 +4,8 @@ import java.util.Objects;
 import javax.annotation.Nullable;
 
 /**
- * Uniquely identifies a test case. Multiple executions of the same test case (for example when
- * retries are done) will have the same test identifier.
+ * Uniquely identifies a test case within a module. Multiple executions of the same test case (for
+ * example when retries are done) will have the same test identifier.
  */
 public class TestIdentifier {
 
@@ -17,26 +17,11 @@ public class TestIdentifier {
    * parameter variations.
    */
   private @Nullable final String parameters;
-  /**
-   * Configurations field is intentionally excluded from hashCode/equals and serialization logic:
-   * the backend does not return full configuration for a test case, but rather includes only those
-   * parts that were not specified in the client request (for instance, when requesting tests
-   * without specifying module name, each test in the response will have module name present in its
-   * config section). Moreover, in some edge cases the backend may choose to return empty
-   * configuration object instead of null. Therefore, reconstructing on the client side a
-   * configuration block that fully corresponds to the one returned by the backend is non-trivial.
-   */
-  private @Nullable final Configurations configurations;
 
-  public TestIdentifier(
-      String suite,
-      String name,
-      @Nullable String parameters,
-      @Nullable Configurations configurations) {
+  public TestIdentifier(String suite, String name, @Nullable String parameters) {
     this.suite = suite;
     this.name = name;
     this.parameters = parameters;
-    this.configurations = configurations;
   }
 
   public String getSuite() {
@@ -52,13 +37,8 @@ public class TestIdentifier {
     return parameters;
   }
 
-  @Nullable
-  public Configurations getConfigurations() {
-    return configurations;
-  }
-
   public TestIdentifier withoutParameters() {
-    return parameters == null ? this : new TestIdentifier(suite, name, null, configurations);
+    return parameters == null ? this : new TestIdentifier(suite, name, null);
   }
 
   @Override
@@ -92,8 +72,6 @@ public class TestIdentifier {
         + ", parameters='"
         + parameters
         + '\''
-        + ", configurations="
-        + configurations
         + '}';
   }
 }

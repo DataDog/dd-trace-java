@@ -10,6 +10,9 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+/**
+ * This class provides instrumentation for {@link StringBuilder} and {@link StringBuffer} methods.
+ */
 @Propagation
 @CallSite(spi = IastCallSites.class)
 public class StringBuilderCallSite {
@@ -35,6 +38,7 @@ public class StringBuilderCallSite {
 
   @CallSite.After("java.lang.StringBuilder java.lang.StringBuilder.append(java.lang.String)")
   @CallSite.After("java.lang.StringBuilder java.lang.StringBuilder.append(java.lang.CharSequence)")
+  @CallSite.After("java.lang.StringBuilder java.lang.StringBuilder.append(java.lang.StringBuffer)")
   @CallSite.After("java.lang.StringBuffer java.lang.StringBuffer.append(java.lang.String)")
   @CallSite.After("java.lang.StringBuffer java.lang.StringBuffer.append(java.lang.CharSequence)")
   @Nonnull
@@ -48,6 +52,26 @@ public class StringBuilderCallSite {
         module.onStringBuilderAppend(self, param);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterAppend threw", e);
+      }
+    }
+    return result;
+  }
+
+  @CallSite.After(
+      "java.lang.StringBuilder java.lang.StringBuilder.append(java.lang.CharSequence, int, int)")
+  @Nonnull
+  public static CharSequence afterAppendWithSubstring(
+      @CallSite.This @Nonnull final CharSequence self,
+      @CallSite.Argument(0) @Nullable final CharSequence param,
+      @CallSite.Argument(1) final int start,
+      @CallSite.Argument(2) final int end,
+      @CallSite.Return @Nonnull final CharSequence result) {
+    final StringModule module = InstrumentationBridge.STRING;
+    if (module != null) {
+      try {
+        module.onStringBuilderAppend(self, param, start, end);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterAppendWithSubstring threw", e);
       }
     }
     return result;
@@ -97,6 +121,59 @@ public class StringBuilderCallSite {
         module.onStringBuilderToString(self, result);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterToString threw", e);
+      }
+    }
+    return result;
+  }
+
+  @CallSite.After("java.lang.String java.lang.StringBuilder.substring(int)")
+  @CallSite.After("java.lang.String java.lang.StringBuffer.substring(int)")
+  public static String afterSubstring(
+      @CallSite.This final CharSequence self,
+      @CallSite.Argument final int beginIndex,
+      @CallSite.Return final String result) {
+    final StringModule module = InstrumentationBridge.STRING;
+    if (module != null) {
+      try {
+        module.onStringSubSequence(self, beginIndex, self.length(), result);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterSubstring threw", e);
+      }
+    }
+    return result;
+  }
+
+  @CallSite.After("java.lang.String java.lang.StringBuilder.substring(int, int)")
+  @CallSite.After("java.lang.String java.lang.StringBuffer.substring(int, int)")
+  public static String afterSubstring(
+      @CallSite.This final CharSequence self,
+      @CallSite.Argument final int beginIndex,
+      @CallSite.Argument final int endIndex,
+      @CallSite.Return final String result) {
+    final StringModule module = InstrumentationBridge.STRING;
+    if (module != null) {
+      try {
+        module.onStringSubSequence(self, beginIndex, endIndex, result);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterSubstring threw", e);
+      }
+    }
+    return result;
+  }
+
+  @CallSite.After("java.lang.CharSequence java.lang.StringBuilder.subSequence(int, int)")
+  @CallSite.After("java.lang.CharSequence java.lang.StringBuffer.subSequence(int, int)")
+  public static CharSequence afterSubSequence(
+      @CallSite.This final CharSequence self,
+      @CallSite.Argument final int beginIndex,
+      @CallSite.Argument final int endIndex,
+      @CallSite.Return final CharSequence result) {
+    final StringModule module = InstrumentationBridge.STRING;
+    if (module != null) {
+      try {
+        module.onStringSubSequence(self, beginIndex, endIndex, result);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterSubSequence threw", e);
       }
     }
     return result;

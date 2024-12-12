@@ -4,6 +4,7 @@ import static com.datadog.debugger.el.PrettyPrintVisitor.print;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.datadog.debugger.el.DSL;
+import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.RefResolverHelper;
 import com.datadog.debugger.el.values.StringValue;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
@@ -16,7 +17,9 @@ class MatchesExpressionTest {
   @Test
   void nullExpression() {
     MatchesExpression expression = new MatchesExpression(null, null);
-    assertFalse(expression.evaluate(resolver));
+    EvaluationException exception =
+        assertThrows(EvaluationException.class, () -> expression.evaluate(resolver));
+    assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
     assertEquals("matches(null, null)", print(expression));
   }
 
@@ -24,7 +27,9 @@ class MatchesExpressionTest {
   void undefinedExpression() {
     MatchesExpression expression =
         new MatchesExpression(DSL.value(Values.UNDEFINED_OBJECT), new StringValue(null));
-    assertFalse(expression.evaluate(resolver));
+    EvaluationException exception =
+        assertThrows(EvaluationException.class, () -> expression.evaluate(resolver));
+    assertEquals("Cannot evaluate the expression for undefined value", exception.getMessage());
     assertEquals("matches(UNDEFINED, \"null\")", print(expression));
   }
 

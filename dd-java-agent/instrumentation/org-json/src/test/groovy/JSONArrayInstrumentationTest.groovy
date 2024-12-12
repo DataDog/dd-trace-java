@@ -32,12 +32,12 @@ class JSONArrayInstrumentationTest extends AgentTestRunner {
 
     then:
     name == "File"
-    1 * module.taintIfTainted(_ as JSONObject, json)
-    2 * module.taintIfTainted(_ as JSONObject, _ as JSONTokener)
-    2 * module.taintIfTainted(_ as JSONObject, _ as JSONObject)
-    1 * module.taintIfTainted(_ as JSONTokener, json)
-    2 * module.taintIfTainted(_ as JSONArray, _ as JSONObject)
-    2 * module.taintIfTainted("File", _ as JSONArray)
+    1 * module.taintObjectIfTainted(_ as JSONObject, json)
+    2 * module.taintObjectIfTainted(_ as JSONObject, _ as JSONTokener)
+    2 * module.taintObjectIfTainted(_ as JSONObject, _ as JSONObject)
+    1 * module.taintObjectIfTainted(_ as JSONTokener, json)
+    2 * module.taintObjectIfTainted(_ as JSONArray, _ as JSONObject)
+    2 * module.taintStringIfTainted("File", _ as JSONArray)
     0 * _
   }
 
@@ -61,12 +61,12 @@ class JSONArrayInstrumentationTest extends AgentTestRunner {
 
     then:
     name == "File"
-    1 * module.taintIfTainted(_ as JSONObject, json)
-    2 * module.taintIfTainted(_ as JSONObject, _ as JSONTokener)
-    2 * module.taintIfTainted(_ as JSONObject, _ as JSONObject)
-    1 * module.taintIfTainted(_ as JSONTokener, json)
-    2 * module.taintIfTainted(_ as JSONArray, _ as JSONObject)
-    1 * module.taintIfTainted("File", _ as JSONArray)
+    1 * module.taintObjectIfTainted(_ as JSONObject, json)
+    2 * module.taintObjectIfTainted(_ as JSONObject, _ as JSONTokener)
+    2 * module.taintObjectIfTainted(_ as JSONObject, _ as JSONObject)
+    1 * module.taintObjectIfTainted(_ as JSONTokener, json)
+    2 * module.taintObjectIfTainted(_ as JSONArray, _ as JSONObject)
+    1 * module.taintStringIfTainted("File", _ as JSONArray)
     0 * _
   }
 }

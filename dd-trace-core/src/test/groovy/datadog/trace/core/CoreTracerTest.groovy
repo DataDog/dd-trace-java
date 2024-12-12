@@ -11,22 +11,24 @@ import datadog.trace.api.Config
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.remoteconfig.ServiceNameCollector
 import datadog.trace.api.sampling.PrioritySampling
+import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.common.sampling.AllSampler
 import datadog.trace.common.sampling.PrioritySampler
 import datadog.trace.common.sampling.RateByServiceTraceSampler
 import datadog.trace.common.sampling.Sampler
-import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.common.writer.DDAgentWriter
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.LoggingWriter
 import datadog.trace.core.datastreams.DataStreamContextExtractor
 import datadog.trace.core.propagation.HttpCodec
+import datadog.trace.core.tagprocessor.TagsPostProcessorFactory
 import datadog.trace.core.test.DDCoreSpecification
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import spock.lang.Timeout
 
 import java.nio.charset.StandardCharsets
+import java.util.concurrent.CopyOnWriteArrayList
 
 import static datadog.trace.api.config.GeneralConfig.ENV
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_ENABLED
@@ -456,7 +458,7 @@ class CoreTracerTest extends DDCoreSpecification {
 
     then:
     tracer.captureTraceConfig().tracingTags == expectedValue
-    tracer.captureTraceConfig().getMergedSpanTags() == expectedValue
+    tracer.captureTraceConfig().mergedTracerTags == expectedValue
     when:
     updater.remove(key, null)
     updater.commit()
@@ -542,6 +544,32 @@ class CoreTracerTest extends DDCoreSpecification {
     null      | "test"
     "some"    | "some"
   }
+
+  def "test dd_version exists only if service == dd_service"() {
+    setup:
+    injectSysConfig(SERVICE_NAME, "dd_service_name")
+    injectSysConfig(VERSION, "1.0.0")
+    TagsPostProcessorFactory.withAddBaseService(true)
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
+
+    when:
+    def span = tracer.buildSpan("def").withTag(SERVICE_NAME,"foo").start()
+    span.finish()
+    then:
+    span.getServiceName() == "foo"
+    span.getTags().containsKey("version") == false
+
+    when:
+    def span2 = tracer.buildSpan("abc").start()
+    span2.finish()
+    then:
+    span2.getServiceName() == "dd_service_name"
+    span2.getTags()["version"] == "1.0.0"
+
+    cleanup:
+    tracer?.close()
+  }
+
 
   def "reject configuration when target service+env mismatch"() {
     setup:
@@ -669,6 +697,48 @@ class CoreTracerTest extends DDCoreSpecification {
     "service" | "env" | "service"     | "ENV"
     "service" | "env" | "SERVICE"     | "ENV"
     "SERVICE" | "ENV" | "service"     | "env"
+  }
+
+  def "flushes on tracer close if configured to do so"() {
+    given:
+    def writer = new WriterWithExplicitFlush()
+    def tracer = tracerBuilder().writer(writer).flushOnClose(true).build()
+
+    when:
+    tracer.buildSpan('my_span').start().finish()
+    tracer.close()
+
+    then:
+    !writer.flushedTraces.empty
+  }
+}
+
+class WriterWithExplicitFlush implements datadog.trace.common.writer.Writer {
+  final List<List<DDSpan>> writtenTraces = new CopyOnWriteArrayList<>()
+  final List<List<DDSpan>> flushedTraces = new CopyOnWriteArrayList<>()
+
+  @Override
+  void write(List<DDSpan> trace) {
+    writtenTraces.add(trace)
+  }
+
+  @Override
+  void start() {
+  }
+
+  @Override
+  boolean flush() {
+    flushedTraces.addAll(writtenTraces)
+    writtenTraces.clear()
+    return true
+  }
+
+  @Override
+  void close() {
+  }
+
+  @Override
+  void incrementDropCounts(int spanCount) {
   }
 }
 

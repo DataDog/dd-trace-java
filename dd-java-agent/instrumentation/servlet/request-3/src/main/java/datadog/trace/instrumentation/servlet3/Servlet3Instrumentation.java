@@ -27,7 +27,7 @@ public final class Servlet3Instrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     // Avoid matching servlet 2 which has its own instrumentation
     return hasClassNamed("javax.servlet.AsyncEvent");
   }

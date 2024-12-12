@@ -1,7 +1,6 @@
 package datadog.trace.civisibility.events;
 
-import static datadog.trace.util.Strings.toJson;
-
+import datadog.json.JsonWriter;
 import datadog.trace.api.DisableTestTrace;
 import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.api.civisibility.DDTestSuite;
@@ -21,7 +20,6 @@ import datadog.trace.civisibility.domain.TestImpl;
 import datadog.trace.civisibility.domain.TestSuiteImpl;
 import java.lang.reflect.Method;
 import java.util.Collection;
-import java.util.Collections;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.objectweb.asm.Type;
@@ -76,11 +74,21 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
       }
     }
     if (categories != null && !categories.isEmpty()) {
-      testSuite.setTag(
-          Tags.TEST_TRAITS, toJson(Collections.singletonMap("category", toJson(categories)), true));
+      testSuite.setTag(Tags.TEST_TRAITS, getTestTraits(categories));
     }
 
     inProgressTestSuites.put(descriptor, testSuite);
+  }
+
+  private String getTestTraits(Collection<String> categories) {
+    try (JsonWriter writer = new JsonWriter()) {
+      writer.beginObject().name("category").beginArray();
+      for (String category : categories) {
+        writer.value(category);
+      }
+      writer.endArray().endObject();
+      return writer.toString();
+    }
   }
 
   @Override
@@ -132,9 +140,17 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
     }
 
     TestSuiteImpl testSuite = inProgressTestSuites.get(suiteDescriptor);
-    TestImpl test = testSuite.testStart(testName, testMethod, null);
+    if (testSuite == null) {
+      throw new IllegalStateException(
+          "Could not find test suite with descriptor "
+              + suiteDescriptor
+              + "; test descriptor: "
+              + descriptor);
+    }
 
-    TestIdentifier thisTest = new TestIdentifier(testSuiteName, testName, testParameters, null);
+    TestImpl test = testSuite.testStart(testName, testParameters, testMethod, null);
+
+    TestIdentifier thisTest = new TestIdentifier(testSuiteName, testName, testParameters);
     if (testModule.isNew(thisTest)) {
       test.setTag(Tags.TEST_IS_NEW, true);
     }
@@ -152,15 +168,14 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
       test.setTag(Tags.TEST_SOURCE_METHOD, testMethodName + Type.getMethodDescriptor(testMethod));
     }
     if (categories != null && !categories.isEmpty()) {
-      String json = toJson(Collections.singletonMap("category", toJson(categories)), true);
-      test.setTag(Tags.TEST_TRAITS, json);
+      test.setTag(Tags.TEST_TRAITS, getTestTraits(categories));
 
       for (String category : categories) {
         if (category.endsWith(InstrumentationBridge.ITR_UNSKIPPABLE_TAG)) {
           test.setTag(Tags.TEST_ITR_UNSKIPPABLE, true);
           metricCollector.add(CiVisibilityCountMetric.ITR_UNSKIPPABLE, 1, EventType.TEST);
 
-          if (testModule.isSkippable(thisTest)) {
+          if (testModule.shouldBeSkipped(thisTest)) {
             test.setTag(Tags.TEST_ITR_FORCED_RUN, true);
             metricCollector.add(CiVisibilityCountMetric.ITR_FORCED_RUN, 1, EventType.TEST);
           }
@@ -247,14 +262,24 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
   }
 
   @Override
-  public boolean isSkippable(TestIdentifier test) {
-    return testModule.isSkippable(test);
+  public boolean shouldBeSkipped(TestIdentifier test) {
+    return testModule.shouldBeSkipped(test);
   }
 
   @Override
   @Nonnull
   public TestRetryPolicy retryPolicy(TestIdentifier test) {
     return testModule.retryPolicy(test);
+  }
+
+  @Override
+  public boolean isNew(TestIdentifier test) {
+    return testModule.isNew(test);
+  }
+
+  @Override
+  public boolean isFlaky(TestIdentifier test) {
+    return testModule.isFlaky(test);
   }
 
   @Override

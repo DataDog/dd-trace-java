@@ -2,20 +2,21 @@ package com.datadog.debugger.util;
 
 import com.datadog.debugger.agent.ThirdPartyLibraries;
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.debugger.DebuggerContext.ClassNameFilter;
 import datadog.trace.util.ClassNameTrie;
 import java.util.Collections;
 import java.util.Set;
 
 /** A class to filter out classes based on their package name. */
-public class ClassNameFiltering {
+public class ClassNameFiltering implements ClassNameFilter {
 
   private final ClassNameTrie includeTrie;
   private final ClassNameTrie excludeTrie;
 
   public ClassNameFiltering(Config config) {
     this(
-        ThirdPartyLibraries.INSTANCE.getExcludes(config),
-        ThirdPartyLibraries.INSTANCE.getIncludes(config));
+        ThirdPartyLibraries.INSTANCE.getThirdPartyLibraries(config),
+        ThirdPartyLibraries.INSTANCE.getThirdPartyExcludes(config));
   }
 
   public ClassNameFiltering(Set<String> excludes) {

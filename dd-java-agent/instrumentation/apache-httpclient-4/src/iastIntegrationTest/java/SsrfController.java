@@ -41,11 +41,7 @@ public class SsrfController {
     boolean isUriRequest = requestType.equals(Request.HttpUriRequest.name());
     HttpHost host =
         new HttpHost(httpUriRequest.getURI().getHost(), httpUriRequest.getURI().getPort(), scheme);
-    HttpRequest httpRequest =
-        isUriRequest
-            ? httpUriRequest
-            : new BasicHttpRequest(
-                "GET", url.startsWith(scheme) ? url : url.substring(host.toURI().length()));
+    HttpRequest httpRequest = isUriRequest ? httpUriRequest : new BasicHttpRequest("GET", url);
     switch (executeMethod) {
       case REQUEST:
         client.execute(httpUriRequest);

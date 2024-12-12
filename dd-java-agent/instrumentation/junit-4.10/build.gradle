@@ -19,9 +19,6 @@ tasks.named("compileLatestDepTestGroovy").configure {
 dependencies {
   compileOnly group: 'junit', name: 'junit', version: '4.10'
 
-  // prevents kotlin plugin from including kotlin classes into the agent Jar
-  compileOnly deps.kotlin
-
   testImplementation testFixtures(project(':dd-java-agent:agent-ci-visibility'))
 
   // version used below is not the minimum one that we support,

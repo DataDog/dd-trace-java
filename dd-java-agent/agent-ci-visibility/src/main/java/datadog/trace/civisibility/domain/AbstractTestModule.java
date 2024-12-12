@@ -1,20 +1,18 @@
 package datadog.trace.civisibility.domain;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.api.civisibility.CIConstants.CI_VISIBILITY_INSTRUMENTATION_NAME;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.EventType;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.civisibility.InstrumentationType;
 import datadog.trace.civisibility.codeowners.Codeowners;
-import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
-import datadog.trace.civisibility.source.MethodLinesResolver;
+import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
@@ -22,20 +20,17 @@ import javax.annotation.Nullable;
 public abstract class AbstractTestModule {
 
   protected final AgentSpan span;
-  protected final long sessionId;
   protected final String moduleName;
   protected final Config config;
   protected final CiVisibilityMetricCollector metricCollector;
   protected final TestDecorator testDecorator;
   protected final SourcePathResolver sourcePathResolver;
   protected final Codeowners codeowners;
-  protected final MethodLinesResolver methodLinesResolver;
-  protected final CoverageProbeStoreFactory coverageProbeStoreFactory;
+  protected final LinesResolver linesResolver;
   private final Consumer<AgentSpan> onSpanFinish;
 
   public AbstractTestModule(
       AgentSpan.Context sessionSpanContext,
-      long sessionId,
       String moduleName,
       @Nullable Long startTime,
       InstrumentationType instrumentationType,
@@ -44,25 +39,28 @@ public abstract class AbstractTestModule {
       TestDecorator testDecorator,
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
-      MethodLinesResolver methodLinesResolver,
-      CoverageProbeStoreFactory coverageProbeStoreFactory,
+      LinesResolver linesResolver,
       Consumer<AgentSpan> onSpanFinish) {
-    this.sessionId = sessionId;
     this.moduleName = moduleName;
     this.config = config;
     this.metricCollector = metricCollector;
     this.testDecorator = testDecorator;
     this.sourcePathResolver = sourcePathResolver;
     this.codeowners = codeowners;
-    this.methodLinesResolver = methodLinesResolver;
-    this.coverageProbeStoreFactory = coverageProbeStoreFactory;
+    this.linesResolver = linesResolver;
     this.onSpanFinish = onSpanFinish;
 
+    AgentTracer.SpanBuilder spanBuilder =
+        AgentTracer.get()
+            .buildSpan(
+                CI_VISIBILITY_INSTRUMENTATION_NAME, testDecorator.component() + ".test_module")
+            .asChildOf(sessionSpanContext);
+
     if (startTime != null) {
-      span = startSpan(testDecorator.component() + ".test_module", sessionSpanContext, startTime);
-    } else {
-      span = startSpan(testDecorator.component() + ".test_module", sessionSpanContext);
+      spanBuilder = spanBuilder.withStartTimestamp(startTime);
     }
+
+    span = spanBuilder.start();
 
     span.setSpanType(InternalSpanTypes.TEST_MODULE_END);
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_TEST_MODULE);
@@ -71,11 +69,11 @@ public abstract class AbstractTestModule {
     span.setTag(Tags.TEST_MODULE, moduleName);
 
     span.setTag(Tags.TEST_MODULE_ID, span.getSpanId());
-    span.setTag(Tags.TEST_SESSION_ID, sessionId);
+    span.setTag(Tags.TEST_SESSION_ID, span.getTraceId());
 
     // setting status to skip initially,
     // as we do not know in advance whether the module will have any children
-    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_SKIP);
+    span.setTag(Tags.TEST_STATUS, TestStatus.skip);
 
     testDecorator.afterStart(span);
 
@@ -93,11 +91,11 @@ public abstract class AbstractTestModule {
   public void setErrorInfo(Throwable error) {
     span.setError(true);
     span.addThrowable(error);
-    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_FAIL);
+    span.setTag(Tags.TEST_STATUS, TestStatus.fail);
   }
 
   public void setSkipReason(String skipReason) {
-    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_SKIP);
+    span.setTag(Tags.TEST_STATUS, TestStatus.skip);
     if (skipReason != null) {
       span.setTag(Tags.TEST_SKIP_REASON, skipReason);
     }

@@ -139,7 +139,7 @@ class ApacheClientRequest extends ApacheHttpClientTest<ClassicHttpRequest> {
 }
 
 @Timeout(5)
-class ApacheClientRequestContext extends ApacheHttpClientTest<ClassicHttpRequest> {
+class ApacheClientNullHostRequestContext extends ApacheHttpClientTest<ClassicHttpRequest> {
   @Override
   ClassicHttpRequest createRequest(String method, URI uri) {
     return new BasicClassicHttpRequest(method, uri)
@@ -147,7 +147,7 @@ class ApacheClientRequestContext extends ApacheHttpClientTest<ClassicHttpRequest
 
   @Override
   CloseableHttpResponse executeRequest(ClassicHttpRequest request, URI uri) {
-    return client.execute(request, new BasicHttpContext())
+    return client.execute(null, request, new BasicHttpContext())
   }
 }
 
@@ -161,6 +161,19 @@ class ApacheClientRequestResponseHandler extends ApacheHttpClientTest<ClassicHtt
   @Override
   CloseableHttpResponse executeRequest(ClassicHttpRequest request, URI uri) {
     return client.execute(request, { CloseableHttpResponse response -> response })
+  }
+}
+
+@Timeout(5)
+class ApacheClientRequestContext extends ApacheHttpClientTest<ClassicHttpRequest> {
+  @Override
+  ClassicHttpRequest createRequest(String method, URI uri) {
+    return new BasicClassicHttpRequest(method, uri)
+  }
+
+  @Override
+  CloseableHttpResponse executeRequest(ClassicHttpRequest request, URI uri) {
+    return client.execute(request, new BasicHttpContext())
   }
 }
 

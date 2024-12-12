@@ -167,6 +167,11 @@ abstract class TomcatServletTest extends AbstractServletTest<Embedded, Context> 
     true
   }
 
+  @Override
+  boolean testSessionId() {
+    true
+  }
+
   boolean hasResponseSpan(ServerEndpoint endpoint) {
     def responseSpans = [REDIRECT, NOT_FOUND, ERROR, EXCEPTION, CUSTOM_EXCEPTION]
     return responseSpans.contains(endpoint)

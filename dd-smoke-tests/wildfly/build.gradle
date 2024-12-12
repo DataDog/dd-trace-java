@@ -1,15 +1,19 @@
 ext {
   serverName = 'wildfly'
-  serverModule = 'servlet'
+  //serverModule = 'servlet'
+  serverModule = 'wildfly'
   serverVersion = '15.0.0.Final'
   serverExtension = 'zip'
+  maxJavaVersionForTests = JavaVersion.VERSION_11
 }
 
 repositories {
   ivy {
     url 'https://download.jboss.org/'
     patternLayout {
-      artifact '/[organisation]/[revision]/[module]/[organisation]-[module]-[revision].[ext]'
+      // artifact '/[organisation]/[revision]/[module]/[organisation]-[module]-[revision].[ext]'
+      // we download the full EE profile and not the servlet minimal one
+      artifact '/[organisation]/[revision]/[organisation]-[revision].[ext]'
       metadataSources {
         artifact()
       }
@@ -80,12 +84,12 @@ spotless {
   }
 }
 
-def wildflyDir="${buildDir}/${serverName}-${serverModule}-${serverVersion}"
+def wildflyDir="${buildDir}/${serverName}-${serverVersion}"
 
 tasks.register("unzip", Copy) {
   dependsOn tasks.earBuild
   mustRunAfter tasks.compileTestGroovy
-  def zipFileNamePrefix = "servlet"
+  def zipFileNamePrefix = "wildfly"
   def zipPath = project.configurations.serverFile.find {
     it.name.startsWith(zipFileNamePrefix)
   }
@@ -101,6 +105,10 @@ tasks.register("unzip", Copy) {
 
   // When tests are disabled this would still be run, so disable this manually
   onlyIf { !project.rootProject.hasProperty("skipTests") }
+}
+
+tasks.withType(Jar).configureEach {
+  dependsOn tasks.unzip
 }
 
 tasks.register("deploy", Copy) {

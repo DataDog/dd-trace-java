@@ -1,15 +1,20 @@
 package datadog.trace.instrumentation.maven3;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
-import datadog.trace.api.config.CiVisibilityConfig;
+import datadog.trace.api.civisibility.domain.BuildSessionSettings;
 import datadog.trace.bootstrap.DatadogClassLoader;
 import datadog.trace.util.Strings;
 import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import org.apache.maven.artifact.versioning.ComparableVersion;
+import org.apache.maven.execution.MavenSession;
+import org.apache.maven.lifecycle.MavenExecutionPlan;
+import org.apache.maven.lifecycle.internal.GoalTask;
+import org.apache.maven.lifecycle.internal.LifecycleExecutionPlanCalculator;
+import org.apache.maven.lifecycle.internal.LifecycleTask;
 import org.apache.maven.model.Build;
 import org.apache.maven.model.Dependency;
 import org.apache.maven.model.InputLocation;
@@ -18,9 +23,14 @@ import org.apache.maven.model.Plugin;
 import org.apache.maven.model.PluginExecution;
 import org.apache.maven.plugin.MojoExecution;
 import org.apache.maven.project.MavenProject;
+import org.codehaus.plexus.PlexusContainer;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 class MavenProjectConfigurator {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(MavenProjectConfigurator.class);
 
   static final MavenProjectConfigurator INSTANCE = new MavenProjectConfigurator();
 
@@ -33,97 +43,85 @@ class MavenProjectConfigurator {
   private static final String JAVAC_COMPILER_ID = "javac";
   private static final String DATADOG_COMPILER_PLUGIN_ID = "DatadogCompilerPlugin";
 
-  private static final ComparableVersion LATE_SUBSTITUTION_SUPPORTED_VERSION =
-      new ComparableVersion("2.17");
   private static final String JACOCO_EXCL_CLASS_LOADERS_PROPERTY = "jacoco.exclClassLoaders";
 
   public void configureTracer(
+      MavenSession session,
       MavenProject project,
       MojoExecution mojoExecution,
-      Map<String, String> propagatedSystemProperties) {
-    Xpp3Dom configuration = mojoExecution.getConfiguration();
-
-    Xpp3Dom forkCount = configuration.getChild("forkCount");
-    if (forkCount != null && "0".equals(forkCount.getValue())) {
-      // tests will be executed inside this JVM, no need for additional configuration
+      Map<String, String> systemProperties,
+      Config config) {
+    if (!config.isCiVisibilityAutoConfigurationEnabled()) {
       return;
     }
 
-    StringBuilder modifiedArgLine = new StringBuilder();
-    // propagate to child process all "dd." system properties available in current process
-    for (Map.Entry<String, String> e : propagatedSystemProperties.entrySet()) {
-      modifiedArgLine.append("-D").append(e.getKey()).append('=').append(e.getValue()).append(" ");
+    StringBuilder addedArgLine = new StringBuilder();
+    for (Map.Entry<String, String> e : systemProperties.entrySet()) {
+      addedArgLine
+          .append("-D")
+          .append(e.getKey())
+          .append('=')
+          .append(escapeForCommandLine(e.getValue()))
+          .append(' ');
     }
 
-    Config config = Config.get();
     Integer ciVisibilityDebugPort = config.getCiVisibilityDebugPort();
     if (ciVisibilityDebugPort != null) {
-      modifiedArgLine
+      addedArgLine
           .append("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=")
           .append(ciVisibilityDebugPort)
-          .append(" ");
+          .append(' ');
     }
 
     String additionalArgs = config.getCiVisibilityAdditionalChildProcessJvmArgs();
     if (additionalArgs != null) {
-      modifiedArgLine.append(additionalArgs).append(" ");
+      addedArgLine.append(additionalArgs).append(' ');
     }
 
-    String moduleName = MavenUtils.getUniqueModuleName(project, mojoExecution);
-    modifiedArgLine
-        .append("-D")
-        .append(
-            Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_MODULE_NAME))
-        .append("='")
-        .append(moduleName)
-        .append("' ");
-
     File agentJar = config.getCiVisibilityAgentJarFile();
-    modifiedArgLine.append("-javaagent:").append(agentJar.toPath());
+    addedArgLine
+        .append("-javaagent:")
+        .append(escapeForCommandLine(String.valueOf(agentJar.toPath())));
 
-    Plugin plugin = mojoExecution.getPlugin();
-    Map<String, PluginExecution> pluginExecutions = plugin.getExecutionsAsMap();
-    PluginExecution pluginExecution = pluginExecutions.get(mojoExecution.getExecutionId());
-    Xpp3Dom executionConfiguration = (Xpp3Dom) pluginExecution.getConfiguration();
-
-    String argLine = MavenUtils.getConfigurationValue(executionConfiguration, "argLine");
-    boolean projectWideArgLineNeeded = argLine == null || !argLine.contains("{argLine}");
-
-    String finalArgLine =
-        (projectWideArgLineNeeded ? getReferenceToProjectWideArgLine(plugin) + " " : "")
-            + (argLine != null ? argLine + " " : "")
+    String existingArgLine = MavenUtils.getArgLine(session, project, mojoExecution);
+    String updatedArgLine =
+        (existingArgLine != null ? existingArgLine + " " : "")
             +
             // -javaagent that injects the tracer
             // has to be the last one,
             // since if there are other agents
             // we want to be able to instrument their code
             // (namely Jacoco's)
-            modifiedArgLine;
+            addedArgLine;
 
-    Xpp3Dom updatedExecutionConfiguration =
-        MavenUtils.setConfigurationValue(finalArgLine, executionConfiguration, "argLine");
-    pluginExecution.setConfiguration(updatedExecutionConfiguration);
+    Xpp3Dom configuration = mojoExecution.getConfiguration();
+    mojoExecution.setConfiguration(
+        MavenUtils.setXmlConfigurationValue(updatedArgLine, configuration, "argLine"));
   }
 
-  private static String getReferenceToProjectWideArgLine(Plugin plugin) {
-    String pluginVersion = plugin.getVersion();
-    ComparableVersion pluginVersionParsed =
-        new ComparableVersion(pluginVersion != null ? pluginVersion : "");
-    if (pluginVersionParsed.compareTo(LATE_SUBSTITUTION_SUPPORTED_VERSION) >= 0) {
-      return "@{argLine} ";
-    } else {
-      return "${argLine} ";
+  private String escapeForCommandLine(String value) {
+    return "'" + value.replace("'", "'\\''") + "'";
+  }
+
+  void configureCompilerPlugin(MavenProject project) {
+    Config config = Config.get();
+    if (!config.isCiVisibilityCompilerPluginAutoConfigurationEnabled()) {
+      return;
     }
-  }
 
-  void configureCompilerPlugin(MavenProject project, String compilerPluginVersion) {
     Plugin compilerPlugin = project.getPlugin(MAVEN_COMPILER_PLUGIN_KEY);
-    if (compilerPlugin == null || compilerPluginVersion == null) {
+    if (compilerPlugin == null) {
+      return;
+    }
+
+    String compilerPluginVersion = config.getCiVisibilityCompilerPluginVersion();
+    if (compilerPluginVersion == null) {
       return;
     }
 
     Xpp3Dom pluginConfiguration = (Xpp3Dom) compilerPlugin.getConfiguration();
-    String pluginCompilerId = MavenUtils.getConfigurationValue(pluginConfiguration, "compilerId");
+    String pluginCompilerId =
+        MavenUtils.getXmlConfigurationValue(pluginConfiguration, "compilerId");
     if (pluginCompilerId != null && !JAVAC_COMPILER_ID.equals(pluginCompilerId)) {
       return;
     }
@@ -131,7 +129,7 @@ class MavenProjectConfigurator {
     for (PluginExecution execution : compilerPlugin.getExecutions()) {
       Xpp3Dom configuration = (Xpp3Dom) execution.getConfiguration();
 
-      String compilerId = MavenUtils.getConfigurationValue(configuration, "compilerId");
+      String compilerId = MavenUtils.getXmlConfigurationValue(configuration, "compilerId");
       if (compilerId != null && !JAVAC_COMPILER_ID.equals(compilerId)) {
         // Javac plugin does not work with other compilers
         continue;
@@ -245,17 +243,43 @@ class MavenProjectConfigurator {
   }
 
   void configureJacoco(
-      MavenTestExecution testExecution, ModuleExecutionSettings moduleExecutionSettings) {
-    MavenProject project = testExecution.getProject();
+      MavenSession session, MavenProject project, BuildSessionSettings sessionSettings) {
     excludeDatadogClassLoaderFromJacocoInstrumentation(project);
-
-    if (!Config.get().isCiVisibilityCoverageSegmentsEnabled()
-            && !Config.get().isCiVisibilityJacocoPluginVersionProvided()
-        || testExecution.isRunsWithJacoco()) {
-      return;
+    if (Config.get().isCiVisibilityJacocoPluginVersionProvided()
+        && !runsWithJacoco(session, project)) {
+      configureJacocoPlugin(project, sessionSettings);
     }
+  }
 
-    configureJacocoPlugin(project, moduleExecutionSettings);
+  private boolean runsWithJacoco(MavenSession session, MavenProject project) {
+    try {
+      List<String> goals = session.getGoals();
+      List<Object> tasks = new ArrayList<>(goals.size());
+      for (String goal : goals) {
+        if (goal.indexOf(':') >= 0) {
+          // a plugin goal, e.g. "surefire:test"
+          tasks.add(new GoalTask(goal));
+        } else {
+          // a lifecycle phase, e.g. "clean"
+          tasks.add(new LifecycleTask(goal));
+        }
+      }
+      PlexusContainer container = MavenUtils.getContainer(session);
+      LifecycleExecutionPlanCalculator planCalculator =
+          container.lookup(LifecycleExecutionPlanCalculator.class);
+      MavenExecutionPlan executionPlan =
+          planCalculator.calculateExecutionPlan(session, project, tasks);
+      for (MojoExecution mojoExecution : executionPlan.getMojoExecutions()) {
+        if (MavenUtils.isJacocoInstrumentationExecution(mojoExecution)) {
+          return true;
+        }
+      }
+      return false;
+
+    } catch (Exception e) {
+      LOGGER.warn("Error while calculation execution plan for project {}", project.getName(), e);
+      return false;
+    }
   }
 
   private static void excludeDatadogClassLoaderFromJacocoInstrumentation(MavenProject project) {
@@ -274,7 +298,7 @@ class MavenProjectConfigurator {
   }
 
   private static void configureJacocoPlugin(
-      MavenProject project, ModuleExecutionSettings moduleExecutionSettings) {
+      MavenProject project, BuildSessionSettings sessionSettings) {
     Plugin jacocoPlugin = getJacocoPlugin(project);
     for (PluginExecution execution : jacocoPlugin.getExecutions()) {
       if (execution.getGoals().contains("prepare-agent")) {
@@ -288,7 +312,9 @@ class MavenProjectConfigurator {
     jacocoPlugin.addExecution(prepareAgentExecution);
 
     configureJacocoInstrumentedPackages(
-        prepareAgentExecution, moduleExecutionSettings.getCoverageEnabledPackages());
+        prepareAgentExecution,
+        sessionSettings.getCoverageIncludedPackages(),
+        sessionSettings.getCoverageExcludedPackages());
   }
 
   private static Plugin getJacocoPlugin(MavenProject project) {
@@ -321,20 +347,32 @@ class MavenProjectConfigurator {
   }
 
   private static void configureJacocoInstrumentedPackages(
-      PluginExecution execution, List<String> instrumentedPackages) {
-    Xpp3Dom includes = new Xpp3Dom("includes");
-    for (String instrumentedPackage : instrumentedPackages) {
-      if (Strings.isNotBlank(instrumentedPackage)) {
-        Xpp3Dom include = new Xpp3Dom("include");
-        include.setValue(instrumentedPackage);
-        includes.addChild(include);
+      PluginExecution execution, List<String> includedPackages, List<String> excludedPackages) {
+    Xpp3Dom configuration = new Xpp3Dom("configuration");
+    execution.setConfiguration(configuration);
+
+    if (!includedPackages.isEmpty()) {
+      Xpp3Dom includes = new Xpp3Dom("includes");
+      for (String instrumentedPackage : includedPackages) {
+        if (Strings.isNotBlank(instrumentedPackage)) {
+          Xpp3Dom include = new Xpp3Dom("include");
+          include.setValue(instrumentedPackage);
+          includes.addChild(include);
+        }
       }
+      configuration.addChild(includes);
     }
 
-    if (includes.getChildCount() > 0) {
-      Xpp3Dom configuration = new Xpp3Dom("configuration");
-      configuration.addChild(includes);
-      execution.setConfiguration(configuration);
+    if (!excludedPackages.isEmpty()) {
+      Xpp3Dom excludes = new Xpp3Dom("excludes");
+      for (String excludedPackage : excludedPackages) {
+        if (Strings.isNotBlank(excludedPackage)) {
+          Xpp3Dom exclude = new Xpp3Dom("exclude");
+          exclude.setValue(excludedPackage);
+          excludes.addChild(exclude);
+        }
+      }
+      configuration.addChild(excludes);
     }
   }
 }

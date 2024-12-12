@@ -1,7 +1,11 @@
 package datadog.smoketest;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import datadog.trace.api.config.ProfilingConfig;
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -59,10 +63,10 @@ final class SmokeTestUtils {
                 "-XX:+IgnoreUnrecognizedVMOptions",
                 "-XX:+UnlockCommercialFeatures",
                 "-XX:+FlightRecorder",
-                "-Ddd." + ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE + "=" + templateOverride,
-                "-cp",
-                profilingShadowJar(),
-                targetClass));
+                "-Ddd."
+                    + ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE
+                    + "="
+                    + templateOverride));
     if (System.getenv("TEST_LIBASYNC") != null) {
       command.add(
           "-Ddd."
@@ -70,6 +74,7 @@ final class SmokeTestUtils {
               + "="
               + System.getenv("TEST_LIBASYNC"));
     }
+    command.addAll(Arrays.asList("-cp", profilingShadowJar(), targetClass));
     command.addAll(Arrays.asList(args));
     final ProcessBuilder processBuilder = new ProcessBuilder(command);
     processBuilder.directory(new File(buildDirectory()));
@@ -96,5 +101,21 @@ final class SmokeTestUtils {
 
   static String buildDirectory() {
     return System.getProperty("datadog.smoketest.builddir");
+  }
+
+  static void checkProcessSuccessfullyEnd(final Process process, final Path log)
+      throws InterruptedException {
+    int exitCode = process.waitFor();
+    if (exitCode != 0) {
+      try {
+        System.out.println(
+            "=== Profiling application log start ==="
+                + String.join("\n", Files.readAllLines(log))
+                + "=== Profiling application log end ===");
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    }
+    assertEquals(0, exitCode, "Failed to run profiling process, exited in error");
   }
 }

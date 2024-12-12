@@ -75,28 +75,26 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     return RequestImplementationClassLoaderMatcher.INSTANCE;
   }
 
   public static class RequestImplementationClassLoaderMatcher
-      implements ElementMatcher<ClassLoader> {
-    public static final ElementMatcher<ClassLoader> INSTANCE =
+      extends ElementMatcher.Junction.ForNonNullValues<ClassLoader> {
+    public static final ElementMatcher.Junction<ClassLoader> INSTANCE =
         new RequestImplementationClassLoaderMatcher();
 
     @Override
-    public boolean matches(ClassLoader cl) {
-      InputStream is = cl.getResourceAsStream("org/eclipse/jetty/server/Request.class");
-      if (is == null) {
-        return false;
-      }
-      try {
+    protected boolean doMatch(ClassLoader cl) {
+      try (InputStream is = cl.getResourceAsStream("org/eclipse/jetty/server/Request.class")) {
+        if (is == null) {
+          return false;
+        }
         ClassReader classReader = new ClassReader(is);
         final boolean[] foundField = new boolean[1];
         final boolean[] foundGetParameters = new boolean[1];
         classReader.accept(new ClassLoaderMatcherClassVisitor(foundField, foundGetParameters), 0);
         return !foundField[0] && foundGetParameters[0];
-
       } catch (IOException e) {
         return false;
       }

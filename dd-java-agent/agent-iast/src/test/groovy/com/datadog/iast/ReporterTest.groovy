@@ -17,9 +17,11 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.AgentTaskScheduler
+import datadog.trace.util.stacktrace.StackTraceEvent
 import org.skyscreamer.jsonassert.JSONAssert
 import spock.lang.Shared
 
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -39,6 +41,58 @@ class ReporterTest extends DDSpecification {
 
   void 'basic vulnerability reporting'() {
     given:
+    final Reporter reporter = new Reporter()
+    final traceSegment = Mock(TraceSegment)
+    final ctx = new IastRequestContext(noOpTaintedObjects())
+    final reqCtx = Mock(RequestContext)
+    final spanId = 123456
+    VulnerabilityBatch batch = null
+    Map stackTraceBatch = new ConcurrentHashMap()
+
+    final span = Stub(AgentSpan)
+    span.getRequestContext() >> reqCtx
+    span.getSpanId() >> spanId
+
+    final v = new Vulnerability(
+      VulnerabilityType.WEAK_HASH,
+      Location.forSpanAndStack(span, new StackTraceElement("foo", "foo", "foo", 1)),
+      new Evidence("MD5")
+      )
+
+    when:
+    reporter.report(span, v)
+
+    then:
+    1 * reqCtx.getTraceSegment() >> traceSegment
+    1 * reqCtx.getData(RequestContextSlot.IAST) >> ctx
+    1 * traceSegment.getDataTop('iast') >> null
+    1 * traceSegment.setDataTop('iast', _) >> { batch = it[1] as VulnerabilityBatch }
+    JSONAssert.assertEquals('''{
+      "vulnerabilities": [
+        {
+          "evidence": { "value":"MD5"},
+          "hash":1042880134,
+          "location": {
+            "spanId":123456,
+            "line":1,
+            "path": "foo",
+            "method": "foo"
+          },
+          "stackId":"1",
+          "type":"WEAK_HASH"
+        }
+      ]
+    }''', batch.toString(), true)
+    1 * traceSegment.setTagTop('asm.keep', true)
+    1 * traceSegment.setTagTop('_dd.p.appsec', true)
+    1 * reqCtx.getOrCreateMetaStructTop('_dd.stack', _)  >> { stackTraceBatch }
+    assertStackTrace(stackTraceBatch, v)
+    0 * _
+  }
+
+  void 'vulnerability reporting without stack'() {
+    given:
+    injectSysConfig("iast.stacktrace.enabled", "false")
     final Reporter reporter = new Reporter()
     final traceSegment = Mock(TraceSegment)
     final ctx = new IastRequestContext(noOpTaintedObjects())
@@ -79,7 +133,8 @@ class ReporterTest extends DDSpecification {
         }
       ]
     }''', batch.toString(), true)
-    1 * traceSegment.setTagTop('manual.keep', true)
+    1 * traceSegment.setTagTop('asm.keep', true)
+    1 * traceSegment.setTagTop('_dd.p.appsec', true)
     0 * _
   }
 
@@ -88,11 +143,10 @@ class ReporterTest extends DDSpecification {
     final Reporter reporter = new Reporter()
     final traceSegment = Mock(TraceSegment)
     final ctx = new IastRequestContext(noOpTaintedObjects())
-    final reqCtx = Stub(RequestContext)
+    final reqCtx = Mock(RequestContext)
     final spanId = 123456
-    reqCtx.getData(RequestContextSlot.IAST) >> ctx
-    reqCtx.getTraceSegment() >> traceSegment
     VulnerabilityBatch batch = null
+    Map stackTraceBatch = new ConcurrentHashMap()
 
     final span = Stub(AgentSpan)
     span.getRequestContext() >> reqCtx
@@ -114,9 +168,12 @@ class ReporterTest extends DDSpecification {
     reporter.report(span, v2)
 
     then:
+    1 * reqCtx.getData(RequestContextSlot.IAST) >> ctx
+    2 * reqCtx.getTraceSegment() >> traceSegment
     // first vulnerability
     1 * traceSegment.getDataTop('iast') >> null
     1 * traceSegment.setDataTop('iast', _) >> { batch = it[1] as VulnerabilityBatch }
+    2 * reqCtx.getOrCreateMetaStructTop('_dd.stack', _)  >> { stackTraceBatch }
     // second vulnerability
     1 * traceSegment.getDataTop('iast') >> { return batch } // second vulnerability
     JSONAssert.assertEquals('''{
@@ -130,6 +187,7 @@ class ReporterTest extends DDSpecification {
             "path":"foo",
             "method": "foo"
           },
+          "stackId":"1",
           "type":"WEAK_HASH"
         },
         {
@@ -141,15 +199,18 @@ class ReporterTest extends DDSpecification {
             "path":"foo",
             "method": "foo"
           },
+          "stackId":"2",
           "type":"WEAK_HASH"
         }
       ]
     }''', batch.toString(), true)
-    1 * traceSegment.setTagTop('manual.keep', true)
+    1 * traceSegment.setTagTop('asm.keep', true)
+    1 * traceSegment.setTagTop('_dd.p.appsec', true)
+    assertStackTrace(stackTraceBatch, [v1, v2] as Vulnerability[])
     0 * _
   }
 
-  void 'null span creates a new one before reporting'() {
+  void 'null span creates a new one before reporting #v.type.name()'() {
     given:
     final tracerAPI = Mock(TracerAPI)
     AgentTracer.forceRegister(tracerAPI)
@@ -180,29 +241,24 @@ class ReporterTest extends DDSpecification {
     0 * _
 
     when:
-    def newSpanId = null
-    def newServiceName = null
-    if(v.getType() instanceof VulnerabilityType.HeaderVulnerabilityType){
-      newServiceName = v.getLocation().getServiceName()
-    }else{
-      newSpanId =  v.getLocation().getSpanId()
-    }
+    def newSpanId = v.getLocation().getSpanId()
+    def newServiceName = v.getLocation().getServiceName()
     def newHash = v.getHash()
 
     then:
-    if(v.getType() instanceof VulnerabilityType.HeaderVulnerabilityType){
-      assert newServiceName == serviceName
+    assert newServiceName == serviceName
+    assert newSpanId == spanId
+    if (hashServiceName) {
       assert newHash != hash
-    }else{
-      assert newSpanId == spanId
+    } else {
       assert newHash == hash
     }
 
     where:
-    v | _
-    defaultVulnerability() | _
-    cookieVulnerability() | _
-    headerVulnerability() | _
+    v                      | hashServiceName
+    defaultVulnerability() | false
+    cookieVulnerability()  | false
+    headerVulnerability()  | true
   }
 
   void 'no spans are create if duplicates are reported'() {
@@ -268,13 +324,15 @@ class ReporterTest extends DDSpecification {
 
     then:
     noExceptionThrown()
-    1 * span.getRequestContext() >> reqCtx
+    2 * span.getRequestContext() >> reqCtx // first time to build the batch vulnerability, second time to build the stack trace
     1 * reqCtx.getData(RequestContextSlot.IAST) >> null
     1 * reqCtx.getTraceSegment() >> traceSegment
     1 * traceSegment.getDataTop('iast') >> null
     1 * traceSegment.setDataTop('iast', _ as VulnerabilityBatch)
-    1 * traceSegment.setTagTop('manual.keep', true)
+    1 * traceSegment.setTagTop('asm.keep', true)
+    1 * traceSegment.setTagTop('_dd.p.appsec', true)
     1 * traceSegment.setTagTop('_dd.iast.enabled', 1)
+    1 * reqCtx.getOrCreateMetaStructTop('_dd.stack', _) >> new ConcurrentHashMap<>()
     0 * _
   }
 
@@ -483,6 +541,7 @@ class ReporterTest extends DDSpecification {
     final reqCtx = Stub(RequestContext) {
       it.getData(RequestContextSlot.IAST) >> ctx
       it.getTraceSegment() >> traceSegment
+      it.getOrCreateMetaStructTop('_dd.stack', _) >> new ConcurrentHashMap<>()
     }
     final spanId = 123456
     final span = Mock(AgentSpan)
@@ -510,5 +569,21 @@ class ReporterTest extends DDSpecification {
   private Vulnerability headerVulnerability(){
     return new Vulnerability(
       VulnerabilityType.XCONTENTTYPE_HEADER_MISSING, Location.forSpan(null), null)
+  }
+
+  private void assertStackTrace(Map batch, Vulnerability[] vulnerabilities) {
+    assert batch.get("vulnerability").size() == vulnerabilities.size()
+    StackTraceEvent currentStackTrace = null
+    for (int i = 0; i < vulnerabilities.size(); i++) {
+      for (StackTraceEvent event : batch.get("vulnerability")) {
+        if(event.getId() == vulnerabilities[i].getStackId()) {
+          currentStackTrace = event
+          break
+        }
+      }
+    }
+    assert currentStackTrace != null
+    assert currentStackTrace.getLanguage() == "java"
+    assert currentStackTrace.getFrames() != null
   }
 }

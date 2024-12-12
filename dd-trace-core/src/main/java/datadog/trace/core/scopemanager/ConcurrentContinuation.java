@@ -64,7 +64,7 @@ final class ConcurrentContinuation extends AbstractContinuation {
   @Override
   public void cancel() {
     if (tryClose()) {
-      trace.cancelContinuation(this);
+      traceCollector.cancelContinuation(this);
     }
     ContinuableScopeManager.log.debug(
         "t_id={} -> canceling continuation {}", spanUnderScope.getTraceId(), this);

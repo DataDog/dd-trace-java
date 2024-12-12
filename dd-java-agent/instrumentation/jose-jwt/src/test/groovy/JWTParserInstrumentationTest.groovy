@@ -29,7 +29,7 @@ class JWTParserInstrumentationTest extends AgentTestRunner {
     runUnderIastTrace { new com.auth0.jwt.impl.JWTParser().parsePayload(payload) }
 
     then:
-    1 * propagationModule.taint(iastCtx, payload, SourceTypes.REQUEST_HEADER_VALUE)
+    1 * propagationModule.taintString(iastCtx, payload, SourceTypes.REQUEST_HEADER_VALUE)
     0 * _
   }
 
@@ -43,11 +43,11 @@ class JWTParserInstrumentationTest extends AgentTestRunner {
     runUnderIastTrace { com.nimbusds.jose.util.JSONObjectUtils.parse(json) }
 
     then:
-    1 * propagationModule.taint(iastCtx, 'http://foobar.com', SourceTypes.REQUEST_HEADER_VALUE, 'iss')
-    1 * propagationModule.taint(iastCtx, 'foo', SourceTypes.REQUEST_HEADER_VALUE, 'sub')
-    1 * propagationModule.taint(iastCtx, 'foobar', SourceTypes.REQUEST_HEADER_VALUE, 'aud')
-    1 * propagationModule.taint(iastCtx, 'Mr Foo Bar', SourceTypes.REQUEST_HEADER_VALUE, 'name')
-    1 * propagationModule.taint(iastCtx, 'read', SourceTypes.REQUEST_HEADER_VALUE, 'scope')
+    1 * propagationModule.taintString(iastCtx, 'http://foobar.com', SourceTypes.REQUEST_HEADER_VALUE, 'iss')
+    1 * propagationModule.taintString(iastCtx, 'foo', SourceTypes.REQUEST_HEADER_VALUE, 'sub')
+    1 * propagationModule.taintString(iastCtx, 'foobar', SourceTypes.REQUEST_HEADER_VALUE, 'aud')
+    1 * propagationModule.taintString(iastCtx, 'Mr Foo Bar', SourceTypes.REQUEST_HEADER_VALUE, 'name')
+    1 * propagationModule.taintString(iastCtx, 'read', SourceTypes.REQUEST_HEADER_VALUE, 'scope')
     0 * _
   }
 

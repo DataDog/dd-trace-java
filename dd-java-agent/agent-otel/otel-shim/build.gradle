@@ -1,0 +1,11 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+minimumInstructionCoverage = 0.0
+minimumBranchCoverage = 0.0
+
+dependencies {
+  // minimum OpenTelemetry API version this shim is compatible with
+  compileOnly group: 'io.opentelemetry', name: 'opentelemetry-api', version: '1.4.0'
+
+  implementation project(':internal-api')
+}

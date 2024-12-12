@@ -34,7 +34,7 @@ final class SingleContinuation extends AbstractContinuation {
   @Override
   public void cancel() {
     if (USED.compareAndSet(this, 0, 1)) {
-      trace.cancelContinuation(this);
+      traceCollector.cancelContinuation(this);
     } else {
       ContinuableScopeManager.log.debug("Failed to close continuation {}. Already used.", this);
     }
@@ -47,7 +47,7 @@ final class SingleContinuation extends AbstractContinuation {
 
   @Override
   void cancelFromContinuedScopeClose() {
-    trace.cancelContinuation(this);
+    traceCollector.cancelContinuation(this);
   }
 
   @Override

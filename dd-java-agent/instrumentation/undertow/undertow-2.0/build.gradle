@@ -6,12 +6,29 @@ muzzle {
     skipVersions = ["2.2.25.Final"] // half propagated
     assertInverse = false
   }
+  pass {
+    group = "io.undertow"
+    module = "undertow-servlet"
+    versions = "[2.3,]"
+    javaVersion = "11"
+    skipVersions = ["2.2.25.Final"] // half propagated
+    assertInverse = false
+  }
+
+  pass {
+    name = "javax.servlet"
+    group = "io.undertow"
+    module = "undertow-servlet"
+    versions = "[2.0.0.Final,2.3)"
+    skipVersions = ["2.2.25.Final"] // half propagated
+    assertInverse = false
+  }
 }
 
 apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
-addTestSuiteForDir('latestDepForkedTest', 'test')
+addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
 dependencies {
   compileOnly group: 'io.undertow', name: 'undertow-servlet', version: '2.0.0.Final'
@@ -24,5 +41,5 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-3')
   testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-5')
 
-  latestDepTestImplementation group: 'io.undertow', name: 'undertow-servlet', version: '2.2.24.Final' // 2.2.25 is half propagated
+  latestDepTestImplementation group: 'io.undertow', name: 'undertow-servlet', version: '2.2.+'
 }

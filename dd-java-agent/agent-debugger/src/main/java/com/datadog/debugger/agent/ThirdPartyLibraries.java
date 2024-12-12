@@ -25,11 +25,11 @@ public class ThirdPartyLibraries {
 
   private ThirdPartyLibraries() {}
 
-  public Set<String> getExcludes(Config config) {
+  public Set<String> getThirdPartyLibraries(Config config) {
     try (InputStream inputStream = this.getClass().getResourceAsStream(FILE_NAME)) {
       InternalConfig defaults = readConfig(inputStream);
       Set<String> excludes =
-          config.getThirdPartyExcludes().stream()
+          config.getThirdPartyIncludes().stream()
               .filter(s -> !s.isEmpty())
               .collect(Collectors.toSet());
       excludes.addAll(defaults.getPrefixes());
@@ -40,8 +40,8 @@ public class ThirdPartyLibraries {
     }
   }
 
-  public Set<String> getIncludes(Config config) {
-    return config.getThirdPartyIncludes().stream()
+  public Set<String> getThirdPartyExcludes(Config config) {
+    return config.getThirdPartyExcludes().stream()
         .filter(s -> !s.isEmpty())
         .collect(Collectors.toSet());
   }

@@ -6,6 +6,7 @@ import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.oio.OioEventLoopGroup
 import io.netty.util.concurrent.DefaultEventExecutor
 import org.apache.tomcat.util.threads.TaskQueue
+import runnable.Descendant
 import spock.lang.Shared
 
 import java.util.concurrent.ExecutorService
@@ -41,7 +42,7 @@ class CrossedContextTest extends AgentTestRunner {
     pool.shutdownNow()
   }
 
-  def "concurrent #action are traced with correct lineage in #executor"() {
+  def "concurrent #action are traced with correct lineage in #executor.class.name"() {
     when:
     def sut = executor
     def fn = function
@@ -101,7 +102,7 @@ class CrossedContextTest extends AgentTestRunner {
     new org.apache.tomcat.util.threads.ThreadPoolExecutor(1, 1, 5, TimeUnit.SECONDS, new TaskQueue()) | "execution"  | executeRunnable
   }
 
-  def "netty event loop internal executions in #executor are traced with correct lineage" () {
+  def "netty event loop internal executions in #executor.class.name are traced with correct lineage" () {
     setup:
     ExecutorService pool = executor
     when:

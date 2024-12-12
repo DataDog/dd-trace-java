@@ -24,15 +24,21 @@ public class CurrentAppSecConfig {
   MergedAsmData mergedAsmData = new MergedAsmData(new HashMap<>());
   public final DirtyStatus dirtyStatus = new DirtyStatus();
 
+  @SuppressWarnings("unchecked")
   public void setDdConfig(AppSecConfig newConfig) {
     this.ddConfig = newConfig;
 
-    List<Map<String, Object>> rulesData =
-        (List<Map<String, Object>>) newConfig.getRawConfig().get("rules_data");
-    if (rulesData != null) {
-      mergedAsmData.addConfig(MergedAsmData.KEY_BUNDLED_RULE_DATA, rulesData);
+    final Map<String, Object> rawConfig = newConfig.getRawConfig();
+    List<Map<String, Object>> rules = (List<Map<String, Object>>) rawConfig.get("rules_data");
+    List<Map<String, Object>> exclusions =
+        (List<Map<String, Object>>) rawConfig.get("exclusion_data");
+    if (rules != null || exclusions != null) {
+      final AppSecData data = new AppSecData();
+      data.setRules(rules);
+      data.setExclusion(exclusions);
+      mergedAsmData.addConfig(MergedAsmData.KEY_BUNDLED_DATA, data);
     } else {
-      mergedAsmData.removeConfig(MergedAsmData.KEY_BUNDLED_RULE_DATA);
+      mergedAsmData.removeConfig(MergedAsmData.KEY_BUNDLED_DATA);
     }
   }
 
@@ -82,7 +88,6 @@ public class CurrentAppSecConfig {
 
     Map<String, Object> mso = new HashMap<>();
     if (dirtyStatus.rules) {
-      mso.put("metadata", ddConfig.getRawConfig().getOrDefault("metadata", Collections.emptyMap()));
       mso.put("rules", ddConfig.getRawConfig().getOrDefault("rules", Collections.emptyList()));
       mso.put(
           "processors",
@@ -100,7 +105,9 @@ public class CurrentAppSecConfig {
       mso.put("rules_override", getMergedRuleOverrides());
     }
     if (dirtyStatus.data) {
-      mso.put("rules_data", mergedAsmData.getMergedData());
+      final AppSecData data = mergedAsmData.getMergedData();
+      mso.put("rules_data", data.getRules());
+      mso.put("exclusion_data", data.getExclusion());
     }
     if (dirtyStatus.actions) {
       mso.put("actions", getMergedActions());
@@ -108,15 +115,20 @@ public class CurrentAppSecConfig {
 
     mso.put("version", ddConfig.getVersion() == null ? "2.1" : ddConfig.getVersion());
 
+    if (dirtyStatus.isAnyDirty()) {
+      mso.put("metadata", ddConfig.getRawConfig().getOrDefault("metadata", Collections.emptyMap()));
+    }
+
     if (log.isDebugEnabled()) {
       log.debug(
           "Providing WAF config with: "
-              + "rules: {}, custom_rules: {}, exclusions: {}, ruleOverrides: {}, rules_data: {}, actions: {}",
+              + "rules: {}, custom_rules: {}, exclusions: {}, ruleOverrides: {}, rules_data: {}, exclusion_data: {}, actions: {}",
           debugRuleSummary(mso),
           debugCustomRuleSummary(mso),
           debugExclusionsSummary(mso),
           debugRuleOverridesSummary(mso),
           debugRulesDataSummary(mso),
+          debugExclusionDataSummary(mso),
           debugActionsSummary(mso));
     }
     return AppSecConfig.valueOf(mso);
@@ -141,8 +153,22 @@ public class CurrentAppSecConfig {
     }
     return "["
         + rulesData.size()
-        + " data sets with ids "
+        + " rules data sets with ids "
         + rulesData.stream()
+            .map(rd -> String.valueOf(rd.get("id")))
+            .collect(Collectors.joining(", "))
+        + "]";
+  }
+
+  private static String debugExclusionDataSummary(Map<String, Object> mso) {
+    List<Map<String, Object>> exclusionData = (List<Map<String, Object>>) mso.get("exclusion_data");
+    if (exclusionData == null) {
+      return "<absent>";
+    }
+    return "["
+        + exclusionData.size()
+        + " exclusion data sets with ids "
+        + exclusionData.stream()
             .map(rd -> String.valueOf(rd.get("id")))
             .collect(Collectors.joining(", "))
         + "]";
@@ -197,11 +223,9 @@ public class CurrentAppSecConfig {
   }
 
   private List<Map<String, Object>> getMergedCustomRules() {
-    List<Map<String, Object>> customRules =
-        this.userConfigs.stream()
-            .map(uc -> uc.customRules)
-            .reduce(Collections.emptyList(), CurrentAppSecConfig::mergeMapsByIdKeepLatest);
-    return customRules;
+    return this.userConfigs.stream()
+        .map(uc -> uc.customRules)
+        .reduce(Collections.emptyList(), CurrentAppSecConfig::mergeMapsByIdKeepLatest);
   }
 
   private List<Map<String, Object>> getMergedExclusions() {

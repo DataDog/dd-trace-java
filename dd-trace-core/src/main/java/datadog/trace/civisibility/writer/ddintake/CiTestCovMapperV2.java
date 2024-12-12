@@ -7,6 +7,7 @@ import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.coverage.TestReport;
 import datadog.trace.api.civisibility.coverage.TestReportFileEntry;
@@ -27,11 +28,10 @@ import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
 import okhttp3.MultipartBody;
 import okhttp3.RequestBody;
 
@@ -44,7 +44,7 @@ public class CiTestCovMapperV2 implements RemoteMapper {
   private static final byte[] SPAN_ID = "span_id".getBytes(StandardCharsets.UTF_8);
   private static final byte[] FILES = "files".getBytes(StandardCharsets.UTF_8);
   private static final byte[] FILENAME = "filename".getBytes(StandardCharsets.UTF_8);
-  private static final byte[] SEGMENTS = "segments".getBytes(StandardCharsets.UTF_8);
+  private static final byte[] BITMAP = "bitmap".getBytes(StandardCharsets.UTF_8);
 
   private final int size;
   private final GrowableBuffer headerBuffer;
@@ -68,18 +68,17 @@ public class CiTestCovMapperV2 implements RemoteMapper {
   public void map(List<? extends CoreSpan<?>> trace, Writable writable) {
     long serializationStartTimestamp = System.currentTimeMillis();
 
-    List<TestReport> testReports =
-        trace.stream()
-            // only consider test spans, since children spans
-            // share test reports with their parents
-            .filter(CiTestCovMapperV2::isTestSpan)
-            .map(CiTestCovMapperV2::getTestReport)
-            .filter(Objects::nonNull)
-            .filter(TestReport::isNotEmpty)
-            .collect(Collectors.toList());
+    for (CoreSpan<?> span : trace) {
+      if (!isTestSpan(span)) {
+        continue;
+      }
 
-    for (TestReport testReport : testReports) {
-      Long testSessionId = testReport.getTestSessionId();
+      TestReport testReport = getTestReport(span);
+      if (testReport == null || !testReport.isNotEmpty()) {
+        continue;
+      }
+
+      DDTraceId testSessionId = testReport.getTestSessionId();
       Long testSuiteId = testReport.getTestSuiteId();
 
       int fieldCount = 2 + (testSessionId != null ? 1 : 0) + (testSuiteId != null ? 1 : 0);
@@ -88,7 +87,7 @@ public class CiTestCovMapperV2 implements RemoteMapper {
 
       if (testSessionId != null) {
         writable.writeUTF8(TEST_SESSION_ID);
-        writable.writeLong(testSessionId);
+        writable.writeLong(testSessionId.toLong());
       }
 
       if (testSuiteId != null) {
@@ -105,28 +104,22 @@ public class CiTestCovMapperV2 implements RemoteMapper {
       writable.startArray(fileEntries.size());
 
       for (TestReportFileEntry entry : fileEntries) {
-        writable.startMap(2);
+        BitSet coveredLines = entry.getCoveredLines();
+        boolean lineInfoPresent = coveredLines != null;
+
+        writable.startMap(1 + (lineInfoPresent ? 1 : 0));
 
         writable.writeUTF8(FILENAME);
         writable.writeString(entry.getSourceFileName(), null);
 
-        Collection<TestReportFileEntry.Segment> segments = entry.getSegments();
-
-        writable.writeUTF8(SEGMENTS);
-        writable.startArray(segments.size());
-
-        for (TestReportFileEntry.Segment segment : segments) {
-          writable.startArray(5);
-          writable.writeInt(segment.getStartLine());
-          writable.writeInt(segment.getStartColumn());
-          writable.writeInt(segment.getEndLine());
-          writable.writeInt(segment.getEndColumn());
-          writable.writeInt(segment.getNumberOfExecutions());
+        if (lineInfoPresent) {
+          writable.writeUTF8(BITMAP);
+          writable.writeBinary(coveredLines.toByteArray());
         }
       }
-    }
 
-    eventCount += testReports.size();
+      eventCount++;
+    }
     serializationTimeMillis += (int) (System.currentTimeMillis() - serializationStartTimestamp);
   }
 
@@ -140,7 +133,7 @@ public class CiTestCovMapperV2 implements RemoteMapper {
       TestContext test =
           ((AgentSpan) span).getRequestContext().getData(RequestContextSlot.CI_VISIBILITY);
       if (test != null) {
-        TestReportHolder probes = test.getCoverageProbeStore();
+        TestReportHolder probes = test.getCoverageStore();
         if (probes != null) {
           return probes.getReport();
         }

@@ -3,20 +3,21 @@ package datadog.trace.civisibility.domain.headless;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.CIConstants;
-import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
+import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.TagValue;
 import datadog.trace.api.civisibility.telemetry.tag.EarlyFlakeDetectionAbortReason;
+import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.civisibility.InstrumentationType;
 import datadog.trace.civisibility.codeowners.Codeowners;
-import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.AbstractTestSession;
+import datadog.trace.civisibility.domain.InstrumentationType;
 import datadog.trace.civisibility.domain.TestFrameworkSession;
-import datadog.trace.civisibility.source.MethodLinesResolver;
+import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
+import datadog.trace.civisibility.test.ExecutionStrategy;
 import datadog.trace.civisibility.utils.SpanUtils;
 import java.util.Collection;
 import java.util.Collections;
@@ -31,40 +32,40 @@ import javax.annotation.Nullable;
  */
 public class HeadlessTestSession extends AbstractTestSession implements TestFrameworkSession {
 
-  private final ModuleExecutionSettings moduleExecutionSettings;
+  private final ExecutionStrategy executionStrategy;
+  private final CoverageStore.Factory coverageStoreFactory;
 
   public HeadlessTestSession(
       String projectName,
       @Nullable Long startTime,
-      boolean supportedCiProvider,
+      Provider ciProvider,
       Config config,
       CiVisibilityMetricCollector metricCollector,
       TestDecorator testDecorator,
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
-      MethodLinesResolver methodLinesResolver,
-      CoverageProbeStoreFactory coverageProbeStoreFactory,
-      ModuleExecutionSettings moduleExecutionSettings) {
+      LinesResolver linesResolver,
+      CoverageStore.Factory coverageStoreFactory,
+      ExecutionStrategy executionStrategy) {
     super(
         projectName,
         startTime,
         InstrumentationType.HEADLESS,
-        supportedCiProvider,
+        ciProvider,
         config,
         metricCollector,
         testDecorator,
         sourcePathResolver,
         codeowners,
-        methodLinesResolver,
-        coverageProbeStoreFactory);
-    this.moduleExecutionSettings = moduleExecutionSettings;
+        linesResolver);
+    this.executionStrategy = executionStrategy;
+    this.coverageStoreFactory = coverageStoreFactory;
   }
 
   @Override
   public HeadlessTestModule testModuleStart(String moduleName, @Nullable Long startTime) {
     return new HeadlessTestModule(
         span.context(),
-        span.getSpanId(),
         moduleName,
         startTime,
         config,
@@ -72,9 +73,9 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
         testDecorator,
         sourcePathResolver,
         codeowners,
-        methodLinesResolver,
-        coverageProbeStoreFactory,
-        moduleExecutionSettings,
+        linesResolver,
+        coverageStoreFactory,
+        executionStrategy,
         this::propagateModuleTags);
   }
 

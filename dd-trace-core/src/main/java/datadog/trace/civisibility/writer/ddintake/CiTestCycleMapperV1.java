@@ -2,11 +2,13 @@ package datadog.trace.civisibility.writer.ddintake;
 
 import static datadog.communication.http.OkHttpUtils.gzippedMsgpackRequestBodyOf;
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
+import static datadog.json.JsonMapper.toJson;
 
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
-import datadog.trace.api.WellKnownTags;
+import datadog.trace.api.DDTraceId;
+import datadog.trace.api.civisibility.CiVisibilityWellKnownTags;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
@@ -19,17 +21,11 @@ import datadog.trace.common.writer.RemoteMapper;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.Metadata;
 import datadog.trace.core.MetadataConsumer;
-import datadog.trace.util.Strings;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import okhttp3.RequestBody;
 
 public class CiTestCycleMapperV1 implements RemoteMapper {
@@ -41,6 +37,21 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
   private static final byte[] ENV = "env".getBytes(StandardCharsets.UTF_8);
   private static final byte[] TYPE = "type".getBytes(StandardCharsets.UTF_8);
   private static final byte[] CONTENT = "content".getBytes(StandardCharsets.UTF_8);
+  private static final byte[] TEST_SESSION_ID =
+      Tags.TEST_SESSION_ID.getBytes(StandardCharsets.UTF_8);
+  private static final byte[] TEST_MODULE_ID = Tags.TEST_MODULE_ID.getBytes(StandardCharsets.UTF_8);
+  private static final byte[] TEST_SUITE_ID = Tags.TEST_SUITE_ID.getBytes(StandardCharsets.UTF_8);
+  private static final byte[] ITR_CORRELATION_ID =
+      Tags.ITR_CORRELATION_ID.getBytes(StandardCharsets.UTF_8);
+
+  private static final byte[] RUNTIME_NAME = Tags.RUNTIME_NAME.getBytes(StandardCharsets.UTF_8);
+  private static final byte[] RUNTIME_VENDOR = Tags.RUNTIME_VENDOR.getBytes(StandardCharsets.UTF_8);
+  private static final byte[] RUNTIME_VERSION =
+      Tags.RUNTIME_VERSION.getBytes(StandardCharsets.UTF_8);
+  private static final byte[] OS_ARCHITECTURE =
+      Tags.OS_ARCHITECTURE.getBytes(StandardCharsets.UTF_8);
+  private static final byte[] OS_PLATFORM = Tags.OS_PLATFORM.getBytes(StandardCharsets.UTF_8);
+  private static final byte[] OS_VERSION = Tags.OS_VERSION.getBytes(StandardCharsets.UTF_8);
 
   private static final UTF8BytesString SPAN_TYPE = UTF8BytesString.create("span");
 
@@ -48,27 +59,17 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
       Arrays.asList(
           Tags.TEST_SESSION_ID, Tags.TEST_MODULE_ID, Tags.TEST_SUITE_ID, Tags.ITR_CORRELATION_ID);
 
-  private final WellKnownTags wellKnownTags;
-  private final Collection<String> topLevelTags;
+  private final CiVisibilityWellKnownTags wellKnownTags;
   private final int size;
   private final GrowableBuffer headerBuffer;
   private final MsgPackWriter headerWriter;
   private final boolean compressionEnabled;
-  private int eventCount = 0;
-  private int serializationTimeMillis = 0;
+  private int eventCount;
+  private int serializationTimeMillis;
 
-  public CiTestCycleMapperV1(WellKnownTags wellKnownTags, boolean compressionEnabled) {
-    this(wellKnownTags, DEFAULT_TOP_LEVEL_TAGS, 5 << 20, compressionEnabled);
-  }
-
-  private CiTestCycleMapperV1(
-      WellKnownTags wellKnownTags,
-      Collection<String> topLevelTags,
-      int size,
-      boolean compressionEnabled) {
+  public CiTestCycleMapperV1(CiVisibilityWellKnownTags wellKnownTags, boolean compressionEnabled) {
     this.wellKnownTags = wellKnownTags;
-    this.topLevelTags = topLevelTags;
-    this.size = size;
+    this.size = 5 << 20;
     this.compressionEnabled = compressionEnabled;
     headerBuffer = new GrowableBuffer(16);
     headerWriter = new MsgPackWriter(headerBuffer);
@@ -79,11 +80,30 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
     long serializationStartTimestamp = System.currentTimeMillis();
 
     for (final CoreSpan<?> span : trace) {
+      DDTraceId testSessionId = span.getTag(Tags.TEST_SESSION_ID);
+      span.removeTag(Tags.TEST_SESSION_ID);
+
+      Number testModuleId = span.getTag(Tags.TEST_MODULE_ID);
+      span.removeTag(Tags.TEST_MODULE_ID);
+
+      Number testSuiteId = span.getTag(Tags.TEST_SUITE_ID);
+      span.removeTag(Tags.TEST_SUITE_ID);
+
+      String itrCorrelationId = span.getTag(Tags.ITR_CORRELATION_ID);
+      span.removeTag(Tags.ITR_CORRELATION_ID);
+
       int topLevelTagsCount = 0;
-      for (String topLevelTag : topLevelTags) {
-        if (span.getTag(topLevelTag) != null) {
-          topLevelTagsCount++;
-        }
+      if (testSessionId != null) {
+        topLevelTagsCount++;
+      }
+      if (testModuleId != null) {
+        topLevelTagsCount++;
+      }
+      if (testSuiteId != null) {
+        topLevelTagsCount++;
+      }
+      if (itrCorrelationId != null) {
+        topLevelTagsCount++;
       }
 
       UTF8BytesString type;
@@ -161,20 +181,21 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
         writable.writeUTF8(PARENT_ID);
         writable.writeUnsignedLong(parentId);
       }
-
-      for (String topLevelTag : topLevelTags) {
-        Object tagValue = span.getTag(topLevelTag);
-        if (tagValue != null) {
-          writable.writeString(topLevelTag, null);
-
-          if (tagValue instanceof Number) {
-            writable.writeObject(tagValue, null);
-          } else {
-            writable.writeObjectString(tagValue, null);
-          }
-
-          span.removeTag(topLevelTag);
-        }
+      if (testSessionId != null) {
+        writable.writeUTF8(TEST_SESSION_ID);
+        writable.writeObject(testSessionId.toLong(), null);
+      }
+      if (testModuleId != null) {
+        writable.writeUTF8(TEST_MODULE_ID);
+        writable.writeObject(testModuleId, null);
+      }
+      if (testSuiteId != null) {
+        writable.writeUTF8(TEST_SUITE_ID);
+        writable.writeObject(testSuiteId, null);
+      }
+      if (itrCorrelationId != null) {
+        writable.writeUTF8(ITR_CORRELATION_ID);
+        writable.writeObjectString(itrCorrelationId, null);
       }
 
       /* 1  */
@@ -219,7 +240,7 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
     headerWriter.startMap(1);
     /* 2,1 */
     headerWriter.writeUTF8(METADATA_ASTERISK);
-    headerWriter.startMap(3);
+    headerWriter.startMap(9);
     /* 2,1,1 */
     headerWriter.writeUTF8(ENV);
     headerWriter.writeUTF8(wellKnownTags.getEnv());
@@ -229,6 +250,24 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
     /* 2,1,3 */
     headerWriter.writeUTF8(LANGUAGE);
     headerWriter.writeUTF8(wellKnownTags.getLanguage());
+    /* 2,1,4 */
+    headerWriter.writeUTF8(RUNTIME_NAME);
+    headerWriter.writeUTF8(wellKnownTags.getRuntimeName());
+    /* 2,1,5 */
+    headerWriter.writeUTF8(RUNTIME_VENDOR);
+    headerWriter.writeUTF8(wellKnownTags.getRuntimeVendor());
+    /* 2,1,6 */
+    headerWriter.writeUTF8(RUNTIME_VERSION);
+    headerWriter.writeUTF8(wellKnownTags.getRuntimeVersion());
+    /* 2,1,7 */
+    headerWriter.writeUTF8(OS_ARCHITECTURE);
+    headerWriter.writeUTF8(wellKnownTags.getOsArch());
+    /* 2,1,8 */
+    headerWriter.writeUTF8(OS_PLATFORM);
+    headerWriter.writeUTF8(wellKnownTags.getOsPlatform());
+    /* 2,1,9 */
+    headerWriter.writeUTF8(OS_VERSION);
+    headerWriter.writeUTF8(wellKnownTags.getOsVersion());
     /* 3  */
     headerWriter.writeUTF8(EVENTS);
     headerWriter.startArray(eventCount);
@@ -318,7 +357,7 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
           if (!(value instanceof Iterable)) {
             writable.writeObjectString(value, null);
           } else {
-            String serializedValue = Strings.toJson((Iterable<String>) value);
+            String serializedValue = toJson((Collection<String>) value);
             writable.writeString(serializedValue, null);
           }
         }

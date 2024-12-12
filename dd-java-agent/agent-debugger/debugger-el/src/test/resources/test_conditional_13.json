@@ -1,0 +1,16 @@
+{
+  "dsl": "isEmpty(emptyStr) && isEmpty(emptyList) && isEmpty(emptyMap) && isEmpty(emptyArray) && isUndefined(@exception)",
+  "json": {
+    "and": [
+      {"eq": [{"ref": "boolVal"}, true]},
+      {"eq": [{"ref": "intVal"}, 1]},
+      {"eq": [{"ref": "longVal"}, 1]},
+      {"eq": [{"ref": "doubleVal"}, 1.0]},
+      {"eq": [{"ref": "strVal"}, "foo"]},
+      {"eq": [{"ref": "objVal"}, null]},
+      {"eq": [{"ref": "charVal"}, "a"]}
+    ]
+  }
+}
+
+

@@ -29,7 +29,7 @@ public class TestNGClassListenerInstrumentation extends InstrumenterModule.CiVis
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     // do not apply to TestNG 7.x and above
     // since those versions are handled by a different instrumentation
     return not(hasClassNamed("org.testng.annotations.CustomAttribute"));

@@ -86,7 +86,7 @@ public abstract class MultiMapInstrumentation extends InstrumenterModule.Iast
         final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
         final Source source = propagation.findSource(ctx, self);
         if (source != null) {
-          propagation.taint(ctx, result, source.getOrigin(), name);
+          propagation.taintString(ctx, result, source.getOrigin(), name);
         }
       }
     }
@@ -107,7 +107,7 @@ public abstract class MultiMapInstrumentation extends InstrumenterModule.Iast
         final Source source = propagation.findSource(ctx, self);
         if (source != null) {
           for (final String value : result) {
-            propagation.taint(ctx, value, source.getOrigin(), name);
+            propagation.taintString(ctx, value, source.getOrigin(), name);
           }
         }
       }
@@ -133,9 +133,9 @@ public abstract class MultiMapInstrumentation extends InstrumenterModule.Iast
             final String name = entry.getKey();
             final String value = entry.getValue();
             if (keys.add(name)) {
-              propagation.taint(ctx, name, nameOrigin, name);
+              propagation.taintString(ctx, name, nameOrigin, name);
             }
-            propagation.taint(ctx, value, source.getOrigin(), name);
+            propagation.taintString(ctx, value, source.getOrigin(), name);
           }
         }
       }
@@ -157,7 +157,7 @@ public abstract class MultiMapInstrumentation extends InstrumenterModule.Iast
         if (source != null) {
           final byte nameOrigin = namedSource(source.getOrigin());
           for (final String name : result) {
-            propagation.taint(ctx, name, nameOrigin, name);
+            propagation.taintString(ctx, name, nameOrigin, name);
           }
         }
       }

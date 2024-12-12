@@ -1,0 +1,23 @@
+muzzle {
+  pass {
+    group = 'com.fasterxml.jackson.core'
+    module = 'jackson-core'
+    versions = "[2.12.0, 2.16.0)"
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+final jacksonVersion = '2.12.0'
+dependencies {
+  compileOnly(group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: jacksonVersion)
+  compileOnly(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: jacksonVersion)
+
+  testImplementation(group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: jacksonVersion)
+  testImplementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: jacksonVersion)
+
+  latestDepTestImplementation group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.15.+'
+  latestDepTestImplementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.15.+'
+}

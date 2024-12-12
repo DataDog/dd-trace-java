@@ -24,7 +24,7 @@ public class ArmeriaHttpConnectionInstrumentation extends InstrumenterModule.Tra
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     return hasClassNamed("com.linecorp.armeria.server.ServiceRequestContext");
   }
 

@@ -5,6 +5,7 @@ import static org.objectweb.asm.Type.getMethodDescriptor;
 import static org.objectweb.asm.Type.getObjectType;
 
 import com.datadog.debugger.agent.Generated;
+import datadog.trace.util.Strings;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
@@ -16,6 +17,8 @@ import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.signature.SignatureReader;
 import org.objectweb.asm.signature.SignatureVisitor;
+import org.objectweb.asm.tree.AbstractInsnNode;
+import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldInsnNode;
 import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.tree.InsnList;
@@ -23,6 +26,7 @@ import org.objectweb.asm.tree.InsnNode;
 import org.objectweb.asm.tree.LdcInsnNode;
 import org.objectweb.asm.tree.LocalVariableNode;
 import org.objectweb.asm.tree.MethodInsnNode;
+import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.TypeInsnNode;
 
 /** Helper class for bytecode generation */
@@ -222,8 +226,10 @@ public class ASMHelper {
   }
 
   public static LocalVariableNode[] createLocalVarNodes(List<LocalVariableNode> sortedLocalVars) {
-    int maxIndex = sortedLocalVars.get(sortedLocalVars.size() - 1).index;
-    LocalVariableNode[] localVars = new LocalVariableNode[maxIndex + 1];
+    LocalVariableNode maxVarNode = sortedLocalVars.get(sortedLocalVars.size() - 1);
+    int maxIndex = maxVarNode.index;
+    org.objectweb.asm.Type localType = org.objectweb.asm.Type.getType(maxVarNode.desc);
+    LocalVariableNode[] localVars = new LocalVariableNode[maxIndex + localType.getSize()];
     for (LocalVariableNode localVariableNode : sortedLocalVars) {
       localVars[localVariableNode.index] = localVariableNode;
     }
@@ -240,16 +246,33 @@ public class ASMHelper {
     // https://docs.oracle.com/javase/specs/jvms/se8/html/jvms-2.html#jvms-2.6.1
     // so we reassigned local var in arg slots if they are empty
     if (argTypes.length < localVars.length) {
+      List<LocalVariableNode> uniqueSortedLocalVars = dedupLocalVars(sortedLocalVars);
       int slot = isStatic ? 0 : 1;
       int localVarTableIdx = slot;
       for (org.objectweb.asm.Type t : argTypes) {
-        if (localVars[slot] == null && localVarTableIdx < sortedLocalVars.size()) {
-          localVars[slot] = sortedLocalVars.get(localVarTableIdx);
+        if (slot >= localVars.length) {
+          break;
+        }
+        if (localVars[slot] == null && localVarTableIdx < uniqueSortedLocalVars.size()) {
+          localVars[slot] = uniqueSortedLocalVars.get(localVarTableIdx);
         }
         slot += t.getSize();
         localVarTableIdx++;
       }
     }
+  }
+
+  private static List<LocalVariableNode> dedupLocalVars(List<LocalVariableNode> sortedLocalVars) {
+    List<LocalVariableNode> uniqueSortedLocalVars = new ArrayList<>();
+    int maxIndex = sortedLocalVars.get(sortedLocalVars.size() - 1).index;
+    boolean[] usedIndexes = new boolean[maxIndex + 1];
+    for (LocalVariableNode localVariableNode : sortedLocalVars) {
+      if (!usedIndexes[localVariableNode.index]) {
+        uniqueSortedLocalVars.add(localVariableNode);
+        usedIndexes[localVariableNode.index] = true;
+      }
+    }
+    return uniqueSortedLocalVars;
   }
 
   public static void newInstance(InsnList insnList, org.objectweb.asm.Type type) {
@@ -267,6 +290,54 @@ public class ASMHelper {
             org.objectweb.asm.Type.getMethodDescriptor(org.objectweb.asm.Type.VOID_TYPE, argTypes),
             false));
     // stack: []
+  }
+
+  /** Checks if the given variable is in scope at the given location */
+  public static boolean isInScope(
+      MethodNode methodNode, LocalVariableNode variableNode, AbstractInsnNode location) {
+    AbstractInsnNode startScope =
+        variableNode.start != null ? variableNode.start : methodNode.instructions.getFirst();
+    AbstractInsnNode endScope =
+        variableNode.end != null ? variableNode.end : methodNode.instructions.getLast();
+    AbstractInsnNode insn = startScope;
+    while (insn != null && insn != endScope) {
+      if (insn == location) {
+        return true;
+      }
+      insn = insn.getNext();
+    }
+    return false;
+  }
+
+  public static boolean isStoreCompatibleType(
+      org.objectweb.asm.Type previousType, org.objectweb.asm.Type currentType) {
+    if (previousType == null || currentType == null) {
+      return false;
+    }
+    if (previousType.getSort() == currentType.getSort()) {
+      return true;
+    }
+    int previousSort = widenIntType(previousType.getSort());
+    int currentSort = widenIntType(currentType.getSort());
+    return previousSort == currentSort;
+  }
+
+  private static int widenIntType(int sort) {
+    switch (sort) {
+      case org.objectweb.asm.Type.BOOLEAN:
+      case org.objectweb.asm.Type.BYTE:
+      case org.objectweb.asm.Type.CHAR:
+      case org.objectweb.asm.Type.SHORT:
+        return org.objectweb.asm.Type.INT;
+    }
+    return sort;
+  }
+
+  public static String extractSuperClass(ClassNode classNode) {
+    if (classNode.superName == null) {
+      return Object.class.getTypeName();
+    }
+    return Strings.getClassName(classNode.superName);
   }
 
   /** Wraps ASM's {@link org.objectweb.asm.Type} with associated generic types */

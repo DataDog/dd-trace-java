@@ -43,14 +43,15 @@ class ScalatestTest extends CiVisibilityInstrumentationTest {
 
     where:
     testcaseName                       | tests                    | expectedTracesCount | skippedTests
-    "test-itr-skipping"                | [TestSucceed]            | 2                   | [new TestIdentifier("org.example.TestSucceed", "Example.add adds two numbers", null, null)]
+    "test-itr-skipping"                | [TestSucceed]            | 2                   | [new TestIdentifier("org.example.TestSucceed", "Example.add adds two numbers", null)]
     "test-itr-unskippable"             | [TestSucceedUnskippable] | 2                   | [
-      new TestIdentifier("org.example.TestSucceedUnskippable", "test should assert something", null, null)
+      new TestIdentifier("org.example.TestSucceedUnskippable", "test should assert something", null)
     ]
     "test-itr-unskippable-not-skipped" | [TestSucceedUnskippable] | 2                   | []
   }
 
   def "test flaky retries #testcaseName"() {
+    givenFlakyRetryEnabled(true)
     givenFlakyTests(retriedTests)
 
     runTests(tests)
@@ -60,14 +61,15 @@ class ScalatestTest extends CiVisibilityInstrumentationTest {
     where:
     testcaseName               | tests                     | expectedTracesCount | retriedTests
     "test-failed"              | [TestFailed]              | 2                   | []
-    "test-retry-failed"        | [TestFailed]              | 6                   | [new TestIdentifier("org.example.TestFailed", "Example.add adds two numbers", null, null)]
+    "test-retry-failed"        | [TestFailed]              | 6                   | [new TestIdentifier("org.example.TestFailed", "Example.add adds two numbers", null)]
     "test-retry-parameterized" | [TestFailedParameterized] | 2                   | [
-      new TestIdentifier("org.example.TestFailedParameterized", "addition should correctly add two numbers", null, null)
+      new TestIdentifier("org.example.TestFailedParameterized", "addition should correctly add two numbers", null)
     ]
-    "test-failed-then-succeed" | [TestFailedThenSucceed]   | 4                   | [new TestIdentifier("org.example.TestFailedThenSucceed", "Example.add adds two numbers", null, null)]
+    "test-failed-then-succeed" | [TestFailedThenSucceed]   | 4                   | [new TestIdentifier("org.example.TestFailedThenSucceed", "Example.add adds two numbers", null)]
   }
 
   def "test early flakiness detection #testcaseName"() {
+    givenEarlyFlakinessDetectionEnabled(true)
     givenKnownTests(knownTestsList)
 
     runTests(tests)
@@ -76,7 +78,7 @@ class ScalatestTest extends CiVisibilityInstrumentationTest {
 
     where:
     testcaseName                        | tests                  | expectedTracesCount | knownTestsList
-    "test-efd-known-test"               | [TestSucceed]          | 2                   | [new TestIdentifier("org.example.TestSucceed", "Example.add adds two numbers", null, null)]
+    "test-efd-known-test"               | [TestSucceed]          | 2                   | [new TestIdentifier("org.example.TestSucceed", "Example.add adds two numbers", null)]
     "test-efd-new-test"                 | [TestSucceed]          | 4                   | []
     "test-efd-new-slow-test"            | [TestSucceedSlow]      | 3                   | [] // is executed only twice
     "test-efd-faulty-session-threshold" | [TestSucceedMoreCases] | 8                   | []

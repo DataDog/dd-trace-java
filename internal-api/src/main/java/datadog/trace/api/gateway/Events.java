@@ -1,11 +1,13 @@
 package datadog.trace.api.gateway;
 
+import datadog.trace.api.UserIdCollectionMode;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -200,6 +202,110 @@ public final class Events<D> {
       graphqlServerRequestMessage() {
     return (EventType<BiFunction<RequestContext, Map<String, ?>, Flow<Void>>>)
         GRAPHQL_SERVER_REQUEST_MESSAGE;
+  }
+
+  static final int DATABASE_CONNECTION_ID = 16;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType DATABASE_CONNECTION =
+      new ET<>("database.connection", DATABASE_CONNECTION_ID);
+  /** A database connection */
+  @SuppressWarnings("unchecked")
+  public EventType<BiConsumer<RequestContext, String>> databaseConnection() {
+    return (EventType<BiConsumer<RequestContext, String>>) DATABASE_CONNECTION;
+  }
+
+  static final int DATABASE_SQL_QUERY_ID = 17;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType DATABASE_SQL_QUERY =
+      new ET<>("database.query", DATABASE_SQL_QUERY_ID);
+  /** A database sql query */
+  @SuppressWarnings("unchecked")
+  public EventType<BiFunction<RequestContext, String, Flow<Void>>> databaseSqlQuery() {
+    return (EventType<BiFunction<RequestContext, String, Flow<Void>>>) DATABASE_SQL_QUERY;
+  }
+
+  static final int GRPC_SERVER_METHOD_ID = 18;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType GRPC_SERVER_METHOD =
+      new ET<>("grpc.server.method", GRPC_SERVER_METHOD_ID);
+
+  @SuppressWarnings("unchecked")
+  public EventType<BiFunction<RequestContext, String, Flow<Void>>> grpcServerMethod() {
+    return (EventType<BiFunction<RequestContext, String, Flow<Void>>>) GRPC_SERVER_METHOD;
+  }
+
+  static final int NETWORK_CONNECTION_ID = 19;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType NETWORK_CONNECTION =
+      new ET<>("network.connection", NETWORK_CONNECTION_ID);
+
+  /** A I/O network URL */
+  @SuppressWarnings("unchecked")
+  public EventType<BiFunction<RequestContext, String, Flow<Void>>> networkConnection() {
+    return (EventType<BiFunction<RequestContext, String, Flow<Void>>>) NETWORK_CONNECTION;
+  }
+
+  static final int FILE_LOADED_ID = 20;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType FILE_LOADED = new ET<>("file.loaded", FILE_LOADED_ID);
+
+  /** A I/O file loaded */
+  @SuppressWarnings("unchecked")
+  public EventType<BiFunction<RequestContext, String, Flow<Void>>> fileLoaded() {
+    return (EventType<BiFunction<RequestContext, String, Flow<Void>>>) FILE_LOADED;
+  }
+
+  static final int REQUEST_SESSION_ID = 21;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType REQUEST_SESSION = new ET<>("request.session", REQUEST_SESSION_ID);
+
+  /** The session id of a request */
+  @SuppressWarnings("unchecked")
+  public EventType<BiFunction<RequestContext, String, Flow<Void>>> requestSession() {
+    return (EventType<BiFunction<RequestContext, String, Flow<Void>>>) REQUEST_SESSION;
+  }
+
+  static final int USER_ID = 22;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType USER = new ET<>("user", USER_ID);
+
+  /** A user with the mode used for the collection */
+  @SuppressWarnings("unchecked")
+  public EventType<TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>>> userId() {
+    return (EventType<TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>>>) USER;
+  }
+
+  static final int LOGIN_SUCCESS_ID = 23;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType LOGIN_SUCCESS = new ET<>("login.success", LOGIN_SUCCESS_ID);
+
+  /** The logged user with the mode used for the collection */
+  @SuppressWarnings("unchecked")
+  public EventType<TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>>>
+      loginSuccess() {
+    return (EventType<TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>>>)
+        LOGIN_SUCCESS;
+  }
+
+  static final int LOGIN_FAILURE_ID = 24;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType LOGIN_FAILURE = new ET<>("login.failure", LOGIN_FAILURE_ID);
+
+  /** The user tha failed to log in with the mode used for the collection */
+  @SuppressWarnings("unchecked")
+  public EventType<TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>>>
+      loginFailure() {
+    return (EventType<TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>>>)
+        LOGIN_FAILURE;
   }
 
   static final int MAX_EVENTS = nextId.get();

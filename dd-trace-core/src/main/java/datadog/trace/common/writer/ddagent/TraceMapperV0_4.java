@@ -2,8 +2,12 @@ package datadog.trace.common.writer.ddagent;
 
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
 
+import datadog.communication.serialization.Codec;
+import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.Writable;
+import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.common.writer.Payload;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.Metadata;
@@ -177,14 +181,64 @@ public final class TraceMapperV0_4 implements TraceMapper {
     }
   }
 
+  /**
+   * The MetaStruct field can safely be used with v4 agents and will be discarded for other
+   * versions.
+   *
+   * <p>Any type that needs to be serialized as part of the meta_struct field has to either be a JDK
+   * known type (primitives, wrappers, collections ...) or registered with {@link
+   * datadog.communication.serialization.Codec#Codec(Map)}, in the rest of the cases the {@code
+   * toString} representation of the object will be used instead
+   */
+  public static class MetaStructWriter {
+
+    private static final UTF8BytesString META_STRUCT = UTF8BytesString.create("meta_struct");
+    private static final int BUFFER_SIZE = 1 << 10;
+
+    private Writable writable;
+
+    MetaStructWriter withWritable(final Writable writable) {
+      this.writable = writable;
+      return this;
+    }
+
+    public void write(final Map<String, Object> metaStruct) {
+      writable.writeUTF8(META_STRUCT);
+      writable.startMap(metaStruct.size());
+      final GrowableBuffer buffer = new GrowableBuffer(BUFFER_SIZE);
+      final MsgPackWriter metaStructWriter = new MsgPackWriter(Codec.INSTANCE, buffer);
+      for (Map.Entry<String, Object> entry : metaStruct.entrySet()) {
+        writeMetaStructEntry(metaStructWriter, buffer, entry.getKey(), entry.getValue());
+      }
+    }
+
+    private void writeMetaStructEntry(
+        final MsgPackWriter writer,
+        final GrowableBuffer buffer,
+        final String key,
+        final Object value) {
+      buffer.mark();
+      try {
+        writer.writeObject(value, null);
+        writer.flush();
+        writable.writeString(key, null);
+        writable.writeBinary(buffer.slice());
+      } finally {
+        buffer.reset();
+      }
+    }
+  }
+
   private final MetaWriter metaWriter = new MetaWriter();
+  private final MetaStructWriter metaStructWriter = new MetaStructWriter();
 
   @Override
   public void map(List<? extends CoreSpan<?>> trace, final Writable writable) {
     writable.startArray(trace.size());
     for (int i = 0; i < trace.size(); i++) {
       final CoreSpan<?> span = trace.get(i);
-      writable.startMap(12);
+      final Map<String, Object> metaStruct = span.getMetaStruct();
+      writable.startMap(metaStruct.isEmpty() ? 12 : 13);
       /* 1  */
       writable.writeUTF8(SERVICE);
       writable.writeString(span.getServiceName(), null);
@@ -220,6 +274,10 @@ public final class TraceMapperV0_4 implements TraceMapper {
           metaWriter
               .withWritable(writable)
               .withWriteSamplingPriority(i == 0 || i == trace.size() - 1));
+      if (!metaStruct.isEmpty()) {
+        /* 13 */
+        metaStructWriter.withWritable(writable).write(metaStruct);
+      }
     }
   }
 

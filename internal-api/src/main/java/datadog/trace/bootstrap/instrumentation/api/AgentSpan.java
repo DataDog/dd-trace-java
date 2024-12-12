@@ -9,7 +9,7 @@ import datadog.trace.api.sampling.PrioritySampling;
 import java.util.List;
 import java.util.Map;
 
-public interface AgentSpan extends MutableSpan, IGSpanInfo, ImplicitContextKeyed {
+public interface AgentSpan extends MutableSpan, IGSpanInfo, ImplicitContextKeyed, WithAgentSpan {
 
   DDTraceId getTraceId();
 
@@ -141,9 +141,19 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo, ImplicitContextKeyed
 
   void addLink(AgentSpanLink link);
 
+  boolean isRequiresPostProcessing();
+
   @Override
   default ScopedContext storeInto(ScopedContext context) {
     return context.with(ScopedContextKey.SPAN_KEY, this);
+  }
+
+  AgentSpan setMetaStruct(final String field, final Object value);
+
+  boolean isOutbound();
+
+  default AgentSpan asAgentSpan() {
+    return this;
   }
 
   interface Context {
@@ -162,12 +172,12 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo, ImplicitContextKeyed
     long getSpanId();
 
     /**
-     * Get the span's trace.
+     * Get the span's trace collector.
      *
-     * @return The span's trace, or a noop {@link AgentTracer.NoopAgentTrace#INSTANCE} if the trace
-     *     is not valid.
+     * @return The span's trace, or a noop {@link AgentTracer.NoopAgentTraceCollector#INSTANCE} if
+     *     the trace is not valid.
      */
-    AgentTrace getTrace();
+    AgentTraceCollector getTraceCollector();
 
     /**
      * Gets the trace sampling priority of the span's trace.
@@ -209,8 +219,6 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo, ImplicitContextKeyed
 
       String getForwardedFor();
 
-      String getXForwarded();
-
       String getXForwardedFor();
 
       String getXClusterClientIp();
@@ -225,5 +233,21 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo, ImplicitContextKeyed
 
       String getCustomIpHeader();
     }
+  }
+
+  interface Attributes {
+    /**
+     * Gets the attributes as an immutable map.
+     *
+     * @return The attributes as an immutable map.
+     */
+    Map<String, String> asMap();
+
+    /**
+     * Checks whether the attributes are empty.
+     *
+     * @return {@code true} if the attributes are empty, {@code false} otherwise.
+     */
+    boolean isEmpty();
   }
 }

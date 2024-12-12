@@ -140,6 +140,29 @@ class FNV64HashTest extends DDSpecification {
     "~" * 500                                                                   | "15e96e1613df98b5" | "c1af12bdfe16b5b5"
   }
 
+  def "Continuation test cases"() {
+    when:
+    def temp = FNV64Hash.generateHash(input1, FNV64Hash.Version.v1)
+    def outputV1 = FNV64Hash.continueHash(temp, input2, FNV64Hash.Version.v1)
+
+    temp = FNV64Hash.generateHash(input1, FNV64Hash.Version.v1A)
+    def outputV1a = FNV64Hash.continueHash(temp, input2, FNV64Hash.Version.v1A)
+
+    then:
+    outputV1 == Long.parseUnsignedLong(version1, 16)
+    outputV1a == Long.parseUnsignedLong(version1a, 16)
+
+    where:
+    input1               | input2               | version1           | version1a
+    ""                   | ""                   | "cbf29ce484222325" | "cbf29ce484222325"
+    "chongo"             | " was here!\n"       | "e0aca20b624e4235" | "46810940eff5f915"
+    "chongo was here!\n" | ""                   | "e0aca20b624e4235" | "46810940eff5f915"
+    ""                   | "chongo was here!\n" | "e0aca20b624e4235" | "46810940eff5f915"
+    "M21701" * 5         | "M21701" * 5         | "9428fc6e7d26b54d" | "d64a4fd41de38b7d"
+    "M21701" * 2         | "M21701" * 8         | "9428fc6e7d26b54d" | "d64a4fd41de38b7d"
+    "M21701" * 7         | "M21701" * 3         | "9428fc6e7d26b54d" | "d64a4fd41de38b7d"
+  }
+
   def "Binary test cases"() {
     when:
     def outputV1 = FNV64Hash.generateHash(input, FNV64Hash.Version.v1)

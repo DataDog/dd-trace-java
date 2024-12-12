@@ -104,7 +104,7 @@ class OT33ApiTest extends DDSpecification {
       "-${DDSpanId.toHexStringPadded(spanId)}" +
       "-" + (propagatedPriority > 0 ? "01" : "00")
     def effectiveSamplingMechanism = contextPriority == UNSET ? AGENT_RATE : samplingMechanism
-    def expectedTracestate = "dd=s:${propagatedPriority}" +
+    def expectedTracestate = "dd=s:${propagatedPriority};p:${DDSpanId.toHexStringPadded(spanId)}" +
       (propagatedPriority > 0 ? ";t.dm:-" + effectiveSamplingMechanism : "") +
       ";t.tid:${traceId.toHexStringPadded(32).substring(0, 16)}"
     def expectedTextMap = [

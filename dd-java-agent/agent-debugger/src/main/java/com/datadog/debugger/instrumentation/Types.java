@@ -25,6 +25,7 @@ import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.el.ReflectiveFieldValueResolver;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -34,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.StringTokenizer;
+import java.util.stream.Collectors;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 
@@ -337,6 +339,13 @@ public final class Types {
     }
     buf.append(descriptor);
     return buf.toString();
+  }
+
+  public static String descriptorToSignature(String desc) {
+    Type[] argumentTypes = Type.getArgumentTypes(desc);
+    return Arrays.stream(argumentTypes)
+        .map(Type::getClassName)
+        .collect(Collectors.joining(", ", "(", ")"));
   }
 
   /**

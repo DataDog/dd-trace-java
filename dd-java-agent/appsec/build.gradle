@@ -11,14 +11,15 @@ apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/version.gradle"
 
 dependencies {
-  api deps.slf4j
+  api libs.slf4j
   implementation project(':internal-api')
   implementation project(':communication')
   implementation project(':telemetry')
-  implementation group: 'io.sqreen', name: 'libsqreen', version: '9.1.1'
-  implementation group: 'com.squareup.moshi', name: 'moshi', version: versions.moshi
+  implementation group: 'io.sqreen', name: 'libsqreen', version: '11.2.0'
+  implementation libs.moshi
 
-  testImplementation deps.bytebuddy
+  testImplementation libs.bytebuddy
+  testImplementation project(':remote-config:remote-config-core')
   testImplementation project(':utils:test-utils')
   testImplementation group: 'org.hamcrest', name: 'hamcrest', version: '2.2'
   testImplementation group: 'com.flipkart.zjsonpatch', name: 'zjsonpatch', version: '0.4.11'
@@ -61,29 +62,6 @@ jmhJar {
   exclude 'org/slf4j/impl/**/*'
 }
 
-
-task runSampleApp(type: GradleBuild, dependsOn: ':dd-java-agent:shadowJar') {
-  description = "Run AppSec sample app with instrumentation"
-  group = 'application'
-
-  def agentShadowJar = project(':dd-java-agent').tasks['shadowJar']
-
-  def jvmArgs = '-Ddd.appsec.enabled=true'
-  if (project.hasProperty('jvmArgs')) {
-    jvmArgs += " ${project.'jvmArgs'}"
-  }
-
-  doFirst {
-    startParameter = startParameter.newInstance()
-    startParameter.projectProperties = [
-      testExecutable: System.getenv('TEST_EXECUTABLE') ?: '',
-      jvmArgs       : "-javaagent:${agentShadowJar.archiveFile.get().asFile} $jvmArgs",
-      debugJvm      : project.hasProperty('debugJvm') ? project.debugJvm : 'false',
-    ]
-  }
-  tasks = ['weblog:weblog-spring-app:bootRun']
-}
-
 ext {
   minimumBranchCoverage = 0.6
   minimumInstructionCoverage = 0.8
@@ -97,6 +75,10 @@ ext {
     'com.datadog.appsec.config.AppSecConfig.AppSecConfigV1',
     'com.datadog.appsec.config.AppSecConfig.AppSecConfigV2',
     'com.datadog.appsec.config.AppSecConfig.NumberJsonAdapter',
+    'com.datadog.appsec.config.AppSecFeatures',
+    'com.datadog.appsec.config.AppSecFeatures.Asm',
+    'com.datadog.appsec.config.AppSecFeatures.ApiSecurity',
+    'com.datadog.appsec.config.AppSecFeatures.AutoUserInstrum',
     'com.datadog.appsec.event.ReplaceableEventProducerService',
   ]
   excludedClassesBranchCoverage = [

@@ -11,11 +11,11 @@ tasks.named("compileTestFixturesGroovy").configure {
 
 dependencies {
   api project(':dd-java-agent:instrumentation:java-concurrent')
-  compileOnly deps.kotlin
-  compileOnly deps.coroutines
+  compileOnly libs.kotlin
+  compileOnly libs.coroutines
 
-  testFixturesImplementation deps.kotlin
-  testFixturesImplementation deps.coroutines
+  testFixturesImplementation libs.kotlin
+  testFixturesImplementation libs.coroutines
   testFixturesApi project(':dd-trace-api')
   testFixturesApi project(':dd-java-agent:instrumentation:trace-annotation')
   testFixturesApi project(':dd-java-agent:testing')

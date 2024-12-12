@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.jakarta.jms;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
@@ -65,7 +66,7 @@ public final class JMSMessageProducerInstrumentation extends InstrumenterModule.
         JMSMessageProducerInstrumentation.class.getName() + "$ProducerAdvice");
     transformer.applyAdvice(
         named("send")
-            .and(takesArgument(0, named("jakarta.jms.Destination")))
+            .and(takesArgument(0, hasInterface(named("jakarta.jms.Destination"))))
             .and(takesArgument(1, named("jakarta.jms.Message")))
             .and(isPublic()),
         JMSMessageProducerInstrumentation.class.getName() + "$ProducerWithDestinationAdvice");

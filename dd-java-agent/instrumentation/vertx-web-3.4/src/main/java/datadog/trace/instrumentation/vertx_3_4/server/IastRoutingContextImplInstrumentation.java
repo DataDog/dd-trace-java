@@ -66,7 +66,7 @@ public class IastRoutingContextImplInstrumentation extends InstrumenterModule.Ia
       if (module != null && cookies != null && !cookies.isEmpty()) {
         final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
         for (final Object cookie : cookies) {
-          module.taint(ctx, cookie, SourceTypes.REQUEST_COOKIE_VALUE);
+          module.taintObject(ctx, cookie, SourceTypes.REQUEST_COOKIE_VALUE);
         }
       }
     }
@@ -81,7 +81,7 @@ public class IastRoutingContextImplInstrumentation extends InstrumenterModule.Ia
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-        module.taint(ctx, cookie, SourceTypes.REQUEST_COOKIE_VALUE);
+        module.taintObject(ctx, cookie, SourceTypes.REQUEST_COOKIE_VALUE);
       }
     }
   }

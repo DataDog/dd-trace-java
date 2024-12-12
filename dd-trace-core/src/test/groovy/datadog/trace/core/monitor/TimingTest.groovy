@@ -43,7 +43,7 @@ class TimingTest extends DDSpecification {
     0 * _
   }
 
-  def "reset timer"() {
+  def "reset timer #iterationIndex"() {
     setup:
     StatsDClient statsd = Mock(StatsDClient)
     MonitoringImpl monitoring = new MonitoringImpl(statsd, 100, MILLISECONDS)
@@ -75,7 +75,7 @@ class TimingTest extends DDSpecification {
     Monitoring.DISABLED.newThreadLocalTimer("foo") instanceof NoOpRecording
   }
 
-  def "no ops are safe to use"() {
+  def "no ops are safe to use #iterationIndex"() {
     expect:
     try {
       recording.start().stop()

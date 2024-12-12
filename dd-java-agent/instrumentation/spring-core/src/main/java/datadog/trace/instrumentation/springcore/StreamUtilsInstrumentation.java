@@ -50,7 +50,7 @@ public final class StreamUtilsInstrumentation extends InstrumenterModule.Iast
         @Advice.Return String string, @Advice.Argument(0) final InputStream in) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (string != null && module != null) {
-        module.taintIfTainted(string, in);
+        module.taintStringIfTainted(string, in);
       }
     }
 

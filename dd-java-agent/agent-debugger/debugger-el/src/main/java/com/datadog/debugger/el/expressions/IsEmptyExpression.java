@@ -1,5 +1,7 @@
 package com.datadog.debugger.el.expressions;
 
+import com.datadog.debugger.el.EvaluationException;
+import com.datadog.debugger.el.PrettyPrintVisitor;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.values.CollectionValue;
@@ -20,8 +22,13 @@ public final class IsEmptyExpression implements BooleanExpression {
   @Override
   public Boolean evaluate(ValueReferenceResolver valueRefResolver) {
     Value<?> value = valueExpression.evaluate(valueRefResolver);
-    if (value.isNull() || value.isUndefined()) {
-      return Boolean.TRUE;
+    if (value.isUndefined()) {
+      throw new EvaluationException(
+          "Cannot evaluate the expression for undefined value", PrettyPrintVisitor.print(this));
+    }
+    if (value.isNull()) {
+      throw new EvaluationException(
+          "Cannot evaluate the expression for null value", PrettyPrintVisitor.print(this));
     }
     if (value instanceof CollectionValue) {
       return ((CollectionValue<?>) value).isEmpty();

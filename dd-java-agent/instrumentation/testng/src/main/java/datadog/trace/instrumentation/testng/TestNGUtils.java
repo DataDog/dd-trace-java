@@ -1,9 +1,8 @@
 package datadog.trace.instrumentation.testng;
 
+import datadog.json.JsonWriter;
 import datadog.trace.api.civisibility.config.TestIdentifier;
-import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
-import datadog.trace.util.Strings;
 import java.io.InputStream;
 import java.lang.invoke.MethodHandle;
 import java.lang.reflect.Method;
@@ -76,19 +75,14 @@ public abstract class TestNGUtils {
 
     // We build manually the JSON for test.parameters tag.
     // Example: {"arguments":{"0":"param1","1":"param2"}}
-    final StringBuilder sb = new StringBuilder("{\"arguments\":{");
-    for (int i = 0; i < parameters.length; i++) {
-      sb.append("\"")
-          .append(i)
-          .append("\":\"")
-          .append(Strings.escapeToJson(String.valueOf(parameters[i])))
-          .append("\"");
-      if (i != parameters.length - 1) {
-        sb.append(",");
+    try (JsonWriter writer = new JsonWriter()) {
+      writer.beginObject().name("arguments").beginObject();
+      for (int i = 0; i < parameters.length; i++) {
+        writer.name(Integer.toString(i)).value(String.valueOf(parameters[i]));
       }
+      writer.endObject().endObject();
+      return writer.toString();
     }
-    sb.append("}}");
-    return sb.toString();
   }
 
   public static List<String> getGroups(ITestResult result) {
@@ -236,7 +230,7 @@ public abstract class TestNGUtils {
     String testSuiteName = testClass.getName();
     String testName = method.getName();
     String testParameters = TestNGUtils.getParameters(parameters);
-    return new TestIdentifier(testSuiteName, testName, testParameters, null);
+    return new TestIdentifier(testSuiteName, testName, testParameters);
   }
 
   public static TestIdentifier toTestIdentifier(ITestResult result) {
@@ -244,17 +238,7 @@ public abstract class TestNGUtils {
     String testName =
         (result.getName() != null) ? result.getName() : result.getMethod().getMethodName();
     String testParameters = TestNGUtils.getParameters(result);
-    return new TestIdentifier(testSuiteName, testName, testParameters, null);
-  }
-
-  public static TestDescriptor toTestDescriptor(ITestResult result) {
-    String testSuiteName = result.getInstanceName();
-    IClass iTestClass = result.getTestClass();
-    Class<?> testClass = iTestClass != null ? iTestClass.getRealClass() : null;
-    String testName =
-        (result.getName() != null) ? result.getName() : result.getMethod().getMethodName();
-    String parameters = TestNGUtils.getParameters(result);
-    return new TestDescriptor(testSuiteName, testClass, testName, parameters, result);
+    return new TestIdentifier(testSuiteName, testName, testParameters);
   }
 
   public static TestSuiteDescriptor toSuiteDescriptor(ITestClass testClass) {

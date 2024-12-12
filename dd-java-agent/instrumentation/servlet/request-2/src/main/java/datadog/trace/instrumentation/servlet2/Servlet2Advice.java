@@ -9,6 +9,7 @@ import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.naming.ClassloaderServiceNames;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -39,6 +40,8 @@ public class Servlet2Advice {
     Object spanAttr = request.getAttribute(DD_SPAN_ATTRIBUTE);
     final boolean hasServletTrace = spanAttr instanceof AgentSpan;
     if (hasServletTrace) {
+      final AgentSpan span = (AgentSpan) spanAttr;
+      ClassloaderServiceNames.maybeSetToSpan(span);
       // Tracing might already be applied by the FilterChain or a parent request (forward/include).
       return false;
     }
@@ -50,8 +53,7 @@ public class Servlet2Advice {
 
     final AgentSpan.Context.Extracted extractedContext = DECORATE.extract(httpServletRequest);
     final AgentSpan span = DECORATE.startSpan(httpServletRequest, extractedContext);
-    scope = activateSpan(span);
-    scope.setAsyncPropagation(true);
+    scope = activateSpan(span, true);
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, httpServletRequest, httpServletRequest, extractedContext);
 

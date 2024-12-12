@@ -9,6 +9,7 @@ import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.sink.Snapshot;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.bootstrap.debugger.ProbeId;
+import datadog.trace.test.agent.decoder.DecodedSpan;
 import datadog.trace.util.TagsHelper;
 import java.io.EOFException;
 import java.io.IOException;
@@ -27,7 +28,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestInfo;
 
 public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
-  private static final String SERVER_DEBUGGER_TEST_APP_CLASS =
+  protected static final String SERVER_DEBUGGER_TEST_APP_CLASS =
       "datadog.smoketest.debugger.ServerDebuggerTestApplication";
   protected static final String CONTROL_URL = "/control";
   protected static final ProbeId PROBE_ID = new ProbeId("123356536", 0);
@@ -57,7 +58,9 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
   @Override
   @AfterEach
   void teardown() throws Exception {
-    stopApp(appUrl);
+    if (appUrl != null) {
+      stopApp(appUrl);
+    }
     controlServer.shutdown();
     super.teardown();
   }
@@ -149,7 +152,7 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
   }
 
   protected String waitForAppStartedAndGetUrl() throws InterruptedException, EOFException {
-    RecordedRequest recordedRequest = controlServer.takeRequest(10, TimeUnit.SECONDS);
+    RecordedRequest recordedRequest = controlServer.takeRequest(30, TimeUnit.SECONDS);
     assertNotNull(recordedRequest);
     String appUrl = recordedRequest.getBody().readUtf8Line();
     LOG.info("AppUrl = " + appUrl);
@@ -171,5 +174,10 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
   protected void sendRequest(String url) throws IOException {
     Request request = new Request.Builder().url(url).get().build();
     try (Response response = httpClient.newCall(request).execute()) {}
+  }
+
+  protected boolean isTracedFullMethodSpan(DecodedSpan span) {
+    return span.getName().equals("trace.annotation")
+        && span.getResource().equals("ServerDebuggerTestApplication.runTracedMethod");
   }
 }

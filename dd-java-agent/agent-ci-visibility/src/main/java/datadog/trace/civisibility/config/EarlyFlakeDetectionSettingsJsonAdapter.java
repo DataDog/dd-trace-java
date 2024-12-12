@@ -1,7 +1,6 @@
 package datadog.trace.civisibility.config;
 
 import com.squareup.moshi.FromJson;
-import datadog.trace.api.civisibility.config.EarlyFlakeDetectionSettings;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;

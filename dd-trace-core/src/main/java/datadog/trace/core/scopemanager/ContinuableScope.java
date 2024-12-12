@@ -62,9 +62,9 @@ class ContinuableScope implements AgentScope, AttachableWrapper {
     final boolean alive = decrementReferences();
     scopeManager.healthMetrics.onCloseScope();
     if (!alive) {
+      scopeState.close();
       cleanup(scopeStack);
     }
-    scopeState.close();
   }
 
   void cleanup(final ScopeStack scopeStack) {
@@ -178,11 +178,7 @@ class ContinuableScope implements AgentScope, AttachableWrapper {
 
     for (final ExtendedScopeListener listener : scopeManager.extendedScopeListeners) {
       try {
-        listener.afterScopeActivated(
-            span.getTraceId(),
-            span.getLocalRootSpan().getSpanId(),
-            span.context().getSpanId(),
-            span.traceConfig());
+        listener.afterScopeActivated(span.getTraceId(), span.getSpanId());
       } catch (Throwable e) {
         ContinuableScopeManager.log.debug(
             "ExtendedScopeListener threw exception in afterActivated()", e);

@@ -35,7 +35,7 @@ class DDAgentWriterTest extends DDCoreSpecification {
   def dispatcher = new PayloadDispatcherImpl(new DDAgentMapperDiscovery(discovery), api, monitor, monitoring)
 
   @Subject
-  def writer = new DDAgentWriter(worker, dispatcher, monitor, false)
+  def writer = new DDAgentWriter(worker, dispatcher, monitor, 1, TimeUnit.SECONDS, false)
 
   // Only used to create spans
   def dummyTracer = tracerBuilder().writer(new ListWriter()).build()
@@ -176,7 +176,7 @@ class DDAgentWriterTest extends DDCoreSpecification {
     def worker = Mock(TraceProcessingWorker)
     def monitor = Stub(HealthMetrics)
     def dispatcher = Mock(PayloadDispatcherImpl)
-    def writer = new DDAgentWriter(worker, dispatcher, monitor, false)
+    def writer = new DDAgentWriter(worker, dispatcher, monitor, 1, TimeUnit.SECONDS, false)
     def p0 = newSpan()
     p0.setSamplingPriority(PrioritySampling.SAMPLER_DROP)
     def trace = [p0, newSpan()]

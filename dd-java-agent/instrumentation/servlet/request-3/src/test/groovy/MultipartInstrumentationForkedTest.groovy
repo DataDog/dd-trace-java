@@ -36,7 +36,7 @@ class MultipartInstrumentationForkedTest extends AgentTestRunner {
     runUnderIastTrace { part.getName() }
 
     then:
-    1 * module.taint(iastCtx, 'partName', SourceTypes.REQUEST_MULTIPART_PARAMETER, 'Content-Disposition')
+    1 * module.taintString(iastCtx, 'partName', SourceTypes.REQUEST_MULTIPART_PARAMETER, 'Content-Disposition')
     0 * _
   }
 
@@ -50,7 +50,7 @@ class MultipartInstrumentationForkedTest extends AgentTestRunner {
     runUnderIastTrace { part.getHeader('headerName') }
 
     then:
-    1 * module.taint(iastCtx, 'headerValue', SourceTypes.REQUEST_MULTIPART_PARAMETER, 'headerName')
+    1 * module.taintString(iastCtx, 'headerValue', SourceTypes.REQUEST_MULTIPART_PARAMETER, 'headerName')
     0 * _
   }
 
@@ -64,7 +64,7 @@ class MultipartInstrumentationForkedTest extends AgentTestRunner {
     runUnderIastTrace { part.getHeaders('headerName') }
 
     then:
-    1 * module.taint(iastCtx, 'headerValue', SourceTypes.REQUEST_MULTIPART_PARAMETER, 'headerName')
+    1 * module.taintString(iastCtx, 'headerValue', SourceTypes.REQUEST_MULTIPART_PARAMETER, 'headerName')
     0 * _
   }
 
@@ -78,7 +78,22 @@ class MultipartInstrumentationForkedTest extends AgentTestRunner {
     runUnderIastTrace { part.getHeaderNames() }
 
     then:
-    1 * module.taint(iastCtx, 'headerName', SourceTypes.REQUEST_MULTIPART_PARAMETER)
+    1 * module.taintString(iastCtx, 'headerName', SourceTypes.REQUEST_MULTIPART_PARAMETER)
+    0 * _
+  }
+
+  void 'test getInputStream'() {
+    given:
+    final module = Mock(PropagationModule)
+    InstrumentationBridge.registerIastModule(module)
+    final inputStream = new ByteArrayInputStream('inputStream'.getBytes())
+    final part = new MockPart('partName', inputStream)
+
+    when:
+    runUnderIastTrace { part.getInputStream() }
+
+    then:
+    1 * module.taintObject(iastCtx, inputStream, SourceTypes.REQUEST_MULTIPART_PARAMETER)
     0 * _
   }
 

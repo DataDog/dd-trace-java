@@ -5,7 +5,7 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.STATSD_CLIENT;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
-import com.timgroup.statsd.NoOpStatsDClient;
+import com.timgroup.statsd.NoOpDirectStatsDClient;
 import com.timgroup.statsd.NonBlockingStatsDClientBuilder;
 import com.timgroup.statsd.StatsDClientErrorHandler;
 import datadog.trace.api.Config;
@@ -23,7 +23,7 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
   private static final Logger log = LoggerFactory.getLogger(DDAgentStatsDConnection.class);
   private static final IOLogger ioLogger = new IOLogger(log);
 
-  private static final com.timgroup.statsd.StatsDClient NO_OP = new NoOpStatsDClient();
+  private static final com.timgroup.statsd.StatsDClient NO_OP = new NoOpDirectStatsDClient();
 
   private static final String UNIX_DOMAIN_SOCKET_PREFIX = "unix://";
 

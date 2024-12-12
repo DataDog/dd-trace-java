@@ -5,38 +5,43 @@ import datadog.communication.serialization.GrowableBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.Config
+import datadog.trace.api.civisibility.CIConstants
 import datadog.trace.api.civisibility.DDTest
 import datadog.trace.api.civisibility.DDTestSuite
 import datadog.trace.api.civisibility.InstrumentationBridge
-import datadog.trace.api.civisibility.config.EarlyFlakeDetectionSettings
-import datadog.trace.api.civisibility.config.ModuleExecutionSettings
 import datadog.trace.api.civisibility.config.TestIdentifier
-import datadog.trace.api.civisibility.coverage.CoverageBridge
+import datadog.trace.api.civisibility.config.TestMetadata
+import datadog.trace.api.civisibility.coverage.CoveragePerTestBridge
 import datadog.trace.api.civisibility.events.TestEventsHandler
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector
+import datadog.trace.api.civisibility.telemetry.tag.Provider
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.bootstrap.ContextStore
 import datadog.trace.civisibility.codeowners.Codeowners
+import datadog.trace.civisibility.config.EarlyFlakeDetectionSettings
+import datadog.trace.civisibility.config.ExecutionSettings
+import datadog.trace.civisibility.config.ExecutionSettingsFactory
 import datadog.trace.civisibility.config.JvmInfo
 import datadog.trace.civisibility.config.JvmInfoFactoryImpl
-import datadog.trace.civisibility.config.ModuleExecutionSettingsFactory
-import datadog.trace.civisibility.coverage.SegmentlessTestProbes
+import datadog.trace.civisibility.coverage.file.FileCoverageStore
+import datadog.trace.civisibility.coverage.percentage.NoOpCoverageCalculator
 import datadog.trace.civisibility.decorator.TestDecorator
 import datadog.trace.civisibility.decorator.TestDecoratorImpl
 import datadog.trace.civisibility.domain.BuildSystemSession
 import datadog.trace.civisibility.domain.TestFrameworkModule
 import datadog.trace.civisibility.domain.TestFrameworkSession
 import datadog.trace.civisibility.domain.buildsystem.BuildSystemSessionImpl
-import datadog.trace.civisibility.domain.buildsystem.TestModuleRegistry
+import datadog.trace.civisibility.domain.buildsystem.ModuleSignalRouter
 import datadog.trace.civisibility.domain.headless.HeadlessTestSession
 import datadog.trace.civisibility.events.BuildEventsHandlerImpl
 import datadog.trace.civisibility.events.TestEventsHandlerImpl
 import datadog.trace.civisibility.ipc.SignalServer
-import datadog.trace.civisibility.source.MethodLinesResolver
+import datadog.trace.civisibility.source.LinesResolver
 import datadog.trace.civisibility.source.SourcePathResolver
 import datadog.trace.civisibility.source.index.RepoIndexBuilder
 import datadog.trace.civisibility.telemetry.CiVisibilityMetricCollectorImpl
+import datadog.trace.civisibility.test.ExecutionStrategy
 import datadog.trace.civisibility.utils.ConcurrentHashMapContextStore
 import datadog.trace.civisibility.writer.ddintake.CiTestCovMapperV2
 import datadog.trace.civisibility.writer.ddintake.CiTestCycleMapperV1
@@ -58,6 +63,8 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
   static final String DUMMY_SOURCE_PATH = "dummy_source_path"
   static final int DUMMY_TEST_METHOD_START = 12
   static final int DUMMY_TEST_METHOD_END = 18
+  static final int DUMMY_TEST_CLASS_START = 11
+  static final int DUMMY_TEST_CLASS_END = 19
   static final Collection<String> DUMMY_CODE_OWNERS = ["owner1", "owner2"]
 
   private static Path agentKeyFile
@@ -76,7 +83,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     def rootPath = currentPath.parent
     dummyModule = rootPath.relativize(currentPath)
 
-    def supportedCiProvider = true
+    def ciProvider = Provider.GITHUBACTIONS
 
     def metricCollector = Stub(CiVisibilityMetricCollectorImpl)
 
@@ -89,79 +96,84 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     def codeowners = Stub(Codeowners)
     codeowners.getOwners(DUMMY_SOURCE_PATH) >> DUMMY_CODE_OWNERS
 
-    def methodLinesResolver = Stub(MethodLinesResolver)
-    methodLinesResolver.getLines(_ as Method) >> new MethodLinesResolver.MethodLines(DUMMY_TEST_METHOD_START, DUMMY_TEST_METHOD_END)
+    def linesResolver = Stub(LinesResolver)
+    linesResolver.getMethodLines(_ as Method) >> new LinesResolver.Lines(DUMMY_TEST_METHOD_START, DUMMY_TEST_METHOD_END)
+    linesResolver.getClassLines(_ as Class<?>) >> new LinesResolver.Lines(DUMMY_TEST_CLASS_START, DUMMY_TEST_CLASS_END)
 
-    def moduleExecutionSettingsFactory = Stub(ModuleExecutionSettingsFactory)
-    moduleExecutionSettingsFactory.create(_ as JvmInfo, _ as String) >> {
-      Map<String, String> properties = [
-        (CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED)                  : String.valueOf(itrEnabled),
-        (CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ENABLED)          : String.valueOf(flakyRetryEnabled),
-        (CiVisibilityConfig.CIVISIBILITY_EARLY_FLAKE_DETECTION_ENABLED): String.valueOf(earlyFlakinessDetectionEnabled)
-      ]
-      return new ModuleExecutionSettings(false,
-      itrEnabled,
-      flakyRetryEnabled,
-      earlyFlakinessDetectionEnabled
-      ? new EarlyFlakeDetectionSettings(true, [
-        new EarlyFlakeDetectionSettings.ExecutionsByDuration(SLOW_TEST_THRESHOLD_MILLIS, 3),
-        new EarlyFlakeDetectionSettings.ExecutionsByDuration(VERY_SLOW_TEST_THRESHOLD_MILLIS, 2)
-      ], 0)
-      : EarlyFlakeDetectionSettings.DEFAULT,
-      properties,
-      itrEnabled ? "itrCorrelationId" : null,
-      Collections.singletonMap(dummyModule, skippableTests),
-      flakyTests,
-      earlyFlakinessDetectionEnabled
-      ? [(dummyModule): knownTests]
-      : null,
-      Collections.emptyList())
+    def executionSettingsFactory = new ExecutionSettingsFactory() {
+      @Override
+      ExecutionSettings create(JvmInfo jvmInfo, String moduleName) {
+        def earlyFlakinessDetectionSettings = earlyFlakinessDetectionEnabled
+        ? new EarlyFlakeDetectionSettings(true, [
+          new EarlyFlakeDetectionSettings.ExecutionsByDuration(SLOW_TEST_THRESHOLD_MILLIS, 3),
+          new EarlyFlakeDetectionSettings.ExecutionsByDuration(VERY_SLOW_TEST_THRESHOLD_MILLIS, 2)
+        ], 0)
+        : EarlyFlakeDetectionSettings.DEFAULT
+
+        Map<TestIdentifier, TestMetadata> skippableTestsWithMetadata = new HashMap<>()
+        for (TestIdentifier skippableTest : skippableTests) {
+          skippableTestsWithMetadata.put(skippableTest, new TestMetadata(false))
+        }
+
+        return new ExecutionSettings(
+        itrEnabled,
+        false,
+        itrEnabled,
+        flakyRetryEnabled,
+        earlyFlakinessDetectionSettings,
+        itrEnabled ? "itrCorrelationId" : null,
+        skippableTestsWithMetadata,
+        [:],
+        flakyTests,
+        earlyFlakinessDetectionEnabled || CIConstants.FAIL_FAST_TEST_ORDER.equalsIgnoreCase(Config.get().ciVisibilityTestOrder) ? knownTests : null)
+      }
     }
 
-    def coverageProbeStoreFactory = new SegmentlessTestProbes.SegmentlessTestProbesFactory(metricCollector)
+    def coverageStoreFactory = new FileCoverageStore.Factory(metricCollector, sourcePathResolver)
     TestFrameworkSession.Factory testFrameworkSessionFactory = (String projectName, String component, Long startTime) -> {
+      def config = Config.get()
       def ciTags = [(DUMMY_CI_TAG): DUMMY_CI_TAG_VALUE]
-      TestDecorator testDecorator = new TestDecoratorImpl(component, ciTags)
+      TestDecorator testDecorator = new TestDecoratorImpl(component, "session-name", "test-command", ciTags)
       return new HeadlessTestSession(
       projectName,
       startTime,
-      supportedCiProvider,
-      Config.get(),
+      ciProvider,
+      config,
       metricCollector,
       testDecorator,
       sourcePathResolver,
       codeowners,
-      methodLinesResolver,
-      coverageProbeStoreFactory,
-      moduleExecutionSettingsFactory.create(JvmInfo.CURRENT_JVM, "")
+      linesResolver,
+      coverageStoreFactory,
+      new ExecutionStrategy(config, executionSettingsFactory.create(JvmInfo.CURRENT_JVM, ""))
       )
     }
 
     InstrumentationBridge.registerTestEventsHandlerFactory(new TestEventHandlerFactory(testFrameworkSessionFactory, metricCollector))
 
     BuildSystemSession.Factory buildSystemSessionFactory = (String projectName, Path projectRoot, String startCommand, String component, Long startTime) -> {
+      def config = Config.get()
       def ciTags = [(DUMMY_CI_TAG): DUMMY_CI_TAG_VALUE]
-      TestDecorator testDecorator = new TestDecoratorImpl(component, ciTags)
-      TestModuleRegistry testModuleRegistry = new TestModuleRegistry()
+      TestDecorator testDecorator = new TestDecoratorImpl(component, "session-name", "test-command", ciTags)
+      ModuleSignalRouter moduleSignalRouter = new ModuleSignalRouter()
       SignalServer signalServer = new SignalServer()
       RepoIndexBuilder repoIndexBuilder = Stub(RepoIndexBuilder)
       return new BuildSystemSessionImpl(
       projectName,
-      rootPath.toString(),
       startCommand,
       startTime,
-      supportedCiProvider,
-      Config.get(),
+      ciProvider,
+      config,
       metricCollector,
-      testModuleRegistry,
+      moduleSignalRouter,
       testDecorator,
       sourcePathResolver,
       codeowners,
-      methodLinesResolver,
-      moduleExecutionSettingsFactory,
-      coverageProbeStoreFactory,
+      linesResolver,
+      executionSettingsFactory,
       signalServer,
-      repoIndexBuilder
+      repoIndexBuilder,
+      new NoOpCoverageCalculator.Factory()
       )
     }
 
@@ -169,7 +181,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       decorator -> new BuildEventsHandlerImpl<>(buildSystemSessionFactory, new JvmInfoFactoryImpl())
     }
 
-    CoverageBridge.registerCoverageProbeStoreRegistry(coverageProbeStoreFactory)
+    CoveragePerTestBridge.registerCoverageStoreRegistry(coverageStoreFactory)
   }
 
   private static final class TestEventHandlerFactory implements TestEventsHandler.Factory {
@@ -182,16 +194,18 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     }
 
     @Override
-    <SuiteKey, TestKey> TestEventsHandler<SuiteKey, TestKey> create(String component) {
-      return create(component, new ConcurrentHashMapContextStore<>(), new ConcurrentHashMapContextStore())
-    }
-
-    @Override
     <SuiteKey, TestKey> TestEventsHandler<SuiteKey, TestKey> create(String component, ContextStore<SuiteKey, DDTestSuite> suiteStore, ContextStore<TestKey, DDTest> testStore) {
       TestFrameworkSession testSession = testFrameworkSessionFactory.startSession(dummyModule, component, null)
       TestFrameworkModule testModule = testSession.testModuleStart(dummyModule, null)
-      new TestEventsHandlerImpl(metricCollector, testSession, testModule, suiteStore, testStore)
+      new TestEventsHandlerImpl(metricCollector, testSession, testModule,
+      suiteStore != null ? suiteStore : new ConcurrentHashMapContextStore<>(),
+      testStore != null ? testStore : new ConcurrentHashMapContextStore<>())
     }
+  }
+
+  @Override
+  protected String idGenerationStrategyName() {
+    "RANDOM"
   }
 
   @Override
@@ -211,12 +225,22 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
 
   def givenFlakyTests(List<TestIdentifier> tests) {
     flakyTests.addAll(tests)
-    flakyRetryEnabled = true
   }
 
   def givenKnownTests(List<TestIdentifier> tests) {
     knownTests.addAll(tests)
-    earlyFlakinessDetectionEnabled = true
+  }
+
+  def givenFlakyRetryEnabled(boolean flakyRetryEnabled) {
+    this.flakyRetryEnabled = flakyRetryEnabled
+  }
+
+  def givenEarlyFlakinessDetectionEnabled(boolean earlyFlakinessDetectionEnabled) {
+    this.earlyFlakinessDetectionEnabled = earlyFlakinessDetectionEnabled
+  }
+
+  def givenTestsOrder(String testsOrder) {
+    injectSysConfig(CiVisibilityConfig.CIVISIBILITY_TEST_ORDER, testsOrder)
   }
 
   @Override
@@ -231,7 +255,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     injectSysConfig(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED, "true")
     injectSysConfig(CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED, "true")
     injectSysConfig(CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ENABLED, "true")
-    injectSysConfig(CiVisibilityConfig.CIVISIBILITY_EARLY_FLAKE_DETECTION_LOWER_LIMIT, "2")
+    injectSysConfig(CiVisibilityConfig.CIVISIBILITY_EARLY_FLAKE_DETECTION_LOWER_LIMIT, "1")
   }
 
   def cleanupSpec() {
@@ -250,21 +274,46 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     ] + replacements
 
     // uncomment to generate expected data templates
-    //    def baseTemplatesPath = CiVisibilityInstrumentationTest.classLoader
-    //      .getResource("test-succeed")
-    //      .toURI()
-    //      .schemeSpecificPart
-    //      .replace('build/resources/test', 'src/test/resources')
-    //      .replace('build/resources/latestDepTest', 'src/test/resources')
-    //      .replace("test-succeed", testcaseName)
-    //    CiVisibilityTestUtils.generateTemplates(baseTemplatesPath, events, coverages, additionalReplacements)
-    //    return [:]
+    //      def clazz = this.getClass()
+    //      def resourceName = clazz.name.replace('.', '/') + ".class"
+    //      def classfilePath = clazz.getResource(resourceName).toURI().schemeSpecificPart
+    //      def modulePath = classfilePath.substring(0, classfilePath.indexOf("/build/classes"))
+    //      def baseTemplatesPath = modulePath + "/src/test/resources/" + testcaseName
+    //      CiVisibilityTestUtils.generateTemplates(baseTemplatesPath, events, coverages, additionalReplacements)
+    //      return [:]
 
     return CiVisibilityTestUtils.assertData(testcaseName, events, coverages, additionalReplacements)
   }
 
+  def assertTestsOrder(List<TestIdentifier> expectedOrder) {
+    TEST_WRITER.waitForTraces(expectedOrder.size() + 1)
+    def traces = TEST_WRITER.toList()
+    def events = getEventsAsJson(traces)
+    def identifiers = getTestIdentifiers(events)
+    if (identifiers != expectedOrder) {
+      throw new AssertionError("Expected order: $expectedOrder, but got: $identifiers")
+    }
+    return true
+  }
+
+  def getTestIdentifiers(List<Map> events) {
+    events.sort(Comparator.comparing { it['content']['start'] as Long })
+    def testIdentifiers = []
+    for (Map event : events) {
+      if (event['content']['meta']['test.name']) {
+        testIdentifiers.add(test(event['content']['meta']['test.suite'] as String, event['content']['meta']['test.name'] as String))
+      }
+    }
+    return testIdentifiers
+  }
+
+  def test(String suite, String name, String parameters = null) {
+
+    return new TestIdentifier(suite, name, parameters)
+  }
+
   def getEventsAsJson(List<List<DDSpan>> traces) {
-    return getSpansAsJson(new CiTestCycleMapperV1(Config.get().getWellKnownTags(), false), traces)
+    return getSpansAsJson(new CiTestCycleMapperV1(Config.get().getCiVisibilityWellKnownTags(), false), traces)
   }
 
   def getCoveragesAsJson(List<List<DDSpan>> traces) {

@@ -7,19 +7,7 @@ import javax.annotation.Nullable;
 public class ScalaJavaConverters {
 
   public static <E> Iterable<E> toIterable(@Nonnull final scala.collection.Iterable<E> iterable) {
-    scala.collection.Iterator<E> iterator = iterable.iterator();
-    return () ->
-        new Iterator<E>() {
-          @Override
-          public boolean hasNext() {
-            return iterator.hasNext();
-          }
-
-          @Override
-          public E next() {
-            return iterator.next();
-          }
-        };
+    return new JavaIterable<>(iterable);
   }
 
   public static <E> Object[] toArray(@Nullable final scala.collection.Iterable<E> iterable) {
@@ -33,5 +21,39 @@ public class ScalaJavaConverters {
       array[index++] = iterator.next();
     }
     return array;
+  }
+
+  public static class JavaIterable<E> implements Iterable<E> {
+
+    private final scala.collection.Iterable<E> iterable;
+
+    private JavaIterable(final scala.collection.Iterable<E> iterable) {
+      this.iterable = iterable;
+    }
+
+    @Override
+    @Nonnull
+    public Iterator<E> iterator() {
+      return new JavaIterator<>(iterable.iterator());
+    }
+  }
+
+  public static class JavaIterator<E> implements Iterator<E> {
+
+    private final scala.collection.Iterator<E> iterator;
+
+    private JavaIterator(final scala.collection.Iterator<E> iterator) {
+      this.iterator = iterator;
+    }
+
+    @Override
+    public boolean hasNext() {
+      return iterator.hasNext();
+    }
+
+    @Override
+    public E next() {
+      return iterator.next();
+    }
   }
 }

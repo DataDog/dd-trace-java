@@ -1,6 +1,6 @@
 package datadog.trace.core;
 
-import static datadog.trace.bootstrap.instrumentation.api.SpanLinkAttributes.EMPTY;
+import static datadog.trace.bootstrap.instrumentation.api.SpanAttributes.EMPTY;
 
 import com.squareup.moshi.FromJson;
 import com.squareup.moshi.JsonAdapter;
@@ -8,9 +8,10 @@ import com.squareup.moshi.Moshi;
 import com.squareup.moshi.ToJson;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Attributes;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
+import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import datadog.trace.bootstrap.instrumentation.api.SpanLink;
-import datadog.trace.bootstrap.instrumentation.api.SpanLinkAttributes;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.PropagationTags;
 import java.util.List;
@@ -130,7 +131,7 @@ public class DDSpanLink extends SpanLink {
           DDSpanId.fromHex(json.span_id),
           json.flags,
           json.tracestate,
-          SpanLinkAttributes.fromMap(json.attributes));
+          SpanAttributes.fromMap(json.attributes));
     }
   }
 

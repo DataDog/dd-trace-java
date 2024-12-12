@@ -35,7 +35,7 @@ class HeadersAdviceForkedTest extends AgentTestRunner {
     runUnderIastTrace { request.getHeaders() }
 
     then:
-    2 * module.taint(iastCtx , _ as Object, SourceTypes.REQUEST_HEADER_VALUE)
+    2 * module.taintObject(iastCtx , _ as Object, SourceTypes.REQUEST_HEADER_VALUE)
     0 * _
   }
 

@@ -41,7 +41,7 @@ public class TagsHelperTest {
   public void tagTrimmedToMaxLength() {
     StringBuilder tag = new StringBuilder(401);
     for (int i = 0; i < 400; i++) {
-      tag.append("a");
+      tag.append('a');
     }
     assertEquals(200, TagsHelper.sanitize(tag.toString()).length());
     assertEquals(200, TagsHelper.sanitize(tag.toString()).getBytes(StandardCharsets.UTF_8).length);

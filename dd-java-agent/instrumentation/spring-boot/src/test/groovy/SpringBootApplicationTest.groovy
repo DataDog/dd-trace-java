@@ -9,7 +9,6 @@ class SpringBootApplicationTest extends AgentTestRunner {
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
-    injectSysConfig("trace.integration.spring-boot.enabled", "true")
   }
   static class BeanWhoTraces implements InitializingBean {
 
@@ -50,7 +49,6 @@ class SpringBootApplicationNotAppliedForkedTest extends AgentTestRunner {
   protected void configurePreAgent() {
     super.configurePreAgent()
     injectSysConfig("service", "myservice")
-    injectSysConfig("trace.integration.spring-boot.enabled", "true")
   }
 
   def 'should not service name when user inferred dd_service'() {

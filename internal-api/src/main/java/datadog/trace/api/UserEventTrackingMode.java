@@ -1,17 +1,39 @@
 package datadog.trace.api;
 
 public enum UserEventTrackingMode {
-  DISABLED,
-  SAFE,
-  EXTENDED;
+  DISABLED("disabled"),
+  SAFE("safe", "true", "1"),
+  EXTENDED("extended");
+
+  private final String value;
+  private final String[] modes;
+
+  UserEventTrackingMode(final String... modes) {
+    value = modes[0];
+    this.modes = modes;
+  }
+
+  private boolean matches(final String mode) {
+    for (final String value : modes) {
+      if (value.equalsIgnoreCase(mode)) {
+        return true;
+      }
+    }
+    return false;
+  }
 
   public static UserEventTrackingMode fromString(String s) {
-    if ("true".equalsIgnoreCase(s) || "1".equals(s) || "safe".equalsIgnoreCase(s)) {
+    if (SAFE.matches(s)) {
       return SAFE;
     }
-    if ("extended".equalsIgnoreCase(s)) {
+    if (EXTENDED.matches(s)) {
       return EXTENDED;
     }
     return DISABLED;
+  }
+
+  @Override
+  public String toString() {
+    return value;
   }
 }

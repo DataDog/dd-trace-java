@@ -29,8 +29,6 @@ class SeleniumUtilsTest extends AgentTestRunner {
 
     where:
     host                                                  | expectedValue
-    null                                                  | null
-    "malformed-url"                                       | null
     "http://192.168.0.1"                                  | null
     "http://localhost:8080"                               | null
     "http://website.com"                                  | null

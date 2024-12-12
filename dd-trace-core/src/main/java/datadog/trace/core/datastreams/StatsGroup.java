@@ -18,9 +18,9 @@ public class StatsGroup {
     this.edgeTags = edgeTags;
     this.hash = hash;
     this.parentHash = parentHash;
-    pathwayLatency = Histograms.newHistogram();
-    edgeLatency = Histograms.newHistogram();
-    payloadSize = Histograms.newHistogram();
+    pathwayLatency = Histograms.newLogHistogram();
+    edgeLatency = Histograms.newLogHistogram();
+    payloadSize = Histograms.newLogHistogram();
   }
 
   public void add(long pathwayLatencyNano, long edgeLatencyNano, long payloadSizeBytes) {

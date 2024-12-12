@@ -83,7 +83,7 @@ public class HeadersAdaptorInstrumentation extends InstrumenterModule.Iast
       final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
       if (propagation != null) {
         final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-        propagation.taintIfTainted(ctx, result, self, SourceTypes.REQUEST_HEADER_VALUE, name);
+        propagation.taintStringIfTainted(ctx, result, self, SourceTypes.REQUEST_HEADER_VALUE, name);
       }
     }
   }
@@ -103,7 +103,7 @@ public class HeadersAdaptorInstrumentation extends InstrumenterModule.Iast
         if (propagation.isTainted(ctx, self)) {
           final String headerName = name == null ? null : name.toString();
           for (final String value : result) {
-            propagation.taint(ctx, value, SourceTypes.REQUEST_HEADER_VALUE, headerName);
+            propagation.taintString(ctx, value, SourceTypes.REQUEST_HEADER_VALUE, headerName);
           }
         }
       }
@@ -127,9 +127,9 @@ public class HeadersAdaptorInstrumentation extends InstrumenterModule.Iast
             final String name = entry.getKey();
             final String value = entry.getValue();
             if (names.add(name)) {
-              propagation.taint(ctx, name, SourceTypes.REQUEST_HEADER_NAME, name);
+              propagation.taintString(ctx, name, SourceTypes.REQUEST_HEADER_NAME, name);
             }
-            propagation.taint(ctx, value, SourceTypes.REQUEST_HEADER_VALUE, name);
+            propagation.taintString(ctx, value, SourceTypes.REQUEST_HEADER_VALUE, name);
           }
         }
       }
@@ -149,7 +149,7 @@ public class HeadersAdaptorInstrumentation extends InstrumenterModule.Iast
         final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
         if (propagation.isTainted(ctx, self)) {
           for (final String name : result) {
-            propagation.taint(ctx, name, SourceTypes.REQUEST_HEADER_NAME, name);
+            propagation.taintString(ctx, name, SourceTypes.REQUEST_HEADER_NAME, name);
           }
         }
       }

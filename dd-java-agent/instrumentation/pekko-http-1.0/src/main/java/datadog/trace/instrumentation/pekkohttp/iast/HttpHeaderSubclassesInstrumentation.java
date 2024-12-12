@@ -72,7 +72,7 @@ public class HttpHeaderSubclassesInstrumentation extends InstrumenterModule.Iast
         return;
       }
       IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-      propagation.taintIfTainted(ctx, retVal, h);
+      propagation.taintStringIfTainted(ctx, retVal, h);
     }
   }
 }

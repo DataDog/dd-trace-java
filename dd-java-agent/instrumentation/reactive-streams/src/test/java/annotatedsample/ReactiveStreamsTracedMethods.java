@@ -20,7 +20,12 @@ public class ReactiveStreamsTracedMethods {
     return TestPublisher.ofFailing(latch, throwable);
   }
 
-  private static class TestPublisher implements Publisher<String> {
+  @WithSpan
+  public static Publisher<String> traceNestedAsyncPublisher(CountDownLatch latch) {
+    return traceAsyncPublisher(latch);
+  }
+
+  public static class TestPublisher implements Publisher<String> {
     private final CountDownLatch latch;
     private final String element;
     private final Throwable error;
@@ -31,11 +36,11 @@ public class ReactiveStreamsTracedMethods {
       this.error = error;
     }
 
-    private static TestPublisher ofComplete(CountDownLatch latch, String element) {
+    public static TestPublisher ofComplete(CountDownLatch latch, String element) {
       return new TestPublisher(latch, element, null);
     }
 
-    private static TestPublisher ofFailing(CountDownLatch latch, Throwable error) {
+    public static TestPublisher ofFailing(CountDownLatch latch, Throwable error) {
       return new TestPublisher(latch, null, error);
     }
 
@@ -46,18 +51,29 @@ public class ReactiveStreamsTracedMethods {
           throw new IllegalStateException("Latch still locked");
         }
       } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
         throw new RuntimeException(e);
       }
-      if (this.error != null) {
-        s.onError(this.error);
-      } else {
-        s.onNext(this.element);
-        s.onComplete();
-      }
+
+      s.onSubscribe(
+          new Subscription() {
+            @Override
+            public void request(long n) {
+              if (error != null) {
+                s.onError(error);
+              } else {
+                s.onNext(element);
+                s.onComplete();
+              }
+            }
+
+            @Override
+            public void cancel() {}
+          });
     }
   }
 
-  public static class ConsummerSubscriber<T> implements Subscriber<T> {
+  public static class ConsumerSubscriber<T> implements Subscriber<T> {
     @Override
     public void onSubscribe(Subscription s) {
       s.request(1);

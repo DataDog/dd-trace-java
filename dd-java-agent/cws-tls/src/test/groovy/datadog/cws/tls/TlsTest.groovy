@@ -1,7 +1,6 @@
 package datadog.cws.tls
 
-import datadog.trace.api.DDSpanId
-import datadog.trace.api.DDTraceId
+import datadog.trace.api.DD128bTraceId
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.test.util.DDSpecification
 
@@ -12,24 +11,24 @@ class TlsTest extends DDSpecification {
     TlsScopeListener listener = new TlsScopeListener(tls)
 
     AgentSpan parent = Stub(AgentSpan)
-    parent.getTraceId() >> DDTraceId.from(11L)
+    parent.getTraceId() >> DD128bTraceId.from(10L, 11L)
     parent.getSpanId() >> 12L
 
     AgentSpan span = Stub(AgentSpan)
-    span.getTraceId() >> DDTraceId.from(21L)
+    span.getTraceId() >> DD128bTraceId.from(20, 21L)
     span.getSpanId() >> 22L
 
     when:
-    listener.afterScopeActivated(DDTraceId.from(11L), DDSpanId.ZERO, 12L, null)
-    listener.afterScopeActivated(DDTraceId.from(21L), DDSpanId.ZERO, 22L, null)
+    listener.afterScopeActivated(DD128bTraceId.from(10L, 11L), 12L)
+    listener.afterScopeActivated(DD128bTraceId.from(20L, 21L), 22L)
     then:
-    tls.getTraceId() == DDTraceId.from(21L)
+    tls.getTraceId() == DD128bTraceId.from(20L, 21L)
     tls.getSpanId() == 22L
 
     when:
     listener.afterScopeClosed()
     then:
-    tls.getTraceId() == DDTraceId.from(11L)
+    tls.getTraceId() == DD128bTraceId.from(10L, 11L)
     tls.getSpanId() == 12L
   }
 }

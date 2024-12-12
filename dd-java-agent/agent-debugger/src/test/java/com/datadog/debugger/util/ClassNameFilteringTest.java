@@ -79,10 +79,8 @@ class ClassNameFilteringTest {
       strings = {
         "java.FooBar",
         "org.junit.Test",
-        "org.junit.jupiter.api.Test",
         "akka.Actor",
         "cats.Functor",
-        "org.junit.jupiter.api.Test",
         "org.junit.jupiter.api.Test",
         "org.datadog.jmxfetch.FooBar"
       })
@@ -91,7 +89,7 @@ class ClassNameFilteringTest {
     when(config.getThirdPartyExcludes()).thenReturn(Collections.emptySet());
     when(config.getThirdPartyIncludes()).thenReturn(Collections.emptySet());
     ClassNameFiltering classNameFiltering =
-        new ClassNameFiltering(ThirdPartyLibraries.INSTANCE.getExcludes(config));
+        new ClassNameFiltering(ThirdPartyLibraries.INSTANCE.getThirdPartyLibraries(config));
     assertTrue(classNameFiltering.isExcluded(input));
   }
 }

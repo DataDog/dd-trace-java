@@ -22,7 +22,7 @@ dependencies {
 
   // ProgrammaticConfig, required to set the timeout, wasn't added until 4.0.1
   testImplementation group: 'com.datastax.oss', name: 'java-driver-core', version: '4.0.1'
-  testImplementation group: 'org.testcontainers', name: 'cassandra', version: '1.17.6'
+  testImplementation group: 'org.testcontainers', name: 'cassandra', version: libs.versions.testcontainers.get()
 
   // Force 0.3.3 because 0.3.0 has a version parsing bug that fails on jdk 15
   testImplementation group: 'com.github.jbellis', name: "jamm", version: '0.3.3'

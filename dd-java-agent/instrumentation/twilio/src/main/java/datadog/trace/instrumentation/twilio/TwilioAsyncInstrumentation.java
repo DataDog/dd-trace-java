@@ -35,7 +35,7 @@ public class TwilioAsyncInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     // Only apply instrumentation when guava's ListenableFuture is also deployed.
     return hasClassNamed("com.google.common.util.concurrent.ListenableFuture");
   }
@@ -106,11 +106,9 @@ public class TwilioAsyncInstrumentation extends InstrumenterModule.Tracing
       DECORATE.afterStart(span);
       DECORATE.onServiceExecution(span, that, methodName);
 
-      final AgentScope scope = activateSpan(span);
       // Enable async propagation, so the newly spawned task will be associated back with this
       // original trace.
-      scope.setAsyncPropagation(true);
-      return scope;
+      return activateSpan(span, true);
     }
 
     /** Method exit instrumentation. */

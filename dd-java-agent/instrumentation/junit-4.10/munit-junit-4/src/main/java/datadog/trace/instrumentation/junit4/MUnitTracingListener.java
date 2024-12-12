@@ -9,6 +9,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.util.Strings;
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
@@ -149,7 +150,7 @@ public class MUnitTracingListener extends TracingListener {
 
     if (Strings.isNotBlank(testName)) {
       TestDescriptor testDescriptor = MUnitUtils.toTestDescriptor(description);
-      if (!isTestInProgress()) {
+      if (!isSpanInProgress(InternalSpanTypes.TEST)) {
         // earlier versions of MUnit (e.g. 0.7.28) trigger "testStarted" event for ignored tests,
         // while newer versions don't
         TestSuiteDescriptor suiteDescriptor = MUnitUtils.toSuiteDescriptor(description);
@@ -173,21 +174,41 @@ public class MUnitTracingListener extends TracingListener {
 
     } else if (testClass != null) {
       TestSuiteDescriptor suiteDescriptor = MUnitUtils.toSuiteDescriptor(description);
+
+      boolean suiteStarted = isSpanInProgress(InternalSpanTypes.TEST_SUITE_END);
+      if (!suiteStarted) {
+        // there is a bug in MUnit 1.0.1+: start/finish events are not fired for skipped suites
+        List<String> categories = getCategories(description);
+        TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
+            suiteDescriptor,
+            testSuiteName,
+            FRAMEWORK_NAME,
+            FRAMEWORK_VERSION,
+            testClass,
+            categories,
+            false,
+            TestFrameworkInstrumentation.MUNIT);
+      }
+
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteSkip(suiteDescriptor, null);
       for (Description child : description.getChildren()) {
         testCaseIgnored(child);
       }
+
+      if (!suiteStarted) {
+        TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor);
+      }
     }
   }
 
-  private boolean isTestInProgress() {
+  private static boolean isSpanInProgress(UTF8BytesString type) {
     final AgentScope scope = AgentTracer.activeScope();
     if (scope == null) {
       return false;
     }
     AgentSpan scopeSpan = scope.span();
     String spanType = scopeSpan.getSpanType();
-    return spanType != null && spanType.contentEquals(InternalSpanTypes.TEST);
+    return spanType != null && spanType.contentEquals(type);
   }
 
   private void testCaseIgnored(final Description description) {

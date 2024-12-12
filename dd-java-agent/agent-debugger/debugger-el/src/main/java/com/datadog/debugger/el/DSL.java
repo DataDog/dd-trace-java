@@ -31,9 +31,11 @@ import com.datadog.debugger.el.values.MapValue;
 import com.datadog.debugger.el.values.NullValue;
 import com.datadog.debugger.el.values.NumericValue;
 import com.datadog.debugger.el.values.ObjectValue;
+import com.datadog.debugger.el.values.SetValue;
 import com.datadog.debugger.el.values.StringValue;
 import java.util.Collection;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * A debugger DSL representation. A simple all-static class which can be used to build a complete
@@ -140,6 +142,10 @@ public class DSL {
     return new ListValue(value);
   }
 
+  public static SetValue value(Set<?> value) {
+    return new SetValue(value);
+  }
+
   public static NullValue nullValue() {
     return NullValue.INSTANCE;
   }
@@ -193,9 +199,8 @@ public class DSL {
     return new EndsWithExpression(valueExpression, str);
   }
 
-  public static StringPredicateExpression contains(
-      ValueExpression<?> valueExpression, StringValue str) {
-    return new ContainsExpression(valueExpression, str);
+  public static ContainsExpression contains(ValueExpression<?> target, ValueExpression<?> value) {
+    return new ContainsExpression(target, value);
   }
 
   public static StringPredicateExpression matches(

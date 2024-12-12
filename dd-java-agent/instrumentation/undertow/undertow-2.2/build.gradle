@@ -1,3 +1,7 @@
+ext {
+  latestDepTestMinJavaVersionForTests = JavaVersion.VERSION_11
+  latestDepForkedTestMinJavaVersionForTests = JavaVersion.VERSION_11
+}
 muzzle {
   pass {
     group = "io.undertow"
@@ -5,13 +9,21 @@ muzzle {
     versions = "[2.2.14.Final,]"
     assertInverse = false
   }
+  pass {
+    group = "io.undertow"
+    module = "undertow-servlet"
+    versions = "[2.3.0.Final,]"
+    javaVersion = "11"
+    assertInverse = true
+  }
 }
 
 apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
-addTestSuiteForDir('latestDepForkedTest', 'test')
-
+addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
+addTestSuiteForDir('latest22Test', 'test')
+addTestSuiteExtendingForDir('latest22ForkedTest', 'latest22Test', 'test')
 dependencies {
   compileOnly group: 'io.undertow', name: 'undertow-servlet-jakarta', version: '2.2.14.Final'
   implementation project(':dd-java-agent:instrumentation:undertow')
@@ -24,5 +36,8 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-3')
   testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-5')
 
-  latestDepTestImplementation group: 'io.undertow', name: 'undertow-servlet-jakarta', version: '2.2.+'
+  latest22TestImplementation group: 'io.undertow', name: 'undertow-servlet-jakarta', version: '2.2.+'
+  latestDepTestImplementation group: 'io.undertow', name: 'undertow-servlet', version: '+', {
+    exclude group: 'io.undertow', module: 'undertow-servlet-jakarta'
+  }
 }

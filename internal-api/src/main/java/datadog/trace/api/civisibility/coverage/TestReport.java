@@ -1,26 +1,28 @@
 package datadog.trace.api.civisibility.coverage;
 
+import datadog.trace.api.DDTraceId;
 import java.util.Collection;
+import javax.annotation.Nonnull;
 
 public class TestReport {
 
-  private final Long testSessionId;
+  private final DDTraceId testSessionId;
   private final Long testSuiteId;
   private final long spanId;
   private final Collection<TestReportFileEntry> testReportFileEntries;
 
   public TestReport(
-      Long testSessionId,
+      DDTraceId testSessionId,
       Long testSuiteId,
       long spanId,
-      Collection<TestReportFileEntry> testReportFileEntries) {
+      @Nonnull Collection<TestReportFileEntry> testReportFileEntries) {
     this.testSessionId = testSessionId;
     this.testSuiteId = testSuiteId;
     this.spanId = spanId;
     this.testReportFileEntries = testReportFileEntries;
   }
 
-  public Long getTestSessionId() {
+  public DDTraceId getTestSessionId() {
     return testSessionId;
   }
 
@@ -32,6 +34,7 @@ public class TestReport {
     return spanId;
   }
 
+  @Nonnull
   public Collection<TestReportFileEntry> getTestReportFileEntries() {
     return testReportFileEntries;
   }

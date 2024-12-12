@@ -6,6 +6,7 @@ import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
+import org.slf4j.Marker;
 
 /**
  * Logger that logs message once per given delay if debugging is disabled. If debugging is enabled
@@ -36,15 +37,19 @@ public class RatelimitedLogger {
 
   /** @return true if actually logged the message, false otherwise */
   public boolean warn(final String format, final Object... arguments) {
+    return warn(null, format, arguments);
+  }
+
+  public boolean warn(Marker marker, final String format, final Object... arguments) {
     if (log.isDebugEnabled()) {
-      log.warn(format, arguments);
+      log.warn(marker, format, arguments);
       return true;
     }
     if (log.isWarnEnabled()) {
       final long next = nextLogNanos.get();
       final long now = timeSource.getNanoTicks();
       if (now - next >= 0 && nextLogNanos.compareAndSet(next, now + delayNanos)) {
-        log.warn(format + noLogMessage, arguments);
+        log.warn(marker, format + noLogMessage, arguments);
         return true;
       }
     }

@@ -4,7 +4,7 @@ import datadog.trace.api.Config
 import datadog.trace.civisibility.telemetry.CiVisibilityMetricCollectorImpl
 import datadog.trace.api.git.GitInfo
 import datadog.trace.api.git.GitInfoProvider
-import datadog.trace.civisibility.utils.IOUtils
+import datadog.communication.util.IOUtils
 import org.hamcrest.Description
 import org.hamcrest.Matcher
 import org.hamcrest.TypeSafeMatcher

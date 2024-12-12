@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.ipc
 
+import datadog.trace.api.DDTraceId
 import spock.lang.Specification
 
 import java.util.concurrent.atomic.AtomicBoolean
@@ -11,9 +12,7 @@ class SignalServerTest extends Specification {
   def "test message send and receive"() {
     given:
     def signalProcessed = new AtomicBoolean(false)
-    def signal = new ModuleExecutionResult(123, 456, true, true, false, false, 1, Collections.singletonList(new TestFramework("junit", "4.13.2")), new byte[]{
-      1, 2, 3
-    })
+    def signal = new ModuleExecutionResult(DDTraceId.from(123), 456, true, true, false, false, 1, Collections.singletonList(new TestFramework("junit", "4.13.2")))
     def server = new SignalServer()
     def received = new ArrayList()
 
@@ -42,10 +41,8 @@ class SignalServerTest extends Specification {
 
   def "test multiple messages send and receive"() {
     given:
-    def signalA = new ModuleExecutionResult(123, 456, false, false, false, false, 0, Collections.singletonList(new TestFramework("junit", "4.13.2")), new byte[]{
-      1, 2, 3
-    })
-    def signalB = new ModuleExecutionResult(234, 567, true, true, false, false, 1, Collections.singletonList(new TestFramework("junit", "4.13.2")), null)
+    def signalA = new ModuleExecutionResult(DDTraceId.from(123), 456, false, false, false, false, 0, Collections.singletonList(new TestFramework("junit", "4.13.2")))
+    def signalB = new ModuleExecutionResult(DDTraceId.from(234), 567, true, true, false, false, 1, Collections.singletonList(new TestFramework("junit", "4.13.2")))
     def server = new SignalServer()
     def received = new ArrayList()
 
@@ -73,10 +70,8 @@ class SignalServerTest extends Specification {
 
   def "test multiple clients send and receive"() {
     given:
-    def signalA = new ModuleExecutionResult(123, 456, true, false, true, false, 1, Collections.singletonList(new TestFramework("junit", "4.13.2")), new byte[]{
-      1, 2, 3
-    })
-    def signalB = new ModuleExecutionResult(234, 567, false, true, false, true, 0, Collections.singletonList(new TestFramework("junit", "4.13.2")), null)
+    def signalA = new ModuleExecutionResult(DDTraceId.from(123), 456, true, false, true, false, 1, Collections.singletonList(new TestFramework("junit", "4.13.2")))
+    def signalB = new ModuleExecutionResult(DDTraceId.from(234), 567, false, true, false, true, 0, Collections.singletonList(new TestFramework("junit", "4.13.2")))
     def server = new SignalServer()
     def received = new ArrayList()
 
@@ -123,9 +118,7 @@ class SignalServerTest extends Specification {
     when:
     def address = server.getAddress()
     try (def client = new SignalClient(address, clientTimeoutMillis)) {
-      client.send(new ModuleExecutionResult(123, 456, false, false, false, false, 0, Collections.singletonList(new TestFramework("junit", "4.13.2")), new byte[]{
-        1, 2, 3
-      }))
+      client.send(new ModuleExecutionResult(DDTraceId.from(123), 456, false, false, false, false, 0, Collections.singletonList(new TestFramework("junit", "4.13.2"))))
     }
 
     then:
@@ -137,9 +130,7 @@ class SignalServerTest extends Specification {
 
   def "test error response receipt"() {
     given:
-    def signal = new ModuleExecutionResult(123, 456, true, true, false, false, 1, Collections.singletonList(new TestFramework("junit", "4.13.2")), new byte[]{
-      1, 2, 3
-    })
+    def signal = new ModuleExecutionResult(DDTraceId.from(123), 456, true, true, false, false, 1, Collections.singletonList(new TestFramework("junit", "4.13.2")))
     def server = new SignalServer()
 
     def errorResponse = new ErrorResponse("An error occurred while processing the signal")

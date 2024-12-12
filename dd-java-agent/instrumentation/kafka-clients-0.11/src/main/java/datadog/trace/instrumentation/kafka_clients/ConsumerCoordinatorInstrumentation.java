@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.kafka_clients;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.core.datastreams.TagsProcessor.CONSUMER_GROUP_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.KAFKA_CLUSTER_ID_TAG;
@@ -17,6 +18,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.kafka.clients.Metadata;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
@@ -29,7 +31,17 @@ public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule
     implements Instrumenter.ForSingleType {
 
   public ConsumerCoordinatorInstrumentation() {
-    super("kafka");
+    super("kafka", "kafka-0.11");
+  }
+
+  @Override
+  public String muzzleDirective() {
+    return "before-3.8";
+  }
+
+  @Override
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+    return not(hasClassNamed("org.apache.kafka.clients.MetadataRecoveryStrategy")); // < 3.8
   }
 
   @Override
@@ -65,7 +77,7 @@ public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule
         @Advice.This ConsumerCoordinator coordinator,
         @Advice.Return RequestFuture<Void> requestFuture,
         @Advice.Argument(0) final Map<TopicPartition, OffsetAndMetadata> offsets) {
-      if (requestFuture.failed()) {
+      if (requestFuture == null || requestFuture.failed()) {
         return;
       }
       if (offsets == null) {
@@ -74,6 +86,10 @@ public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule
       KafkaConsumerInfo kafkaConsumerInfo =
           InstrumentationContext.get(ConsumerCoordinator.class, KafkaConsumerInfo.class)
               .get(coordinator);
+
+      if (kafkaConsumerInfo == null) {
+        return;
+      }
 
       String consumerGroup = kafkaConsumerInfo.getConsumerGroup();
       Metadata consumerMetadata = kafkaConsumerInfo.getClientMetadata();

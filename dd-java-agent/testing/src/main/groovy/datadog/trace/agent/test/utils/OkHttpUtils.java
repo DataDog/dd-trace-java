@@ -2,7 +2,15 @@ package datadog.trace.agent.test.utils;
 
 import datadog.trace.agent.test.server.http.TestHttpServer;
 import java.net.ProxySelector;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
+import okhttp3.Cookie;
+import okhttp3.CookieJar;
+import okhttp3.HttpUrl;
 import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -20,7 +28,11 @@ public class OkHttpUtils {
   private static final Logger CLIENT_LOGGER = LoggerFactory.getLogger("http-client");
 
   static {
-    ((ch.qos.logback.classic.Logger) CLIENT_LOGGER).setLevel(ch.qos.logback.classic.Level.DEBUG);
+    try {
+      ((ch.qos.logback.classic.Logger) CLIENT_LOGGER).setLevel(ch.qos.logback.classic.Level.DEBUG);
+    } catch (Throwable t) {
+      CLIENT_LOGGER.warn("Unable to set debug level to client logger", t);
+    }
   }
 
   private static final HttpLoggingInterceptor LOGGING_INTERCEPTOR =
@@ -73,5 +85,34 @@ public class OkHttpUtils {
         .hostnameVerifier(server.getHostnameVerifier())
         .proxySelector(proxySelector)
         .build();
+  }
+
+  public static <E> CookieJar cookieJar(Function<HttpUrl, E> cookieKey) {
+    return new CustomCookieJar<>(cookieKey);
+  }
+
+  public static CookieJar cookieJar() {
+    return cookieJar(HttpUrl::host);
+  }
+
+  private static class CustomCookieJar<E> implements CookieJar {
+
+    private final ConcurrentHashMap<E, List<Cookie>> cookies;
+    private final Function<HttpUrl, E> key;
+
+    private CustomCookieJar(final Function<HttpUrl, E> key) {
+      this.key = key;
+      cookies = new ConcurrentHashMap<>();
+    }
+
+    @Override
+    public void saveFromResponse(final HttpUrl httpUrl, final List<Cookie> list) {
+      cookies.computeIfAbsent(key.apply(httpUrl), k -> new ArrayList<>()).addAll(list);
+    }
+
+    @Override
+    public List<Cookie> loadForRequest(final HttpUrl httpUrl) {
+      return cookies.getOrDefault(key.apply(httpUrl), Collections.emptyList());
+    }
   }
 }

@@ -222,7 +222,7 @@ public final class ConfigProvider {
       }
       return defaultValue;
     } else {
-      return ConfigConverter.parseList(getString(key));
+      return ConfigConverter.parseList(list);
     }
   }
 
@@ -234,7 +234,7 @@ public final class ConfigProvider {
       }
       return defaultValue;
     } else {
-      return new HashSet(ConfigConverter.parseList(getString(key)));
+      return new HashSet(ConfigConverter.parseList(list));
     }
   }
 
@@ -309,8 +309,8 @@ public final class ConfigProvider {
     return merged;
   }
 
-  public BitSet getIntegerRange(final String key, final BitSet defaultValue) {
-    final String value = getString(key);
+  public BitSet getIntegerRange(final String key, final BitSet defaultValue, String... aliases) {
+    final String value = getString(key, null, aliases);
     try {
       if (value != null) {
         return ConfigConverter.parseIntegerRangeSet(value, key);
@@ -357,12 +357,14 @@ public final class ConfigProvider {
       return new ConfigProvider(
           new SystemPropertiesConfigSource(),
           new EnvironmentConfigSource(),
+          new OtelEnvironmentConfigSource(),
           new CapturedEnvironmentConfigSource());
     } else {
       return new ConfigProvider(
           new SystemPropertiesConfigSource(),
           new EnvironmentConfigSource(),
           new PropertiesConfigSource(configProperties, true),
+          new OtelEnvironmentConfigSource(configProperties),
           new CapturedEnvironmentConfigSource());
     }
   }
@@ -377,6 +379,7 @@ public final class ConfigProvider {
           false,
           new SystemPropertiesConfigSource(),
           new EnvironmentConfigSource(),
+          new OtelEnvironmentConfigSource(),
           new CapturedEnvironmentConfigSource());
     } else {
       return new ConfigProvider(
@@ -384,6 +387,7 @@ public final class ConfigProvider {
           new SystemPropertiesConfigSource(),
           new EnvironmentConfigSource(),
           new PropertiesConfigSource(configProperties, true),
+          new OtelEnvironmentConfigSource(configProperties),
           new CapturedEnvironmentConfigSource());
     }
   }
@@ -401,6 +405,7 @@ public final class ConfigProvider {
           new SystemPropertiesConfigSource(),
           new EnvironmentConfigSource(),
           providedConfigSource,
+          new OtelEnvironmentConfigSource(),
           new CapturedEnvironmentConfigSource());
     } else {
       return new ConfigProvider(
@@ -408,6 +413,7 @@ public final class ConfigProvider {
           new SystemPropertiesConfigSource(),
           new EnvironmentConfigSource(),
           new PropertiesConfigSource(configProperties, true),
+          new OtelEnvironmentConfigSource(configProperties),
           new CapturedEnvironmentConfigSource());
     }
   }

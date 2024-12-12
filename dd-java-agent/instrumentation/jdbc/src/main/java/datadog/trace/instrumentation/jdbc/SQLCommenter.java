@@ -82,6 +82,11 @@ public class SQLCommenter {
         return sql;
       }
 
+      // Append the comment for mysql JDBC callable statements
+      if (firstWord.startsWith("{") && "mysql".equals(dbType)) {
+        appendComment = true;
+      }
+
       // Both Postgres and MySQL are unhappy with anything before CALL in a stored procedure
       // invocation but they seem ok with it after so we force append mode
       if (firstWord.equalsIgnoreCase("call")) {

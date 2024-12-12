@@ -27,6 +27,7 @@ class SparkExecutorTest extends AgentTestRunner {
     setup:
     def sparkSession = SparkSession.builder()
       .config("spark.master", "local[2]")
+      .config("spark.driver.bindAddress", "localhost")
       .config("spark.sql.shuffle.partitions", "2")
       .appName("test-app")
       .getOrCreate()

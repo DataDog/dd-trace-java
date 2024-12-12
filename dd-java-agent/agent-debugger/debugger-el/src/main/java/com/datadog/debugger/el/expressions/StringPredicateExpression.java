@@ -1,5 +1,7 @@
 package com.datadog.debugger.el.expressions;
 
+import com.datadog.debugger.el.EvaluationException;
+import com.datadog.debugger.el.PrettyPrintVisitor;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.values.StringValue;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
@@ -26,6 +28,14 @@ public class StringPredicateExpression implements BooleanExpression {
   public Boolean evaluate(ValueReferenceResolver valueRefResolver) {
     Value<?> sourceValue =
         sourceString != null ? sourceString.evaluate(valueRefResolver) : Value.nullValue();
+    if (sourceValue.isUndefined()) {
+      throw new EvaluationException(
+          "Cannot evaluate the expression for undefined value", PrettyPrintVisitor.print(this));
+    }
+    if (sourceValue.isNull()) {
+      throw new EvaluationException(
+          "Cannot evaluate the expression for null value", PrettyPrintVisitor.print(this));
+    }
     if (sourceValue.getValue() instanceof String) {
       String sourceStr = (String) sourceValue.getValue();
       return predicate.test(sourceStr, str.getValue());

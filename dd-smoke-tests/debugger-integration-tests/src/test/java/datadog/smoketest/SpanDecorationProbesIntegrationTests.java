@@ -116,6 +116,7 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
 
   @Test
   @DisplayName("testMethodSimpleTagValueError")
+  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
   void testMethodSimpleTagValueError() throws Exception {
     SpanDecorationProbe spanDecorationProbe =
         SpanDecorationProbe.builder()
@@ -152,6 +153,7 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
 
   @Test
   @DisplayName("testMethodSimpleTagConditionError")
+  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
   void testMethodSimpleTagConditionError() throws Exception {
     SpanDecorationProbe spanDecorationProbe =
         SpanDecorationProbe.builder()
@@ -190,6 +192,7 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
 
   @Test
   @DisplayName("testMethodMultiTagValueError")
+  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
   void testMethodMultiTagValueError() throws Exception {
     List<SpanDecorationProbe.Decoration> decorations =
         Arrays.asList(
@@ -258,11 +261,6 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
           }
         });
     processRequests(() -> count.get() >= 100);
-  }
-
-  private boolean isTracedFullMethodSpan(DecodedSpan span) {
-    return span.getName().equals("trace.annotation")
-        && span.getResource().equals("ServerDebuggerTestApplication.runTracedMethod");
   }
 
   private SpanDecorationProbe.Decoration createDecoration(String tagName, String valueDsl) {

@@ -29,6 +29,10 @@ public final class TraceAnnotationsInstrumentation extends InstrumenterModule.Tr
   @SuppressForbidden
   public TraceAnnotationsInstrumentation() {
     super("trace", "trace-annotation");
+    this.methodTraceMatcher = namedOneOf(loadAnnotations());
+  }
+
+  static Set<String> loadAnnotations() {
     Set<String> annotations = new HashSet<>();
     annotations.add("datadog.trace.api.Trace");
     final String configString = InstrumenterConfig.get().getTraceAnnotations();
@@ -57,7 +61,7 @@ public final class TraceAnnotationsInstrumentation extends InstrumenterModule.Tr
         start = next + 1;
       } while (start != 0);
     }
-    this.methodTraceMatcher = namedOneOf(annotations);
+    return annotations;
   }
 
   @Override

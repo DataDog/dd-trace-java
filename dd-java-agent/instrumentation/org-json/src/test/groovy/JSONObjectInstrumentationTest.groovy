@@ -30,11 +30,11 @@ class JSONObjectInstrumentationTest extends AgentTestRunner {
 
     then:
     name == "nameTest"
-    1 * module.taintIfTainted(_ as JSONObject, json)
-    2 * module.taintIfTainted(_ as JSONObject, _ as JSONTokener)
-    2 * module.taintIfTainted(_ as JSONObject, _ as JSONObject)
-    1 * module.taintIfTainted(_ as JSONTokener, json)
-    2 * module.taintIfTainted("nameTest", _ as JSONObject)
+    1 * module.taintObjectIfTainted(_ as JSONObject, json)
+    2 * module.taintObjectIfTainted(_ as JSONObject, _ as JSONTokener)
+    2 * module.taintObjectIfTainted(_ as JSONObject, _ as JSONObject)
+    1 * module.taintObjectIfTainted(_ as JSONTokener, json)
+    2 * module.taintStringIfTainted("nameTest", _ as JSONObject)
     0 * _
   }
 
@@ -58,11 +58,11 @@ class JSONObjectInstrumentationTest extends AgentTestRunner {
 
     then:
     name == "nameTest"
-    1 * module.taintIfTainted(_ as JSONObject, json)
-    2 * module.taintIfTainted(_ as JSONObject, _ as JSONTokener)
-    2 * module.taintIfTainted(_ as JSONObject, _ as JSONObject)
-    1 * module.taintIfTainted(_ as JSONTokener, json)
-    1 * module.taintIfTainted("nameTest", _ as JSONObject)
+    1 * module.taintObjectIfTainted(_ as JSONObject, json)
+    2 * module.taintObjectIfTainted(_ as JSONObject, _ as JSONTokener)
+    2 * module.taintObjectIfTainted(_ as JSONObject, _ as JSONObject)
+    1 * module.taintObjectIfTainted(_ as JSONTokener, json)
+    1 * module.taintStringIfTainted("nameTest", _ as JSONObject)
     0 * _
   }
 
@@ -80,9 +80,9 @@ class JSONObjectInstrumentationTest extends AgentTestRunner {
 
     then:
     name == "nameTest"
-    1 * module.taintIfTainted(_ as JSONObject, _ as JSONTokener)
-    1 * module.taintIfTainted(_ as JSONTokener, json)
-    2 * module.taintIfTainted("nameTest", _ as JSONObject)
+    1 * module.taintObjectIfTainted(_ as JSONObject, _ as JSONTokener)
+    1 * module.taintObjectIfTainted(_ as JSONTokener, json)
+    2 * module.taintStringIfTainted("nameTest", _ as JSONObject)
     0 * _
   }
 
@@ -100,8 +100,8 @@ class JSONObjectInstrumentationTest extends AgentTestRunner {
     jsonObject.get("name")
 
     then:
-    1 * module.taintIfTainted(_ as JSONObject, map)
-    2 * module.taintIfTainted("nameTest", _ as JSONObject)
+    1 * module.taintObjectIfTainted(_ as JSONObject, map)
+    2 * module.taintStringIfTainted("nameTest", _ as JSONObject)
     0 * _
   }
 }

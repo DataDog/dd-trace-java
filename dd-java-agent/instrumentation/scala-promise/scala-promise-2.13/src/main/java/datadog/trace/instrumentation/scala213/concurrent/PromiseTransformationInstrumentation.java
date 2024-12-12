@@ -82,7 +82,7 @@ public final class PromiseTransformationInstrumentation extends InstrumenterModu
       if (xform == 0) {
         return;
       }
-      capture(InstrumentationContext.get(Transformation.class, State.class), task, true);
+      capture(InstrumentationContext.get(Transformation.class, State.class), task);
     }
   }
 
@@ -128,7 +128,7 @@ public final class PromiseTransformationInstrumentation extends InstrumenterModu
       }
       // If nothing else has been picked up, then try to pick up the current Scope
       if (null == state) {
-        capture(contextStore, task, true);
+        capture(contextStore, task);
       }
     }
   }

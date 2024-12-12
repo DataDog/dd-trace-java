@@ -1,0 +1,88 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  testImplementation project(':dd-smoke-tests')
+}
+def testJvm = gradle.startParameter.projectProperties.getOrDefault('testJvm', '')
+// In order to support GraalVM 21 we need at least Java 17 for Gradle
+def java17Home = System.getenv('JAVA_17_HOME')
+// Check 'testJvm' gradle command parameter to be at least GraalVM 17
+def matcher = testJvm?.toLowerCase(Locale.ROOT) =~ /graalvm([0-9]+)/
+def version = matcher?.size() == 1 ? Integer.parseInt(matcher[0][1]) : -1
+if (version >= 17) {
+  // Retrieve GRAALVM_HOME from JVM environment variables
+  def testJvmEnv = "JAVA_${testJvm}_HOME"
+  def testJvmHome = System.getenv(testJvmEnv)
+  if (!testJvmHome) {
+    throw new GradleException("Unable to find launcher for Java '$testJvm'. Have you set '$testJvmEnv'?")
+  }
+  def javaHome = version >= 21 ? java17Home : testJvmHome
+  // Configure build directory for application
+  def appDir = "$projectDir/application"
+  def appBuildDir = "$buildDir/application"
+  def isWindows = System.getProperty('os.name').toLowerCase().contains('win')
+  def gradlewCommand = isWindows ? 'gradlew.bat' : 'gradlew'
+
+  // Define the task that builds the project
+  tasks.register('quarkusNativeBuild', Exec) {
+    workingDir "$appDir"
+    environment += [
+      'GRADLE_OPTS' : "-Dorg.gradle.jvmargs='-Xmx512M'",
+      'JAVA_HOME'   : javaHome,
+      'GRAALVM_HOME': testJvmHome
+    ]
+    commandLine(
+      "$rootDir/${gradlewCommand}",
+      'build',
+      '--no-daemon',
+      '--max-workers=4',
+      "-Dquarkus.native.enabled=true",
+      "-Dquarkus.package.jar.enabled=false",
+      "-PappBuildDir=$appBuildDir",
+      "-PapiJar=${project(':dd-trace-api').tasks.jar.archiveFile.get()}",
+      "-Dquarkus.native.additional-build-args=-J-javaagent:${project(':dd-java-agent').tasks.shadowJar.archiveFile.get()}," +
+      "-J-Ddatadog.slf4j.simpleLogger.dateTimeFormat=yyyy-MM-dd'T'HH:mm:ss.SSS'Z [dd.trace]',-march=native"
+      )
+    outputs.cacheIf { true }
+    outputs.dir(appBuildDir)
+      .withPropertyName('nativeApplication')
+    inputs.files(fileTree(appDir) {
+      include '**/*'
+      exclude '.gradle/**'
+    }).withPropertyName('application')
+    .withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.file(project(':dd-trace-api').tasks.jar.archiveFile.get()).withPropertyName('apiJar')
+    inputs.file(project(':dd-java-agent').tasks.shadowJar.archiveFile.get()).withPropertyName('agentJar')
+  }
+
+  quarkusNativeBuild {
+    dependsOn project(':dd-trace-api').tasks.named("jar") // Use dev @Trace annotation
+    dependsOn project(':dd-java-agent').tasks.named('shadowJar') // Use dev agent
+  }
+
+  tasks.named('compileTestGroovy').configure {
+    dependsOn 'quarkusNativeBuild'
+    outputs.upToDateWhen {
+      !quarkusNativeBuild.didWork
+    }
+  }
+
+  tasks.withType(Test).configureEach {
+    jvmArgs "-Ddatadog.smoketest.quarkus.native.executable=$appBuildDir/quarkus-native-smoketest--runner"
+  }
+
+} else {
+  tasks.withType(Test).configureEach {
+    enabled = false
+  }
+}
+
+spotless {
+  java {
+    target "**/*.java"
+  }
+
+  groovyGradle {
+    target '*.gradle', "**/*.gradle"
+  }
+}

@@ -1,6 +1,7 @@
 package datadog.trace.civisibility.retry;
 
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /** Retries a test case if it failed, up to a maximum number of times. */
 public class RetryIfFailed implements TestRetryPolicy {
@@ -8,8 +9,12 @@ public class RetryIfFailed implements TestRetryPolicy {
   private final int maxExecutions;
   private int executions;
 
-  public RetryIfFailed(int maxExecutions) {
+  /** Total execution counter that is shared by all retry policies */
+  private final AtomicInteger totalExecutions;
+
+  public RetryIfFailed(int maxExecutions, AtomicInteger totalExecutions) {
     this.maxExecutions = maxExecutions;
+    this.totalExecutions = totalExecutions;
     this.executions = 0;
   }
 
@@ -25,7 +30,12 @@ public class RetryIfFailed implements TestRetryPolicy {
 
   @Override
   public boolean retry(boolean successful, long duration) {
-    return !successful && ++executions < maxExecutions;
+    if (!successful && ++executions < maxExecutions) {
+      totalExecutions.incrementAndGet();
+      return true;
+    } else {
+      return false;
+    }
   }
 
   @Override

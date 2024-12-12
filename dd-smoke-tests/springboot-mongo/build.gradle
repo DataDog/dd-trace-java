@@ -22,7 +22,7 @@ dependencies {
   implementation group: 'org.springframework.boot', name: 'spring-boot-starter-data-mongodb', version: '2.4.1'
 
   testImplementation project(':dd-smoke-tests')
-  testImplementation group: 'org.testcontainers', name: 'mongodb', version: versions.testcontainers
+  testImplementation group: 'org.testcontainers', name: 'mongodb', version: libs.versions.testcontainers.get()
 }
 
 tasks.withType(Test).configureEach {

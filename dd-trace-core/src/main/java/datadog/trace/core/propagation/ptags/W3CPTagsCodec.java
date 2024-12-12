@@ -93,7 +93,9 @@ public class W3CPTagsCodec extends PTagsCodec {
     CharSequence origin = null;
     TagValue decisionMakerTagValue = null;
     TagValue traceIdTagValue = null;
+    boolean appsecPropagationEnabled = false;
     int maxUnknownSize = 0;
+    CharSequence lastParentId = null;
     while (tagPos < ddMemberValueEnd) {
       int tagKeyEndsAt =
           validateCharsUntilSeparatorOrEnd(
@@ -145,6 +147,8 @@ public class W3CPTagsCodec extends PTagsCodec {
             decisionMakerTagValue = tagValue;
           } else if (tagKey.equals(TRACE_ID_TAG)) {
             traceIdTagValue = tagValue;
+          } else if (tagKey.equals(APPSEC_TAG)) {
+            appsecPropagationEnabled = tagValue.charAt(0) == '1';
           } else {
             if (tagPairs == null) {
               // This is roughly the size of a two element linked list but can hold six
@@ -162,6 +166,8 @@ public class W3CPTagsCodec extends PTagsCodec {
           samplingPriority = validateSamplingPriority(value, tagValuePos, tagValueEndsAt);
         } else if (keyLength == 1 && c == 'o') {
           origin = TagValue.from(Encoding.W3C, value, tagValuePos, tagValueEndsAt);
+        } else if (keyLength == 1 && c == 'p') {
+          lastParentId = TagValue.from(Encoding.W3C, value, tagValuePos, tagValueEndsAt);
         } else {
           if (maxUnknownSize != 0) {
             maxUnknownSize++; // delimiter
@@ -176,13 +182,15 @@ public class W3CPTagsCodec extends PTagsCodec {
         tagPairs,
         decisionMakerTagValue,
         traceIdTagValue,
+        appsecPropagationEnabled,
         samplingPriority,
         origin,
         value,
         firstMemberStart,
         ddMemberStart,
         ddMemberValueEnd,
-        maxUnknownSize);
+        maxUnknownSize,
+        lastParentId);
   }
 
   @Override
@@ -229,6 +237,19 @@ public class W3CPTagsCodec extends PTagsCodec {
         sb.append(((TagValue) origin).forType(Encoding.W3C));
       } else {
         sb.append(origin);
+      }
+    }
+    // append last ParentId (p)
+    CharSequence lastParent = ptags.getLastParentId();
+    if (lastParent != null) {
+      if (sb.length() > EMPTY_SIZE) {
+        sb.append(';');
+      }
+      sb.append("p:");
+      if (lastParent instanceof TagValue) {
+        sb.append(((TagValue) lastParent).forType(Encoding.W3C));
+      } else {
+        sb.append(lastParent);
       }
     }
     return sb.length();
@@ -686,13 +707,15 @@ public class W3CPTagsCodec extends PTagsCodec {
         null,
         null,
         null,
+        false,
         PrioritySampling.UNSET,
         null,
         original,
         firstMemberStart,
         ddMemberStart,
         ddMemberValueEnd,
-        0);
+        0,
+        null);
   }
 
   private static class W3CPTags extends PTags {
@@ -716,14 +739,24 @@ public class W3CPTagsCodec extends PTagsCodec {
         List<TagElement> tagPairs,
         TagValue decisionMakerTagValue,
         TagValue traceIdTagValue,
+        boolean appsecPropagationEnabled,
         int samplingPriority,
         CharSequence origin,
         String original,
         int firstMemberStart,
         int ddMemberStart,
         int ddMemberValueEnd,
-        int maxUnknownSize) {
-      super(factory, tagPairs, decisionMakerTagValue, traceIdTagValue, samplingPriority, origin);
+        int maxUnknownSize,
+        CharSequence lastParentId) {
+      super(
+          factory,
+          tagPairs,
+          decisionMakerTagValue,
+          traceIdTagValue,
+          appsecPropagationEnabled,
+          samplingPriority,
+          origin,
+          lastParentId);
       this.tracestate = original;
       this.firstMemberStart = firstMemberStart;
       this.ddMemberStart = ddMemberStart;

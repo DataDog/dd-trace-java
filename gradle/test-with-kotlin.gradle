@@ -40,3 +40,8 @@ def createKotlinDirs = tasks.register("createKotlinDirs") {
 tasks.withType(JavaCompile).configureEach {
   inputs.files(createKotlinDirs)
 }
+
+dependencies {
+  // prevents Kotlin libs from being included into the tracer JAR
+  compileOnly libs.kotlin
+}

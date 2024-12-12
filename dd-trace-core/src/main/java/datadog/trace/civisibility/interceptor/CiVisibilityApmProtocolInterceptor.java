@@ -1,6 +1,8 @@
 package datadog.trace.civisibility.interceptor;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanTypes;
+import datadog.trace.api.civisibility.CiVisibilityWellKnownTags;
 import datadog.trace.api.interceptor.AbstractTraceInterceptor;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -11,15 +13,19 @@ import java.util.stream.Collectors;
 /**
  * An interceptor that removes spans and tags that are not supported in the APM protocol (some spans
  * and tags related to certain CI Visibility features, e.g. Test Suite Level Visibility, can only be
- * written with CI Test Cycle protocol)
+ * written with CI Test Cycle protocol). Also sets common CI Visibility tags (that are otherwise set
+ * in intake message header when CI Test Cycle protocol is used).
  */
 public class CiVisibilityApmProtocolInterceptor extends AbstractTraceInterceptor {
 
   public static final CiVisibilityApmProtocolInterceptor INSTANCE =
-      new CiVisibilityApmProtocolInterceptor(Priority.CI_VISIBILITY_APM);
+      new CiVisibilityApmProtocolInterceptor(Priority.CI_VISIBILITY_APM, Config.get());
 
-  protected CiVisibilityApmProtocolInterceptor(Priority priority) {
+  private final CiVisibilityWellKnownTags wellKnownTags;
+
+  protected CiVisibilityApmProtocolInterceptor(Priority priority, Config config) {
     super(priority);
+    wellKnownTags = config.getCiVisibilityWellKnownTags();
   }
 
   @Override
@@ -32,6 +38,16 @@ public class CiVisibilityApmProtocolInterceptor extends AbstractTraceInterceptor
       span.setTag(Tags.TEST_SESSION_ID, (Number) null);
       span.setTag(Tags.TEST_MODULE_ID, (Number) null);
       span.setTag(Tags.TEST_SUITE_ID, (Number) null);
+
+      String spanType = span.getSpanType();
+      if (DDSpanTypes.TEST.equals(spanType)) {
+        span.setTag(Tags.RUNTIME_NAME, wellKnownTags.getRuntimeName().toString());
+        span.setTag(Tags.RUNTIME_VENDOR, wellKnownTags.getRuntimeVendor().toString());
+        span.setTag(Tags.RUNTIME_VERSION, wellKnownTags.getRuntimeVersion().toString());
+        span.setTag(Tags.OS_ARCHITECTURE, wellKnownTags.getOsArch().toString());
+        span.setTag(Tags.OS_PLATFORM, wellKnownTags.getOsPlatform().toString());
+        span.setTag(Tags.OS_VERSION, wellKnownTags.getOsVersion().toString());
+      }
     }
     return filteredTrace;
   }

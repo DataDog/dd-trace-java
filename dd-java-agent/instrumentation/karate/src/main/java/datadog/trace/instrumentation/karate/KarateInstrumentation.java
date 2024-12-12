@@ -5,8 +5,13 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import com.google.auto.service.AutoService;
 import com.intuit.karate.Runner;
 import com.intuit.karate.RuntimeHook;
+import com.intuit.karate.core.FeatureRuntime;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.bootstrap.ContextStore;
+import datadog.trace.bootstrap.InstrumentationContext;
+import java.util.Collections;
+import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
@@ -32,6 +37,11 @@ public class KarateInstrumentation extends InstrumenterModule.CiVisibility
   }
 
   @Override
+  public Map<String, String> contextStore() {
+    return Collections.singletonMap("com.intuit.karate.core.FeatureRuntime", "java.lang.Boolean");
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor(), KarateInstrumentation.class.getName() + "$KarateAdvice");
@@ -41,7 +51,9 @@ public class KarateInstrumentation extends InstrumenterModule.CiVisibility
     @Advice.OnMethodExit
     public static void onRunnerBuilderConstructorExit(
         @Advice.This Runner.Builder<?> runnerBuilder) {
-      runnerBuilder.hook(new KarateTracingHook());
+      ContextStore<FeatureRuntime, Boolean> featureRuntimeContextStore =
+          InstrumentationContext.get(FeatureRuntime.class, Boolean.class);
+      runnerBuilder.hook(new KarateTracingHook(featureRuntimeContextStore));
     }
 
     // Karate 1.0.0 and above

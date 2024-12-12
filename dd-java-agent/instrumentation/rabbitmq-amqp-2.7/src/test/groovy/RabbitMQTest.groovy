@@ -1,11 +1,11 @@
 import com.rabbitmq.client.AMQP
-import com.rabbitmq.client.AlreadyClosedException
 import com.rabbitmq.client.Channel
 import com.rabbitmq.client.ConnectionFactory
 import com.rabbitmq.client.Consumer
 import com.rabbitmq.client.DefaultConsumer
 import com.rabbitmq.client.Envelope
 import com.rabbitmq.client.GetResponse
+import com.rabbitmq.client.ShutdownSignalException
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.PortUtils
@@ -89,7 +89,7 @@ abstract class RabbitMQTestBase extends VersionedNamingTestBase {
       channel?.close()
       conn?.close()
       TEST_DATA_STREAMS_WRITER?.clear()
-    } catch (AlreadyClosedException e) {
+    } catch (ShutdownSignalException e) {
       // Ignore
     }
   }

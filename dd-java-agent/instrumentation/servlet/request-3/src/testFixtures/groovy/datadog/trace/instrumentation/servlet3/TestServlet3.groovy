@@ -12,7 +12,6 @@ import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
 import java.lang.reflect.Field
 import java.lang.reflect.Modifier
-import java.util.concurrent.Phaser
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART
@@ -26,6 +25,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SESSION_ID
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
@@ -118,6 +118,11 @@ class TestServlet3 {
             break
           case CUSTOM_EXCEPTION:
             throw new InputMismatchException(endpoint.body)
+          case SESSION_ID:
+            req.getSession(true)
+            resp.status = endpoint.status
+            resp.writer.print(req.requestedSessionId)
+            break
         }
       }
     }
@@ -128,7 +133,6 @@ class TestServlet3 {
     @Override
     protected void service(HttpServletRequest req, HttpServletResponse resp) {
       HttpServerTest.ServerEndpoint endpoint = getEndpoint(req)
-      def phaser = new Phaser(2)
       def context = req.startAsync()
       context.setTimeout(SERVLET_TIMEOUT)
       if (resp.class.name.startsWith("org.eclipse.jetty")) {
@@ -149,66 +153,65 @@ class TestServlet3 {
           })
       }
       context.start {
-        try {
-          phaser.arrive()
-          HttpServerTest.controller(endpoint) {
-            resp.contentType = "text/plain"
-            resp.addHeader(HttpServerTest.IG_RESPONSE_HEADER, HttpServerTest.IG_RESPONSE_HEADER_VALUE)
-            switch (endpoint) {
-              case SUCCESS:
-                resp.status = endpoint.status
-                resp.writer.print(endpoint.body)
-                context.complete()
-                break
-              case CREATED:
-                resp.status = endpoint.status
-                resp.writer.print("${endpoint.body}: ${req.reader.text}")
-                break
-              case CREATED_IS:
-                resp.status = endpoint.status
-                resp.writer.print("${endpoint.body}: ${req.inputStream.getText('UTF-8')}")
-                break
-              case FORWARDED:
-                resp.status = endpoint.status
-                resp.writer.print(req.getHeader("x-forwarded-for"))
-                context.complete()
-                break
-              case QUERY_ENCODED_BOTH:
-              case QUERY_ENCODED_QUERY:
-              case QUERY_PARAM:
-                resp.status = endpoint.status
-                resp.writer.print(endpoint.bodyForQuery(req.queryString))
-                context.complete()
-                break
-              case REDIRECT:
-                resp.sendRedirect(endpoint.body)
-                context.complete()
-                break
-              case ERROR:
-                resp.sendError(endpoint.status, endpoint.body)
-                context.complete()
-                break
-              case EXCEPTION:
-                throw new Exception(endpoint.body)
-              case CUSTOM_EXCEPTION:
-                throw new InputMismatchException(endpoint.body)
-              case TIMEOUT:
-              case TIMEOUT_ERROR:
-                sleep context.getTimeout() + 10
-                break
-              case USER_BLOCK:
-                Blocking.forUser('user-to-block').blockIfMatch()
-                resp.writer.print('should not be reached')
-                context.complete()
-                break
-            }
+        HttpServerTest.controller(endpoint) {
+          resp.contentType = "text/plain"
+          resp.addHeader(HttpServerTest.IG_RESPONSE_HEADER, HttpServerTest.IG_RESPONSE_HEADER_VALUE)
+          switch (endpoint) {
+            case SUCCESS:
+              resp.status = endpoint.status
+              resp.writer.print(endpoint.body)
+              context.complete()
+              break
+            case CREATED:
+              resp.status = endpoint.status
+              resp.writer.print("${endpoint.body}: ${req.reader.text}")
+              break
+            case CREATED_IS:
+              resp.status = endpoint.status
+              resp.writer.print("${endpoint.body}: ${req.inputStream.getText('UTF-8')}")
+              break
+            case FORWARDED:
+              resp.status = endpoint.status
+              resp.writer.print(req.getHeader("x-forwarded-for"))
+              context.complete()
+              break
+            case QUERY_ENCODED_BOTH:
+            case QUERY_ENCODED_QUERY:
+            case QUERY_PARAM:
+              resp.status = endpoint.status
+              resp.writer.print(endpoint.bodyForQuery(req.queryString))
+              context.complete()
+              break
+            case REDIRECT:
+              resp.sendRedirect(endpoint.body)
+              context.complete()
+              break
+            case ERROR:
+              resp.sendError(endpoint.status, endpoint.body)
+              context.complete()
+              break
+            case EXCEPTION:
+              throw new Exception(endpoint.body)
+            case CUSTOM_EXCEPTION:
+              throw new InputMismatchException(endpoint.body)
+            case TIMEOUT:
+            case TIMEOUT_ERROR:
+              sleep context.getTimeout() + 10
+              break
+            case USER_BLOCK:
+              Blocking.forUser('user-to-block').blockIfMatch()
+              resp.writer.print('should not be reached')
+              context.complete()
+              break
+            case SESSION_ID:
+              req.getSession(true)
+              resp.status = endpoint.status
+              resp.writer.print(req.requestedSessionId)
+              context.complete()
+              break
           }
-        } finally {
-          phaser.arriveAndDeregister()
         }
       }
-      phaser.arriveAndAwaitAdvance()
-      phaser.arriveAndAwaitAdvance()
     }
   }
 
@@ -259,6 +262,11 @@ class TestServlet3 {
               Blocking.forUser('user-to-block').blockIfMatch()
               resp.writer.print('should not be reached')
               break
+            case SESSION_ID:
+              req.getSession(true)
+              resp.status = endpoint.status
+              resp.writer.print(req.requestedSessionId)
+              break
           }
         }
       } finally {
@@ -303,6 +311,15 @@ class TestServlet3 {
       } else {
         req.startAsync().dispatch("/recursive")
       }
+    }
+  }
+
+  @WebServlet
+  static class GetSession extends Sync {
+    @Override
+    void service(HttpServletRequest req, HttpServletResponse resp) {
+      req.getSession(true)
+      super.service(req,resp)
     }
   }
 }

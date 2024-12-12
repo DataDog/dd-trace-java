@@ -82,7 +82,7 @@ class FieldInjectionForkedTest extends AgentTestRunner {
     keyClassName = keyClass.getSimpleName()
   }
 
-  def "correct api usage stores state in map"() {
+  def "correct api usage stores state in map #instance1.class.name"() {
     when:
     instance1.incrementContextCount()
 
@@ -96,7 +96,7 @@ class FieldInjectionForkedTest extends AgentTestRunner {
     new UntransformableKeyClass() | new UntransformableKeyClass()
   }
 
-  def "get/put test"() {
+  def "get/put test #instance1.class.name"() {
     when:
     instance1.putContextCount(10)
     instance1.putContextCount2(10)
@@ -111,7 +111,7 @@ class FieldInjectionForkedTest extends AgentTestRunner {
     new UntransformableKeyClass() | _
   }
 
-  def "serializability not impacted"() {
+  def "serializability not impacted #serializable"() {
     setup:
     assumeTrue(InstrumenterConfig.get().isSerialVersionUIDFieldInjection())
 

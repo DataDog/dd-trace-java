@@ -7,6 +7,7 @@ import datadog.trace.test.agent.decoder.Decoder
 import datadog.trace.test.agent.decoder.DecodedMessage
 import datadog.trace.test.agent.decoder.DecodedTrace
 import datadog.trace.util.Strings
+import groovy.json.JsonSlurper
 
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.CopyOnWriteArrayList
@@ -35,9 +36,46 @@ abstract class AbstractSmokeTest extends ProcessManager {
   private String remoteConfigResponse
 
   @Shared
+  private Throwable traceDecodingFailure = null
+
+  @Shared
+  protected CopyOnWriteArrayList<Map<String, Object>> telemetryMessages = new CopyOnWriteArrayList()
+
+  @Shared
+  protected CopyOnWriteArrayList<Map<String, Object>> telemetryFlatMessages = new CopyOnWriteArrayList()
+
+  @Shared
+  private Throwable telemetryDecodingFailure = null
+
+  @Shared
+  protected TestHttpServer.Headers lastTraceRequestHeaders = null
+
+  @Shared
   @AutoCleanup
   protected TestHttpServer server = httpServer {
     handlers {
+      prefix("/info") {
+        response.status(200).send("""{
+          "version": "7.54.1",
+          "git_commit": "44d1992",
+          "endpoints": [
+            "/v0.4/traces",
+            "/v0.5/traces",
+            "/telemetry/proxy/"
+          ],
+          "client_drop_p0s": true,
+          "span_meta_structs": true,
+          "long_running_spans": true,
+          "evp_proxy_allowed_headers": [
+            "Content-Type",
+            "Accept-Encoding",
+            "Content-Encoding",
+            "User-Agent",
+            "DD-CI-PROVIDER-NAME"
+          ],
+          "config": {}
+        }""")
+      }
       prefix("/v0.4/traces") {
         def countString = request.getHeader("X-Datadog-Trace-Count")
         int count = countString != null ? Integer.parseInt(countString) : 0
@@ -52,10 +90,12 @@ abstract class AbstractSmokeTest extends ProcessManager {
           } catch (Throwable t) {
             println("=== Failure during message v0.4 decoding ===")
             t.printStackTrace(System.out)
+            traceDecodingFailure = t
             throw t
           }
         }
         traceCount.addAndGet(count)
+        lastTraceRequestHeaders = request.headers
         println("Received v0.4 traces: " + countString)
         response.status(200).send()
       }
@@ -73,15 +113,40 @@ abstract class AbstractSmokeTest extends ProcessManager {
           } catch (Throwable t) {
             println("=== Failure during message v0.5 decoding ===")
             t.printStackTrace(System.out)
+            traceDecodingFailure = t
             throw t
           }
         }
         traceCount.addAndGet(count)
+        lastTraceRequestHeaders = request.headers
         println("Received v0.5 traces: " + countString)
+        response.status(200).send()
+      }
+      prefix("/v0.6/stats") {
         response.status(200).send()
       }
       prefix("/v0.7/config") {
         response.status(200).send(remoteConfigResponse)
+      }
+      prefix("/telemetry/proxy/api/v2/apmtelemetry") {
+        try {
+          byte[] body = request.getBody()
+          if (body != null) {
+            Map<String, Object> msg = new JsonSlurper().parseText(new String(body, StandardCharsets.UTF_8)) as Map<String, Object>
+            telemetryMessages.add(msg)
+            if (msg.get("request_type") == "message-batch") {
+              msg.get("payload")?.each { telemetryFlatMessages.add(it as Map<String, Object>) }
+            } else {
+              telemetryFlatMessages.add(msg)
+            }
+          }
+        } catch (Throwable t) {
+          println("=== Failure during telemetry decoding ===")
+          t.printStackTrace(System.out)
+          telemetryDecodingFailure = t
+          throw t
+        }
+        response.status(202).send()
       }
     }
   }
@@ -99,13 +164,18 @@ abstract class AbstractSmokeTest extends ProcessManager {
     "-Ddd.version=${VERSION}"
   ]
 
+  def testCrashTracking() {
+    return true
+  }
 
   def javaProperties() {
+    def tmpDir = "/tmp"
+
     def ret = [
       "${getMaxMemoryArgumentForFork()}",
       "${getMinMemoryArgumentForFork()}",
       "-javaagent:${shadowJarPath}",
-      isIBM ? "-Xdump:directory=/tmp" : "-XX:ErrorFile=/tmp/hs_err_pid%p.log",
+      isIBM ? "-Xdump:directory=${tmpDir}" : "-XX:ErrorFile=${tmpDir}/hs_err_pid%p.log",
       "-Ddd.trace.agent.port=${server.address.port}",
       "-Ddd.env=${ENV}",
       "-Ddd.version=${VERSION}",
@@ -122,7 +192,21 @@ abstract class AbstractSmokeTest extends ProcessManager {
     if (inferServiceName())  {
       ret += "-Ddd.service.name=${SERVICE_NAME}"
     }
+    if (testTelemetry()) {
+      ret += "-Ddd.telemetry.heartbeat.interval=5"
+    }
+    // DQH - Nov 2024 - skipping for J9 which doesn't have full crash tracking support
+    if (testCrashTracking() && !Platform.isJ9()) {
+      def extension = getScriptExtension()
+      ret += "-XX:OnError=${tmpDir}/dd_crash_uploader.${extension} %p"
+      // Unlike crash tracking smoke test, keep the default delay; otherwise, otherwise other tests will fail
+      // ret += "-Ddd.dogstatsd.start-delay=0"
+    }
     ret as String[]
+  }
+
+  static String getScriptExtension() {
+    return Platform.isWindows() ? "bat" : "sh"
   }
 
   def inferServiceName() {
@@ -134,14 +218,23 @@ abstract class AbstractSmokeTest extends ProcessManager {
     return !Platform.isJ9()
   }
 
+
+  boolean testTelemetry() {
+    return true
+  }
+
   def setup() {
     traceCount.set(0)
     decodeTraces.clear()
     remoteConfigResponse = "{}"
+    traceDecodingFailure = null
   }
 
   def cleanup() {
     decodeTraces.clear()
+    if (traceDecodingFailure != null) {
+      throw traceDecodingFailure
+    }
   }
 
   def setupSpec() {
@@ -204,6 +297,9 @@ abstract class AbstractSmokeTest extends ProcessManager {
 
   int waitForTraceCount(int count, PollingConditions conditions) {
     conditions.eventually {
+      if (traceDecodingFailure != null) {
+        throw traceDecodingFailure
+      }
       assert traceCount.get() >= count
     }
     traceCount.get()
@@ -212,6 +308,9 @@ abstract class AbstractSmokeTest extends ProcessManager {
   void waitForTrace(final PollingConditions poll, final Function<DecodedTrace, Boolean> predicate) {
     assert decode != null // override decodedTracesCallback to avoid this and enable trace decoding
     poll.eventually {
+      if (traceDecodingFailure != null) {
+        throw traceDecodingFailure
+      }
       assert decodeTraces.find { predicate.apply(it) } != null
     }
   }
@@ -221,6 +320,31 @@ abstract class AbstractSmokeTest extends ProcessManager {
       trace.spans.find {
         predicate.apply(it)
       }
+    }
+  }
+
+  void waitForTelemetryCount(final int count) {
+    def conditions = new PollingConditions(timeout: 30, initialDelay: 0, delay: 1, factor: 1)
+    waitForTelemetryCount(conditions, count)
+  }
+
+  void waitForTelemetryCount(final PollingConditions poll, final int count) {
+    poll.eventually {
+      telemetryMessages.size() >= count
+    }
+  }
+
+  void waitForTelemetryFlat(final Function<Map<String, Object>, Boolean> predicate) {
+    def conditions = new PollingConditions(timeout: 30, initialDelay: 0, delay: 1, factor: 1)
+    waitForTelemetryFlat(conditions, predicate)
+  }
+
+  void waitForTelemetryFlat(final PollingConditions poll, final Function<Map<String, Object>, Boolean> predicate) {
+    poll.eventually {
+      if (telemetryDecodingFailure != null) {
+        throw telemetryDecodingFailure
+      }
+      assert telemetryFlatMessages.find { predicate.apply(it) } != null
     }
   }
 

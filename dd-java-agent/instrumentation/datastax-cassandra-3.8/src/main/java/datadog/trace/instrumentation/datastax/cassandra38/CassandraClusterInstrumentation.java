@@ -36,7 +36,7 @@ public class CassandraClusterInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     return hasClassNamed("com.datastax.driver.core.EndPoint");
   }
 

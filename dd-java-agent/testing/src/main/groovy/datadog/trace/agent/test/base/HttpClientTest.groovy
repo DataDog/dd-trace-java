@@ -158,7 +158,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     return null
   }
 
-  def "basic #method request #url - tagQueryString=#tagQueryString"() {
+  def "basic #method request #path - tagQueryString=#tagQueryString"() {
     when:
     injectSysConfig(HTTP_CLIENT_TAG_QUERY_STRING, "$tagQueryString")
     def status = doRequest(method, url)

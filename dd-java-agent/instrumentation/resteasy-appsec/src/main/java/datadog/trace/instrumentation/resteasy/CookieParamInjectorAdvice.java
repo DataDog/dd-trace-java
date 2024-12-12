@@ -28,11 +28,11 @@ public class CookieParamInjectorAdvice {
           Collection<?> collection = (Collection<?>) result;
           for (Object o : collection) {
             if (o instanceof String) {
-              module.taint(ctx, (String) o, SourceTypes.REQUEST_COOKIE_VALUE, paramName);
+              module.taintString(ctx, (String) o, SourceTypes.REQUEST_COOKIE_VALUE, paramName);
             }
           }
         } else {
-          module.taint(ctx, (String) result, SourceTypes.REQUEST_COOKIE_VALUE, paramName);
+          module.taintString(ctx, (String) result, SourceTypes.REQUEST_COOKIE_VALUE, paramName);
         }
       }
     }

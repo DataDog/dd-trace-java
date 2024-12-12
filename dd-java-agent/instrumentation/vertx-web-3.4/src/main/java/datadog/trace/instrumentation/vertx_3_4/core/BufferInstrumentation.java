@@ -65,7 +65,7 @@ public class BufferInstrumentation extends InstrumenterModule.Iast
     public static void get(@Advice.This final Object self, @Advice.Return final String result) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (result != null && module != null) {
-        module.taintIfTainted(result, self);
+        module.taintStringIfTainted(result, self);
       }
     }
   }
@@ -76,7 +76,7 @@ public class BufferInstrumentation extends InstrumenterModule.Iast
     public static void get(@Advice.This final Object self, @Advice.Return final Object result) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (result != null && module != null) {
-        module.taintIfTainted(result, self);
+        module.taintObjectIfTainted(result, self);
       }
     }
   }
@@ -88,7 +88,7 @@ public class BufferInstrumentation extends InstrumenterModule.Iast
         @Advice.Argument(0) final Object buffer, @Advice.Return final Object result) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (result != null && module != null) {
-        module.taintIfTainted(result, buffer);
+        module.taintObjectIfTainted(result, buffer);
       }
     }
   }

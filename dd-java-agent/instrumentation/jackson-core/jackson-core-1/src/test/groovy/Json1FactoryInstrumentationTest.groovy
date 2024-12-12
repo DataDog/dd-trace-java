@@ -41,7 +41,7 @@ class Json1FactoryInstrumentationTest extends AgentTestRunner {
 
     then:
     result != null
-    1 * propagationModule.taintIfTainted(_ as JsonParser, content)
+    1 * propagationModule.taintObjectIfTainted(_ as JsonParser, content)
     0 * _
   }
 
@@ -56,7 +56,7 @@ class Json1FactoryInstrumentationTest extends AgentTestRunner {
 
     then:
     result != null
-    1 * propagationModule.taintIfTainted(_ as JsonParser, is)
+    1 * propagationModule.taintObjectIfTainted(_ as JsonParser, is)
     2 * is.read(_, _, _)
     0 * _
   }
@@ -73,7 +73,7 @@ class Json1FactoryInstrumentationTest extends AgentTestRunner {
 
     then:
     result != null
-    1 * propagationModule.taintIfTainted(_ as JsonParser, reader)
+    1 * propagationModule.taintObjectIfTainted(_ as JsonParser, reader)
     0 * _
   }
 
@@ -89,7 +89,7 @@ class Json1FactoryInstrumentationTest extends AgentTestRunner {
 
     then:
     parser != null
-    1 * propagationModule.taintIfTainted(_ as JsonParser, url)
+    1 * propagationModule.taintObjectIfTainted(_ as JsonParser, url)
     1 * ssrfModule.onURLConnection(url)
     0 * _
   }
@@ -107,7 +107,7 @@ class Json1FactoryInstrumentationTest extends AgentTestRunner {
 
     then:
     result != null
-    1 * propagationModule.taintIfTainted(_ as JsonParser, bytes)
+    1 * propagationModule.taintObjectIfTainted(_ as JsonParser, bytes)
     0 * _
   }
 
@@ -122,7 +122,7 @@ class Json1FactoryInstrumentationTest extends AgentTestRunner {
 
     then:
     parser != null
-    1 * propagationModule.taintIfTainted(_ as JsonParser, bytes, 0, 2, false, VulnerabilityMarks.NOT_MARKED)
+    1 * propagationModule.taintObjectIfRangeTainted(_ as JsonParser, bytes, 0, 2, false, VulnerabilityMarks.NOT_MARKED)
     0 * _
   }
 }

@@ -33,8 +33,9 @@ import org.slf4j.LoggerFactory;
 public class DefaultPathwayContext implements PathwayContext {
   private static final Logger log = LoggerFactory.getLogger(DefaultPathwayContext.class);
   private final Lock lock = new ReentrantLock();
-  private final WellKnownTags wellKnownTags;
+  private final long hashOfKnownTags;
   private final TimeSource timeSource;
+  private final String serviceNameOverride;
   private final GrowingByteArrayOutput outputBuffer =
       GrowingByteArrayOutput.withInitialCapacity(20);
 
@@ -61,24 +62,29 @@ public class DefaultPathwayContext implements PathwayContext {
               TagsProcessor.TOPIC_TAG,
               TagsProcessor.EXCHANGE_TAG));
 
-  private static final Set<String> dataSetTagKeys =
+  private static final Set<String> extraAggregationTagKeys =
       new HashSet<String>(
-          Arrays.asList(TagsProcessor.DATASET_NAME_TAG, TagsProcessor.DATASET_NAMESPACE_TAG));
+          Arrays.asList(
+              TagsProcessor.DATASET_NAME_TAG,
+              TagsProcessor.DATASET_NAMESPACE_TAG,
+              TagsProcessor.MANUAL_TAG));
 
-  public DefaultPathwayContext(TimeSource timeSource, WellKnownTags wellKnownTags) {
+  public DefaultPathwayContext(
+      TimeSource timeSource, long hashOfKnownTags, String serviceNameOverride) {
     this.timeSource = timeSource;
-    this.wellKnownTags = wellKnownTags;
+    this.hashOfKnownTags = hashOfKnownTags;
+    this.serviceNameOverride = serviceNameOverride;
   }
 
   private DefaultPathwayContext(
       TimeSource timeSource,
-      WellKnownTags wellKnownTags,
+      long hashOfKnownTags,
       long pathwayStartNanos,
       long pathwayStartNanoTicks,
       long edgeStartNanoTicks,
-      long hash) {
-    this.timeSource = timeSource;
-    this.wellKnownTags = wellKnownTags;
+      long hash,
+      String serviceNameOverride) {
+    this(timeSource, hashOfKnownTags, serviceNameOverride);
     this.pathwayStartNanos = pathwayStartNanos;
     this.pathwayStartNanoTicks = pathwayStartNanoTicks;
     this.edgeStartNanoTicks = edgeStartNanoTicks;
@@ -124,8 +130,9 @@ public class DefaultPathwayContext implements PathwayContext {
       // So far, each tag key has only one tag value, so we're initializing the capacity to match
       // the number of tag keys for now. We should revisit this later if it's no longer the case.
       List<String> allTags = new ArrayList<>(sortedTags.size());
-      PathwayHashBuilder pathwayHashBuilder = new PathwayHashBuilder(wellKnownTags);
-      DataSetHashBuilder dataSetHashBuilder = new DataSetHashBuilder();
+      PathwayHashBuilder pathwayHashBuilder =
+          new PathwayHashBuilder(hashOfKnownTags, serviceNameOverride);
+      DataSetHashBuilder aggregationHashBuilder = new DataSetHashBuilder();
 
       if (!started) {
         if (defaultTimestamp == 0) {
@@ -153,8 +160,8 @@ public class DefaultPathwayContext implements PathwayContext {
         if (hashableTagKeys.contains(entry.getKey())) {
           pathwayHashBuilder.addTag(tag);
         }
-        if (dataSetTagKeys.contains(entry.getKey())) {
-          dataSetHashBuilder.addValue(tag);
+        if (extraAggregationTagKeys.contains(entry.getKey())) {
+          aggregationHashBuilder.addValue(tag);
         }
         allTags.add(tag);
       }
@@ -174,7 +181,7 @@ public class DefaultPathwayContext implements PathwayContext {
       }
 
       long newHash = generatePathwayHash(nodeHash, hash);
-      long dataSetHash = dataSetHashBuilder.addValue(String.valueOf(newHash));
+      long aggregationHash = aggregationHashBuilder.addValue(String.valueOf(newHash));
 
       long pathwayLatencyNano = nanoTicks - pathwayStartNanoTicks;
       long edgeLatencyNano = nanoTicks - edgeStartNanoTicks;
@@ -184,11 +191,12 @@ public class DefaultPathwayContext implements PathwayContext {
               allTags,
               newHash,
               hash,
-              dataSetHash,
+              aggregationHash,
               startNanos,
               pathwayLatencyNano,
               edgeLatencyNano,
-              payloadSizeBytes);
+              payloadSizeBytes,
+              serviceNameOverride);
       edgeStartNanoTicks = nanoTicks;
       hash = newHash;
 
@@ -269,19 +277,22 @@ public class DefaultPathwayContext implements PathwayContext {
 
   private static class PathwayContextExtractor implements AgentPropagation.KeyClassifier {
     private final TimeSource timeSource;
-    private final WellKnownTags wellKnownTags;
+    private final long hashOfKnownTags;
+    private final String serviceNameOverride;
     private DefaultPathwayContext extractedContext;
 
-    PathwayContextExtractor(TimeSource timeSource, WellKnownTags wellKnownTags) {
+    PathwayContextExtractor(
+        TimeSource timeSource, long hashOfKnownTags, String serviceNameOverride) {
       this.timeSource = timeSource;
-      this.wellKnownTags = wellKnownTags;
+      this.hashOfKnownTags = hashOfKnownTags;
+      this.serviceNameOverride = serviceNameOverride;
     }
 
     @Override
     public boolean accept(String key, String value) {
       if (PathwayContext.PROPAGATION_KEY_BASE64.equalsIgnoreCase(key)) {
         try {
-          extractedContext = strDecode(timeSource, wellKnownTags, value);
+          extractedContext = strDecode(timeSource, hashOfKnownTags, serviceNameOverride, value);
         } catch (IOException e) {
           return false;
         }
@@ -293,12 +304,15 @@ public class DefaultPathwayContext implements PathwayContext {
   private static class BinaryPathwayContextExtractor
       implements AgentPropagation.BinaryKeyClassifier {
     private final TimeSource timeSource;
-    private final WellKnownTags wellKnownTags;
+    private final long hashOfKnownTags;
+    private final String serviceNameOverride;
     private DefaultPathwayContext extractedContext;
 
-    BinaryPathwayContextExtractor(TimeSource timeSource, WellKnownTags wellKnownTags) {
+    BinaryPathwayContextExtractor(
+        TimeSource timeSource, long hashOfKnownTags, String serviceNameOverride) {
       this.timeSource = timeSource;
-      this.wellKnownTags = wellKnownTags;
+      this.hashOfKnownTags = hashOfKnownTags;
+      this.serviceNameOverride = serviceNameOverride;
     }
 
     @Override
@@ -306,7 +320,7 @@ public class DefaultPathwayContext implements PathwayContext {
       // older versions support, should be removed in the future
       if (PathwayContext.PROPAGATION_KEY.equalsIgnoreCase(key)) {
         try {
-          extractedContext = decode(timeSource, wellKnownTags, value);
+          extractedContext = decode(timeSource, hashOfKnownTags, serviceNameOverride, value);
         } catch (IOException e) {
           return false;
         }
@@ -314,7 +328,7 @@ public class DefaultPathwayContext implements PathwayContext {
 
       if (PathwayContext.PROPAGATION_KEY_BASE64.equalsIgnoreCase(key)) {
         try {
-          extractedContext = base64Decode(timeSource, wellKnownTags, value);
+          extractedContext = base64Decode(timeSource, hashOfKnownTags, serviceNameOverride, value);
         } catch (IOException e) {
           return false;
         }
@@ -327,13 +341,18 @@ public class DefaultPathwayContext implements PathwayContext {
       C carrier,
       AgentPropagation.ContextVisitor<C> getter,
       TimeSource timeSource,
-      WellKnownTags wellKnownTags) {
+      long hashOfKnownTags,
+      String serviceNameOverride) {
     if (getter instanceof AgentPropagation.BinaryContextVisitor) {
       return extractBinary(
-          carrier, (AgentPropagation.BinaryContextVisitor) getter, timeSource, wellKnownTags);
+          carrier,
+          (AgentPropagation.BinaryContextVisitor) getter,
+          timeSource,
+          hashOfKnownTags,
+          serviceNameOverride);
     }
     PathwayContextExtractor pathwayContextExtractor =
-        new PathwayContextExtractor(timeSource, wellKnownTags);
+        new PathwayContextExtractor(timeSource, hashOfKnownTags, serviceNameOverride);
     getter.forEachKey(carrier, pathwayContextExtractor);
     if (pathwayContextExtractor.extractedContext == null) {
       log.debug("No context extracted");
@@ -347,9 +366,10 @@ public class DefaultPathwayContext implements PathwayContext {
       C carrier,
       AgentPropagation.BinaryContextVisitor<C> getter,
       TimeSource timeSource,
-      WellKnownTags wellKnownTags) {
+      long hashOfKnownTags,
+      String serviceNameOverride) {
     BinaryPathwayContextExtractor pathwayContextExtractor =
-        new BinaryPathwayContextExtractor(timeSource, wellKnownTags);
+        new BinaryPathwayContextExtractor(timeSource, hashOfKnownTags, serviceNameOverride);
     getter.forEachKey(carrier, pathwayContextExtractor);
     if (pathwayContextExtractor.extractedContext == null) {
       log.debug("No context extracted");
@@ -360,18 +380,22 @@ public class DefaultPathwayContext implements PathwayContext {
   }
 
   private static DefaultPathwayContext strDecode(
-      TimeSource timeSource, WellKnownTags wellKnownTags, String data) throws IOException {
+      TimeSource timeSource, long hashOfKnownTags, String serviceNameOverride, String data)
+      throws IOException {
     byte[] base64Bytes = data.getBytes(UTF_8);
-    return base64Decode(timeSource, wellKnownTags, base64Bytes);
+    return base64Decode(timeSource, hashOfKnownTags, serviceNameOverride, base64Bytes);
   }
 
   private static DefaultPathwayContext base64Decode(
-      TimeSource timeSource, WellKnownTags wellKnownTags, byte[] data) throws IOException {
-    return decode(timeSource, wellKnownTags, Base64.getDecoder().decode(data));
+      TimeSource timeSource, long hashOfKnownTags, String serviceNameOverride, byte[] data)
+      throws IOException {
+    return decode(
+        timeSource, hashOfKnownTags, serviceNameOverride, Base64.getDecoder().decode(data));
   }
 
   private static DefaultPathwayContext decode(
-      TimeSource timeSource, WellKnownTags wellKnownTags, byte[] data) throws IOException {
+      TimeSource timeSource, long hashOfKnownTags, String serviceNameOverride, byte[] data)
+      throws IOException {
     ByteArrayInput input = ByteArrayInput.wrap(data);
 
     long hash = input.readLongLE();
@@ -391,11 +415,12 @@ public class DefaultPathwayContext implements PathwayContext {
 
     return new DefaultPathwayContext(
         timeSource,
-        wellKnownTags,
+        hashOfKnownTags,
         pathwayStartNanos,
         pathwayStartNanoTicks,
         edgeStartNanoTicks,
-        hash);
+        hash,
+        serviceNameOverride);
   }
 
   static class DataSetHashBuilder {
@@ -408,47 +433,44 @@ public class DefaultPathwayContext implements PathwayContext {
   }
 
   private static class PathwayHashBuilder {
-    private final StringBuilder builder;
+    private long hash;
 
-    public PathwayHashBuilder(WellKnownTags wellKnownTags) {
-      builder = new StringBuilder();
-      builder.append(wellKnownTags.getService());
-      builder.append(wellKnownTags.getEnv());
-
-      String primaryTag = Config.get().getPrimaryTag();
-      if (primaryTag != null) {
-        builder.append(primaryTag);
+    public PathwayHashBuilder(long baseHash, String serviceNameOverride) {
+      hash = baseHash;
+      if (serviceNameOverride != null) {
+        addTag(serviceNameOverride);
       }
     }
 
     public void addTag(String tag) {
-      builder.append(tag);
+      hash = FNV64Hash.continueHash(hash, tag, FNV64Hash.Version.v1);
     }
 
-    public long generateHash() {
-      return FNV64Hash.generateHash(builder.toString(), FNV64Hash.Version.v1);
+    public long getHash() {
+      return hash;
     }
+  }
 
-    @Override
-    public String toString() {
-      return builder.toString();
+  public static long getBaseHash(WellKnownTags wellKnownTags) {
+    StringBuilder builder = new StringBuilder();
+    builder.append(wellKnownTags.getService());
+    builder.append(wellKnownTags.getEnv());
+
+    String primaryTag = Config.get().getPrimaryTag();
+    if (primaryTag != null) {
+      builder.append(primaryTag);
     }
+    return FNV64Hash.generateHash(builder.toString(), FNV64Hash.Version.v1);
   }
 
   private long generateNodeHash(PathwayHashBuilder pathwayHashBuilder) {
-    return pathwayHashBuilder.generateHash();
+    return pathwayHashBuilder.getHash();
   }
 
   private long generatePathwayHash(long nodeHash, long parentHash) {
-    lock.lock();
-    try {
-      outputBuffer.clear();
-      outputBuffer.writeLongLE(nodeHash);
-      outputBuffer.writeLongLE(parentHash);
-
-      return FNV64Hash.generateHash(outputBuffer.backingArray(), 0, 16, FNV64Hash.Version.v1);
-    } finally {
-      lock.unlock();
-    }
+    outputBuffer.clear();
+    outputBuffer.writeLongLE(nodeHash);
+    outputBuffer.writeLongLE(parentHash);
+    return FNV64Hash.generateHash(outputBuffer.backingArray(), 0, 16, FNV64Hash.Version.v1);
   }
 }

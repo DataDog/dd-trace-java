@@ -8,6 +8,7 @@ class InstrumenterConfigTest extends DDSpecification {
     setup:
     environmentVariables.set("DD_INTEGRATION_ORDER_ENABLED", "false")
     environmentVariables.set("DD_INTEGRATION_TEST_ENV_ENABLED", "true")
+    environmentVariables.set("DD_TRACE_NEW_ENV_ENABLED", "false")
     environmentVariables.set("DD_INTEGRATION_DISABLED_ENV_ENABLED", "false")
 
     System.setProperty("dd.integration.order.enabled", "true")
@@ -16,6 +17,7 @@ class InstrumenterConfigTest extends DDSpecification {
 
     environmentVariables.set("DD_INTEGRATION_ORDER_MATCHING_SHORTCUT_ENABLED", "false")
     environmentVariables.set("DD_INTEGRATION_TEST_ENV_MATCHING_SHORTCUT_ENABLED", "true")
+    environmentVariables.set("DD_INTEGRATION_NEW_ENV_MATCHING_SHORTCUT_ENABLED", "false")
     environmentVariables.set("DD_INTEGRATION_DISABLED_ENV_MATCHING_SHORTCUT_ENABLED", "false")
 
     System.setProperty("dd.integration.order.matching.shortcut.enabled", "true")
@@ -44,9 +46,70 @@ class InstrumenterConfigTest extends DDSpecification {
     ["disabled-env", "test-env"]   | false          | true
     ["test-prop", "disabled-prop"] | true           | false
     ["disabled-env", "test-env"]   | true           | false
+    ["new-env"] | true | false
     // spotless:on
 
     integrationNames = new TreeSet<>(names)
+  }
+
+  def setEnv(String key, String value) {
+    environmentVariables.set(key, value)
+  }
+
+  def setSysProp(String key, String value) {
+    System.setProperty(key, value)
+  }
+
+  def randomIntegrationEnabled() {
+    return InstrumenterConfig.get().isIntegrationEnabled(["random"], true)
+  }
+
+  def "verify integration enabled hierarchy"() {
+    when:
+    // the below should have no effect
+    setEnv("DD_RANDOM_ENABLED", "false")
+    setSysProp("dd.random.enabled", "false")
+
+    then:
+    randomIntegrationEnabled() == true
+
+    when:
+    setEnv("DD_INTEGRATION_RANDOM_ENABLED", "false")
+
+    then:
+    randomIntegrationEnabled() == false
+
+    when:
+    setEnv("DD_TRACE_INTEGRATION_RANDOM_ENABLED", "true")
+
+    then:
+    randomIntegrationEnabled() == true
+
+    when:
+    setEnv("DD_TRACE_RANDOM_ENABLED", "false")
+
+    then:
+    randomIntegrationEnabled() == false
+
+    // assert all system properties take precedence over all env vars
+    when:
+    setSysProp("dd.integration.random.enabled", "true")
+
+    then:
+    randomIntegrationEnabled() == true
+
+    when:
+    setSysProp("dd.trace.integration.random.enabled", "false")
+
+    then:
+    randomIntegrationEnabled() == false
+
+    when:
+    setSysProp("dd.trace.random.enabled", "true")
+
+    then:
+    randomIntegrationEnabled() == true
+
   }
 
   def "valid resolver presets"() {

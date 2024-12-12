@@ -321,6 +321,8 @@ public class AgentTracer {
     <T> SpanBuilder withRequestContextData(RequestContextSlot slot, T data);
 
     SpanBuilder withLink(AgentSpanLink link);
+
+    SpanBuilder withSpanId(long spanId);
   }
 
   static class NoopTracerAPI implements TracerAPI {
@@ -848,6 +850,21 @@ public class AgentTracer {
 
     @Override
     public void addLink(AgentSpanLink link) {}
+
+    @Override
+    public AgentSpan setMetaStruct(String field, Object value) {
+      return this;
+    }
+
+    @Override
+    public boolean isOutbound() {
+      return false;
+    }
+
+    @Override
+    public boolean isRequiresPostProcessing() {
+      return false;
+    }
   }
 
   public static final class NoopAgentScope implements AgentScope {
@@ -962,8 +979,8 @@ public class AgentTracer {
     }
 
     @Override
-    public AgentTrace getTrace() {
-      return NoopAgentTrace.INSTANCE;
+    public AgentTraceCollector getTraceCollector() {
+      return NoopAgentTraceCollector.INSTANCE;
     }
 
     @Override
@@ -1027,11 +1044,6 @@ public class AgentTracer {
     }
 
     @Override
-    public String getXForwarded() {
-      return null;
-    }
-
-    @Override
     public String getXForwardedFor() {
       return null;
     }
@@ -1067,8 +1079,8 @@ public class AgentTracer {
     }
   }
 
-  public static class NoopAgentTrace implements AgentTrace {
-    public static final NoopAgentTrace INSTANCE = new NoopAgentTrace();
+  public static class NoopAgentTraceCollector implements AgentTraceCollector {
+    public static final NoopAgentTraceCollector INSTANCE = new NoopAgentTraceCollector();
 
     @Override
     public void registerContinuation(final AgentScope.Continuation continuation) {}
@@ -1100,9 +1112,28 @@ public class AgentTracer {
     public void add(StatsPoint statsPoint) {}
 
     @Override
-    public int shouldSampleSchema(String topic) {
+    public int trySampleSchema(String topic) {
       return 0;
     }
+
+    @Override
+    public boolean canSampleSchema(String topic) {
+      return false;
+    }
+
+    @Override
+    public Schema getSchema(String schemaName, SchemaIterator iterator) {
+      return null;
+    }
+
+    @Override
+    public void setProduceCheckpoint(String type, String target) {}
+
+    @Override
+    public void setThreadServiceName(String serviceName) {}
+
+    @Override
+    public void clearThreadServiceName() {}
 
     @Override
     public void setConsumeCheckpoint(

@@ -34,7 +34,7 @@ class TaintHttpHeadersGetAdvice {
     final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
     String lc = ((String) arg).toLowerCase(Locale.ROOT);
     for (String value : values) {
-      module.taintIfTainted(ctx, value, self, SourceTypes.REQUEST_HEADER_VALUE, lc);
+      module.taintStringIfTainted(ctx, value, self, SourceTypes.REQUEST_HEADER_VALUE, lc);
     }
   }
 }

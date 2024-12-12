@@ -55,7 +55,7 @@ public class CapturedValueAdapterTest {
     StringBuilder sb = new StringBuilder();
     for (int i = 0; i < 10; i++) {
       if (i > 0) {
-        sb.append(",");
+        sb.append(',');
       }
       sb.append(String.format(CAPTURED_VALUE_SIMPLE_TEMPLATE, int.class.getTypeName(), i));
     }
@@ -66,7 +66,7 @@ public class CapturedValueAdapterTest {
     sb = new StringBuilder();
     for (int i = 0; i < 10; i++) {
       if (i > 0) {
-        sb.append(",");
+        sb.append(',');
       }
       sb.append(
           String.format(CAPTURED_VALUE_SIMPLE_TEMPLATE, String.class.getTypeName(), "foo" + i));

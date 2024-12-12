@@ -1,3 +1,5 @@
+import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_SERVER_ERROR_STATUSES
+
 import com.google.common.util.concurrent.MoreExecutors
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.DDSpanId
@@ -47,6 +49,7 @@ abstract class GrpcTest extends VersionedNamingTestBase {
   def collectedAppSecHeaders = [:]
   boolean appSecHeaderDone = false
   def collectedAppSecReqMsgs = []
+  def collectedAppSecServerMethods = []
 
   @Override
   final String service() {
@@ -62,14 +65,22 @@ abstract class GrpcTest extends VersionedNamingTestBase {
 
   protected abstract String serverOperation()
 
+  protected boolean hasClientMessageSpans() {
+    false
+  }
+
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
     injectSysConfig("dd.trace.grpc.ignored.inbound.methods", "example.Greeter/IgnoreInbound")
     injectSysConfig("dd.trace.grpc.ignored.outbound.methods", "example.Greeter/Ignore")
+    if (hasClientMessageSpans()) {
+      injectSysConfig("integration.grpc-message.enabled", "true")
+    }
     // here to trigger wrapping to record scheduling time - the logic is trivial so it's enough to verify
     // that ClassCastExceptions do not arise from the wrapping
     injectSysConfig("dd.profiling.enabled", "true")
+    injectSysConfig(GRPC_SERVER_ERROR_STATUSES, "2-14", true)
   }
 
   def setupSpec() {
@@ -89,6 +100,10 @@ abstract class GrpcTest extends VersionedNamingTestBase {
       collectedAppSecReqMsgs << obj
       Flow.ResultFlow.empty()
     } as BiFunction<RequestContext, Object, Flow<Void>>)
+    ig.registerCallback(EVENTS.grpcServerMethod(), { reqCtx, method ->
+      collectedAppSecServerMethods << method
+      Flow.ResultFlow.empty()
+    } as BiFunction<RequestContext, String, Flow<Void>>)
   }
 
   def cleanup() {
@@ -136,7 +151,7 @@ abstract class GrpcTest extends VersionedNamingTestBase {
     then:
     response.message == "Hello $name"
     assertTraces(2) {
-      trace(3) {
+      trace(hasClientMessageSpans() ? 3 : 2) {
         basicSpan(it, "parent")
         span {
           operationName clientOperation()
@@ -162,18 +177,20 @@ abstract class GrpcTest extends VersionedNamingTestBase {
             defaultTags()
           }
         }
-        span {
-          operationName "grpc.message"
-          resourceName "grpc.message"
-          spanType DDSpanTypes.RPC
-          childOf span(1)
-          errored false
-          measured true
-          tags {
-            "$Tags.COMPONENT" "grpc-client"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "message.type" "example.Helloworld\$Response"
-            defaultTagsNoPeerService()
+        if (hasClientMessageSpans()) {
+          span {
+            operationName "grpc.message"
+            resourceName "grpc.message"
+            spanType DDSpanTypes.RPC
+            childOf span(1)
+            errored false
+            measured true
+            tags {
+              "$Tags.COMPONENT" "grpc-client"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+              "message.type" "example.Helloworld\$Response"
+              defaultTagsNoPeerService()
+            }
           }
         }
       }
@@ -217,6 +234,8 @@ abstract class GrpcTest extends VersionedNamingTestBase {
     traceId.toLong() as String == collectedAppSecHeaders['x-datadog-trace-id']
     collectedAppSecReqMsgs.size() == 1
     collectedAppSecReqMsgs.first().name == name
+    collectedAppSecServerMethods.size() == 1
+    collectedAppSecServerMethods.first() == 'example.Greeter/SayHello'
 
     and:
     if (isDataStreamsEnabled()) {
@@ -415,11 +434,13 @@ abstract class GrpcTest extends VersionedNamingTestBase {
           resourceName "example.Greeter/SayHello"
           spanType DDSpanTypes.RPC
           childOf trace(0).get(0)
-          errored true
+          errored errorFlag
           measured true
           tags {
             "$Tags.COMPONENT" "grpc-server"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            "status.code" "${status.code.name()}"
+            "status.description"  { it == null || String}
             errorTags error.class, error.message
             if ({ isDataStreamsEnabled() }) {
               "$DDTags.PATHWAY_HASH" { String }
@@ -449,13 +470,15 @@ abstract class GrpcTest extends VersionedNamingTestBase {
     server?.shutdownNow()?.awaitTermination()
 
     where:
-    name                          | status
-    "Runtime - cause"             | Status.UNKNOWN.withCause(new RuntimeException("some error"))
-    "Status - cause"              | Status.PERMISSION_DENIED.withCause(new RuntimeException("some error"))
-    "StatusRuntime - cause"       | Status.UNIMPLEMENTED.withCause(new RuntimeException("some error"))
-    "Runtime - description"       | Status.UNKNOWN.withDescription("some description")
-    "Status - description"        | Status.PERMISSION_DENIED.withDescription("some description")
-    "StatusRuntime - description" | Status.UNIMPLEMENTED.withDescription("some description")
+    name                                    | status                                                                  | errorFlag
+    "Runtime - cause"                       | Status.UNKNOWN.withCause(new RuntimeException("some error"))            | true
+    "Status - cause"                        | Status.PERMISSION_DENIED.withCause(new RuntimeException("some error"))  | true
+    "StatusRuntime - cause"                 | Status.UNIMPLEMENTED.withCause(new RuntimeException("some error"))      | true
+    "Runtime - description"                 | Status.UNKNOWN.withDescription("some description")                      | true
+    "Status - description"                  | Status.PERMISSION_DENIED.withDescription("some description")            | true
+    "StatusRuntime - description"           | Status.UNIMPLEMENTED.withDescription("some description")                | true
+    "StatusRuntime - Not errored no cause"   | Status.fromCodeValue(15).withDescription("some description")           | false
+    "StatusRuntime - Not errored with cause" | Status.fromCodeValue(15).withCause(new RuntimeException("some error")) | false
   }
 
   def "skip binary headers"() {
@@ -575,7 +598,7 @@ abstract class GrpcTest extends VersionedNamingTestBase {
     then:
     response.message == "Hello whatever"
     assertTraces(1) {
-      trace(2) {
+      trace(hasClientMessageSpans() ? 2 : 1) {
         span {
           operationName clientOperation()
           resourceName "example.Greeter/IgnoreInbound"
@@ -597,18 +620,20 @@ abstract class GrpcTest extends VersionedNamingTestBase {
             defaultTags()
           }
         }
-        span {
-          operationName "grpc.message"
-          resourceName "grpc.message"
-          spanType DDSpanTypes.RPC
-          childOf span(0)
-          errored false
-          measured true
-          tags {
-            "$Tags.COMPONENT" "grpc-client"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "message.type" "example.Helloworld\$Response"
-            defaultTagsNoPeerService()
+        if (hasClientMessageSpans()) {
+          span {
+            operationName "grpc.message"
+            resourceName "grpc.message"
+            spanType DDSpanTypes.RPC
+            childOf span(0)
+            errored false
+            measured true
+            tags {
+              "$Tags.COMPONENT" "grpc-client"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+              "message.type" "example.Helloworld\$Response"
+              defaultTagsNoPeerService()
+            }
           }
         }
       }
@@ -635,7 +660,7 @@ abstract class GrpcDataStreamsEnabledForkedTest extends GrpcTest {
   }
 }
 
-class GrpcDataStreamsEnabledV0ForkedTest extends GrpcDataStreamsEnabledForkedTest {
+class GrpcDataStreamsEnabledV0Test extends GrpcDataStreamsEnabledForkedTest {
 
   @Override
   int version() {
@@ -690,5 +715,12 @@ class GrpcDataStreamsDisabledForkedTest extends GrpcTest {
   @Override
   protected String serverOperation() {
     return "grpc.server"
+  }
+}
+
+class GrpcClientMessagesEnabledTest extends GrpcDataStreamsEnabledV0Test {
+  @Override
+  protected boolean hasClientMessageSpans() {
+    true
   }
 }

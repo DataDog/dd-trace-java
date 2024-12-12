@@ -5,9 +5,11 @@ import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourc
 import static datadog.trace.instrumentation.springwebflux.server.AdviceUtils.constructOperationName;
 import static datadog.trace.instrumentation.springwebflux.server.SpringWebfluxHttpServerDecorator.DECORATE;
 
+import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
+import org.reactivestreams.Publisher;
 import org.springframework.http.HttpMethod;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.reactive.HandlerMapping;
@@ -42,8 +44,7 @@ public class HandlerAdapterAdvice {
       span.setSpanName(operationName);
       span.setTag("handler.type", handlerType);
 
-      scope = activateSpan(span);
-      scope.setAsyncPropagation(true);
+      scope = activateSpan(span, true);
     }
 
     final AgentSpan parentSpan = exchange.getAttribute(AdviceUtils.PARENT_SPAN_ATTRIBUTE);
@@ -70,7 +71,7 @@ public class HandlerAdapterAdvice {
       if (throwable != null) {
         DECORATE.onError(scope, throwable);
       } else if (mono != null) {
-        mono = AdviceUtils.wrapMonoWithScope(mono, scope.span());
+        InstrumentationContext.get(Publisher.class, AgentSpan.class).put(mono, scope.span());
       }
       scope.close();
       // span finished in SpanFinishingSubscriber

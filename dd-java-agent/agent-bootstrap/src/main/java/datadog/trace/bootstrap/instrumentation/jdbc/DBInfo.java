@@ -13,6 +13,9 @@ public class DBInfo {
   private final String db;
   private final String host;
   private final Integer port;
+  private final String warehouse;
+  private final String schema;
+  private String poolName;
 
   DBInfo(
       String type,
@@ -23,7 +26,10 @@ public class DBInfo {
       String instance,
       String db,
       String host,
-      Integer port) {
+      Integer port,
+      String warehouse,
+      String schema,
+      String poolName) {
     this.type = type;
     this.subtype = subtype;
     this.fullPropagationSupport = fullPropagationSupport;
@@ -33,6 +39,9 @@ public class DBInfo {
     this.db = db;
     this.host = host;
     this.port = port;
+    this.warehouse = warehouse;
+    this.schema = schema;
+    this.poolName = poolName;
   }
 
   public static class Builder {
@@ -45,8 +54,11 @@ public class DBInfo {
     private String user;
     private String instance;
     private String db;
+    private String warehouse;
+    private String schema;
     private String host;
     private Integer port;
+    private String poolName;
 
     Builder() {}
 
@@ -59,7 +71,10 @@ public class DBInfo {
         String instance,
         String db,
         String host,
-        Integer port) {
+        Integer port,
+        String warehouse,
+        String schema,
+        String poolName) {
       this.type = type;
       this.subtype = subtype;
       this.fullPropagationSupport = fullPropagationSupport;
@@ -69,13 +84,16 @@ public class DBInfo {
       this.db = db;
       this.host = host;
       this.port = port;
+      this.warehouse = warehouse;
+      this.schema = schema;
+      this.poolName = poolName;
     }
 
     public Builder type(String type) {
       this.type = type;
       // Those DBs use the full text of the query including the comments as a cache key,
       // so we disable full propagation support for them to avoid destroying the cache.
-      if (type.equals("oracle") || type.equals("sqlserver")) this.fullPropagationSupport = false;
+      if (type.equals("oracle")) this.fullPropagationSupport = false;
       return this;
     }
 
@@ -109,6 +127,16 @@ public class DBInfo {
       return this;
     }
 
+    public Builder warehouse(String warehouse) {
+      this.warehouse = warehouse;
+      return this;
+    }
+
+    public Builder schema(String schema) {
+      this.schema = schema;
+      return this;
+    }
+
     public Builder host(String host) {
       this.host = host;
       return this;
@@ -119,8 +147,25 @@ public class DBInfo {
       return this;
     }
 
+    public Builder poolName(String poolName) {
+      this.poolName = poolName;
+      return this;
+    }
+
     public DBInfo build() {
-      return new DBInfo(type, subtype, fullPropagationSupport, url, user, instance, db, host, port);
+      return new DBInfo(
+          type,
+          subtype,
+          fullPropagationSupport,
+          url,
+          user,
+          instance,
+          db,
+          host,
+          port,
+          warehouse,
+          schema,
+          poolName);
     }
   }
 
@@ -160,8 +205,36 @@ public class DBInfo {
     return port;
   }
 
+  public String getWarehouse() {
+    return warehouse;
+  }
+
+  public String getSchema() {
+    return schema;
+  }
+
+  public String getPoolName() {
+    return poolName;
+  }
+
+  public void setPoolName(String poolname) {
+    this.poolName = poolname;
+  }
+
   public Builder toBuilder() {
-    return new Builder(type, subtype, fullPropagationSupport, url, user, instance, db, host, port);
+    return new Builder(
+        type,
+        subtype,
+        fullPropagationSupport,
+        url,
+        user,
+        instance,
+        db,
+        host,
+        port,
+        warehouse,
+        schema,
+        poolName);
   }
 
   @Override
@@ -177,11 +250,25 @@ public class DBInfo {
         && Objects.equals(instance, dbInfo.instance)
         && Objects.equals(db, dbInfo.db)
         && Objects.equals(host, dbInfo.host)
-        && Objects.equals(port, dbInfo.port);
+        && Objects.equals(port, dbInfo.port)
+        && Objects.equals(warehouse, dbInfo.warehouse)
+        && Objects.equals(schema, dbInfo.schema)
+        && Objects.equals(poolName, dbInfo.poolName);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(type, subtype, fullPropagationSupport, url, user, instance, db, host, port);
+    return Objects.hash(
+        type,
+        subtype,
+        fullPropagationSupport,
+        url,
+        user,
+        instance,
+        db,
+        host,
+        port,
+        warehouse,
+        schema);
   }
 }

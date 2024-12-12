@@ -52,7 +52,7 @@ class TypeConverterTest extends DDSpecification {
   }
 
   def "should avoid extra allocation for a scope wrapper"() {
-    def scopeManager = new ContinuableScopeManager(0, false, true)
+    def scopeManager = new ContinuableScopeManager(0, false)
     def context = createTestSpanContext()
     def span1 = new DDSpan("test", 0, context, null)
     def span2 = new DDSpan("test", 0, context, null)

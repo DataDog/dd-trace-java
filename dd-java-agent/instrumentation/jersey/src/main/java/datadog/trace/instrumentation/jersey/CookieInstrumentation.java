@@ -53,7 +53,8 @@ public class CookieInstrumentation extends InstrumenterModule.Iast
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-        module.taintIfTainted(ctx, cookieName, self, SourceTypes.REQUEST_COOKIE_NAME, cookieName);
+        module.taintStringIfTainted(
+            ctx, cookieName, self, SourceTypes.REQUEST_COOKIE_NAME, cookieName);
       }
     }
   }
@@ -70,7 +71,7 @@ public class CookieInstrumentation extends InstrumenterModule.Iast
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-        module.taintIfTainted(ctx, cookieValue, self, SourceTypes.REQUEST_COOKIE_VALUE, name);
+        module.taintStringIfTainted(ctx, cookieValue, self, SourceTypes.REQUEST_COOKIE_VALUE, name);
       }
     }
   }

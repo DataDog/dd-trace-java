@@ -204,4 +204,26 @@ class CorePropagationTest extends DDCoreSpecification {
     root.finish()
     tracer.close()
   }
+
+  def 'test ASM standalone billing stop propagation'() {
+    setup:
+    injectSysConfig("experimental.appsec.standalone.enabled", "true")
+    def tracer = tracerBuilder().build()
+    def span = tracer.buildSpan('test', 'operation').start()
+    def setter = Mock(AgentPropagation.Setter)
+    def carrier = new Object()
+
+    when:
+    propagation.inject(span, carrier, setter)
+
+    then:
+    0 * datadogInjector.inject(_, carrier, setter)
+    0 * b3Injector.inject(_, carrier, setter)
+    0 * traceContextInjector.inject(_, carrier, setter)
+    0 * dataStreamContextInjector.injectPathwayContext(_, carrier, setter, _)
+
+    cleanup:
+    span.finish()
+    tracer.close()
+  }
 }

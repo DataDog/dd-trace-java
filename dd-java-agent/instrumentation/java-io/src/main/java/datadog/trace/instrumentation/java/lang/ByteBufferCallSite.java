@@ -26,7 +26,7 @@ public class ByteBufferCallSite {
       return result;
     }
     try {
-      module.taintIfTainted(result, bytes, true, NOT_MARKED); // keep ranges
+      module.taintObjectIfTainted(result, bytes, true, NOT_MARKED); // keep ranges
     } catch (final Throwable e) {
       module.onUnexpectedException("beforeConstructor threw", e);
     }
@@ -44,7 +44,7 @@ public class ByteBufferCallSite {
       return bytes;
     }
     try {
-      module.taintIfTainted(bytes, buffer, true, NOT_MARKED); // keep ranges
+      module.taintObjectIfTainted(bytes, buffer, true, NOT_MARKED); // keep ranges
     } catch (final Throwable e) {
       module.onUnexpectedException("afterArray threw", e);
     }

@@ -1,5 +1,7 @@
 package com.datadog.debugger.probe;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -8,6 +10,8 @@ import com.datadog.debugger.util.ClassFileLines;
 import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collections;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.objectweb.asm.tree.MethodNode;
@@ -82,6 +86,19 @@ public class WhereTest {
   }
 
   @Test
+  public void convertLineToMethod() {
+    Where wherePut = Where.of("java.util.Map", "put", "(Object, Object)", "42");
+    ClassFileLines classFileLines = mock(ClassFileLines.class);
+    MethodNode methodNode = createMethodNode("put", "(Ljava/lang/Object;Ljava/lang/Object;)V");
+    when(classFileLines.getMethodsByLine(42)).thenReturn(Collections.singletonList(methodNode));
+    Where whereMapPut = Where.convertLineToMethod(wherePut, classFileLines);
+    assertEquals("java.util.Map", whereMapPut.getTypeName());
+    assertEquals("put", whereMapPut.getMethodName());
+    assertEquals("(java.lang.Object, java.lang.Object)", whereMapPut.getSignature());
+    assertNull(whereMapPut.getLines());
+  }
+
+  @Test
   public void methodMatching() {
     Where where = new Where("String", "substring", "(int,int)", new String[0], null);
     assertTrue(
@@ -119,7 +136,7 @@ public class WhereTest {
     where = new Where("MyClass", "myMethod", null, new String[] {"42"}, null);
     ClassFileLines classFileLines = mock(ClassFileLines.class);
     MethodNode myMethodNode = createMethodNode("myMethod", "()V");
-    when(classFileLines.getMethodByLine(42)).thenReturn(myMethodNode);
+    when(classFileLines.getMethodsByLine(42)).thenReturn(Arrays.asList(myMethodNode));
     assertTrue(where.isMethodMatching(myMethodNode, classFileLines));
   }
 

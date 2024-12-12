@@ -1,5 +1,6 @@
 package datadog.trace.util;
 
+import datadog.trace.api.telemetry.LogCollector;
 import java.lang.invoke.MethodHandle;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -49,6 +50,7 @@ public class MethodHandles {
 
               } catch (Throwable t) {
                 log.debug(
+                    LogCollector.EXCLUDE_TELEMETRY,
                     "Could not get private field {} getter from class {}",
                     fieldName,
                     clazz.getName(),
@@ -84,6 +86,7 @@ public class MethodHandles {
 
               } catch (Throwable t) {
                 log.debug(
+                    LogCollector.EXCLUDE_TELEMETRY,
                     "Could not get private field {} setter from class {}",
                     fieldName,
                     clazz.getName(),
@@ -119,6 +122,7 @@ public class MethodHandles {
 
               } catch (Throwable t) {
                 log.debug(
+                    LogCollector.EXCLUDE_TELEMETRY,
                     "Could not get constructor accepting {} from class {}",
                     Arrays.toString(parameterTypes),
                     clazz.getName(),
@@ -154,6 +158,7 @@ public class MethodHandles {
 
               } catch (Throwable t) {
                 log.debug(
+                    LogCollector.EXCLUDE_TELEMETRY,
                     "Could not get method {} accepting {} from class {}",
                     methodName,
                     Arrays.toString(parameterTypes),
@@ -191,7 +196,11 @@ public class MethodHandles {
                 return null;
 
               } catch (Throwable t) {
-                log.debug("Could not find desired method in class {}", clazz, t);
+                log.debug(
+                    LogCollector.EXCLUDE_TELEMETRY,
+                    "Could not find desired method in class {}",
+                    clazz,
+                    t);
                 return null;
               }
             });
@@ -201,7 +210,7 @@ public class MethodHandles {
     try {
       return classLoader.loadClass(className);
     } catch (Throwable t) {
-      log.debug("Could not load class {}", className, t);
+      log.debug(LogCollector.EXCLUDE_TELEMETRY, "Could not load class {}", className, t);
       return null;
     }
   }

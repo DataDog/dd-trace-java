@@ -1,6 +1,7 @@
 package com.datadog.debugger.agent;
 
 import static com.datadog.debugger.agent.ConfigurationAcceptor.Source.REMOTE_CONFIG;
+import static com.datadog.debugger.agent.DebuggerProductChangesListener.LOG_PROBE_PREFIX;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -612,6 +613,14 @@ public class ConfigurationUpdaterTest {
     Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
     assertEquals(1, appliedDefinitions.size());
     assertTrue(appliedDefinitions.containsKey(SPAN_DECORATION_ID.getEncodedId()));
+  }
+
+  @Test
+  public void handleException() {
+    ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
+    Exception ex = new Exception("oops");
+    configurationUpdater.handleException(LOG_PROBE_PREFIX + PROBE_ID.getId(), ex);
+    verify(probeStatusSink).addError(eq(ProbeId.from(PROBE_ID.getId() + ":0")), eq(ex));
   }
 
   private DebuggerTransformer createTransformer(

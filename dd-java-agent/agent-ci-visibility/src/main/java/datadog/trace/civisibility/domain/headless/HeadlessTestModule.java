@@ -3,31 +3,25 @@ package datadog.trace.civisibility.domain.headless;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.CIConstants;
-import datadog.trace.api.civisibility.config.EarlyFlakeDetectionSettings;
-import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.civisibility.InstrumentationType;
 import datadog.trace.civisibility.codeowners.Codeowners;
-import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
+import datadog.trace.civisibility.config.EarlyFlakeDetectionSettings;
+import datadog.trace.civisibility.config.ExecutionSettings;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.AbstractTestModule;
+import datadog.trace.civisibility.domain.InstrumentationType;
 import datadog.trace.civisibility.domain.TestFrameworkModule;
 import datadog.trace.civisibility.domain.TestSuiteImpl;
-import datadog.trace.civisibility.retry.NeverRetry;
-import datadog.trace.civisibility.retry.RetryIfFailed;
-import datadog.trace.civisibility.retry.RetryNTimes;
-import datadog.trace.civisibility.source.MethodLinesResolver;
+import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
+import datadog.trace.civisibility.test.ExecutionStrategy;
 import datadog.trace.civisibility.utils.SpanUtils;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -41,20 +35,11 @@ import javax.annotation.Nullable;
  */
 public class HeadlessTestModule extends AbstractTestModule implements TestFrameworkModule {
 
-  private final LongAdder testsSkipped = new LongAdder();
-  private final String itrCorrelationId;
-  private final Collection<TestIdentifier> skippableTests;
-  private final boolean flakyTestRetriesEnabled;
-  @Nullable private final Collection<TestIdentifier> flakyTests;
-  private final Collection<TestIdentifier> knownTests;
-  private final EarlyFlakeDetectionSettings earlyFlakeDetectionSettings;
-  private final AtomicInteger earlyFlakeDetectionsUsed = new AtomicInteger(0);
-  private final boolean codeCoverageEnabled;
-  private final boolean itrEnabled;
+  private final CoverageStore.Factory coverageStoreFactory;
+  private final ExecutionStrategy executionStrategy;
 
   public HeadlessTestModule(
       AgentSpan.Context sessionSpanContext,
-      long sessionId,
       String moduleName,
       @Nullable Long startTime,
       Config config,
@@ -62,13 +47,12 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
       TestDecorator testDecorator,
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
-      MethodLinesResolver methodLinesResolver,
-      CoverageProbeStoreFactory coverageProbeStoreFactory,
-      ModuleExecutionSettings executionSettings,
+      LinesResolver linesResolver,
+      CoverageStore.Factory coverageStoreFactory,
+      ExecutionStrategy executionStrategy,
       Consumer<AgentSpan> onSpanFinish) {
     super(
         sessionSpanContext,
-        sessionId,
         moduleName,
         startTime,
         InstrumentationType.HEADLESS,
@@ -77,91 +61,61 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
         testDecorator,
         sourcePathResolver,
         codeowners,
-        methodLinesResolver,
-        coverageProbeStoreFactory,
+        linesResolver,
         onSpanFinish);
-
-    codeCoverageEnabled = executionSettings.isCodeCoverageEnabled();
-    itrEnabled = executionSettings.isItrEnabled();
-    itrCorrelationId = executionSettings.getItrCorrelationId();
-    skippableTests = new HashSet<>(executionSettings.getSkippableTests(moduleName));
-
-    flakyTestRetriesEnabled = executionSettings.isFlakyTestRetriesEnabled();
-    Collection<TestIdentifier> flakyTests = executionSettings.getFlakyTests(moduleName);
-    this.flakyTests = flakyTests != null ? new HashSet<>(flakyTests) : null;
-
-    Collection<TestIdentifier> moduleKnownTests = executionSettings.getKnownTests(moduleName);
-    knownTests = moduleKnownTests != null ? new HashSet<>(moduleKnownTests) : null;
-
-    earlyFlakeDetectionSettings = executionSettings.getEarlyFlakeDetectionSettings();
-  }
-
-  @Override
-  public boolean isSkippable(TestIdentifier test) {
-    return test != null && skippableTests.contains(test);
+    this.coverageStoreFactory = coverageStoreFactory;
+    this.executionStrategy = executionStrategy;
   }
 
   @Override
   public boolean isNew(TestIdentifier test) {
-    return knownTests != null && !knownTests.contains(test.withoutParameters());
+    return executionStrategy.isNew(test);
+  }
+
+  @Override
+  public boolean isFlaky(TestIdentifier test) {
+    return executionStrategy.isFlaky(test);
+  }
+
+  @Override
+  public boolean shouldBeSkipped(TestIdentifier test) {
+    return executionStrategy.shouldBeSkipped(test);
   }
 
   @Override
   public boolean skip(TestIdentifier test) {
-    if (isSkippable(test)) {
-      testsSkipped.increment();
-      return true;
-    } else {
-      return false;
-    }
+    return executionStrategy.skip(test);
   }
 
   @Override
   @Nonnull
   public TestRetryPolicy retryPolicy(TestIdentifier test) {
-    if (test != null) {
-      if (earlyFlakeDetectionSettings.isEnabled()
-          && !knownTests.contains(test.withoutParameters())
-          && !earlyFlakeDetectionLimitReached(earlyFlakeDetectionsUsed.incrementAndGet())) {
-        return new RetryNTimes(earlyFlakeDetectionSettings);
-      }
-      if (flakyTestRetriesEnabled
-          && (flakyTests == null || flakyTests.contains(test.withoutParameters()))) {
-        return new RetryIfFailed(config.getCiVisibilityFlakyRetryCount());
-      }
-    }
-    return NeverRetry.INSTANCE;
-  }
-
-  private boolean earlyFlakeDetectionLimitReached(int earlyFlakeDetectionsUsed) {
-    int totalTests = knownTests.size() + earlyFlakeDetectionsUsed;
-    int threshold =
-        Math.max(
-            config.getCiVisibilityEarlyFlakeDetectionLowerLimit(),
-            totalTests * earlyFlakeDetectionSettings.getFaultySessionThreshold() / 100);
-    return earlyFlakeDetectionsUsed > threshold;
+    return executionStrategy.retryPolicy(test);
   }
 
   @Override
   public void end(@Nullable Long endTime) {
-    if (codeCoverageEnabled) {
+    ExecutionSettings executionSettings = executionStrategy.getExecutionSettings();
+    if (executionSettings.isCodeCoverageEnabled()) {
       setTag(Tags.TEST_CODE_COVERAGE_ENABLED, true);
     }
 
-    if (itrEnabled) {
+    if (executionSettings.isTestSkippingEnabled()) {
       setTag(Tags.TEST_ITR_TESTS_SKIPPING_ENABLED, true);
       setTag(Tags.TEST_ITR_TESTS_SKIPPING_TYPE, "test");
 
-      long testsSkippedTotal = testsSkipped.sum();
+      long testsSkippedTotal = executionStrategy.getTestsSkipped();
       setTag(Tags.TEST_ITR_TESTS_SKIPPING_COUNT, testsSkippedTotal);
       if (testsSkippedTotal > 0) {
         setTag(DDTags.CI_ITR_TESTS_SKIPPED, true);
       }
     }
 
+    EarlyFlakeDetectionSettings earlyFlakeDetectionSettings =
+        executionSettings.getEarlyFlakeDetectionSettings();
     if (earlyFlakeDetectionSettings.isEnabled()) {
       setTag(Tags.TEST_EARLY_FLAKE_ENABLED, true);
-      if (earlyFlakeDetectionLimitReached(earlyFlakeDetectionsUsed.get())) {
+      if (executionStrategy.isEarlyFlakeDetectionLimitReached()) {
         setTag(Tags.TEST_EARLY_FLAKE_ABORT_REASON, CIConstants.EFD_ABORT_REASON_FAULTY);
       }
     }
@@ -178,11 +132,9 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
       TestFrameworkInstrumentation instrumentation) {
     return new TestSuiteImpl(
         span.context(),
-        sessionId,
-        span.getSpanId(),
         moduleName,
         testSuiteName,
-        itrCorrelationId,
+        executionStrategy.getExecutionSettings().getItrCorrelationId(),
         testClass,
         startTime,
         parallelized,
@@ -193,8 +145,8 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
         testDecorator,
         sourcePathResolver,
         codeowners,
-        methodLinesResolver,
-        coverageProbeStoreFactory,
+        linesResolver,
+        coverageStoreFactory,
         SpanUtils.propagateCiVisibilityTagsTo(span));
   }
 }

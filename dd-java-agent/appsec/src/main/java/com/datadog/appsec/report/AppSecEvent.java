@@ -1,7 +1,11 @@
 package com.datadog.appsec.report;
 
+import static com.datadog.appsec.powerwaf.PowerWAFResultData.Rule;
+import static com.datadog.appsec.powerwaf.PowerWAFResultData.RuleMatch;
+
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 public class AppSecEvent {
 
@@ -11,16 +15,26 @@ public class AppSecEvent {
   @com.squareup.moshi.Json(name = "rule_matches")
   private List<RuleMatch> ruleMatches = new ArrayList<>();
 
+  @com.squareup.moshi.Json(name = "span_id")
+  private Long spanId;
+
+  @com.squareup.moshi.Json(name = "stack_id")
+  private String stackId;
+
   public Rule getRule() {
     return rule;
   }
 
-  public void setRule(Rule rule) {
-    this.rule = rule;
-  }
-
   public List<RuleMatch> getRuleMatches() {
     return ruleMatches;
+  }
+
+  public Long getSpanId() {
+    return spanId;
+  }
+
+  public String getStackId() {
+    return stackId;
   }
 
   @Override
@@ -38,6 +52,12 @@ public class AppSecEvent {
     sb.append('=');
     sb.append(((this.ruleMatches == null) ? "<null>" : this.ruleMatches));
     sb.append(',');
+    sb.append("spanId");
+    sb.append('=');
+    sb.append(((this.spanId == null) ? "<null>" : this.spanId));
+    sb.append("stackId");
+    sb.append('=');
+    sb.append(((this.stackId == null) ? "<null>" : this.stackId));
     if (sb.charAt((sb.length() - 1)) == ',') {
       sb.setCharAt((sb.length() - 1), ']');
     } else {
@@ -51,6 +71,8 @@ public class AppSecEvent {
     int result = 1;
     result = ((result * 31) + ((this.rule == null) ? 0 : this.rule.hashCode()));
     result = ((result * 31) + ((this.ruleMatches == null) ? 0 : this.ruleMatches.hashCode()));
+    result = ((result * 31) + ((this.spanId == null) ? 0 : this.spanId.hashCode()));
+    result = ((result * 31) + ((this.stackId == null) ? 0 : this.stackId.hashCode()));
     return result;
   }
 
@@ -63,9 +85,10 @@ public class AppSecEvent {
       return false;
     }
     AppSecEvent rhs = ((AppSecEvent) other);
-    return (((this.rule == rhs.rule) || ((this.rule != null) && this.rule.equals(rhs.rule)))
-        && ((this.ruleMatches == rhs.ruleMatches)
-            || ((this.ruleMatches != null) && this.ruleMatches.equals(rhs.ruleMatches))));
+    return ((Objects.equals(this.rule, rhs.rule))
+        && (Objects.equals(this.ruleMatches, rhs.ruleMatches))
+        && (Objects.equals(this.spanId, rhs.spanId))
+        && (Objects.equals(this.stackId, rhs.stackId)));
   }
 
   public static class Builder {
@@ -90,6 +113,16 @@ public class AppSecEvent {
 
     public Builder withRuleMatches(List<RuleMatch> ruleMatches) {
       this.instance.ruleMatches = ruleMatches;
+      return this;
+    }
+
+    public Builder withSpanId(Long spanId) {
+      this.instance.spanId = spanId;
+      return this;
+    }
+
+    public Builder withStackId(String stackId) {
+      this.instance.stackId = stackId;
       return this;
     }
   }

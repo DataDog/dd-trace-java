@@ -3,7 +3,7 @@ package datadog.trace.instrumentation.selenium
 import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.trace.agent.test.server.http.TestHttpServer
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
-import datadog.trace.civisibility.utils.IOUtils
+import datadog.communication.util.IOUtils
 import datadog.trace.instrumentation.junit5.TestEventsHandlerHolder
 import org.junit.jupiter.engine.JupiterTestEngine
 import org.junit.platform.engine.DiscoverySelector

@@ -1,21 +1,25 @@
 package datadog.trace.civisibility.domain;
 
+import static datadog.json.JsonMapper.toJson;
+import static datadog.trace.api.civisibility.CIConstants.CI_VISIBILITY_INSTRUMENTATION_NAME;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.util.Strings.toJson;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.InstrumentationTestBridge;
-import datadog.trace.api.civisibility.coverage.CoverageBridge;
-import datadog.trace.api.civisibility.coverage.CoverageProbeStore;
+import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.coverage.CoveragePerTestBridge;
+import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.domain.TestContext;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.BrowserDriver;
 import datadog.trace.api.civisibility.telemetry.tag.EventType;
 import datadog.trace.api.civisibility.telemetry.tag.IsNew;
+import datadog.trace.api.civisibility.telemetry.tag.IsRetry;
 import datadog.trace.api.civisibility.telemetry.tag.IsRum;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.api.gateway.RequestContextSlot;
@@ -23,15 +27,16 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.civisibility.InstrumentationType;
 import datadog.trace.civisibility.codeowners.Codeowners;
-import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
-import datadog.trace.civisibility.source.MethodLinesResolver;
+import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
+import datadog.trace.civisibility.source.SourceResolutionException;
 import java.lang.reflect.Method;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -44,18 +49,18 @@ public class TestImpl implements DDTest {
   private final CiVisibilityMetricCollector metricCollector;
   private final TestFrameworkInstrumentation instrumentation;
   private final AgentSpan span;
-  private final long sessionId;
+  private final DDTraceId sessionId;
   private final long suiteId;
   private final Consumer<AgentSpan> onSpanFinish;
   private final TestContext context;
 
   public TestImpl(
-      long sessionId,
-      long moduleId,
+      AgentSpan.Context moduleSpanContext,
       long suiteId,
       String moduleName,
       String testSuiteName,
       String testName,
+      @Nullable String testParameters,
       @Nullable String itrCorrelationId,
       @Nullable Long startTime,
       @Nullable Class<?> testClass,
@@ -66,26 +71,29 @@ public class TestImpl implements DDTest {
       CiVisibilityMetricCollector metricCollector,
       TestDecorator testDecorator,
       SourcePathResolver sourcePathResolver,
-      MethodLinesResolver methodLinesResolver,
+      LinesResolver linesResolver,
       Codeowners codeowners,
-      CoverageProbeStoreFactory coverageProbeStoreFactory,
+      CoverageStore.Factory coverageStoreFactory,
       Consumer<AgentSpan> onSpanFinish) {
     this.instrumentation = instrumentation;
     this.metricCollector = metricCollector;
-    this.sessionId = sessionId;
+    this.sessionId = moduleSpanContext.getTraceId();
     this.suiteId = suiteId;
     this.onSpanFinish = onSpanFinish;
 
-    CoverageProbeStore probeStore = coverageProbeStoreFactory.create(sourcePathResolver);
-    CoverageBridge.setThreadLocalCoverageProbeStore(probeStore);
+    TestIdentifier identifier = new TestIdentifier(testSuiteName, testName, testParameters);
+    CoverageStore coverageStore = coverageStoreFactory.create(identifier);
+    CoveragePerTestBridge.setThreadLocalCoverageProbes(coverageStore.getProbes());
 
-    this.context = new TestContextImpl(probeStore);
+    this.context = new TestContextImpl(coverageStore);
 
+    AgentSpan.Context traceContext =
+        new TagContext(CIConstants.CIAPP_TEST_ORIGIN, Collections.emptyMap());
     AgentTracer.SpanBuilder spanBuilder =
         AgentTracer.get()
-            .buildSpan(testDecorator.component() + ".test")
+            .buildSpan(CI_VISIBILITY_INSTRUMENTATION_NAME, testDecorator.component() + ".test")
             .ignoreActiveSpan()
-            .asChildOf(null)
+            .asChildOf(traceContext)
             .withRequestContextData(RequestContextSlot.CI_VISIBILITY, context);
 
     if (startTime != null) {
@@ -94,8 +102,7 @@ public class TestImpl implements DDTest {
 
     span = spanBuilder.start();
 
-    final AgentScope scope = activateSpan(span);
-    scope.setAsyncPropagation(true);
+    activateSpan(span, true);
 
     span.setSpanType(InternalSpanTypes.TEST);
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_TEST);
@@ -106,10 +113,10 @@ public class TestImpl implements DDTest {
     span.setTag(Tags.TEST_MODULE, moduleName);
 
     span.setTag(Tags.TEST_SUITE_ID, suiteId);
-    span.setTag(Tags.TEST_MODULE_ID, moduleId);
-    span.setTag(Tags.TEST_SESSION_ID, sessionId);
+    span.setTag(Tags.TEST_MODULE_ID, moduleSpanContext.getSpanId());
+    span.setTag(Tags.TEST_SESSION_ID, moduleSpanContext.getTraceId());
 
-    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_PASS);
+    span.setTag(Tags.TEST_STATUS, TestStatus.pass);
 
     if (testClass != null && !testClass.getName().equals(testSuiteName)) {
       span.setTag(Tags.TEST_SOURCE_CLASS, testClass.getName());
@@ -117,7 +124,7 @@ public class TestImpl implements DDTest {
 
     if (config.isCiVisibilitySourceDataEnabled()) {
       populateSourceDataTags(
-          span, testClass, testMethod, sourcePathResolver, methodLinesResolver, codeowners);
+          span, testClass, testMethod, sourcePathResolver, linesResolver, codeowners);
     }
 
     if (itrCorrelationId != null) {
@@ -138,24 +145,30 @@ public class TestImpl implements DDTest {
       Class<?> testClass,
       Method testMethod,
       SourcePathResolver sourcePathResolver,
-      MethodLinesResolver methodLinesResolver,
+      LinesResolver linesResolver,
       Codeowners codeowners) {
     if (testClass == null) {
       return;
     }
 
-    String sourcePath = sourcePathResolver.getSourcePath(testClass);
-    if (sourcePath == null || sourcePath.isEmpty()) {
+    String sourcePath;
+    try {
+      sourcePath = sourcePathResolver.getSourcePath(testClass);
+      if (sourcePath == null || sourcePath.isEmpty()) {
+        return;
+      }
+    } catch (SourceResolutionException e) {
+      log.debug("Could not populate source path for {}", testClass, e);
       return;
     }
 
     span.setTag(Tags.TEST_SOURCE_FILE, sourcePath);
 
     if (testMethod != null) {
-      MethodLinesResolver.MethodLines testMethodLines = methodLinesResolver.getLines(testMethod);
+      LinesResolver.Lines testMethodLines = linesResolver.getMethodLines(testMethod);
       if (testMethodLines.isValid()) {
         span.setTag(Tags.TEST_SOURCE_START, testMethodLines.getStartLineNumber());
-        span.setTag(Tags.TEST_SOURCE_END, testMethodLines.getFinishLineNumber());
+        span.setTag(Tags.TEST_SOURCE_END, testMethodLines.getEndLineNumber());
       }
     }
 
@@ -174,12 +187,12 @@ public class TestImpl implements DDTest {
   public void setErrorInfo(Throwable error) {
     span.setError(true);
     span.addThrowable(error);
-    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_FAIL);
+    span.setTag(Tags.TEST_STATUS, TestStatus.fail);
   }
 
   @Override
   public void setSkipReason(String skipReason) {
-    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_SKIP);
+    span.setTag(Tags.TEST_STATUS, TestStatus.skip);
     if (skipReason != null) {
       span.setTag(Tags.TEST_SKIP_REASON, skipReason);
 
@@ -215,12 +228,16 @@ public class TestImpl implements DDTest {
 
     InstrumentationTestBridge.fireBeforeTestEnd(context);
 
-    CoverageBridge.removeThreadLocalCoverageProbeStore();
-    boolean coveragesGathered =
-        context.getCoverageProbeStore().report(sessionId, suiteId, span.getSpanId());
-    if (!coveragesGathered && !CIConstants.TEST_SKIP.equals(span.getTag(Tags.TEST_STATUS))) {
-      // test is not skipped, but no coverages were gathered
-      metricCollector.add(CiVisibilityCountMetric.CODE_COVERAGE_IS_EMPTY, 1);
+    CoveragePerTestBridge.removeThreadLocalCoverageProbes();
+
+    // do not process coverage reports for skipped tests
+    if (span.getTag(Tags.TEST_STATUS) != TestStatus.skip) {
+      CoverageStore coverageStore = context.getCoverageStore();
+      boolean coveragesGathered = coverageStore.report(sessionId, suiteId, span.getSpanId());
+      if (!coveragesGathered && !TestStatus.skip.equals(span.getTag(Tags.TEST_STATUS))) {
+        // test is not skipped, but no coverages were gathered
+        metricCollector.add(CiVisibilityCountMetric.CODE_COVERAGE_IS_EMPTY, 1);
+      }
     }
 
     scope.close();
@@ -239,6 +256,7 @@ public class TestImpl implements DDTest {
         instrumentation,
         EventType.TEST,
         span.getTag(Tags.TEST_IS_NEW) != null ? IsNew.TRUE : null,
+        span.getTag(Tags.TEST_IS_RETRY) != null ? IsRetry.TRUE : null,
         span.getTag(Tags.TEST_IS_RUM_ACTIVE) != null ? IsRum.TRUE : null,
         CIConstants.SELENIUM_BROWSER_DRIVER.equals(span.getTag(Tags.TEST_BROWSER_DRIVER))
             ? BrowserDriver.SELENIUM

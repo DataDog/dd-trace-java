@@ -7,13 +7,13 @@ import java.util.Collection;
 import java.util.List;
 
 public class TestTraceInterceptor implements TraceInterceptor {
-  private Collection<? extends MutableSpan> currentTrace;
+  private List<? extends MutableSpan> currentTrace;
   private List<List<? extends MutableSpan>> allTraces = new ArrayList<>();
 
   @Override
   public Collection<? extends MutableSpan> onTraceComplete(
       Collection<? extends MutableSpan> trace) {
-    currentTrace = trace;
+    currentTrace = new ArrayList<>(trace);
     allTraces.add(new ArrayList<>(trace));
     return trace;
   }
@@ -23,7 +23,7 @@ public class TestTraceInterceptor implements TraceInterceptor {
     return 0;
   }
 
-  public Collection<? extends MutableSpan> getTrace() {
+  public List<? extends MutableSpan> getTrace() {
     return currentTrace;
   }
 

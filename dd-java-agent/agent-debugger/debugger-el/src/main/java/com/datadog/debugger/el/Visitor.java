@@ -29,6 +29,7 @@ import com.datadog.debugger.el.values.MapValue;
 import com.datadog.debugger.el.values.NullValue;
 import com.datadog.debugger.el.values.NumericValue;
 import com.datadog.debugger.el.values.ObjectValue;
+import com.datadog.debugger.el.values.SetValue;
 import com.datadog.debugger.el.values.StringValue;
 
 public interface Visitor<R> {
@@ -91,4 +92,6 @@ public interface Visitor<R> {
   R visit(ListValue listValue);
 
   R visit(MapValue mapValue);
+
+  R visit(SetValue setValue);
 }
