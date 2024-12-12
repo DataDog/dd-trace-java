@@ -20,7 +20,6 @@ import datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionUrlParser;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.sql.Connection;
@@ -30,7 +29,6 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,8 +48,6 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       SpanNaming.instance().namingSchema().database().service("jdbc");
   public static final String DBM_PROPAGATION_MODE_STATIC = "service";
   public static final String DBM_PROPAGATION_MODE_FULL = "full";
-  private static final Pattern traceParentPattern =
-      Pattern.compile("^00-[a-f0-9]{32}-[a-f0-9]{16}-[a-f0-9]{2}$");
 
   public static final String DBM_PROPAGATION_MODE = Config.get().getDBMPropagationMode();
   public static final boolean INJECT_COMMENT =
@@ -333,9 +329,6 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
    * @param span The span of the instrumented statement
    * @param connection The same connection as the one that will be used for the actual statement
    */
-  @SuppressFBWarnings(
-      value = "SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE",
-      justification = "Prepared statement not possible with SET")
   public void setApplicationName(AgentSpan span, Connection connection) {
     final long startTime = System.currentTimeMillis();
     try {
@@ -345,15 +338,9 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
         return;
       }
       final String traceParent = DECORATE.traceParent(span, priority);
-      if (traceParent == null || !traceParentPattern.matcher(traceParent).matches()) {
-        throw new IllegalArgumentException("Invalid trace parent: " + traceParent);
-      }
       final String traceContext = "_DD_" + traceParent;
 
-      // SET doesn't work with parameters
-      try (Statement statement = connection.createStatement()) {
-        statement.execute("SET application_name = '" + traceContext + "';");
-      }
+      connection.setClientInfo("ApplicationName", traceContext);
     } catch (Throwable e) {
       if (log.isDebugEnabled()) {
         log.debug(
