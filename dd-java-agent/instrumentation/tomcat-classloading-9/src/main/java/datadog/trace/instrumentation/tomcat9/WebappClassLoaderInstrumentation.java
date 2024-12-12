@@ -25,13 +25,6 @@ public class WebappClassLoaderInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".ContextNameHelper",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(named("setResources")), getClass().getName() + "$CaptureWebappNameAdvice");
