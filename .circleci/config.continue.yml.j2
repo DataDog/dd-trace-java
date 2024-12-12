@@ -953,13 +953,23 @@ jobs:
           no_output_timeout: 5m
           command: |
             cd system-tests
-            DD_SITE=datadoghq.com DD_API_KEY=$SYSTEM_TESTS_E2E_DD_API_KEY DD_APPLICATION_KEY=$SYSTEM_TESTS_E2E_DD_APP_KEY ./run.sh DEBUGGER_SCENARIOS
+            export DD_API_KEY=$SYSTEM_TESTS_E2E_DD_API_KEY 
+            ./run.sh DEBUGGER_SCENARIOS
+
+      - run:
+          name: Collect log files
+          no_output_timeout: 5m
+          command: |
+            mkdir -p logs_debugger
+            for dir in system-tests/logs*/; do
+                cp -r "$dir" logs_debugger
+            done
 
       - store_test_results:
-          path: system-tests/logs_debugger*
+          path: logs_debugger
 
       - store_artifacts:
-          path: system-tests/logs_debugger*
+          path: logs_debugger
 
   parametric-tests:
     machine:

@@ -55,6 +55,7 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test flaky retries #testcaseName"() {
+    givenFlakyRetryEnabled(true)
     givenFlakyTests(retriedTests)
 
     runFeatures(features, false)
@@ -76,6 +77,7 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test early flakiness detection #testcaseName"() {
+    givenEarlyFlakinessDetectionEnabled(true)
     givenKnownTests(knownTestsList)
 
     runFeatures(features, false)
