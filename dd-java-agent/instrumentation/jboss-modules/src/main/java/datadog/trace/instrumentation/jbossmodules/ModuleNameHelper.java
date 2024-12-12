@@ -11,13 +11,12 @@ public class ModuleNameHelper {
   private static final Pattern SUBDEPLOYMENT_MATCH =
       Pattern.compile("deployment(?>.+\\.ear)?\\.(.+)\\.[j|w]ar");
 
-  public static String extractDeploymentName(@Nonnull final ClassLoader classLoader) {
+  public static String extractDeploymentName(@Nonnull final ModuleClassLoader classLoader) {
     final Matcher matcher =
-        SUBDEPLOYMENT_MATCH.matcher(
-            ((ModuleClassLoader) classLoader).getModule().getIdentifier().getName());
+        SUBDEPLOYMENT_MATCH.matcher(classLoader.getModule().getIdentifier().getName());
     if (matcher.matches()) {
       return matcher.group(1);
     }
     return null;
-  };
+  }
 }
