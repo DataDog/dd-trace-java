@@ -16,8 +16,8 @@ dependencies {
   compileOnly group: 'software.amazon.awssdk', name: 's3', version: '2.29.26'
 
   // Include httpclient instrumentation for testing because it is a dependency for aws-sdk.
-  testImplementation project(':dd-java-agent:instrumentation:apache-httpclient-4')
-  testImplementation project(':dd-java-agent:instrumentation:aws-java-sdk-2.2')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:apache-httpclient-4')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:aws-java-sdk-2.2')
   testImplementation 'software.amazon.awssdk:s3:2.29.26'
   testImplementation 'org.testcontainers:localstack:1.20.1'
 

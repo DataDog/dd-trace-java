@@ -62,7 +62,10 @@ public class S3Interceptor implements ExecutionInterceptor {
 
     // Hash calculation rules:
     // https://github.com/DataDog/dd-span-pointer-rules/blob/main/AWS/S3/Object/README.md
-    if (eTag.startsWith("\"") && eTag.endsWith("\"")) {
+    if (eTag != null
+        && !eTag.isEmpty()
+        && eTag.charAt(0) == '"'
+        && eTag.charAt(eTag.length() - 1) == '"') {
       eTag = eTag.substring(1, eTag.length() - 1);
     }
     String[] components = new String[] {bucket, key, eTag};
