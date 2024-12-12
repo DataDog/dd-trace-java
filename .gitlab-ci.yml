@@ -58,6 +58,8 @@ default:
     - rm -rf .gradle
     - mv .gradle-copy .gradle
     - ls -la
+    - sudo apt update && sudo apt install git-restore-mtime
+    - git restore-mtime
 
 build:
   extends: .gradle_build
