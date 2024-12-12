@@ -101,9 +101,10 @@ public class CodeOriginTest extends CapturingTestBase {
   @Test
   public void withDebug1() throws Exception {
     final String className = "com.datadog.debugger.CodeOrigin02";
-    installProbes(codeOriginProbes(className));
+    installProbes();
     final Class<?> testClass = compileAndLoadClass(className);
-    checkResults(testClass, "debug_1", false);
+    codeOriginRecorder.captureCodeOrigin(testClass.getMethod("entry"), true);
+    codeOriginRecorder.captureCodeOrigin(testClass.getMethod("exit"), false);
     checkResults(testClass, "debug_1", true);
   }
 

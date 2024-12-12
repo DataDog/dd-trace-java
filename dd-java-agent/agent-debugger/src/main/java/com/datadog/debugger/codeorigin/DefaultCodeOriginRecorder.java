@@ -18,13 +18,15 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.stacktrace.StackWalkerFactory;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,6 +68,7 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
               null,
               String.valueOf(element.getLineNumber()));
       probe = createProbe(fingerprint, entry, where);
+
       LOG.debug("Creating probe for location {}", where);
     }
     return probe.getId();
@@ -73,12 +76,6 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
 
   @Override
   public String captureCodeOrigin(Method method, boolean entry) {
-    System.out.println(
-        "****** DefaultCodeOriginRecorder.captureCodeOrigin "
-            + "method = "
-            + method
-            + ", entry = "
-            + entry);
     String fingerprint = method.toString();
     CodeOriginProbe probe = probesByFingerprint.get(fingerprint);
     if (probe == null) {
@@ -104,7 +101,6 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
               null,
               null);
       logProbes.put(probe.getId(), logProbe);
-      installProbes();
     }
   }
 
@@ -113,13 +109,14 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
     AgentSpan span = AgentTracer.activeSpan();
 
     probe = new CodeOriginProbe(new ProbeId(UUID.randomUUID().toString(), 0), entry, where);
-    System.out.println("****** DefaultCodeOriginRecorder.createProbe probe = " + probe);
     addFingerprint(fingerPrint, probe);
-
     CodeOriginProbe installed = probes.putIfAbsent(probe.getId(), probe);
 
     // i think this check is unnecessary at this point time but leaving for now to be safe
     if (installed == null) {
+      if (Config.get().isDebuggerEnabled()) {
+        registerLogProbe(probe);
+      }
       installProbes();
     }
     // committing here manually so that first run probe encounters decorate the span until the
@@ -153,9 +150,8 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
   }
 
   public List<ProbeDefinition> getProbes() {
-    List<ProbeDefinition> all = new ArrayList<>();
-    all.addAll(probes.values());
-    all.addAll(logProbes.values());
-    return all;
+    return Stream.of(probes.values(), logProbes.values())
+        .flatMap(Collection::stream)
+        .collect(Collectors.toList());
   }
 }
