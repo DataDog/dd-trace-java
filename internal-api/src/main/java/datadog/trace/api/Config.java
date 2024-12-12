@@ -538,6 +538,8 @@ public class Config {
   private final int cloudPayloadTaggingMaxDepth;
   private final int cloudPayloadTaggingMaxTags;
 
+  private final long dependecyResolutionPeriodMillis;
+
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
     this(ConfigProvider.createDefault());
@@ -1801,6 +1803,11 @@ public class Config {
         configProvider.getInteger(TracerConfig.TRACE_CLOUD_PAYLOAD_TAGGING_MAX_DEPTH, 10);
     this.cloudPayloadTaggingMaxTags =
         configProvider.getInteger(TracerConfig.TRACE_CLOUD_PAYLOAD_TAGGING_MAX_TAGS, 758);
+
+    this.dependecyResolutionPeriodMillis =
+        configProvider.getLong(
+            GeneralConfig.TELEMETRY_DEPENDENCY_RESOLUTION_PERIOD_MILLIS,
+            1000); // 1 second by default
 
     timelineEventsEnabled =
         configProvider.getBoolean(
@@ -3698,6 +3705,10 @@ public class Config {
       final boolean defaultEnabled, final String settingName, String settingSuffix) {
     return configProvider.isEnabled(
         Collections.singletonList(settingName), "", settingSuffix, defaultEnabled);
+  }
+
+  public long getDependecyResolutionPeriodMillis() {
+    return dependecyResolutionPeriodMillis;
   }
 
   public boolean isDBMTracePreparedStatements() {
