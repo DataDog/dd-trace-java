@@ -376,6 +376,7 @@ public class Config {
   private final int remoteConfigMaxExtraServices;
 
   private final String DBMPropagationMode;
+  private final boolean DBMTracePreparedStatements;
 
   private final boolean debuggerEnabled;
   private final int debuggerUploadTimeout;
@@ -846,6 +847,10 @@ public class Config {
     DBMPropagationMode =
         configProvider.getString(
             DB_DBM_PROPAGATION_MODE_MODE, DEFAULT_DB_DBM_PROPAGATION_MODE_MODE);
+
+    DBMTracePreparedStatements =
+        configProvider.getBoolean(
+            DB_DBM_TRACE_PREPARED_STATEMENTS, DEFAULT_DB_DBM_TRACE_PREPARED_STATEMENTS);
 
     splitByTags = tryMakeImmutableSet(configProvider.getList(SPLIT_BY_TAGS));
 
@@ -3693,6 +3698,10 @@ public class Config {
       final boolean defaultEnabled, final String settingName, String settingSuffix) {
     return configProvider.isEnabled(
         Collections.singletonList(settingName), "", settingSuffix, defaultEnabled);
+  }
+
+  public boolean isDBMTracePreparedStatements() {
+    return DBMTracePreparedStatements;
   }
 
   public String getDBMPropagationMode() {
