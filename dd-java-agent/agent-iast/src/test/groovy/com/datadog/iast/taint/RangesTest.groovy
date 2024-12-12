@@ -12,6 +12,7 @@ import static com.datadog.iast.util.HttpHeader.LOCATION
 import static com.datadog.iast.util.HttpHeader.REFERER
 import static datadog.trace.api.iast.SourceTypes.GRPC_BODY
 import static datadog.trace.api.iast.SourceTypes.REQUEST_HEADER_VALUE
+import static datadog.trace.api.iast.SourceTypes.SQL_TABLE
 import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
 import static com.datadog.iast.taint.Ranges.mergeRanges
 import static datadog.trace.api.iast.SourceTypes.REQUEST_HEADER_NAME
@@ -376,6 +377,21 @@ class RangesTest extends DDSpecification {
     2     | 3   | 2         | range(1, 8) | -1     | 1          | [range(0, 1), range(3, 6)]
     8     | 10  | 2         | range(0, 8) | 0      | 0          | [range(0, 8)]
     1     | 3   | 2         | range(8, 8) | 0      | 0          | []
+  }
+
+  void 'test excludeRangesBySource method'() {
+    when:
+    final result = Ranges.excludeRangesBySource(ranges as Range[], source)
+
+    then:
+    final expectedArray = expected as Range[]
+    result == expectedArray
+
+    where:
+    ranges                                          | source              | expected
+    [rangeWithSource(0, 5, SQL_TABLE), range(5, 3)] | SQL_TABLE           | [range(5, 3)]
+    [rangeWithSource(0, 5, SQL_TABLE), range(5, 3)] | REQUEST_HEADER_NAME | [rangeWithSource(0, 5, SQL_TABLE)]
+    []                                              | SQL_TABLE           | []
   }
 
   Range[] rangesFromSpec(List<List<Object>> spec) {
