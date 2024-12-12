@@ -6,8 +6,6 @@ import datadog.trace.api.env.CapturedEnvironment;
 import datadog.trace.api.remoteconfig.ServiceNameCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.WeakHashMap;
-import java.util.function.Function;
-import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -16,7 +14,7 @@ public class ClassloaderServiceNames {
     private static final ClassloaderServiceNames INSTANCE = new ClassloaderServiceNames();
   }
 
-  private final WeakHashMap<ClassLoader, Supplier<String>> weakCache = new WeakHashMap<>();
+  private final WeakHashMap<ClassLoader, String> weakCache = new WeakHashMap<>();
   private final String inferredServiceName =
       CapturedEnvironment.get().getProperties().get(GeneralConfig.SERVICE_NAME);
   private final boolean enabled =
@@ -24,21 +22,16 @@ public class ClassloaderServiceNames {
 
   private ClassloaderServiceNames() {}
 
-  public static void addIfMissing(
-      @Nonnull ClassLoader classLoader,
-      @Nonnull Function<? super ClassLoader, Supplier<String>> adder) {
+  public static void addServiceName(@Nonnull ClassLoader classLoader, @Nonnull String serviceName) {
     if (Lazy.INSTANCE.enabled) {
-      Lazy.INSTANCE.weakCache.computeIfAbsent(classLoader, adder);
+      Lazy.INSTANCE.weakCache.put(classLoader, serviceName);
     }
   }
 
   @Nullable
   public static String maybeGet(@Nonnull ClassLoader classLoader) {
     if (Lazy.INSTANCE.enabled) {
-      final Supplier<String> supplier = Lazy.INSTANCE.weakCache.get(classLoader);
-      if (supplier != null) {
-        return supplier.get();
-      }
+      return Lazy.INSTANCE.weakCache.get(classLoader);
     }
     return null;
   }

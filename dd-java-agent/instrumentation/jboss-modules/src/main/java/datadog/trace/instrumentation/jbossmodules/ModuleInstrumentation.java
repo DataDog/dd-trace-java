@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.jbossmodules;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.instrumentation.jbossmodules.ModuleNameHelper.NAME_EXTRACTOR;
+import static datadog.trace.instrumentation.jbossmodules.ModuleNameHelper.extractDeploymentName;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -163,7 +163,10 @@ public final class ModuleInstrumentation extends InstrumenterModule.Tracing
   public static class CaptureModuleNameAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterConstruct(@Advice.This final Module module) {
-      ClassloaderServiceNames.addIfMissing(module.getClassLoader(), NAME_EXTRACTOR);
+      final String name = extractDeploymentName(module.getClassLoader());
+      if (name != null && !name.isEmpty()) {
+        ClassloaderServiceNames.addServiceName(module.getClassLoader(), name);
+      }
     }
   }
 }

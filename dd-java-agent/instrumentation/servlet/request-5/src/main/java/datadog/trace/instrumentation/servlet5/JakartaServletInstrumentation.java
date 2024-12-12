@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.servlet5;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperType;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -56,9 +57,7 @@ public class JakartaServletInstrumentation extends InstrumenterModule.Tracing
       if (!(request instanceof HttpServletRequest)) {
         return null;
       }
-      Object span =
-          request.getAttribute(
-              "datadog.span"); // hardcode to avoid injecting HttpServiceDecorator just for this
+      Object span = request.getAttribute(DD_SPAN_ATTRIBUTE);
       if (span instanceof AgentSpan
           && CallDepthThreadLocalMap.incrementCallDepth(HttpServletRequest.class) == 0) {
         final AgentSpan agentSpan = (AgentSpan) span;
