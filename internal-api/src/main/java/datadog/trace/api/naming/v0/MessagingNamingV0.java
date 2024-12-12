@@ -47,7 +47,7 @@ class MessagingNamingV0 implements NamingSchema.ForMessaging {
         ServiceNameCollector.get().addService(messagingSystem);
         return messagingSystem;
       } else {
-        final String contextual = ClassloaderServiceNames.maybeGetForThread(Thread.currentThread());
+        final String contextual = ClassloaderServiceNames.maybeGetForCurrentThread();
         if (contextual != null) {
           ServiceNameCollector.get().addService(contextual);
           return contextual;

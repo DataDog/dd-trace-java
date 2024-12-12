@@ -61,7 +61,7 @@ public class JakartaServletInstrumentation extends InstrumenterModule.Tracing
       if (span instanceof AgentSpan
           && CallDepthThreadLocalMap.incrementCallDepth(HttpServletRequest.class) == 0) {
         final AgentSpan agentSpan = (AgentSpan) span;
-        ClassloaderServiceNames.maybeSetToSpan(agentSpan, Thread.currentThread());
+        ClassloaderServiceNames.maybeSetToSpan(agentSpan);
         return agentSpan;
       }
       return null;

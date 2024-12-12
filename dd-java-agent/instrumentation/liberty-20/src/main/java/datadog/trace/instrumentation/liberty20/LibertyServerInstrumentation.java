@@ -16,6 +16,7 @@ import com.ibm.ws.webcontainer.webapp.WebApp;
 import com.ibm.wsspi.webcontainer.webapp.IWebAppDispatcherContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.gateway.Flow;
@@ -107,13 +108,15 @@ public final class LibertyServerInstrumentation extends InstrumenterModule.Traci
       request.setAttribute(DD_EXTRACTED_CONTEXT_ATTRIBUTE, extractedContext);
       final AgentSpan span = DECORATE.startSpan(request, extractedContext);
       scope = activateSpan(span, true);
-      final IWebAppDispatcherContext dispatcherContext = request.getWebAppDispatcherContext();
-      if (dispatcherContext != null) {
-        final WebApp webapp = dispatcherContext.getWebApp();
-        if (webapp != null) {
-          final ClassLoader cl = webapp.getClassLoader();
-          if (cl != null) {
-            ClassloaderServiceNames.maybeSetToSpan(span, cl);
+      if (Config.get().isJeeSplitByDeployment()) {
+        final IWebAppDispatcherContext dispatcherContext = request.getWebAppDispatcherContext();
+        if (dispatcherContext != null) {
+          final WebApp webapp = dispatcherContext.getWebApp();
+          if (webapp != null) {
+            final ClassLoader cl = webapp.getClassLoader();
+            if (cl != null) {
+              ClassloaderServiceNames.maybeSetToSpan(span, cl);
+            }
           }
         }
       }

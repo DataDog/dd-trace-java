@@ -83,10 +83,7 @@ public class Servlet3Decorator
       final HttpServletRequest request,
       AgentSpan.Context.Extracted context) {
     assert span != null;
-    final String eeService = ClassloaderServiceNames.maybeGetForThread(Thread.currentThread());
-    if (eeService != null) {
-      span.setServiceName(eeService);
-    }
+    ClassloaderServiceNames.maybeSetToSpan(span);
     if (request != null) {
       String contextPath = request.getContextPath();
       String servletPath = request.getServletPath();

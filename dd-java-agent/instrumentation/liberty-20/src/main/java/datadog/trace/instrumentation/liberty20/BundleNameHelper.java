@@ -16,7 +16,6 @@ public class BundleNameHelper {
     if (tail < 0) {
       return null;
     }
-    final String name = id.substring(head + 1, tail);
-    return null;
+    return id.substring(head + 1, tail);
   }
 }

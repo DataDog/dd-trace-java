@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.liberty20;
 
-import static datadog.trace.instrumentation.liberty20.BundleNameHelper.extractDeploymentName;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
 import com.google.auto.service.AutoService;
@@ -39,7 +38,7 @@ public class ThreadContextClassloaderInstrumentation extends InstrumenterModule.
   public static class ThreadContextClassloaderAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterConstruct(@Advice.This ThreadContextClassLoader self) {
-      final String name = extractDeploymentName(self);
+      final String name = BundleNameHelper.extractDeploymentName(self);
       if (name != null && !name.isEmpty()) {
         ClassloaderServiceNames.addServiceName(self, name);
       }
