@@ -68,7 +68,12 @@ public final class TraceInstrumentationConfig {
 
   public static final String DB_DBM_PROPAGATION_MODE_MODE = "dbm.propagation.mode";
 
+  public static final String DB_DBM_TRACE_PREPARED_STATEMENTS = "dbm.trace_prepared_statements";
+
   public static final String JDBC_CONNECTION_CLASS_NAME = "trace.jdbc.connection.class.name";
+
+  public static final String EXPERIMENTATAL_JEE_SPLIT_BY_DEPLOYMENT =
+      "trace.experimental.jee.split-by-deployment";
 
   public static final String HTTP_URL_CONNECTION_CLASS_NAME =
       "trace.http.url.connection.class.name";
@@ -158,6 +163,8 @@ public final class TraceInstrumentationConfig {
   public static final String JAX_RS_ADDITIONAL_ANNOTATIONS = "trace.jax-rs.additional.annotations";
   /** If set, the instrumentation will set its resource name on the local root too. */
   public static final String AXIS_PROMOTE_RESOURCE_NAME = "trace.axis.promote.resource-name";
+
+  public static final String SQS_BODY_PROPAGATION_ENABLED = "trace.sqs.body.propagation.enabled";
 
   private TraceInstrumentationConfig() {}
 }
