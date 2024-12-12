@@ -172,6 +172,7 @@ public class Config {
   private final boolean dbClientSplitByInstanceTypeSuffix;
   private final boolean dbClientSplitByHost;
   private final Set<String> splitByTags;
+  private final boolean jeeSplitByDeployment;
   private final int scopeDepthLimit;
   private final boolean scopeStrictMode;
   private final int scopeIterationKeepAlive;
@@ -847,6 +848,10 @@ public class Config {
             DB_DBM_PROPAGATION_MODE_MODE, DEFAULT_DB_DBM_PROPAGATION_MODE_MODE);
 
     splitByTags = tryMakeImmutableSet(configProvider.getList(SPLIT_BY_TAGS));
+
+    jeeSplitByDeployment =
+        configProvider.getBoolean(
+            EXPERIMENTATAL_JEE_SPLIT_BY_DEPLOYMENT, DEFAULT_EXPERIMENTATAL_JEE_SPLIT_BY_DEPLOYMENT);
 
     springDataRepositoryInterfaceResourceName =
         configProvider.getBoolean(SPRING_DATA_REPOSITORY_INTERFACE_RESOURCE_NAME, true);
@@ -2069,6 +2074,10 @@ public class Config {
 
   public Set<String> getSplitByTags() {
     return splitByTags;
+  }
+
+  public boolean isJeeSplitByDeployment() {
+    return jeeSplitByDeployment;
   }
 
   public int getScopeDepthLimit() {
@@ -4178,6 +4187,8 @@ public class Config {
         + DBMPropagationMode
         + ", splitByTags="
         + splitByTags
+        + ", jeeSplitByDeployment="
+        + jeeSplitByDeployment
         + ", scopeDepthLimit="
         + scopeDepthLimit
         + ", scopeStrictMode="

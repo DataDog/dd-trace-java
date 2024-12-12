@@ -40,6 +40,7 @@ import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.metrics.SpanMetricRegistry;
+import datadog.trace.api.naming.ClassloaderServiceNames;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.api.remoteconfig.ServiceNameCollector;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -1599,11 +1600,16 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       }
       if (serviceName == null) {
         serviceName = traceConfig.getPreferredServiceName();
-        if (serviceName == null) {
-          // it could be on the initial snapshot but may be overridden to null and service name
-          // cannot be null
-          serviceName = CoreTracer.this.serviceName;
-        }
+      }
+      if (serviceName == null && parentServiceName == null) {
+        // in this case we have a local root without service name. We can try to see if we can find
+        // one from the thread context classloader
+        serviceName = ClassloaderServiceNames.maybeGetForCurrentThread();
+      }
+      if (serviceName == null) {
+        // it could be on the initial snapshot but may be overridden to null and service name
+        // cannot be null
+        serviceName = CoreTracer.this.serviceName;
       }
 
       final CharSequence operationName =
