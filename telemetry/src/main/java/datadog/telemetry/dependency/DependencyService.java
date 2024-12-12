@@ -1,5 +1,6 @@
 package datadog.telemetry.dependency;
 
+import datadog.trace.api.Config;
 import datadog.trace.util.AgentTaskScheduler;
 import java.lang.instrument.Instrumentation;
 import java.net.URI;
@@ -31,7 +32,11 @@ public class DependencyService implements Runnable {
   public void schedulePeriodicResolution() {
     scheduledTask =
         AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
-            AgentTaskScheduler.RunnableTask.INSTANCE, this, 0, 1000L, TimeUnit.MILLISECONDS);
+            AgentTaskScheduler.RunnableTask.INSTANCE,
+            this,
+            0,
+            Config.get().getDependecyResolutionPeriodMillis(),
+            TimeUnit.MILLISECONDS);
   }
 
   public void resolveOneDependency() {
