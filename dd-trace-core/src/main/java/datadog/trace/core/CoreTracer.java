@@ -89,6 +89,7 @@ import datadog.trace.core.scopemanager.ContinuableScopeManager;
 import datadog.trace.core.taginterceptor.RuleFlags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.core.traceinterceptor.LatencyTraceInterceptor;
+import datadog.trace.core.util.TracerDump;
 import datadog.trace.lambda.LambdaHandler;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentTaskScheduler;
@@ -251,6 +252,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     if (!root.isOutbound()) {
       profilingContextIntegration.onRootSpanFinished(root, tracker);
     }
+    TracerDump.suspendRootSpan(root);
   }
 
   /**
@@ -275,6 +277,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     if (!root.isOutbound()) {
       return profilingContextIntegration.onRootSpanStarted(root);
     }
+    TracerDump.addUnfinishedRootSpan(root);
     return null;
   }
 

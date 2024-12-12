@@ -448,4 +448,8 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
     PendingTrace trace = (PendingTrace) traceCollector;
     return trace.getLastWriteTime() - span.getStartTime();
   }
+
+  public ConcurrentLinkedDeque<DDSpan> getSpans() {
+    return spans;
+  }
 }
