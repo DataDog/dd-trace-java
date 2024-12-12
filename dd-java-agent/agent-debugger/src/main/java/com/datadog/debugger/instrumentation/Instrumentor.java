@@ -46,6 +46,7 @@ public abstract class Instrumentor {
   protected int localVarBaseOffset;
   protected int argOffset;
   protected final LocalVariableNode[] localVarsBySlotArray;
+  protected final JvmLanguage language;
   protected LabelNode returnHandlerLabel;
   protected final List<CapturedContextInstrumentor.FinallyBlock> finallyBlocks = new ArrayList<>();
 
@@ -69,6 +70,7 @@ public abstract class Instrumentor {
       argOffset += t.getSize();
     }
     localVarsBySlotArray = extractLocalVariables(argTypes);
+    this.language = JvmLanguage.of(classNode);
   }
 
   public abstract InstrumentationResult.Status instrument();
@@ -292,6 +294,33 @@ public abstract class Instrumentor {
       this.startLabel = startLabel;
       this.endLabel = endLabel;
       this.handlerLabel = handlerLabel;
+    }
+  }
+
+  protected enum JvmLanguage {
+    JAVA,
+    KOTLIN,
+    SCALA,
+    GROOVY,
+    UNKNOWN;
+
+    public static JvmLanguage of(ClassNode classNode) {
+      if (classNode.sourceFile == null) {
+        return UNKNOWN;
+      }
+      if (classNode.sourceFile.endsWith(".java")) {
+        return JAVA;
+      }
+      if (classNode.sourceFile.endsWith(".kt")) {
+        return KOTLIN;
+      }
+      if (classNode.sourceFile.endsWith(".scala")) {
+        return SCALA;
+      }
+      if (classNode.sourceFile.endsWith(".groovy")) {
+        return GROOVY;
+      }
+      return UNKNOWN;
     }
   }
 }

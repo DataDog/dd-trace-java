@@ -394,6 +394,7 @@ public class Config {
   private final String debuggerRedactedIdentifiers;
   private final Set<String> debuggerRedactionExcludedIdentifiers;
   private final String debuggerRedactedTypes;
+  private final boolean debuggerHoistLocalVarsEnabled;
   private final boolean debuggerSymbolEnabled;
   private final boolean debuggerSymbolForceUpload;
   private final String debuggerSymbolIncludes;
@@ -1526,6 +1527,9 @@ public class Config {
     debuggerRedactionExcludedIdentifiers =
         tryMakeImmutableSet(configProvider.getList(DEBUGGER_REDACTION_EXCLUDED_IDENTIFIERS));
     debuggerRedactedTypes = configProvider.getString(DEBUGGER_REDACTED_TYPES, null);
+    debuggerHoistLocalVarsEnabled =
+        configProvider.getBoolean(
+            DEBUGGER_HOIST_LOCALVARS_ENABLED, DEFAULT_DEBUGGER_HOIST_LOCALVARS_ENABLED);
     debuggerSymbolEnabled =
         configProvider.getBoolean(DEBUGGER_SYMBOL_ENABLED, DEFAULT_DEBUGGER_SYMBOL_ENABLED);
     debuggerSymbolForceUpload =
@@ -3040,6 +3044,10 @@ public class Config {
 
   public String getDebuggerRedactedTypes() {
     return debuggerRedactedTypes;
+  }
+
+  public boolean isDebuggerHoistLocalVarsEnabled() {
+    return debuggerHoistLocalVarsEnabled;
   }
 
   public boolean isAwsPropagationEnabled() {
