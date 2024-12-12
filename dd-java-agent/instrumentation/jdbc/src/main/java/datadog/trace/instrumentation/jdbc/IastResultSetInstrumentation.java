@@ -32,7 +32,7 @@ public class IastResultSetInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForTypeHierarchy {
 
   public IastResultSetInstrumentation() {
-    super("jdbc", "resultset");
+    super("jdbc", "jdbc-resultset", "iast-resultset");
   }
 
   @Override
