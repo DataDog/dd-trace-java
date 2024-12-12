@@ -10,15 +10,13 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import akka.http.scaladsl.model.HttpRequest;
 import akka.http.scaladsl.server.RequestContext;
 import com.google.auto.service.AutoService;
-import datadog.trace.advice.ActiveRequestContext;
-import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import net.bytebuddy.asm.Advice;
 
@@ -47,27 +45,27 @@ public class RequestContextInstrumentation extends InstrumenterModule.Iast
   }
 
   @SuppressFBWarnings("BC_IMPOSSIBLE_INSTANCEOF")
-  @RequiresRequestContext(RequestContextSlot.IAST)
   static class GetRequestAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Propagation
     static void onExit(
-        @Advice.This RequestContext requestContext,
-        @Advice.Return HttpRequest request,
-        @ActiveRequestContext datadog.trace.api.gateway.RequestContext reqCtx) {
+        @Advice.This RequestContext requestContext, @Advice.Return HttpRequest request) {
 
       PropagationModule propagation = InstrumentationBridge.PROPAGATION;
       if (propagation == null) {
         return;
       }
 
-      IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-
-      if (propagation.isTainted(ctx, request)) {
+      final TaintedObjects to = IastContext.Provider.taintedObjects();
+      if (to == null) {
         return;
       }
 
-      propagation.taintObjectIfTainted(ctx, request, requestContext);
+      if (propagation.isTainted(to, request)) {
+        return;
+      }
+
+      propagation.taintObjectIfTainted(to, request, requestContext);
     }
   }
 }

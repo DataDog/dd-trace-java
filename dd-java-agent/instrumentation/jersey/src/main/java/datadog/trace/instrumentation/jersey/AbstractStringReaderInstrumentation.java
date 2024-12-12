@@ -5,17 +5,14 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
-import datadog.trace.advice.ActiveRequestContext;
-import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.gateway.RequestContext;
-import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
@@ -41,14 +38,11 @@ public class AbstractStringReaderInstrumentation extends InstrumenterModule.Iast
     };
   }
 
-  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class FromStringAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
     public static void onExit(
-        @Advice.Argument(0) final String param,
-        @Advice.Return Object result,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @Advice.Argument(0) final String param, @Advice.Return Object result) {
       if (!(result instanceof String)) {
         return;
       }
@@ -56,8 +50,8 @@ public class AbstractStringReaderInstrumentation extends InstrumenterModule.Iast
       if (module == null) {
         return;
       }
-      IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-      module.taintStringIfTainted(ctx, (String) result, param);
+      final TaintedObjects to = IastContext.Provider.taintedObjects();
+      module.taintObjectIfTainted(to, result, param);
     }
   }
 }

@@ -1,5 +1,6 @@
 package com.datadog.iast.model;
 
+import datadog.trace.api.iast.taint.Range;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;

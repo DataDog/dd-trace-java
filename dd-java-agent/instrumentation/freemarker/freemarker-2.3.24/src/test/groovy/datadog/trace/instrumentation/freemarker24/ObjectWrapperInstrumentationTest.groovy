@@ -4,6 +4,7 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.PropagationModule
+import datadog.trace.api.iast.taint.TaintedObjects
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import freemarker.template.DefaultObjectWrapper
@@ -11,6 +12,7 @@ import freemarker.template.DefaultObjectWrapper
 class ObjectWrapperInstrumentationTest extends  AgentTestRunner {
 
   private Object iastCtx
+  private Object to
 
   @Override
   protected void configurePreAgent() {
@@ -19,7 +21,10 @@ class ObjectWrapperInstrumentationTest extends  AgentTestRunner {
 
   @Override
   void setup() {
-    iastCtx = Stub(IastContext)
+    to = Stub(TaintedObjects)
+    iastCtx = Stub(IastContext) {
+      getTaintedObjects() >> to
+    }
   }
 
   @Override
@@ -38,7 +43,7 @@ class ObjectWrapperInstrumentationTest extends  AgentTestRunner {
     runUnderIastTrace { objectWrapper.wrap(wrapped) }
 
     then:
-    1 * module.taintObjectIfTainted(iastCtx, _, wrapped)
+    1 * module.taintObjectIfTainted(to, _, wrapped)
     0 * _
   }
 

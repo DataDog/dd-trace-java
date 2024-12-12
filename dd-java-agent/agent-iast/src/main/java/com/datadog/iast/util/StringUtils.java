@@ -1,8 +1,8 @@
 package com.datadog.iast.util;
 
-import com.datadog.iast.model.Range;
 import com.datadog.iast.taint.Ranges;
-import com.datadog.iast.taint.TaintedObjects;
+import datadog.trace.api.iast.taint.Range;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;

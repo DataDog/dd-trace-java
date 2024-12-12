@@ -5,7 +5,7 @@ import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import scala.Tuple1;
 import scala.compat.java8.JFunction1;
 
@@ -20,11 +20,11 @@ public class TaintUriFunction implements JFunction1<Tuple1<Uri>, Tuple1<Uri>> {
     if (mod == null) {
       return v1;
     }
-    IastContext ctx = IastContext.Provider.get(AgentTracer.activeSpan());
-    if (ctx == null) {
+    final TaintedObjects to = IastContext.Provider.taintedObjects();
+    if (to == null) {
       return v1;
     }
-    mod.taintObject(ctx, uri, SourceTypes.REQUEST_QUERY);
+    mod.taintObject(to, uri, SourceTypes.REQUEST_QUERY);
 
     return v1;
   }

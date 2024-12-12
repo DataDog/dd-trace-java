@@ -5,10 +5,10 @@ import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
-import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.propagation.PropagationModule
+import datadog.trace.api.iast.taint.TaintedObjects
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator
@@ -259,7 +259,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     TEST_WRITER.waitForTraces(1)
 
     then:
-    1 * mod.taintString(_ as IastContext, '123', SourceTypes.REQUEST_PATH_PARAMETER, 'id')
+    1 * mod.taintObject(_ as TaintedObjects, '123', SourceTypes.REQUEST_PATH_PARAMETER, 'id')
     0 * mod._
 
     cleanup:
@@ -295,11 +295,11 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     TEST_WRITER.waitForTraces(1)
 
     then:
-    1 * mod.taintString(_ as IastContext, 'a=x,y;a=z', SourceTypes.REQUEST_PATH_PARAMETER, 'var')
-    1 * mod.taintString(_ as IastContext, 'a', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
-    1 * mod.taintString(_ as IastContext, 'x', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
-    1 * mod.taintString(_ as IastContext, 'y', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
-    1 * mod.taintString(_ as IastContext, 'z', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
+    1 * mod.taintObject(_ as TaintedObjects, 'a=x,y;a=z', SourceTypes.REQUEST_PATH_PARAMETER, 'var')
+    1 * mod.taintObject(_ as TaintedObjects, 'a', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
+    1 * mod.taintObject(_ as TaintedObjects, 'x', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
+    1 * mod.taintObject(_ as TaintedObjects, 'y', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
+    1 * mod.taintObject(_ as TaintedObjects, 'z', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
     0 * mod._
 
     cleanup:

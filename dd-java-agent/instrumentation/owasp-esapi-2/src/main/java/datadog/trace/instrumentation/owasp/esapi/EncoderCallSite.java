@@ -2,10 +2,12 @@ package datadog.trace.instrumentation.owasp.esapi;
 
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastCallSites;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.VulnerabilityMarks;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import javax.annotation.Nonnull;
 import org.owasp.esapi.Encoder;
 import org.owasp.esapi.codecs.Codec;
@@ -22,7 +24,8 @@ public class EncoderCallSite {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.taintStringIfTainted(result, input, false, VulnerabilityMarks.XSS_MARK);
+        final TaintedObjects to = IastContext.Provider.taintedObjects();
+        module.taintObjectIfTainted(to, result, input, false, VulnerabilityMarks.XSS_MARK);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterEncodeForHTML threw", e);
       }
@@ -38,7 +41,8 @@ public class EncoderCallSite {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.taintStringIfTainted(result, input, false, VulnerabilityMarks.XSS_MARK);
+        final TaintedObjects to = IastContext.Provider.taintedObjects();
+        module.taintObjectIfTainted(to, result, input, false, VulnerabilityMarks.XSS_MARK);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterCanonicalize1 threw", e);
       }
@@ -56,7 +60,8 @@ public class EncoderCallSite {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.taintStringIfTainted(result, input, false, VulnerabilityMarks.XSS_MARK);
+        final TaintedObjects to = IastContext.Provider.taintedObjects();
+        module.taintObjectIfTainted(to, result, input, false, VulnerabilityMarks.XSS_MARK);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterCanonicalize2 threw", e);
       }
@@ -75,7 +80,8 @@ public class EncoderCallSite {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.taintStringIfTainted(result, input, false, VulnerabilityMarks.XSS_MARK);
+        final TaintedObjects to = IastContext.Provider.taintedObjects();
+        module.taintObjectIfTainted(to, result, input, false, VulnerabilityMarks.XSS_MARK);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterCanonicalize3 threw", e);
       }
@@ -91,7 +97,9 @@ public class EncoderCallSite {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.taintStringIfTainted(result, input, false, VulnerabilityMarks.LDAP_INJECTION_MARK);
+        final TaintedObjects to = IastContext.Provider.taintedObjects();
+        module.taintObjectIfTainted(
+            to, result, input, false, VulnerabilityMarks.LDAP_INJECTION_MARK);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterEncodeForLDAP threw", e);
       }
@@ -109,8 +117,9 @@ public class EncoderCallSite {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.taintStringIfTainted(
-            result, input, false, VulnerabilityMarks.COMMAND_INJECTION_MARK);
+        final TaintedObjects to = IastContext.Provider.taintedObjects();
+        module.taintObjectIfTainted(
+            to, result, input, false, VulnerabilityMarks.COMMAND_INJECTION_MARK);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterEncodeForOS threw", e);
       }
@@ -128,7 +137,9 @@ public class EncoderCallSite {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.taintStringIfTainted(result, input, false, VulnerabilityMarks.SQL_INJECTION_MARK);
+        final TaintedObjects to = IastContext.Provider.taintedObjects();
+        module.taintObjectIfTainted(
+            to, result, input, false, VulnerabilityMarks.SQL_INJECTION_MARK);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterEncodeForSQL threw", e);
       }

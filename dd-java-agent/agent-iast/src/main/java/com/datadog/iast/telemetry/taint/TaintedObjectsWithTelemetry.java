@@ -3,16 +3,17 @@ package com.datadog.iast.telemetry.taint;
 import static datadog.trace.api.iast.telemetry.IastMetric.EXECUTED_TAINTED;
 import static datadog.trace.api.iast.telemetry.IastMetric.REQUEST_TAINTED;
 
-import com.datadog.iast.model.Range;
-import com.datadog.iast.taint.TaintedObject;
-import com.datadog.iast.taint.TaintedObjects;
 import com.datadog.iast.util.Wrapper;
 import datadog.trace.api.iast.IastContext;
+import datadog.trace.api.iast.taint.Range;
+import datadog.trace.api.iast.taint.TaintedObject;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import datadog.trace.api.iast.telemetry.IastMetricCollector;
 import datadog.trace.api.iast.telemetry.Verbosity;
 import java.util.Iterator;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.jetbrains.annotations.NotNull;
 
 public class TaintedObjectsWithTelemetry implements TaintedObjects, Wrapper<TaintedObjects> {
 
@@ -49,6 +50,11 @@ public class TaintedObjectsWithTelemetry implements TaintedObjects, Wrapper<Tain
   @Override
   public TaintedObject get(@Nonnull Object obj) {
     return delegate.get(obj);
+  }
+
+  @Override
+  public boolean isTainted(@NotNull Object obj) {
+    return delegate.isTainted(obj);
   }
 
   @Override

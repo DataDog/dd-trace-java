@@ -1,7 +1,9 @@
 package com.datadog.iast.model.json
 
-import com.datadog.iast.model.Range
-import com.datadog.iast.model.Source
+import com.datadog.iast.model.RangeImpl
+import com.datadog.iast.model.SourceImpl
+import datadog.trace.api.iast.taint.Range
+import datadog.trace.api.iast.taint.Source
 import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityBatch
 import com.datadog.iast.model.VulnerabilityType
@@ -50,8 +52,7 @@ class EvidenceRedactionTest extends DDSpecification {
   void setupSpec() {
     final moshi = new Moshi.Builder()
       .add(new TestVulnerabilityAdapter())
-      .add(new TestSourceIndexAdapter())
-      .add(new TestSourceTypeStringAdapter())
+      .add(new TestSourceAdapter())
       .add(new TestRangeAdapter())
       .build()
     sourcesParser = moshi.adapter(Types.newParameterizedType(List, Source))
@@ -248,22 +249,44 @@ class EvidenceRedactionTest extends DDSpecification {
     }
   }
 
-  static class TestSourceIndexAdapter {
+  static class TestSourceAdapter {
+
+    private final TestSourceTypeStringAdapter sourceTypeAdapter = new TestSourceTypeStringAdapter()
+
     @FromJson
-    @SourceIndex
-    Source fromJson(@Nonnull final JsonReader reader, final JsonAdapter<Source> adapter) throws IOException {
-      return adapter.fromJson(reader)
+    Source fromJson(@Nonnull final JsonReader reader) throws IOException {
+      reader.beginObject()
+      byte origin = -1
+      String name = null
+      String value = null
+      while (reader.hasNext()) {
+        switch (reader.nextName()) {
+          case "origin":
+            origin = sourceTypeAdapter.fromJson(reader)
+            break
+          case "name":
+            name = reader.nextString()
+            break
+          case "value":
+            value = reader.nextString()
+            break
+          default:
+            reader.skipValue()
+            break
+        }
+      }
+      reader.endObject()
+      return new SourceImpl(origin, name, value)
     }
 
     @ToJson
-    void toJson(@Nonnull final JsonWriter writer, @Nonnull @SourceIndex final Source type) throws IOException {
+    void toJson(@Nonnull final JsonWriter writer, @Nonnull final Source type) throws IOException {
       throw new UnsupportedOperationException()
     }
   }
 
   static class TestSourceTypeStringAdapter {
     @FromJson
-    @SourceTypeString
     byte fromJson(@Nonnull final JsonReader reader) throws IOException {
       final value = reader.nextString()
       final count = SourceTypes.getDeclaredFields().findAll {
@@ -275,11 +298,6 @@ class EvidenceRedactionTest extends DDSpecification {
         }
       }
       return SourceTypes.NONE
-    }
-
-    @ToJson
-    void toJson(@Nonnull final JsonWriter writer, @Nonnull @SourceTypeString final byte type) throws IOException {
-      throw new UnsupportedOperationException()
     }
   }
 
@@ -312,7 +330,7 @@ class EvidenceRedactionTest extends DDSpecification {
         }
       }
       reader.endObject()
-      final range = new Range(start, length, source, mark)
+      final range = new RangeImpl(start, length, source, mark)
       return range.isValid() ? range : null
     }
 

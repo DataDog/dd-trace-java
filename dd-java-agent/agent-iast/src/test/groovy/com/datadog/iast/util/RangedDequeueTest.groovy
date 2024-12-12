@@ -1,6 +1,7 @@
 package com.datadog.iast.util
 
 import com.datadog.iast.sensitive.SensitiveHandler
+import datadog.trace.api.iast.util.Ranged
 import spock.lang.Specification
 
 class RangedDequeueTest extends Specification {

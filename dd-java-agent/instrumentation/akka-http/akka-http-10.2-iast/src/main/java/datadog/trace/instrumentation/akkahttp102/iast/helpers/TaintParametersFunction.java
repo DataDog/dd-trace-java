@@ -1,9 +1,9 @@
 package datadog.trace.instrumentation.akkahttp102.iast.helpers;
 
-import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import scala.Function1;
 import scala.Option;
 import scala.Tuple1;
@@ -12,11 +12,11 @@ import scala.collection.Iterator;
 
 public class TaintParametersFunction<T> implements Function1<Tuple1<T>, Tuple1<T>> {
 
-  private final IastContext ctx;
+  private final TaintedObjects to;
   private final String paramName;
 
-  public TaintParametersFunction(IastContext ctx, String paramName) {
-    this.ctx = ctx;
+  public TaintParametersFunction(TaintedObjects to, String paramName) {
+    this.to = to;
     this.paramName = paramName;
   }
 
@@ -41,11 +41,11 @@ public class TaintParametersFunction<T> implements Function1<Tuple1<T>, Tuple1<T
       while (iterator.hasNext()) {
         Object o = iterator.next();
         if (o instanceof String) {
-          mod.taintString(ctx, (String) o, SourceTypes.REQUEST_PARAMETER_VALUE, paramName);
+          mod.taintObject(to, o, SourceTypes.REQUEST_PARAMETER_VALUE, paramName);
         }
       }
     } else if (value instanceof String) {
-      mod.taintString(ctx, (String) value, SourceTypes.REQUEST_PARAMETER_VALUE, paramName);
+      mod.taintObject(to, value, SourceTypes.REQUEST_PARAMETER_VALUE, paramName);
     }
 
     return v1;

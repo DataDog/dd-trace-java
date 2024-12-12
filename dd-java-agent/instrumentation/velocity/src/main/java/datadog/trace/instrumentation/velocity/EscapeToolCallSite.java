@@ -2,10 +2,12 @@ package datadog.trace.instrumentation.velocity;
 
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastCallSites;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.VulnerabilityMarks;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import javax.annotation.Nullable;
 import org.apache.velocity.tools.generic.EscapeTool;
 
@@ -28,7 +30,8 @@ public class EscapeToolCallSite {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.taintStringIfTainted(result, input, false, VulnerabilityMarks.XSS_MARK);
+        final TaintedObjects to = IastContext.Provider.taintedObjects();
+        module.taintObjectIfTainted(to, result, input, false, VulnerabilityMarks.XSS_MARK);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterEscape threw", e);
       }
@@ -45,7 +48,9 @@ public class EscapeToolCallSite {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.taintStringIfTainted(result, input, false, VulnerabilityMarks.SQL_INJECTION_MARK);
+        final TaintedObjects to = IastContext.Provider.taintedObjects();
+        module.taintObjectIfTainted(
+            to, result, input, false, VulnerabilityMarks.SQL_INJECTION_MARK);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterEscapeSQL threw", e);
       }

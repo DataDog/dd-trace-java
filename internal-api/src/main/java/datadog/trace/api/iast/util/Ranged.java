@@ -1,4 +1,4 @@
-package com.datadog.iast.util;
+package datadog.trace.api.iast.util;
 
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;

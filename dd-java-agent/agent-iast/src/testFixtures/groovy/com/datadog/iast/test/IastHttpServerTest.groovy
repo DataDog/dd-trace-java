@@ -2,12 +2,12 @@ package com.datadog.iast.test
 
 import com.datadog.iast.IastRequestContext
 import com.datadog.iast.model.Vulnerability
-import com.datadog.iast.taint.TaintedObjects
 import datadog.trace.agent.test.base.WithHttpServer
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableVisitor
 import datadog.trace.api.gateway.IGSpanInfo
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.api.iast.taint.TaintedObjects
 import groovy.json.JsonBuilder
 import groovy.transform.CompileStatic
 

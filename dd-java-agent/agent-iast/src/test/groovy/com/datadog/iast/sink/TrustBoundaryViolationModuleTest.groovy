@@ -2,7 +2,7 @@ package com.datadog.iast.sink
 
 import com.datadog.iast.IastModuleImplTestBase
 import com.datadog.iast.Reporter
-import com.datadog.iast.model.Source
+import com.datadog.iast.model.SourceImpl
 import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityType
 import com.datadog.iast.taint.Ranges
@@ -47,7 +47,7 @@ class TrustBoundaryViolationModuleTest extends IastModuleImplTestBase {
     given:
     Vulnerability savedVul
     final name = "name"
-    ctx.getTaintedObjects().taint(name, Ranges.forCharSequence(name, new Source(SourceTypes.NONE, null, null)))
+    ctx.getTaintedObjects().taint(name, Ranges.forCharSequence(name, new SourceImpl(SourceTypes.NONE, null, null)))
 
     when:
     module.onSessionValue(name, "value")
@@ -62,7 +62,7 @@ class TrustBoundaryViolationModuleTest extends IastModuleImplTestBase {
     Vulnerability savedVul
     final name = "name"
     final badValue = "theValue"
-    ctx.getTaintedObjects().taint(badValue, Ranges.forCharSequence(badValue, new Source(SourceTypes.NONE, null, null)))
+    ctx.getTaintedObjects().taint(badValue, Ranges.forCharSequence(badValue, new SourceImpl(SourceTypes.NONE, null, null)))
 
     when:
     module.onSessionValue(name, badValue)
@@ -78,7 +78,7 @@ class TrustBoundaryViolationModuleTest extends IastModuleImplTestBase {
     Vulnerability savedVul
     final name = "name"
     final badValue = "badValue"
-    ctx.getTaintedObjects().taint(badValue, Ranges.forCharSequence(badValue, new Source(SourceTypes.NONE, null, null)))
+    ctx.getTaintedObjects().taint(badValue, Ranges.forCharSequence(badValue, new SourceImpl(SourceTypes.NONE, null, null)))
     final values = ["A", "B", badValue]
 
     when:
@@ -94,7 +94,7 @@ class TrustBoundaryViolationModuleTest extends IastModuleImplTestBase {
     Vulnerability savedVul
     final name = "name"
     final badValue = "badValue"
-    ctx.getTaintedObjects().taint(badValue, Ranges.forCharSequence(badValue, new Source(SourceTypes.NONE, null, null)))
+    ctx.getTaintedObjects().taint(badValue, Ranges.forCharSequence(badValue, new SourceImpl(SourceTypes.NONE, null, null)))
     final values = new String[3]
     values[0] = "A"
     values[1] = "B"
@@ -113,7 +113,7 @@ class TrustBoundaryViolationModuleTest extends IastModuleImplTestBase {
     Vulnerability savedVul
     final name = "name"
     final badValue = "badValue"
-    ctx.getTaintedObjects().taint(badValue, Ranges.forCharSequence(badValue, new Source(SourceTypes.NONE, null, null)))
+    ctx.getTaintedObjects().taint(badValue, Ranges.forCharSequence(badValue, new SourceImpl(SourceTypes.NONE, null, null)))
     final values = new LinkedHashMap<String,String>()
     values.put("A", "A")
     values.put("B", "B")
@@ -131,7 +131,7 @@ class TrustBoundaryViolationModuleTest extends IastModuleImplTestBase {
     given:
     final name = "name"
     final badValue = "badValue"
-    ctx.getTaintedObjects().taint(badValue, Ranges.forCharSequence(badValue, new Source(SourceTypes.NONE, null, null)))
+    ctx.getTaintedObjects().taint(badValue, Ranges.forCharSequence(badValue, new SourceImpl(SourceTypes.NONE, null, null)))
 
     when:
     module.onSessionValue(name, new VisitableClass(name: badValue))

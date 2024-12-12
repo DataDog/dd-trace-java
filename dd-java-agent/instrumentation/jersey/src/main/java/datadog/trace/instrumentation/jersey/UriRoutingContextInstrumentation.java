@@ -6,17 +6,14 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
-import datadog.trace.advice.ActiveRequestContext;
-import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.gateway.RequestContext;
-import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import java.util.List;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -52,13 +49,10 @@ public class UriRoutingContextInstrumentation extends InstrumenterModule.Iast
     };
   }
 
-  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class GetPathParametersAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_PATH_PARAMETER)
-    public static void onExit(
-        @Advice.Return Map<String, List<String>> pathParams,
-        @ActiveRequestContext RequestContext reqCtx) {
+    public static void onExit(@Advice.Return Map<String, List<String>> pathParams) {
       if (pathParams == null || pathParams.isEmpty()) {
         return;
       }
@@ -66,22 +60,19 @@ public class UriRoutingContextInstrumentation extends InstrumenterModule.Iast
       if (prop == null) {
         return;
       }
-      final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-      if (prop.isTainted(ctx, pathParams)) {
+      final TaintedObjects to = IastContext.Provider.taintedObjects();
+      if (prop.isTainted(to, pathParams)) {
         return;
       }
-      prop.taintObject(ctx, pathParams, SourceTypes.REQUEST_PATH_PARAMETER);
-      taintMultiValuedMap(ctx, prop, SourceTypes.REQUEST_PATH_PARAMETER, pathParams);
+      prop.taintObject(to, pathParams, SourceTypes.REQUEST_PATH_PARAMETER);
+      taintMultiValuedMap(to, prop, SourceTypes.REQUEST_PATH_PARAMETER, pathParams);
     }
   }
 
-  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class GetQueryParametersAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
-    public static void onExit(
-        @Advice.Return Map<String, List<String>> queryParams,
-        @ActiveRequestContext RequestContext reqCtx) {
+    public static void onExit(@Advice.Return Map<String, List<String>> queryParams) {
       if (queryParams == null || queryParams.isEmpty()) {
         return;
       }
@@ -89,12 +80,12 @@ public class UriRoutingContextInstrumentation extends InstrumenterModule.Iast
       if (prop == null) {
         return;
       }
-      final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-      if (prop.isTainted(ctx, queryParams)) {
+      final TaintedObjects to = IastContext.Provider.taintedObjects();
+      if (prop.isTainted(to, queryParams)) {
         return;
       }
-      prop.taintObject(ctx, queryParams, SourceTypes.REQUEST_PARAMETER_VALUE);
-      taintMultiValuedMap(ctx, prop, SourceTypes.REQUEST_PARAMETER_VALUE, queryParams);
+      prop.taintObject(to, queryParams, SourceTypes.REQUEST_PARAMETER_VALUE);
+      taintMultiValuedMap(to, prop, SourceTypes.REQUEST_PARAMETER_VALUE, queryParams);
     }
   }
 }

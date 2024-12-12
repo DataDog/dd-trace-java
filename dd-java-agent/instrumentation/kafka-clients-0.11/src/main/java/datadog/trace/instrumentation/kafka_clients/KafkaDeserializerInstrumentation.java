@@ -10,9 +10,9 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
-import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.nio.ByteBuffer;
@@ -110,20 +110,20 @@ public class KafkaDeserializerInstrumentation extends InstrumenterModule.Iast
     public static void deserialize(
         @Advice.This final Deserializer<?> deserializer,
         @Advice.Argument(1) byte[] data,
-        @Advice.Local("iastCtx") IastContext ctx) {
+        @Advice.Local("iastTo") TaintedObjects to) {
       final ContextStore<Deserializer, Boolean> store =
           InstrumentationContext.get(Deserializer.class, Boolean.class);
-      ctx = KafkaIastHelper.beforeDeserialize(store, deserializer, data);
+      to = KafkaIastHelper.beforeDeserialize(store, deserializer, data);
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     public static void afterDeserialize(
         @Advice.This final Deserializer<?> deserializer,
         @Advice.Return Object result,
-        @Advice.Local("iastCtx") IastContext ctx) {
+        @Advice.Local("iastTo") TaintedObjects to) {
       final ContextStore<Deserializer, Boolean> store =
           InstrumentationContext.get(Deserializer.class, Boolean.class);
-      KafkaIastHelper.afterDeserialize(ctx, store, deserializer, result);
+      KafkaIastHelper.afterDeserialize(to, store, deserializer, result);
     }
   }
 
@@ -135,20 +135,20 @@ public class KafkaDeserializerInstrumentation extends InstrumenterModule.Iast
     public static void deserialize(
         @Advice.This final Deserializer<?> deserializer,
         @Advice.Argument(2) byte[] data,
-        @Advice.Local("iastCtx") IastContext ctx) {
+        @Advice.Local("iastTo") TaintedObjects to) {
       final ContextStore<Deserializer, Boolean> store =
           InstrumentationContext.get(Deserializer.class, Boolean.class);
-      ctx = KafkaIastHelper.beforeDeserialize(store, deserializer, data);
+      to = KafkaIastHelper.beforeDeserialize(store, deserializer, data);
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     public static void afterDeserialize(
         @Advice.This final Deserializer<?> deserializer,
         @Advice.Return Object result,
-        @Advice.Local("iastCtx") IastContext ctx) {
+        @Advice.Local("iastTo") TaintedObjects to) {
       final ContextStore<Deserializer, Boolean> store =
           InstrumentationContext.get(Deserializer.class, Boolean.class);
-      KafkaIastHelper.afterDeserialize(ctx, store, deserializer, result);
+      KafkaIastHelper.afterDeserialize(to, store, deserializer, result);
     }
   }
 
@@ -160,20 +160,20 @@ public class KafkaDeserializerInstrumentation extends InstrumenterModule.Iast
     public static void deserialize(
         @Advice.This final Deserializer<?> deserializer,
         @Advice.Argument(2) ByteBuffer data,
-        @Advice.Local("iastCtx") IastContext ctx) {
+        @Advice.Local("iastTo") TaintedObjects to) {
       final ContextStore<Deserializer, Boolean> store =
           InstrumentationContext.get(Deserializer.class, Boolean.class);
-      ctx = KafkaIastHelper.beforeDeserialize(store, deserializer, data);
+      to = KafkaIastHelper.beforeDeserialize(store, deserializer, data);
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     public static void afterDeserialize(
         @Advice.This final Deserializer<?> deserializer,
         @Advice.Return final Object result,
-        @Advice.Local("iastCtx") IastContext ctx) {
+        @Advice.Local("iastTo") TaintedObjects to) {
       final ContextStore<Deserializer, Boolean> store =
           InstrumentationContext.get(Deserializer.class, Boolean.class);
-      KafkaIastHelper.afterDeserialize(ctx, store, deserializer, result);
+      KafkaIastHelper.afterDeserialize(to, store, deserializer, result);
     }
   }
 }

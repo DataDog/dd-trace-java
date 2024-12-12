@@ -1,15 +1,15 @@
 package com.datadog.iast
 
-import com.datadog.iast.model.Range
-import com.datadog.iast.taint.TaintedObjects
+import datadog.trace.api.iast.taint.Range
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.api.iast.taint.TaintedObjects
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
 
-class IastOptOutContextTest extends DDSpecification {
+class IastGlobalContextProviderTest extends DDSpecification {
 
   @Shared
   protected static final AgentTracer.TracerAPI ORIGINAL_TRACER = AgentTracer.get()
@@ -25,29 +25,28 @@ class IastOptOutContextTest extends DDSpecification {
     activeSpan() >> span
   }
 
-  private IastOptOutContext.Provider provider
+  private IastGlobalContextProvider provider
 
   void setup() {
     AgentTracer.forceRegister(tracer)
-    provider = new IastOptOutContext.Provider()
+    provider = new IastGlobalContextProvider()
   }
 
   void cleanup() {
     AgentTracer.forceRegister(ORIGINAL_TRACER)
   }
 
-  void 'provider scopes the context to a request using the no-op map'() {
+  void 'provider scopes the context to a request using the global tainted map'() {
     given:
     final iastReqCtx = provider.buildRequestContext()
     reqCtx.getData(RequestContextSlot.IAST) >> iastReqCtx
 
     when:
-    def resolvedCtx = provider.resolve()
+    def taintedObjects = provider.resolveTaintedObjects()
 
     then:
-    resolvedCtx !== iastReqCtx
-    resolvedCtx === provider.optOutContext
-    iastReqCtx.taintedObjects === resolvedCtx.taintedObjects
+    taintedObjects === iastReqCtx.taintedObjects
+    taintedObjects === provider.taintedObjects
   }
 
   void 'release does nothing to the tainted objects'() {
@@ -57,12 +56,12 @@ class IastOptOutContextTest extends DDSpecification {
     to.taint(UUID.randomUUID(), [] as Range[])
 
     then:
-    to.count() == 0
+    to.count() == 1
 
     when:
     provider.releaseRequestContext(ctx)
 
     then:
-    to.count() == 0
+    to.count() == 1
   }
 }

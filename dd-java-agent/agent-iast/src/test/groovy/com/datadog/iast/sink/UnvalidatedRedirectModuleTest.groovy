@@ -2,8 +2,9 @@ package com.datadog.iast.sink
 
 import com.datadog.iast.IastModuleImplTestBase
 import com.datadog.iast.Reporter
-import com.datadog.iast.model.Range
-import com.datadog.iast.model.Source
+import datadog.trace.api.iast.taint.Range
+import com.datadog.iast.model.RangeImpl
+import com.datadog.iast.model.SourceImpl
 import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityType
 import com.datadog.iast.taint.Ranges
@@ -52,7 +53,7 @@ class UnvalidatedRedirectModuleTest extends IastModuleImplTestBase {
 
   void 'iast module detects URI redirect (#value)'(final URI value, final String expected) {
     setup:
-    ctx.taintedObjects.taint(value, Ranges.forObject(new Source(SourceTypes.NONE, null, null)))
+    ctx.taintedObjects.taint(value, Ranges.forObject(new SourceImpl(SourceTypes.NONE, null, null)))
 
     when:
     module.onURIRedirect(value)
@@ -114,8 +115,8 @@ class UnvalidatedRedirectModuleTest extends IastModuleImplTestBase {
   void 'If all ranges from tainted element have referer header as source, is not an unvalidated redirect'() {
     setup:
     def value = 'test01'
-    def refererSource = new Source(SourceTypes.REQUEST_HEADER_VALUE, 'referer', 'value')
-    Range[] ranges = [new Range(0, 2, refererSource, NOT_MARKED), new Range(4, 1, refererSource, NOT_MARKED)]
+    def refererSource = new SourceImpl(SourceTypes.REQUEST_HEADER_VALUE, 'referer', 'value')
+    Range[] ranges = [new RangeImpl(0, 2, refererSource, NOT_MARKED), new RangeImpl(4, 1, refererSource, NOT_MARKED)]
     ctx.getTaintedObjects().taint(value, ranges)
 
     when:
@@ -138,16 +139,16 @@ class UnvalidatedRedirectModuleTest extends IastModuleImplTestBase {
     where:
     value    | ranges
     'test01' | [
-      new Range(0, 2, new Source(SourceTypes.REQUEST_HEADER_VALUE, 'referer', 'value'), NOT_MARKED),
-      new Range(4, 1, new Source(SourceTypes.REQUEST_HEADER_VALUE, 'other', 'value'), NOT_MARKED)
+      new RangeImpl(0, 2, new SourceImpl(SourceTypes.REQUEST_HEADER_VALUE, 'referer', 'value'), NOT_MARKED),
+      new RangeImpl(4, 1, new SourceImpl(SourceTypes.REQUEST_HEADER_VALUE, 'other', 'value'), NOT_MARKED)
     ]
     'test02' | [
-      new Range(0, 2, new Source(SourceTypes.REQUEST_HEADER_VALUE, 'referer', 'value'), NOT_MARKED),
-      new Range(4, 1, new Source(SourceTypes.REQUEST_PARAMETER_NAME, 'referer', 'value'), NOT_MARKED)
+      new RangeImpl(0, 2, new SourceImpl(SourceTypes.REQUEST_HEADER_VALUE, 'referer', 'value'), NOT_MARKED),
+      new RangeImpl(4, 1, new SourceImpl(SourceTypes.REQUEST_PARAMETER_NAME, 'referer', 'value'), NOT_MARKED)
     ]
     'test03' | [
-      new Range(0, 2, new Source(SourceTypes.REQUEST_HEADER_VALUE, null, null), NOT_MARKED),
-      new Range(4, 1, new Source(SourceTypes.REQUEST_PARAMETER_NAME, 'referer', 'value'), NOT_MARKED)
+      new RangeImpl(0, 2, new SourceImpl(SourceTypes.REQUEST_HEADER_VALUE, null, null), NOT_MARKED),
+      new RangeImpl(4, 1, new SourceImpl(SourceTypes.REQUEST_PARAMETER_NAME, 'referer', 'value'), NOT_MARKED)
     ]
   }
 
@@ -155,8 +156,8 @@ class UnvalidatedRedirectModuleTest extends IastModuleImplTestBase {
     given:
     final value = 'test'
     final Range[] ranges = [
-      new Range(0, 2, new Source(SourceTypes.REQUEST_HEADER_VALUE, 'referer', 'value'), VulnerabilityMarks.UNVALIDATED_REDIRECT_MARK),
-      new Range(4, 1, new Source(SourceTypes.REQUEST_PARAMETER_NAME, 'referer', 'value'), VulnerabilityMarks.UNVALIDATED_REDIRECT_MARK)
+      new RangeImpl(0, 2, new SourceImpl(SourceTypes.REQUEST_HEADER_VALUE, 'referer', 'value'), VulnerabilityMarks.UNVALIDATED_REDIRECT_MARK),
+      new RangeImpl(4, 1, new SourceImpl(SourceTypes.REQUEST_PARAMETER_NAME, 'referer', 'value'), VulnerabilityMarks.UNVALIDATED_REDIRECT_MARK)
     ]
     ctx.getTaintedObjects().taint(value, ranges)
 

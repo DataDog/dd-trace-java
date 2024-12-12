@@ -1,6 +1,7 @@
 package com.datadog.iast.taint
 
-import com.datadog.iast.model.Source
+import com.datadog.iast.model.SourceImpl
+import datadog.trace.api.iast.taint.TaintedObjects
 import spock.lang.Specification
 
 class TaintedObjectsNoOpTest extends Specification {
@@ -12,7 +13,7 @@ class TaintedObjectsNoOpTest extends Specification {
     final toTaint = 'test'
 
     when:
-    final tainted = instance.taint(toTaint, Ranges.forCharSequence(toTaint, new Source(0 as byte, 'test', 'test')))
+    final tainted = instance.taint(toTaint, Ranges.forCharSequence(toTaint, new SourceImpl(0 as byte, 'test', 'test')))
 
     then:
     tainted == null
