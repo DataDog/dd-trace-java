@@ -1,7 +1,5 @@
 package datadog.trace.logging.simplelogger;
 
-// import static datadog.trace.util.Strings.escapeToJson;
-
 import datadog.json.JsonWriter;
 import datadog.trace.logging.LogLevel;
 import datadog.trace.logging.LoggerHelper;
