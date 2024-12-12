@@ -160,4 +160,21 @@ public class StringBuilderCallSite {
     }
     return result;
   }
+
+  @CallSite.After("java.lang.CharSequence java.lang.StringBuilder.subSequence(int, int)")
+  public static CharSequence afterSubSequence(
+      @CallSite.This final CharSequence self,
+      @CallSite.Argument final int beginIndex,
+      @CallSite.Argument final int endIndex,
+      @CallSite.Return final CharSequence result) {
+    final StringModule module = InstrumentationBridge.STRING;
+    if (module != null) {
+      try {
+        module.onStringSubSequence(self, beginIndex, endIndex, result);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterSubSequence threw", e);
+      }
+    }
+    return result;
+  }
 }

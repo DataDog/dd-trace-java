@@ -124,7 +124,11 @@ public final class OOMENotifierScriptInitializer {
           Files.walkFileTree(dir, new ScriptCleanupVisitor());
         }
       } catch (IOException e) {
-        LOG.warn("Failed cleaning up process specific files in {}", dir, e);
+        if (LOG.isDebugEnabled()) {
+          LOG.info("Failed cleaning up process specific files in {}", dir, e);
+        } else {
+          LOG.info("Failed cleaning up process specific files in {}: {}", dir, e.toString());
+        }
       }
     }
 

@@ -17,8 +17,8 @@ public abstract class CodeOriginInstrumentation extends Tracing implements ForTy
   private final OneOf<NamedElement> matcher;
 
   @SuppressForbidden
-  public CodeOriginInstrumentation(String instrumentationName) {
-    super(instrumentationName);
+  public CodeOriginInstrumentation(String instrumentationName, String... additionalNames) {
+    super(instrumentationName, additionalNames);
     this.matcher = NameMatchers.namedOneOf(getAnnotations());
   }
 

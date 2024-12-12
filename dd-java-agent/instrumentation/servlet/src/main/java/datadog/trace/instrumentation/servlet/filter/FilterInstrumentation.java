@@ -74,9 +74,7 @@ public final class FilterInstrumentation extends InstrumenterModule.Tracing
       // Here we use "this" instead of "the method target" to distinguish abstract filter instances.
       span.setResourceName(DECORATE.spanNameForMethod(filter.getClass(), "doFilter"));
 
-      final AgentScope agentScope = activateSpan(span);
-      agentScope.setAsyncPropagation(true);
-      return agentScope;
+      return activateSpan(span, true);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

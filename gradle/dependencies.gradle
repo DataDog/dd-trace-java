@@ -10,11 +10,13 @@ final class CachedData {
     excludeShared        : (Closure) {
       // projects bundled with shared or on bootstrap
       exclude(project(':dd-java-agent:agent-bootstrap'))
+      exclude(project(':dd-java-agent:agent-debugger:debugger-bootstrap'))
       exclude(project(':dd-java-agent:agent-logging'))
       exclude(project(':dd-trace-api'))
       exclude(project(':internal-api'))
       exclude(project(':internal-api:internal-api-9'))
       exclude(project(':communication'))
+      exclude(project(':components:json'))
       exclude(project(':remote-config:remote-config-api'))
       exclude(project(':remote-config:remote-config-core'))
       exclude(project(':telemetry'))

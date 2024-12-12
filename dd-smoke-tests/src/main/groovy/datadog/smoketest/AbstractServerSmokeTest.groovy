@@ -67,7 +67,12 @@ abstract class AbstractServerSmokeTest extends AbstractSmokeTest {
     (0..<numberOfProcesses).each { idx ->
       def port = httpPorts[idx]
       def process = testedProcesses[idx]
-      PortUtils.waitForPortToOpen(port, 240, TimeUnit.SECONDS, process)
+
+      try {
+        PortUtils.waitForPortToOpen(port, 240, TimeUnit.SECONDS, process)
+      } catch ( Exception e ) {
+        throw new RuntimeException(e.getMessage() + " - log file " + logFilePaths[idx], e)
+      }
     }
   }
 
@@ -77,7 +82,23 @@ abstract class AbstractServerSmokeTest extends AbstractSmokeTest {
       if (null != (outputFile = outputs[idx])) {
         // check the structures written out to the log,
         // and fail the run if anything unexpected was recorded
-        verifyLog(idx, outputFile)
+        try {
+          verifyLog(idx, outputFile)
+        } catch (FileNotFoundException e) {
+          if (testedProcesses[idx].isAlive()) {
+            throw e
+          }
+          def exitCode = testedProcesses[idx].exitValue()
+          if (exitCode == 0) {
+            throw e
+          } else {
+            def logFile = logFilePaths[idx]
+            // highlight when process exited abnormally, since that may have contributed
+            // to the log verification failure
+            throw new RuntimeException(
+            "Server process exited abnormally - exit code: ${exitCode}; check log file: ${logFile}", e)
+          }
+        }
       }
     }
   }

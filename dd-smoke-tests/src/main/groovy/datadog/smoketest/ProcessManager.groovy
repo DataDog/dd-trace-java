@@ -196,6 +196,18 @@ abstract class ProcessManager extends Specification {
       outputThreads.captureOutput(p, new File(logFilePaths[idx]))
     }
     testedProcess = numberOfProcesses == 1 ? testedProcesses[0] : null
+
+
+    (0..<numberOfProcesses).each { idx ->
+      def curProc = testedProcesses[idx]
+
+      if ( !curProc.isAlive() && curProc.exitValue() != 0 ) {
+        def exitCode = curProc.exitValue()
+        def logFile = logFilePaths[idx]
+
+        throw new RuntimeException("Process exited abormally - exitCode:${exitCode}; logFile=${logFile}")
+      }
+    }
   }
 
   String javaPath() {
