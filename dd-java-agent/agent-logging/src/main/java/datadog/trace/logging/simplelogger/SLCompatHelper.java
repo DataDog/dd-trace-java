@@ -1,9 +1,13 @@
 package datadog.trace.logging.simplelogger;
 
-import static datadog.trace.util.Strings.escapeToJson;
+// import static datadog.trace.util.Strings.escapeToJson;
 
+import datadog.json.JsonWriter;
 import datadog.trace.logging.LogLevel;
 import datadog.trace.logging.LoggerHelper;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
 import org.slf4j.Marker;
 
 /**
@@ -143,83 +147,63 @@ class SLCompatHelper extends LoggerHelper {
       String threadName,
       String message,
       Throwable t) {
-    StringBuilder buf = new StringBuilder(32);
 
-    buf.append("{");
-    embedJson(buf, "origin", "dd.trace", true);
+    JsonWriter writer = new JsonWriter();
+    writer.beginObject();
+    writer.name("origin").value("dd.trace");
 
     if (timeMillis >= 0 && settings.showDateTime) {
-      embedJsonKey(buf, "date");
+      writer.name("date");
+      StringBuilder buf = new StringBuilder(32);
       settings.dateTimeFormatter.appendFormattedDate(buf, timeMillis, startTimeMillis);
-      buf.append("\",");
+      writer.value(buf.toString());
     }
 
     if (settings.showThreadName && threadName != null) {
-      embedJson(buf, "logger.thread_name", threadName, true);
+      writer.name("logger.thread_name").value(threadName);
     }
 
-    embedJsonKey(buf, "level");
+    writer.name("level");
 
     if (settings.warnLevelString != null && level == LogLevel.WARN) {
-      embedJsonValue(buf, wrappedValueWithBracketsIfRequested(settings.warnLevelString), true);
+      writer.value(wrappedValueWithBracketsIfRequested(settings.warnLevelString));
     } else if (marker != null) {
-      embedJsonValue(buf, wrappedValueWithBracketsIfRequested(marker.getName()), true);
+      writer.value(wrappedValueWithBracketsIfRequested(marker.getName()));
     } else {
-      embedJsonValue(buf, wrappedValueWithBracketsIfRequested(level.name()), true);
+      writer.value(wrappedValueWithBracketsIfRequested(level.name()));
     }
 
     if (!logName.isEmpty()) {
-      embedJson(buf, "logger.name", logName, true);
+      writer.name("logger.name").value(logName);
     }
-    embedJson(buf, "message", message, false);
+    writer.name("message").value(message);
 
     if (t != null) {
-      buf.append(",");
-      embedExceptionJson(buf, t);
+      embedExceptionJson(writer, t);
     }
-
-    buf.append("}");
-
-    settings.printStream.println(buf);
-  }
-
-  private void embedJson(StringBuilder buf, String key, String value, boolean withComma) {
-    embedJsonKey(buf, key);
-    embedJsonValue(buf, value, withComma);
+    writer.endObject();
+    settings.printStream.println(writer.toString());
   }
 
   private String wrappedValueWithBracketsIfRequested(String value) {
     return settings.levelInBrackets ? '[' + value + ']' : value;
   }
 
-  private void embedJsonKey(StringBuilder buf, String key) {
-    buf.append("\"").append(escapeToJson(key)).append("\":\"");
-  }
-
-  private void embedJsonValue(StringBuilder buf, String value, boolean withComma) {
-    buf.append(escapeToJson(value)).append("\"");
-    if (withComma) {
-      buf.append(",");
-    }
-  }
-
-  private void embedExceptionJson(StringBuilder buf, Throwable t) {
-    buf.append("\"exception\":{");
-    embedJson(buf, "message", escapeToJson(t.getMessage()), true);
-    int length = t.getStackTrace().length;
-    if (length > 0) {
-      buf.append("\"stackTrace\":[\"");
-      int count = 0;
-      for (StackTraceElement element : t.getStackTrace()) {
-        count += 1;
-        buf.append(escapeToJson(element.toString()));
-        if (count != length) {
-          buf.append("\",\"");
-        }
+  private void embedExceptionJson(JsonWriter writer, Throwable t) {
+    writer.name("exception");
+    writer.beginObject();
+    writer.name("message").value(t.getMessage());
+    if (t.getStackTrace().length > 0) {
+      List<StackTraceElement> stackTraceElementList = Arrays.asList(t.getStackTrace());
+      Iterator<StackTraceElement> it = stackTraceElementList.iterator();
+      writer.name("stackTrace");
+      writer.beginArray();
+      while (it.hasNext()) {
+        StackTraceElement element = it.next();
+        writer.value(element.toString());
       }
-      buf.append("\"]");
+      writer.endArray();
+      writer.endObject();
     }
-
-    buf.append("}");
   }
 }
