@@ -446,7 +446,7 @@ class ConfigurationComparerTest {
     }
   }
 
-  private static Configuration createConfig(List<LogProbe> logProbes) {
-    return new Configuration(SERVICE_NAME, logProbes);
+  private static Configuration createConfig(List<ProbeDefinition> probes) {
+    return new Configuration(SERVICE_NAME, probes);
   }
 }

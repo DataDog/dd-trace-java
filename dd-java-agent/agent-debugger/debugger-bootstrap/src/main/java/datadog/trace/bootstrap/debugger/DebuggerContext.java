@@ -7,6 +7,7 @@ import java.lang.reflect.Method;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -85,7 +86,7 @@ public class DebuggerContext {
   private static volatile Tracer tracer;
   private static volatile ValueSerializer valueSerializer;
   private static volatile ExceptionDebugger exceptionDebugger;
-  private static volatile CodeOriginRecorder codeOriginRecorder;
+  public static volatile CodeOriginRecorder codeOriginRecorder;
 
   public static void initProbeResolver(ProbeResolver probeResolver) {
     DebuggerContext.probeResolver = probeResolver;
@@ -316,6 +317,14 @@ public class DebuggerContext {
       }
     } catch (Exception ex) {
       LOGGER.debug("Error in evalContextAndCommit: ", ex);
+    }
+  }
+
+  public static void codeOrigin(String probeId) {
+    ProbeImplementation probe = probeResolver.resolve(probeId);
+    if (probe != null) {
+      probe.commit(
+          CapturedContext.EMPTY_CONTEXT, CapturedContext.EMPTY_CONTEXT, Collections.emptyList());
     }
   }
 

@@ -51,7 +51,7 @@ public class ProbeStatusSink {
     this(config, new BatchUploader(config, diagnosticsEndpoint, RETRY_POLICY), useMultiPart);
   }
 
-  ProbeStatusSink(Config config, BatchUploader diagnosticUploader, boolean useMultiPart) {
+  public ProbeStatusSink(Config config, BatchUploader diagnosticUploader, boolean useMultiPart) {
     this.diagnosticUploader = diagnosticUploader;
     this.useMultiPart = useMultiPart;
     this.messageBuilder = new Builder(config);
