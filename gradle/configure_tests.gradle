@@ -5,6 +5,7 @@ def isTestingInstrumentation(Project project) {
   return [
     "junit-4.10",
     "cucumber-junit-4",
+    "junit-4.13",
     "munit-junit-4",
     "junit-5.3",
     "junit-5.8",

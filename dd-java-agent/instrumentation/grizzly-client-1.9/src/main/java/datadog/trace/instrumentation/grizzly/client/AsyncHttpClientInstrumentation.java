@@ -15,8 +15,10 @@ import com.ning.http.client.AsyncHandler;
 import com.ning.http.client.Request;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
+import java.util.Collections;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
@@ -29,7 +31,7 @@ public final class AsyncHttpClientInstrumentation extends InstrumenterModule.Tra
 
   @Override
   protected boolean defaultEnabled() {
-    return false;
+    return InstrumenterConfig.get().isIntegrationEnabled(Collections.singleton("mule"), false);
   }
 
   @Override
