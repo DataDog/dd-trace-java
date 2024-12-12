@@ -18,7 +18,7 @@ public class SecurityControlMethodAdapter extends MethodVisitor {
 
   public SecurityControlMethodAdapter(
       final MethodVisitor mv, final SecurityControl securityControl, final String desc) {
-    super(Opcodes.ASM8, mv);
+    super(Opcodes.ASM9, mv);
     this.mv = mv;
     this.securityControl = securityControl;
     this.desc = desc;
