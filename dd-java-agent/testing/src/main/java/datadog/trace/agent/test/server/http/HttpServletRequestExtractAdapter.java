@@ -22,22 +22,24 @@ public class HttpServletRequestExtractAdapter
     Enumeration<String> headerNames = carrier.getHeaderNames();
     while (headerNames.hasMoreElements()) {
       final String header = headerNames.nextElement();
-      if (header.equalsIgnoreCase("X-Datadog-Test-Request-Header")) {
-        System.out.println("========= START ACCEPT IS CALLED HERE =========");
-        System.out.println("header: " + header);
-        System.out.println("value: " + carrier.getHeader(header));
-        System.out.println("========= END ACCEPT IS CALLED HERE   =========");
-      }
-      StringBuilder val = new StringBuilder();
-      Enumeration<String> headers = carrier.getHeaders(header);
-      while (headers.hasMoreElements()) {
-        val.append(headers.nextElement());
-        if (headers.hasMoreElements()) {
-          val.append(',');
+      if (!classifier.accept(header, carrier.getHeader(header))) {
+        if (header.equalsIgnoreCase("X-Datadog-Test-Request-Header")) {
+          System.out.println("========= START ACCEPT IS CALLED HERE =========");
+          System.out.println("header: " + header);
+          System.out.println("value: " + carrier.getHeader(header));
+          System.out.println("========= END ACCEPT IS CALLED HERE   =========");
         }
-      }
-      if (!classifier.accept(header, val.toString())) {
-        return;
+        StringBuilder val = new StringBuilder();
+        Enumeration<String> headers = carrier.getHeaders(header);
+        while (headers.hasMoreElements()) {
+          val.append(headers.nextElement());
+          if (headers.hasMoreElements()) {
+            val.append(',');
+          }
+        }
+        if (!classifier.accept(header, val.toString())) {
+          return;
+        }
       }
     }
   }

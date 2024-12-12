@@ -11,6 +11,7 @@ import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
+import java.util.Arrays;
 import org.apache.hc.client5.http.classic.HttpClient;
 import org.apache.hc.core5.http.HttpHost;
 import org.apache.hc.core5.http.HttpRequest;
@@ -32,12 +33,23 @@ public class HelperMethods {
       return null;
     }
 
+    System.out.println("----------doMethodEnter---------");
+    System.out.println("callDepth: " + callDepth);
+    System.out.println("host: " + host);
+    System.out.println("headers: " + Arrays.toString(request.getHeaders()));
+    System.out.println("-------------------");
+
     return activateHttpSpan(new HostAndRequestAsHttpUriRequest(host, request));
   }
 
   private static AgentScope activateHttpSpan(final HttpRequest request) {
     final AgentSpan span = startSpan(HTTP_REQUEST);
     final AgentScope scope = activateSpan(span);
+
+    System.out.println("----------activateHttpSpan---------");
+    System.out.println("request: " + request);
+    System.out.println("activateHttpSpan headers: " + Arrays.toString(request.getHeaders()));
+    System.out.println("-------------------");
 
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, request);
