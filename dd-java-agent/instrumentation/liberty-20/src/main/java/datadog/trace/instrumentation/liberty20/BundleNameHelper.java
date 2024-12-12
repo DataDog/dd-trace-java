@@ -13,7 +13,7 @@ public class BundleNameHelper {
       return null;
     }
     final int tail = id.lastIndexOf('#');
-    if (tail < 0) {
+    if (tail <= head) {
       return null;
     }
     return id.substring(head + 1, tail);
