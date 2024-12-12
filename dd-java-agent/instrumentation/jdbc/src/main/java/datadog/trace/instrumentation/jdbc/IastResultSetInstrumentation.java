@@ -48,8 +48,11 @@ public class IastResultSetInstrumentation extends InstrumenterModule.Iast
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
+        isMethod().and(named("next").and(takesArguments(0))),
+        IastResultSetInstrumentation.class.getName() + "$NextAdvice");
+    transformer.applyAdvice(
         isMethod()
-            .and(named("getString"))
+            .and(named("getString").or(named("getNString")))
             .and(takesArguments(int.class).or(takesArguments(String.class))),
         IastResultSetInstrumentation.class.getName() + "$GetParameterAdvice");
   }
@@ -57,6 +60,21 @@ public class IastResultSetInstrumentation extends InstrumenterModule.Iast
   @Override
   public Map<String, String> contextStore() {
     return singletonMap("java.sql.ResultSet", Integer.class.getName());
+  }
+
+  public static class NextAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    @Source(SourceTypes.SQL_TABLE)
+    public static void onExit(@Advice.This final ResultSet resultSet) {
+      ContextStore<ResultSet, Integer> contextStore =
+          InstrumentationContext.get(ResultSet.class, Integer.class);
+      if (contextStore.get(resultSet) != null) {
+        contextStore.put(resultSet, contextStore.get(resultSet) + 1);
+      } else {
+        // first time
+        contextStore.put(resultSet, 1);
+      }
+    }
   }
 
   @RequiresRequestContext(RequestContextSlot.IAST)
@@ -69,14 +87,8 @@ public class IastResultSetInstrumentation extends InstrumenterModule.Iast
         @ActiveRequestContext RequestContext reqCtx) {
       ContextStore<ResultSet, Integer> contextStore =
           InstrumentationContext.get(ResultSet.class, Integer.class);
-      if (contextStore.get(resultSet) != null) {
-        contextStore.put(resultSet, contextStore.get(resultSet) + 1);
-        if (contextStore.get(resultSet) > Config.get().getIastDbRowsToTaint()) {
-          return;
-        }
-      } else {
-        // first time
-        contextStore.put(resultSet, 1);
+      if (contextStore.get(resultSet) > Config.get().getIastDbRowsToTaint()) {
+        return;
       }
       if (value == null) {
         return;
