@@ -1,6 +1,6 @@
 include:
   - remote: https://gitlab-templates.ddbuild.io/libdatadog/include/ci_authenticated_job.yml
-  - remote: https://gitlab-templates.ddbuild.io/libdatadog/include/one-pipeline.yml
+#  - remote: https://gitlab-templates.ddbuild.io/libdatadog/include/one-pipeline.yml
 #  - local: ".gitlab/benchmarks.yml"
 #  - local: ".gitlab/exploration-tests.yml"
 #  - local: ".gitlab/ci-visibility-tests.yml"
@@ -24,39 +24,30 @@ variables:
   BUILD_CACHE_POLICY: pull
   GRADLE_VERSION: "8.4" # must match gradle-wrapper.properties
 
-
 default:
   tags: [ "arch:amd64" ]
 
-cache:
-  - key: '$CI_SERVER_VERSION-v2' # Dependencies cache. Reset the cache every time gitlab is upgraded.  ~Every couple months
-    paths:
-      # Cached dependencies and wrappers for gradle
-      - .gradle/wrapper
-      - .gradle/caches
-      - .gradle/notifications
-    policy: $DEPENDENCY_CACHE_POLICY
-  - key: $CI_PIPELINE_ID # Incremental build cache. Shared by all jobs in the pipeline
-    paths:
-      - .gradle/caches
-      - .gradle/$GRADLE_VERSION
-      - workspace
-    policy: $BUILD_CACHE_POLICY
-
 .gradle_build: &gradle_build
-  <<: *common
   image: ghcr.io/datadog/dd-trace-java-docker-build:v23.10-base
   variables:
     GRADLE_OPTS: "-Dorg.gradle.jvmargs='-Xmx2560M -Xms2560M'"
     GRADLE_ARGS: " -PskipTests --build-cache --stacktrace --no-daemon --parallel --max-workers=8"
     KUBERNETES_CPU_REQUEST: 8
     KUBERNETES_MEMORY_REQUEST: 4Gi
-  cache: &default_cache
-    key: '$CI_SERVER_VERSION' # Reset the cache every time gitlab is upgraded.  ~Every couple months
-    paths:
-      - .gradle/wrapper
-      - .gradle/caches
-    policy: pull
+  cache:
+    - key: '$CI_SERVER_VERSION-v2' # Dependencies cache. Reset the cache every time gitlab is upgraded.  ~Every couple months
+      paths:
+        # Cached dependencies and wrappers for gradle
+        - .gradle/wrapper
+        - .gradle/caches
+        - .gradle/notifications
+      policy: $DEPENDENCY_CACHE_POLICY
+    - key: $CI_PIPELINE_ID # Incremental build cache. Shared by all jobs in the pipeline
+      paths:
+        - .gradle/caches/$GRADLE_VERSION
+        - .gradle/$GRADLE_VERSION/executionHistory
+        - workspace
+      policy: $BUILD_CACHE_POLICY
   before_script:
     - export GRADLE_USER_HOME=`pwd`/.gradle
     # for weird reasons, gradle will always "chmod 700" the .gradle folder
@@ -97,18 +88,7 @@ build_again:
     - ls -la .gradle
     - ls -la .gradle/$GRADLE_VERSION
     - ls -laR workspace/
-    - ./gradlew :dd-java-agent:shadowJar :dd-trace-api:jar :dd-trace-ot:shadowJar --parallel --max-workers=8 $GRADLE_ARGS
-
-build_just_api:
-  extends: .gradle_build
-  stage: build
-  needs: [ build ]
-  script:
-    - ls -laR workspace/dd-trace-api
-    - ./gradlew :dd-trace-api:jar --parallel --max-workers=8 --debug $GRADLE_ARGS > gradlelogs
-  artifacts:
-    paths:
-      - gradlelogs
+    - ./gradlew :dd-java-agent:shadowJar :dd-trace-api:jar :dd-trace-ot:shadowJar $GRADLE_ARGS
 
 build_with_cache:
   extends: build
@@ -194,7 +174,7 @@ deploy_to_di_backend:manual:
 
 deploy_to_sonatype:
   extends: .gradle_build
-  stage: deploy
+  stage: publish
   needs: [ build ]
   rules:
     - if: '$POPULATE_CACHE'
@@ -246,25 +226,25 @@ deploy_artifacts_to_github:
     max: 2
     when: always
 
-requirements_json_test:
-  rules:
-    - when: on_success
-  variables:
-    REQUIREMENTS_BLOCK_JSON_PATH: "metadata/requirements-block.json"
-    REQUIREMENTS_ALLOW_JSON_PATH: "metadata/requirements-allow.json"
-
-package-oci:
-  needs: [ build ]
-
-onboarding_tests_installer:
-  parallel:
-    matrix:
-      - ONBOARDING_FILTER_WEBLOG: [test-app-java, test-app-java-container, test-app-java-alpine]
-        SCENARIO: [ SIMPLE_INSTALLER_AUTO_INJECTION, SIMPLE_AUTO_INJECTION_PROFILING ]
-
-onboarding_tests_k8s_injection:
-  variables:
-    WEBLOG_VARIANT: dd-lib-java-init-test-app
+#requirements_json_test:
+#  rules:
+#    - when: on_success
+#  variables:
+#    REQUIREMENTS_BLOCK_JSON_PATH: "metadata/requirements-block.json"
+#    REQUIREMENTS_ALLOW_JSON_PATH: "metadata/requirements-allow.json"
+#
+#package-oci:
+#  needs: [ build ]
+#
+#onboarding_tests_installer:
+#  parallel:
+#    matrix:
+#      - ONBOARDING_FILTER_WEBLOG: [test-app-java, test-app-java-container, test-app-java-alpine]
+#        SCENARIO: [ SIMPLE_INSTALLER_AUTO_INJECTION, SIMPLE_AUTO_INJECTION_PROFILING ]
+#
+#onboarding_tests_k8s_injection:
+#  variables:
+#    WEBLOG_VARIANT: dd-lib-java-init-test-app
 
 create_key:
   stage: generate-signing-key
