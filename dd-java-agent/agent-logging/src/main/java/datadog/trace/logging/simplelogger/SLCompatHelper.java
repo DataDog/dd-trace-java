@@ -182,7 +182,7 @@ class SLCompatHelper extends LoggerHelper {
       embedExceptionJson(writer, t);
     }
     writer.endObject();
-    settings.printStream.println(writer.toString());
+    settings.printStream.println(writer);
   }
 
   private String wrappedValueWithBracketsIfRequested(String value) {
