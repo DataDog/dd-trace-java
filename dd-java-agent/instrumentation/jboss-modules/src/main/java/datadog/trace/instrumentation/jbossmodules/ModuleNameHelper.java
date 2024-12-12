@@ -11,7 +11,7 @@ public class ModuleNameHelper {
 
   private static final Pattern SUBDEPLOYMENT_MATCH =
       Pattern.compile("deployment(?>.+\\.ear)?\\.(.+)\\.[j|w]ar");
-  public static final Function<ClassLoader, Supplier<String>> STRIPPER =
+  public static final Function<ClassLoader, Supplier<String>> NAME_EXTRACTOR =
       classLoader -> {
         final Matcher matcher =
             SUBDEPLOYMENT_MATCH.matcher(
