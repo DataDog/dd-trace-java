@@ -89,9 +89,9 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
     if (!logProbes.containsKey(probe.getId())) {
       LogProbe logProbe =
           new LogProbe(
-              ProbeDefinition.LANGUAGE,
+              probe.getLanguage(),
               ProbeId.newId(),
-              (String[]) null,
+              null,
               probe.getWhere(),
               probe.getEvaluateAt(),
               "",

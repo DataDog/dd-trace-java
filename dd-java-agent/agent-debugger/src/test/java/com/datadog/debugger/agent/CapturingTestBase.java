@@ -13,7 +13,6 @@ import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
-import com.datadog.debugger.uploader.BatchUploader;
 import com.datadog.debugger.util.MoshiHelper;
 import com.datadog.debugger.util.MoshiSnapshotTestHelper;
 import com.datadog.debugger.util.SerializerWithLimits;
@@ -37,7 +36,6 @@ import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -423,38 +421,6 @@ public class CapturingTestBase {
     @Override
     public void instrumentationResult(ProbeDefinition definition, InstrumentationResult result) {
       results.put(definition.getId(), result);
-    }
-  }
-
-  public static class MockBatchUploader extends BatchUploader {
-
-    public MockBatchUploader(Config config) {
-      super(config, "http://example.com", null);
-    }
-
-    @Override
-    public void upload(byte[] batch) {
-      System.out.println("****** MockBatchUploader.upload " + "batch = " + Arrays.toString(batch));
-    }
-
-    @Override
-    public void upload(byte[] batch, String tags) {
-      System.out.println(
-          "****** MockBatchUploader.upload "
-              + "batch = "
-              + Arrays.toString(batch)
-              + ", tags = "
-              + tags);
-    }
-
-    @Override
-    public void uploadAsMultipart(String tags, MultiPartContent... parts) {
-      System.out.println(
-          "****** MockBatchUploader.uploadAsMultipart "
-              + "tags = "
-              + tags
-              + ", parts = "
-              + Arrays.deepToString(parts));
     }
   }
 

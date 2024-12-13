@@ -23,7 +23,7 @@ import java.util.Objects;
 
 /** Generic class storing common probe definition */
 public abstract class ProbeDefinition implements ProbeImplementation {
-  public static final String LANGUAGE = "java";
+  protected static final String LANGUAGE = "java";
 
   protected final String language;
   protected final String id;

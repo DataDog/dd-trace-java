@@ -27,7 +27,7 @@ public class Where {
 
   private final String typeName;
   private final String methodName;
-  private String sourceFile;
+  private final String sourceFile;
   private final String signature;
   private final SourceLine[] lines;
   // used as cache for matching signature
@@ -58,8 +58,6 @@ public class Where {
             stream(method.getParameterTypes())
                 .map(Class::getTypeName)
                 .collect(Collectors.joining(", ", "(", ")")));
-
-    where.sourceFile = "blah";
 
     return where;
   }

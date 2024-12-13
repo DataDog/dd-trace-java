@@ -116,7 +116,6 @@ public class CodeOriginTest extends CapturingTestBase {
             .capture(1, 100, 255, Limits.DEFAULT_FIELD_COUNT)
             .build();
     List<ProbeDefinition> probes = codeOriginProbes(CLASS_NAME);
-    //    probes.add(logProbe);
     installProbes(probes);
     final Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     try {
