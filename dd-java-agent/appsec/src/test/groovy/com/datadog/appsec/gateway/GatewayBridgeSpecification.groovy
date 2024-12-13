@@ -93,6 +93,7 @@ class GatewayBridgeSpecification extends DDSpecification {
   TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>> loginSuccessCB
   TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>> loginFailureCB
   BiFunction<RequestContext, String[], Flow<Void>> execCmdCB
+  BiFunction<RequestContext, String, Flow<Void>> shellCmdCB
 
   void setup() {
     callInitAndCaptureCBs()
@@ -433,6 +434,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * ig.registerCallback(EVENTS.loginSuccess(), _) >> { loginSuccessCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.loginFailure(), _) >> { loginFailureCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.execCmd(), _) >> { execCmdCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.shellCmd(), _) >> { shellCmdCB = it[1]; null }
     0 * ig.registerCallback(_, _)
 
     bridge.init()
@@ -849,6 +851,26 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
     { a, b, db, gw -> bundle = db; gatewayContext = gw; NoopFlow.INSTANCE }
     bundle.get(KnownAddresses.EXEC_CMD) == cmd
+    flow.result == null
+    flow.action == Flow.Action.Noop.INSTANCE
+    gatewayContext.isTransient == true
+    gatewayContext.isRasp == true
+  }
+
+  void 'process shell cmd'() {
+    setup:
+    final cmd = '$(cat /etc/passwd 1>&2 ; echo .)'
+    eventDispatcher.getDataSubscribers({ KnownAddresses.SHELL_CMD in it }) >> nonEmptyDsInfo
+    DataBundle bundle
+    GatewayContext gatewayContext
+
+    when:
+    Flow<?> flow = shellCmdCB.apply(ctx, cmd)
+
+    then:
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
+    { a, b, db, gw -> bundle = db; gatewayContext = gw; NoopFlow.INSTANCE }
+    bundle.get(KnownAddresses.SHELL_CMD) == cmd
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
     gatewayContext.isTransient == true

@@ -44,6 +44,10 @@ public class ProcessImplInstrumentationHelpers {
               + "a(?:ccess|uth)_token|mysql_pwd|credentials|(?:stripe)?token)$");
   private static final Set<String> REDACTED_BINARIES = Collections.singleton("md5");
 
+  // This check is used to avoid command injection exploit prevention if shell injection exploit
+  // prevention checked
+  private static final ThreadLocal<Boolean> checkShi = ThreadLocal.withInitial(() -> false);
+
   static {
     MethodHandle processOnExit = null;
     Executor executor = null;
@@ -207,6 +211,10 @@ public class ProcessImplInstrumentationHelpers {
     if (!Config.get().isAppSecRaspEnabled()) {
       return;
     }
+    // if shell injection was checked, skip cmd injection check
+    if (checkShi.get()) {
+      return;
+    }
     try {
       final BiFunction<RequestContext, String[], Flow<Void>> execCmdCallback =
           AgentTracer.get()
@@ -247,6 +255,61 @@ public class ProcessImplInstrumentationHelpers {
     } catch (final Throwable e) {
       // suppress anything else
       LOGGER.debug("Exception during CMDI rasp callback", e);
+    }
+  }
+
+  public static void resetCheckShi() {
+    checkShi.set(false);
+  }
+
+  /*
+   Check if there is a cmd injection attempt to block it
+  */
+  public static void shiRaspCheck(@Nonnull final String cmd) {
+    if (!Config.get().isAppSecRaspEnabled()) {
+      return;
+    }
+    checkShi.set(true);
+    try {
+      final BiFunction<RequestContext, String, Flow<Void>> shellCmdCallback =
+          AgentTracer.get()
+              .getCallbackProvider(RequestContextSlot.APPSEC)
+              .getCallback(EVENTS.shellCmd());
+
+      if (shellCmdCallback == null) {
+        return;
+      }
+
+      final AgentSpan span = AgentTracer.get().activeSpan();
+      if (span == null) {
+        return;
+      }
+
+      final RequestContext ctx = span.getRequestContext();
+      if (ctx == null) {
+        return;
+      }
+
+      Flow<Void> flow = shellCmdCallback.apply(ctx, cmd);
+      Flow.Action action = flow.getAction();
+      if (action instanceof Flow.Action.RequestBlockingAction) {
+        BlockResponseFunction brf = ctx.getBlockResponseFunction();
+        if (brf != null) {
+          Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+          brf.tryCommitBlockingResponse(
+              ctx.getTraceSegment(),
+              rba.getStatusCode(),
+              rba.getBlockingContentType(),
+              rba.getExtraHeaders());
+        }
+        throw new BlockingException("Blocked request (for SHI attempt)");
+      }
+    } catch (final BlockingException e) {
+      // re-throw blocking exceptions
+      throw e;
+    } catch (final Throwable e) {
+      // suppress anything else
+      LOGGER.debug("Exception during SHI rasp callback", e);
     }
   }
 

@@ -42,13 +42,14 @@ class KnownAddressesSpecification extends Specification {
       'server.io.net.url',
       'server.io.fs.file',
       'server.sys.exec.cmd',
+      'server.sys.shell.cmd',
       'waf.context.processor'
     ]
   }
 
   void 'number of known addresses is expected number'() {
     expect:
-    Address.instanceCount() == 36
+    Address.instanceCount() == 37
     KnownAddresses.WAF_CONTEXT_PROCESSOR.serial == Address.instanceCount() - 1
   }
 }
