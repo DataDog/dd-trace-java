@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.graphqljava14;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.graphqljava.GraphQLDecorator.DECORATE;
 import static datadog.trace.instrumentation.graphqljava.GraphQLDecorator.GRAPHQL_PARSING;
-import static datadog.trace.instrumentation.graphqljava.GraphQLDecorator.GRAPHQL_REQUEST;
 import static datadog.trace.instrumentation.graphqljava.GraphQLDecorator.GRAPHQL_VALIDATION;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -61,7 +60,7 @@ public final class GraphQLInstrumentation extends SimpleInstrumentation {
   @Override
   public InstrumentationContext<ExecutionResult> beginExecution(
       InstrumentationExecutionParameters parameters) {
-    final AgentSpan requestSpan = startSpan(GRAPHQL_REQUEST);
+    final AgentSpan requestSpan = startSpan("graphql.execute");
     DECORATE.afterStart(requestSpan);
 
     State state = parameters.getInstrumentationState();

@@ -65,7 +65,7 @@ public final class GraphQLInstrumentation extends SimplePerformantInstrumentatio
       return super.beginExecution(parameters, instrumentationState);
     }
     final State state = (State) instrumentationState;
-    final AgentSpan requestSpan = startSpan(GraphQLDecorator.GRAPHQL_REQUEST);
+    final AgentSpan requestSpan = startSpan("graphql.execute");
     GraphQLDecorator.DECORATE.afterStart(requestSpan);
 
     state.setRequestSpan(requestSpan);
