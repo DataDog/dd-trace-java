@@ -60,7 +60,7 @@ public class ApacheHttpClientDecorator extends HttpClientDecorator<HttpRequest, 
     Header[] headers = request.getHeaders(headerName);
     if (headers.length > 0) {
       StringBuilder result = new StringBuilder();
-      for (int i = 1; i < headers.length; i++) {
+      for (int i = 0; i < headers.length; i++) {
         result.append(headers[i].getValue());
         if (i + 1 < headers.length) {
           result.append(",");
@@ -84,7 +84,7 @@ public class ApacheHttpClientDecorator extends HttpClientDecorator<HttpRequest, 
     Header[] headers = response.getHeaders(headerName);
     if (headers.length > 0) {
       StringBuilder result = new StringBuilder();
-      for (int i = 1; i < headers.length; i++) {
+      for (int i = 0; i < headers.length; i++) {
         result.append(headers[i].getValue());
         if (i + 1 < headers.length) {
           result.append(",");
