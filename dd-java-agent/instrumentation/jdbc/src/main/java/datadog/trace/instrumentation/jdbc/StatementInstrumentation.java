@@ -88,11 +88,18 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
         final AgentSpan span;
         final boolean isSqlServer = DECORATE.isSqlServer(dbInfo);
 
-        if (isSqlServer && INJECT_COMMENT && injectTraceContext) {
-          // The span ID is pre-determined so that we can reference it when setting the context
-          final long spanID = DECORATE.setContextInfo(connection, dbInfo);
-          // we then force that pre-determined span ID for the span covering the actual query
-          span = AgentTracer.get().buildSpan(DATABASE_QUERY).withSpanId(spanID).start();
+        if (INJECT_COMMENT && injectTraceContext) {
+          if (isSqlServer) {
+            // The span ID is pre-determined so that we can reference it when setting the context
+            final long spanID = DECORATE.setContextInfo(connection, dbInfo);
+            // we then force that pre-determined span ID for the span covering the actual query
+            span = AgentTracer.get().buildSpan(DATABASE_QUERY).withSpanId(spanID).start();
+          } else if (DECORATE.isOracle(dbInfo)) {
+            span = startSpan(DATABASE_QUERY);
+            DECORATE.setAction(span, connection);
+          } else {
+            span = startSpan(DATABASE_QUERY);
+          }
         } else {
           span = startSpan(DATABASE_QUERY);
         }
