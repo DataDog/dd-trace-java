@@ -63,7 +63,6 @@ class RuntimeInstrumentationForkedTest extends AgentTestRunner{
       // ignore
     }
 
-
     then:
     cmdiExpected * callbackProvider.getCallback(EVENTS.execCmd()) >> listener
     shiExpected * callbackProvider.getCallback(EVENTS.shellCmd()) >> listener
@@ -77,5 +76,38 @@ class RuntimeInstrumentationForkedTest extends AgentTestRunner{
     [['/bin/evilCommand'] as String[]]                                       | 1            | 0
     [['/bin/evilCommand'] as String[], ['test'] as String[]]                 | 1            | 0
     [['/bin/evilCommand'] as String[], ['test'] as String[], new File('')]   | 1            | 0
+  }
+
+  void 'test shiCheck reset'() {
+
+    setup:
+    final callbackProvider = Mock(CallbackProvider)
+    final listener = Mock(BiFunction)
+    final flow = Mock(Flow)
+    tracer.getCallbackProvider(RequestContextSlot.APPSEC) >> callbackProvider
+
+    when:
+    try {
+      Runtime.getRuntime().exec('$(cat /etc/passwd 1>&2 ; echo .)')
+    }catch (Exception e){
+      // ignore
+    }
+
+    then:
+    0 * callbackProvider.getCallback(EVENTS.execCmd()) >> listener
+    1 * callbackProvider.getCallback(EVENTS.shellCmd()) >> listener
+    1 * listener.apply(reqCtx, _) >> flow
+
+    when:
+    try {
+      Runtime.getRuntime().exec(['/bin/evilCommand'] as String[])
+    }catch (Exception e){
+      // ignore
+    }
+
+    then:
+    1 * callbackProvider.getCallback(EVENTS.execCmd()) >> listener
+    0 * callbackProvider.getCallback(EVENTS.shellCmd()) >> listener
+    1 * listener.apply(reqCtx, _) >> flow
   }
 }
