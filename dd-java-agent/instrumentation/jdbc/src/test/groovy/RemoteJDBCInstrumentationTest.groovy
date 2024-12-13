@@ -36,6 +36,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
   static final String POSTGRESQL = "postgresql"
   static final String MYSQL = "mysql"
   static final String SQLSERVER = "sqlserver"
+  static final String ORACLE = "oracle"
 
   @Shared
   private Map<String, String> dbName = [
@@ -46,30 +47,34 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
 
   @Shared
   private Map<String, String> jdbcUrls = [
-    "postgresql" : "jdbc:postgresql://localhost:5432/" + dbName.get("postgresql"),
-    "mysql"      : "jdbc:mysql://localhost:3306/" + dbName.get("mysql"),
-    "sqlserver"  : "jdbc:sqlserver://localhost:1433/" + dbName.get("sqlserver"),
+    POSTGRESQL : "jdbc:postgresql://localhost:5432/" + dbName.get(POSTGRESQL),
+    MYSQL      : "jdbc:mysql://localhost:3306/" + dbName.get(MYSQL),
+    SQLSERVER  : "jdbc:sqlserver://localhost:1433/" + dbName.get(SQLSERVER),
+    ORACLE     : "jdbc:oracle://localhost:1521/" + dbName.get(ORACLE),
   ]
 
   @Shared
   private Map<String, String> jdbcDriverClassNames = [
-    "postgresql": "org.postgresql.Driver",
-    "mysql"     : "com.mysql.jdbc.Driver",
-    "sqlserver" : "com.microsoft.sqlserver.jdbc.SQLServerDriver",
+    POSTGRESQL: "org.postgresql.Driver",
+    MYSQL:      "com.mysql.jdbc.Driver",
+    SQLSERVER : "com.microsoft.sqlserver.jdbc.SQLServerDriver",
+    ORACLE:     "oracle.jdbc.OracleDriver",
   ]
 
   @Shared
   private Map<String, String> jdbcUserNames = [
-    "postgresql": "sa",
-    "mysql"     : "sa",
-    "sqlserver"  : "sa",
+    POSTGRESQL: "sa",
+    MYSQL     : "sa",
+    SQLSERVER : "sa",
+    ORACLE    : "system",
   ]
 
   @Shared
   private Map<String, String> jdbcPasswords = [
-    "mysql"     : "sa",
-    "postgresql": "sa",
-    "sqlserver" : "Datad0g_",
+    MYSQL     : "sa",
+    POSTGRESQL: "sa",
+    SQLSERVER : "Datad0g_",
+    ORACLE: "manager",
   ]
 
   @Shared
@@ -78,6 +83,8 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
   def mysql
   @Shared
   def sqlserver
+  @Shared
+  def oracle
 
   // JDBC Connection pool name (i.e. HikariCP) -> Map<dbName, Datasource>
   @Shared
