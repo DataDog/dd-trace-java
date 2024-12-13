@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
 
 @ExtendWith(TestAgentExtension.class)
 public class SomeTests {
@@ -134,11 +135,12 @@ public class SomeTests {
     }
 
     assertTraces(this.agent,
-        IGNORE_ADDITIONAL_TRACES,
-//        AgentTraceAssertions.Options::ignoredAdditionalTraces,
+//        IGNORE_ADDITIONAL_TRACES,
         trace(
             span()
-                .withServiceName("root-servlet"),
+                .withServiceName("root-servlet")
+                .resourceNameMatching(s -> s.endsWith("/error"))
+                .durationShorterThan(Duration.ofSeconds(2)),
             span()
                 .withServiceName("root-servlet"),
             span()

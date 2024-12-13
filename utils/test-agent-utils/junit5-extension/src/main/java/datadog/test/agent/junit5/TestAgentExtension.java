@@ -16,6 +16,7 @@ import org.junit.platform.commons.support.ReflectionSupport;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.utility.DockerImageName;
 import org.testcontainers.utility.MountableFile;
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.function.Predicate;
 
@@ -66,13 +67,19 @@ public class TestAgentExtension implements BeforeEachCallback, BeforeAllCallback
 //  }
 
   @Override
-  public void beforeEach(ExtensionContext extensionContext) throws Exception {
-
+  public void beforeEach(ExtensionContext context) throws IOException {
+    TestAgentClient client = getTestAgentClient(context);
+    String token = context.getUniqueId();
+    client.startSession(token);
+    client.setActiveSessionToken(token);
   }
 
   @Override
-  public void afterEach(ExtensionContext extensionContext) throws Exception {
-
+  public void afterEach(ExtensionContext context) throws Exception {
+    String token = context.getUniqueId();
+    TestAgentClient client = getTestAgentClient(context);
+    client.clearSession(token);
+    client.setActiveSessionToken(null);
   }
 
   @Override
@@ -83,12 +90,16 @@ public class TestAgentExtension implements BeforeEachCallback, BeforeAllCallback
 
   @Override
   public void postProcessTestInstance(Object testInstance, ExtensionContext context) throws Exception {
-    TestAgentClient client = context.getStore(NAMESPACE).get(TEST_AGENT_CLIENT, TestAgentClient.class);
+    TestAgentClient client = getTestAgentClient(context);
     Class<?> testClass = context.getRequiredTestClass();
     Predicate<Field> filter = field -> field.getType() == TestAgentClient.class;
     for (Field field : ReflectionSupport.findFields(testClass, filter, HierarchyTraversalMode.TOP_DOWN)) {
       field.setAccessible(true);
       field.set(testInstance, client);
     }
+  }
+
+  private TestAgentClient getTestAgentClient(ExtensionContext context) {
+    return context.getStore(NAMESPACE).get(TEST_AGENT_CLIENT, TestAgentClient.class);
   }
 }

@@ -12,24 +12,57 @@ import java.util.concurrent.TimeoutException;
 
 public class TestAgentClient {
 
+  private static final String SESSION_TOKEN_HEADER = "X-Datadog-Test-Session-Token";
   private final OkHttpClient client;
   private final String baseUrl;
   private final int port;
+  private String sessionToken;
 
   public TestAgentClient(String host, int port) {
+    //noinspection HttpUrlsUsage Not supported in test agent
     this.baseUrl = "http://" + host + ":" + port + "/";
     this.port = port;
 
-    this.client = new OkHttpClient.Builder()
-        .build();
+    this.client = new OkHttpClient.Builder().build();
   }
 
   public int port() {
     return this.port;
   }
 
+  public void startSession(String token) throws IOException {
+    Request request = new Request.Builder()
+        .url(this.baseUrl + "test/session/start")
+        .addHeader(SESSION_TOKEN_HEADER, token)
+        .build();
+    try (Response response = this.client.newCall(request).execute()) {
+      if (!response.isSuccessful()) {
+        throw new IOException("Failed to start session: " + response);
+      }
+    }
+  }
+
+  public void setActiveSessionToken(String token) {
+    this.sessionToken = token;
+  }
+
+  public void clearSession(String token) throws IOException {
+    Request request = new Request.Builder()
+        .url(this.baseUrl + "test/session/clear")
+        .addHeader(SESSION_TOKEN_HEADER, token)
+        .build();
+    try (Response response = this.client.newCall(request).execute()) {
+      if (!response.isSuccessful()) {
+        throw new IOException("Failed to start session: " + response);
+      }
+    }
+  }
+
   public List<AgentTrace> traces() {
-    Request request = new Request.Builder().url(this.baseUrl + "test/traces").build();
+    Request request = new Request.Builder()
+        .url(this.baseUrl + "test/traces")
+        .addHeader(SESSION_TOKEN_HEADER, this.sessionToken)
+        .build();
     try (Response response = this.client.newCall(request).execute()) {
       ResponseBody body = response.body();
       if (body == null) {
@@ -60,7 +93,6 @@ public class TestAgentClient {
         throw new RuntimeException(e);
       }
     } while (retry < maxRetries);
-    throw new TimeoutException("Failed to retrieve " + traceCount + " traces from trace agent. Only get " + traces.size() + " trace(s).")
-    ;
+    throw new TimeoutException("Failed to retrieve " + traceCount + " traces from trace agent. Only get " + traces.size() + " trace(s).");
   }
 }
