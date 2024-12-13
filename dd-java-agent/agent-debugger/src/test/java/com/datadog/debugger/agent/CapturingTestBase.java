@@ -343,8 +343,6 @@ public class CapturingTestBase {
   }
 
   protected TestSnapshotListener installProbes(Configuration configuration) {
-
-    System.setProperty("java.io.tmpdir", "build/instrumented");
     config = Config.get();
     setFieldInConfig(config, "debuggerEnabled", true);
     setFieldInConfig(config, "debuggerClassFileDumpEnabled", true);
