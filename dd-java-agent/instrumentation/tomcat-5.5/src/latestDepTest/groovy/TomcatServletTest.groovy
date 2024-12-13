@@ -9,6 +9,7 @@ import org.apache.catalina.connector.Request
 import org.apache.catalina.connector.Response
 import org.apache.catalina.startup.Tomcat
 import org.apache.catalina.valves.ErrorReportValve
+import org.apache.tomcat.util.descriptor.web.ContextEnvironment
 import org.apache.tomcat.util.descriptor.web.FilterDef
 import org.apache.tomcat.util.descriptor.web.FilterMap
 
@@ -212,5 +213,33 @@ class TomcatServletClassloaderNamingForkedTest extends TomcatServletTest {
     injectSysConfig("trace.experimental.jee.split-by-deployment", "true")
   }
 }
+
+class TomcatServletEnvEntriesTagTest extends TomcatServletTest {
+  def addEntry (context, name, value) {
+    def envEntry = new ContextEnvironment()
+    envEntry.setName(name)
+    envEntry.setValue(value)
+    envEntry.setType("java.lang.String")
+    context.getNamingResources().addEnvironment(envEntry)
+  }
+  @Override
+  protected void setupServlets(Context context) {
+    super.setupServlets(context)
+    addEntry(context, "datadog/tags/custom-tag", "custom-value")
+    addEntry(context, "java:comp/env/datadog/tags/service", "custom-service")
+  }
+
+  @Override
+  String expectedServiceName() {
+    "custom-service"
+  }
+
+  @Override
+  Map<String, Serializable> expectedExtraServerTags(ServerEndpoint endpoint) {
+    super.expectedExtraServerTags(endpoint) + ["custom-tag": "custom-value"] as Map<String, Serializable>
+  }
+}
+
+
 
 

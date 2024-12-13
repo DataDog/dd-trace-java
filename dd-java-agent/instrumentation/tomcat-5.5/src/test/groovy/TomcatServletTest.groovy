@@ -1,3 +1,11 @@
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
+import static org.junit.Assume.assumeTrue
+
 import com.google.common.io.Files
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
@@ -17,14 +25,6 @@ import org.apache.coyote.http11.Http11BaseProtocol
 
 import javax.servlet.Servlet
 import javax.servlet.ServletException
-
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
-import static org.junit.Assume.assumeTrue
 
 abstract class TomcatServletTest extends AbstractServletTest<Embedded, Context> {
 
@@ -187,7 +187,7 @@ abstract class TomcatServletTest extends AbstractServletTest<Embedded, Context> 
           childOfPrevious()
           tags {
             "component" "java-web-servlet-response"
-            if ({isDataStreamsEnabled()}) {
+            if ({ isDataStreamsEnabled() }) {
               "$DDTags.PATHWAY_HASH" { String }
             }
             defaultTags()
@@ -227,8 +227,8 @@ abstract class TomcatServletTest extends AbstractServletTest<Embedded, Context> 
     if (endpoint.throwsException) {
       // Exception classes get wrapped in ServletException
       ["error.message": { endpoint == EXCEPTION ? "Servlet execution threw an exception" : it == endpoint.body },
-        "error.type": { it == ServletException.name || it == InputMismatchException.name },
-        "error.stack": String]
+        "error.type"   : { it == ServletException.name || it == InputMismatchException.name },
+        "error.stack"  : String]
     } else {
       Collections.emptyMap()
     }
