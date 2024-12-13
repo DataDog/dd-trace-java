@@ -1,6 +1,7 @@
 package datadog.trace.api.naming.v1;
 
 import datadog.trace.api.naming.NamingSchema;
+import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 
 public class MessagingNamingV1 implements NamingSchema.ForMessaging {
@@ -24,8 +25,9 @@ public class MessagingNamingV1 implements NamingSchema.ForMessaging {
   }
 
   @Override
-  public String outboundService(@Nonnull String messagingSystem, boolean useLegacyTracing) {
-    return null;
+  public Supplier<String> outboundService(
+      @Nonnull String messagingSystem, boolean useLegacyTracing) {
+    return () -> null;
   }
 
   @Nonnull
@@ -35,14 +37,15 @@ public class MessagingNamingV1 implements NamingSchema.ForMessaging {
   }
 
   @Override
-  public String inboundService(@Nonnull String messagingSystem, boolean useLegacyTracing) {
-    return null;
+  public Supplier<String> inboundService(
+      @Nonnull String messagingSystem, boolean useLegacyTracing) {
+    return () -> null;
   }
 
   @Override
   @Nonnull
-  public String timeInQueueService(@Nonnull String messagingSystem) {
-    return messagingSystem + "-queue";
+  public Supplier<String> timeInQueueService(@Nonnull String messagingSystem) {
+    return () -> messagingSystem + "-queue";
   }
 
   @Nonnull

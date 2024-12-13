@@ -4,6 +4,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.naming.ClassloaderServiceNames;
 import datadog.trace.api.naming.NamingSchema;
 import datadog.trace.api.remoteconfig.ServiceNameCollector;
+import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 
 class MessagingNamingV0 implements NamingSchema.ForMessaging {
@@ -23,7 +24,8 @@ class MessagingNamingV0 implements NamingSchema.ForMessaging {
   }
 
   @Override
-  public String outboundService(@Nonnull final String messagingSystem, boolean useLegacyTracing) {
+  public Supplier<String> outboundService(
+      @Nonnull final String messagingSystem, boolean useLegacyTracing) {
     return inboundService(messagingSystem, useLegacyTracing);
   }
 
@@ -41,29 +43,32 @@ class MessagingNamingV0 implements NamingSchema.ForMessaging {
   }
 
   @Override
-  public String inboundService(@Nonnull final String messagingSystem, boolean useLegacyTracing) {
+  public Supplier<String> inboundService(
+      @Nonnull final String messagingSystem, boolean useLegacyTracing) {
     if (allowInferredServices) {
       if (useLegacyTracing) {
         ServiceNameCollector.get().addService(messagingSystem);
-        return messagingSystem;
+        return () -> messagingSystem;
       } else {
-        final String contextual = ClassloaderServiceNames.maybeGetForCurrentThread();
-        if (contextual != null) {
-          ServiceNameCollector.get().addService(contextual);
-          return contextual;
-        }
-        return Config.get().getServiceName();
+        return () -> {
+          final String contextual = ClassloaderServiceNames.maybeGetForCurrentThread();
+          if (contextual != null) {
+            ServiceNameCollector.get().addService(contextual);
+            return contextual;
+          }
+          return Config.get().getServiceName();
+        };
       }
     } else {
-      return null;
+      return () -> null;
     }
   }
 
   @Override
   @Nonnull
-  public String timeInQueueService(@Nonnull final String messagingSystem) {
+  public Supplier<String> timeInQueueService(@Nonnull final String messagingSystem) {
     ServiceNameCollector.get().addService(messagingSystem);
-    return messagingSystem;
+    return () -> messagingSystem;
   }
 
   @Nonnull
