@@ -28,6 +28,7 @@ import datadog.trace.civisibility.domain.buildsystem.ProxyTestSession;
 import datadog.trace.civisibility.domain.headless.HeadlessTestSession;
 import datadog.trace.civisibility.domain.manualapi.ManualApiTestSession;
 import datadog.trace.civisibility.events.BuildEventsHandlerImpl;
+import datadog.trace.civisibility.events.NoOpTestEventsHandler;
 import datadog.trace.civisibility.events.TestEventsHandlerImpl;
 import datadog.trace.civisibility.ipc.SignalServer;
 import datadog.trace.civisibility.source.index.RepoIndex;
@@ -102,6 +103,8 @@ public class CiVisibilitySystem {
           new TestEventsHandlerFactory(
               services, repoServices, coverageServices, executionSettings));
       CoveragePerTestBridge.registerCoverageStoreRegistry(coverageServices.coverageStoreFactory);
+    } else {
+      InstrumentationBridge.registerTestEventsHandlerFactory(new NoOpTestEventsHandler.Factory());
     }
   }
 
