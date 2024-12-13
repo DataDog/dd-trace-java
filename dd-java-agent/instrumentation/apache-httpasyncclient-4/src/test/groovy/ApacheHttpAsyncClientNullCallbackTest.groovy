@@ -28,11 +28,9 @@ class ApacheHttpAsyncClientNullCallbackTest extends HttpClientTest implements Te
   }
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+  int doRequest(String method, URI uri, List<List<String>> headers, String body, Closure callback) {
     def request = new HttpUriRequest(method, uri)
-    headers.entrySet().each {
-      request.addHeader(new BasicHeader(it.key, it.value))
-    }
+    headers.each { request.addHeader(new BasicHeader(it[0], it[1])) }
 
     // The point here is to test case when callback is null - fire-and-forget style
     // So to make sure request is done we start request, wait for future to finish

@@ -22,9 +22,9 @@ abstract class JaxRsClientV1Test extends HttpClientTest {
   }
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+  int doRequest(String method, URI uri, List<List<String>> headers, String body, Closure callback) {
     def resource = client.resource(uri).requestBuilder
-    headers.each { resource.header(it.key, it.value) }
+    headers.each { resource.header(it[0], it[1]) }
     def reqBody = BODY_METHODS.contains(method) ? body : null
     ClientResponse response = resource.method(method, ClientResponse, reqBody)
     callback?.call()

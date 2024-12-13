@@ -32,12 +32,12 @@ abstract class SpringWebfluxHttpClientBase extends HttpClientTest implements Tes
   abstract void check()
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+  int doRequest(String method, URI uri, List<List<String>> headers, String body, Closure callback) {
     def hasParent = activeSpan() != null
     def client = createClient(component())
     ClientResponse response = client.method(HttpMethod.resolve(method))
       .uri(uri)
-      .headers { h -> headers.forEach({ key, value -> h.add(key, value) }) }
+      .headers { h -> headers.forEach({ h.add(it[0], it[1]) }) }
       .exchange()
       .doAfterSuccessOrError { res, ex ->
         callback?.call()

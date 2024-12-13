@@ -29,13 +29,11 @@ abstract class GrizzlyAsyncHttpClientTest extends HttpClientTest {
   }
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+  int doRequest(String method, URI uri, List<List<String>> headers, String body, Closure callback) {
 
     RequestBuilder requestBuilder = new RequestBuilder(method)
       .setUri(Uri.create(uri.toString()))
-    headers.entrySet().each {
-      requestBuilder.addHeader(it.key, it.value)
-    }
+    headers.each { requestBuilder.addHeader(it[0], it[1]) }
     Request request = requestBuilder.build()
 
     def handler = new AsyncHandlerMock(callback)

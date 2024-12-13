@@ -43,9 +43,9 @@ class VertxRxCircuitBreakerWebClientForkedTest extends HttpClientTest implements
   )
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+  int doRequest(String method, URI uri, List<List<String>> headers, String body, Closure callback) {
     def request = client.request(HttpMethod.valueOf(method), uri.port, uri.host, "$uri")
-    headers.each { request.putHeader(it.key, it.value) }
+    headers.each { request.putHeader(it[0], it[1]) }
 
     def future = new CompletableFuture<Integer>()
 

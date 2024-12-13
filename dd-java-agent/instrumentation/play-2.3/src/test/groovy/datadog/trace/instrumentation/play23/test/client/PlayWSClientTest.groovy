@@ -37,11 +37,9 @@ class PlayWSClientTest extends HttpClientTest implements TestingNettyHttpNamingC
   }
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+  int doRequest(String method, URI uri, List<List<String>> headers, String body, Closure callback) {
     def request = client.url(uri.toString())
-    headers.entrySet().each {
-      request.setHeader(it.key, it.value)
-    }
+    headers.each { request.setHeader(it[0], it[1]) }
 
     def status = request.execute(method).map({
       callback?.call()

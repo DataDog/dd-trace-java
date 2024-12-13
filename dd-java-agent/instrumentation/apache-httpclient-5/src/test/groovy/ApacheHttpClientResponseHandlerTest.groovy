@@ -40,9 +40,7 @@ class ApacheHttpClientResponseHandlerTest extends HttpClientTest implements Test
   @Override
   int doRequest(String method, URI uri, List<List<String>> headers, String body, Closure callback) {
     def request = new BasicClassicHttpRequest(method, uri)
-    for (List<String> header : headers) {
-      request.addHeader(new BasicHeader(header[0], header[1]))
-    }
+    headers.each { request.addHeader(new BasicHeader(it[0], it[1])) }
 
     CloseableHttpResponse response = null
     def status = client.execute(request, handler)

@@ -25,10 +25,10 @@ abstract class AkkaHttpClientInstrumentationTest extends HttpClientTest {
   abstract CompletionStage<HttpResponse> doRequest(HttpRequest request)
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+  int doRequest(String method, URI uri, List<List<String>> headers, String body, Closure callback) {
     def request = HttpRequest.create(uri.toString())
       .withMethod(HttpMethods.lookup(method).get())
-      .addHeaders(headers.collect { RawHeader.create(it.key, it.value) })
+      .addHeaders(headers.collect { RawHeader.create(it[0], it[1]) })
 
     def response
     try {

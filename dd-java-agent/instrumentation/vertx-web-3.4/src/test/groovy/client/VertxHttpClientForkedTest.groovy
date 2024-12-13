@@ -33,10 +33,10 @@ class VertxHttpClientForkedTest extends HttpClientTest implements TestingNettyHt
   def httpClient = vertx.createHttpClient(clientOptions)
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+  int doRequest(String method, URI uri, List<List<String>> headers, String body, Closure callback) {
     CompletableFuture<HttpClientResponse> future = new CompletableFuture<>()
     def request = httpClient.request(HttpMethod.valueOf(method), uri.port, uri.host, "$uri")
-    headers.each { request.putHeader(it.key, it.value) }
+    headers.each { request.putHeader(it[0], it[1]) }
     request.handler { response ->
       try {
         callback?.call()
