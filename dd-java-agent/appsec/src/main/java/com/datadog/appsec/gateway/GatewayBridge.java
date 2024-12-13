@@ -304,7 +304,7 @@ public class GatewayBridge {
       DataBundle bundle =
           new MapDataBundle.Builder(CAPACITY_0_2).add(KnownAddresses.SHELL_CMD, command).build();
       try {
-        GatewayContext gwCtx = new GatewayContext(true, RuleType.COMMAND_INJECTION);
+        GatewayContext gwCtx = new GatewayContext(true, RuleType.SHELL_INJECTION);
         return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
       } catch (ExpiredSubscriberInfoException e) {
         shellCmdSubInfo = null;
