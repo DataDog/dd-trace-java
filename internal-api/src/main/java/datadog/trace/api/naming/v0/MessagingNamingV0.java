@@ -1,7 +1,7 @@
 package datadog.trace.api.naming.v0;
 
+import datadog.trace.api.ClassloaderConfigurationOverrides;
 import datadog.trace.api.Config;
-import datadog.trace.api.naming.ClassloaderServiceNames;
 import datadog.trace.api.naming.NamingSchema;
 import datadog.trace.api.remoteconfig.ServiceNameCollector;
 import java.util.function.Supplier;
@@ -16,10 +16,12 @@ class MessagingNamingV0 implements NamingSchema.ForMessaging {
 
     @Override
     public String get() {
-      final String contextual = ClassloaderServiceNames.maybeGetForCurrentThread();
-      if (contextual != null) {
-        ServiceNameCollector.get().addService(contextual);
-        return contextual;
+      final ClassloaderConfigurationOverrides.ContextualInfo contextual =
+          ClassloaderConfigurationOverrides.maybeGetContextualInfo();
+      if (contextual != null && contextual.getServiceName() != null) {
+        final String serviceName = contextual.getServiceName();
+        ServiceNameCollector.get().addService(serviceName);
+        return serviceName;
       }
       return configServiceName;
     }

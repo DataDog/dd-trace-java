@@ -18,6 +18,7 @@ import datadog.communication.ddagent.ExternalAgentLauncher;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.monitor.Monitoring;
 import datadog.communication.monitor.Recording;
+import datadog.trace.api.ClassloaderConfigurationOverrides;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
@@ -40,7 +41,6 @@ import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.metrics.SpanMetricRegistry;
-import datadog.trace.api.naming.ClassloaderServiceNames;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.api.remoteconfig.ServiceNameCollector;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -139,8 +139,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   /** Tracer start time in nanoseconds measured up to a millisecond accuracy */
   private final long startTimeNano;
+
   /** Nanosecond ticks value at tracer start */
   private final long startNanoTicks;
+
   /** How often should traced threads check clock ticks against the wall clock */
   private final long clockSyncPeriod;
 
@@ -149,6 +151,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   /** Last time (in nanosecond ticks) the clock was checked for drift */
   private volatile long lastSyncTicks;
+
   /** Nanosecond offset to counter clock drift */
   private volatile long counterDrift;
 
@@ -160,10 +163,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   /** Default service name if none provided on the trace or span */
   final String serviceName;
+
   /** Writer is an charge of reporting traces and spans to the desired endpoint */
   final Writer writer;
+
   /** Sampler defines the sampling policy in order to reduce the number of traces for instance */
   final Sampler initialSampler;
+
   /** Scope manager is in charge of managing the scopes from which spans are created */
   final ContinuableScopeManager scopeManager;
 
@@ -171,10 +177,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   /** Initial static configuration associated with the tracer. */
   final Config initialConfig;
+
   /** Maintains dynamic configuration associated with the tracer */
   private final DynamicConfig<ConfigSnapshot> dynamicConfig;
+
   /** A set of tags that are added only to the application's root span */
   private final Map<String, ?> localRootSpanTags;
+
   /** A set of tags that are added to every span */
   private final Map<String, ?> defaultSpanTags;
 
@@ -1589,10 +1598,16 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       if (serviceName == null) {
         serviceName = traceConfig.getPreferredServiceName();
       }
+      ClassloaderConfigurationOverrides.ContextualInfo contextualInfo =
+          ClassloaderConfigurationOverrides.maybeGetContextualInfo();
+      Map<String, Object> contextualTags = null;
       if (serviceName == null && parentServiceName == null) {
         // in this case we have a local root without service name. We can try to see if we can find
         // one from the thread context classloader
-        serviceName = ClassloaderServiceNames.maybeGetForCurrentThread();
+        if (contextualInfo != null) {
+          serviceName = contextualInfo.getServiceName();
+          contextualTags = contextualInfo.getTags();
+        }
       }
       if (serviceName == null) {
         // it could be on the initial snapshot but may be overridden to null and service name
@@ -1609,7 +1624,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           mergedTracerTags.size()
               + (null == tags ? 0 : tags.size())
               + (null == coreTags ? 0 : coreTags.size())
-              + (null == rootSpanTags ? 0 : rootSpanTags.size());
+              + (null == rootSpanTags ? 0 : rootSpanTags.size())
+              + (null == contextualTags ? 0 : contextualTags.size());
 
       if (builderRequestContextDataAppSec != null) {
         requestContextDataAppSec = builderRequestContextDataAppSec;
@@ -1655,6 +1671,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       context.setAllTags(tags);
       context.setAllTags(coreTags);
       context.setAllTags(rootSpanTags);
+      if (contextualTags != null) {
+        context.setAllTags(contextualTags);
+      }
       return context;
     }
   }
