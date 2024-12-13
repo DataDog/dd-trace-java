@@ -48,13 +48,14 @@ public class ApacheHttpClientDecorator extends HttpClientDecorator<HttpUriReques
   protected String getRequestHeader(HttpUriRequest request, String headerName) {
     Header[] headers = request.getHeaders(headerName);
     if (headers.length > 0) {
-      StringBuilder result = new StringBuilder(headers[0].getValue());
-      for (int i = 1; i < headers.length; i++) {
-        result.append(",").append(headers[i].getValue());
+      StringBuilder result = new StringBuilder();
+      for (int i = 0; i < headers.length; i++) {
+        result.append(headers[i].getValue());
+        if (i + 1 < headers.length) {
+          result.append(",");
+        }
       }
-      String x = result.toString();
-      System.out.println("returning " + x);
-      return x;
+      return result.toString();
     }
     return null;
   }
@@ -63,11 +64,13 @@ public class ApacheHttpClientDecorator extends HttpClientDecorator<HttpUriReques
   protected String getResponseHeader(HttpResponse response, String headerName) {
     Header[] headers = response.getHeaders(headerName);
     if (headers.length > 0) {
-      StringBuilder result = new StringBuilder(headers[0].getValue());
-      for (int i = 1; i < headers.length; i++) {
-        result.append(",").append(headers[i].getValue());
+      StringBuilder result = new StringBuilder();
+      for (int i = 0; i < headers.length; i++) {
+        result.append(headers[i].getValue());
+        if (i + 1 < headers.length) {
+          result.append(",");
+        }
       }
-      System.out.println("returning " + result);
       return result.toString();
     }
     return null;

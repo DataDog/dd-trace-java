@@ -66,12 +66,6 @@ public class ApacheHttpClientDecorator extends HttpClientDecorator<HttpRequest, 
           result.append(",");
         }
       }
-
-      //      StringBuilder result = new StringBuilder(headers[0].getValue());
-      //      for (int i = 1; i < headers.length; i++) {
-      //        result.append(",").append(headers[i].getValue());
-      //      }
-
       System.out.println("returning " + result);
       return result.toString();
     }
@@ -90,12 +84,6 @@ public class ApacheHttpClientDecorator extends HttpClientDecorator<HttpRequest, 
           result.append(",");
         }
       }
-
-      //      StringBuilder result = new StringBuilder(headers[0].getValue());
-      //      for (int i = 1; i < headers.length; i++) {
-      //        result.append(",").append(headers[i].getValue());
-      //      }
-
       System.out.println("returning " + result);
       return result.toString();
     }
