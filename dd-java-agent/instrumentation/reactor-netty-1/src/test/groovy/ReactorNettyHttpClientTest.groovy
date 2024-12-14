@@ -25,11 +25,11 @@ class ReactorNettyHttpClientTest extends HttpClientTest implements TestingNettyH
   .disableRetry(true)
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+  int doRequest(String method, URI uri, List<List<String>> headers, String body, Closure callback) {
     httpClient
       .headers({ hdrs ->
         headers.each {
-          hdrs.set(it.key, it.value)
+          hdrs.set(it[0], it[1])
         }
       })
       .request(HttpMethod.valueOf(method))

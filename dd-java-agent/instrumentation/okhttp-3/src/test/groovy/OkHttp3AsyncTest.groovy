@@ -21,8 +21,8 @@ abstract class OkHttp3AsyncTest extends OkHttp3Test {
     def reqBody = HttpMethod.requiresRequestBody(method) ? RequestBody.create(MediaType.parse("text/plain"), body) : null
     Map<String, String> headersMap = new HashMap<>()
     for (List<String> header : headers) {
-      String key = header.get(0)
-      String val = header.get(1)
+      String key = header[0]
+      String val = header[1]
       if (headersMap.containsKey(key)) {
         String originalVal = headersMap.get(key)
         headersMap.put(key, originalVal + "," + val)

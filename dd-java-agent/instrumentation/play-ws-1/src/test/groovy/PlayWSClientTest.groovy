@@ -18,10 +18,10 @@ abstract class PlayJavaWSClientTest extends PlayWSClientTestBase {
   StandaloneWSClient wsClient
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+  int doRequest(String method, URI uri, List<List<String>> headers, String body, Closure callback) {
     StandaloneWSRequest wsRequest = wsClient.url(uri.toURL().toString()).setFollowRedirects(true)
 
-    headers.entrySet().each { entry -> wsRequest.addHeader(entry.getKey(), entry.getValue()) }
+    headers.each { wsRequest.addHeader(it[0], it[1]) }
     StandaloneWSResponse wsResponse = wsRequest.setMethod(method).execute()
       .whenComplete({ response, throwable ->
         callback?.call()
@@ -45,10 +45,10 @@ class PlayJavaStreamedWSClientTest extends PlayWSClientTestBase {
   StandaloneWSClient wsClient
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+  int doRequest(String method, URI uri, List<List<String>> headers, String body, Closure callback) {
     StandaloneWSRequest wsRequest = wsClient.url(uri.toURL().toString()).setFollowRedirects(true)
 
-    headers.entrySet().each { entry -> wsRequest.addHeader(entry.getKey(), entry.getValue()) }
+    headers.each { wsRequest.addHeader(it[0], it[1]) }
     StandaloneWSResponse wsResponse = wsRequest.setMethod(method).stream()
       .whenComplete({ response, throwable ->
         callback?.call()
@@ -75,11 +75,22 @@ class PlayScalaWSClientTest extends PlayWSClientTestBase {
   play.api.libs.ws.StandaloneWSClient wsClient
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+  int doRequest(String method, URI uri, List<List<String>> headers, String body, Closure callback) {
+    Map<String, String> headersMap = new HashMap<>()
+    for (List<String> header : headers) {
+      String key = header[0]
+      String val = header[1]
+      if (headersMap.containsKey(key)) {
+        String originalVal = headersMap.get(key)
+        headersMap.put(key, originalVal + "," + val)
+      } else {
+        headersMap.put(key, val)
+      }
+    }
     Future<play.api.libs.ws.StandaloneWSResponse> futureResponse = wsClient.url(uri.toURL().toString())
       .withMethod(method)
       .withFollowRedirects(true)
-      .withHttpHeaders(JavaConverters.mapAsScalaMap(headers).toSeq())
+      .withHttpHeaders(JavaConverters.mapAsScalaMap(headersMap).toSeq())
       .execute()
       .transform({ theTry ->
         callback?.call()
@@ -106,11 +117,22 @@ class PlayScalaStreamedWSClientTest extends PlayWSClientTestBase {
   play.api.libs.ws.StandaloneWSClient wsClient
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+  int doRequest(String method, URI uri, List<List<String>> headers, String body, Closure callback) {
+    Map<String, String> headersMap = new HashMap<>()
+    for (List<String> header : headers) {
+      String key = header[0]
+      String val = header[1]
+      if (headersMap.containsKey(key)) {
+        String originalVal = headersMap.get(key)
+        headersMap.put(key, originalVal + "," + val)
+      } else {
+        headersMap.put(key, val)
+      }
+    }
     Future<play.api.libs.ws.StandaloneWSResponse> futureResponse = wsClient.url(uri.toURL().toString())
       .withMethod(method)
       .withFollowRedirects(true)
-      .withHttpHeaders(JavaConverters.mapAsScalaMap(headers).toSeq())
+      .withHttpHeaders(JavaConverters.mapAsScalaMap(headersMap).toSeq())
       .stream()
       .transform({ theTry ->
         callback?.call()
