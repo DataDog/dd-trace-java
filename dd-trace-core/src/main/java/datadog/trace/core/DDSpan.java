@@ -24,11 +24,14 @@ import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanEvent;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
+import datadog.trace.bootstrap.instrumentation.api.SpanEvent;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Collections;
@@ -115,6 +118,8 @@ public class DDSpan
 
   private final List<AgentSpanLink> links;
 
+  private final List<AgentSpanEvent> events;
+
   /**
    * Spans should be constructed using the builder, not by calling the constructor directly.
    *
@@ -142,6 +147,8 @@ public class DDSpan
     }
 
     this.links = links == null ? new CopyOnWriteArrayList<>() : new CopyOnWriteArrayList<>(links);
+
+    this.events = new CopyOnWriteArrayList<>();
   }
 
   public boolean isFinished() {
@@ -715,7 +722,7 @@ public class DDSpan
 
   @Override
   public void processTagsAndBaggage(final MetadataConsumer consumer) {
-    context.processTagsAndBaggage(consumer, longRunningVersion, links);
+    context.processTagsAndBaggage(consumer, longRunningVersion, links, events);
   }
 
   @Override
@@ -804,7 +811,9 @@ public class DDSpan
         + ", forceKeep="
         + forceKeep
         + ", links="
-        + links;
+        + links
+        + ", events="
+        + SpanEvent.toTag(events);
   }
 
   @Override
@@ -833,6 +842,12 @@ public class DDSpan
   public void addLink(AgentSpanLink link) {
     if (link != null) {
       this.links.add(link);
+    }
+  }
+
+  public void addEvent(AgentSpanEvent event) {
+    if (event != null) {
+      this.events.add(event);
     }
   }
 
