@@ -9,18 +9,15 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
-import datadog.trace.advice.ActiveRequestContext;
-import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.gateway.RequestContext;
-import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import net.bytebuddy.asm.Advice;
 import org.apache.pekko.http.scaladsl.model.Uri;
 import scala.Tuple2;
@@ -67,40 +64,32 @@ public class UriInstrumentation extends InstrumenterModule.Iast
         UriInstrumentation.class.getName() + "$TaintQueryAdvice");
   }
 
-  @RequiresRequestContext(RequestContextSlot.IAST)
   static class TaintQueryStringAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Propagation
-    static void after(
-        @Advice.This Uri uri,
-        @Advice.Return scala.Option<String> ret,
-        @ActiveRequestContext RequestContext reqCtx) {
+    static void after(@Advice.This Uri uri, @Advice.Return scala.Option<String> ret) {
       PropagationModule mod = InstrumentationBridge.PROPAGATION;
       if (mod == null || ret.isEmpty()) {
         return;
       }
-      IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-      mod.taintStringIfTainted(ctx, ret.get(), uri);
+      final TaintedObjects to = IastContext.Provider.taintedObjects();
+      mod.taintObjectIfTainted(to, ret.get(), uri);
     }
   }
 
-  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class TaintQueryAdvice {
     // bind uri to a variable of type Object so that this advice can also
     // be used from FromDataInstrumentaton
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
-    static void after(
-        @Advice.This /*Uri*/ Object uri,
-        @Advice.Return Uri.Query ret,
-        @ActiveRequestContext RequestContext reqCtx) {
+    static void after(@Advice.This /*Uri*/ Object uri, @Advice.Return Uri.Query ret) {
       PropagationModule prop = InstrumentationBridge.PROPAGATION;
       if (prop == null || ret.isEmpty()) {
         return;
       }
 
-      final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-      if (!prop.isTainted(ctx, uri)) {
+      final TaintedObjects to = IastContext.Provider.taintedObjects();
+      if (!prop.isTainted(to, uri)) {
         return;
       }
 
@@ -108,8 +97,8 @@ public class UriInstrumentation extends InstrumenterModule.Iast
       while (iterator.hasNext()) {
         Tuple2<String, String> pair = iterator.next();
         final String name = pair._1(), value = pair._2();
-        prop.taintString(ctx, name, SourceTypes.REQUEST_PARAMETER_NAME, name);
-        prop.taintString(ctx, value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
+        prop.taintObject(to, name, SourceTypes.REQUEST_PARAMETER_NAME, name);
+        prop.taintObject(to, value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
       }
     }
   }

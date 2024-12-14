@@ -1,9 +1,9 @@
 package com.datadog.iast.model.json;
 
-import com.datadog.iast.taint.TaintedObject;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
+import datadog.trace.api.iast.taint.TaintedObject;
 import java.util.List;
 
 public class TaintedObjectEncoding {

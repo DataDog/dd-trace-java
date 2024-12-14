@@ -2,8 +2,9 @@ package com.datadog.iast.sink
 
 import com.datadog.iast.IastModuleImplTestBase
 import com.datadog.iast.Reporter
-import com.datadog.iast.model.Range
-import com.datadog.iast.model.Source
+import com.datadog.iast.model.RangeImpl
+import com.datadog.iast.model.SourceImpl
+import datadog.trace.api.iast.taint.Range
 import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityType
 import com.datadog.iast.taint.Ranges
@@ -65,8 +66,8 @@ class SsrfModuleTest extends IastModuleImplTestBase {
     given:
     final value = new URL('http://test.com')
     final Range[] ranges = [
-      new Range(0, 2, new Source(SourceTypes.REQUEST_HEADER_VALUE, 'name1', 'value'), VulnerabilityMarks.SSRF_MARK),
-      new Range(4, 1, new Source(SourceTypes.REQUEST_PARAMETER_NAME, 'name2', 'value'), VulnerabilityMarks.SSRF_MARK)
+      new RangeImpl(0, 2, new SourceImpl(SourceTypes.REQUEST_HEADER_VALUE, 'name1', 'value'), VulnerabilityMarks.SSRF_MARK),
+      new RangeImpl(4, 1, new SourceImpl(SourceTypes.REQUEST_PARAMETER_NAME, 'name2', 'value'), VulnerabilityMarks.SSRF_MARK)
     ]
     ctx.getTaintedObjects().taint(value, ranges)
 
@@ -78,6 +79,6 @@ class SsrfModuleTest extends IastModuleImplTestBase {
   }
 
   private taint(final Object value) {
-    ctx.getTaintedObjects().taint(value, Ranges.forObject(new Source(SourceTypes.REQUEST_PARAMETER_VALUE, 'name', value.toString())))
+    ctx.getTaintedObjects().taint(value, Ranges.forObject(new SourceImpl(SourceTypes.REQUEST_PARAMETER_VALUE, 'name', value.toString())))
   }
 }

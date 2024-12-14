@@ -1,17 +1,17 @@
 package datadog.trace.agent.tooling.iast;
 
-import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import datadog.trace.util.stacktrace.StackUtils;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import java.util.Enumeration;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class TaintableEnumeration implements Enumeration<String> {
 
   private static final String CLASS_NAME = TaintableEnumeration.class.getName();
 
-  private final IastContext context;
+  private final TaintedObjects to;
 
   private final PropagationModule module;
 
@@ -24,13 +24,13 @@ public class TaintableEnumeration implements Enumeration<String> {
   private final Enumeration<String> delegate;
 
   private TaintableEnumeration(
-      final IastContext ctx,
-      @NonNull final Enumeration<String> delegate,
-      @NonNull final PropagationModule module,
+      @Nullable final TaintedObjects to,
+      @Nonnull final Enumeration<String> delegate,
+      @Nonnull final PropagationModule module,
       final byte origin,
       @Nullable final CharSequence name,
       final boolean useValueAsName) {
-    this.context = ctx;
+    this.to = to;
     this.delegate = delegate;
     this.module = module;
     this.origin = origin;
@@ -58,7 +58,7 @@ public class TaintableEnumeration implements Enumeration<String> {
       throw e;
     }
     try {
-      module.taintString(context, next, origin, name(next));
+      module.taintObject(to, next, origin, name(next));
     } catch (final Throwable e) {
       module.onUnexpectedException("Failed to taint enumeration", e);
     }
@@ -77,20 +77,20 @@ public class TaintableEnumeration implements Enumeration<String> {
   }
 
   public static Enumeration<String> wrap(
-      final IastContext ctx,
-      @NonNull final Enumeration<String> delegate,
-      @NonNull final PropagationModule module,
+      @Nullable final TaintedObjects to,
+      @Nonnull final Enumeration<String> delegate,
+      @Nonnull final PropagationModule module,
       final byte origin,
       @Nullable final CharSequence name) {
-    return new TaintableEnumeration(ctx, delegate, module, origin, name, false);
+    return new TaintableEnumeration(to, delegate, module, origin, name, false);
   }
 
   public static Enumeration<String> wrap(
-      final IastContext ctx,
-      @NonNull final Enumeration<String> delegate,
-      @NonNull final PropagationModule module,
+      @Nullable final TaintedObjects to,
+      @Nonnull final Enumeration<String> delegate,
+      @Nonnull final PropagationModule module,
       final byte origin,
       boolean useValueAsName) {
-    return new TaintableEnumeration(ctx, delegate, module, origin, null, useValueAsName);
+    return new TaintableEnumeration(to, delegate, module, origin, null, useValueAsName);
   }
 }

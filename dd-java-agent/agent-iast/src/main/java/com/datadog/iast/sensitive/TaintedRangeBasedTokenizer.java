@@ -1,9 +1,9 @@
 package com.datadog.iast.sensitive;
 
 import com.datadog.iast.model.Evidence;
-import com.datadog.iast.model.Range;
 import com.datadog.iast.taint.Ranges;
-import com.datadog.iast.util.Ranged;
+import datadog.trace.api.iast.taint.Range;
+import datadog.trace.api.iast.util.Ranged;
 import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
 

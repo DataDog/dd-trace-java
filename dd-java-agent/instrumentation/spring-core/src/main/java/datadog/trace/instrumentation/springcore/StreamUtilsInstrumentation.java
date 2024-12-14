@@ -8,9 +8,11 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -50,7 +52,8 @@ public final class StreamUtilsInstrumentation extends InstrumenterModule.Iast
         @Advice.Return String string, @Advice.Argument(0) final InputStream in) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (string != null && module != null) {
-        module.taintStringIfTainted(string, in);
+        final TaintedObjects to = IastContext.Provider.taintedObjects();
+        module.taintObjectIfTainted(to, string, in);
       }
     }
 

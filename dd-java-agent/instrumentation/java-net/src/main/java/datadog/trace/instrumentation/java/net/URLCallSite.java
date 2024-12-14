@@ -4,10 +4,12 @@ import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
 
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastCallSites;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.CodecModule;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import java.net.URI;
 import java.net.URL;
 import javax.annotation.Nonnull;
@@ -52,7 +54,8 @@ public class URLCallSite {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null && result != null) {
       try {
-        module.taintStringIfTainted(result, url, true, NOT_MARKED);
+        final TaintedObjects to = IastContext.Provider.taintedObjects();
+        module.taintObjectIfTainted(to, result, url, true, NOT_MARKED);
       } catch (final Throwable e) {
         module.onUnexpectedException("After toString threw", e);
       }
@@ -69,7 +72,8 @@ public class URLCallSite {
     if (module != null && result != null) {
       try {
         boolean keepRanges = url.toString().equals(result);
-        module.taintStringIfTainted(result, url, keepRanges, NOT_MARKED);
+        final TaintedObjects to = IastContext.Provider.taintedObjects();
+        module.taintObjectIfTainted(to, result, url, keepRanges, NOT_MARKED);
       } catch (final Throwable e) {
         module.onUnexpectedException("After toExternalForm threw", e);
       }
@@ -85,7 +89,8 @@ public class URLCallSite {
     if (module != null && result != null) {
       try {
         boolean keepRanges = url.toString().equals(result.toString());
-        module.taintObjectIfTainted(result, url, keepRanges, NOT_MARKED);
+        final TaintedObjects to = IastContext.Provider.taintedObjects();
+        module.taintObjectIfTainted(to, result, url, keepRanges, NOT_MARKED);
       } catch (final Throwable e) {
         module.onUnexpectedException("After toURI threw", e);
       }

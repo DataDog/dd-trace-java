@@ -4,7 +4,7 @@ import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.pekko.http.scaladsl.model.HttpRequest;
 import scala.Tuple1;
@@ -22,11 +22,11 @@ public class TaintRequestFunction implements JFunction1<Tuple1<HttpRequest>, Tup
     if (mod == null) {
       return v1;
     }
-    IastContext ctx = IastContext.Provider.get(AgentTracer.activeSpan());
-    if (ctx == null) {
+    final TaintedObjects to = IastContext.Provider.taintedObjects();
+    if (to == null) {
       return v1;
     }
-    mod.taintObject(ctx, httpRequest, SourceTypes.REQUEST_BODY);
+    mod.taintObject(to, httpRequest, SourceTypes.REQUEST_BODY);
 
     return v1;
   }

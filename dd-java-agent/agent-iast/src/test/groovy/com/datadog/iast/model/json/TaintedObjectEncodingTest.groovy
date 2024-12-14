@@ -1,10 +1,12 @@
 package com.datadog.iast.model.json
 
-import com.datadog.iast.model.Range
-import com.datadog.iast.model.Source
-import com.datadog.iast.taint.TaintedObject
+import com.datadog.iast.model.RangeImpl
+import com.datadog.iast.model.SourceImpl
+import datadog.trace.api.iast.taint.Range
+import com.datadog.iast.taint.TaintedObjectEntry
 import datadog.trace.api.config.IastConfig
 import datadog.trace.api.iast.SourceTypes
+import datadog.trace.api.iast.taint.TaintedObject
 import datadog.trace.test.util.DDSpecification
 import org.skyscreamer.jsonassert.JSONAssert
 
@@ -84,9 +86,9 @@ class TaintedObjectEncodingTest extends DDSpecification {
 ]''', result, true)
   }
 
-  private TaintedObject taintedObject(final String value, final byte sourceType, final String sourceName, final String sourceValue) {
-    return new TaintedObject(
+  private static TaintedObject taintedObject(final String value, final byte sourceType, final String sourceName, final String sourceValue) {
+    return new TaintedObjectEntry(
       value,
-      [new Range(0, value.length(), new Source(sourceType, sourceName, sourceValue), NOT_MARKED)] as Range[])
+      [new RangeImpl(0, value.length(), new SourceImpl(sourceType, sourceName, sourceValue), NOT_MARKED)] as Range[])
   }
 }

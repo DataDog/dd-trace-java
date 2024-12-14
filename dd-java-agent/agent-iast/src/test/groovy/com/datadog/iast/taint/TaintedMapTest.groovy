@@ -2,7 +2,7 @@ package com.datadog.iast.taint
 
 import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.Logger
-import com.datadog.iast.model.Range
+import datadog.trace.api.iast.taint.Range
 import datadog.trace.api.config.IastConfig
 import datadog.trace.api.iast.telemetry.IastMetric
 import datadog.trace.api.iast.telemetry.IastMetricCollector
@@ -36,7 +36,7 @@ class TaintedMapTest extends DDSpecification {
     given:
     final map = new TaintedMap.TaintedMapImpl()
     final o = new Object()
-    final to = new TaintedObject(o, [] as Range[])
+    final to = new TaintedObjectEntry(o, [] as Range[])
 
     expect:
     map.size() == 0
@@ -81,7 +81,7 @@ class TaintedMapTest extends DDSpecification {
     expect:
     (1..nTotalObjects).each { i ->
       final o = new Object()
-      final to = new TaintedObject(o, [] as Range[])
+      final to = new TaintedObjectEntry(o, [] as Range[])
       map.put(to)
       assert map.get(o) == to
     }
@@ -102,7 +102,7 @@ class TaintedMapTest extends DDSpecification {
     when:
     (1..iters).each {
       final queue = gen.genObjects(nObjectsPerIter, ObjectGen.TRUE).collect { o ->
-        final to = new TaintedObject(o, [] as Range[])
+        final to = new TaintedObjectEntry(o, [] as Range[])
         map.put(to)
         return to
       }
@@ -115,7 +115,7 @@ class TaintedMapTest extends DDSpecification {
       queue.clear()
       // Trigger purge
       final o = gen.genObjects(1, ObjectGen.TRUE)[0]
-      final to = new TaintedObject(o, [] as Range[])
+      final to = new TaintedObjectEntry(o, [] as Range[])
       objectBuffer.add(o)
       map.put(to)
     }
@@ -154,7 +154,7 @@ class TaintedMapTest extends DDSpecification {
         latch.countDown()
         latch.await()
         buckets[thread].each { o ->
-          final to = new TaintedObject(o, [] as Range[])
+          final to = new TaintedObjectEntry(o, [] as Range[])
           map.put(to)
         }
       } as Runnable)
@@ -195,7 +195,7 @@ class TaintedMapTest extends DDSpecification {
       // Each thread has multiple objects for each bucket
       def objects = gen.genBuckets(capacity, nObjectsPerThread).flatten()
       def taintedObjects = objects.collect { o ->
-        return new TaintedObject(o, [] as Range[])
+        return new TaintedObjectEntry(o, [] as Range[])
       }
       Collections.shuffle(taintedObjects)
 
@@ -229,7 +229,7 @@ class TaintedMapTest extends DDSpecification {
     final capacity = 1 // single bucket
     final map = new TaintedMap.TaintedMapImpl(1)
     final gen = new ObjectGen(capacity)
-    final to = gen.genObjects(5, ObjectGen.TRUE).collect { new TaintedObject(it, [] as Range[]) }
+    final to = gen.genObjects(5, ObjectGen.TRUE).collect { new TaintedObjectEntry(it, [] as Range[]) }
 
     when: 'purging the head with put'
     map.put(to[0])
@@ -265,7 +265,7 @@ class TaintedMapTest extends DDSpecification {
     final toTaint = 'test'
 
     when:
-    final tainted = instance.put(new TaintedObject(toTaint, [] as Range[]))
+    final tainted = instance.put(new TaintedObjectEntry(toTaint, [] as Range[]))
 
     then:
     tainted == null
@@ -283,7 +283,7 @@ class TaintedMapTest extends DDSpecification {
     logger.setLevel(Level.ALL)
 
     when:
-    gen.genObjects(capacity, ObjectGen.TRUE).each { map.put(new TaintedObject(it, [] as Range[])) }
+    gen.genObjects(capacity, ObjectGen.TRUE).each { map.put(new TaintedObjectEntry(it, [] as Range[])) }
 
     then:
     map.size() == capacity
@@ -297,7 +297,7 @@ class TaintedMapTest extends DDSpecification {
     final purge = new MockAgentTaskScheduler()
     final map = new TaintedMap.TaintedMapImpl(4, TaintedMap.DEFAULT_MAX_BUCKET_SIZE, maxAge, maxAgeUnit, purge)
     final items = (0..10).collect { it.toString() }
-    items.each { map.put(new TaintedObject(it, [] as Range[])) }
+    items.each { map.put(new TaintedObjectEntry(it, [] as Range[])) }
 
     when: 'first purge is called'
     purge.triggerAll()
@@ -327,7 +327,7 @@ class TaintedMapTest extends DDSpecification {
     final map = new TaintedMap.TaintedMapImpl(1, 1, 1, TimeUnit.HOURS)
 
     when:
-    map.put(new TaintedObject('test1', new Range[0]))
+    map.put(new TaintedObjectEntry('test1', new Range[0]))
 
     then:
     map.count() == 1
@@ -336,7 +336,7 @@ class TaintedMapTest extends DDSpecification {
     fetchMetrics(collector).empty
 
     when:
-    map.put(new TaintedObject('test2', new Range[0]))
+    map.put(new TaintedObjectEntry('test2', new Range[0]))
 
     then:
     map.count() == 1

@@ -112,7 +112,7 @@ class IastSystemTest extends DDSpecification {
 
     where:
     mode    | providerClass
-    GLOBAL  | IastGlobalContext.Provider
+    GLOBAL  | IastGlobalContextProvider
     REQUEST | IastRequestContext.Provider
   }
 

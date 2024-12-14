@@ -3,6 +3,7 @@ import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.propagation.PropagationModule
+import datadog.trace.api.iast.taint.TaintedObjects
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import foo.bar.smoketest.MockHttpServletRequest
@@ -14,6 +15,7 @@ import org.apache.commons.fileupload.servlet.ServletFileUpload
 class ServletFileUploadInstrumenterTest extends AgentTestRunner {
 
   private Object iastCtx
+  private Object to
 
   @Override
   protected void configurePreAgent() {
@@ -22,7 +24,10 @@ class ServletFileUploadInstrumenterTest extends AgentTestRunner {
 
   @Override
   void setup() {
-    iastCtx = Stub(IastContext)
+    to = Stub(TaintedObjects)
+    iastCtx = Stub(IastContext) {
+      getTaintedObjects() >> to
+    }
   }
 
   @Override
@@ -48,7 +53,7 @@ class ServletFileUploadInstrumenterTest extends AgentTestRunner {
     runUnderIastTrace { servletFileUpload.parseRequest(request) }
 
     then:
-    1 * module.taintObject(iastCtx, _ as FileItem, SourceTypes.REQUEST_MULTIPART_PARAMETER)
+    1 * module.taintObject(to, _ as FileItem, SourceTypes.REQUEST_MULTIPART_PARAMETER)
   }
 
   void 'test commons fileupload ServletFileUpload parseParameterMap'() {
@@ -69,7 +74,7 @@ class ServletFileUploadInstrumenterTest extends AgentTestRunner {
     runUnderIastTrace { servletFileUpload.parseParameterMap(request) }
 
     then:
-    1 * module.taintObject(iastCtx, _ as FileItem, SourceTypes.REQUEST_MULTIPART_PARAMETER)
+    1 * module.taintObject(to, _ as FileItem, SourceTypes.REQUEST_MULTIPART_PARAMETER)
   }
 
   void 'test commons fileupload ServletFileUpload getItemIterator'() {
@@ -90,7 +95,7 @@ class ServletFileUploadInstrumenterTest extends AgentTestRunner {
     runUnderIastTrace { servletFileUpload.getItemIterator(request) }
 
     then:
-    1 * module.taintObject(iastCtx, _ as FileItemIterator, SourceTypes.REQUEST_MULTIPART_PARAMETER)
+    1 * module.taintObject(to, _ as FileItemIterator, SourceTypes.REQUEST_MULTIPART_PARAMETER)
   }
 
   protected <E> E runUnderIastTrace(Closure<E> cl) {

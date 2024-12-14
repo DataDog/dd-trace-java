@@ -2,6 +2,7 @@ package datadog.trace.api.iast
 
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.api.iast.taint.TaintedObjects
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.test.util.DDSpecification
@@ -14,7 +15,11 @@ class IastContextTest extends DDSpecification {
 
   protected AgentTracer.TracerAPI tracer = Mock(AgentTracer.TracerAPI)
 
-  protected IastContext iastCtx = Mock(IastContext)
+  protected TaintedObjects to = Mock(TaintedObjects)
+
+  protected IastContext iastCtx = Mock(IastContext) {
+    getTaintedObjects() >> to
+  }
 
   protected RequestContext reqCtx = Mock(RequestContext) {
     getData(RequestContextSlot.IAST) >> iastCtx
@@ -57,15 +62,30 @@ class IastContextTest extends DDSpecification {
     context == iastCtx
   }
 
-  void 'test get context with provider instance'() {
-    given:
+  void 'test get tainted objects'() {
+    setup:
     final provider = Mock(IastContext.Provider)
-    IastContext.Provider.register(provider)
+    IastContext.Provider.register(null)
 
-    when:
-    IastContext.Provider.get()
+    when: 'there is an active span'
+    final taintedObjects = IastContext.Provider.taintedObjects()
 
     then:
-    1 * provider.resolve() >> null
+    1 * tracer.activeSpan() >> span
+    taintedObjects == to
+
+    when: 'there is no active span'
+    final nullTaintedObjects = IastContext.Provider.taintedObjects()
+
+    then:
+    1 * tracer.activeSpan() >> null
+    nullTaintedObjects == null
+
+    when: 'we define a custom provider'
+    IastContext.Provider.register(provider)
+    IastContext.Provider.taintedObjects()
+
+    then:
+    1 * provider.resolveTaintedObjects()
   }
 }

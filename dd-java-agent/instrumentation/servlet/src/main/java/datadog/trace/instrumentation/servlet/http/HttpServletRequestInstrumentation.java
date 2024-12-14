@@ -9,13 +9,9 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
-import datadog.trace.advice.ActiveRequestContext;
-import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.iast.TaintableEnumeration;
-import datadog.trace.api.gateway.RequestContext;
-import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Sink;
@@ -24,6 +20,7 @@ import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import java.util.Enumeration;
 import java.util.Map;
 import javax.servlet.http.Cookie;
@@ -98,14 +95,11 @@ public class HttpServletRequestInstrumentation extends InstrumenterModule.Iast
         CLASS_NAME + "$GetRequestDispatcherAdvice");
   }
 
-  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class GetHeaderAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_HEADER_VALUE)
     public static void onExit(
-        @Advice.Argument(0) final String name,
-        @Advice.Return final String value,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @Advice.Argument(0) final String name, @Advice.Return final String value) {
       if (value == null) {
         return;
       }
@@ -113,19 +107,17 @@ public class HttpServletRequestInstrumentation extends InstrumenterModule.Iast
       if (module == null) {
         return;
       }
-      IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-      module.taintString(ctx, value, SourceTypes.REQUEST_HEADER_VALUE, name);
+      final TaintedObjects to = IastContext.Provider.taintedObjects();
+      module.taintObject(to, value, SourceTypes.REQUEST_HEADER_VALUE, name);
     }
   }
 
-  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class GetHeadersAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_HEADER_VALUE)
     public static void onExit(
         @Advice.Argument(0) final String name,
-        @Advice.Return(readOnly = false) Enumeration<String> enumeration,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @Advice.Return(readOnly = false) Enumeration<String> enumeration) {
       if (enumeration == null) {
         return;
       }
@@ -133,20 +125,17 @@ public class HttpServletRequestInstrumentation extends InstrumenterModule.Iast
       if (module == null) {
         return;
       }
-      IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+      final TaintedObjects to = IastContext.Provider.taintedObjects();
       enumeration =
           TaintableEnumeration.wrap(
-              ctx, enumeration, module, SourceTypes.REQUEST_HEADER_VALUE, name);
+              to, enumeration, module, SourceTypes.REQUEST_HEADER_VALUE, name);
     }
   }
 
-  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class GetHeaderNamesAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_HEADER_NAME)
-    public static void onExit(
-        @Advice.Return(readOnly = false) Enumeration<String> enumeration,
-        @ActiveRequestContext RequestContext reqCtx) {
+    public static void onExit(@Advice.Return(readOnly = false) Enumeration<String> enumeration) {
       if (enumeration == null) {
         return;
       }
@@ -154,21 +143,17 @@ public class HttpServletRequestInstrumentation extends InstrumenterModule.Iast
       if (module == null) {
         return;
       }
-      IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+      final TaintedObjects to = IastContext.Provider.taintedObjects();
       enumeration =
-          TaintableEnumeration.wrap(
-              ctx, enumeration, module, SourceTypes.REQUEST_HEADER_NAME, true);
+          TaintableEnumeration.wrap(to, enumeration, module, SourceTypes.REQUEST_HEADER_NAME, true);
     }
   }
 
-  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class GetParameterAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
     public static void onExit(
-        @Advice.Argument(0) final String name,
-        @Advice.Return final String value,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @Advice.Argument(0) final String name, @Advice.Return final String value) {
       if (value == null) {
         return;
       }
@@ -176,19 +161,16 @@ public class HttpServletRequestInstrumentation extends InstrumenterModule.Iast
       if (module == null) {
         return;
       }
-      IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-      module.taintString(ctx, value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
+      final TaintedObjects to = IastContext.Provider.taintedObjects();
+      module.taintObject(to, value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
     }
   }
 
-  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class GetParameterValuesAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
     public static void onExit(
-        @Advice.Argument(0) final String name,
-        @Advice.Return final String[] values,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @Advice.Argument(0) final String name, @Advice.Return final String[] values) {
       if (values == null || values.length == 0) {
         return;
       }
@@ -196,20 +178,17 @@ public class HttpServletRequestInstrumentation extends InstrumenterModule.Iast
       if (module == null) {
         return;
       }
-      final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+      final TaintedObjects to = IastContext.Provider.taintedObjects();
       for (final String value : values) {
-        module.taintString(ctx, value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
+        module.taintObject(to, value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
       }
     }
   }
 
-  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class GetParameterMapAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
-    public static void onExit(
-        @Advice.Return final Map<String, String[]> parameters,
-        @ActiveRequestContext RequestContext reqCtx) {
+    public static void onExit(@Advice.Return final Map<String, String[]> parameters) {
       if (parameters == null || parameters.isEmpty()) {
         return;
       }
@@ -217,27 +196,24 @@ public class HttpServletRequestInstrumentation extends InstrumenterModule.Iast
       if (module == null) {
         return;
       }
-      final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+      final TaintedObjects to = IastContext.Provider.taintedObjects();
       for (final Map.Entry<String, String[]> entry : parameters.entrySet()) {
         final String name = entry.getKey();
-        module.taintString(ctx, name, SourceTypes.REQUEST_PARAMETER_NAME, name);
+        module.taintObject(to, name, SourceTypes.REQUEST_PARAMETER_NAME, name);
         final String[] values = entry.getValue();
         if (values != null) {
           for (final String value : entry.getValue()) {
-            module.taintString(ctx, value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
+            module.taintObject(to, value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
           }
         }
       }
     }
   }
 
-  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class GetParameterNamesAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_PARAMETER_NAME)
-    public static void onExit(
-        @Advice.Return(readOnly = false) Enumeration<String> enumeration,
-        @ActiveRequestContext RequestContext reqCtx) {
+    public static void onExit(@Advice.Return(readOnly = false) Enumeration<String> enumeration) {
       if (enumeration == null) {
         return;
       }
@@ -245,20 +221,18 @@ public class HttpServletRequestInstrumentation extends InstrumenterModule.Iast
       if (module == null) {
         return;
       }
-      IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+      final TaintedObjects to = IastContext.Provider.taintedObjects();
       enumeration =
           TaintableEnumeration.wrap(
-              ctx, enumeration, module, SourceTypes.REQUEST_PARAMETER_NAME, true);
+              to, enumeration, module, SourceTypes.REQUEST_PARAMETER_NAME, true);
     }
   }
 
-  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class GetCookiesAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_COOKIE_VALUE)
-    public static void onExit(
-        @Advice.Return final Cookie[] cookies, @ActiveRequestContext RequestContext reqCtx) {
+    public static void onExit(@Advice.Return final Cookie[] cookies) {
       if (cookies == null || cookies.length == 0) {
         return;
       }
@@ -266,19 +240,17 @@ public class HttpServletRequestInstrumentation extends InstrumenterModule.Iast
       if (module == null) {
         return;
       }
-      final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+      final TaintedObjects to = IastContext.Provider.taintedObjects();
       for (final Cookie cookie : cookies) {
-        module.taintObject(ctx, cookie, SourceTypes.REQUEST_COOKIE_VALUE);
+        module.taintObject(to, cookie, SourceTypes.REQUEST_COOKIE_VALUE);
       }
     }
   }
 
-  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class GetQueryStringAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_QUERY)
-    public static void onExit(
-        @Advice.Return final String queryString, @ActiveRequestContext RequestContext reqCtx) {
+    public static void onExit(@Advice.Return final String queryString) {
       if (queryString == null) {
         return;
       }
@@ -286,17 +258,15 @@ public class HttpServletRequestInstrumentation extends InstrumenterModule.Iast
       if (module == null) {
         return;
       }
-      IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-      module.taintString(ctx, queryString, SourceTypes.REQUEST_QUERY);
+      final TaintedObjects to = IastContext.Provider.taintedObjects();
+      module.taintObject(to, queryString, SourceTypes.REQUEST_QUERY);
     }
   }
 
-  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class GetBodyAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_BODY)
-    public static void onExit(
-        @Advice.Return final Object body, @ActiveRequestContext RequestContext reqCtx) {
+    public static void onExit(@Advice.Return final Object body) {
       if (body == null) {
         return;
       }
@@ -304,8 +274,8 @@ public class HttpServletRequestInstrumentation extends InstrumenterModule.Iast
       if (module == null) {
         return;
       }
-      IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-      module.taintObject(ctx, body, SourceTypes.REQUEST_BODY);
+      final TaintedObjects to = IastContext.Provider.taintedObjects();
+      module.taintObject(to, body, SourceTypes.REQUEST_BODY);
     }
   }
 

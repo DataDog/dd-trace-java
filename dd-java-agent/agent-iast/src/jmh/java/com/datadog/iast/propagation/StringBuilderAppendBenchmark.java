@@ -3,7 +3,7 @@ package com.datadog.iast.propagation;
 import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
 
 import com.datadog.iast.IastRequestContext;
-import com.datadog.iast.model.Range;
+import com.datadog.iast.model.RangeImpl;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.instrumentation.java.lang.StringBuilderCallSite;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -17,14 +17,14 @@ public class StringBuilderAppendBenchmark
     final IastRequestContext context = new IastRequestContext();
     final String notTainted = notTainted("I am not a tainted string");
     final String tainted =
-        tainted(context, "I am a tainted string", new Range(5, 6, source(), NOT_MARKED));
+        tainted(context, "I am a tainted string", new RangeImpl(5, 6, source(), NOT_MARKED));
     final StringBuilder notTaintedBuilder =
         notTainted(new StringBuilder("I am not a tainted string builder"));
     final StringBuilder taintedBuilder =
         tainted(
             context,
             new StringBuilder("I am a tainted string builder"),
-            new Range(5, 6, source(), NOT_MARKED));
+            new RangeImpl(5, 6, source(), NOT_MARKED));
     return new Context(context, notTainted, tainted, notTaintedBuilder, taintedBuilder);
   }
 

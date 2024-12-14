@@ -1,6 +1,6 @@
 package com.datadog.iast.taint
 
-
+import datadog.trace.api.iast.taint.TaintedObjects
 import datadog.trace.test.util.DDSpecification
 
 class TaintedsTest extends DDSpecification {
