@@ -46,7 +46,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
 
   @Shared
   private Map<String, String> jdbcUrls = [
-    "postgresql" : "jdbc:postgresql://localhost:5432/" + dbName.get("postgresql"),
+    (POSTGRESQL) : "jdbc:postgresql://localhost:5432/" + dbName.get("postgresql"),
     "mysql"      : "jdbc:mysql://localhost:3306/" + dbName.get("mysql"),
     "sqlserver"  : "jdbc:sqlserver://localhost:1433/" + dbName.get("sqlserver"),
   ]
