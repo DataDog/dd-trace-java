@@ -1,5 +1,6 @@
 ext {
   minVersionForTests = JavaVersion.VERSION_11
+  latestDepTestMinVersionForTests = JavaVersion.VERSION_17
 }
 muzzle {
   pass {
@@ -22,7 +23,7 @@ apply from: "${rootDir}/gradle/java.gradle"
 addTestSuite('latestDepTest')
 addTestSuiteForDir('cxf3LatestDepTest', 'test')
 
-[compileLatestDepTestJava, compileCxf3LatestDepTestJava].each {
+[compileCxf3LatestDepTestJava].each {
   it.configure {
     setJavaVersion(it, 11)
     sourceCompatibility = JavaVersion.VERSION_1_8
@@ -30,7 +31,21 @@ addTestSuiteForDir('cxf3LatestDepTest', 'test')
   }
 }
 
-[compileLatestDepTestGroovy, latestDepTest, compileCxf3LatestDepTestGroovy, cxf3LatestDepTest].each {
+[compileLatestDepTestJava].each {
+  it.configure {
+    setJavaVersion(it, 17)
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+  }
+}
+
+[compileLatestDepTestGroovy, latestDepTest].each {
+  it.configure {
+    javaLauncher = getJavaLauncherFor(17)
+  }
+}
+
+[compileCxf3LatestDepTestGroovy, cxf3LatestDepTest].each {
   it.configure {
     javaLauncher = getJavaLauncherFor(11)
   }
@@ -50,6 +65,7 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:jetty-7.6')
   testRuntimeOnly project(':dd-java-agent:instrumentation:jetty-9')
   testRuntimeOnly project(':dd-java-agent:instrumentation:jetty-11')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:jetty-12')
   testRuntimeOnly project(':dd-java-agent:instrumentation:trace-annotation')
   testRuntimeOnly project(':dd-java-agent:instrumentation:jax-rs-annotations-2')
   testRuntimeOnly project(':dd-java-agent:instrumentation:jakarta-rs-annotations-3')
