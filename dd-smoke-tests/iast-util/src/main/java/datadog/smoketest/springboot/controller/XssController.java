@@ -215,7 +215,7 @@ public class XssController {
     }
   }
 
-  @GetMapping("/validate2")
+  @GetMapping("/validateAll2")
   @SuppressFBWarnings
   public void validate2(final HttpServletRequest request, final HttpServletResponse response) {
     try {

@@ -1220,7 +1220,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     method         |  _
     'sanitize'        | _
     'validateAll'       | _
-    'validate2'     | _
+    'validateAll2'     | _
     'validate'     | _
   }
 
