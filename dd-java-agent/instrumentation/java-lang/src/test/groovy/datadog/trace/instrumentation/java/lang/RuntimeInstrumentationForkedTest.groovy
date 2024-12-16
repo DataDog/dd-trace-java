@@ -73,9 +73,9 @@ class RuntimeInstrumentationForkedTest extends AgentTestRunner{
     ['$(cat /etc/passwd 1>&2 ; echo .)']                                     | 0            | 1
     ['$(cat /etc/passwd 1>&2 ; echo .)', ['test'] as String[]]               | 0            | 1
     ['$(cat /etc/passwd 1>&2 ; echo .)', ['test'] as String[], new File('')] | 0            | 1
-    [['/bin/evilCommand'] as String[]]                                       | 1            | 0
-    [['/bin/evilCommand'] as String[], ['test'] as String[]]                 | 1            | 0
-    [['/bin/evilCommand'] as String[], ['test'] as String[], new File('')]   | 1            | 0
+    [['/bin/../usr/bin/reboot', '-f'] as String[]]                                       | 1            | 0
+    [['/bin/../usr/bin/reboot', '-f'] as String[], ['test'] as String[]]                 | 1            | 0
+    [['/bin/../usr/bin/reboot', '-f'] as String[], ['test'] as String[], new File('')]   | 1            | 0
   }
 
   void 'test shiCheck reset'() {
@@ -100,7 +100,7 @@ class RuntimeInstrumentationForkedTest extends AgentTestRunner{
 
     when:
     try {
-      Runtime.getRuntime().exec(['/bin/evilCommand'] as String[])
+      Runtime.getRuntime().exec(['/bin/../usr/bin/reboot', '-f'] as String[])
     }catch (Exception e){
       // ignore
     }
