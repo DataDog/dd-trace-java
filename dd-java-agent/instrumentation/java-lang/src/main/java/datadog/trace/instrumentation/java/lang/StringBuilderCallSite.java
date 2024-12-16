@@ -41,6 +41,7 @@ public class StringBuilderCallSite {
   @CallSite.After("java.lang.StringBuilder java.lang.StringBuilder.append(java.lang.StringBuffer)")
   @CallSite.After("java.lang.StringBuffer java.lang.StringBuffer.append(java.lang.String)")
   @CallSite.After("java.lang.StringBuffer java.lang.StringBuffer.append(java.lang.CharSequence)")
+  @CallSite.After("java.lang.StringBuffer java.lang.StringBuffer.append(java.lang.StringBuffer)")
   @Nonnull
   public static CharSequence afterAppend(
       @CallSite.This @Nonnull final CharSequence self,
@@ -59,6 +60,8 @@ public class StringBuilderCallSite {
 
   @CallSite.After(
       "java.lang.StringBuilder java.lang.StringBuilder.append(java.lang.CharSequence, int, int)")
+  @CallSite.After(
+      "java.lang.StringBuffer java.lang.StringBuffer.append(java.lang.CharSequence, int, int)")
   @Nonnull
   public static CharSequence afterAppendWithSubstring(
       @CallSite.This @Nonnull final CharSequence self,
