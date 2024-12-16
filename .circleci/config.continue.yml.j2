@@ -273,6 +273,12 @@ commands:
             git fetch origin << parameters.systemTestsCommit >>
             git reset --hard FETCH_HEAD
 
+      - run:
+          name: Install dependencies
+          command: |
+            sudo apt-get update
+            sudo apt-get install -y python3.12-venv
+
 jobs:
   build:
     <<: *defaults
