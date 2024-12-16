@@ -1,55 +1,5 @@
 package datadog.trace.agent.test.base
 
-import ch.qos.logback.classic.Level
-import datadog.appsec.api.blocking.Blocking
-import datadog.appsec.api.blocking.BlockingContentType
-import datadog.appsec.api.blocking.BlockingDetails
-import datadog.appsec.api.blocking.BlockingException
-import datadog.appsec.api.blocking.BlockingService
-import datadog.trace.agent.test.asserts.TraceAssert
-import datadog.trace.agent.test.utils.OkHttpUtils
-import datadog.trace.api.Config
-import datadog.trace.api.DDSpanTypes
-import datadog.trace.api.DDTags
-import datadog.trace.api.ProductActivation
-import datadog.trace.api.config.GeneralConfig
-import datadog.trace.api.config.TracerConfig
-import datadog.trace.api.env.CapturedEnvironment
-import datadog.trace.api.function.TriConsumer
-import datadog.trace.api.function.TriFunction
-import datadog.trace.api.gateway.BlockResponseFunction
-import datadog.trace.api.gateway.Events
-import datadog.trace.api.gateway.Flow
-import datadog.trace.api.gateway.IGSpanInfo
-import datadog.trace.api.gateway.RequestContext
-import datadog.trace.api.gateway.RequestContextSlot
-import datadog.trace.api.http.StoredBodySupplier
-import datadog.trace.api.iast.IastContext
-import datadog.trace.api.normalize.SimpleHttpPathNormalizer
-import datadog.trace.bootstrap.blocking.BlockingActionHelper
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer
-import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
-import datadog.trace.bootstrap.instrumentation.api.URIUtils
-import datadog.trace.core.DDSpan
-import datadog.trace.core.datastreams.StatsGroup
-import datadog.trace.test.util.Flaky
-import groovy.transform.Canonical
-import groovy.transform.CompileStatic
-import okhttp3.HttpUrl
-import okhttp3.MediaType
-import okhttp3.MultipartBody
-import okhttp3.Request
-import okhttp3.RequestBody
-import okhttp3.Response
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
-
-import javax.annotation.Nonnull
-import java.util.function.BiFunction
-import java.util.function.Function
-import java.util.function.Supplier
-
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
@@ -88,6 +38,57 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.SERVER_PATHWAY_EDGE_TAGS
 import static java.nio.charset.StandardCharsets.UTF_8
 import static org.junit.Assume.assumeTrue
+
+import ch.qos.logback.classic.Level
+import datadog.appsec.api.blocking.Blocking
+import datadog.appsec.api.blocking.BlockingContentType
+import datadog.appsec.api.blocking.BlockingDetails
+import datadog.appsec.api.blocking.BlockingException
+import datadog.appsec.api.blocking.BlockingService
+import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.utils.OkHttpUtils
+import datadog.trace.api.Config
+import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.DDTags
+import datadog.trace.api.ProductActivation
+import datadog.trace.api.config.GeneralConfig
+import datadog.trace.api.config.TracerConfig
+import datadog.trace.api.env.CapturedEnvironment
+import datadog.trace.api.function.TriConsumer
+import datadog.trace.api.function.TriFunction
+import datadog.trace.api.gateway.BlockResponseFunction
+import datadog.trace.api.gateway.Events
+import datadog.trace.api.gateway.Flow
+import datadog.trace.api.gateway.IGSpanInfo
+import datadog.trace.api.gateway.RequestContext
+import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.api.http.StoredBodySupplier
+import datadog.trace.api.iast.IastContext
+import datadog.trace.api.normalize.SimpleHttpPathNormalizer
+import datadog.trace.bootstrap.blocking.BlockingActionHelper
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
+import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
+import datadog.trace.bootstrap.instrumentation.api.URIUtils
+import datadog.trace.core.DDSpan
+import datadog.trace.core.datastreams.StatsGroup
+import datadog.trace.test.util.Flaky
+import groovy.transform.Canonical
+import groovy.transform.CompileStatic
+import okhttp3.HttpUrl
+import okhttp3.MediaType
+import okhttp3.MultipartBody
+import okhttp3.Request
+import okhttp3.RequestBody
+import okhttp3.Response
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
+
+import javax.annotation.Nonnull
+import java.util.function.BiFunction
+import java.util.function.Function
+import java.util.function.Supplier
 
 abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
@@ -208,9 +209,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   // Only used if hasExtraErrorInformation is true
   Map<String, Serializable> expectedExtraErrorInformation(ServerEndpoint endpoint) {
     if (endpoint.errored) {
-      ["error.message"  : { it == null || it == EXCEPTION.body },
-        "error.type" : { it == null || it == Exception.name },
-        "error.stack": { it == null || it instanceof String }]
+      ["error.message": { it == null || it == EXCEPTION.body },
+        "error.type"   : { it == null || it == Exception.name },
+        "error.stack"  : { it == null || it instanceof String }]
     } else {
       Collections.emptyMap()
     }
@@ -492,8 +493,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
 
     private static final Map<String, ServerEndpoint> PATH_MAP = {
-      Map<String, ServerEndpoint> map = values().collectEntries { [it.path, it]}
-      map.putAll(values().collectEntries { [it.rawPath, it]})
+      Map<String, ServerEndpoint> map = values().collectEntries { [it.path, it] }
+      map.putAll(values().collectEntries { [it.rawPath, it] })
       map
     }.call()
 
@@ -701,9 +702,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
 
     where:
-    method | body | header                           | value | tags
-    'GET'  | null | 'x-datadog-test-both-header'     | 'foo' | [ 'both_header_tag': 'foo' ]
-    'GET'  | null | 'x-datadog-test-request-header'  | 'bar' | [ 'request_header_tag': 'bar' ]
+    method | body | header                          | value | tags
+    'GET'  | null | 'x-datadog-test-both-header'    | 'foo' | ['both_header_tag': 'foo']
+    'GET'  | null | 'x-datadog-test-request-header' | 'bar' | ['request_header_tag': 'bar']
   }
 
   @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/4690", suites = ["MuleHttpServerForkedTest"])
@@ -715,7 +716,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def body = null
     def header = IG_RESPONSE_HEADER
     def mapping = 'mapped_response_header_tag'
-    def tags = ['mapped_response_header_tag': "$IG_RESPONSE_HEADER_VALUE" ]
+    def tags = ['mapped_response_header_tag': "$IG_RESPONSE_HEADER_VALUE"]
 
     injectSysConfig(HTTP_SERVER_TAG_QUERY_STRING, "true")
     injectSysConfig(RESPONSE_HEADER_TAGS, "$header:$mapping")
@@ -798,13 +799,13 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
 
     where:
-    rawQuery | endpoint               | encoded
-    true     | SUCCESS                | false
-    true     | QUERY_PARAM            | false
-    true     | QUERY_ENCODED_QUERY    | true
-    false    | SUCCESS                | false
-    false    | QUERY_PARAM            | false
-    false    | QUERY_ENCODED_QUERY    | true
+    rawQuery | endpoint            | encoded
+    true     | SUCCESS             | false
+    true     | QUERY_PARAM         | false
+    true     | QUERY_ENCODED_QUERY | true
+    false    | SUCCESS             | false
+    false    | QUERY_PARAM         | false
+    false    | QUERY_ENCODED_QUERY | true
 
     method = "GET"
     body = null
@@ -917,7 +918,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
 
     then:
-    DDSpan span = TEST_WRITER.flatten().find {it.operationName =='appsec-span' }
+    DDSpan span = TEST_WRITER.flatten().find { it.operationName == 'appsec-span' }
     span.getTag(IG_PATH_PARAMS_TAG) == expectedIGPathParams()
 
     and:
@@ -1611,7 +1612,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     then:
     TEST_WRITER.waitForTraces(1)
     def trace = TEST_WRITER.get(0)
-    assert trace.find {it.isError() } == null
+    assert trace.find { it.isError() } == null
   }
 
   def 'test blocking of request for path parameters'() {
@@ -1692,7 +1693,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     spans.find { it.tags['appsec.blocked'] == 'true' } != null
     spans.find {
       it.error &&
-      it.tags['error.type'] == BlockingException.name } != null
+      it.tags['error.type'] == BlockingException.name
+    } != null
 
     and:
     if (isDataStreamsEnabled()) {
@@ -1872,7 +1874,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
-    DDSpan span = TEST_WRITER.flatten().find {it.operationName =='appsec-span' }
+    DDSpan span = TEST_WRITER.flatten().find { it.operationName == 'appsec-span' }
     span != null
     final sessionId = span.tags[IG_SESSION_ID_TAG]
     sessionId != null
@@ -1965,6 +1967,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         }
         if (null != expectedServerSpanRoute) {
           "$Tags.HTTP_ROUTE" expectedServerSpanRoute
+        }
+        if (span.getTag(InstrumentationTags.SERVLET_PATH) != null) {
+          assert span.getTag(InstrumentationTags.SERVLET_PATH).toString().startsWith("/")
         }
         if (null != expectedExtraErrorInformation) {
           addTags(expectedExtraErrorInformation)
