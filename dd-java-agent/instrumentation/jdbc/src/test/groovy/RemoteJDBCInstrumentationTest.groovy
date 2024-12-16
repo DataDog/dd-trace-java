@@ -11,6 +11,7 @@ import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.testcontainers.containers.MSSQLServerContainer
 import org.testcontainers.containers.MySQLContainer
+import org.testcontainers.containers.OracleContainer
 import org.testcontainers.containers.PostgreSQLContainer
 import spock.lang.Requires
 import spock.lang.Shared
@@ -23,6 +24,7 @@ import java.sql.PreparedStatement
 import java.sql.ResultSet
 import java.sql.Statement
 import java.sql.Types
+import java.time.Duration
 import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
@@ -42,39 +44,40 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
   private Map<String, String> dbName = [
     (POSTGRESQL): "jdbcUnitTest",
     (MYSQL)     : "jdbcUnitTest",
-    (SQLSERVER) : "master"
+    (SQLSERVER) : "master",
+    (ORACLE) : "XE",
   ]
 
   @Shared
   private Map<String, String> jdbcUrls = [
-    POSTGRESQL : "jdbc:postgresql://localhost:5432/" + dbName.get(POSTGRESQL),
-    MYSQL      : "jdbc:mysql://localhost:3306/" + dbName.get(MYSQL),
-    SQLSERVER  : "jdbc:sqlserver://localhost:1433/" + dbName.get(SQLSERVER),
-    ORACLE     : "jdbc:oracle://localhost:1521/" + dbName.get(ORACLE),
+    (POSTGRESQL) : "jdbc:postgresql://localhost:5432/" + dbName.get(POSTGRESQL),
+    (MYSQL)      : "jdbc:mysql://localhost:3306/" + dbName.get(MYSQL),
+    (SQLSERVER)  : "jdbc:sqlserver://localhost:1433/" + dbName.get(SQLSERVER),
+    (ORACLE)  : "jdbc:oracle:thin:@//localhost:1521/" + dbName.get(ORACLE),
   ]
 
   @Shared
   private Map<String, String> jdbcDriverClassNames = [
-    POSTGRESQL: "org.postgresql.Driver",
-    MYSQL:      "com.mysql.jdbc.Driver",
-    SQLSERVER : "com.microsoft.sqlserver.jdbc.SQLServerDriver",
-    ORACLE:     "oracle.jdbc.OracleDriver",
+    (POSTGRESQL): "org.postgresql.Driver",
+    (MYSQL)     : "com.mysql.jdbc.Driver",
+    (SQLSERVER) : "com.microsoft.sqlserver.jdbc.SQLServerDriver",
+    (ORACLE) : "oracle.jdbc.OracleDriver",
   ]
 
   @Shared
   private Map<String, String> jdbcUserNames = [
-    POSTGRESQL: "sa",
-    MYSQL     : "sa",
-    SQLSERVER : "sa",
-    ORACLE    : "system",
+    (POSTGRESQL): "sa",
+    (MYSQL)     : "sa",
+    (SQLSERVER)  : "sa",
+    (ORACLE)  : "system",
   ]
 
   @Shared
   private Map<String, String> jdbcPasswords = [
-    MYSQL     : "sa",
-    POSTGRESQL: "sa",
-    SQLSERVER : "Datad0g_",
-    ORACLE: "manager",
+    (MYSQL)     : "sa",
+    (POSTGRESQL): "sa",
+    (SQLSERVER) : "Datad0g_",
+    (ORACLE) : "manager",
   ]
 
   @Shared
@@ -195,6 +198,12 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     sqlserver.start()
     PortUtils.waitForPortToOpen(sqlserver.getHost(), sqlserver.getMappedPort(MSSQLServerContainer.MS_SQL_SERVER_PORT), 5, TimeUnit.SECONDS)
     jdbcUrls.put(SQLSERVER, "${sqlserver.getJdbcUrl()};DatabaseName=${dbName.get(SQLSERVER)}")
+    oracle = new OracleContainer("gvenzl/oracle-xe:21-slim")
+      .withStartupTimeout(Duration.ofMinutes(5))
+      .withDatabaseName("testDB")
+      .withUsername("testUser")
+      .withPassword("testPassword")
+    oracle.start()
 
     prepareConnectionPoolDatasources()
   }
