@@ -13,6 +13,7 @@ import org.testcontainers.containers.MSSQLServerContainer
 import org.testcontainers.containers.MySQLContainer
 import org.testcontainers.containers.OracleContainer
 import org.testcontainers.containers.PostgreSQLContainer
+import org.testcontainers.utility.DockerImageName
 import spock.lang.Requires
 import spock.lang.Shared
 
@@ -198,12 +199,13 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     sqlserver.start()
     PortUtils.waitForPortToOpen(sqlserver.getHost(), sqlserver.getMappedPort(MSSQLServerContainer.MS_SQL_SERVER_PORT), 5, TimeUnit.SECONDS)
     jdbcUrls.put(SQLSERVER, "${sqlserver.getJdbcUrl()};DatabaseName=${dbName.get(SQLSERVER)}")
-    oracle = new OracleContainer("gvenzl/oracle-xe:21-slim")
+    DockerImageName oracleImage = DockerImageName.parse("gvenzl/oracle-free:23.5-slim-faststart").asCompatibleSubstituteFor("gvenzl/oracle-xe")
+    oracle = new OracleContainer(oracleImage)
       .withStartupTimeout(Duration.ofMinutes(5))
-      .withDatabaseName("testDB")
       .withUsername("testUser")
       .withPassword("testPassword")
     oracle.start()
+    jdbcUrls.put(ORACLE, "${oracle.getJdbcUrl()}")
 
     prepareConnectionPoolDatasources()
   }
