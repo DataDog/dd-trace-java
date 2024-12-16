@@ -263,7 +263,7 @@ public class ProcessImplInstrumentationHelpers {
   }
 
   /*
-   Check if there is a cmd injection attempt to block it
+   Check if there is a chell injection attempt to block it
   */
   public static void shiRaspCheck(@Nonnull final String cmd) {
     if (!Config.get().isAppSecRaspEnabled()) {
