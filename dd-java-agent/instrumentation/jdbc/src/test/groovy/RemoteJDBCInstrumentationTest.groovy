@@ -873,15 +873,19 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     MYSQL      | ""          | connectTo(driver, peerConnectionProps(driver))             | "CREATE TEMPORARY TABLE s_test_ (id INTEGER not NULL, PRIMARY KEY ( id ))"       | "CREATE"
     POSTGRESQL | ""          | connectTo(driver, peerConnectionProps(driver))             | "CREATE TEMPORARY TABLE s_test (id INTEGER not NULL, PRIMARY KEY ( id ))"        | "CREATE"
     SQLSERVER  | ""          | connectTo(driver, peerConnectionProps(driver))             | "CREATE TABLE #s_test_ (id INTEGER not NULL, PRIMARY KEY ( id ))"                | "CREATE"
+    ORACLE     | ""          | connectTo(driver, peerConnectionProps(driver))             | "CREATE GLOBAL TEMPORARY TABLE s_test (id INTEGER not NULL, PRIMARY KEY ( id ))"        | "CREATE"
     MYSQL      | "tomcat"    | cpDatasources.get(conPoolType).get(driver).getConnection() | "CREATE TEMPORARY TABLE s_tomcat_test (id INTEGER not NULL, PRIMARY KEY ( id ))" | "CREATE"
     POSTGRESQL | "tomcat"    | cpDatasources.get(conPoolType).get(driver).getConnection() | "CREATE TEMPORARY TABLE s_tomcat_test (id INTEGER not NULL, PRIMARY KEY ( id ))" | "CREATE"
     SQLSERVER  | "tomcat"    | cpDatasources.get(conPoolType).get(driver).getConnection() | "CREATE TABLE #s_tomcat_test (id INTEGER not NULL, PRIMARY KEY ( id ))"          | "CREATE"
+    ORACLE     | "tomcat"    | cpDatasources.get(conPoolType).get(driver).getConnection() | "CREATE GLOBAL TEMPORARY TABLE s_tomcat_test (id INTEGER not NULL, PRIMARY KEY ( id ))" | "CREATE"
     MYSQL      | "hikari"    | cpDatasources.get(conPoolType).get(driver).getConnection() | "CREATE TEMPORARY TABLE s_hikari_test (id INTEGER not NULL, PRIMARY KEY ( id ))" | "CREATE"
     POSTGRESQL | "hikari"    | cpDatasources.get(conPoolType).get(driver).getConnection() | "CREATE TEMPORARY TABLE s_hikari_test (id INTEGER not NULL, PRIMARY KEY ( id ))" | "CREATE"
     SQLSERVER  | "hikari"    | cpDatasources.get(conPoolType).get(driver).getConnection() | "CREATE TABLE #s_hikari_test (id INTEGER not NULL, PRIMARY KEY ( id ))"          | "CREATE"
+    ORACLE     | "hikari"    | cpDatasources.get(conPoolType).get(driver).getConnection() | "CREATE GLOBAL TEMPORARY TABLE s_hikari_test (id INTEGER not NULL, PRIMARY KEY ( id ))" | "CREATE"
     MYSQL      | "c3p0"      | cpDatasources.get(conPoolType).get(driver).getConnection() | "CREATE TEMPORARY TABLE s_c3p0_test (id INTEGER not NULL, PRIMARY KEY ( id ))"   | "CREATE"
     POSTGRESQL | "c3p0"      | cpDatasources.get(conPoolType).get(driver).getConnection() | "CREATE TEMPORARY TABLE s_c3p0_test (id INTEGER not NULL, PRIMARY KEY ( id ))"   | "CREATE"
     SQLSERVER  | "c3p0"      | cpDatasources.get(conPoolType).get(driver).getConnection() | "CREATE TABLE #s_c3p0_test (id INTEGER not NULL, PRIMARY KEY ( id ))"            | "CREATE"
+    ORACLE     | "c3p0"      | cpDatasources.get(conPoolType).get(driver).getConnection() | "CREATE GLOBAL TEMPORARY TABLE s_c3p0_test (id INTEGER not NULL, PRIMARY KEY ( id ))"   | "CREATE"
   }
 
 
