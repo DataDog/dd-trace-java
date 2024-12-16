@@ -63,13 +63,13 @@ class StringBuilderCallSiteTest extends AgentTestRunner {
     0 * _
 
     where:
-    suite                        | target                      | param                       | expected
-    new TestStringBuilderSuite() | new StringBuilder('Hello ') | 23.5F                       | 'Hello 23.5'
-    new TestStringBuilderSuite() | new StringBuilder('Hello ') | new StringBuffer('World!')  | 'Hello World!'
-    new TestStringBuilderSuite() | new StringBuilder('Hello ') | 'World!'                    | 'Hello World!'
-    new TestStringBufferSuite()  | new StringBuffer('Hello ')  | 23.5F                       | 'Hello 23.5'
-    new TestStringBufferSuite()  | new StringBuffer('Hello ')  | new StringBuilder('World!') | 'Hello World!'
-    new TestStringBufferSuite()  | new StringBuffer('Hello ')  | 'World!'                    | 'Hello World!'
+    suite                        | target        | param         | expected
+    new TestStringBuilderSuite() | sb('Hello ')  | 23.5F         | 'Hello 23.5'
+    new TestStringBuilderSuite() | sb('Hello ')  | sbf('World!') | 'Hello World!'
+    new TestStringBuilderSuite() | sb('Hello ')  | 'World!'      | 'Hello World!'
+    new TestStringBufferSuite()  | sbf('Hello ') | 23.5F         | 'Hello 23.5'
+    new TestStringBufferSuite()  | sbf('Hello ') | sbf('World!') | 'Hello World!'
+    new TestStringBufferSuite()  | sbf('Hello ') | 'World!'      | 'Hello World!'
   }
 
   void 'test string builder append object throwing exceptions'() {
@@ -104,8 +104,9 @@ class StringBuilderCallSiteTest extends AgentTestRunner {
     0 * _
 
     where:
-    suite                        | target                      | param    | start | end | expected
-    new TestStringBuilderSuite() | new StringBuilder('Hello ') | 'World!' | 0     | 5   | 'Hello World'
+    suite                        | target        | param    | start | end | expected
+    new TestStringBuilderSuite() | sb('Hello ')  | 'World!' | 0     | 5   | 'Hello World'
+    new TestStringBufferSuite()  | sbf('Hello ') | 'World!' | 0     | 5   | 'Hello World'
   }
 
   void 'test string builder toString call site'() {
