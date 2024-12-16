@@ -252,7 +252,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     if (!root.isOutbound()) {
       profilingContextIntegration.onRootSpanFinished(root, tracker);
     }
-    TracerDump.suspendRootSpan(root);
   }
 
   /**
@@ -277,7 +276,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     if (!root.isOutbound()) {
       return profilingContextIntegration.onRootSpanStarted(root);
     }
-    TracerDump.addUnfinishedRootSpan(root);
     return null;
   }
 

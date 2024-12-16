@@ -6,10 +6,14 @@ import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
+import datadog.trace.api.flare.TracerFlare;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.core.monitor.HealthMetrics;
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.zip.ZipOutputStream;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.MpscBlockingConsumerArrayQueue;
 import org.slf4j.Logger;
@@ -44,6 +48,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
   }
 
   private static class DelayingPendingTraceBuffer extends PendingTraceBuffer {
+    private static final Logger log = LoggerFactory.getLogger(DelayingPendingTraceBuffer.class);
     private static final long FORCE_SEND_DELAY_MS = TimeUnit.SECONDS.toMillis(5);
     private static final long SEND_DELAY_NS = TimeUnit.MILLISECONDS.toNanos(500);
     private static final long SLEEP_TIME_MS = 100;
@@ -78,6 +83,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
 
     @Override
     public void start() {
+      TracerFlare.addReporter(new TracerDump(this));
       worker.start();
     }
 
@@ -234,6 +240,45 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
               ? new LongRunningTracesTracker(
                   config, bufferSize, sharedCommunicationObjects, healthMetrics)
               : null;
+    }
+
+    static class TracerDump implements TracerFlare.Reporter {
+
+      private final DelayingPendingTraceBuffer buffer;
+
+      public TracerDump(DelayingPendingTraceBuffer buffer) {
+        this.buffer = buffer;
+      }
+
+      @Override
+      public void addReportToFlare(ZipOutputStream zip) throws IOException {
+        TracerFlare.addText(zip, "trace_dump.txt", getDumpText());
+      }
+
+      private String getDumpText() {
+        StringBuilder dumpText = new StringBuilder();
+        try {
+          Element head = buffer.queue.poll(1, TimeUnit.SECONDS);
+          ArrayList<Element> dumpSpans = new ArrayList<>();
+          while (head != null && dumpSpans.size() < 100) { // temp arbitrary limit
+            dumpSpans.add(head);
+            head = buffer.queue.poll();
+          }
+          for (Element e : dumpSpans) {
+            buffer.queue.offer(e);
+            if (e instanceof PendingTrace) {
+              PendingTrace trace = (PendingTrace) e;
+              for (DDSpan span : trace.getSpans()) {
+                dumpText.append(span.toString()).append("\n");
+              }
+            }
+          }
+        } catch (InterruptedException e) {
+          log.error("Error with polling the buffer queue. Buffer: {}", buffer);
+          Thread.currentThread().interrupt();
+        }
+        return dumpText.toString();
+      }
     }
   }
 
