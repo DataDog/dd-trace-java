@@ -597,10 +597,10 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
 
     where:
     endpoint                    | cmd                              | params
-    'arrayCmd'                  | ['/bin/../usr/bin/reboot', '-f']             | null
+    'arrayCmd'                  | ['/bin/../usr/bin/reboot', '-f'] | null
     'arrayCmdWithParams'        | ['/bin/../usr/bin/reboot', '-f'] | ['param']
     'arrayCmdWithParamsAndFile' | ['/bin/../usr/bin/reboot', '-f'] | ['param']
-    'processBuilder'            | ['/bin/../usr/bin/reboot', '-f']             | null
+    'processBuilder'            | ['/bin/../usr/bin/reboot', '-f'] | null
   }
 
   void 'rasp blocks on SHI'() {
