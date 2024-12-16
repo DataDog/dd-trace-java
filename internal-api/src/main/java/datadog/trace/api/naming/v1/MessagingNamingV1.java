@@ -5,6 +5,7 @@ import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 
 public class MessagingNamingV1 implements NamingSchema.ForMessaging {
+  private static final Supplier<String> NULL_SUPPLIER = () -> null;
 
   private String normalizeForCloud(@Nonnull final String messagingSystem) {
     switch (messagingSystem) {
@@ -27,7 +28,7 @@ public class MessagingNamingV1 implements NamingSchema.ForMessaging {
   @Override
   public Supplier<String> outboundService(
       @Nonnull String messagingSystem, boolean useLegacyTracing) {
-    return () -> null;
+    return NULL_SUPPLIER;
   }
 
   @Nonnull
@@ -39,7 +40,7 @@ public class MessagingNamingV1 implements NamingSchema.ForMessaging {
   @Override
   public Supplier<String> inboundService(
       @Nonnull String messagingSystem, boolean useLegacyTracing) {
-    return () -> null;
+    return NULL_SUPPLIER;
   }
 
   @Override
