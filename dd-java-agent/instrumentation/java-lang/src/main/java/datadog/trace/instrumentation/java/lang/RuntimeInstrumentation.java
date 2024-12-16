@@ -10,7 +10,7 @@ import datadog.trace.api.Platform;
 import java.io.File;
 
 @AutoService(InstrumenterModule.class)
-public class RuntimeInstrumentation extends InstrumenterModule.Tracing
+public class RuntimeInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType, Instrumenter.ForBootstrap {
 
   public RuntimeInstrumentation() {
