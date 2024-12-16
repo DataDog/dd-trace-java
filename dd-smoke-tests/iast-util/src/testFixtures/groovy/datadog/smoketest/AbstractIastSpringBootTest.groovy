@@ -1,6 +1,5 @@
 package datadog.smoketest
 
-import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED
 import okhttp3.FormBody
 import okhttp3.MediaType
 import okhttp3.MultipartBody
@@ -8,9 +7,9 @@ import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.Response
 
+import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED
 import static datadog.trace.api.config.IastConfig.IAST_DETECTION_MODE
 import static datadog.trace.api.config.IastConfig.IAST_ENABLED
-import static datadog.trace.api.config.IastConfig.IAST_SECURITY_CONTROLS_ENABLED
 import static datadog.trace.api.config.IastConfig.IAST_SECURITY_CONTROLS_CONFIGURATION
 
 abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
