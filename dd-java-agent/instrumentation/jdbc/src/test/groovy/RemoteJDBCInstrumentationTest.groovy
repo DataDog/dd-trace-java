@@ -70,7 +70,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     (POSTGRESQL): "sa",
     (MYSQL)     : "sa",
     (SQLSERVER)  : "sa",
-    (ORACLE)  : "system",
+    (ORACLE)  : "testuser",
   ]
 
   @Shared
@@ -78,7 +78,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     (MYSQL)     : "sa",
     (POSTGRESQL): "sa",
     (SQLSERVER) : "Datad0g_",
-    (ORACLE) : "manager",
+    (ORACLE) : "testPassword",
   ]
 
   @Shared
@@ -199,13 +199,13 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     sqlserver.start()
     PortUtils.waitForPortToOpen(sqlserver.getHost(), sqlserver.getMappedPort(MSSQLServerContainer.MS_SQL_SERVER_PORT), 5, TimeUnit.SECONDS)
     jdbcUrls.put(SQLSERVER, "${sqlserver.getJdbcUrl()};DatabaseName=${dbName.get(SQLSERVER)}")
+
+    // Earlier Oracle version images (oracle-xe) don't work on arm64
     DockerImageName oracleImage = DockerImageName.parse("gvenzl/oracle-free:23.5-slim-faststart").asCompatibleSubstituteFor("gvenzl/oracle-xe")
     oracle = new OracleContainer(oracleImage)
-      .withStartupTimeout(Duration.ofMinutes(5))
-      .withUsername("testUser")
-      .withPassword("testPassword")
+      .withStartupTimeout(Duration.ofMinutes(5)).withUsername(jdbcUserNames.get(ORACLE)).withPassword(jdbcPasswords.get(ORACLE))
     oracle.start()
-    jdbcUrls.put(ORACLE, "${oracle.getJdbcUrl()}")
+    jdbcUrls.put(ORACLE, "${oracle.getJdbcUrl()}".replace("xepdb1", "freepdb1"))
 
     prepareConnectionPoolDatasources()
   }
