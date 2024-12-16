@@ -19,6 +19,7 @@ class JsonParserInstrumentationTest extends AgentTestRunner {
 
   void 'test json parsing (tainted)'() {
     given:
+    final target = JSON_STRING
     final source = new SourceImpl(origin: SourceTypes.REQUEST_BODY, name: 'body', value: JSON_STRING)
     final module = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(module)
@@ -37,13 +38,11 @@ class JsonParserInstrumentationTest extends AgentTestRunner {
     1 * module.taintString(_, 'array_0', source.origin, _, JSON_STRING)
     1 * module.taintString(_, 'array_1', source.origin, _, JSON_STRING)
     0 * _
-
-    where:
-    target << [JSON_STRING]
   }
 
   void 'test json parsing (tainted but field names)'() {
     given:
+    final target = new ByteArrayInputStream(JSON_STRING.getBytes(Charset.defaultCharset()))
     final source = new SourceImpl(origin: SourceTypes.REQUEST_BODY, name: 'body', value: JSON_STRING)
     final module = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(module)
@@ -62,12 +61,9 @@ class JsonParserInstrumentationTest extends AgentTestRunner {
     1 * module.taintString(_, 'array_0', source.origin, _, JSON_STRING)
     1 * module.taintString(_, 'array_1', source.origin, _, JSON_STRING)
     0 * _
-
-    where:
-    target << [new ByteArrayInputStream(JSON_STRING.getBytes(Charset.defaultCharset()))]
   }
 
-  void 'test json parsing (not tainted)'() {
+  void 'test json parsing (not tainted) #iterationIndex'() {
     given:
     final module = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(module)

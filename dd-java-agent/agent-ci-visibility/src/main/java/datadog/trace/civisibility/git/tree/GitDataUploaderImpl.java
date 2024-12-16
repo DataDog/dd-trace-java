@@ -5,6 +5,7 @@ import datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
+import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.civisibility.utils.FileUtils;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
 import datadog.trace.util.AgentThreadFactory;
@@ -164,7 +165,11 @@ public class GitDataUploaderImpl implements GitDataUploader {
       callback.complete(null);
 
     } catch (Exception e) {
-      LOGGER.error("Failed to upload git tree data for remote {}", remoteName, e);
+      LOGGER.error(
+          LogCollector.EXCLUDE_TELEMETRY,
+          "Failed to upload git tree data for remote {}",
+          remoteName,
+          e);
       callback.completeExceptionally(e);
     } finally {
       removeShutdownHook();

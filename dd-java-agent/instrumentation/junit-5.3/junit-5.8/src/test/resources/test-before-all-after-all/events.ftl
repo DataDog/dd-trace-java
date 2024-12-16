@@ -16,6 +16,7 @@
       "_dd.trace_span_attribute_schema" : 0
     },
     "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid},
       "test.type" : "test",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "test.status" : "pass",
@@ -46,9 +47,10 @@
     "duration" : ${content_duration_2},
     "error" : 0,
     "metrics" : {
-      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count}
+      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_2}
     },
     "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_2},
       "test.type" : "test",
       "test.module" : "junit-5.8",
       "test.status" : "pass",
@@ -76,9 +78,12 @@
     "duration" : ${content_duration_3},
     "error" : 0,
     "metrics" : {
-      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count}
+      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_3},
+      "test.source.end" : 19,
+      "test.source.start" : 11
     },
     "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_3},
       "test.type" : "test",
       "test.source.file" : "dummy_source_path",
       "test.module" : "junit-5.8",
@@ -86,6 +91,7 @@
       "test_session.name" : "session-name",
       "env" : "none",
       "dummy_ci_tag" : "dummy_ci_tag_value",
+      "test.codeowners" : "[\"owner1\",\"owner2\"]",
       "library_version" : ${content_meta_library_version},
       "component" : "junit",
       "span.kind" : "test_suite_end",
@@ -114,7 +120,7 @@
       "process_id" : ${content_metrics_process_id},
       "_dd.profiling.enabled" : 0,
       "_dd.trace_span_attribute_schema" : 0,
-      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count},
+      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_4},
       "test.source.end" : 18,
       "test.source.start" : 12
     },
@@ -125,6 +131,7 @@
       "test.module" : "junit-5.8",
       "test.status" : "pass",
       "language" : "jvm",
+      "test.is_new" : "true",
       "test.codeowners" : "[\"owner1\",\"owner2\"]",
       "library_version" : ${content_meta_library_version},
       "test.name" : "another_test_succeed",
@@ -161,7 +168,7 @@
       "process_id" : ${content_metrics_process_id},
       "_dd.profiling.enabled" : 0,
       "_dd.trace_span_attribute_schema" : 0,
-      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count},
+      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_5},
       "test.source.end" : 18,
       "test.source.start" : 12
     },
@@ -172,6 +179,7 @@
       "test.module" : "junit-5.8",
       "test.status" : "pass",
       "language" : "jvm",
+      "test.is_new" : "true",
       "test.codeowners" : "[\"owner1\",\"owner2\"]",
       "library_version" : ${content_meta_library_version},
       "test.name" : "test_succeed",
@@ -203,6 +211,7 @@
     "error" : 0,
     "metrics" : { },
     "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_4},
       "test.callback" : "BeforeAll",
       "library_version" : ${content_meta_library_version},
       "env" : "none"
@@ -223,6 +232,7 @@
     "error" : 0,
     "metrics" : { },
     "meta" : {
+      "_dd.p.tid" : ${content_meta__dd_p_tid_5},
       "test.callback" : "AfterAll",
       "library_version" : ${content_meta_library_version},
       "env" : "none"

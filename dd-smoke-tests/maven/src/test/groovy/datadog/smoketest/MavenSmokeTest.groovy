@@ -99,6 +99,8 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     "test_failed_maven_run_flaky_retries"               | "3.9.9"              | 8              | 5                 | false         | false         | true         | true           | []                                                             | 8
     "test_successful_maven_run_junit_platform_runner"   | "3.9.9"              | 4              | 0                 | true          | false         | false        | false          | []                                                             | 8
     "test_successful_maven_run_with_arg_line_property"  | "3.9.9"              | 4              | 0                 | true          | false         | false        | false          | ["-DargLine='-Dmy-custom-property=provided-via-command-line'"] | 8
+    "test_successful_maven_run_multiple_forks"          | "3.9.9"              | 5              | 1                 | true          | true          | false        | true           | []                                                             | 8
+    "test_successful_maven_run_multiple_forks"          | LATEST_MAVEN_VERSION | 5              | 1                 | true          | true          | false        | true           | []                                                             | 17
   }
 
   private void givenWrapperPropertiesFile(String mavenVersion) {
@@ -296,7 +298,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
         NodeList versionList = doc.getElementsByTagName("latest")
         if (versionList.getLength() > 0) {
           def version = versionList.item(0).getTextContent()
-          if (!version.contains('alpha') && !version.contains('beta')) {
+          if (!version.contains('alpha') && !version.contains('beta') && !version.contains('rc')) {
             LOGGER.info("Will run the 'latest' tests with version ${version}")
             return version
           }

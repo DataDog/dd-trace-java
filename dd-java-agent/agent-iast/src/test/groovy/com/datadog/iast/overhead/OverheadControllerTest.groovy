@@ -247,7 +247,7 @@ class OverheadControllerTest extends DDSpecification {
     executorService?.shutdown()
   }
 
-  def 'acquireRequest works for max concurrent request per reset'() {
+  def 'acquireRequest never exceeds max concurrent requests even after reset'() {
     setup:
     def taskSchedler = Stub(AgentTaskScheduler)
     injectSysConfig("dd.iast.request-sampling", "100")
@@ -270,7 +270,7 @@ class OverheadControllerTest extends DDSpecification {
     lastAcquired = overheadController.acquireRequest()
 
     then:
-    acquiredValues.every { it == true }
+    acquiredValues.every { it == false }
     !lastAcquired
 
     when:

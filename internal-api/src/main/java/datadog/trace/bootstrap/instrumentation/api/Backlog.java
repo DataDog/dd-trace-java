@@ -18,13 +18,20 @@ public class Backlog implements InboxItem {
     return timestampNanos;
   }
 
+  public String getServiceNameOverride() {
+    return serviceNameOverride;
+  }
+
   private final List<String> sortedTags;
   private final long value;
   private final long timestampNanos;
+  private final String serviceNameOverride;
 
-  public Backlog(List<String> sortedTags, long value, long timestampNanos) {
+  public Backlog(
+      List<String> sortedTags, long value, long timestampNanos, String serviceNameOverride) {
     this.sortedTags = sortedTags;
     this.value = value;
     this.timestampNanos = timestampNanos;
+    this.serviceNameOverride = serviceNameOverride;
   }
 }

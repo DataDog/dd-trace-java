@@ -5,13 +5,14 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.context.TraceScope;
 import datadog.trace.util.AgentThreadFactory;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
-import datadog.trace.util.Strings;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
+import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.slf4j.Logger;
@@ -25,10 +26,17 @@ public class ShellCommandExecutor {
 
   private final File executionFolder;
   private final long timeoutMillis;
+  private final Map<String, String> environment;
 
   public ShellCommandExecutor(File executionFolder, long timeoutMillis) {
+    this(executionFolder, timeoutMillis, Collections.emptyMap());
+  }
+
+  public ShellCommandExecutor(
+      File executionFolder, long timeoutMillis, Map<String, String> environment) {
     this.executionFolder = executionFolder;
     this.timeoutMillis = timeoutMillis;
+    this.environment = environment;
   }
 
   /**
@@ -93,6 +101,10 @@ public class ShellCommandExecutor {
       ProcessBuilder processBuilder = new ProcessBuilder(command);
       processBuilder.directory(executionFolder);
 
+      if (!environment.isEmpty()) {
+        processBuilder.environment().putAll(environment);
+      }
+
       p = processBuilder.start();
 
       StreamConsumer inputStreamConsumer = new StreamConsumer(p.getInputStream());
@@ -124,7 +136,7 @@ public class ShellCommandExecutor {
           throw new ShellCommandFailedException(
               exitValue,
               "Command '"
-                  + Strings.join(" ", command)
+                  + String.join(" ", command)
                   + "' failed with exit code "
                   + exitValue
                   + ": "
@@ -147,7 +159,7 @@ public class ShellCommandExecutor {
         terminate(p);
         throw new TimeoutException(
             "Timeout while waiting for '"
-                + Strings.join(" ", command)
+                + String.join(" ", command)
                 + "'; "
                 + IOUtils.readFully(errorStreamConsumer.read(), Charset.defaultCharset()));
       }

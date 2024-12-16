@@ -2,6 +2,7 @@ package datadog.smoketest.springboot.controller;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonParser;
+import datadog.communication.util.IOUtils;
 import datadog.smoketest.springboot.TestBean;
 import ddtest.client.sources.Hasher;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -11,8 +12,6 @@ import java.io.ObjectInputStream;
 import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
 import java.net.HttpCookie;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.security.Principal;
@@ -251,19 +250,6 @@ public class IastWebController {
     return "ok User Principal name: " + userPrincipal.getName();
   }
 
-  @PostMapping("/ssrf")
-  public String ssrf(
-      @RequestParam(value = "url", required = false) final String url,
-      @RequestParam(value = "host", required = false) final String host) {
-    try {
-      final URL target = url != null ? new URL(url) : new URL("https", host, 443, "/test");
-      final HttpURLConnection conn = (HttpURLConnection) target.openConnection();
-      conn.disconnect();
-    } catch (final Exception e) {
-    }
-    return "ok";
-  }
-
   @GetMapping("/weak_randomness")
   public String weak_randomness(@RequestParam("mode") final Class<?> mode) {
     final double result;
@@ -428,6 +414,11 @@ public class IastWebController {
     return "OK";
   }
 
+  @GetMapping("/test_custom_string_reader")
+  public String testCustomStringReader(@RequestParam("param") String param) throws IOException {
+    return String.join("", IOUtils.readLines(new CustomStringReader(param)));
+  }
+
   private void withProcess(final Operation<Process> op) {
     Process process = null;
     try {
@@ -443,5 +434,16 @@ public class IastWebController {
 
   private interface Operation<E> {
     E run() throws Throwable;
+  }
+
+  public static class CustomStringReader extends StringReader {
+
+    public CustomStringReader(String s) {
+      super(
+          "Super "
+              + s
+              + (new StringReader(
+                  "New_1" + new StringReader("New_2" + new StringReader("New_3" + s)))));
+    }
   }
 }

@@ -8,13 +8,17 @@ import static com.datadog.iast.taint.Tainteds.getTainted;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 
 import com.datadog.iast.model.Range;
+import com.datadog.iast.model.Source;
 import com.datadog.iast.taint.Ranges;
 import com.datadog.iast.taint.TaintedObject;
 import com.datadog.iast.taint.TaintedObjects;
 import com.datadog.iast.util.RangeBuilder;
 import com.datadog.iast.util.Ranged;
+import com.datadog.iast.util.StringUtils;
 import datadog.trace.api.iast.IastContext;
+import datadog.trace.api.iast.Taintable;
 import datadog.trace.api.iast.propagation.StringModule;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Arrays;
 import java.util.Deque;
@@ -125,6 +129,45 @@ public class StringModuleImpl implements StringModule {
   }
 
   @Override
+  public void onStringBuilderAppend(
+      @Nonnull CharSequence builder, @Nullable CharSequence param, int start, int end) {
+    if (!canBeTainted(builder) || !canBeTainted(param)) {
+      return;
+    }
+    if (start < 0 || end > param.length() || start > end) {
+      return;
+    }
+    final IastContext ctx = IastContext.Provider.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    final TaintedObject paramTainted = taintedObjects.get(param);
+    if (paramTainted == null) {
+      return;
+    }
+    // We get the ranges for the new substring that will be appended to the builder
+    final Range[] paramRanges = paramTainted.getRanges();
+    final Range[] newParamRanges = Ranges.forSubstring(start, end - start, paramRanges);
+    if (newParamRanges == null) {
+      return;
+    }
+    final TaintedObject builderTainted = taintedObjects.get(builder);
+    // If the builder is not tainted we must shift the ranges of the parameter
+    // Else we shift the ranges of the parameter and merge with the ranges of the builder
+    final int shift = builder.length() - (end - start);
+    if (builderTainted == null) {
+      final Range[] ranges = new Range[newParamRanges.length];
+      Ranges.copyShift(newParamRanges, ranges, 0, shift);
+      taintedObjects.taint(builder, ranges);
+    } else {
+      final Range[] builderRanges = builderTainted.getRanges();
+      final Range[] ranges = mergeRanges(shift, builderRanges, newParamRanges);
+      builderTainted.setRanges(ranges);
+    }
+  }
+
+  @Override
   public void onStringBuilderToString(
       @Nonnull final CharSequence builder, @Nonnull final String result) {
     if (!canBeTainted(builder) || !canBeTainted(result)) {
@@ -183,7 +226,7 @@ public class StringModuleImpl implements StringModule {
   @Override
   @SuppressFBWarnings("ES_COMPARING_PARAMETER_STRING_WITH_EQ")
   public void onStringSubSequence(
-      @Nonnull String self, int beginIndex, int endIndex, @Nullable CharSequence result) {
+      @Nonnull CharSequence self, int beginIndex, int endIndex, @Nullable CharSequence result) {
     if (self == result || !canBeTainted(result)) {
       return;
     }
@@ -401,7 +444,7 @@ public class StringModuleImpl implements StringModule {
   }
 
   @Override
-  public void onStringConstructor(@Nonnull String self, @Nonnull String result) {
+  public void onStringConstructor(@Nonnull CharSequence self, @Nonnull String result) {
     if (!canBeTainted(self)) {
       return;
     }
@@ -628,6 +671,163 @@ public class StringModuleImpl implements StringModule {
     final Range[] newRanges = Ranges.forIndentation(self, indentation, rangesSelf);
     if (newRanges != null) {
       taintedObjects.taint(result, newRanges);
+    }
+  }
+
+  @Override
+  @SuppressFBWarnings("ES_COMPARING_PARAMETER_STRING_WITH_EQ")
+  public void onStringReplace(
+      @Nonnull String self, char oldChar, char newChar, @Nonnull String result) {
+    if (self == result || !canBeTainted(result)) {
+      return;
+    }
+    final IastContext ctx = IastContext.Provider.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    final TaintedObject taintedSelf = taintedObjects.get(self);
+    if (taintedSelf == null) {
+      return;
+    }
+
+    final Range[] rangesSelf = taintedSelf.getRanges();
+    if (rangesSelf.length == 0) {
+      return;
+    }
+
+    taintedObjects.taint(result, rangesSelf);
+  }
+
+  /** This method is used to make an {@code CallSite.Around} of the {@code String.replace} method */
+  @Override
+  @SuppressFBWarnings("ES_COMPARING_PARAMETER_STRING_WITH_EQ")
+  public String onStringReplace(
+      @Nonnull String self, CharSequence oldCharSeq, CharSequence newCharSeq) {
+    final IastContext ctx = IastContext.Provider.get();
+    if (ctx == null) {
+      return self.replace(oldCharSeq, newCharSeq);
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    final TaintedObject taintedSelf = taintedObjects.get(self);
+    Range[] rangesSelf = new Range[0];
+    if (taintedSelf != null) {
+      rangesSelf = taintedSelf.getRanges();
+    }
+
+    final TaintedObject taintedInput = taintedObjects.get(newCharSeq);
+    Range[] rangesInput = null;
+    if (taintedInput != null) {
+      rangesInput = taintedInput.getRanges();
+    }
+
+    if (rangesSelf.length == 0 && rangesInput == null) {
+      return self.replace(oldCharSeq, newCharSeq);
+    }
+
+    return StringUtils.replaceAndTaint(
+        taintedObjects,
+        self,
+        Pattern.compile((String) oldCharSeq),
+        (String) newCharSeq,
+        rangesSelf,
+        rangesInput,
+        Integer.MAX_VALUE);
+  }
+
+  /**
+   * This method is used to make an {@code CallSite.Around} of the {@code String.replaceFirst} and
+   * {@code String.replaceAll} methods
+   */
+  @Override
+  @SuppressForbidden
+  public String onStringReplace(
+      @Nonnull String self, String regex, String replacement, int numReplacements) {
+    final IastContext ctx = IastContext.Provider.get();
+    if (ctx == null) {
+      if (numReplacements > 1) {
+        return self.replaceAll(regex, replacement);
+      } else {
+        return self.replaceFirst(regex, replacement);
+      }
+    }
+
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    final TaintedObject taintedSelf = taintedObjects.get(self);
+    Range[] rangesSelf = new Range[0];
+    if (taintedSelf != null) {
+      rangesSelf = taintedSelf.getRanges();
+    }
+
+    final TaintedObject taintedInput = taintedObjects.get(replacement);
+    Range[] rangesInput = null;
+    if (taintedInput != null) {
+      rangesInput = taintedInput.getRanges();
+    }
+
+    if (rangesSelf.length == 0 && rangesInput == null) {
+      if (numReplacements > 1) {
+        return self.replaceAll(regex, replacement);
+      } else {
+        return self.replaceFirst(regex, replacement);
+      }
+    }
+
+    return StringUtils.replaceAndTaint(
+        taintedObjects,
+        self,
+        Pattern.compile(regex),
+        replacement,
+        rangesSelf,
+        rangesInput,
+        numReplacements);
+  }
+
+  @Override
+  @SuppressFBWarnings("ES_COMPARING_PARAMETER_STRING_WITH_EQ")
+  public void onStringValueOf(Object param, @Nonnull String result) {
+    if (param == null || !canBeTainted(result)) {
+      return;
+    }
+    final IastContext ctx = IastContext.Provider.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+
+    if (param instanceof Taintable) {
+      final Taintable taintable = (Taintable) param;
+      if (!taintable.$DD$isTainted()) {
+        return;
+      }
+      final Source source = (Source) taintable.$$DD$getSource();
+      final Range[] ranges =
+          Ranges.forCharSequence(
+              result, new Source(source.getOrigin(), source.getName(), source.getValue()));
+
+      taintedObjects.taint(result, ranges);
+    } else {
+      final TaintedObject taintedParam = taintedObjects.get(param);
+      if (taintedParam == null) {
+        return;
+      }
+
+      final Range[] rangesParam = taintedParam.getRanges();
+      if (rangesParam.length == 0) {
+        return;
+      }
+
+      // Special objects like InputStream...
+      if (rangesParam[0].getLength() == Integer.MAX_VALUE) {
+        final Source source = rangesParam[0].getSource();
+        final Range[] ranges =
+            Ranges.forCharSequence(
+                result, new Source(source.getOrigin(), source.getName(), source.getValue()));
+
+        taintedObjects.taint(result, ranges);
+      } else {
+        taintedObjects.taint(result, rangesParam);
+      }
     }
   }
 

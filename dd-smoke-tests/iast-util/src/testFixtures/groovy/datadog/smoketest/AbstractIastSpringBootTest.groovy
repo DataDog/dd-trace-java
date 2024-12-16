@@ -724,6 +724,51 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     'host'    | 'dd.datad0g.com'
   }
 
+  void 'ssrf is present (#path) (#parameter)'() {
+    setup:
+    final url = "http://localhost:${httpPort}/ssrf/${path}"
+    final body = new FormBody.Builder().add(parameter, value).build()
+    final request = new Request.Builder().url(url).post(body).build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul ->
+      if (vul.type != 'SSRF') {
+        return false
+      }
+      final parts = vul.evidence.valueParts
+      if (parameter == 'url') {
+        return parts.size() == 1
+        && parts[0].value == value && parts[0].source.origin == 'http.request.parameter' && parts[0].source.name == parameter
+      } else if (parameter == 'host') {
+        String protocol = protocolSecure ? 'https://' : 'http://'
+        String finalValue = protocol + value + (endSlash ? '/' : '')
+        return parts[0].value.endsWith(finalValue) && parts[0].source.origin == 'http.request.parameter' && parts[0].source.name == parameter
+      } else if (parameter == 'urlProducer' || parameter == 'urlHandler') {
+        return parts.size() == 1
+        && parts[0].value.endsWith(value) && parts[0].source.origin == 'http.request.parameter' && parts[0].source.name == parameter
+      } else {
+        throw new IllegalArgumentException("Parameter $parameter not supported")
+      }
+    }
+
+    where:
+    path                     | parameter     | value                     | protocolSecure | endSlash
+    "apache-httpclient4"     | "url"         | "https://dd.datad0g.com/" | true           | true
+    "apache-httpclient4"     | "host"        | "dd.datad0g.com"          | false          | false
+    "apache-httpasyncclient" | "url"         | "https://dd.datad0g.com/" | true           | true
+    "apache-httpasyncclient" | "urlProducer" | "https://dd.datad0g.com/" | true           | true
+    "apache-httpasyncclient" | "host"        | "dd.datad0g.com"          | false          | false
+    "apache-httpclient5"     | "url"         | "https://dd.datad0g.com/" | true           | true
+    "apache-httpclient5"     | "urlHandler"  | "https://dd.datad0g.com/" | true           | true
+    "apache-httpclient5"     | "host"        | "dd.datad0g.com"          | false          | true
+    "commons-httpclient2"    | "url"         | "https://dd.datad0g.com/" | true           | true
+    "okHttp2"                | "url"         | "https://dd.datad0g.com/" | true           | true
+    "okHttp3"                | "url"         | "https://dd.datad0g.com/" | true           | true
+  }
+
   void 'test iast metrics stored in spans'() {
     setup:
     final url = "http://localhost:${httpPort}/cmdi/runtime?cmd=ls"
@@ -1147,5 +1192,16 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     hasVulnerability { vul -> vul.type == 'UNTRUSTED_DESERIALIZATION' }
   }
 
+  void 'test custom string reader'() {
+    setup:
+    final url = "http://localhost:${httpPort}/test_custom_string_reader?param=Test"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    final response = client.newCall(request).execute()
+
+    then:
+    response.body().string().contains("Test")
+  }
 
 }

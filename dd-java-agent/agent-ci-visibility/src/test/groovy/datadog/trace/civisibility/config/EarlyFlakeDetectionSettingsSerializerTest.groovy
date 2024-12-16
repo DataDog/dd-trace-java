@@ -6,7 +6,7 @@ import spock.lang.Specification
 
 class EarlyFlakeDetectionSettingsSerializerTest extends Specification {
 
-  def "test serialization: #settings"() {
+  def "test serialization: #iterationIndex"() {
     when:
     Serializer s = new Serializer()
     EarlyFlakeDetectionSettingsSerializer.serialize(s, settings)

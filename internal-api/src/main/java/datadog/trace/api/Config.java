@@ -58,6 +58,7 @@ import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -171,11 +172,13 @@ public class Config {
   private final boolean dbClientSplitByInstanceTypeSuffix;
   private final boolean dbClientSplitByHost;
   private final Set<String> splitByTags;
+  private final boolean jeeSplitByDeployment;
   private final int scopeDepthLimit;
   private final boolean scopeStrictMode;
-  private final boolean scopeInheritAsyncPropagation;
   private final int scopeIterationKeepAlive;
   private final int partialFlushMinSpans;
+  private final int traceKeepLatencyThreshold;
+  private final boolean traceKeepLatencyThresholdEnabled;
   private final boolean traceStrictWritesEnabled;
   private final boolean logExtractHeaderNames;
   private final Set<PropagationStyle> propagationStylesToExtract;
@@ -303,6 +306,7 @@ public class Config {
   private final boolean iastSourceMappingEnabled;
   private final int iastSourceMappingMaxSize;
   private final boolean iastStackTraceEnabled;
+  private final boolean iastExperimentalPropagationEnabled;
 
   private final boolean ciVisibilityTraceSanitationEnabled;
   private final boolean ciVisibilityAgentlessEnabled;
@@ -359,6 +363,7 @@ public class Config {
   private final boolean ciVisibilityAutoInjected;
   private final String ciVisibilityRemoteEnvVarsProviderUrl;
   private final String ciVisibilityRemoteEnvVarsProviderKey;
+  private final String ciVisibilityTestOrder;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -371,6 +376,7 @@ public class Config {
   private final int remoteConfigMaxExtraServices;
 
   private final String DBMPropagationMode;
+  private final boolean DBMTracePreparedStatements;
 
   private final boolean debuggerEnabled;
   private final int debuggerUploadTimeout;
@@ -390,10 +396,12 @@ public class Config {
   private final String debuggerRedactedIdentifiers;
   private final Set<String> debuggerRedactionExcludedIdentifiers;
   private final String debuggerRedactedTypes;
+  private final boolean debuggerHoistLocalVarsEnabled;
   private final boolean debuggerSymbolEnabled;
   private final boolean debuggerSymbolForceUpload;
   private final String debuggerSymbolIncludes;
   private final int debuggerSymbolFlushThreshold;
+  private final boolean debuggerSymbolCompressed;
   private final boolean debuggerExceptionEnabled;
   private final int debuggerMaxExceptionPerSecond;
   @Deprecated private final boolean debuggerExceptionOnlyLocalRoot;
@@ -401,16 +409,19 @@ public class Config {
   private final int debuggerExceptionMaxCapturedFrames;
   private final int debuggerExceptionCaptureInterval;
   private final boolean debuggerCodeOriginEnabled;
+  private final int debuggerCodeOriginMaxUserFrames;
 
   private final Set<String> debuggerThirdPartyIncludes;
   private final Set<String> debuggerThirdPartyExcludes;
 
   private final boolean awsPropagationEnabled;
   private final boolean sqsPropagationEnabled;
+  private final boolean sqsBodyPropagationEnabled;
 
   private final boolean kafkaClientPropagationEnabled;
   private final Set<String> kafkaClientPropagationDisabledTopics;
   private final boolean kafkaClientBase64DecodingEnabled;
+
   private final boolean jmsPropagationEnabled;
   private final Set<String> jmsPropagationDisabledTopics;
   private final Set<String> jmsPropagationDisabledQueues;
@@ -521,6 +532,14 @@ public class Config {
   private final String agentlessLogSubmissionLevel;
   private final String agentlessLogSubmissionUrl;
   private final String agentlessLogSubmissionProduct;
+
+  private final Set<String> cloudPayloadTaggingServices;
+  @Nullable private final List<String> cloudRequestPayloadTagging;
+  @Nullable private final List<String> cloudResponsePayloadTagging;
+  private final int cloudPayloadTaggingMaxDepth;
+  private final int cloudPayloadTaggingMaxTags;
+
+  private final long dependecyResolutionPeriodMillis;
 
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
@@ -749,7 +768,7 @@ public class Config {
     requestHeaderTagsCommaAllowed =
         configProvider.getBoolean(REQUEST_HEADER_TAGS_COMMA_ALLOWED, true);
 
-    baggageMapping = configProvider.getMergedMap(BAGGAGE_MAPPING);
+    baggageMapping = configProvider.getMergedMapWithOptionalMappings(null, true, BAGGAGE_MAPPING);
 
     spanAttributeSchemaVersion = schemaVersionFromConfig();
 
@@ -805,7 +824,9 @@ public class Config {
 
     httpClientTagQueryString =
         configProvider.getBoolean(
-            HTTP_CLIENT_TAG_QUERY_STRING, DEFAULT_HTTP_CLIENT_TAG_QUERY_STRING);
+            TRACE_HTTP_CLIENT_TAG_QUERY_STRING,
+            DEFAULT_HTTP_CLIENT_TAG_QUERY_STRING,
+            HTTP_CLIENT_TAG_QUERY_STRING);
 
     httpClientTagHeaders = configProvider.getBoolean(HTTP_CLIENT_TAG_HEADERS, true);
 
@@ -830,7 +851,15 @@ public class Config {
         configProvider.getString(
             DB_DBM_PROPAGATION_MODE_MODE, DEFAULT_DB_DBM_PROPAGATION_MODE_MODE);
 
+    DBMTracePreparedStatements =
+        configProvider.getBoolean(
+            DB_DBM_TRACE_PREPARED_STATEMENTS, DEFAULT_DB_DBM_TRACE_PREPARED_STATEMENTS);
+
     splitByTags = tryMakeImmutableSet(configProvider.getList(SPLIT_BY_TAGS));
+
+    jeeSplitByDeployment =
+        configProvider.getBoolean(
+            EXPERIMENTATAL_JEE_SPLIT_BY_DEPLOYMENT, DEFAULT_EXPERIMENTATAL_JEE_SPLIT_BY_DEPLOYMENT);
 
     springDataRepositoryInterfaceResourceName =
         configProvider.getBoolean(SPRING_DATA_REPOSITORY_INTERFACE_RESOURCE_NAME, true);
@@ -838,8 +867,6 @@ public class Config {
     scopeDepthLimit = configProvider.getInteger(SCOPE_DEPTH_LIMIT, DEFAULT_SCOPE_DEPTH_LIMIT);
 
     scopeStrictMode = configProvider.getBoolean(SCOPE_STRICT_MODE, false);
-
-    scopeInheritAsyncPropagation = configProvider.getBoolean(SCOPE_INHERIT_ASYNC_PROPAGATION, true);
 
     scopeIterationKeepAlive =
         configProvider.getInteger(SCOPE_ITERATION_KEEP_ALIVE, DEFAULT_SCOPE_ITERATION_KEEP_ALIVE);
@@ -849,6 +876,12 @@ public class Config {
         !partialFlushEnabled
             ? 0
             : configProvider.getInteger(PARTIAL_FLUSH_MIN_SPANS, DEFAULT_PARTIAL_FLUSH_MIN_SPANS);
+
+    traceKeepLatencyThreshold =
+        configProvider.getInteger(
+            TRACE_KEEP_LATENCY_THRESHOLD_MS, DEFAULT_TRACE_KEEP_LATENCY_THRESHOLD_MS);
+
+    traceKeepLatencyThresholdEnabled = !partialFlushEnabled && (traceKeepLatencyThreshold > 0);
 
     traceStrictWritesEnabled = configProvider.getBoolean(TRACE_STRICT_WRITES_ENABLED, false);
 
@@ -1295,9 +1328,10 @@ public class Config {
             IAST_ANONYMOUS_CLASSES_ENABLED, DEFAULT_IAST_ANONYMOUS_CLASSES_ENABLED);
     iastSourceMappingEnabled = configProvider.getBoolean(IAST_SOURCE_MAPPING_ENABLED, false);
     iastSourceMappingMaxSize = configProvider.getInteger(IAST_SOURCE_MAPPING_MAX_SIZE, 1000);
-
     iastStackTraceEnabled =
         configProvider.getBoolean(IAST_STACK_TRACE_ENABLED, DEFAULT_IAST_STACK_TRACE_ENABLED);
+    iastExperimentalPropagationEnabled =
+        configProvider.getBoolean(IAST_EXPERIMENTAL_PROPAGATION_ENABLED, false);
 
     ciVisibilityTraceSanitationEnabled =
         configProvider.getBoolean(CIVISIBILITY_TRACE_SANITATION_ENABLED, true);
@@ -1442,6 +1476,7 @@ public class Config {
         configProvider.getString(CIVISIBILITY_REMOTE_ENV_VARS_PROVIDER_URL);
     ciVisibilityRemoteEnvVarsProviderKey =
         configProvider.getString(CIVISIBILITY_REMOTE_ENV_VARS_PROVIDER_KEY);
+    ciVisibilityTestOrder = configProvider.getString(CIVISIBILITY_TEST_ORDER);
 
     remoteConfigEnabled =
         configProvider.getBoolean(
@@ -1504,6 +1539,9 @@ public class Config {
     debuggerRedactionExcludedIdentifiers =
         tryMakeImmutableSet(configProvider.getList(DEBUGGER_REDACTION_EXCLUDED_IDENTIFIERS));
     debuggerRedactedTypes = configProvider.getString(DEBUGGER_REDACTED_TYPES, null);
+    debuggerHoistLocalVarsEnabled =
+        configProvider.getBoolean(
+            DEBUGGER_HOIST_LOCALVARS_ENABLED, DEFAULT_DEBUGGER_HOIST_LOCALVARS_ENABLED);
     debuggerSymbolEnabled =
         configProvider.getBoolean(DEBUGGER_SYMBOL_ENABLED, DEFAULT_DEBUGGER_SYMBOL_ENABLED);
     debuggerSymbolForceUpload =
@@ -1513,6 +1551,8 @@ public class Config {
     debuggerSymbolFlushThreshold =
         configProvider.getInteger(
             DEBUGGER_SYMBOL_FLUSH_THRESHOLD, DEFAULT_DEBUGGER_SYMBOL_FLUSH_THRESHOLD);
+    debuggerSymbolCompressed =
+        configProvider.getBoolean(DEBUGGER_SYMBOL_COMPRESSED, DEFAULT_DEBUGGER_SYMBOL_COMPRESSED);
     debuggerExceptionEnabled =
         configProvider.getBoolean(
             DEBUGGER_EXCEPTION_ENABLED,
@@ -1521,6 +1561,8 @@ public class Config {
     debuggerCodeOriginEnabled =
         configProvider.getBoolean(
             CODE_ORIGIN_FOR_SPANS_ENABLED, DEFAULT_CODE_ORIGIN_FOR_SPANS_ENABLED);
+    debuggerCodeOriginMaxUserFrames =
+        configProvider.getInteger(CODE_ORIGIN_MAX_USER_FRAMES, DEFAULT_CODE_ORIGIN_MAX_USER_FRAMES);
     debuggerMaxExceptionPerSecond =
         configProvider.getInteger(
             DEBUGGER_MAX_EXCEPTION_PER_SECOND, DEFAULT_DEBUGGER_MAX_EXCEPTION_PER_SECOND);
@@ -1546,6 +1588,7 @@ public class Config {
 
     awsPropagationEnabled = isPropagationEnabled(true, "aws", "aws-sdk");
     sqsPropagationEnabled = isPropagationEnabled(true, "sqs");
+    sqsBodyPropagationEnabled = configProvider.getBoolean(SQS_BODY_PROPAGATION_ENABLED, false);
 
     kafkaClientPropagationEnabled = isPropagationEnabled(true, "kafka", "kafka.client");
     kafkaClientPropagationDisabledTopics =
@@ -1751,6 +1794,24 @@ public class Config {
     this.agentlessLogSubmissionUrl =
         configProvider.getString(GeneralConfig.AGENTLESS_LOG_SUBMISSION_URL);
     this.agentlessLogSubmissionProduct = isCiVisibilityEnabled() ? "citest" : "apm";
+
+    this.cloudPayloadTaggingServices =
+        configProvider.getSet(
+            TracerConfig.TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES,
+            ConfigDefaults.DEFAULT_TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES);
+    this.cloudRequestPayloadTagging =
+        configProvider.getList(TracerConfig.TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING, null);
+    this.cloudResponsePayloadTagging =
+        configProvider.getList(TracerConfig.TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING, null);
+    this.cloudPayloadTaggingMaxDepth =
+        configProvider.getInteger(TracerConfig.TRACE_CLOUD_PAYLOAD_TAGGING_MAX_DEPTH, 10);
+    this.cloudPayloadTaggingMaxTags =
+        configProvider.getInteger(TracerConfig.TRACE_CLOUD_PAYLOAD_TAGGING_MAX_TAGS, 758);
+
+    this.dependecyResolutionPeriodMillis =
+        configProvider.getLong(
+            GeneralConfig.TELEMETRY_DEPENDENCY_RESOLUTION_PERIOD_MILLIS,
+            1000); // 1 second by default
 
     timelineEventsEnabled =
         configProvider.getBoolean(
@@ -2031,6 +2092,10 @@ public class Config {
     return splitByTags;
   }
 
+  public boolean isJeeSplitByDeployment() {
+    return jeeSplitByDeployment;
+  }
+
   public int getScopeDepthLimit() {
     return scopeDepthLimit;
   }
@@ -2039,16 +2104,20 @@ public class Config {
     return scopeStrictMode;
   }
 
-  public boolean isScopeInheritAsyncPropagation() {
-    return scopeInheritAsyncPropagation;
-  }
-
   public int getScopeIterationKeepAlive() {
     return scopeIterationKeepAlive;
   }
 
   public int getPartialFlushMinSpans() {
     return partialFlushMinSpans;
+  }
+
+  public int getTraceKeepLatencyThreshold() {
+    return traceKeepLatencyThreshold;
+  }
+
+  public boolean isTraceKeepLatencyThresholdEnabled() {
+    return traceKeepLatencyThresholdEnabled;
   }
 
   public boolean isTraceStrictWritesEnabled() {
@@ -2560,6 +2629,10 @@ public class Config {
     return iastStackTraceEnabled;
   }
 
+  public boolean isIastExperimentalPropagationEnabled() {
+    return iastExperimentalPropagationEnabled;
+  }
+
   public boolean isCiVisibilityEnabled() {
     return instrumenterConfig.isCiVisibilityEnabled();
   }
@@ -2809,6 +2882,10 @@ public class Config {
     return ciVisibilityRemoteEnvVarsProviderKey;
   }
 
+  public String getCiVisibilityTestOrder() {
+    return ciVisibilityTestOrder;
+  }
+
   public String getAppSecRulesFile() {
     return appSecRulesFile;
   }
@@ -2909,12 +2986,12 @@ public class Config {
     return debuggerSymbolForceUpload;
   }
 
-  public String getDebuggerSymbolIncludes() {
-    return debuggerSymbolIncludes;
-  }
-
   public int getDebuggerSymbolFlushThreshold() {
     return debuggerSymbolFlushThreshold;
+  }
+
+  public boolean isDebuggerSymbolCompressed() {
+    return debuggerSymbolCompressed;
   }
 
   public boolean isDebuggerExceptionEnabled() {
@@ -2943,6 +3020,10 @@ public class Config {
 
   public boolean isDebuggerCodeOriginEnabled() {
     return debuggerCodeOriginEnabled;
+  }
+
+  public int getDebuggerCodeOriginMaxUserFrames() {
+    return debuggerCodeOriginMaxUserFrames;
   }
 
   public Set<String> getThirdPartyIncludes() {
@@ -2986,12 +3067,20 @@ public class Config {
     return debuggerRedactedTypes;
   }
 
+  public boolean isDebuggerHoistLocalVarsEnabled() {
+    return debuggerHoistLocalVarsEnabled;
+  }
+
   public boolean isAwsPropagationEnabled() {
     return awsPropagationEnabled;
   }
 
   public boolean isSqsPropagationEnabled() {
     return sqsPropagationEnabled;
+  }
+
+  public boolean isSqsBodyPropagationEnabled() {
+    return sqsBodyPropagationEnabled;
   }
 
   public boolean isKafkaClientPropagationEnabled() {
@@ -3626,6 +3715,14 @@ public class Config {
         Collections.singletonList(settingName), "", settingSuffix, defaultEnabled);
   }
 
+  public long getDependecyResolutionPeriodMillis() {
+    return dependecyResolutionPeriodMillis;
+  }
+
+  public boolean isDBMTracePreparedStatements() {
+    return DBMTracePreparedStatements;
+  }
+
   public String getDBMPropagationMode() {
     return DBMPropagationMode;
   }
@@ -3744,6 +3841,42 @@ public class Config {
 
   public int getAppSecMaxStackTraceDepth() {
     return appSecMaxStackTraceDepth;
+  }
+
+  public boolean isCloudPayloadTaggingEnabledFor(String serviceName) {
+    return cloudPayloadTaggingServices.contains(serviceName);
+  }
+
+  public boolean isCloudPayloadTaggingEnabled() {
+    return isCloudRequestPayloadTaggingEnabled() || isCloudResponsePayloadTaggingEnabled();
+  }
+
+  public List<String> getCloudRequestPayloadTagging() {
+    return cloudRequestPayloadTagging == null
+        ? Collections.emptyList()
+        : cloudRequestPayloadTagging;
+  }
+
+  public boolean isCloudRequestPayloadTaggingEnabled() {
+    return cloudRequestPayloadTagging != null;
+  }
+
+  public List<String> getCloudResponsePayloadTagging() {
+    return cloudResponsePayloadTagging == null
+        ? Collections.emptyList()
+        : cloudResponsePayloadTagging;
+  }
+
+  public boolean isCloudResponsePayloadTaggingEnabled() {
+    return cloudResponsePayloadTagging != null;
+  }
+
+  public int getCloudPayloadTaggingMaxDepth() {
+    return cloudPayloadTaggingMaxDepth;
+  }
+
+  public int getCloudPayloadTaggingMaxTags() {
+    return cloudPayloadTaggingMaxTags;
   }
 
   private <T> Set<T> getSettingsSetFromEnvironment(
@@ -4082,16 +4215,20 @@ public class Config {
         + DBMPropagationMode
         + ", splitByTags="
         + splitByTags
+        + ", jeeSplitByDeployment="
+        + jeeSplitByDeployment
         + ", scopeDepthLimit="
         + scopeDepthLimit
         + ", scopeStrictMode="
         + scopeStrictMode
-        + ", scopeInheritAsyncPropagation="
-        + scopeInheritAsyncPropagation
         + ", scopeIterationKeepAlive="
         + scopeIterationKeepAlive
         + ", partialFlushMinSpans="
         + partialFlushMinSpans
+        + ", traceKeepLatencyThresholdEnabled="
+        + traceKeepLatencyThresholdEnabled
+        + ", traceKeepLatencyThreshold="
+        + traceKeepLatencyThreshold
         + ", traceStrictWritesEnabled="
         + traceStrictWritesEnabled
         + ", tracePropagationStylesToExtract="
@@ -4260,6 +4397,8 @@ public class Config {
         + debuggerSymbolIncludes
         + ", debuggerExceptionEnabled="
         + debuggerExceptionEnabled
+        + ", debuggerCodeOriginEnabled="
+        + debuggerCodeOriginEnabled
         + ", awsPropagationEnabled="
         + awsPropagationEnabled
         + ", sqsPropagationEnabled="
@@ -4394,6 +4533,10 @@ public class Config {
         + dataJobsCommandPattern
         + ", appSecStandaloneEnabled="
         + appSecStandaloneEnabled
+        + ", cloudRequestPayloadTagging="
+        + cloudRequestPayloadTagging
+        + ", cloudResponsePayloadTagging="
+        + cloudResponsePayloadTagging
         + '}';
   }
 }

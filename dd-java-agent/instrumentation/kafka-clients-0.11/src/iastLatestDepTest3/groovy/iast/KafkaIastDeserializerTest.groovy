@@ -1,7 +1,7 @@
 package iast
 
 import com.datadog.iast.propagation.PropagationModuleImpl
-import com.datadog.iast.test.IastAgentTestRunner
+import com.datadog.iast.test.IastRequestTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
 import org.apache.kafka.common.header.internals.RecordHeaders
@@ -16,7 +16,7 @@ import java.nio.ByteBuffer
 import static org.hamcrest.CoreMatchers.instanceOf
 import static org.hamcrest.core.IsEqual.equalTo
 
-class KafkaIastDeserializerTest extends IastAgentTestRunner {
+class KafkaIastDeserializerTest extends IastRequestTestRunner {
 
   private static final int BUFF_OFFSET = 10
 
@@ -31,13 +31,13 @@ class KafkaIastDeserializerTest extends IastAgentTestRunner {
     final deserializer = new StringDeserializer()
 
     when:
-    final span = runUnderIastTrace {
+    runUnderIastTrace {
       deserializer.configure([:], origin == SourceTypes.KAFKA_MESSAGE_KEY)
       test.method.deserialize(deserializer, "test", payload)
     }
 
     then:
-    final to = getTaintedObjectCollection(span)
+    final to = finReqTaintedObjects
     to.hasTaintedObject {
       value('Hello World!')
       range(0, 12, source(origin))
@@ -58,13 +58,13 @@ class KafkaIastDeserializerTest extends IastAgentTestRunner {
     final deserializer = new ByteArrayDeserializer()
 
     when:
-    final span = runUnderIastTrace {
+    runUnderIastTrace {
       deserializer.configure([:], origin == SourceTypes.KAFKA_MESSAGE_KEY)
       test.method.deserialize(deserializer, "test", payload)
     }
 
     then:
-    final to = getTaintedObjectCollection(span)
+    final to = finReqTaintedObjects
     to.hasTaintedObject {
       value(equalTo(payload))
       range(0, Integer.MAX_VALUE, source(origin))
@@ -85,13 +85,13 @@ class KafkaIastDeserializerTest extends IastAgentTestRunner {
     final deserializer = new ByteBufferDeserializer()
 
     when:
-    final span = runUnderIastTrace {
+    runUnderIastTrace {
       deserializer.configure([:], origin == SourceTypes.KAFKA_MESSAGE_KEY)
       test.method.deserialize(deserializer, "test", payload)
     }
 
     then:
-    final to = getTaintedObjectCollection(span)
+    final to = finReqTaintedObjects
     to.hasTaintedObject {
       value(instanceOf(ByteBuffer))
       range(0, Integer.MAX_VALUE, source(origin))
@@ -113,13 +113,13 @@ class KafkaIastDeserializerTest extends IastAgentTestRunner {
     final deserializer = new JsonDeserializer(TestBean)
 
     when:
-    final span = runUnderIastTrace {
+    runUnderIastTrace {
       deserializer.configure([:], origin == SourceTypes.KAFKA_MESSAGE_KEY)
       test.method.deserialize(deserializer, 'test', payload)
     }
 
     then:
-    final to = getTaintedObjectCollection(span)
+    final to = finReqTaintedObjects
     to.hasTaintedObject {
       value(instanceOf(TestBean))
       range(0, Integer.MAX_VALUE, source(origin as byte))

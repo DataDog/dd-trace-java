@@ -1,5 +1,6 @@
 package com.datadog.debugger.uploader;
 
+import static com.datadog.debugger.uploader.BatchUploader.APPLICATION_JSON;
 import static com.datadog.debugger.uploader.BatchUploader.HEADER_DD_API_KEY;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -7,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -119,7 +121,7 @@ public class BatchUploaderTest {
 
     // Shutting down uploader ensures all callbacks are called on http client
     uploader.shutdown();
-    verify(ratelimitedLogger)
+    verify(ratelimitedLogger, atLeastOnce())
         .warn(
             eq("Failed to upload batch to {}"),
             ArgumentMatchers.argThat(arg -> arg.toString().startsWith(url.toString())),
@@ -277,7 +279,8 @@ public class BatchUploaderTest {
   public void testUploadMultiPart() throws InterruptedException {
     server.enqueue(RESPONSE_200);
     uploader.uploadAsMultipart(
-        "", new BatchUploader.MultiPartContent(SNAPSHOT_BUFFER, "file", "file.json"));
+        "",
+        new BatchUploader.MultiPartContent(SNAPSHOT_BUFFER, "file", "file.json", APPLICATION_JSON));
     RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertNotNull(recordedRequest);
     String strBody = recordedRequest.getBody().readUtf8();

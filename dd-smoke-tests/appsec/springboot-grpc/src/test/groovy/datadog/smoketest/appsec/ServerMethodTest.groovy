@@ -15,7 +15,7 @@ class ServerMethodTest extends AbstractSpringBootWithGRPCAppSecTest {
   ProcessBuilder createProcessBuilder() {
     // We run this here to ensure it runs before starting the process. Child setupSpec runs after parent setupSpec,
     // so it is not a valid location.
-    appendRules(customRulesPath, [
+    mergeRules(customRulesPath, [
       [
         id          : '__test_server_method_bock',
         name        : 'test rule to block on server method',

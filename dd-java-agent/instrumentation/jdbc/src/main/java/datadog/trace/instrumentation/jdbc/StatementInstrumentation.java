@@ -56,11 +56,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JDBCDecorator",
-      packageName + ".SQLCommenter",
-      packageName + ".InstrumentationLogger",
-    };
+    return new String[] {packageName + ".JDBCDecorator", packageName + ".SQLCommenter"};
   }
 
   // prepend mode will prepend the SQL comment to the raw sql query
@@ -74,7 +70,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
   }
 
   public static class StatementAdvice {
-    @Advice.OnMethodEnter()
+    @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(
         @Advice.Argument(value = 0, readOnly = false) String sql,
         @Advice.This final Statement statement) {
@@ -107,10 +103,12 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
         if (span != null && INJECT_COMMENT) {
           String traceParent = null;
 
-          if (injectTraceContext && !isSqlServer) {
+          if (injectTraceContext) {
             Integer priority = span.forceSamplingDecision();
             if (priority != null) {
-              traceParent = DECORATE.traceParent(span, priority);
+              if (!isSqlServer) {
+                traceParent = DECORATE.traceParent(span, priority);
+              }
               // set the dbm trace injected tag on the span
               span.setTag(DBM_TRACE_INJECTED, true);
             }
@@ -135,11 +133,6 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
         CallDepthThreadLocalMap.reset(Statement.class);
         // re-throw blocking exceptions
         throw e;
-      } catch (Throwable e) {
-        // suppress anything else
-        InstrumentationLogger.debug(
-            "datadog.trace.instrumentation.jdbc.StatementInstrumentation", statement.getClass(), e);
-        return null;
       }
     }
 

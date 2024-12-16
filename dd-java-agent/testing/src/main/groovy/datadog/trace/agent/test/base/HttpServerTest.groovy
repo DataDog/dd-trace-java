@@ -97,7 +97,11 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     return key + ":" + value
   }
   static {
-    ((ch.qos.logback.classic.Logger) SERVER_LOGGER).setLevel(Level.DEBUG)
+    try {
+      ((ch.qos.logback.classic.Logger) SERVER_LOGGER).setLevel(Level.DEBUG)
+    } catch (Throwable t) {
+      SERVER_LOGGER.warn("Unable to set debug level for server logger", t)
+    }
   }
 
   @Override
@@ -2231,9 +2235,15 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   class IastIGCallbacks {
     static class Context implements IastContext {
+      @Nonnull
       @Override
       <TO> TO getTaintedObjects() {
         throw new UnsupportedOperationException()
+      }
+
+      @Override
+      void close() throws IOException {
+        // ignore
       }
     }
 

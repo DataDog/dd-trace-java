@@ -4,6 +4,7 @@ import static datadog.trace.api.TracePropagationStyle.DATADOG;
 import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT;
 import static java.util.Arrays.asList;
 
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -48,6 +49,7 @@ public final class ConfigDefaults {
   static final String DEFAULT_SITE = "datadoghq.com";
 
   static final boolean DEFAULT_CODE_ORIGIN_FOR_SPANS_ENABLED = false;
+  static final int DEFAULT_CODE_ORIGIN_MAX_USER_FRAMES = 8;
   static final boolean DEFAULT_TRACE_SPAN_ORIGIN_ENRICHED = false;
   static final boolean DEFAULT_TRACE_ENABLED = true;
   public static final boolean DEFAULT_TRACE_OTEL_ENABLED = false;
@@ -56,17 +58,21 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION = true;
   static final boolean DEFAULT_SERIALVERSIONUID_FIELD_INJECTION = true;
 
+  static final boolean DEFAULT_EXPERIMENTATAL_JEE_SPLIT_BY_DEPLOYMENT = false;
   static final boolean DEFAULT_PRIORITY_SAMPLING_ENABLED = true;
   static final String DEFAULT_PRIORITY_SAMPLING_FORCE = null;
   static final boolean DEFAULT_TRACE_RESOLVER_ENABLED = true;
   static final boolean DEFAULT_HTTP_SERVER_TAG_QUERY_STRING = true;
   static final boolean DEFAULT_HTTP_SERVER_ROUTE_BASED_NAMING = true;
-  static final boolean DEFAULT_HTTP_CLIENT_TAG_QUERY_STRING = false;
+  static final boolean DEFAULT_HTTP_CLIENT_TAG_QUERY_STRING = true;
   static final boolean DEFAULT_HTTP_CLIENT_SPLIT_BY_DOMAIN = false;
   static final boolean DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE = false;
   static final boolean DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX = false;
   static final boolean DEFAULT_DB_CLIENT_HOST_SPLIT_BY_HOST = false;
   static final String DEFAULT_DB_DBM_PROPAGATION_MODE_MODE = "disabled";
+  static final boolean DEFAULT_DB_DBM_TRACE_PREPARED_STATEMENTS = false;
+  // Default value is set to 0, it disables the latency trace interceptor
+  static final int DEFAULT_TRACE_KEEP_LATENCY_THRESHOLD_MS = 0;
   static final int DEFAULT_SCOPE_DEPTH_LIMIT = 100;
   static final int DEFAULT_SCOPE_ITERATION_KEEP_ALIVE = 30; // in seconds
   static final int DEFAULT_PARTIAL_FLUSH_MIN_SPANS = 1000;
@@ -139,7 +145,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED = true;
   static final boolean DEFAULT_CIVISIBILITY_AUTO_CONFIGURATION_ENABLED = true;
   static final boolean DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED = true;
-  static final String DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION = "0.2.0";
+  static final String DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION = "0.2.2";
   static final String DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_VERSION = "0.8.12";
   static final String DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES =
       "datadog.trace.*:org.apache.commons.*:org.mockito.*";
@@ -175,9 +181,11 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_DEBUGGER_VERIFY_BYTECODE = true;
   static final boolean DEFAULT_DEBUGGER_INSTRUMENT_THE_WORLD = false;
   static final int DEFAULT_DEBUGGER_CAPTURE_TIMEOUT = 100; // milliseconds
-  static final boolean DEFAULT_DEBUGGER_SYMBOL_ENABLED = false;
+  static final boolean DEFAULT_DEBUGGER_HOIST_LOCALVARS_ENABLED = true;
+  static final boolean DEFAULT_DEBUGGER_SYMBOL_ENABLED = true;
   static final boolean DEFAULT_DEBUGGER_SYMBOL_FORCE_UPLOAD = false;
   static final int DEFAULT_DEBUGGER_SYMBOL_FLUSH_THRESHOLD = 100; // nb of classes
+  static final boolean DEFAULT_DEBUGGER_SYMBOL_COMPRESSED = true;
   static final boolean DEFAULT_DEBUGGER_EXCEPTION_ENABLED = false;
   static final int DEFAULT_DEBUGGER_MAX_EXCEPTION_PER_SECOND = 100;
   static final boolean DEFAULT_DEBUGGER_EXCEPTION_ONLY_LOCAL_ROOT = false;
@@ -240,6 +248,71 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_SPARK_APP_NAME_AS_SERVICE = false;
   static final boolean DEFAULT_JAX_RS_EXCEPTION_AS_ERROR_ENABLED = true;
   static final boolean DEFAULT_TELEMETRY_DEBUG_REQUESTS_ENABLED = false;
+
+  static final Set<String> DEFAULT_TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES =
+      new HashSet<>(
+          Arrays.asList(
+              "ApiGateway", "ApiGatewayV2", "EventBridge", "Sqs", "Sns", "S3", "Kinesis"));
+
+  public static final String DEFAULT_TRACE_CLOUD_PAYLOAD_REQUEST_TAG = "aws.request.body";
+  public static final String DEFAULT_TRACE_CLOUD_PAYLOAD_RESPONSE_TAG = "aws.response.body";
+
+  public static final List<String> DEFAULT_CLOUD_COMMON_PAYLOAD_TAGGING =
+      asList(
+          // Sns
+          "$.Attributes.KmsMasterKeyId",
+          "$.Attributes.Token",
+          // EventBridge (RedactionRulesExtractor.java for eventbridge-2015-10-07)
+          "$.AuthParameters.OAuthParameters.OAuthHttpParameters.HeaderParameters[*].Value",
+          "$.AuthParameters.OAuthParameters.OAuthHttpParameters.QueryStringParameters[*].Value",
+          "$.AuthParameters.OAuthParameters.OAuthHttpParameters.BodyParameters[*].Value",
+          "$.AuthParameters.InvocationHttpParameters.HeaderParameters[*].Value",
+          "$.AuthParameters.InvocationHttpParameters.QueryStringParameters[*].Value",
+          "$.AuthParameters.InvocationHttpParameters.BodyParameters[*].Value",
+          "$.Targets[*].RedshiftDataParameters.Sql",
+          "$.Targets[*].RedshiftDataParameters.Sqls",
+          "$.Targets[*].AppSyncParameters.GraphQLOperation",
+          // S3 (RedactionRulesExtractor.java for s3-2006-03-01)
+          "$.SSEKMSKeyId",
+          "$.SSEKMSEncryptionContext",
+          "$.ServerSideEncryptionConfiguration.Rules[*].ApplyServerSideEncryptionByDefault.KMSMasterKeyID",
+          "$.InventoryConfiguration.Destination.S3BucketDestination.Encryption.SSEKMS.KeyId");
+
+  public static final List<String> DEFAULT_CLOUD_REQUEST_PAYLOAD_TAGGING =
+      asList(
+          // Sns
+          "$.Attributes.PlatformCredential",
+          "$.Attributes.PlatformPrincipal",
+          "$.AWSAccountId",
+          "$.Endpoint",
+          "$.Token",
+          "$.OneTimePassword",
+          // Sns (RedactionRulesExtractor.java for sns-2010-03-31)
+          "$.phoneNumber",
+          "$.PhoneNumber",
+          // EventBridge (RedactionRulesExtractor.java for eventbridge-2015-10-07)
+          "$.AuthParameters.BasicAuthParameters.Password",
+          "$.AuthParameters.OAuthParameters.ClientParameters.ClientSecret",
+          "$.AuthParameters.ApiKeyAuthParameters.ApiKeyValue",
+          // S3 (RedactionRulesExtractor.java for s3-2006-03-01)
+          "$.SSECustomerKey",
+          "$.CopySourceSSECustomerKey",
+          "$.RestoreRequest.OutputLocation.S3.Encryption.KMSKeyId");
+
+  public static final List<String> DEFAULT_CLOUD_RESPONSE_PAYLOAD_TAGGING =
+      asList(
+          // Sns
+          "$.Endpoints.*.Token",
+          "$.PlatformApplication.*.PlatformCredential",
+          "$.PlatformApplication.*.PlatformPrincipal",
+          "$.Subscriptions.*.Endpoint",
+          // Sns (Generated by RedactionRulesExtractor.java for sns-2010-03-31)
+          "$.PhoneNumbers[*].PhoneNumber",
+          "$.phoneNumbers[*]",
+          // S3 (RedactionRulesExtractor.java for s3-2006-03-01)
+          "$.Credentials.SecretAccessKey",
+          "$.Credentials.SessionToken",
+          "$.InventoryConfigurationList[*].Destination.S3BucketDestination.Encryption.SSEKMS.KeyId");
 
   private ConfigDefaults() {}
 }

@@ -50,16 +50,30 @@ public class ProcessHierarchy {
    * not one of the supported build system processes.
    */
   public boolean isHeadless() {
-    return !isChild() && !isParent();
+    return !isChild() && !isParent() && !isWrapper();
   }
 
   private boolean isParent() {
     return isMavenParent() || isGradleDaemon();
   }
 
+  /**
+   * Determines if current process is a wrapper that starts the build system. In other words a
+   * process that is not a build system, and not a JVM that runs tests.
+   */
+  private boolean isWrapper() {
+    // Maven Wrapper runs in the same JVM as Maven itself,
+    // so it is not included here
+    return isGradleLauncher();
+  }
+
   private boolean isMavenParent() {
     return System.getProperty("maven.home") != null
-        && System.getProperty("classworlds.conf") != null;
+            && System.getProperty("classworlds.conf") != null
+        // when using Maven Wrapper
+        || ClassLoader.getSystemClassLoader()
+                .getResource("org/apache/maven/wrapper/WrapperExecutor.class")
+            != null;
   }
 
   private boolean isGradleDaemon() {
@@ -68,6 +82,12 @@ public class ProcessHierarchy {
             != null
         // double-check this is not a Gradle Worker
         && System.getProperties().getProperty("org.gradle.internal.worker.tmpdir") == null;
+  }
+
+  private boolean isGradleLauncher() {
+    ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
+    return contextClassLoader.getResource("org/gradle/launcher/Main.class") != null
+        || contextClassLoader.getResource("org/gradle/launcher/GradleMain.class") != null;
   }
 
   @Nullable

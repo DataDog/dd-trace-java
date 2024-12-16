@@ -14,6 +14,9 @@ import datadog.trace.bootstrap.debugger.DebuggerContext.ClassNameFilter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.util.AgentTaskScheduler;
 import java.time.Duration;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -75,32 +78,42 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
       LOGGER.debug("Unable to fingerprint exception", t);
       return;
     }
-    Throwable innerMostException = ExceptionHelper.getInnerMostThrowable(t);
+    Deque<Throwable> chainedExceptions = new ArrayDeque<>();
+    Throwable innerMostException = ExceptionHelper.getInnerMostThrowable(t, chainedExceptions);
     if (innerMostException == null) {
       LOGGER.debug("Unable to find root cause of exception");
       return;
     }
+    List<Throwable> chainedExceptionsList = new ArrayList<>(chainedExceptions);
     if (exceptionProbeManager.isAlreadyInstrumented(fingerprint)) {
       ThrowableState state = exceptionProbeManager.getStateByThrowable(innerMostException);
       if (state == null) {
         LOGGER.debug("Unable to find state for throwable: {}", innerMostException.toString());
         return;
       }
-      processSnapshotsAndSetTags(t, span, state, innerMostException, fingerprint);
+      processSnapshotsAndSetTags(t, span, state, chainedExceptionsList, fingerprint);
       exceptionProbeManager.updateLastCapture(fingerprint);
     } else {
-      ExceptionProbeManager.CreationResult creationResult =
-          exceptionProbeManager.createProbesForException(innerMostException.getStackTrace());
-      if (creationResult.probesCreated > 0) {
-        AgentTaskScheduler.INSTANCE.execute(() -> applyExceptionConfiguration(fingerprint));
-      } else {
-        if (LOGGER.isDebugEnabled()) {
-          LOGGER.debug(
-              "No probe created, nativeFrames={}, thirdPartyFrames={} for exception: {}",
-              creationResult.nativeFrames,
-              creationResult.thirdPartyFrames,
-              ExceptionHelper.foldExceptionStackTrace(innerMostException));
+      // climb up the exception chain to find the first exception that has instrumented frames
+      Throwable throwable;
+      int chainedExceptionIdx = 0;
+      while ((throwable = chainedExceptions.pollFirst()) != null) {
+        ExceptionProbeManager.CreationResult creationResult =
+            exceptionProbeManager.createProbesForException(
+                throwable.getStackTrace(), chainedExceptionIdx);
+        if (creationResult.probesCreated > 0) {
+          AgentTaskScheduler.INSTANCE.execute(() -> applyExceptionConfiguration(fingerprint));
+          break;
+        } else {
+          if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug(
+                "No probe created, nativeFrames={}, thirdPartyFrames={} for exception: {}",
+                creationResult.nativeFrames,
+                creationResult.thirdPartyFrames,
+                ExceptionHelper.foldExceptionStackTrace(throwable));
+          }
         }
+        chainedExceptionIdx++;
       }
     }
   }
@@ -114,7 +127,7 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
       Throwable t,
       AgentSpan span,
       ThrowableState state,
-      Throwable innerMostException,
+      List<Throwable> chainedExceptions,
       String fingerprint) {
     if (span.getTag(DD_DEBUG_ERROR_EXCEPTION_ID) != null) {
       LOGGER.debug("Clear previous frame tags");
@@ -127,12 +140,13 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
                 }
               });
     }
-    int[] mapping = createThrowableMapping(innerMostException, t);
-    StackTraceElement[] innerTrace = innerMostException.getStackTrace();
     boolean snapshotAssigned = false;
     List<Snapshot> snapshots = state.getSnapshots();
     for (int i = 0; i < snapshots.size(); i++) {
       Snapshot snapshot = snapshots.get(i);
+      Throwable currentEx = chainedExceptions.get(snapshot.getChainedExceptionIdx());
+      int[] mapping = createThrowableMapping(currentEx, t);
+      StackTraceElement[] innerTrace = currentEx.getStackTrace();
       int currentIdx = innerTrace.length - snapshot.getStack().size();
       if (!sanityCheckSnapshotAssignment(snapshot, innerTrace, currentIdx)) {
         continue;

@@ -28,10 +28,13 @@ public final class DebuggerConfig {
   public static final String DEBUGGER_REDACTION_EXCLUDED_IDENTIFIERS =
       "dynamic.instrumentation.redaction.excluded.identifiers";
   public static final String DEBUGGER_REDACTED_TYPES = "dynamic.instrumentation.redacted.types";
+  public static final String DEBUGGER_HOIST_LOCALVARS_ENABLED =
+      "dynamic.instrumentation.hoist.localvars.enabled";
   public static final String DEBUGGER_SYMBOL_ENABLED = "symbol.database.upload.enabled";
   public static final String DEBUGGER_SYMBOL_FORCE_UPLOAD = "internal.force.symbol.database.upload";
   public static final String DEBUGGER_SYMBOL_INCLUDES = "symbol.database.includes";
   public static final String DEBUGGER_SYMBOL_FLUSH_THRESHOLD = "symbol.database.flush.threshold";
+  public static final String DEBUGGER_SYMBOL_COMPRESSED = "symbol.database.compressed";
   public static final String DEBUGGER_EXCEPTION_ENABLED = "exception.debugging.enabled";
   public static final String EXCEPTION_REPLAY_ENABLED = "exception.replay.enabled";
   public static final String DEBUGGER_MAX_EXCEPTION_PER_SECOND =

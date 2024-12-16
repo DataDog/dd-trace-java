@@ -26,6 +26,9 @@ apache_solr8_start              -Dsolr.solr.home=*                              
 apache_solr8_stop               *solr/server/start.jar                              Skip Apache Solr 8 stop using path to jar
 apache_solr8_tools              org.apache.solr.util.SolrCLI                        Skip Apache Solr 8 CLI tools
 
+# DataDog JMXFetch
+datadog_jmxfetch                org.datadog.jmxfetch.App                            Skip DataDog JMXFetch
+
 # Elastic Search 7+
 elasticsearch7                  -Des.path.home=*                                    Skip Elastic Search 7+ commands
 

@@ -73,6 +73,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import org.joor.Reflect;
 import org.joor.ReflectException;
 import org.junit.jupiter.api.Assertions;
@@ -576,6 +577,39 @@ public class CapturedSnapshotTest extends CapturingTestBase {
       assertCaptureFields(snapshot.getCaptures().getLines().get(9), "intField", "int", "42");
       assertCaptureFields(
           snapshot.getCaptures().getLines().get(9), "strField", String.class.getTypeName(), "foo");
+    } finally {
+      filesToDelete.forEach(File::delete);
+    }
+  }
+
+  @Test
+  @DisabledIf(
+      value = "datadog.trace.api.Platform#isJ9",
+      disabledReason = "Issue with J9 when compiling Kotlin code")
+  public void suspendMethodKotlin() {
+    final String CLASS_NAME = "CapturedSnapshot302";
+    TestSnapshotListener listener =
+        installProbes(createProbe(PROBE_ID, CLASS_NAME, "download", null));
+    URL resource = CapturedSnapshotTest.class.getResource("/" + CLASS_NAME + ".kt");
+    assertNotNull(resource);
+    List<File> filesToDelete = new ArrayList<>();
+    try {
+      Class<?> testClass =
+          KotlinHelper.compileAndLoad(CLASS_NAME, resource.getFile(), filesToDelete);
+      Object companion = Reflect.onClass(testClass).get("Companion");
+      int result = Reflect.on(companion).call("main", "1").get();
+      assertEquals(1, result);
+      // 2 snapshots are expected because the method is executed twice one for each state
+      // before the delay, after the delay
+      List<Snapshot> snapshots = assertSnapshots(listener, 2);
+      Snapshot snapshot0 = snapshots.get(0);
+      assertCaptureReturnValue(
+          snapshot0.getCaptures().getReturn(),
+          "kotlin.coroutines.intrinsics.CoroutineSingletons",
+          "COROUTINE_SUSPENDED");
+      Snapshot snapshot1 = snapshots.get(1);
+      assertCaptureReturnValue(
+          snapshot1.getCaptures().getReturn(), String.class.getTypeName(), "1");
     } finally {
       filesToDelete.forEach(File::delete);
     }
@@ -1360,6 +1394,22 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   }
 
   @Test
+  public void mergedProbesDifferentSignature() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot08";
+    LogProbe probe1 = createProbeAtExit(PROBE_ID1, CLASS_NAME, "doit", null);
+    LogProbe probe2 = createProbeAtExit(PROBE_ID2, CLASS_NAME, "doit", "int (java.lang.String)");
+    LogProbe probe3 = createProbeAtExit(PROBE_ID3, CLASS_NAME, "doit", "(String)");
+    TestSnapshotListener listener = installProbes(probe1, probe2, probe3);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.onClass(testClass).call("main", "1").get();
+    Assertions.assertEquals(3, result);
+    Assertions.assertEquals(3, listener.snapshots.size());
+    assertNull(listener.snapshots.get(0).getEvaluationErrors());
+    assertNull(listener.snapshots.get(1).getEvaluationErrors());
+    assertNull(listener.snapshots.get(2).getEvaluationErrors());
+  }
+
+  @Test
   public void fields() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot06";
     TestSnapshotListener listener = installProbes(createProbe(PROBE_ID, CLASS_NAME, "f", "()"));
@@ -1578,11 +1628,9 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.onClass(testClass).call("main", "").get();
     assertEquals(63, result);
-    List<Snapshot> snapshots = assertSnapshots(listener, 4, PROBE_ID, PROBE_ID, PROBE_ID, PROBE_ID);
+    List<Snapshot> snapshots = assertSnapshots(listener, 1, PROBE_ID);
     assertCaptureReturnValue(snapshots.get(0).getCaptures().getReturn(), "int", "42");
-    assertCaptureArgs(snapshots.get(1).getCaptures().getEntry(), "s", "java.lang.String", "1");
-    assertCaptureArgs(snapshots.get(2).getCaptures().getEntry(), "s", "java.lang.String", "2");
-    assertCaptureArgs(snapshots.get(3).getCaptures().getEntry(), "s", "java.lang.String", "3");
+    assertEquals(1, snapshots.get(0).getCaptures().getEntry().getArguments().size());
   }
 
   @Test
@@ -2375,7 +2423,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
                     .where(where)
                     .build())
             .add(LogProbe.builder().probeId(PROBE_ID3).where(where).build())
-            .add(TriggerProbe.builder().probeId(PROBE_ID4).where(where).build())
+            .add(new TriggerProbe(PROBE_ID4, where))
             .build();
 
     CoreTracer tracer = CoreTracer.builder().build();
@@ -2392,8 +2440,15 @@ public class CapturedSnapshotTest extends CapturingTestBase {
       int result = Reflect.onClass(testClass).call("main", "1").get();
       // log probe
       assertEquals(3, result);
-      assertEquals(1, snapshotListener.snapshots.size());
-      Snapshot snapshot = snapshotListener.snapshots.get(0);
+      List<Snapshot> snapshots = snapshotListener.snapshots;
+      assertEquals(
+          1,
+          snapshots.size(),
+          "More than one probe emitted a snapshot: "
+              + snapshots.stream()
+                  .map(snapshot -> snapshot.getProbe().getId())
+                  .collect(Collectors.toList()));
+      Snapshot snapshot = snapshots.get(0);
       assertEquals(PROBE_ID3.getId(), snapshot.getProbe().getId());
       // span (deco) probe
       assertEquals(1, traceInterceptor.getTrace().size());

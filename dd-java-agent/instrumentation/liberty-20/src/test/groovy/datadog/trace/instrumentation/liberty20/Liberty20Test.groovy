@@ -218,6 +218,20 @@ class Liberty20AsyncForkedTest extends Liberty20Test implements TestingGenericHt
   // instrumented while on the the global ignores list
   System.getProperty('java.vm.name') == 'IBM J9 VM' &&
   System.getProperty('java.specification.version') == '1.8' })
+class LibertyServletClassloaderNamingForkedTest extends Liberty20V0ForkedTest {
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    // will not set the service name according to the servlet context value
+    injectSysConfig("trace.experimental.jee.split-by-deployment", "true")
+  }
+}
+
+@IgnoreIf({
+  // failing because org.apache.xalan.transformer.TransformerImpl is
+  // instrumented while on the the global ignores list
+  System.getProperty('java.vm.name') == 'IBM J9 VM' &&
+  System.getProperty('java.specification.version') == '1.8' })
 class Liberty20V0ForkedTest extends Liberty20Test implements TestingGenericHttpNamingConventions.ServerV0 {
 }
 

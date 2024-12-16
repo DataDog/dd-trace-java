@@ -18,7 +18,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
 
   def prepareCustomRules() {
     // Prepare ruleset with additional test rules
-    appendRules(
+    mergeRules(
       customRulesPath,
       [
         [
@@ -108,7 +108,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
           on_match    : ['block']
         ],
         [
-          id          : '__test_lfi_block',
+          id          : 'rasp-930-100',     // to replace default rule
           name        : 'Local File Inclusion  exploit',
           enable      : 'true',
           tags        : [
@@ -177,7 +177,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     def request = new Request.Builder()
       .url(url)
       .addHeader("User-Agent", "Arachni/v1")
-      .addHeader("X-Forwarded", 'for="[::ffff:1.2.3.4]"')
+      .addHeader("X-Client-Ip", '::ffff:1.2.3.4')
       .build()
     def response = client.newCall(request).execute()
     def responseBodyStr = response.body().string()
@@ -385,7 +385,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
 
   void 'rasp blocks on SSRF'() {
     when:
-    String url = "http://localhost:${httpPort}/ssrf/query?domain=169.254.169.254"
+    String url = "http://localhost:${httpPort}/ssrf/${variant}?domain=169.254.169.254"
     def request = new Request.Builder()
       .url(url)
       .get()
@@ -414,6 +414,14 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
       }
     }
     assert trigger != null, 'test trigger not found'
+
+    where:
+    variant               | _
+    'query'               | _
+    'okHttp3'             | _
+    'okHttp2'             | _
+    'apache-httpclient4'  | _
+    'commons-httpclient2' | _
   }
 
   void 'rasp blocks on LFI for #variant'() {
@@ -439,7 +447,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     assert rootSpan.meta.get('_dd.appsec.json') != null, '_dd.appsec.json is not set'
     def trigger = null
     for (t in rootSpan.triggers) {
-      if (t['rule']['id'] == '__test_lfi_block') {
+      if (t['rule']['id'] == 'rasp-930-100') {
         trigger = t
         break
       }

@@ -28,6 +28,7 @@ import java.util.concurrent.TimeUnit
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
+import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_TRACE_PREPARED_STATEMENTS
 
 // workaround for SSLHandShakeException on J9 only with Hikari/MySQL
 @Requires({ !System.getProperty("java.vendor").contains("IBM") })
@@ -277,6 +278,9 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               if (usingHikari) {
                 "$Tags.DB_POOL_NAME" String
               }
+              if (addDbmTag) {
+                "$InstrumentationTags.DBM_TRACE_INJECTED" true
+              }
               peerServiceFrom(Tags.DB_INSTANCE)
               defaultTags()
             }
@@ -343,7 +347,64 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     then:
     resultSet.next()
     resultSet.getInt(1) == 3
-    if (driver == POSTGRESQL || driver == MYSQL || !dbmTraceInjected()) {
+    def addDbmTag = dbmTraceInjected()
+    if (driver == SQLSERVER && addDbmTag){
+      assertTraces(1) {
+        trace(3) {
+          basicSpan(it, "parent")
+          span {
+            operationName this.operation(this.getDbType(driver))
+            serviceName service(driver)
+            resourceName obfuscatedQuery
+            spanType DDSpanTypes.SQL
+            childOf span(0)
+            errored false
+            measured true
+            tags {
+              "$Tags.COMPONENT" "java-jdbc-prepared_statement"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+              "$Tags.DB_TYPE" this.getDbType(driver)
+              "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
+              "$Tags.PEER_HOSTNAME" String
+              "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
+              "$Tags.DB_OPERATION" operation
+              if (usingHikari) {
+                "$Tags.DB_POOL_NAME" String
+              }
+              if (addDbmTag) {
+                "$InstrumentationTags.DBM_TRACE_INJECTED" true
+              }
+              peerServiceFrom(Tags.DB_INSTANCE)
+              defaultTags()
+            }
+          }
+          span {
+            serviceName service(driver)
+            operationName this.operation(this.getDbType(driver))
+            resourceName "set context_info ?"
+            spanType DDSpanTypes.SQL
+            childOf span(0)
+            errored false
+            measured true
+            tags {
+              "$Tags.COMPONENT" "java-jdbc-statement"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+              "$Tags.DB_TYPE" this.getDbType(driver)
+              "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
+              "$Tags.PEER_HOSTNAME" String
+              "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
+              "$Tags.DB_OPERATION" "set"
+              if (usingHikari) {
+                "$Tags.DB_POOL_NAME" String
+              }
+              "dd.instrumentation" true
+              peerServiceFrom(Tags.DB_INSTANCE)
+              defaultTags()
+            }
+          }
+        }
+      }
+    } else {
       assertTraces(1) {
         trace(2) {
           basicSpan(it, "parent")
@@ -370,59 +431,10 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               if (usingHikari) {
                 "$Tags.DB_POOL_NAME" String
               }
-              peerServiceFrom(Tags.DB_INSTANCE)
-              defaultTags()
-            }
-          }
-        }
-      }
-    } else {
-      assertTraces(1) {
-        trace(3) {
-          basicSpan(it, "parent")
-          span {
-            operationName this.operation(this.getDbType(driver))
-            serviceName service(driver)
-            resourceName obfuscatedQuery
-            spanType DDSpanTypes.SQL
-            childOf span(0)
-            errored false
-            measured true
-            tags {
-              "$Tags.COMPONENT" "java-jdbc-prepared_statement"
-              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-              "$Tags.DB_TYPE" this.getDbType(driver)
-              "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
-              "$Tags.PEER_HOSTNAME" String
-              "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
-              "$Tags.DB_OPERATION" operation
-              if (usingHikari) {
-                "$Tags.DB_POOL_NAME" String
+              if (this.dbmTracePreparedStatements(driver)){
+                "$InstrumentationTags.DBM_TRACE_INJECTED" true
+                "$InstrumentationTags.INSTRUMENTATION_TIME_MS" Long
               }
-              peerServiceFrom(Tags.DB_INSTANCE)
-              defaultTags()
-            }
-          }
-          span {
-            serviceName service(driver)
-            operationName this.operation(this.getDbType(driver))
-            resourceName "set context_info ?"
-            spanType DDSpanTypes.SQL
-            childOf span(0)
-            errored false
-            measured true
-            tags {
-              "$Tags.COMPONENT" "java-jdbc-statement"
-              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-              "$Tags.DB_TYPE" this.getDbType(driver)
-              "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
-              "$Tags.PEER_HOSTNAME" String
-              "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
-              "$Tags.DB_OPERATION" "set"
-              if (usingHikari) {
-                "$Tags.DB_POOL_NAME" String
-              }
-              "dd.instrumentation" true
               peerServiceFrom(Tags.DB_INSTANCE)
               defaultTags()
             }
@@ -463,40 +475,9 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     then:
     resultSet.next()
     resultSet.getInt(1) == 3
-    if (driver == POSTGRESQL || driver == MYSQL || !dbmTraceInjected()) {
-      assertTraces(1) {
-        trace(2) {
-          basicSpan(it, "parent")
-          span {
-            operationName this.operation(this.getDbType(driver))
-            serviceName service(driver)
-            resourceName obfuscatedQuery
-            spanType DDSpanTypes.SQL
-            childOf span(0)
-            errored false
-            measured true
-            tags {
-              "$Tags.COMPONENT" "java-jdbc-prepared_statement"
-              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-              "$Tags.DB_TYPE" this.getDbType(driver)
-              "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
-              // only set when there is an out of proc instance (postgresql, mysql)
-              "$Tags.PEER_HOSTNAME" String
-              // currently there is a bug in the instrumentation with
-              // postgresql and mysql if the connection event is missed
-              // since Connection.getClientInfo will not provide the username
-              "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
-              "$Tags.DB_OPERATION" operation
-              if (conPoolType == "hikari") {
-                "$Tags.DB_POOL_NAME" String
-              }
-              peerServiceFrom(Tags.DB_INSTANCE)
-              defaultTags()
-            }
-          }
-        }
-      }
-    } else {
+
+    def addDbmTag = dbmTraceInjected()
+    if (driver == SQLSERVER && addDbmTag){
       assertTraces(1) {
         trace(3) {
           basicSpan(it, "parent")
@@ -523,6 +504,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               if (conPoolType == "hikari") {
                 "$Tags.DB_POOL_NAME" String
               }
+              "$InstrumentationTags.DBM_TRACE_INJECTED" true
               peerServiceFrom(Tags.DB_INSTANCE)
               defaultTags()
             }
@@ -547,6 +529,43 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
                 "$Tags.DB_POOL_NAME" String
               }
               "dd.instrumentation" true
+              peerServiceFrom(Tags.DB_INSTANCE)
+              defaultTags()
+            }
+          }
+        }
+      }
+    } else {
+      assertTraces(1) {
+        trace(2) {
+          basicSpan(it, "parent")
+          span {
+            operationName this.operation(this.getDbType(driver))
+            serviceName service(driver)
+            resourceName obfuscatedQuery
+            spanType DDSpanTypes.SQL
+            childOf span(0)
+            errored false
+            measured true
+            tags {
+              "$Tags.COMPONENT" "java-jdbc-prepared_statement"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+              "$Tags.DB_TYPE" this.getDbType(driver)
+              "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
+              // only set when there is an out of proc instance (postgresql, mysql)
+              "$Tags.PEER_HOSTNAME" String
+              // currently there is a bug in the instrumentation with
+              // postgresql and mysql if the connection event is missed
+              // since Connection.getClientInfo will not provide the username
+              "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
+              "$Tags.DB_OPERATION" operation
+              if (conPoolType == "hikari") {
+                "$Tags.DB_POOL_NAME" String
+              }
+              if (this.dbmTracePreparedStatements(driver)){
+                "$InstrumentationTags.DBM_TRACE_INJECTED" true
+                "$InstrumentationTags.INSTRUMENTATION_TIME_MS" Long
+              }
               peerServiceFrom(Tags.DB_INSTANCE)
               defaultTags()
             }
@@ -587,7 +606,61 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     then:
     resultSet.next()
     resultSet.getInt(1) == 3
-    if (driver == POSTGRESQL || driver == MYSQL || !dbmTraceInjected()) {
+    def addDbmTag = dbmTraceInjected()
+    if (driver == SQLSERVER && addDbmTag){
+      assertTraces(1) {
+        trace(3) {
+          basicSpan(it, "parent")
+          span {
+            operationName this.operation(this.getDbType(driver))
+            serviceName service(driver)
+            resourceName obfuscatedQuery
+            spanType DDSpanTypes.SQL
+            childOf span(0)
+            errored false
+            measured true
+            tags {
+              "$Tags.COMPONENT" "java-jdbc-prepared_statement"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+              "$Tags.DB_TYPE" this.getDbType(driver)
+              "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
+              "$Tags.PEER_HOSTNAME" String
+              "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
+              "${Tags.DB_OPERATION}" operation
+              if (conPoolType == "hikari") {
+                "$Tags.DB_POOL_NAME" String
+              }
+              "$InstrumentationTags.DBM_TRACE_INJECTED" true
+              defaultTags()
+            }
+          }
+          span {
+            serviceName service(driver)
+            operationName this.operation(this.getDbType(driver))
+            resourceName "set context_info ?"
+            spanType DDSpanTypes.SQL
+            childOf span(0)
+            errored false
+            measured true
+            tags {
+              "$Tags.COMPONENT" "java-jdbc-statement"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+              "$Tags.DB_TYPE" this.getDbType(driver)
+              "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
+              "$Tags.PEER_HOSTNAME" String
+              "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
+              "$Tags.DB_OPERATION" "set"
+              "dd.instrumentation" true
+              if (conPoolType == "hikari") {
+                "$Tags.DB_POOL_NAME" String
+              }
+              peerServiceFrom(Tags.DB_INSTANCE)
+              defaultTags()
+            }
+          }
+        }
+      }
+    } else {
       assertTraces(1) {
         trace(2) {
           basicSpan(it, "parent")
@@ -614,58 +687,10 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               if (conPoolType == "hikari") {
                 "$Tags.DB_POOL_NAME" String
               }
-              defaultTags()
-            }
-          }
-        }
-      }
-    } else {
-      assertTraces(1) {
-        trace(3) {
-          basicSpan(it, "parent")
-          span {
-            operationName this.operation(this.getDbType(driver))
-            serviceName service(driver)
-            resourceName obfuscatedQuery
-            spanType DDSpanTypes.SQL
-            childOf span(0)
-            errored false
-            measured true
-            tags {
-              "$Tags.COMPONENT" "java-jdbc-prepared_statement"
-              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-              "$Tags.DB_TYPE" this.getDbType(driver)
-              "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
-              "$Tags.PEER_HOSTNAME" String
-              "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
-              "${Tags.DB_OPERATION}" operation
-              if (conPoolType == "hikari") {
-                "$Tags.DB_POOL_NAME" String
+              if (this.dbmTracePreparedStatements(driver)){
+                "$InstrumentationTags.DBM_TRACE_INJECTED" true
+                "$InstrumentationTags.INSTRUMENTATION_TIME_MS" Long
               }
-              defaultTags()
-            }
-          }
-          span {
-            serviceName service(driver)
-            operationName this.operation(this.getDbType(driver))
-            resourceName "set context_info ?"
-            spanType DDSpanTypes.SQL
-            childOf span(0)
-            errored false
-            measured true
-            tags {
-              "$Tags.COMPONENT" "java-jdbc-statement"
-              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-              "$Tags.DB_TYPE" this.getDbType(driver)
-              "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
-              "$Tags.PEER_HOSTNAME" String
-              "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
-              "$Tags.DB_OPERATION" "set"
-              "dd.instrumentation" true
-              if (conPoolType == "hikari") {
-                "$Tags.DB_POOL_NAME" String
-              }
-              peerServiceFrom(Tags.DB_INSTANCE)
               defaultTags()
             }
           }
@@ -765,9 +790,13 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               // since Connection.getClientInfo will not provide the username
               "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
               "${Tags.DB_OPERATION}" operation
+              if (addDbmTag) {
+                "$InstrumentationTags.DBM_TRACE_INJECTED" true
+              }
               if (conPoolType == "hikari") {
                 "$Tags.DB_POOL_NAME" String
               }
+              "$InstrumentationTags.DBM_TRACE_INJECTED" true
               peerServiceFrom(Tags.DB_INSTANCE)
               defaultTags()
             }
@@ -966,6 +995,10 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
   protected abstract String operation(String dbType)
 
   protected abstract boolean dbmTraceInjected()
+
+  protected boolean dbmTracePreparedStatements(String dbType){
+    return false
+  }
 }
 
 class RemoteJDBCInstrumentationV0Test extends RemoteJDBCInstrumentationTest {
@@ -1052,5 +1085,46 @@ class RemoteDBMTraceInjectedForkedTest extends RemoteJDBCInstrumentationTest {
   protected String getDbType(String dbType) {
     final databaseNaming = new DatabaseNamingV1()
     return databaseNaming.normalizedName(dbType)
+  }
+}
+
+class RemoteDBMTraceInjectedForkedTestTracePreparedStatements extends RemoteJDBCInstrumentationTest {
+
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("dd.dbm.propagation.mode", "full")
+    injectSysConfig(DB_DBM_TRACE_PREPARED_STATEMENTS, "true")
+  }
+
+  @Override
+  protected boolean dbmTraceInjected() {
+    return true
+  }
+
+  @Override
+  int version() {
+    return 1
+  }
+
+  @Override
+  protected String service(String dbType) {
+    return Config.get().getServiceName()
+  }
+
+  @Override
+  protected String operation(String dbType) {
+    return "${dbType}.query"
+  }
+
+  @Override
+  protected String getDbType(String dbType) {
+    final databaseNaming = new DatabaseNamingV1()
+    return databaseNaming.normalizedName(dbType)
+  }
+
+  @Override
+  protected boolean dbmTracePreparedStatements(String dbType){
+    return dbType == POSTGRESQL
   }
 }

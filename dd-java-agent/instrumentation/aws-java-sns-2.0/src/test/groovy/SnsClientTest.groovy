@@ -5,6 +5,7 @@ import datadog.trace.api.DDTags
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.datastreams.StatsGroup
+import datadog.trace.instrumentation.aws.ExpectedQueryParams
 import groovy.json.JsonSlurper
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.utility.DockerImageName
@@ -65,8 +66,6 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
     // Set a service name that gets sorted early with SORT_BY_NAMES
     injectSysConfig(GeneralConfig.SERVICE_NAME, "A-service")
     injectSysConfig(GeneralConfig.DATA_STREAMS_ENABLED, isDataStreamsEnabled().toString())
-
-    // test propagation styles
     injectSysConfig('dd.trace.propagation.style', 'datadog,b3single,b3multi,xray,tracecontext')
   }
 
@@ -137,7 +136,6 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "java-aws-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.HTTP_URL" endPoint+'/'
             "$Tags.HTTP_METHOD" "POST"
             "$Tags.HTTP_STATUS" 200
             "$Tags.PEER_PORT" LOCALSTACK.getMappedPort(4566)
@@ -152,6 +150,7 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
             if ({ isDataStreamsEnabled() }) {
               "$DDTags.PATHWAY_HASH" { String }
             }
+            urlTags("${endPoint}/", ExpectedQueryParams.getExpectedQueryParams("Publish"))
             defaultTags()
           }
         }

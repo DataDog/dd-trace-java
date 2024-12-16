@@ -107,6 +107,7 @@ public class InstrumentationTags {
   public static final String TWILIO_STATUS = "twilio.status";
   public static final String TWILIO_PARENT_SID = "twilio.parentSid";
   public static final String DBM_TRACE_INJECTED = "_dd.dbm_trace_injected";
+  public static final String INSTRUMENTATION_TIME_MS = "_dd.instrumentation.time_ms";
   public static final UTF8BytesString DD_MEASURED = UTF8BytesString.create("_dd.measured");
   public static final UTF8BytesString DD_TOP_LEVEL = UTF8BytesString.create("_dd.top_level");
   public static final UTF8BytesString DD_PARTIAL_VERSION =
@@ -116,4 +117,7 @@ public class InstrumentationTags {
 
   public static final String TIBCO_NODE = "tibco.node";
   public static final String TIBCO_VERSION = "tibco.version";
+
+  public static final String MULE_CORRELATION_ID = "mule.correlation_id";
+  public static final String MULE_LOCATION = "mule.location";
 }

@@ -1,8 +1,12 @@
 package com.datadog.iast.propagation
 
 import com.datadog.iast.IastModuleImplTestBase
+import com.datadog.iast.model.Source
+import com.datadog.iast.taint.TaintedObjects
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.api.iast.SourceTypes
+import datadog.trace.api.iast.Taintable
 import datadog.trace.api.iast.propagation.StringModule
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
@@ -16,6 +20,7 @@ import static com.datadog.iast.taint.TaintUtils.fromTaintFormat
 import static com.datadog.iast.taint.TaintUtils.getStringFromTaintFormat
 import static com.datadog.iast.taint.TaintUtils.taint
 import static com.datadog.iast.taint.TaintUtils.taintFormat
+import static com.datadog.iast.taint.TaintUtils.taintObject
 
 @CompileDynamic
 class StringModuleTest extends IastModuleImplTestBase {
@@ -124,6 +129,80 @@ class StringModuleTest extends IastModuleImplTestBase {
     sb('==>123<==')             | '==>456<=='             | 1         | '==>123<====>456<=='
     sb('1==>234<==5==>678<==9') | 'a==>bcd<==e'           | 1         | '1==>234<==5==>678<==9a==>bcd<==e'
     sb('1==>234<==5==>678<==9') | 'a==>bcd<==e==>fgh<==i' | 1         | '1==>234<==5==>678<==9a==>bcd<==e==>fgh<==i'
+  }
+
+  void 'onStringBuilderAppend null or empty (#builder, #param, #start, #end)'() {
+    given:
+    final result = builder?.append(param, start, end)
+
+    when:
+    module.onStringBuilderAppend(result, param, start, end)
+
+    then:
+    0 * _
+
+    where:
+    builder | param | start | end
+    sb('')  | null  | 0     | 0
+    sb('')  | ''    | 0     | 0
+  }
+
+  void 'onStringBuilderAppend without span (#builder, #param, #start, #end)'() {
+    given:
+    final result = builder?.append(param, start, end)
+
+    when:
+    module.onStringBuilderAppend(result, param)
+
+    then:
+    mockCalls * tracer.activeSpan() >> null
+    0 * _
+
+    where:
+    builder | param | start | end | mockCalls
+    sb('1') | null  | 0     | 0   | 0
+    sb('3') | '4'   | 0     | 0   | 1
+  }
+
+  void 'onStringBuilderAppend (#builder, #param, #start, #end)'() {
+    given:
+    final taintedObjects = ctx.getTaintedObjects()
+    def builderTainted = addFromTaintFormat(taintedObjects, builder)
+    objectHolder.add(builderTainted)
+    def paramTainted = addFromTaintFormat(taintedObjects, param)
+    objectHolder.add(paramTainted)
+    builderTainted?.append(paramTainted, start, end)
+
+    and:
+    final result = getStringFromTaintFormat(expected)
+    objectHolder.add(result)
+    final shouldBeTainted = fromTaintFormat(expected) != null
+
+    when:
+    module.onStringBuilderAppend(builderTainted, paramTainted, start, end)
+    def taintedObject = taintedObjects.get(builderTainted)
+
+    then:
+    if (shouldBeTainted) {
+      assert taintedObject != null
+      assert taintedObject.get() as String == result
+      assert taintFormat(taintedObject.get() as String, taintedObject.getRanges()) == expected
+    } else {
+      assert taintedObject == null
+    }
+
+    where:
+    builder                     | param                   | start | end | expected
+    sb('123')                   | '456'                   | 0     | 3   | '123456'
+    sb('==>123<==')             | '456'                   | 0     | 3   | '==>123<==456'
+    sb('==>123<==')             | '456'                   | 1     | 3   | '==>123<==56'
+    sb('123')                   | '==>456<=='             | 0     | 3   | '123==>456<=='
+    sb('123')                   | '==>456<=='             | 1     | 2   | '123==>5<=='
+    sb('==>123<==')             | '==>456<=='             | 0     | 3   | '==>123<====>456<=='
+    sb('1==>234<==5==>678<==9') | 'a==>bcd<==e'           | 0     | 5   | '1==>234<==5==>678<==9a==>bcd<==e'
+    sb('1==>234<==5==>678<==9') | 'a==>bcd<==e==>fgh<==i' | 0     | 9   | '1==>234<==5==>678<==9a==>bcd<==e==>fgh<==i'
+    sb('1==>234<==5==>678<==9') | 'a==>bcd<==e==>fgh<==i' | 5     | 9   | '1==>234<==5==>678<==9==>fgh<==i'
+    sb('1==>234<==5==>678<==9') | 'a==>bcd<==e==>fgh<==i' | 5     | 8   | '1==>234<==5==>678<==9==>fgh<=='
   }
 
   void 'onStringBuilderInit null or empty (#builder, #param)'() {
@@ -481,37 +560,47 @@ class StringModuleTest extends IastModuleImplTestBase {
     }
 
     where:
-    self                      | beginIndex | endIndex | expected
-    "==>0123<=="              | 0          | 4        | "==>0123<=="
-    "0123==>456<==78"         | 0          | 5        | "0123==>4<=="
-    "01==>234<==5==>678<==90" | 0          | 8        | "01==>234<==5==>67<=="
-    "==>0123<=="              | 0          | 3        | "==>012<=="
-    "==>0123<=="              | 1          | 4        | "==>123<=="
-    "==>0123<=="              | 1          | 3        | "==>12<=="
-    "0123==>456<==78"         | 1          | 8        | "123==>456<==7"
-    "0123==>456<==78"         | 0          | 4        | "0123"
-    "0123==>456<==78"         | 7          | 9        | "78"
-    "0123==>456<==78"         | 1          | 5        | "123==>4<=="
-    "0123==>456<==78"         | 1          | 6        | "123==>45<=="
-    "0123==>456<==78"         | 4          | 7        | "==>456<=="
-    "0123==>456<==78"         | 6          | 8        | "==>6<==7"
-    "0123==>456<==78"         | 5          | 8        | "==>56<==7"
-    "0123==>456<==78"         | 4          | 6        | "==>45<=="
-    "01==>234<==5==>678<==90" | 1          | 10       | "1==>234<==5==>678<==9"
-    "01==>234<==5==>678<==90" | 1          | 2        | "1"
-    "01==>234<==5==>678<==90" | 5          | 6        | "5"
-    "01==>234<==5==>678<==90" | 9          | 10       | "9"
-    "01==>234<==5==>678<==90" | 1          | 4        | "1==>23<=="
-    "01==>234<==5==>678<==90" | 2          | 4        | "==>23<=="
-    "01==>234<==5==>678<==90" | 2          | 5        | "==>234<=="
-    "01==>234<==5==>678<==90" | 1          | 8        | "1==>234<==5==>67<=="
-    "01==>234<==5==>678<==90" | 2          | 8        | "==>234<==5==>67<=="
-    "01==>234<==5==>678<==90" | 2          | 9        | "==>234<==5==>678<=="
-    "01==>234<==5==>678<==90" | 5          | 8        | "5==>67<=="
-    "01==>234<==5==>678<==90" | 6          | 8        | "==>67<=="
-    "01==>234<==5==>678<==90" | 6          | 9        | "==>678<=="
-    "01==>234<==5==>678<==90" | 4          | 9        | "==>4<==5==>678<=="
-    "01==>234<==5==>678<==90" | 4          | 8        | "==>4<==5==>67<=="
+    self                           | beginIndex | endIndex | expected
+    "==>0123<=="                   | 0          | 4        | "==>0123<=="
+    "0123==>456<==78"              | 0          | 5        | "0123==>4<=="
+    "01==>234<==5==>678<==90"      | 0          | 8        | "01==>234<==5==>67<=="
+    "==>0123<=="                   | 0          | 3        | "==>012<=="
+    "==>0123<=="                   | 1          | 4        | "==>123<=="
+    "==>0123<=="                   | 1          | 3        | "==>12<=="
+    "0123==>456<==78"              | 1          | 8        | "123==>456<==7"
+    "0123==>456<==78"              | 0          | 4        | "0123"
+    "0123==>456<==78"              | 7          | 9        | "78"
+    "0123==>456<==78"              | 1          | 5        | "123==>4<=="
+    "0123==>456<==78"              | 1          | 6        | "123==>45<=="
+    "0123==>456<==78"              | 4          | 7        | "==>456<=="
+    "0123==>456<==78"              | 6          | 8        | "==>6<==7"
+    "0123==>456<==78"              | 5          | 8        | "==>56<==7"
+    "0123==>456<==78"              | 4          | 6        | "==>45<=="
+    "01==>234<==5==>678<==90"      | 1          | 10       | "1==>234<==5==>678<==9"
+    "01==>234<==5==>678<==90"      | 1          | 2        | "1"
+    "01==>234<==5==>678<==90"      | 5          | 6        | "5"
+    "01==>234<==5==>678<==90"      | 9          | 10       | "9"
+    "01==>234<==5==>678<==90"      | 1          | 4        | "1==>23<=="
+    "01==>234<==5==>678<==90"      | 2          | 4        | "==>23<=="
+    "01==>234<==5==>678<==90"      | 2          | 5        | "==>234<=="
+    "01==>234<==5==>678<==90"      | 1          | 8        | "1==>234<==5==>67<=="
+    "01==>234<==5==>678<==90"      | 2          | 8        | "==>234<==5==>67<=="
+    "01==>234<==5==>678<==90"      | 2          | 9        | "==>234<==5==>678<=="
+    "01==>234<==5==>678<==90"      | 5          | 8        | "5==>67<=="
+    "01==>234<==5==>678<==90"      | 6          | 8        | "==>67<=="
+    "01==>234<==5==>678<==90"      | 6          | 9        | "==>678<=="
+    "01==>234<==5==>678<==90"      | 4          | 9        | "==>4<==5==>678<=="
+    "01==>234<==5==>678<==90"      | 4          | 8        | "==>4<==5==>67<=="
+    sb("==>0123<==")               | 0          | 4        | "==>0123<=="
+    sb("0123==>456<==78")          | 0          | 5        | "0123==>4<=="
+    sb("01==>234<==5==>678<==90")  | 0          | 8        | "01==>234<==5==>67<=="
+    sb("0123==>456<==78")          | 4          | 6        | "==>45<=="
+    sb("01==>234<==5==>678<==90")  | 4          | 8        | "==>4<==5==>67<=="
+    sbf("==>0123<==")              | 0          | 4        | "==>0123<=="
+    sbf("0123==>456<==78")         | 0          | 5        | "0123==>4<=="
+    sbf("01==>234<==5==>678<==90") | 0          | 8        | "01==>234<==5==>67<=="
+    sbf("0123==>456<==78")         | 4          | 6        | "==>45<=="
+    sbf("01==>234<==5==>678<==90") | 4          | 8        | "==>4<==5==>67<=="
   }
 
   void 'onStringJoin without null delimiter or elements (#delimiter, #elements)'() {
@@ -800,6 +889,47 @@ class StringModuleTest extends IastModuleImplTestBase {
     "A==>\u00cc\u00cc\u00cc<==B" | "a==>ììì<==b"          | "en"   | 5          | 5            | [[1, 3]]
   }
 
+  void 'onStringConstructor (#input)'() {
+    given:
+    final taintedObjects = ctx.getTaintedObjects()
+    final self = addFromTaintFormat(taintedObjects, input)
+    final result = new String(self)
+
+    when:
+    module.onStringConstructor(self, result)
+    def taintedObject = taintedObjects.get(result)
+
+    then:
+    1 * tracer.activeSpan() >> span
+    taintFormat(result, taintedObject.getRanges()) == expected
+
+    where:
+    input            | expected
+    "==>123<=="      | "==>123<=="
+    sb("==>123<==")  | "==>123<=="
+    sbf("==>123<==") | "==>123<=="
+  }
+
+  void 'onStringConstructor empty (#input)'() {
+    given:
+    final taintedObjects = ctx.getTaintedObjects()
+    final self = addFromTaintFormat(taintedObjects, input)
+    final result = new String(self)
+
+    when:
+    module.onStringConstructor(self, result)
+
+    then:
+    null == taintedObjects.get(result)
+    result == expected
+
+    where:
+    input   | expected
+    ""      | ""
+    sb("")  | ""
+    sbf("") | ""
+  }
+
   void 'test trim and make sure IastRequestContext is called'() {
     given:
     final taintedObjects = ctx.getTaintedObjects()
@@ -1047,13 +1177,13 @@ class StringModuleTest extends IastModuleImplTestBase {
     result == expected
 
     where:
-    trailing | testString              | expected
-    false    | " ==>   <== "           | ""
-    false    | " ==>   <== "           | ""
-    true     | " ==>   <== "           | ""
-    false    | ""                      | ""
-    false    | ""                      | ""
-    true     | ""                      | ""
+    trailing | testString    | expected
+    false    | " ==>   <== " | ""
+    false    | " ==>   <== " | ""
+    true     | " ==>   <== " | ""
+    false    | ""            | ""
+    false    | ""            | ""
+    true     | ""            | ""
   }
 
   void 'test indent and make sure IastRequestContext is called'() {
@@ -1081,19 +1211,229 @@ class StringModuleTest extends IastModuleImplTestBase {
       assert to == null
     }
     where:
-    indentation | testString                                                      | expected
-    4           | "==>123<==\n12==>3<=="                                          | "    ==>123<==\n    12==>3<=="
-    4           | "==>123<==\r\n12==>3<=="                                        | "    ==>123<==\n    12==>3<=="
-    4           | "==>123\n1<==2==>3<=="                                          | "    ==>123\n    1<==2==>3<=="
-    4           | "==>123\r\n1<==2==>3<=="                                        | "    ==>123\n    1<==2==>3<=="
-    0           | "==>123<==\r\n==>123<=="                                        | "==>123<==\n==>123<=="
-    0           | "==>123\r\n<====>123<=="                                        | "==>123\n<====>123<=="
-    0           | "==>123<==\r==>123<=="                                          | "==>123<==\n==>123<=="
-    0           | "==>123\r<====>123<=="                                          | "==>123\n<====>123<=="
-    -4          | "    ==>123<==\n    12==>3<=="                                  | "==>123<==\n12==>3<=="
-    -4          | "    ==>123<==\r\n    12==>3<=="                                | "==>123<==\n12==>3<=="
-    -4          | "    ==>123\n    1<==2==>3<=="                                  | "==>123\n1<==2==>3<=="
-    -4          | "    ==>123\r\n    1<==2==>3<=="                                | "==>123\n1<==2==>3<=="
+    indentation | testString                       | expected
+    4           | "==>123<==\n12==>3<=="           | "    ==>123<==\n    12==>3<=="
+    4           | "==>123<==\r\n12==>3<=="         | "    ==>123<==\n    12==>3<=="
+    4           | "==>123\n1<==2==>3<=="           | "    ==>123\n    1<==2==>3<=="
+    4           | "==>123\r\n1<==2==>3<=="         | "    ==>123\n    1<==2==>3<=="
+    0           | "==>123<==\r\n==>123<=="         | "==>123<==\n==>123<=="
+    0           | "==>123\r\n<====>123<=="         | "==>123\n<====>123<=="
+    0           | "==>123<==\r==>123<=="           | "==>123<==\n==>123<=="
+    0           | "==>123\r<====>123<=="           | "==>123\n<====>123<=="
+    -4          | "    ==>123<==\n    12==>3<=="   | "==>123<==\n12==>3<=="
+    -4          | "    ==>123<==\r\n    12==>3<==" | "==>123<==\n12==>3<=="
+    -4          | "    ==>123\n    1<==2==>3<=="   | "==>123\n1<==2==>3<=="
+    -4          | "    ==>123\r\n    1<==2==>3<==" | "==>123\n1<==2==>3<=="
+  }
+
+  void 'test replace with a single char and make sure IastRequestContext is called'() {
+    given:
+    final taintedObjects = ctx.getTaintedObjects()
+    def self = addFromTaintFormat(taintedObjects, testString)
+    def result = self.replace(oldChar, newChar)
+
+    when:
+    module.onStringReplace(self, oldChar as char, newChar as char, result)
+    def taintedObject = taintedObjects.get(result)
+
+    then:
+    1 * tracer.activeSpan() >> span
+    taintFormat(result, taintedObject.getRanges()) == expected
+
+    where:
+    testString       | oldChar | newChar | expected
+    "==>masquita<==" | 'a'     | 'o'     | "==>mosquito<=="
+    "==>___<=="      | '_'     | '-'     | "==>---<=="
+    "==>my_input<==" | '_'     | '-'     | "==>my-input<=="
+  }
+
+  void 'test replace with a char sequence (not tainted) and make sure IastRequestContext is called'() {
+    given:
+    final taintedObjects = ctx.getTaintedObjects()
+    def self = addFromTaintFormat(taintedObjects, testString)
+
+    when:
+    def result = module.onStringReplace(self, oldCharSeq, newCharSeq)
+    def taintedObject = taintedObjects.get(result)
+
+    then:
+    1 * tracer.activeSpan() >> span
+    taintFormat(result, taintedObject.getRanges()) == expected
+
+    where:
+    testString                                   | oldCharSeq | newCharSeq | expected
+    "==>masquita<=="                             | 'as'       | 'os'       | "==>m<==os==>quita<=="
+    "==>masquita<=="                             | 'os'       | 'as'       | "==>masquita<=="
+    "==>m<==as==>qu<==i==>ta<=="                 | 'as'       | 'os'       | "==>m<==os==>qu<==i==>ta<=="
+    "==>my_input<=="                             | 'in'       | 'out'      | "==>my_<==out==>put<=="
+    "==>my_output<=="                            | 'out'      | 'in'       | "==>my_<==in==>put<=="
+    "==>my_input<=="                             | '_'        | '-'        | "==>my<==-==>input<=="
+    "==>my<==_==>input<=="                       | 'in'       | 'out'      | "==>my<==_out==>put<=="
+    "==>my_in<==p==>ut<=="                       | 'in'       | 'out'      | "==>my_<==outp==>ut<=="
+    "==>my_<==in==>put<=="                       | 'in'       | 'out'      | "==>my_<==out==>put<=="
+    "==>my_i<==n==>put<=="                       | 'in'       | 'out'      | "==>my_<==out==>put<=="
+    "==>my_<==i==>nput<=="                       | 'in'       | 'out'      | "==>my_<==out==>put<=="
+    "==>my_o<==u==>tput<=="                      | 'out'      | 'in'       | "==>my_<==in==>put<=="
+    "==>my_o<==u==>tput<====>my_o<==u==>tput<==" | 'out'      | 'in'       | "==>my_<==in==>put<====>my_<==in==>put<=="
+    "==>my_o<==u==>tp<==ut"                      | 'output'   | 'input'    | "==>my_<==input"
+  }
+
+  void 'test replace with a char sequence (tainted) and make sure IastRequestContext is called'() {
+    given:
+    final taintedObjects = ctx.getTaintedObjects()
+    def self = addFromTaintFormat(taintedObjects, testString)
+    def inputTainted = addFromTaintFormat(taintedObjects, newCharSeq)
+
+    when:
+    def result = module.onStringReplace(self, oldCharSeq, inputTainted)
+    def taintedObject = taintedObjects.get(result)
+
+    then:
+    1 * tracer.activeSpan() >> span
+    taintFormat(result, taintedObject.getRanges()) == expected
+
+    where:
+    testString                                   | oldCharSeq | newCharSeq    | expected
+    "==>masquita<=="                             | 'as'       | '==>os<=='    | "==>m<====>os<====>quita<=="
+    "==>masquita<=="                             | 'os'       | '==>as<=='    | "==>masquita<=="
+    "masquita"                                   | 'as'       | '==>os<=='    | "m==>os<==quita"
+    "==>m<==as==>qu<==i==>ta<=="                 | 'as'       | '==>os<=='    | "==>m<====>os<====>qu<==i==>ta<=="
+    "==>my_input<=="                             | 'in'       | '==>out<=='   | "==>my_<====>out<====>put<=="
+    "==>my_output<=="                            | 'out'      | '==>in<=='    | "==>my_<====>in<====>put<=="
+    "==>my_input<=="                             | '_'        | '==>-<=='     | "==>my<====>-<====>input<=="
+    "==>my<==_==>input<=="                       | 'in'       | '==>out<=='   | "==>my<==_==>out<====>put<=="
+    "==>my_in<==p==>ut<=="                       | 'in'       | '==>out<=='   | "==>my_<====>out<==p==>ut<=="
+    "==>my_<==in==>put<=="                       | 'in'       | '==>out<=='   | "==>my_<====>out<====>put<=="
+    "==>my_i<==n==>put<=="                       | 'in'       | '==>out<=='   | "==>my_<====>out<====>put<=="
+    "==>my_<==i==>nput<=="                       | 'in'       | '==>out<=='   | "==>my_<====>out<====>put<=="
+    "==>my_o<==u==>tput<=="                      | 'out'      | '==>in<=='    | "==>my_<====>in<====>put<=="
+    "==>my_o<==u==>tput<====>my_o<==u==>tput<==" | 'out'      | '==>in<=='    | "==>my_<====>in<====>put<====>my_<====>in<====>put<=="
+    "==>my_o<==u==>tp<==ut"                      | 'output'   | '==>input<==' | "==>my_<====>input<=="
+  }
+
+  void 'test replace with a regex and replacement (not tainted) and make sure IastRequestContext is called'() {
+    given:
+    final taintedObjects = ctx.getTaintedObjects()
+    def self = addFromTaintFormat(taintedObjects, testString)
+
+    when:
+    def result = module.onStringReplace(self, regex, replacement, numReplacements)
+    def taintedObject = taintedObjects.get(result)
+
+    then:
+    1 * tracer.activeSpan() >> span
+    taintFormat(result, taintedObject.getRanges()) == expected
+
+    where:
+    testString                                   | regex    | replacement | numReplacements   | expected
+    "==>masquita<=="                             | 'as'     | 'os'        | Integer.MAX_VALUE | "==>m<==os==>quita<=="
+    "==>masquita<=="                             | 'os'     | 'as'        | Integer.MAX_VALUE | "==>masquita<=="
+    "==>m<==as==>qu<==i==>ta<=="                 | 'as'     | 'os'        | Integer.MAX_VALUE | "==>m<==os==>qu<==i==>ta<=="
+    "==>my_input<=="                             | 'in'     | 'out'       | Integer.MAX_VALUE | "==>my_<==out==>put<=="
+    "==>my_output<=="                            | 'out'    | 'in'        | Integer.MAX_VALUE | "==>my_<==in==>put<=="
+    "==>my_input<=="                             | '_'      | '-'         | Integer.MAX_VALUE | "==>my<==-==>input<=="
+    "==>my<==_==>input<=="                       | 'in'     | 'out'       | Integer.MAX_VALUE | "==>my<==_out==>put<=="
+    "==>my_in<==p==>ut<=="                       | 'in'     | 'out'       | Integer.MAX_VALUE | "==>my_<==outp==>ut<=="
+    "==>my_<==in==>put<=="                       | 'in'     | 'out'       | Integer.MAX_VALUE | "==>my_<==out==>put<=="
+    "==>my_i<==n==>put<=="                       | 'in'     | 'out'       | Integer.MAX_VALUE | "==>my_<==out==>put<=="
+    "==>my_<==i==>nput<=="                       | 'in'     | 'out'       | Integer.MAX_VALUE | "==>my_<==out==>put<=="
+    "==>my_o<==u==>tput<=="                      | 'out'    | 'in'        | Integer.MAX_VALUE | "==>my_<==in==>put<=="
+    "==>my_o<==u==>tput<====>my_o<==u==>tput<==" | 'out'    | 'in'        | Integer.MAX_VALUE | "==>my_<==in==>put<====>my_<==in==>put<=="
+    "==>my_o<==u==>tp<==ut"                      | 'output' | 'input'     | Integer.MAX_VALUE | "==>my_<==input"
+  }
+
+  void 'test replace with a regex and replacement (tainted) and make sure IastRequestContext is called'() {
+    given:
+    final taintedObjects = ctx.getTaintedObjects()
+    def self = addFromTaintFormat(taintedObjects, testString)
+    def inputTainted = addFromTaintFormat(taintedObjects, replacement)
+
+    when:
+    def result = module.onStringReplace(self, regex, inputTainted, numReplacements)
+    def taintedObject = taintedObjects.get(result)
+
+    then:
+    1 * tracer.activeSpan() >> span
+    taintFormat(result, taintedObject.getRanges()) == expected
+
+    where:
+    testString                                   | regex    | replacement   | numReplacements   | expected
+    "==>masquita<=="                             | 'as'     | '==>os<=='    | Integer.MAX_VALUE | "==>m<====>os<====>quita<=="
+    "==>masquita<=="                             | 'os'     | '==>as<=='    | Integer.MAX_VALUE | "==>masquita<=="
+    "masquita"                                   | 'as'     | '==>os<=='    | Integer.MAX_VALUE | "m==>os<==quita"
+    "==>m<==as==>qu<==i==>ta<=="                 | 'as'     | '==>os<=='    | Integer.MAX_VALUE | "==>m<====>os<====>qu<==i==>ta<=="
+    "==>my_input<=="                             | 'in'     | '==>out<=='   | Integer.MAX_VALUE | "==>my_<====>out<====>put<=="
+    "==>my_output<=="                            | 'out'    | '==>in<=='    | Integer.MAX_VALUE | "==>my_<====>in<====>put<=="
+    "==>my_input<=="                             | '_'      | '==>-<=='     | Integer.MAX_VALUE | "==>my<====>-<====>input<=="
+    "==>my<==_==>input<=="                       | 'in'     | '==>out<=='   | Integer.MAX_VALUE | "==>my<==_==>out<====>put<=="
+    "==>my_in<==p==>ut<=="                       | 'in'     | '==>out<=='   | Integer.MAX_VALUE | "==>my_<====>out<==p==>ut<=="
+    "==>my_<==in==>put<=="                       | 'in'     | '==>out<=='   | Integer.MAX_VALUE | "==>my_<====>out<====>put<=="
+    "==>my_i<==n==>put<=="                       | 'in'     | '==>out<=='   | Integer.MAX_VALUE | "==>my_<====>out<====>put<=="
+    "==>my_<==i==>nput<=="                       | 'in'     | '==>out<=='   | Integer.MAX_VALUE | "==>my_<====>out<====>put<=="
+    "==>my_o<==u==>tput<=="                      | 'out'    | '==>in<=='    | Integer.MAX_VALUE | "==>my_<====>in<====>put<=="
+    "==>my_o<==u==>tput<====>my_o<==u==>tput<==" | 'out'    | '==>in<=='    | Integer.MAX_VALUE | "==>my_<====>in<====>put<====>my_<====>in<====>put<=="
+    "==>my_o<==u==>tp<==ut"                      | 'output' | '==>input<==' | Integer.MAX_VALUE | "==>my_<====>input<=="
+    "==>my_o<==u==>tput<====>my_o<==u==>tput<==" | 'out'    | '==>in<=='    | 1                 | "==>my_<====>in<====>put<====>my_o<==u==>tput<=="
+    "==>my_o<==u==>tput<====>my_o<==u==>tput<==" | 'out'    | '==>in<=='    | 0                 | "==>my_o<==u==>tput<====>my_o<==u==>tput<=="
+  }
+
+  void 'test valueOf with (#param) and make sure IastRequestContext is called'() {
+    given:
+    final taintedObjects = ctx.getTaintedObjects()
+    def paramTainted = addFromTaintFormat(taintedObjects, param)
+    def result = String.valueOf(paramTainted)
+
+    when:
+    module.onStringValueOf(paramTainted, result)
+    def taintedObject = taintedObjects.get(result)
+
+    then:
+    1 * tracer.activeSpan() >> span
+    taintFormat(result, taintedObject.getRanges()) == expected
+
+    where:
+    param                 | expected
+    "==>test<=="          | "==>test<=="
+    sb("==>test<==")      | "==>test<=="
+    sbf("==>my_input<==") | "==>my_input<=="
+  }
+
+  void 'test valueOf with taintable object and make sure IastRequestContext is called'() {
+    given:
+    final taintedObjects = ctx.getTaintedObjects()
+    final source = taintedSource()
+    final param = taintable(taintedObjects, source)
+    final result = String.valueOf(param)
+
+    when:
+    module.onStringValueOf(param, result)
+    final taintedObject = taintedObjects.get(result)
+
+    then:
+    1 * tracer.activeSpan() >> span
+    taintFormat(result, taintedObject.getRanges()) == "==>my_input<=="
+  }
+
+  void 'test valueOf with special objects and make sure IastRequestContext is called'() {
+    given:
+    final taintedObjects = ctx.getTaintedObjects()
+    final source = taintedSource()
+    final param = new Object() {
+        @Override
+        String toString() {
+          return "my_input"
+        }
+      }
+    taintObject(taintedObjects, param, source)
+    final result = String.valueOf(param)
+
+    when:
+    module.onStringValueOf(param, result)
+    final taintedObject = taintedObjects.get(result)
+
+    then:
+    1 * tracer.activeSpan() >> span
+    taintFormat(result, taintedObject.getRanges()) == "==>my_input<=="
   }
 
   private static Date date(final String pattern, final String value) {
@@ -1106,5 +1446,46 @@ class StringModuleTest extends IastModuleImplTestBase {
 
   private static StringBuilder sb(final String string) {
     return new StringBuilder(string)
+  }
+
+  private static StringBuffer sbf() {
+    return sbf('')
+  }
+
+  private static StringBuffer sbf(final String string) {
+    return new StringBuffer(string)
+  }
+
+  private static Source taintedSource(String value = 'value') {
+    return new Source(SourceTypes.REQUEST_PARAMETER_VALUE, 'name', value)
+  }
+
+  private static Taintable taintable(TaintedObjects tos, Source source = null) {
+    final result = new MockTaintable()
+    if (source != null) {
+      taintObject(tos, result, source)
+    }
+    return result
+  }
+
+  private static class MockTaintable implements Taintable {
+    private Source source
+
+    @SuppressWarnings('CodeNarc')
+    @Override
+    Source $$DD$getSource() {
+      return source
+    }
+
+    @SuppressWarnings('CodeNarc')
+    @Override
+    void $$DD$setSource(Source source) {
+      this.source = source
+    }
+
+    @Override
+    String toString() {
+      return "my_input"
+    }
   }
 }

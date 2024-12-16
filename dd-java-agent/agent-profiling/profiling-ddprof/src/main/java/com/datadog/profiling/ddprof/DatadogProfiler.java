@@ -33,15 +33,19 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_T
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS_DEFAULT;
 
 import com.datadog.profiling.controller.OngoingRecording;
+import com.datadog.profiling.controller.TempLocationManager;
 import com.datadog.profiling.utils.ProfilingMode;
 import com.datadoghq.profiler.ContextSetter;
 import com.datadoghq.profiler.JavaProfiler;
+import datadog.trace.api.Platform;
+import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.TaskWrapper;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
@@ -105,6 +109,8 @@ public final class DatadogProfiler {
 
   private final long queueTimeThresholdMillis;
 
+  private final Path recordingsPath;
+
   private DatadogProfiler(ConfigProvider configProvider) {
     this(configProvider, getContextAttributes(configProvider));
   }
@@ -147,6 +153,19 @@ public final class DatadogProfiler {
         configProvider.getLong(
             PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS,
             PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS_DEFAULT);
+
+    this.recordingsPath = TempLocationManager.getInstance().getTempDir().resolve("recordings");
+    if (!Files.exists(recordingsPath)) {
+      try {
+        Files.createDirectories(
+            recordingsPath,
+            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
+      } catch (IOException e) {
+        log.warn("Failed to create recordings directory: {}", recordingsPath, e);
+        throw new IllegalStateException(
+            "Failed to create recordings directory: " + recordingsPath, e);
+      }
+    }
   }
 
   void addThread() {
@@ -211,7 +230,7 @@ public final class DatadogProfiler {
 
   Path newRecording() throws IOException, IllegalStateException {
     if (recordingFlag.compareAndSet(false, true)) {
-      Path recFile = Files.createTempFile("dd-profiler-", ".jfr");
+      Path recFile = Files.createTempFile(recordingsPath, "dd-profiler-", ".jfr");
       String cmd = cmdStartProfiling(recFile);
       try {
         String rslt = executeProfilerCmd(cmd);
@@ -236,6 +255,14 @@ public final class DatadogProfiler {
 
   String cmdStartProfiling(Path file) throws IllegalStateException {
     // 'start' = start, 'jfr=7' = store in JFR format ready for concatenation
+    int safemode = getSafeMode(configProvider);
+    if (safemode != ProfilingConfig.PROFILING_DATADOG_PROFILER_SAFEMODE_DEFAULT) {
+      // be very vocal about messing around with the profiler safemode as it may induce crashes
+      log.warn(
+          "Datadog profiler safemode is enabled with overridden value {}. "
+              + "This is not recommended and may cause instability and crashes.",
+          safemode);
+    }
     StringBuilder cmd = new StringBuilder("start,jfr=7");
     cmd.append(",file=").append(file.toAbsolutePath());
     cmd.append(",loglevel=").append(getLogLevel(configProvider));
@@ -259,14 +286,20 @@ public final class DatadogProfiler {
         }
       } else {
         // using cpu time schedule
-        cmd.append(",cpu=").append(getCpuInterval(configProvider)).append('m');
+        int interval = getCpuInterval();
+        if (Platform.isJ9())
+          interval =
+              interval == ProfilingConfig.PROFILING_DATADOG_PROFILER_CPU_INTERVAL_DEFAULT
+                  ? ProfilingConfig.PROFILING_DATADOG_PROFILER_J9_CPU_INTERVAL_DEFAULT
+                  : interval;
+        cmd.append(",cpu=").append(interval).append('m');
       }
     }
     if (profilingModes.contains(WALL)) {
       // wall profiling is enabled.
       cmd.append(",wall=");
       if (getWallCollapsing(configProvider)) {
-        cmd.append("~");
+        cmd.append('~');
       }
       cmd.append(getWallInterval(configProvider)).append('m');
       if (getWallContextFilter(configProvider)) {
@@ -320,7 +353,7 @@ public final class DatadogProfiler {
     debugLogging(rootSpanId);
     try {
       profiler.setContext(spanId, rootSpanId);
-    } catch (IllegalStateException e) {
+    } catch (Throwable e) {
       log.debug("Failed to clear context", e);
     }
   }
@@ -329,14 +362,18 @@ public final class DatadogProfiler {
     debugLogging(0L);
     try {
       profiler.setContext(0L, 0L);
-    } catch (IllegalStateException e) {
+    } catch (Throwable e) {
       log.debug("Failed to set context", e);
     }
   }
 
   public boolean setContextValue(int offset, int encoding) {
     if (contextSetter != null && offset >= 0) {
-      return contextSetter.setContextValue(offset, encoding);
+      try {
+        return contextSetter.setContextValue(offset, encoding);
+      } catch (Throwable e) {
+        log.debug("Failed to set context", e);
+      }
     }
     return false;
   }
@@ -344,7 +381,11 @@ public final class DatadogProfiler {
   public boolean setContextValue(int offset, CharSequence value) {
     if (contextSetter != null && offset >= 0) {
       int encoding = encode(value);
-      return contextSetter.setContextValue(offset, encoding);
+      try {
+        return contextSetter.setContextValue(offset, encoding);
+      } catch (Throwable e) {
+        log.debug("Failed to set context", e);
+      }
     }
     return false;
   }
@@ -365,7 +406,11 @@ public final class DatadogProfiler {
 
   public boolean clearContextValue(int offset) {
     if (contextSetter != null && offset >= 0) {
-      return contextSetter.clearContextValue(offset);
+      try {
+        return contextSetter.clearContextValue(offset);
+      } catch (Throwable t) {
+        log.debug("Failed to clear context", t);
+      }
     }
     return false;
   }
@@ -402,17 +447,18 @@ public final class DatadogProfiler {
     return new QueueTimeTracker(this, profiler.getCurrentTicks());
   }
 
-  void recordQueueTimeEvent(
-      long startMillis, long startTicks, Object task, Class<?> scheduler, Thread origin) {
+  boolean shouldRecordQueueTimeEvent(long startMillis) {
+    return System.currentTimeMillis() - startMillis >= queueTimeThresholdMillis;
+  }
+
+  void recordQueueTimeEvent(long startTicks, Object task, Class<?> scheduler, Thread origin) {
     if (profiler != null) {
-      if (System.currentTimeMillis() - startMillis >= queueTimeThresholdMillis) {
-        // note: because this type traversal can update secondary_super_cache (see JDK-8180450)
-        // we avoid doing this unless we are absolutely certain we will record the event
-        Class<?> taskType = TaskWrapper.getUnwrappedType(task);
-        if (taskType != null) {
-          long endTicks = profiler.getCurrentTicks();
-          profiler.recordQueueTime(startTicks, endTicks, taskType, scheduler, origin);
-        }
+      // note: because this type traversal can update secondary_super_cache (see JDK-8180450)
+      // we avoid doing this unless we are absolutely certain we will record the event
+      Class<?> taskType = TaskWrapper.getUnwrappedType(task);
+      if (taskType != null) {
+        long endTicks = profiler.getCurrentTicks();
+        profiler.recordQueueTime(startTicks, endTicks, taskType, scheduler, origin);
       }
     }
   }

@@ -100,7 +100,8 @@ public class DebuggerAgent {
       DebuggerContext.initExceptionDebugger(defaultExceptionDebugger);
     }
     if (config.isDebuggerCodeOriginEnabled()) {
-      DebuggerContext.initCodeOrigin(new DefaultCodeOriginRecorder(configurationUpdater));
+      LOGGER.info("Starting Code Origin for spans");
+      DebuggerContext.initCodeOrigin(new DefaultCodeOriginRecorder(config, configurationUpdater));
     }
     if (config.isDebuggerInstrumentTheWorld()) {
       setupInstrumentTheWorldTransformer(

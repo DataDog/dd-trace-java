@@ -1,26 +1,32 @@
 package datadog.trace.civisibility.domain;
 
+import static datadog.trace.api.TracePropagationStyle.NONE;
 import static datadog.trace.api.civisibility.CIConstants.CI_VISIBILITY_INSTRUMENTATION_NAME;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.IdGenerationStrategy;
+import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.TagValue;
+import datadog.trace.api.civisibility.telemetry.tag.AgentlessLogSubmissionEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.AutoInjected;
 import datadog.trace.api.civisibility.telemetry.tag.EventType;
+import datadog.trace.api.civisibility.telemetry.tag.FailFastTestOrderEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.HasCodeowner;
 import datadog.trace.api.civisibility.telemetry.tag.IsHeadless;
 import datadog.trace.api.civisibility.telemetry.tag.IsUnsupportedCI;
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
+import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.decorator.TestDecorator;
-import datadog.trace.civisibility.source.MethodLinesResolver;
+import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -37,7 +43,7 @@ public abstract class AbstractTestSession {
   protected final TestDecorator testDecorator;
   protected final SourcePathResolver sourcePathResolver;
   protected final Codeowners codeowners;
-  protected final MethodLinesResolver methodLinesResolver;
+  protected final LinesResolver linesResolver;
 
   public AbstractTestSession(
       String projectName,
@@ -49,7 +55,7 @@ public abstract class AbstractTestSession {
       TestDecorator testDecorator,
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
-      MethodLinesResolver methodLinesResolver) {
+      LinesResolver linesResolver) {
     this.ciProvider = ciProvider;
     this.instrumentationType = instrumentationType;
     this.config = config;
@@ -57,12 +63,21 @@ public abstract class AbstractTestSession {
     this.testDecorator = testDecorator;
     this.sourcePathResolver = sourcePathResolver;
     this.codeowners = codeowners;
-    this.methodLinesResolver = methodLinesResolver;
+    this.linesResolver = linesResolver;
 
     // CI Test Cycle protocol requires session's trace ID and span ID to be the same
     IdGenerationStrategy idGenerationStrategy = config.getIdGenerationStrategy();
     DDTraceId traceId = idGenerationStrategy.generateTraceId();
-    AgentSpan.Context traceContext = new TraceContext(traceId);
+    AgentSpan.Context traceContext =
+        new TagContext(
+            CIConstants.CIAPP_TEST_ORIGIN,
+            Collections.emptyMap(),
+            null,
+            null,
+            PrioritySampling.UNSET,
+            null,
+            NONE,
+            traceId);
 
     AgentTracer.SpanBuilder spanBuilder =
         AgentTracer.get()
@@ -109,7 +124,11 @@ public abstract class AbstractTestSession {
         CiVisibilityCountMetric.TEST_SESSION,
         1,
         ciProvider,
-        config.isCiVisibilityAutoInjected() ? AutoInjected.TRUE : null);
+        config.isCiVisibilityAutoInjected() ? AutoInjected.TRUE : null,
+        config.isAgentlessLogSubmissionEnabled() ? AgentlessLogSubmissionEnabled.TRUE : null,
+        CIConstants.FAIL_FAST_TEST_ORDER.equalsIgnoreCase(config.getCiVisibilityTestOrder())
+            ? FailFastTestOrderEnabled.TRUE
+            : null);
 
     if (instrumentationType == InstrumentationType.MANUAL_API) {
       metricCollector.add(CiVisibilityCountMetric.MANUAL_API_EVENTS, 1, EventType.SESSION);

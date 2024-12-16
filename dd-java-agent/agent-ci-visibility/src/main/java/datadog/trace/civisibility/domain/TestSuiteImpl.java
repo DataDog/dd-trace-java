@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.domain;
 
+import static datadog.json.JsonMapper.toJson;
 import static datadog.trace.api.civisibility.CIConstants.CI_VISIBILITY_INSTRUMENTATION_NAME;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 
@@ -17,11 +18,12 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.decorator.TestDecorator;
-import datadog.trace.civisibility.source.MethodLinesResolver;
+import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.source.SourceResolutionException;
 import datadog.trace.civisibility.utils.SpanUtils;
 import java.lang.reflect.Method;
+import java.util.Collection;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -44,7 +46,7 @@ public class TestSuiteImpl implements DDTestSuite {
   private final TestDecorator testDecorator;
   private final SourcePathResolver sourcePathResolver;
   private final Codeowners codeowners;
-  private final MethodLinesResolver methodLinesResolver;
+  private final LinesResolver linesResolver;
   private final CoverageStore.Factory coverageStoreFactory;
   private final boolean parallelized;
   private final Consumer<AgentSpan> onSpanFinish;
@@ -64,7 +66,7 @@ public class TestSuiteImpl implements DDTestSuite {
       TestDecorator testDecorator,
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
-      MethodLinesResolver methodLinesResolver,
+      LinesResolver linesResolver,
       CoverageStore.Factory coverageStoreFactory,
       Consumer<AgentSpan> onSpanFinish) {
     this.moduleSpanContext = moduleSpanContext;
@@ -79,7 +81,7 @@ public class TestSuiteImpl implements DDTestSuite {
     this.testDecorator = testDecorator;
     this.sourcePathResolver = sourcePathResolver;
     this.codeowners = codeowners;
-    this.methodLinesResolver = methodLinesResolver;
+    this.linesResolver = linesResolver;
     this.coverageStoreFactory = coverageStoreFactory;
     this.onSpanFinish = onSpanFinish;
 
@@ -113,14 +115,13 @@ public class TestSuiteImpl implements DDTestSuite {
     this.testClass = testClass;
 
     if (config.isCiVisibilitySourceDataEnabled()) {
-      populateSourceDataTags(testClass, sourcePathResolver);
+      populateSourceDataTags(span, testClass, sourcePathResolver, codeowners);
     }
 
     testDecorator.afterStart(span);
 
     if (!parallelized) {
-      final AgentScope scope = activateSpan(span);
-      scope.setAsyncPropagation(true);
+      activateSpan(span, true);
     }
 
     metricCollector.add(CiVisibilityCountMetric.EVENT_CREATED, 1, instrumentation, EventType.SUITE);
@@ -130,17 +131,37 @@ public class TestSuiteImpl implements DDTestSuite {
     }
   }
 
-  private void populateSourceDataTags(Class<?> testClass, SourcePathResolver sourcePathResolver) {
-    if (this.testClass == null) {
+  private void populateSourceDataTags(
+      AgentSpan span,
+      Class<?> testClass,
+      SourcePathResolver sourcePathResolver,
+      Codeowners codeowners) {
+    if (testClass == null) {
       return;
     }
+
+    String sourcePath;
     try {
-      String sourcePath = sourcePathResolver.getSourcePath(testClass);
-      if (sourcePath != null && !sourcePath.isEmpty()) {
-        span.setTag(Tags.TEST_SOURCE_FILE, sourcePath);
+      sourcePath = sourcePathResolver.getSourcePath(testClass);
+      if (sourcePath == null || sourcePath.isEmpty()) {
+        return;
       }
     } catch (SourceResolutionException e) {
       log.debug("Could not populate source path for {}", testClass, e);
+      return;
+    }
+
+    span.setTag(Tags.TEST_SOURCE_FILE, sourcePath);
+
+    LinesResolver.Lines testClassLines = linesResolver.getClassLines(testClass);
+    if (testClassLines.isValid()) {
+      span.setTag(Tags.TEST_SOURCE_START, testClassLines.getStartLineNumber());
+      span.setTag(Tags.TEST_SOURCE_END, testClassLines.getEndLineNumber());
+    }
+
+    Collection<String> testCodeOwners = codeowners.getOwners(sourcePath);
+    if (testCodeOwners != null) {
+      span.setTag(Tags.TEST_CODEOWNERS, toJson(testCodeOwners));
     }
   }
 
@@ -229,7 +250,7 @@ public class TestSuiteImpl implements DDTestSuite {
         metricCollector,
         testDecorator,
         sourcePathResolver,
-        methodLinesResolver,
+        linesResolver,
         codeowners,
         coverageStoreFactory,
         SpanUtils.propagateCiVisibilityTagsTo(span));

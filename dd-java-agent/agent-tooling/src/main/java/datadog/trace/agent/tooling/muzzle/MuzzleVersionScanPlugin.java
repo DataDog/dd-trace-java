@@ -159,26 +159,26 @@ public class MuzzleVersionScanPlugin {
     builder.append(Reference.prettyPrint(ref.flags));
     builder.append(ref.className);
     if (ref.superName != null) {
-      builder.append(" extends<").append(ref.superName).append(">");
+      builder.append(" extends<").append(ref.superName).append('>');
     }
     if (ref.interfaces.length > 0) {
       builder.append(" implements ");
       for (final String iface : ref.interfaces) {
-        builder.append(" <").append(iface).append(">");
+        builder.append(" <").append(iface).append('>');
       }
     }
     for (final String source : ref.sources) {
-      builder.append("\n").append(prefix).append(prefix);
+      builder.append('\n').append(prefix).append(prefix);
       builder.append("Source: ").append(source);
     }
     for (final Reference.Field field : ref.fields) {
-      builder.append("\n").append(prefix).append(prefix);
+      builder.append('\n').append(prefix).append(prefix);
       builder.append("Field: ");
       builder.append(Reference.prettyPrint(field.flags));
       builder.append(field);
     }
     for (final Reference.Method method : ref.methods) {
-      builder.append("\n").append(prefix).append(prefix);
+      builder.append('\n').append(prefix).append(prefix);
       builder.append("Method: ");
       builder.append(Reference.prettyPrint(method.flags));
       builder.append(method);

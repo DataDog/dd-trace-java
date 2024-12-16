@@ -14,14 +14,19 @@ addTestSuite('latestDepTest')
 dependencies {
   compileOnly group: 'io.projectreactor', name: 'reactor-core', version: '3.1.0.RELEASE'
 
+
   testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
   testImplementation project(':dd-java-agent:instrumentation:reactive-streams')
+  testImplementation project(':dd-java-agent:instrumentation:opentelemetry:opentelemetry-1.4')
   testImplementation project(':dd-java-agent:instrumentation:opentelemetry:opentelemetry-annotations-1.20')
+  testImplementation project (':dd-java-agent:instrumentation:opentracing:api-0.32')
 
   testImplementation group: 'io.projectreactor', name: 'reactor-core', version: '3.1.0.RELEASE'
   testImplementation group: 'io.opentelemetry.instrumentation', name: 'opentelemetry-instrumentation-annotations', version: '1.28.0'
+  testImplementation group: 'io.opentracing', name: 'opentracing-util', version: '0.32.0'
 
   latestDepTestImplementation group: 'io.projectreactor', name: 'reactor-core', version: '+'
   // Looks like later versions on reactor need this dependency for some reason even though it is marked as optional.
   latestDepTestImplementation group: 'io.micrometer', name: 'micrometer-core', version: '1.+'
+
 }

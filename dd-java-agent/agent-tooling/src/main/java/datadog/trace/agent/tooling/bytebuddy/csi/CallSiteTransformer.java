@@ -1,5 +1,6 @@
 package datadog.trace.agent.tooling.bytebuddy.csi;
 
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static net.bytebuddy.jar.asm.ClassWriter.COMPUTE_MAXS;
 
 import datadog.trace.agent.tooling.HelperInjector;
@@ -9,6 +10,8 @@ import datadog.trace.agent.tooling.csi.CallSiteAdvice.StackDupMode;
 import datadog.trace.agent.tooling.csi.InvokeAdvice;
 import datadog.trace.agent.tooling.csi.InvokeDynamicAdvice;
 import java.security.ProtectionDomain;
+import java.util.Deque;
+import java.util.LinkedList;
 import javax.annotation.Nonnull;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.field.FieldDescription;
@@ -24,8 +27,12 @@ import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.jar.asm.Type;
 import net.bytebuddy.pool.TypePool;
 import net.bytebuddy.utility.JavaModule;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
+
+  private static Logger LOGGER = LoggerFactory.getLogger(CallSiteTransformer.class);
 
   private static final Instrumenter.TransformingAdvice NO_OP =
       (builder, typeDescription, classLoader, module, pd) -> builder;
@@ -111,7 +118,9 @@ public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
         final String[] exceptions) {
       final MethodVisitor delegated =
           super.visitMethod(access, name, descriptor, signature, exceptions);
-      return new CallSiteMethodVisitor(advices, delegated);
+      return "<init>".equals(name)
+          ? new CallSiteCtorMethodVisitor(advices, delegated)
+          : new CallSiteMethodVisitor(advices, delegated);
     }
   }
 
@@ -132,6 +141,7 @@ public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
         final String name,
         final String descriptor,
         final boolean isInterface) {
+
       CallSiteAdvice advice = advices.findAdvice(owner, name, descriptor);
       if (advice instanceof InvokeAdvice) {
         ((InvokeAdvice) advice).apply(this, opcode, owner, name, descriptor, isInterface);
@@ -195,6 +205,11 @@ public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
         final String descriptor,
         final boolean isInterface) {
       mv.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
+    }
+
+    @Override
+    public void advice(String owner, String name, String descriptor) {
+      mv.visitMethodInsn(Opcodes.INVOKESTATIC, owner, name, descriptor, false);
     }
 
     @Override
@@ -263,6 +278,74 @@ public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
           1,
           methodParameterTypesWithThis.length - 1);
       return methodParameterTypesWithThis;
+    }
+  }
+
+  private static class CallSiteCtorMethodVisitor extends CallSiteMethodVisitor {
+
+    private final Deque<String> newInvocations = new LinkedList<>();
+    private boolean isSuperCall = false;
+
+    private CallSiteCtorMethodVisitor(
+        @Nonnull final Advices advices, @Nonnull final MethodVisitor delegated) {
+      super(advices, delegated);
+    }
+
+    @Override
+    public void visitEnd() {
+      super.visitEnd();
+      if (!newInvocations.isEmpty()) {
+        LOGGER.debug(
+            SEND_TELEMETRY,
+            "There is an issue handling NEW bytecodes, remaining types {}",
+            newInvocations);
+      }
+    }
+
+    @Override
+    public void visitTypeInsn(final int opcode, final String type) {
+      if (opcode == Opcodes.NEW) {
+        newInvocations.addLast(type);
+      }
+      super.visitTypeInsn(opcode, type);
+    }
+
+    @Override
+    public void visitMethodInsn(
+        final int opcode,
+        final String owner,
+        final String name,
+        final String descriptor,
+        final boolean isInterface) {
+      try {
+        if (opcode == Opcodes.INVOKESPECIAL && "<init>".equals(name)) {
+          if (owner.equals(newInvocations.peekLast())) {
+            newInvocations.removeLast();
+            isSuperCall = false;
+          } else {
+            // no new before call to <init>
+            isSuperCall = true;
+          }
+        }
+        super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
+      } finally {
+        isSuperCall = false;
+      }
+    }
+
+    @Override
+    public void advice(final String owner, final String name, final String descriptor) {
+      if (isSuperCall) {
+        // append this to the stack after super call
+        mv.visitIntInsn(Opcodes.ALOAD, 0);
+      }
+      mv.visitMethodInsn(Opcodes.INVOKESTATIC, owner, name, descriptor, false);
+    }
+
+    @Override
+    public void dupParameters(final String methodDescriptor, final StackDupMode mode) {
+      super.dupParameters(
+          methodDescriptor, isSuperCall ? StackDupMode.PREPEND_ARRAY_SUPER_CTOR : mode);
     }
   }
 }

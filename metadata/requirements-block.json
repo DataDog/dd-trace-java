@@ -197,5 +197,46 @@
             "arch": "x64",
             "libc": "glibc:2.17"
         }
+    },
+    {
+        "name": "should block JMXFetch instance from DataDog Agent",
+        "filepath": "/opt/java/openjdk/bin/java",
+        "args": [
+            "java",
+            "-Djdk.attach.allowAttachSelf=true",
+            "-XX:+UseContainerSupport",
+            "-XX:MaxRAMPercentage=25.0000",
+            "-classpath",
+            "/opt/datadog-agent/bin/agent/dist/jmx/jmxfetch.jar",
+            "org.datadog.jmxfetch.App",
+            "--ipc_host",
+            "localhost",
+            "--ipc_port",
+            "5001",
+            "--check_period",
+            "15000",
+            "--thread_pool_size",
+            "3",
+            "--collection_timeout",
+            "60",
+            "--reconnection_timeout",
+            "60",
+            "--reconnection_thread_pool_size",
+            "3",
+            "--log_level",
+            "INFO",
+            "--reporter",
+            "statsd:unix:///var/run/datadog/statsd.sock",
+            "--statsd_queue_size",
+            "4096",
+            "--jmxfetch_telemetry",
+            "collect"
+        ],
+        "envars": [],
+        "host": {
+            "os": "linux",
+            "arch": "x64",
+            "libc": "glibc:2.17"
+        }
     }
 ]
