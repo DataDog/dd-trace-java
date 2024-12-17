@@ -1,0 +1,34 @@
+name: "Bug Report (Low Priority)"
+description: "Create a public Bug Report. Note that these may not be addressed as quickly as the helpdesk and that looking up account information will be difficult."
+title: "[BUG]: "
+labels: "type: bug"
+body:
+  - type: input
+    attributes:
+      label: Tracer Version(s)
+      description: "Version(s) of the tracer affected by this bug"
+      placeholder: "1.33.7"
+    validations:
+      required: true
+
+  - type: input
+    attributes:
+      label: Java Version(s)
+      description: "Version(s) of Java (`java -version`) that you've encountered this bug with"
+      placeholder: 21.0.4
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Bug Report
+      description: Please add a clear and concise description of the bug here
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Reproduction Code
+      description: Please add code here to help us reproduce the problem
+    validations:
+      required: false
