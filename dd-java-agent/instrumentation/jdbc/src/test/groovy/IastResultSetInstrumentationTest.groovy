@@ -144,7 +144,7 @@ class IastResultSetInstrumentationTest extends IastAgentTestRunner {
 
   void 'returned string is tainted with source values as sql table and can taint up to two values'() {
     given:
-    injectSysConfig('dd.iast.db.rows-to-taint', "2")
+    injectSysConfig('dd.iast.dbRowsToTaint', "2")
 
     when:
     List<String> valuesRead = []
