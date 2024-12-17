@@ -2,6 +2,10 @@ package foo.bar.securitycontrol;
 
 public class SecurityControlTestSuite {
 
+  public static boolean validateAll(long input, String input2) {
+    return true; // dummy implementation
+  }
+
   public static boolean validateAll(String input) {
     return true; // dummy implementation
   }
@@ -21,6 +25,26 @@ public class SecurityControlTestSuite {
       String input8,
       String input9,
       String input10) {
+    return true; // dummy implementation
+  }
+
+  public static boolean validateLong(long input, String input2) {
+    return true; // dummy implementation
+  }
+
+  public static boolean validateLong(String input, long input2) {
+    return true; // dummy implementation
+  }
+
+  public static boolean validateLong(long intput1, String input2, long input3) {
+    return true; // dummy implementation
+  }
+
+  public static boolean validateSelectedLong(long intput1) {
+    return true; // dummy implementation
+  }
+
+  public static boolean validateSelectedLong(long input1, long intput2) {
     return true; // dummy implementation
   }
 
@@ -64,5 +88,13 @@ public class SecurityControlTestSuite {
       String input9,
       String input10) {
     return "Sanitized";
+  }
+
+  public static int sanitizeInt(int input) {
+    return input;
+  }
+
+  public static long sanitizeLong(long input) {
+    return input;
   }
 }

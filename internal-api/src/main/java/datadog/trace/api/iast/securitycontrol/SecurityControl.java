@@ -63,4 +63,24 @@ public class SecurityControl {
   public Set<Integer> getParametersToMark() {
     return parametersToMark;
   }
+
+  @Override
+  public String toString() {
+    return "SecurityControl{"
+        + "type="
+        + type
+        + ", marks="
+        + marks
+        + ", className='"
+        + className
+        + '\''
+        + ", method='"
+        + method
+        + '\''
+        + ", parameterTypes="
+        + parameterTypes
+        + ", parametersToMark="
+        + parametersToMark
+        + '}';
+  }
 }

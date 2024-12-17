@@ -47,7 +47,7 @@ public class IastSecurityControlTransformer implements ClassFileTransformer {
       ClassVisitor cv = new SecurityControlMethodClassVisitor(cw, match);
       cr.accept(cv, 0);
       return cw.toByteArray();
-    } catch (Exception e) {
+    } catch (Throwable e) {
       LOGGER.warn("Failed to transform class: {}", className, e);
       return null;
     }

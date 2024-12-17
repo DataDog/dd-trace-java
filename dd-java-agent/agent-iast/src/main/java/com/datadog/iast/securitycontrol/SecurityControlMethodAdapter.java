@@ -5,8 +5,12 @@ import datadog.trace.api.iast.securitycontrol.SecurityControlType;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SecurityControlMethodAdapter extends MethodVisitor {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(SecurityControlMethodAdapter.class);
 
   public static final String HELPER =
       "datadog/trace/api/iast/securitycontrol/SecurityControlHelper";
@@ -29,24 +33,57 @@ public class SecurityControlMethodAdapter extends MethodVisitor {
     // Check if the opcode is a return instruction
     if (opcode >= Opcodes.IRETURN && opcode <= Opcodes.RETURN) {
       if (securityControl.getType() == SecurityControlType.INPUT_VALIDATOR) {
-        boolean allParameters = securityControl.getParametersToMark() == null;
-        Type[] types = Type.getArgumentTypes(desc);
-        for (int i = 0; i < types.length; i++) {
-          if (allParameters || securityControl.getParametersToMark().contains(i)) {
-            callInputValidation(i);
-          }
-        }
+        processInputValidator();
       } else { // SecurityControlType.SANITIZER
-        // Duplicate the return value on the stack
-        mv.visitInsn(Opcodes.DUP);
-        // Load the marks from securityControl onto the stack
-        mv.visitLdcInsn(securityControl.getMarks());
-        // Insert the call to setSecureMarks with the return value and marks as parameters
-        mv.visitMethodInsn(Opcodes.INVOKESTATIC, HELPER, METHOD, DESCRIPTOR, false);
+        processSanitizer();
       }
     }
 
     super.visitInsn(opcode);
+  }
+
+  private void processSanitizer() {
+    Type returnType = Type.getReturnType(desc);
+    if (isPrimitive(returnType)) {
+      // no need to check primitives as we are not tainting them
+      LOGGER.warn(
+          "Sanitizers should not be used on non-primitive return types. Return type {}. Security control: {}",
+          returnType.getClassName(),
+          securityControl);
+      return;
+    }
+    // Duplicate the return value on the stack
+    mv.visitInsn(Opcodes.DUP);
+    // Load the marks from securityControl onto the stack
+    mv.visitLdcInsn(securityControl.getMarks());
+    // Insert the call to setSecureMarks with the return value and marks as parameters
+    mv.visitMethodInsn(Opcodes.INVOKESTATIC, HELPER, METHOD, DESCRIPTOR, false);
+  }
+
+  private void processInputValidator() {
+    boolean allParameters = securityControl.getParametersToMark() == null;
+    Type[] types = Type.getArgumentTypes(desc);
+    int parametersCount = 0;
+    for (int i = 0; i < types.length; i++) {
+      Type type = types[i];
+      boolean isPrimitive = isPrimitive(type);
+      if (allParameters) {
+        if (!isPrimitive) {
+          callInputValidation(parametersCount);
+        }
+      } else if (securityControl.getParametersToMark().contains(i)) {
+        if (isPrimitive) {
+          LOGGER.warn(
+              "Input validators should not be used on primitive types. Parameter {} with type {} .Security control: {}",
+              i,
+              type.getClassName(),
+              securityControl);
+        } else {
+          callInputValidation(parametersCount);
+        }
+      }
+      parametersCount += types[i].getSize();
+    }
   }
 
   private void callInputValidation(int i) {
@@ -56,5 +93,11 @@ public class SecurityControlMethodAdapter extends MethodVisitor {
     mv.visitLdcInsn(securityControl.getMarks());
     // Insert the call to setSecureMarks with the parameter value and marks as parameters
     mv.visitMethodInsn(Opcodes.INVOKESTATIC, HELPER, METHOD, DESCRIPTOR, false);
+  }
+
+  private static boolean isPrimitive(Type type) {
+    // Check if is a primitive type
+    int sort = type.getSort();
+    return sort >= Type.BOOLEAN && sort <= Type.DOUBLE;
   }
 }
