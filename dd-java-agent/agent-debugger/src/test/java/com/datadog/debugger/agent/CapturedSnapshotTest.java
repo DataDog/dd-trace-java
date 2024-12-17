@@ -66,6 +66,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -208,6 +209,24 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     Class<?> testClass = Class.forName(CLASS_NAME);
     assertNotNull(testClass);
     testClass.newInstance();
+    assertOneSnapshot(listener);
+  }
+
+  @Test
+  public void oldClass1_1() throws Exception {
+    final String CLASS_NAME = "org.apache.commons.lang.BooleanUtils"; // compiled with jdk 1.1
+    TestSnapshotListener listener = installSingleProbe(CLASS_NAME, "toBoolean", null);
+    when(config.isDebuggerVerifyByteCode()).thenReturn(true);
+    Class<?> testClass =
+        loadClass(
+            CLASS_NAME,
+            Paths.get(
+                    CapturedSnapshotTest.class
+                        .getResource("/classfiles/BooleanUtils.classfile")
+                        .toURI())
+                .toString());
+    boolean result = Reflect.onClass(testClass).call("toBoolean", Boolean.TRUE).get();
+    assertTrue(result);
     assertOneSnapshot(listener);
   }
 

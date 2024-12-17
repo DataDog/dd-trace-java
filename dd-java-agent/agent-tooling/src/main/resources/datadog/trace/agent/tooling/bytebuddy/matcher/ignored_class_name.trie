@@ -223,6 +223,7 @@
 2 javax.xml.*
 # note we do not ignore kotlinx because we instrument coroutines code
 2 kotlin.*
+1 lambdainternal.EventHandlerLoader$PojoHandlerAsStreamHandler
 2 net.sf.cglib.*
 2 org.apache.bcel.*
 2 org.apache.html.*
