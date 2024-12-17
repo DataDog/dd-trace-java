@@ -59,6 +59,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
 
     private volatile boolean closed = false;
     private final AtomicInteger flushCounter = new AtomicInteger(0);
+    private final AtomicInteger dumpCounter = new AtomicInteger(0);
 
     private final LongRunningTracesTracker runningTracesTracker;
 
@@ -136,8 +137,68 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
       }
     }
 
+    private static final class DumpDrain implements MessagePassingQueue.Consumer<Element> {
+      private static final DumpDrain DUMP_DRAIN = new DumpDrain();
+      private static final ArrayList<Element> data = new ArrayList<>();
+
+      @Override
+      public void accept(Element pendingTrace) {
+        data.add(pendingTrace);
+      }
+    }
+
+    private static class DumpSupplier implements MessagePassingQueue.Supplier<Element> {
+      private final ArrayList<Element> data;
+      private int index = 0;
+
+      public DumpSupplier(ArrayList<Element> data) {
+        this.data = data;
+      }
+
+      @Override
+      public Element get() {
+        if (index < data.size()) {
+          return data.get(index++);
+        }
+        return null; // Should never reach here or else queue may break according to
+        // MessagePassingQueue docs
+      }
+    }
+
     private static final class FlushElement implements Element {
       static FlushElement FLUSH_ELEMENT = new FlushElement();
+
+      @Override
+      public long oldestFinishedTime() {
+        return 0;
+      }
+
+      @Override
+      public boolean lastReferencedNanosAgo(long nanos) {
+        return false;
+      }
+
+      @Override
+      public void write() {}
+
+      @Override
+      public DDSpan getRootSpan() {
+        return null;
+      }
+
+      @Override
+      public boolean setEnqueued(boolean enqueued) {
+        return true;
+      }
+
+      @Override
+      public boolean writeOnBufferFull() {
+        return true;
+      }
+    }
+
+    private static final class DumpElement implements Element {
+      static DumpElement DUMP_ELEMENT = new DumpElement();
 
       @Override
       public long oldestFinishedTime() {
@@ -190,6 +251,12 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
               // Since this is an MPSC queue, the drain needs to be called on the consumer thread
               queue.drain(WriteDrain.WRITE_DRAIN);
               flushCounter.incrementAndGet();
+              continue;
+            }
+
+            if (pendingTrace instanceof DumpElement) {
+              queue.drain(DumpDrain.DUMP_DRAIN);
+              dumpCounter.incrementAndGet();
               continue;
             }
 
@@ -256,26 +323,32 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
       }
 
       private String getDumpText() {
-        StringBuilder dumpText = new StringBuilder();
-        try {
-          Element head = buffer.queue.poll(1, TimeUnit.SECONDS);
-          ArrayList<Element> dumpSpans = new ArrayList<>();
-          while (head != null && dumpSpans.size() < 100) { // temp arbitrary limit
-            dumpSpans.add(head);
-            head = buffer.queue.poll();
+        if (buffer.worker.isAlive()) {
+          int count = buffer.dumpCounter.get();
+          int loop = 1;
+          boolean signaled = buffer.queue.offer(DumpElement.DUMP_ELEMENT);
+          while (!buffer.closed && !signaled) {
+            buffer.yieldOrSleep(loop++);
+            signaled = buffer.queue.offer(DumpElement.DUMP_ELEMENT);
           }
-          for (Element e : dumpSpans) {
-            buffer.queue.offer(e);
-            if (e instanceof PendingTrace) {
-              PendingTrace trace = (PendingTrace) e;
-              for (DDSpan span : trace.getSpans()) {
-                dumpText.append(span.toString()).append("\n");
-              }
+          int newCount = buffer.dumpCounter.get();
+          while (!buffer.closed && count >= newCount) {
+            buffer.yieldOrSleep(loop++);
+            newCount = buffer.dumpCounter.get();
+          }
+        }
+
+        DumpSupplier supplier = new DumpSupplier(DumpDrain.data);
+        buffer.queue.fill(supplier, supplier.data.size());
+
+        StringBuilder dumpText = new StringBuilder();
+        for (Element e : DumpDrain.data) {
+          if (e instanceof PendingTrace) {
+            PendingTrace trace = (PendingTrace) e;
+            for (DDSpan span : trace.getSpans()) {
+              dumpText.append(span.toString()).append("\n");
             }
           }
-        } catch (InterruptedException e) {
-          log.error("Error with polling the buffer queue. Buffer: {}", buffer);
-          Thread.currentThread().interrupt();
         }
         return dumpText.toString();
       }
