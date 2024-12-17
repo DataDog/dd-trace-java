@@ -9,8 +9,13 @@ import javax.annotation.Nullable;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.ClassWriter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class IastSecurityControlTransformer implements ClassFileTransformer {
+
+  private static final Logger LOGGER =
+      LoggerFactory.getLogger(IastSecurityControlTransformer.class);
 
   private final List<SecurityControl> securityControls;
   private final Set<String> classFilter;
@@ -36,11 +41,16 @@ public class IastSecurityControlTransformer implements ClassFileTransformer {
     if (match == null || match.isEmpty()) {
       return null; // Do not transform classes that do not have a security control
     }
-    ClassReader cr = new ClassReader(classfileBuffer);
-    ClassWriter cw = new ClassWriter(cr, ClassWriter.COMPUTE_FRAMES);
-    ClassVisitor cv = new SecurityControlMethodClassVisitor(cw, match);
-    cr.accept(cv, 0);
-    return cw.toByteArray();
+    try {
+      ClassReader cr = new ClassReader(classfileBuffer);
+      ClassWriter cw = new ClassWriter(cr, ClassWriter.COMPUTE_FRAMES);
+      ClassVisitor cv = new SecurityControlMethodClassVisitor(cw, match);
+      cr.accept(cv, 0);
+      return cw.toByteArray();
+    } catch (Exception e) {
+      LOGGER.warn("Failed to transform class: {}", className, e);
+      return null;
+    }
   }
 
   private List<SecurityControl> getSecurityControl(final String className) {
