@@ -238,7 +238,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     def addDbmTag = dbmTraceInjected()
     resultSet.next()
     resultSet.getInt(1) == 3
-    if (driver == POSTGRESQL || driver == MYSQL || !addDbmTag) {
+    if (driver == POSTGRESQL || driver == MYSQL || driver == ORACLE || !addDbmTag) {
       assertTraces(1) {
         trace(2) {
           basicSpan(it, "parent")
@@ -453,9 +453,11 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               if (usingHikari) {
                 "$Tags.DB_POOL_NAME" String
               }
-              if (this.dbmTracePreparedStatements(driver)){
+              if (this.dbmTracePreparedStatements(this.getDbType(driver))){
                 "$InstrumentationTags.DBM_TRACE_INJECTED" true
-                "$InstrumentationTags.INSTRUMENTATION_TIME_MS" Long
+                if (driver == POSTGRESQL) {
+                  "$InstrumentationTags.INSTRUMENTATION_TIME_MS" Long
+                }
               }
               peerServiceFrom(Tags.DB_INSTANCE)
               defaultTags()
@@ -590,7 +592,9 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               }
               if (this.dbmTracePreparedStatements(driver)){
                 "$InstrumentationTags.DBM_TRACE_INJECTED" true
-                "$InstrumentationTags.INSTRUMENTATION_TIME_MS" Long
+                if (driver == POSTGRESQL) {
+                  "$InstrumentationTags.INSTRUMENTATION_TIME_MS" Long
+                }
               }
               peerServiceFrom(Tags.DB_INSTANCE)
               defaultTags()
@@ -717,9 +721,11 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               if (conPoolType == "hikari") {
                 "$Tags.DB_POOL_NAME" String
               }
-              if (this.dbmTracePreparedStatements(driver)){
+              if (this.dbmTracePreparedStatements(this.getDbType(driver))){
                 "$InstrumentationTags.DBM_TRACE_INJECTED" true
-                "$InstrumentationTags.INSTRUMENTATION_TIME_MS" Long
+                if (driver == POSTGRESQL) {
+                  "$InstrumentationTags.INSTRUMENTATION_TIME_MS" Long
+                }
               }
               defaultTags()
             }
@@ -766,7 +772,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     then:
     def addDbmTag = dbmTraceInjected()
     statement.updateCount == 0
-    if (driver == POSTGRESQL || driver == MYSQL || !dbmTraceInjected()) {
+    if (driver == POSTGRESQL || driver == MYSQL || driver == ORACLE || !dbmTraceInjected()) {
       assertTraces(1) {
         trace(2) {
           basicSpan(it, "parent")
@@ -1034,9 +1040,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
 
   protected abstract boolean dbmTraceInjected()
 
-  protected boolean dbmTracePreparedStatements(String dbType){
-    return false
-  }
+  protected abstract boolean dbmTracePreparedStatements(String dbType)
 }
 
 class RemoteJDBCInstrumentationV0Test extends RemoteJDBCInstrumentationTest {
@@ -1058,6 +1062,11 @@ class RemoteJDBCInstrumentationV0Test extends RemoteJDBCInstrumentationTest {
 
   @Override
   protected boolean dbmTraceInjected() {
+    return false
+  }
+
+  @Override
+  protected boolean dbmTracePreparedStatements(String dbType) {
     return false
   }
 }
@@ -1085,6 +1094,11 @@ class RemoteJDBCInstrumentationV1ForkedTest extends RemoteJDBCInstrumentationTes
   }
 
   @Override
+  protected boolean dbmTracePreparedStatements(String dbType) {
+    return false
+  }
+
+  @Override
   protected String getDbType(String dbType) {
     final databaseNaming = new DatabaseNamingV1()
     return databaseNaming.normalizedName(dbType)
@@ -1102,6 +1116,11 @@ class RemoteDBMTraceInjectedForkedTest extends RemoteJDBCInstrumentationTest {
   @Override
   protected boolean dbmTraceInjected() {
     return true
+  }
+
+  @Override
+  protected boolean dbmTracePreparedStatements(String dbType){
+    return dbType == ORACLE
   }
 
   @Override
@@ -1163,6 +1182,6 @@ class RemoteDBMTraceInjectedForkedTestTracePreparedStatements extends RemoteJDBC
 
   @Override
   protected boolean dbmTracePreparedStatements(String dbType){
-    return dbType == POSTGRESQL
+    return dbType == POSTGRESQL || dbType == ORACLE
   }
 }
