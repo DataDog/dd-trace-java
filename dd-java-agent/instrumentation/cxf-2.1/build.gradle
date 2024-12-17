@@ -1,5 +1,5 @@
 ext {
-  minJavaVersionForTests = JavaVersion.VERSION_11
+  cxf3LatestDepTestMinJavaVersionForTests = JavaVersion.VERSION_11
   latestDepTestMinJavaVersionForTests = JavaVersion.VERSION_17
 }
 muzzle {

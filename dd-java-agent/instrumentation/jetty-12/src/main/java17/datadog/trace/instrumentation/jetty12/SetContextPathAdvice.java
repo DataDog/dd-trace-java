@@ -43,7 +43,7 @@ public class SetContextPathAdvice {
               pathInContext.startsWith(servletContext)
                   ? pathInContext.substring(servletContext.length())
                   : pathInContext;
-          if (!relativePath.isEmpty() && relativePath.charAt(0) != '/') {
+          if (relativePath.isEmpty() || relativePath.charAt(0) != '/') {
             relativePath = "/" + relativePath;
           }
           ((AgentSpan) span).setTag(SERVLET_PATH, relativePath);
