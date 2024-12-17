@@ -19,7 +19,6 @@ import datadog.trace.bootstrap.debugger.ProbeId;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import org.joor.Reflect;
 import org.junit.jupiter.api.Test;
@@ -134,10 +133,7 @@ public class SpanProbeInstrumentationTest extends ProbeInstrumentationTest {
 
   private MockTracer installSpanProbes(SpanProbe... spanProbes) {
     return installSpanProbes(
-        Configuration.builder()
-            .setService(SERVICE_NAME)
-            .addSpanProbes(Arrays.asList(spanProbes))
-            .build());
+        Configuration.builder().setService(SERVICE_NAME).add(spanProbes).build());
   }
 
   private MockTracer installSpanProbes(Configuration configuration) {

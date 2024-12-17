@@ -1,5 +1,7 @@
 package datadog.trace.bootstrap.debugger;
 
+import java.util.UUID;
+
 public class ProbeId {
   private static final String ID_SEPARATOR = ":";
 
@@ -27,6 +29,10 @@ public class ProbeId {
     this.id = id;
     this.version = version;
     this.encoded = encoded;
+  }
+
+  public static ProbeId newId() {
+    return new ProbeId(UUID.randomUUID().toString(), 0);
   }
 
   public String getId() {

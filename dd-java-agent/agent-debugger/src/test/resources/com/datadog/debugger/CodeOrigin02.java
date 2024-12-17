@@ -56,7 +56,7 @@ public class CodeOrigin02 {
     }
   }
 
-  private static void exit() {
+  public static void exit() {
     int x = 47 / 3;
   }
 

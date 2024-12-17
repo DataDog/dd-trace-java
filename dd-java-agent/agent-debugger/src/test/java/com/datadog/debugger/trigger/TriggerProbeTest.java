@@ -3,7 +3,6 @@ package com.datadog.debugger.trigger;
 import static com.datadog.debugger.el.DSL.*;
 import static com.datadog.debugger.util.TestHelper.setFieldInConfig;
 import static java.lang.String.format;
-import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
@@ -62,11 +61,7 @@ public class TriggerProbeTest extends CapturingTestBase {
       TriggerProbe probe1 =
           createTriggerProbe(
               TRIGGER_PROBE_ID1, className, "entry", "()", null, new Sampling(10, 10.0));
-      installProbes(
-          Configuration.builder()
-              .setService(SERVICE_NAME)
-              .addTriggerProbes(singletonList(probe1))
-              .build());
+      installProbes(Configuration.builder().setService(SERVICE_NAME).add(probe1).build());
       Class<?> testClass = compileAndLoadClass(className);
       int runs = 10000;
       for (int i = 0; i < runs; i++) {
@@ -109,11 +104,7 @@ public class TriggerProbeTest extends CapturingTestBase {
       final String className = "com.datadog.debugger.TriggerProbe01";
       TriggerProbe probe1 =
           createTriggerProbe(TRIGGER_PROBE_ID1, className, "entry", "()", null, new Sampling(10.0));
-      Configuration config =
-          Configuration.builder()
-              .setService(SERVICE_NAME)
-              .addTriggerProbes(singletonList(probe1))
-              .build();
+      Configuration config = Configuration.builder().setService(SERVICE_NAME).add(probe1).build();
       installProbes(config);
       Class<?> testClass = compileAndLoadClass(className);
       for (int i = 0; i < 100; i++) {
@@ -138,11 +129,7 @@ public class TriggerProbeTest extends CapturingTestBase {
             "(int)",
             new ProbeCondition(when(lt(ref("value"), value(25))), "value < 25"),
             new Sampling(10.0));
-    installProbes(
-        Configuration.builder()
-            .setService(SERVICE_NAME)
-            .addTriggerProbes(singletonList(probe1))
-            .build());
+    installProbes(Configuration.builder().setService(SERVICE_NAME).add(probe1).build());
     Class<?> testClass = compileAndLoadClass(className);
     for (int i = 0; i < 100; i++) {
       Reflect.onClass(testClass).call("main", i).get();
