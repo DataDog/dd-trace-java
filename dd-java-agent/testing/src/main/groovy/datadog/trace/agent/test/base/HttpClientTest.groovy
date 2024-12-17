@@ -765,9 +765,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
   def "test request header #header tag mapping"() {
     when:
     def url = server.address.resolve("/success")
-    System.out.println("testing header, value, value2: " + header + ", " + value + ", " + value2)
-    String[] headerVals = [header + ":" + value , header + ":" + value2]
-    def status = (value2 == null) ? doRequest(method, url, [[header, value]]) : doRequest(method, url, [[header, value], [header, value2]])
+    def status = doRequest(method, url, [[header, value]])
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
@@ -790,13 +788,11 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     }
 
     where:
-    method | header                           | value     | value2 | tags
-    'GET'  | 'X-Datadog-Test-Both-Header'     | 'foo'     | null   | [ 'both_header_tag': 'foo' ]
-    'GET'  | 'X-Datadog-Test-Request-Header'  | 'bar'     | null   | [ 'request_header_tag': 'bar' ]
-    'GET'  | 'X-Datadog-Test-Both-Header'     | 'bar,baz' | null   | [ 'both_header_tag': 'bar,baz' ]
-    'GET'  | 'X-Datadog-Test-Request-Header'  | 'foo,bar' | null   | [ 'request_header_tag': 'foo,bar' ]
-    'GET'  | 'X-Datadog-Test-Both-Header'     | 'bar,baz' | 'foo'  | [ 'both_header_tag': 'bar,baz,foo' ]
-    'GET'  | 'X-Datadog-Test-Request-Header'  | 'foo,bar' | 'baz'  | [ 'request_header_tag': 'foo,bar,baz' ]
+    method | header                           | value     | tags
+    'GET'  | 'X-Datadog-Test-Both-Header'     | 'foo'     | [ 'both_header_tag': 'foo' ]
+    'GET'  | 'X-Datadog-Test-Request-Header'  | 'bar'     | [ 'request_header_tag': 'bar' ]
+    'GET'  | 'X-Datadog-Test-Both-Header'     | 'bar,baz' | [ 'both_header_tag': 'bar,baz' ]
+    'GET'  | 'X-Datadog-Test-Request-Header'  | 'foo,bar' | [ 'request_header_tag': 'foo,bar' ]
   }
 
   def "test response header #header tag mapping"() {

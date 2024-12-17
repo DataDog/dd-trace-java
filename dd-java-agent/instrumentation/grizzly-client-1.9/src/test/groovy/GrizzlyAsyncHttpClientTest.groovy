@@ -7,7 +7,7 @@ import com.ning.http.client.Request
 import com.ning.http.client.RequestBuilder
 import com.ning.http.client.Response
 import com.ning.http.client.uri.Uri
-import datadog.trace.agent.test.base.HttpClientTest
+import datadog.trace.agent.test.base.HttpClientTest2
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.instrumentation.grizzly.client.ClientDecorator
 import spock.lang.AutoCleanup
@@ -15,7 +15,7 @@ import spock.lang.Shared
 
 import java.util.concurrent.Executors
 
-abstract class GrizzlyAsyncHttpClientTest extends HttpClientTest {
+abstract class GrizzlyAsyncHttpClientTest extends HttpClientTest2 {
 
   @AutoCleanup
   @Shared

@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.base.HttpClientTest
+import datadog.trace.agent.test.base.HttpClientTest2
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.instrumentation.apachehttpclient.ApacheHttpClientDecorator
 import org.apache.http.HttpHost
@@ -13,7 +13,7 @@ import org.apache.http.protocol.BasicHttpContext
 import spock.lang.Shared
 import spock.lang.Timeout
 
-abstract class ApacheHttpClientTest<T extends HttpRequest> extends HttpClientTest implements TestingGenericHttpNamingConventions.ClientV0 {
+abstract class ApacheHttpClientTest<T extends HttpRequest> extends HttpClientTest2 implements TestingGenericHttpNamingConventions.ClientV0 {
   @Shared
   def client = new DefaultHttpClient()
 
