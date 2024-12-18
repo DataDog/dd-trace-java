@@ -191,7 +191,8 @@ excludedClassesCoverage += [
   'datadog.trace.util.stacktrace.StackTraceEvent',
   'datadog.trace.util.stacktrace.StackTraceFrame',
   'datadog.trace.api.iast.VulnerabilityMarks',
-  'datadog.trace.api.iast.securitycontrol.SecurityControlHelper'
+  'datadog.trace.api.iast.securitycontrol.SecurityControlHelper',
+  'datadog.trace.api.iast.securitycontrol.SecurityControl'
 ]
 excludedClassesBranchCoverage = [
   'datadog.trace.api.ProductActivationConfig',
