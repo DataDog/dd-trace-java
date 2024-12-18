@@ -85,8 +85,21 @@ tasks.withType(Test).configureEach {
 
 Task allTestsTask = tasks.maybeCreate('allTests')
 Task allLatestDepTestsTask = tasks.maybeCreate('allLatestDepTests')
-project.afterEvaluate {
-  tasks.withType(Test).each {
+project.afterEvaluate { proj ->
+  if (System.getenv("CI") != null) {
+    proj.tasks.withType(Test).configureEach { task ->
+      task.extensions.configure('develocity') { it ->
+        it.testRetry.maxRetries = 3
+        it.testRetry.maxFailures = 20
+        it.testRetry.failOnPassedAfterRetry = false
+        it.testRetry.failOnSkippedAfterRetry = true
+        it.testRetry.filter { f ->
+          f.includeAnnotationClasses.add('datadog.trace.test.util.Flaky')
+        }
+      }
+    }
+  }
+  proj.tasks.withType(Test).each {
     if (it.name.containsIgnoreCase('latest')) {
       allLatestDepTestsTask.dependsOn it
     } else if (it.name != 'traceAgentTest') {
