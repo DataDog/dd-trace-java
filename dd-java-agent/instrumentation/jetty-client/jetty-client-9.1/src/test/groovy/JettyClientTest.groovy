@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.base.HttpClientTest2
+import datadog.trace.agent.test.base.HttpClientTest
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import org.eclipse.jetty.client.HttpClient
 import org.eclipse.jetty.client.HttpProxy
@@ -13,7 +13,7 @@ import spock.lang.Subject
 
 import java.util.concurrent.ExecutionException
 
-abstract class JettyClientTest extends HttpClientTest2 {
+abstract class JettyClientTest extends HttpClientTest {
 
   @Shared
   @Subject

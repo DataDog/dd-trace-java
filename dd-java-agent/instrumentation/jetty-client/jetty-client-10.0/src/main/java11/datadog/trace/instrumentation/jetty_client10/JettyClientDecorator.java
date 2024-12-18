@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.jetty_client10;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
-import java.util.List;
 import org.eclipse.jetty.client.api.Request;
 import org.eclipse.jetty.client.api.Response;
 
@@ -39,8 +38,7 @@ public class JettyClientDecorator extends HttpClientDecorator<Request, Response>
 
   @Override
   protected String getRequestHeader(Request request, String headerName) {
-    List<String> result = request.getHeaders().getValuesList(headerName);
-    return String.join(",", result);
+    return request.getHeaders().get(headerName);
   }
 
   @Override
