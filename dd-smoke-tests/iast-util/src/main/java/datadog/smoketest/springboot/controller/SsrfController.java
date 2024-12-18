@@ -80,7 +80,10 @@ public class SsrfController {
     } catch (final Exception e) {
     }
     client.getDispatcher().getExecutorService().shutdown();
-    client.getConnectionPool().evictAll();
+    com.squareup.okhttp.ConnectionPool pool = client.getConnectionPool();
+    if (pool != null) {
+      pool.evictAll();
+    }
     return "ok";
   }
 

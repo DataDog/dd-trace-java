@@ -30,20 +30,21 @@ class CustomSystemLoaderSmokeTest extends AbstractSmokeTest {
   def "resource types loaded by custom system class-loader are transformed"() {
     when:
     testedProcess.waitFor(TIMEOUT_SECS, SECONDS)
+
+    then:
+    testedProcess.exitValue() == 0
     int loadedResources = 0
     int transformedResources = 0
-    checkLogPostExit {
+    assertNoErrorLogs { String it ->
       if (it =~ /Loading sample.app.Resource[$]Test[1-3] from TestLoader/) {
         loadedResources++
       }
       if (it =~ /Transformed.*class=sample.app.Resource[$]Test[1-3].*classloader=datadog.smoketest.systemloader.TestLoader/) {
         transformedResources++
       }
+      false
     }
-    then:
-    testedProcess.exitValue() == 0
     loadedResources == 3
     transformedResources == 3
-    !logHasErrors
   }
 }
