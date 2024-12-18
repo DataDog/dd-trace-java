@@ -55,7 +55,7 @@ abstract class OkHttp2AsyncTest extends OkHttp2Test {
     def captured = AgentTracer.noopSpan()
     try {
       TraceUtils.runUnderTrace("parent", {
-        doRequest(method, url, ["Datadog-Meta-Lang": "java"], "", { captured = AgentTracer.activeSpan() })
+        doRequest(method, url, [["Datadog-Meta-Lang", "java"]], "", { captured = AgentTracer.activeSpan() })
       })
     } catch (Exception e) {
       assert error == true

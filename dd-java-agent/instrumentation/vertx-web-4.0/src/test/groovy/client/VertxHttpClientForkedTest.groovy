@@ -91,7 +91,7 @@ class VertxHttpClientForkedTest extends HttpClientTest implements TestingNettyHt
 
   def "handle timeout"() {
     when:
-    def status = doRequest(method, url, [:], "", null, timeout)
+    def status = doRequest(method, url, [], "", null, timeout)
 
     then:
     status == 0
