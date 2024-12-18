@@ -40,7 +40,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
       new AtomicLongArray(RuleType.getNumValues());
   private static final AtomicLongArray raspTimeoutCounter =
       new AtomicLongArray(RuleType.getNumValues());
-  private static final AtomicRequestCounter missingUserIdCounter = new AtomicRequestCounter();
+  private static final AtomicLongArray missingUserLoginQueue =
+      new AtomicLongArray(LoginFramework.getNumValues() * LoginEvent.getNumValues());
 
   /** WAF version that will be initialized with wafInit and reused for all metrics. */
   private static String wafVersion = "";
@@ -99,8 +100,9 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
     raspTimeoutCounter.incrementAndGet(ruleType.ordinal());
   }
 
-  public void missingUserId() {
-    missingUserIdCounter.increment();
+  public void missingUserLogin(final LoginFramework framework, final LoginEvent eventType) {
+    missingUserLoginQueue.incrementAndGet(
+        framework.ordinal() * LoginEvent.getNumValues() + eventType.ordinal());
   }
 
   @Override
@@ -207,10 +209,16 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
     }
 
     // Missing user id
-    long missingUserId = missingUserIdCounter.getAndReset();
-    if (missingUserId > 0) {
-      if (!rawMetricsQueue.offer(new MissingUserIdMetric(missingUserId))) {
-        return;
+    for (LoginFramework framework : LoginFramework.values()) {
+      for (LoginEvent event : LoginEvent.values()) {
+        final int ordinal = framework.ordinal() * LoginEvent.getNumValues() + event.ordinal();
+        long counter = missingUserLoginQueue.getAndSet(ordinal, 0);
+        if (counter > 0) {
+          if (!rawMetricsQueue.offer(
+              new MissingUserLoginMetric(counter, framework.getTag(), event.getTelemetryTag()))) {
+            return;
+          }
+        }
       }
     }
   }
@@ -241,10 +249,14 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
     }
   }
 
-  public static class MissingUserIdMetric extends WafMetric {
+  public static class MissingUserLoginMetric extends WafMetric {
 
-    public MissingUserIdMetric(long counter) {
-      super("instrum.user_auth.missing_user_id", counter);
+    public MissingUserLoginMetric(long counter, String framework, String type) {
+      super(
+          "instrum.user_auth.missing_user_login",
+          counter,
+          "framework:" + framework,
+          "event_type:" + type);
     }
   }
 
