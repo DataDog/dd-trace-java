@@ -1,13 +1,13 @@
 name: Feature Request (Low Priority)
-description: Create a public Feature Request. Note that these may not be addressed as quickly as the helpdesk and that looking up account information will be difficult.
-title: "[FEATURE]: "
+description: Create a public Feature Request. Note that these may not be addressed as it depeonds on capacity and that looking up account information will be difficult.
+title: ""
 labels: "type: feature request"
 body:
   - type: input
     attributes:
       label: Library Name
       description: "If your feature request is to add instrumentation support for a library please provide the name here"
-      #placeholder: "TODO: Provide a sample Java library name"
+      placeholder: "spring-boot"
     validations:
       required: false
 
