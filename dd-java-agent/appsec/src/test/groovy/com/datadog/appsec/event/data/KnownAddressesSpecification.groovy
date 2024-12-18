@@ -36,6 +36,7 @@ class KnownAddressesSpecification extends Specification {
       'server.db.system',
       'server.db.statement',
       'usr.id',
+      'usr.login',
       'usr.session_id',
       'server.business_logic.users.login.failure',
       'server.business_logic.users.login.success',

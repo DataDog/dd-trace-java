@@ -1,10 +1,16 @@
 package com.datadog.appsec.gateway;
 
 import static com.datadog.appsec.event.data.MapDataBundle.Builder.CAPACITY_0_2;
+import static com.datadog.appsec.event.data.MapDataBundle.Builder.CAPACITY_3_4;
 import static com.datadog.appsec.event.data.MapDataBundle.Builder.CAPACITY_6_10;
 import static com.datadog.appsec.gateway.AppSecRequestContext.DEFAULT_REQUEST_HEADERS_ALLOW_LIST;
 import static com.datadog.appsec.gateway.AppSecRequestContext.REQUEST_HEADERS_ALLOW_LIST;
 import static com.datadog.appsec.gateway.AppSecRequestContext.RESPONSE_HEADERS_ALLOW_LIST;
+import static datadog.trace.api.UserIdCollectionMode.ANONYMIZATION;
+import static datadog.trace.api.UserIdCollectionMode.DISABLED;
+import static datadog.trace.api.UserIdCollectionMode.SDK;
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
+import static datadog.trace.util.Strings.toHexString;
 
 import com.datadog.appsec.AppSecSystem;
 import com.datadog.appsec.api.security.ApiSecurityRequestSampler;
@@ -22,7 +28,6 @@ import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.report.AppSecEventWrapper;
 import datadog.trace.api.Config;
 import datadog.trace.api.UserIdCollectionMode;
-import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.gateway.Events;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
@@ -41,6 +46,8 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -51,7 +58,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,6 +73,10 @@ public class GatewayBridge {
   private static final Pattern QUERY_PARAM_VALUE_SPLITTER = Pattern.compile("=");
   private static final Pattern QUERY_PARAM_SPLITTER = Pattern.compile("&");
   private static final Map<String, List<String>> EMPTY_QUERY_PARAMS = Collections.emptyMap();
+
+  private static final int HASH_SIZE_BYTES = 16; // 128 bits
+  private static final String ANON_PREFIX = "anon_";
+  private static final AtomicBoolean SHA_MISSING_REPORTED = new AtomicBoolean(false);
 
   /** User tracking tags that will force the collection of request headers */
   private static final String[] USER_TRACKING_TAGS = {
@@ -91,7 +104,8 @@ public class GatewayBridge {
   private volatile DataSubscriberInfo ioNetUrlSubInfo;
   private volatile DataSubscriberInfo ioFileSubInfo;
   private volatile DataSubscriberInfo sessionIdSubInfo;
-  private final ConcurrentHashMap<Address<String>, DataSubscriberInfo> userIdSubInfo =
+  private volatile DataSubscriberInfo userIdSubInfo;
+  private final ConcurrentHashMap<String, DataSubscriberInfo> loginEventSubInfo =
       new ConcurrentHashMap<>();
   private volatile DataSubscriberInfo execCmdSubInfo;
   private volatile DataSubscriberInfo shellCmdSubInfo;
@@ -136,13 +150,10 @@ public class GatewayBridge {
     subscriptionService.registerCallback(EVENTS.networkConnection(), this::onNetworkConnection);
     subscriptionService.registerCallback(EVENTS.fileLoaded(), this::onFileLoaded);
     subscriptionService.registerCallback(EVENTS.requestSession(), this::onRequestSession);
-    subscriptionService.registerCallback(EVENTS.userId(), this.onUserEvent(KnownAddresses.USER_ID));
-    subscriptionService.registerCallback(
-        EVENTS.loginSuccess(), this.onUserEvent(KnownAddresses.LOGIN_SUCCESS));
-    subscriptionService.registerCallback(
-        EVENTS.loginFailure(), this.onUserEvent(KnownAddresses.LOGIN_FAILURE));
     subscriptionService.registerCallback(EVENTS.execCmd(), this::onExecCmd);
     subscriptionService.registerCallback(EVENTS.shellCmd(), this::onShellCmd);
+    subscriptionService.registerCallback(EVENTS.user(), this::onUser);
+    subscriptionService.registerCallback(EVENTS.loginEvent(), this::onLoginEvent);
 
     if (additionalIGEvents.contains(EVENTS.requestPathParams())) {
       subscriptionService.registerCallback(EVENTS.requestPathParams(), this::onRequestPathParams);
@@ -153,55 +164,157 @@ public class GatewayBridge {
     }
   }
 
-  private TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>> onUserEvent(
-      final Address<String> address) {
-    return (ctx_, mode, userId) -> {
-      final AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-      if (userId == null || ctx == null) {
+  private Flow<Void> onUser(
+      final RequestContext ctx_, final UserIdCollectionMode mode, final String originalUser) {
+    if (mode == DISABLED) {
+      return NoopFlow.INSTANCE;
+    }
+    final String user = anonymizeUser(mode, originalUser);
+    if (user == null) {
+      return NoopFlow.INSTANCE;
+    }
+    final AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx == null) {
+      return NoopFlow.INSTANCE;
+    }
+    final TraceSegment segment = ctx_.getTraceSegment();
+
+    // span with ASM data
+    segment.setTagTop(Tags.ASM_KEEP, true);
+    segment.setTagTop(Tags.PROPAGATED_APPSEC, true);
+
+    // skip event if we have an SDK one
+    if (mode != SDK) {
+      segment.setTagTop("_dd.appsec.usr.id", user);
+      if (ctx.getUserIdSource() == SDK) {
         return NoopFlow.INSTANCE;
       }
-      final TraceSegment segment = ctx_.getTraceSegment();
-      // user id can be set by the SDK overriding the auto event, always update the segment
-      segment.setTagTop("usr.id", userId);
-      segment.setTagTop("_dd.appsec.user.collection_mode", mode.shortName());
-      final List<Address<?>> addresses = new ArrayList<>(2);
-      final boolean newUserId = !userId.equals(ctx.getUserId());
-      if (newUserId) {
-        // unlikely that multiple threads will update the value at the same time
-        ctx.setUserId(userId);
-        addresses.add(KnownAddresses.USER_ID);
+    }
+
+    // update span tags
+    segment.setTagTop("usr.id", user);
+    segment.setTagTop("_dd.appsec.user.collection_mode", mode.fullName());
+
+    // update current context with new user id
+    ctx.setUserIdSource(mode);
+    final boolean newUserId = !user.equals(ctx.getUserId());
+    if (!newUserId) {
+      return NoopFlow.INSTANCE;
+    }
+    ctx.setUserId(user);
+
+    // call waf if we have a new user id
+    while (true) {
+      DataSubscriberInfo subInfo = userIdSubInfo;
+      if (subInfo == null) {
+        subInfo = producerService.getDataSubscribers(KnownAddresses.USER_ID);
+        userIdSubInfo = subInfo;
       }
-      if (address != KnownAddresses.USER_ID) {
-        addresses.add(address);
-      }
-      if (addresses.isEmpty()) {
-        // nothing to publish so short-circuit here
+      if (subInfo == null || subInfo.isEmpty()) {
         return NoopFlow.INSTANCE;
       }
-      final Address<?>[] addressArray = addresses.toArray(new Address[0]);
-      while (true) {
-        DataSubscriberInfo subInfo =
-            userIdSubInfo.computeIfAbsent(
-                address, k -> producerService.getDataSubscribers(addressArray));
-        if (subInfo == null || subInfo.isEmpty()) {
-          return NoopFlow.INSTANCE;
-        }
-        MapDataBundle.Builder bundle = new MapDataBundle.Builder(CAPACITY_0_2);
-        if (newUserId) {
-          bundle.add(KnownAddresses.USER_ID, userId);
-        }
-        if (address != KnownAddresses.USER_ID) {
-          // we don't support null values for the address so we use an invalid placeholder here
-          bundle.add(address, "invalid");
-        }
-        try {
-          GatewayContext gwCtx = new GatewayContext(false);
-          return producerService.publishDataEvent(subInfo, ctx, bundle.build(), gwCtx);
-        } catch (ExpiredSubscriberInfoException e) {
-          userIdSubInfo.remove(address);
-        }
+      DataBundle bundle =
+          new MapDataBundle.Builder(CAPACITY_0_2).add(KnownAddresses.USER_ID, user).build();
+      try {
+        GatewayContext gwCtx = new GatewayContext(false);
+        return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
+      } catch (ExpiredSubscriberInfoException e) {
+        userIdSubInfo = null;
       }
-    };
+    }
+  }
+
+  private Flow<Void> onLoginEvent(
+      final RequestContext ctx_,
+      final UserIdCollectionMode mode,
+      final String eventName,
+      final Boolean exists,
+      final String originalUser,
+      final Map<String, String> metadata) {
+    if (mode == DISABLED) {
+      return NoopFlow.INSTANCE;
+    }
+    final String user = anonymizeUser(mode, originalUser);
+    if (user == null) {
+      return NoopFlow.INSTANCE;
+    }
+    final AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx == null) {
+      return NoopFlow.INSTANCE;
+    }
+    final TraceSegment segment = ctx_.getTraceSegment();
+
+    // span with ASM data
+    segment.setTagTop(Tags.ASM_KEEP, true);
+    segment.setTagTop(Tags.PROPAGATED_APPSEC, true);
+
+    // skip event if we have an SDK one
+    if (mode != SDK) {
+      segment.setTagTop("_dd.appsec.usr.login", user);
+      segment.setTagTop("_dd.appsec.usr.id", user);
+      segment.setTagTop(
+          "_dd.appsec.events.users." + eventName + ".auto.mode", mode.fullName(), true);
+      if (ctx.getUserLoginSource() == SDK) {
+        return NoopFlow.INSTANCE;
+      }
+    } else {
+      segment.setTagTop("_dd.appsec.events.users." + eventName + ".sdk", true, true);
+    }
+
+    // update span tags
+    segment.setTagTop("appsec.events.users." + eventName + ".usr.login", user, true);
+    segment.setTagTop("appsec.events.users." + eventName + ".usr.id", user, true);
+    segment.setTagTop("appsec.events.users." + eventName + ".track", true, true);
+    if (exists != null) {
+      segment.setTagTop("appsec.events.users." + eventName + ".usr.exists", exists, true);
+    }
+    if (metadata != null && !metadata.isEmpty()) {
+      segment.setTagTop("appsec.events.users." + eventName, metadata, true);
+    }
+
+    // update current context with new user login
+    ctx.setUserLoginSource(mode);
+    final boolean newUserLogin = !user.equals(ctx.getUserLogin());
+    if (!newUserLogin) {
+      return NoopFlow.INSTANCE;
+    }
+    ctx.setUserLogin(user);
+
+    // call waf if we have a new user login
+    final List<Address<?>> addresses = new ArrayList<>(3);
+    addresses.add(KnownAddresses.USER_LOGIN);
+    addresses.add(KnownAddresses.USER_ID);
+    if (KnownAddresses.LOGIN_SUCCESS.getKey().endsWith(eventName)) {
+      addresses.add(KnownAddresses.LOGIN_SUCCESS);
+    } else if (KnownAddresses.LOGIN_FAILURE.getKey().endsWith(eventName)) {
+      addresses.add(KnownAddresses.LOGIN_FAILURE);
+    }
+    final MapDataBundle.Builder bundleBuilder =
+        new MapDataBundle.Builder(addresses.size() == 2 ? CAPACITY_0_2 : CAPACITY_3_4);
+    bundleBuilder.add(KnownAddresses.USER_ID, user);
+    bundleBuilder.add(KnownAddresses.USER_LOGIN, user);
+    if (addresses.size() == 3) {
+      // we don't support null values for the address so we use an invalid placeholder here
+      bundleBuilder.add(addresses.get(2), "invalid");
+    }
+    final DataBundle bundle = bundleBuilder.build();
+    final String subInfoKey =
+        addresses.stream().map(Address::getKey).collect(Collectors.joining("|"));
+    while (true) {
+      DataSubscriberInfo subInfo =
+          loginEventSubInfo.computeIfAbsent(
+              subInfoKey,
+              t -> producerService.getDataSubscribers(addresses.toArray(new Address[0])));
+      if (subInfo == null || subInfo.isEmpty()) {
+        return NoopFlow.INSTANCE;
+      }
+      try {
+        GatewayContext gwCtx = new GatewayContext(false);
+        return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
+      } catch (ExpiredSubscriberInfoException e) {
+        loginEventSubInfo.remove(subInfoKey);
+      }
+    }
   }
 
   private Flow<Void> onRequestSession(final RequestContext ctx_, final String sessionId) {
@@ -992,6 +1105,33 @@ public class GatewayBridge {
       return 10 + (b - 0x61);
     }
     return -1;
+  }
+
+  protected static String anonymizeUser(final UserIdCollectionMode mode, final String userId) {
+    if (mode != ANONYMIZATION || userId == null) {
+      return userId;
+    }
+    MessageDigest digest;
+    try {
+      // TODO avoid lookup a new instance every time
+      digest = MessageDigest.getInstance("SHA-256");
+    } catch (NoSuchAlgorithmException e) {
+      if (!SHA_MISSING_REPORTED.getAndSet(true)) {
+        log.error(
+            SEND_TELEMETRY,
+            "Missing SHA-256 digest, user collection in 'anon' mode cannot continue",
+            e);
+      }
+      return null;
+    }
+    digest.update(userId.getBytes());
+    byte[] hash = digest.digest();
+    if (hash.length > HASH_SIZE_BYTES) {
+      byte[] temp = new byte[HASH_SIZE_BYTES];
+      System.arraycopy(hash, 0, temp, 0, temp.length);
+      hash = temp;
+    }
+    return ANON_PREFIX + toHexString(hash);
   }
 
   private static class IGAppSecEventDependencies {

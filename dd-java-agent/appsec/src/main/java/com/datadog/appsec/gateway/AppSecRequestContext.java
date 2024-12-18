@@ -8,6 +8,7 @@ import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.util.StandardizedLogging;
 import datadog.trace.api.Config;
+import datadog.trace.api.UserIdCollectionMode;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -125,6 +126,10 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   // keep a reference to the last published usr.id
   private volatile String userId;
+  private volatile UserIdCollectionMode userIdSource;
+  // keep a reference to the last published usr.login
+  private volatile String userLogin;
+  private volatile UserIdCollectionMode userLoginSource;
   // keep a reference to the last published usr.session_id
   private volatile String sessionId;
 
@@ -433,6 +438,30 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public void setUserId(String userId) {
     this.userId = userId;
+  }
+
+  public UserIdCollectionMode getUserIdSource() {
+    return userIdSource;
+  }
+
+  public void setUserIdSource(UserIdCollectionMode userIdSource) {
+    this.userIdSource = userIdSource;
+  }
+
+  public String getUserLogin() {
+    return userLogin;
+  }
+
+  public void setUserLogin(String userLogin) {
+    this.userLogin = userLogin;
+  }
+
+  public UserIdCollectionMode getUserLoginSource() {
+    return userLoginSource;
+  }
+
+  public void setUserLoginSource(UserIdCollectionMode userLoginSource) {
+    this.userLoginSource = userLoginSource;
   }
 
   public void setSessionId(String sessionId) {
