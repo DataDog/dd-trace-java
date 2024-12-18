@@ -31,11 +31,9 @@ class ApacheHttpAsyncClientCallbackTest extends HttpClientTest2 implements Testi
   }
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+  int doRequest(String method, URI uri, List<List<String>> headers, String body, Closure callback) {
     def request = new HttpUriRequest(method, uri)
-    headers.entrySet().each {
-      request.addHeader(new BasicHeader(it.key, it.value))
-    }
+    headers.each { request.addHeader(new BasicHeader(it[0], it[1])) }
 
     def responseFuture = new CompletableFuture<>()
 

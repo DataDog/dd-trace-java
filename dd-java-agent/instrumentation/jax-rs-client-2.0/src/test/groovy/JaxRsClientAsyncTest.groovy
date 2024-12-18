@@ -21,11 +21,11 @@ abstract class JaxRsClientAsyncTest extends HttpClientTest  {
   }
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+  int doRequest(String method, URI uri, List<List<String>> headers, String body, Closure callback) {
     Client client = builder().build()
     WebTarget service = client.target(uri)
     def builder = service.request(MediaType.TEXT_PLAIN)
-    headers.each { builder.header(it.key, it.value) }
+    headers.each { builder.header(it[0], it[1]) }
     AsyncInvoker request = builder.async()
 
     def latch = new CountDownLatch(1)

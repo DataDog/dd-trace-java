@@ -31,10 +31,10 @@ abstract class Netty38ClientTest extends HttpClientTest {
   AsyncHttpClient asyncHttpClient = new AsyncHttpClient(clientConfig)
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+  int doRequest(String method, URI uri, List<List<String>> headers, String body, Closure callback) {
     def methodName = "prepare" + method.toLowerCase().capitalize()
     def requestBuilder = asyncHttpClient."$methodName"(uri.toString())
-    headers.each { requestBuilder.setHeader(it.key, it.value) }
+    headers.each { requestBuilder.setHeader(it[0], it[1]) }
     def response = requestBuilder.execute(new AsyncCompletionHandler() {
         @Override
         Object onCompleted(Response response) throws Exception {

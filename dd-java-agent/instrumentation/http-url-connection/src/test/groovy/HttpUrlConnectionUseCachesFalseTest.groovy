@@ -7,11 +7,11 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScop
 class HttpUrlConnectionUseCachesFalseTest extends HttpUrlConnectionTest implements TestingGenericHttpNamingConventions.ClientV0 {
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+  int doRequest(String method, URI uri, List<List<String>> headers, String body, Closure callback) {
     HttpURLConnection connection = uri.toURL().openConnection()
     try {
       connection.setRequestMethod(method)
-      headers.each { connection.setRequestProperty(it.key, it.value) }
+      headers.each { connection.setRequestProperty(it[0], it[1]) }
       connection.setRequestProperty("Connection", "close")
       connection.useCaches = false
       connection.connectTimeout = CONNECT_TIMEOUT_MS

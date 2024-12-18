@@ -46,12 +46,12 @@ abstract class Netty41ClientTest extends HttpClientTest {
   .setProxyServer(new ProxyServer.Builder("localhost", proxy.port).build()))
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+  int doRequest(String method, URI uri, List<List<String>> headers, String body, Closure callback) {
     def proxy = uri.fragment != null && uri.fragment.equals("proxy")
     def client = proxy ? proxiedAsyncHttpClient : asyncHttpClient
     def methodName = "prepare" + method.toLowerCase().capitalize()
     BoundRequestBuilder requestBuilder = client."$methodName"(uri.toString())
-    headers.each { requestBuilder.setHeader(it.key, it.value) }
+    headers.each { requestBuilder.setHeader(it[0], it[1]) }
     requestBuilder.setBody(body)
     def response = requestBuilder.execute(new AsyncCompletionHandler() {
         @Override

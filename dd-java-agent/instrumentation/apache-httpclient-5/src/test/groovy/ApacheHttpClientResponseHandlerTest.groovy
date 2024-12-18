@@ -38,11 +38,9 @@ class ApacheHttpClientResponseHandlerTest extends HttpClientTest2 implements Tes
   }
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+  int doRequest(String method, URI uri, List<List<String>> headers, String body, Closure callback) {
     def request = new BasicClassicHttpRequest(method, uri)
-    headers.entrySet().each {
-      request.addHeader(new BasicHeader(it.key, it.value))
-    }
+    headers.each { request.addHeader(new BasicHeader(it[0], it[1])) }
 
     CloseableHttpResponse response = null
     def status = client.execute(request, handler)
