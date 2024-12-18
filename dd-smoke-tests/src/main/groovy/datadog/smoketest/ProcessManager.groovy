@@ -55,13 +55,6 @@ abstract class ProcessManager extends Specification {
   @Shared
   protected Process testedProcess
 
-  /**
-   * Will be initialized after calling {@linkplain AbstractSmokeTest#checkLogPostExit} and hold {@literal true}
-   * if there are any ERROR or WARN lines in the test application log.
-   */
-  @Shared
-  def logHasErrors
-
   @Shared
   private String[] logFilePaths = (0..<numberOfProcesses).collect { idx ->
     "${buildDirectory}/reports/testProcess.${this.getClass().getName()}.${idx}.log"
@@ -253,33 +246,65 @@ abstract class ProcessManager extends Specification {
   }
 
   /**
-   * Check the test application log and set {@linkplain AbstractSmokeTest#logHasErrors} variable
-   *
-   * This should only be called after the process exits, otherwise it's not guaranteed that
-   * reading the log file will yield its final contents. If you want to check whether a particular
-   * line is emitted during a test, consider using {@link #processTestLogLines(groovy.lang.Closure)}
-   *
-   * @param checker custom closure to run on each log line
+   * Asserts that there are no errors printed by the application to the log.
    */
-  def checkLogPostExit(Closure checker) {
-    logFilePaths.each { lfp ->
-      def hasError = false
+  void assertNoErrorLogs() {
+    assertNoErrorLogs({ false })
+  }
+
+  /**
+   * Checks if a log line is an error. This method may be overridden by test suites to consider additional messages.
+   * These will be checked on suite shutdown, or explicitly by calling {@link #assertNoErrorLogs()}.
+   */
+  boolean isErrorLog(String line) {
+    return line.contains("ERROR") || line.contains("ASSERTION FAILED")
+    || line.contains("Failed to handle exception in instrumentation")
+  }
+
+  /**
+   * Asserts that there are no errors printed by the application to the log.
+   * This should only be called after the process exits, otherwise it's not guaranteed that reading the log file will
+   * yield its final contents. Most tests should not need this, since it will be called at the end of every smoke test
+   * suite.
+   *
+   * @param isErrorLog Returns true if certain log line must be considered an error (in addition to defaults).
+   */
+  void assertNoErrorLogs(final Closure<Boolean> extraIsErrorLog) {
+    final Closure<Boolean> effectiveIsErrorLog = { String it -> isErrorLog(it) || extraIsErrorLog(it) }
+    final List<String> errorLogs = new ArrayList<>()
+    for (String lfp : logFilePaths) {
       ProcessManager.eachLine(new File(lfp)) {
-        if (it.contains("ERROR") || it.contains("ASSERTION FAILED")
-          || it.contains("Failed to handle exception in instrumentation")) {
-          println it
-          hasError = logHasErrors = true
+        if (effectiveIsErrorLog(it)) {
+          errorLogs << it
         }
-        checker(it)
       }
-      if (hasError) {
-        println "Test application log contains errors. See full run logs in ${lfp}"
+    }
+    if (!errorLogs.isEmpty()) {
+      final StringBuilder sb = new StringBuilder("Test application log contains ${errorLogs.size()} errors:\n")
+      errorLogs.eachWithIndex { String entry, int i ->
+        sb.append("${i + 1}: ${entry}\n")
       }
+      assert errorLogs.isEmpty(), sb.toString()
     }
   }
 
-  def checkLogPostExit() {
-    checkLogPostExit {}
+  /**
+   * Check if at least one log is present. It checks it since the beginning of the application, and not just during
+   * the test.
+   */
+  boolean isLogPresent(final Closure<Boolean> checker) {
+    boolean found = false
+    for (String lfp : logFilePaths) {
+      ProcessManager.eachLine(new File(lfp)) {
+        if (checker(it)) {
+          found = true
+        }
+      }
+      if (found) {
+        break
+      }
+    }
+    return found
   }
 
   /**
