@@ -17,12 +17,23 @@ import static java.util.concurrent.TimeUnit.SECONDS
 
 abstract class OkHttp3AsyncTest extends OkHttp3Test {
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+  int doRequest(String method, URI uri, List<List<String>> headers, String body, Closure callback) {
     def reqBody = HttpMethod.requiresRequestBody(method) ? RequestBody.create(MediaType.parse("text/plain"), body) : null
+    Map<String, String> headersMap = new HashMap<>()
+    for (List<String> header : headers) {
+      String key = header[0]
+      String val = header[1]
+      if (headersMap.containsKey(key)) {
+        String originalVal = headersMap.get(key)
+        headersMap.put(key, originalVal + "," + val)
+      } else {
+        headersMap.put(key, val)
+      }
+    }
     def request = new Request.Builder()
       .url(uri.toURL())
       .method(method, reqBody)
-      .headers(Headers.of(headers))
+      .headers(Headers.of(headersMap))
       .build()
 
     AtomicReference<Response> responseRef = new AtomicReference()
