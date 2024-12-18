@@ -1,13 +1,13 @@
 name: "Bug Report (Low Priority)"
-description: "Create a public Bug Report. Note that these may not be addressed as quickly as the helpdesk and that looking up account information will be difficult."
-title: "[BUG]: "
+description: "Create a public Bug Report. Note that these may not be addressed as it depeonds on capacity and that looking up account information will be difficult."
+title: ""
 labels: "type: bug"
 body:
   - type: input
     attributes:
       label: Tracer Version(s)
       description: "Version(s) of the tracer affected by this bug"
-      placeholder: "1.33.7"
+      placeholder: "1.44.0"
     validations:
       required: true
 
@@ -23,6 +23,13 @@ body:
     attributes:
       label: Bug Report
       description: Please add a clear and concise description of the bug here
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Expected Behavior
+      description: What is the expected behavior
     validations:
       required: true
 
