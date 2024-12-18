@@ -53,7 +53,7 @@ public class ServiceNameCollector {
       }
       return;
     }
-    services.put(serviceName, serviceName);
+    services.putIfAbsent(serviceName, serviceName);
   }
 
   /**
