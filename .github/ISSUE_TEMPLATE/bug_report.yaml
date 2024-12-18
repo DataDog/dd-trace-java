@@ -14,7 +14,7 @@ body:
   - type: input
     attributes:
       label: Java Version(s)
-      description: "Version(s) of Java (`java -version`) that you've encountered this bug with"
+      description: "Version(s) of Java (`java --version`) that you've encountered this bug with"
       placeholder: 21.0.4
     validations:
       required: true
