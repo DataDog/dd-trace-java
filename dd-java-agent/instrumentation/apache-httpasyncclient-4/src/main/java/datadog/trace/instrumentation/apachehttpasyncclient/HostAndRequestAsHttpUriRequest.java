@@ -72,6 +72,11 @@ public class HostAndRequestAsHttpUriRequest extends AbstractHttpMessage implemen
     return actualRequest.getFirstHeader(name);
   }
 
+  @Override
+  public Header[] getHeaders(String name) {
+    return actualRequest.getHeaders(name);
+  }
+
   public HttpRequest getActualRequest() {
     return actualRequest;
   }
