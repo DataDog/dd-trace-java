@@ -6,10 +6,15 @@ import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
+import datadog.trace.api.flare.TracerFlare;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.core.monitor.HealthMetrics;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.zip.ZipOutputStream;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.MpscBlockingConsumerArrayQueue;
 import org.slf4j.Logger;
@@ -44,6 +49,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
   }
 
   private static class DelayingPendingTraceBuffer extends PendingTraceBuffer {
+    private static final Logger log = LoggerFactory.getLogger(DelayingPendingTraceBuffer.class);
     private static final long FORCE_SEND_DELAY_MS = TimeUnit.SECONDS.toMillis(5);
     private static final long SEND_DELAY_NS = TimeUnit.MILLISECONDS.toNanos(500);
     private static final long SLEEP_TIME_MS = 100;
@@ -54,6 +60,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
 
     private volatile boolean closed = false;
     private final AtomicInteger flushCounter = new AtomicInteger(0);
+    private final AtomicInteger dumpCounter = new AtomicInteger(0);
 
     private final LongRunningTracesTracker runningTracesTracker;
 
@@ -78,6 +85,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
 
     @Override
     public void start() {
+      TracerFlare.addReporter(new TracerDump(this));
       worker.start();
     }
 
@@ -130,8 +138,61 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
       }
     }
 
+    private static final class DumpDrain
+        implements MessagePassingQueue.Consumer<Element>, MessagePassingQueue.Supplier<Element> {
+      private static final DumpDrain DUMP_DRAIN = new DumpDrain();
+      private static final List<Element> data = new ArrayList<>();
+      private int index = 0;
+
+      @Override
+      public void accept(Element pendingTrace) {
+        data.add(pendingTrace);
+      }
+
+      @Override
+      public Element get() {
+        if (index < data.size()) {
+          return data.get(index++);
+        }
+        return null; // Should never reach here or else queue may break according to
+        // MessagePassingQueue docs
+      }
+    }
+
     private static final class FlushElement implements Element {
       static FlushElement FLUSH_ELEMENT = new FlushElement();
+
+      @Override
+      public long oldestFinishedTime() {
+        return 0;
+      }
+
+      @Override
+      public boolean lastReferencedNanosAgo(long nanos) {
+        return false;
+      }
+
+      @Override
+      public void write() {}
+
+      @Override
+      public DDSpan getRootSpan() {
+        return null;
+      }
+
+      @Override
+      public boolean setEnqueued(boolean enqueued) {
+        return true;
+      }
+
+      @Override
+      public boolean writeOnBufferFull() {
+        return true;
+      }
+    }
+
+    private static final class DumpElement implements Element {
+      static DumpElement DUMP_ELEMENT = new DumpElement();
 
       @Override
       public long oldestFinishedTime() {
@@ -187,6 +248,13 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
               continue;
             }
 
+            if (pendingTrace instanceof DumpElement) {
+              queue.drain(DumpDrain.DUMP_DRAIN);
+              queue.fill(DumpDrain.DUMP_DRAIN, DumpDrain.data.size());
+              dumpCounter.incrementAndGet();
+              continue;
+            }
+
             // The element is no longer in the queue
             pendingTrace.setEnqueued(false);
 
@@ -234,6 +302,49 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
               ? new LongRunningTracesTracker(
                   config, bufferSize, sharedCommunicationObjects, healthMetrics)
               : null;
+    }
+
+    static class TracerDump implements TracerFlare.Reporter {
+
+      private final DelayingPendingTraceBuffer buffer;
+
+      public TracerDump(DelayingPendingTraceBuffer buffer) {
+        this.buffer = buffer;
+      }
+
+      @Override
+      public void addReportToFlare(ZipOutputStream zip) throws IOException {
+        TracerFlare.addText(zip, "trace_dump.txt", getDumpText());
+      }
+
+      private String getDumpText() {
+        if (buffer.worker.isAlive()) {
+          int count = buffer.dumpCounter.get();
+          int loop = 1;
+          boolean signaled = buffer.queue.offer(DumpElement.DUMP_ELEMENT);
+          while (!buffer.closed && !signaled) {
+            buffer.yieldOrSleep(loop++);
+            signaled = buffer.queue.offer(DumpElement.DUMP_ELEMENT);
+          }
+          int newCount = buffer.dumpCounter.get();
+          while (!buffer.closed && count >= newCount) {
+            buffer.yieldOrSleep(loop++);
+            newCount = buffer.dumpCounter.get();
+          }
+        }
+
+        StringBuilder dumpText = new StringBuilder();
+        for (Element e : DumpDrain.data) {
+          if (e instanceof PendingTrace) {
+            PendingTrace trace = (PendingTrace) e;
+            for (DDSpan span : trace.getSpans()) {
+              dumpText.append(span.toString()).append('\n');
+            }
+          }
+        }
+        DumpDrain.data.clear(); // releasing memory used for ArrayList in drain
+        return dumpText.toString();
+      }
     }
   }
 
