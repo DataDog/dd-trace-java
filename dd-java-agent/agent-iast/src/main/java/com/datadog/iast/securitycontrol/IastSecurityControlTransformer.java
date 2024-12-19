@@ -33,9 +33,6 @@ public class IastSecurityControlTransformer implements ClassFileTransformer {
       Class<?> classBeingRedefined,
       java.security.ProtectionDomain protectionDomain,
       byte[] classfileBuffer) {
-    if (!securityControls.containsKey(className)) {
-      return null; // Do not transform classes that are not in the classFilter
-    }
     List<SecurityControl> match = securityControls.get(className);
     if (match == null || match.isEmpty()) {
       return null; // Do not transform classes that do not have a security control
