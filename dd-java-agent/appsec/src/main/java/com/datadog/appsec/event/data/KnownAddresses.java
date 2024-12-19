@@ -111,6 +111,8 @@ public interface KnownAddresses {
 
   Address<String> USER_ID = new Address<>("usr.id");
 
+  Address<String> USER_LOGIN = new Address<>("usr.login");
+
   Address<String> SESSION_ID = new Address<>("usr.session_id");
 
   /** The URL of a network resource being requested (outgoing request) */
@@ -195,6 +197,8 @@ public interface KnownAddresses {
         return SERVER_GRAPHQL_ALL_RESOLVERS;
       case "usr.id":
         return USER_ID;
+      case "usr.login":
+        return USER_LOGIN;
       case "usr.session_id":
         return SESSION_ID;
       case "server.io.net.url":
