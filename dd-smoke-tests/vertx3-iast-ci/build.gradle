@@ -1,0 +1,20 @@
+plugins {
+  id 'java'
+  id 'application'
+}
+
+repositories {
+  mavenCentral()
+}
+
+dependencies {
+  implementation 'io.vertx:vertx-core:3.9.13'
+  implementation 'io.vertx:vertx-web:3.9.13'
+
+  testImplementation 'io.vertx:vertx-unit:3.9.13'
+  testImplementation 'junit:junit:4.13.2'
+}
+
+application {
+  mainClass = 'com.example.MainVerticle'
+}
