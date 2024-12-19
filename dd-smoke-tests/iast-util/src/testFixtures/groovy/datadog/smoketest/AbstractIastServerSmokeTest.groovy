@@ -78,9 +78,7 @@ abstract class AbstractIastServerSmokeTest extends AbstractServerSmokeTest {
       return false
     }
     try {
-      processTestLogLines {
-        closure(it)
-      }
+      processTestLogLines(closure)
     } catch (TimeoutException toe) {
       assert found, "No matching vulnerability found. Vulnerabilities found: ${new JsonBuilder(vulnerabilities).toPrettyString()}"
     }

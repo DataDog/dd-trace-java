@@ -35,14 +35,13 @@ class CustomSystemLoaderSmokeTest extends AbstractSmokeTest {
     testedProcess.exitValue() == 0
     int loadedResources = 0
     int transformedResources = 0
-    assertNoErrorLogs { String it ->
+    forEachLogLine { String it ->
       if (it =~ /Loading sample.app.Resource[$]Test[1-3] from TestLoader/) {
         loadedResources++
       }
       if (it =~ /Transformed.*class=sample.app.Resource[$]Test[1-3].*classloader=datadog.smoketest.systemloader.TestLoader/) {
         transformedResources++
       }
-      false
     }
     loadedResources == 3
     transformedResources == 3

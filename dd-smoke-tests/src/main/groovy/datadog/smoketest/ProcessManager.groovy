@@ -246,13 +246,6 @@ abstract class ProcessManager extends Specification {
   }
 
   /**
-   * Asserts that there are no errors printed by the application to the log.
-   */
-  void assertNoErrorLogs() {
-    assertNoErrorLogs({ false })
-  }
-
-  /**
    * Checks if a log line is an error. This method may be overridden by test suites to consider additional messages.
    * These will be checked on suite shutdown, or explicitly by calling {@link #assertNoErrorLogs()}.
    */
@@ -263,20 +256,17 @@ abstract class ProcessManager extends Specification {
 
   /**
    * Asserts that there are no errors printed by the application to the log.
-   * This should only be called after the process exits, otherwise it's not guaranteed that reading the log file will
+   * This should usually be called after the process exits, otherwise it's not guaranteed that reading the log file will
    * yield its final contents. Most tests should not need this, since it will be called at the end of every smoke test
    * suite.
    *
-   * @param isErrorLog Returns true if certain log line must be considered an error (in addition to defaults).
+   * @param errorFilter Returns true if certain log line must be considered an error.
    */
-  void assertNoErrorLogs(final Closure<Boolean> extraIsErrorLog) {
-    final Closure<Boolean> effectiveIsErrorLog = { String it -> isErrorLog(it) || extraIsErrorLog(it) }
+  void assertNoErrorLogs(final Closure<Boolean> errorFilter = { String it -> isErrorLog(it) }) {
     final List<String> errorLogs = new ArrayList<>()
-    for (String lfp : logFilePaths) {
-      ProcessManager.eachLine(new File(lfp)) {
-        if (effectiveIsErrorLog(it)) {
-          errorLogs << it
-        }
+    forEachLogLine { String line ->
+      if (errorFilter(line)) {
+        errorLogs << line
       }
     }
     if (!errorLogs.isEmpty()) {
@@ -288,20 +278,23 @@ abstract class ProcessManager extends Specification {
     }
   }
 
+  void forEachLogLine(Closure checker) {
+    for (String lfp : logFilePaths) {
+      ProcessManager.eachLine(new File(lfp)) {
+        checker(it)
+      }
+    }
+  }
+
   /**
    * Check if at least one log is present. It checks it since the beginning of the application, and not just during
-   * the test.
+   * the test. If the log is not present, it does not wait for it. See {@link #processTestLogLines(Closure)} for that.
    */
   boolean isLogPresent(final Closure<Boolean> checker) {
     boolean found = false
-    for (String lfp : logFilePaths) {
-      ProcessManager.eachLine(new File(lfp)) {
-        if (checker(it)) {
-          found = true
-        }
-      }
-      if (found) {
-        break
+    forEachLogLine {
+      if (checker(it)) {
+        found = true
       }
     }
     return found
