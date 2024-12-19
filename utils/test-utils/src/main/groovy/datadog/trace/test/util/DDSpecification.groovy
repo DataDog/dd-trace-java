@@ -1,15 +1,19 @@
 package datadog.trace.test.util
 
 import de.thetaphi.forbiddenapis.SuppressForbidden
-import org.junit.Rule
+import org.junit.jupiter.api.extension.ExtendWith
 import spock.lang.Shared
 import spock.lang.Specification
+import uk.org.webcompere.systemstubs.environment.EnvironmentVariables
+import uk.org.webcompere.systemstubs.jupiter.SystemStub
+import uk.org.webcompere.systemstubs.jupiter.SystemStubsExtension
 
 import java.lang.reflect.Constructor
 import java.lang.reflect.Field
 import java.lang.reflect.Modifier
 
 @SuppressForbidden
+@ExtendWith(SystemStubsExtension.class)
 abstract class DDSpecification extends Specification {
   private static final CHECK_TIMEOUT_MS = 3000
 
@@ -29,8 +33,8 @@ abstract class DDSpecification extends Specification {
   private static isConfigInstanceModifiable = false
   static configModificationFailed = false
 
-  @Rule
-  public final ResetControllableEnvironmentVariables environmentVariables = new ResetControllableEnvironmentVariables()
+  @SystemStub
+  public final EnvironmentVariables environmentVariables = new EnvironmentVariables()
 
   // Intentionally not using the RestoreSystemProperties @Rule because this needs to save properties
   // in the BeforeClass stage instead of Before stage.  Even manually calling before()/after
@@ -84,8 +88,6 @@ abstract class DDSpecification extends Specification {
       copy.putAll(originalSystemProperties)
       System.setProperties(copy)
     }
-
-    environmentVariables?.reset()
   }
 
   void setupSpec() {
@@ -211,7 +213,7 @@ abstract class DDSpecification extends Specification {
     checkConfigTransformation()
 
     String prefixedName = name.startsWith("DD_") || !addPrefix ? name : "DD_" + name
-    environmentVariables.clear(prefixedName)
+    environmentVariables.remove(prefixedName)
     rebuildConfig()
   }
 

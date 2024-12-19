@@ -9,7 +9,7 @@ class UserSuppliedGitInfoBuilderTest extends DDSpecification {
 
   def setup() {
     // Clear all environment variables to avoid clashes between
-    environmentVariables.clear(System.getenv().keySet() as String[])
+    System.getenv().keySet().forEach { environmentVariables.remove(it) }
   }
 
   def "test no user supplied git info"() {
