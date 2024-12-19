@@ -1,7 +1,6 @@
 package datadog.context;
 
 import static datadog.context.Context.current;
-import static datadog.context.Context.detach;
 import static datadog.context.Context.root;
 import static datadog.context.ContextTest.STRING_KEY;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -54,7 +53,7 @@ class ContextManagerTest {
     assertEquals(context1, context2.swap());
     // Test context2 is attached
     assertEquals(context2, current());
-    assertEquals(context2, detach());
+    assertEquals(context2, root().swap());
     // Test we're now context-less
     assertEquals(root(), current());
   }

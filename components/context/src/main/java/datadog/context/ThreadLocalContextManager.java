@@ -48,9 +48,4 @@ final class ThreadLocalContextManager implements ContextManager {
     holder[0] = context;
     return previous;
   }
-
-  @Override
-  public Context detach() {
-    return swap(root());
-  }
 }

@@ -27,15 +27,6 @@ public interface ContextManager {
    */
   Context swap(Context context);
 
-  /**
-   * Detaches the context attached to the current execution unit, leaving it context-less.
-   *
-   * <p>WARNING: prefer {@link ContextScope#close()} to properly restore the surrounding context.
-   *
-   * @return Previously attached context; {@link #root()} if there was none
-   */
-  Context detach();
-
   /** Requests use of a custom {@link ContextManager}. */
   static void register(ContextManager manager) {
     ContextProviders.customManager = manager;
