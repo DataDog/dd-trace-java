@@ -1092,7 +1092,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
 
     when:
-    loginEventCB.apply(ctx, mode, 'signup', null, USER_ID, metadata)
+    loginEventCB.apply(ctx, mode, 'users.signup', null, USER_ID, metadata)
 
     then:
     if (mode == DISABLED) {
@@ -1130,7 +1130,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
 
     when:
-    loginEventCB.apply(ctx, mode, 'login.success', null, USER_ID, metadata)
+    loginEventCB.apply(ctx, mode, 'users.login.success', null, USER_ID, metadata)
 
     then:
     if (mode == DISABLED) {
@@ -1169,7 +1169,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
 
     when:
-    loginEventCB.apply(ctx, mode, 'login.failure', false, USER_ID, metadata)
+    loginEventCB.apply(ctx, mode, 'users.login.failure', false, USER_ID, metadata)
 
     then:
     if (mode == DISABLED) {
@@ -1200,6 +1200,23 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     where:
     mode << UserIdCollectionMode.values()
+  }
+
+  void "test onCustomEvent (#mode)"() {
+    setup:
+    final metadata = ['key1': 'value1', 'key2': 'value2']
+    eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
+
+    when:
+    loginEventCB.apply(ctx, SDK, 'my.event', null, null, metadata)
+
+    then:
+    1 * traceSegment.setTagTop('_dd.appsec.events.my.event.sdk', true, true)
+    1 * traceSegment.setTagTop('appsec.events.my.event.track', true, true)
+    1 * traceSegment.setTagTop('appsec.events.my.event', ['key1': 'value1', 'key2': 'value2'], true)
+    1 * traceSegment.setTagTop('asm.keep', true)
+    1 * traceSegment.setTagTop('_dd.p.appsec', true)
+    0 * eventDispatcher.publishDataEvent
   }
 
   void "test onUserEvent (automated login events should not overwrite SDK)"() {
@@ -1234,7 +1251,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
 
     when:
-    loginEventCB.apply(ctx, SDK, 'login.success', null, firstUser, null)
+    loginEventCB.apply(ctx, SDK, 'users.login.success', null, firstUser, null)
 
     then:
     1 * traceSegment.setTagTop('appsec.events.users.login.success.usr.login', firstUser, true)
@@ -1245,7 +1262,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> NoopFlow.INSTANCE
 
     when:
-    loginEventCB.apply(ctx, IDENTIFICATION, 'login.success', null, secondUser, null)
+    loginEventCB.apply(ctx, IDENTIFICATION, 'users.login.success', null, secondUser, null)
 
     then:
     0 * traceSegment.setTagTop('appsec.events.users.login.success.usr.login', _, _)

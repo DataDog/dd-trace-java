@@ -234,10 +234,6 @@ public class GatewayBridge {
     if (mode == DISABLED) {
       return NoopFlow.INSTANCE;
     }
-    final String user = anonymizeUser(mode, originalUser);
-    if (user == null) {
-      return NoopFlow.INSTANCE;
-    }
     final AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
     if (ctx == null) {
       return NoopFlow.INSTANCE;
@@ -248,29 +244,38 @@ public class GatewayBridge {
     segment.setTagTop(Tags.ASM_KEEP, true);
     segment.setTagTop(Tags.PROPAGATED_APPSEC, true);
 
+    // update span tags
+    segment.setTagTop("appsec.events." + eventName + ".track", true, true);
+    if (exists != null) {
+      segment.setTagTop("appsec.events." + eventName + ".usr.exists", exists, true);
+    }
+    if (metadata != null && !metadata.isEmpty()) {
+      segment.setTagTop("appsec.events." + eventName, metadata, true);
+    }
+    if (mode == SDK) {
+      segment.setTagTop("_dd.appsec.events." + eventName + ".sdk", true, true);
+    } else {
+      segment.setTagTop("_dd.appsec.events." + eventName + ".auto.mode", mode.fullName(), true);
+    }
+
+    final String user = anonymizeUser(mode, originalUser);
+    if (user == null) {
+      // can happen in custom events
+      return NoopFlow.INSTANCE;
+    }
+
     // skip event if we have an SDK one
     if (mode != SDK) {
       segment.setTagTop("_dd.appsec.usr.login", user);
       segment.setTagTop("_dd.appsec.usr.id", user);
-      segment.setTagTop(
-          "_dd.appsec.events.users." + eventName + ".auto.mode", mode.fullName(), true);
       if (ctx.getUserLoginSource() == SDK) {
         return NoopFlow.INSTANCE;
       }
-    } else {
-      segment.setTagTop("_dd.appsec.events.users." + eventName + ".sdk", true, true);
     }
 
-    // update span tags
-    segment.setTagTop("appsec.events.users." + eventName + ".usr.login", user, true);
-    segment.setTagTop("appsec.events.users." + eventName + ".usr.id", user, true);
-    segment.setTagTop("appsec.events.users." + eventName + ".track", true, true);
-    if (exists != null) {
-      segment.setTagTop("appsec.events.users." + eventName + ".usr.exists", exists, true);
-    }
-    if (metadata != null && !metadata.isEmpty()) {
-      segment.setTagTop("appsec.events.users." + eventName, metadata, true);
-    }
+    // update user span tags
+    segment.setTagTop("appsec.events." + eventName + ".usr.login", user, true);
+    segment.setTagTop("appsec.events." + eventName + ".usr.id", user, true);
 
     // update current context with new user login
     ctx.setUserLoginSource(mode);
@@ -284,9 +289,9 @@ public class GatewayBridge {
     final List<Address<?>> addresses = new ArrayList<>(3);
     addresses.add(KnownAddresses.USER_LOGIN);
     addresses.add(KnownAddresses.USER_ID);
-    if (KnownAddresses.LOGIN_SUCCESS.getKey().endsWith(eventName)) {
+    if (eventName.endsWith("login.success")) {
       addresses.add(KnownAddresses.LOGIN_SUCCESS);
-    } else if (KnownAddresses.LOGIN_FAILURE.getKey().endsWith(eventName)) {
+    } else if (eventName.endsWith("login.failure")) {
       addresses.add(KnownAddresses.LOGIN_FAILURE);
     }
     final MapDataBundle.Builder bundleBuilder =

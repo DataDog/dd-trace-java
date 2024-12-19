@@ -42,9 +42,12 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
       new AtomicLongArray(RuleType.getNumValues());
   private static final AtomicLongArray missingUserLoginQueue =
       new AtomicLongArray(LoginFramework.getNumValues() * LoginEvent.getNumValues());
+  private static final AtomicLongArray missingUserIdQueue =
+      new AtomicLongArray(LoginFramework.getNumValues());
 
   /** WAF version that will be initialized with wafInit and reused for all metrics. */
   private static String wafVersion = "";
+
   /**
    * Rules version that will be updated on each wafInit and wafUpdates. This is not entirely
    * accurate, since wafRequest metrics might be collected for a period where a rules update happens
@@ -103,6 +106,10 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
   public void missingUserLogin(final LoginFramework framework, final LoginEvent eventType) {
     missingUserLoginQueue.incrementAndGet(
         framework.ordinal() * LoginEvent.getNumValues() + eventType.ordinal());
+  }
+
+  public void missingUserId(final LoginFramework framework) {
+    missingUserLoginQueue.incrementAndGet(framework.ordinal());
   }
 
   @Override
@@ -215,7 +222,7 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
         long counter = missingUserLoginQueue.getAndSet(ordinal, 0);
         if (counter > 0) {
           if (!rawMetricsQueue.offer(
-              new MissingUserLoginMetric(counter, framework.getTag(), event.getTelemetryTag()))) {
+              new MissingUserLoginMetric(counter, framework.getTag(), event.getTag()))) {
             return;
           }
         }
@@ -257,6 +264,17 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
           counter,
           "framework:" + framework,
           "event_type:" + type);
+    }
+  }
+
+  public static class MissingUserIdMetric extends WafMetric {
+
+    public MissingUserIdMetric(long counter, String framework) {
+      super(
+          "instrum.user_auth.missing_user_id",
+          counter,
+          "framework:" + framework,
+          "event_type:authenticated_request");
     }
   }
 

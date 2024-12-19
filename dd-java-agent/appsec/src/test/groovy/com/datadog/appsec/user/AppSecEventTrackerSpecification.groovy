@@ -76,7 +76,7 @@ class AppSecEventTrackerSpecification extends DDSpecification {
     GlobalTracer.getEventTracker().trackLoginSuccessEvent('user1', ['key1': 'value1', 'key2': 'value2'])
 
     then:
-    1 * loginEvent.apply(_ as RequestContext, SDK, 'login.success', null, 'user1', ['key1': 'value1', 'key2': 'value2']) >> NoopFlow.INSTANCE
+    1 * loginEvent.apply(_ as RequestContext, SDK, 'users.login.success', null, 'user1', ['key1': 'value1', 'key2': 'value2']) >> NoopFlow.INSTANCE
     0 * _
   }
 
@@ -85,7 +85,7 @@ class AppSecEventTrackerSpecification extends DDSpecification {
     GlobalTracer.getEventTracker().trackLoginFailureEvent('user1', true, ['key1': 'value1', 'key2': 'value2'])
 
     then:
-    1 * loginEvent.apply(_ as RequestContext, SDK, 'login.failure', true, 'user1', ['key1': 'value1', 'key2': 'value2']) >> NoopFlow.INSTANCE
+    1 * loginEvent.apply(_ as RequestContext, SDK, 'users.login.failure', true, 'user1', ['key1': 'value1', 'key2': 'value2']) >> NoopFlow.INSTANCE
     0 * _
   }
 
@@ -142,7 +142,7 @@ class AppSecEventTrackerSpecification extends DDSpecification {
 
     then:
     if (mode != DISABLED) {
-      1 * loginEvent.apply(_ as RequestContext, mode, 'signup', null, USER_ID, ['key1': 'value1', 'key2': 'value2']) >> NoopFlow.INSTANCE
+      1 * loginEvent.apply(_ as RequestContext, mode, 'users.signup', null, USER_ID, ['key1': 'value1', 'key2': 'value2']) >> NoopFlow.INSTANCE
     }
     0 * _
 
@@ -156,7 +156,7 @@ class AppSecEventTrackerSpecification extends DDSpecification {
 
     then:
     if (mode != DISABLED) {
-      1 * loginEvent.apply(_ as RequestContext, mode, 'login.success', null, USER_ID, ['key1': 'value1', 'key2': 'value2']) >> NoopFlow.INSTANCE
+      1 * loginEvent.apply(_ as RequestContext, mode, 'users.login.success', null, USER_ID, ['key1': 'value1', 'key2': 'value2']) >> NoopFlow.INSTANCE
     }
     0 * _
 
@@ -170,7 +170,7 @@ class AppSecEventTrackerSpecification extends DDSpecification {
 
     then:
     if (mode != DISABLED) {
-      1 * loginEvent.apply(_ as RequestContext, mode, 'login.failure', null, USER_ID, ['key1': 'value1', 'key2': 'value2']) >> NoopFlow.INSTANCE
+      1 * loginEvent.apply(_ as RequestContext, mode, 'users.login.failure', null, USER_ID, ['key1': 'value1', 'key2': 'value2']) >> NoopFlow.INSTANCE
     }
     0 * _
 
@@ -259,7 +259,7 @@ class AppSecEventTrackerSpecification extends DDSpecification {
   void 'test blocking on a userId'() {
     setup:
     final action = new Flow.Action.RequestBlockingAction(403, BlockingContentType.AUTO)
-    loginEvent.apply(_ as RequestContext, SDK, 'login.success', null, USER_ID, ['key1': 'value1', 'key2': 'value2']) >> new ActionFlow<Void>(action: action)
+    loginEvent.apply(_ as RequestContext, SDK, 'users.login.success', null, USER_ID, ['key1': 'value1', 'key2': 'value2']) >> new ActionFlow<Void>(action: action)
 
     when:
     tracker.onLoginSuccessEvent(SDK, USER_ID, ['key1': 'value1', 'key2': 'value2'])

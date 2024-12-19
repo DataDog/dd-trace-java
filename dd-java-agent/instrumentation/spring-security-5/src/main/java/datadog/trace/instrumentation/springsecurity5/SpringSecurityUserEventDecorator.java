@@ -138,6 +138,9 @@ public class SpringSecurityUserEventDecorator {
 
     UserIdCollectionMode mode = UserIdCollectionMode.get();
     String username = authentication.getName();
+    if (missingUserId(username)) {
+      return;
+    }
     tracker.onUserEvent(mode, username);
   }
 
@@ -161,6 +164,14 @@ public class SpringSecurityUserEventDecorator {
       authentication = authentication.getSuperclass();
     }
     return Authentication.class.getName(); // set this a default for really custom impls
+  }
+
+  private static boolean missingUserId(final String username) {
+    if (username == null || username.isEmpty()) {
+      WafMetricCollector.get().missingUserId(LoginFramework.SPRING_SECURITY);
+      return true;
+    }
+    return false;
   }
 
   private static boolean missingUsername(final String username, final LoginEvent event) {
