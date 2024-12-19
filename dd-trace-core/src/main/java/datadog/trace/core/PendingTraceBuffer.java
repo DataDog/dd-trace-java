@@ -11,6 +11,7 @@ import datadog.trace.api.time.TimeSource;
 import datadog.trace.core.monitor.HealthMetrics;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.ZipOutputStream;
@@ -137,22 +138,15 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
       }
     }
 
-    private static final class DumpDrain implements MessagePassingQueue.Consumer<Element> {
+    private static final class DumpDrain
+        implements MessagePassingQueue.Consumer<Element>, MessagePassingQueue.Supplier<Element> {
       private static final DumpDrain DUMP_DRAIN = new DumpDrain();
-      private static final ArrayList<Element> data = new ArrayList<>();
+      private static final List<Element> data = new ArrayList<>();
+      private int index = 0;
 
       @Override
       public void accept(Element pendingTrace) {
         data.add(pendingTrace);
-      }
-    }
-
-    private static class DumpSupplier implements MessagePassingQueue.Supplier<Element> {
-      private final ArrayList<Element> data;
-      private int index = 0;
-
-      public DumpSupplier(ArrayList<Element> data) {
-        this.data = data;
       }
 
       @Override
@@ -256,6 +250,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
 
             if (pendingTrace instanceof DumpElement) {
               queue.drain(DumpDrain.DUMP_DRAIN);
+              queue.fill(DumpDrain.DUMP_DRAIN, DumpDrain.data.size());
               dumpCounter.incrementAndGet();
               continue;
             }
@@ -338,18 +333,16 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
           }
         }
 
-        DumpSupplier supplier = new DumpSupplier(DumpDrain.data);
-        buffer.queue.fill(supplier, supplier.data.size());
-
         StringBuilder dumpText = new StringBuilder();
         for (Element e : DumpDrain.data) {
           if (e instanceof PendingTrace) {
             PendingTrace trace = (PendingTrace) e;
             for (DDSpan span : trace.getSpans()) {
-              dumpText.append(span.toString()).append("\n");
+              dumpText.append(span.toString()).append('\n');
             }
           }
         }
+        DumpDrain.data.clear(); // releasing memory used for ArrayList in drain
         return dumpText.toString();
       }
     }
