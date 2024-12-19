@@ -25,7 +25,6 @@ import java.io.IOException;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.net.URISyntaxException;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import net.bytebuddy.agent.ByteBuddyAgent;
@@ -504,11 +503,7 @@ public class LogProbesInstrumentationTest {
   }
 
   private TestSnapshotListener installProbes(LogProbe... logProbes) {
-    return installProbes(
-        Configuration.builder()
-            .setService(SERVICE_NAME)
-            .addLogProbes(Arrays.asList(logProbes))
-            .build());
+    return installProbes(Configuration.builder().setService(SERVICE_NAME).add(logProbes).build());
   }
 
   private static LogProbe.Builder createProbeBuilder(

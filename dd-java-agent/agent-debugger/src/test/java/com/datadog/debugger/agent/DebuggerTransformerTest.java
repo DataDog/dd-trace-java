@@ -311,8 +311,7 @@ public class DebuggerTransformerTest {
     Configuration configuration =
         Configuration.builder()
             .setService(SERVICE_NAME)
-            .addSpanProbes(Collections.singletonList(mockProbe))
-            .addLogProbes(Arrays.asList(logProbe1, logProbe2))
+            .add(mockProbe, logProbe1, logProbe2)
             .build();
     AtomicReference<InstrumentationResult> lastResult = new AtomicReference<>(null);
     ProbeStatusSink probeStatusSink = mock(ProbeStatusSink.class);
