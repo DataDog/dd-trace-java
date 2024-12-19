@@ -1,11 +1,13 @@
 package datadog.trace.api;
 
-import java.lang.management.GarbageCollectorMXBean;
-import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
+/**
+ * This class is used early on during premain; it must not touch features like JMX or JUL in case
+ * they trigger early loading/binding.
+ */
 public final class Platform {
   // A helper class to capture whether the executable is a native image or not.
   // This class needs to be iniatlized at build only during the AOT compilation and build.
@@ -13,48 +15,12 @@ public final class Platform {
     public static final boolean isNativeImage = checkForNativeImageBuilder();
   }
 
-  public enum GC {
-    SERIAL("marksweep"),
-    PARALLEL("ps"),
-    CMS("concurrentmarksweep"),
-    G1("g1"),
-    SHENANDOAH("shenandoah"),
-    Z("z"),
-    UNKNOWN("");
-
-    private final String identifierPrefix;
-
-    GC(String identifierPrefix) {
-      this.identifierPrefix = identifierPrefix;
-    }
-
-    static GC current() {
-      for (GarbageCollectorMXBean mxBean : ManagementFactory.getGarbageCollectorMXBeans()) {
-        if (mxBean.isValid()) {
-          String name = mxBean.getName().toLowerCase(Locale.ROOT);
-          for (GC gc : GC.values()) {
-            if (gc != UNKNOWN && name.startsWith(gc.identifierPrefix)) {
-              return gc;
-            }
-          }
-        }
-      }
-      return UNKNOWN;
-    }
-  }
-
   private static final Version JAVA_VERSION = parseJavaVersion(System.getProperty("java.version"));
   private static final JvmRuntime RUNTIME = new JvmRuntime();
-
-  private static final GC GARBAGE_COLLECTOR = GC.current();
 
   private static final boolean HAS_JFR = checkForJfr();
   private static final boolean IS_NATIVE_IMAGE_BUILDER = checkForNativeImageBuilder();
   private static final boolean IS_NATIVE_IMAGE = Captured.isNativeImage;
-
-  public static GC activeGarbageCollector() {
-    return GARBAGE_COLLECTOR;
-  }
 
   public static boolean hasJfr() {
     return HAS_JFR;
