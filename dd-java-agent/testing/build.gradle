@@ -64,7 +64,7 @@ dependencies {
 
   api libs.groovy
 
-  implementation 'org.junit.platform:junit-platform-runner:1.9.0'
+  implementation group: 'org.junit.platform', name: 'junit-platform-runner', version: libs.versions.junit.platform.get()
   implementation project(':dd-java-agent:appsec')
 
   testImplementation project(':utils:test-utils')
@@ -100,5 +100,6 @@ tasks.withType(Test).configureEach {
   // So even though Spock 2 tests run on top of JUnit 5,
   // we execute them in "compatibility mode" so that SpockRunner could shadow the test class
   // See https://junit.org/junit5/docs/current/user-guide/#running-tests-junit-platform-runner for more details.
-  useJUnit()
+//  useJUnit()
+  useJUnitPlatform()
 }
