@@ -3,9 +3,6 @@ package datadog.trace.api.appsec;
 import static datadog.trace.api.UserIdCollectionMode.DISABLED;
 import static datadog.trace.api.UserIdCollectionMode.SDK;
 import static datadog.trace.api.gateway.Events.EVENTS;
-import static datadog.trace.api.telemetry.LoginEvent.LOGIN_FAILURE;
-import static datadog.trace.api.telemetry.LoginEvent.LOGIN_SUCCESS;
-import static datadog.trace.api.telemetry.LoginEvent.SIGN_UP;
 
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.EventTracker;
@@ -91,7 +88,7 @@ public class AppSecEventTracker extends EventTracker {
     }
     dispatch(
         EVENTS.loginEvent(),
-        (ctx, callback) -> callback.apply(ctx, mode, SIGN_UP.getSpanTag(), null, userId, metadata));
+        (ctx, callback) -> callback.apply(ctx, mode, "users.signup", null, userId, metadata));
   }
 
   public void onLoginSuccessEvent(
@@ -101,7 +98,7 @@ public class AppSecEventTracker extends EventTracker {
     }
     dispatch(
         EVENTS.loginEvent(),
-        (ctx, cb) -> cb.apply(ctx, mode, LOGIN_SUCCESS.getSpanTag(), null, userId, metadata));
+        (ctx, cb) -> cb.apply(ctx, mode, "users.login.success", null, userId, metadata));
   }
 
   public void onLoginFailureEvent(
@@ -114,7 +111,7 @@ public class AppSecEventTracker extends EventTracker {
     }
     dispatch(
         EVENTS.loginEvent(),
-        (ctx, cb) -> cb.apply(ctx, mode, LOGIN_FAILURE.getSpanTag(), exists, userId, metadata));
+        (ctx, cb) -> cb.apply(ctx, mode, "users.login.failure", exists, userId, metadata));
   }
 
   public void onCustomEvent(

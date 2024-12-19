@@ -253,6 +253,49 @@ class WafMetricCollectorTest extends DDSpecification {
     }
   }
 
+  void 'test missing user id event metric'() {
+    given:
+    def collector = WafMetricCollector.get()
+    final count = 6
+    final latch = new CountDownLatch(1)
+    final executors = Executors.newFixedThreadPool(4)
+    final action = { LoginFramework framework ->
+      latch.await()
+      collector.missingUserId(framework)
+    }
+
+    when:
+    (1..count).each {
+      executors.submit {
+        action.call(LoginFramework.SPRING_SECURITY)
+      }
+    }
+
+    latch.countDown()
+    executors.shutdown()
+    final finished = executors.awaitTermination(5, TimeUnit.SECONDS)
+
+    then:
+    finished
+    collector.prepareMetrics()
+    final drained = collector.drain()
+    final metrics = drained.findAll {
+      it.metricName == 'instrum.user_auth.missing_user_id'
+    }
+    metrics.size() == 1
+    metrics.forEach { metric ->
+      assert metric.namespace == 'appsec'
+      assert metric.type == 'count'
+      assert metric.value == count
+      final tags = metric.tags.collectEntries {
+        final parts = it.split(":")
+        return [(parts[0]): parts[1]]
+      }
+      assert tags["framework"] == LoginFramework.SPRING_SECURITY.getTag()
+      assert tags["event_type"] == "authenticated_request"
+    }
+  }
+
   def "test Rasp #ruleType metrics"() {
     when:
     WafMetricCollector.get().wafInit('waf_ver1', 'rules.1')
