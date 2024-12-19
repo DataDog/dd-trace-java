@@ -8,6 +8,8 @@ import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.apache.derby.jdbc.EmbeddedDataSource
 import org.h2.jdbcx.JdbcDataSource
+import org.junit.jupiter.api.extension.ExtensionContext
+import org.junit.jupiter.api.extension.TestWatcher
 import spock.lang.Shared
 import test.TestConnection
 import test.WrappedConnection
@@ -24,6 +26,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 
+TestSourceFileExtension
 abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
 
   @Shared
@@ -752,7 +755,7 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
     for (int i = 0; i < numQueries; ++i) {
       res[i] == 3
     }
-    assertTraces(5) {
+    assertTraces(6) {
       trace(1) {
         span {
           operationName this.operation(dbType)
@@ -849,6 +852,7 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
   protected abstract boolean dbmTraceInjected()
 }
 
+TestSourceFileExtension
 class JDBCInstrumentationV0Test extends JDBCInstrumentationTest {
 
   @Override
@@ -872,6 +876,7 @@ class JDBCInstrumentationV0Test extends JDBCInstrumentationTest {
   }
 }
 
+TestSourceFileExtension
 class JDBCInstrumentationV1ForkedTest extends JDBCInstrumentationTest {
 
   @Override
@@ -895,6 +900,7 @@ class JDBCInstrumentationV1ForkedTest extends JDBCInstrumentationTest {
   }
 }
 
+TestSourceFileExtension
 class JDBCInstrumentationDBMTraceInjectedForkedTest extends JDBCInstrumentationTest {
 
   @Override
@@ -921,5 +927,39 @@ class JDBCInstrumentationDBMTraceInjectedForkedTest extends JDBCInstrumentationT
   @Override
   protected boolean dbmTraceInjected() {
     return true
+  }
+}
+
+class TestSourceFileExtension implements TestWatcher {
+  TestSourceFileExtension() {
+    System.out.println("TestSourceFileExtension initialized!")
+  }
+
+  @Override
+  void testSuccessful(ExtensionContext context) {
+    System.out.println("test was successful!")
+    getTestData(context)
+  }
+
+  @Override
+  void testFailed(ExtensionContext context, Throwable cause) {
+    System.out.println("test failed!")
+    getTestData(context)
+  }
+
+  private void getTestData(ExtensionContext context) {
+    String testClassName = context.getTestClass().get().getSimpleName()
+    String testMethodName = context.getTestMethod().get().getName()
+    String className = context.getClass()
+    String requiredTestClassName = context.getRequiredTestClass().getName()
+    String requiredTestMethodName = context.getRequiredTestMethod().getName()
+
+    System.out.println("--------------------------")
+    System.out.println("testClassName: " + testClassName)
+    System.out.println("testMethodName: " + testMethodName)
+    System.out.println("className: " + className)
+    System.out.println("requiredTestClassName: " + requiredTestClassName)
+    System.out.println("requiredTestMethodName: " + requiredTestMethodName)
+    System.out.println("--------------------------")
   }
 }
