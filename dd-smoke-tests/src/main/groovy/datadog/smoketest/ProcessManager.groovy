@@ -262,7 +262,7 @@ abstract class ProcessManager extends Specification {
    *
    * @param errorFilter Returns true if certain log line must be considered an error.
    */
-  void assertNoErrorLogs(final Closure<Boolean> errorFilter = { String it -> isErrorLog(it) }) {
+  void assertNoErrorLogs(final Closure<Boolean> errorFilter = this.&isErrorLog) {
     final List<String> errorLogs = new ArrayList<>()
     forEachLogLine { String line ->
       if (errorFilter(line)) {
