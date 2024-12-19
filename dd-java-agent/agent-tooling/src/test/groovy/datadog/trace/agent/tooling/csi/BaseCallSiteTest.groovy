@@ -83,6 +83,10 @@ class BaseCallSiteTest extends DDSpecification {
     return buildPointcut(String.getDeclaredMethod('concat', String))
   }
 
+  protected static Pointcut stringBuilderSetLengthPointcut() {
+    return buildPointcut(StringBuilder.getDeclaredMethod('setLength', int))
+  }
+
   protected static Pointcut stringReaderPointcut() {
     return buildPointcut(StringReader.getDeclaredConstructor(String))
   }

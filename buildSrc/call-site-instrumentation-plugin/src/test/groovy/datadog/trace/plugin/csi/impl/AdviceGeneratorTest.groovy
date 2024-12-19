@@ -473,6 +473,36 @@ final class AdviceGeneratorTest extends BaseCsiPluginTest {
     }
   }
 
+
+  @CallSite(spi = CallSites)
+  class AfterAdviceWithVoidReturn {
+    @CallSite.After("void java.lang.StringBuilder.setLength(int)")
+    static void after(@CallSite.This StringBuilder self, @CallSite.Argument(0) int length) {
+    }
+  }
+
+  void 'test after advice with void return'() {
+    setup:
+    final spec = buildClassSpecification(AfterAdviceWithVoidReturn)
+    final generator = buildAdviceGenerator(buildDir)
+
+    when:
+    final result = generator.generate(spec)
+
+    then:
+    assertNoErrors result
+    assertCallSites(result.file) {
+      advices(0) {
+        pointcut('java/lang/StringBuilder', 'setLength', '(I)V')
+        statements(
+          'handler.dupInvoke(owner, descriptor, StackDupMode.COPY);',
+          'handler.method(opcode, owner, name, descriptor, isInterface);',
+          'handler.advice("datadog/trace/plugin/csi/impl/AdviceGeneratorTest$AfterAdviceWithVoidReturn", "after", "(Ljava/lang/StringBuilder;I)V");',
+        )
+      }
+    }
+  }
+
   private static AdviceGenerator buildAdviceGenerator(final File targetFolder) {
     return new AdviceGeneratorImpl(targetFolder, pointcutParser())
   }
