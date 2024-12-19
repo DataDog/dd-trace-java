@@ -466,27 +466,18 @@ public abstract class BaseIntegrationTest {
   }
 
   protected Configuration createMetricConfig(MetricProbe metricProbe) {
-    return Configuration.builder()
-        .setService(getAppId())
-        .addMetricProbes(Collections.singletonList(metricProbe))
-        .build();
+    return Configuration.builder().setService(getAppId()).add(metricProbe).build();
   }
 
   protected Configuration createSpanDecoConfig(SpanDecorationProbe spanDecorationProbe) {
-    return Configuration.builder()
-        .setService(getAppId())
-        .addSpanDecorationProbes(Collections.singletonList(spanDecorationProbe))
-        .build();
+    return Configuration.builder().setService(getAppId()).add(spanDecorationProbe).build();
   }
 
   protected Configuration createSpanConfig(SpanProbe spanProbe) {
-    return Configuration.builder()
-        .setService(getAppId())
-        .addSpanProbes(Collections.singletonList(spanProbe))
-        .build();
+    return Configuration.builder().setService(getAppId()).add(spanProbe).build();
   }
 
-  protected Configuration createConfig(Collection<LogProbe> logProbes) {
+  protected Configuration createConfig(List<LogProbe> logProbes) {
     return new Configuration(getAppId(), logProbes);
   }
 
@@ -496,7 +487,7 @@ public abstract class BaseIntegrationTest {
       Configuration.FilterList denyList) {
     return Configuration.builder()
         .setService(getAppId())
-        .addLogProbes(logProbes)
+        .add(logProbes)
         .addAllowList(allowList)
         .addDenyList(denyList)
         .build();
