@@ -18,6 +18,8 @@ public interface StringModule extends IastModule {
 
   void onStringBuilderToString(@Nonnull CharSequence builder, @Nonnull String result);
 
+  void onStringBuilderSetLength(@Nonnull CharSequence self, int length);
+
   void onStringConcatFactory(
       @Nullable String result,
       @Nullable String[] args,
