@@ -136,7 +136,7 @@ class IastSystemTest extends DDSpecification {
     InstrumentationBridge.clearIastModules()
 
     when:
-    Agent.maybeStartIast(null, null)
+    Agent.maybeStartIast(null, null, null)
 
     then:
     InstrumentationBridge.iastModules.each {

@@ -8,6 +8,7 @@ import com.datadog.iast.overhead.OverheadController;
 import com.datadog.iast.propagation.CodecModuleImpl;
 import com.datadog.iast.propagation.PropagationModuleImpl;
 import com.datadog.iast.propagation.StringModuleImpl;
+import com.datadog.iast.securitycontrol.IastSecurityControlTransformer;
 import com.datadog.iast.sink.ApplicationModuleImpl;
 import com.datadog.iast.sink.CommandInjectionModuleImpl;
 import com.datadog.iast.sink.HardcodedSecretModuleImpl;
@@ -47,12 +48,17 @@ import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.IastModule;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.securitycontrol.SecurityControl;
+import datadog.trace.api.iast.securitycontrol.SecurityControlFormatter;
 import datadog.trace.api.iast.telemetry.IastMetricCollector;
 import datadog.trace.api.iast.telemetry.Verbosity;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.stacktrace.StackWalkerFactory;
+import java.lang.instrument.Instrumentation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.UndeclaredThrowableException;
+import java.util.List;
+import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
@@ -67,11 +73,21 @@ public class IastSystem {
   public static Verbosity VERBOSITY = Verbosity.OFF;
 
   public static void start(final SubscriptionService ss) {
-    start(ss, null);
+    start(null, ss, null);
+  }
+
+  public static void start(final SubscriptionService ss, OverheadController overheadController) {
+    start(null, ss, overheadController);
+  }
+
+  public static void start(final Instrumentation instrumentation, final SubscriptionService ss) {
+    start(instrumentation, ss, null);
   }
 
   public static void start(
-      final SubscriptionService ss, @Nullable OverheadController overheadController) {
+      @Nullable final Instrumentation instrumentation,
+      final SubscriptionService ss,
+      @Nullable OverheadController overheadController) {
     final Config config = Config.get();
     final ProductActivation iast = config.getIastActivation();
     final ProductActivation appSec = config.getAppSecActivation();
@@ -106,7 +122,21 @@ public class IastSystem {
     registerRequestEndedCallback(ss, addTelemetry, dependencies);
     registerHeadersCallback(ss);
     registerGrpcServerRequestMessageCallback(ss);
+    maybeApplySecurityControls(instrumentation);
     LOGGER.debug("IAST started");
+  }
+
+  private static void maybeApplySecurityControls(@Nullable Instrumentation instrumentation) {
+    if (Config.get().getIastSecurityControlsConfiguration() == null || instrumentation == null) {
+      return;
+    }
+    Map<String, List<SecurityControl>> securityControls =
+        SecurityControlFormatter.format(Config.get().getIastSecurityControlsConfiguration());
+    if (securityControls == null) {
+      LOGGER.warn("No security controls to apply");
+      return;
+    }
+    instrumentation.addTransformer(new IastSecurityControlTransformer(securityControls), true);
   }
 
   private static IastContext.Provider contextProvider(
