@@ -19,7 +19,7 @@ public class SecurityControlMethodAdapter extends MethodVisitor {
   private final MethodVisitor mv;
   private final SecurityControl securityControl;
   private final String desc;
-  boolean isStatic;
+  private final boolean isStatic;
 
   public SecurityControlMethodAdapter(
       final MethodVisitor mv,
