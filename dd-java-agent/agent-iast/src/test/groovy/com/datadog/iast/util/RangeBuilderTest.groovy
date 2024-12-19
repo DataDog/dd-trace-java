@@ -1,8 +1,9 @@
 package com.datadog.iast.util
 
-import com.datadog.iast.model.Range
-import com.datadog.iast.model.Source
+import com.datadog.iast.model.RangeImpl
+import com.datadog.iast.model.SourceImpl
 import com.datadog.iast.taint.Ranges
+import datadog.trace.api.iast.taint.Range
 import spock.lang.Specification
 
 class RangeBuilderTest extends Specification {
@@ -371,7 +372,7 @@ class RangeBuilderTest extends Specification {
   }
 
   static Range range(final int start) {
-    return new Range(start, 1, new Source((byte) 0, "name-${start}".toString(), "value-${start}".toString()), 0)
+    return new RangeImpl(start, 1, new SourceImpl((byte) 0, "name-${start}".toString(), "value-${start}".toString()), 0)
   }
 
   static Range[] asArray(final Collection<Range> ranges) {

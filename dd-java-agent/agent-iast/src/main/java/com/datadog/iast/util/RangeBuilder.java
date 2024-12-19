@@ -1,10 +1,10 @@
 package com.datadog.iast.util;
 
-import com.datadog.iast.model.Range;
 import com.datadog.iast.taint.Ranges;
-import com.datadog.iast.taint.TaintedObject;
+import com.datadog.iast.taint.TaintedObjectEntry;
 import datadog.trace.api.Config;
 import datadog.trace.api.ConfigDefaults;
+import datadog.trace.api.iast.taint.Range;
 import javax.annotation.Nullable;
 
 /**
@@ -29,7 +29,7 @@ public class RangeBuilder {
   @Nullable protected Entry tail;
 
   public RangeBuilder() {
-    this(TaintedObject.MAX_RANGE_COUNT);
+    this(TaintedObjectEntry.MAX_RANGE_COUNT);
   }
 
   public RangeBuilder(final int maxSize) {

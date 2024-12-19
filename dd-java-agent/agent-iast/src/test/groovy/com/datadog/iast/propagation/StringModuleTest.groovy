@@ -1,13 +1,15 @@
 package com.datadog.iast.propagation
 
 import com.datadog.iast.IastModuleImplTestBase
-import com.datadog.iast.model.Source
-import com.datadog.iast.taint.TaintedObjects
+import com.datadog.iast.model.SourceImpl
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.Taintable
 import datadog.trace.api.iast.propagation.StringModule
+import datadog.trace.api.iast.taint.Range
+import datadog.trace.api.iast.taint.Source
+import datadog.trace.api.iast.taint.TaintedObjects
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import groovy.transform.CompileDynamic
@@ -554,7 +556,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     if (shouldBeTainted) {
       assert to != null
       assert to.get() == result
-      assert taintFormat(to.get() as String, to.getRanges()) == expected
+      assert taintFormat(to.get() as String, to.ranges) == expected
     } else {
       assert to == null
     }
@@ -831,7 +833,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     then:
     self.size() == lengthSelf
     result.size() == lengthResult
-    com.datadog.iast.model.Range[] ranges = taintedObject.getRanges()
+    Range[] ranges = taintedObject.getRanges()
     taintFormat(result, ranges) == expected
     ranges.size() == expectedRanges.size()
 
@@ -871,7 +873,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     then:
     self.size() == lengthSelf
     result.size() == lengthResult
-    com.datadog.iast.model.Range[] ranges = taintedObject.getRanges()
+    Range[] ranges = taintedObject.getRanges()
     taintFormat(result, ranges) == expected
     ranges.size() == expectedRanges.size()
 
@@ -1457,7 +1459,7 @@ class StringModuleTest extends IastModuleImplTestBase {
   }
 
   private static Source taintedSource(String value = 'value') {
-    return new Source(SourceTypes.REQUEST_PARAMETER_VALUE, 'name', value)
+    return new SourceImpl(SourceTypes.REQUEST_PARAMETER_VALUE, 'name', value)
   }
 
   private static Taintable taintable(TaintedObjects tos, Source source = null) {

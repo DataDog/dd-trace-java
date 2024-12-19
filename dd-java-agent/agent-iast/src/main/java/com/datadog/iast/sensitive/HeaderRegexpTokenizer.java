@@ -1,7 +1,7 @@
 package com.datadog.iast.sensitive;
 
 import com.datadog.iast.model.Evidence;
-import com.datadog.iast.util.Ranged;
+import datadog.trace.api.iast.util.Ranged;
 import java.util.NoSuchElementException;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;

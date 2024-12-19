@@ -1,4 +1,5 @@
-package com.datadog.iast.util
+package datadog.trace.api.iast.util
+
 
 import spock.lang.Shared
 import spock.lang.Specification
@@ -9,23 +10,54 @@ class RangedTest extends Specification {
     given:
     final rangeA = ranged(a)
     final rangeB = ranged(b)
+    final shouldIntersect = intersection != null
+
+    when:
+    final result = rangeA.intersection(rangeB)
+
+    then:
+    if (intersection == null) {
+      result == null
+    } else {
+      final start = result.start
+      final end = result.start + result.length
+      start..end == intersection
+    }
 
     when:
     final intersects = rangeA.intersects(rangeB)
 
     then:
-    assert intersects == expected: "'${toString(a)}' ${expected ? 'should' : 'should not'} intersect '${toString(b)}'"
+    assert intersects == shouldIntersect: "'${toString(a)}' ${shouldIntersect ? 'should' : 'should not'} intersect '${toString(b)}'"
 
     where:
-    a    | b     | expected
+    a    | b     | intersection
+    4..8 | 0..3  | null
+    4..8 | 0..4  | 4..4
+    4..8 | 0..6  | 4..6
+    4..8 | 0..8  | 4..8
+    4..8 | 0..10 | 4..8
+    4..8 | 5..6  | 5..6
+    4..8 | 6..10 | 6..8
+    4..8 | 9..10 | null
+  }
+
+  void 'test isBefore operation'() {
+    given:
+    final rangeA = ranged(a)
+    final rangeB = ranged(b)
+
+    when:
+    final result = rangeA.isBefore(rangeB)
+
+    then:
+    result == before
+
+    where:
+    a    | b     | before
     4..8 | 0..3  | false
-    4..8 | 0..4  | true
-    4..8 | 0..6  | true
-    4..8 | 0..8  | true
-    4..8 | 0..10 | true
-    4..8 | 5..6  | true
     4..8 | 6..10 | true
-    4..8 | 9..10 | false
+    4..8 | 4..10 | true
   }
 
   void 'test contains operation'() {
@@ -83,10 +115,10 @@ class RangedTest extends Specification {
   }
 
   private static Ranged ranged(final IntRange range) {
-    return Ranged.build(range.fromInt, range.toInt - range.fromInt + (range.inclusive ? 1 : 0))
+    return range == null ? null : Ranged.build(range.fromInt, range.toInt - range.fromInt + (range.inclusive ? 1 : 0))
   }
 
   private static IntRange intRange(final Ranged range) {
-    return new IntRange(false, range.start, range.start + range.length)
+    return range == null ? null : new IntRange(false, range.start, range.start + range.length)
   }
 }

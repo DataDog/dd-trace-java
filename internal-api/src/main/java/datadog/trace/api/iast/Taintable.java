@@ -1,5 +1,6 @@
 package datadog.trace.api.iast;
 
+import datadog.trace.api.iast.taint.Source;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -14,15 +15,6 @@ public interface Taintable {
 
   default boolean $DD$isTainted() {
     return $$DD$getSource() != null;
-  }
-
-  /** Interface to isolate customer classloader from our classes */
-  interface Source {
-    byte getOrigin();
-
-    String getName();
-
-    String getValue();
   }
 
   @SuppressForbidden

@@ -25,7 +25,7 @@ public class TaintableVisitor implements AsmVisitorWrapper {
   static volatile boolean ENABLED = true;
 
   private static final String INTERFACE_NAME = "datadog/trace/api/iast/Taintable";
-  private static final String SOURCE_CLASS_NAME = "L" + INTERFACE_NAME + "$Source;";
+  private static final String SOURCE_CLASS_NAME = "Ldatadog/trace/api/iast/taint/Source;";
   private static final String FIELD_NAME = "$$DD$source";
   private static final String GETTER_NAME = "$$DD$getSource";
   private static final String SETTER_NAME = "$$DD$setSource";

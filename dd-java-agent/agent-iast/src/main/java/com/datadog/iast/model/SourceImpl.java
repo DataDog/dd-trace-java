@@ -2,9 +2,8 @@ package com.datadog.iast.model;
 
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 
-import com.datadog.iast.model.json.SourceTypeString;
 import datadog.trace.api.iast.SourceTypes;
-import datadog.trace.api.iast.Taintable;
+import datadog.trace.api.iast.taint.Source;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.ref.Reference;
 import java.util.Objects;
@@ -13,9 +12,9 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class Source implements Taintable.Source {
+public final class SourceImpl implements Source {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(Source.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(SourceImpl.class);
 
   /** Placeholder for non char sequence objects */
   public static final Object PROPAGATION_PLACEHOLDER = new Object();
@@ -24,12 +23,12 @@ public final class Source implements Taintable.Source {
   public static final String GARBAGE_COLLECTED_REF =
       "[unknown: original value was garbage collected]";
 
-  private final @SourceTypeString byte origin;
+  private final byte origin;
   @Nullable private final Object name;
   @Nullable private final Object value;
   private boolean gcReported;
 
-  public Source(final byte origin, @Nullable final Object name, @Nullable final Object value) {
+  public SourceImpl(final byte origin, @Nullable final Object name, @Nullable final Object value) {
     this.origin = origin;
     this.name = name;
     this.value = value;
@@ -94,7 +93,7 @@ public final class Source implements Taintable.Source {
 
   @Override
   public String toString() {
-    return new StringJoiner(", ", Source.class.getSimpleName() + "[", "]")
+    return new StringJoiner(", ", SourceImpl.class.getSimpleName() + "[", "]")
         .add("origin=" + SourceTypes.toString(origin))
         .add("name='" + getName() + "'")
         .add("value='" + getValue() + "'")
@@ -106,7 +105,7 @@ public final class Source implements Taintable.Source {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     Source source = (Source) o;
-    return origin == source.origin
+    return origin == source.getOrigin()
         && Objects.equals(getName(), source.getName())
         && Objects.equals(getValue(), source.getValue());
   }
@@ -120,9 +119,10 @@ public final class Source implements Taintable.Source {
     if (value != PROPAGATION_PLACEHOLDER) {
       return this;
     }
-    return new Source(origin, name, newValue);
+    return new SourceImpl(origin, name, newValue);
   }
 
+  @Override
   public boolean isReference() {
     return name instanceof Reference || value instanceof Reference;
   }

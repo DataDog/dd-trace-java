@@ -3,7 +3,7 @@ package com.datadog.iast.taint;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
-import com.datadog.iast.model.Range;
+import datadog.trace.api.iast.taint.Range;
 import datadog.trace.test.util.CircularBuffer;
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
@@ -51,7 +51,7 @@ public class TaintedMapPutsBenchmark {
     for (int i = 0; i < INITIAL_OP_COUNT; i++) {
       final Object k = new Object();
       initialObjectList.add(k);
-      map.put(new TaintedObject(k, EMPTY_RANGES));
+      map.put(new TaintedObjectEntry(k, EMPTY_RANGES));
     }
   }
 
@@ -60,7 +60,7 @@ public class TaintedMapPutsBenchmark {
   public void baseline() {
     for (int i = 0; i < OP_COUNT; i++) {
       final Object k = new Object();
-      final TaintedObject to = new TaintedObject(k, EMPTY_RANGES);
+      final TaintedObjectEntry to = new TaintedObjectEntry(k, EMPTY_RANGES);
       gcHandler.add(to);
       map.put(to);
     }
@@ -71,7 +71,7 @@ public class TaintedMapPutsBenchmark {
   public void puts() {
     for (int i = 0; i < OP_COUNT; i++) {
       final Object k = new Object();
-      final TaintedObject to = new TaintedObject(k, EMPTY_RANGES);
+      final TaintedObjectEntry to = new TaintedObjectEntry(k, EMPTY_RANGES);
       gcHandler.add(to);
       map.put(to);
     }
@@ -83,7 +83,7 @@ public class TaintedMapPutsBenchmark {
    */
   private static class GarbageCollectorHandler {
 
-    private final Map<Object, TaintedObject> map;
+    private final Map<Object, TaintedObjectEntry> map;
     private final CircularBuffer<Object> alive;
 
     public GarbageCollectorHandler(final int aliveCount) {
@@ -91,14 +91,14 @@ public class TaintedMapPutsBenchmark {
       alive = new CircularBuffer<>(aliveCount);
     }
 
-    public void add(TaintedObject reference) {
+    public void add(TaintedObjectEntry reference) {
       if (reference == null || reference.get() == null) {
         return;
       }
       final Object referent = reference.get();
       final Object toRemove = alive.add(referent);
       if (toRemove != null) {
-        final TaintedObject taintedObject = map.remove(toRemove);
+        final TaintedObjectEntry taintedObject = map.remove(toRemove);
         taintedObject.enqueue();
       }
       map.put(reference.get(), reference);

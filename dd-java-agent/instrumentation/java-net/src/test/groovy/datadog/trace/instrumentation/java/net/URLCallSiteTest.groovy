@@ -44,13 +44,13 @@ class URLCallSiteTest extends AgentTestRunner {
     TestURLCallSiteSuite.&"$method".call(args as Object[])
 
     then:
-    1 * module."taint${target}IfTainted"(_, _ as URL, keepRanges, _)
+    1 * module.taintObjectIfTainted(_, _, _ as URL, keepRanges, _)
 
     where:
-    method           | target   | args                                                   | keepRanges
-    'toURI'          | 'Object' | [new URL('http://test.com/index?name=value#fragment')] | true
-    'toExternalForm' | 'String' | [new URL('http://test.com/index?name=value#fragment')] | true
-    'toString'       | 'String' | [new URL('http://test.com/index?name=value#fragment')] | true
+    method           | args                                                   | keepRanges
+    'toURI'          | [new URL('http://test.com/index?name=value#fragment')] | true
+    'toExternalForm' | [new URL('http://test.com/index?name=value#fragment')] | true
+    'toString'       | [new URL('http://test.com/index?name=value#fragment')] | true
   }
 
   protected URLStreamHandler dummyStreamHandler() {

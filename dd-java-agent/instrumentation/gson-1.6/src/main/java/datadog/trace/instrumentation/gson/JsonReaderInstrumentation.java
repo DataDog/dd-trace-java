@@ -14,9 +14,11 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.api.iast.taint.TaintedObjects;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -59,7 +61,8 @@ public class JsonReaderInstrumentation extends InstrumenterModule.Iast
         @Advice.This Object self, @Advice.Argument(0) final java.io.Reader input) {
       final PropagationModule iastModule = InstrumentationBridge.PROPAGATION;
       if (iastModule != null && input != null) {
-        iastModule.taintObjectIfTainted(self, input);
+        final TaintedObjects to = IastContext.Provider.taintedObjects();
+        iastModule.taintObjectIfTainted(to, self, input);
       }
     }
   }
@@ -70,7 +73,8 @@ public class JsonReaderInstrumentation extends InstrumenterModule.Iast
     public static void afterMethod(@Advice.This Object self, @Advice.Return final String result) {
       final PropagationModule iastModule = InstrumentationBridge.PROPAGATION;
       if (iastModule != null && result != null) {
-        iastModule.taintStringIfTainted(result, self);
+        final TaintedObjects to = IastContext.Provider.taintedObjects();
+        iastModule.taintObjectIfTainted(to, result, self);
       }
     }
   }

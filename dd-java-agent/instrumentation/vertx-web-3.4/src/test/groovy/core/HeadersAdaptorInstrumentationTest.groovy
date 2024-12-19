@@ -5,6 +5,7 @@ import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.propagation.PropagationModule
+import datadog.trace.api.iast.taint.TaintedObjects
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import groovy.transform.CompileDynamic
@@ -19,6 +20,7 @@ import org.junit.Assume
 class HeadersAdaptorInstrumentationTest extends AgentTestRunner {
 
   private Object iastCtx
+  private Object to
 
   @Override
   protected void configurePreAgent() {
@@ -26,7 +28,10 @@ class HeadersAdaptorInstrumentationTest extends AgentTestRunner {
   }
 
   void setup() {
-    iastCtx = Stub(IastContext)
+    to = Stub(TaintedObjects)
+    iastCtx = Stub(IastContext) {
+      getTaintedObjects() >> to
+    }
   }
 
   void 'test that #name get() is instrumented'() {
@@ -39,7 +44,7 @@ class HeadersAdaptorInstrumentationTest extends AgentTestRunner {
     runUnderIastTrace { headers.get('key') }
 
     then:
-    1 * module.taintStringIfTainted(iastCtx, 'value', headers, SourceTypes.REQUEST_HEADER_VALUE, 'key')
+    1 * module.taintObjectIfTainted(to, 'value', headers, SourceTypes.REQUEST_HEADER_VALUE, 'key')
 
     where:
     headers        | name
@@ -57,16 +62,16 @@ class HeadersAdaptorInstrumentationTest extends AgentTestRunner {
     runUnderIastTrace { headers.getAll('key') }
 
     then:
-    1 * module.isTainted(iastCtx, headers) >> { false }
+    1 * module.isTainted(to, headers) >> { false }
     0 * _
 
     when:
     runUnderIastTrace { headers.getAll('key') }
 
     then:
-    1 * module.isTainted(iastCtx, headers) >> { true }
-    1 * module.taintString(iastCtx, 'value1', SourceTypes.REQUEST_HEADER_VALUE, 'key')
-    1 * module.taintString(iastCtx, 'value2', SourceTypes.REQUEST_HEADER_VALUE, 'key')
+    1 * module.isTainted(to, headers) >> { true }
+    1 * module.taintObject(to, 'value1', SourceTypes.REQUEST_HEADER_VALUE, 'key')
+    1 * module.taintObject(to, 'value2', SourceTypes.REQUEST_HEADER_VALUE, 'key')
 
     where:
     headers        | name
@@ -84,15 +89,15 @@ class HeadersAdaptorInstrumentationTest extends AgentTestRunner {
     runUnderIastTrace { headers.names() }
 
     then:
-    1 * module.isTainted(iastCtx, headers) >> { false }
+    1 * module.isTainted(to, headers) >> { false }
     0 * _
 
     when:
     runUnderIastTrace { headers.names() }
 
     then:
-    1 * module.isTainted(iastCtx, headers) >> { true }
-    1 * module.taintString(iastCtx, 'key', SourceTypes.REQUEST_HEADER_NAME, 'key')
+    1 * module.isTainted(to, headers) >> { true }
+    1 * module.taintObject(to, 'key', SourceTypes.REQUEST_HEADER_NAME, 'key')
 
     where:
     headers        | name
@@ -112,19 +117,19 @@ class HeadersAdaptorInstrumentationTest extends AgentTestRunner {
     final result = runUnderIastTrace { headers.entries() }
 
     then:
-    1 * module.isTainted(iastCtx, headers) >> { false }
+    1 * module.isTainted(to, headers) >> { false }
     0 * _
 
     when:
     runUnderIastTrace { headers.entries() }
 
     then:
-    1 * module.isTainted(iastCtx, headers) >> { true }
+    1 * module.isTainted(to, headers) >> { true }
     result.collect { it.key }.unique().each {
-      1 * module.taintString(iastCtx, it, SourceTypes.REQUEST_HEADER_NAME, it)
+      1 * module.taintObject(to, it, SourceTypes.REQUEST_HEADER_NAME, it)
     }
     result.each {
-      1 * module.taintString(iastCtx, it.value, SourceTypes.REQUEST_HEADER_VALUE, it.key)
+      1 * module.taintObject(to, it.value, SourceTypes.REQUEST_HEADER_VALUE, it.key)
     }
 
     where:

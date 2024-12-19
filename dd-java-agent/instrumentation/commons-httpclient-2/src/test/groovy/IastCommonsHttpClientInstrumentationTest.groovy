@@ -51,9 +51,9 @@ class IastCommonsHttpClientInstrumentationTest extends AgentTestRunner {
 
   private void mockPropagation() {
     final propagation = Mock(PropagationModule) {
-      taintObjectIfTainted(_, _) >> {
-        if (tainteds.containsKey(it[1])) {
-          tainteds.put(it[0], null)
+      taintObjectIfTainted(_, _, _) >> {
+        if (tainteds.containsKey(it[2])) {
+          tainteds.put(it[1], null)
         }
       }
     }

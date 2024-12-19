@@ -2,6 +2,7 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.PropagationModule
+import datadog.trace.api.iast.taint.TaintedObjects
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import foo.bar.smoketest.MockFileItemIterator
@@ -10,6 +11,7 @@ import foo.bar.smoketest.MockFileItemStream
 class FileItemIteratorInstrumenterTest extends AgentTestRunner {
 
   private Object iastCtx
+  private Object to
 
   @Override
   protected void configurePreAgent() {
@@ -18,7 +20,10 @@ class FileItemIteratorInstrumenterTest extends AgentTestRunner {
 
   @Override
   void setup() {
-    iastCtx = Stub(IastContext)
+    to = Stub(TaintedObjects)
+    iastCtx = Stub(IastContext) {
+      getTaintedObjects() >> to
+    }
   }
 
   @Override
@@ -37,7 +42,7 @@ class FileItemIteratorInstrumenterTest extends AgentTestRunner {
     runUnderIastTrace { fileItemIterator.next() }
 
     then:
-    1 * module.taintObjectIfTainted(iastCtx, fileItemStreams, fileItemIterator)
+    1 * module.taintObjectIfTainted(to, fileItemStreams, fileItemIterator)
     0 * _
   }
 
