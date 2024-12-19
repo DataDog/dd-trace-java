@@ -24,11 +24,4 @@ public interface ContextBinder {
   static void register(ContextBinder binder) {
     ContextProviders.customBinder = binder;
   }
-
-  final class Provided {
-    static final ContextBinder INSTANCE =
-        null != ContextProviders.customBinder
-            ? ContextProviders.customBinder
-            : new WeakMapContextBinder();
-  }
 }
