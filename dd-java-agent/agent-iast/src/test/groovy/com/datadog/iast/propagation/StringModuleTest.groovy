@@ -1436,6 +1436,42 @@ class StringModuleTest extends IastModuleImplTestBase {
     taintFormat(result, taintedObject.getRanges()) == "==>my_input<=="
   }
 
+  void 'onStringBuilderSetLength empty or string not changed after setLength (#self, #length)'() {
+    given:
+    self?.setLength(length)
+
+    when:
+    module.onStringBuilderSetLength(self, length)
+
+    then:
+    0 * _
+
+    where:
+    self              | length
+    sb()              | 0
+    sb("not_changed") | 10
+  }
+
+  void 'onStringBuilderSetLength (#input, #length)'() {
+    final taintedObjects = ctx.getTaintedObjects()
+    def self = addFromTaintFormat(taintedObjects, input)
+    final result = self.toString().substring(0, length)
+
+    when:
+    module.onStringBuilderSetLength(self, length)
+    def taintedObject = taintedObjects.get(self)
+
+    then:
+    1 * tracer.activeSpan() >> span
+    taintFormat(result, taintedObject.getRanges()) == expected
+
+    where:
+    input                         | length | expected
+    sb("==>0123<==")              | 3      | "==>012<=="
+    sb("0123==>456<==78")         | 5      | "0123==>4<=="
+    sb("01==>234<==5==>678<==90") | 8      | "01==>234<==5==>67<=="
+  }
+
   private static Date date(final String pattern, final String value) {
     return new SimpleDateFormat(pattern).parse(value)
   }
