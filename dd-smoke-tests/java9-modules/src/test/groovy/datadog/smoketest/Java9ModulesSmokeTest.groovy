@@ -15,6 +15,9 @@ class Java9ModulesSmokeTest extends AbstractSmokeTest {
     List<String> command = new ArrayList<>()
     command.add(imageDir + "/bin/java")
     command.addAll(defaultJavaProperties)
+    // temporarily turn off DDProf due to PROF-11066
+    command.removeAll { it.startsWith("-Ddd.profiling.ddprof.enabled") }
+    command.add("-Ddd.profiling.ddprof.enabled=false")
     command.addAll((String[]) ["-m", "datadog.smoketest.moduleapp/datadog.smoketest.moduleapp.ModuleApplication"])
     ProcessBuilder processBuilder = new ProcessBuilder(command)
     processBuilder.directory(new File(buildDirectory))
