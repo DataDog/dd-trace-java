@@ -1,20 +1,20 @@
 package foo.bar.securitycontrol;
 
-public class SecurityControlTestSuite {
+public class SecurityControlStaticTestSuite {
 
-  public boolean validateAll(long input, String input2) {
+  public static boolean validateAll(long input, String input2) {
     return true; // dummy implementation
   }
 
-  public boolean validateAll(String input) {
+  public static boolean validateAll(String input) {
     return true; // dummy implementation
   }
 
-  public boolean validateAll(String input, String input2) {
+  public static boolean validateAll(String input, String input2) {
     return true; // dummy implementation
   }
 
-  public boolean validateAll(
+  public static boolean validateAll(
       String input,
       String input2,
       String input3,
@@ -28,55 +28,55 @@ public class SecurityControlTestSuite {
     return true; // dummy implementation
   }
 
-  public boolean validateLong(long input, String input2) {
+  public static boolean validateLong(long input, String input2) {
     return true; // dummy implementation
   }
 
-  public boolean validateLong(String input, long input2) {
+  public static boolean validateLong(String input, long input2) {
     return true; // dummy implementation
   }
 
-  public boolean validateLong(long intput1, String input2, long input3) {
+  public static boolean validateLong(long intput1, String input2, long input3) {
     return true; // dummy implementation
   }
 
-  public boolean validateSelectedLong(long intput1) {
+  public static boolean validateSelectedLong(long intput1) {
     return true; // dummy implementation
   }
 
-  public boolean validateSelectedLong(long input1, long intput2) {
+  public static boolean validateSelectedLong(long input1, long intput2) {
     return true; // dummy implementation
   }
 
-  public boolean validate(String input) {
+  public static boolean validate(String input) {
     return true; // dummy implementation
   }
 
-  public boolean validate(Object o, String input, String input2) {
+  public static boolean validate(Object o, String input, String input2) {
     return true; // dummy implementation
   }
 
-  public int validateReturningInt(String input) {
+  public static int validateReturningInt(String input) {
     return 1; // dummy implementation
   }
 
-  public int validateObject(Object input) {
+  public static int validateObject(Object input) {
     return 1; // dummy implementation
   }
 
-  public String sanitize(String input) {
+  public static String sanitize(String input) {
     return "Sanitized";
   }
 
-  public Object sanitizeObject(String input) {
+  public static Object sanitizeObject(String input) {
     return "Sanitized";
   }
 
-  public String sanitizeInputs(String input, Object input2, int input3) {
+  public static String sanitizeInputs(String input, Object input2, int input3) {
     return "Sanitized";
   }
 
-  public String sanitizeManyInputs(
+  public static String sanitizeManyInputs(
       String input,
       String input2,
       String input3,
@@ -90,11 +90,11 @@ public class SecurityControlTestSuite {
     return "Sanitized";
   }
 
-  public int sanitizeInt(int input) {
+  public static int sanitizeInt(int input) {
     return input;
   }
 
-  public long sanitizeLong(long input) {
+  public static long sanitizeLong(long input) {
     return input;
   }
 }

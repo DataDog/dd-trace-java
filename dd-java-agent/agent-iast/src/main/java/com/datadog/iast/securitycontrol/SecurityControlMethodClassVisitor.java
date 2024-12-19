@@ -1,5 +1,6 @@
 package com.datadog.iast.securitycontrol;
 
+import static org.objectweb.asm.Opcodes.ACC_STATIC;
 import static org.objectweb.asm.Opcodes.ASM8;
 
 import datadog.trace.api.iast.securitycontrol.SecurityControl;
@@ -36,7 +37,8 @@ public class SecurityControlMethodClassVisitor extends ClassVisitor {
       }
     }
     if (match != null) {
-      return new SecurityControlMethodAdapter(mv, match, desc);
+      final boolean isStatic = (access & ACC_STATIC) > 0;
+      return new SecurityControlMethodAdapter(mv, match, desc, isStatic);
     }
     return mv;
   }

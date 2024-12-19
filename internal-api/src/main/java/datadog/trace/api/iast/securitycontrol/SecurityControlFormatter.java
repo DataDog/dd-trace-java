@@ -6,8 +6,10 @@ import datadog.trace.api.iast.VulnerabilityMarks;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.BitSet;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -25,7 +27,8 @@ public class SecurityControlFormatter {
   private static final String ALL = "*";
 
   @Nullable
-  public static List<SecurityControl> format(final @Nonnull String securityControlString) {
+  public static Map<String, List<SecurityControl>> format(
+      final @Nonnull String securityControlString) {
 
     if (securityControlString.isEmpty()) {
       log.warn("Security control configuration is empty");
@@ -36,13 +39,14 @@ public class SecurityControlFormatter {
 
     String[] list = config.split(SECURITY_CONTROL_DELIMITER);
 
-    List<SecurityControl> securityControls = new ArrayList<>(list.length);
+    Map<String, List<SecurityControl>> securityControls = new HashMap<>();
 
     for (String s : list) {
       try {
         SecurityControl securityControl = getSecurityControl(s);
         if (securityControl != null) {
-          securityControls.add(securityControl);
+          securityControls.putIfAbsent(securityControl.getClassName(), new ArrayList<>());
+          securityControls.get(securityControl.getClassName()).add(securityControl);
         }
       } catch (Exception e) {
         log.warn("Security control configuration is invalid: {}", s);
@@ -71,7 +75,7 @@ public class SecurityControlFormatter {
     String method = split[3];
 
     List<String> parameterTypes = null;
-    Set<Integer> parametersToMark = null;
+    BitSet parametersToMark = null;
 
     if (split.length > 4) {
       String[] elements = split[4].split(SECURITY_CONTROL_ELEMENT_DELIMITER);
@@ -107,10 +111,12 @@ public class SecurityControlFormatter {
     return marks;
   }
 
-  private static Set<Integer> getParametersToMark(String[] elements) {
-    return Arrays.stream(elements)
-        .map(Integer::parseInt)
-        .collect(java.util.stream.Collectors.toSet());
+  private static BitSet getParametersToMark(String[] elements) {
+    BitSet bitSet = new BitSet();
+    Arrays.stream(elements)
+        .map(Integer::parseInt) // Convert each element to an Integer
+        .forEach(bitSet::set);
+    return bitSet;
   }
 
   private static boolean isNumeric(String str) {

@@ -6,6 +6,7 @@ import datadog.trace.api.iast.propagation.PropagationModule
 import datadog.trace.api.iast.securitycontrol.SecurityControl
 import datadog.trace.api.iast.securitycontrol.SecurityControlFormatter
 import datadog.trace.test.util.DDSpecification
+import foo.bar.securitycontrol.SecurityControlStaticTestSuite
 import foo.bar.securitycontrol.SecurityControlTestSuite
 import net.bytebuddy.agent.ByteBuddyAgent
 
@@ -13,6 +14,21 @@ import java.lang.instrument.Instrumentation
 
 class IastSecurityControlTransformerForkedTest extends DDSpecification{
 
+  //static methods
+  private static final String STATIC_SANITIZER = 'SANITIZER:XSS:foo.bar.securitycontrol.SecurityControlStaticTestSuite:sanitize'
+  private static final String STATIC_SANITIZE_VALIDATE_OBJECT = 'SANITIZER:XSS:foo.bar.securitycontrol.SecurityControlStaticTestSuite:sanitizeObject'
+  private static final String STATIC_SANITIZE_INPUTS= 'SANITIZER:XSS:foo.bar.securitycontrol.SecurityControlStaticTestSuite:sanitizeInputs'
+  private static final String STATIC_SANITIZE_MANY_INPUTS= 'SANITIZER:XSS:foo.bar.securitycontrol.SecurityControlStaticTestSuite:sanitizeManyInputs'
+  private static final String STATIC_SANITIZE_INT = 'SANITIZER:XSS:foo.bar.securitycontrol.SecurityControlStaticTestSuite:sanitizeInt'
+  private static final String STATIC_SANITIZE_LONG = 'SANITIZER:XSS:foo.bar.securitycontrol.SecurityControlStaticTestSuite:sanitizeLong'
+  private static final String STATIC_INPUT_VALIDATOR_VALIDATE_ALL = 'INPUT_VALIDATOR:XSS:foo.bar.securitycontrol.SecurityControlStaticTestSuite:validateAll'
+  private static final String STATIC_INPUT_VALIDATOR_VALIDATE_OVERLOADED = 'INPUT_VALIDATOR:XSS:foo.bar.securitycontrol.SecurityControlStaticTestSuite:validate:java.lang.Object,java.lang.String,java.lang.String:1,2'
+  private static final String STATIC_INPUT_VALIDATOR_VALIDATE_RETURNING_INT = 'INPUT_VALIDATOR:XSS:foo.bar.securitycontrol.SecurityControlStaticTestSuite:validateReturningInt'
+  private static final String STATIC_INPUT_VALIDATOR_VALIDATE_OBJECT = 'INPUT_VALIDATOR:XSS:foo.bar.securitycontrol.SecurityControlStaticTestSuite:validateObject'
+  private static final String STATIC_INPUT_VALIDATOR_VALIDATE_LONG = 'INPUT_VALIDATOR:XSS:foo.bar.securitycontrol.SecurityControlStaticTestSuite:validateLong'
+  private static final String STATIC_INPUT_VALIDATOR_VALIDATE_SELECTED_LONG = 'INPUT_VALIDATOR:XSS:foo.bar.securitycontrol.SecurityControlStaticTestSuite:validateSelectedLong:0'
+
+  //not static methods
   private static final String SANITIZER = 'SANITIZER:XSS:foo.bar.securitycontrol.SecurityControlTestSuite:sanitize'
   private static final String SANITIZE_VALIDATE_OBJECT = 'SANITIZER:XSS:foo.bar.securitycontrol.SecurityControlTestSuite:sanitizeObject'
   private static final String SANITIZE_INPUTS= 'SANITIZER:XSS:foo.bar.securitycontrol.SecurityControlTestSuite:sanitizeInputs'
@@ -29,10 +45,12 @@ class IastSecurityControlTransformerForkedTest extends DDSpecification{
 
 
   def setupSpec() {
-    final config = "${SANITIZER};${SANITIZE_VALIDATE_OBJECT};${SANITIZE_INPUTS};${SANITIZE_MANY_INPUTS};${SANITIZE_INT};${SANITIZE_LONG};${INPUT_VALIDATOR_VALIDATE_ALL};${INPUT_VALIDATOR_VALIDATE_OVERLOADED};${INPUT_VALIDATOR_VALIDATE_RETURNING_INT};${INPUT_VALIDATOR_VALIDATE_OBJECT};${INPUT_VALIDATOR_VALIDATE_LONG};${INPUT_VALIDATOR_VALIDATE_SELECTED_LONG}"
+    final staticConfig = "${STATIC_SANITIZER};${STATIC_SANITIZE_VALIDATE_OBJECT};${STATIC_SANITIZE_INPUTS};${STATIC_SANITIZE_MANY_INPUTS};${STATIC_SANITIZE_INT};${STATIC_SANITIZE_LONG};${STATIC_INPUT_VALIDATOR_VALIDATE_ALL};${STATIC_INPUT_VALIDATOR_VALIDATE_OVERLOADED};${STATIC_INPUT_VALIDATOR_VALIDATE_RETURNING_INT};${STATIC_INPUT_VALIDATOR_VALIDATE_OBJECT};${STATIC_INPUT_VALIDATOR_VALIDATE_LONG};${STATIC_INPUT_VALIDATOR_VALIDATE_SELECTED_LONG}"
+    final config =  "${SANITIZER};${SANITIZE_VALIDATE_OBJECT};${SANITIZE_INPUTS};${SANITIZE_MANY_INPUTS};${SANITIZE_INT};${SANITIZE_LONG};${INPUT_VALIDATOR_VALIDATE_ALL};${INPUT_VALIDATOR_VALIDATE_OVERLOADED};${INPUT_VALIDATOR_VALIDATE_RETURNING_INT};${INPUT_VALIDATOR_VALIDATE_OBJECT};${INPUT_VALIDATOR_VALIDATE_LONG};${INPUT_VALIDATOR_VALIDATE_SELECTED_LONG}"
+    final fullConfig = "${staticConfig};${config}"
     Instrumentation instrumentation =  ByteBuddyAgent.install()
-    List<SecurityControl> securityControls =
-      SecurityControlFormatter.format(config)
+    Map<String,List<SecurityControl>> securityControls =
+      SecurityControlFormatter.format(fullConfig)
     assert securityControls != null
     instrumentation.addTransformer(new IastSecurityControlTransformer(securityControls), true)
   }
@@ -45,7 +63,15 @@ class IastSecurityControlTransformerForkedTest extends DDSpecification{
     final marks = (VulnerabilityMarks.XSS_MARK | VulnerabilityMarks.CUSTOM_SECURITY_CONTROL_MARK)
 
     when:
-    SecurityControlTestSuite.&"$method".call(*args)
+    SecurityControlStaticTestSuite.&"$method".call(*args)
+
+    then:
+    expected * iastModule.markIfTainted( toSanitize, marks)
+    0 * _
+
+    when:
+    final suite = new SecurityControlTestSuite()
+    suite.&"$method".call(*args)
 
     then:
     expected * iastModule.markIfTainted( toSanitize, marks)
@@ -68,7 +94,17 @@ class IastSecurityControlTransformerForkedTest extends DDSpecification{
     final marks = (VulnerabilityMarks.XSS_MARK | VulnerabilityMarks.CUSTOM_SECURITY_CONTROL_MARK)
 
     when:
-    SecurityControlTestSuite.&"$method".call(*args)
+    SecurityControlStaticTestSuite.&"$method".call(*args)
+
+    then:
+    for (final validate : toValidate){
+      expected * iastModule.markIfTainted(validate, marks)
+    }
+    0 * _
+
+    when:
+    final suite = new SecurityControlTestSuite()
+    suite.&"$method".call(*args)
 
     then:
     for (final validate : toValidate){

@@ -19,39 +19,47 @@ public class SecurityControlMethodAdapter extends MethodVisitor {
   private final MethodVisitor mv;
   private final SecurityControl securityControl;
   private final String desc;
+  boolean isStatic;
 
   public SecurityControlMethodAdapter(
-      final MethodVisitor mv, final SecurityControl securityControl, final String desc) {
+      final MethodVisitor mv,
+      final SecurityControl securityControl,
+      final String desc,
+      boolean isStatic) {
     super(Opcodes.ASM9, mv);
     this.mv = mv;
     this.securityControl = securityControl;
     this.desc = desc;
+    this.isStatic = isStatic;
+  }
+
+  @Override
+  public void visitCode() {
+    super.visitCode();
+    if (securityControl.getType() == SecurityControlType.INPUT_VALIDATOR) {
+      processInputValidator();
+    }
   }
 
   @Override
   public void visitInsn(int opcode) {
-    // Check if the opcode is a return instruction
-    if (opcode >= Opcodes.IRETURN && opcode <= Opcodes.RETURN) {
-      if (securityControl.getType() == SecurityControlType.INPUT_VALIDATOR) {
-        processInputValidator();
-      } else { // SecurityControlType.SANITIZER
+    if (securityControl.getType() == SecurityControlType.SANITIZER) {
+      // Only process the return value if is an Object as we are not tainting primitives
+      if (opcode == Opcodes.ARETURN) {
         processSanitizer();
+      } else {
+        Type returnType = Type.getReturnType(desc);
+        // no need to check primitives as we are not tainting them
+        LOGGER.warn(
+            "Sanitizers should not be used on primitive return types. Return type {}. Security control: {}",
+            returnType.getClassName(),
+            securityControl);
       }
     }
-
     super.visitInsn(opcode);
   }
 
   private void processSanitizer() {
-    Type returnType = Type.getReturnType(desc);
-    if (isPrimitive(returnType)) {
-      // no need to check primitives as we are not tainting them
-      LOGGER.warn(
-          "Sanitizers should not be used on non-primitive return types. Return type {}. Security control: {}",
-          returnType.getClassName(),
-          securityControl);
-      return;
-    }
     // Duplicate the return value on the stack
     mv.visitInsn(Opcodes.DUP);
     // Load the marks from securityControl onto the stack
@@ -71,7 +79,7 @@ public class SecurityControlMethodAdapter extends MethodVisitor {
         if (!isPrimitive) {
           callInputValidation(parametersCount);
         }
-      } else if (securityControl.getParametersToMark().contains(i)) {
+      } else if (securityControl.getParametersToMark().get(i)) {
         if (isPrimitive) {
           LOGGER.warn(
               "Input validators should not be used on primitive types. Parameter {} with type {} .Security control: {}",
@@ -88,7 +96,9 @@ public class SecurityControlMethodAdapter extends MethodVisitor {
 
   private void callInputValidation(int i) {
     // Duplicate the parameter value on the stack
-    mv.visitVarInsn(Opcodes.ALOAD, i);
+    mv.visitVarInsn(
+        Opcodes.ALOAD,
+        isStatic ? i : i + 1); // instance methods have this as first element in the stack
     // Load the marks from securityControl onto the stack
     mv.visitLdcInsn(securityControl.getMarks());
     // Insert the call to setSecureMarks with the parameter value and marks as parameters

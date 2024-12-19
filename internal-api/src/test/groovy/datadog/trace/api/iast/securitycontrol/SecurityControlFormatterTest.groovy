@@ -13,7 +13,9 @@ class SecurityControlFormatterTest extends DDSpecification{
 
     expect:
     result.size() == 1
-    def securityControl = result.get(0)
+    def securityControls = result.get('bar/foo/CustomInputValidator')
+    securityControls.size() == 1
+    def securityControl = securityControls.get(0)
     securityControl.getType() == SecurityControlType.INPUT_VALIDATOR
     securityControl.getMarks() == (VulnerabilityMarks.COMMAND_INJECTION_MARK | VulnerabilityMarks.CUSTOM_SECURITY_CONTROL_MARK)
     securityControl.getClassName() == "bar/foo/CustomInputValidator"
@@ -30,7 +32,9 @@ class SecurityControlFormatterTest extends DDSpecification{
 
     expect:
     result.size() == 1
-    def securityControl = result.get(0)
+    def securityControls = result.get('bar/foo/CustomSanitizer')
+    securityControls.size() == 1
+    def securityControl = securityControls.get(0)
     securityControl.getType() == SecurityControlType.SANITIZER
     securityControl.getMarks() == (VulnerabilityMarks.COMMAND_INJECTION_MARK | VulnerabilityMarks.CUSTOM_SECURITY_CONTROL_MARK)
     securityControl.getClassName() == "bar/foo/CustomSanitizer"
@@ -47,7 +51,7 @@ class SecurityControlFormatterTest extends DDSpecification{
 
     expect:
     result.size() == 2
-    def inputValidator = result.get(0)
+    def inputValidator = result.get('bar/foo/CustomInputValidator').get(0)
     inputValidator.getType() == SecurityControlType.INPUT_VALIDATOR
     inputValidator.getMarks() == (VulnerabilityMarks.COMMAND_INJECTION_MARK | VulnerabilityMarks.CUSTOM_SECURITY_CONTROL_MARK)
     inputValidator.getClassName() == "bar/foo/CustomInputValidator"
@@ -55,7 +59,7 @@ class SecurityControlFormatterTest extends DDSpecification{
     inputValidator.getParameterTypes() == null
     inputValidator.getParametersToMark() == null
 
-    def sanitizer = result.get(1)
+    def sanitizer = result.get('bar/foo/CustomSanitizer').get(0)
     sanitizer.getType() == SecurityControlType.SANITIZER
     sanitizer.getMarks() == (VulnerabilityMarks.COMMAND_INJECTION_MARK | VulnerabilityMarks.CUSTOM_SECURITY_CONTROL_MARK)
     sanitizer.getClassName() == "bar/foo/CustomSanitizer"
@@ -72,7 +76,7 @@ class SecurityControlFormatterTest extends DDSpecification{
 
     expect:
     result.size() == 1
-    def securityControl = result.get(0)
+    def securityControl = result.get('bar/foo/CustomInputValidator').get(0)
     securityControl.getType() == SecurityControlType.INPUT_VALIDATOR
     securityControl.getMarks() == (VulnerabilityMarks.COMMAND_INJECTION_MARK | VulnerabilityMarks.SQL_INJECTION_MARK | VulnerabilityMarks.CUSTOM_SECURITY_CONTROL_MARK)
     securityControl.getClassName() == "bar/foo/CustomInputValidator"
@@ -89,7 +93,7 @@ class SecurityControlFormatterTest extends DDSpecification{
 
     expect:
     result.size() == 1
-    def securityControl = result.get(0)
+    def securityControl = result.get('bar/foo/CustomInputValidator').get(0)
     securityControl.getType() == SecurityControlType.INPUT_VALIDATOR
     securityControl.getMarks() == (VulnerabilityMarks.COMMAND_INJECTION_MARK | VulnerabilityMarks.CUSTOM_SECURITY_CONTROL_MARK)
     securityControl.getClassName() == "bar/foo/CustomInputValidator"
@@ -106,15 +110,15 @@ class SecurityControlFormatterTest extends DDSpecification{
 
     expect:
     result.size() == 1
-    def securityControl = result.get(0)
+    def securityControl = result.get('bar/foo/CustomInputValidator').get(0)
     securityControl.getType() == SecurityControlType.INPUT_VALIDATOR
     securityControl.getMarks() == (VulnerabilityMarks.COMMAND_INJECTION_MARK | VulnerabilityMarks.CUSTOM_SECURITY_CONTROL_MARK)
     securityControl.getClassName() == "bar/foo/CustomInputValidator"
     securityControl.getMethod() == "validate"
     securityControl.getParameterTypes() == null
-    securityControl.getParametersToMark().size() == 2
-    securityControl.getParametersToMark().contains(1)
-    securityControl.getParametersToMark().contains(2)
+    securityControl.getParametersToMark().cardinality() == 2
+    securityControl.getParametersToMark().get(1)
+    securityControl.getParametersToMark().get(2)
   }
 
   void 'test overcharged methods with parameters to mark'() {
@@ -125,15 +129,15 @@ class SecurityControlFormatterTest extends DDSpecification{
 
     expect:
     result.size() == 1
-    def securityControl = result.get(0)
+    def securityControl = result.get('bar/foo/CustomInputValidator').get(0)
     securityControl.getType() == SecurityControlType.INPUT_VALIDATOR
     securityControl.getMarks() == (VulnerabilityMarks.COMMAND_INJECTION_MARK | VulnerabilityMarks.CUSTOM_SECURITY_CONTROL_MARK)
     securityControl.getClassName() == "bar/foo/CustomInputValidator"
     securityControl.getMethod() == "validate"
     securityControl.getParameterTypes() == ["java.lang.Object", "java.lang.String", "java.lang.String"]
-    securityControl.getParametersToMark().size() == 2
-    securityControl.getParametersToMark().contains(1)
-    securityControl.getParametersToMark().contains(2)
+    securityControl.getParametersToMark().cardinality() == 2
+    securityControl.getParametersToMark().get(1)
+    securityControl.getParametersToMark().get(2)
   }
 
   void 'test error control'() {

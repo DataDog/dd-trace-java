@@ -1,7 +1,7 @@
 package datadog.trace.api.iast.securitycontrol;
 
+import java.util.BitSet;
 import java.util.List;
-import java.util.Set;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -17,7 +17,7 @@ public class SecurityControl {
 
   @Nullable private List<String> parameterTypes;
 
-  @Nullable private Set<Integer> parametersToMark;
+  @Nullable private BitSet parametersToMark;
 
   public SecurityControl(
       @Nonnull SecurityControlType type,
@@ -25,7 +25,7 @@ public class SecurityControl {
       @Nonnull String className,
       @Nonnull String method,
       @Nullable List<String> parameterTypes,
-      @Nullable Set<Integer> parametersToMark) {
+      @Nullable BitSet parametersToMark) {
     this.type = type;
     this.marks = marks;
     this.className = className;
@@ -60,7 +60,7 @@ public class SecurityControl {
   }
 
   @Nullable
-  public Set<Integer> getParametersToMark() {
+  public BitSet getParametersToMark() {
     return parametersToMark;
   }
 

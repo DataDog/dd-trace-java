@@ -58,6 +58,7 @@ import java.lang.instrument.Instrumentation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.List;
+import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
@@ -129,7 +130,7 @@ public class IastSystem {
     if (Config.get().getIastSecurityControlsConfiguration() == null || instrumentation == null) {
       return;
     }
-    List<SecurityControl> securityControls =
+    Map<String, List<SecurityControl>> securityControls =
         SecurityControlFormatter.format(Config.get().getIastSecurityControlsConfiguration());
     if (securityControls == null) {
       LOGGER.warn("No security controls to apply");
