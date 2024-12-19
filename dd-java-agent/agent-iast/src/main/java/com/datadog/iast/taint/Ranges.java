@@ -426,4 +426,22 @@ public final class Ranges {
 
     return splittedRanges;
   }
+
+  /**
+   * Remove the ranges that have the same origin as the input source.
+   *
+   * @param ranges the ranges to filter
+   * @param source the byte value of the source to exclude (see {@link SourceTypes})
+   */
+  public static Range[] excludeRangesBySource(Range[] ranges, byte source) {
+    RangeBuilder newRanges = new RangeBuilder(ranges.length);
+
+    for (Range range : ranges) {
+      if (range.getSource().getOrigin() != source) {
+        newRanges.add(range);
+      }
+    }
+
+    return newRanges.toArray();
+  }
 }
