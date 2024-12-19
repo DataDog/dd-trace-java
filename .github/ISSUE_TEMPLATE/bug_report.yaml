@@ -19,6 +19,26 @@ body:
     validations:
       required: true
 
+  - type: dropdown
+    attributes:
+      label: JVM Vendor
+      description: "Which JVM vendor does your application use"
+      options:
+        - Oracle JDK
+        - Alibaba Dragonwell
+        - Amazon Corretto
+        - Azul Zing / Zulu
+        - BellSoft Liberica JDK
+        - Eclipse Adoptium / Temurin
+        - Eclipse OpenJ9
+        - IBM SDK / Semeru
+        - Oracle GraalVM
+        - RedHat JDK
+        - SapMachine
+        - Other (please specify in comments)
+    validations:
+      required: true
+
   - type: textarea
     attributes:
       label: Bug Report
