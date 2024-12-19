@@ -31,11 +31,4 @@ public interface ContextManager {
   static void register(ContextManager manager) {
     ContextProviders.customManager = manager;
   }
-
-  final class Provided {
-    static final ContextManager INSTANCE =
-        null != ContextProviders.customManager
-            ? ContextProviders.customManager
-            : new ThreadLocalContextManager();
-  }
 }
