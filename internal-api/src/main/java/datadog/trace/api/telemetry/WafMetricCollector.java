@@ -109,7 +109,7 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
   }
 
   public void missingUserId(final LoginFramework framework) {
-    missingUserLoginQueue.incrementAndGet(framework.ordinal());
+    missingUserIdQueue.incrementAndGet(framework.ordinal());
   }
 
   @Override
@@ -215,7 +215,7 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
       }
     }
 
-    // Missing user id
+    // Missing user login
     for (LoginFramework framework : LoginFramework.values()) {
       for (LoginEvent event : LoginEvent.values()) {
         final int ordinal = framework.ordinal() * LoginEvent.getNumValues() + event.ordinal();
@@ -225,6 +225,16 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
               new MissingUserLoginMetric(counter, framework.getTag(), event.getTag()))) {
             return;
           }
+        }
+      }
+    }
+
+    // Missing user id
+    for (LoginFramework framework : LoginFramework.values()) {
+      long counter = missingUserIdQueue.getAndSet(framework.ordinal(), 0);
+      if (counter > 0) {
+        if (!rawMetricsQueue.offer(new MissingUserIdMetric(counter, framework.getTag()))) {
+          return;
         }
       }
     }
