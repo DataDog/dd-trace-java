@@ -127,10 +127,14 @@ class SpanAssert {
   }
 
   def childOf(DDSpan parent) {
+    assert span.parentId != 0L, "Expected spanId=${span.spanId} to be a child of spanId=${parent.spanId}, but it is a root span (no parent)"
+    assert span.traceId == parent.traceId, "Expected spanId=${span.spanId} to be a child of spanId=${parent.spanId}, but they have different traceIds"
+    checked.traceId = true
+    if (span.parentId != parent.spanId && span.parentId == previous.spanId) {
+      assert span.parentId == parent.spanId, "Expected spanId=${span.spanId} to be a child of spanId=${parent.spanId}, but it is a child of ${previous}"
+    }
     assert span.parentId == parent.spanId
     checked.parentId = true
-    assert span.traceId == parent.traceId
-    checked.traceId = true
   }
 
   def childOfPrevious() {
