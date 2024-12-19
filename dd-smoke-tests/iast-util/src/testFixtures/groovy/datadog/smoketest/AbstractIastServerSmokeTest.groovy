@@ -54,10 +54,7 @@ abstract class AbstractIastServerSmokeTest extends AbstractServerSmokeTest {
     try {
       processTestLogLines(closure)
     } catch (TimeoutException toe) {
-      checkLogPostExit(closure)
-      if (!found) {
-        throw new AssertionError("No matching tainted found. Tainteds found: ${new JsonBuilder(tainteds).toPrettyString()}")
-      }
+      assert found, "No matching tainted found. Tainteds found: ${new JsonBuilder(tainteds).toPrettyString()}"
     }
   }
 
@@ -83,10 +80,7 @@ abstract class AbstractIastServerSmokeTest extends AbstractServerSmokeTest {
     try {
       processTestLogLines(closure)
     } catch (TimeoutException toe) {
-      checkLogPostExit(closure)
-      if (!found) {
-        throw new AssertionError("No matching vulnerability found. Vulnerabilities found: ${new JsonBuilder(vulnerabilities).toPrettyString()}")
-      }
+      assert found, "No matching vulnerability found. Vulnerabilities found: ${new JsonBuilder(vulnerabilities).toPrettyString()}"
     }
   }
 

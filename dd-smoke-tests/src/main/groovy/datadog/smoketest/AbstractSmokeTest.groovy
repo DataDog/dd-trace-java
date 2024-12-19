@@ -243,6 +243,7 @@ abstract class AbstractSmokeTest extends ProcessManager {
 
   def cleanupSpec() {
     stopServer()
+    assertNoErrorLogs()
   }
 
   def startServer() {

@@ -105,6 +105,21 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
   }
 
   @Override
+  boolean isErrorLog(String log) {
+    // Exclude some errors that we consistently get because of the logging setups used here:
+    if (log.contains('no applicable action for [immediateFlush]')) {
+      return false
+    }
+    if (log.contains('JSONLayout contains an invalid element or attribute')) {
+      return false
+    }
+    if (log.contains('JSONLayout has no parameter that matches element')) {
+      return false
+    }
+    return super.isErrorLog(log)
+  }
+
+  @Override
   def logLevel() {
     return "debug"
   }

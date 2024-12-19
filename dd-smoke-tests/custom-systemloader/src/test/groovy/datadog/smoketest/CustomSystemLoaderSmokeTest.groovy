@@ -30,9 +30,12 @@ class CustomSystemLoaderSmokeTest extends AbstractSmokeTest {
   def "resource types loaded by custom system class-loader are transformed"() {
     when:
     testedProcess.waitFor(TIMEOUT_SECS, SECONDS)
+
+    then:
+    testedProcess.exitValue() == 0
     int loadedResources = 0
     int transformedResources = 0
-    checkLogPostExit {
+    forEachLogLine { String it ->
       if (it =~ /Loading sample.app.Resource[$]Test[1-3] from TestLoader/) {
         loadedResources++
       }
@@ -40,10 +43,7 @@ class CustomSystemLoaderSmokeTest extends AbstractSmokeTest {
         transformedResources++
       }
     }
-    then:
-    testedProcess.exitValue() == 0
     loadedResources == 3
     transformedResources == 3
-    !logHasErrors
   }
 }
