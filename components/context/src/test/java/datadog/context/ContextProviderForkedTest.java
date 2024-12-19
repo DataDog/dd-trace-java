@@ -11,22 +11,23 @@ class ContextProviderForkedTest {
   @Test
   void testCustomBinder() {
     // register a NOOP context binder
-    ContextBinder.register(new ContextBinder() {
-      @Override
-      public Context from(Object carrier) {
-        return root();
-      }
+    ContextBinder.register(
+        new ContextBinder() {
+          @Override
+          public Context from(Object carrier) {
+            return root();
+          }
 
-      @Override
-      public void attachTo(Object carrier, Context context) {
-        // no-op
-      }
+          @Override
+          public void attachTo(Object carrier, Context context) {
+            // no-op
+          }
 
-      @Override
-      public Context detachFrom(Object carrier) {
-        return root();
-      }
-    });
+          @Override
+          public Context detachFrom(Object carrier) {
+            return root();
+          }
+        });
 
     Context context = root().with(STRING_KEY, "value");
 
@@ -39,42 +40,38 @@ class ContextProviderForkedTest {
   @Test
   void testCustomManager() {
     // register a NOOP context manager
-    ContextManager.register(new ContextManager() {
-      @Override
-      public Context root() {
-        return EmptyContext.INSTANCE;
-      }
-
-      @Override
-      public Context current() {
-        return root();
-      }
-
-      @Override
-      public ContextScope attach(Context context) {
-        return new ContextScope() {
+    ContextManager.register(
+        new ContextManager() {
           @Override
-          public Context context() {
+          public Context root() {
+            return EmptyContext.INSTANCE;
+          }
+
+          @Override
+          public Context current() {
             return root();
           }
 
           @Override
-          public void close() {
-            // no-op
+          public ContextScope attach(Context context) {
+            return new ContextScope() {
+              @Override
+              public Context context() {
+                return root();
+              }
+
+              @Override
+              public void close() {
+                // no-op
+              }
+            };
           }
-        };
-      }
 
-      @Override
-      public Context swap(Context context) {
-        return root();
-      }
-
-      @Override
-      public Context detach() {
-        return root();
-      }
-    });
+          @Override
+          public Context swap(Context context) {
+            return root();
+          }
+        });
 
     Context context = root().with(STRING_KEY, "value");
 

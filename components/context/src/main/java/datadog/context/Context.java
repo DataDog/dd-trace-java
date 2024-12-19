@@ -41,17 +41,6 @@ public interface Context {
   }
 
   /**
-   * Detaches the context attached to the current execution unit, leaving it context-less.
-   *
-   * <p>WARNING: prefer {@link ContextScope#close()} to properly restore the surrounding context.
-   *
-   * @return Previously attached context; {@link #root()} if there was none
-   */
-  static Context detach() {
-    return manager().detach();
-  }
-
-  /**
    * Returns the context attached to the given carrier object.
    *
    * @return Attached context; {@link #root()} if there is none
