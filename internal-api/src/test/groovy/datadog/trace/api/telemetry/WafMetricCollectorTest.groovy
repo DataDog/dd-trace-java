@@ -238,13 +238,13 @@ class WafMetricCollectorTest extends DDSpecification {
       }
       assert tags["framework"] == LoginFramework.SPRING_SECURITY.getTag()
       switch (tags["event_type"]) {
-        case LoginEvent.LOGIN_SUCCESS.getTelemetryTag():
+        case LoginEvent.LOGIN_SUCCESS.getTag():
           assert metric.value == loginSuccessCount
           break
-        case LoginEvent.LOGIN_FAILURE.getTelemetryTag():
+        case LoginEvent.LOGIN_FAILURE.getTag():
           assert metric.value == loginFailureCount
           break
-        case LoginEvent.SIGN_UP.getTelemetryTag():
+        case LoginEvent.SIGN_UP.getTag():
           assert metric.value == signupCount
           break
         default:

@@ -141,10 +141,10 @@ class GatewayBridgeSpecification extends DDSpecification {
   void 'request_end closes context reports attacks and publishes event'() {
     AppSecEvent event = Mock()
     AppSecRequestContext mockAppSecCtx = Mock(AppSecRequestContext)
-    mockAppSecCtx.requestHeaders >> ['accept':['header_value']]
+    mockAppSecCtx.requestHeaders >> ['accept': ['header_value']]
     mockAppSecCtx.responseHeaders >> [
-      'some-header': ['123'],
-      'content-type':['text/html; charset=UTF-8']]
+      'some-header' : ['123'],
+      'content-type': ['text/html; charset=UTF-8']]
     RequestContext mockCtx = Stub(RequestContext) {
       getData(RequestContextSlot.APPSEC) >> mockAppSecCtx
       getTraceSegment() >> traceSegment
@@ -155,7 +155,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     def flow = requestEndedCB.apply(mockCtx, spanInfo)
 
     then:
-    1 * spanInfo.getTags() >> ['http.client_ip':'1.1.1.1']
+    1 * spanInfo.getTags() >> ['http.client_ip': '1.1.1.1']
     1 * mockAppSecCtx.transferCollectedEvents() >> [event]
     1 * mockAppSecCtx.peerAddress >> '2001::1'
     1 * mockAppSecCtx.close(false)
@@ -175,7 +175,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     AppSecRequestContext mockAppSecCtx = Mock(AppSecRequestContext)
     mockAppSecCtx.requestHeaders >> [
       'x-real-ip': ['10.0.0.1'],
-      forwarded: ['for=127.0.0.1', 'for="[::1]", for=8.8.8.8'],
+      forwarded  : ['for=127.0.0.1', 'for="[::1]", for=8.8.8.8'],
     ]
     RequestContext mockCtx = Stub(RequestContext) {
       getData(RequestContextSlot.APPSEC) >> mockAppSecCtx
@@ -188,7 +188,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     then:
     1 * mockAppSecCtx.transferCollectedEvents() >> [Stub(AppSecEvent)]
-    1 * spanInfo.getTags() >> ['http.client_ip':'8.8.8.8']
+    1 * spanInfo.getTags() >> ['http.client_ip': '8.8.8.8']
     1 * traceSegment.setTagTop('actor.ip', '8.8.8.8')
   }
 
@@ -607,7 +607,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     Object obj = 'hello'
 
     setup:
-    eventDispatcher.getDataSubscribers({KnownAddresses.REQUEST_BODY_OBJECT in it}) >> nonEmptyDsInfo
+    eventDispatcher.getDataSubscribers({ KnownAddresses.REQUEST_BODY_OBJECT in it }) >> nonEmptyDsInfo
     eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext)
     >> { bundle = it[2]; gatewayContext = it[3]; NoopFlow.INSTANCE }
 
@@ -951,18 +951,18 @@ class GatewayBridgeSpecification extends DDSpecification {
   void 'default request headers are always set when appsec is enabled'() {
     final mockAppSecCtx = Mock(AppSecRequestContext)
     mockAppSecCtx.requestHeaders >> [
-      'host': ['localhost'],
-      'accept': ['text/plain'],
-      'content-type': ['application/json'],
-      'user-agent': ['mozilla'],
-      'x-amzn-trace-id': ['Root=1-65ae48bc-04fb551979979b6c57973027'],
+      'host'                             : ['localhost'],
+      'accept'                           : ['text/plain'],
+      'content-type'                     : ['application/json'],
+      'user-agent'                       : ['mozilla'],
+      'x-amzn-trace-id'                  : ['Root=1-65ae48bc-04fb551979979b6c57973027'],
       'cloudfront-viewer-ja3-fingerprint': ['e7d705a3286e19ea42f587b344ee6865'],
-      'cf-ray': ['230b030023ae2822-SJC'],
-      'x-cloud-trace-context': ['105445aa7843bc8bf206b12000100000/1'],
-      'x-appgw-trace-id': ['ac882cd65a2712a0fe1289ec2bb6aee7'],
-      'x-sigsci-requestid': ['55c24b96ca84c02201000001'],
-      'x-sigsci-tags': ['SQLI, XSS'],
-      'akamai-user-risk': ['uuid=913c4545-757b-4d8d-859d-e1361a828361;status=0'],
+      'cf-ray'                           : ['230b030023ae2822-SJC'],
+      'x-cloud-trace-context'            : ['105445aa7843bc8bf206b12000100000/1'],
+      'x-appgw-trace-id'                 : ['ac882cd65a2712a0fe1289ec2bb6aee7'],
+      'x-sigsci-requestid'               : ['55c24b96ca84c02201000001'],
+      'x-sigsci-tags'                    : ['SQLI, XSS'],
+      'akamai-user-risk'                 : ['uuid=913c4545-757b-4d8d-859d-e1361a828361;status=0'],
     ]
     final mockCtx = Stub(RequestContext) {
       getData(RequestContextSlot.APPSEC) >> mockAppSecCtx
@@ -1099,12 +1099,11 @@ class GatewayBridgeSpecification extends DDSpecification {
       0 * _
     } else {
       1 * traceSegment.setTagTop('appsec.events.users.signup.usr.login', expectedUser, true)
-      1 * traceSegment.setTagTop('appsec.events.users.signup.usr.id', expectedUser, true)
       if (mode != SDK) {
         1 * traceSegment.setTagTop('_dd.appsec.usr.login', expectedUser)
-        1 * traceSegment.setTagTop('_dd.appsec.usr.id', expectedUser)
         1 * traceSegment.setTagTop('_dd.appsec.events.users.signup.auto.mode', mode.fullName(), true)
       } else {
+        1 * traceSegment.setTagTop('appsec.events.users.signup.usr.id', expectedUser, true)
         1 * traceSegment.setTagTop('_dd.appsec.events.users.signup.sdk', true, true)
       }
       1 * traceSegment.setTagTop('appsec.events.users.signup.track', true, true)
@@ -1137,12 +1136,11 @@ class GatewayBridgeSpecification extends DDSpecification {
       0 * _
     } else {
       1 * traceSegment.setTagTop('appsec.events.users.login.success.usr.login', expectedUser, true)
-      1 * traceSegment.setTagTop('appsec.events.users.login.success.usr.id', expectedUser, true)
       if (mode != SDK) {
         1 * traceSegment.setTagTop('_dd.appsec.usr.login', expectedUser)
-        1 * traceSegment.setTagTop('_dd.appsec.usr.id', expectedUser)
         1 * traceSegment.setTagTop('_dd.appsec.events.users.login.success.auto.mode', mode.fullName(), true)
       } else {
+        1 * traceSegment.setTagTop('usr.id', expectedUser, false)
         1 * traceSegment.setTagTop('_dd.appsec.events.users.login.success.sdk', true, true)
       }
       1 * traceSegment.setTagTop('appsec.events.users.login.success.track', true, true)
@@ -1176,12 +1174,11 @@ class GatewayBridgeSpecification extends DDSpecification {
       0 * _
     } else {
       1 * traceSegment.setTagTop('appsec.events.users.login.failure.usr.login', expectedUser, true)
-      1 * traceSegment.setTagTop('appsec.events.users.login.failure.usr.id', expectedUser, true)
       if (mode != SDK) {
         1 * traceSegment.setTagTop('_dd.appsec.usr.login', expectedUser)
-        1 * traceSegment.setTagTop('_dd.appsec.usr.id', expectedUser)
         1 * traceSegment.setTagTop('_dd.appsec.events.users.login.failure.auto.mode', mode.fullName(), true)
       } else {
+        1 * traceSegment.setTagTop('appsec.events.users.login.failure.usr.id', expectedUser, true)
         1 * traceSegment.setTagTop('_dd.appsec.events.users.login.failure.sdk', true, true)
       }
       1 * traceSegment.setTagTop('appsec.events.users.login.failure.track', true, true)
@@ -1255,10 +1252,12 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     then:
     1 * traceSegment.setTagTop('appsec.events.users.login.success.usr.login', firstUser, true)
-    1 * traceSegment.setTagTop('appsec.events.users.login.success.usr.id', firstUser, true)
+    1 * traceSegment.setTagTop('usr.id', firstUser, false)
+    1 * traceSegment.setTagTop('_dd.appsec.events.users.login.success.sdk', true, true)
+
     0 * traceSegment.setTagTop('_dd.appsec.usr.login', _)
-    0 * traceSegment.setTagTop('_dd.appsec.usr.id', _)
     0 * traceSegment.setTagTop('_dd.appsec.events.users.login.success.auto.mode', _, _)
+
     1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> NoopFlow.INSTANCE
 
     when:
@@ -1266,10 +1265,12 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     then:
     0 * traceSegment.setTagTop('appsec.events.users.login.success.usr.login', _, _)
-    0 * traceSegment.setTagTop('appsec.events.users.login.success.usr.id', _, _)
+    0 * traceSegment.setTagTop('usr.id', _, _)
+    0 * traceSegment.setTagTop('_dd.appsec.events.users.login.success.sdk', _, _)
+
     1 * traceSegment.setTagTop('_dd.appsec.usr.login', secondUser)
-    1 * traceSegment.setTagTop('_dd.appsec.usr.id', secondUser)
     1 * traceSegment.setTagTop('_dd.appsec.events.users.login.success.auto.mode', IDENTIFICATION.fullName(), true)
+
     0 * eventDispatcher.publishDataEvent
   }
 }

@@ -36,6 +36,7 @@ import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.api.telemetry.LoginEvent;
 import datadog.trace.api.telemetry.RuleType;
 import datadog.trace.api.telemetry.WafMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -82,6 +83,14 @@ public class GatewayBridge {
   private static final String[] USER_TRACKING_TAGS = {
     "appsec.events.users.login.success.track", "appsec.events.users.login.failure.track"
   };
+
+  private static final Map<String, LoginEvent> EVENT_MAPPINGS = new HashMap<>();
+
+  static {
+    EVENT_MAPPINGS.put("users.login.success", LoginEvent.LOGIN_SUCCESS);
+    EVENT_MAPPINGS.put("users.login.failure", LoginEvent.LOGIN_FAILURE);
+    EVENT_MAPPINGS.put("users.signup", LoginEvent.SIGN_UP);
+  }
 
   private static final String METASTRUCT_EXPLOIT = "exploit";
 
@@ -264,18 +273,25 @@ public class GatewayBridge {
       return NoopFlow.INSTANCE;
     }
 
+    // parse the event (might be null for custom events sent via the SDK)
+    final LoginEvent sourceEvent = EVENT_MAPPINGS.get(eventName);
+
     // skip event if we have an SDK one
     if (mode != SDK) {
       segment.setTagTop("_dd.appsec.usr.login", user);
-      segment.setTagTop("_dd.appsec.usr.id", user);
       if (ctx.getUserLoginSource() == SDK) {
         return NoopFlow.INSTANCE;
+      }
+    } else {
+      if (sourceEvent == LoginEvent.LOGIN_SUCCESS) {
+        segment.setTagTop("usr.id", user, false);
+      } else {
+        segment.setTagTop("appsec.events." + eventName + ".usr.id", user, true);
       }
     }
 
     // update user span tags
     segment.setTagTop("appsec.events." + eventName + ".usr.login", user, true);
-    segment.setTagTop("appsec.events." + eventName + ".usr.id", user, true);
 
     // update current context with new user login
     ctx.setUserLoginSource(mode);
@@ -289,9 +305,9 @@ public class GatewayBridge {
     final List<Address<?>> addresses = new ArrayList<>(3);
     addresses.add(KnownAddresses.USER_LOGIN);
     addresses.add(KnownAddresses.USER_ID);
-    if (eventName.endsWith("login.success")) {
+    if (sourceEvent == LoginEvent.LOGIN_SUCCESS) {
       addresses.add(KnownAddresses.LOGIN_SUCCESS);
-    } else if (eventName.endsWith("login.failure")) {
+    } else if (sourceEvent == LoginEvent.LOGIN_FAILURE) {
       addresses.add(KnownAddresses.LOGIN_FAILURE);
     }
     final MapDataBundle.Builder bundleBuilder =
