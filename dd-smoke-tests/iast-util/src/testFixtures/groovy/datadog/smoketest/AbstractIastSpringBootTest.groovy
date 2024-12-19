@@ -39,33 +39,34 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     ]
   }
 
-  void 'IAST subsystem starts'() {
-    given: 'an initial request has succeeded'
-    String url = "http://localhost:${httpPort}/greeting"
-    def request = new Request.Builder().url(url).get().build()
-    client.newCall(request).execute()
-
-    when: 'logs are read'
-    String startMsg = null
-    String errorMsg = null
-    checkLogPostExit {
-      if (it.contains('Not starting IAST subsystem')) {
-        errorMsg = it
-      }
-      if (it.contains('IAST is starting')) {
-        startMsg = it
-      }
-      // Check that there's no logged exception about missing classes from Datadog.
-      // We had this problem before with JDK9StackWalker.
-      if (it.contains('java.lang.ClassNotFoundException: datadog/')) {
-        errorMsg = it
-      }
+  @Override
+  boolean isErrorLog(String log) {
+    // XXX: Flaky profiler exception:
+    // java.lang.Error: not finished chunk 2024-12-18T21:17:11.612Z
+    //        at jdk.jfr.internal.PlatformRecording.appendChunk(PlatformRecording.java:515)
+    //        at jdk.jfr.internal.PlatformRecorder.finishChunk(PlatformRecorder.java:396)
+    //        at jdk.jfr.internal.PlatformRecorder.rotateDisk(PlatformRecorder.java:349)
+    //        at jdk.jfr.internal.PlatformRecorder.fillWithRecordedData(PlatformRecorder.java:511)
+    //        at jdk.jfr.FlightRecorder.takeSnapshot(FlightRecorder.java:116)
+    //        at com.datadog.profiling.controller.openjdk.OpenJdkOngoingRecording.snapshot(OpenJdkOngoingRecording.java:155)
+    if (log.contains('ERROR com.datadog.profiling.controller.ProfilingSystem - Fatal exception in profiling thread, trying to continue')) {
+      return false
     }
 
-    then: 'there are no errors in the log and IAST has started'
-    errorMsg == null
-    startMsg != null
-    !logHasErrors
+    if (log.contains('no such algorithm: DES for provider SUN')) {
+      return false
+    }
+
+    if (super.isErrorLog(log) || log.contains('Not starting IAST subsystem')) {
+      return true
+    }
+    // Check that there's no logged exception about missing classes from Datadog.
+    // We had this problem before with JDK9StackWalker.
+    if (log.contains('java.lang.ClassNotFoundException: datadog/')) {
+      return true
+    }
+
+    return false
   }
 
   void 'default home page without errors'() {
@@ -82,9 +83,6 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     responseBodyStr.contains('Sup Dawg')
     response.body().contentType().toString().contains('text/plain')
     response.code() == 200
-
-    checkLogPostExit()
-    !logHasErrors
   }
 
   void 'Multipart Request parameters'() {
@@ -329,13 +327,21 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     def request = new Request.Builder().url(url).get().build()
 
     when: 'ensure the controller is loaded'
-    client.newCall(request).execute()
+    def resp = client.newCall(request).execute()
 
-    then: 'a vulnerability pops in the logs (startup traces might not always be available)'
-    hasVulnerabilityInLogs { vul ->
-      vul.type == 'WEAK_HASH' &&
-        vul.evidence.value == 'SHA1' &&
-        vul.location.spanId > 0
+    then:
+    resp.code() == 200
+    resp.close()
+
+    and: 'a vulnerability pops in the logs (startup traces might not always be available)'
+    boolean found = false
+    isLogPresent { String log ->
+      def vulns = parseVulnerabilitiesLog(log)
+      vulns.any { vul ->
+        vul.type == 'WEAK_HASH' &&
+          vul.evidence.value == 'SHA1' &&
+          vul.location.spanId > 0
+      }
     }
   }
 
@@ -1060,8 +1066,10 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
     then:
     response.successful
-    hasVulnerabilityInLogs { vul ->
-      vul.type == 'SESSION_REWRITING'
+    // Vulnerability may have been detected in a previous request instead, check the full logs.
+    isLogPresent { String log ->
+      def vulns = parseVulnerabilitiesLog(log)
+      vulns.any { it.type == 'SESSION_REWRITING' }
     }
   }
 

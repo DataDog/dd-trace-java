@@ -57,8 +57,6 @@ class ArmeriaSmokeTest extends AbstractServerSmokeTest {
     })
     waitForTraceCount(totalInvocations) >= totalInvocations
     validateLogInjection() == totalInvocations
-    checkLogPostExit()
-    !logHasErrors
   }
 
   void doAndValidateRequest(int id) {

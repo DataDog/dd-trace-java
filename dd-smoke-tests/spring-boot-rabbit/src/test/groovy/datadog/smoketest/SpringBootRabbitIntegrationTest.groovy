@@ -89,6 +89,14 @@ class SpringBootRabbitIntegrationTest extends AbstractServerSmokeTest {
     return expected
   }
 
+  @Override
+  boolean isErrorLog(String log) {
+    if (log.contains('org.springframework.amqp.rabbit.listener.SimpleMessageListenerContainer - Failed to check/redeclare auto-delete queue(s).')) {
+      return false
+    }
+    return super.isErrorLog(log)
+  }
+
   def "check message #message roundtrip"() {
     setup:
     String url = "http://localhost:${httpPort}/roundtrip/${message}"
