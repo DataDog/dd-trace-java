@@ -542,4 +542,26 @@ class AdviceSpecificationTest extends BaseCsiPluginTest {
     then:
     0 * context.addError(_, _)
   }
+
+
+  @CallSite(spi = CallSites)
+  class AfterWithVoidWrongAdvice {
+    @CallSite.After("void java.lang.String.getChars(int, int, char[], int)")
+    static String after(@CallSite.AllArguments final Object[] args, @CallSite.Return final String result) {
+      return result;
+    }
+  }
+
+  void 'test after advice with void should not use @Return'() {
+    setup:
+    final context = mockValidationContext()
+    final spec = buildClassSpecification(AfterWithVoidWrongAdvice)
+
+    when:
+    spec.advices.each { it.validate(context) }
+
+    then:
+    1 * context.addError(ErrorCode.ADVICE_AFTER_VOID_METHOD_SHOULD_RETURN_VOID, _)
+    1 * context.addError(ErrorCode.ADVICE_AFTER_VOID_METHOD_SHOULD_NOT_HAVE_RETURN, _)
+  }
 }
