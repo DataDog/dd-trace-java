@@ -142,9 +142,16 @@ public class JMXFetch {
                   if (!appConfig.getExitWatcher().shouldExit()) {
                     try {
                       final int result = app.run();
-                      log.error("jmx collector exited with result: {}", result);
+                      if (result != 0) {
+                        log.error("jmx collector exited with result: {}", result);
+                      }
                     } catch (final Exception e) {
-                      log.error("Exception in jmx collector thread", e);
+                      String message = e.getMessage();
+                      boolean ignoredException =
+                          message != null && message.startsWith("Shutdown in progress");
+                      if (!ignoredException) {
+                        log.error("Exception in jmx collector thread", e);
+                      }
                     }
                   }
                   // always wait before next attempt
