@@ -91,9 +91,6 @@ public class DBInfo {
 
     public Builder type(String type) {
       this.type = type;
-      // Those DBs use the full text of the query including the comments as a cache key,
-      // so we disable full propagation support for them to avoid destroying the cache.
-      if (type.equals("oracle")) this.fullPropagationSupport = false;
       return this;
     }
 
