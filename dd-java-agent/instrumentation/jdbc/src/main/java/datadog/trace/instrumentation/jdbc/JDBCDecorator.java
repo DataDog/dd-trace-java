@@ -287,7 +287,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       log.debug(
           "Failed to set extra DBM data in application_name for trace {}. "
               + "To disable this behavior, set trace_prepared_statements to 'false'. "
-              + "See https://docs.datadoghq.com/database_monitoring/connect_dbm_and_apm/ for more info.{}",
+              + "See https://docs.datadoghq.com/database_monitoring/connect_dbm_and_apm/ for more info. {}",
           span.getTraceId().toHexString(),
           e);
       DECORATE.onError(span, e);
