@@ -87,7 +87,7 @@ public class SecurityControlMethodClassVisitor extends ClassVisitor {
     if (isPrimitive(method.getReturnType())) {
       // no need to check primitives as we are not tainting them
       LOGGER.warn(
-          "Sanitizers should not be used on non-primitive return types. Return type {}. Security control: {}",
+          "Sanitizers should not be used on primitive return types. Return type {}. Security control: {}",
           method.getReturnType().getClassName(),
           control);
       return mv;
