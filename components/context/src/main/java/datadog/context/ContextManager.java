@@ -3,7 +3,11 @@ package datadog.context;
 /** Manages context across execution units. */
 public interface ContextManager {
 
-  /** Returns the root context. */
+  /**
+   * Returns the root context.
+   *
+   * <p>This is the initial local context that all contexts extend.
+   */
   Context root();
 
   /**

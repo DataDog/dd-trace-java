@@ -5,10 +5,20 @@ import static datadog.context.ContextProviders.manager;
 
 import javax.annotation.Nullable;
 
-/** Immutable context scoped to an execution unit or carrier object. */
+/**
+ * Immutable context scoped to an execution unit or carrier object.
+ *
+ * <p>Each element of the context is accessible by its {@link ContextKey}. Keys represents product
+ * or functional areas and should be created sparingly. Elements in the context may themselves be
+ * mutable.
+ */
 public interface Context {
 
-  /** Returns the root context. */
+  /**
+   * Returns the root context.
+   *
+   * <p>This is the initial local context that all contexts extend.
+   */
   static Context root() {
     return manager().root();
   }
@@ -72,14 +82,14 @@ public interface Context {
   <T> T get(ContextKey<T> key);
 
   /**
-   * Creates a new context with the given key-value mapping.
+   * Creates a new context from the same elements, except the key is now mapped to the given value.
    *
    * @return New context with the key-value mapping.
    */
   <T> Context with(ContextKey<T> key, T value);
 
   /**
-   * Creates a new context with a value that has its own implicit key.
+   * Creates a new context from the same elements, except the implicit key is mapped to this value.
    *
    * @return New context with the implicitly keyed value.
    */
