@@ -57,6 +57,8 @@ abstract class QuarkusSmokeTest extends AbstractServerSmokeTest {
     })
     waitForTraceCount(totalInvocations) == totalInvocations
     validateLogInjection(resourceName()) == totalInvocations
+    checkLogPostExit()
+    !logHasErrors
   }
 
   void doAndValidateRequest(int id) {

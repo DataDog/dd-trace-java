@@ -64,8 +64,10 @@ class AsmStandaloneBillingSmokeTest extends AbstractAsmStandaloneBillingSmokeTes
     def computedStatsHeader = lastTraceRequestHeaders.get('Datadog-Client-Computed-Stats')
     assert computedStatsHeader != null && computedStatsHeader == 'true'
 
-    then: 'metrics should be disabled'
-    isLogPresent { it.contains('datadog.trace.agent.common.metrics.MetricsAggregatorFactory - tracer metrics disabled') }
+    then:'metrics should be disabled'
+    checkLogPostExit { log ->
+      return log.contains('datadog.trace.agent.common.metrics.MetricsAggregatorFactory - tracer metrics disabled')
+    }
   }
 
   void 'test _dd.p.appsec propagation for appsec event'() {
