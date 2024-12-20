@@ -93,6 +93,8 @@ public class GatewayBridge {
   private volatile DataSubscriberInfo sessionIdSubInfo;
   private final ConcurrentHashMap<Address<String>, DataSubscriberInfo> userIdSubInfo =
       new ConcurrentHashMap<>();
+  private volatile DataSubscriberInfo execCmdSubInfo;
+  private volatile DataSubscriberInfo shellCmdSubInfo;
 
   public GatewayBridge(
       SubscriptionService subscriptionService,
@@ -139,6 +141,8 @@ public class GatewayBridge {
         EVENTS.loginSuccess(), this.onUserEvent(KnownAddresses.LOGIN_SUCCESS));
     subscriptionService.registerCallback(
         EVENTS.loginFailure(), this.onUserEvent(KnownAddresses.LOGIN_FAILURE));
+    subscriptionService.registerCallback(EVENTS.execCmd(), this::onExecCmd);
+    subscriptionService.registerCallback(EVENTS.shellCmd(), this::onShellCmd);
 
     if (additionalIGEvents.contains(EVENTS.requestPathParams())) {
       subscriptionService.registerCallback(EVENTS.requestPathParams(), this::onRequestPathParams);
@@ -253,6 +257,56 @@ public class GatewayBridge {
         return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
       } catch (ExpiredSubscriberInfoException e) {
         ioNetUrlSubInfo = null;
+      }
+    }
+  }
+
+  private Flow<Void> onExecCmd(RequestContext ctx_, String[] command) {
+    AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx == null) {
+      return NoopFlow.INSTANCE;
+    }
+    while (true) {
+      DataSubscriberInfo subInfo = execCmdSubInfo;
+      if (subInfo == null) {
+        subInfo = producerService.getDataSubscribers(KnownAddresses.EXEC_CMD);
+        execCmdSubInfo = subInfo;
+      }
+      if (subInfo == null || subInfo.isEmpty()) {
+        return NoopFlow.INSTANCE;
+      }
+      DataBundle bundle =
+          new MapDataBundle.Builder(CAPACITY_0_2).add(KnownAddresses.EXEC_CMD, command).build();
+      try {
+        GatewayContext gwCtx = new GatewayContext(true, RuleType.COMMAND_INJECTION);
+        return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
+      } catch (ExpiredSubscriberInfoException e) {
+        execCmdSubInfo = null;
+      }
+    }
+  }
+
+  private Flow<Void> onShellCmd(RequestContext ctx_, String command) {
+    AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx == null) {
+      return NoopFlow.INSTANCE;
+    }
+    while (true) {
+      DataSubscriberInfo subInfo = shellCmdSubInfo;
+      if (subInfo == null) {
+        subInfo = producerService.getDataSubscribers(KnownAddresses.SHELL_CMD);
+        shellCmdSubInfo = subInfo;
+      }
+      if (subInfo == null || subInfo.isEmpty()) {
+        return NoopFlow.INSTANCE;
+      }
+      DataBundle bundle =
+          new MapDataBundle.Builder(CAPACITY_0_2).add(KnownAddresses.SHELL_CMD, command).build();
+      try {
+        GatewayContext gwCtx = new GatewayContext(true, RuleType.SHELL_INJECTION);
+        return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
+      } catch (ExpiredSubscriberInfoException e) {
+        shellCmdSubInfo = null;
       }
     }
   }

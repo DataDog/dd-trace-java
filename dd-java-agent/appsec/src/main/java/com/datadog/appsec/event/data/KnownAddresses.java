@@ -131,6 +131,12 @@ public interface KnownAddresses {
   /** Login success business event */
   Address<String> LOGIN_SUCCESS = new Address<>("server.business_logic.users.login.success");
 
+  /** The Exec command being executed */
+  Address<String> EXEC_CMD = new Address<>("server.sys.exec.cmd");
+
+  /** The Shell command being executed */
+  Address<String> SHELL_CMD = new Address<>("server.sys.shell.cmd");
+
   Address<Map<String, Object>> WAF_CONTEXT_PROCESSOR = new Address<>("waf.context.processor");
 
   static Address<?> forName(String name) {
@@ -205,6 +211,10 @@ public interface KnownAddresses {
         return LOGIN_SUCCESS;
       case "server.business_logic.users.login.failure":
         return LOGIN_FAILURE;
+      case "server.sys.exec.cmd":
+        return EXEC_CMD;
+      case "server.sys.shell.cmd":
+        return SHELL_CMD;
       default:
         return null;
     }

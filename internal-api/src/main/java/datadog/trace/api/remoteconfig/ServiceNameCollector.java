@@ -5,7 +5,8 @@ import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import datadog.trace.api.Config;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -48,14 +49,24 @@ public class ServiceNameCollector {
       }
       return;
     }
-    if (!Config.get().getServiceName().equalsIgnoreCase(serviceName)) {
-      services.put(serviceName.toLowerCase(Locale.ROOT), serviceName);
-    }
+    services.putIfAbsent(serviceName, serviceName);
   }
 
+  /**
+   * Get the list of unique services deduplicated by case. There is no locking on the addService map
+   * so, the method is not thread safe.
+   *
+   * @return
+   */
   @Nullable
   public List<String> getServices() {
-    return services.isEmpty() ? null : new ArrayList<>(services.values());
+    if (services.isEmpty()) {
+      return null;
+    }
+    final Set<String> uniqueNames = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+    uniqueNames.addAll(services.keySet());
+    uniqueNames.remove(Config.get().getServiceName());
+    return uniqueNames.isEmpty() ? null : new ArrayList<>(uniqueNames);
   }
 
   public void clear() {

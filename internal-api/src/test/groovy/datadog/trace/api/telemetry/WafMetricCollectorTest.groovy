@@ -29,8 +29,6 @@ class WafMetricCollectorTest extends DDSpecification {
     WafMetricCollector.get().raspRuleEval(RuleType.SQL_INJECTION)
     WafMetricCollector.get().raspTimeout(RuleType.SQL_INJECTION)
 
-
-
     WafMetricCollector.get().prepareMetrics()
 
     then:
@@ -201,5 +199,43 @@ class WafMetricCollectorTest extends DDSpecification {
     metric.type == 'count'
     metric.value == 1
     metric.tags == []
+  }
+
+  def "test Rasp #ruleType metrics"() {
+    when:
+    WafMetricCollector.get().wafInit('waf_ver1', 'rules.1')
+    WafMetricCollector.get().raspRuleEval(ruleType)
+    WafMetricCollector.get().raspRuleEval(ruleType)
+    WafMetricCollector.get().raspRuleMatch(ruleType)
+    WafMetricCollector.get().raspRuleEval(ruleType)
+    WafMetricCollector.get().raspTimeout(ruleType)
+    WafMetricCollector.get().prepareMetrics()
+
+    then:
+    def metrics = WafMetricCollector.get().drain()
+
+    def raspRuleEval = (WafMetricCollector.RaspRuleEval)metrics[1]
+    raspRuleEval.type == 'count'
+    raspRuleEval.value == 3
+    raspRuleEval.namespace == 'appsec'
+    raspRuleEval.metricName == 'rasp.rule.eval'
+    raspRuleEval.tags.toSet() == ['rule_type:command_injection', 'rule_variant:'+ruleType.variant, 'waf_version:waf_ver1'].toSet()
+
+    def raspRuleMatch = (WafMetricCollector.RaspRuleMatch)metrics[2]
+    raspRuleMatch.type == 'count'
+    raspRuleMatch.value == 1
+    raspRuleMatch.namespace == 'appsec'
+    raspRuleMatch.metricName == 'rasp.rule.match'
+    raspRuleMatch.tags.toSet() == ['rule_type:command_injection', 'rule_variant:'+ruleType.variant, 'waf_version:waf_ver1'].toSet()
+
+    def raspTimeout = (WafMetricCollector.RaspTimeout)metrics[3]
+    raspTimeout.type == 'count'
+    raspTimeout.value == 1
+    raspTimeout.namespace == 'appsec'
+    raspTimeout.metricName == 'rasp.timeout'
+    raspTimeout.tags.toSet() == ['rule_type:command_injection', 'rule_variant:'+ruleType.variant, 'waf_version:waf_ver1'].toSet()
+
+    where:
+    ruleType << [RuleType.COMMAND_INJECTION, RuleType.SHELL_INJECTION]
   }
 }

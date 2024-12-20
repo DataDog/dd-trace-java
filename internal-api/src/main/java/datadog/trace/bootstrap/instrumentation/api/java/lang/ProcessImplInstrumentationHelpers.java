@@ -1,7 +1,14 @@
 package datadog.trace.bootstrap.instrumentation.api.java.lang;
 
+import static datadog.trace.api.gateway.Events.EVENTS;
 import static java.lang.invoke.MethodType.methodType;
 
+import datadog.appsec.api.blocking.BlockingException;
+import datadog.trace.api.Config;
+import datadog.trace.api.gateway.BlockResponseFunction;
+import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -14,10 +21,18 @@ import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.function.BiFunction;
 import java.util.regex.Pattern;
+import javax.annotation.Nonnull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** This class is included here because it needs to injected into the bootstrap clasloader. */
 public class ProcessImplInstrumentationHelpers {
+
+  private static final Logger LOGGER =
+      LoggerFactory.getLogger(ProcessImplInstrumentationHelpers.class);
+
   private static final int LIMIT = 4096;
   public static final boolean ONLINE;
   private static final MethodHandle PROCESS_ON_EXIT;
@@ -28,6 +43,10 @@ public class ProcessImplInstrumentationHelpers {
           "^(?i)-{0,2}(?:p(?:ass(?:w(?:or)?d)?)?|api_?key|secret|"
               + "a(?:ccess|uth)_token|mysql_pwd|credentials|(?:stripe)?token)$");
   private static final Set<String> REDACTED_BINARIES = Collections.singleton("md5");
+
+  // This check is used to avoid command injection exploit prevention if shell injection exploit
+  // prevention checked
+  private static final ThreadLocal<Boolean> checkShi = ThreadLocal.withInitial(() -> false);
 
   static {
     MethodHandle processOnExit = null;
@@ -183,6 +202,115 @@ public class ProcessImplInstrumentationHelpers {
       return first;
     }
     return first.substring(pos + 1);
+  }
+
+  /*
+   Check if there is a cmd injection attempt to block it
+  */
+  public static void cmdiRaspCheck(@Nonnull final String[] cmdArray) {
+    if (!Config.get().isAppSecRaspEnabled()) {
+      return;
+    }
+    // if shell injection was checked, skip cmd injection check
+    if (checkShi.get()) {
+      return;
+    }
+    try {
+      final BiFunction<RequestContext, String[], Flow<Void>> execCmdCallback =
+          AgentTracer.get()
+              .getCallbackProvider(RequestContextSlot.APPSEC)
+              .getCallback(EVENTS.execCmd());
+
+      if (execCmdCallback == null) {
+        return;
+      }
+
+      final AgentSpan span = AgentTracer.get().activeSpan();
+      if (span == null) {
+        return;
+      }
+
+      final RequestContext ctx = span.getRequestContext();
+      if (ctx == null) {
+        return;
+      }
+
+      Flow<Void> flow = execCmdCallback.apply(ctx, cmdArray);
+      Flow.Action action = flow.getAction();
+      if (action instanceof Flow.Action.RequestBlockingAction) {
+        BlockResponseFunction brf = ctx.getBlockResponseFunction();
+        if (brf != null) {
+          Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+          brf.tryCommitBlockingResponse(
+              ctx.getTraceSegment(),
+              rba.getStatusCode(),
+              rba.getBlockingContentType(),
+              rba.getExtraHeaders());
+        }
+        throw new BlockingException("Blocked request (for CMDI attempt)");
+      }
+    } catch (final BlockingException e) {
+      // re-throw blocking exceptions
+      throw e;
+    } catch (final Throwable e) {
+      // suppress anything else
+      LOGGER.debug("Exception during CMDI rasp callback", e);
+    }
+  }
+
+  public static void resetCheckShi() {
+    checkShi.set(false);
+  }
+
+  /*
+   Check if there is a chell injection attempt to block it
+  */
+  public static void shiRaspCheck(@Nonnull final String cmd) {
+    if (!Config.get().isAppSecRaspEnabled()) {
+      return;
+    }
+    checkShi.set(true);
+    try {
+      final BiFunction<RequestContext, String, Flow<Void>> shellCmdCallback =
+          AgentTracer.get()
+              .getCallbackProvider(RequestContextSlot.APPSEC)
+              .getCallback(EVENTS.shellCmd());
+
+      if (shellCmdCallback == null) {
+        return;
+      }
+
+      final AgentSpan span = AgentTracer.get().activeSpan();
+      if (span == null) {
+        return;
+      }
+
+      final RequestContext ctx = span.getRequestContext();
+      if (ctx == null) {
+        return;
+      }
+
+      Flow<Void> flow = shellCmdCallback.apply(ctx, cmd);
+      Flow.Action action = flow.getAction();
+      if (action instanceof Flow.Action.RequestBlockingAction) {
+        BlockResponseFunction brf = ctx.getBlockResponseFunction();
+        if (brf != null) {
+          Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+          brf.tryCommitBlockingResponse(
+              ctx.getTraceSegment(),
+              rba.getStatusCode(),
+              rba.getBlockingContentType(),
+              rba.getExtraHeaders());
+        }
+        throw new BlockingException("Blocked request (for SHI attempt)");
+      }
+    } catch (final BlockingException e) {
+      // re-throw blocking exceptions
+      throw e;
+    } catch (final Throwable e) {
+      // suppress anything else
+      LOGGER.debug("Exception during SHI rasp callback", e);
+    }
   }
 
   private static AgentScope.Continuation captureContinuation() {

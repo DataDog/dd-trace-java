@@ -2,6 +2,7 @@ package datadog.smoketest.appsec
 
 import datadog.trace.agent.test.utils.OkHttpUtils
 import datadog.trace.agent.test.utils.ThreadUtils
+import okhttp3.FormBody
 import okhttp3.MediaType
 import okhttp3.Request
 import okhttp3.RequestBody
@@ -147,6 +148,54 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
               ],
               operator  : 'match_regex',
             ]
+          ],
+          transformers: [],
+          on_match    : ['block']
+        ],
+        [
+          id          : 'rasp-932-110',  // to replace default rule
+          name        : 'Command injection exploit',
+          enable      : 'true',
+          tags        : [
+            type: 'command_injection',
+            category: 'vulnerability_trigger',
+            cwe: '77',
+            capec: '1000/152/248/88',
+            confidence: '0',
+            module: 'rasp'
+          ],
+          conditions  : [
+            [
+              parameters: [
+                resource: [[address: 'server.sys.exec.cmd']],
+                params  : [[address: 'server.request.body']],
+              ],
+              operator  : "cmdi_detector",
+            ],
+          ],
+          transformers: [],
+          on_match    : ['block']
+        ],
+        [
+          id          : 'rasp-932-100',  // to replace default rule
+          name        : 'Shell command injection exploit',
+          enable      : 'true',
+          tags        : [
+            type: 'command_injection',
+            category: 'vulnerability_trigger',
+            cwe: '77',
+            capec: '1000/152/248/88',
+            confidence: '0',
+            module: 'rasp'
+          ],
+          conditions  : [
+            [
+              parameters: [
+                resource: [[address: 'server.sys.shell.cmd']],
+                params  : [[address: 'server.request.body']],
+              ],
+              operator  : "shi_detector",
+            ],
           ],
           transformers: [],
           on_match    : ['block']
@@ -503,4 +552,105 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     }
     assert trigger != null, 'test trigger not found'
   }
+
+  void 'rasp blocks on CMDI'() {
+    when:
+    String url = "http://localhost:${httpPort}/cmdi/"+endpoint
+    def formBuilder = new FormBody.Builder()
+    for (s in cmd) {
+      formBuilder.add("cmd", s)
+    }
+    if (params != null) {
+      for (s in params) {
+        formBuilder.add("params", s)
+      }
+    }
+    final body = formBuilder.build()
+    def request = new Request.Builder()
+      .url(url)
+      .post(body)
+      .build()
+    def response = client.newCall(request).execute()
+    def responseBodyStr = response.body().string()
+
+    then:
+    response.code() == 403
+    responseBodyStr.contains('You\'ve been blocked')
+
+    when:
+    waitForTraceCount(1)
+
+    then:
+    def rootSpans = this.rootSpans.toList()
+    rootSpans.size() == 1
+    def rootSpan = rootSpans[0]
+    assert rootSpan.meta.get('appsec.blocked') == 'true', 'appsec.blocked is not set'
+    assert rootSpan.meta.get('_dd.appsec.json') != null, '_dd.appsec.json is not set'
+    def trigger = null
+    for (t in rootSpan.triggers) {
+      if (t['rule']['id'] == 'rasp-932-110') {
+        trigger = t
+        break
+      }
+    }
+    assert trigger != null, 'test trigger not found'
+
+    where:
+    endpoint                    | cmd                              | params
+    'arrayCmd'                  | ['/bin/../usr/bin/reboot', '-f'] | null
+    'arrayCmdWithParams'        | ['/bin/../usr/bin/reboot', '-f'] | ['param']
+    'arrayCmdWithParamsAndFile' | ['/bin/../usr/bin/reboot', '-f'] | ['param']
+    'processBuilder'            | ['/bin/../usr/bin/reboot', '-f'] | null
+  }
+
+  void 'rasp blocks on SHI'() {
+    when:
+    String url = "http://localhost:${httpPort}/shi/"+endpoint
+    def formBuilder = new FormBody.Builder()
+    for (s in cmd) {
+      formBuilder.add("cmd", s)
+    }
+    if (params != null) {
+      for (s in params) {
+        formBuilder.add("params", s)
+      }
+    }
+    final body = formBuilder.build()
+    def request = new Request.Builder()
+      .url(url)
+      .post(body)
+      .build()
+    def response = client.newCall(request).execute()
+    def responseBodyStr = response.body().string()
+
+    then:
+    response.code() == 403
+    responseBodyStr.contains('You\'ve been blocked')
+
+    when:
+    waitForTraceCount(1)
+
+    then:
+    def rootSpans = this.rootSpans.toList()
+    rootSpans.size() == 1
+    def rootSpan = rootSpans[0]
+    assert rootSpan.meta.get('appsec.blocked') == 'true', 'appsec.blocked is not set'
+    assert rootSpan.meta.get('_dd.appsec.json') != null, '_dd.appsec.json is not set'
+    def trigger = null
+    for (t in rootSpan.triggers) {
+      if (t['rule']['id'] == 'rasp-932-100') {
+        trigger = t
+        break
+      }
+    }
+    assert trigger != null, 'test trigger not found'
+
+    where:
+    endpoint           | cmd                                  | params
+    'cmd'              | ['$(cat /etc/passwd 1>&2 ; echo .)'] | null
+    'cmdWithParams'    | ['$(cat /etc/passwd 1>&2 ; echo .)'] | ['param']
+    'cmdParamsAndFile' | ['$(cat /etc/passwd 1>&2 ; echo .)'] | ['param']
+
+  }
+
 }
