@@ -7,6 +7,7 @@ import static com.datadog.debugger.instrumentation.ASMHelper.invokeStatic;
 import static com.datadog.debugger.instrumentation.ASMHelper.invokeVirtual;
 import static com.datadog.debugger.instrumentation.ASMHelper.isFinalField;
 import static com.datadog.debugger.instrumentation.ASMHelper.isStaticField;
+import static com.datadog.debugger.instrumentation.ASMHelper.isStore;
 import static com.datadog.debugger.instrumentation.ASMHelper.ldc;
 import static com.datadog.debugger.instrumentation.ASMHelper.newInstance;
 import static com.datadog.debugger.instrumentation.Types.CAPTURED_CONTEXT_TYPE;
@@ -68,7 +69,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class CapturedContextInstrumentor extends Instrumentor {
-  private static final Logger log = LoggerFactory.getLogger(CapturedContextInstrumentor.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(CapturedContextInstrumentor.class);
   private final boolean captureSnapshot;
   private final Limits limits;
   private final LabelNode contextInitLabel = new LabelNode();
@@ -656,16 +657,24 @@ public class CapturedContextInstrumentor extends Instrumentor {
   private static void rewritePreviousStoreInsn(
       LocalVariableNode localVar, int oldSlot, int newSlot) {
     AbstractInsnNode previous = localVar.start.getPrevious();
-    while (previous != null
-        && (!(previous instanceof VarInsnNode) || ((VarInsnNode) previous).var != oldSlot)) {
+    int processed = 0;
+    // arbitrary fixing limit to 10 previous instructions to look at
+    while (!isVarStoreForSlot(previous, oldSlot) && processed < 10) {
       previous = previous.getPrevious();
+      processed++;
     }
-    if (previous != null) {
+    if (isVarStoreForSlot(previous, oldSlot)) {
       VarInsnNode varInsnNode = (VarInsnNode) previous;
       if (varInsnNode.var == oldSlot) {
         varInsnNode.var = newSlot;
       }
     }
+  }
+
+  private static boolean isVarStoreForSlot(AbstractInsnNode node, int slotIdx) {
+    return node instanceof VarInsnNode
+        && isStore(node.getOpcode())
+        && ((VarInsnNode) node).var == slotIdx;
   }
 
   private void createInProbeFinallyHandler(LabelNode inProbeStartLabel, LabelNode inProbeEndLabel) {
@@ -1234,7 +1243,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
             FieldNode fieldNode =
                 new FieldNode(field.getModifiers(), field.getName(), desc, null, field);
             results.add(fieldNode);
-            log.debug("Adding static inherited field {}", fieldNode.name);
+            LOGGER.debug("Adding static inherited field {}", fieldNode.name);
             fieldCount++;
             if (fieldCount > limits.maxFieldCount) {
               return;
