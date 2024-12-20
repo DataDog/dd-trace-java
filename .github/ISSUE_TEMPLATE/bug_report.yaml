@@ -1,0 +1,61 @@
+name: "Bug Report (Low Priority)"
+description: "Create a public Bug Report. Note that these may not be addressed as it depeonds on capacity and that looking up account information will be difficult."
+title: ""
+labels: "type: bug"
+body:
+  - type: input
+    attributes:
+      label: Tracer Version(s)
+      description: "Version(s) of the tracer affected by this bug"
+      placeholder: "1.44.0"
+    validations:
+      required: true
+
+  - type: input
+    attributes:
+      label: Java Version(s)
+      description: "Version(s) of Java (`java --version`) that you've encountered this bug with"
+      placeholder: 21.0.4
+    validations:
+      required: true
+
+  - type: dropdown
+    attributes:
+      label: JVM Vendor
+      description: "Which JVM vendor does your application use"
+      options:
+        - Oracle JDK
+        - Alibaba Dragonwell
+        - Amazon Corretto
+        - Azul Zing / Zulu
+        - BellSoft Liberica JDK
+        - Eclipse Adoptium / Temurin
+        - Eclipse OpenJ9
+        - IBM SDK / Semeru
+        - Oracle GraalVM
+        - RedHat JDK
+        - SapMachine
+        - Other (please specify in comments)
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Bug Report
+      description: Please add a clear and concise description of the bug here
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Expected Behavior
+      description: What is the expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Reproduction Code
+      description: Please add code here to help us reproduce the problem
+    validations:
+      required: false
