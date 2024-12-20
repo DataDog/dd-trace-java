@@ -128,9 +128,7 @@ class SpringBootBasedTest extends AppSecHttpServerTest<ConfigurableApplicationCo
     response.body().string() == REGISTER.body
     !span.getTags().isEmpty()
     span.getTag('appsec.events.users.signup.usr.login') == 'admin'
-    span.getTag('appsec.events.users.signup.usr.id') == 'admin'
     span.getTag('_dd.appsec.usr.login') == 'admin'
-    span.getTag('_dd.appsec.usr.id') == 'admin'
     span.getTag('_dd.appsec.events.users.signup.auto.mode') == 'identification'
     span.getTag('appsec.events.users.signup.track') == true
     span.getTag('appsec.events.users.signup')['enabled'] == 'true'
@@ -157,9 +155,7 @@ class SpringBootBasedTest extends AppSecHttpServerTest<ConfigurableApplicationCo
     response.body().string() == LOGIN.body
     !span.getTags().isEmpty()
     span.getTag('appsec.events.users.login.failure.usr.login') == 'not_existing_user'
-    span.getTag('appsec.events.users.login.failure.usr.id') == 'not_existing_user'
     span.getTag('_dd.appsec.usr.login') == 'not_existing_user'
-    span.getTag('_dd.appsec.usr.id') == 'not_existing_user'
     span.getTag('_dd.appsec.events.users.login.failure.auto.mode') == 'identification'
     span.getTag('appsec.events.users.login.failure.track') == true
     span.getTag('appsec.events.users.login.failure.usr.exists') == false
@@ -184,9 +180,7 @@ class SpringBootBasedTest extends AppSecHttpServerTest<ConfigurableApplicationCo
     response.body().string() == LOGIN.body
     !span.getTags().isEmpty()
     span.getTag('appsec.events.users.login.failure.usr.login') == 'admin'
-    span.getTag('appsec.events.users.login.failure.usr.id') == 'admin'
     span.getTag('_dd.appsec.usr.login') == 'admin'
-    span.getTag('_dd.appsec.usr.id') == 'admin'
     span.getTag('_dd.appsec.events.users.login.failure.auto.mode') == 'identification'
     span.getTag('appsec.events.users.login.failure.track') == true
     // TODO: Ideally should be `false` but we have no reliable method to detect it it is just absent. See APPSEC-12765.
@@ -213,9 +207,7 @@ class SpringBootBasedTest extends AppSecHttpServerTest<ConfigurableApplicationCo
     response.body().string() == LOGIN.body
     !span.getTags().isEmpty()
     span.getTag('appsec.events.users.login.success.usr.login') == 'admin'
-    span.getTag('appsec.events.users.login.success.usr.id') == 'admin'
     span.getTag('_dd.appsec.usr.login') == 'admin'
-    span.getTag('_dd.appsec.usr.id') == 'admin'
     span.getTag('_dd.appsec.events.users.login.success.auto.mode') == 'identification'
     span.getTag('appsec.events.users.login.success.track') == true
     span.getTag('appsec.events.users.login.success')['credentialsNonExpired'] == 'true'

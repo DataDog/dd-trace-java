@@ -288,6 +288,7 @@ public class GatewayBridge {
       } else {
         segment.setTagTop("appsec.events." + eventName + ".usr.id", user, true);
       }
+      segment.setTagTop("_dd.appsec.user.collection_mode", mode.fullName());
     }
 
     // update user span tags
@@ -295,6 +296,9 @@ public class GatewayBridge {
 
     // update current context with new user login
     ctx.setUserLoginSource(mode);
+    if (mode == SDK) {
+      ctx.setUserIdSource(mode); // we are setting the usr.id through the SDK
+    }
     final boolean newUserLogin = !user.equals(ctx.getUserLogin());
     if (!newUserLogin) {
       return NoopFlow.INSTANCE;
@@ -303,20 +307,20 @@ public class GatewayBridge {
 
     // call waf if we have a new user login
     final List<Address<?>> addresses = new ArrayList<>(3);
+    final MapDataBundle.Builder bundleBuilder = new MapDataBundle.Builder(CAPACITY_3_4);
     addresses.add(KnownAddresses.USER_LOGIN);
-    addresses.add(KnownAddresses.USER_ID);
+    bundleBuilder.add(KnownAddresses.USER_LOGIN, user);
+    if (mode == SDK) {
+      addresses.add(KnownAddresses.USER_ID);
+      bundleBuilder.add(KnownAddresses.USER_ID, user);
+    }
+    // we don't support null values for the address so we use an invalid placeholder here
     if (sourceEvent == LoginEvent.LOGIN_SUCCESS) {
       addresses.add(KnownAddresses.LOGIN_SUCCESS);
+      bundleBuilder.add(KnownAddresses.LOGIN_SUCCESS, "invalid");
     } else if (sourceEvent == LoginEvent.LOGIN_FAILURE) {
       addresses.add(KnownAddresses.LOGIN_FAILURE);
-    }
-    final MapDataBundle.Builder bundleBuilder =
-        new MapDataBundle.Builder(addresses.size() == 2 ? CAPACITY_0_2 : CAPACITY_3_4);
-    bundleBuilder.add(KnownAddresses.USER_ID, user);
-    bundleBuilder.add(KnownAddresses.USER_LOGIN, user);
-    if (addresses.size() == 3) {
-      // we don't support null values for the address so we use an invalid placeholder here
-      bundleBuilder.add(addresses.get(2), "invalid");
+      bundleBuilder.add(KnownAddresses.LOGIN_FAILURE, "invalid");
     }
     final DataBundle bundle = bundleBuilder.build();
     final String subInfoKey =
@@ -348,8 +352,6 @@ public class GatewayBridge {
     }
     // unlikely that multiple threads will update the value at the same time
     ctx.setSessionId(sessionId);
-    final TraceSegment segment = ctx_.getTraceSegment();
-    segment.setTagTop("usr.session_id", sessionId);
     while (true) {
       DataSubscriberInfo subInfo = sessionIdSubInfo;
       if (subInfo == null) {

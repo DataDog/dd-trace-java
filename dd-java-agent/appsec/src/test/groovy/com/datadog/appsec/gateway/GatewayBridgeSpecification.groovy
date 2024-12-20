@@ -1044,7 +1044,6 @@ class GatewayBridgeSpecification extends DDSpecification {
     requestSessionCB.apply(ctx, sessionId)
 
     then:
-    1 * traceSegment.setTagTop('usr.session_id', sessionId)
     1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
     { a, b, db, gw -> bundle = db; gatewayContext = gw; NoopFlow.INSTANCE }
     bundle.get(KnownAddresses.SESSION_ID) == sessionId
@@ -1111,7 +1110,9 @@ class GatewayBridgeSpecification extends DDSpecification {
       1 * traceSegment.setTagTop('asm.keep', true)
       1 * traceSegment.setTagTop('_dd.p.appsec', true)
       1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> { a, b, DataBundle db, GatewayContext gw ->
-        assert db.get(KnownAddresses.USER_ID) == expectedUser
+        if (mode == SDK) {
+          assert db.get(KnownAddresses.USER_ID) == expectedUser
+        }
         assert db.get(KnownAddresses.USER_LOGIN) == expectedUser
         assert !gw.isTransient
         return NoopFlow.INSTANCE
@@ -1148,7 +1149,9 @@ class GatewayBridgeSpecification extends DDSpecification {
       1 * traceSegment.setTagTop('asm.keep', true)
       1 * traceSegment.setTagTop('_dd.p.appsec', true)
       1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> { a, b, DataBundle db, GatewayContext gw ->
-        assert db.get(KnownAddresses.USER_ID) == expectedUser
+        if (mode == SDK) {
+          assert db.get(KnownAddresses.USER_ID) == expectedUser
+        }
         assert db.get(KnownAddresses.USER_LOGIN) == expectedUser
         assert db.get(KnownAddresses.LOGIN_SUCCESS) != null
         assert !gw.isTransient
@@ -1187,7 +1190,9 @@ class GatewayBridgeSpecification extends DDSpecification {
       1 * traceSegment.setTagTop('asm.keep', true)
       1 * traceSegment.setTagTop('_dd.p.appsec', true)
       1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> { a, b, DataBundle db, GatewayContext gw ->
-        assert db.get(KnownAddresses.USER_ID) == expectedUser
+        if (mode == SDK) {
+          assert db.get(KnownAddresses.USER_ID) == expectedUser
+        }
         assert db.get(KnownAddresses.USER_LOGIN) == expectedUser
         assert db.get(KnownAddresses.LOGIN_FAILURE) != null
         assert !gw.isTransient
@@ -1254,6 +1259,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * traceSegment.setTagTop('appsec.events.users.login.success.usr.login', firstUser, true)
     1 * traceSegment.setTagTop('usr.id', firstUser, false)
     1 * traceSegment.setTagTop('_dd.appsec.events.users.login.success.sdk', true, true)
+    1 * traceSegment.setTagTop('_dd.appsec.user.collection_mode', 'sdk')
 
     0 * traceSegment.setTagTop('_dd.appsec.usr.login', _)
     0 * traceSegment.setTagTop('_dd.appsec.events.users.login.success.auto.mode', _, _)
@@ -1267,6 +1273,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     0 * traceSegment.setTagTop('appsec.events.users.login.success.usr.login', _, _)
     0 * traceSegment.setTagTop('usr.id', _, _)
     0 * traceSegment.setTagTop('_dd.appsec.events.users.login.success.sdk', _, _)
+    0 * traceSegment.setTagTop('_dd.appsec.user.collection_mode', _)
 
     1 * traceSegment.setTagTop('_dd.appsec.usr.login', secondUser)
     1 * traceSegment.setTagTop('_dd.appsec.events.users.login.success.auto.mode', IDENTIFICATION.fullName(), true)
