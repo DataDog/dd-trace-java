@@ -4,10 +4,7 @@ import com.google.common.reflect.ClassPath;
 import datadog.trace.agent.test.utils.ClasspathUtils;
 import datadog.trace.bootstrap.BootstrapProxy;
 import net.bytebuddy.agent.ByteBuddyAgent;
-import org.spockframework.runtime.extension.IAnnotationDrivenExtension;
-import org.spockframework.runtime.extension.IMethodInterceptor;
-import org.spockframework.runtime.extension.IMethodInvocation;
-import org.spockframework.runtime.model.FeatureInfo;
+import org.spockframework.runtime.extension.IGlobalExtension;
 import org.spockframework.runtime.model.SpecInfo;
 import java.io.File;
 import java.io.IOException;
@@ -16,7 +13,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.jar.JarFile;
 
-public class AgentBootstrapSpockExtension implements IAnnotationDrivenExtension<AgentBootstrapSpock> {
+public class AgentBootstrapSpockGlobalExtension implements IGlobalExtension {
 
   /**
    * An exact copy of {@link datadog.trace.bootstrap.Constants#BOOTSTRAP_PACKAGE_PREFIXES}.
@@ -46,7 +43,7 @@ public class AgentBootstrapSpockExtension implements IAnnotationDrivenExtension<
 
   private static final String[] BOOTSTRAP_PACKAGE_PREFIXES = new String[BOOTSTRAP_PACKAGE_PREFIXES_COPY.length + TEST_BOOSTRAP_PACKAGE_PREFIXES.length];
 
-  static {
+  public static void init() {
     ByteBuddyAgent.install();
     System.arraycopy(BOOTSTRAP_PACKAGE_PREFIXES_COPY, 0, BOOTSTRAP_PACKAGE_PREFIXES, 0, BOOTSTRAP_PACKAGE_PREFIXES_COPY.length);
     System.arraycopy(TEST_BOOSTRAP_PACKAGE_PREFIXES, 0, BOOTSTRAP_PACKAGE_PREFIXES, BOOTSTRAP_PACKAGE_PREFIXES_COPY.length, TEST_BOOSTRAP_PACKAGE_PREFIXES.length);
@@ -121,22 +118,17 @@ public class AgentBootstrapSpockExtension implements IAnnotationDrivenExtension<
   }
 
   @Override
-  public void visitSpecAnnotation(AgentBootstrapSpock annotation, SpecInfo spec) {
-
+  public void start() {
+    init();
   }
 
-  @Override
-  public void visitSpec(SpecInfo spec) {
-    Class<?> testClass = spec.getReflection();
+//  @Override
+//  public void visitSpec(SpecInfo spec) {
+//    IGlobalExtension.super.visitSpec(spec);
+//  }
 
-    for (FeatureInfo feature : spec.getAllFeatures()) {
-      feature.addIterationInterceptor(new IMethodInterceptor() {
-        @Override
-        public void intercept(IMethodInvocation iMethodInvocation) throws Throwable {
-
-        }
-      });
-    }
-//    throw new RuntimeException("Called with "+spec);
-  }
+//  @Override
+//  public void stop() {
+//    IGlobalExtension.super.stop();
+//  }
 }
