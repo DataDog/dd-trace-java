@@ -250,6 +250,11 @@ abstract class ProcessManager extends Specification {
    * These will be checked on suite shutdown, or explicitly by calling {@link #assertNoErrorLogs()}.
    */
   boolean isErrorLog(String line) {
+    // FIXME: Flaky profiler exception. See PROF-11068.
+    if (line.contains('ERROR com.datadog.profiling.controller.ProfilingSystem - Fatal exception in profiling thread, trying to continue')) {
+      return false
+    }
+
     return line.contains("ERROR") || line.contains("ASSERTION FAILED")
     || line.contains("Failed to handle exception in instrumentation")
   }

@@ -41,18 +41,6 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   @Override
   boolean isErrorLog(String log) {
-    // XXX: Flaky profiler exception:
-    // java.lang.Error: not finished chunk 2024-12-18T21:17:11.612Z
-    //        at jdk.jfr.internal.PlatformRecording.appendChunk(PlatformRecording.java:515)
-    //        at jdk.jfr.internal.PlatformRecorder.finishChunk(PlatformRecorder.java:396)
-    //        at jdk.jfr.internal.PlatformRecorder.rotateDisk(PlatformRecorder.java:349)
-    //        at jdk.jfr.internal.PlatformRecorder.fillWithRecordedData(PlatformRecorder.java:511)
-    //        at jdk.jfr.FlightRecorder.takeSnapshot(FlightRecorder.java:116)
-    //        at com.datadog.profiling.controller.openjdk.OpenJdkOngoingRecording.snapshot(OpenJdkOngoingRecording.java:155)
-    if (log.contains('ERROR com.datadog.profiling.controller.ProfilingSystem - Fatal exception in profiling thread, trying to continue')) {
-      return false
-    }
-
     if (log.contains('no such algorithm: DES for provider SUN')) {
       return false
     }
