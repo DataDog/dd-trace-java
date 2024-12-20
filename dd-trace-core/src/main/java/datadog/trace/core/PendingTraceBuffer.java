@@ -243,7 +243,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
 
             if (pendingTrace instanceof FlushElement) {
               // Since this is an MPSC queue, the drain needs to be called on the consumer thread
-              queue.drain(WriteDrain.WRITE_DRAIN);
+              queue.drain(WriteDrain.WRITE_DRAIN, 50);
               flushCounter.incrementAndGet();
               continue;
             }
@@ -332,6 +332,12 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
             newCount = buffer.dumpCounter.get();
           }
         }
+
+        DumpDrain.data.sort(
+            (span1, span2) ->
+                Long.compare(
+                    span1.getRootSpan().getStartTime(),
+                    span2.getRootSpan().getStartTime())); // Sort by oldest trace first
 
         StringBuilder dumpText = new StringBuilder();
         for (Element e : DumpDrain.data) {
