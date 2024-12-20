@@ -2,6 +2,7 @@ package datadog.context;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -12,6 +13,8 @@ import org.junit.jupiter.api.Test;
 class ContextTest {
   static final ContextKey<String> STRING_KEY = ContextKey.named("string-key");
   static final ContextKey<Boolean> BOOLEAN_KEY = ContextKey.named("boolean-key");
+  static final ContextKey<Float> FLOAT_KEY = ContextKey.named("float-key");
+  static final ContextKey<Long> LONG_KEY = ContextKey.named("long-key");
 
   // demonstrate how values can hide their context keys
   static class ValueWithKey implements ImplicitContextKeyed {
@@ -86,19 +89,33 @@ class ContextTest {
     Context context1 = empty.with(STRING_KEY, "value");
     Context context2 = empty.with(STRING_KEY, "value    ");
     Context context3 = empty.with(STRING_KEY, "value    ".trim());
+    Context context4 = empty.with(STRING_KEY, "value").with(BOOLEAN_KEY, true);
     // Test equals on self
     assertTrue(empty.equals(empty));
     assertTrue(context1.equals(context1));
+    assertTrue(context4.equals(context4));
     // Test equals on null
     assertFalse(context1.equals(null));
+    assertFalse(context4.equals(null));
     // Test equals on different object type
     assertFalse(context1.equals("value"));
+    assertFalse(context4.equals("value"));
     // Test equals on different contexts with the same values
     assertTrue(context1.equals(context3));
     assertEquals(context1.hashCode(), context3.hashCode());
     // Test equals on different contexts
     assertFalse(context1.equals(empty));
+    assertNotEquals(context1.hashCode(), empty.hashCode());
     assertFalse(context1.equals(context2));
+    assertNotEquals(context1.hashCode(), context2.hashCode());
+    assertFalse(context1.equals(context4));
+    assertNotEquals(context1.hashCode(), context4.hashCode());
+    assertFalse(empty.equals(context1));
+    assertNotEquals(empty.hashCode(), context1.hashCode());
+    assertFalse(context2.equals(context1));
+    assertNotEquals(context2.hashCode(), context1.hashCode());
+    assertFalse(context4.equals(context1));
+    assertNotEquals(context4.hashCode(), context1.hashCode());
   }
 
   @Test
@@ -109,5 +126,42 @@ class ContextTest {
     Context context = empty.with(valueWithKey);
     assertNull(ValueWithKey.from(empty));
     assertEquals(valueWithKey, ValueWithKey.from(context));
+  }
+
+  @SuppressWarnings({"SimplifiableAssertion"})
+  @Test
+  void testInflation() {
+    Context empty = Context.root();
+
+    Context one = empty.with(STRING_KEY, "unset").with(STRING_KEY, "one");
+    Context two = one.with(BOOLEAN_KEY, false).with(BOOLEAN_KEY, true);
+    Context three = two.with(FLOAT_KEY, 0.0f).with(FLOAT_KEY, 3.3f);
+
+    assertNull(empty.get(STRING_KEY));
+    assertNull(empty.get(BOOLEAN_KEY));
+    assertNull(empty.get(FLOAT_KEY));
+    assertNull(empty.get(LONG_KEY));
+
+    assertEquals("one", one.get(STRING_KEY));
+    assertNull(one.get(BOOLEAN_KEY));
+    assertNull(one.get(FLOAT_KEY));
+    assertNull(one.get(LONG_KEY));
+
+    assertEquals("one", two.get(STRING_KEY));
+    assertEquals(true, two.get(BOOLEAN_KEY));
+    assertNull(two.get(FLOAT_KEY));
+    assertNull(two.get(LONG_KEY));
+
+    assertEquals("one", three.get(STRING_KEY));
+    assertEquals(true, three.get(BOOLEAN_KEY));
+    assertEquals(3.3f, three.get(FLOAT_KEY));
+    assertNull(three.get(LONG_KEY));
+
+    assertFalse(empty.equals(one));
+    assertFalse(one.equals(two));
+    assertFalse(two.equals(three));
+    assertNotEquals(one.hashCode(), empty.hashCode());
+    assertNotEquals(two.hashCode(), one.hashCode());
+    assertNotEquals(three.hashCode(), two.hashCode());
   }
 }

@@ -17,6 +17,7 @@ class ContextBinderTest {
     assertEquals(context, Context.from(carrier));
     // Detaching removes all context
     assertEquals(context, Context.detachFrom(carrier));
+    assertEquals(root(), Context.detachFrom(carrier));
     assertEquals(root(), Context.from(carrier));
   }
 }

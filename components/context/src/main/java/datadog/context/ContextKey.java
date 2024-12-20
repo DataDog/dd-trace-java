@@ -29,16 +29,7 @@ public final class ContextKey<T> {
     return index;
   }
 
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) {
-      return true;
-    } else if (o == null || getClass() != o.getClass()) {
-      return false;
-    } else {
-      return index == ((ContextKey<?>) o).index;
-    }
-  }
+  // we want identity equality, so no need to override equals()
 
   @Override
   public String toString() {
