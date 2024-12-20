@@ -1436,26 +1436,32 @@ class StringModuleTest extends IastModuleImplTestBase {
     taintFormat(result, taintedObject.getRanges()) == "==>my_input<=="
   }
 
-  void 'onStringBuilderSetLength empty or string not changed after setLength (#self, #length)'() {
+  void 'onStringBuilderSetLength is empty or different lengths (#self, #length)'() {
     given:
-    self?.setLength(length)
+    self?.setLength(self.length())
 
     when:
     module.onStringBuilderSetLength(self, length)
 
     then:
+    mockCalls * tracer.activeSpan() >> null
     0 * _
 
     where:
-    self              | length
-    sb()              | 0
-    sb("not_changed") | 10
+    self      | length | mockCalls
+    sb("123") | 2      | 0
+    sb()      | 0      | 1
   }
 
   void 'onStringBuilderSetLength (#input, #length)'() {
     final taintedObjects = ctx.getTaintedObjects()
     def self = addFromTaintFormat(taintedObjects, input)
-    final result = self.toString().substring(0, length)
+    if (self instanceof StringBuilder) {
+      ((StringBuilder) self).setLength(length)
+    } else if (self instanceof StringBuffer) {
+      ((StringBuffer) self).setLength(length)
+    }
+    final result = self.toString()
 
     when:
     module.onStringBuilderSetLength(self, length)

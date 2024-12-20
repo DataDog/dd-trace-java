@@ -833,7 +833,7 @@ public class StringModuleImpl implements StringModule {
 
   @Override
   public void onStringBuilderSetLength(@Nonnull CharSequence self, int length) {
-    if (self.length() <= length) {
+    if (self.length() != length) {
       return;
     }
     final IastContext ctx = IastContext.Provider.get();
