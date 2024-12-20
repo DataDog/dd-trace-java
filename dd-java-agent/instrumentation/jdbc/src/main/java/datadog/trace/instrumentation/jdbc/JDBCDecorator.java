@@ -49,6 +49,8 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   public static final String DBM_PROPAGATION_MODE_STATIC = "service";
   public static final String DBM_PROPAGATION_MODE_FULL = "full";
 
+  public static final String DD_INSTRUMENTATION_PREFIX = "_DD_";
+
   public static final String DBM_PROPAGATION_MODE = Config.get().getDBMPropagationMode();
   public static final boolean INJECT_COMMENT =
       DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_FULL)
@@ -279,7 +281,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       if (priority == null) {
         return;
       }
-      final String traceContext = "_DD_" + DECORATE.traceParent(span, priority);
+      final String traceContext = DD_INSTRUMENTATION_PREFIX + DECORATE.traceParent(span, priority);
 
       connection.setClientInfo("OCSID.ACTION", traceContext);
 
