@@ -11,6 +11,7 @@ import datadog.trace.api.time.TimeSource;
 import datadog.trace.core.monitor.HealthMetrics;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -306,6 +307,8 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
     static class TracerDump implements TracerFlare.Reporter {
 
       private final DelayingPendingTraceBuffer buffer;
+      private final Comparator<Element> TRACE_BY_START_TIME =
+          Comparator.comparingLong(trace -> trace.getRootSpan().getStartTime());
 
       public TracerDump(DelayingPendingTraceBuffer buffer) {
         this.buffer = buffer;
@@ -332,11 +335,14 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
           }
         }
 
-        DumpDrain.data.sort(
-            (span1, span2) ->
-                Long.compare(
-                    span1.getRootSpan().getStartTime(),
-                    span2.getRootSpan().getStartTime())); // Sort by oldest trace first
+        DumpDrain.data.removeIf(
+            (trace) ->
+                !(trace
+                    instanceof
+                    PendingTrace)); // Removing elements from the drain that are not instances of
+        // PendingTrace
+
+        DumpDrain.data.sort((TRACE_BY_START_TIME).reversed()); // Storing oldest traces first
 
         StringBuilder dumpText = new StringBuilder();
         for (Element e : DumpDrain.data) {
