@@ -136,6 +136,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
   @Override
   public void start() {
+    checkDynamicConfig();
     cancellation =
         AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
             new ReportTask(), this, bucketDurationNanos, bucketDurationNanos, TimeUnit.NANOSECONDS);
