@@ -10,6 +10,7 @@ import net.bytebuddy.dynamic.DynamicType
 import net.bytebuddy.jar.asm.Opcodes
 import net.bytebuddy.jar.asm.Type
 
+import java.util.function.BiConsumer
 import java.util.function.BiFunction
 import java.util.function.Consumer
 
@@ -225,6 +226,38 @@ class CallSiteTransformerTest extends BaseCallSiteTest {
 
     then:
     helperCLass != null
+  }
+
+  void 'test after advice with void return'() {
+    setup:
+    final source = Type.getType(StringBuilderSetLengthExample)
+    final target = renameType(source, 'Test')
+    final pointcut = stringBuilderSetLengthPointcut()
+    final advice = Mock(InvokeAdvice)
+    final callSite = Type.getType(StringBuilderSetLengthCallSite)
+    final callSiteTransformer = new CallSiteTransformer(mockAdvices([mockCallSites(advice, pointcut)]))
+    final sb = new StringBuilder("Hello World!")
+    final int length = 5
+    StringBuilderSetLengthCallSite.LAST_CALL = null
+
+    when:
+    final transformedClass = transformType(source, target, callSiteTransformer)
+    final instance = loadType(target, transformedClass) as BiConsumer<StringBuilder, Integer>
+    instance.accept(sb, length)
+
+    then:
+    1 * advice.apply(_ as MethodHandler, Opcodes.INVOKEVIRTUAL, pointcut.type, pointcut.method, pointcut.descriptor, false) >> { params ->
+      final args = params as Object[]
+      final handler = args[0] as MethodHandler
+      final owner = args[2] as String
+      final descriptor = args[4] as String
+      handler.dupInvoke(owner, descriptor, COPY)
+      handler.method(args[1] as int, owner, args[3] as String, descriptor, args[5] as Boolean)
+      handler.advice(callSite.getInternalName(), "after", "(Ljava/lang/StringBuilder;I)V")
+    }
+    sb.toString() == 'Hello'
+    StringBuilderSetLengthCallSite.LAST_CALL[0] == sb
+    StringBuilderSetLengthCallSite.LAST_CALL[1] == length
   }
 
   static class InstrumentationHelper {
