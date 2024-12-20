@@ -1,20 +1,19 @@
 package datadog.trace.instrumentation.weaver;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import java.util.Set;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
+import sbt.testing.TaskDef;
 import weaver.framework.SuiteEvent;
 
 @AutoService(InstrumenterModule.class)
 public class WeaverInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForSingleType {
 
   public WeaverInstrumentation() {
     super("ci-visibility", "weaver");
@@ -26,32 +25,32 @@ public class WeaverInstrumentation extends InstrumenterModule.CiVisibility
   }
 
   @Override
-  public String hierarchyMarkerType() {
-    return "weaver.framework.RunnerCompat$SuiteEventBroker";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named("weaver.framework.RunnerCompat$SuiteEventBroker"));
+  public String instrumentedType() {
+    return "weaver.framework.SbtTask";
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".DatadogWeaverReporter",
+      packageName + ".TaskDefAwareQueueProxy",
+      packageName + ".WeaverUtils",
     };
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("send"), WeaverInstrumentation.class.getName() + "$SendEventAdvice");
+        isConstructor(), WeaverInstrumentation.class.getName() + "$QueuePollAdvice");
   }
 
-  public static class SendEventAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onSendEvent(@Advice.Argument(value = 0) SuiteEvent event) {
-      DatadogWeaverReporter.handle(event);
+  public static class QueuePollAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void onQueuePoll(
+        @Advice.FieldValue(value = "queue", readOnly = false)
+            ConcurrentLinkedQueue<SuiteEvent> queue,
+        @Advice.FieldValue("taskDef") TaskDef taskDef) {
+      queue = new TaskDefAwareQueueProxy<SuiteEvent>(taskDef, queue);
     }
   }
 }
