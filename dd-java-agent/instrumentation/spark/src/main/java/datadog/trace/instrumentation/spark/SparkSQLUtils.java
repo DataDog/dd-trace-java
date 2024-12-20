@@ -14,12 +14,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.spark.scheduler.AccumulableInfo;
+import org.apache.spark.sql.catalyst.plans.logical.AppendData;
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.execution.SparkPlanInfo;
+import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation;
 import org.apache.spark.sql.execution.metric.SQLMetricInfo;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import scala.PartialFunction;
 import scala.Tuple2;
 import scala.collection.JavaConverters;
 
 public class SparkSQLUtils {
+  private static final Logger log = LoggerFactory.getLogger(SparkSQLUtils.class);
+
   public static void addSQLPlanToStageSpan(
       AgentSpan span,
       SparkPlanInfo plan,
@@ -206,4 +214,81 @@ public class SparkSQLUtils {
       generator.writeEndObject();
     }
   }
+
+  static class LineageDataset {
+    final String name;
+    final String schema;
+    final String properties;
+    final String stats;
+    final String type;
+
+    public LineageDataset(
+        String name, String schema, String stats, String properties, String type) {
+      this.name = name;
+      this.schema = schema;
+      this.properties = properties;
+      this.stats = stats;
+      this.type = type;
+    }
+
+    public LineageDataset(String name, String schema, String stats, String properties) {
+      this.name = name;
+      this.schema = schema;
+      this.properties = properties;
+      this.stats = stats;
+      this.type = "unknown";
+    }
+  }
+
+  static PartialFunction<LogicalPlan, DataSourceV2Relation> pf =
+      new PartialFunction<LogicalPlan, DataSourceV2Relation>() {
+        @Override
+        public boolean isDefinedAt(LogicalPlan x) {
+          return x instanceof DataSourceV2Relation;
+        }
+
+        @Override
+        public DataSourceV2Relation apply(LogicalPlan x) {
+          return (DataSourceV2Relation) x;
+        }
+      };
+
+  static PartialFunction<LogicalPlan, LineageDataset> logicalPlanToDataset =
+      new PartialFunction<LogicalPlan, LineageDataset>() {
+        @Override
+        public boolean isDefinedAt(LogicalPlan x) {
+          return x instanceof DataSourceV2Relation
+              || (x instanceof AppendData
+                  && ((AppendData) x).table() instanceof DataSourceV2Relation);
+        }
+
+        @Override
+        public LineageDataset apply(LogicalPlan x) {
+          try {
+            if (x instanceof DataSourceV2Relation) {
+              DataSourceV2Relation relation = (DataSourceV2Relation) x;
+              return new LineageDataset(
+                  relation.table().name(),
+                  relation.schema().json(),
+                  "",
+                  relation.table().properties().toString(),
+                  "input");
+            } else if (x instanceof AppendData) {
+              AppendData appendData = (AppendData) x;
+              DataSourceV2Relation relation = (DataSourceV2Relation) appendData.table();
+              return new LineageDataset(
+                  relation.table().name(),
+                  relation.schema().json(),
+                  "",
+                  relation.table().properties().toString(),
+                  "output");
+            }
+          } catch (Exception e) {
+            log.debug("Error while converting logical plan to dataset", e);
+            return null;
+          }
+
+          return null;
+        }
+      };
 }

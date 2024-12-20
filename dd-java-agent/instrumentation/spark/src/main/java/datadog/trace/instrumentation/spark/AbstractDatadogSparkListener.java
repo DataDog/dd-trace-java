@@ -39,6 +39,8 @@ import org.apache.spark.ExceptionFailure;
 import org.apache.spark.SparkConf;
 import org.apache.spark.TaskFailedReason;
 import org.apache.spark.scheduler.*;
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
+import org.apache.spark.sql.execution.QueryExecution;
 import org.apache.spark.sql.execution.SQLExecution;
 import org.apache.spark.sql.execution.SparkPlanInfo;
 import org.apache.spark.sql.execution.metric.SQLMetricInfo;
@@ -101,6 +103,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   private final HashMap<Long, SparkListenerSQLExecutionStart> sqlQueries = new HashMap<>();
   protected final HashMap<Long, SparkPlanInfo> sqlPlans = new HashMap<>();
   private final HashMap<String, SparkListenerExecutorAdded> liveExecutors = new HashMap<>();
+
+  private final HashMap<Long, List<SparkSQLUtils.LineageDataset>> lineageDatasets = new HashMap<>();
 
   // There is no easy way to know if an accumulator is not useful anymore (meaning it is not part of
   // an active SQL query)
@@ -752,17 +756,73 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   private synchronized void onSQLExecutionStart(SparkListenerSQLExecutionStart sqlStart) {
     sqlPlans.put(sqlStart.executionId(), sqlStart.sparkPlanInfo());
     sqlQueries.put(sqlStart.executionId(), sqlStart);
+
+    long sqlExecutionId = sqlStart.executionId();
+    QueryExecution queryExecution = SQLExecution.getQueryExecution(sqlExecutionId);
+    if (queryExecution != null) {
+      LogicalPlan logicalPlan = queryExecution.analyzed();
+
+      log.info("Logical plan for query execution id {}: {}", sqlExecutionId, logicalPlan);
+
+      if (logicalPlan != null) {
+        //        Collection<DataSourceV2Relation> relations =
+        // JavaConverters.asJavaCollection(logicalPlan.collect(SparkSQLUtils.pf));
+        //        List<SparkSQLUtils.LineageDataset> datasets = new ArrayList<>();
+        //
+        //        for (DataSourceV2Relation relation : relations) {
+        //          String name = relation.table().name();
+        //          String schema = relation.schema().json();
+        //          String stats = relation.stats().toString();
+        //          String properties = relation.table().properties().toString();
+        //
+        //          datasets.add(new SparkSQLUtils.LineageDataset(name, schema, stats, properties));
+        //        }
+
+        List<SparkSQLUtils.LineageDataset> datasets =
+            JavaConverters.seqAsJavaList(logicalPlan.collect(SparkSQLUtils.logicalPlanToDataset));
+        if (!datasets.isEmpty()) {
+          lineageDatasets.put(sqlExecutionId, datasets);
+        }
+
+        //        if (relations.isEmpty()) {
+        //          log.info("No DataSourceV2Relation found for query execution id {}",
+        // sqlExecutionId);
+        //        }
+      }
+    } else {
+      log.warn("Start: QueryExecution not found for sqlEnd queryExecutionId: {}", sqlExecutionId);
+    }
   }
 
   private synchronized void onSQLExecutionEnd(SparkListenerSQLExecutionEnd sqlEnd) {
     AgentSpan span = sqlSpans.remove(sqlEnd.executionId());
     SparkAggregatedTaskMetrics metrics = sqlMetrics.remove(sqlEnd.executionId());
+    List<SparkSQLUtils.LineageDataset> datasets = lineageDatasets.remove(sqlEnd.executionId());
+
     sqlQueries.remove(sqlEnd.executionId());
     sqlPlans.remove(sqlEnd.executionId());
 
     if (span != null) {
       if (metrics != null) {
         metrics.setSpanMetrics(span);
+      }
+
+      if (datasets != null) {
+        log.info(
+            "adding {} datasets to span for query execution id {}",
+            datasets.size(),
+            sqlEnd.executionId());
+
+        // iterate over the datasets with index
+        for (int i = 0; i < datasets.size(); i++) {
+          SparkSQLUtils.LineageDataset dataset = datasets.get(i);
+
+          span.setTag("dataset." + i + ".name", dataset.name);
+          span.setTag("dataset." + i + ".schema", dataset.schema);
+          span.setTag("dataset." + i + ".stats", dataset.stats);
+          span.setTag("dataset." + i + ".properties", dataset.properties);
+          span.setTag("dataset." + i + ".type", dataset.type);
+        }
       }
 
       span.finish(sqlEnd.time() * 1000);
