@@ -15,6 +15,9 @@ public class HostAndRequestAsHttpUriRequest extends BasicClassicHttpRequest {
 
   public HostAndRequestAsHttpUriRequest(final HttpHost httpHost, final HttpRequest httpRequest) {
     super(httpRequest.getMethod(), httpHost, httpRequest.getPath());
+    System.out.println("----------HostAndRequestAsHttpUriRequest---------");
+    System.out.println("httpRequest: " + httpRequest);
+    System.out.println("-------------------");
     actualRequest = httpRequest;
     // Propagate in case the host or request is tainted
     PropagationUtils.taintObjectIfTainted(this, httpHost);
@@ -38,5 +41,10 @@ public class HostAndRequestAsHttpUriRequest extends BasicClassicHttpRequest {
   @Override
   public Header getFirstHeader(String name) {
     return actualRequest.getFirstHeader(name);
+  }
+
+  @Override
+  public Header[] getHeaders(String name) {
+    return actualRequest.getHeaders(name);
   }
 }

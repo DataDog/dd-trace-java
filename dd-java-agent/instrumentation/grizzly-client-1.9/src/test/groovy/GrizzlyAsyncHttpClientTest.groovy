@@ -7,7 +7,7 @@ import com.ning.http.client.Request
 import com.ning.http.client.RequestBuilder
 import com.ning.http.client.Response
 import com.ning.http.client.uri.Uri
-import datadog.trace.agent.test.base.HttpClientTest
+import datadog.trace.agent.test.base.HttpClientTest2
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.instrumentation.grizzly.client.ClientDecorator
 import spock.lang.AutoCleanup
@@ -15,7 +15,7 @@ import spock.lang.Shared
 
 import java.util.concurrent.Executors
 
-abstract class GrizzlyAsyncHttpClientTest extends HttpClientTest {
+abstract class GrizzlyAsyncHttpClientTest extends HttpClientTest2 {
 
   @AutoCleanup
   @Shared
@@ -29,13 +29,11 @@ abstract class GrizzlyAsyncHttpClientTest extends HttpClientTest {
   }
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+  int doRequest(String method, URI uri, List<List<String>> headers, String body, Closure callback) {
 
     RequestBuilder requestBuilder = new RequestBuilder(method)
       .setUri(Uri.create(uri.toString()))
-    headers.entrySet().each {
-      requestBuilder.addHeader(it.key, it.value)
-    }
+    headers.each { requestBuilder.addHeader(it[0], it[1]) }
     Request request = requestBuilder.build()
 
     def handler = new AsyncHandlerMock(callback)

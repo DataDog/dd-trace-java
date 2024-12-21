@@ -6,13 +6,13 @@ import ratpack.exec.ExecResult
 class RatpackForkedHttpClientTest extends RatpackHttpClientTest {
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+  int doRequest(String method, URI uri, List<List<String>> headers, String body, Closure callback) {
     ExecResult<Integer> result = exec.yield {
       def resp = client.request(uri) { spec ->
         spec.method(method)
         spec.headers { headersSpec ->
-          headers.entrySet().each {
-            headersSpec.add(it.key, it.value)
+          headers.each {
+            headersSpec.add(it[0], it[1])
           }
         }
       }

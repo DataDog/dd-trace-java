@@ -27,6 +27,9 @@ class TagsAssert {
     @ClosureParams(value = SimpleType, options = ['datadog.trace.agent.test.asserts.TagsAssert'])
     @DelegatesTo(value = TagsAssert, strategy = Closure.DELEGATE_FIRST) Closure spec,
     boolean checkAllTags = true) {
+    System.out.println("=== SARAH: START SPAN ===")
+    System.out.println(span.toString())
+    System.out.println("=== SARAH: END SPAN   ===")
     def asserter = new TagsAssert(span)
     def clone = (Closure) spec.clone()
     clone.delegate = asserter
@@ -191,6 +194,7 @@ class TagsAssert {
     } else if (expected instanceof Closure) {
       assert ((Closure) expected).call(value): "Tag \"$name\": closure call ${expected.toString()} failed with \"$value\""
     } else if (expected instanceof CharSequence) {
+      System.out.println("SARAH TAGASSERT VALUE: " + value) // wrong tag value here
       assert value == expected.toString(): "Tag \"$name\": \"$value\" != \"${expected.toString()}\""
     } else {
       assert value == expected: "Tag \"$name\": \"$value\" != \"$expected\""
@@ -210,7 +214,12 @@ class TagsAssert {
   }
 
   def addTags(Map<String, Serializable> tags) {
-    tags.each { tag(it.key, it.value) }
+    System.out.println("======= SARAH: TAGS START =======")
+    tags.each {
+      System.out.println("CHECK THAT KEY " + it.key + " HAS VALUE " + it.value)
+      tag(it.key, it.value)
+      System.out.println("======= SARAH: TAGS END   =======")
+    }
     true
   }
 
