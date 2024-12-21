@@ -66,7 +66,6 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -132,6 +131,17 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     assertTrue(snapshot.getDuration() > 0);
     assertTrue(snapshot.getStack().size() > 0);
     assertEquals("CapturedSnapshot01.main", snapshot.getStack().get(0).getFunction());
+  }
+
+  @Test
+  public void localVarHoistingNoPreviousStore() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.fasterxml.jackson.core.json.ByteSourceJsonBootstrapper";
+    TestSnapshotListener listener = installSingleProbe(CLASS_NAME, "detectEncoding", null);
+    Class<?> testClass =
+        loadClass(
+            CLASS_NAME,
+            getClass().getResource("/classfiles/ByteSourceJsonBootstrapper.classfile").getFile());
+    assertNotNull(testClass);
   }
 
   @Test
@@ -219,12 +229,8 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     when(config.isDebuggerVerifyByteCode()).thenReturn(true);
     Class<?> testClass =
         loadClass(
-            CLASS_NAME,
-            Paths.get(
-                    CapturedSnapshotTest.class
-                        .getResource("/classfiles/BooleanUtils.classfile")
-                        .toURI())
-                .toString());
+            CLASS_NAME, getClass().getResource("/classfiles/BooleanUtils.classfile").getFile());
+
     boolean result = Reflect.onClass(testClass).call("toBoolean", Boolean.TRUE).get();
     assertTrue(result);
     assertOneSnapshot(listener);
