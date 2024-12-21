@@ -422,6 +422,7 @@ jobs:
             -PgitBaseRef=origin/{{ pr_base_ref }}
 {% endif %}
             -PrunBuildSrcTests
+            -PskipSpotless
             -PtaskPartitionCount=${CIRCLE_NODE_TOTAL} -PtaskPartition=${CIRCLE_NODE_INDEX}
             << pipeline.parameters.gradle_flags >>
             --max-workers=8
