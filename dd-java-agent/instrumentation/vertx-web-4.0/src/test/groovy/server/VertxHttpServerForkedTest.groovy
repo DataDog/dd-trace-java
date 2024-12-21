@@ -112,6 +112,11 @@ class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
   }
 
   @Override
+  boolean testSessionId() {
+    true
+  }
+
+  @Override
   int spanCount(ServerEndpoint endpoint) {
     if (endpoint == NOT_FOUND) {
       return super.spanCount(endpoint) - 1
