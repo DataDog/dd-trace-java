@@ -17,6 +17,18 @@ java_prop() {
     echo "$JAVA_PROPS" | grep "$PROP_NAME" | head -n1 | cut -d'=' -f2 | xargs
 }
 
+# Add the 'file' attribute to the JUnit XML file
+add_source_file_to_xml() {
+    local XML_FILE=$1
+    local ESCAPED_FILE
+
+    # Escape special characters in the filename (such as /, &, etc.)
+    ESCAPED_FILE=$(printf '%s' "$XML_FILE" | sed 's/[&/\]/\\&/g')
+
+    # Insert the 'file=ESCAPED_FILE' attribute in each <testcase>
+    sed -i '' "/<testcase/ s/\(<testcase[^>]*\)\(\/\)/\1 file=\"$ESCAPED_FILE\"\2/" "$XML_FILE"
+}
+
 # Upload test results to CI Visibility
 junit_upload() {
     # based on tracer implementation: https://github.com/DataDog/dd-trace-java/blob/master/dd-java-agent/agent-bootstrap/src/main/java/datadog/trace/bootstrap/instrumentation/decorator/TestDecorator.java#L55-L77
@@ -35,6 +47,11 @@ junit_upload() {
 
 # Make sure we do not use DATADOG_API_KEY from the environment
 unset DATADOG_API_KEY
+
+# Modify the JUnit XML results by adding the 'file' attribute
+for XML_FILE in ./results/*.xml; do
+    add_source_file_to_xml "$XML_FILE"
+done
 
 # Upload test results to production environment like all other CI jobs
 junit_upload "$DATADOG_API_KEY_PROD"
