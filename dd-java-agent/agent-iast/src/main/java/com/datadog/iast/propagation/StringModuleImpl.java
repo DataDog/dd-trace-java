@@ -831,6 +831,30 @@ public class StringModuleImpl implements StringModule {
     }
   }
 
+  @Override
+  public void onStringBuilderSetLength(@Nonnull CharSequence self, int length) {
+    if (self.length() != length) {
+      return;
+    }
+    final IastContext ctx = IastContext.Provider.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    final TaintedObject selfTainted = taintedObjects.get(self);
+    if (selfTainted == null) {
+      return;
+    }
+    final Range[] rangesSelf = selfTainted.getRanges();
+    if (rangesSelf.length == 0) {
+      return;
+    }
+    Range[] newRanges = Ranges.forSubstring(0, length, rangesSelf);
+    if (newRanges != null && newRanges.length > 0) {
+      selfTainted.setRanges(newRanges);
+    }
+  }
+
   /**
    * Adds the tainted ranges belonging to the current parameter added via placeholder taking care of
    * an optional tainted placeholder.
