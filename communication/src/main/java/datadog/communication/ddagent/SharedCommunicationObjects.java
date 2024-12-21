@@ -1,7 +1,6 @@
 package datadog.communication.ddagent;
 
 import static datadog.communication.ddagent.TracerVersion.TRACER_VERSION;
-import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
 import datadog.common.container.ContainerInfo;
 import datadog.common.socket.SocketUtils;
@@ -10,7 +9,6 @@ import datadog.communication.monitor.Monitoring;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.DefaultConfigurationPoller;
 import datadog.trace.api.Config;
-import datadog.trace.util.AgentTaskScheduler;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import okhttp3.HttpUrl;
@@ -100,11 +98,8 @@ public class SharedCommunicationObjects {
               agentUrl,
               config.isTraceAgentV05Enabled(),
               config.isTracerMetricsEnabled());
-      if (AGENT_THREAD_GROUP.equals(Thread.currentThread().getThreadGroup())) {
-        featuresDiscovery.discover(); // safe to run on same thread
-      } else {
-        // avoid performing blocking I/O operation on application thread
-        AgentTaskScheduler.INSTANCE.execute(featuresDiscovery::discover);
+      if (!"true".equalsIgnoreCase(System.getProperty("dd.test.no.early.discovery"))) {
+        featuresDiscovery.discover();
       }
     }
     return featuresDiscovery;
