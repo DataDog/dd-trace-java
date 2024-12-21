@@ -26,31 +26,19 @@ public class MBeanServerBuilderSetter {
     } else if (System.getProperty("javax.management.builder.initial") != null) {
       System.out.println("javax.management.builder.initial != null");
 
-      if (ClassLoader.getSystemResource(
-              System.getProperty("javax.management.builder.initial").replaceAll("\\.", "/")
-                  + ".class")
-          == null) {
-        customAssert(
-            isJmxfetchStarted(false),
-            false,
-            "jmxfetch startup must be delayed when management builder system property is present.");
-        // Change back to a valid MBeanServerBuilder.
-        System.setProperty(
-            "javax.management.builder.initial", "jvmbootstraptest.CustomMBeanServerBuilder");
-        customAssert(
-            isCustomMBeanRegistered(),
-            true,
-            "Javaagent should not prevent setting a custom MBeanServerBuilder");
-        customAssert(
-            isJmxfetchStarted(true),
-            true,
-            "jmxfetch should start after loading MBeanServerBuilder.");
-      } else {
-        customAssert(
-            isJmxfetchStarted(false),
-            true,
-            "jmxfetch should start in premain when custom MBeanServerBuilder found on classpath.");
-      }
+      customAssert(
+          isJmxfetchStarted(false),
+          false,
+          "jmxfetch startup must be delayed when management builder system property is present.");
+      // Change back to a valid MBeanServerBuilder.
+      System.setProperty(
+          "javax.management.builder.initial", "jvmbootstraptest.CustomMBeanServerBuilder");
+      customAssert(
+          isCustomMBeanRegistered(),
+          true,
+          "Javaagent should not prevent setting a custom MBeanServerBuilder");
+      customAssert(
+          isJmxfetchStarted(true), true, "jmxfetch should start after loading MBeanServerBuilder.");
     } else {
       System.out.println("No custom MBeanServerBuilder");
 
