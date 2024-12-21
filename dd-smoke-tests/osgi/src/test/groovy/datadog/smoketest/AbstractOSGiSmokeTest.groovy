@@ -37,20 +37,27 @@ abstract class AbstractOSGiSmokeTest extends AbstractSmokeTest {
 
   abstract List<String> frameworkArguments()
 
-  @Override
-  boolean isErrorLog(String log) {
-    super.isErrorLog(log) || log.contains("Cannot resolve type description") || log.contains("Instrumentation muzzled")
-  }
-
   def "example application runs without errors"() {
     when:
     testedProcess.waitFor()
+    boolean instrumentedMessageClient = false
+    checkLogPostExit {
+      // check for additional OSGi class-loader issues
+      if (it.contains("Cannot resolve type description") ||
+        it.contains("Instrumentation muzzled")) {
+        println it
+        logHasErrors = true
+      }
+      if (it.contains("Transformed - instrumentation.target.class=datadog.smoketest.osgi.client.MessageClient")) {
+        println it
+        instrumentedMessageClient = true
+      }
+    }
 
     then:
     testedProcess.exitValue() == 0
-    processTestLogLines {
-      it.contains("Transformed - instrumentation.target.class=datadog.smoketest.osgi.client.MessageClient")
-    }
+    instrumentedMessageClient
+    !logHasErrors
   }
 
   @Override
