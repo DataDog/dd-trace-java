@@ -347,7 +347,7 @@ public class Agent {
      * logging facility. Likewise on IBM JDKs OkHttp may indirectly load 'IBMSASL' which in turn loads LogManager.
      */
     InstallDatadogTracerCallback installDatadogTracerCallback =
-        new InstallDatadogTracerCallback(initTelemetry, inst);
+        new InstallDatadogTracerCallback(initTelemetry, inst, delayOkHttp);
     if (delayOkHttp) {
       log.debug("Custom logger detected. Delaying Datadog Tracer initialization.");
       registerLogManagerCallback(installDatadogTracerCallback);
@@ -496,19 +496,21 @@ public class Agent {
   }
 
   protected static class InstallDatadogTracerCallback extends ClassLoadCallBack {
-    private final InitializationTelemetry initTelemetry;
     private final Instrumentation instrumentation;
     private final Object sco;
     private final Class<?> scoClass;
+    private final boolean delayOkHttp;
 
     public InstallDatadogTracerCallback(
-        InitializationTelemetry initTelemetry, Instrumentation instrumentation) {
-      this.initTelemetry = initTelemetry;
+        InitializationTelemetry initTelemetry,
+        Instrumentation instrumentation,
+        boolean delayOkHttp) {
+      this.delayOkHttp = delayOkHttp;
       this.instrumentation = instrumentation;
       try {
         scoClass =
             AGENT_CLASSLOADER.loadClass("datadog.communication.ddagent.SharedCommunicationObjects");
-        sco = scoClass.getConstructor().newInstance();
+        sco = scoClass.getConstructor(boolean.class).newInstance(delayOkHttp);
       } catch (ClassNotFoundException
           | NoSuchMethodException
           | InstantiationException
@@ -516,6 +518,9 @@ public class Agent {
           | InvocationTargetException e) {
         throw new UndeclaredThrowableException(e);
       }
+
+      installDatadogTracer(initTelemetry, scoClass, sco);
+      maybeInstallLogsIntake(scoClass, sco);
     }
 
     @Override
@@ -525,17 +530,29 @@ public class Agent {
 
     @Override
     public void execute() {
-      installDatadogTracer(initTelemetry, scoClass, sco);
+      if (delayOkHttp) {
+        resumeRemoteComponents();
+      }
+
       maybeStartAppSec(scoClass, sco);
       maybeStartIast(instrumentation, scoClass, sco);
       maybeStartCiVisibility(instrumentation, scoClass, sco);
-      maybeStartLogsIntake(scoClass, sco);
       // start debugger before remote config to subscribe to it before starting to poll
       maybeStartDebugger(instrumentation, scoClass, sco);
       maybeStartRemoteConfig(scoClass, sco);
 
       if (telemetryEnabled) {
         startTelemetry(instrumentation, scoClass, sco);
+      }
+    }
+
+    private void resumeRemoteComponents() {
+      try {
+        Thread.sleep(1_000);
+        scoClass.getMethod("resume").invoke(sco);
+      } catch (InterruptedException ignore) {
+      } catch (Exception e) {
+        log.error("Error resuming remote components", e);
       }
     }
   }
@@ -864,17 +881,18 @@ public class Agent {
     }
   }
 
-  private static void maybeStartLogsIntake(Class<?> scoClass, Object sco) {
+  private static void maybeInstallLogsIntake(Class<?> scoClass, Object sco) {
     if (agentlessLogSubmissionEnabled) {
       StaticEventLogger.begin("Logs Intake");
 
       try {
         final Class<?> logsIntakeSystemClass =
             AGENT_CLASSLOADER.loadClass("datadog.trace.logging.intake.LogsIntakeSystem");
-        final Method logsIntakeInstallerMethod = logsIntakeSystemClass.getMethod("start", scoClass);
+        final Method logsIntakeInstallerMethod =
+            logsIntakeSystemClass.getMethod("install", scoClass);
         logsIntakeInstallerMethod.invoke(null, sco);
       } catch (final Throwable e) {
-        log.warn("Not starting Logs Intake subsystem", e);
+        log.warn("Not installing Logs Intake subsystem", e);
       }
 
       StaticEventLogger.end("Logs Intake");

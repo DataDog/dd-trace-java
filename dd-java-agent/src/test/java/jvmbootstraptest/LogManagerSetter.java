@@ -39,8 +39,10 @@ public class LogManagerSetter {
     } else if (System.getProperty("java.util.logging.manager") != null) {
       System.out.println("java.util.logging.manager != null");
 
-      assertTraceInstallationDelayed(
-          "tracer install must be delayed when log manager system property is present.");
+      customAssert(
+          isTracerInstalled(false),
+          true,
+          "tracer install is not delayed when log manager system property is present.");
       customAssert(
           isJmxfetchStarted(false),
           false,
@@ -58,8 +60,6 @@ public class LogManagerSetter {
               .loadClass(System.getProperty("java.util.logging.manager")),
           "Javaagent should not prevent setting a custom log manager");
       customAssert(
-          isTracerInstalled(true), true, "tracer should be installed after loading LogManager.");
-      customAssert(
           isJmxfetchStarted(true), true, "jmxfetch should start after loading LogManager.");
       if (isJFRSupported()) {
         customAssert(
@@ -67,8 +67,10 @@ public class LogManagerSetter {
       }
     } else if (System.getenv("JBOSS_HOME") != null) {
       System.out.println("JBOSS_HOME != null");
-      assertTraceInstallationDelayed(
-          "tracer install must be delayed when JBOSS_HOME property is present.");
+      customAssert(
+          isTracerInstalled(false),
+          true,
+          "tracer install is not delayed when JBOSS_HOME property is present.");
       customAssert(
           isJmxfetchStarted(false),
           false,
@@ -85,10 +87,6 @@ public class LogManagerSetter {
               .getClassLoader()
               .loadClass(System.getProperty("java.util.logging.manager")),
           "Javaagent should not prevent setting a custom log manager");
-      customAssert(
-          isTracerInstalled(true),
-          true,
-          "tracer should be installed after loading with JBOSS_HOME set.");
       customAssert(
           isJmxfetchStarted(true),
           true,
@@ -125,17 +123,6 @@ public class LogManagerSetter {
     if (!got.equals(expected)) {
       throw new RuntimeException(
           "Assertion failed. Expected <" + expected + "> got <" + got + "> " + assertionMessage);
-    }
-  }
-
-  private static void assertTraceInstallationDelayed(final String message) {
-    if (okHttpMayIndirectlyLoadJUL()) {
-      customAssert(isTracerInstalled(false), false, message);
-    } else {
-      customAssert(
-          isTracerInstalled(false),
-          true,
-          "We can safely install tracer on java9+ since it doesn't indirectly trigger logger manager init");
     }
   }
 

@@ -2,6 +2,7 @@ package datadog.trace.logging.intake;
 
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
+import datadog.communication.BackendApiFactory;
 import datadog.trace.api.Config;
 import datadog.trace.api.logging.intake.LogsWriter;
 import datadog.trace.util.AgentThreadFactory;
@@ -23,12 +24,12 @@ public class LogsWriterImpl implements LogsWriter {
   private static final int ENQUEUE_LOG_TIMEOUT_MILLIS = 1_000;
 
   private final Map<String, Object> commonTags;
-  private final LogsDispatcher logsDispatcher;
+  private final BackendApiFactory apiFactory;
   private final BlockingQueue<Map<String, Object>> messageQueue;
   private final Thread messagePollingThread;
 
-  public LogsWriterImpl(Config config, LogsDispatcher logsDispatcher) {
-    this.logsDispatcher = logsDispatcher;
+  public LogsWriterImpl(Config config, BackendApiFactory apiFactory) {
+    this.apiFactory = apiFactory;
 
     commonTags = new HashMap<>();
     commonTags.put("ddsource", "java");
@@ -84,6 +85,9 @@ public class LogsWriterImpl implements LogsWriter {
   }
 
   private void logPollingLoop() {
+    LogsDispatcher logsDispatcher =
+        new LogsDispatcher(apiFactory.createBackendApi(BackendApiFactory.Intake.LOGS));
+
     while (!Thread.currentThread().isInterrupted()) {
       try {
         List<Map<String, Object>> batch = new ArrayList<>();

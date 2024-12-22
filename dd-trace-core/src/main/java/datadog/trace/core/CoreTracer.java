@@ -689,7 +689,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
     pendingTraceBuffer.start();
 
-    this.writer.start();
+    sharedCommunicationObjects.whenReady(this.writer::start);
 
     metricsAggregator = createMetricsAggregator(config, sharedCommunicationObjects);
     // Schedule the metrics aggregator to begin reporting after a random delay of 1 to 10 seconds
@@ -705,7 +705,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     } else {
       this.dataStreamsMonitoring = dataStreamsMonitoring;
     }
-    this.dataStreamsMonitoring.start();
+
+    sharedCommunicationObjects.whenReady(this.dataStreamsMonitoring::start);
 
     // Create default extractor from config if not provided and decorate it with DSM extractor
     HttpCodec.Extractor builtExtractor =
