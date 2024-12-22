@@ -498,22 +498,13 @@ public class Agent {
   protected static class InstallDatadogTracerCallback extends ClassLoadCallBack {
     private final InitializationTelemetry initTelemetry;
     private final Instrumentation instrumentation;
+    private final Object sco;
+    private final Class<?> scoClass;
 
     public InstallDatadogTracerCallback(
         InitializationTelemetry initTelemetry, Instrumentation instrumentation) {
       this.initTelemetry = initTelemetry;
       this.instrumentation = instrumentation;
-    }
-
-    @Override
-    public AgentThread agentThread() {
-      return TRACE_STARTUP;
-    }
-
-    @Override
-    public void execute() {
-      Object sco;
-      Class<?> scoClass;
       try {
         scoClass =
             AGENT_CLASSLOADER.loadClass("datadog.communication.ddagent.SharedCommunicationObjects");
@@ -525,7 +516,15 @@ public class Agent {
           | InvocationTargetException e) {
         throw new UndeclaredThrowableException(e);
       }
+    }
 
+    @Override
+    public AgentThread agentThread() {
+      return TRACE_STARTUP;
+    }
+
+    @Override
+    public void execute() {
       installDatadogTracer(initTelemetry, scoClass, sco);
       maybeStartAppSec(scoClass, sco);
       maybeStartIast(instrumentation, scoClass, sco);
