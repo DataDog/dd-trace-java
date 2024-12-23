@@ -259,6 +259,41 @@ class TaintedMapTest extends DDSpecification {
     map.count() == 2
   }
 
+  void 'test removal of elements'() {
+    given:
+    final capacity = 1 // single bucket
+    final map = new TaintedMap.TaintedMapImpl()
+    final gen = new ObjectGen(capacity)
+    final to = gen.genObjects(5, ObjectGen.TRUE).collect { new TaintedObject(it, [] as Range[]) }
+
+    when: 'purging the head with put'
+    map.put(to[0])
+    to[0].clear()
+    map.put(to[1])
+
+    then:
+    map.size() == 1
+    map.count() == 1
+
+    when: 'purging an element in the middle with put'
+    map.put(to[2])
+    map.put(to[3])
+    to[2].clear()
+    map.put(to[4])
+
+    then:
+    map.size() == 3
+    map.count() == 3
+
+    when: 'purging the tail with get'
+    to[4].clear()
+    map.get('I am not in the map!!!')
+
+    then:
+    map.size() == 2
+    map.count() == 2
+  }
+
   void 'test no op implementation'() {
     setup:
     final instance = TaintedMap.NoOp.INSTANCE
