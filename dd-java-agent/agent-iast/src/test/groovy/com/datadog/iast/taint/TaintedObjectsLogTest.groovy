@@ -80,6 +80,23 @@ class TaintedObjectsLogTest extends DDSpecification {
     taintedObjects.iterator().size() == 1
   }
 
+  void "test TaintedObjects debug log with clearTaint"() {
+    given:
+    IastSystem.DEBUG = true
+    logger.level = Level.ALL
+    TaintedObjects taintedObjects = taintedObjects()
+    final obj = 'A'
+    taintedObjects.taint(obj, Ranges.forCharSequence(obj, new Source(SourceTypes.NONE, null, null)))
+
+    when:
+    taintedObjects.clearTaint(obj)
+
+    then:
+    noExceptionThrown()
+    taintedObjects.size() == 0
+    taintedObjects.iterator().size() == 0
+  }
+
   void 'should not taint null ranges'() {
     given:
     IastSystem.DEBUG = true

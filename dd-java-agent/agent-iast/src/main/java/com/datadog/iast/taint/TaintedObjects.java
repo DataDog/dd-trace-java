@@ -108,7 +108,7 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
     @Override
     public void clearTaint(final @Nonnull Object obj) {
       delegated.clearTaint(obj);
-      logUntainted(obj);
+      logRemovedTaintedObject(obj);
     }
 
     @Nullable
@@ -158,16 +158,16 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
       }
     }
 
-    private void logUntainted(@Nullable final Object obj) {
+    private void logRemovedTaintedObject(@Nullable final Object obj) {
       if (LOGGER.isDebugEnabled()) {
         try {
           if (obj == null) {
-            LOGGER.debug("untaint {}: not removed", id);
+            LOGGER.debug("clearTaint {}: not removed", id);
           } else {
-            LOGGER.debug("untaint {}: untainted={}", id, obj.hashCode());
+            LOGGER.debug("clearTaint {}: untainted={}", id, obj.hashCode());
           }
         } catch (final Throwable e) {
-          LOGGER.error("Failed to debug untainted object", e);
+          LOGGER.error("Failed to debug removed object", e);
         }
       }
     }
