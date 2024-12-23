@@ -28,6 +28,8 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
   @Nullable
   TaintedObject taint(@Nonnull Object obj, @Nonnull Range[] ranges);
 
+  void untaint(@Nonnull Object obj);
+
   @Nullable
   TaintedObject get(@Nonnull Object obj);
 
@@ -54,6 +56,11 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
         LOGGER.debug("Error tainting object, it won't be tainted", e);
         return null;
       }
+    }
+
+    @Override
+    public void untaint(final @Nonnull Object obj) {
+      map.remove(obj);
     }
 
     @Nullable
@@ -96,6 +103,12 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
       final TaintedObject tainted = delegated.taint(obj, ranges);
       logTainted(tainted);
       return tainted;
+    }
+
+    @Override
+    public void untaint(final @Nonnull Object obj) {
+      delegated.untaint(obj);
+      logUntainted(obj);
     }
 
     @Nullable
@@ -145,6 +158,20 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
       }
     }
 
+    private void logUntainted(@Nullable final Object obj) {
+      if (LOGGER.isDebugEnabled()) {
+        try {
+          if (obj == null) {
+            LOGGER.debug("untaint {}: not removed", id);
+          } else {
+            LOGGER.debug("untaint {}: untainted={}", id, obj.hashCode());
+          }
+        } catch (final Throwable e) {
+          LOGGER.error("Failed to debug untainted object", e);
+        }
+      }
+    }
+
     @Override
     public TaintedObjectsImpl unwrap() {
       return delegated;
@@ -160,6 +187,9 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
     public TaintedObject taint(@Nonnull final Object obj, @Nonnull final Range[] ranges) {
       return null;
     }
+
+    @Override
+    public void untaint(final @Nonnull Object obj) {}
 
     @Nullable
     @Override
