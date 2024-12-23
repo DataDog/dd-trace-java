@@ -85,7 +85,7 @@ public interface TaintedMap extends Iterable<TaintedObject> {
 
   void put(final @Nonnull TaintedObject entry);
 
-  boolean remove(final @Nonnull Object obj);
+  void remove(final @Nonnull Object obj);
 
   int count();
 
@@ -213,15 +213,14 @@ public interface TaintedMap extends Iterable<TaintedObject> {
     }
 
     @Override
-    public boolean remove(final @Nonnull Object obj) {
+    public void remove(final @Nonnull Object obj) {
       TaintedObject entry = get(obj);
       if (entry == null) {
-        return false;
+        return;
       }
 
       final int index = index(entry.positiveHashCode);
       table[index] = null;
-      return true;
     }
 
     @Override
@@ -367,8 +366,8 @@ public interface TaintedMap extends Iterable<TaintedObject> {
     }
 
     @Override
-    public boolean remove(final @Nonnull Object obj) {
-      return delegate.remove(obj);
+    public void remove(final @Nonnull Object obj) {
+      delegate.remove(obj);
     }
 
     @Nullable
@@ -475,9 +474,7 @@ public interface TaintedMap extends Iterable<TaintedObject> {
     public void put(@Nonnull TaintedObject entry) {}
 
     @Override
-    public boolean remove(@Nonnull Object obj) {
-      return false;
-    }
+    public void remove(@Nonnull Object obj) {}
 
     @Override
     public int count() {
