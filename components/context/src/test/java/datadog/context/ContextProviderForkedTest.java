@@ -4,27 +4,27 @@ import static datadog.context.Context.root;
 import static datadog.context.ContextTest.STRING_KEY;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import javax.annotation.Nonnull;
 import org.junit.jupiter.api.Test;
 
 class ContextProviderForkedTest {
-
   @Test
   void testCustomBinder() {
     // register a NOOP context binder
     ContextBinder.register(
         new ContextBinder() {
           @Override
-          public Context from(Object carrier) {
+          public Context from(@Nonnull Object carrier) {
             return root();
           }
 
           @Override
-          public void attachTo(Object carrier, Context context) {
+          public void attachTo(@Nonnull Object carrier, @Nonnull Context context) {
             // no-op
           }
 
           @Override
-          public Context detachFrom(Object carrier) {
+          public Context detachFrom(@Nonnull Object carrier) {
             return root();
           }
         });

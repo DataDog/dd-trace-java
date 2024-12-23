@@ -1,5 +1,7 @@
 package datadog.context;
 
+import static datadog.context.Context.root;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -7,8 +9,10 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import javax.annotation.Nullable;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 class ContextTest {
   static final ContextKey<String> STRING_KEY = ContextKey.named("string-key");
@@ -16,40 +20,31 @@ class ContextTest {
   static final ContextKey<Float> FLOAT_KEY = ContextKey.named("float-key");
   static final ContextKey<Long> LONG_KEY = ContextKey.named("long-key");
 
-  // demonstrate how values can hide their context keys
-  static class ValueWithKey implements ImplicitContextKeyed {
-    static final ContextKey<ValueWithKey> HIDDEN_KEY = ContextKey.named("hidden-key");
-
-    @Override
-    public Context storeInto(Context context) {
-      return context.with(HIDDEN_KEY, this);
-    }
-
-    @Nullable
-    public static ValueWithKey from(Context context) {
-      return context.get(HIDDEN_KEY);
-    }
-  }
-
   @Test
-  void testEmpty() {
-    // Test empty is always the same
-    Context empty = Context.root();
-    assertEquals(empty, Context.root());
-    // Test empty is not mutated
+  void testRoot() {
+    // Test root is always the same
+    Context root = root();
+    assertEquals(root, root(), "Root context should be consistent");
+    // Test root is not mutated
     String stringValue = "value";
-    empty.with(STRING_KEY, stringValue);
-    assertEquals(empty, Context.root());
+    root.with(STRING_KEY, stringValue);
+    assertEquals(root, root(), "Root context should be immutable");
   }
 
-  @Test
-  void testWith() {
-    Context empty = Context.root();
+  static Stream<Context> contextImplementations() {
+    SingletonContext singletonContext = new SingletonContext(ContextKey.named("test").index, true);
+    IndexedContext indexedContext = new IndexedContext(new Object[0]);
+    return Stream.of(Context.root(), singletonContext, indexedContext);
+  }
+
+  @ParameterizedTest
+  @MethodSource("contextImplementations")
+  void testWith(Context context) {
     // Test accessing non-set value
-    assertNull(empty.get(STRING_KEY));
+    assertNull(context.get(STRING_KEY));
     // Test retrieving value
     String stringValue = "value";
-    Context context1 = empty.with(STRING_KEY, stringValue);
+    Context context1 = context.with(STRING_KEY, stringValue);
     assertEquals(stringValue, context1.get(STRING_KEY));
     // Test overriding value
     String stringValue2 = "value2";
@@ -59,21 +54,27 @@ class ContextTest {
     Context context3 = context2.with(STRING_KEY, null);
     assertNull(context3.get(STRING_KEY));
     // Test null key handling
-    assertThrows(NullPointerException.class, () -> empty.with(null, "test"));
+    assertThrows(
+        NullPointerException.class, () -> context.with(null, "test"), "Context forbids null keys");
+    // Test null value handling
+    assertDoesNotThrow(
+        () -> context.with(BOOLEAN_KEY, null), "Null value should not throw exception");
+    // Test null implicitly keyed value handling
+    assertDoesNotThrow(() -> context.with(null), "Null implicitly keyed value not throw exception");
   }
 
-  @Test
-  void testGet() {
+  @ParameterizedTest
+  @MethodSource("contextImplementations")
+  void testGet(Context original) {
     // Setup context
-    Context empty = Context.root();
     String value = "value";
-    Context context = empty.with(STRING_KEY, value);
+    Context context = original.with(STRING_KEY, value);
     // Test null key handling
-    assertThrows(NullPointerException.class, () -> context.get(null));
+    assertThrows(NullPointerException.class, () -> context.get(null), "Context forbids null keys");
     // Test unset key
-    assertNull(context.get(BOOLEAN_KEY));
+    assertNull(context.get(BOOLEAN_KEY), "Missing key expected to return null");
     // Test set key
-    assertEquals(value, context.get(STRING_KEY));
+    assertEquals(value, context.get(STRING_KEY), "Value expected to be retrieved");
   }
 
   @SuppressWarnings({
@@ -85,13 +86,13 @@ class ContextTest {
   @Test
   void testEqualsAndHashCode() {
     // Setup contexts
-    Context empty = Context.root();
-    Context context1 = empty.with(STRING_KEY, "value");
-    Context context2 = empty.with(STRING_KEY, "value    ");
-    Context context3 = empty.with(STRING_KEY, "value    ".trim());
-    Context context4 = empty.with(STRING_KEY, "value").with(BOOLEAN_KEY, true);
+    Context root = root();
+    Context context1 = root.with(STRING_KEY, "value");
+    Context context2 = root.with(STRING_KEY, "value    ");
+    Context context3 = root.with(STRING_KEY, "value    ".trim());
+    Context context4 = root.with(STRING_KEY, "value").with(BOOLEAN_KEY, true);
     // Test equals on self
-    assertTrue(empty.equals(empty));
+    assertTrue(root.equals(root));
     assertTrue(context1.equals(context1));
     assertTrue(context4.equals(context4));
     // Test equals on null
@@ -104,34 +105,24 @@ class ContextTest {
     assertTrue(context1.equals(context3));
     assertEquals(context1.hashCode(), context3.hashCode());
     // Test equals on different contexts
-    assertFalse(context1.equals(empty));
-    assertNotEquals(context1.hashCode(), empty.hashCode());
+    assertFalse(context1.equals(root));
+    assertNotEquals(context1.hashCode(), root.hashCode());
     assertFalse(context1.equals(context2));
     assertNotEquals(context1.hashCode(), context2.hashCode());
     assertFalse(context1.equals(context4));
     assertNotEquals(context1.hashCode(), context4.hashCode());
-    assertFalse(empty.equals(context1));
-    assertNotEquals(empty.hashCode(), context1.hashCode());
+    assertFalse(root.equals(context1));
+    assertNotEquals(root.hashCode(), context1.hashCode());
     assertFalse(context2.equals(context1));
     assertNotEquals(context2.hashCode(), context1.hashCode());
     assertFalse(context4.equals(context1));
     assertNotEquals(context4.hashCode(), context1.hashCode());
   }
 
-  @Test
-  void testImplicitKey() {
-    // Setup context
-    Context empty = Context.root();
-    ValueWithKey valueWithKey = new ValueWithKey();
-    Context context = empty.with(valueWithKey);
-    assertNull(ValueWithKey.from(empty));
-    assertEquals(valueWithKey, ValueWithKey.from(context));
-  }
-
   @SuppressWarnings({"SimplifiableAssertion"})
   @Test
   void testInflation() {
-    Context empty = Context.root();
+    Context empty = root();
 
     Context one = empty.with(STRING_KEY, "unset").with(STRING_KEY, "one");
     Context two = one.with(BOOLEAN_KEY, false).with(BOOLEAN_KEY, true);

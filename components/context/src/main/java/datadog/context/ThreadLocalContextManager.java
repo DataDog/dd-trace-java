@@ -2,7 +2,6 @@ package datadog.context;
 
 /** {@link ContextManager} that uses a {@link ThreadLocal} to track context per thread. */
 final class ThreadLocalContextManager implements ContextManager {
-
   private static final ThreadLocal<Context[]> CURRENT_HOLDER =
       ThreadLocal.withInitial(() -> new Context[] {EmptyContext.INSTANCE});
 
@@ -18,11 +17,9 @@ final class ThreadLocalContextManager implements ContextManager {
 
   @Override
   public ContextScope attach(Context context) {
-
     Context[] holder = CURRENT_HOLDER.get();
     Context previous = holder[0];
     holder[0] = context;
-
     return new ContextScope() {
       private boolean closed;
 
