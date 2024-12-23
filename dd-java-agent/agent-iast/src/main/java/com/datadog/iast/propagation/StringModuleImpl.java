@@ -853,7 +853,7 @@ public class StringModuleImpl implements StringModule {
     if (newRanges != null && newRanges.length > 0) {
       selfTainted.setRanges(newRanges);
     } else {
-      taintedObjects.untaint(self);
+      taintedObjects.clearTaint(self);
     }
   }
 

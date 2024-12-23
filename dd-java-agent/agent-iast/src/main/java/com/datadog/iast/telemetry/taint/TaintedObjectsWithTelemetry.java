@@ -46,8 +46,8 @@ public class TaintedObjectsWithTelemetry implements TaintedObjects, Wrapper<Tain
   }
 
   @Override
-  public void untaint(final @Nonnull Object obj) {
-    delegate.untaint(obj);
+  public void clearTaint(final @Nonnull Object obj) {
+    delegate.clearTaint(obj);
   }
 
   @Nullable

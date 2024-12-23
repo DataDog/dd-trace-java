@@ -28,7 +28,7 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
   @Nullable
   TaintedObject taint(@Nonnull Object obj, @Nonnull Range[] ranges);
 
-  void untaint(@Nonnull Object obj);
+  void clearTaint(@Nonnull Object obj);
 
   @Nullable
   TaintedObject get(@Nonnull Object obj);
@@ -59,7 +59,7 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
     }
 
     @Override
-    public void untaint(final @Nonnull Object obj) {
+    public void clearTaint(final @Nonnull Object obj) {
       map.remove(obj);
     }
 
@@ -106,8 +106,8 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
     }
 
     @Override
-    public void untaint(final @Nonnull Object obj) {
-      delegated.untaint(obj);
+    public void clearTaint(final @Nonnull Object obj) {
+      delegated.clearTaint(obj);
       logUntainted(obj);
     }
 
@@ -189,7 +189,7 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
     }
 
     @Override
-    public void untaint(final @Nonnull Object obj) {}
+    public void clearTaint(final @Nonnull Object obj) {}
 
     @Nullable
     @Override
