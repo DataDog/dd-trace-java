@@ -27,6 +27,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.decorator.TestDecorator;
@@ -35,6 +36,7 @@ import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.source.SourceResolutionException;
 import java.lang.reflect.Method;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -85,11 +87,13 @@ public class TestImpl implements DDTest {
 
     this.context = new TestContextImpl(coverageStore);
 
+    AgentSpan.Context traceContext =
+        new TagContext(CIConstants.CIAPP_TEST_ORIGIN, Collections.emptyMap());
     AgentTracer.SpanBuilder spanBuilder =
         AgentTracer.get()
             .buildSpan(CI_VISIBILITY_INSTRUMENTATION_NAME, testDecorator.component() + ".test")
             .ignoreActiveSpan()
-            .asChildOf(null)
+            .asChildOf(traceContext)
             .withRequestContextData(RequestContextSlot.CI_VISIBILITY, context);
 
     if (startTime != null) {

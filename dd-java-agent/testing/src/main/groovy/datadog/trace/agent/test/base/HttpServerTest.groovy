@@ -28,6 +28,7 @@ import datadog.trace.api.iast.IastContext
 import datadog.trace.api.normalize.SimpleHttpPathNormalizer
 import datadog.trace.bootstrap.blocking.BlockingActionHelper
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.URIUtils
@@ -1965,6 +1966,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         }
         if (null != expectedServerSpanRoute) {
           "$Tags.HTTP_ROUTE" expectedServerSpanRoute
+        }
+        if (span.getTag(InstrumentationTags.SERVLET_PATH) != null) {
+          assert span.getTag(InstrumentationTags.SERVLET_PATH).toString().startsWith("/")
         }
         if (null != expectedExtraErrorInformation) {
           addTags(expectedExtraErrorInformation)

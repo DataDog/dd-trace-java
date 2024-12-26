@@ -1,0 +1,16 @@
+{
+    "pull_request": {
+        "number": 7884,
+        "draft": false,
+        "labels": [
+            {
+                "name": "comp: api"
+            },
+            {
+                "name": "type: enhancement"
+            }
+        ],
+        "title": "Adding some new features",
+        "body": "# What Does This Do\n\nThis PR introduces a workflow to check that PRs labels and title match the contributing guidelines.\nIt fixes #1234 amoung other issues."
+    }
+}

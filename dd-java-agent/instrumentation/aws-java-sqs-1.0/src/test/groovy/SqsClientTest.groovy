@@ -44,6 +44,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
     // Set a service name that gets sorted early with SORT_BY_NAMES
     injectSysConfig(GeneralConfig.SERVICE_NAME, "A-service")
     injectSysConfig(GeneralConfig.DATA_STREAMS_ENABLED, isDataStreamsEnabled().toString())
+    injectSysConfig("trace.sqs.body.propagation.enabled", "true")
   }
 
   @Shared
@@ -406,7 +407,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
       }
       trace(1) {
         span {
-          serviceName SpanNaming.instance().namingSchema().messaging().inboundService("jms", Config.get().isJmsLegacyTracingEnabled()) ?: Config.get().getServiceName()
+          serviceName SpanNaming.instance().namingSchema().messaging().inboundService("jms", Config.get().isJmsLegacyTracingEnabled()).get() ?: Config.get().getServiceName()
           operationName SpanNaming.instance().namingSchema().messaging().inboundOperation("jms")
           resourceName "Consumed from Queue somequeue"
           spanType DDSpanTypes.MESSAGE_CONSUMER
@@ -511,6 +512,22 @@ class SqsClientV0DataStreamsTest extends SqsClientTest {
 }
 
 class SqsClientV1DataStreamsForkedTest extends SqsClientTest {
+  private static final String MESSAGE_WITH_ATTRIBUTES = "{\n" +
+  "  \"Type\" : \"Notification\",\n" +
+  "  \"MessageId\" : \"cb337e2a-1c06-5629-86f5-21fba14fb492\",\n" +
+  "  \"TopicArn\" : \"arn:aws:sns:us-east-1:223300679234:dsm-dev-sns-topic\",\n" +
+  "  \"Message\" : \"Some message\",\n" +
+  "  \"Timestamp\" : \"2024-12-10T03:52:41.662Z\",\n" +
+  "  \"SignatureVersion\" : \"1\",\n" +
+  "  \"Signature\" : \"ZsEewd5gNR8jLC08TenLDp5rhdBtGIdAzWk7j6fzDyUzb/t56R9SBPrNJtjsPO8Ep8v/iGs/wSFUrnm+Zh3N1duc3alR1bKTAbDlzbEBxaHsGcNwzMz14JF7bKLE+3nPIi0/kT8EuIiRevGqPtCG/NEe9oW2dOyvYZvt+L7GC0AS9L0yJp8Ag7NkgNvYbIqPeKcjj8S7WRiV95Useg0P46e5pn5FXmNKPlpIqYN28jnrTZHWUDTiO5RE7lfFcdH2tBaYSR9F/PwA1Mga5NrTxlZp/yDoOlOUFj5zXAtDDpjNTcR48jAu66Mpi1wom7Si7vc3ZsYzN2Z2ig/aUJLaNA==\",\n" +
+  "  \"SigningCertURL\" : \"https://sns.us-east-1.amazonaws.com/SimpleNotificationService-some-pem.pem\",\n" +
+  "  \"UnsubscribeURL\" : \"https://sns.us-east-1.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:us-east-1:7270067952343:dsm-dev-sns-topic:0d82adcc-5b42-4035-81c4-22ccd126fc41\",\n" +
+  "  \"MessageAttributes\" : {\n" +
+  "    \"_datadog\" : {\"Type\":\"Binary\",\"Value\":\"eyJ4LWRhdGFkb2ctdHJhY2UtaWQiOiI1ODExMzQ0MDA5MDA2NDM1Njk0IiwieC1kYXRhZG9nLXBhcmVudC1pZCI6Ijc3MjQzODMxMjg4OTMyNDAxNDAiLCJ4LWRhdGFkb2ctc2FtcGxpbmctcHJpb3JpdHkiOiIwIiwieC1kYXRhZG9nLXRhZ3MiOiJfZGQucC50aWQ9Njc1N2JiMDkwMDAwMDAwMCIsInRyYWNlcGFyZW50IjoiMDAtNjc1N2JiMDkwMDAwMDAwMDUwYTYwYTk2MWM2YzRkNmUtNmIzMjg1ODdiYWIzYjM0Yy0wMCIsInRyYWNlc3RhdGUiOiJkZD1zOjA7cDo2YjMyODU4N2JhYjNiMzRjO3QudGlkOjY3NTdiYjA5MDAwMDAwMDAiLCJkZC1wYXRod2F5LWN0eC1iYXNlNjQiOiJkdzdKcjU0VERkcjA5cFRyOVdUMDlwVHI5V1E9In0=\"}\n" +
+  "  }\n" +
+  "}"
+
+
   @Override
   String expectedOperation(String awsService, String awsOperation) {
     if (awsService == "SQS") {
@@ -536,6 +553,97 @@ class SqsClientV1DataStreamsForkedTest extends SqsClientTest {
   @Override
   int version() {
     1
+  }
+
+  def "Data streams context extracted from message body"() {
+    setup:
+    def client = AmazonSQSClientBuilder.standard()
+      .withEndpointConfiguration(endpoint)
+      .withCredentials(credentialsProvider)
+      .build()
+    def queueUrl = client.createQueue('somequeue').queueUrl
+    TEST_WRITER.clear()
+
+    when:
+    injectSysConfig(GeneralConfig.DATA_STREAMS_ENABLED, "false")
+    client.sendMessage(queueUrl, MESSAGE_WITH_ATTRIBUTES)
+    injectSysConfig(GeneralConfig.DATA_STREAMS_ENABLED, "true")
+    def messages = client.receiveMessage(queueUrl).messages
+    messages.forEach {/* consume to create message spans */ }
+
+    TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+
+    then:
+    StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == -2734507826469073289 }
+
+    verifyAll(first) {
+      edgeTags == ["direction:in", "topic:somequeue", "type:sqs"]
+      edgeTags.size() == 3
+    }
+
+    cleanup:
+    client.shutdown()
+  }
+
+  def "Data streams context not extracted from message body when message attributes are not present"() {
+    setup:
+    def client = AmazonSQSClientBuilder.standard()
+      .withEndpointConfiguration(endpoint)
+      .withCredentials(credentialsProvider)
+      .build()
+    def queueUrl = client.createQueue('somequeue').queueUrl
+    TEST_WRITER.clear()
+
+    when:
+    injectSysConfig(GeneralConfig.DATA_STREAMS_ENABLED, "false")
+    client.sendMessage(queueUrl, '{"Message": "sometext"}')
+    injectSysConfig(GeneralConfig.DATA_STREAMS_ENABLED, "true")
+    def messages = client.receiveMessage(queueUrl).messages
+    messages.forEach {}
+
+    TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+
+    then:
+    StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+
+    verifyAll(first) {
+      edgeTags == ["direction:in", "topic:somequeue", "type:sqs"]
+      edgeTags.size() == 3
+    }
+
+    cleanup:
+    client.shutdown()
+  }
+
+
+  def "Data streams context not extracted from message body when message is not a Json"() {
+    setup:
+    def client = AmazonSQSClientBuilder.standard()
+      .withEndpointConfiguration(endpoint)
+      .withCredentials(credentialsProvider)
+      .build()
+    def queueUrl = client.createQueue('somequeue').queueUrl
+    TEST_WRITER.clear()
+
+    when:
+    injectSysConfig(GeneralConfig.DATA_STREAMS_ENABLED, "false")
+    client.sendMessage(queueUrl, '{"Message": "not a json"')
+    injectSysConfig(GeneralConfig.DATA_STREAMS_ENABLED, "true")
+    def messages = client.receiveMessage(queueUrl).messages
+    messages.forEach {}
+
+    TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+
+    then:
+    StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+
+    verifyAll(first) {
+      edgeTags == ["direction:in", "topic:somequeue", "type:sqs"]
+      edgeTags.size() == 3
+    }
+
+    cleanup:
+    client.shutdown()
   }
 }
 

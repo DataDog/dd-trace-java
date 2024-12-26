@@ -28,6 +28,8 @@ public final class DebuggerConfig {
   public static final String DEBUGGER_REDACTION_EXCLUDED_IDENTIFIERS =
       "dynamic.instrumentation.redaction.excluded.identifiers";
   public static final String DEBUGGER_REDACTED_TYPES = "dynamic.instrumentation.redacted.types";
+  public static final String DEBUGGER_HOIST_LOCALVARS_ENABLED =
+      "dynamic.instrumentation.hoist.localvars.enabled";
   public static final String DEBUGGER_SYMBOL_ENABLED = "symbol.database.upload.enabled";
   public static final String DEBUGGER_SYMBOL_FORCE_UPLOAD = "internal.force.symbol.database.upload";
   public static final String DEBUGGER_SYMBOL_INCLUDES = "symbol.database.includes";

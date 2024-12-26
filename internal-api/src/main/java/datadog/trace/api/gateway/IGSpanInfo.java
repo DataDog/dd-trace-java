@@ -16,4 +16,8 @@ public interface IGSpanInfo {
   void setRequestBlockingAction(Flow.Action.RequestBlockingAction rba);
 
   Flow.Action.RequestBlockingAction getRequestBlockingAction();
+
+  boolean isRequiresPostProcessing();
+
+  void setRequiresPostProcessing(boolean requiresPostProcessing);
 }

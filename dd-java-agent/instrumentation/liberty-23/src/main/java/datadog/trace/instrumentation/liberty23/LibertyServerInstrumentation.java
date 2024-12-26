@@ -12,11 +12,15 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import com.ibm.ws.webcontainer.srt.SRTServletRequest;
 import com.ibm.ws.webcontainer.srt.SRTServletResponse;
+import com.ibm.ws.webcontainer.webapp.WebApp;
+import com.ibm.wsspi.webcontainer.webapp.IWebAppDispatcherContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.naming.ClassloaderServiceNames;
 import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -106,7 +110,18 @@ public final class LibertyServerInstrumentation extends InstrumenterModule.Traci
       request.setAttribute(DD_EXTRACTED_CONTEXT_ATTRIBUTE, extractedContext);
       final AgentSpan span = DECORATE.startSpan(request, extractedContext);
       scope = activateSpan(span, true);
-
+      if (Config.get().isJeeSplitByDeployment()) {
+        final IWebAppDispatcherContext dispatcherContext = request.getWebAppDispatcherContext();
+        if (dispatcherContext != null) {
+          final WebApp webapp = dispatcherContext.getWebApp();
+          if (webapp != null) {
+            final ClassLoader cl = webapp.getClassLoader();
+            if (cl != null) {
+              ClassloaderServiceNames.maybeSetToSpan(span, cl);
+            }
+          }
+        }
+      }
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request, request, extractedContext);
       request.setAttribute(DD_SPAN_ATTRIBUTE, span);

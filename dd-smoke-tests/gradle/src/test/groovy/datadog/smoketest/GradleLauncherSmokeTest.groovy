@@ -51,11 +51,12 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
 
   private String whenRunningGradleLauncherWithJavaTracerInjected(String gradleDaemonCmdLineParams) {
     def shellCommandExecutor = new ShellCommandExecutor(projectFolder.toFile(), GRADLE_BUILD_TIMEOUT_MILLIS, [
-      "GRADLE_OPTS"                      : "-javaagent:${AGENT_JAR}".toString(),
-      "DD_CIVISIBILITY_ENABLED"          : "true",
-      "DD_CIVISIBILITY_AGENTLESS_ENABLED": "true",
-      "DD_CIVISIBILITY_AGENTLESS_URL"    : "${mockBackend.intakeUrl}".toString(),
-      "DD_API_KEY"                       : "dummy"
+      "GRADLE_OPTS"                        : "-javaagent:${AGENT_JAR}".toString(),
+      "DD_CIVISIBILITY_ENABLED"            : "true",
+      "DD_CIVISIBILITY_AGENTLESS_ENABLED"  : "true",
+      "DD_CIVISIBILITY_AGENTLESS_URL"      : "${mockBackend.intakeUrl}".toString(),
+      "DD_CIVISIBILITY_GIT_UPLOAD_ENABLED" : "false",
+      "DD_API_KEY"                         : "dummy"
     ])
     String[] command = ["./gradlew", "--no-daemon", "--info"]
     if (gradleDaemonCmdLineParams) {

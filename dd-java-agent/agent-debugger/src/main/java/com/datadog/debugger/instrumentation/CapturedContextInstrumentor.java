@@ -396,7 +396,11 @@ public class CapturedContextInstrumentor extends Instrumentor {
     if (methodNode.tryCatchBlocks.size() > 0) {
       throwableListVar = declareThrowableList(insnList);
     }
-    unscopedLocalVars = initAndHoistLocalVars(insnList);
+    unscopedLocalVars = Collections.emptyList();
+    if (Config.get().isDebuggerHoistLocalVarsEnabled() && language == JvmLanguage.JAVA) {
+      // for now, only hoist local vars for Java
+      unscopedLocalVars = initAndHoistLocalVars(insnList);
+    }
     insnList.add(contextInitLabel);
     if (definition instanceof SpanDecorationProbe
         && definition.getEvaluateAt() == MethodLocation.EXIT) {
