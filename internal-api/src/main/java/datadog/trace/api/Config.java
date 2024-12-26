@@ -307,6 +307,7 @@ public class Config {
   private final int iastSourceMappingMaxSize;
   private final boolean iastStackTraceEnabled;
   private final boolean iastExperimentalPropagationEnabled;
+  private final String iastSecurityControlsConfiguration;
 
   private final boolean ciVisibilityTraceSanitationEnabled;
   private final boolean ciVisibilityAgentlessEnabled;
@@ -396,6 +397,7 @@ public class Config {
   private final String debuggerRedactedIdentifiers;
   private final Set<String> debuggerRedactionExcludedIdentifiers;
   private final String debuggerRedactedTypes;
+  private final boolean debuggerHoistLocalVarsEnabled;
   private final boolean debuggerSymbolEnabled;
   private final boolean debuggerSymbolForceUpload;
   private final String debuggerSymbolIncludes;
@@ -1331,6 +1333,8 @@ public class Config {
         configProvider.getBoolean(IAST_STACK_TRACE_ENABLED, DEFAULT_IAST_STACK_TRACE_ENABLED);
     iastExperimentalPropagationEnabled =
         configProvider.getBoolean(IAST_EXPERIMENTAL_PROPAGATION_ENABLED, false);
+    iastSecurityControlsConfiguration =
+        configProvider.getString(IAST_SECURITY_CONTROLS_CONFIGURATION, null);
 
     ciVisibilityTraceSanitationEnabled =
         configProvider.getBoolean(CIVISIBILITY_TRACE_SANITATION_ENABLED, true);
@@ -1538,6 +1542,9 @@ public class Config {
     debuggerRedactionExcludedIdentifiers =
         tryMakeImmutableSet(configProvider.getList(DEBUGGER_REDACTION_EXCLUDED_IDENTIFIERS));
     debuggerRedactedTypes = configProvider.getString(DEBUGGER_REDACTED_TYPES, null);
+    debuggerHoistLocalVarsEnabled =
+        configProvider.getBoolean(
+            DEBUGGER_HOIST_LOCALVARS_ENABLED, DEFAULT_DEBUGGER_HOIST_LOCALVARS_ENABLED);
     debuggerSymbolEnabled =
         configProvider.getBoolean(DEBUGGER_SYMBOL_ENABLED, DEFAULT_DEBUGGER_SYMBOL_ENABLED);
     debuggerSymbolForceUpload =
@@ -2629,6 +2636,10 @@ public class Config {
     return iastExperimentalPropagationEnabled;
   }
 
+  public String getIastSecurityControlsConfiguration() {
+    return iastSecurityControlsConfiguration;
+  }
+
   public boolean isCiVisibilityEnabled() {
     return instrumenterConfig.isCiVisibilityEnabled();
   }
@@ -3061,6 +3072,10 @@ public class Config {
 
   public String getDebuggerRedactedTypes() {
     return debuggerRedactedTypes;
+  }
+
+  public boolean isDebuggerHoistLocalVarsEnabled() {
+    return debuggerHoistLocalVarsEnabled;
   }
 
   public boolean isAwsPropagationEnabled() {

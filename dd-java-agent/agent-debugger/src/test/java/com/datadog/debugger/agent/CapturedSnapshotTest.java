@@ -66,6 +66,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -208,6 +209,24 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     Class<?> testClass = Class.forName(CLASS_NAME);
     assertNotNull(testClass);
     testClass.newInstance();
+    assertOneSnapshot(listener);
+  }
+
+  @Test
+  public void oldClass1_1() throws Exception {
+    final String CLASS_NAME = "org.apache.commons.lang.BooleanUtils"; // compiled with jdk 1.1
+    TestSnapshotListener listener = installSingleProbe(CLASS_NAME, "toBoolean", null);
+    when(config.isDebuggerVerifyByteCode()).thenReturn(true);
+    Class<?> testClass =
+        loadClass(
+            CLASS_NAME,
+            Paths.get(
+                    CapturedSnapshotTest.class
+                        .getResource("/classfiles/BooleanUtils.classfile")
+                        .toURI())
+                .toString());
+    boolean result = Reflect.onClass(testClass).call("toBoolean", Boolean.TRUE).get();
+    assertTrue(result);
     assertOneSnapshot(listener);
   }
 
@@ -577,6 +596,39 @@ public class CapturedSnapshotTest extends CapturingTestBase {
       assertCaptureFields(snapshot.getCaptures().getLines().get(9), "intField", "int", "42");
       assertCaptureFields(
           snapshot.getCaptures().getLines().get(9), "strField", String.class.getTypeName(), "foo");
+    } finally {
+      filesToDelete.forEach(File::delete);
+    }
+  }
+
+  @Test
+  @DisabledIf(
+      value = "datadog.trace.api.Platform#isJ9",
+      disabledReason = "Issue with J9 when compiling Kotlin code")
+  public void suspendMethodKotlin() {
+    final String CLASS_NAME = "CapturedSnapshot302";
+    TestSnapshotListener listener =
+        installProbes(createProbe(PROBE_ID, CLASS_NAME, "download", null));
+    URL resource = CapturedSnapshotTest.class.getResource("/" + CLASS_NAME + ".kt");
+    assertNotNull(resource);
+    List<File> filesToDelete = new ArrayList<>();
+    try {
+      Class<?> testClass =
+          KotlinHelper.compileAndLoad(CLASS_NAME, resource.getFile(), filesToDelete);
+      Object companion = Reflect.onClass(testClass).get("Companion");
+      int result = Reflect.on(companion).call("main", "1").get();
+      assertEquals(1, result);
+      // 2 snapshots are expected because the method is executed twice one for each state
+      // before the delay, after the delay
+      List<Snapshot> snapshots = assertSnapshots(listener, 2);
+      Snapshot snapshot0 = snapshots.get(0);
+      assertCaptureReturnValue(
+          snapshot0.getCaptures().getReturn(),
+          "kotlin.coroutines.intrinsics.CoroutineSingletons",
+          "COROUTINE_SUSPENDED");
+      Snapshot snapshot1 = snapshots.get(1);
+      assertCaptureReturnValue(
+          snapshot1.getCaptures().getReturn(), String.class.getTypeName(), "1");
     } finally {
       filesToDelete.forEach(File::delete);
     }

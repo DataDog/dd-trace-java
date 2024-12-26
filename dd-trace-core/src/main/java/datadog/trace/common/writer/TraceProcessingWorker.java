@@ -13,7 +13,6 @@ import datadog.trace.common.writer.ddagent.Prioritization;
 import datadog.trace.common.writer.ddagent.PrioritizationStrategy;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.DDSpan;
-import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.postprocessor.SpanPostProcessor;
 import java.util.ArrayList;
@@ -266,8 +265,7 @@ public class TraceProcessingWorker implements AutoCloseable {
       // Filter spans that need post-processing
       List<DDSpan> spansToPostProcess = null;
       for (DDSpan span : trace) {
-        DDSpanContext context = span.context();
-        if (context != null && context.isRequiresPostProcessing()) {
+        if (span.isRequiresPostProcessing()) {
           if (spansToPostProcess == null) {
             spansToPostProcess = new ArrayList<>();
           }

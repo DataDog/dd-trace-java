@@ -4,9 +4,29 @@ import datadog.trace.api.Config;
 import datadog.trace.api.naming.ClassloaderServiceNames;
 import datadog.trace.api.naming.NamingSchema;
 import datadog.trace.api.remoteconfig.ServiceNameCollector;
+import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 
 class MessagingNamingV0 implements NamingSchema.ForMessaging {
+
+  private static class ClassloaderDependentNamingSupplier implements Supplier<String> {
+    private static final ClassloaderDependentNamingSupplier INSTANCE =
+        new ClassloaderDependentNamingSupplier();
+    private final String configServiceName = Config.get().getServiceName();
+
+    @Override
+    public String get() {
+      final String contextual = ClassloaderServiceNames.maybeGetForCurrentThread();
+      if (contextual != null) {
+        ServiceNameCollector.get().addService(contextual);
+        return contextual;
+      }
+      return configServiceName;
+    }
+  }
+
+  private static final Supplier<String> NULL_SUPPLIER = () -> null;
+
   private final boolean allowInferredServices;
 
   public MessagingNamingV0(final boolean allowInferredServices) {
@@ -23,7 +43,8 @@ class MessagingNamingV0 implements NamingSchema.ForMessaging {
   }
 
   @Override
-  public String outboundService(@Nonnull final String messagingSystem, boolean useLegacyTracing) {
+  public Supplier<String> outboundService(
+      @Nonnull final String messagingSystem, boolean useLegacyTracing) {
     return inboundService(messagingSystem, useLegacyTracing);
   }
 
@@ -41,29 +62,27 @@ class MessagingNamingV0 implements NamingSchema.ForMessaging {
   }
 
   @Override
-  public String inboundService(@Nonnull final String messagingSystem, boolean useLegacyTracing) {
+  public Supplier<String> inboundService(
+      @Nonnull final String messagingSystem, boolean useLegacyTracing) {
     if (allowInferredServices) {
       if (useLegacyTracing) {
         ServiceNameCollector.get().addService(messagingSystem);
-        return messagingSystem;
-      } else {
-        final String contextual = ClassloaderServiceNames.maybeGetForCurrentThread();
-        if (contextual != null) {
-          ServiceNameCollector.get().addService(contextual);
-          return contextual;
-        }
-        return Config.get().getServiceName();
+        return messagingSystem::toString;
+      } else if (Config.get().isJeeSplitByDeployment()) {
+        // in this particular case we're narrowing the service name from the context classloader.
+        // this is more expensive so we're doing only if that feature is enabled.
+        return ClassloaderDependentNamingSupplier.INSTANCE;
       }
-    } else {
-      return null;
+      return Config.get()::getServiceName;
     }
+    return NULL_SUPPLIER;
   }
 
   @Override
   @Nonnull
-  public String timeInQueueService(@Nonnull final String messagingSystem) {
+  public Supplier<String> timeInQueueService(@Nonnull final String messagingSystem) {
     ServiceNameCollector.get().addService(messagingSystem);
-    return messagingSystem;
+    return () -> messagingSystem;
   }
 
   @Nonnull

@@ -2,6 +2,7 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.utils.OkHttpUtils
 import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import okhttp3.Request
 import org.apache.cxf.endpoint.Server
@@ -70,7 +71,8 @@ class CxfContextPropagationTest extends AgentTestRunner {
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
             "$Tags.HTTP_ROUTE" String
-            "servlet.path" "/test"
+            "$InstrumentationTags.SERVLET_CONTEXT" "/"
+            "$InstrumentationTags.SERVLET_PATH" "/test"
             "$Tags.HTTP_USER_AGENT" String
             "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
             defaultTags()
