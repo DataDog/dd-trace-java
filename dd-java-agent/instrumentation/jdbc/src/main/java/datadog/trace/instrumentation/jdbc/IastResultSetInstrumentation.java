@@ -82,6 +82,7 @@ public class IastResultSetInstrumentation extends InstrumenterModule.Iast
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.SQL_TABLE)
     public static void onExit(
+        @Advice.Argument(0) Object argument,
         @Advice.Return final String value,
         @Advice.This final ResultSet resultSet,
         @ActiveRequestContext RequestContext reqCtx) {
@@ -98,7 +99,11 @@ public class IastResultSetInstrumentation extends InstrumenterModule.Iast
         return;
       }
       IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-      module.taintString(ctx, value, SourceTypes.SQL_TABLE);
+      if (argument instanceof String) {
+        module.taintString(ctx, value, SourceTypes.SQL_TABLE, (String) argument);
+      } else {
+        module.taintString(ctx, value, SourceTypes.SQL_TABLE);
+      }
     }
   }
 }

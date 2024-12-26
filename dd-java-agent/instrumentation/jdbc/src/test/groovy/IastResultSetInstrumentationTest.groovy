@@ -64,6 +64,7 @@ class IastResultSetInstrumentationTest extends IastAgentTestRunner {
     with(taintedObject) {
       with(ranges[0]) {
         source.origin == SourceTypes.SQL_TABLE
+        source.name == null
         source.value == valueRead
       }
     }
@@ -72,6 +73,7 @@ class IastResultSetInstrumentationTest extends IastAgentTestRunner {
   void 'returned string is tainted with source values as sql table but second value is not tainted'() {
     when:
     List<String> valuesRead = []
+    String column = "name"
     List<TaintedObject> taintedObjects = []
     runUnderIastTrace {
       String sql = 'SELECT name FROM TEST LIMIT 2'
@@ -80,7 +82,7 @@ class IastResultSetInstrumentationTest extends IastAgentTestRunner {
       constWrapper.prepareStatement(sql).withCloseable { stmt ->
         stmt.executeQuery().withCloseable { rs ->
           while (rs.next()) {
-            valuesRead.add(rs.getString("name"))
+            valuesRead.add(rs.getString(column))
           }
         }
       }
@@ -95,6 +97,7 @@ class IastResultSetInstrumentationTest extends IastAgentTestRunner {
     with(taintedObjects[0]) {
       with(ranges[0]) {
         source.origin == SourceTypes.SQL_TABLE
+        source.name == column
         source.value == valuesRead[0]
       }
     }
@@ -105,6 +108,7 @@ class IastResultSetInstrumentationTest extends IastAgentTestRunner {
   void 'returned string is tainted with source values as sql table and second value in the same row is tainted'() {
     when:
     List<String> valuesRead = []
+    String column = "name"
     List<TaintedObject> taintedObjects = []
     runUnderIastTrace {
       String sql = 'SELECT name FROM TEST LIMIT 1'
@@ -113,8 +117,8 @@ class IastResultSetInstrumentationTest extends IastAgentTestRunner {
       constWrapper.prepareStatement(sql).withCloseable { stmt ->
         stmt.executeQuery().withCloseable { rs ->
           while (rs.next()) {
-            valuesRead.add(rs.getString("name"))
-            valuesRead.add(rs.getString("name"))
+            valuesRead.add(rs.getString(column))
+            valuesRead.add(rs.getString(column))
           }
         }
       }
@@ -129,6 +133,7 @@ class IastResultSetInstrumentationTest extends IastAgentTestRunner {
     with(taintedObjects[0]) {
       with(ranges[0]) {
         source.origin == SourceTypes.SQL_TABLE
+        source.name == column
         source.value == valuesRead[0]
       }
     }
@@ -137,6 +142,7 @@ class IastResultSetInstrumentationTest extends IastAgentTestRunner {
     with(taintedObjects[1]) {
       with(ranges[0]) {
         source.origin == SourceTypes.SQL_TABLE
+        source.name == column
         source.value == valuesRead[1]
       }
     }
@@ -148,6 +154,7 @@ class IastResultSetInstrumentationTest extends IastAgentTestRunner {
 
     when:
     List<String> valuesRead = []
+    String column = "name"
     List<TaintedObject> taintedObjects = []
     runUnderIastTrace {
       String sql = 'SELECT name FROM TEST LIMIT 2'
@@ -156,7 +163,7 @@ class IastResultSetInstrumentationTest extends IastAgentTestRunner {
       constWrapper.prepareStatement(sql).withCloseable { stmt ->
         stmt.executeQuery().withCloseable { rs ->
           while (rs.next()) {
-            valuesRead.add(rs.getString("name"))
+            valuesRead.add(rs.getString(column))
           }
         }
       }
@@ -171,6 +178,7 @@ class IastResultSetInstrumentationTest extends IastAgentTestRunner {
     with(taintedObjects[0]) {
       with(ranges[0]) {
         source.origin == SourceTypes.SQL_TABLE
+        source.name == column
         source.value == valuesRead[0]
       }
     }
@@ -179,6 +187,7 @@ class IastResultSetInstrumentationTest extends IastAgentTestRunner {
     with(taintedObjects[1]) {
       with(ranges[0]) {
         source.origin == SourceTypes.SQL_TABLE
+        source.name == column
         source.value == valuesRead[1]
       }
     }
