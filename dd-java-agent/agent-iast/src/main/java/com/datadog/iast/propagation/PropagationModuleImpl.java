@@ -1,6 +1,7 @@
 package com.datadog.iast.propagation;
 
 import static com.datadog.iast.model.Source.PROPAGATION_PLACEHOLDER;
+import static com.datadog.iast.taint.Ranges.changeHighestPriorityRange;
 import static com.datadog.iast.taint.Ranges.highestPriorityRange;
 import static com.datadog.iast.util.ObjectVisitor.State.CONTINUE;
 import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
@@ -669,6 +670,39 @@ public class PropagationModuleImpl implements PropagationModule {
   }
 
   @Override
+  public void changeSource(@Nullable Object target, byte origin) {
+    if (target == null) {
+      return;
+    }
+    changeSource(target, origin, null);
+  }
+
+  @Override
+  public void changeSource(@Nullable Object target, byte origin, @Nullable CharSequence name) {
+    if (target == null) {
+      return;
+    }
+    final IastContext ctx = IastContext.Provider.get();
+    if (ctx == null) {
+      return;
+    }
+    changeSource(ctx, target, origin, name);
+  }
+
+  @Override
+  public void changeSource(
+      @Nullable final IastContext ctx,
+      @Nullable Object target,
+      byte origin,
+      @Nullable CharSequence name) {
+    if (ctx == null || target == null) {
+      return;
+    }
+    final TaintedObjects to = ctx.getTaintedObjects();
+    changeHighestPrioritySource(to, target, origin, name);
+  }
+
+  @Override
   public boolean isTainted(@Nullable final Object target) {
     if (target == null) {
       return false;
@@ -781,6 +815,32 @@ public class PropagationModuleImpl implements PropagationModule {
     } else {
       final Range[] ranges = getRanges(to, object);
       return ranges != null && ranges.length > 0 ? highestPriorityRange(ranges).getSource() : null;
+    }
+  }
+
+  private static void changeHighestPrioritySource(
+      final @Nonnull TaintedObjects to,
+      final @Nonnull Object object,
+      final byte origin,
+      @Nullable final CharSequence name) {
+    Source previousValue = highestPrioritySource(to, object);
+    if (previousValue == null) {
+      return;
+    }
+    Source newSource = newSource(object, origin, name, previousValue.getValue());
+    if (object instanceof Taintable) {
+      ((Taintable) object).$$DD$setSource(newSource);
+    } else {
+      TaintedObject taintedObject = to.get(object);
+      if (taintedObject == null) {
+        return;
+      }
+      final Range[] ranges = getRanges(to, object);
+      if (ranges == null || ranges.length == 0) {
+        return;
+      }
+      changeHighestPriorityRange(ranges, newSource);
+      taintedObject.setRanges(ranges);
     }
   }
 

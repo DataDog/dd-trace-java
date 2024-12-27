@@ -144,6 +144,20 @@ public final class Ranges {
     return ranges[0];
   }
 
+  public static void changeHighestPriorityRange(
+      @Nonnull final Range[] ranges, @Nonnull final Source source) {
+    for (int i = 0; i < ranges.length; i++) {
+      if (ranges[i].getMarks() == NOT_MARKED) {
+        Range newRange =
+            new Range(ranges[i].getStart(), ranges[i].getLength(), source, ranges[i].getMarks());
+        ranges[i] = newRange;
+      }
+    }
+    Range newRange =
+        new Range(ranges[0].getStart(), ranges[0].getLength(), source, ranges[0].getMarks());
+    ranges[0] = newRange;
+  }
+
   /**
    * Checks if all ranges are coming from any header, in case no ranges are provided it will return
    * {@code true}

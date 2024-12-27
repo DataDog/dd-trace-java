@@ -64,7 +64,6 @@ public class IastResultSetInstrumentation extends InstrumenterModule.Iast
 
   public static class NextAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.SQL_TABLE)
     public static void onExit(@Advice.This final ResultSet resultSet) {
       ContextStore<ResultSet, Integer> contextStore =
           InstrumentationContext.get(ResultSet.class, Integer.class);
@@ -100,9 +99,13 @@ public class IastResultSetInstrumentation extends InstrumenterModule.Iast
       }
       IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
       if (argument instanceof String) {
-        module.taintString(ctx, value, SourceTypes.SQL_TABLE, (String) argument);
+        if (module.isTainted(value)) {
+          module.changeSource(ctx, value, SourceTypes.SQL_TABLE, (String) argument);
+        } else {
+          module.taintString(ctx, value, SourceTypes.SQL_TABLE, (String) argument);
+        }
       } else {
-        module.taintString(ctx, value, SourceTypes.SQL_TABLE);
+        module.taintString(ctx, value, SourceTypes.SQL_TABLE, String.valueOf(argument));
       }
     }
   }
