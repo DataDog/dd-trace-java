@@ -70,7 +70,7 @@ public class Agent {
   private static final String SIMPLE_LOGGER_SHOW_DATE_TIME_PROPERTY =
       "datadog.slf4j.simpleLogger.showDateTime";
   private static final String SIMPLE_LOGGER_JSON_ENABLED_PROPERTY =
-      "datadog.slf4j.simpleLogger.json.enabled";
+      "datadog.slf4j.simpleLogger.jsonEnabled";
   private static final String SIMPLE_LOGGER_DATE_TIME_FORMAT_JSON_DEFAULT =
       "yyyy-MM-dd'T'HH:mm:ss.SSSZ";
   private static final String SIMPLE_LOGGER_DATE_TIME_FORMAT_PROPERTY =
@@ -1116,14 +1116,11 @@ public class Agent {
 
   private static void configureLogger() {
     setSystemPropertyDefault(SIMPLE_LOGGER_SHOW_DATE_TIME_PROPERTY, "true");
-
     String simpleLoggerJsonInSystemPropertySetByUser =
         System.getProperty(SIMPLE_LOGGER_JSON_ENABLED_PROPERTY);
-    String simpleLoggerJsonInEnvVarSetByUser = ddGetEnv(SIMPLE_LOGGER_JSON_ENABLED_PROPERTY);
+
     if ((simpleLoggerJsonInSystemPropertySetByUser != null
-            && simpleLoggerJsonInSystemPropertySetByUser.equalsIgnoreCase("true"))
-        || (simpleLoggerJsonInEnvVarSetByUser != null
-            && simpleLoggerJsonInEnvVarSetByUser.equalsIgnoreCase("true"))) {
+        && simpleLoggerJsonInSystemPropertySetByUser.equalsIgnoreCase("true"))) {
       setSystemPropertyDefault(
           SIMPLE_LOGGER_DATE_TIME_FORMAT_PROPERTY, SIMPLE_LOGGER_DATE_TIME_FORMAT_JSON_DEFAULT);
     } else {

@@ -33,7 +33,7 @@ public class SLCompatSettings {
     public static final String SHOW_THREAD_NAME = "showThreadName";
     public static final String DATE_TIME_FORMAT = "dateTimeFormat";
     public static final String SHOW_DATE_TIME = "showDateTime";
-    public static final String JSON_ENABLED = "json.enabled";
+    public static final String JSON_ENABLED = "jsonEnabled";
     public static final String DEFAULT_LOG_LEVEL = "defaultLogLevel";
     public static final String EMBED_EXCEPTION = "embedException";
     public static final String CONFIGURATION_FILE = "configurationFile";
