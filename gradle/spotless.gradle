@@ -6,6 +6,13 @@ def configPath = rootProject.hasProperty('sharedConfigDirectory') ? sharedConfig
 boolean groovySkipJavaExclude = project.hasProperty('groovySkipJavaExclude') ? groovySkipJavaExclude : false
 
 spotless {
+
+  if (rootProject.hasProperty('skipSpotless')) {
+    // Spotless in JDK 8 uses an older eclipse formatter, and it has a (flaky) bug crashing check_profiling.
+    // We disable it in CI, since we have a job dedicated to spotless anyway.
+    enforceCheck false
+  }
+
   if (project.plugins.hasPlugin('java')) {
     java {
       toggleOffOn()
