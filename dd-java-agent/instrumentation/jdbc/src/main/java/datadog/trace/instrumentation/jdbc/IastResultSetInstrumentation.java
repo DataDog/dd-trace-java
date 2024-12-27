@@ -105,7 +105,7 @@ public class IastResultSetInstrumentation extends InstrumenterModule.Iast
           module.taintString(ctx, value, SourceTypes.SQL_TABLE, (String) argument);
         }
       } else {
-        module.taintString(ctx, value, SourceTypes.SQL_TABLE, String.valueOf(argument));
+        module.taintString(ctx, value, SourceTypes.SQL_TABLE);
       }
     }
   }
