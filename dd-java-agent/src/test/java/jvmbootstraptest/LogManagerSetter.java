@@ -138,10 +138,13 @@ public class LogManagerSetter {
   }
 
   private static boolean isThreadStarted(final String name, final boolean wait) {
+    System.out.println("checking for thread " + name + "...");
+
     // Wait up to 10 seconds for thread to appear
     for (int i = 0; i < 20; i++) {
       for (final Thread thread : Thread.getAllStackTraces().keySet()) {
         if (name.equals(thread.getName())) {
+          System.out.println("...thread " + name + " has started");
           return true;
         }
       }
@@ -154,6 +157,7 @@ public class LogManagerSetter {
         e.printStackTrace();
       }
     }
+    System.out.println("...thread " + name + " has not started");
     return false;
   }
 
@@ -166,9 +170,12 @@ public class LogManagerSetter {
   }
 
   private static boolean isTracerInstalled(final boolean wait) {
+    System.out.println("checking for tracer install...");
+
     // Wait up to 10 seconds for tracer to get installed
     for (int i = 0; i < 20; i++) {
       if (AgentTracer.isRegistered()) {
+        System.out.println("...tracer is installed");
         return true;
       }
       if (!wait) {
@@ -180,6 +187,7 @@ public class LogManagerSetter {
         e.printStackTrace();
       }
     }
+    System.out.println("...tracer is not installed");
     return false;
   }
 
