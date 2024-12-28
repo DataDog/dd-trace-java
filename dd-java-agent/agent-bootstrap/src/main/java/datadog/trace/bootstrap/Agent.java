@@ -10,7 +10,6 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.JMX_STARTUP;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_STARTUP;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACE_STARTUP;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
-import static datadog.trace.util.Strings.getResourceName;
 import static datadog.trace.util.Strings.propertyNameToSystemPropertyName;
 import static datadog.trace.util.Strings.toEnvVar;
 
@@ -1286,14 +1285,8 @@ public class Agent {
 
     final String logManagerProp = System.getProperty("java.util.logging.manager");
     if (logManagerProp != null) {
-      final boolean onSysClasspath =
-          ClassLoader.getSystemResource(getResourceName(logManagerProp)) != null;
       log.debug("Prop - logging.manager: {}", logManagerProp);
-      log.debug("logging.manager on system classpath: {}", onSysClasspath);
-      // Some applications set java.util.logging.manager but never actually initialize the logger.
-      // Check to see if the configured manager is on the system classpath.
-      // If so, it should be safe to initialize jmxfetch which will setup the log manager.
-      return !onSysClasspath;
+      return true;
     }
 
     return false;
@@ -1324,14 +1317,8 @@ public class Agent {
 
     final String jmxBuilderProp = System.getProperty("javax.management.builder.initial");
     if (jmxBuilderProp != null) {
-      final boolean onSysClasspath =
-          ClassLoader.getSystemResource(getResourceName(jmxBuilderProp)) != null;
       log.debug("Prop - javax.management.builder.initial: {}", jmxBuilderProp);
-      log.debug("javax.management.builder.initial on system classpath: {}", onSysClasspath);
-      // Some applications set javax.management.builder.initial but never actually initialize JMX.
-      // Check to see if the configured JMX builder is on the system classpath.
-      // If so, it should be safe to initialize jmxfetch which will setup JMX.
-      return !onSysClasspath;
+      return true;
     }
 
     return false;

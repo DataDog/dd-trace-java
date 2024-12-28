@@ -39,55 +39,38 @@ public class LogManagerSetter {
     } else if (System.getProperty("java.util.logging.manager") != null) {
       System.out.println("java.util.logging.manager != null");
 
-      if (ClassLoader.getSystemResource(
-              System.getProperty("java.util.logging.manager").replaceAll("\\.", "/") + ".class")
-          == null) {
-        assertTraceInstallationDelayed(
-            "tracer install must be delayed when log manager system property is present.");
+      customAssert(
+          isTracerInstalled(false),
+          true,
+          "tracer install is not delayed when log manager system property is present.");
+      customAssert(
+          isJmxfetchStarted(false),
+          false,
+          "jmxfetch startup must be delayed when log manager system property is present.");
+      if (isJFRSupported()) {
+        assertProfilingStartupDelayed(
+            "profiling startup must be delayed when log manager system property is present.");
+      }
+      // Change back to a valid LogManager.
+      System.setProperty("java.util.logging.manager", CUSTOM_LOG_MANAGER_CLASS_NAME);
+      customAssert(
+          LogManager.getLogManager().getClass(),
+          LogManagerSetter.class
+              .getClassLoader()
+              .loadClass(System.getProperty("java.util.logging.manager")),
+          "Javaagent should not prevent setting a custom log manager");
+      customAssert(
+          isJmxfetchStarted(true), true, "jmxfetch should start after loading LogManager.");
+      if (isJFRSupported()) {
         customAssert(
-            isJmxfetchStarted(false),
-            false,
-            "jmxfetch startup must be delayed when log manager system property is present.");
-        if (isJFRSupported()) {
-          assertProfilingStartupDelayed(
-              "profiling startup must be delayed when log manager system property is present.");
-        }
-        // Change back to a valid LogManager.
-        System.setProperty("java.util.logging.manager", CUSTOM_LOG_MANAGER_CLASS_NAME);
-        customAssert(
-            LogManager.getLogManager().getClass(),
-            LogManagerSetter.class
-                .getClassLoader()
-                .loadClass(System.getProperty("java.util.logging.manager")),
-            "Javaagent should not prevent setting a custom log manager");
-        customAssert(
-            isTracerInstalled(true), true, "tracer should be installed after loading LogManager.");
-        customAssert(
-            isJmxfetchStarted(true), true, "jmxfetch should start after loading LogManager.");
-        if (isJFRSupported()) {
-          customAssert(
-              isProfilingStarted(true), true, "profiling should start after loading LogManager.");
-        }
-      } else {
-        customAssert(
-            isTracerInstalled(false),
-            true,
-            "tracer should be installed in premain when custom log manager found on classpath.");
-        customAssert(
-            isJmxfetchStarted(false),
-            true,
-            "jmxfetch should start in premain when custom log manager found on classpath.");
-        if (isJFRSupported()) {
-          customAssert(
-              isProfilingStarted(false),
-              true,
-              "profiling should start in premain when custom log manager found on classpath.");
-        }
+            isProfilingStarted(true), true, "profiling should start after loading LogManager.");
       }
     } else if (System.getenv("JBOSS_HOME") != null) {
       System.out.println("JBOSS_HOME != null");
-      assertTraceInstallationDelayed(
-          "tracer install must be delayed when JBOSS_HOME property is present.");
+      customAssert(
+          isTracerInstalled(false),
+          true,
+          "tracer install is not delayed when JBOSS_HOME property is present.");
       customAssert(
           isJmxfetchStarted(false),
           false,
@@ -104,10 +87,6 @@ public class LogManagerSetter {
               .getClassLoader()
               .loadClass(System.getProperty("java.util.logging.manager")),
           "Javaagent should not prevent setting a custom log manager");
-      customAssert(
-          isTracerInstalled(true),
-          true,
-          "tracer should be installed after loading with JBOSS_HOME set.");
       customAssert(
           isJmxfetchStarted(true),
           true,
@@ -144,17 +123,6 @@ public class LogManagerSetter {
     if (!got.equals(expected)) {
       throw new RuntimeException(
           "Assertion failed. Expected <" + expected + "> got <" + got + "> " + assertionMessage);
-    }
-  }
-
-  private static void assertTraceInstallationDelayed(final String message) {
-    if (okHttpMayIndirectlyLoadJUL()) {
-      customAssert(isTracerInstalled(false), false, message);
-    } else {
-      customAssert(
-          isTracerInstalled(false),
-          true,
-          "We can safely install tracer on java9+ since it doesn't indirectly trigger logger manager init");
     }
   }
 
