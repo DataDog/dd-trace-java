@@ -530,7 +530,7 @@ public class Agent {
       maybeStartAppSec(scoClass, sco);
       maybeStartIast(instrumentation, scoClass, sco);
       maybeStartCiVisibility(instrumentation, scoClass, sco);
-      maybeStartLogsIntake(scoClass, sco);
+      maybeInstallLogsIntake(scoClass, sco);
       // start debugger before remote config to subscribe to it before starting to poll
       maybeStartDebugger(instrumentation, scoClass, sco);
       maybeStartRemoteConfig(scoClass, sco);
@@ -865,17 +865,18 @@ public class Agent {
     }
   }
 
-  private static void maybeStartLogsIntake(Class<?> scoClass, Object sco) {
+  private static void maybeInstallLogsIntake(Class<?> scoClass, Object sco) {
     if (agentlessLogSubmissionEnabled) {
       StaticEventLogger.begin("Logs Intake");
 
       try {
         final Class<?> logsIntakeSystemClass =
             AGENT_CLASSLOADER.loadClass("datadog.trace.logging.intake.LogsIntakeSystem");
-        final Method logsIntakeInstallerMethod = logsIntakeSystemClass.getMethod("start", scoClass);
+        final Method logsIntakeInstallerMethod =
+            logsIntakeSystemClass.getMethod("install", scoClass);
         logsIntakeInstallerMethod.invoke(null, sco);
       } catch (final Throwable e) {
-        log.warn("Not starting Logs Intake subsystem", e);
+        log.warn("Not installing Logs Intake subsystem", e);
       }
 
       StaticEventLogger.end("Logs Intake");
