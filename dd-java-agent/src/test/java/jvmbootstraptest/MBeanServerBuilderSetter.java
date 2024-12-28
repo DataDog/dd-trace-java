@@ -75,10 +75,13 @@ public class MBeanServerBuilderSetter {
   }
 
   private static boolean isThreadStarted(final String name, final boolean wait) {
+    System.out.println("Checking for thread " + name + "...");
+
     // Wait up to 10 seconds for thread to appear
     for (int i = 0; i < 20; i++) {
       for (final Thread thread : Thread.getAllStackTraces().keySet()) {
         if (name.equals(thread.getName())) {
+          System.out.println("...thread " + name + " has started");
           return true;
         }
       }
@@ -91,6 +94,7 @@ public class MBeanServerBuilderSetter {
         e.printStackTrace();
       }
     }
+    System.out.println("...thread " + name + " has not started");
     return false;
   }
 
