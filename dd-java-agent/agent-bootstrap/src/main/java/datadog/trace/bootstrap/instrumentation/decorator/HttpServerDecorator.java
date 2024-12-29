@@ -626,7 +626,12 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     public boolean accept(String key, String value) {
       String mappedKey = headerTags.get(key.toLowerCase(Locale.ROOT));
       if (mappedKey != null) {
-        span.setTag(mappedKey, value);
+        Object existing_val = span.getTag(mappedKey);
+        if (existing_val == null) {
+          span.setTag(mappedKey, value);
+        } else {
+          span.setTag(mappedKey, existing_val.toString() + value);
+        }
       }
       return true;
     }
