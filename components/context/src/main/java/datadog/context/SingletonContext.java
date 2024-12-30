@@ -10,8 +10,8 @@ import javax.annotation.ParametersAreNonnullByDefault;
 /** {@link Context} containing a single value. */
 @ParametersAreNonnullByDefault
 final class SingletonContext implements Context {
-  private final int index;
-  private final Object value;
+  final int index;
+  final Object value;
 
   SingletonContext(int index, Object value) {
     this.index = index;

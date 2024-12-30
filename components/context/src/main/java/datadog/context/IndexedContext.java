@@ -11,7 +11,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 /** {@link Context} containing many values. */
 @ParametersAreNonnullByDefault
 final class IndexedContext implements Context {
-  private final Object[] store;
+  final Object[] store;
 
   IndexedContext(Object[] store) {
     this.store = store;
