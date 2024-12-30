@@ -11,6 +11,8 @@ import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.DefaultConfigurationPoller;
 import datadog.trace.api.Config;
 import datadog.trace.util.AgentTaskScheduler;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import okhttp3.HttpUrl;
@@ -21,11 +23,22 @@ import org.slf4j.LoggerFactory;
 public class SharedCommunicationObjects {
   private static final Logger log = LoggerFactory.getLogger(SharedCommunicationObjects.class);
 
+  private final List<Runnable> pausedComponents = new ArrayList<>();
+  private volatile boolean paused;
+
   public OkHttpClient okHttpClient;
   public HttpUrl agentUrl;
   public Monitoring monitoring;
   private DDAgentFeaturesDiscovery featuresDiscovery;
   private ConfigurationPoller configurationPoller;
+
+  public SharedCommunicationObjects() {
+    this(false);
+  }
+
+  public SharedCommunicationObjects(boolean paused) {
+    this.paused = paused;
+  }
 
   public void createRemaining(Config config) {
     if (monitoring == null) {
@@ -43,6 +56,32 @@ public class SharedCommunicationObjects {
       okHttpClient =
           OkHttpUtils.buildHttpClient(
               agentUrl, unixDomainSocket, namedPipe, getHttpClientTimeout(config));
+    }
+  }
+
+  public void whenReady(Runnable callback) {
+    if (paused) {
+      synchronized (pausedComponents) {
+        if (paused) {
+          pausedComponents.add(callback);
+          return;
+        }
+      }
+    }
+    callback.run(); // not paused, run immediately
+  }
+
+  public void resume() {
+    paused = false;
+    synchronized (pausedComponents) {
+      for (Runnable callback : pausedComponents) {
+        try {
+          callback.run();
+        } catch (Throwable e) {
+          log.warn("Problem resuming remote component {}", callback, e);
+        }
+      }
+      pausedComponents.clear();
     }
   }
 
@@ -100,11 +139,16 @@ public class SharedCommunicationObjects {
               agentUrl,
               config.isTraceAgentV05Enabled(),
               config.isTracerMetricsEnabled());
-      if (AGENT_THREAD_GROUP.equals(Thread.currentThread().getThreadGroup())) {
-        featuresDiscovery.discover(); // safe to run on same thread
+
+      if (paused) {
+        // defer remote discovery until remote I/O is allowed
       } else {
-        // avoid performing blocking I/O operation on application thread
-        AgentTaskScheduler.INSTANCE.execute(featuresDiscovery::discover);
+        if (AGENT_THREAD_GROUP.equals(Thread.currentThread().getThreadGroup())) {
+          featuresDiscovery.discover(); // safe to run on same thread
+        } else {
+          // avoid performing blocking I/O operation on application thread
+          AgentTaskScheduler.INSTANCE.execute(featuresDiscovery::discover);
+        }
       }
     }
     return featuresDiscovery;
