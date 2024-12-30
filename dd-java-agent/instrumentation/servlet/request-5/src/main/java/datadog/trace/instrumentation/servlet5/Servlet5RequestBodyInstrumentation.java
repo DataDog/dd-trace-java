@@ -17,7 +17,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class Servlet5RequestBodyInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
   public Servlet5RequestBodyInstrumentation() {
     super("servlet-request-body");
   }

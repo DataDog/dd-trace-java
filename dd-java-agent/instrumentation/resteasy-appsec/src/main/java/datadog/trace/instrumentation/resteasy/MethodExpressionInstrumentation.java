@@ -25,7 +25,7 @@ import org.jboss.resteasy.spi.HttpRequest;
 
 @AutoService(InstrumenterModule.class)
 public class MethodExpressionInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public MethodExpressionInstrumentation() {
     super("resteasy");

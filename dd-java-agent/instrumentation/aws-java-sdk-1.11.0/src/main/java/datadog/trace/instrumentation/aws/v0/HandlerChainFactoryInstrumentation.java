@@ -18,7 +18,7 @@ import net.bytebuddy.asm.Advice;
  */
 @AutoService(InstrumenterModule.class)
 public final class HandlerChainFactoryInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public HandlerChainFactoryInstrumentation() {
     super("aws-sdk");

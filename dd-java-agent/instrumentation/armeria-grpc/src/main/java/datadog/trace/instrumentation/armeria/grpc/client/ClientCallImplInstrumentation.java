@@ -35,7 +35,7 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public final class ClientCallImplInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public ClientCallImplInstrumentation() {
     super("armeria-grpc-client", "armeria-grpc", "armeria", "grpc-client", "grpc");

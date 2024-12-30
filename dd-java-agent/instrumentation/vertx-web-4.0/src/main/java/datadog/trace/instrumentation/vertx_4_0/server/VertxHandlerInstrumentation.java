@@ -19,7 +19,7 @@ import net.bytebuddy.asm.Advice;
 // HttpServerRequestInstrumentation/BlockingExceptionHandler
 @AutoService(InstrumenterModule.class)
 public class VertxHandlerInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public VertxHandlerInstrumentation() {
     super("vertx", "vertx-4.0");
   }

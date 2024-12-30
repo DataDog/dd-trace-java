@@ -11,7 +11,7 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class StandardUtextTagProcessorInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public StandardUtextTagProcessorInstrumentation() {
     super("thymeleaf");

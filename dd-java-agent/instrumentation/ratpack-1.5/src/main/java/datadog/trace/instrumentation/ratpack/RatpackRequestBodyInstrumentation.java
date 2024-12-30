@@ -11,7 +11,7 @@ import ratpack.server.internal.RequestBody;
 /** @see RequestBody#readStream() the instrumented method */
 @AutoService(InstrumenterModule.class)
 public class RatpackRequestBodyInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public RatpackRequestBodyInstrumentation() {
     super("ratpack-request-body");
   }

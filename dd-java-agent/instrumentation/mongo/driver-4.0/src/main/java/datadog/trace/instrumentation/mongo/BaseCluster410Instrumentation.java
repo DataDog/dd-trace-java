@@ -9,15 +9,15 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 
 @AutoService(InstrumenterModule.class)
-public class DefaultConnectionPoolInstrumentation410 extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
-  public DefaultConnectionPoolInstrumentation410() {
+public class BaseCluster410Instrumentation extends InstrumenterModule.Tracing
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+  public BaseCluster410Instrumentation() {
     super("mongo", "mongo-reactivestreams");
   }
 
   @Override
   public String instrumentedType() {
-    return "com.mongodb.internal.connection.DefaultConnectionPool";
+    return "com.mongodb.internal.connection.BaseCluster";
   }
 
   @Override
@@ -29,8 +29,8 @@ public class DefaultConnectionPoolInstrumentation410 extends InstrumenterModule.
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("getAsync"))
-            .and(takesArgument(1, named("com.mongodb.internal.async.SingleResultCallback"))),
-        packageName + ".Arg1Advice");
+            .and(named("selectServerAsync"))
+            .and(takesArgument(2, named("com.mongodb.internal.async.SingleResultCallback"))),
+        packageName + ".Arg2Advice");
   }
 }

@@ -15,7 +15,7 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class SqlConnectionBaseInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public SqlConnectionBaseInstrumentation() {
     super("vertx", "vertx-sql-client");
   }

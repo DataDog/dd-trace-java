@@ -12,7 +12,7 @@ import datadog.trace.agent.tooling.muzzle.Reference;
 
 @AutoService(InstrumenterModule.class)
 public class RoutingContextImplInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public RoutingContextImplInstrumentation() {
     super("vertx", "vertx-3.4");

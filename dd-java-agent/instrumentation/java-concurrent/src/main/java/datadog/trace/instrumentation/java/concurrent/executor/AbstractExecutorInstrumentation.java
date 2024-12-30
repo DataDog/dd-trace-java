@@ -17,7 +17,8 @@ import org.slf4j.LoggerFactory;
 public abstract class AbstractExecutorInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap,
         Instrumenter.CanShortcutTypeMatching,
-        Instrumenter.ForConfiguredTypes {
+        Instrumenter.ForConfiguredTypes,
+        Instrumenter.HasMethodAdvice {
 
   private static final Logger log = LoggerFactory.getLogger(AbstractExecutorInstrumentation.class);
 

@@ -14,7 +14,7 @@ import org.junit.runners.model.FrameworkMethod;
 
 @AutoService(InstrumenterModule.class)
 public class JUnit4BeforeAfterInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   public JUnit4BeforeAfterInstrumentation() {
     super("ci-visibility", "junit-4", "setup-teardown");

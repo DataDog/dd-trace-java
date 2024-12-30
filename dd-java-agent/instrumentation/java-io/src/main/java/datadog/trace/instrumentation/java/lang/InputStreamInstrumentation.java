@@ -18,7 +18,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class InputStreamInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   private static final String[] FORCE_LOADING = {"java.io.PushbackInputStream"};
 

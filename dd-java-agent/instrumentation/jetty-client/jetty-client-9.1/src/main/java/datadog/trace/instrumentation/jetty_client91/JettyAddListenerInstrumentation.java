@@ -20,7 +20,7 @@ import org.eclipse.jetty.client.api.Response;
 
 @AutoService(InstrumenterModule.class)
 public class JettyAddListenerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public JettyAddListenerInstrumentation() {
     super("jetty-client");
   }

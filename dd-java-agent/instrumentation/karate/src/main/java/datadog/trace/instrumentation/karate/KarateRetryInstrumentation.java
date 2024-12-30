@@ -23,7 +23,7 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class KarateRetryInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   public KarateRetryInstrumentation() {
     super("ci-visibility", "karate", "test-retry");

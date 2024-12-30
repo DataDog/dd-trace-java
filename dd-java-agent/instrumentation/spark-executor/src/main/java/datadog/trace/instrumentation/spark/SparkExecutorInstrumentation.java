@@ -18,7 +18,7 @@ import org.apache.spark.executor.Executor;
 
 @AutoService(InstrumenterModule.class)
 public class SparkExecutorInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public SparkExecutorInstrumentation() {
     super("spark-executor");

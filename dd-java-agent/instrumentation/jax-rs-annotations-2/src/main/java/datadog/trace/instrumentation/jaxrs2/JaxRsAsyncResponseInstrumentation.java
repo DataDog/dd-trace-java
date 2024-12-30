@@ -21,7 +21,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class JaxRsAsyncResponseInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public JaxRsAsyncResponseInstrumentation() {
     super("jax-rs", "jaxrs", "jax-rs-annotations");

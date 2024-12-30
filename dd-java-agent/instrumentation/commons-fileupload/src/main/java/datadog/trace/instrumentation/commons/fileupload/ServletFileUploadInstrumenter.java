@@ -24,7 +24,7 @@ import org.apache.commons.fileupload.FileItemIterator;
 
 @AutoService(InstrumenterModule.class)
 public class ServletFileUploadInstrumenter extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public ServletFileUploadInstrumenter() {
     super("commons-fileupload", "servlet");

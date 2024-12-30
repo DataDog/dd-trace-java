@@ -17,7 +17,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 @AutoService(InstrumenterModule.class)
 public class UserDetailsManagerInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public UserDetailsManagerInstrumentation() {
     super("spring-security");

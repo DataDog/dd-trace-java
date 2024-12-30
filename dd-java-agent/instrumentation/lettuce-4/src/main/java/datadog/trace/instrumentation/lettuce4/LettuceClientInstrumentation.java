@@ -11,7 +11,7 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public final class LettuceClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public LettuceClientInstrumentation() {
     super("lettuce", "lettuce-4");

@@ -13,7 +13,7 @@ import org.scalatest.events.Event;
 
 @AutoService(InstrumenterModule.class)
 public class ScalatestInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public ScalatestInstrumentation() {
     super("ci-visibility", "scalatest");

@@ -24,7 +24,7 @@ import org.elasticsearch.action.support.ThreadedActionListener;
  */
 @AutoService(InstrumenterModule.class)
 public final class ThreadedActionListenerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public ThreadedActionListenerInstrumentation() {
     super("elasticsearch", "elasticsearch-transport");

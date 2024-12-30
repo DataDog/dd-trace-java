@@ -12,7 +12,7 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public final class AxwayHTTPPluginInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   public AxwayHTTPPluginInstrumentation() {
     super("axway-api");

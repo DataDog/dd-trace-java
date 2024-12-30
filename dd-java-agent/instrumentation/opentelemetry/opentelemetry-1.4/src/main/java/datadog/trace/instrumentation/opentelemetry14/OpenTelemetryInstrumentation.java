@@ -20,7 +20,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class OpenTelemetryInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.CanShortcutTypeMatching {
+    implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
 
   public OpenTelemetryInstrumentation() {
     super("opentelemetry.experimental", "opentelemetry-1");

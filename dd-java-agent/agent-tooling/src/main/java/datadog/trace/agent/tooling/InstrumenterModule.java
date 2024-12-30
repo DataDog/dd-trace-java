@@ -191,7 +191,7 @@ public abstract class InstrumenterModule implements Instrumenter {
   }
 
   /** Parent class for all tracing related instrumentations */
-  public abstract static class Tracing extends InstrumenterModule implements HasMethodAdvice {
+  public abstract static class Tracing extends InstrumenterModule {
     public Tracing(String instrumentationName, String... additionalNames) {
       super(instrumentationName, additionalNames);
     }
@@ -203,7 +203,7 @@ public abstract class InstrumenterModule implements Instrumenter {
   }
 
   /** Parent class for all profiling related instrumentations */
-  public abstract static class Profiling extends InstrumenterModule implements HasMethodAdvice {
+  public abstract static class Profiling extends InstrumenterModule {
     public Profiling(String instrumentationName, String... additionalNames) {
       super(instrumentationName, additionalNames);
     }
@@ -222,7 +222,7 @@ public abstract class InstrumenterModule implements Instrumenter {
   }
 
   /** Parent class for all AppSec related instrumentations */
-  public abstract static class AppSec extends InstrumenterModule implements HasMethodAdvice {
+  public abstract static class AppSec extends InstrumenterModule {
     public AppSec(String instrumentationName, String... additionalNames) {
       super(instrumentationName, additionalNames);
     }
@@ -235,8 +235,7 @@ public abstract class InstrumenterModule implements Instrumenter {
 
   /** Parent class for all IAST related instrumentations */
   @SuppressForbidden
-  public abstract static class Iast extends InstrumenterModule
-      implements HasMethodAdvice, WithPostProcessor {
+  public abstract static class Iast extends InstrumenterModule implements WithPostProcessor {
     public Iast(String instrumentationName, String... additionalNames) {
       super(instrumentationName, additionalNames);
     }
@@ -291,7 +290,7 @@ public abstract class InstrumenterModule implements Instrumenter {
   }
 
   /** Parent class for all USM related instrumentations */
-  public abstract static class Usm extends InstrumenterModule implements HasMethodAdvice {
+  public abstract static class Usm extends InstrumenterModule {
     public Usm(String instrumentationName, String... additionalNames) {
       super(instrumentationName, additionalNames);
     }
@@ -303,7 +302,7 @@ public abstract class InstrumenterModule implements Instrumenter {
   }
 
   /** Parent class for all CI related instrumentations */
-  public abstract static class CiVisibility extends InstrumenterModule implements HasMethodAdvice {
+  public abstract static class CiVisibility extends InstrumenterModule {
     public CiVisibility(String instrumentationName, String... additionalNames) {
       super(instrumentationName, additionalNames);
     }

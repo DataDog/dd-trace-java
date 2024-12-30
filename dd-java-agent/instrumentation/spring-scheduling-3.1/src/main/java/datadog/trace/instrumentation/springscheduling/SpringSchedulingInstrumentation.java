@@ -16,7 +16,7 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public final class SpringSchedulingInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, ExcludeFilterProvider {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice, ExcludeFilterProvider {
 
   public SpringSchedulingInstrumentation() {
     super("spring-scheduling");

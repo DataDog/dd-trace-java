@@ -36,7 +36,9 @@ import net.bytebuddy.pool.TypePool;
 
 @AutoService(InstrumenterModule.class)
 public class ParseParametersInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice {
+    implements Instrumenter.ForSingleType,
+        Instrumenter.HasTypeAdvice,
+        Instrumenter.HasMethodAdvice {
   public ParseParametersInstrumentation() {
     super("liberty");
   }

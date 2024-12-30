@@ -78,9 +78,6 @@ public class TaskUnwrappingInstrumentation extends InstrumenterModule.Profiling
   }
 
   @Override
-  public void methodAdvice(MethodTransformer transformer) {}
-
-  @Override
   public String[] knownMatchingTypes() {
     String[] types = new String[TYPES_WITH_FIELDS.length / 2];
     for (int i = 0; i < types.length; i++) {
