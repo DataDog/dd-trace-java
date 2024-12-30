@@ -1,7 +1,6 @@
 package datadog.trace.logging.simplelogger
 
 import datadog.trace.logging.LogLevel
-import org.slf4j.Marker
 import spock.lang.Shared
 import spock.lang.Specification
 
