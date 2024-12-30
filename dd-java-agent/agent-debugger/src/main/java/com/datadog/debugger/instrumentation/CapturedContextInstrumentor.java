@@ -640,8 +640,8 @@ public class CapturedContextInstrumentor extends Instrumentor {
   //   10: astore_1
   //   11: aload_1
   // range for slot 1 starts at 11
-  // javac always starts the range right after the init of the local var, so we can just look for
-  // the previous instruction
+  // javac often starts the range right after the init of the local var, so we can just look for
+  // the previous instruction. But not always, and we put an arbitrary limit to 10 instructions
   // for kotlinc, many instructions can separate the init and the range start
   // ex:
   //    LocalVariableTable:
@@ -659,7 +659,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
     AbstractInsnNode previous = localVar.start.getPrevious();
     int processed = 0;
     // arbitrary fixing limit to 10 previous instructions to look at
-    while (!isVarStoreForSlot(previous, oldSlot) && processed < 10) {
+    while (previous != null && !isVarStoreForSlot(previous, oldSlot) && processed < 10) {
       previous = previous.getPrevious();
       processed++;
     }
