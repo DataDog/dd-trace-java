@@ -60,6 +60,12 @@ class SpringBootNativeInstrumentationTest extends AbstractServerSmokeTest {
     false
   }
 
+  @Override
+  boolean isErrorLog(String log) {
+    // Check that there are no ClassNotFound errors printed from bad reflect-config.json
+    super.isErrorLog(log) || log.contains("ClassNotFoundException")
+  }
+
   def "check native instrumentation"() {
     setup:
     String url = "http://localhost:${httpPort}/hello"
@@ -81,18 +87,6 @@ class SpringBootNativeInstrumentationTest extends AbstractServerSmokeTest {
       LockSupport.parkNanos(1_000_000)
     }
     countJfrs() > 0
-
-    when:
-    checkLogPostExit {
-      // Check that there are no ClassNotFound errors printed from bad reflect-config.json
-      if (it.contains("ClassNotFoundException")) {
-        println "Found ClassNotFoundException in log: ${it}"
-        logHasErrors = true
-      }
-    }
-
-    then:
-    !logHasErrors
   }
 
   int countJfrs() {

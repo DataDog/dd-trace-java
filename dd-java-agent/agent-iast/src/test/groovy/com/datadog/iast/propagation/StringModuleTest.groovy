@@ -131,6 +131,80 @@ class StringModuleTest extends IastModuleImplTestBase {
     sb('1==>234<==5==>678<==9') | 'a==>bcd<==e==>fgh<==i' | 1         | '1==>234<==5==>678<==9a==>bcd<==e==>fgh<==i'
   }
 
+  void 'onStringBuilderAppend null or empty (#builder, #param, #start, #end)'() {
+    given:
+    final result = builder?.append(param, start, end)
+
+    when:
+    module.onStringBuilderAppend(result, param, start, end)
+
+    then:
+    0 * _
+
+    where:
+    builder | param | start | end
+    sb('')  | null  | 0     | 0
+    sb('')  | ''    | 0     | 0
+  }
+
+  void 'onStringBuilderAppend without span (#builder, #param, #start, #end)'() {
+    given:
+    final result = builder?.append(param, start, end)
+
+    when:
+    module.onStringBuilderAppend(result, param)
+
+    then:
+    mockCalls * tracer.activeSpan() >> null
+    0 * _
+
+    where:
+    builder | param | start | end | mockCalls
+    sb('1') | null  | 0     | 0   | 0
+    sb('3') | '4'   | 0     | 0   | 1
+  }
+
+  void 'onStringBuilderAppend (#builder, #param, #start, #end)'() {
+    given:
+    final taintedObjects = ctx.getTaintedObjects()
+    def builderTainted = addFromTaintFormat(taintedObjects, builder)
+    objectHolder.add(builderTainted)
+    def paramTainted = addFromTaintFormat(taintedObjects, param)
+    objectHolder.add(paramTainted)
+    builderTainted?.append(paramTainted, start, end)
+
+    and:
+    final result = getStringFromTaintFormat(expected)
+    objectHolder.add(result)
+    final shouldBeTainted = fromTaintFormat(expected) != null
+
+    when:
+    module.onStringBuilderAppend(builderTainted, paramTainted, start, end)
+    def taintedObject = taintedObjects.get(builderTainted)
+
+    then:
+    if (shouldBeTainted) {
+      assert taintedObject != null
+      assert taintedObject.get() as String == result
+      assert taintFormat(taintedObject.get() as String, taintedObject.getRanges()) == expected
+    } else {
+      assert taintedObject == null
+    }
+
+    where:
+    builder                     | param                   | start | end | expected
+    sb('123')                   | '456'                   | 0     | 3   | '123456'
+    sb('==>123<==')             | '456'                   | 0     | 3   | '==>123<==456'
+    sb('==>123<==')             | '456'                   | 1     | 3   | '==>123<==56'
+    sb('123')                   | '==>456<=='             | 0     | 3   | '123==>456<=='
+    sb('123')                   | '==>456<=='             | 1     | 2   | '123==>5<=='
+    sb('==>123<==')             | '==>456<=='             | 0     | 3   | '==>123<====>456<=='
+    sb('1==>234<==5==>678<==9') | 'a==>bcd<==e'           | 0     | 5   | '1==>234<==5==>678<==9a==>bcd<==e'
+    sb('1==>234<==5==>678<==9') | 'a==>bcd<==e==>fgh<==i' | 0     | 9   | '1==>234<==5==>678<==9a==>bcd<==e==>fgh<==i'
+    sb('1==>234<==5==>678<==9') | 'a==>bcd<==e==>fgh<==i' | 5     | 9   | '1==>234<==5==>678<==9==>fgh<==i'
+    sb('1==>234<==5==>678<==9') | 'a==>bcd<==e==>fgh<==i' | 5     | 8   | '1==>234<==5==>678<==9==>fgh<=='
+  }
+
   void 'onStringBuilderInit null or empty (#builder, #param)'() {
     given:
     final result = builder?.append(param)
@@ -1360,6 +1434,48 @@ class StringModuleTest extends IastModuleImplTestBase {
     then:
     1 * tracer.activeSpan() >> span
     taintFormat(result, taintedObject.getRanges()) == "==>my_input<=="
+  }
+
+  void 'onStringBuilderSetLength is empty or different lengths (#self, #length)'() {
+    given:
+    self?.setLength(self.length())
+
+    when:
+    module.onStringBuilderSetLength(self, length)
+
+    then:
+    mockCalls * tracer.activeSpan() >> null
+    0 * _
+
+    where:
+    self      | length | mockCalls
+    sb("123") | 2      | 0
+    sb()      | 0      | 1
+  }
+
+  void 'onStringBuilderSetLength (#input, #length)'() {
+    final taintedObjects = ctx.getTaintedObjects()
+    def self = addFromTaintFormat(taintedObjects, input)
+    if (self instanceof StringBuilder) {
+      ((StringBuilder) self).setLength(length)
+    } else if (self instanceof StringBuffer) {
+      ((StringBuffer) self).setLength(length)
+    }
+    final result = self.toString()
+
+    when:
+    module.onStringBuilderSetLength(self, length)
+    def taintedObject = taintedObjects.get(self)
+
+    then:
+    1 * tracer.activeSpan() >> span
+    taintFormat(result, taintedObject.getRanges()) == expected
+
+    where:
+    input                         | length | expected
+    sb("==>0123<==")              | 3      | "==>012<=="
+    sb("0123==>456<==78")         | 5      | "0123==>4<=="
+    sb("01==>234<==5==>678<==90") | 8      | "01==>234<==5==>67<=="
   }
 
   private static Date date(final String pattern, final String value) {

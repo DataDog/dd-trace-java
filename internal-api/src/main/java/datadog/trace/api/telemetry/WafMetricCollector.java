@@ -269,19 +269,46 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
 
   public static class RaspRuleEval extends WafMetric {
     public RaspRuleEval(final long counter, final RuleType ruleType, final String wafVersion) {
-      super("rasp.rule.eval", counter, "rule_type:" + ruleType, "waf_version:" + wafVersion);
+      super(
+          "rasp.rule.eval",
+          counter,
+          ruleType.variant != null
+              ? new String[] {
+                "rule_type:" + ruleType.type,
+                "rule_variant:" + ruleType.variant,
+                "waf_version:" + wafVersion
+              }
+              : new String[] {"rule_type:" + ruleType.type, "waf_version:" + wafVersion});
     }
   }
 
   public static class RaspRuleMatch extends WafMetric {
     public RaspRuleMatch(final long counter, final RuleType ruleType, final String wafVersion) {
-      super("rasp.rule.match", counter, "rule_type:" + ruleType, "waf_version:" + wafVersion);
+      super(
+          "rasp.rule.match",
+          counter,
+          ruleType.variant != null
+              ? new String[] {
+                "rule_type:" + ruleType.type,
+                "rule_variant:" + ruleType.variant,
+                "waf_version:" + wafVersion
+              }
+              : new String[] {"rule_type:" + ruleType.type, "waf_version:" + wafVersion});
     }
   }
 
   public static class RaspTimeout extends WafMetric {
     public RaspTimeout(final long counter, final RuleType ruleType, final String wafVersion) {
-      super("rasp.timeout", counter, "rule_type:" + ruleType, "waf_version:" + wafVersion);
+      super(
+          "rasp.timeout",
+          counter,
+          ruleType.variant != null
+              ? new String[] {
+                "rule_type:" + ruleType.type,
+                "rule_variant:" + ruleType.variant,
+                "waf_version:" + wafVersion
+              }
+              : new String[] {"rule_type:" + ruleType.type, "waf_version:" + wafVersion});
     }
   }
 

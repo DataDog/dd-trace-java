@@ -5,6 +5,7 @@ import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_FRAME;
 import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_PREFIX;
 import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_TYPE;
 import static java.lang.String.format;
+import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -31,8 +32,11 @@ import datadog.trace.bootstrap.debugger.DebuggerContext.ClassNameFilter;
 import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.core.CoreTracer;
+import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -42,13 +46,18 @@ import java.util.TreeSet;
 import java.util.stream.Collectors;
 import org.jetbrains.annotations.NotNull;
 import org.joor.Reflect;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 public class CodeOriginTest extends CapturingTestBase {
 
   private static final ProbeId CODE_ORIGIN_ID1 = new ProbeId("code origin 1", 0);
+
   private static final ProbeId CODE_ORIGIN_ID2 = new ProbeId("code origin 2", 0);
+
+  private static final ProbeId CODE_ORIGIN_DOUBLE_ENTRY_ID =
+      new ProbeId("double entry code origin", 0);
 
   private static final int MAX_FRAMES = 20;
 
@@ -84,6 +93,27 @@ public class CodeOriginTest extends CapturingTestBase {
     setFieldInConfig(InstrumenterConfig.get(), "codeOriginEnabled", true);
   }
 
+  @AfterAll
+  public static void collectClasses() throws IOException {
+    File[] files =
+        Paths.get(System.getProperty("java.io.tmpdir"), "debugger/com/datadog/debugger")
+            .toFile()
+            .listFiles(
+                file -> {
+                  String name = file.getName();
+                  return name.startsWith("CodeOrigin") && name.endsWith(".class");
+                });
+
+    if (new File("build").exists()) {
+      File buildDir = new File("build/debugger");
+      buildDir.mkdirs();
+      for (File file : files) {
+        Files.copy(
+            file.toPath(), Paths.get(buildDir.getAbsolutePath(), file.getName()), REPLACE_EXISTING);
+      }
+    }
+  }
+
   @Test
   public void basicInstrumentation() throws Exception {
     final String className = "com.datadog.debugger.CodeOrigin01";
@@ -113,6 +143,30 @@ public class CodeOriginTest extends CapturingTestBase {
     installProbes(probes);
     final Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     checkResults(testClass, "debug_1", true);
+  }
+
+  @Test
+  public void doubleEntry() throws IOException, URISyntaxException {
+    final String className = "com.datadog.debugger.CodeOrigin05";
+
+    List<LogProbe> probes =
+        asList(
+            new CodeOriginProbe(
+                CODE_ORIGIN_ID1, true, Where.of(className, "entry", "()", "53"), MAX_FRAMES),
+            new CodeOriginProbe(
+                CODE_ORIGIN_ID2, false, Where.of(className, "exit", "()", "62"), MAX_FRAMES),
+            new CodeOriginProbe(
+                CODE_ORIGIN_DOUBLE_ENTRY_ID,
+                true,
+                Where.of(className, "doubleEntry", "()", "66"),
+                MAX_FRAMES));
+    installProbes(probes);
+    final Class<?> testClass = compileAndLoadClass(className);
+    checkResults(testClass, "fullTrace", false);
+    List<? extends MutableSpan> trace = traceInterceptor.getTrace();
+    MutableSpan span = trace.get(0);
+    // this should be entry but until we get the ordering resolved, it's this.
+    assertEquals("doubleEntry", span.getTag(format(DD_CODE_ORIGIN_FRAME, 0, "method")));
   }
 
   @Test
@@ -192,7 +246,6 @@ public class CodeOriginTest extends CapturingTestBase {
   }
 
   private void checkResults(Class<?> testClass, String parameter, boolean includeSnapshot) {
-    Reflect.onClass(testClass).call("main", parameter).get();
     int result = Reflect.onClass(testClass).call("main", parameter).get();
     assertEquals(0, result);
     List<? extends MutableSpan> spans = traceInterceptor.getTrace();

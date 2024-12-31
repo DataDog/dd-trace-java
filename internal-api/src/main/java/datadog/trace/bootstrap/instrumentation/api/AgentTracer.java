@@ -865,6 +865,9 @@ public class AgentTracer {
     public boolean isRequiresPostProcessing() {
       return false;
     }
+
+    @Override
+    public void setRequiresPostProcessing(boolean requiresPostProcessing) {}
   }
 
   public static final class NoopAgentScope implements AgentScope {

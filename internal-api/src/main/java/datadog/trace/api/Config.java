@@ -172,6 +172,7 @@ public class Config {
   private final boolean dbClientSplitByInstanceTypeSuffix;
   private final boolean dbClientSplitByHost;
   private final Set<String> splitByTags;
+  private final boolean jeeSplitByDeployment;
   private final int scopeDepthLimit;
   private final boolean scopeStrictMode;
   private final int scopeIterationKeepAlive;
@@ -306,6 +307,7 @@ public class Config {
   private final int iastSourceMappingMaxSize;
   private final boolean iastStackTraceEnabled;
   private final boolean iastExperimentalPropagationEnabled;
+  private final String iastSecurityControlsConfiguration;
 
   private final boolean ciVisibilityTraceSanitationEnabled;
   private final boolean ciVisibilityAgentlessEnabled;
@@ -375,6 +377,7 @@ public class Config {
   private final int remoteConfigMaxExtraServices;
 
   private final String DBMPropagationMode;
+  private final boolean DBMTracePreparedStatements;
 
   private final boolean debuggerEnabled;
   private final int debuggerUploadTimeout;
@@ -394,6 +397,7 @@ public class Config {
   private final String debuggerRedactedIdentifiers;
   private final Set<String> debuggerRedactionExcludedIdentifiers;
   private final String debuggerRedactedTypes;
+  private final boolean debuggerHoistLocalVarsEnabled;
   private final boolean debuggerSymbolEnabled;
   private final boolean debuggerSymbolForceUpload;
   private final String debuggerSymbolIncludes;
@@ -535,6 +539,8 @@ public class Config {
   @Nullable private final List<String> cloudResponsePayloadTagging;
   private final int cloudPayloadTaggingMaxDepth;
   private final int cloudPayloadTaggingMaxTags;
+
+  private final long dependecyResolutionPeriodMillis;
 
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
@@ -846,7 +852,15 @@ public class Config {
         configProvider.getString(
             DB_DBM_PROPAGATION_MODE_MODE, DEFAULT_DB_DBM_PROPAGATION_MODE_MODE);
 
+    DBMTracePreparedStatements =
+        configProvider.getBoolean(
+            DB_DBM_TRACE_PREPARED_STATEMENTS, DEFAULT_DB_DBM_TRACE_PREPARED_STATEMENTS);
+
     splitByTags = tryMakeImmutableSet(configProvider.getList(SPLIT_BY_TAGS));
+
+    jeeSplitByDeployment =
+        configProvider.getBoolean(
+            EXPERIMENTATAL_JEE_SPLIT_BY_DEPLOYMENT, DEFAULT_EXPERIMENTATAL_JEE_SPLIT_BY_DEPLOYMENT);
 
     springDataRepositoryInterfaceResourceName =
         configProvider.getBoolean(SPRING_DATA_REPOSITORY_INTERFACE_RESOURCE_NAME, true);
@@ -1319,6 +1333,8 @@ public class Config {
         configProvider.getBoolean(IAST_STACK_TRACE_ENABLED, DEFAULT_IAST_STACK_TRACE_ENABLED);
     iastExperimentalPropagationEnabled =
         configProvider.getBoolean(IAST_EXPERIMENTAL_PROPAGATION_ENABLED, false);
+    iastSecurityControlsConfiguration =
+        configProvider.getString(IAST_SECURITY_CONTROLS_CONFIGURATION, null);
 
     ciVisibilityTraceSanitationEnabled =
         configProvider.getBoolean(CIVISIBILITY_TRACE_SANITATION_ENABLED, true);
@@ -1526,6 +1542,9 @@ public class Config {
     debuggerRedactionExcludedIdentifiers =
         tryMakeImmutableSet(configProvider.getList(DEBUGGER_REDACTION_EXCLUDED_IDENTIFIERS));
     debuggerRedactedTypes = configProvider.getString(DEBUGGER_REDACTED_TYPES, null);
+    debuggerHoistLocalVarsEnabled =
+        configProvider.getBoolean(
+            DEBUGGER_HOIST_LOCALVARS_ENABLED, DEFAULT_DEBUGGER_HOIST_LOCALVARS_ENABLED);
     debuggerSymbolEnabled =
         configProvider.getBoolean(DEBUGGER_SYMBOL_ENABLED, DEFAULT_DEBUGGER_SYMBOL_ENABLED);
     debuggerSymbolForceUpload =
@@ -1791,6 +1810,11 @@ public class Config {
         configProvider.getInteger(TracerConfig.TRACE_CLOUD_PAYLOAD_TAGGING_MAX_DEPTH, 10);
     this.cloudPayloadTaggingMaxTags =
         configProvider.getInteger(TracerConfig.TRACE_CLOUD_PAYLOAD_TAGGING_MAX_TAGS, 758);
+
+    this.dependecyResolutionPeriodMillis =
+        configProvider.getLong(
+            GeneralConfig.TELEMETRY_DEPENDENCY_RESOLUTION_PERIOD_MILLIS,
+            1000); // 1 second by default
 
     timelineEventsEnabled =
         configProvider.getBoolean(
@@ -2069,6 +2093,10 @@ public class Config {
 
   public Set<String> getSplitByTags() {
     return splitByTags;
+  }
+
+  public boolean isJeeSplitByDeployment() {
+    return jeeSplitByDeployment;
   }
 
   public int getScopeDepthLimit() {
@@ -2608,6 +2636,10 @@ public class Config {
     return iastExperimentalPropagationEnabled;
   }
 
+  public String getIastSecurityControlsConfiguration() {
+    return iastSecurityControlsConfiguration;
+  }
+
   public boolean isCiVisibilityEnabled() {
     return instrumenterConfig.isCiVisibilityEnabled();
   }
@@ -3040,6 +3072,10 @@ public class Config {
 
   public String getDebuggerRedactedTypes() {
     return debuggerRedactedTypes;
+  }
+
+  public boolean isDebuggerHoistLocalVarsEnabled() {
+    return debuggerHoistLocalVarsEnabled;
   }
 
   public boolean isAwsPropagationEnabled() {
@@ -3686,6 +3722,14 @@ public class Config {
         Collections.singletonList(settingName), "", settingSuffix, defaultEnabled);
   }
 
+  public long getDependecyResolutionPeriodMillis() {
+    return dependecyResolutionPeriodMillis;
+  }
+
+  public boolean isDBMTracePreparedStatements() {
+    return DBMTracePreparedStatements;
+  }
+
   public String getDBMPropagationMode() {
     return DBMPropagationMode;
   }
@@ -4178,6 +4222,8 @@ public class Config {
         + DBMPropagationMode
         + ", splitByTags="
         + splitByTags
+        + ", jeeSplitByDeployment="
+        + jeeSplitByDeployment
         + ", scopeDepthLimit="
         + scopeDepthLimit
         + ", scopeStrictMode="

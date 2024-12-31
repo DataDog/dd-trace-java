@@ -137,21 +137,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
   @Override
   public void start() {
-    if (features.getDataStreamsEndpoint() == null) {
-      features.discoverIfOutdated();
-    }
-
-    agentSupportsDataStreams = features.supportsDataStreams();
     checkDynamicConfig();
-
-    if (!configSupportsDataStreams) {
-      log.debug("Data streams is disabled");
-    } else if (!agentSupportsDataStreams) {
-      log.debug("Data streams is disabled or not supported by agent");
-    }
-
-    nextFeatureCheck = timeSource.getCurrentTimeNanos() + FEATURE_CHECK_INTERVAL_NANOS;
-
     cancellation =
         AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
             new ReportTask(), this, bucketDurationNanos, bucketDurationNanos, TimeUnit.NANOSECONDS);
@@ -360,6 +346,22 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
     @Override
     public void run() {
+
+      if (features.getDataStreamsEndpoint() == null) {
+        features.discoverIfOutdated();
+      }
+
+      agentSupportsDataStreams = features.supportsDataStreams();
+      checkDynamicConfig();
+
+      if (!configSupportsDataStreams) {
+        log.debug("Data streams is disabled");
+      } else if (!agentSupportsDataStreams) {
+        log.debug("Data streams is disabled or not supported by agent");
+      }
+
+      nextFeatureCheck = timeSource.getCurrentTimeNanos() + FEATURE_CHECK_INTERVAL_NANOS;
+
       Thread currentThread = Thread.currentThread();
       while (!currentThread.isInterrupted()) {
         try {
