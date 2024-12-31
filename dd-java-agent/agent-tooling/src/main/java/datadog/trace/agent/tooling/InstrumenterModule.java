@@ -156,6 +156,11 @@ public abstract class InstrumenterModule implements Instrumenter {
     return isSynthetic();
   }
 
+  /** Override this to post-process the operand stack of any transformed methods. */
+  public Advice.PostProcessor.Factory postProcessor() {
+    return null;
+  }
+
   /**
    * Context stores to define for this instrumentation. Are added to matching class loaders.
    *
@@ -235,7 +240,7 @@ public abstract class InstrumenterModule implements Instrumenter {
 
   /** Parent class for all IAST related instrumentations */
   @SuppressForbidden
-  public abstract static class Iast extends InstrumenterModule implements WithPostProcessor {
+  public abstract static class Iast extends InstrumenterModule {
     public Iast(String instrumentationName, String... additionalNames) {
       super(instrumentationName, additionalNames);
     }
