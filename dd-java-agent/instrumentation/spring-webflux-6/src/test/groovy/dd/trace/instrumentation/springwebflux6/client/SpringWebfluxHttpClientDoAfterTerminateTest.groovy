@@ -12,14 +12,14 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 class SpringWebfluxHttpClientDoAfterTerminateTest extends SpringWebfluxHttpClientBase {
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+  int doRequest(String method, URI uri, List<List<String>> headers, String body, Closure callback) {
     def hasParent = activeSpan() != null
     def client = createClient(component())
     ClientResponse response = client.method(HttpMethod.valueOf(method))
     .uri(uri)
     .headers {
       h -> headers.forEach({
-        key, value -> h.add(key, value)
+        h.add(it[0], it[1])
       })
     }
     .exchangeToMono (Mono::just)

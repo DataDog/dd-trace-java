@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.base.HttpClientTest
+import datadog.trace.agent.test.base.HttpClientTest2
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.instrumentation.apachehttpasyncclient.ApacheHttpAsyncClientDecorator
 import org.apache.http.client.config.RequestConfig
@@ -11,7 +11,7 @@ import spock.lang.Timeout
 import java.util.concurrent.Future
 
 @Timeout(5)
-class ApacheHttpAsyncClientNullCallbackTest extends HttpClientTest implements TestingGenericHttpNamingConventions.ClientV0{
+class ApacheHttpAsyncClientNullCallbackTest extends HttpClientTest2 implements TestingGenericHttpNamingConventions.ClientV0{
 
   @Shared
   RequestConfig requestConfig = RequestConfig.custom()
@@ -28,11 +28,9 @@ class ApacheHttpAsyncClientNullCallbackTest extends HttpClientTest implements Te
   }
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+  int doRequest(String method, URI uri, List<List<String>> headers, String body, Closure callback) {
     def request = new HttpUriRequest(method, uri)
-    headers.entrySet().each {
-      request.addHeader(new BasicHeader(it.key, it.value))
-    }
+    headers.each { request.addHeader(new BasicHeader(it[0], it[1])) }
 
     // The point here is to test case when callback is null - fire-and-forget style
     // So to make sure request is done we start request, wait for future to finish
