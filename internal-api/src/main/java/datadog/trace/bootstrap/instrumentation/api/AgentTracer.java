@@ -1186,12 +1186,7 @@ public class AgentTracer {
     }
 
     @Override
-    public byte[] encode() {
-      return null;
-    }
-
-    @Override
-    public String strEncode() {
+    public String encode() {
       return null;
     }
   }
