@@ -66,36 +66,17 @@ public class DataStreamContextInjector {
         defaultTimestamp,
         payloadSizeBytes);
 
-    boolean injected =
-        setter instanceof AgentPropagation.BinarySetter
-            ? injectBinaryPathwayContext(
-                pathwayContext, carrier, (AgentPropagation.BinarySetter<C>) setter)
-            : injectPathwayContext(pathwayContext, carrier, setter);
+    boolean injected = injectPathwayContext(pathwayContext, carrier, setter);
 
     if (injected && pathwayContext.getHash() != 0) {
       span.setTag(PATHWAY_HASH, Long.toUnsignedString(pathwayContext.getHash()));
     }
   }
 
-  private static <C> boolean injectBinaryPathwayContext(
-      PathwayContext pathwayContext, C carrier, AgentPropagation.BinarySetter<C> setter) {
-    try {
-      byte[] encodedContext = pathwayContext.encode();
-      if (encodedContext != null) {
-        LOGGER.debug("Injecting binary pathway context {}", pathwayContext);
-        setter.set(carrier, PROPAGATION_KEY_BASE64, encodedContext);
-        return true;
-      }
-    } catch (IOException e) {
-      LOGGER.debug("Unable to set encode pathway context", e);
-    }
-    return false;
-  }
-
   private static <C> boolean injectPathwayContext(
       PathwayContext pathwayContext, C carrier, AgentPropagation.Setter<C> setter) {
     try {
-      String encodedContext = pathwayContext.strEncode();
+      String encodedContext = pathwayContext.encode();
       if (encodedContext != null) {
         LOGGER.debug("Injecting pathway context {}", pathwayContext);
         setter.set(carrier, PROPAGATION_KEY_BASE64, encodedContext);
