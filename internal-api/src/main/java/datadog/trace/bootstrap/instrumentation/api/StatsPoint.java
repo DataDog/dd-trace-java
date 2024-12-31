@@ -90,6 +90,8 @@ public class StatsPoint implements InboxItem {
         + edgeLatencyNano
         + ", payloadSizeBytes="
         + payloadSizeBytes
-        + '}';
+        + ", serviceNameOverride="
+        + serviceNameOverride
+        + "'}";
   }
 }
