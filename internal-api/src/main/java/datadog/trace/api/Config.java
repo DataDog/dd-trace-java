@@ -1774,10 +1774,6 @@ public class Config {
     this.traceFlushIntervalSeconds =
         configProvider.getFloat(
             TracerConfig.TRACE_FLUSH_INTERVAL, ConfigDefaults.DEFAULT_TRACE_FLUSH_INTERVAL);
-    if (profilingAgentless && apiKey == null) {
-      log.warn(
-          "Agentless profiling activated but no api key provided. Profile uploading will likely fail");
-    }
 
     this.tracePostProcessingTimeout =
         configProvider.getLong(
@@ -1790,23 +1786,34 @@ public class Config {
             "Attempt to enable LLM Observability without ML app defined."
                 + "Please ensure that the name of the ML app is provided through properties or env variable");
       }
-      if (llmObsAgentlessEnabled && (apiKey == null || apiKey.isEmpty())) {
-        throw new FatalAgentMisconfigurationError(
-            "Attempt to start LLM Observability in Agentless mode without API key. "
-                + "Please ensure that either an API key is configured, or the tracer is set up to work with the Agent");
-      }
+
       log.debug(
           "LLM Observability enabled for ML app {}, agentless mode {}",
           llmObsMlApp,
           llmObsAgentlessEnabled);
     }
 
-    if (isCiVisibilityEnabled()
-        && ciVisibilityAgentlessEnabled
-        && (apiKey == null || apiKey.isEmpty())) {
-      throw new FatalAgentMisconfigurationError(
-          "Attempt to start in Agentless mode without API key. "
-              + "Please ensure that either an API key is configured, or the tracer is set up to work with the Agent");
+    // if API key is not provided, check if any products are using agentless mode and require it
+    if (apiKey == null || apiKey.isEmpty()) {
+      // CI Visibility
+      if (isCiVisibilityEnabled() && ciVisibilityAgentlessEnabled) {
+        throw new FatalAgentMisconfigurationError(
+            "Attempt to start in CI Visibility in Agentless mode without API key. "
+                + "Please ensure that either an API key is configured, or the tracer is set up to work with the Agent");
+      }
+
+      // Profiling
+      if (profilingAgentless) {
+        log.warn(
+            "Agentless profiling activated but no api key provided. Profile uploading will likely fail");
+      }
+
+      // LLM Observability
+      if (isLlmObsEnabled() && llmObsAgentlessEnabled) {
+        throw new FatalAgentMisconfigurationError(
+            "Attempt to start LLM Observability in Agentless mode without API key. "
+                + "Please ensure that either an API key is configured, or the tracer is set up to work with the Agent");
+      }
     }
 
     this.telemetryDebugRequestsEnabled =
