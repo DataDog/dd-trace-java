@@ -21,7 +21,7 @@ import org.jboss.resteasy.client.jaxrs.internal.ClientConfiguration;
  */
 @AutoService(InstrumenterModule.class)
 public final class ResteasyClientConnectionErrorInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public ResteasyClientConnectionErrorInstrumentation() {
     super("jax-rs", "jaxrs", "jax-rs-client");

@@ -20,7 +20,7 @@ import scala.concurrent.Future;
  */
 @AutoService(InstrumenterModule.class)
 public final class PekkoHttp2ServerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
   public PekkoHttp2ServerInstrumentation() {
     super("pekko-http2", "pekko-http", "pekko-http-server");
   }

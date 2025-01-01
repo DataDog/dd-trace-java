@@ -14,7 +14,7 @@ import org.glassfish.jersey.server.internal.routing.UriRoutingContext;
 
 @AutoService(InstrumenterModule.class)
 public class UriRoutingContextGetPathSegmentsInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public UriRoutingContextGetPathSegmentsInstrumentation() {
     super("jersey");
   }

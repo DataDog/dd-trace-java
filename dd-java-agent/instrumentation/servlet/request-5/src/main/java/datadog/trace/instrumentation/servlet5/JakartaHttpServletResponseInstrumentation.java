@@ -26,7 +26,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class JakartaHttpServletResponseInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
   public JakartaHttpServletResponseInstrumentation() {
     super("servlet", "servlet-5", "servlet-response");
   }

@@ -23,7 +23,7 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class CommonsFileuploadInstrumenter extends InstrumenterModule.Iast
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   public CommonsFileuploadInstrumenter() {
     super("commons-fileupload");

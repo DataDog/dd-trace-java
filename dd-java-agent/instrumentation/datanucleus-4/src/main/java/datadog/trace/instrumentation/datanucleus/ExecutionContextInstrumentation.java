@@ -23,7 +23,7 @@ import org.datanucleus.ExecutionContext;
 
 @AutoService(InstrumenterModule.class)
 public class ExecutionContextInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.CanShortcutTypeMatching {
+    implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
   public ExecutionContextInstrumentation() {
     super("datanucleus");
   }

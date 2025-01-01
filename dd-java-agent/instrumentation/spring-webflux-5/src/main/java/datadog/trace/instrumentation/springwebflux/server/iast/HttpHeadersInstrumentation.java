@@ -11,7 +11,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 /** @see org.springframework.http.HttpHeaders */
 @AutoService(InstrumenterModule.class)
 public class HttpHeadersInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public HttpHeadersInstrumentation() {
     super("spring-webflux");
   }

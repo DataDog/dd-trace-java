@@ -15,7 +15,7 @@ import play.api.mvc.request.RemoteConnection;
 
 @AutoService(InstrumenterModule.class)
 public class SaveRawRemoteConnectionInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public SaveRawRemoteConnectionInstrumentation() {
     super("play");
   }

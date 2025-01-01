@@ -13,7 +13,7 @@ import okhttp3.OkHttpClient;
 
 @AutoService(InstrumenterModule.class)
 public class OkHttp3Instrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public OkHttp3Instrumentation() {
     super("okhttp", "okhttp-3");

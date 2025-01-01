@@ -27,7 +27,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class JsonParserInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   static final String TARGET_TYPE = "com.fasterxml.jackson.core.JsonParser";
   static final ElementMatcher.Junction<ClassLoader> VERSION_PRE_2_6_0 =

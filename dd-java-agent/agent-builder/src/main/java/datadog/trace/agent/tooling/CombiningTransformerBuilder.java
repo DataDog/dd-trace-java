@@ -9,7 +9,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
-import datadog.trace.agent.tooling.Instrumenter.WithPostProcessor;
 import datadog.trace.agent.tooling.bytebuddy.ExceptionHandlers;
 import datadog.trace.agent.tooling.context.FieldBackedContextInjector;
 import datadog.trace.agent.tooling.context.FieldBackedContextMatcher;
@@ -73,16 +72,11 @@ public final class CombiningTransformerBuilder
   private Map<String, String> contextStore;
   private AgentBuilder.Transformer contextRequestRewriter;
   private HelperTransformer helperTransformer;
+  private Advice.PostProcessor.Factory postProcessor;
   private MuzzleCheck muzzle;
 
   // temporary buffer for collecting advice; reset for each instrumenter
   private final List<AgentBuilder.Transformer> advice = new ArrayList<>();
-
-  /**
-   * Post processor to be applied to instrumenter advices if they implement {@link
-   * WithPostProcessor}
-   */
-  private Advice.PostProcessor.Factory postProcessor;
 
   public CombiningTransformerBuilder(
       AgentBuilder agentBuilder, InstrumenterIndex instrumenterIndex) {
@@ -133,6 +127,8 @@ public final class CombiningTransformerBuilder
             ? new HelperTransformer(
                 module.useAgentCodeSource(), module.getClass().getSimpleName(), helperClassNames)
             : null;
+
+    postProcessor = module.postProcessor();
 
     muzzle = new MuzzleCheck(module, instrumentationId);
   }
@@ -207,9 +203,6 @@ public final class CombiningTransformerBuilder
   }
 
   private void buildTypeAdvice(Instrumenter member, int transformationId) {
-
-    postProcessor =
-        member instanceof WithPostProcessor ? ((WithPostProcessor) member).postProcessor() : null;
 
     if (null != helperTransformer) {
       advice.add(helperTransformer);

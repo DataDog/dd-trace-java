@@ -24,7 +24,7 @@ import org.apache.coyote.Response;
 /** @see org.apache.coyote.ActionHook */
 @AutoService(InstrumenterModule.class)
 public class CommitActionInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   public CommitActionInstrumentation() {
     super("tomcat");

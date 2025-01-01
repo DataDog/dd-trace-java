@@ -14,7 +14,7 @@ import net.bytebuddy.asm.Advice;
 /** @see MultipartUnmarshallers */
 @AutoService(InstrumenterModule.class)
 public class MultipartUnmarshallersInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   private static final String TRAIT_NAME =
       "akka.http.scaladsl.unmarshalling.MultipartUnmarshallers";

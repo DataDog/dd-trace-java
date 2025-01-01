@@ -21,7 +21,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class JakartaRsAsyncResponseInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public JakartaRsAsyncResponseInstrumentation() {
     super("jakarta-rs", "jakartars", "jakarta-rs-annotations");

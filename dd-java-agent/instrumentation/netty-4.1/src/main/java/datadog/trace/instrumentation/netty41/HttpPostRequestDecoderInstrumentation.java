@@ -33,7 +33,7 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
   public HttpPostRequestDecoderInstrumentation() {
     super(
         NettyChannelPipelineInstrumentation.INSTRUMENTATION_NAME,

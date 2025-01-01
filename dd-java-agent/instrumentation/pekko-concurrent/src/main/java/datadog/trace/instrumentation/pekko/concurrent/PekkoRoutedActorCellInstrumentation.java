@@ -19,7 +19,7 @@ import org.apache.pekko.routing.RoutedActorCell;
 
 @AutoService(InstrumenterModule.class)
 public class PekkoRoutedActorCellInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public PekkoRoutedActorCellInstrumentation() {
     super("pekko_actor_send", "pekko_actor", "pekko_concurrent", "java_concurrent");

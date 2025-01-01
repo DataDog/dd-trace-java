@@ -22,7 +22,7 @@ import org.junit.platform.engine.TestDescriptor;
  */
 @AutoService(InstrumenterModule.class)
 public class JUnit5SpockParameterizedRetryInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   private final String parentPackageName =
       Strings.getPackageName(JUnitPlatformUtils.class.getName());

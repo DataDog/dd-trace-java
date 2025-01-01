@@ -28,7 +28,7 @@ import org.apache.pekko.http.scaladsl.unmarshalling.Unmarshaller;
  */
 @AutoService(InstrumenterModule.class)
 public class MarshallingDirectivesInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   public MarshallingDirectivesInstrumentation() {
     super("pekko-http");

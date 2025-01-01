@@ -22,7 +22,7 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class HttpInboundServiceContextImplInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public static final String REQUEST_MSG_TYPE =
       "com.ibm.ws.http.channel.internal.HttpRequestMessageImpl";
 

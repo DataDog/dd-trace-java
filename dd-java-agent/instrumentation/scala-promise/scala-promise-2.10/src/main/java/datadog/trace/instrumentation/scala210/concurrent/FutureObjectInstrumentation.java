@@ -26,7 +26,7 @@ import scala.util.Try;
  */
 @AutoService(InstrumenterModule.class)
 public class FutureObjectInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public FutureObjectInstrumentation() {
     super("scala_future_object", "scala_concurrent");

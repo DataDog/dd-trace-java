@@ -7,7 +7,7 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class IBMResourceLevelInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public IBMResourceLevelInstrumentation() {
     super(IBMResourceLevelInstrumentation.class.getName());
   }

@@ -3,7 +3,7 @@ import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.UntrustedDeserializationModule
 import org.yaml.snakeyaml.Yaml
 
-class SnakeYamlInstrumenterTest extends AgentTestRunner {
+class SnakeYamlInstrumentationTest extends AgentTestRunner {
 
   @Override
   protected void configurePreAgent() {

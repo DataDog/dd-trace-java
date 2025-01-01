@@ -30,7 +30,7 @@ import org.jboss.logmanager.ExtLogRecord;
 
 @AutoService(InstrumenterModule.class)
 public class ExtLogRecordInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
   public ExtLogRecordInstrumentation() {
     super("jboss-logmanager");
   }

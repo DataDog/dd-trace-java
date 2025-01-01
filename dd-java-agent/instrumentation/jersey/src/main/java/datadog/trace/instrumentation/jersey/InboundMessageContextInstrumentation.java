@@ -28,7 +28,7 @@ import org.glassfish.jersey.message.internal.InboundMessageContext;
 
 @AutoService(InstrumenterModule.class)
 public class InboundMessageContextInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public InboundMessageContextInstrumentation() {
     super("jersey");

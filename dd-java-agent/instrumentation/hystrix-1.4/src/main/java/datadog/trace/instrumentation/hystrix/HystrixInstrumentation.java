@@ -16,7 +16,7 @@ import rx.Observable;
 
 @AutoService(InstrumenterModule.class)
 public class HystrixInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public HystrixInstrumentation() {
     super("hystrix");

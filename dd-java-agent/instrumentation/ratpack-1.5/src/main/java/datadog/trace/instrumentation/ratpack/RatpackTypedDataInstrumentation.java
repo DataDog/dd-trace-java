@@ -13,7 +13,7 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class RatpackTypedDataInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public RatpackTypedDataInstrumentation() {
     super("ratpack-request-body");
   }

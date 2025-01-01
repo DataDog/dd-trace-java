@@ -15,7 +15,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 /** @see org.springframework.http.server.reactive.ServerHttpRequest */
 @AutoService(InstrumenterModule.class)
 public class ServerHttpRequestInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
   public ServerHttpRequestInstrumentation() {
     super("spring-webflux");
   }

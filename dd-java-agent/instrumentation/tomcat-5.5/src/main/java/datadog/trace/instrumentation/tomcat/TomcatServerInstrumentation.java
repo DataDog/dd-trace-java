@@ -33,7 +33,7 @@ import org.apache.catalina.connector.Response;
 
 @AutoService(InstrumenterModule.class)
 public final class TomcatServerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, ExcludeFilterProvider {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice, ExcludeFilterProvider {
 
   public TomcatServerInstrumentation() {
     super("tomcat");

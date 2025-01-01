@@ -39,7 +39,7 @@ import scala.concurrent.forkjoin.ForkJoinTask;
  */
 @AutoService(InstrumenterModule.class)
 public final class ScalaForkJoinTaskInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, ExcludeFilterProvider {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice, ExcludeFilterProvider {
 
   public ScalaForkJoinTaskInstrumentation() {
     super("java_concurrent", "scala_concurrent");

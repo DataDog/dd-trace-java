@@ -34,7 +34,7 @@ import org.apache.pekko.http.scaladsl.model.HttpRequest;
  */
 @AutoService(InstrumenterModule.class)
 public class HttpHeaderSubclassesInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
   public HttpHeaderSubclassesInstrumentation() {
     super("pekko-http");
   }

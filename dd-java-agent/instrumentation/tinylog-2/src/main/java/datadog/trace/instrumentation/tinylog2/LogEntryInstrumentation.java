@@ -26,7 +26,7 @@ import org.tinylog.core.LogEntry;
 
 @AutoService(InstrumenterModule.class)
 public class LogEntryInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public LogEntryInstrumentation() {
     super("tinylog");
   }

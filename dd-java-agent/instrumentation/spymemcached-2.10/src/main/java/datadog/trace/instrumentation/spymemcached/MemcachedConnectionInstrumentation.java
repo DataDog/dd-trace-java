@@ -17,7 +17,7 @@ import net.spy.memcached.internal.OperationFuture;
 
 @AutoService(InstrumenterModule.class)
 public class MemcachedConnectionInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public MemcachedConnectionInstrumentation() {
     super("spymemcached");

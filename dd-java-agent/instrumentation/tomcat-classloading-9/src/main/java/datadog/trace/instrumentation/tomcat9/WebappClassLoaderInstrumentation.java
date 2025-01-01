@@ -14,7 +14,7 @@ import org.apache.catalina.loader.WebappClassLoaderBase;
 
 @AutoService(InstrumenterModule.class)
 public class WebappClassLoaderInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public WebappClassLoaderInstrumentation() {
     super("tomcat", "tomcat-classloading");
   }

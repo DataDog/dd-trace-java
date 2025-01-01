@@ -22,10 +22,10 @@ import org.yaml.snakeyaml.constructor.BaseConstructor;
 import org.yaml.snakeyaml.constructor.Constructor;
 
 @AutoService(InstrumenterModule.class)
-public class SnakeYamlInstrumenter extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType {
+public class SnakeYamlInstrumentation extends InstrumenterModule.Iast
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public SnakeYamlInstrumenter() {
+  public SnakeYamlInstrumentation() {
     super("snakeyaml", "snakeyaml");
   }
 
@@ -63,7 +63,7 @@ public class SnakeYamlInstrumenter extends InstrumenterModule.Iast
                 takesArguments(String.class)
                     .or(takesArguments(InputStream.class))
                     .or(takesArguments(Reader.class))),
-        SnakeYamlInstrumenter.class.getName() + "$LoadAdvice");
+        SnakeYamlInstrumentation.class.getName() + "$LoadAdvice");
   }
 
   public static class LoadAdvice {

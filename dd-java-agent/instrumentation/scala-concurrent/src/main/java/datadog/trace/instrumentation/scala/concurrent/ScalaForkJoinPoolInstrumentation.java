@@ -21,7 +21,7 @@ import scala.concurrent.forkjoin.ForkJoinTask;
 
 @AutoService(InstrumenterModule.class)
 public final class ScalaForkJoinPoolInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public ScalaForkJoinPoolInstrumentation() {
     super("java_concurrent", "scala_concurrent");

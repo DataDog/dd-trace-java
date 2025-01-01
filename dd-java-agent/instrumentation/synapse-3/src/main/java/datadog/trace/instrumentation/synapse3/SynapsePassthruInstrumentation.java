@@ -18,7 +18,7 @@ import org.apache.axis2.context.MessageContext;
 /** Helps propagate parent spans over 'passthru' mechanism to synapse-client instrumentation. */
 @AutoService(InstrumenterModule.class)
 public final class SynapsePassthruInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public SynapsePassthruInstrumentation() {
     super("synapse3-client", "synapse3");

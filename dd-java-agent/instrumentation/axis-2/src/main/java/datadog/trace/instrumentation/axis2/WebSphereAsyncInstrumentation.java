@@ -16,7 +16,7 @@ import org.apache.axis2.context.MessageContext;
 
 @AutoService(InstrumenterModule.class)
 public final class WebSphereAsyncInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public WebSphereAsyncInstrumentation() {
     super("axis2", "axis2-transport");
