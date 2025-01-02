@@ -13,7 +13,7 @@ import org.eclipse.jetty.server.Request;
 
 @AutoService(InstrumenterModule.class)
 public class RequestExtractParametersInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public RequestExtractParametersInstrumentation() {
     super("jetty");
   }

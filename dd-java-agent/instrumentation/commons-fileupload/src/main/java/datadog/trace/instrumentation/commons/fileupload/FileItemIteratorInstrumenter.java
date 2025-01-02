@@ -23,7 +23,7 @@ import org.apache.commons.fileupload.FileItemStream;
 
 @AutoService(InstrumenterModule.class)
 public class FileItemIteratorInstrumenter extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public FileItemIteratorInstrumenter() {
     super("commons-fileupload", "fileitemiterator");

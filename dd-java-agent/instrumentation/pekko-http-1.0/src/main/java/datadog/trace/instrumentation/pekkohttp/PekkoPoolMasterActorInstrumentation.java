@@ -12,7 +12,7 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public final class PekkoPoolMasterActorInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public PekkoPoolMasterActorInstrumentation() {
     super("pekko-http", "pekko-http-client");
   }

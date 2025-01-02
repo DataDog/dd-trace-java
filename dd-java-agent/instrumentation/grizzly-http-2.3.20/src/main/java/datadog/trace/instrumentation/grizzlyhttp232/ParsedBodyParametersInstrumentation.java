@@ -31,7 +31,7 @@ import org.glassfish.grizzly.http.util.Parameters;
 // org.glassfish.grizzly.http.server.HttpHandler
 @AutoService(InstrumenterModule.class)
 public class ParsedBodyParametersInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public ParsedBodyParametersInstrumentation() {
     super("grizzly");

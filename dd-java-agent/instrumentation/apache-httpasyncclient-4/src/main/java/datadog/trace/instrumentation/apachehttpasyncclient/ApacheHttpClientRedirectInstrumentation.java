@@ -26,7 +26,7 @@ import org.apache.http.protocol.HttpContext;
  */
 @AutoService(InstrumenterModule.class)
 public class ApacheHttpClientRedirectInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public ApacheHttpClientRedirectInstrumentation() {
     super("httpasyncclient", "apache-httpasyncclient", "httpclient-redirect");

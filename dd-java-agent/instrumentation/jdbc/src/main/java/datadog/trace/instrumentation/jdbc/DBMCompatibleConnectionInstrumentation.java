@@ -27,7 +27,7 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionInstrumentation
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   /** Instrumentation class for connections for Database Monitoring supported DBs * */
   public DBMCompatibleConnectionInstrumentation() {

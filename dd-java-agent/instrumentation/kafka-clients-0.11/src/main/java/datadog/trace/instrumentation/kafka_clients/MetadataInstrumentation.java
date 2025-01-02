@@ -23,7 +23,7 @@ import org.apache.kafka.common.requests.MetadataResponse;
 
 @AutoService(InstrumenterModule.class)
 public class MetadataInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public MetadataInstrumentation() {
     super("kafka", "kafka-0.11");

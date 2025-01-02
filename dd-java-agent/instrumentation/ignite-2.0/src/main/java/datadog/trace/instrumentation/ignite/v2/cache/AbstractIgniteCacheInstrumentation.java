@@ -6,7 +6,7 @@ import java.util.Collections;
 import java.util.Map;
 
 public abstract class AbstractIgniteCacheInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   public AbstractIgniteCacheInstrumentation() {
     super("ignite");

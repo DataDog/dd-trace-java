@@ -28,7 +28,7 @@ class CustomMBeanServerBuilderTest extends Specification {
       , true) == 0
   }
 
-  def "JMXFetch starts up in premain if configured MBeanServerBuilder on system classpath"() {
+  def "JMXFetch startup is delayed even if configured MBeanServerBuilder on system classpath"() {
     expect:
     IntegrationTestUtils.runOnSeparateJvm(MBeanServerBuilderSetter.getName()
       , [

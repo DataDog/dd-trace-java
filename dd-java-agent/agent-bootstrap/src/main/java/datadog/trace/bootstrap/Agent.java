@@ -10,7 +10,6 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.JMX_STARTUP;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_STARTUP;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACE_STARTUP;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
-import static datadog.trace.util.Strings.getResourceName;
 import static datadog.trace.util.Strings.propertyNameToSystemPropertyName;
 import static datadog.trace.util.Strings.toEnvVar;
 
@@ -352,7 +351,7 @@ public class Agent {
      * logging facility. Likewise on IBM JDKs OkHttp may indirectly load 'IBMSASL' which in turn loads LogManager.
      */
     InstallDatadogTracerCallback installDatadogTracerCallback =
-        new InstallDatadogTracerCallback(initTelemetry, inst);
+        new InstallDatadogTracerCallback(initTelemetry, inst, delayOkHttp);
     if (delayOkHttp) {
       log.debug("Custom logger detected. Delaying Datadog Tracer initialization.");
       registerLogManagerCallback(installDatadogTracerCallback);
@@ -501,28 +500,21 @@ public class Agent {
   }
 
   protected static class InstallDatadogTracerCallback extends ClassLoadCallBack {
-    private final InitializationTelemetry initTelemetry;
     private final Instrumentation instrumentation;
+    private final Object sco;
+    private final Class<?> scoClass;
+    private final boolean delayOkHttp;
 
     public InstallDatadogTracerCallback(
-        InitializationTelemetry initTelemetry, Instrumentation instrumentation) {
-      this.initTelemetry = initTelemetry;
+        InitializationTelemetry initTelemetry,
+        Instrumentation instrumentation,
+        boolean delayOkHttp) {
+      this.delayOkHttp = delayOkHttp;
       this.instrumentation = instrumentation;
-    }
-
-    @Override
-    public AgentThread agentThread() {
-      return TRACE_STARTUP;
-    }
-
-    @Override
-    public void execute() {
-      Object sco;
-      Class<?> scoClass;
       try {
         scoClass =
             AGENT_CLASSLOADER.loadClass("datadog.communication.ddagent.SharedCommunicationObjects");
-        sco = scoClass.getConstructor().newInstance();
+        sco = scoClass.getConstructor(boolean.class).newInstance(delayOkHttp);
       } catch (ClassNotFoundException
           | NoSuchMethodException
           | InstantiationException
@@ -532,16 +524,41 @@ public class Agent {
       }
 
       installDatadogTracer(initTelemetry, scoClass, sco);
+      maybeInstallLogsIntake(scoClass, sco);
+    }
+
+    @Override
+    public AgentThread agentThread() {
+      return TRACE_STARTUP;
+    }
+
+    @Override
+    public void execute() {
+      if (delayOkHttp) {
+        resumeRemoteComponents();
+      }
+
       maybeStartAppSec(scoClass, sco);
       maybeStartIast(instrumentation, scoClass, sco);
       maybeStartCiVisibility(instrumentation, scoClass, sco);
-      maybeStartLogsIntake(scoClass, sco);
       // start debugger before remote config to subscribe to it before starting to poll
       maybeStartDebugger(instrumentation, scoClass, sco);
       maybeStartRemoteConfig(scoClass, sco);
 
       if (telemetryEnabled) {
         startTelemetry(instrumentation, scoClass, sco);
+      }
+    }
+
+    private void resumeRemoteComponents() {
+      try {
+        // remote components were paused for custom log-manager/jmx-builder
+        // add small delay before resuming remote I/O to help stabilization
+        Thread.sleep(1_000);
+        scoClass.getMethod("resume").invoke(sco);
+      } catch (InterruptedException ignore) {
+      } catch (Throwable e) {
+        log.error("Error resuming remote components", e);
       }
     }
   }
@@ -870,17 +887,18 @@ public class Agent {
     }
   }
 
-  private static void maybeStartLogsIntake(Class<?> scoClass, Object sco) {
+  private static void maybeInstallLogsIntake(Class<?> scoClass, Object sco) {
     if (agentlessLogSubmissionEnabled) {
       StaticEventLogger.begin("Logs Intake");
 
       try {
         final Class<?> logsIntakeSystemClass =
             AGENT_CLASSLOADER.loadClass("datadog.trace.logging.intake.LogsIntakeSystem");
-        final Method logsIntakeInstallerMethod = logsIntakeSystemClass.getMethod("start", scoClass);
+        final Method logsIntakeInstallerMethod =
+            logsIntakeSystemClass.getMethod("install", scoClass);
         logsIntakeInstallerMethod.invoke(null, sco);
       } catch (final Throwable e) {
-        log.warn("Not starting Logs Intake subsystem", e);
+        log.warn("Not installing Logs Intake subsystem", e);
       }
 
       StaticEventLogger.end("Logs Intake");
@@ -1281,14 +1299,8 @@ public class Agent {
 
     final String logManagerProp = System.getProperty("java.util.logging.manager");
     if (logManagerProp != null) {
-      final boolean onSysClasspath =
-          ClassLoader.getSystemResource(getResourceName(logManagerProp)) != null;
       log.debug("Prop - logging.manager: {}", logManagerProp);
-      log.debug("logging.manager on system classpath: {}", onSysClasspath);
-      // Some applications set java.util.logging.manager but never actually initialize the logger.
-      // Check to see if the configured manager is on the system classpath.
-      // If so, it should be safe to initialize jmxfetch which will setup the log manager.
-      return !onSysClasspath;
+      return true;
     }
 
     return false;
@@ -1319,14 +1331,8 @@ public class Agent {
 
     final String jmxBuilderProp = System.getProperty("javax.management.builder.initial");
     if (jmxBuilderProp != null) {
-      final boolean onSysClasspath =
-          ClassLoader.getSystemResource(getResourceName(jmxBuilderProp)) != null;
       log.debug("Prop - javax.management.builder.initial: {}", jmxBuilderProp);
-      log.debug("javax.management.builder.initial on system classpath: {}", onSysClasspath);
-      // Some applications set javax.management.builder.initial but never actually initialize JMX.
-      // Check to see if the configured JMX builder is on the system classpath.
-      // If so, it should be safe to initialize jmxfetch which will setup JMX.
-      return !onSysClasspath;
+      return true;
     }
 
     return false;

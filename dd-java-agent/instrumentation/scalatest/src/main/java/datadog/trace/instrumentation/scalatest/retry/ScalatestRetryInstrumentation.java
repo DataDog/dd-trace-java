@@ -26,7 +26,7 @@ import org.scalatest.SuperEngine;
 
 @AutoService(InstrumenterModule.class)
 public class ScalatestRetryInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   private final String parentPackageName = Strings.getPackageName(ScalatestUtils.class.getName());
 

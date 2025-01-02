@@ -13,7 +13,7 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class MethodEndpointInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public MethodEndpointInstrumentation() {
     super("spring-ws", "spring-ws-2");
   }

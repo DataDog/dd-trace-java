@@ -20,7 +20,7 @@ import org.junit.runner.notification.RunNotifier;
  */
 @AutoService(InstrumenterModule.class)
 public class JUnitLegacySuiteEventsInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   public JUnitLegacySuiteEventsInstrumentation() {
     super("ci-visibility", "junit-4", "junit-38", "powermock");

@@ -13,7 +13,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 
 @AutoService(InstrumenterModule.class)
 public final class MicronautInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   public MicronautInstrumentation() {
     super("micronaut", "micronaut-http-server-netty", "micronaut-http-server-netty-4");

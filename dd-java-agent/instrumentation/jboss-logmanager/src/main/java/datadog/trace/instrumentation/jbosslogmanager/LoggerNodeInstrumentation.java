@@ -19,7 +19,7 @@ import org.jboss.logmanager.ExtLogRecord;
 
 @AutoService(InstrumenterModule.class)
 public class LoggerNodeInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public LoggerNodeInstrumentation() {
     super("jboss-logmanager");
   }

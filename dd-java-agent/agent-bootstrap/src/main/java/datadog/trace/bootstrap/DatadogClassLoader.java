@@ -93,7 +93,9 @@ public final class DatadogClassLoader extends SecureClassLoader {
   @Override
   protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
     if (name.startsWith("datadog.trace.instrumentation.")
-        && (name.endsWith("$Muzzle") || name.endsWith("Instrumentation"))) {
+        && (name.endsWith("$Muzzle")
+            || name.endsWith("Instrumentation")
+            || name.endsWith("Module"))) {
       InstrumentationClassLoader cl;
       if (null == (cl = instrumentationClassLoader.get())) {
         synchronized (instrumentationClassLoaderLock) {

@@ -22,7 +22,7 @@ import org.glassfish.grizzly.http.server.Response;
 
 @AutoService(InstrumenterModule.class)
 public class GrizzlyHttpHandlerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public GrizzlyHttpHandlerInstrumentation() {
     super("grizzly");

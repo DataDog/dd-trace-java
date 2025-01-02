@@ -25,7 +25,7 @@ import org.junit.runner.notification.RunNotifier;
 
 @AutoService(InstrumenterModule.class)
 public class JUnit4Instrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   static final int ORDER = 0;
 

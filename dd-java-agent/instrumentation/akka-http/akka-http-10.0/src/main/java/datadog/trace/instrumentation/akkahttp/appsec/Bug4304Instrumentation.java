@@ -25,7 +25,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 /** See https://github.com/akka/akka-http/issues/4304 */
 @AutoService(InstrumenterModule.class)
 public class Bug4304Instrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.WithTypeStructure {
+    implements Instrumenter.ForTypeHierarchy,
+        Instrumenter.WithTypeStructure,
+        Instrumenter.HasMethodAdvice {
   public Bug4304Instrumentation() {
     super("akka-http");
   }

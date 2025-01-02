@@ -27,7 +27,7 @@ import scala.concurrent.Future;
 
 @AutoService(InstrumenterModule.class)
 public class MUnitRetryInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   private final String parentPackageName = Strings.getPackageName(JUnit4Utils.class.getName());
 

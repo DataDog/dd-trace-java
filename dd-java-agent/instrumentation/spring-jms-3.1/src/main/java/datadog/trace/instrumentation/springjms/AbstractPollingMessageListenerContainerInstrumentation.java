@@ -16,7 +16,8 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class AbstractPollingMessageListenerContainerInstrumentation
-    extends InstrumenterModule.Tracing implements Instrumenter.ForSingleType {
+    extends InstrumenterModule.Tracing
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public AbstractPollingMessageListenerContainerInstrumentation() {
     super("spring-jms", "jms");

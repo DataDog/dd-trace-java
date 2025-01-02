@@ -20,7 +20,7 @@ import org.apache.pekko.http.scaladsl.model.Uri;
  */
 @AutoService(InstrumenterModule.class)
 public class FormDataInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public FormDataInstrumentation() {
     super("pekko-http");
   }

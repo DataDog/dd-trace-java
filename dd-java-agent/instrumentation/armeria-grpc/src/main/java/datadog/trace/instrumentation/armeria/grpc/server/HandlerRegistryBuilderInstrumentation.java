@@ -14,7 +14,7 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class HandlerRegistryBuilderInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public HandlerRegistryBuilderInstrumentation() {
     super("armeria-grpc-server", "armeria-grpc", "armeria", "grpc-server", "grpc");
   }

@@ -12,7 +12,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class DollarVariableInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   static final String FREEMARKER_CORE = "freemarker.core";
 
   public DollarVariableInstrumentation() {

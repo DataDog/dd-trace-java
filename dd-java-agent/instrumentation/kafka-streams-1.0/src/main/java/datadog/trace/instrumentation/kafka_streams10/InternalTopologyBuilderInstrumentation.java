@@ -13,7 +13,7 @@ import org.apache.kafka.streams.processor.internals.ProcessorTopology;
 
 @AutoService(InstrumenterModule.class)
 public class InternalTopologyBuilderInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public InternalTopologyBuilderInstrumentation() {
     super("kafka", "kafka-streams");

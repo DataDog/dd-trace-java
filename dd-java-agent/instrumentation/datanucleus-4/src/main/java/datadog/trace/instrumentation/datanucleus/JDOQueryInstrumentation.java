@@ -20,7 +20,7 @@ import org.datanucleus.store.query.Query;
 
 @AutoService(InstrumenterModule.class)
 public class JDOQueryInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public JDOQueryInstrumentation() {
     super("datanucleus");
