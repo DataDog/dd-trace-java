@@ -781,7 +781,10 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
         List<SparkSQLUtils.LineageDataset> datasets =
             JavaConverters.seqAsJavaList(logicalPlan.collect(SparkSQLUtils.logicalPlanToDataset));
         if (!datasets.isEmpty()) {
+          log.info("Adding {} datasets to query execution id {}", datasets.size(), sqlExecutionId);
           lineageDatasets.put(sqlExecutionId, datasets);
+        } else {
+          log.info("No datasets found for query execution id {}", sqlExecutionId);
         }
 
         //        if (relations.isEmpty()) {
@@ -851,6 +854,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       }
 
       span.finish(sqlEnd.time() * 1000);
+    } else {
+      log.info("End: Span not found for query execution id {}", sqlEnd.executionId());
     }
   }
 

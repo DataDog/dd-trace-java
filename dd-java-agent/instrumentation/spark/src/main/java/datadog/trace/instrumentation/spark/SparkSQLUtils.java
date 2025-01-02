@@ -35,6 +35,7 @@ public class SparkSQLUtils {
   private static final Logger log = LoggerFactory.getLogger(SparkSQLUtils.class);
 
   private static final Class<?> dataSourceV2RelationClass;
+  private static final Class<?> replaceDataClass;
   private static final MethodHandle schemaMethod;
   private static final MethodHandle nameMethod;
   private static final MethodHandle propertiesMethod;
@@ -51,9 +52,15 @@ public class SparkSQLUtils {
     return Class.forName("org.apache.spark.sql.connector.catalog.Table");
   }
 
+  @SuppressForbidden // Using reflection to avoid splitting the instrumentation once more
+  private static Class<?> findReplaceData() throws ClassNotFoundException {
+    return Class.forName("org.apache.spark.sql.catalyst.plans.logical.ReplaceData");
+  }
+
   static {
     Class<?> relationClassFound = null;
     Class<?> tableClassFound = null;
+    Class<?> replaceDataClassFound = null;
 
     MethodHandle nameMethodFound = null;
     MethodHandle schemaMethodFound = null;
@@ -64,6 +71,7 @@ public class SparkSQLUtils {
 
       relationClassFound = findDataSourceV2Relation();
       tableClassFound = findTable();
+      replaceDataClassFound = findReplaceData();
 
       schemaMethodFound =
           lookup.findVirtual(tableClassFound, "schema", MethodType.methodType(StructType.class));
@@ -76,6 +84,7 @@ public class SparkSQLUtils {
     }
 
     dataSourceV2RelationClass = relationClassFound;
+    replaceDataClass = replaceDataClassFound;
     tableClass = tableClassFound;
     schemaMethod = schemaMethodFound;
     nameMethod = nameMethodFound;
@@ -313,7 +322,8 @@ public class SparkSQLUtils {
         public boolean isDefinedAt(LogicalPlan x) {
           return x instanceof DataSourceV2Relation
               || (x instanceof AppendData
-                  && ((AppendData) x).table() instanceof DataSourceV2Relation);
+                  && ((AppendData) x).table() instanceof DataSourceV2Relation)
+              || (replaceDataClass != null && replaceDataClass.isInstance(x));
         }
 
         @Override
@@ -335,6 +345,28 @@ public class SparkSQLUtils {
                   table.getClass().getName(),
                   dataSourceV2RelationClass.getName());
               return parseDataSourceV2Relation(table, "output");
+            }
+          } else if (replaceDataClass != null && replaceDataClass.isInstance(x)) {
+            log.info(
+                "class {} is instance of {}", x.getClass().getName(), replaceDataClass.getName());
+
+            try {
+              if (x.getClass().getMethod("table") != null) {
+                Object table = x.getClass().getMethod("table").invoke(x);
+                if (table != null
+                    && dataSourceV2RelationClass != null
+                    && dataSourceV2RelationClass.isInstance(table)) {
+                  return parseDataSourceV2Relation(table, "output");
+                } else {
+                  log.info(
+                      "table is null or not instance of {}, cannot parse current LogicalPlan",
+                      dataSourceV2RelationClass.getName());
+                }
+              } else {
+                log.info("method table does not exist for {}", x.getClass().getName());
+              }
+            } catch (Throwable ignored) {
+              log.info("Error while converting logical plan to dataset", ignored);
             }
           }
           return null;
