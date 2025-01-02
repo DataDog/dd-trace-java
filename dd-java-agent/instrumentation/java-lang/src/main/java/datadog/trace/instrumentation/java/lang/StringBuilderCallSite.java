@@ -183,6 +183,7 @@ public class StringBuilderCallSite {
   }
 
   @CallSite.After("void java.lang.StringBuilder.setLength(int)")
+  @CallSite.After("void java.lang.StringBuffer.setLength(int)")
   public static void afterSetLength(
       @CallSite.This final CharSequence self, @CallSite.Argument final int length) {
     final StringModule module = InstrumentationBridge.STRING;

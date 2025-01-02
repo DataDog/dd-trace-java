@@ -266,6 +266,7 @@ class StringBuilderCallSiteTest extends AgentTestRunner {
     where:
     type      | suite                        | param         | length | expected
     "builder" | new TestStringBuilderSuite() | sb('012345')  | 5      | '01234'
+    "buffer"  | new TestStringBufferSuite()  | sbf('012345') | 5      | '01234'
   }
 
   private static class BrokenToString {

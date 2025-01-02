@@ -852,6 +852,8 @@ public class StringModuleImpl implements StringModule {
     Range[] newRanges = Ranges.forSubstring(0, length, rangesSelf);
     if (newRanges != null && newRanges.length > 0) {
       selfTainted.setRanges(newRanges);
+    } else {
+      selfTainted.clear();
     }
   }
 
