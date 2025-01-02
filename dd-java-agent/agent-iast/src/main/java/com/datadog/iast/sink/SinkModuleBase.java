@@ -21,13 +21,16 @@ import com.datadog.iast.util.RangeBuilder;
 import datadog.trace.api.Config;
 import datadog.trace.api.Pair;
 import datadog.trace.api.iast.IastContext;
+import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.Taintable;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.instrumentation.iastinstrumenter.IastExclusionTrie;
 import datadog.trace.instrumentation.iastinstrumenter.SourceMapperImpl;
 import datadog.trace.util.stacktrace.StackWalker;
+import java.util.Arrays;
 import java.util.Iterator;
+import java.util.List;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 import javax.annotation.Nonnull;
@@ -39,6 +42,8 @@ import org.jetbrains.annotations.Contract;
 public abstract class SinkModuleBase {
 
   private static final int MAX_EVIDENCE_LENGTH = Config.get().getIastTruncationMaxValueLength();
+  private static final List<VulnerabilityType> DB_INJECTION_TYPES =
+      Arrays.asList(VulnerabilityType.SQL_INJECTION, VulnerabilityType.XSS);
 
   protected final OverheadController overheadController;
   protected final Reporter reporter;
@@ -143,9 +148,21 @@ public abstract class SinkModuleBase {
       return null;
     }
 
+    // filter out ranges that are not SQL_TABLE for types that are not DB_INJECTION_TYPES
+    final Range[] filteredRanges;
+    if (!DB_INJECTION_TYPES.contains(type)) {
+      filteredRanges = Ranges.excludeRangesBySource(valueRanges, SourceTypes.SQL_TABLE);
+    } else {
+      filteredRanges = valueRanges;
+    }
+
+    if (filteredRanges == null || filteredRanges.length == 0) {
+      return null;
+    }
+
     final StringBuilder evidence = new StringBuilder();
     final RangeBuilder ranges = new RangeBuilder();
-    addToEvidence(type, evidence, ranges, value, valueRanges, evidenceBuilder);
+    addToEvidence(type, evidence, ranges, value, filteredRanges, evidenceBuilder);
 
     // check if finally we have an injection
     if (ranges.isEmpty()) {

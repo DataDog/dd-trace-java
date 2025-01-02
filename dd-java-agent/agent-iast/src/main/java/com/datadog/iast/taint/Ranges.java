@@ -144,6 +144,20 @@ public final class Ranges {
     return ranges[0];
   }
 
+  public static void changeHighestPriorityRange(
+      @Nonnull final Range[] ranges, @Nonnull final Source source) {
+    for (int i = 0; i < ranges.length; i++) {
+      if (ranges[i].getMarks() == NOT_MARKED) {
+        Range newRange =
+            new Range(ranges[i].getStart(), ranges[i].getLength(), source, ranges[i].getMarks());
+        ranges[i] = newRange;
+      }
+    }
+    Range newRange =
+        new Range(ranges[0].getStart(), ranges[0].getLength(), source, ranges[0].getMarks());
+    ranges[0] = newRange;
+  }
+
   /**
    * Checks if all ranges are coming from any header, in case no ranges are provided it will return
    * {@code true}
@@ -425,5 +439,23 @@ public final class Ranges {
     splittedRanges[1] = copyWithPosition(range, rangeEnd - secondLength, secondLength);
 
     return splittedRanges;
+  }
+
+  /**
+   * Remove the ranges that have the same origin as the input source.
+   *
+   * @param ranges the ranges to filter
+   * @param source the byte value of the source to exclude (see {@link SourceTypes})
+   */
+  public static Range[] excludeRangesBySource(Range[] ranges, byte source) {
+    RangeBuilder newRanges = new RangeBuilder(ranges.length);
+
+    for (Range range : ranges) {
+      if (range.getSource().getOrigin() != source) {
+        newRanges.add(range);
+      }
+    }
+
+    return newRanges.toArray();
   }
 }
