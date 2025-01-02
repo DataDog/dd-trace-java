@@ -106,8 +106,6 @@ public class ClassloaderConfigurationOverrides {
         ServiceNameCollector.get().addService(serviceName);
       }
     }
-    for (final Map.Entry<String, Object> entry : contextualInfo.getTags().entrySet()) {
-      span.setTag(entry.getKey(), entry.getValue());
-    }
+    contextualInfo.getTags().forEach(span::setTag);
   }
 }
