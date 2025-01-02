@@ -1341,8 +1341,8 @@ public class Config {
         configProvider.getString(IAST_SECURITY_CONTROLS_CONFIGURATION, null);
 
     llmObsAgentlessEnabled =
-        configProvider.getBoolean(LLM_OBS_AGENTLESS_ENABLED, DEFAULT_LLM_OBS_AGENTLESS_ENABLED);
-    llmObsMlApp = configProvider.getString(LLM_OBS_ML_APP);
+        configProvider.getBoolean(LLMOBS_AGENTLESS_ENABLED, DEFAULT_LLM_OBS_AGENTLESS_ENABLED);
+    llmObsMlApp = configProvider.getString(LLMOBS_ML_APP);
 
     ciVisibilityTraceSanitationEnabled =
         configProvider.getBoolean(CIVISIBILITY_TRACE_SANITATION_ENABLED, true);
