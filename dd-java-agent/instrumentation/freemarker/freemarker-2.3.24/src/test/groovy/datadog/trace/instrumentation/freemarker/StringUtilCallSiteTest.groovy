@@ -5,7 +5,11 @@ import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.VulnerabilityMarks
 import datadog.trace.api.iast.propagation.PropagationModule
 import foo.bar.TestStringUtilSuite
+import org.junit.jupiter.api.extension.ExtendWith
+import org.junit.jupiter.api.extension.ExtensionContext
+import org.junit.jupiter.api.extension.TestInstancePostProcessor
 
+@ExtendWith(TestSourceFileExtension)
 class StringUtilCallSiteTest extends AgentTestRunner {
 
   @Override
@@ -58,5 +62,32 @@ class StringUtilCallSiteTest extends AgentTestRunner {
     //    'javaStringEnc'       | _
     //    'javaScriptStringEnc' | _
     //    'jsonStringEnc'       | _
+  }
+}
+
+class TestSourceFileExtension implements TestInstancePostProcessor {
+  TestSourceFileExtension() {
+    System.out.println("---TestSourceFileExtension initialized.---")
+  }
+
+  @Override
+  void postProcessTestInstance(Object testInstance, ExtensionContext context) {
+    System.out.println("---in postProcessTestInstance---")
+    getTestData(context)
+  }
+
+  private static void getTestData(ExtensionContext context) {
+    System.out.println("---in getTestData---")
+    String testClassName = context.getTestClass().get().getSimpleName()
+    String testMethodName = context.getTestMethod().get().getName()
+    String requiredTestClassName = context.getRequiredTestClass().getName()
+    String requiredTestMethodName = context.getRequiredTestMethod().getName()
+
+    System.out.println("--------------------------")
+    System.out.println("testClassName: " + testClassName)
+    System.out.println("testMethodName: " + testMethodName)
+    System.out.println("requiredTestClassName: " + requiredTestClassName)
+    System.out.println("requiredTestMethodName: " + requiredTestMethodName)
+    System.out.println("--------------------------")
   }
 }
