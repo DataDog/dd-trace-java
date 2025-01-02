@@ -2,7 +2,7 @@ plugins {
   id 'java-test-fixtures'
 }
 
-def sparkVersion = '3.5.1'
+def sparkVersion = '2.4.0'
 def scalaVersion = '2.12'
 
 muzzle {
@@ -41,13 +41,13 @@ dependencies {
   testImplementation group: 'org.apache.spark', name: "spark-sql_$scalaVersion", version: "$sparkVersion"
   testImplementation group: 'org.apache.spark', name: "spark-yarn_$scalaVersion", version: "$sparkVersion"
 
-  test_spark24Implementation group: 'org.apache.spark', name: "spark-core_$scalaVersion", version: "3.5.1"
-  test_spark24Implementation group: 'org.apache.spark', name: "spark-sql_$scalaVersion", version: "3.5.1"
-  test_spark24Implementation group: 'org.apache.spark', name: "spark-yarn_$scalaVersion", version: "3.5.1"
+  test_spark24Implementation group: 'org.apache.spark', name: "spark-core_$scalaVersion", version: "2.4.8"
+  test_spark24Implementation group: 'org.apache.spark', name: "spark-sql_$scalaVersion", version: "2.4.8"
+  test_spark24Implementation group: 'org.apache.spark', name: "spark-yarn_$scalaVersion", version: "2.4.8"
 
-  test_spark32Implementation group: 'org.apache.spark', name: "spark-core_$scalaVersion", version: "3.5.1"
-  test_spark32Implementation group: 'org.apache.spark', name: "spark-sql_$scalaVersion", version: "3.5.1"
-  test_spark32Implementation group: 'org.apache.spark', name: "spark-yarn_$scalaVersion", version: "3.5.1"
+  test_spark32Implementation group: 'org.apache.spark', name: "spark-core_$scalaVersion", version: "3.2.4"
+  test_spark32Implementation group: 'org.apache.spark', name: "spark-sql_$scalaVersion", version: "3.2.4"
+  test_spark32Implementation group: 'org.apache.spark', name: "spark-yarn_$scalaVersion", version: "3.2.4"
   // We do not support netty versions older than this because of a change to the number of parameters to the
   // PooledByteBufAllocator constructor. See this PR where the new constructor (the only one we support) was introduced:
   // https://github.com/netty/netty/pull/10267

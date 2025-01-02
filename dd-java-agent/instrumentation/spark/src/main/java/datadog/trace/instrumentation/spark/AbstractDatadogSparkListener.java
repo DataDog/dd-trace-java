@@ -817,6 +817,10 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
         for (int i = 0; i < datasets.size(); i++) {
           SparkSQLUtils.LineageDataset dataset = datasets.get(i);
 
+          if (dataset == null) {
+            continue;
+          }
+
           span.setTag("dataset." + i + ".name", dataset.name);
           span.setTag("dataset." + i + ".schema", dataset.schema);
           span.setTag("dataset." + i + ".stats", dataset.stats);
