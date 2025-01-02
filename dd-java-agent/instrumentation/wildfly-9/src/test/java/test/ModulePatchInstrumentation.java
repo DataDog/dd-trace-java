@@ -11,6 +11,12 @@ import java.util.Enumeration;
 import net.bytebuddy.asm.Advice;
 import org.jboss.modules.Module;
 
+/**
+ * This instrumentation is to hack the way the jboss module classloader is loading SPI services. In
+ * fact, in test we have a classloader different from the one usually used when launching wildfly.
+ * In particular, we do not want to have SPI load services defined outside the jboss classloader
+ * module, otherwise this class won't be found afterwards.
+ */
 @AutoService(InstrumenterModule.class)
 public class ModulePatchInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
