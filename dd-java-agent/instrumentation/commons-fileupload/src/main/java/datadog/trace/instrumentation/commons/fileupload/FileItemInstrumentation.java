@@ -19,19 +19,19 @@ import java.io.InputStream;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
-import org.apache.commons.fileupload.FileItemStream;
+import org.apache.commons.fileupload.FileItem;
 
 @AutoService(InstrumenterModule.class)
-public class FileItemStreamInstrumenter extends InstrumenterModule.Iast
+public class FileItemInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  public FileItemStreamInstrumenter() {
-    super("commons-fileupload", "fileitemstream");
+  public FileItemInstrumentation() {
+    super("commons-fileupload", "fileitem");
   }
 
   @Override
   public String hierarchyMarkerType() {
-    return "org.apache.commons.fileupload.FileItemStream";
+    return "org.apache.commons.fileupload.FileItem";
   }
 
   @Override
@@ -42,16 +42,16 @@ public class FileItemStreamInstrumenter extends InstrumenterModule.Iast
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("openStream").and(isPublic()).and(takesArguments(0)),
-        getClass().getName() + "$OpenStreamAdvice");
+        named("getInputStream").and(isPublic()).and(takesArguments(0)),
+        getClass().getName() + "$GetInputStreamAdvice");
   }
 
   @RequiresRequestContext(RequestContextSlot.IAST)
-  public static class OpenStreamAdvice {
+  public static class GetInputStreamAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(
         @Advice.Return final InputStream inputStream,
-        @Advice.This final FileItemStream self,
+        @Advice.This final FileItem self,
         @ActiveRequestContext RequestContext reqCtx) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {

@@ -15,23 +15,23 @@ import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.propagation.PropagationModule;
-import java.io.InputStream;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
-import org.apache.commons.fileupload.FileItem;
+import org.apache.commons.fileupload.FileItemIterator;
+import org.apache.commons.fileupload.FileItemStream;
 
 @AutoService(InstrumenterModule.class)
-public class FileItemInstrumenter extends InstrumenterModule.Iast
+public class FileItemIteratorInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  public FileItemInstrumenter() {
-    super("commons-fileupload", "fileitem");
+  public FileItemIteratorInstrumentation() {
+    super("commons-fileupload", "fileitemiterator");
   }
 
   @Override
   public String hierarchyMarkerType() {
-    return "org.apache.commons.fileupload.FileItem";
+    return "org.apache.commons.fileupload.FileItemIterator";
   }
 
   @Override
@@ -42,21 +42,20 @@ public class FileItemInstrumenter extends InstrumenterModule.Iast
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("getInputStream").and(isPublic()).and(takesArguments(0)),
-        getClass().getName() + "$GetInputStreamAdvice");
+        named("next").and(isPublic()).and(takesArguments(0)), getClass().getName() + "$NextAdvice");
   }
 
   @RequiresRequestContext(RequestContextSlot.IAST)
-  public static class GetInputStreamAdvice {
+  public static class NextAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(
-        @Advice.Return final InputStream inputStream,
-        @Advice.This final FileItem self,
+        @Advice.Return final FileItemStream fileItemStream,
+        @Advice.This final FileItemIterator self,
         @ActiveRequestContext RequestContext reqCtx) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-        module.taintObjectIfTainted(ctx, inputStream, self);
+        module.taintObjectIfTainted(ctx, fileItemStream, self);
       }
     }
   }
