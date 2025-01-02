@@ -13,7 +13,7 @@ import org.jboss.as.ee.component.EnvEntryInjectionSource;
 
 @AutoService(InstrumenterModule.class)
 public class EnvEntryInjectionSourceInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public EnvEntryInjectionSourceInstrumentation() {
     super("wildfly", "jee-env-entry");
   }

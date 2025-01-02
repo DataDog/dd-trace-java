@@ -13,7 +13,7 @@ import org.jboss.modules.Module;
 
 @AutoService(InstrumenterModule.class)
 public class ModulePatchInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public ModulePatchInstrumentation() {
     super("jboss-module-patch");

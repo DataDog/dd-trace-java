@@ -18,7 +18,7 @@ import org.jboss.as.ee.component.EnvEntryInjectionSource;
 
 @AutoService(InstrumenterModule.class)
 public class ResourceReferenceProcessorInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public ResourceReferenceProcessorInstrumentation() {
     super("wildfly", "jee-env-entry");
   }
