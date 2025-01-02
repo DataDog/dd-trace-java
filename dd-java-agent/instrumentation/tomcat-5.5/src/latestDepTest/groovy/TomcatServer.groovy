@@ -5,7 +5,6 @@ import org.apache.catalina.core.StandardHost
 import org.apache.catalina.startup.Tomcat
 import org.apache.tomcat.JarScanFilter
 import org.apache.tomcat.JarScanType
-import org.apache.tomcat.util.descriptor.web.ContextEnvironment
 
 class TomcatServer implements HttpServer {
   def port = 0
