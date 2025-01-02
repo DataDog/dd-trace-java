@@ -17,7 +17,7 @@ abstract class OkHttp2AsyncTest extends OkHttp2Test {
   }
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+  int doRequest(String method, URI uri, List<List<String>> headers, String body, Closure callback) {
     def reqBody = HttpMethod.requiresRequestBody(method) ? RequestBody.create(MediaType.parse("text/plain"), body) : null
     def request = new Request.Builder()
       .url(uri.toURL())
@@ -55,7 +55,7 @@ abstract class OkHttp2AsyncTest extends OkHttp2Test {
     def captured = AgentTracer.noopSpan()
     try {
       TraceUtils.runUnderTrace("parent", {
-        doRequest(method, url, ["Datadog-Meta-Lang": "java"], "", { captured = AgentTracer.activeSpan() })
+        doRequest(method, url, [["Datadog-Meta-Lang", "java"]], "", { captured = AgentTracer.activeSpan() })
       })
     } catch (Exception e) {
       assert error == true

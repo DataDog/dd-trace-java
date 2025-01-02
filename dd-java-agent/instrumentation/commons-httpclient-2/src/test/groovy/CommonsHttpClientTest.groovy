@@ -24,7 +24,7 @@ abstract class CommonsHttpClientTest extends HttpClientTest {
   }
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+  int doRequest(String method, URI uri, List<List<String>> headers, String body, Closure callback) {
     HttpMethod httpMethod
 
     switch (method) {
@@ -53,7 +53,7 @@ abstract class CommonsHttpClientTest extends HttpClientTest {
         throw new RuntimeException("Unsupported method: " + method)
     }
 
-    headers.each { httpMethod.setRequestHeader(it.key, it.value) }
+    headers.each { httpMethod.setRequestHeader(it[0], it[1]) }
 
     try {
       client.executeMethod(httpMethod)

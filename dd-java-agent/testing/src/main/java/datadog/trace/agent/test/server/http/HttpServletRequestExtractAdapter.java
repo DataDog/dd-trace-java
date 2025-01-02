@@ -22,7 +22,15 @@ public class HttpServletRequestExtractAdapter
     Enumeration<String> headerNames = carrier.getHeaderNames();
     while (headerNames.hasMoreElements()) {
       final String header = headerNames.nextElement();
-      if (!classifier.accept(header, carrier.getHeader(header))) {
+      StringBuilder headerVals = new StringBuilder();
+      Enumeration<String> headers = carrier.getHeaders(header);
+      while (headers.hasMoreElements()) {
+        headerVals.append(headers.nextElement());
+        if (headers.hasMoreElements()) {
+          headerVals.append(',');
+        }
+      }
+      if (!classifier.accept(header, headerVals.toString())) {
         return;
       }
     }
