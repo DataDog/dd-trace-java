@@ -80,7 +80,6 @@ dependencies {
     }
   }
 
-
   latestDepTestRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-5')
 }
 
@@ -125,6 +124,11 @@ tasks.register("extractLatestWildfly", Copy) {
   onlyIf { !project.rootProject.hasProperty("skipTests") }
 }
 
+
+tasks.named("test").configure {
+  dependsOn 'extractWildfly'
+}
+
 tasks.named("forkedTest").configure {
   dependsOn 'extractWildfly'
 }
@@ -132,6 +136,9 @@ tasks.named("latestDepForkedTest").configure {
   dependsOn 'extractLatestWildfly'
 }
 
+tasks.named("latestDepTest").configure {
+  dependsOn 'extractLatestWildfly'
+}
 compileTestGroovy.configure {
   javaLauncher = getJavaLauncherFor(11)
 }
