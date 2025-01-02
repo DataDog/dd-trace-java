@@ -13,28 +13,28 @@ class StringUtilCallSiteTest extends AgentTestRunner {
     injectSysConfig("dd.iast.enabled", "true")
   }
 
-  void 'test #method'() {
-    given:
-    final module = Mock(PropagationModule)
-    InstrumentationBridge.registerIastModule(module)
-
-    when:
-    final result = TestStringUtilSuite.&"$method".call(args)
-
-    then:
-    result == expected
-    1 * module.taintStringIfTainted(_ as String, args[0], false, VulnerabilityMarks.XSS_MARK)
-    0 * _
-
-    where:
-    method                | args                                                            | expected
-    'HTMLEnc'             | ['<htmlTag>"escape this < </htmlTag>']                          | '&lt;htmlTag&gt;&quot;escape this &lt; &lt;/htmlTag&gt;'
-    'XMLEnc'              | ['<xmlTag>"escape this < </xmlTag>']                            | '&lt;xmlTag&gt;&quot;escape this &lt; &lt;/xmlTag&gt;'
-    'XHTMLEnc'            | ['<htmlTag>"escape this < </htmlTag>']                          | '&lt;htmlTag&gt;&quot;escape this &lt; &lt;/htmlTag&gt;'
-    'javaStringEnc'       | ['<script>function a(){console.log("escape this < ")}<script>'] | '<script>function a(){console.log(\\"escape this < \\")}<script>'
-    'javaScriptStringEnc' | ['<script>function a(){console.log("escape this < ")}<script>'] | '<script>function a(){console.log(\\"escape this < \\")}<script>'
-    'jsonStringEnc'       | ['["a":{"b":2}]']                                               | '[\\"a\\":{\\"b\\":2}]'
-  }
+  //  void 'test #method'() {
+  //    given:
+  //    final module = Mock(PropagationModule)
+  //    InstrumentationBridge.registerIastModule(module)
+  //
+  //    when:
+  //    final result = TestStringUtilSuite.&"$method".call(args)
+  //
+  //    then:
+  //    result == expected
+  //    1 * module.taintStringIfTainted(_ as String, args[0], false, VulnerabilityMarks.XSS_MARK)
+  //    0 * _
+  //
+  //    where:
+  //    method                | args                                                            | expected
+  //    'HTMLEnc'             | ['<htmlTag>"escape this < </htmlTag>']                          | '&lt;htmlTag&gt;&quot;escape this &lt; &lt;/htmlTag&gt;'
+  //    'XMLEnc'              | ['<xmlTag>"escape this < </xmlTag>']                            | '&lt;xmlTag&gt;&quot;escape this &lt; &lt;/xmlTag&gt;'
+  //    'XHTMLEnc'            | ['<htmlTag>"escape this < </htmlTag>']                          | '&lt;htmlTag&gt;&quot;escape this &lt; &lt;/htmlTag&gt;'
+  //    'javaStringEnc'       | ['<script>function a(){console.log("escape this < ")}<script>'] | '<script>function a(){console.log(\\"escape this < \\")}<script>'
+  //    'javaScriptStringEnc' | ['<script>function a(){console.log("escape this < ")}<script>'] | '<script>function a(){console.log(\\"escape this < \\")}<script>'
+  //    'jsonStringEnc'       | ['["a":{"b":2}]']                                               | '[\\"a\\":{\\"b\\":2}]'
+  //  }
 
   void 'test #method with null args'() {
     given:
@@ -42,20 +42,21 @@ class StringUtilCallSiteTest extends AgentTestRunner {
     InstrumentationBridge.registerIastModule(module)
 
     when:
+    System.out.println("---running failing test---")
     TestStringUtilSuite.&"$method".call(null)
 
     then:
     def thrownException = thrown (Exception)
-    assert  thrownException.stackTrace[0].getClassName().startsWith('freemarker')
+    assert  thrownException.stackTrace[0].getClassName().startsWith('Xfreemarker')
     0 * _
 
     where:
     method                | ex
     'HTMLEnc'             | _
-    'XMLEnc'              | _
-    'XHTMLEnc'            | _
-    'javaStringEnc'       | _
-    'javaScriptStringEnc' | _
-    'jsonStringEnc'       | _
+    //    'XMLEnc'              | _
+    //    'XHTMLEnc'            | _
+    //    'javaStringEnc'       | _
+    //    'javaScriptStringEnc' | _
+    //    'jsonStringEnc'       | _
   }
 }
