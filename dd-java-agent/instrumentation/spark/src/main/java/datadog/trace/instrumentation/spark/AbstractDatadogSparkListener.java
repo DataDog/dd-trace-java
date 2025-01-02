@@ -813,6 +813,16 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
             datasets.size(),
             sqlEnd.executionId());
 
+        // update the dataset count in the application span
+        Object datasetCount = applicationSpan.getTag("spark.sql.dataset_count");
+        if (datasetCount != null) {
+          applicationSpan.setTag("spark.sql.dataset_count", (int) datasetCount + datasets.size());
+        } else {
+          applicationSpan.setTag("spark.sql.dataset_count", datasets.size());
+        }
+
+        long datasetIndex = datasetCount == null ? 0 : (int) datasetCount;
+
         // iterate over the datasets with index
         for (int i = 0; i < datasets.size(); i++) {
           SparkSQLUtils.LineageDataset dataset = datasets.get(i);
@@ -821,11 +831,22 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
             continue;
           }
 
+          // add to SQL span
           span.setTag("dataset." + i + ".name", dataset.name);
           span.setTag("dataset." + i + ".schema", dataset.schema);
           span.setTag("dataset." + i + ".stats", dataset.stats);
           span.setTag("dataset." + i + ".properties", dataset.properties);
           span.setTag("dataset." + i + ".type", dataset.type);
+
+          // add to Application span
+          applicationSpan.setTag("spark.sql.dataset." + datasetIndex + ".name", dataset.name);
+          applicationSpan.setTag("spark.sql.dataset." + datasetIndex + ".schema", dataset.schema);
+          applicationSpan.setTag("spark.sql.dataset." + datasetIndex + ".stats", dataset.stats);
+          applicationSpan.setTag(
+              "spark.sql.dataset." + datasetIndex + ".properties", dataset.properties);
+          applicationSpan.setTag("spark.sql.dataset." + datasetIndex + ".type", dataset.type);
+
+          datasetIndex++;
         }
       }
 
