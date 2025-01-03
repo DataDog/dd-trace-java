@@ -39,6 +39,8 @@ import org.apache.spark.ExceptionFailure;
 import org.apache.spark.SparkConf;
 import org.apache.spark.TaskFailedReason;
 import org.apache.spark.scheduler.*;
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
+import org.apache.spark.sql.execution.QueryExecution;
 import org.apache.spark.sql.execution.SQLExecution;
 import org.apache.spark.sql.execution.SparkPlanInfo;
 import org.apache.spark.sql.execution.metric.SQLMetricInfo;
@@ -101,6 +103,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   private final HashMap<Long, SparkListenerSQLExecutionStart> sqlQueries = new HashMap<>();
   protected final HashMap<Long, SparkPlanInfo> sqlPlans = new HashMap<>();
   private final HashMap<String, SparkListenerExecutorAdded> liveExecutors = new HashMap<>();
+
+  private final HashMap<Long, List<SparkSQLUtils.LineageDataset>> lineageDatasets = new HashMap<>();
 
   // There is no easy way to know if an accumulator is not useful anymore (meaning it is not part of
   // an active SQL query)
@@ -752,11 +756,34 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   private synchronized void onSQLExecutionStart(SparkListenerSQLExecutionStart sqlStart) {
     sqlPlans.put(sqlStart.executionId(), sqlStart.sparkPlanInfo());
     sqlQueries.put(sqlStart.executionId(), sqlStart);
+
+    long sqlExecutionId = sqlStart.executionId();
+    QueryExecution queryExecution = SQLExecution.getQueryExecution(sqlExecutionId);
+    if (queryExecution != null) {
+      LogicalPlan logicalPlan = queryExecution.analyzed();
+
+      log.info("Logical plan for query execution id {}: {}", sqlExecutionId, logicalPlan);
+
+      if (logicalPlan != null) {
+        List<SparkSQLUtils.LineageDataset> datasets =
+            JavaConverters.seqAsJavaList(logicalPlan.collect(SparkSQLUtils.logicalPlanToDataset));
+        if (!datasets.isEmpty()) {
+          log.info("Adding {} datasets to query execution id {}", datasets.size(), sqlExecutionId);
+          lineageDatasets.put(sqlExecutionId, datasets);
+        } else {
+          log.info("No datasets found for query execution id {}", sqlExecutionId);
+        }
+      }
+    } else {
+      log.warn("Start: QueryExecution not found for sqlEnd queryExecutionId: {}", sqlExecutionId);
+    }
   }
 
   private synchronized void onSQLExecutionEnd(SparkListenerSQLExecutionEnd sqlEnd) {
     AgentSpan span = sqlSpans.remove(sqlEnd.executionId());
     SparkAggregatedTaskMetrics metrics = sqlMetrics.remove(sqlEnd.executionId());
+    List<SparkSQLUtils.LineageDataset> datasets = lineageDatasets.remove(sqlEnd.executionId());
+
     sqlQueries.remove(sqlEnd.executionId());
     sqlPlans.remove(sqlEnd.executionId());
 
@@ -765,7 +792,52 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
         metrics.setSpanMetrics(span);
       }
 
+      if (datasets != null) {
+        log.info(
+            "adding {} datasets to span for query execution id {}",
+            datasets.size(),
+            sqlEnd.executionId());
+
+        // update the dataset count in the application span
+        Object datasetCount = applicationSpan.getTag("spark.sql.dataset_count");
+        if (datasetCount != null) {
+          applicationSpan.setTag("spark.sql.dataset_count", (int) datasetCount + datasets.size());
+        } else {
+          applicationSpan.setTag("spark.sql.dataset_count", datasets.size());
+        }
+
+        long datasetIndex = datasetCount == null ? 0 : (int) datasetCount;
+
+        // iterate over the datasets with index
+        for (int i = 0; i < datasets.size(); i++) {
+          SparkSQLUtils.LineageDataset dataset = datasets.get(i);
+
+          if (dataset == null) {
+            continue;
+          }
+
+          // add to SQL span
+          span.setTag("dataset." + i + ".name", dataset.name);
+          span.setTag("dataset." + i + ".schema", dataset.schema);
+          span.setTag("dataset." + i + ".stats", dataset.stats);
+          span.setTag("dataset." + i + ".properties", dataset.properties);
+          span.setTag("dataset." + i + ".type", dataset.type);
+
+          // add to Application span
+          applicationSpan.setTag("spark.sql.dataset." + datasetIndex + ".name", dataset.name);
+          applicationSpan.setTag("spark.sql.dataset." + datasetIndex + ".schema", dataset.schema);
+          applicationSpan.setTag("spark.sql.dataset." + datasetIndex + ".stats", dataset.stats);
+          applicationSpan.setTag(
+              "spark.sql.dataset." + datasetIndex + ".properties", dataset.properties);
+          applicationSpan.setTag("spark.sql.dataset." + datasetIndex + ".type", dataset.type);
+
+          datasetIndex++;
+        }
+      }
+
       span.finish(sqlEnd.time() * 1000);
+    } else {
+      log.info("End: Span not found for query execution id {}", sqlEnd.executionId());
     }
   }
 

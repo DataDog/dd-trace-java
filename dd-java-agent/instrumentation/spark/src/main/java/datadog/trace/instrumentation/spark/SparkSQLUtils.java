@@ -4,22 +4,106 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.spark.scheduler.AccumulableInfo;
+import org.apache.spark.sql.catalyst.analysis.NamedRelation;
+import org.apache.spark.sql.catalyst.catalog.CatalogTable;
+import org.apache.spark.sql.catalyst.catalog.HiveTableRelation;
+import org.apache.spark.sql.catalyst.plans.logical.AppendData;
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.execution.SparkPlanInfo;
+import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation;
 import org.apache.spark.sql.execution.metric.SQLMetricInfo;
+import org.apache.spark.sql.types.StructType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import scala.PartialFunction;
 import scala.Tuple2;
 import scala.collection.JavaConverters;
 
 public class SparkSQLUtils {
+  private static final Logger log = LoggerFactory.getLogger(SparkSQLUtils.class);
+
+  private static final Class<?> dataSourceV2RelationClass;
+  private static final Class<?> replaceDataClass;
+  private static final Class<?> insertIntoHiveTableClass;
+  private static final MethodHandle schemaMethod;
+  private static final MethodHandle nameMethod;
+  private static final MethodHandle propertiesMethod;
+
+  private static final Class<?> tableClass;
+
+  @SuppressForbidden // Using reflection to avoid splitting the instrumentation once more
+  private static Class<?> findDataSourceV2Relation() throws ClassNotFoundException {
+    return Class.forName("org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation");
+  }
+
+  @SuppressForbidden // Using reflection to avoid splitting the instrumentation once more
+  private static Class<?> findTable() throws ClassNotFoundException {
+    return Class.forName("org.apache.spark.sql.connector.catalog.Table");
+  }
+
+  @SuppressForbidden // Using reflection to avoid splitting the instrumentation once more
+  private static Class<?> findReplaceData() throws ClassNotFoundException {
+    return Class.forName("org.apache.spark.sql.catalyst.plans.logical.ReplaceData");
+  }
+
+  @SuppressForbidden // Using reflection to avoid splitting the instrumentation once more
+  private static Class<?> findInsertIntoHiveTable() throws ClassNotFoundException {
+    return Class.forName("org.apache.spark.sql.hive.execution.InsertIntoHiveTable");
+  }
+
+  static {
+    Class<?> relationClassFound = null;
+    Class<?> tableClassFound = null;
+    Class<?> replaceDataClassFound = null;
+    Class<?> insertIntoHiveTableClassFound = null;
+
+    MethodHandle nameMethodFound = null;
+    MethodHandle schemaMethodFound = null;
+    MethodHandle propertiesMethodFound = null;
+
+    try {
+      MethodHandles.Lookup lookup = MethodHandles.lookup();
+
+      relationClassFound = findDataSourceV2Relation();
+      tableClassFound = findTable();
+      replaceDataClassFound = findReplaceData();
+      insertIntoHiveTableClassFound = findInsertIntoHiveTable();
+
+      schemaMethodFound =
+          lookup.findVirtual(tableClassFound, "schema", MethodType.methodType(StructType.class));
+      nameMethodFound =
+          lookup.findVirtual(tableClassFound, "name", MethodType.methodType(String.class));
+      propertiesMethodFound =
+          lookup.findVirtual(tableClassFound, "properties", MethodType.methodType(Map.class));
+
+    } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException ignored) {
+    }
+
+    dataSourceV2RelationClass = relationClassFound;
+    replaceDataClass = replaceDataClassFound;
+    insertIntoHiveTableClass = insertIntoHiveTableClassFound;
+    tableClass = tableClassFound;
+
+    schemaMethod = schemaMethodFound;
+    nameMethod = nameMethodFound;
+    propertiesMethod = propertiesMethodFound;
+  }
+
   public static void addSQLPlanToStageSpan(
       AgentSpan span,
       SparkPlanInfo plan,
@@ -206,4 +290,208 @@ public class SparkSQLUtils {
       generator.writeEndObject();
     }
   }
+
+  static class LineageDataset {
+    final String name;
+    final String schema;
+    final String properties;
+    final String stats;
+    final String type;
+
+    public LineageDataset(
+        String name, String schema, String stats, String properties, String type) {
+      this.name = name;
+      this.schema = schema;
+      this.properties = properties;
+      this.stats = stats;
+      this.type = type;
+    }
+
+    public LineageDataset(String name, String schema, String stats, String properties) {
+      this.name = name;
+      this.schema = schema;
+      this.properties = properties;
+      this.stats = stats;
+      this.type = "unknown";
+    }
+  }
+
+  static PartialFunction<LogicalPlan, DataSourceV2Relation> pf =
+      new PartialFunction<LogicalPlan, DataSourceV2Relation>() {
+        @Override
+        public boolean isDefinedAt(LogicalPlan x) {
+          return x instanceof DataSourceV2Relation;
+        }
+
+        @Override
+        public DataSourceV2Relation apply(LogicalPlan x) {
+          return (DataSourceV2Relation) x;
+        }
+      };
+
+  static PartialFunction<LogicalPlan, LineageDataset> logicalPlanToDataset =
+      new PartialFunction<LogicalPlan, LineageDataset>() {
+        @Override
+        public boolean isDefinedAt(LogicalPlan x) {
+          return x instanceof DataSourceV2Relation
+              || (x instanceof AppendData
+                  && ((AppendData) x).table() instanceof DataSourceV2Relation)
+              || (replaceDataClass != null && replaceDataClass.isInstance(x))
+              || (insertIntoHiveTableClass != null && insertIntoHiveTableClass.isInstance(x))
+              || x instanceof HiveTableRelation;
+        }
+
+        @Override
+        public LineageDataset apply(LogicalPlan x) {
+          if (dataSourceV2RelationClass != null && dataSourceV2RelationClass.isInstance(x)) {
+            log.info(
+                "class {} is instance of {}",
+                x.getClass().getName(),
+                dataSourceV2RelationClass.getName());
+            return parseDataSourceV2Relation(x, "input");
+          } else if (x instanceof AppendData) {
+            log.info(
+                "class {} is instance of {}", x.getClass().getName(), AppendData.class.getName());
+            AppendData appendData = (AppendData) x;
+            NamedRelation table = appendData.table();
+            if (dataSourceV2RelationClass != null && dataSourceV2RelationClass.isInstance(table)) {
+              log.info(
+                  "class {} is instance of {}",
+                  table.getClass().getName(),
+                  dataSourceV2RelationClass.getName());
+              return parseDataSourceV2Relation(table, "output");
+            }
+          } else if (replaceDataClass != null && replaceDataClass.isInstance(x)) {
+            log.info(
+                "class {} is instance of {}", x.getClass().getName(), replaceDataClass.getName());
+
+            try {
+              if (x.getClass().getMethod("table") != null) {
+                Object table = x.getClass().getMethod("table").invoke(x);
+                if (table != null
+                    && dataSourceV2RelationClass != null
+                    && dataSourceV2RelationClass.isInstance(table)) {
+                  return parseDataSourceV2Relation(table, "output");
+                } else {
+                  log.info(
+                      "table is null or not instance of {}, cannot parse current LogicalPlan",
+                      dataSourceV2RelationClass.getName());
+                }
+              } else {
+                log.info("method table does not exist for {}", x.getClass().getName());
+              }
+            } catch (Throwable ignored) {
+              log.info("Error while converting logical plan to dataset", ignored);
+            }
+          } else if (insertIntoHiveTableClass != null && insertIntoHiveTableClass.isInstance(x)) {
+            log.info(
+                "class {} is instance of {}",
+                x.getClass().getName(),
+                insertIntoHiveTableClass.getName());
+
+            try {
+              return parseCatalogTable(
+                  (CatalogTable) x.getClass().getMethod("table").invoke(x), "output");
+            } catch (Throwable ignored) {
+              log.info("Error while converting logical plan to dataset", ignored);
+            }
+          } else if (x instanceof HiveTableRelation) {
+            log.info(
+                "class {} is instance of {}",
+                x.getClass().getName(),
+                HiveTableRelation.class.getName());
+            return parseCatalogTable(((HiveTableRelation) x).tableMeta(), "input");
+          }
+          return null;
+        }
+
+        private LineageDataset parseCatalogTable(CatalogTable table, String datasetType) {
+          Map<String, String> properties = new HashMap<>();
+
+          if (table.provider().isDefined()) {
+            properties.put("provider", table.provider().get());
+          }
+
+          if (table.storage().locationUri().isDefined()) {
+            properties.put("location", table.storage().locationUri().get().toString());
+          }
+          properties.put("storage", table.storage().toString());
+          properties.put("created_time", Long.toString(table.createTime()));
+          properties.put("last_access_time", Long.toString(table.lastAccessTime()));
+          properties.put("owner", table.owner());
+          properties.put("comment", table.comment().getOrElse(() -> ""));
+          properties.put(
+              "partition_columns",
+              JavaConverters.asJavaCollection(table.partitionColumnNames()).toString());
+
+          return new LineageDataset(
+              table.qualifiedName(),
+              table.schema().json(),
+              table.stats().toString(),
+              properties.toString(),
+              datasetType);
+        }
+
+        private LineageDataset parseDataSourceV2Relation(Object logicalPlan, String datasetType) {
+          try {
+            String tableName = null;
+            String tableSchema = null;
+            String properties = null;
+
+            if (logicalPlan.getClass().getMethod("table") == null) {
+              log.info(
+                  "method table does not exist for {}, cannot parse current LogicalPlan",
+                  logicalPlan.getClass().getName());
+              return null;
+            }
+
+            Object table = logicalPlan.getClass().getMethod("table").invoke(logicalPlan);
+            if (table == null) {
+              log.info(
+                  "table is null for {}, cannot parse current LogicalPlan",
+                  logicalPlan.getClass().getName());
+              return null;
+            }
+
+            if (tableClass == null || !tableClass.isInstance(table)) {
+              log.info("table is not instance of a Table class, cannot parse current LogicalPlan");
+              return null;
+            }
+
+            if (table.getClass().getMethod("name") != null) {
+              tableName = (String) nameMethod.invoke(table);
+              log.info(
+                  "method name exists for {} with table name {}",
+                  table.getClass().getName(),
+                  tableName);
+            } else {
+              log.info("method name does not exist for {}", table.getClass().getName());
+            }
+
+            if (table.getClass().getMethod("schema") != null) {
+              StructType schema = (StructType) schemaMethod.invoke(table);
+              log.info(
+                  "method schema exists for {} with schema {}", table.getClass().getName(), schema);
+              tableSchema = schema.json();
+            } else {
+              log.info("method schema does not exist for {}", table.getClass().getName());
+            }
+
+            if (table.getClass().getMethod("properties") != null) {
+              Map<String, String> propertyMap =
+                  (Map<String, String>) propertiesMethod.invoke(table);
+              properties = propertyMap.toString();
+
+              log.info("method properties found with content of {}", properties);
+            } else {
+              log.info("method properties does not exist for {}", table.getClass().getName());
+            }
+
+            return new LineageDataset(tableName, tableSchema, "", properties, datasetType);
+          } catch (Throwable ignored) {
+            log.info("Error while converting logical plan to dataset", ignored);
+            return null;
+          }
+        }
+      };
 }
