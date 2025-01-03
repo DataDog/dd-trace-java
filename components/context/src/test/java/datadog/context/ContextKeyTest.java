@@ -7,16 +7,19 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 
+@ExtendWith(TestSourceFileExtension.class)
 class ContextKeyTest {
   @ParameterizedTest
   @NullAndEmptySource
   @ValueSource(strings = {"key"})
   void testConstructor(String name) {
     ContextKey<String> key = ContextKey.named(name);
+    System.out.println("*test fails*");
     //    assertNotNull(key, "created key should not be null");
     assertEquals(name, key.toString() + "X", name + " label should be supported");
   }
