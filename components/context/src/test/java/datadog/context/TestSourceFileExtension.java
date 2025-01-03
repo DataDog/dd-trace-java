@@ -24,6 +24,9 @@ public class TestSourceFileExtension implements TestInstancePostProcessor {
     if (resource != null) {
       String absolutePath = resource.getPath();
       System.out.println("absolutePath: " + absolutePath);
+      String subPath =
+          absolutePath.substring(absolutePath.indexOf("dd-trace-java") + "dd-trace-java".length());
+      System.out.println("subPath: " + subPath);
     } else {
       System.out.println("no absolute path.");
     }
