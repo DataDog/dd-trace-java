@@ -22,10 +22,10 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
-public class CommonsFileuploadInstrumenter extends InstrumenterModule.Iast
+public class CommonsFileuploadInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
-  public CommonsFileuploadInstrumenter() {
+  public CommonsFileuploadInstrumentation() {
     super("commons-fileupload");
   }
 
