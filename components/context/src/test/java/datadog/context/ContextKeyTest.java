@@ -18,7 +18,7 @@ class ContextKeyTest {
   void testConstructor(String name) {
     ContextKey<String> key = ContextKey.named(name);
     System.out.println("*test fails*");
-    //    assertNotNull(key, "created key should not be null");
+    assertNull(key, "created key should not be null");
     assertEquals(name, key.toString() + "X", name + " label should be supported");
   }
 
