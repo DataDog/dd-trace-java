@@ -765,19 +765,6 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       log.info("Logical plan for query execution id {}: {}", sqlExecutionId, logicalPlan);
 
       if (logicalPlan != null) {
-        //        Collection<DataSourceV2Relation> relations =
-        // JavaConverters.asJavaCollection(logicalPlan.collect(SparkSQLUtils.pf));
-        //        List<SparkSQLUtils.LineageDataset> datasets = new ArrayList<>();
-        //
-        //        for (DataSourceV2Relation relation : relations) {
-        //          String name = relation.table().name();
-        //          String schema = relation.schema().json();
-        //          String stats = relation.stats().toString();
-        //          String properties = relation.table().properties().toString();
-        //
-        //          datasets.add(new SparkSQLUtils.LineageDataset(name, schema, stats, properties));
-        //        }
-
         List<SparkSQLUtils.LineageDataset> datasets =
             JavaConverters.seqAsJavaList(logicalPlan.collect(SparkSQLUtils.logicalPlanToDataset));
         if (!datasets.isEmpty()) {
@@ -786,11 +773,6 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
         } else {
           log.info("No datasets found for query execution id {}", sqlExecutionId);
         }
-
-        //        if (relations.isEmpty()) {
-        //          log.info("No DataSourceV2Relation found for query execution id {}",
-        // sqlExecutionId);
-        //        }
       }
     } else {
       log.warn("Start: QueryExecution not found for sqlEnd queryExecutionId: {}", sqlExecutionId);

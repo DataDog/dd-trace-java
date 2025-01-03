@@ -13,12 +13,15 @@ import java.lang.invoke.MethodType;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.spark.scheduler.AccumulableInfo;
 import org.apache.spark.sql.catalyst.analysis.NamedRelation;
+import org.apache.spark.sql.catalyst.catalog.CatalogTable;
+import org.apache.spark.sql.catalyst.catalog.HiveTableRelation;
 import org.apache.spark.sql.catalyst.plans.logical.AppendData;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.execution.SparkPlanInfo;
@@ -36,6 +39,7 @@ public class SparkSQLUtils {
 
   private static final Class<?> dataSourceV2RelationClass;
   private static final Class<?> replaceDataClass;
+  private static final Class<?> insertIntoHiveTableClass;
   private static final MethodHandle schemaMethod;
   private static final MethodHandle nameMethod;
   private static final MethodHandle propertiesMethod;
@@ -57,10 +61,16 @@ public class SparkSQLUtils {
     return Class.forName("org.apache.spark.sql.catalyst.plans.logical.ReplaceData");
   }
 
+  @SuppressForbidden // Using reflection to avoid splitting the instrumentation once more
+  private static Class<?> findInsertIntoHiveTable() throws ClassNotFoundException {
+    return Class.forName("org.apache.spark.sql.hive.execution.InsertIntoHiveTable");
+  }
+
   static {
     Class<?> relationClassFound = null;
     Class<?> tableClassFound = null;
     Class<?> replaceDataClassFound = null;
+    Class<?> insertIntoHiveTableClassFound = null;
 
     MethodHandle nameMethodFound = null;
     MethodHandle schemaMethodFound = null;
@@ -72,6 +82,7 @@ public class SparkSQLUtils {
       relationClassFound = findDataSourceV2Relation();
       tableClassFound = findTable();
       replaceDataClassFound = findReplaceData();
+      insertIntoHiveTableClassFound = findInsertIntoHiveTable();
 
       schemaMethodFound =
           lookup.findVirtual(tableClassFound, "schema", MethodType.methodType(StructType.class));
@@ -85,7 +96,9 @@ public class SparkSQLUtils {
 
     dataSourceV2RelationClass = relationClassFound;
     replaceDataClass = replaceDataClassFound;
+    insertIntoHiveTableClass = insertIntoHiveTableClassFound;
     tableClass = tableClassFound;
+
     schemaMethod = schemaMethodFound;
     nameMethod = nameMethodFound;
     propertiesMethod = propertiesMethodFound;
@@ -323,7 +336,9 @@ public class SparkSQLUtils {
           return x instanceof DataSourceV2Relation
               || (x instanceof AppendData
                   && ((AppendData) x).table() instanceof DataSourceV2Relation)
-              || (replaceDataClass != null && replaceDataClass.isInstance(x));
+              || (replaceDataClass != null && replaceDataClass.isInstance(x))
+              || (insertIntoHiveTableClass != null && insertIntoHiveTableClass.isInstance(x))
+              || x instanceof HiveTableRelation;
         }
 
         @Override
@@ -368,8 +383,53 @@ public class SparkSQLUtils {
             } catch (Throwable ignored) {
               log.info("Error while converting logical plan to dataset", ignored);
             }
+          } else if (insertIntoHiveTableClass != null && insertIntoHiveTableClass.isInstance(x)) {
+            log.info(
+                "class {} is instance of {}",
+                x.getClass().getName(),
+                insertIntoHiveTableClass.getName());
+
+            try {
+              return parseCatalogTable(
+                  (CatalogTable) x.getClass().getMethod("table").invoke(x), "output");
+            } catch (Throwable ignored) {
+              log.info("Error while converting logical plan to dataset", ignored);
+            }
+          } else if (x instanceof HiveTableRelation) {
+            log.info(
+                "class {} is instance of {}",
+                x.getClass().getName(),
+                HiveTableRelation.class.getName());
+            return parseCatalogTable(((HiveTableRelation) x).tableMeta(), "input");
           }
           return null;
+        }
+
+        private LineageDataset parseCatalogTable(CatalogTable table, String datasetType) {
+          Map<String, String> properties = new HashMap<>();
+
+          if (table.provider().isDefined()) {
+            properties.put("provider", table.provider().get());
+          }
+
+          if (table.storage().locationUri().isDefined()) {
+            properties.put("location", table.storage().locationUri().get().toString());
+          }
+          properties.put("storage", table.storage().toString());
+          properties.put("created_time", Long.toString(table.createTime()));
+          properties.put("last_access_time", Long.toString(table.lastAccessTime()));
+          properties.put("owner", table.owner());
+          properties.put("comment", table.comment().getOrElse(() -> ""));
+          properties.put(
+              "partition_columns",
+              JavaConverters.asJavaCollection(table.partitionColumnNames()).toString());
+
+          return new LineageDataset(
+              table.qualifiedName(),
+              table.schema().json(),
+              table.stats().toString(),
+              properties.toString(),
+              datasetType);
         }
 
         private LineageDataset parseDataSourceV2Relation(Object logicalPlan, String datasetType) {
