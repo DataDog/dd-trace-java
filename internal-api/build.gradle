@@ -122,9 +122,6 @@ excludedClassesCoverage += [
   "datadog.trace.api.civisibility.CiVisibilityWellKnownTags",
   "datadog.trace.api.civisibility.InstrumentationBridge",
   "datadog.trace.api.civisibility.InstrumentationTestBridge",
-  "datadog.trace.api.ClassloaderConfigurationOverrides",
-  "datadog.trace.api.ClassloaderConfigurationOverrides.Lazy",
-  "datadog.trace.api.ClassloaderConfigurationOverrides.ContextualInfo",
   // POJO
   "datadog.trace.api.git.GitInfo",
   "datadog.trace.api.git.GitInfoProvider",

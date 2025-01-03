@@ -15,7 +15,8 @@ import javax.annotation.Nullable;
 public class ClassloaderConfigurationOverrides {
   public static final String DATADOG_TAGS_PREFIX = "datadog/tags/";
   public static final String DATADOG_TAGS_JNDI_PREFIX = "java:comp/env/" + DATADOG_TAGS_PREFIX;
-  private static final boolean CAN_SPLIT_SERVICE_NAME_BY_DEPLOYMENT =
+  // not final for testing purposes
+  static boolean CAN_SPLIT_SERVICE_NAME_BY_DEPLOYMENT =
       Config.get().isJeeSplitByDeployment() && !Config.get().isServiceNameSetByUser();
 
   private static class Lazy {
@@ -44,7 +45,7 @@ public class ClassloaderConfigurationOverrides {
     }
   }
 
-  private static Function<ClassLoader, ContextualInfo> EMPTY_CONTEXTUAL_INFO_ADDER =
+  private static final Function<ClassLoader, ContextualInfo> EMPTY_CONTEXTUAL_INFO_ADDER =
       ignored -> new ContextualInfo(null);
 
   private final WeakHashMap<ClassLoader, ContextualInfo> weakCache = new WeakHashMap<>();
