@@ -124,6 +124,14 @@ public final class ProfilingConfig {
   public static final String PROFILING_DATADOG_PROFILER_SCHEDULING_EVENT_INTERVAL =
       "profiling.experimental.ddprof.scheduling.event.interval";
 
+  public static final String PROFILING_BURST_INTERVAl_MS =
+      "profiling.experimental.burst.interval.ms";
+  public static final int PROFILING_BURST_INTERVAl_MS_DEFAULT = -1; // disabled
+
+  public static final String PROFILING_BURST_DURATION_MS =
+      "profiling.experimental.burst.duration.ms";
+  public static final int PROFILING_BURST_DURATION_MS_DEFAULT = 15 * 1000; // 15 seconds
+
   public static final String PROFILING_DATADOG_PROFILER_LOG_LEVEL = "profiling.ddprof.loglevel";
 
   public static final String PROFILING_DATADOG_PROFILER_LOG_LEVEL_DEFAULT = "NONE";
