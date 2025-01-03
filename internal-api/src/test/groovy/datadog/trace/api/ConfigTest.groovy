@@ -63,6 +63,9 @@ import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_REFRESH_BEANS_PE
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_STATSD_HOST
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_STATSD_PORT
 import static datadog.trace.api.config.JmxFetchConfig.JMX_TAGS
+import static datadog.trace.api.config.LlmObsConfig.LLMOBS_AGENTLESS_ENABLED
+import static datadog.trace.api.config.LlmObsConfig.LLMOBS_ML_APP
+import static datadog.trace.api.config.LlmObsConfig.LLMOBS_ENABLED
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_OLD
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_VERY_OLD
@@ -163,6 +166,9 @@ class ConfigTest extends DDSpecification {
   private static final DD_PROFILING_TAGS_ENV = "DD_PROFILING_TAGS"
   private static final DD_PROFILING_PROXY_PASSWORD_ENV = "DD_PROFILING_PROXY_PASSWORD"
   private static final DD_TRACE_X_DATADOG_TAGS_MAX_LENGTH = "DD_TRACE_X_DATADOG_TAGS_MAX_LENGTH"
+  private static final DD_LLMOBS_ENABLED_ENV = "DD_LLMOBS_ENABLED"
+  private static final DD_LLMOBS_ML_APP_ENV = "DD_LLMOBS_ML_APP"
+  private static final DD_LLMOBS_AGENTLESS_ENABLED_ENV = "DD_LLMOBS_AGENTLESS_ENABLED"
 
   def "specify overrides via properties"() {
     setup:
@@ -2206,6 +2212,124 @@ class ConfigTest extends DDSpecification {
     then:
     hostname != null
     !hostname.trim().isEmpty()
+  }
+
+  def "config instantiation should fail if llm obs is enabled via sys prop and ml app is not set"() {
+    setup:
+    Properties properties = new Properties()
+    properties.setProperty(LLMOBS_ENABLED, "true")
+
+    when:
+    new Config(ConfigProvider.withPropertiesOverride(properties))
+
+    then:
+    thrown IllegalArgumentException
+  }
+
+  def "config instantiation should fail if llm obs is enabled via env var and ml app is not set"() {
+    setup:
+    environmentVariables.set(DD_LLMOBS_ENABLED_ENV, "true")
+
+    when:
+    new Config()
+
+    then:
+    thrown IllegalArgumentException
+  }
+
+
+  def "config instantiation should NOT fail if llm obs is enabled (agentless disabled) via sys prop and ml app is set"() {
+    setup:
+    Properties properties = new Properties()
+    properties.setProperty(LLMOBS_ENABLED, "true")
+    properties.setProperty(LLMOBS_AGENTLESS_ENABLED, "false")
+    properties.setProperty(LLMOBS_ML_APP, "test-ml-app")
+
+    when:
+    def config = new Config(ConfigProvider.withPropertiesOverride(properties))
+
+    then:
+    noExceptionThrown()
+    config.isLlmObsEnabled()
+    !config.isLlmObsAgentlessEnabled()
+    config.llmObsMlApp == "test-ml-app"
+  }
+
+  def "config instantiation should NOT fail if llm obs is enabled (agentless disabled) via env var and ml app is set"() {
+    setup:
+    environmentVariables.set(DD_LLMOBS_ENABLED_ENV, "true")
+    environmentVariables.set(DD_LLMOBS_ML_APP_ENV, "test-ml-app")
+
+    when:
+    def config = new Config()
+
+    then:
+    noExceptionThrown()
+    config.isLlmObsEnabled()
+    !config.isLlmObsAgentlessEnabled()
+    config.llmObsMlApp == "test-ml-app"
+  }
+
+  def "config instantiation should fail if llm obs is in agentless mode via sys prop and API key is not set"() {
+    setup:
+    Properties properties = new Properties()
+    properties.setProperty(LLMOBS_ENABLED, "true")
+    properties.setProperty(LLMOBS_AGENTLESS_ENABLED, "true")
+    properties.setProperty(LLMOBS_ML_APP, "test-ml-app")
+
+    when:
+    new Config(ConfigProvider.withPropertiesOverride(properties))
+
+    then:
+    thrown FatalAgentMisconfigurationError
+  }
+
+  def "config instantiation should fail if llm obs is in agentless mode via env var and API key is not set"() {
+    setup:
+    environmentVariables.set(DD_LLMOBS_ENABLED_ENV, "true")
+    environmentVariables.set(DD_LLMOBS_ML_APP_ENV, "a")
+    environmentVariables.set(DD_LLMOBS_AGENTLESS_ENABLED_ENV, "true")
+
+    when:
+    new Config()
+
+    then:
+    thrown FatalAgentMisconfigurationError
+  }
+
+  def "config instantiation should NOT fail if llm obs is enabled (agentless enabled) and API key & ml app are set via sys prop"() {
+    setup:
+    Properties properties = new Properties()
+    properties.setProperty(LLMOBS_ENABLED, "true")
+    properties.setProperty(LLMOBS_AGENTLESS_ENABLED, "true")
+    properties.setProperty(LLMOBS_ML_APP, "test-ml-app")
+    properties.setProperty(API_KEY, "123456789")
+
+    when:
+    def config = new Config(ConfigProvider.withPropertiesOverride(properties))
+
+    then:
+    noExceptionThrown()
+    config.isLlmObsEnabled()
+    config.isLlmObsAgentlessEnabled()
+    config.llmObsMlApp == "test-ml-app"
+  }
+
+  def "config instantiation should NOT fail if llm obs is enabled (agentless enabled) and API key & ml app are set via env var"() {
+    setup:
+    environmentVariables.set(DD_LLMOBS_ENABLED_ENV, "true")
+    environmentVariables.set(DD_LLMOBS_ML_APP_ENV, "a")
+    environmentVariables.set(DD_LLMOBS_AGENTLESS_ENABLED_ENV, "true")
+    environmentVariables.set(DD_API_KEY_ENV, "8663294466")
+
+    when:
+    def config = new Config()
+
+    then:
+    noExceptionThrown()
+    config.isLlmObsEnabled()
+    config.isLlmObsAgentlessEnabled()
+    config.llmObsMlApp == "a"
   }
 
   def "config instantiation should fail if CI visibility agentless mode is enabled and API key is not set"() {
