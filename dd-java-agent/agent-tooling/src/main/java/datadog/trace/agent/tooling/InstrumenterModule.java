@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -154,6 +155,11 @@ public abstract class InstrumenterModule implements Instrumenter {
     // we need to instrument some synthetic methods in Scala and changed that, we make the default
     // here to ignore synthetic methods to not change the behavior for unaware instrumentations
     return isSynthetic();
+  }
+
+  /** Override this to apply shading to method advice and injected helpers. */
+  public Function<String, String> adviceShading() {
+    return null;
   }
 
   /** Override this to post-process the operand stack of any transformed methods. */
