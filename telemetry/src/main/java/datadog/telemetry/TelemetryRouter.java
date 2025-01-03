@@ -36,7 +36,11 @@ public class TelemetryRouter {
     Request.Builder httpRequestBuilder = request.httpRequest();
     TelemetryClient.Result result = currentClient.sendHttpRequest(httpRequestBuilder);
 
-    boolean requestFailed = result != TelemetryClient.Result.SUCCESS;
+    boolean requestFailed =
+        result != TelemetryClient.Result.SUCCESS
+            // interrupted request is most likely due to telemetry system shutdown,
+            // we do not want to log errors and reattempt in this case
+            && result != TelemetryClient.Result.INTERRUPTED;
     if (currentClient == agentClient) {
       if (requestFailed) {
         reportErrorOnce(currentClient.getUrl(), result);

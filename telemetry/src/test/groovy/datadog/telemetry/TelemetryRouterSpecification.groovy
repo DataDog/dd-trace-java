@@ -1,6 +1,7 @@
 package datadog.telemetry
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
+import datadog.communication.http.HttpRetryPolicy
 import datadog.telemetry.api.RequestType
 import okhttp3.Call
 import okhttp3.HttpUrl
@@ -41,8 +42,8 @@ class TelemetryRouterSpecification extends Specification {
   OkHttpClient okHttpClient = Mock()
   DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery = Mock()
 
-  def agentTelemetryClient = TelemetryClient.buildAgentClient(okHttpClient, agentUrl)
-  def intakeTelemetryClient = new TelemetryClient(okHttpClient, intakeUrl, apiKey)
+  def agentTelemetryClient = TelemetryClient.buildAgentClient(okHttpClient, agentUrl, HttpRetryPolicy.Factory.NEVER_RETRY)
+  def intakeTelemetryClient = new TelemetryClient(okHttpClient, HttpRetryPolicy.Factory.NEVER_RETRY, intakeUrl, apiKey)
   def httpClient = new TelemetryRouter(ddAgentFeaturesDiscovery, agentTelemetryClient, intakeTelemetryClient, false)
 
   def 'map an http status code to the correct send result'() {
@@ -68,6 +69,15 @@ class TelemetryRouterSpecification extends Specification {
     then:
     result == TelemetryClient.Result.FAILURE
     1 * okHttpClient.newCall(_) >> { throw new IOException("exception") }
+  }
+
+  def 'catch InterruptedIOException from OkHttpClient and return INTERRUPTED'() {
+    when:
+    def result = httpClient.sendRequest(dummyRequest())
+
+    then:
+    result == TelemetryClient.Result.INTERRUPTED
+    1 * okHttpClient.newCall(_) >> { throw new InterruptedIOException("interrupted") }
   }
 
   def 'keep trying to send telemetry to Agent despite of return code when Intake client is null'() {
@@ -160,6 +170,31 @@ class TelemetryRouterSpecification extends Specification {
     1 * ddAgentFeaturesDiscovery.discoverIfOutdated()
     1 * ddAgentFeaturesDiscovery.supportsTelemetryProxy() >> true
     1 * okHttpClient.newCall(_) >> { args -> request = args[0]; mockResponse(200) }
+    request.url() == intakeUrl
+    request.header(apiKeyHeader) == apiKey
+
+    when:
+    telemetryRouter.sendRequest(dummyRequest())
+
+    then:
+    1 * okHttpClient.newCall(_) >> { args -> request = args[0]; mockResponse(200) }
+    request.url() == intakeUrl
+    request.header(apiKeyHeader) == apiKey
+  }
+
+  def 'when configured to prefer Intake: do not switch to Agent if request is interrupted'() {
+    Request request
+
+    setup:
+    def telemetryRouter = new TelemetryRouter(ddAgentFeaturesDiscovery, agentTelemetryClient, intakeTelemetryClient, true)
+
+    when:
+    telemetryRouter.sendRequest(dummyRequest())
+
+    then:
+    1 * ddAgentFeaturesDiscovery.discoverIfOutdated()
+    1 * ddAgentFeaturesDiscovery.supportsTelemetryProxy() >> true
+    1 * okHttpClient.newCall(_) >> { args -> request = args[0]; throw new InterruptedIOException("interrupted") }
     request.url() == intakeUrl
     request.header(apiKeyHeader) == apiKey
 

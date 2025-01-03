@@ -2,6 +2,7 @@ package datadog.telemetry;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
+import datadog.communication.http.HttpRetryPolicy;
 import datadog.telemetry.TelemetryRunnable.TelemetryPeriodicAction;
 import datadog.telemetry.dependency.DependencyPeriodicAction;
 import datadog.telemetry.dependency.DependencyService;
@@ -81,8 +82,14 @@ public class TelemetrySystem {
     boolean debug = config.isTelemetryDebugRequestsEnabled();
     DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery = sco.featuresDiscovery(config);
 
-    TelemetryClient agentClient = TelemetryClient.buildAgentClient(sco.okHttpClient, sco.agentUrl);
-    TelemetryClient intakeClient = TelemetryClient.buildIntakeClient(config);
+    HttpRetryPolicy.Factory httpRetryPolicy =
+        config.isCiVisibilityEnabled()
+            ? new HttpRetryPolicy.Factory(2, 100, 2.0, true)
+            : HttpRetryPolicy.Factory.NEVER_RETRY;
+
+    TelemetryClient agentClient =
+        TelemetryClient.buildAgentClient(sco.okHttpClient, sco.agentUrl, httpRetryPolicy);
+    TelemetryClient intakeClient = TelemetryClient.buildIntakeClient(config, httpRetryPolicy);
 
     boolean useIntakeClientByDefault =
         config.isCiVisibilityEnabled() && config.isCiVisibilityAgentlessEnabled();
