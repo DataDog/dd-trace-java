@@ -9,6 +9,7 @@ import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.CodecModule;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import java.net.URI;
+import java.net.URL;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -101,6 +102,21 @@ public class URICallSite {
         module.taintObjectIfTainted(result, url, keepRanges, NOT_MARKED);
       } catch (final Throwable e) {
         module.onUnexpectedException("After toString threw", e);
+      }
+    }
+    return result;
+  }
+
+  @Propagation
+  @CallSite.After("java.net.URL java.net.URI.toURL()")
+  public static URL afterToURL(@CallSite.This final URI uri, @CallSite.Return final URL result) {
+    final PropagationModule module = InstrumentationBridge.PROPAGATION;
+    if (module != null && result != null) {
+      try {
+        boolean keepRanges = uri.toString().equals(result.toString());
+        module.taintObjectIfTainted(result, uri, keepRanges, NOT_MARKED);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("After toURL threw", e);
       }
     }
     return result;

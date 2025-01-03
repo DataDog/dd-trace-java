@@ -3,6 +3,7 @@ package datadog.smoketest.springboot.controller;
 import com.squareup.okhttp.OkHttpClient;
 import com.squareup.okhttp.Request;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.HttpMethod;
@@ -32,6 +33,21 @@ public class SsrfController {
       @RequestParam(value = "host", required = false) final String host) {
     try {
       final URL target = url != null ? new URL(url) : new URL("https", host, 443, "/test");
+      final HttpURLConnection conn = (HttpURLConnection) target.openConnection();
+      conn.disconnect();
+    } catch (final Exception e) {
+    }
+    return "ok";
+  }
+
+  @PostMapping("/uri")
+  public String uri(
+      @RequestParam(value = "url", required = false) final String url,
+      @RequestParam(value = "host", required = false) final String host) {
+    try {
+      final URI uri =
+          url != null ? new URI(url) : new URI("https", null, host, 443, "/test", null, null);
+      final URL target = uri.toURL();
       final HttpURLConnection conn = (HttpURLConnection) target.openConnection();
       conn.disconnect();
     } catch (final Exception e) {

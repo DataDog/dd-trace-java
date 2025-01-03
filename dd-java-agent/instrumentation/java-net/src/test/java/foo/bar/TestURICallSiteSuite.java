@@ -1,7 +1,9 @@
 package foo.bar;
 
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URL;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -103,6 +105,13 @@ public class TestURICallSiteSuite {
     LOGGER.debug("Before toAsciiString {}", uri);
     final String result = uri.toASCIIString();
     LOGGER.debug("After toAsciiString {}", result);
+    return result;
+  }
+
+  public static URL toURL(final URI uri) throws MalformedURLException {
+    LOGGER.debug("Before toURL {}", uri);
+    final URL result = uri.toURL();
+    LOGGER.debug("After toURL {}", result);
     return result;
   }
 }
