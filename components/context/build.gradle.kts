@@ -11,3 +11,7 @@ jmh {
 val excludedClassesInstructionCoverage by extra {
   listOf("datadog.context.ContextProviders") // covered by forked test
 }
+
+tasks.test {
+  systemProperty("junit.jupiter.extensions.autodetection.enabled", "true")
+}
