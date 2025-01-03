@@ -8,13 +8,14 @@ import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import io.lettuce.core.ClientOptions
 import io.lettuce.core.RedisClient
-import io.lettuce.core.api.StatefulConnection
+import io.lettuce.core.api.StatefulRedisConnection
 import io.lettuce.core.api.reactive.RedisReactiveCommands
 import io.lettuce.core.api.sync.RedisCommands
 import org.testcontainers.containers.wait.strategy.Wait
 import reactor.core.scheduler.Schedulers
 import spock.lang.Shared
 import spock.util.concurrent.AsyncConditions
+import spock.util.concurrent.PollingConditions
 
 import java.util.function.Consumer
 
@@ -40,7 +41,7 @@ abstract class Lettuce5ReactiveClientTest extends VersionedNamingTestBase {
   .waitingFor(Wait.forListeningPort())
 
   RedisClient redisClient
-  StatefulConnection connection
+  StatefulRedisConnection connection
   RedisReactiveCommands<String, ?> reactiveCommands
   RedisCommands<String, ?> syncCommands
 
@@ -54,7 +55,9 @@ abstract class Lettuce5ReactiveClientTest extends VersionedNamingTestBase {
 
     redisClient.setOptions(CLIENT_OPTIONS)
 
-    connection = redisClient.connect()
+    new PollingConditions(delay: 3, timeout: 15).eventually {
+      (connection = redisClient.connect()) != null
+    }
     reactiveCommands = connection.reactive()
     syncCommands = connection.sync()
 
