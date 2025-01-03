@@ -29,8 +29,10 @@ do
   # Extract source file from system-out and use as the file attribute for each test case
   path=$(grep -oP '(?<=path: ).*' "$RESULT_XML_FILE" | tail -n 1)
   testClassName=$(grep -oP '(?<=testClassName: ).*' "$RESULT_XML_FILE" | tail -n 1)
-  sed -i "/<testcase/ s/\(classname=\"$testClassName\".*\)/\1 file=\"$path\"/" "$TEST_RESULTS_DIR/$AGGREGATED_FILE_NAME"
-  sed -i '/<system-out>/,/<\/system-out>/d' "$TEST_RESULTS_DIR/$AGGREGATED_FILE_NAME"
+  escapedPath=$(echo "$path" | sed 's/[\/&]/\\&/g')
+  escapedClassName=$(echo "$testClassName" | sed 's/[\/&]/\\&/g')
+  sed -i "/<testcase/ s/\(classname=\"$escapedClassName\".*\)/\1 file=\"$escapedPath\"/" "$TEST_RESULTS_DIR/$AGGREGATED_FILE_NAME"
+  # sed -i '/<system-out>/,/<\/system-out>/d' "$TEST_RESULTS_DIR/$AGGREGATED_FILE_NAME"
   # Replace Java Object hashCode by marker in testcase XML nodes to get stable test names
   sed -i '/<testcase/ s/@[0-9a-f]\{5,\}/@HASHCODE/g' "$TEST_RESULTS_DIR/$AGGREGATED_FILE_NAME"
   # Replace random port numbers by marker in testcase XML nodes to get stable test names
