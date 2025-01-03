@@ -1,5 +1,7 @@
 package com.datadog.profiling.controller;
 
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
+
 import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
 import datadog.trace.api.config.ProfilingConfig;
@@ -16,9 +18,13 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Capture the profiler config first and allow emitting the setting events per each recording. */
 public abstract class ProfilerSettingsSupport {
+  private static final Logger logger = LoggerFactory.getLogger(ProfilerSettingsSupport.class);
+
   protected static final class ProfilerActivationSetting {
     public enum Ssi {
       INJECTED_AGENT,
@@ -177,6 +183,10 @@ public abstract class ProfilerSettingsSupport {
         // usually set via DD_INSTRUMENTATION_INSTALL_TYPE env var
         configProvider.getString("instrumentation.install.type");
     this.profilerActivationSetting = getProfilerActivation(configProvider);
+
+    logger.debug(
+        SEND_TELEMETRY,
+        "Profiler settings: " + this); // telemetry receiver does not recognize formatting
   }
 
   private static String getServiceInjection(ConfigProvider configProvider) {
@@ -231,6 +241,8 @@ public abstract class ProfilerSettingsSupport {
   /** To be defined in controller specific way. Eg. one could emit JFR events. */
   public abstract void publish();
 
+  protected abstract String profilerKind();
+
   private static String readPerfEventsParanoidSetting() {
     String value = "unknown";
     if (Platform.isLinux()) {
@@ -243,5 +255,66 @@ public abstract class ProfilerSettingsSupport {
       }
     }
     return value;
+  }
+
+  @Override
+  public String toString() {
+    return "{"
+        + "kind='"
+        + profilerKind()
+        + '\''
+        + ", uploadPeriod="
+        + uploadPeriod
+        + ", uploadTimeout="
+        + uploadTimeout
+        + ", uploadCompression='"
+        + uploadCompression
+        + '\''
+        + ", allocationProfilingEnabled="
+        + allocationProfilingEnabled
+        + ", heapProfilingEnabled="
+        + heapProfilingEnabled
+        + ", startForceFirst="
+        + startForceFirst
+        + ", templateOverride='"
+        + templateOverride
+        + '\''
+        + ", exceptionSampleLimit="
+        + exceptionSampleLimit
+        + ", exceptionHistogramTopItems="
+        + exceptionHistogramTopItems
+        + ", exceptionHistogramMaxSize="
+        + exceptionHistogramMaxSize
+        + ", hotspotsEnabled="
+        + hotspotsEnabled
+        + ", endpointsEnabled="
+        + endpointsEnabled
+        + ", auxiliaryProfiler='"
+        + auxiliaryProfiler
+        + '\''
+        + ", perfEventsParanoid='"
+        + perfEventsParanoid
+        + '\''
+        + ", hasNativeStacks="
+        + hasNativeStacks
+        + ", seLinuxStatus='"
+        + seLinuxStatus
+        + '\''
+        + ", serviceInstrumentationType='"
+        + serviceInstrumentationType
+        + '\''
+        + ", serviceInjection='"
+        + serviceInjection
+        + '\''
+        + ", ddprofUnavailableReason='"
+        + ddprofUnavailableReason
+        + '\''
+        + ", profilerActivationSetting="
+        + profilerActivationSetting
+        + ", stackDepth="
+        + stackDepth
+        + ", hasJfrStackDepthApplied="
+        + hasJfrStackDepthApplied
+        + '}';
   }
 }
