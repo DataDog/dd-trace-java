@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.codeorigin;
 
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule.Tracing;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers;
 import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.OneOf;
@@ -12,7 +12,7 @@ import net.bytebuddy.description.NamedElement;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-public abstract class CodeOriginInstrumentation extends Tracing
+public abstract class CodeOriginInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   private final OneOf<NamedElement> matcher;
