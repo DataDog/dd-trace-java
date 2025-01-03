@@ -5,11 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.aws.v1.lambda.LambdaHandlerDecorator.INVOCATION_SPAN_NAME;
-import static net.bytebuddy.asm.Advice.Enter;
-import static net.bytebuddy.asm.Advice.OnMethodEnter;
-import static net.bytebuddy.asm.Advice.OnMethodExit;
-import static net.bytebuddy.asm.Advice.Origin;
-import static net.bytebuddy.asm.Advice.This;
 import static net.bytebuddy.implementation.bytecode.assign.Assigner.Typing.DYNAMIC;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -82,11 +77,11 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
   }
 
   public static class ExtensionCommunicationAdvice {
-    @OnMethodEnter
+    @Advice.OnMethodEnter
     static AgentScope enter(
-        @This final Object that,
+        @Advice.This final Object that,
         @Advice.Argument(0) final Object event,
-        @Origin("#m") final String methodName) {
+        @Advice.Origin("#m") final String methodName) {
 
       if (CallDepthThreadLocalMap.incrementCallDepth(RequestHandler.class) > 0) {
         return null;
@@ -103,10 +98,10 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
       return scope;
     }
 
-    @OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void exit(
-        @Origin String method,
-        @Enter final AgentScope scope,
+        @Advice.Origin String method,
+        @Advice.Enter final AgentScope scope,
         @Advice.Return(typing = DYNAMIC) final Object result,
         @Advice.Thrown final Throwable throwable) {
 
