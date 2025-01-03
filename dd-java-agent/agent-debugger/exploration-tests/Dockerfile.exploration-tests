@@ -10,8 +10,7 @@ COPY .sdkmanrc .
 RUN curl -s "https://get.sdkman.io" | bash
 RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && \
     sdk env install && \
-    rm -rf $HOME/.sdkman/archives/* && \
-    rm -rf $HOME/.sdkman/tmp/*"
+    sdk flush"
 
 RUN mkdir exploration-tests
 WORKDIR /exploration-tests
