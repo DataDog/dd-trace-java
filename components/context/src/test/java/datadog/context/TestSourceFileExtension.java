@@ -7,15 +7,11 @@ import org.junit.jupiter.api.extension.TestInstancePostProcessor;
 public class TestSourceFileExtension implements TestInstancePostProcessor {
   @Override
   public void postProcessTestInstance(Object testInstance, ExtensionContext context) {
-    System.out.println("--- in postProcessTestInstance ---");
     getTestData(context);
   }
 
   private static void getTestData(ExtensionContext context) {
-    System.out.println("--------- in getTestData ---------");
-
-    String displayName = context.getDisplayName();
-    System.out.println("displayName: " + displayName);
+    System.out.println("----------------------------------");
 
     Class<?> testClass = context.getTestClass().get();
     String testClassName = testClass.getName();
@@ -23,12 +19,13 @@ public class TestSourceFileExtension implements TestInstancePostProcessor {
     URL resource = testClass.getResource(testClass.getSimpleName() + ".class");
     if (resource != null) {
       String absolutePath = resource.getPath();
-      System.out.println("absolutePath: " + absolutePath);
       String subPath =
-          absolutePath.substring(absolutePath.indexOf("dd-trace-java") + "dd-trace-java".length());
-      System.out.println("subPath: " + subPath);
+          absolutePath.substring(
+              absolutePath.indexOf("dd-trace-java") + "dd-trace-java".length(),
+              absolutePath.lastIndexOf("/"));
+      System.out.println("path: " + subPath);
     } else {
-      System.out.println("no absolute path.");
+      System.out.println("no path.");
     }
 
     System.out.println("----------------------------------");
