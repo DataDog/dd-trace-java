@@ -69,5 +69,6 @@ class URICallSIteTest extends AgentTestRunner {
     'toASCIIString' | 'String' | [new URI('http://test.com/index?name=value#fragment')]         | true
     'toASCIIString' | 'String' | [new URI('http://test.com/漢/index?name=value#fragment')]      | false
     'toString'      | 'String' | [new URI('http://test.com/index?name=value#fragment')]         | true
+    'toURL'         | 'Object' | [new URI('http://test.com/index?name=value#fragment')]         | true
   }
 }

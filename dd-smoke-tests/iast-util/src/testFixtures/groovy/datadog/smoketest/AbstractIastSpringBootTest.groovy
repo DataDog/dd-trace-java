@@ -688,7 +688,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   void 'ssrf is present'() {
     setup:
-    final url = "http://localhost:${httpPort}/ssrf"
+    final url = "http://localhost:${httpPort}/ssrf${path}"
     final body = new FormBody.Builder().add(parameter, value).build()
     final request = new Request.Builder().url(url).post(body).build()
 
@@ -715,9 +715,11 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     }
 
     where:
-    parameter | value
-    'url'     | 'https://dd.datad0g.com/'
-    'host'    | 'dd.datad0g.com'
+    path   | parameter | value
+    ''     | 'url'     | 'https://dd.datad0g.com/'
+    ''     | 'host'    | 'dd.datad0g.com'
+    '/uri' | 'url'     | 'https://dd.datad0g.com/'
+    '/uri' | 'host'    | 'dd.datad0g.com'
   }
 
   void 'ssrf is present (#path) (#parameter)'() {
