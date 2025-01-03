@@ -34,7 +34,7 @@ def validate_inheritance(tree, file_name):
                 if not node.name.endswith("Decorator"):
                     issues.append(f"{file_name}: Class '{node.name}' extends a 'Decorator' class but does not end with 'Decorator'.")
 
-            if node.name.endswith("Instrumentation"):
+            if node.name.endswith("Instrumentation") or node.name.endswith("Module"):
                 # should extend something
                 if not node.extends and not node.implements:
                     issues.append(f"{file_name}: Class '{node.name}' should extend or implement a class with 'Instrument' in its name.")
@@ -42,11 +42,11 @@ def validate_inheritance(tree, file_name):
                 elif not ((node.extends and "Instrument" in node.extends.name) or (node.implements and any("Instrument" in impl.name for impl in node.implements))):
                     issues.append(f"{file_name}: Class '{node.name}' should extend a class with 'Instrument' in its name.")
             elif node.extends and "Instrument" in node.extends.name:
-                if not node.name.endswith("Instrumentation"):
-                    issues.append(f"{file_name}: Class '{node.name}' extends a 'Instrument' class but does not end with 'Instrumentation'.")
+                if not node.name.endswith("Instrumentation") or not node.name.endswith("Module"):
+                    issues.append(f"{file_name}: Class '{node.name}' extends a 'Instrument' class but does not end with 'Instrumentation' or 'Module'.")
             elif node.implements and any("Instrument" in impl for impl in node.implements):
-                if not node.name.endswith("Instrumentation"):
-                    issues.append(f"{file_name}: Class '{node.name}' implements a 'Instrument' class but does not end with 'Instrumentation'.")
+                if not node.name.endswith("Instrumentation") or not node.name.endswith("Module"):
+                    issues.append(f"{file_name}: Class '{node.name}' implements a 'Instrument' class but does not end with 'Instrumentation' or 'Module'.")
 
             if node.name.endswith("Advice"):
                 # Check for methods with an @Advice annotation
