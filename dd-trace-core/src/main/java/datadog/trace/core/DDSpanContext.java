@@ -765,7 +765,7 @@ public class DDSpanContext
     }
   }
 
-  public void unsafeSetTag(final String tag, final Object value) {
+  void unsafeSetTag(final String tag, final Object value) {
     unsafeTags.put(tag, value);
   }
 
