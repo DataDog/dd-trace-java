@@ -40,17 +40,13 @@ class IastSpringBootSmokeTest extends AbstractIastSpringBootTest {
 
     then:
     response.successful
-    isLogPresent {
-      String log ->
-      def vulns = parseVulnerabilitiesLog(log)
-      vulns.any {
-        vul ->
-        vul.type == 'HARDCODED_SECRET'
-        && vul.location.method == 'hardcodedSecret'
-        && vul.location.path == 'datadog.smoketest.springboot.controller.HardcodedSecretController'
-        && vul.location.line == 11
-        && vul.evidence.value == 'age-secret-key'
-      }
+    hasVulnerabilityInLogs {
+      vul ->
+      vul.type == 'HARDCODED_SECRET'
+      && vul.location.method == 'hardcodedSecret'
+      && vul.location.path == 'datadog.smoketest.springboot.controller.HardcodedSecretController'
+      && vul.location.line == 11
+      && vul.evidence.value == 'age-secret-key'
     }
   }
 
