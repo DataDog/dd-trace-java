@@ -9,8 +9,5 @@ public class NoopTextMapInjectAdapter implements TextMapInjectAdapterInterface {
   @Override
   public void set(final Headers headers, final String key, final String value) {}
 
-  @Override
-  public void set(Headers headers, String key, byte[] value) {}
-
   public void injectTimeInQueue(Headers headers) {}
 }

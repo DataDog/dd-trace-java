@@ -5,7 +5,6 @@ import java.util.LinkedHashMap;
 import java.util.function.Consumer;
 
 public interface PathwayContext {
-  String PROPAGATION_KEY = "dd-pathway-ctx";
   String PROPAGATION_KEY_BASE64 = "dd-pathway-ctx-base64";
   String DATADOG_KEY = "_datadog";
 
@@ -31,7 +30,5 @@ public interface PathwayContext {
 
   StatsPoint getSavedStats();
 
-  byte[] encode() throws IOException;
-
-  String strEncode() throws IOException;
+  String encode() throws IOException;
 }

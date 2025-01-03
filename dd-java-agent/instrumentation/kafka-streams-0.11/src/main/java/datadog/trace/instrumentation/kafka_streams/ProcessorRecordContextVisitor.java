@@ -2,20 +2,18 @@ package datadog.trace.instrumentation.kafka_streams;
 
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.KAFKA_PRODUCED_KEY;
 import static datadog.trace.instrumentation.kafka_streams.ProcessorRecordContextHeadersAccess.HEADERS_METHOD;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation.ContextVisitor;
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.Headers;
 import org.apache.kafka.streams.processor.internals.ProcessorRecordContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ProcessorRecordContextVisitor
-    implements AgentPropagation.ContextVisitor<ProcessorRecordContext>,
-        AgentPropagation.BinaryContextVisitor<ProcessorRecordContext> {
-
+public class ProcessorRecordContextVisitor implements ContextVisitor<ProcessorRecordContext> {
   private static final Logger log = LoggerFactory.getLogger(ProcessorRecordContextVisitor.class);
 
   public static final ProcessorRecordContextVisitor PR_GETTER = new ProcessorRecordContextVisitor();
@@ -32,29 +30,7 @@ public class ProcessorRecordContextVisitor
         String key = header.key();
         byte[] value = header.value();
         if (null != value) {
-          if (!classifier.accept(key, new String(header.value(), StandardCharsets.UTF_8))) {
-            return;
-          }
-        }
-      }
-    } catch (Throwable ex) {
-      log.debug("Exception getting headers", ex);
-    }
-  }
-
-  @Override
-  public void forEachKey(
-      ProcessorRecordContext carrier, AgentPropagation.BinaryKeyClassifier classifier) {
-    if (HEADERS_METHOD == null) {
-      return;
-    }
-    try {
-      Headers headers = (Headers) HEADERS_METHOD.invokeExact(carrier);
-      for (Header header : headers) {
-        String key = header.key();
-        byte[] value = header.value();
-        if (null != value) {
-          if (!classifier.accept(key, value)) {
+          if (!classifier.accept(key, new String(header.value(), UTF_8))) {
             return;
           }
         }

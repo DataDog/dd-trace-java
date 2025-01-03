@@ -164,9 +164,9 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     when:
     timeSource.advance(MILLISECONDS.toNanos(50))
     context.setCheckpoint(new LinkedHashMap<>(["type": "s3", "ds.namespace": "my_bucket", "ds.name": "my_object.csv", "direction": "in"]), pointConsumer)
-    def encoded = context.strEncode()
+    def encoded = context.encode()
     timeSource.advance(MILLISECONDS.toNanos(2))
-    def decodedContext = DefaultPathwayContext.strDecode(timeSource, baseHash, null, encoded)
+    def decodedContext = DefaultPathwayContext.decode(timeSource, baseHash, null, encoded)
     timeSource.advance(MILLISECONDS.toNanos(25))
     context.setCheckpoint(new LinkedHashMap<>(["type": "s3", "ds.namespace": "my_bucket", "ds.name": "my_object.csv", "direction": "out"]), pointConsumer)
 
@@ -190,9 +190,9 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     when:
     timeSource.advance(MILLISECONDS.toNanos(50))
     context.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
-    def encoded = context.strEncode()
+    def encoded = context.encode()
     timeSource.advance(MILLISECONDS.toNanos(2))
-    def decodedContext = DefaultPathwayContext.strDecode(timeSource, baseHash, null, encoded)
+    def decodedContext = DefaultPathwayContext.decode(timeSource, baseHash, null, encoded)
     timeSource.advance(MILLISECONDS.toNanos(25))
     context.setCheckpoint(new LinkedHashMap<>(["group": "group", "topic": "topic", "type": "kafka"]), pointConsumer)
 
@@ -240,134 +240,6 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     timeSource.advance(MILLISECONDS.toNanos(50))
     context.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
 
-    def encoded = context.strEncode()
-    timeSource.advance(MILLISECONDS.toNanos(1))
-    def decodedContext = DefaultPathwayContext.strDecode(timeSource, baseHash, null, encoded)
-    timeSource.advance(MILLISECONDS.toNanos(25))
-    context.setCheckpoint(new LinkedHashMap<>(["group": "group", "topic": "topic", "type": "kafka"]), pointConsumer)
-
-    then:
-    decodedContext.isStarted()
-    pointConsumer.points.size() == 2
-    with(pointConsumer.points[1]) {
-      edgeTags == ["group:group", "topic:topic", "type:kafka"]
-      edgeTags.size() == 3
-      parentHash == pointConsumer.points[0].hash
-      hash != 0
-      pathwayLatencyNano == MILLISECONDS.toNanos(26)
-      edgeLatencyNano == MILLISECONDS.toNanos(26)
-    }
-
-    when:
-    def secondEncode = decodedContext.strEncode()
-    timeSource.advance(MILLISECONDS.toNanos(2))
-    def secondDecode = DefaultPathwayContext.strDecode(timeSource, baseHash, null, secondEncode)
-    timeSource.advance(MILLISECONDS.toNanos(30))
-    context.setCheckpoint(new LinkedHashMap<>(["group": "group", "topic": "topicB", "type": "kafka"]), pointConsumer)
-
-    then:
-    secondDecode.isStarted()
-    pointConsumer.points.size() == 3
-    with(pointConsumer.points[2]) {
-      edgeTags == ["group:group", "topic:topicB", "type:kafka"]
-      edgeTags.size() == 3
-      parentHash == pointConsumer.points[1].hash
-      hash != 0
-      pathwayLatencyNano == MILLISECONDS.toNanos(58)
-      edgeLatencyNano == MILLISECONDS.toNanos(32)
-    }
-  }
-
-  def "Encoding and decoding (base64) with injects and extracts"() {
-    // Timesource needs to be advanced in milliseconds because encoding truncates to millis
-    given:
-    def timeSource = new ControllableTimeSource()
-    def context = new DefaultPathwayContext(timeSource, baseHash, null)
-    def contextVisitor = new Base64MapContextVisitor()
-
-    when:
-    timeSource.advance(MILLISECONDS.toNanos(50))
-    context.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
-
-    def encoded = context.strEncode()
-    Map<String, String> carrier = [(PathwayContext.PROPAGATION_KEY_BASE64): encoded, "someotherkey": "someothervalue"]
-    timeSource.advance(MILLISECONDS.toNanos(1))
-    def decodedContext = DefaultPathwayContext.extract(carrier, contextVisitor, timeSource, baseHash, null)
-    timeSource.advance(MILLISECONDS.toNanos(25))
-    context.setCheckpoint(new LinkedHashMap<>(["group": "group", "topic": "topic", "type": "kafka"]), pointConsumer)
-
-    then:
-    decodedContext.isStarted()
-    pointConsumer.points.size() == 2
-    with(pointConsumer.points[1]) {
-      edgeTags == ["group:group", "topic:topic", "type:kafka"]
-      edgeTags.size() == 3
-      parentHash == pointConsumer.points[0].hash
-      hash != 0
-      pathwayLatencyNano == MILLISECONDS.toNanos(26)
-      edgeLatencyNano == MILLISECONDS.toNanos(26)
-    }
-
-    when:
-    def secondEncode = decodedContext.strEncode()
-    carrier = [(PathwayContext.PROPAGATION_KEY_BASE64): secondEncode]
-    timeSource.advance(MILLISECONDS.toNanos(2))
-    def secondDecode = DefaultPathwayContext.extract(carrier, contextVisitor, timeSource, baseHash, null)
-    timeSource.advance(MILLISECONDS.toNanos(30))
-    context.setCheckpoint(new LinkedHashMap<>(["group": "group", "topic": "topicB", "type": "kafka"]), pointConsumer)
-
-    then:
-    secondDecode.isStarted()
-    pointConsumer.points.size() == 3
-    with(pointConsumer.points[2]) {
-      edgeTags == ["group:group", "topic:topicB", "type:kafka"]
-      edgeTags.size() == 3
-      parentHash == pointConsumer.points[1].hash
-      hash != 0
-      pathwayLatencyNano == MILLISECONDS.toNanos(58)
-      edgeLatencyNano == MILLISECONDS.toNanos(32)
-    }
-  }
-
-  def "Encoding and decoding (binary) a context"() {
-    // Timesource needs to be advanced in milliseconds because encoding truncates to millis
-    given:
-    def timeSource = new ControllableTimeSource()
-    def context = new DefaultPathwayContext(timeSource, baseHash, null)
-
-    when:
-    timeSource.advance(MILLISECONDS.toNanos(50))
-    context.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
-    def encoded = context.encode()
-    timeSource.advance(MILLISECONDS.toNanos(2))
-    def decodedContext = DefaultPathwayContext.decode(timeSource, baseHash, null, encoded)
-    timeSource.advance(MILLISECONDS.toNanos(25))
-    context.setCheckpoint(new LinkedHashMap<>(["group": "group", "topic": "topic", "type": "kafka"]), pointConsumer)
-
-    then:
-    decodedContext.isStarted()
-    pointConsumer.points.size() == 2
-
-    with(pointConsumer.points[1]) {
-      edgeTags == ["group:group", "topic:topic", "type:kafka"]
-      edgeTags.size() == 3
-      parentHash == pointConsumer.points[0].hash
-      hash != 0
-      pathwayLatencyNano == MILLISECONDS.toNanos(27)
-      edgeLatencyNano == MILLISECONDS.toNanos(27)
-    }
-  }
-
-  def "Encoding and decoding (binary) with contexts and checkpoints"() {
-    // Timesource needs to be advanced in milliseconds because encoding truncates to millis
-    given:
-    def timeSource = new ControllableTimeSource()
-    def context = new DefaultPathwayContext(timeSource, baseHash, null)
-
-    when:
-    timeSource.advance(MILLISECONDS.toNanos(50))
-    context.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
-
     def encoded = context.encode()
     timeSource.advance(MILLISECONDS.toNanos(1))
     def decodedContext = DefaultPathwayContext.decode(timeSource, baseHash, null, encoded)
@@ -406,40 +278,21 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     }
   }
 
-  def "Legacy binary encoding"() {
-    given:
-    def timeSource = new ControllableTimeSource()
-    def context = new DefaultPathwayContext(timeSource, baseHash, null)
-    def contextVisitor = new BinaryMapContextVisitor()
-
-    when:
-    timeSource.advance(MILLISECONDS.toNanos(50))
-    context.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
-
-    def encoded = java.util.Base64.getDecoder().decode(context.encode())
-    Map<String, byte[]> carrier = [(PathwayContext.PROPAGATION_KEY): encoded]
-    timeSource.advance(MILLISECONDS.toNanos(1))
-    def decodedContext = DefaultPathwayContext.extractBinary(carrier, contextVisitor, timeSource, baseHash, null)
-
-    then:
-    decodedContext.strEncode() == context.strEncode()
-  }
-
-  def "Encoding and decoding (binary) with injects and extracts"() {
+  def "Encoding and decoding (base64) with injects and extracts"() {
     // Timesource needs to be advanced in milliseconds because encoding truncates to millis
     given:
     def timeSource = new ControllableTimeSource()
     def context = new DefaultPathwayContext(timeSource, baseHash, null)
-    def contextVisitor = new BinaryMapContextVisitor()
+    def contextVisitor = new Base64MapContextVisitor()
 
     when:
     timeSource.advance(MILLISECONDS.toNanos(50))
     context.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
 
     def encoded = context.encode()
-    Map<String, byte[]> carrier = [(PathwayContext.PROPAGATION_KEY_BASE64): encoded, "someotherkey": new byte[0]]
+    Map<String, String> carrier = [(PathwayContext.PROPAGATION_KEY_BASE64): encoded, "someotherkey": "someothervalue"]
     timeSource.advance(MILLISECONDS.toNanos(1))
-    def decodedContext = DefaultPathwayContext.extractBinary(carrier, contextVisitor, timeSource, baseHash, null)
+    def decodedContext = DefaultPathwayContext.extract(carrier, contextVisitor, timeSource, baseHash, null)
     timeSource.advance(MILLISECONDS.toNanos(25))
     context.setCheckpoint(new LinkedHashMap<>(["group": "group", "topic": "topic", "type": "kafka"]), pointConsumer)
 
@@ -459,7 +312,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     def secondEncode = decodedContext.encode()
     carrier = [(PathwayContext.PROPAGATION_KEY_BASE64): secondEncode]
     timeSource.advance(MILLISECONDS.toNanos(2))
-    def secondDecode = DefaultPathwayContext.extractBinary(carrier, contextVisitor, timeSource, baseHash, null)
+    def secondDecode = DefaultPathwayContext.extract(carrier, contextVisitor, timeSource, baseHash, null)
     timeSource.advance(MILLISECONDS.toNanos(30))
     context.setCheckpoint(new LinkedHashMap<>(["group": "group", "topic": "topicB", "type": "kafka"]), pointConsumer)
 
@@ -487,7 +340,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     timeSource.advance(MILLISECONDS.toNanos(50))
     context.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
 
-    def encoded = context.strEncode()
+    def encoded = context.encode()
     Map<String, String> carrier = [(PathwayContext.PROPAGATION_KEY_BASE64): encoded, "someotherkey": "someothervalue"]
     timeSource.advance(MILLISECONDS.toNanos(1))
     def decodedContext = DefaultPathwayContext.extract(carrier, contextVisitor, timeSource, baseHash, null)
@@ -507,7 +360,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     }
 
     when:
-    def secondEncode = decodedContext.strEncode()
+    def secondEncode = decodedContext.encode()
     carrier = [(PathwayContext.PROPAGATION_KEY_BASE64): secondEncode]
     timeSource.advance(MILLISECONDS.toNanos(2))
     def secondDecode = DefaultPathwayContext.extract(carrier, contextVisitor, timeSource, baseHash, null)
@@ -594,7 +447,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     def context = new DefaultPathwayContext(timeSource, baseHash, null)
     timeSource.advance(MILLISECONDS.toNanos(50))
     context.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
-    def encoded = context.strEncode()
+    def encoded = context.encode()
     Map<String, String> carrier = [(PathwayContext.PROPAGATION_KEY_BASE64): encoded, "someotherkey": "someothervalue"]
     def contextVisitor = new Base64MapContextVisitor()
 
@@ -640,7 +493,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     def context = new DefaultPathwayContext(timeSource, baseHash, null)
     timeSource.advance(MILLISECONDS.toNanos(50))
     context.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
-    def encoded = context.strEncode()
+    def encoded = context.encode()
     Map<String, String> carrier = [(PathwayContext.PROPAGATION_KEY_BASE64): encoded, "someotherkey": "someothervalue"]
     def contextVisitor = new Base64MapContextVisitor()
     def extractor = new NullExtractor()
@@ -681,7 +534,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     def context = new DefaultPathwayContext(timeSource, baseHash, null)
     timeSource.advance(MILLISECONDS.toNanos(50))
     context.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
-    def encoded = context.strEncode()
+    def encoded = context.encode()
     Map<String, String> carrier = [(PathwayContext.PROPAGATION_KEY_BASE64): encoded, "someotherkey": "someothervalue"]
     def contextVisitor = new Base64MapContextVisitor()
     def extractor = new FakeExtractor()
@@ -750,15 +603,6 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     @Override
     void forEachKey(Map<String, String> carrier, AgentPropagation.KeyClassifier classifier) {
       for (Map.Entry<String, String> entry : carrier.entrySet()) {
-        classifier.accept(entry.key, entry.value)
-      }
-    }
-  }
-
-  class BinaryMapContextVisitor extends  Base64MapContextVisitor implements AgentPropagation.BinaryContextVisitor<Map<String, byte[]>> {
-    @Override
-    void forEachKey(Map<String, byte[]> carrier, AgentPropagation.BinaryKeyClassifier classifier) {
-      for (Map.Entry<String, byte[]> entry : carrier.entrySet()) {
         classifier.accept(entry.key, entry.value)
       }
     }
