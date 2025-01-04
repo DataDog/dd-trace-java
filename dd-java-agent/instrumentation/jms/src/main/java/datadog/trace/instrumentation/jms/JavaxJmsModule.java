@@ -25,6 +25,11 @@ public class JavaxJmsModule extends InstrumenterModule.Tracing {
   }
 
   @Override
+  public String muzzleDirective() {
+    return "javax.jms";
+  }
+
+  @Override
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".JMSDecorator",
