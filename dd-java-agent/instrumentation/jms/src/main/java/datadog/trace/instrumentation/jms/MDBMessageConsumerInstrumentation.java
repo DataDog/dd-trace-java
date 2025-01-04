@@ -30,18 +30,23 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 public final class MDBMessageConsumerInstrumentation
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+  private final String namespace;
+
+  public MDBMessageConsumerInstrumentation(String namespace) {
+    this.namespace = namespace;
+  }
 
   @Override
   public String hierarchyMarkerType() {
-    return "javax.jms.MessageListener";
+    return namespace + ".jms.MessageListener";
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(hierarchyMarkerType()))
         .and(
-            hasSuperType(declaresAnnotation(named("javax.ejb.MessageDriven")))
-                .or(implementsInterface(named("javax.ejb.MessageDrivenBean"))));
+            hasSuperType(declaresAnnotation(named(namespace + ".ejb.MessageDriven")))
+                .or(implementsInterface(named(namespace + ".ejb.MessageDrivenBean"))));
   }
 
   @Override
@@ -51,7 +56,7 @@ public final class MDBMessageConsumerInstrumentation
             .and(isPublic())
             .and(named("onMessage"))
             .and(takesArguments(1))
-            .and(takesArgument(0, (named("javax.jms.Message")))),
+            .and(takesArgument(0, (named(namespace + ".jms.Message")))),
         getClass().getName() + "$MDBAdvice");
   }
 
