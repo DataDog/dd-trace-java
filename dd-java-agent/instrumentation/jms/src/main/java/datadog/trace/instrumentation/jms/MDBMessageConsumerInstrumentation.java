@@ -16,9 +16,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -30,22 +28,8 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-@AutoService(InstrumenterModule.class)
-public final class MDBMessageConsumerInstrumentation extends InstrumenterModule.Tracing
+public final class MDBMessageConsumerInstrumentation
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
-  public MDBMessageConsumerInstrumentation() {
-    super("jms", "javax-mdb");
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JMSDecorator",
-      packageName + ".MessageExtractAdapter",
-      packageName + ".MessageExtractAdapter$1"
-    };
-  }
 
   @Override
   public String hierarchyMarkerType() {
