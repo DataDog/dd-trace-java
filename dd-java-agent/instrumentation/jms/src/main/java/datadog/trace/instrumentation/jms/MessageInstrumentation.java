@@ -17,10 +17,15 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 public class MessageInstrumentation
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+  private final String namespace;
+
+  public MessageInstrumentation(String namespace) {
+    this.namespace = namespace;
+  }
 
   @Override
   public String hierarchyMarkerType() {
-    return "javax.jms.Message";
+    return namespace + ".jms.Message";
   }
 
   @Override

@@ -34,10 +34,15 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 public final class JMSMessageConsumerInstrumentation
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+  private final String namespace;
+
+  public JMSMessageConsumerInstrumentation(String namespace) {
+    this.namespace = namespace;
+  }
 
   @Override
   public String hierarchyMarkerType() {
-    return "javax.jms.MessageConsumer";
+    return namespace + ".jms.MessageConsumer";
   }
 
   @Override
@@ -59,7 +64,7 @@ public final class JMSMessageConsumerInstrumentation
     transformer.applyAdvice(
         isMethod()
             .and(named("setMessageListener"))
-            .and(takesArgument(0, hasInterface(named("javax.jms.MessageListener")))),
+            .and(takesArgument(0, hasInterface(named(namespace + ".jms.MessageListener")))),
         getClass().getName() + "$DecorateMessageListener");
   }
 

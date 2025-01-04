@@ -29,10 +29,15 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 public final class JMSMessageProducerInstrumentation
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+  private final String namespace;
+
+  public JMSMessageProducerInstrumentation(String namespace) {
+    this.namespace = namespace;
+  }
 
   @Override
   public String hierarchyMarkerType() {
-    return "javax.jms.MessageProducer";
+    return namespace + ".jms.MessageProducer";
   }
 
   @Override
@@ -43,12 +48,12 @@ public final class JMSMessageProducerInstrumentation
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("send").and(takesArgument(0, named("javax.jms.Message"))).and(isPublic()),
+        named("send").and(takesArgument(0, named(namespace + ".jms.Message"))).and(isPublic()),
         JMSMessageProducerInstrumentation.class.getName() + "$ProducerAdvice");
     transformer.applyAdvice(
         named("send")
-            .and(takesArgument(0, hasInterface(named("javax.jms.Destination"))))
-            .and(takesArgument(1, named("javax.jms.Message")))
+            .and(takesArgument(0, hasInterface(named(namespace + ".jms.Destination"))))
+            .and(takesArgument(1, named(namespace + ".jms.Message")))
             .and(isPublic()),
         JMSMessageProducerInstrumentation.class.getName() + "$ProducerWithDestinationAdvice");
   }
