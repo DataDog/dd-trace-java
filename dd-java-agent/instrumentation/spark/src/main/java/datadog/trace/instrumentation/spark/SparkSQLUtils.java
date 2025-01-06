@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.spark;
 
 import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -20,6 +21,7 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.spark.scheduler.AccumulableInfo;
 import org.apache.spark.sql.catalyst.analysis.NamedRelation;
+import org.apache.spark.sql.catalyst.catalog.CatalogStatistics;
 import org.apache.spark.sql.catalyst.catalog.CatalogTable;
 import org.apache.spark.sql.catalyst.catalog.HiveTableRelation;
 import org.apache.spark.sql.catalyst.plans.logical.AppendData;
@@ -331,6 +333,9 @@ public class SparkSQLUtils {
 
   static PartialFunction<LogicalPlan, LineageDataset> logicalPlanToDataset =
       new PartialFunction<LogicalPlan, LineageDataset>() {
+        private final ObjectMapper mapper =
+            new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);;
+
         @Override
         public boolean isDefinedAt(LogicalPlan x) {
           return x instanceof DataSourceV2Relation
@@ -424,19 +429,24 @@ public class SparkSQLUtils {
               "partition_columns",
               JavaConverters.asJavaCollection(table.partitionColumnNames()).toString());
 
+          String propertiesJson = null;
+          try {
+            propertiesJson = mapper.writeValueAsString(properties);
+          } catch (JsonProcessingException ignored) {
+            log.debug("Error while converting properties to JSON", ignored);
+          }
+
+          String statsJson = getCatalogTableStatsJson(table);
+
           return new LineageDataset(
-              table.qualifiedName(),
-              table.schema().json(),
-              table.stats().toString(),
-              properties.toString(),
-              datasetType);
+              table.qualifiedName(), table.schema().json(), statsJson, propertiesJson, datasetType);
         }
 
         private LineageDataset parseDataSourceV2Relation(Object logicalPlan, String datasetType) {
           try {
             String tableName = null;
             String tableSchema = null;
-            String properties = null;
+            String propertiesJson = null;
 
             if (logicalPlan.getClass().getMethod("table") == null) {
               log.info(
@@ -480,18 +490,85 @@ public class SparkSQLUtils {
             if (table.getClass().getMethod("properties") != null) {
               Map<String, String> propertyMap =
                   (Map<String, String>) propertiesMethod.invoke(table);
-              properties = propertyMap.toString();
+              propertiesJson = mapper.writeValueAsString(propertyMap);
 
-              log.info("method properties found with content of {}", properties);
+              log.info("method properties found with content of {}", propertiesJson);
             } else {
               log.info("method properties does not exist for {}", table.getClass().getName());
             }
 
-            return new LineageDataset(tableName, tableSchema, "", properties, datasetType);
+            String statsJson = getDataSourceV2RelationStatsJson(logicalPlan);
+
+            return new LineageDataset(
+                tableName, tableSchema, statsJson, propertiesJson, datasetType);
           } catch (Throwable ignored) {
             log.info("Error while converting logical plan to dataset", ignored);
             return null;
           }
+        }
+
+        private String getCatalogTableStatsJson(CatalogTable table) {
+          if (!table.stats().isDefined()) {
+            return null;
+          }
+
+          String statsJson = null;
+
+          try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+              JsonGenerator generator = mapper.getFactory().createGenerator(baos)) {
+            CatalogStatistics stats = table.stats().get();
+
+            generator.writeStartObject();
+            generator.writeNumberField("sizeInBytes", stats.sizeInBytes().longValue());
+            if (stats.rowCount().isDefined()) {
+              generator.writeNumberField("rowCount", stats.rowCount().get().longValue());
+            }
+            generator.writeObjectField("colStats", stats.colStats());
+            generator.writeEndObject();
+
+            statsJson = new String(baos.toByteArray(), StandardCharsets.UTF_8);
+
+            log.info("CatalogTable stats: {}", stats);
+          } catch (Throwable ignored) {
+            log.warn("Error while converting stats to JSON", ignored);
+            return null;
+          }
+
+          return statsJson;
+        }
+
+        private String getDataSourceV2RelationStatsJson(Object logicalPlan) {
+          String statsJson = null;
+
+          try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+              JsonGenerator generator = mapper.getFactory().createGenerator(baos)) {
+            if (logicalPlan.getClass().getMethod("computeStats") != null) {
+              Object stats = logicalPlan.getClass().getMethod("computeStats").invoke(logicalPlan);
+
+              if (stats != null) {
+                generator.writeStartObject();
+                generator.writeNumberField(
+                    "sizeInBytes",
+                    ((scala.math.BigInt) stats.getClass().getMethod("sizeInBytes").invoke(stats))
+                        .longValue());
+                generator.writeStringField(
+                    "rowCount", stats.getClass().getMethod("rowCount").invoke(stats).toString());
+                generator.writeObjectField(
+                    "attributeStats", stats.getClass().getMethod("attributeStats").invoke(stats));
+                generator.writeEndObject();
+              }
+
+              statsJson = new String(baos.toByteArray(), StandardCharsets.UTF_8);
+
+              log.info("DataSourceV2Relation stats: {}", stats.toString());
+            } else {
+              log.warn("no computeStats method found for {}", logicalPlan.getClass().getName());
+            }
+          } catch (Throwable ignored) {
+            log.warn("Error while converting stats to JSON", ignored);
+          }
+
+          return statsJson;
         }
       };
 }
