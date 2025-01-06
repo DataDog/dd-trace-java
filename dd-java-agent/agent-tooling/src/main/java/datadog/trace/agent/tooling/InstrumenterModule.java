@@ -156,6 +156,11 @@ public abstract class InstrumenterModule implements Instrumenter {
     return isSynthetic();
   }
 
+  /** Override this to apply shading to method advice and injected helpers. */
+  public Map<String, String> adviceShading() {
+    return null;
+  }
+
   /** Override this to post-process the operand stack of any transformed methods. */
   public Advice.PostProcessor.Factory postProcessor() {
     return null;
