@@ -10,20 +10,16 @@ import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_PRODUCE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.PRODUCER_DECORATE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.TIME_IN_QUEUE_ENABLED;
 import static datadog.trace.instrumentation.jms.MessageInjectAdapter.SETTER;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.jms.MessageProducerState;
-import java.util.Map;
 import javax.jms.Destination;
 import javax.jms.Message;
 import javax.jms.MessageProducer;
@@ -31,13 +27,8 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-@AutoService(InstrumenterModule.class)
-public final class JMSMessageProducerInstrumentation extends InstrumenterModule.Tracing
+public final class JMSMessageProducerInstrumentation
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
-  public JMSMessageProducerInstrumentation() {
-    super("jms", "jms-1", "jms-2");
-  }
 
   @Override
   public String hierarchyMarkerType() {
@@ -47,16 +38,6 @@ public final class JMSMessageProducerInstrumentation extends InstrumenterModule.
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".JMSDecorator", packageName + ".MessageInjectAdapter"};
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("javax.jms.MessageProducer", MessageProducerState.class.getName());
   }
 
   @Override
