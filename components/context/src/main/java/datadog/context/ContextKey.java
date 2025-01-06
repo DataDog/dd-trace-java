@@ -10,7 +10,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public final class ContextKey<T> {
   private static final AtomicInteger NEXT_INDEX = new AtomicInteger(0);
-  /** The key name, for debugging purpose only . */
+  /** The key name, for debugging purpose only. */
   private final String name;
   /** The key unique context, related to {@link IndexedContext} implementation. */
   final int index;
