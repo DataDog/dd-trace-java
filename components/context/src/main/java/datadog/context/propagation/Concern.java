@@ -19,7 +19,7 @@ public class Concern {
    * @param name the concern name, for debugging purpose only.
    * @return The created concern.
    */
-  public static Concern create(String name) {
+  public static Concern named(String name) {
     return new Concern(name, DEFAULT_PRIORITY);
   }
 
@@ -31,13 +31,15 @@ public class Concern {
    *     {@link #DEFAULT_PRIORITY}),
    * @return The created concern.
    */
-  public static Concern createWithPriority(String name, int priority) {
+  public static Concern withPriority(String name, int priority) {
     return new Concern(name, priority);
   }
 
   private Concern(String name, int priority) {
     requireNonNull(name, "Concern name cannot be null");
-    assert priority >= 0 : "Concern priority cannot be negative";
+    if (priority < 0) {
+      throw new IllegalArgumentException("Concern priority cannot be negative");
+    }
     this.name = name;
     this.priority = priority;
   }
