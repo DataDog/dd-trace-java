@@ -22,10 +22,15 @@ import net.bytebuddy.asm.Advice;
  */
 public class AWSHttpClientInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+  private final String namespace;
+
+  public AWSHttpClientInstrumentation(String namespace) {
+    this.namespace = namespace;
+  }
 
   @Override
   public String instrumentedType() {
-    return "com.amazonaws.http.AmazonHttpClient";
+    return namespace + ".http.AmazonHttpClient";
   }
 
   @Override

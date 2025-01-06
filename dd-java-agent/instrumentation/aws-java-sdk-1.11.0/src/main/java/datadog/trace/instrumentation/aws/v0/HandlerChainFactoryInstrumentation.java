@@ -15,10 +15,15 @@ import net.bytebuddy.asm.Advice;
  */
 public final class HandlerChainFactoryInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+  private final String namespace;
+
+  public HandlerChainFactoryInstrumentation(String namespace) {
+    this.namespace = namespace;
+  }
 
   @Override
   public String instrumentedType() {
-    return "com.amazonaws.handlers.HandlerChainFactory";
+    return namespace + ".handlers.HandlerChainFactory";
   }
 
   @Override

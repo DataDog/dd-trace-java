@@ -19,10 +19,15 @@ import net.bytebuddy.asm.Advice;
  */
 public final class RequestExecutorInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+  private final String namespace;
+
+  public RequestExecutorInstrumentation(String namespace) {
+    this.namespace = namespace;
+  }
 
   @Override
   public String instrumentedType() {
-    return "com.amazonaws.http.AmazonHttpClient$RequestExecutor";
+    return namespace + ".http.AmazonHttpClient$RequestExecutor";
   }
 
   @Override
