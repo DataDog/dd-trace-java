@@ -57,6 +57,7 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
       ClassNameFilter classNameFiltering,
       int maxExceptionPerSecond) {
     this.exceptionProbeManager = exceptionProbeManager;
+    this.exceptionProbeManager.setDefaultExceptionDebugger(this);
     this.configurationUpdater = configurationUpdater;
     this.classNameFiltering = classNameFiltering;
     this.circuitBreaker = new CircuitBreaker(maxExceptionPerSecond, Duration.ofSeconds(1));
@@ -102,7 +103,11 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
             exceptionProbeManager.createProbesForException(
                 throwable.getStackTrace(), chainedExceptionIdx);
         if (creationResult.probesCreated > 0) {
-          AgentTaskScheduler.INSTANCE.execute(() -> applyExceptionConfiguration(fingerprint));
+          AgentTaskScheduler.INSTANCE.execute(
+              () -> {
+                applyExceptionConfiguration();
+                exceptionProbeManager.addFingerprint(fingerprint);
+              });
           break;
         } else {
           if (LOGGER.isDebugEnabled()) {
@@ -118,9 +123,8 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
     }
   }
 
-  private void applyExceptionConfiguration(String fingerprint) {
+  void applyExceptionConfiguration() {
     configurationUpdater.accept(EXCEPTION, exceptionProbeManager.getProbes());
-    exceptionProbeManager.addFingerprint(fingerprint);
   }
 
   private static void processSnapshotsAndSetTags(

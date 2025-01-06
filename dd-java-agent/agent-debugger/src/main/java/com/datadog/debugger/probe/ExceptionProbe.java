@@ -1,5 +1,6 @@
 package com.datadog.debugger.probe;
 
+import static com.datadog.debugger.exception.ExceptionProbeManager.HOT_LOOP_TIME_WINDOW_IN_SECONDS;
 import static com.datadog.debugger.util.ExceptionHelper.getInnerMostThrowable;
 import static java.util.Collections.emptyList;
 
@@ -8,12 +9,15 @@ import com.datadog.debugger.exception.ExceptionProbeManager;
 import com.datadog.debugger.exception.Fingerprinter;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.sink.Snapshot;
+import com.datadog.debugger.util.CircuitBreaker;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.debugger.ProbeLocation;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,6 +26,9 @@ public class ExceptionProbe extends LogProbe implements ForceMethodInstrumentati
   private static final Logger LOGGER = LoggerFactory.getLogger(ExceptionProbe.class);
   private final transient ExceptionProbeManager exceptionProbeManager;
   private final transient int chainedExceptionIdx;
+  private final transient CircuitBreaker circuitBreaker =
+      new CircuitBreaker(1000, Duration.ofSeconds(HOT_LOOP_TIME_WINDOW_IN_SECONDS));
+  private Instant lastCaptureTime = Instant.MIN;
 
   public ExceptionProbe(
       ProbeId probeId,
@@ -61,6 +68,14 @@ public class ExceptionProbe extends LogProbe implements ForceMethodInstrumentati
   @Override
   public void evaluate(
       CapturedContext context, CapturedContext.Status status, MethodLocation methodLocation) {
+    if (!circuitBreaker.trip()) {
+      if (exceptionProbeManager.shouldRemoveProbe(lastCaptureTime)) {
+        // hot loop without exception captured => uninstrument this probe
+        LOGGER.debug("Removing probe {}", id);
+        exceptionProbeManager.removeProbe(this);
+        return;
+      }
+    }
     if (!(status instanceof ExceptionProbeStatus)) {
       throw new IllegalStateException("Invalid status: " + status.getClass());
     }
@@ -78,7 +93,9 @@ public class ExceptionProbe extends LogProbe implements ForceMethodInstrumentati
     Throwable innerMostThrowable = getInnerMostThrowable(throwable);
     String fingerprint =
         Fingerprinter.fingerprint(innerMostThrowable, exceptionProbeManager.getClassNameFilter());
-    if (exceptionProbeManager.shouldCaptureException(fingerprint)) {
+    Instant lastCapture = exceptionProbeManager.getLastCapture(fingerprint);
+    if (exceptionProbeManager.shouldCaptureException(lastCapture)) {
+
       LOGGER.debug("Capturing exception matching fingerprint: {}", fingerprint);
       // capture only on uncaught exception matching the fingerprint
       ExceptionProbeStatus exceptionStatus = (ExceptionProbeStatus) status;

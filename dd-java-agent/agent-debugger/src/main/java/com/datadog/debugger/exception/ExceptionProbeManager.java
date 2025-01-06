@@ -8,6 +8,7 @@ import com.datadog.debugger.util.WeakIdentityHashMap;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext.ClassNameFilter;
 import datadog.trace.bootstrap.debugger.ProbeId;
+import datadog.trace.util.AgentTaskScheduler;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -24,6 +25,7 @@ import org.slf4j.LoggerFactory;
 
 /** Manages the probes used for instrumentation of exception stacktraces. */
 public class ExceptionProbeManager {
+  public static final int HOT_LOOP_TIME_WINDOW_IN_SECONDS = 10;
   private static final Logger LOGGER = LoggerFactory.getLogger(ExceptionProbeManager.class);
 
   private final Map<String, Instant> fingerprints = new ConcurrentHashMap<>();
@@ -35,6 +37,7 @@ public class ExceptionProbeManager {
   private final long captureIntervalS;
   private final Clock clock;
   private final int maxCapturedFrames;
+  private DefaultExceptionDebugger defaultExceptionDebugger;
 
   public ExceptionProbeManager(ClassNameFilter classNameFiltering, Duration captureInterval) {
     this(
@@ -65,6 +68,19 @@ public class ExceptionProbeManager {
 
   public ClassNameFilter getClassNameFilter() {
     return classNameFiltering;
+  }
+
+  public void removeProbe(ExceptionProbe exceptionProbe) {
+    probes.remove(exceptionProbe.getId());
+    if (defaultExceptionDebugger != null) {
+      AgentTaskScheduler.INSTANCE.execute(
+          () -> defaultExceptionDebugger.applyExceptionConfiguration());
+    }
+  }
+
+  public boolean shouldRemoveProbe(Instant lastCaptureTime) {
+    return ChronoUnit.SECONDS.between(lastCaptureTime, Instant.now(clock))
+        >= HOT_LOOP_TIME_WINDOW_IN_SECONDS;
   }
 
   static class CreationResult {
@@ -139,16 +155,19 @@ public class ExceptionProbeManager {
     return fingerprints;
   }
 
-  public boolean shouldCaptureException(String fingerprint) {
-    return shouldCaptureException(fingerprint, clock);
+  public boolean shouldCaptureException(Instant lastCapture) {
+    return shouldCaptureException(lastCapture, clock);
   }
 
-  boolean shouldCaptureException(String fingerprint, Clock clock) {
-    Instant lastCapture = fingerprints.get(fingerprint);
+  boolean shouldCaptureException(Instant lastCapture, Clock clock) {
     if (lastCapture == null) {
       return false;
     }
     return ChronoUnit.SECONDS.between(lastCapture, Instant.now(clock)) >= captureIntervalS;
+  }
+
+  public Instant getLastCapture(String fingerprint) {
+    return fingerprints.get(fingerprint);
   }
 
   public void addSnapshot(Snapshot snapshot) {
@@ -212,5 +231,9 @@ public class ExceptionProbeManager {
       }
       snapshots.add(snapshot);
     }
+  }
+
+  void setDefaultExceptionDebugger(DefaultExceptionDebugger defaultExceptionDebugger) {
+    this.defaultExceptionDebugger = defaultExceptionDebugger;
   }
 }
