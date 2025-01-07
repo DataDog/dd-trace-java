@@ -27,49 +27,51 @@ public class SourceFileExtension implements TestExecutionListener {
 
     Map<String, String> sourceFiles = TestSourceFileExtension.getSourceFiles();
 
-    // hard coded for now
-    // get xml report file
-    Path path =
-        Paths.get(
-            "/Users/sarah.chen/Source/github.com/DataDog/dd-trace-java/components/context/build/test-results/test/TEST-datadog.context.ContextKeyTest.xml");
-    try {
-      String content = new String(Files.readAllBytes(path));
+    // for each test
+    for (String sourceFile : sourceFiles.keySet()) {
+      String pathString =
+          Paths.get("").toAbsolutePath() + "/build/test-results/test/TEST-" + sourceFile + ".xml";
 
-      // modify report with test source file info
-      // use regex pattern to get class name
-      Pattern pattern = Pattern.compile("<testcase(.*?)classname=\"(.*?)\"(.*?)>");
-      Matcher matcher = pattern.matcher(content);
-      StringBuffer result = new StringBuffer();
-      while (matcher.find()) {
-        String attributes = matcher.group(1);
-        String className = matcher.group(2);
-        String timeAttribute = matcher.group(3);
+      // get xml report file
+      Path filePath = Paths.get(pathString);
+      try {
+        String fileContent = new String(Files.readAllBytes(filePath));
 
-        // add source file attribute
-        String fileAttribute = "";
-        if (sourceFiles.containsKey(className)) {
-          fileAttribute = " file=\"" + sourceFiles.get(className) + "\"";
+        // modify report with test source file info
+        // use regex pattern to get class name
+        Pattern pattern = Pattern.compile("<testcase(.*?)classname=\"(.*?)\"(.*?)>");
+        Matcher matcher = pattern.matcher(fileContent);
+        StringBuffer result = new StringBuffer();
+        while (matcher.find()) {
+          String beg_attributes = matcher.group(1);
+          String className = matcher.group(2);
+          String end_attributes = matcher.group(3);
+
+          // add source file attribute
+          String fileAttribute = "";
+          if (sourceFiles.containsKey(className)) {
+            fileAttribute = " file=\"" + sourceFiles.get(className) + "\"";
+          }
+          String newTestCase =
+              "<testcase"
+                  + beg_attributes
+                  + "classname=\""
+                  + className
+                  + "\""
+                  + fileAttribute
+                  + end_attributes
+                  + ">";
+          matcher.appendReplacement(result, newTestCase);
         }
-        String newTestCase =
-            "<testcase"
-                + attributes
-                + "classname=\""
-                + className
-                + "\""
-                + fileAttribute
-                + timeAttribute
-                + ">";
-        matcher.appendReplacement(result, newTestCase);
+        // add the rest
+        matcher.appendTail(result);
+
+        // set old filePath to new xml result
+        //        System.out.println("result: " + result);
+        Files.write(filePath, result.toString().getBytes()); // does not work
+      } catch (Exception e) {
+        System.out.println("Modifying XML files did not work.");
       }
-      // add the rest
-      matcher.appendTail(result);
-
-      // set old path to new xml result
-      // System.out.println("result: " + result); shows that result is correct, but haven't figured
-      // out a way to overwrite the original path yet
-
-    } catch (Exception e) {
-      System.out.println("didnt work.");
     }
   }
 

@@ -28,9 +28,7 @@ public class TestSourceFileExtension implements TestInstancePostProcessor {
       // get path after "dd-trace-java" and before the final "/"
       String absolutePath = resource.getPath();
       String subPath =
-          absolutePath.substring(
-              absolutePath.indexOf("dd-trace-java") + "dd-trace-java".length(),
-              absolutePath.lastIndexOf("/"));
+          absolutePath.substring(absolutePath.indexOf("dd-trace-java") + "dd-trace-java".length());
       // add the test class name and source file to sourceFiles
       sourceFiles.put(testClassName, subPath);
     } else {
