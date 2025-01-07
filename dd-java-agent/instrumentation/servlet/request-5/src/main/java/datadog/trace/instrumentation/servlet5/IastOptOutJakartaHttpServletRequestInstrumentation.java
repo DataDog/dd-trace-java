@@ -23,7 +23,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 @SuppressWarnings("unused")
 @AutoService(InstrumenterModule.class)
 public class IastOptOutJakartaHttpServletRequestInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   private static final String CLASS_NAME =
       IastOptOutJakartaHttpServletRequestInstrumentation.class.getName();

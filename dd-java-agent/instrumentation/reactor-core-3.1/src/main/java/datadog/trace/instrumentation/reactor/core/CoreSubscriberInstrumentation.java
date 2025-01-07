@@ -19,7 +19,7 @@ import reactor.util.context.Context;
 
 @AutoService(InstrumenterModule.class)
 public class CoreSubscriberInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
   public CoreSubscriberInstrumentation() {
     super("reactor-core");
   }

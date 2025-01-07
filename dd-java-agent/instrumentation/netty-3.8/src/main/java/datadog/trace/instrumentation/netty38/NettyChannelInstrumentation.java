@@ -23,7 +23,7 @@ import org.jboss.netty.channel.Channel;
 
 @AutoService(InstrumenterModule.class)
 public class NettyChannelInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
   public NettyChannelInstrumentation() {
     super(INSTRUMENTATION_NAME, ADDITIONAL_INSTRUMENTATION_NAMES);
   }

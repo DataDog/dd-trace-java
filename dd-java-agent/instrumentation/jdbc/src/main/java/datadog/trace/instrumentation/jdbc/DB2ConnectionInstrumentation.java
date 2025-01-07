@@ -11,7 +11,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class DB2ConnectionInstrumentation extends AbstractConnectionInstrumentation
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
   public DB2ConnectionInstrumentation() {
     super("jdbc", "db2");
   }

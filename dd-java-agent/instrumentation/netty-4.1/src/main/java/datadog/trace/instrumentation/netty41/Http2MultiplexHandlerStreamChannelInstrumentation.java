@@ -9,7 +9,7 @@ import net.bytebuddy.matcher.ElementMatchers;
 
 @AutoService(InstrumenterModule.class)
 public class Http2MultiplexHandlerStreamChannelInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public Http2MultiplexHandlerStreamChannelInstrumentation() {
     super("netty", "netty-4.1", "netty-4.1-http2");

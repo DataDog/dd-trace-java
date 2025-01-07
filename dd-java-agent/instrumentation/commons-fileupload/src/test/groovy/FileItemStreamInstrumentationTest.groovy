@@ -6,7 +6,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import foo.bar.smoketest.MockFileItemStream
 
-class FileItemStreamInstrumenterTest extends AgentTestRunner {
+class FileItemStreamInstrumentationTest extends AgentTestRunner {
 
   private Object iastCtx
 

@@ -15,7 +15,7 @@ import org.mule.runtime.tracer.customization.impl.info.ExecutionInitialSpanInfo;
 
 @AutoService(InstrumenterModule.class)
 public class ExecutionInitialSpanInfoInstrumentation extends AbstractMuleInstrumentation
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   @Override
   public String instrumentedType() {

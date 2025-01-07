@@ -18,7 +18,9 @@ import org.apache.http.concurrent.FutureCallback;
 
 @AutoService(InstrumenterModule.class)
 public final class BasicFutureInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.WithTypeStructure {
+    implements Instrumenter.ForSingleType,
+        Instrumenter.WithTypeStructure,
+        Instrumenter.HasMethodAdvice {
   public BasicFutureInstrumentation() {
     super("httpasyncclient", "apache-httpasyncclient");
   }

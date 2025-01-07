@@ -27,7 +27,10 @@ import net.bytebuddy.asm.Advice;
 @SuppressWarnings("unused")
 @AutoService(InstrumenterModule.class)
 public class StructuredTaskScopeInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, ExcludeFilterProvider {
+    implements Instrumenter.ForBootstrap,
+        Instrumenter.ForSingleType,
+        Instrumenter.HasMethodAdvice,
+        ExcludeFilterProvider {
 
   public StructuredTaskScopeInstrumentation() {
     super("java_concurrent", "structured_task_scope");

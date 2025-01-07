@@ -14,7 +14,7 @@ import net.bytebuddy.asm.Advice;
 // TODO: move to separate module and have better support
 @AutoService(InstrumenterModule.class)
 public class SprayUnmarshallerInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   private static final String TRAIT_NAME =
       "akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport";

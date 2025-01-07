@@ -27,7 +27,7 @@ import org.jboss.netty.channel.ChannelFuture;
 
 @AutoService(InstrumenterModule.class)
 public class ChannelFutureListenerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public ChannelFutureListenerInstrumentation() {
     super(

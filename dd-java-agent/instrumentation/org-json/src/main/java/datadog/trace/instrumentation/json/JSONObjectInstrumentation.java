@@ -19,7 +19,7 @@ import org.json.JSONObject;
 
 @AutoService(InstrumenterModule.class)
 public class JSONObjectInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public JSONObjectInstrumentation() {
     super("org-json");
   }

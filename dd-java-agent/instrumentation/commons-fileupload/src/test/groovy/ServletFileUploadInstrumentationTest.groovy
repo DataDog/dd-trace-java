@@ -11,7 +11,7 @@ import org.apache.commons.fileupload.FileItemIterator
 import org.apache.commons.fileupload.disk.DiskFileItemFactory
 import org.apache.commons.fileupload.servlet.ServletFileUpload
 
-class ServletFileUploadInstrumenterTest extends AgentTestRunner {
+class ServletFileUploadInstrumentationTest extends AgentTestRunner {
 
   private Object iastCtx
 

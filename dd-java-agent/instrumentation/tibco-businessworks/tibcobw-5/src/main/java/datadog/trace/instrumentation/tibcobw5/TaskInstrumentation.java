@@ -24,7 +24,7 @@ import net.bytebuddy.implementation.bytecode.assign.Assigner;
 
 @AutoService(InstrumenterModule.class)
 public class TaskInstrumentation extends AbstractTibcoInstrumentation
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   @Override
   public String instrumentedType() {
     return "com.tibco.pe.core.TaskImpl";

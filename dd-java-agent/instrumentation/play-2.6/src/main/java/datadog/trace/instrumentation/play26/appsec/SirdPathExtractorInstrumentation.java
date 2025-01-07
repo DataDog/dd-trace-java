@@ -22,7 +22,7 @@ import scala.collection.immutable.List;
 /** @see play.api.routing.sird.PathExtractor */
 @AutoService(InstrumenterModule.class)
 public class SirdPathExtractorInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public SirdPathExtractorInstrumentation() {
     super("play");
   }

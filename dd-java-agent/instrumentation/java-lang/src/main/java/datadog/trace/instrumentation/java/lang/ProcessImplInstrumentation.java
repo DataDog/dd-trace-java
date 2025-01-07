@@ -11,7 +11,7 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class ProcessImplInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.ForBootstrap {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice, Instrumenter.ForBootstrap {
 
   public ProcessImplInstrumentation() {
     super("java-lang-appsec");

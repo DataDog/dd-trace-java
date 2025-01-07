@@ -20,7 +20,7 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 public abstract class AbstractConnectionInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForBootstrap {
+    implements Instrumenter.ForBootstrap, Instrumenter.HasMethodAdvice {
   public AbstractConnectionInstrumentation(String instrumentationName, String... additionalNames) {
     super(instrumentationName, additionalNames);
   }

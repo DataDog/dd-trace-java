@@ -15,7 +15,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class ContextManagerTest {
-
   @BeforeEach
   void init() {
     // Ensure no current context prior starting test

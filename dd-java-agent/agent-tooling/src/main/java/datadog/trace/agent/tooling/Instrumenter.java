@@ -5,7 +5,6 @@ import static java.util.Collections.singletonList;
 
 import java.security.ProtectionDomain;
 import java.util.Collection;
-import net.bytebuddy.asm.Advice;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
@@ -80,11 +79,6 @@ public interface Instrumenter {
   /** Instrumentation that wants to apply additional structure checks after type matching. */
   interface WithTypeStructure {
     ElementMatcher<TypeDescription> structureMatcher();
-  }
-
-  /** Instrumentation that wants to apply additional structure checks after type matching. */
-  interface WithPostProcessor {
-    Advice.PostProcessor.Factory postProcessor();
   }
 
   /** Instrumentation that provides advice which affects the whole type. */

@@ -10,8 +10,9 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public final class ContextKey<T> {
   private static final AtomicInteger NEXT_INDEX = new AtomicInteger(0);
-
+  /** The key name, for debugging purpose only . */
   private final String name;
+  /** The key unique context, related to {@link IndexedContext} implementation. */
   final int index;
 
   private ContextKey(String name) {
@@ -19,20 +20,25 @@ public final class ContextKey<T> {
     this.index = NEXT_INDEX.getAndIncrement();
   }
 
-  /** Creates a new key with the given name. */
+  /**
+   * Creates a new key with the given name.
+   *
+   * @param name the key name, for debugging purpose only.
+   * @return the newly created unique key.
+   */
   public static <T> ContextKey<T> named(String name) {
     return new ContextKey<>(name);
   }
 
   @Override
   public int hashCode() {
-    return index;
+    return this.index;
   }
 
   // we want identity equality, so no need to override equals()
 
   @Override
   public String toString() {
-    return name;
+    return this.name;
   }
 }

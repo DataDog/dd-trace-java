@@ -27,7 +27,7 @@ import org.springframework.web.servlet.ModelAndView;
 
 @AutoService(InstrumenterModule.class)
 public final class DispatcherServletInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public DispatcherServletInstrumentation() {
     super("spring-web");

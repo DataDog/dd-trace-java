@@ -27,7 +27,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
 
 @AutoService(InstrumenterModule.class)
 public final class KafkaConsumerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public KafkaConsumerInstrumentation() {
     super("kafka", "kafka-0.11");

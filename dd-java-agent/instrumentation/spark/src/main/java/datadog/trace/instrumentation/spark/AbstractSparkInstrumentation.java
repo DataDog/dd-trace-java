@@ -12,7 +12,7 @@ import net.bytebuddy.asm.Advice;
 import org.apache.spark.deploy.SparkSubmitArguments;
 
 public abstract class AbstractSparkInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   public AbstractSparkInstrumentation() {
     super("spark", "apache-spark");

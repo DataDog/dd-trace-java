@@ -14,7 +14,7 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public final class FutureResponseListenerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public FutureResponseListenerInstrumentation() {
     super("jetty-client");

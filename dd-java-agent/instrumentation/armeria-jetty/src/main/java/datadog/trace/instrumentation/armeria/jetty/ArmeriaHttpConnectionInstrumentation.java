@@ -13,7 +13,7 @@ import org.eclipse.jetty.server.HttpChannel;
 
 @AutoService(InstrumenterModule.class)
 public class ArmeriaHttpConnectionInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public ArmeriaHttpConnectionInstrumentation() {
     super("armeria-jetty", "armeria");
   }

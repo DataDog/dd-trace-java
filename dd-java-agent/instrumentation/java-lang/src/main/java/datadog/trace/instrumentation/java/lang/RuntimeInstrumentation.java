@@ -11,7 +11,7 @@ import java.io.File;
 
 @AutoService(InstrumenterModule.class)
 public class RuntimeInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.ForBootstrap {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice, Instrumenter.ForBootstrap {
 
   public RuntimeInstrumentation() {
     super("java-lang-appsec");

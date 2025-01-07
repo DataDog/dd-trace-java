@@ -20,7 +20,7 @@ import org.apache.http.nio.NHttpServerConnection;
 
 @AutoService(InstrumenterModule.class)
 public final class SynapseServerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public SynapseServerInstrumentation() {
     super("synapse3-server", "synapse3");

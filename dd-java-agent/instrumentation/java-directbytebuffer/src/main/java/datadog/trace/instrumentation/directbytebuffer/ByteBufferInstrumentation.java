@@ -16,7 +16,7 @@ import datadog.trace.bootstrap.config.provider.ConfigProvider;
 
 @AutoService(InstrumenterModule.class)
 public final class ByteBufferInstrumentation extends InstrumenterModule.Profiling
-    implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType {
+    implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public ByteBufferInstrumentation() {
     super("allocatedirect", "directallocation");

@@ -1,0 +1,13 @@
+diff --git a/src/test/java/com/fasterxml/jackson/core/json/async/AsyncConcurrencyTest.java b/src/test/java/com/fasterxml/jackson/core/json/async/AsyncConcurrencyTest.java
+index 2f7957d1..7a8ea388 100644
+--- a/src/test/java/com/fasterxml/jackson/core/json/async/AsyncConcurrencyTest.java
++++ b/src/test/java/com/fasterxml/jackson/core/json/async/AsyncConcurrencyTest.java
+@@ -145,7 +145,7 @@ public class AsyncConcurrencyTest extends AsyncTestBase
+             futures.add(executor.submit(c));
+         }
+         executor.shutdown();
+-        executor.awaitTermination(5, TimeUnit.SECONDS);
++        executor.awaitTermination(10, TimeUnit.SECONDS);
+         int count = errorCount.get();
+ 
+         if (count > 0) {

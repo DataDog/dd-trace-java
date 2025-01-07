@@ -22,10 +22,10 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.commons.fileupload.FileItem;
 
 @AutoService(InstrumenterModule.class)
-public class FileItemInstrumenter extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy {
+public class FileItemInstrumentation extends InstrumenterModule.Iast
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  public FileItemInstrumenter() {
+  public FileItemInstrumentation() {
     super("commons-fileupload", "fileitem");
   }
 

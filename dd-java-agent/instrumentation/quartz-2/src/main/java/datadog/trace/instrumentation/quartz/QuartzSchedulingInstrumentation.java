@@ -22,7 +22,7 @@ import org.quartz.JobExecutionContext;
 
 @AutoService(InstrumenterModule.class)
 public final class QuartzSchedulingInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public QuartzSchedulingInstrumentation() {
     super("quartz");

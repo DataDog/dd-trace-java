@@ -28,7 +28,7 @@ import software.amazon.awssdk.core.internal.http.pipeline.stages.MakeAsyncHttpRe
  */
 @AutoService(InstrumenterModule.class)
 public final class AwsHttpClientInstrumentation extends AbstractAwsClientInstrumentation
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   @Override
   public String hierarchyMarkerType() {
