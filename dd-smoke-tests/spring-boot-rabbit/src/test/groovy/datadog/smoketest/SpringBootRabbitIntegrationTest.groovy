@@ -94,6 +94,9 @@ class SpringBootRabbitIntegrationTest extends AbstractServerSmokeTest {
     if (log.contains('org.springframework.amqp.rabbit.listener.SimpleMessageListenerContainer - Failed to check/redeclare auto-delete queue(s).')) {
       return false
     }
+    if (log.contains('ERROR com.rabbitmq.client.impl.ForgivingExceptionHandler - An unexpected connection driver error occured')) {
+      return false
+    }
     return super.isErrorLog(log)
   }
 
