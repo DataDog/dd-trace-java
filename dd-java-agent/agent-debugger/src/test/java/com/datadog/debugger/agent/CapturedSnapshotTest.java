@@ -7,6 +7,7 @@ import static com.datadog.debugger.util.MoshiSnapshotHelper.NOT_CAPTURED_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.REDACTED_IDENT_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.REDACTED_TYPE_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotTestHelper.VALUE_ADAPTER;
+import static com.datadog.debugger.util.TestHelper.setFieldInConfig;
 import static datadog.trace.bootstrap.debugger.util.Redaction.REDACTED_VALUE;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -238,14 +239,20 @@ public class CapturedSnapshotTest extends CapturingTestBase {
 
   @Test
   public void oldJavacBug() throws Exception {
-    final String CLASS_NAME = "com.datadog.debugger.classfiles.JavacBug"; // compiled with jdk 1.6
-    TestSnapshotListener listener = installSingleProbe(CLASS_NAME, "main", null);
-    Class<?> testClass = Class.forName(CLASS_NAME);
-    assertNotNull(testClass);
-    int result = Reflect.onClass(testClass).call("main", "").get();
-    assertEquals(45, result);
-    // with local var hoisting and initialization at the beginning of the method, issue is resolved
-    assertEquals(1, listener.snapshots.size());
+    setFieldInConfig(Config.get(), "debuggerHoistLocalVarsEnabled", true);
+    try {
+      final String CLASS_NAME = "com.datadog.debugger.classfiles.JavacBug"; // compiled with jdk 1.6
+      TestSnapshotListener listener = installSingleProbe(CLASS_NAME, "main", null);
+      Class<?> testClass = Class.forName(CLASS_NAME);
+      assertNotNull(testClass);
+      int result = Reflect.onClass(testClass).call("main", "").get();
+      assertEquals(45, result);
+      // with local var hoisting and initialization at the beginning of the method, issue is
+      // resolved
+      assertEquals(1, listener.snapshots.size());
+    } finally {
+      setFieldInConfig(Config.get(), "debuggerHoistLocalVarsEnabled", false);
+    }
   }
 
   @Test
@@ -1801,32 +1808,39 @@ public class CapturedSnapshotTest extends CapturingTestBase {
       value = "datadog.trace.api.Platform#isJ9",
       disabledReason = "we cannot get local variable debug info")
   public void uncaughtExceptionConditionLocalVar() throws IOException, URISyntaxException {
-    final String CLASS_NAME = "CapturedSnapshot05";
-    LogProbe probe =
-        createProbeBuilder(PROBE_ID, CLASS_NAME, "main", "(String)")
-            .when(
-                new ProbeCondition(DSL.when(DSL.ge(DSL.ref("after"), DSL.value(0))), "after >= 0"))
-            .evaluateAt(MethodLocation.EXIT)
-            .build();
-    TestSnapshotListener listener = installProbes(probe);
-    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    setFieldInConfig(Config.get(), "debuggerHoistLocalVarsEnabled", true);
     try {
-      Reflect.onClass(testClass).call("main", "triggerUncaughtException").get();
-      Assertions.fail("should not reach this code");
-    } catch (ReflectException ex) {
-      assertEquals("oops", ex.getCause().getCause().getMessage());
+
+      final String CLASS_NAME = "CapturedSnapshot05";
+      LogProbe probe =
+          createProbeBuilder(PROBE_ID, CLASS_NAME, "main", "(String)")
+              .when(
+                  new ProbeCondition(
+                      DSL.when(DSL.ge(DSL.ref("after"), DSL.value(0))), "after >= 0"))
+              .evaluateAt(MethodLocation.EXIT)
+              .build();
+      TestSnapshotListener listener = installProbes(probe);
+      Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+      try {
+        Reflect.onClass(testClass).call("main", "triggerUncaughtException").get();
+        Assertions.fail("should not reach this code");
+      } catch (ReflectException ex) {
+        assertEquals("oops", ex.getCause().getCause().getMessage());
+      }
+      Snapshot snapshot = assertOneSnapshot(listener);
+      assertCaptureThrowable(
+          snapshot.getCaptures().getReturn(),
+          "CapturedSnapshot05$CustomException",
+          "oops",
+          "CapturedSnapshot05.triggerUncaughtException",
+          8);
+      assertNull(snapshot.getEvaluationErrors());
+      // after is 0 because the exception is thrown before the assignment and local var initialized
+      // at the beginning of the method by instrumentation
+      assertCaptureLocals(snapshot.getCaptures().getReturn(), "after", "long", "0");
+    } finally {
+      setFieldInConfig(Config.get(), "debuggerHoistLocalVarsEnabled", false);
     }
-    Snapshot snapshot = assertOneSnapshot(listener);
-    assertCaptureThrowable(
-        snapshot.getCaptures().getReturn(),
-        "CapturedSnapshot05$CustomException",
-        "oops",
-        "CapturedSnapshot05.triggerUncaughtException",
-        8);
-    assertNull(snapshot.getEvaluationErrors());
-    // after is 0 because the exception is thrown before the assignment and local var initialized
-    // at the beginning of the method by instrumentation
-    assertCaptureLocals(snapshot.getCaptures().getReturn(), "after", "long", "0");
   }
 
   @Test
@@ -1858,15 +1872,20 @@ public class CapturedSnapshotTest extends CapturingTestBase {
       value = "datadog.trace.api.Platform#isJ9",
       disabledReason = "we cannot get local variable debug info")
   public void methodProbeLocalVarsLocalScopes() throws IOException, URISyntaxException {
-    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot31";
-    LogProbe probe = createProbeAtExit(PROBE_ID, CLASS_NAME, "localScopes", "(String)");
-    TestSnapshotListener listener = installProbes(probe);
-    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.onClass(testClass).call("main", "localScopes").get();
-    assertEquals(42, result);
-    Snapshot snapshot = assertOneSnapshot(listener);
-    assertEquals(1, snapshot.getCaptures().getReturn().getLocals().size());
-    assertCaptureLocals(snapshot.getCaptures().getReturn(), "@return", "int", "42");
+    setFieldInConfig(Config.get(), "debuggerHoistLocalVarsEnabled", true);
+    try {
+      final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot31";
+      LogProbe probe = createProbeAtExit(PROBE_ID, CLASS_NAME, "localScopes", "(String)");
+      TestSnapshotListener listener = installProbes(probe);
+      Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+      int result = Reflect.onClass(testClass).call("main", "localScopes").get();
+      assertEquals(42, result);
+      Snapshot snapshot = assertOneSnapshot(listener);
+      assertEquals(1, snapshot.getCaptures().getReturn().getLocals().size());
+      assertCaptureLocals(snapshot.getCaptures().getReturn(), "@return", "int", "42");
+    } finally {
+      setFieldInConfig(Config.get(), "debuggerHoistLocalVarsEnabled", false);
+    }
   }
 
   @Test
@@ -1957,16 +1976,21 @@ public class CapturedSnapshotTest extends CapturingTestBase {
       value = "datadog.trace.api.Platform#isJ9",
       disabledReason = "we cannot get local variable debug info")
   public void duplicateLocalDifferentScope() throws IOException, URISyntaxException {
-    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot31";
-    LogProbe probe =
-        createProbeAtExit(PROBE_ID, CLASS_NAME, "duplicateLocalDifferentScope", "(String)");
-    TestSnapshotListener listener = installProbes(probe);
-    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.onClass(testClass).call("main", "duplicateLocalDifferentScope").get();
-    assertEquals(28, result);
-    Snapshot snapshot = assertOneSnapshot(listener);
-    assertCaptureLocals(
-        snapshot.getCaptures().getReturn(), "ch", Character.TYPE.getTypeName(), "e");
+    setFieldInConfig(Config.get(), "debuggerHoistLocalVarsEnabled", true);
+    try {
+      final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot31";
+      LogProbe probe =
+          createProbeAtExit(PROBE_ID, CLASS_NAME, "duplicateLocalDifferentScope", "(String)");
+      TestSnapshotListener listener = installProbes(probe);
+      Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+      int result = Reflect.onClass(testClass).call("main", "duplicateLocalDifferentScope").get();
+      assertEquals(28, result);
+      Snapshot snapshot = assertOneSnapshot(listener);
+      assertCaptureLocals(
+          snapshot.getCaptures().getReturn(), "ch", Character.TYPE.getTypeName(), "e");
+    } finally {
+      setFieldInConfig(Config.get(), "debuggerHoistLocalVarsEnabled", false);
+    }
   }
 
   @Test
