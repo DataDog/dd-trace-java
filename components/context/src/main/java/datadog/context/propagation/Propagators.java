@@ -3,11 +3,12 @@ package datadog.context.propagation;
 import static java.util.Collections.synchronizedMap;
 import static java.util.Comparator.comparingInt;
 
-import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.Map;
 
 public final class Propagators {
-  private static final Map<Concern, Propagator> PROPAGATORS = synchronizedMap(new HashMap<>());
+  private static final Map<Concern, Propagator> PROPAGATORS =
+      synchronizedMap(new IdentityHashMap<>());
   private static volatile Propagator defaultPropagator = null;
   private static volatile boolean defaultPropagatorSet = false;
 
