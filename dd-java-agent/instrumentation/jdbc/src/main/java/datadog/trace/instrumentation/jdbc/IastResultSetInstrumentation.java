@@ -19,6 +19,7 @@ import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.sql.ResultSet;
@@ -78,6 +79,11 @@ public class IastResultSetInstrumentation extends InstrumenterModule.Iast
 
   @RequiresRequestContext(RequestContextSlot.IAST)
   public static class GetParameterAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void onEnter() {
+      CallDepthThreadLocalMap.incrementCallDepth(ResultSet.class);
+    }
+
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.SQL_TABLE)
     public static void onExit(
@@ -85,6 +91,9 @@ public class IastResultSetInstrumentation extends InstrumenterModule.Iast
         @Advice.Return final String value,
         @Advice.This final ResultSet resultSet,
         @ActiveRequestContext RequestContext reqCtx) {
+      if (CallDepthThreadLocalMap.decrementCallDepth(ResultSet.class) > 0) {
+        return;
+      }
       ContextStore<ResultSet, Integer> contextStore =
           InstrumentationContext.get(ResultSet.class, Integer.class);
       if (contextStore.get(resultSet) > Config.get().getIastDbRowsToTaint()) {
@@ -99,11 +108,7 @@ public class IastResultSetInstrumentation extends InstrumenterModule.Iast
       }
       IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
       if (argument instanceof String) {
-        if (module.isTainted(value)) {
-          module.changeSource(ctx, value, SourceTypes.SQL_TABLE, (String) argument);
-        } else {
-          module.taintString(ctx, value, SourceTypes.SQL_TABLE, (String) argument);
-        }
+        module.taintString(ctx, value, SourceTypes.SQL_TABLE, (String) argument);
       } else {
         module.taintString(ctx, value, SourceTypes.SQL_TABLE);
       }

@@ -347,11 +347,4 @@ public interface PropagationModule extends IastModule {
   Source findSource(@Nullable IastContext ctx, @Nullable Object target);
 
   void markIfTainted(@Nullable Object target, int mark);
-
-  void changeSource(@Nullable Object target, byte origin);
-
-  void changeSource(@Nullable Object target, byte origin, @Nullable CharSequence name);
-
-  void changeSource(
-      @Nullable IastContext ctx, @Nullable Object target, byte origin, @Nullable CharSequence name);
 }
