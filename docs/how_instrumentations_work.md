@@ -101,7 +101,7 @@ At this point the instrumentation should override the method `muzzleDirective()`
 
 ## Instrumentation classes
 
-The Instrumentation class is where the Instrumentation begins. It will:
+The Instrumentation class is where the instrumentation begins. It will:
 
 1. Use Matchers to choose target types (i.e., classes)
 2. From only those target types, use Matchers to select the members (i.e., methods) to instrument.
@@ -110,8 +110,9 @@ The Instrumentation class is where the Instrumentation begins. It will:
 Instrumentation classes:
 
 1. Must be annotated with `@AutoService(InstrumenterModule.class)`
-2. Should extend one of the six abstract TargetSystem `InstrumenterModule` classes
-3. Should implement one of the `Instrumenter` interfaces
+2. Should be declared in a file that ends with `Instrumentation.java`
+3. Should extend one of the six abstract TargetSystem `InstrumenterModule` classes
+4. Should implement one of the `Instrumenter` interfaces
 
 For example:
 
@@ -135,6 +136,31 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
 | `InstrumenterModule.`[`CiVisibility`](https://github.com/DataDog/dd-trace-java/blob/82a3400cd210f4051b92fe1a86cd1b64a17e005e/dd-java-agent/agent-tooling/src/main/java/datadog/trace/agent/tooling/InstrumenterModule.java#L285) |                                                                                                            |
 | `InstrumenterModule.`[`Usm`](https://github.com/DataDog/dd-trace-java/blob/82a3400cd210f4051b92fe1a86cd1b64a17e005e/dd-java-agent/agent-tooling/src/main/java/datadog/trace/agent/tooling/InstrumenterModule.java#L273)          |                                                                                                            |
 | [`InstrumenterModule`](https://github.com/DataDog/dd-trace-java/blob/82a3400cd210f4051b92fe1a86cd1b64a17e005e/dd-java-agent/agent-tooling/src/main/java/datadog/trace/agent/tooling/InstrumenterModule.java)           | Avoid extending `InstrumenterModule` directly.  When no other TargetGroup is applicable we generally default to `InstrumenterModule.Tracing` |
+
+### Grouping Instrumentations
+
+Related instrumentations may be grouped under a single `InstrumenterModule` to share common details
+such as integration name, helpers, context store use, and optional `classLoaderMatcher()`.
+
+Module classes:
+
+1. Must be annotated with `@AutoService(InstrumenterModule.class)`
+2. Should be declared in a file that ends with `Module.java`
+3. Should extend one of the six abstract TargetSystem `InstrumenterModule` classes
+4. Should have a `typeInstrumentations()` method that returns the instrumentations in the group
+5. Should NOT implement one of the `Instrumenter` interfaces
+
+> [!WARNING]
+> Grouped instrumentations must NOT be annotated with `@AutoService(InstrumenterModule.class)
+> and must NOT extend any of the six abstract TargetSystem `InstrumenterModule` classes
+
+Existing instrumentations can be grouped under a new module, assuming they share the same integration name.
+
+For each member instrumentation:
+1. Remove `@AutoService(InstrumenterModule.class)`
+2. Remove `extends InstrumenterModule...`
+3. Move the list of helpers to the module, merging as necessary
+4. Move the context store map to the module, merging as necessary
 
 ### Type Matching
 

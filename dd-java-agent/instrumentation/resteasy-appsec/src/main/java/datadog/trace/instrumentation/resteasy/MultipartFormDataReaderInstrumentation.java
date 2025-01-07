@@ -29,7 +29,7 @@ import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
 
 @AutoService(InstrumenterModule.class)
 public class MultipartFormDataReaderInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public MultipartFormDataReaderInstrumentation() {
     super("resteasy");

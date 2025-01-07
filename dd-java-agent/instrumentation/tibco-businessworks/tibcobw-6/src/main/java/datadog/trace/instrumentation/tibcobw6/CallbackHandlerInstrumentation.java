@@ -17,7 +17,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class CallbackHandlerInstrumentation extends AbstractTibcoInstrumentation
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   @Override
   public String hierarchyMarkerType() {

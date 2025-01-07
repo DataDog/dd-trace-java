@@ -42,7 +42,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  */
 @AutoService(InstrumenterModule.class)
 public class ServletRequestBodyInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
   public ServletRequestBodyInstrumentation() {
     super("servlet-request-body");
   }

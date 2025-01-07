@@ -19,7 +19,9 @@ import org.bson.ByteBuf;
 
 @AutoService(InstrumenterModule.class)
 public class ByteBufBsonDocumentInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.WithTypeStructure {
+    implements Instrumenter.ForSingleType,
+        Instrumenter.WithTypeStructure,
+        Instrumenter.HasMethodAdvice {
 
   public ByteBufBsonDocumentInstrumentation() {
     super("mongo");

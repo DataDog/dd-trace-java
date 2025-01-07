@@ -30,7 +30,7 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 public abstract class AbstractPreparedStatementInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForBootstrap {
+    implements Instrumenter.ForBootstrap, Instrumenter.HasMethodAdvice {
 
   public AbstractPreparedStatementInstrumentation(
       String instrumentationName, String... additionalNames) {

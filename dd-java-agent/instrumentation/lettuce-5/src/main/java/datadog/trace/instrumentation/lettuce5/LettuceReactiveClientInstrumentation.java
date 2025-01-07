@@ -46,7 +46,7 @@ import java.util.Map;
  */
 @AutoService(InstrumenterModule.class)
 public class LettuceReactiveClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   public LettuceReactiveClientInstrumentation() {
     super("lettuce", "lettuce-5", "lettuce-5-rx");

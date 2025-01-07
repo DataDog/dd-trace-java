@@ -19,7 +19,7 @@ import org.apache.synapse.transport.passthru.TargetResponse;
 
 @AutoService(InstrumenterModule.class)
 public final class SynapseClientWorkerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public SynapseClientWorkerInstrumentation() {
     super("synapse3-client", "synapse3");

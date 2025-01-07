@@ -18,9 +18,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 /** Obtain template and matrix variables for RequestMappingInfoHandlerMapping. */
 @AutoService(InstrumenterModule.class)
 public class TemplateAndMatrixVariablesInstrumentation extends InstrumenterModule
-    implements Instrumenter.ForSingleType,
-        Instrumenter.HasMethodAdvice,
-        Instrumenter.WithPostProcessor {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   private Advice.PostProcessor.Factory postProcessorFactory;
 

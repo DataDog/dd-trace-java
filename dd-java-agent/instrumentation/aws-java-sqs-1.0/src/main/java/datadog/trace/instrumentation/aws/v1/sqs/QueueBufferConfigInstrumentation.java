@@ -18,7 +18,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class QueueBufferConfigInstrumentation extends AbstractSqsInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.WithTypeStructure {
+    implements Instrumenter.ForSingleType,
+        Instrumenter.WithTypeStructure,
+        Instrumenter.HasMethodAdvice {
 
   @Override
   public String instrumentedType() {

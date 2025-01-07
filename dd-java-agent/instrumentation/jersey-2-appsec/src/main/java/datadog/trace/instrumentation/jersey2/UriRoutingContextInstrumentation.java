@@ -24,7 +24,7 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class UriRoutingContextInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public UriRoutingContextInstrumentation() {
     super("jersey");
   }

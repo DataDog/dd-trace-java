@@ -19,7 +19,9 @@ import sun.rmi.transport.Target;
 
 @AutoService(InstrumenterModule.class)
 public class RmiServerContextInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForBootstrap,
+        Instrumenter.ForTypeHierarchy,
+        Instrumenter.HasMethodAdvice {
 
   public RmiServerContextInstrumentation() {
     super("rmi", "rmi-context-propagator", "rmi-server-context-propagator");

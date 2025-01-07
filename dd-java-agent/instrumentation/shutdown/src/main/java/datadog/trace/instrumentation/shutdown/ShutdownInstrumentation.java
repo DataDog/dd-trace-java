@@ -16,7 +16,7 @@ import net.bytebuddy.asm.Advice;
  */
 @AutoService(InstrumenterModule.class)
 public class ShutdownInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType {
+    implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public ShutdownInstrumentation() {
     super("shutdown");

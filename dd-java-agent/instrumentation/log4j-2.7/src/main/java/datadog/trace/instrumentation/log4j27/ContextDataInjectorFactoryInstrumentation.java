@@ -20,7 +20,7 @@ import org.apache.logging.log4j.core.ContextDataInjector;
 
 @AutoService(InstrumenterModule.class)
 public class ContextDataInjectorFactoryInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public ContextDataInjectorFactoryInstrumentation() {
     super("log4j", "log4j-2");
   }

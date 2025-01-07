@@ -24,7 +24,7 @@ import org.glassfish.grizzly.http.io.NIOReader;
 
 @AutoService(InstrumenterModule.class)
 public class GrizzlyCharBodyInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public GrizzlyCharBodyInstrumentation() {
     super("grizzly");
   }

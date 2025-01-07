@@ -16,9 +16,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -30,34 +28,25 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-@AutoService(InstrumenterModule.class)
-public final class MDBMessageConsumerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+public final class MDBMessageConsumerInstrumentation
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+  private final String namespace;
 
-  public MDBMessageConsumerInstrumentation() {
-    super("jms", "javax-mdb");
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JMSDecorator",
-      packageName + ".MessageExtractAdapter",
-      packageName + ".MessageExtractAdapter$1"
-    };
+  public MDBMessageConsumerInstrumentation(String namespace) {
+    this.namespace = namespace;
   }
 
   @Override
   public String hierarchyMarkerType() {
-    return "javax.jms.MessageListener";
+    return namespace + ".jms.MessageListener";
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(hierarchyMarkerType()))
         .and(
-            hasSuperType(declaresAnnotation(named("javax.ejb.MessageDriven")))
-                .or(implementsInterface(named("javax.ejb.MessageDrivenBean"))));
+            hasSuperType(declaresAnnotation(named(namespace + ".ejb.MessageDriven")))
+                .or(implementsInterface(named(namespace + ".ejb.MessageDrivenBean"))));
   }
 
   @Override
@@ -67,7 +56,7 @@ public final class MDBMessageConsumerInstrumentation extends InstrumenterModule.
             .and(isPublic())
             .and(named("onMessage"))
             .and(takesArguments(1))
-            .and(takesArgument(0, (named("javax.jms.Message")))),
+            .and(takesArgument(0, (named(namespace + ".jms.Message")))),
         getClass().getName() + "$MDBAdvice");
   }
 

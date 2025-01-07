@@ -17,7 +17,7 @@ import org.codehaus.plexus.PlexusContainer;
 
 @AutoService(InstrumenterModule.class)
 public class MavenInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public MavenInstrumentation() {
     super("maven");

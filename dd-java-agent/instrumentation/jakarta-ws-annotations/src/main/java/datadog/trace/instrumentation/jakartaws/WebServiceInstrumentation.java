@@ -27,7 +27,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class WebServiceInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForBootstrap,
+        Instrumenter.ForTypeHierarchy,
+        Instrumenter.HasMethodAdvice {
   private static final String WEB_SERVICE_ANNOTATION_NAME = "jakarta.jws.WebService";
 
   public WebServiceInstrumentation() {

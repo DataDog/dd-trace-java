@@ -17,7 +17,7 @@ import org.hibernate.SharedSessionContract;
 
 @AutoService(InstrumenterModule.class)
 public class IastQueryInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public IastQueryInstrumentation() {
     super("hibernate", "hibernate-core");

@@ -32,7 +32,7 @@ import scala.concurrent.Future;
 
 @AutoService(InstrumenterModule.class)
 public final class RediscalaInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public RediscalaInstrumentation() {
     super("rediscala", "redis");

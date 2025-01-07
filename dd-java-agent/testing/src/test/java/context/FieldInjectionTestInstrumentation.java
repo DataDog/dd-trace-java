@@ -17,7 +17,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class FieldInjectionTestInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
   public FieldInjectionTestInstrumentation() {
     super("fieldinjection-test");
   }

@@ -27,7 +27,7 @@ import org.junit.runners.ParentRunner;
 
 @AutoService(InstrumenterModule.class)
 public class Cucumber4RetryInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   private final String parentPackageName = Strings.getPackageName(JUnit4Utils.class.getName());
 

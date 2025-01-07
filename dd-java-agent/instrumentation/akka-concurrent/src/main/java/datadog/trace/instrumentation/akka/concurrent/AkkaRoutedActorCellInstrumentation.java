@@ -19,7 +19,7 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class AkkaRoutedActorCellInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public AkkaRoutedActorCellInstrumentation() {
     super("akka_actor_send", "akka_actor", "akka_concurrent", "java_concurrent");

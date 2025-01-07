@@ -20,7 +20,7 @@ import org.testng.annotations.DataProvider;
 
 @AutoService(InstrumenterModule.class)
 public class TestNGInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public TestNGInstrumentation() {
     super("testng");
   }

@@ -20,7 +20,7 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class JWTParserInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public JWTParserInstrumentation() {
     super("jwt", "auth0-jwt");

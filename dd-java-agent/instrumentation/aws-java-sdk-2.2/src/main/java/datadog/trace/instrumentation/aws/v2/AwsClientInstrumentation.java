@@ -16,7 +16,7 @@ import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
 /** AWS SDK v2 instrumentation */
 @AutoService(InstrumenterModule.class)
 public final class AwsClientInstrumentation extends AbstractAwsClientInstrumentation
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   @Override
   public String instrumentedType() {

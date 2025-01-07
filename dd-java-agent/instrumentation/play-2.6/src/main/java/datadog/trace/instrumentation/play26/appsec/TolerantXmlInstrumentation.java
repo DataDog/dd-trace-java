@@ -18,7 +18,7 @@ import play.mvc.Http;
 /** @see play.mvc.BodyParser.TolerantXml#parse(Http.RequestHeader, ByteString) */
 @AutoService(InstrumenterModule.class)
 public class TolerantXmlInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public TolerantXmlInstrumentation() {
     super("play");
   }

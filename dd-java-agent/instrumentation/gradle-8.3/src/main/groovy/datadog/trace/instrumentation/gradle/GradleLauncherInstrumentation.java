@@ -20,7 +20,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  */
 @AutoService(InstrumenterModule.class)
 public class GradleLauncherInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public GradleLauncherInstrumentation() {
     super("gradle", "gradle-daemon-jvm-options");

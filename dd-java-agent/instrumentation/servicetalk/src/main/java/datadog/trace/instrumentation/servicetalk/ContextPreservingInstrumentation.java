@@ -14,7 +14,7 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class ContextPreservingInstrumentation extends AbstractAsyncContextInstrumentation
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   @Override
   public String[] knownMatchingTypes() {

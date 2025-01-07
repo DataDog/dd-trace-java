@@ -1,30 +1,16 @@
 FROM debian:bookworm-slim
 
-ARG JAVA_8_VERSION="8.0.372-tem"
-ARG JAVA_11_VERSION="11.0.19-tem"
-ARG JAVA_17_VERSION="17.0.7-tem"
-ARG JAVA_21_VERSION="21.0.4-tem"
-ARG MAVEN_VERSION=3.8.4
-
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y procps tini build-essential git curl unzip zip && \
     apt-get -y clean && \
     rm -rf /var/lib/apt/lists/*
 
 # install sdkman
+COPY .sdkmanrc .
 RUN curl -s "https://get.sdkman.io" | bash
 RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && \
-    yes | sdk install java $JAVA_8_VERSION && \
-    yes | sdk install java $JAVA_11_VERSION && \
-    yes | sdk install java $JAVA_17_VERSION && \
-    yes | sdk install java $JAVA_21_VERSION && \
-    yes | sdk install maven $MAVEN_VERSION && \
-    rm -rf $HOME/.sdkman/archives/* && \
-    rm -rf $HOME/.sdkman/tmp/*"
-ENV JAVA_8_HOME=/root/.sdkman/candidates/java/$JAVA_8_VERSION
-ENV JAVA_11_HOME=/root/.sdkman/candidates/java/$JAVA_11_VERSION
-ENV JAVA_17_HOME=/root/.sdkman/candidates/java/$JAVA_17_VERSION
-ENV JAVA_21_HOME=/root/.sdkman/candidates/java/$JAVA_21_VERSION
+    sdk env install && \
+    sdk flush"
 
 RUN mkdir exploration-tests
 WORKDIR /exploration-tests
@@ -37,10 +23,13 @@ RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && cd jsoup && mvn verify -
 
 
 # Jackson
-#RUN git clone https://github.com/FasterXML/jackson-core.git
-#RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && cd jackson-core && ./mvnw dependency:resolve dependency:resolve-plugins"
-#RUN git clone https://github.com/FasterXML/jackson-databind.git
-#RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && cd jackson-databind && ./mvnw dependency:resolve dependency:resolve-plugins"
+RUN git clone -b 2.16 https://github.com/FasterXML/jackson-core.git
+COPY jackson-core_exploration-tests.patch .
+# fix tests that are failing because timeout
+RUN cd jackson-core && git apply /exploration-tests/jackson-core_exploration-tests.patch
+RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && cd jackson-core && mvn verify -DskipTests=true"
+RUN git clone -b 2.16 https://github.com/FasterXML/jackson-databind.git
+RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && cd jackson-databind && mvn verify -DskipTests=true"
 
 # Netty
 #RUN git clone https://github.com/netty/netty.git

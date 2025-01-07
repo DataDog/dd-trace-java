@@ -21,7 +21,7 @@ import play.mvc.Http;
 /** @see play.mvc.BodyParser.TolerantJson#parse(Http.RequestHeader, ByteString) */
 @AutoService(InstrumenterModule.class)
 public class TolerantJsonInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public TolerantJsonInstrumentation() {
     super("play");
   }

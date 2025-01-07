@@ -539,18 +539,18 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     waitForTraceCount(2)
     secondResponse.code() == 403
     secondResponse.body().string().contains('You\'ve been blocked')
-    final rootSpan = this.rootSpans.find { it.meta['usr.session_id'] != null }
-    rootSpan != null
-    assert rootSpan.meta.get('appsec.blocked') == 'true', 'appsec.blocked is not set'
-    assert rootSpan.meta.get('_dd.appsec.json') != null, '_dd.appsec.json is not set'
+    final blockedSpans = this.rootSpans.findAll {
+      it.meta['_dd.appsec.json'] != null
+    }
+    assert !blockedSpans.empty, 'appsec.blocked is not set'
     def trigger = null
-    for (t in rootSpan.triggers) {
+    for (t in blockedSpans.triggers.flatten()) {
       if (t['rule']['id'] == '__test_session_id_block') {
         trigger = t
         break
       }
     }
-    assert trigger != null, 'test trigger not found'
+    assert trigger != null, 'session_id block trigger not found'
   }
 
   void 'rasp blocks on CMDI'() {

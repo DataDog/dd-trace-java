@@ -11,7 +11,7 @@ import datadog.trace.agent.tooling.muzzle.Reference;
 
 @AutoService(InstrumenterModule.class)
 public final class JettyCommitResponseInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public JettyCommitResponseInstrumentation() {
     super("jetty");

@@ -13,7 +13,7 @@ import play.routing.RoutingDsl;
 /** @see RoutingDsl.Route */
 @AutoService(InstrumenterModule.class)
 public class RoutingDsl27Instrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public RoutingDsl27Instrumentation() {
     super("play");
   }

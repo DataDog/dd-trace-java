@@ -28,7 +28,7 @@ import net.bytebuddy.asm.Advice;
  */
 @AutoService(InstrumenterModule.class)
 public class MarshallingDirectivesInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   public MarshallingDirectivesInstrumentation() {
     super("akka-http");

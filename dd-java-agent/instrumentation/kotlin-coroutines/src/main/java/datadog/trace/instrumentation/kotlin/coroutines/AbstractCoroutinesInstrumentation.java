@@ -20,7 +20,9 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 public abstract class AbstractCoroutinesInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.WithTypeStructure {
+    implements Instrumenter.ForTypeHierarchy,
+        Instrumenter.WithTypeStructure,
+        Instrumenter.HasMethodAdvice {
 
   protected static final String ABSTRACT_COROUTINE_CLASS_NAME =
       "kotlinx.coroutines.AbstractCoroutine";

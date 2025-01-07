@@ -22,7 +22,7 @@ import org.springframework.messaging.handler.invocation.InvocableHandlerMethod;
 
 @AutoService(InstrumenterModule.class)
 public final class SpringMessageHandlerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public SpringMessageHandlerInstrumentation() {
     super("spring-messaging", "spring-messaging-4");

@@ -50,7 +50,7 @@ import org.apache.kafka.streams.processor.internals.StreamTask;
 
 @AutoService(InstrumenterModule.class)
 public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public KafkaStreamTaskInstrumentation() {
     super("kafka", "kafka-streams");

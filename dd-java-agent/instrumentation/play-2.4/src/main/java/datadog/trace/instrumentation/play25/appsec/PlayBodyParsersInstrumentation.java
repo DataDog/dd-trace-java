@@ -15,7 +15,7 @@ import datadog.trace.agent.tooling.muzzle.Reference;
 /** @see play.api.mvc.BodyParsers.parse$#tolerantText(long) */
 @AutoService(InstrumenterModule.class)
 public class PlayBodyParsersInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   public PlayBodyParsersInstrumentation() {
     super("play");
