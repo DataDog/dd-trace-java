@@ -25,13 +25,23 @@ public final class SpanPointersHelper {
    * @throws NoSuchAlgorithmException this should never happen; but should be handled just in case.
    */
   private static String generatePointerHash(String[] components) throws NoSuchAlgorithmException {
-    byte[] hash =
-        MessageDigest.getInstance("SHA-256")
-            .digest(String.join("|", components).getBytes(StandardCharsets.UTF_8));
+    MessageDigest messageDigest = MessageDigest.getInstance("SHA-256");
 
+    // Update the digest incrementally for each component.
+    boolean first = true;
+    for (String component : components) {
+      if (!first) {
+        messageDigest.update((byte) '|');
+      } else {
+        first = false;
+      }
+      messageDigest.update(component.getBytes(StandardCharsets.UTF_8));
+    }
+
+    byte[] fullHash = messageDigest.digest();
     StringBuilder hex = new StringBuilder(32);
     for (int i = 0; i < 16; i++) {
-      hex.append(String.format("%02x", hash[i]));
+      hex.append(String.format("%02x", fullHash[i]));
     }
 
     return hex.toString();
