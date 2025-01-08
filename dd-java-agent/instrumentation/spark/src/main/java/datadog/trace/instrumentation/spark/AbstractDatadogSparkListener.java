@@ -104,6 +104,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   protected final HashMap<Long, SparkPlanInfo> sqlPlans = new HashMap<>();
   private final HashMap<String, SparkListenerExecutorAdded> liveExecutors = new HashMap<>();
 
+  private volatile int lineageDatasetParsed = 0;
+  private volatile int lineageDatasetSent = 0;
   private final HashMap<Long, List<SparkSQLUtils.LineageDataset>> lineageDatasets = new HashMap<>();
 
   // There is no easy way to know if an accumulator is not useful anymore (meaning it is not part of
@@ -757,11 +759,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     sqlPlans.put(sqlStart.executionId(), sqlStart.sparkPlanInfo());
     sqlQueries.put(sqlStart.executionId(), sqlStart);
 
-    final int dataLineageLimit = Config.get().getSparkDataLineageLimit();
-    Object datasetCountTagValue = applicationSpan.getTag("spark.sql.dataset_count");
-    final int existingDatasetCount = datasetCountTagValue == null ? 0 : (int) datasetCountTagValue;
-
-    if (Config.get().isSparkDataLineageEnabled() && existingDatasetCount < dataLineageLimit) {
+    if (Config.get().isSparkDataLineageEnabled()
+        && lineageDatasetParsed < Config.get().getSparkDataLineageLimit()) {
       long sqlExecutionId = sqlStart.executionId();
       QueryExecution queryExecution = SQLExecution.getQueryExecution(sqlExecutionId);
       if (queryExecution != null) {
@@ -776,6 +775,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
             log.info(
                 "Parsed {} datasets for query execution id {}", datasets.size(), sqlExecutionId);
             lineageDatasets.put(sqlExecutionId, datasets);
+            lineageDatasetParsed += datasets.size();
           } else {
             log.info("No datasets found for query execution id {}", sqlExecutionId);
           }
@@ -802,15 +802,12 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       if (Config.get().isSparkDataLineageEnabled() && datasets != null) {
         // cap the datasets to avoid too much data in the span
         final int dataLineageLimit = Config.get().getSparkDataLineageLimit();
-        Object datasetCountTagValue = applicationSpan.getTag("spark.sql.dataset_count");
-        final int existingDatasetCount =
-            datasetCountTagValue == null ? 0 : (int) datasetCountTagValue;
-        int updatedDataSetCount = existingDatasetCount + datasets.size();
+        int updatedLineageDatasetSent = lineageDatasetSent + datasets.size();
 
-        if (updatedDataSetCount > dataLineageLimit) {
-          int datasetAboveLimit = updatedDataSetCount - dataLineageLimit;
+        if (updatedLineageDatasetSent > dataLineageLimit) {
+          int datasetAboveLimit = updatedLineageDatasetSent - dataLineageLimit;
           datasets = datasets.subList(0, datasets.size() - datasetAboveLimit);
-          updatedDataSetCount = dataLineageLimit;
+          updatedLineageDatasetSent = dataLineageLimit;
 
           log.warn(
               "Data lineage limit {} reached, {} datasets will be skipped, and only adding {} datasets to span for query execution id {}",
@@ -820,14 +817,12 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
               sqlEnd.executionId());
         }
 
-        applicationSpan.setTag("spark.sql.dataset_count", updatedDataSetCount);
-
         log.info(
             "adding {} datasets to span for query execution id {}",
             datasets.size(),
             sqlEnd.executionId());
 
-        int datasetIndex = existingDatasetCount;
+        int datasetIndex = lineageDatasetSent;
         for (int i = 0; i < datasets.size(); i++) {
           SparkSQLUtils.LineageDataset dataset = datasets.get(i);
 
@@ -851,6 +846,11 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
           applicationSpan.setTag("spark.sql.dataset." + datasetIndex + ".type", dataset.type);
 
           datasetIndex++;
+        }
+
+        lineageDatasetSent = updatedLineageDatasetSent;
+        if (applicationSpan != null) {
+          applicationSpan.setTag("spark.sql.dataset_count", updatedLineageDatasetSent);
         }
       }
 
