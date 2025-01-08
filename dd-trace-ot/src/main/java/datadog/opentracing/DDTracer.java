@@ -84,7 +84,6 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
     private Sampler sampler;
     private HttpCodec.Injector injector;
     private HttpCodec.Extractor extractor;
-    private ScopeManager scopeManager;
     private Map<String, String> localRootSpanTags;
     private Map<String, String> defaultSpanTags;
     private Map<String, String> serviceNameMappings;
@@ -125,9 +124,7 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
 
     @Deprecated
     public DDTracerBuilder scopeManager(ScopeManager scopeManager) {
-      log.warn(
-          "Custom ScopeManagers are deprecated and will be removed in a future release of dd-trace-ot");
-      this.scopeManager = scopeManager;
+      log.warn("Custom ScopeManagers are not supported");
       return this;
     }
 
@@ -178,7 +175,6 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
           sampler,
           injector,
           extractor,
-          scopeManager,
           localRootSpanTags,
           defaultSpanTags,
           serviceNameMappings,
@@ -323,7 +319,6 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
       final Sampler sampler,
       final HttpCodec.Injector injector,
       final HttpCodec.Extractor extractor,
-      final ScopeManager scopeManager,
       final Map<String, String> localRootSpanTags,
       final Map<String, String> defaultSpanTags,
       final Map<String, String> serviceNameMappings,
@@ -376,11 +371,6 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
       builder = builder.extractor(extractor);
     }
 
-    if (scopeManager != null) {
-      this.scopeManager = scopeManager;
-      builder = builder.scopeManager(new CustomScopeManagerWrapper(scopeManager, converter));
-    }
-
     if (localRootSpanTags != null) {
       builder = builder.localRootSpanTags(localRootSpanTags);
     }
@@ -410,9 +400,7 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
     // FIXME [API] There's an unfortunate cycle between OTScopeManager and CoreTracer where they
     // depend on each other so CoreTracer
     // Perhaps api can change so that CoreTracer doesn't need to implement scope methods directly
-    if (scopeManager == null) {
-      this.scopeManager = new OTScopeManager(tracer, converter);
-    }
+    this.scopeManager = new OTScopeManager(tracer, converter);
 
     if ((config != null && config.isLogsInjectionEnabled())
         || (config == null && Config.get().isLogsInjectionEnabled())) {

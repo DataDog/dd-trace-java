@@ -11,13 +11,13 @@ import datadog.trace.api.Stateful;
 import datadog.trace.api.scopemanager.ExtendedScopeListener;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.bootstrap.instrumentation.api.ScopeState;
+import datadog.trace.bootstrap.instrumentation.api.ScopeStateAware;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentTaskScheduler;
@@ -37,7 +37,7 @@ import org.slf4j.LoggerFactory;
  * from being reported even if all related spans are finished. It also delegates to other
  * ScopeInterceptors to provide additional functionality.
  */
-public final class ContinuableScopeManager implements AgentScopeManager {
+public final class ContinuableScopeManager implements ScopeStateAware {
   static final Logger log = LoggerFactory.getLogger(ContinuableScopeManager.class);
   static final RatelimitedLogger ratelimitedLog = new RatelimitedLogger(log, 1, MINUTES);
   static final long iterationKeepAlive =
@@ -81,18 +81,15 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     this.profilingContextIntegration = profilingContextIntegration;
   }
 
-  @Override
   public AgentScope activate(final AgentSpan span, final ScopeSource source) {
     return activate(span, source.id(), false, /* ignored */ false);
   }
 
-  @Override
   public AgentScope activate(
       final AgentSpan span, final ScopeSource source, boolean isAsyncPropagating) {
     return activate(span, source.id(), true, isAsyncPropagating);
   }
 
-  @Override
   public AgentScope.Continuation captureSpan(final AgentSpan span) {
     AbstractContinuation continuation =
         new SingleContinuation(this, span, ScopeSource.INSTRUMENTATION.id());
@@ -170,7 +167,6 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     return scope;
   }
 
-  @Override
   public void closePrevious(final boolean finishSpan) {
     ScopeStack scopeStack = scopeStack();
 
@@ -189,7 +185,6 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     }
   }
 
-  @Override
   public AgentScope activateNext(final AgentSpan span) {
     ScopeStack scopeStack = scopeStack();
 
@@ -220,12 +215,10 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     return scope;
   }
 
-  @Override
   public AgentScope active() {
     return scopeStack().active();
   }
 
-  @Override
   public AgentSpan activeSpan() {
     final ContinuableScope active = scopeStack().active();
     return active == null ? null : active.span;
