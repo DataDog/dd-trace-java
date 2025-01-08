@@ -93,6 +93,7 @@ public final class TempLocationManager {
     @Override
     public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
         throws IOException {
+      log.debug("======== preVisitDirectory {}", dir);
       if (isTimedOut()) {
         log.debug("Cleaning task timed out");
         terminated = true;
@@ -107,6 +108,7 @@ public final class TempLocationManager {
       // the JFR repository directories are under <basedir>/pid_<pid>
       String pid = fileName.startsWith("pid_") ? fileName.substring(4) : null;
       boolean isSelfPid = pid != null && pid.equals(PidHelper.getPid());
+      log.debug("======== preVisitDirectory {} PID {}", dir, PidHelper.getPid());
       shouldClean |= cleanSelf ? isSelfPid : !isSelfPid && !pidSet.contains(pid);
       if (shouldClean) {
         log.debug("Cleaning temporary location {}", dir);
@@ -116,6 +118,7 @@ public final class TempLocationManager {
 
     @Override
     public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+      log.debug("======== visitFile {}", file);
       if (isTimedOut()) {
         log.debug("Cleaning task timed out");
         terminated = true;
@@ -124,6 +127,7 @@ public final class TempLocationManager {
       cleanupTestHook.visitFile(file, attrs);
       try {
         if (Files.getLastModifiedTime(file).toInstant().isAfter(cutoff)) {
+          log.debug("======== visitFile {} SKIPPED", file);
           return FileVisitResult.SKIP_SUBTREE;
         }
         Files.delete(file);
@@ -135,6 +139,7 @@ public final class TempLocationManager {
 
     @Override
     public FileVisitResult visitFileFailed(Path file, IOException exc) throws IOException {
+      log.debug("======== visitFileFailed {}", file);
       if (isTimedOut()) {
         log.debug("Cleaning task timed out");
         terminated = true;
@@ -150,6 +155,7 @@ public final class TempLocationManager {
 
     @Override
     public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+      log.debug("======== postVisitDirectory {}", dir);
       if (isTimedOut()) {
         log.debug("Cleaning task timed out");
         terminated = true;

@@ -33,7 +33,7 @@ class CustomLogManagerTest extends Specification {
       , [
         "-Ddd.jmxfetch.enabled=true",
         "-Ddd.jmxfetch.start-delay=0",
-        "-Ddd.jmxfetch.refresh-beans-period=1",
+        "-Ddd.jmxfetch.refresh-beans-period=2",
         "-Ddd.profiling.enabled=true",
         "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=$DEFAULT_LOG_LEVEL",
         "-Djava.util.logging.manager=jvmbootstraptest.CustomLogManager"
