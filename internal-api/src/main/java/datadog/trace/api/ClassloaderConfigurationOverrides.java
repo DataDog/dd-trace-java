@@ -19,8 +19,8 @@ public class ClassloaderConfigurationOverrides {
   static boolean CAN_SPLIT_SERVICE_NAME_BY_DEPLOYMENT =
       Config.get().isJeeSplitByDeployment() && !Config.get().isServiceNameSetByUser();
 
-  private static class Lazy {
-    private static final ClassloaderConfigurationOverrides INSTANCE =
+ static class Lazy {
+    static final ClassloaderConfigurationOverrides INSTANCE =
         new ClassloaderConfigurationOverrides();
   }
 
