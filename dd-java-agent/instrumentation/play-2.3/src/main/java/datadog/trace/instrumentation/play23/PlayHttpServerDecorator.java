@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourc
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
@@ -78,7 +79,7 @@ public class PlayHttpServerDecorator
       final AgentSpan span,
       final Request connection,
       final Request request,
-      AgentSpan.Context.Extracted context) {
+      AgentSpanContext.Extracted context) {
     super.onRequest(span, connection, request, context);
     if (request != null) {
       // more about routes here:

@@ -20,6 +20,7 @@ import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -121,7 +122,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return AgentTracer.get();
   }
 
-  public AgentSpan.Context.Extracted extract(REQUEST_CARRIER carrier) {
+  public AgentSpanContext.Extracted extract(REQUEST_CARRIER carrier) {
     AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
     if (null == carrier || null == getter) {
       return null;
@@ -129,14 +130,14 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return tracer().propagate().extract(carrier, getter);
   }
 
-  /** Deprecated. Use {@link #startSpan(String, Object, AgentSpan.Context.Extracted)} instead. */
+  /** Deprecated. Use {@link #startSpan(String, Object, AgentSpanContext.Extracted)} instead. */
   @Deprecated
-  public AgentSpan startSpan(REQUEST_CARRIER carrier, AgentSpan.Context.Extracted context) {
+  public AgentSpan startSpan(REQUEST_CARRIER carrier, AgentSpanContext.Extracted context) {
     return startSpan("http-server", carrier, context);
   }
 
   public AgentSpan startSpan(
-      String instrumentationName, REQUEST_CARRIER carrier, AgentSpan.Context.Extracted context) {
+      String instrumentationName, REQUEST_CARRIER carrier, AgentSpanContext.Extracted context) {
     AgentSpan span =
         tracer()
             .startSpan(instrumentationName, spanName(), callIGCallbackStart(context))
@@ -156,7 +157,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       final AgentSpan span,
       final CONNECTION connection,
       final REQUEST request,
-      final AgentSpan.Context.Extracted context) {
+      final AgentSpanContext.Extracted context) {
     Config config = Config.get();
     boolean clientIpResolverEnabled =
         config.isClientIpEnabled()
@@ -379,7 +380,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   //    return super.onError(span, throwable);
   //  }
 
-  private AgentSpan.Context.Extracted callIGCallbackStart(AgentSpan.Context.Extracted context) {
+  private AgentSpanContext.Extracted callIGCallbackStart(AgentSpanContext.Extracted context) {
     AgentTracer.TracerAPI tracer = tracer();
     Supplier<Flow<Object>> startedCbAppSec =
         tracer.getCallbackProvider(RequestContextSlot.APPSEC).getCallback(EVENTS.requestStarted());

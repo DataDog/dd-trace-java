@@ -2,6 +2,7 @@ package datadog.opentracing;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import io.opentracing.Scope;
@@ -76,7 +77,7 @@ class TypeConverter {
     return new OTScopeManager.OTScope(scope, finishSpanOnClose, this);
   }
 
-  public SpanContext toSpanContext(final AgentSpan.Context context) {
+  public SpanContext toSpanContext(final AgentSpanContext context) {
     if (context == null) {
       return null;
     }
@@ -87,7 +88,7 @@ class TypeConverter {
     return new OTSpanContext(context);
   }
 
-  public AgentSpan.Context toContext(final SpanContext spanContext) {
+  public AgentSpanContext toContext(final SpanContext spanContext) {
     if (spanContext == null) {
       return null;
     } else if (spanContext instanceof OTSpanContext) {

@@ -10,7 +10,7 @@ import static datadog.trace.instrumentation.netty41.server.NettyHttpServerDecora
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -39,7 +39,7 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
 
     final HttpRequest request = (HttpRequest) msg;
     final HttpHeaders headers = request.headers();
-    final Context.Extracted extractedContext = DECORATE.extract(headers);
+    final AgentSpanContext.Extracted extractedContext = DECORATE.extract(headers);
     final AgentSpan span = DECORATE.startSpan(headers, extractedContext);
 
     try (final AgentScope scope = activateSpan(span, true)) {

@@ -15,7 +15,7 @@ import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import net.bytebuddy.asm.Advice;
 import org.glassfish.grizzly.http.server.Request;
 import org.glassfish.grizzly.http.server.Response;
@@ -73,7 +73,7 @@ public class GrizzlyHttpHandlerInstrumentation extends InstrumenterModule.Tracin
         return false;
       }
 
-      final Context.Extracted parentContext = DECORATE.extract(request);
+      final AgentSpanContext.Extracted parentContext = DECORATE.extract(request);
       final AgentSpan span = DECORATE.startSpan(request, parentContext);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request, request, parentContext);

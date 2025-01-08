@@ -13,6 +13,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.jboss.logmanager.ExtLogRecord;
@@ -31,7 +32,7 @@ public class LoggerNodeInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("org.jboss.logmanager.ExtLogRecord", AgentSpan.Context.class.getName());
+    return singletonMap("org.jboss.logmanager.ExtLogRecord", AgentSpanContext.class.getName());
   }
 
   @Override
@@ -54,7 +55,7 @@ public class LoggerNodeInstrumentation extends InstrumenterModule.Tracing
       AgentSpan span = activeSpan();
 
       if (span != null && traceConfig(span).isLogsInjectionEnabled()) {
-        InstrumentationContext.get(ExtLogRecord.class, AgentSpan.Context.class)
+        InstrumentationContext.get(ExtLogRecord.class, AgentSpanContext.class)
             .put(record, span.context());
       }
 

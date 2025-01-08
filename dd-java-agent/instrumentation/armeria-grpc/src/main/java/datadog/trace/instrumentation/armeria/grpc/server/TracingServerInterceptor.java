@@ -20,7 +20,7 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import io.grpc.ForwardingServerCall;
@@ -61,7 +61,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
       return next.startCall(call, headers);
     }
 
-    Context spanContext = propagate().extract(headers, GETTER);
+    AgentSpanContext spanContext = propagate().extract(headers, GETTER);
     AgentTracer.TracerAPI tracer = tracer();
     spanContext = callIGCallbackRequestStarted(tracer, spanContext);
 
@@ -239,7 +239,8 @@ public class TracingServerInterceptor implements ServerInterceptor {
 
   // IG helpers follow
 
-  private static Context callIGCallbackRequestStarted(AgentTracer.TracerAPI cbp, Context context) {
+  private static AgentSpanContext callIGCallbackRequestStarted(
+      AgentTracer.TracerAPI cbp, AgentSpanContext context) {
     Supplier<Flow<Object>> startedCbAppSec =
         cbp.getCallbackProvider(RequestContextSlot.APPSEC).getCallback(EVENTS.requestStarted());
     Supplier<Flow<Object>> startedCbIast =

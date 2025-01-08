@@ -13,6 +13,7 @@ import datadog.trace.api.civisibility.telemetry.tag.EventType;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -33,7 +34,7 @@ public class TestSuiteImpl implements DDTestSuite {
 
   private static final Logger log = LoggerFactory.getLogger(TestSuiteImpl.class);
 
-  private final AgentSpan.Context moduleSpanContext;
+  private final AgentSpanContext moduleSpanContext;
   private final AgentSpan span;
   private final String moduleName;
   private final String testSuiteName;
@@ -52,7 +53,7 @@ public class TestSuiteImpl implements DDTestSuite {
   private final Consumer<AgentSpan> onSpanFinish;
 
   public TestSuiteImpl(
-      AgentSpan.Context moduleSpanContext,
+      AgentSpanContext moduleSpanContext,
       String moduleName,
       String testSuiteName,
       String itrCorrelationId,

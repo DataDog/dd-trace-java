@@ -8,6 +8,7 @@ import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import net.bytebuddy.asm.Advice;
 import org.eclipse.jetty.server.HttpChannel;
 import org.eclipse.jetty.server.Request;
@@ -24,7 +25,7 @@ public class HandleAdvice {
       return activateSpan((AgentSpan) existingSpan);
     }
 
-    final AgentSpan.Context.Extracted extractedContext = DECORATE.extract(req);
+    final AgentSpanContext.Extracted extractedContext = DECORATE.extract(req);
     span = DECORATE.startSpan(req, extractedContext);
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, req, req, extractedContext);

@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.opentelemetry;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.grpc.Context;
 import io.opentelemetry.context.propagation.ContextPropagators;
@@ -44,7 +44,7 @@ public class OtelContextPropagators implements ContextPropagators {
 
     @Override
     public <C> Context extract(final Context context, final C carrier, final Getter<C> getter) {
-      final AgentSpan.Context agentContext =
+      final AgentSpanContext agentContext =
           tracer.propagate().extract(carrier, new OtelGetter<>(getter));
       return TracingContextUtils.withSpan(
           DefaultSpan.create(converter.toSpanContext(agentContext)), context);
