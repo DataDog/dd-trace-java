@@ -3,14 +3,17 @@ package datadog.trace.bootstrap.instrumentation.api;
 import static datadog.trace.bootstrap.instrumentation.api.InternalContextKeys.SPAN_KEY;
 
 import datadog.context.Context;
+import datadog.context.ContextKey;
 import datadog.context.ImplicitContextKeyed;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.interceptor.MutableSpan;
+import javax.annotation.Nullable;
 
-public interface AgentSpan extends MutableSpan, ImplicitContextKeyed, IGSpanInfo, WithAgentSpan {
+public interface AgentSpan
+    extends MutableSpan, ImplicitContextKeyed, Context, IGSpanInfo, WithAgentSpan {
 
   DDTraceId getTraceId();
 
@@ -153,5 +156,17 @@ public interface AgentSpan extends MutableSpan, ImplicitContextKeyed, IGSpanInfo
   @Override
   default Context storeInto(Context context) {
     return context.with(SPAN_KEY, this);
+  }
+
+  @Nullable
+  @Override
+  default <T> T get(ContextKey<T> key) {
+    // noinspection unchecked
+    return SPAN_KEY == key ? (T) this : Context.root().get(key);
+  }
+
+  @Override
+  default <T> Context with(ContextKey<T> key, @Nullable T value) {
+    return Context.root().with(SPAN_KEY, this).with(key, value);
   }
 }
