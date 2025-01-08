@@ -75,7 +75,7 @@ public class ClassloaderConfigurationOverrides {
   }
 
   @Nonnull
-  public static ContextualInfo getOrAddEmpty(@Nonnull ClassLoader classLoader) {
+  public static ContextualInfo maybeCreateContextualInfo(@Nonnull ClassLoader classLoader) {
     return Lazy.INSTANCE.weakCache.computeIfAbsent(classLoader, EMPTY_CONTEXTUAL_INFO_ADDER);
   }
 
