@@ -34,7 +34,7 @@ muzzle {
     group = 'org.wildfly'
     module = 'wildfly-ee'
     versions = '[9.0.0.Final,)'
-    excludeDependency 'org.jboss.xnio:xnio-nio' // not related and causes issues with missing jar in maven repo
+    excludeDependency 'org.jboss.xnio:*' // not related and causes issues with missing jar in maven repo
   }
 }
 
