@@ -7,6 +7,7 @@ import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.EventType;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -30,7 +31,7 @@ public abstract class AbstractTestModule {
   private final Consumer<AgentSpan> onSpanFinish;
 
   public AbstractTestModule(
-      AgentSpan.Context sessionSpanContext,
+      AgentSpanContext sessionSpanContext,
       String moduleName,
       @Nullable Long startTime,
       InstrumentationType instrumentationType,

@@ -19,6 +19,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -32,7 +33,7 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
   protected final L delegate;
   private final String queueUrl;
   private final String requestId;
-  private AgentSpan.Context batchContext;
+  private AgentSpanContext batchContext;
 
   public TracingIterator(L delegate, String queueUrl, String requestId) {
     this.delegate = delegate;
@@ -64,7 +65,7 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
         AgentSpan queueSpan = null;
         if (batchContext == null) {
           // first grab any incoming distributed context
-          AgentSpan.Context spanContext =
+          AgentSpanContext spanContext =
               Config.get().isSqsPropagationEnabled() ? propagate().extract(message, GETTER) : null;
           // next add a time-in-queue span for non-legacy SQS traces
           if (TIME_IN_QUEUE_ENABLED) {

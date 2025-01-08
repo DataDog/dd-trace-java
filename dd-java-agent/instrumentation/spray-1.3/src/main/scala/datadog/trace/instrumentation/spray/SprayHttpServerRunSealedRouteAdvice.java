@@ -7,6 +7,7 @@ import static datadog.trace.instrumentation.spray.SprayHttpServerDecorator.DECOR
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import net.bytebuddy.asm.Advice;
 import spray.http.HttpRequest;
 import spray.routing.RequestContext;
@@ -15,7 +16,7 @@ public class SprayHttpServerRunSealedRouteAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope enter(@Advice.Argument(value = 1, readOnly = false) RequestContext ctx) {
     final AgentSpan span;
-    final AgentSpan.Context.Extracted extractedContext;
+    final AgentSpanContext.Extracted extractedContext;
     if (activeSpan() == null) {
       // Propagate context in case income request was going through several routes
       // TODO: Add test for it

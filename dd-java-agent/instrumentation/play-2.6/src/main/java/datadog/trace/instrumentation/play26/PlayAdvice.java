@@ -8,7 +8,7 @@ import static datadog.trace.instrumentation.play26.PlayHttpServerDecorator.PLAY_
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import net.bytebuddy.asm.Advice;
 import play.api.mvc.Action;
@@ -21,7 +21,7 @@ public class PlayAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(
       @Advice.Argument(value = 0, readOnly = false) Request req,
-      @Advice.Local("extractedContext") Context.Extracted extractedContext) {
+      @Advice.Local("extractedContext") AgentSpanContext.Extracted extractedContext) {
     final AgentSpan span;
 
     // If we have already added a `play.request` span, then don't do it again
@@ -50,7 +50,7 @@ public class PlayAdvice {
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void stopTraceOnResponse(
       @Advice.Enter final AgentScope playControllerScope,
-      @Advice.Local("extractedContext") Context.Extracted extractedContext,
+      @Advice.Local("extractedContext") AgentSpanContext.Extracted extractedContext,
       @Advice.This final Object thisAction,
       @Advice.Thrown final Throwable throwable,
       @Advice.Argument(0) final Request req,

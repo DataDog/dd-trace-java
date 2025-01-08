@@ -13,7 +13,7 @@ class SpanLinkTest extends DDSpecification {
     setup:
     def traceId = DDTraceId.fromHex("11223344556677889900aabbccddeeff")
     def spanId = DDSpanId.fromHex("123456789abcdef0")
-    AgentSpan.Context context = Stub {
+    AgentSpanContext context = Stub {
       getTraceId() >> traceId
       getSpanId() >> spanId
       getSamplingPriority() >> (sampled ? 1 : 0)

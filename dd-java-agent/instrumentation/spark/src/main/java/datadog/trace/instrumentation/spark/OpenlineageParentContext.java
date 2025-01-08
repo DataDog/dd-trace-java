@@ -3,7 +3,7 @@ package datadog.trace.instrumentation.spark;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.sampling.PrioritySampling;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTraceCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
@@ -19,7 +19,7 @@ import org.apache.spark.SparkConf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class OpenlineageParentContext implements AgentSpan.Context {
+public class OpenlineageParentContext implements AgentSpanContext {
   private static final Logger log = LoggerFactory.getLogger(OpenlineageParentContext.class);
   private static final Pattern UUID =
       Pattern.compile(

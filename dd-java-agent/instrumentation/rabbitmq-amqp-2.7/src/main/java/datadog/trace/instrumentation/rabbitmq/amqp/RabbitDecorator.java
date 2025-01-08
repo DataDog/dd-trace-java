@@ -21,6 +21,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -203,7 +204,7 @@ public class RabbitDecorator extends MessagingClientDecorator {
       String queue) {
     final Map<String, Object> headers =
         propagate && null != properties ? properties.getHeaders() : null;
-    AgentSpan.Context parentContext =
+    AgentSpanContext parentContext =
         null != headers ? propagate().extract(headers, ContextVisitors.objectValuesMap()) : null;
     // TODO: check dynamically bound queues -
     // https://github.com/DataDog/dd-trace-java/pull/2955#discussion_r677787875

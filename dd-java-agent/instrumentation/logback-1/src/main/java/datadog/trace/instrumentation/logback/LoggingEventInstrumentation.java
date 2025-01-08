@@ -17,7 +17,7 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.HashMap;
@@ -47,7 +47,7 @@ public class LoggingEventInstrumentation extends InstrumenterModule.Tracing
   @Override
   public Map<String, String> contextStore() {
     return singletonMap(
-        "ch.qos.logback.classic.spi.ILoggingEvent", AgentSpan.Context.class.getName());
+        "ch.qos.logback.classic.spi.ILoggingEvent", AgentSpanContext.class.getName());
   }
 
   @Override
@@ -77,8 +77,8 @@ public class LoggingEventInstrumentation extends InstrumenterModule.Tracing
         return;
       }
 
-      AgentSpan.Context context =
-          InstrumentationContext.get(ILoggingEvent.class, AgentSpan.Context.class).get(event);
+      AgentSpanContext context =
+          InstrumentationContext.get(ILoggingEvent.class, AgentSpanContext.class).get(event);
 
       // Nothing to add so return early
       if (context == null && !AgentTracer.traceConfig().isLogsInjectionEnabled()) {

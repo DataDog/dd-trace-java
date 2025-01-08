@@ -6,7 +6,7 @@ import java.util.LinkedHashMap;
 public interface AgentPropagation {
   <C> void inject(AgentSpan span, C carrier, Setter<C> setter);
 
-  <C> void inject(AgentSpan.Context context, C carrier, Setter<C> setter);
+  <C> void inject(AgentSpanContext context, C carrier, Setter<C> setter);
 
   <C> void inject(AgentSpan span, C carrier, Setter<C> setter, TracePropagationStyle style);
 
@@ -33,7 +33,7 @@ public interface AgentPropagation {
     void set(C carrier, String key, byte[] value);
   }
 
-  <C> AgentSpan.Context.Extracted extract(C carrier, ContextVisitor<C> getter);
+  <C> AgentSpanContext.Extracted extract(C carrier, ContextVisitor<C> getter);
 
   interface KeyClassifier {
 

@@ -2,12 +2,13 @@ package datadog.opentelemetry.shim.trace;
 
 import datadog.trace.api.DDSpanId;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.TraceFlags;
 import io.opentelemetry.api.trace.TraceState;
 
 public class OtelSpanContext implements SpanContext {
-  final AgentSpan.Context delegate;
+  final AgentSpanContext delegate;
   private final boolean sampled;
   private final boolean remote;
   private final TraceState traceState;
@@ -15,7 +16,7 @@ public class OtelSpanContext implements SpanContext {
   private String spanId;
 
   public OtelSpanContext(
-      AgentSpan.Context delegate, boolean sampled, boolean remote, TraceState traceState) {
+      AgentSpanContext delegate, boolean sampled, boolean remote, TraceState traceState) {
     this.delegate = delegate;
     this.sampled = sampled;
     this.remote = remote;
@@ -23,14 +24,14 @@ public class OtelSpanContext implements SpanContext {
   }
 
   public static SpanContext fromLocalSpan(AgentSpan span) {
-    AgentSpan.Context delegate = span.context();
+    AgentSpanContext delegate = span.context();
     AgentSpan localRootSpan = span.getLocalRootSpan();
     Integer samplingPriority = localRootSpan.getSamplingPriority();
     boolean sampled = samplingPriority != null && samplingPriority > 0;
     return new OtelSpanContext(delegate, sampled, false, TraceState.getDefault());
   }
 
-  public static SpanContext fromRemote(AgentSpan.Context extracted, TraceState traceState) {
+  public static SpanContext fromRemote(AgentSpanContext extracted, TraceState traceState) {
     return new OtelSpanContext(extracted, extracted.getSamplingPriority() > 0, true, traceState);
   }
 
