@@ -25,6 +25,7 @@ import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
@@ -55,7 +56,7 @@ public class TestImpl implements DDTest {
   private final TestContext context;
 
   public TestImpl(
-      AgentSpan.Context moduleSpanContext,
+      AgentSpanContext moduleSpanContext,
       long suiteId,
       String moduleName,
       String testSuiteName,
@@ -87,7 +88,7 @@ public class TestImpl implements DDTest {
 
     this.context = new TestContextImpl(coverageStore);
 
-    AgentSpan.Context traceContext =
+    AgentSpanContext traceContext =
         new TagContext(CIConstants.CIAPP_TEST_ORIGIN, Collections.emptyMap());
     AgentTracer.SpanBuilder spanBuilder =
         AgentTracer.get()

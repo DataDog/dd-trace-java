@@ -6,6 +6,7 @@ import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.AbstractTestModule;
@@ -26,7 +27,7 @@ public class ManualApiTestModule extends AbstractTestModule implements DDTestMod
   private final CoverageStore.Factory coverageStoreFactory;
 
   public ManualApiTestModule(
-      AgentSpan.Context sessionSpanContext,
+      AgentSpanContext sessionSpanContext,
       String moduleName,
       @Nullable Long startTime,
       Config config,

@@ -15,6 +15,7 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.naming.ClassloaderServiceNames;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.instrumentation.servlet.ServletBlockingHelper;
 import java.security.Principal;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -68,7 +69,7 @@ public class Servlet3Advice {
       return false;
     }
 
-    final AgentSpan.Context.Extracted extractedContext = DECORATE.extract(httpServletRequest);
+    final AgentSpanContext.Extracted extractedContext = DECORATE.extract(httpServletRequest);
     final AgentSpan span = DECORATE.startSpan(httpServletRequest, extractedContext);
     scope = activateSpan(span, true);
 

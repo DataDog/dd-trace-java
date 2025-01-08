@@ -23,6 +23,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.jms.MessageConsumerState;
 import datadog.trace.bootstrap.instrumentation.jms.SessionState;
 import javax.jms.Message;
@@ -117,7 +118,7 @@ public final class JMSMessageConsumerInstrumentation
       }
 
       AgentSpan span;
-      AgentSpan.Context propagatedContext = null;
+      AgentSpanContext propagatedContext = null;
       if (!consumerState.isPropagationDisabled()) {
         propagatedContext = propagate().extract(message, GETTER);
       }

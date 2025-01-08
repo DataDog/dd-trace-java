@@ -52,6 +52,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentHistogram;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
@@ -873,7 +874,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public AgentSpan startSpan(
-      String instrumentationName, final CharSequence spanName, final AgentSpan.Context parent) {
+      String instrumentationName, final CharSequence spanName, final AgentSpanContext parent) {
     return buildSpan(instrumentationName, spanName).ignoreActiveSpan().asChildOf(parent).start();
   }
 
@@ -881,7 +882,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   public AgentSpan startSpan(
       final String instrumentationName,
       final CharSequence spanName,
-      final AgentSpan.Context parent,
+      final AgentSpanContext parent,
       final long startTimeMicros) {
     return buildSpan(instrumentationName, spanName)
         .ignoreActiveSpan()
@@ -955,7 +956,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public AgentSpan.Context notifyExtensionStart(Object event) {
+  public AgentSpanContext notifyExtensionStart(Object event) {
     return LambdaHandler.notifyStartInvocation(this, event);
   }
 
@@ -1179,7 +1180,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     if (activeSpan == null) {
       return null;
     }
-    AgentSpan.Context ctx = activeSpan.context();
+    AgentSpanContext ctx = activeSpan.context();
     if (ctx instanceof DDSpanContext) {
       return ((DDSpanContext) ctx).getTraceSegment();
     }
@@ -1264,7 +1265,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     // Builder attributes
     private Map<String, Object> tags;
     private long timestampMicro;
-    private AgentSpan.Context parent;
+    private AgentSpanContext parent;
     private String serviceName;
     private String resourceName;
     private boolean errorFlag;
@@ -1316,7 +1317,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     @Override
     public AgentSpan start() {
-      AgentSpan.Context pc = parent;
+      AgentSpanContext pc = parent;
       if (pc == null && !ignoreScope) {
         final AgentSpan span = activeSpan();
         if (span != null) {
@@ -1376,7 +1377,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
 
     @Override
-    public CoreSpanBuilder asChildOf(final AgentSpan.Context spanContext) {
+    public CoreSpanBuilder asChildOf(final AgentSpanContext spanContext) {
       // TODO we will start propagating stack trace hash and it will need to
       //  be extracted here if available
       parent = spanContext;
@@ -1467,9 +1468,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       } else {
         spanId = this.spanId;
       }
-      // FIXME [API] parentContext should be an interface implemented by ExtractedContext,
-      // TagContext, DDSpanContext, AgentSpan.Context
-      AgentSpan.Context parentContext = parent;
+
+      AgentSpanContext parentContext = parent;
       if (parentContext == null && !ignoreScope) {
         // use the Scope as parent unless overridden or ignored.
         final AgentSpan activeSpan = scopeManager.activeSpan();

@@ -19,6 +19,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.apache.log4j.spi.LoggingEvent;
@@ -37,7 +38,7 @@ public class CategoryInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("org.apache.log4j.spi.LoggingEvent", AgentSpan.Context.class.getName());
+    return singletonMap("org.apache.log4j.spi.LoggingEvent", AgentSpanContext.class.getName());
   }
 
   @Override
@@ -57,7 +58,7 @@ public class CategoryInstrumentation extends InstrumenterModule.Tracing
       AgentSpan span = activeSpan();
 
       if (span != null && traceConfig(span).isLogsInjectionEnabled()) {
-        InstrumentationContext.get(LoggingEvent.class, AgentSpan.Context.class)
+        InstrumentationContext.get(LoggingEvent.class, AgentSpanContext.class)
             .put(event, span.context());
       }
     }

@@ -9,7 +9,7 @@ import datadog.trace.api.civisibility.coverage.CoverageProbes
 import datadog.trace.api.civisibility.coverage.CoverageStore
 import datadog.trace.api.civisibility.coverage.NoOpCoverageStore
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.civisibility.codeowners.NoCodeowners
 import datadog.trace.civisibility.decorator.TestDecoratorImpl
@@ -89,7 +89,7 @@ class TestImplTest extends SpanWriterTest {
     def traceId = Stub(DDTraceId)
     traceId.toLong() >> 123
 
-    def moduleSpanContext = Stub(AgentSpan.Context)
+    def moduleSpanContext = Stub(AgentSpanContext)
     moduleSpanContext.getSpanId() >> 456
     moduleSpanContext.getTraceId() >> traceId
     def suiteId = 789

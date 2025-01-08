@@ -13,6 +13,7 @@ import datadog.trace.api.naming.ClassloaderServiceNames;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.instrumentation.servlet.ServletBlockingHelper;
 import java.security.Principal;
 import javax.servlet.ServletRequest;
@@ -51,7 +52,7 @@ public class Servlet2Advice {
       InstrumentationContext.get(ServletResponse.class, Integer.class).put(response, 200);
     }
 
-    final AgentSpan.Context.Extracted extractedContext = DECORATE.extract(httpServletRequest);
+    final AgentSpanContext.Extracted extractedContext = DECORATE.extract(httpServletRequest);
     final AgentSpan span = DECORATE.startSpan(httpServletRequest, extractedContext);
     scope = activateSpan(span, true);
     DECORATE.afterStart(span);

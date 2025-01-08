@@ -32,7 +32,7 @@ public class SpanLink implements AgentSpanLink {
    * @param context The context of the span to get the link to.
    * @return A span link to the given context.
    */
-  public static SpanLink from(AgentSpan.Context context) {
+  public static SpanLink from(AgentSpanContext context) {
     return from(context, DEFAULT_FLAGS, "", EMPTY);
   }
 
@@ -47,7 +47,7 @@ public class SpanLink implements AgentSpanLink {
    * @return A span link to the given context.
    */
   public static SpanLink from(
-      AgentSpan.Context context,
+      AgentSpanContext context,
       byte traceFlags,
       String traceState,
       AgentSpan.Attributes attributes) {
