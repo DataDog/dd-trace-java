@@ -4,18 +4,17 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.instrumentation.reactor.core.ContextSpanHelper.extractSpanFromSubscriberContext;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.WithAgentSpan;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import reactor.core.CoreSubscriber;
-import reactor.util.context.Context;
 
 @AutoService(InstrumenterModule.class)
 public class CoreSubscriberInstrumentation extends InstrumenterModule.Tracing
@@ -35,6 +34,13 @@ public class CoreSubscriberInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
+  public String[] helperClassNames() {
+    return new String[] {
+      packageName + ".ContextSpanHelper",
+    };
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         namedOneOf("onNext", "onComplete", "onError"),
@@ -44,22 +50,9 @@ public class CoreSubscriberInstrumentation extends InstrumenterModule.Tracing
   public static class PropagateSpanInScopeAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope before(@Advice.This final CoreSubscriber<?> self) {
-      Context context = null;
-      try {
-        context = self.currentContext();
-      } catch (Throwable ignored) {
-      }
-      if (context == null) {
-        return null;
-      }
-      if (context.hasKey("dd.span")) {
-        Object maybeSpan = context.get("dd.span");
-        if (maybeSpan instanceof WithAgentSpan) {
-          AgentSpan span = ((WithAgentSpan) maybeSpan).asAgentSpan();
-          if (span != null) {
-            return activateSpan(span);
-          }
-        }
+      final AgentSpan span = extractSpanFromSubscriberContext(self);
+      if (span != null) {
+        return activateSpan(span);
       }
       return null;
     }
