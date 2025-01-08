@@ -12,7 +12,7 @@ import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
 
 @AutoService(InstrumenterModule.class)
 public final class S3ClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public S3ClientInstrumentation() {
     super("s3", "aws-s3");
   }
