@@ -2,10 +2,6 @@ import datadog.opentracing.DDTracer
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.internal.util.LongStringUtils
-import io.opentracing.util.ThreadLocalScopeManager
-
-import static datadog.trace.api.sampling.PrioritySampling.*
-import static datadog.trace.api.sampling.SamplingMechanism.*
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.DDSpan
 import datadog.trace.test.util.DDSpecification
@@ -16,6 +12,14 @@ import spock.lang.Subject
 
 import static datadog.trace.agent.test.asserts.ListWriterAssert.assertTraces
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP
+import static datadog.trace.api.sampling.PrioritySampling.UNSET
+import static datadog.trace.api.sampling.PrioritySampling.USER_DROP
+import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP
+import static datadog.trace.api.sampling.SamplingMechanism.AGENT_RATE
+import static datadog.trace.api.sampling.SamplingMechanism.DEFAULT
+import static datadog.trace.api.sampling.SamplingMechanism.MANUAL
 
 // This test focuses on things that are different between OpenTracing API 0.31.0 and 0.32.0
 class OT31ApiTest extends DDSpecification {
@@ -75,26 +79,6 @@ class OT31ApiTest extends DDSpecification {
 
     where:
     finishSpan << [true, false]
-  }
-
-  def "test custom scopemanager"() {
-    setup:
-    def customTracer = DDTracer.builder().writer(writer).scopeManager(new ThreadLocalScopeManager()).build()
-    def coreTracer = customTracer.tracer
-
-    when:
-    def span = customTracer.buildSpan("some name").start()
-    def scope = customTracer.scopeManager().activate(span, false)
-
-    then:
-    customTracer.scopeManager().active().span().delegate == span.delegate
-    coreTracer.activeScope().span() == span.delegate
-    coreTracer.activeSpan() == span.delegate
-
-    cleanup:
-    scope.close()
-    span.finish()
-    customTracer.close()
   }
 
   def "test inject extract"() {

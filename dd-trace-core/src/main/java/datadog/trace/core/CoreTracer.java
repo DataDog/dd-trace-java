@@ -51,7 +51,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentDataStreamsMonitoring;
 import datadog.trace.bootstrap.instrumentation.api.AgentHistogram;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -165,7 +164,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   /** Sampler defines the sampling policy in order to reduce the number of traces for instance */
   final Sampler initialSampler;
   /** Scope manager is in charge of managing the scopes from which spans are created */
-  final AgentScopeManager scopeManager;
+  final ContinuableScopeManager scopeManager;
 
   final MetricsAggregator metricsAggregator;
 
@@ -295,7 +294,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private SingleSpanSampler singleSpanSampler;
     private HttpCodec.Injector injector;
     private HttpCodec.Extractor extractor;
-    private AgentScopeManager scopeManager;
+    private ContinuableScopeManager scopeManager;
     private Map<String, ?> localRootSpanTags;
     private Map<String, ?> defaultSpanTags;
     private Map<String, String> serviceNameMappings;
@@ -353,11 +352,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     public CoreTracerBuilder extractor(HttpCodec.Extractor extractor) {
       this.extractor = extractor;
-      return this;
-    }
-
-    public CoreTracerBuilder scopeManager(AgentScopeManager scopeManager) {
-      this.scopeManager = scopeManager;
       return this;
     }
 
@@ -497,7 +491,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           singleSpanSampler,
           injector,
           extractor,
-          scopeManager,
           localRootSpanTags,
           defaultSpanTags,
           serviceNameMappings,
@@ -529,7 +522,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final SingleSpanSampler singleSpanSampler,
       final HttpCodec.Injector injector,
       final HttpCodec.Extractor extractor,
-      final AgentScopeManager scopeManager,
       final Map<String, ?> localRootSpanTags,
       final Map<String, ?> defaultSpanTags,
       final Map<String, String> serviceNameMappings,
@@ -632,16 +624,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
             : Monitoring.DISABLED;
 
     traceWriteTimer = performanceMonitoring.newThreadLocalTimer("trace.write");
-    if (scopeManager == null) {
-      this.scopeManager =
-          new ContinuableScopeManager(
-              config.getScopeDepthLimit(),
-              config.isScopeStrictMode(),
-              profilingContextIntegration,
-              healthMetrics);
-    } else {
-      this.scopeManager = scopeManager;
-    }
+
+    scopeManager =
+        new ContinuableScopeManager(
+            config.getScopeDepthLimit(),
+            config.isScopeStrictMode(),
+            profilingContextIntegration,
+            healthMetrics);
 
     externalAgentLauncher = new ExternalAgentLauncher(config);
 
@@ -1108,9 +1097,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public void addScopeListener(final ScopeListener listener) {
-    if (scopeManager instanceof ContinuableScopeManager) {
-      ((ContinuableScopeManager) scopeManager).addScopeListener(listener);
-    }
+    this.scopeManager.addScopeListener(listener);
   }
 
   @Override
