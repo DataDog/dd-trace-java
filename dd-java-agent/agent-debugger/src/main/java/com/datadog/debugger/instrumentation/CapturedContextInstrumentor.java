@@ -27,6 +27,7 @@ import static org.objectweb.asm.Type.LONG_TYPE;
 import static org.objectweb.asm.Type.VOID_TYPE;
 import static org.objectweb.asm.Type.getType;
 
+import com.datadog.debugger.probe.ExceptionProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.Where;
@@ -422,8 +423,11 @@ public class CapturedContextInstrumentor extends Instrumentor {
     LabelNode targetNode = new LabelNode();
     LabelNode gotoNode = new LabelNode();
     insnList.add(new JumpInsnNode(Opcodes.IFEQ, targetNode));
-    // if evaluation is at exit, skip collecting data at enter
-    if (definition.getEvaluateAt() != MethodLocation.EXIT) {
+    // if evaluation is at exit and with condition and not exception probe, skip collecting data at
+    // enter
+    if ((definition.getEvaluateAt() != MethodLocation.EXIT
+          || !definition.hasCondition())
+        && !(definition instanceof ExceptionProbe)) {
       LabelNode inProbeStartLabel = new LabelNode();
       insnList.add(inProbeStartLabel);
       // stack []
