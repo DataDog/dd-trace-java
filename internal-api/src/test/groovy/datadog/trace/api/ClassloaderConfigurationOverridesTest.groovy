@@ -45,7 +45,7 @@ class ClassloaderConfigurationOverridesTest extends DDSpecification {
   def "enrich should set tags when present"() {
     def span = Mock(AgentSpan)
     when:
-    ClassloaderConfigurationOverrides.getOrAddEmpty(Thread.currentThread().getContextClassLoader()).addTag("key", "value")
+    ClassloaderConfigurationOverrides.maybeCreateContextualInfo(Thread.currentThread().getContextClassLoader()).addTag("key", "value")
     ClassloaderConfigurationOverrides.maybeEnrichSpan(span)
     then:
     1 * span.setTag("key", "value")

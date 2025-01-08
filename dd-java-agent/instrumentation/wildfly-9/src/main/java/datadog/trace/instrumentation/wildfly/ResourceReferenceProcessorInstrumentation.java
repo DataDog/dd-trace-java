@@ -51,8 +51,7 @@ public class ResourceReferenceProcessorInstrumentation extends InstrumenterModul
     public static void onExit(
         @Advice.Argument(value = 1) final ClassLoader classLoader,
         @Advice.Return final List<BindingConfiguration> configurations) {
-      ClassloaderConfigurationOverrides.ContextualInfo info =
-          ClassloaderConfigurationOverrides.getOrAddEmpty(classLoader);
+      ClassloaderConfigurationOverrides.ContextualInfo info = null;
       ContextStore<EnvEntryInjectionSource, Object> contextStore =
           InstrumentationContext.get(EnvEntryInjectionSource.class, Object.class);
       for (BindingConfiguration bindingConfiguration : configurations) {
@@ -63,6 +62,9 @@ public class ResourceReferenceProcessorInstrumentation extends InstrumenterModul
               && bindingConfiguration
                   .getName()
                   .startsWith(ClassloaderConfigurationOverrides.DATADOG_TAGS_JNDI_PREFIX)) {
+            if (info == null) {
+              info = ClassloaderConfigurationOverrides.maybeCreateContextualInfo(classLoader);
+            }
             info.addTag(
                 bindingConfiguration
                     .getName()

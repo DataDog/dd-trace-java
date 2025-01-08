@@ -19,7 +19,7 @@ public class ClassloaderConfigurationOverrides {
   static boolean CAN_SPLIT_SERVICE_NAME_BY_DEPLOYMENT =
       Config.get().isJeeSplitByDeployment() && !Config.get().isServiceNameSetByUser();
 
- static class Lazy {
+  static class Lazy {
     static final ClassloaderConfigurationOverrides INSTANCE =
         new ClassloaderConfigurationOverrides();
   }
@@ -54,13 +54,12 @@ public class ClassloaderConfigurationOverrides {
 
   private ClassloaderConfigurationOverrides() {}
 
-  public static void addContextualInfo(
-      @Nonnull ClassLoader classLoader, @Nonnull ContextualInfo contextualInfo) {
+  public static void addContextualInfo(ClassLoader classLoader, ContextualInfo contextualInfo) {
     Lazy.INSTANCE.weakCache.put(classLoader, contextualInfo);
   }
 
   @Nullable
-  public static ContextualInfo maybeGetContextualInfo(@Nonnull ClassLoader classLoader) {
+  public static ContextualInfo maybeGetContextualInfo(ClassLoader classLoader) {
     return Lazy.INSTANCE.weakCache.get(classLoader);
   }
 
@@ -74,8 +73,7 @@ public class ClassloaderConfigurationOverrides {
     return maybeGetContextualInfo(Thread.currentThread().getContextClassLoader());
   }
 
-  @Nonnull
-  public static ContextualInfo maybeCreateContextualInfo(@Nonnull ClassLoader classLoader) {
+  public static ContextualInfo maybeCreateContextualInfo(ClassLoader classLoader) {
     return Lazy.INSTANCE.weakCache.computeIfAbsent(classLoader, EMPTY_CONTEXTUAL_INFO_ADDER);
   }
 
@@ -95,14 +93,11 @@ public class ClassloaderConfigurationOverrides {
     if (contextualInfo == null) {
       return;
     }
-    if (CAN_SPLIT_SERVICE_NAME_BY_DEPLOYMENT
-        && contextualInfo.serviceName != null
-        && !contextualInfo.getServiceName().isEmpty()) {
+    final String serviceName = contextualInfo.getServiceName();
+    if (CAN_SPLIT_SERVICE_NAME_BY_DEPLOYMENT && serviceName != null && !serviceName.isEmpty()) {
       final String currentServiceName = span.getServiceName();
       if (currentServiceName == null
           || currentServiceName.equals(Lazy.INSTANCE.inferredServiceName)) {
-        final String serviceName = contextualInfo.getServiceName();
-
         span.setServiceName(serviceName);
         ServiceNameCollector.get().addService(serviceName);
       }
