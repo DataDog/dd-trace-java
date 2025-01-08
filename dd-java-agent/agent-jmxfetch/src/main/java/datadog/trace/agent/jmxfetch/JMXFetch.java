@@ -143,14 +143,14 @@ public class JMXFetch {
                     try {
                       final int result = app.run();
                       if (result != 0) {
-                        log.error("jmx collector exited with result: {}", result);
+                        log.warn("jmx collector exited with error code: {}", result);
                       }
                     } catch (final Exception e) {
                       String message = e.getMessage();
                       boolean ignoredException =
                           message != null && message.startsWith("Shutdown in progress");
                       if (!ignoredException) {
-                        log.error("Exception in jmx collector thread", e);
+                        log.warn("Exception in jmx collector thread", e);
                       }
                     }
                   }
