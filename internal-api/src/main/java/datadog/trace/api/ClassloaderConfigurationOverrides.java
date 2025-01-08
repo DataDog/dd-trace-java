@@ -8,6 +8,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.WeakHashMap;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -52,15 +54,39 @@ public class ClassloaderConfigurationOverrides {
   private final String inferredServiceName =
       CapturedEnvironment.get().getProperties().get(GeneralConfig.SERVICE_NAME);
 
+  private static volatile boolean atLeastOneEntry;
+  private static final Lock lock = new ReentrantLock();
+
   private ClassloaderConfigurationOverrides() {}
 
   public static void addContextualInfo(ClassLoader classLoader, ContextualInfo contextualInfo) {
-    Lazy.INSTANCE.weakCache.put(classLoader, contextualInfo);
+    try {
+      lock.lock();
+      Lazy.INSTANCE.weakCache.put(classLoader, contextualInfo);
+      atLeastOneEntry = true;
+    } finally {
+      lock.unlock();
+    }
+  }
+
+  public static ContextualInfo maybeCreateContextualInfo(ClassLoader classLoader) {
+    try {
+      lock.lock();
+      final ContextualInfo ret =
+          Lazy.INSTANCE.weakCache.computeIfAbsent(classLoader, EMPTY_CONTEXTUAL_INFO_ADDER);
+      atLeastOneEntry = true;
+      return ret;
+    } finally {
+      lock.unlock();
+    }
   }
 
   @Nullable
   public static ContextualInfo maybeGetContextualInfo(ClassLoader classLoader) {
-    return Lazy.INSTANCE.weakCache.get(classLoader);
+    if (atLeastOneEntry) {
+      return Lazy.INSTANCE.weakCache.get(classLoader);
+    }
+    return null;
   }
 
   /**
@@ -70,11 +96,10 @@ public class ClassloaderConfigurationOverrides {
    */
   @Nullable
   public static ContextualInfo maybeGetContextualInfo() {
-    return maybeGetContextualInfo(Thread.currentThread().getContextClassLoader());
-  }
-
-  public static ContextualInfo maybeCreateContextualInfo(ClassLoader classLoader) {
-    return Lazy.INSTANCE.weakCache.computeIfAbsent(classLoader, EMPTY_CONTEXTUAL_INFO_ADDER);
+    if (atLeastOneEntry) {
+      return maybeGetContextualInfo(Thread.currentThread().getContextClassLoader());
+    }
+    return null;
   }
 
   /**
@@ -84,7 +109,9 @@ public class ClassloaderConfigurationOverrides {
    * @param span a nonnull span
    */
   public static void maybeEnrichSpan(@Nonnull final AgentSpan span) {
-    maybeEnrichSpan(span, Thread.currentThread().getContextClassLoader());
+    if (atLeastOneEntry) {
+      maybeEnrichSpan(span, Thread.currentThread().getContextClassLoader());
+    }
   }
 
   public static void maybeEnrichSpan(

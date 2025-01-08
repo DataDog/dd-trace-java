@@ -1598,14 +1598,17 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       if (serviceName == null) {
         serviceName = traceConfig.getPreferredServiceName();
       }
-      ClassloaderConfigurationOverrides.ContextualInfo contextualInfo =
-          ClassloaderConfigurationOverrides.maybeGetContextualInfo();
       Map<String, Object> contextualTags = null;
-      if (serviceName == null && parentServiceName == null) {
-        // in this case we have a local root without service name. We can try to see if we can find
-        // one from the thread context classloader
+      if (parentServiceName == null) {
+        // only fetch this on local root spans
+        final ClassloaderConfigurationOverrides.ContextualInfo contextualInfo =
+            ClassloaderConfigurationOverrides.maybeGetContextualInfo();
         if (contextualInfo != null) {
-          serviceName = contextualInfo.getServiceName();
+          // in this case we have a local root without service name.
+          // We can try to see if we can find one from the thread context classloader
+          if (serviceName == null) {
+            serviceName = contextualInfo.getServiceName();
+          }
           contextualTags = contextualInfo.getTags();
         }
       }
