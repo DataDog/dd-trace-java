@@ -40,13 +40,15 @@ public class SparkSQLUtils {
   private static final Logger log = LoggerFactory.getLogger(SparkSQLUtils.class);
 
   private static final Class<?> dataSourceV2RelationClass;
+  private static final MethodHandle tableMethod;
+
   private static final Class<?> replaceDataClass;
   private static final Class<?> insertIntoHiveTableClass;
+
+  private static final Class<?> tableClass;
   private static final MethodHandle schemaMethod;
   private static final MethodHandle nameMethod;
   private static final MethodHandle propertiesMethod;
-
-  private static final Class<?> tableClass;
 
   @SuppressForbidden // Using reflection to avoid splitting the instrumentation once more
   private static Class<?> findDataSourceV2Relation() throws ClassNotFoundException {
@@ -74,6 +76,8 @@ public class SparkSQLUtils {
     Class<?> replaceDataClassFound = null;
     Class<?> insertIntoHiveTableClassFound = null;
 
+    MethodHandle tableMethodFound = null;
+
     MethodHandle nameMethodFound = null;
     MethodHandle schemaMethodFound = null;
     MethodHandle propertiesMethodFound = null;
@@ -81,26 +85,36 @@ public class SparkSQLUtils {
     try {
       MethodHandles.Lookup lookup = MethodHandles.lookup();
 
+      // TODO: this class contains different fields and methods in different versions of Spark (e.x
+      // 2.4 vs 3.5)
       relationClassFound = findDataSourceV2Relation();
       tableClassFound = findTable();
       replaceDataClassFound = findReplaceData();
       insertIntoHiveTableClassFound = findInsertIntoHiveTable();
 
-      schemaMethodFound =
-          lookup.findVirtual(tableClassFound, "schema", MethodType.methodType(StructType.class));
-      nameMethodFound =
-          lookup.findVirtual(tableClassFound, "name", MethodType.methodType(String.class));
-      propertiesMethodFound =
-          lookup.findVirtual(tableClassFound, "properties", MethodType.methodType(Map.class));
+      if (relationClassFound != null && tableClassFound != null) {
+        tableMethodFound =
+            lookup.findVirtual(relationClassFound, "table", MethodType.methodType(tableClassFound));
+      }
 
+      if (tableClassFound != null) {
+        schemaMethodFound =
+            lookup.findVirtual(tableClassFound, "schema", MethodType.methodType(StructType.class));
+        nameMethodFound =
+            lookup.findVirtual(tableClassFound, "name", MethodType.methodType(String.class));
+        propertiesMethodFound =
+            lookup.findVirtual(tableClassFound, "properties", MethodType.methodType(Map.class));
+      }
     } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException ignored) {
     }
 
     dataSourceV2RelationClass = relationClassFound;
+    tableMethod = tableMethodFound;
+
     replaceDataClass = replaceDataClassFound;
     insertIntoHiveTableClass = insertIntoHiveTableClassFound;
-    tableClass = tableClassFound;
 
+    tableClass = tableClassFound;
     schemaMethod = schemaMethodFound;
     nameMethod = nameMethodFound;
     propertiesMethod = propertiesMethodFound;
@@ -349,27 +363,14 @@ public class SparkSQLUtils {
         @Override
         public LineageDataset apply(LogicalPlan x) {
           if (dataSourceV2RelationClass != null && dataSourceV2RelationClass.isInstance(x)) {
-            log.info(
-                "class {} is instance of {}",
-                x.getClass().getName(),
-                dataSourceV2RelationClass.getName());
             return parseDataSourceV2Relation(x, "input");
           } else if (x instanceof AppendData) {
-            log.info(
-                "class {} is instance of {}", x.getClass().getName(), AppendData.class.getName());
             AppendData appendData = (AppendData) x;
             NamedRelation table = appendData.table();
             if (dataSourceV2RelationClass != null && dataSourceV2RelationClass.isInstance(table)) {
-              log.info(
-                  "class {} is instance of {}",
-                  table.getClass().getName(),
-                  dataSourceV2RelationClass.getName());
               return parseDataSourceV2Relation(table, "output");
             }
           } else if (replaceDataClass != null && replaceDataClass.isInstance(x)) {
-            log.info(
-                "class {} is instance of {}", x.getClass().getName(), replaceDataClass.getName());
-
             try {
               if (x.getClass().getMethod("table") != null) {
                 Object table = x.getClass().getMethod("table").invoke(x);
@@ -378,33 +379,24 @@ public class SparkSQLUtils {
                     && dataSourceV2RelationClass.isInstance(table)) {
                   return parseDataSourceV2Relation(table, "output");
                 } else {
-                  log.info(
+                  log.debug(
                       "table is null or not instance of {}, cannot parse current LogicalPlan",
                       dataSourceV2RelationClass.getName());
                 }
               } else {
-                log.info("method table does not exist for {}", x.getClass().getName());
+                log.debug("method table does not exist for {}", x.getClass().getName());
               }
             } catch (Throwable ignored) {
-              log.info("Error while converting logical plan to dataset", ignored);
+              log.debug("Error while converting logical plan to dataset", ignored);
             }
           } else if (insertIntoHiveTableClass != null && insertIntoHiveTableClass.isInstance(x)) {
-            log.info(
-                "class {} is instance of {}",
-                x.getClass().getName(),
-                insertIntoHiveTableClass.getName());
-
             try {
               return parseCatalogTable(
                   (CatalogTable) x.getClass().getMethod("table").invoke(x), "output");
             } catch (Throwable ignored) {
-              log.info("Error while converting logical plan to dataset", ignored);
+              log.debug("Error while converting logical plan to dataset", ignored);
             }
           } else if (x instanceof HiveTableRelation) {
-            log.info(
-                "class {} is instance of {}",
-                x.getClass().getName(),
-                HiveTableRelation.class.getName());
             return parseCatalogTable(((HiveTableRelation) x).tableMeta(), "input");
           }
           return null;
@@ -443,58 +435,46 @@ public class SparkSQLUtils {
         }
 
         private LineageDataset parseDataSourceV2Relation(Object logicalPlan, String datasetType) {
+          if (null == dataSourceV2RelationClass
+              || !dataSourceV2RelationClass.isInstance(logicalPlan)) {
+            return null;
+          }
+
+          if (null == tableMethod || null == tableClass) {
+            log.debug(
+                "table method or table class is not found, cannot parse current DataSourceV2Relation");
+            return null;
+          }
+
           try {
             String tableName = null;
             String tableSchema = null;
             String propertiesJson = null;
 
-            if (logicalPlan.getClass().getMethod("table") == null) {
-              log.info(
-                  "method table does not exist for {}, cannot parse current LogicalPlan",
-                  logicalPlan.getClass().getName());
+            Object table = tableMethod.invoke(logicalPlan);
+            if (null == table) {
               return null;
             }
 
-            Object table = logicalPlan.getClass().getMethod("table").invoke(logicalPlan);
-            if (table == null) {
-              log.info(
-                  "table is null for {}, cannot parse current LogicalPlan",
-                  logicalPlan.getClass().getName());
+            if (null == tableClass || !tableClass.isInstance(table)) {
+              log.debug("table is not instance of a Table class, cannot parse current LogicalPlan");
               return null;
             }
 
-            if (tableClass == null || !tableClass.isInstance(table)) {
-              log.info("table is not instance of a Table class, cannot parse current LogicalPlan");
-              return null;
-            }
-
-            if (table.getClass().getMethod("name") != null) {
+            if (nameMethod != null) {
               tableName = (String) nameMethod.invoke(table);
-              log.info(
-                  "method name exists for {} with table name {}",
-                  table.getClass().getName(),
-                  tableName);
-            } else {
-              log.info("method name does not exist for {}", table.getClass().getName());
             }
 
-            if (table.getClass().getMethod("schema") != null) {
+            if (schemaMethod != null) {
               StructType schema = (StructType) schemaMethod.invoke(table);
-              log.info(
-                  "method schema exists for {} with schema {}", table.getClass().getName(), schema);
               tableSchema = schema.json();
-            } else {
-              log.info("method schema does not exist for {}", table.getClass().getName());
             }
 
-            if (table.getClass().getMethod("properties") != null) {
+            if (propertiesMethod != null) {
               Map<String, String> propertyMap =
                   (Map<String, String>) propertiesMethod.invoke(table);
               propertiesJson = mapper.writeValueAsString(propertyMap);
-
-              log.info("method properties found with content of {}", propertiesJson);
-            } else {
-              log.info("method properties does not exist for {}", table.getClass().getName());
+              log.debug("method properties found with content of {}", propertiesJson);
             }
 
             String statsJson = getDataSourceV2RelationStatsJson(logicalPlan);
@@ -502,7 +482,7 @@ public class SparkSQLUtils {
             return new LineageDataset(
                 tableName, tableSchema, statsJson, propertiesJson, datasetType);
           } catch (Throwable ignored) {
-            log.info("Error while converting logical plan to dataset", ignored);
+            log.debug("Error while converting logical plan to dataset", ignored);
             return null;
           }
         }
