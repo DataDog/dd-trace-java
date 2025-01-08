@@ -516,6 +516,7 @@ public class Config {
   private final boolean elasticsearchBodyAndParamsEnabled;
   private final boolean sparkTaskHistogramEnabled;
   private final boolean sparkAppNameAsService;
+  private final boolean sparkDataLineageEnabled;
   private final boolean jaxRsExceptionAsErrorsEnabled;
 
   private final boolean axisPromoteResourceName;
@@ -1736,6 +1737,9 @@ public class Config {
     this.sparkAppNameAsService =
         configProvider.getBoolean(
             SPARK_APP_NAME_AS_SERVICE, ConfigDefaults.DEFAULT_SPARK_APP_NAME_AS_SERVICE);
+
+    this.sparkDataLineageEnabled =
+        configProvider.getBoolean(SPARK_DATA_LINEAGE_ENABLED, DEFAULT_SPARK_DATA_LINEAGE_ENABLED);
 
     this.jaxRsExceptionAsErrorsEnabled =
         configProvider.getBoolean(
@@ -3260,6 +3264,10 @@ public class Config {
     return sparkAppNameAsService;
   }
 
+  public boolean isSparkDataLineageEnabled() {
+    return sparkDataLineageEnabled;
+  }
+
   public boolean isJaxRsExceptionAsErrorEnabled() {
     return jaxRsExceptionAsErrorsEnabled;
   }
@@ -4468,6 +4476,8 @@ public class Config {
         + sparkTaskHistogramEnabled
         + ", sparkAppNameAsService="
         + sparkAppNameAsService
+        + ", sparkDataLineageEnabled="
+        + sparkDataLineageEnabled
         + ", jaxRsExceptionAsErrorsEnabled="
         + jaxRsExceptionAsErrorsEnabled
         + ", axisPromoteResourceName="

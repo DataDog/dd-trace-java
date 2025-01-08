@@ -243,6 +243,7 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_SPARK_TASK_HISTOGRAM_ENABLED = true;
   static final boolean DEFAULT_SPARK_APP_NAME_AS_SERVICE = false;
+  static final boolean DEFAULT_SPARK_DATA_LINEAGE_ENABLED = true;
   static final boolean DEFAULT_JAX_RS_EXCEPTION_AS_ERROR_ENABLED = true;
   static final boolean DEFAULT_TELEMETRY_DEBUG_REQUESTS_ENABLED = false;
 

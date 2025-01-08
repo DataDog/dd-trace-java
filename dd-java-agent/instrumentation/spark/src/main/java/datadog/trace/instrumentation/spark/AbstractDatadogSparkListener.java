@@ -757,32 +757,34 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     sqlPlans.put(sqlStart.executionId(), sqlStart.sparkPlanInfo());
     sqlQueries.put(sqlStart.executionId(), sqlStart);
 
-    long sqlExecutionId = sqlStart.executionId();
-    QueryExecution queryExecution = SQLExecution.getQueryExecution(sqlExecutionId);
-    if (queryExecution != null) {
-      LogicalPlan logicalPlan = queryExecution.analyzed();
+    if (Config.get().isSparkDataLineageEnabled()) {
+      long sqlExecutionId = sqlStart.executionId();
+      QueryExecution queryExecution = SQLExecution.getQueryExecution(sqlExecutionId);
+      if (queryExecution != null) {
+        LogicalPlan logicalPlan = queryExecution.analyzed();
 
-      log.info("Logical plan for query execution id {}: {}", sqlExecutionId, logicalPlan);
+        log.info("Logical plan for query execution id {}: {}", sqlExecutionId, logicalPlan);
 
-      if (logicalPlan != null) {
-        List<SparkSQLUtils.LineageDataset> datasets =
-            JavaConverters.seqAsJavaList(logicalPlan.collect(SparkSQLUtils.logicalPlanToDataset));
-        if (!datasets.isEmpty()) {
-          log.info("Adding {} datasets to query execution id {}", datasets.size(), sqlExecutionId);
-          lineageDatasets.put(sqlExecutionId, datasets);
-        } else {
-          log.info("No datasets found for query execution id {}", sqlExecutionId);
+        if (logicalPlan != null) {
+          List<SparkSQLUtils.LineageDataset> datasets =
+              JavaConverters.seqAsJavaList(logicalPlan.collect(SparkSQLUtils.logicalPlanToDataset));
+          if (!datasets.isEmpty()) {
+            log.info(
+                "Adding {} datasets to query execution id {}", datasets.size(), sqlExecutionId);
+            lineageDatasets.put(sqlExecutionId, datasets);
+          } else {
+            log.info("No datasets found for query execution id {}", sqlExecutionId);
+          }
         }
+      } else {
+        log.warn("Start: QueryExecution not found for sqlEnd queryExecutionId: {}", sqlExecutionId);
       }
-    } else {
-      log.warn("Start: QueryExecution not found for sqlEnd queryExecutionId: {}", sqlExecutionId);
     }
   }
 
   private synchronized void onSQLExecutionEnd(SparkListenerSQLExecutionEnd sqlEnd) {
     AgentSpan span = sqlSpans.remove(sqlEnd.executionId());
     SparkAggregatedTaskMetrics metrics = sqlMetrics.remove(sqlEnd.executionId());
-    List<SparkSQLUtils.LineageDataset> datasets = lineageDatasets.remove(sqlEnd.executionId());
 
     sqlQueries.remove(sqlEnd.executionId());
     sqlPlans.remove(sqlEnd.executionId());
@@ -792,7 +794,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
         metrics.setSpanMetrics(span);
       }
 
-      if (datasets != null) {
+      List<SparkSQLUtils.LineageDataset> datasets = lineageDatasets.remove(sqlEnd.executionId());
+      if (Config.get().isSparkDataLineageEnabled() && datasets != null) {
         log.info(
             "adding {} datasets to span for query execution id {}",
             datasets.size(),
@@ -808,7 +811,6 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
         long datasetIndex = datasetCount == null ? 0 : (int) datasetCount;
 
-        // iterate over the datasets with index
         for (int i = 0; i < datasets.size(); i++) {
           SparkSQLUtils.LineageDataset dataset = datasets.get(i);
 
