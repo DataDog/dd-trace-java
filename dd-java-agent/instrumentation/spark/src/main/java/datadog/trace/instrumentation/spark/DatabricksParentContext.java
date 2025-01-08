@@ -3,7 +3,7 @@ package datadog.trace.instrumentation.spark;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.sampling.PrioritySampling;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTraceCollector;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import java.nio.ByteBuffer;
@@ -21,7 +21,7 @@ import org.slf4j.LoggerFactory;
  * workflow task spans are generated from the databricks API. The traceId/spanId is computed using
  * the same hash on both sides to link everything in the same trace
  */
-public class DatabricksParentContext implements AgentSpan.Context {
+public class DatabricksParentContext implements AgentSpanContext {
   private static final Logger log = LoggerFactory.getLogger(DatabricksParentContext.class);
 
   private final DDTraceId traceId;

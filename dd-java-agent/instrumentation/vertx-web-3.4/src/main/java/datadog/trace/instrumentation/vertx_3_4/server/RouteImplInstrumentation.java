@@ -18,9 +18,7 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class RouteImplInstrumentation extends InstrumenterModule
-    implements Instrumenter.ForKnownTypes,
-        Instrumenter.HasMethodAdvice,
-        Instrumenter.WithPostProcessor {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   private Advice.PostProcessor.Factory postProcessorFactory;
 

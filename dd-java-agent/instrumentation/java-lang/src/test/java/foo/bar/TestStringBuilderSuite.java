@@ -39,6 +39,13 @@ public class TestStringBuilderSuite implements TestAbstractStringBuilderSuite<St
   }
 
   @Override
+  public void append(final StringBuilder builder, final CharSequence param, int start, int end) {
+    LOGGER.debug("Before string builder append {} with start {} and end {}", param, start, end);
+    final StringBuilder result = builder.append(param, start, end);
+    LOGGER.debug("After string builder append {}", result);
+  }
+
+  @Override
   public void append(final StringBuilder builder, final Object param) {
     LOGGER.debug("Before string builder append {}", param);
     final StringBuilder result = builder.append(param);
@@ -100,5 +107,12 @@ public class TestStringBuilderSuite implements TestAbstractStringBuilderSuite<St
     final CharSequence result = self.subSequence(beginIndex, endIndex);
     LOGGER.debug("After string builder subSequence {}", result);
     return result;
+  }
+
+  @Override
+  public void setLength(final StringBuilder self, final int length) {
+    LOGGER.debug("Before string builder setLength {} with length {}", self, length);
+    self.setLength(length);
+    LOGGER.debug("After string builder setLength {}", self);
   }
 }

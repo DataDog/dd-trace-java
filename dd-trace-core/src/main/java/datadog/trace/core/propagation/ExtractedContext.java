@@ -49,7 +49,15 @@ public class ExtractedContext extends TagContext {
       final PropagationTags propagationTags,
       final TraceConfig traceConfig,
       final TracePropagationStyle propagationStyle) {
-    super(origin, tags, httpHeaders, baggage, samplingPriority, traceConfig, propagationStyle);
+    super(
+        origin,
+        tags,
+        httpHeaders,
+        baggage,
+        samplingPriority,
+        traceConfig,
+        propagationStyle,
+        DDTraceId.ZERO);
     this.traceId = traceId;
     this.spanId = spanId;
     this.endToEndStartTime = endToEndStartTime;

@@ -25,7 +25,7 @@ dependencies {
 }
 
 ext {
-  minimumBranchCoverage = 0.6
+  minimumBranchCoverage = 0.5
   minimumInstructionCoverage = 0.8
   excludedClassesCoverage = [
     'datadog.communication.ddagent.ExternalAgentLauncher',

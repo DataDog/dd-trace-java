@@ -17,7 +17,7 @@ import org.apache.avro.generic.GenericDatumReader;
 
 @AutoService(InstrumenterModule.class)
 public final class GenericDatumReaderInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public GenericDatumReaderInstrumentation() {
     super("avro");

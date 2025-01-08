@@ -29,7 +29,7 @@ import org.eclipse.jetty.server.Request;
  */
 @AutoService(InstrumenterModule.class)
 public class ServerHandleInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public ServerHandleInstrumentation() {
     super("jetty");
   }

@@ -12,7 +12,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 public abstract class AbstractRequestContextInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
   public AbstractRequestContextInstrumentation() {
     super("jakarta-rs", "jakartars", "jakarta-rs-filter");
   }

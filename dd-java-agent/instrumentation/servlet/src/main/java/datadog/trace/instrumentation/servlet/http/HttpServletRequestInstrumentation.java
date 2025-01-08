@@ -34,7 +34,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 @SuppressWarnings("unused")
 @AutoService(InstrumenterModule.class)
 public class HttpServletRequestInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   private static final String CLASS_NAME = HttpServletRequestInstrumentation.class.getName();
   private static final ElementMatcher.Junction<? super TypeDescription> WRAPPER_CLASS =

@@ -6,7 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
-import datadog.trace.agent.tooling.Instrumenter.ForTypeHierarchy;
+import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Platform;
 import java.lang.reflect.Method;
@@ -16,7 +16,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class MethodHandlersInstrumentation extends InstrumenterModule.Tracing
-    implements ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
   private static final ElementMatcher<TypeDescription> METHOD_HANDLERS =
       nameEndsWith("$MethodHandlers");
 

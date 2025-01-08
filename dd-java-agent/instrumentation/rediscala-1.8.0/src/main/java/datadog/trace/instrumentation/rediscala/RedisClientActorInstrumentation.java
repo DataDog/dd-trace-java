@@ -18,7 +18,7 @@ import redis.RedisClientActorLike;
 
 @AutoService(InstrumenterModule.class)
 public class RedisClientActorInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
   public RedisClientActorInstrumentation() {
     super("rediscala", "redis", "rediscala-connection");
   }

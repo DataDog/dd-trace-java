@@ -1,5 +1,6 @@
 package datadog.trace.agent.tooling.muzzle;
 
+import datadog.trace.agent.tooling.AdviceShader;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import java.io.File;
@@ -78,7 +79,8 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
     return classVisitor;
   }
 
-  private static Reference[] generateReferences(Instrumenter.HasMethodAdvice instrumenter) {
+  private static Reference[] generateReferences(
+      Instrumenter.HasMethodAdvice instrumenter, AdviceShader adviceShader) {
     // track sources we've generated references from to avoid recursion
     final Set<String> referenceSources = new HashSet<>();
     final Map<String, Reference> references = new LinkedHashMap<>();
@@ -88,7 +90,8 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
     for (String adviceClass : adviceClasses) {
       if (referenceSources.add(adviceClass)) {
         for (Map.Entry<String, Reference> entry :
-            ReferenceCreator.createReferencesFrom(adviceClass, contextClassLoader).entrySet()) {
+            ReferenceCreator.createReferencesFrom(adviceClass, adviceShader, contextClassLoader)
+                .entrySet()) {
           Reference toMerge = references.get(entry.getKey());
           if (null == toMerge) {
             references.put(entry.getKey(), entry.getValue());
@@ -105,12 +108,13 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
   private static byte[] generateMuzzleClass(InstrumenterModule module) {
 
     Set<String> ignoredClassNames = new HashSet<>(Arrays.asList(module.muzzleIgnoredClassNames()));
+    AdviceShader adviceShader = AdviceShader.with(module.adviceShading());
 
     List<Reference> references = new ArrayList<>();
     for (Instrumenter instrumenter : module.typeInstrumentations()) {
       if (instrumenter instanceof Instrumenter.HasMethodAdvice) {
         for (Reference reference :
-            generateReferences((Instrumenter.HasMethodAdvice) instrumenter)) {
+            generateReferences((Instrumenter.HasMethodAdvice) instrumenter, adviceShader)) {
           // ignore helper classes, they will be injected by the instrumentation's HelperInjector.
           if (!ignoredClassNames.contains(reference.className)) {
             references.add(reference);

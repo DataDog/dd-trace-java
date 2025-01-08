@@ -32,7 +32,7 @@ import org.reactivestreams.Subscriber;
  */
 @AutoService(InstrumenterModule.class)
 public class PublisherInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public PublisherInstrumentation() {
     super("reactive-streams", "reactive-streams-1");

@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.domain;
 
+import static datadog.trace.api.TracePropagationStyle.NONE;
 import static datadog.trace.api.civisibility.CIConstants.CI_VISIBILITY_INSTRUMENTATION_NAME;
 
 import datadog.trace.api.Config;
@@ -17,9 +18,12 @@ import datadog.trace.api.civisibility.telemetry.tag.HasCodeowner;
 import datadog.trace.api.civisibility.telemetry.tag.IsHeadless;
 import datadog.trace.api.civisibility.telemetry.tag.IsUnsupportedCI;
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
+import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.decorator.TestDecorator;
@@ -65,7 +69,16 @@ public abstract class AbstractTestSession {
     // CI Test Cycle protocol requires session's trace ID and span ID to be the same
     IdGenerationStrategy idGenerationStrategy = config.getIdGenerationStrategy();
     DDTraceId traceId = idGenerationStrategy.generateTraceId();
-    AgentSpan.Context traceContext = new TraceContext(traceId);
+    AgentSpanContext traceContext =
+        new TagContext(
+            CIConstants.CIAPP_TEST_ORIGIN,
+            Collections.emptyMap(),
+            null,
+            null,
+            PrioritySampling.UNSET,
+            null,
+            NONE,
+            traceId);
 
     AgentTracer.SpanBuilder spanBuilder =
         AgentTracer.get()

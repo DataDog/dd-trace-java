@@ -17,7 +17,7 @@ import org.eclipse.jetty.server.Response;
 
 @AutoService(InstrumenterModule.class)
 public final class JettyGeneratorInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public JettyGeneratorInstrumentation() {
     super("jetty");

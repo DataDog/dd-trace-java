@@ -22,7 +22,7 @@ import org.apache.http.client.methods.HttpUriRequest;
 
 @AutoService(InstrumenterModule.class)
 public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.CanShortcutTypeMatching {
+    implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
 
   static final String[] MATCHING_TYPES =
       new String[] {

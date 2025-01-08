@@ -11,7 +11,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class Http1xServerRequestInstrumentation extends AbstractHttpServerRequestInstrumentation
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   @Override
   protected ElementMatcher.Junction<MethodDescription> attributesFilter() {

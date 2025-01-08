@@ -22,7 +22,7 @@ import org.mule.runtime.tracer.api.EventTracer;
  */
 @AutoService(InstrumenterModule.class)
 public class ComponentMessageProcessorInstrumentation extends AbstractMuleInstrumentation
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   @Override
   public String instrumentedType() {

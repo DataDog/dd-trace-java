@@ -21,6 +21,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -28,7 +29,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   // these must remain as String literals so they can be easily be shared (copied) with the nested
   // advice classes
@@ -92,7 +93,7 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
         return null;
       }
 
-      AgentSpan.Context lambdaContext = AgentTracer.get().notifyExtensionStart(event);
+      AgentSpanContext lambdaContext = AgentTracer.get().notifyExtensionStart(event);
       final AgentSpan span;
       if (null == lambdaContext) {
         span = startSpan(INVOCATION_SPAN_NAME);

@@ -47,7 +47,10 @@ import java.util.Map;
  */
 @AutoService(InstrumenterModule.class)
 public class CompletableFutureUniCompletionInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, ExcludeFilterProvider {
+    implements Instrumenter.ForBootstrap,
+        Instrumenter.ForSingleType,
+        Instrumenter.HasMethodAdvice,
+        ExcludeFilterProvider {
   static final String JAVA_UTIL_CONCURRENT = "java.util.concurrent";
   static final String COMPLETABLE_FUTURE = JAVA_UTIL_CONCURRENT + ".CompletableFuture";
   static final String UNI_COMPLETION = COMPLETABLE_FUTURE + "$UniCompletion";

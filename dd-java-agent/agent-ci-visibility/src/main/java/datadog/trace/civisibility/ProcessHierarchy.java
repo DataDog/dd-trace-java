@@ -4,7 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 
 import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.util.Strings;
 import java.net.InetSocketAddress;
 import java.util.Properties;
@@ -29,7 +29,7 @@ public class ProcessHierarchy {
     }
   }
 
-  @Nullable public final AgentSpan.Context.Extracted parentProcessModuleContext;
+  @Nullable public final AgentSpanContext.Extracted parentProcessModuleContext;
 
   ProcessHierarchy() {
     parentProcessModuleContext =
@@ -62,12 +62,18 @@ public class ProcessHierarchy {
    * process that is not a build system, and not a JVM that runs tests.
    */
   private boolean isWrapper() {
+    // Maven Wrapper runs in the same JVM as Maven itself,
+    // so it is not included here
     return isGradleLauncher();
   }
 
   private boolean isMavenParent() {
     return System.getProperty("maven.home") != null
-        && System.getProperty("classworlds.conf") != null;
+            && System.getProperty("classworlds.conf") != null
+        // when using Maven Wrapper
+        || ClassLoader.getSystemClassLoader()
+                .getResource("org/apache/maven/wrapper/WrapperExecutor.class")
+            != null;
   }
 
   private boolean isGradleDaemon() {

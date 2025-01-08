@@ -35,6 +35,7 @@ import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.instrumentation.kafka_clients.TracingIterableDelegator;
 import java.util.LinkedHashMap;
@@ -50,7 +51,7 @@ import org.apache.kafka.streams.processor.internals.StreamTask;
 
 @AutoService(InstrumenterModule.class)
 public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public KafkaStreamTaskInstrumentation() {
     super("kafka", "kafka-streams");
@@ -228,7 +229,7 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
       StreamTaskContext streamTaskContext =
           InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
       if (!Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
-        final AgentSpan.Context extractedContext = propagate().extract(record, SR_GETTER);
+        final AgentSpanContext extractedContext = propagate().extract(record, SR_GETTER);
         long timeInQueueStart = SR_GETTER.extractTimeInQueueStart(record);
         if (timeInQueueStart == 0 || !TIME_IN_QUEUE_ENABLED) {
           span = startSpan(KAFKA_CONSUME, extractedContext);
@@ -303,7 +304,7 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
       StreamTaskContext streamTaskContext =
           InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
       if (!Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
-        final AgentSpan.Context extractedContext = propagate().extract(record, PR_GETTER);
+        final AgentSpanContext extractedContext = propagate().extract(record, PR_GETTER);
         long timeInQueueStart = PR_GETTER.extractTimeInQueueStart(record);
         if (timeInQueueStart == 0 || !TIME_IN_QUEUE_ENABLED) {
           span = startSpan(KAFKA_CONSUME, extractedContext);

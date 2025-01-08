@@ -21,7 +21,7 @@ import org.apache.pekko.http.scaladsl.server.util.Tupler$;
 
 @AutoService(InstrumenterModule.class)
 public class ParameterDirectivesImplInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public ParameterDirectivesImplInstrumentation() {
     super("pekko-http");
   }

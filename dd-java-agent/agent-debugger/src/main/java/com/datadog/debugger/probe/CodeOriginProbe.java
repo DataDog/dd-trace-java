@@ -5,7 +5,6 @@ import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_FRAME;
 import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_TYPE;
 import static java.lang.String.format;
 import static java.util.Arrays.asList;
-import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 
 import com.datadog.debugger.agent.DebuggerAgent;
@@ -54,6 +53,13 @@ public class CodeOriginProbe extends LogProbe implements ForceMethodInstrumentat
     }
 
     super.evaluate(context, status, methodLocation);
+    AgentSpan span = findSpan(AgentTracer.activeSpan());
+
+    if (span == null) {
+      LOGGER.debug("Could not find the span for probeId {}", id);
+      return;
+    }
+    applyCodeOriginTags(span);
   }
 
   @Override
@@ -68,63 +74,53 @@ public class CodeOriginProbe extends LogProbe implements ForceMethodInstrumentat
       LOGGER.debug("Could not find the span for probeId {}", id);
       return;
     }
-    String snapshotId = null;
     DebuggerSink sink = DebuggerAgent.getSink();
     if (isDebuggerEnabled(span) && sink != null) {
       Snapshot snapshot = createSnapshot();
       if (fillSnapshot(entryContext, exitContext, caughtExceptions, snapshot)) {
-        snapshotId = snapshot.getId();
+        String snapshotId = snapshot.getId();
         LOGGER.debug("committing code origin probe id={}, snapshot id={}", id, snapshotId);
         commitSnapshot(snapshot, sink);
+
+        List<AgentSpan> agentSpans =
+            entrySpanProbe ? asList(span, span.getLocalRootSpan()) : singletonList(span);
+        for (AgentSpan agentSpan : agentSpans) {
+          if (agentSpan.getTag(format(DD_CODE_ORIGIN_FRAME, 0, "snapshot_id")) == null) {
+            agentSpan.setTag(format(DD_CODE_ORIGIN_FRAME, 0, "snapshot_id"), snapshotId);
+          }
+        }
       }
     }
-    applySpanOriginTags(span, snapshotId);
     if (sink != null) {
       sink.getProbeStatusSink().addEmitting(probeId);
     }
     span.getLocalRootSpan().setTag(getId(), (String) null); // clear possible span reference
   }
 
-  private List<StackTraceElement> findLocation() {
-    if (entrySpanProbe && stackTraceElements == null) {
-      ProbeLocation probeLocation = getLocation();
-      List<String> lines = probeLocation.getLines();
-      int line = lines == null ? -1 : Integer.parseInt(lines.get(0));
-      stackTraceElements =
-          singletonList(
-              new StackTraceElement(
-                  probeLocation.getType(),
-                  probeLocation.getMethod(),
-                  probeLocation.getFile(),
-                  line));
-    }
-    return stackTraceElements != null ? stackTraceElements : emptyList();
-  }
-
-  private void applySpanOriginTags(AgentSpan span, String snapshotId) {
+  private List<AgentSpan> applyCodeOriginTags(AgentSpan span) {
     List<StackTraceElement> entries =
         stackTraceElements != null ? stackTraceElements : getUserStackFrames();
     List<AgentSpan> agentSpans =
         entrySpanProbe ? asList(span, span.getLocalRootSpan()) : singletonList(span);
 
     for (AgentSpan s : agentSpans) {
-      s.setTag(DD_CODE_ORIGIN_TYPE, entrySpanProbe ? "entry" : "exit");
+      if (s.getTag(DD_CODE_ORIGIN_TYPE) == null) {
+        s.setTag(DD_CODE_ORIGIN_TYPE, entrySpanProbe ? "entry" : "exit");
 
-      for (int i = 0; i < entries.size(); i++) {
-        StackTraceElement info = entries.get(i);
-        String fileName = info.getFileName();
-        s.setTag(format(DD_CODE_ORIGIN_FRAME, i, "file"), fileName);
-        s.setTag(format(DD_CODE_ORIGIN_FRAME, i, "method"), info.getMethodName());
-        s.setTag(format(DD_CODE_ORIGIN_FRAME, i, "line"), info.getLineNumber());
-        s.setTag(format(DD_CODE_ORIGIN_FRAME, i, "type"), info.getClassName());
-        if (i == 0 && entrySpanProbe) {
-          s.setTag(format(DD_CODE_ORIGIN_FRAME, i, "signature"), where.getSignature());
-        }
-        if (i == 0 && snapshotId != null) {
-          s.setTag(format(DD_CODE_ORIGIN_FRAME, i, "snapshot_id"), snapshotId);
+        for (int i = 0; i < entries.size(); i++) {
+          StackTraceElement info = entries.get(i);
+          String fileName = info.getFileName();
+          s.setTag(format(DD_CODE_ORIGIN_FRAME, i, "file"), fileName);
+          s.setTag(format(DD_CODE_ORIGIN_FRAME, i, "method"), info.getMethodName());
+          s.setTag(format(DD_CODE_ORIGIN_FRAME, i, "line"), info.getLineNumber());
+          s.setTag(format(DD_CODE_ORIGIN_FRAME, i, "type"), info.getClassName());
+          if (i == 0 && entrySpanProbe) {
+            s.setTag(format(DD_CODE_ORIGIN_FRAME, i, "signature"), where.getSignature());
+          }
         }
       }
     }
+    return agentSpans;
   }
 
   public boolean entrySpanProbe() {

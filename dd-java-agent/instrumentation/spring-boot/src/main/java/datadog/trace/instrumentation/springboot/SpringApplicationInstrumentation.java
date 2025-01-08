@@ -17,7 +17,7 @@ import org.springframework.core.env.ConfigurableEnvironment;
  */
 @AutoService(InstrumenterModule.class)
 public class SpringApplicationInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public SpringApplicationInstrumentation() {
     super("spring-boot");
   }

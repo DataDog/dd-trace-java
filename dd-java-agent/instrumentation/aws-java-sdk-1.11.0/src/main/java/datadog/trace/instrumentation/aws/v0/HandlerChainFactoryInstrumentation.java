@@ -4,50 +4,26 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.amazonaws.handlers.RequestHandler2;
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.List;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 /**
  * This instrumentation might work with versions before 1.11.0, but this was the first version that
  * is tested. It could possibly be extended earlier.
  */
-@AutoService(InstrumenterModule.class)
-public final class HandlerChainFactoryInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+public final class HandlerChainFactoryInstrumentation
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+  private final String namespace;
 
-  public HandlerChainFactoryInstrumentation() {
-    super("aws-sdk");
+  public HandlerChainFactoryInstrumentation(String namespace) {
+    this.namespace = namespace;
   }
 
   @Override
   public String instrumentedType() {
-    return "com.amazonaws.handlers.HandlerChainFactory";
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".AwsSdkClientDecorator",
-      packageName + ".GetterAccess",
-      packageName + ".GetterAccess$1",
-      packageName + ".TracingRequestHandler",
-      packageName + ".AwsNameCache",
-    };
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    Map<String, String> map = new java.util.HashMap<>();
-    map.put("com.amazonaws.services.sqs.model.ReceiveMessageResult", "java.lang.String");
-    map.put(
-        "com.amazonaws.AmazonWebServiceRequest",
-        "datadog.trace.bootstrap.instrumentation.api.AgentSpan");
-    return map;
+    return namespace + ".handlers.HandlerChainFactory";
   }
 
   @Override

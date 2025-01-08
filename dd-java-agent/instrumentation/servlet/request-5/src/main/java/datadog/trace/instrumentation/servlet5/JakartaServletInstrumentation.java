@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.servlet5;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperType;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -12,6 +13,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.naming.ClassloaderServiceNames;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import jakarta.servlet.ServletRequest;
@@ -22,7 +24,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class JakartaServletInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
   public JakartaServletInstrumentation() {
     super("servlet", "servlet-5");
   }
@@ -51,30 +53,33 @@ public class JakartaServletInstrumentation extends InstrumenterModule.Tracing
 
   public static class ExtractPrincipalAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static boolean before(@Advice.Argument(0) final ServletRequest request) {
+    public static AgentSpan before(@Advice.Argument(0) final ServletRequest request) {
       if (!(request instanceof HttpServletRequest)) {
-        return false;
+        return null;
       }
-      return CallDepthThreadLocalMap.incrementCallDepth(HttpServletRequest.class) == 0;
+      Object span = request.getAttribute(DD_SPAN_ATTRIBUTE);
+      if (span instanceof AgentSpan
+          && CallDepthThreadLocalMap.incrementCallDepth(HttpServletRequest.class) == 0) {
+        final AgentSpan agentSpan = (AgentSpan) span;
+        ClassloaderServiceNames.maybeSetToSpan(agentSpan);
+        return agentSpan;
+      }
+      return null;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(
-        @Advice.Enter boolean advice, @Advice.Argument(0) final ServletRequest request) {
-      if (advice) {
-        CallDepthThreadLocalMap.reset(HttpServletRequest.class);
-        final HttpServletRequest httpServletRequest =
-            (HttpServletRequest) request; // at this point the cast should be safe
-        if (Config.get().isServletPrincipalEnabled()
-            && httpServletRequest.getUserPrincipal() != null) {
-          Object span =
-              request.getAttribute(
-                  "datadog.span"); // hardcode to avoid injecting HttpServiceDecorator just for this
-          if (span instanceof AgentSpan) {
-            ((AgentSpan) span)
-                .setTag(DDTags.USER_NAME, httpServletRequest.getUserPrincipal().getName());
-          }
-        }
+        @Advice.Enter final AgentSpan span, @Advice.Argument(0) final ServletRequest request) {
+      if (span == null) {
+        return;
+      }
+
+      CallDepthThreadLocalMap.reset(HttpServletRequest.class);
+      final HttpServletRequest httpServletRequest =
+          (HttpServletRequest) request; // at this point the cast should be safe
+      if (Config.get().isServletPrincipalEnabled()
+          && httpServletRequest.getUserPrincipal() != null) {
+        span.setTag(DDTags.USER_NAME, httpServletRequest.getUserPrincipal().getName());
       }
     }
   }

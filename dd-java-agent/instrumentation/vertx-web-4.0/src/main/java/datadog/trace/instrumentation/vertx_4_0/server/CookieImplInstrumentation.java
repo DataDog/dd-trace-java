@@ -24,7 +24,9 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class CookieImplInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice {
+    implements Instrumenter.ForSingleType,
+        Instrumenter.HasTypeAdvice,
+        Instrumenter.HasMethodAdvice {
 
   private final String className = CookieImplInstrumentation.class.getName();
 

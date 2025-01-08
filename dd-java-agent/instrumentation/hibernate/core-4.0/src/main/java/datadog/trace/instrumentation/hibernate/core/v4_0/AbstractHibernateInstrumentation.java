@@ -4,7 +4,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 
 public abstract class AbstractHibernateInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.CanShortcutTypeMatching {
+    implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
 
   static final String SESSION_STATE = "datadog.trace.instrumentation.hibernate.SessionState";
 

@@ -58,6 +58,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION = true;
   static final boolean DEFAULT_SERIALVERSIONUID_FIELD_INJECTION = true;
 
+  static final boolean DEFAULT_EXPERIMENTATAL_JEE_SPLIT_BY_DEPLOYMENT = false;
   static final boolean DEFAULT_PRIORITY_SAMPLING_ENABLED = true;
   static final String DEFAULT_PRIORITY_SAMPLING_FORCE = null;
   static final boolean DEFAULT_TRACE_RESOLVER_ENABLED = true;
@@ -69,6 +70,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX = false;
   static final boolean DEFAULT_DB_CLIENT_HOST_SPLIT_BY_HOST = false;
   static final String DEFAULT_DB_DBM_PROPAGATION_MODE_MODE = "disabled";
+  static final boolean DEFAULT_DB_DBM_TRACE_PREPARED_STATEMENTS = false;
   // Default value is set to 0, it disables the latency trace interceptor
   static final int DEFAULT_TRACE_KEEP_LATENCY_THRESHOLD_MS = 0;
   static final int DEFAULT_SCOPE_DEPTH_LIMIT = 100;
@@ -135,6 +137,9 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_IAST_STACK_TRACE_ENABLED = true;
 
+  static final boolean DEFAULT_LLM_OBS_ENABLED = false;
+  static final boolean DEFAULT_LLM_OBS_AGENTLESS_ENABLED = false;
+
   static final boolean DEFAULT_USM_ENABLED = false;
 
   static final boolean DEFAULT_CIVISIBILITY_ENABLED = false;
@@ -179,6 +184,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_DEBUGGER_VERIFY_BYTECODE = true;
   static final boolean DEFAULT_DEBUGGER_INSTRUMENT_THE_WORLD = false;
   static final int DEFAULT_DEBUGGER_CAPTURE_TIMEOUT = 100; // milliseconds
+  static final boolean DEFAULT_DEBUGGER_HOIST_LOCALVARS_ENABLED = false;
   static final boolean DEFAULT_DEBUGGER_SYMBOL_ENABLED = true;
   static final boolean DEFAULT_DEBUGGER_SYMBOL_FORCE_UPLOAD = false;
   static final int DEFAULT_DEBUGGER_SYMBOL_FLUSH_THRESHOLD = 100; // nb of classes

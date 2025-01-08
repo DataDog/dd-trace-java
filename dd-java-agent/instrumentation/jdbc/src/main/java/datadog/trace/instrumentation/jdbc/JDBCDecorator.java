@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.jdbc;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DBM_TRACE_INJECTED;
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.INSTRUMENTATION_TIME_MS;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.*;
 
 import datadog.trace.api.Config;
@@ -47,12 +49,16 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   public static final String DBM_PROPAGATION_MODE_STATIC = "service";
   public static final String DBM_PROPAGATION_MODE_FULL = "full";
 
+  public static final String DD_INSTRUMENTATION_PREFIX = "_DD_";
+
   public static final String DBM_PROPAGATION_MODE = Config.get().getDBMPropagationMode();
   public static final boolean INJECT_COMMENT =
       DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_FULL)
           || DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_STATIC);
   private static final boolean INJECT_TRACE_CONTEXT =
       DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_FULL);
+  public static final boolean DBM_TRACE_PREPARED_STATEMENTS =
+      Config.get().isDBMTracePreparedStatements();
 
   private volatile boolean warnedAboutDBMPropagationMode = false; // to log a warning only once
 
@@ -248,8 +254,48 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     return sb.toString();
   }
 
+  public boolean isOracle(final DBInfo dbInfo) {
+    return "oracle".equals(dbInfo.getType());
+  }
+
+  public boolean isPostgres(final DBInfo dbInfo) {
+    return dbInfo.getType().startsWith("postgres");
+  }
+
   public boolean isSqlServer(final DBInfo dbInfo) {
     return "sqlserver".equals(dbInfo.getType());
+  }
+
+  /**
+   * Executes `connection.setClientInfo("OCSID.ACTION", traceContext)` statement on the Oracle DB to
+   * set the trace parent in `v$session.action`. This is used because it isn't possible to propagate
+   * trace parent with the comment.
+   *
+   * @param span The span of the instrumented statement
+   * @param connection The same connection as the one that will be used for the actual statement
+   */
+  public void setAction(AgentSpan span, Connection connection) {
+    try {
+
+      Integer priority = span.forceSamplingDecision();
+      if (priority == null) {
+        return;
+      }
+      final String traceContext = DD_INSTRUMENTATION_PREFIX + DECORATE.traceParent(span, priority);
+
+      connection.setClientInfo("OCSID.ACTION", traceContext);
+
+    } catch (Throwable e) {
+      log.debug(
+          "Failed to set extra DBM data in application_name for trace {}. "
+              + "To disable this behavior, set trace_prepared_statements to 'false'. "
+              + "See https://docs.datadoghq.com/database_monitoring/connect_dbm_and_apm/ for more info. {}",
+          span.getTraceId().toHexString(),
+          e);
+      DECORATE.onError(span, e);
+    } finally {
+      span.setTag("_dd.dbm_trace_injected", true);
+    }
   }
 
   /**
@@ -310,6 +356,44 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       instrumentationSpan.finish();
     }
     return spanID;
+  }
+
+  /**
+   * Executes `SET application_name` statement on the Postgres DB to set the trace parent in
+   * `pg_stat_activity.application_name`. This is used for prepared statements where it isn't
+   * possible to propagate trace parent with the comment. Downside: makes an additional round trip
+   * to the database.
+   *
+   * @param span The span of the instrumented statement
+   * @param connection The same connection as the one that will be used for the actual statement
+   */
+  public void setApplicationName(AgentSpan span, Connection connection) {
+    final long startTime = System.currentTimeMillis();
+    try {
+
+      Integer priority = span.forceSamplingDecision();
+      if (priority == null) {
+        return;
+      }
+      final String traceParent = DECORATE.traceParent(span, priority);
+      final String traceContext = "_DD_" + traceParent;
+
+      connection.setClientInfo("ApplicationName", traceContext);
+    } catch (Throwable e) {
+      if (log.isDebugEnabled()) {
+        log.debug(
+            "Failed to set extra DBM data in application_name for trace {}. "
+                + "To disable this behavior, set trace_prepared_statements to 'false'. "
+                + "See https://docs.datadoghq.com/database_monitoring/connect_dbm_and_apm/ for more info.{}",
+            span.getTraceId().toHexString(),
+            e);
+      }
+      DECORATE.onError(span, e);
+    } finally {
+      span.setTag(DBM_TRACE_INJECTED, true);
+      final long elapsed = System.currentTimeMillis() - startTime;
+      span.setTag(INSTRUMENTATION_TIME_MS, elapsed);
+    }
   }
 
   @Override

@@ -9,7 +9,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
-import datadog.trace.agent.tooling.Instrumenter.WithPostProcessor;
 import datadog.trace.agent.tooling.bytebuddy.ExceptionHandlers;
 import datadog.trace.agent.tooling.context.FieldBackedContextInjector;
 import datadog.trace.agent.tooling.context.FieldBackedContextMatcher;
@@ -72,17 +71,13 @@ public final class CombiningTransformerBuilder
   private ElementMatcher<ClassLoader> classLoaderMatcher;
   private Map<String, String> contextStore;
   private AgentBuilder.Transformer contextRequestRewriter;
+  private AdviceShader adviceShader;
   private HelperTransformer helperTransformer;
+  private Advice.PostProcessor.Factory postProcessor;
   private MuzzleCheck muzzle;
 
   // temporary buffer for collecting advice; reset for each instrumenter
   private final List<AgentBuilder.Transformer> advice = new ArrayList<>();
-
-  /**
-   * Post processor to be applied to instrumenter advices if they implement {@link
-   * WithPostProcessor}
-   */
-  private Advice.PostProcessor.Factory postProcessor;
 
   public CombiningTransformerBuilder(
       AgentBuilder agentBuilder, InstrumenterIndex instrumenterIndex) {
@@ -124,6 +119,8 @@ public final class CombiningTransformerBuilder
                 new FieldBackedContextRequestRewriter(contextStore, module.name()))
             : null;
 
+    adviceShader = AdviceShader.with(module.adviceShading());
+
     String[] helperClassNames = module.helperClassNames();
     if (module.injectHelperDependencies()) {
       helperClassNames = HelperScanner.withClassDependencies(helperClassNames);
@@ -131,8 +128,13 @@ public final class CombiningTransformerBuilder
     helperTransformer =
         helperClassNames.length > 0
             ? new HelperTransformer(
-                module.useAgentCodeSource(), module.getClass().getSimpleName(), helperClassNames)
+                module.useAgentCodeSource(),
+                adviceShader,
+                module.getClass().getSimpleName(),
+                helperClassNames)
             : null;
+
+    postProcessor = module.postProcessor();
 
     muzzle = new MuzzleCheck(module, instrumentationId);
   }
@@ -208,9 +210,6 @@ public final class CombiningTransformerBuilder
 
   private void buildTypeAdvice(Instrumenter member, int transformationId) {
 
-    postProcessor =
-        member instanceof WithPostProcessor ? ((WithPostProcessor) member).postProcessor() : null;
-
     if (null != helperTransformer) {
       advice.add(helperTransformer);
     }
@@ -245,11 +244,17 @@ public final class CombiningTransformerBuilder
     if (postProcessor != null) {
       customMapping = customMapping.with(postProcessor);
     }
-    advice.add(
+    AgentBuilder.Transformer.ForAdvice forAdvice =
         new AgentBuilder.Transformer.ForAdvice(customMapping)
-            .include(Utils.getBootstrapProxy(), Utils.getExtendedClassLoader())
             .withExceptionHandler(ExceptionHandlers.defaultExceptionHandler())
-            .advice(not(ignoredMethods).and(matcher), adviceClass));
+            .include(Utils.getBootstrapProxy());
+    ClassLoader adviceLoader = Utils.getExtendedClassLoader();
+    if (adviceShader != null) {
+      forAdvice = forAdvice.include(new ShadedAdviceLocator(adviceLoader, adviceShader));
+    } else {
+      forAdvice = forAdvice.include(adviceLoader);
+    }
+    advice.add(forAdvice.advice(not(ignoredMethods).and(matcher), adviceClass));
   }
 
   public ClassFileTransformer installOn(Instrumentation instrumentation) {
@@ -349,8 +354,11 @@ public final class CombiningTransformerBuilder
 
   static final class HelperTransformer extends HelperInjector implements AgentBuilder.Transformer {
     HelperTransformer(
-        boolean useAgentCodeSource, String requestingName, String... helperClassNames) {
-      super(useAgentCodeSource, requestingName, helperClassNames);
+        boolean useAgentCodeSource,
+        AdviceShader adviceShader,
+        String requestingName,
+        String... helperClassNames) {
+      super(useAgentCodeSource, adviceShader, requestingName, helperClassNames);
     }
   }
 

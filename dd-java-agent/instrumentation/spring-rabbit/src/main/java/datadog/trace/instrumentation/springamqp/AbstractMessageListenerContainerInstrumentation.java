@@ -26,7 +26,7 @@ import org.springframework.amqp.core.Message;
 
 @AutoService(InstrumenterModule.class)
 public class AbstractMessageListenerContainerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, ExcludeFilterProvider {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice, ExcludeFilterProvider {
 
   public AbstractMessageListenerContainerInstrumentation() {
     super("spring-rabbit");

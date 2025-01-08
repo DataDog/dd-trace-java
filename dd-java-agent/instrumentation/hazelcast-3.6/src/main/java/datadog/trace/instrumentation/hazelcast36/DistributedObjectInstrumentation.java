@@ -25,7 +25,7 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class DistributedObjectInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   private static final String PROXY_PACKAGE = "com.hazelcast.client.proxy";
 

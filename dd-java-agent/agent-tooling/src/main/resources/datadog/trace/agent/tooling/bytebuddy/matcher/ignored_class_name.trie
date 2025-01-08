@@ -47,6 +47,8 @@
 0 java.lang.Error
 # allow ProcessImpl instrumentation
 0 java.lang.ProcessImpl
+# allow Runtime instrumentation for RASP
+0 java.lang.Runtime
 0 java.net.http.*
 0 java.net.HttpURLConnection
 0 java.net.Socket
@@ -221,6 +223,7 @@
 2 javax.xml.*
 # note we do not ignore kotlinx because we instrument coroutines code
 2 kotlin.*
+1 lambdainternal.EventHandlerLoader$PojoHandlerAsStreamHandler
 2 net.sf.cglib.*
 2 org.apache.bcel.*
 2 org.apache.html.*

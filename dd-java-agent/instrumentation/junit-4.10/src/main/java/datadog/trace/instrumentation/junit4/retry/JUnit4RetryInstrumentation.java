@@ -30,7 +30,7 @@ import org.junit.runners.model.Statement;
 
 @AutoService(InstrumenterModule.class)
 public class JUnit4RetryInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   private final String parentPackageName = Strings.getPackageName(JUnit4Utils.class.getName());
 

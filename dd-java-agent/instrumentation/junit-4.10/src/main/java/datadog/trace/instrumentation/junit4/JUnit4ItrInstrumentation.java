@@ -27,7 +27,7 @@ import org.junit.runners.ParentRunner;
 
 @AutoService(InstrumenterModule.class)
 public class JUnit4ItrInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public JUnit4ItrInstrumentation() {
     super("ci-visibility", "junit-4");

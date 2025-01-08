@@ -17,7 +17,7 @@ import org.apache.velocity.runtime.parser.node.ASTReference;
 
 @AutoService(InstrumenterModule.class)
 public class ASTReferenceInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public ASTReferenceInstrumentation() {
     super("velocity");
   }

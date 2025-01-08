@@ -16,7 +16,7 @@ import org.restlet.util.Series;
 
 @AutoService(InstrumenterModule.class)
 public final class RouteInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public RouteInstrumentation() {
     super("restlet-http");

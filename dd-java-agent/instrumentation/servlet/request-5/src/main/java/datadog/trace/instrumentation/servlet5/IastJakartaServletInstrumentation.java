@@ -23,7 +23,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class IastJakartaServletInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
   public IastJakartaServletInstrumentation() {
     super("servlet", "servlet-5");
   }

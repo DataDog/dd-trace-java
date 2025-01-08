@@ -204,4 +204,13 @@ class TomcatServletTest extends AbstractServletTest<Tomcat, Context> {
   }
 }
 
+class TomcatServletClassloaderNamingForkedTest extends TomcatServletTest {
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    // will not set the service name according to the servlet context value
+    injectSysConfig("trace.experimental.jee.split-by-deployment", "true")
+  }
+}
+
 

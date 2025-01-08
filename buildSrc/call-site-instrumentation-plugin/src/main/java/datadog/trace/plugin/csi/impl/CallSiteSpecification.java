@@ -570,11 +570,20 @@ public class CallSiteSpecification implements Validatable {
 
     @Override
     protected void validateAdvice(@Nonnull final ValidationContext context) {
-      if (advice.isVoidReturn()) {
-        context.addError(ErrorCode.ADVICE_AFTER_SHOULD_NOT_RETURN_VOID);
-      }
-      if (findReturn() == null) {
-        context.addError(ErrorCode.ADVICE_AFTER_SHOULD_HAVE_RETURN);
+      if (shouldNotUseReturn(pointcut)) {
+        if (!advice.isVoidReturn()) {
+          context.addError(ErrorCode.ADVICE_AFTER_VOID_METHOD_SHOULD_RETURN_VOID);
+        }
+        if (findReturn() != null) {
+          context.addError(ErrorCode.ADVICE_AFTER_VOID_METHOD_SHOULD_NOT_HAVE_RETURN);
+        }
+      } else {
+        if (advice.isVoidReturn()) {
+          context.addError(ErrorCode.ADVICE_AFTER_SHOULD_NOT_RETURN_VOID);
+        }
+        if (findReturn() == null) {
+          context.addError(ErrorCode.ADVICE_AFTER_SHOULD_HAVE_RETURN);
+        }
       }
       if (!pointcut.isConstructor()) {
         if (!isStaticPointcut() && !includeThis()) {
@@ -586,6 +595,10 @@ public class CallSiteSpecification implements Validatable {
         }
       }
       super.validateAdvice(context);
+    }
+
+    private boolean shouldNotUseReturn(final MethodType type) {
+      return !type.isConstructor() && type.isVoidReturn();
     }
 
     @Override

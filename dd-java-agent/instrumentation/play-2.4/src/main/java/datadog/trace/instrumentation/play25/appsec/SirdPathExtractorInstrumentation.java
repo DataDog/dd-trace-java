@@ -14,7 +14,7 @@ import datadog.trace.agent.tooling.muzzle.Reference;
 /** @see play.api.routing.sird.PathExtractor */
 @AutoService(InstrumenterModule.class)
 public class SirdPathExtractorInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public SirdPathExtractorInstrumentation() {
     super("play");
   }

@@ -1,6 +1,7 @@
 package datadog.trace.api.gateway;
 
 import datadog.trace.api.UserIdCollectionMode;
+import datadog.trace.api.appsec.LoginEventCallback;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.http.StoredBodySupplier;
@@ -276,36 +277,41 @@ public final class Events<D> {
   @SuppressWarnings("rawtypes")
   private static final EventType USER = new ET<>("user", USER_ID);
 
-  /** A user with the mode used for the collection */
+  /** Triggered in every authenticated request to the application */
   @SuppressWarnings("unchecked")
-  public EventType<TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>>> userId() {
+  public EventType<TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>>> user() {
     return (EventType<TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>>>) USER;
   }
 
-  static final int LOGIN_SUCCESS_ID = 23;
+  static final int LOGIN_EVENT_ID = 23;
 
   @SuppressWarnings("rawtypes")
-  private static final EventType LOGIN_SUCCESS = new ET<>("login.success", LOGIN_SUCCESS_ID);
+  private static final EventType LOGIN_EVENT = new ET<>("login.event", LOGIN_EVENT_ID);
 
-  /** The logged user with the mode used for the collection */
+  /** Triggered when the SDK sends a custom event */
   @SuppressWarnings("unchecked")
-  public EventType<TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>>>
-      loginSuccess() {
-    return (EventType<TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>>>)
-        LOGIN_SUCCESS;
+  public EventType<LoginEventCallback> loginEvent() {
+    return (EventType<LoginEventCallback>) LOGIN_EVENT;
   }
 
-  static final int LOGIN_FAILURE_ID = 24;
+  static final int EXEC_CMD_ID = 24;
 
   @SuppressWarnings("rawtypes")
-  private static final EventType LOGIN_FAILURE = new ET<>("login.failure", LOGIN_FAILURE_ID);
+  private static final EventType EXEC_CMD = new ET<>("exec.cmd", EXEC_CMD_ID);
 
-  /** The user tha failed to log in with the mode used for the collection */
   @SuppressWarnings("unchecked")
-  public EventType<TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>>>
-      loginFailure() {
-    return (EventType<TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>>>)
-        LOGIN_FAILURE;
+  public EventType<BiFunction<RequestContext, String[], Flow<Void>>> execCmd() {
+    return (EventType<BiFunction<RequestContext, String[], Flow<Void>>>) EXEC_CMD;
+  }
+
+  static final int SHELL_CMD_ID = 25;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType SHELL_CMD = new ET<>("shell.cmd", SHELL_CMD_ID);
+
+  @SuppressWarnings("unchecked")
+  public EventType<BiFunction<RequestContext, String, Flow<Void>>> shellCmd() {
+    return (EventType<BiFunction<RequestContext, String, Flow<Void>>>) SHELL_CMD;
   }
 
   static final int MAX_EVENTS = nextId.get();

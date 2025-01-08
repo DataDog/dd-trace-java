@@ -158,4 +158,67 @@ public class WebController {
     final HttpSession session = request.getSession(true);
     return new ResponseEntity<>(session.getId(), HttpStatus.OK);
   }
+
+  @PostMapping("/cmdi/arrayCmd")
+  public String shiArrayCmd(@RequestParam("cmd") String[] arrayCmd) {
+    withProcess(() -> Runtime.getRuntime().exec(arrayCmd));
+    return "EXECUTED";
+  }
+
+  @PostMapping("/cmdi/arrayCmdWithParams")
+  public String shiArrayCmdWithParams(
+      @RequestParam("cmd") String[] arrayCmd, @RequestParam("params") String[] params) {
+    withProcess(() -> Runtime.getRuntime().exec(arrayCmd, params));
+    return "EXECUTED";
+  }
+
+  @PostMapping("/cmdi/arrayCmdWithParamsAndFile")
+  public String shiArrayCmdWithParamsAndFile(
+      @RequestParam("cmd") String[] arrayCmd, @RequestParam("params") String[] params) {
+    withProcess(() -> Runtime.getRuntime().exec(arrayCmd, params, new File("")));
+    return "EXECUTED";
+  }
+
+  @PostMapping("/cmdi/processBuilder")
+  public String shiProcessBuilder(@RequestParam("cmd") String[] cmd) {
+    withProcess(() -> new ProcessBuilder(cmd).start());
+    return "EXECUTED";
+  }
+
+  @PostMapping("/shi/cmd")
+  public String shiCmd(@RequestParam("cmd") String cmd) {
+    withProcess(() -> Runtime.getRuntime().exec(cmd));
+    return "EXECUTED";
+  }
+
+  @PostMapping("/shi/cmdWithParams")
+  public String shiCmdWithParams(
+      @RequestParam("cmd") String cmd, @RequestParam("params") String[] params) {
+    withProcess(() -> Runtime.getRuntime().exec(cmd, params));
+    return "EXECUTED";
+  }
+
+  @PostMapping("/shi/cmdParamsAndFile")
+  public String shiCmdParamsAndFile(
+      @RequestParam("cmd") String cmd, @RequestParam("params") String[] params) {
+    withProcess(() -> Runtime.getRuntime().exec(cmd, params, new File("")));
+    return "EXECUTED";
+  }
+
+  private void withProcess(final Operation<Process> op) {
+    Process process = null;
+    try {
+      process = op.run();
+    } catch (final Throwable e) {
+      // ignore it
+    } finally {
+      if (process != null && process.isAlive()) {
+        process.destroyForcibly();
+      }
+    }
+  }
+
+  private interface Operation<E> {
+    E run() throws Throwable;
+  }
 }
