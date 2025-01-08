@@ -28,6 +28,11 @@ public class S3Interceptor implements ExecutionInterceptor {
   @Override
   public void afterExecution(
       Context.AfterExecution context, ExecutionAttributes executionAttributes) {
+    String flag = System.getenv("DD_AWS_SDK_ADD_SPAN_POINTERS");
+    if (flag != null && flag.equalsIgnoreCase("false")) {
+      return;
+    }
+
     AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
     if (span == null) {
       log.debug("Unable to find S3 request span. Not creating span pointer.");
