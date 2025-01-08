@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.debugger.el;
 
+import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
 import static java.lang.invoke.MethodType.methodType;
 
 import datadog.trace.bootstrap.debugger.CapturedContext;
@@ -22,7 +23,7 @@ public class ReflectiveFieldValueResolver {
       MethodHandles.Lookup lookup = MethodHandles.lookup();
       methodHandle = lookup.findVirtual(Field.class, "trySetAccessible", methodType(boolean.class));
     } catch (Exception e) {
-      LOGGER.debug("Looking up trySetAccessible failed: ", e);
+      LOGGER.debug(EXCLUDE_TELEMETRY, "Looking up trySetAccessible failed: ", e);
     }
     TRY_SET_ACCESSIBLE = methodHandle;
   }
@@ -35,7 +36,7 @@ public class ReflectiveFieldValueResolver {
     try {
       field = ReflectiveFieldValueResolver.class.getDeclaredField("INACCESSIBLE_FIELD");
     } catch (Exception e) {
-      LOGGER.debug("INACCESSIBLE_FIELD failed: ", e);
+      LOGGER.debug(EXCLUDE_TELEMETRY, "INACCESSIBLE_FIELD failed: ", e);
     }
     INACCESSIBLE_FIELD = field;
   }
@@ -51,7 +52,7 @@ public class ReflectiveFieldValueResolver {
       MethodHandles.Lookup lookup = MethodHandles.lookup();
       methodHandle = lookup.findVirtual(Class.class, "getModule", methodType(moduleClass));
     } catch (Exception e) {
-      LOGGER.debug("Looking up getModule failed: ", e);
+      LOGGER.debug(EXCLUDE_TELEMETRY, "Looking up getModule failed: ", e);
     }
     GET_MODULE = methodHandle;
     MODULE_CLASS = moduleClass;

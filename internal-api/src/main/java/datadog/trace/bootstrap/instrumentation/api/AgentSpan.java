@@ -9,7 +9,7 @@ import datadog.trace.api.sampling.PrioritySampling;
 import java.util.List;
 import java.util.Map;
 
-public interface AgentSpan extends MutableSpan, IGSpanInfo, ImplicitContextKeyed, WithAgentSpan {
+public interface AgentSpan extends MutableSpan, IGSpanInfo, WithAgentSpan {
 
   DDTraceId getTraceId();
 
@@ -140,11 +140,6 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo, ImplicitContextKeyed
   TraceConfig traceConfig();
 
   void addLink(AgentSpanLink link);
-
-  @Override
-  default ScopedContext storeInto(ScopedContext context) {
-    return context.with(ScopedContextKey.SPAN_KEY, this);
-  }
 
   AgentSpan setMetaStruct(final String field, final Object value);
 
