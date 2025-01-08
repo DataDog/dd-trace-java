@@ -249,7 +249,7 @@ public final class OtelConventions {
     return (String) tag;
   }
 
-  public static AgentSpan.Attributes convertAttributes(Attributes attributes) {
+  public static SpanAttributes convertAttributes(Attributes attributes) {
     if (attributes.isEmpty()) {
       return SpanAttributes.EMPTY;
     }

@@ -5,7 +5,6 @@ import datadog.trace.api.TraceConfig;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.interceptor.MutableSpan;
-import java.util.Map;
 
 public interface AgentSpan extends MutableSpan, IGSpanInfo, WithAgentSpan {
 
@@ -145,21 +144,5 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo, WithAgentSpan {
 
   default AgentSpan asAgentSpan() {
     return this;
-  }
-
-  interface Attributes {
-    /**
-     * Gets the attributes as an immutable map.
-     *
-     * @return The attributes as an immutable map.
-     */
-    Map<String, String> asMap();
-
-    /**
-     * Checks whether the attributes are empty.
-     *
-     * @return {@code true} if the attributes are empty, {@code false} otherwise.
-     */
-    boolean isEmpty();
   }
 }
