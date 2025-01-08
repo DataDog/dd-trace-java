@@ -1,8 +1,9 @@
 package datadog.opentracing
 
-
+import datadog.trace.common.sampling.Sampler
 import datadog.trace.common.writer.DDAgentWriter
 import datadog.trace.common.writer.ListWriter
+import datadog.trace.common.writer.Writer
 import datadog.trace.test.util.DDSpecification
 
 class DDTracerTest extends DDSpecification {
@@ -16,6 +17,21 @@ class DDTracerTest extends DDSpecification {
 
     cleanup:
     tracer.close()
+  }
+
+  def "test deprecated tracer constructor"() {
+    setup:
+    def tracers = []
+
+    when:
+    tracers << new DDTracer()
+    tracers << new DDTracer('serviceName')
+    tracers << new DDTracer('serviceName', Mock(Writer), Mock(Sampler))
+    tracers << new DDTracer('serviceName', Mock(Writer), Mock(Sampler), [:])
+    tracers << new DDTracer(Mock(Writer))
+
+    then:
+    tracers.each { assert it != null }
   }
 
   def "test tracer builder with default writer"() {

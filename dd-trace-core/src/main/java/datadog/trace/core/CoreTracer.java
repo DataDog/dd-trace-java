@@ -497,7 +497,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           singleSpanSampler,
           injector,
           extractor,
-          scopeManager,
           localRootSpanTags,
           defaultSpanTags,
           serviceNameMappings,
@@ -529,7 +528,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final SingleSpanSampler singleSpanSampler,
       final HttpCodec.Injector injector,
       final HttpCodec.Extractor extractor,
-      final AgentScopeManager scopeManager,
       final Map<String, ?> localRootSpanTags,
       final Map<String, ?> defaultSpanTags,
       final Map<String, String> serviceNameMappings,
@@ -632,16 +630,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
             : Monitoring.DISABLED;
 
     traceWriteTimer = performanceMonitoring.newThreadLocalTimer("trace.write");
-    if (scopeManager == null) {
-      this.scopeManager =
-          new ContinuableScopeManager(
-              config.getScopeDepthLimit(),
-              config.isScopeStrictMode(),
-              profilingContextIntegration,
-              healthMetrics);
-    } else {
-      this.scopeManager = scopeManager;
-    }
+
+    scopeManager =
+        new ContinuableScopeManager(
+            config.getScopeDepthLimit(),
+            config.isScopeStrictMode(),
+            profilingContextIntegration,
+            healthMetrics);
 
     externalAgentLauncher = new ExternalAgentLauncher(config);
 
