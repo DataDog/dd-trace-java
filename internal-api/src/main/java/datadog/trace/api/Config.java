@@ -517,6 +517,7 @@ public class Config {
   private final boolean sparkTaskHistogramEnabled;
   private final boolean sparkAppNameAsService;
   private final boolean sparkDataLineageEnabled;
+  private final int sparkDataLineageLimit;
   private final boolean jaxRsExceptionAsErrorsEnabled;
 
   private final boolean axisPromoteResourceName;
@@ -1740,6 +1741,9 @@ public class Config {
 
     this.sparkDataLineageEnabled =
         configProvider.getBoolean(SPARK_DATA_LINEAGE_ENABLED, DEFAULT_SPARK_DATA_LINEAGE_ENABLED);
+
+    this.sparkDataLineageLimit =
+        configProvider.getInteger(SPARK_DATA_LINEAGE_LIMIT, DEFAULT_SPARK_DATA_LINEAGE_LIMIT);
 
     this.jaxRsExceptionAsErrorsEnabled =
         configProvider.getBoolean(
@@ -3268,6 +3272,10 @@ public class Config {
     return sparkDataLineageEnabled;
   }
 
+  public int getSparkDataLineageLimit() {
+    return sparkDataLineageLimit;
+  }
+
   public boolean isJaxRsExceptionAsErrorEnabled() {
     return jaxRsExceptionAsErrorsEnabled;
   }
@@ -4478,6 +4486,8 @@ public class Config {
         + sparkAppNameAsService
         + ", sparkDataLineageEnabled="
         + sparkDataLineageEnabled
+        + ", sparkDataLineageLimit="
+        + sparkDataLineageLimit
         + ", jaxRsExceptionAsErrorsEnabled="
         + jaxRsExceptionAsErrorsEnabled
         + ", axisPromoteResourceName="

@@ -757,7 +757,11 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     sqlPlans.put(sqlStart.executionId(), sqlStart.sparkPlanInfo());
     sqlQueries.put(sqlStart.executionId(), sqlStart);
 
-    if (Config.get().isSparkDataLineageEnabled()) {
+    final int dataLineageLimit = Config.get().getSparkDataLineageLimit();
+    Object datasetCountTagValue = applicationSpan.getTag("spark.sql.dataset_count");
+    final int existingDatasetCount = datasetCountTagValue == null ? 0 : (int) datasetCountTagValue;
+
+    if (Config.get().isSparkDataLineageEnabled() && existingDatasetCount < dataLineageLimit) {
       long sqlExecutionId = sqlStart.executionId();
       QueryExecution queryExecution = SQLExecution.getQueryExecution(sqlExecutionId);
       if (queryExecution != null) {
@@ -770,7 +774,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
               JavaConverters.seqAsJavaList(logicalPlan.collect(SparkSQLUtils.logicalPlanToDataset));
           if (!datasets.isEmpty()) {
             log.info(
-                "Adding {} datasets to query execution id {}", datasets.size(), sqlExecutionId);
+                "Parsed {} datasets for query execution id {}", datasets.size(), sqlExecutionId);
             lineageDatasets.put(sqlExecutionId, datasets);
           } else {
             log.info("No datasets found for query execution id {}", sqlExecutionId);
@@ -796,21 +800,34 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
       List<SparkSQLUtils.LineageDataset> datasets = lineageDatasets.remove(sqlEnd.executionId());
       if (Config.get().isSparkDataLineageEnabled() && datasets != null) {
+        // cap the datasets to avoid too much data in the span
+        final int dataLineageLimit = Config.get().getSparkDataLineageLimit();
+        Object datasetCountTagValue = applicationSpan.getTag("spark.sql.dataset_count");
+        final int existingDatasetCount =
+            datasetCountTagValue == null ? 0 : (int) datasetCountTagValue;
+        int updatedDataSetCount = existingDatasetCount + datasets.size();
+
+        if (updatedDataSetCount > dataLineageLimit) {
+          int datasetAboveLimit = updatedDataSetCount - dataLineageLimit;
+          datasets = datasets.subList(0, datasets.size() - datasetAboveLimit);
+          updatedDataSetCount = dataLineageLimit;
+
+          log.warn(
+              "Data lineage limit {} reached, {} datasets will be skipped, and only adding {} datasets to span for query execution id {}",
+              dataLineageLimit,
+              datasetAboveLimit,
+              datasets.size(),
+              sqlEnd.executionId());
+        }
+
+        applicationSpan.setTag("spark.sql.dataset_count", updatedDataSetCount);
+
         log.info(
             "adding {} datasets to span for query execution id {}",
             datasets.size(),
             sqlEnd.executionId());
 
-        // update the dataset count in the application span
-        Object datasetCount = applicationSpan.getTag("spark.sql.dataset_count");
-        if (datasetCount != null) {
-          applicationSpan.setTag("spark.sql.dataset_count", (int) datasetCount + datasets.size());
-        } else {
-          applicationSpan.setTag("spark.sql.dataset_count", datasets.size());
-        }
-
-        long datasetIndex = datasetCount == null ? 0 : (int) datasetCount;
-
+        int datasetIndex = existingDatasetCount;
         for (int i = 0; i < datasets.size(); i++) {
           SparkSQLUtils.LineageDataset dataset = datasets.get(i);
 
