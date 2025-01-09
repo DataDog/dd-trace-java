@@ -5,6 +5,7 @@ import datadog.communication.monitor.Monitoring
 import datadog.trace.SamplingPriorityMetadataChecker
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
+import datadog.trace.api.flare.TracerFlare
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.time.SystemTimeSource
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
@@ -20,8 +21,11 @@ import spock.util.concurrent.PollingConditions
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.zip.ZipInputStream
+import java.util.zip.ZipOutputStream
 
 import static datadog.trace.core.PendingTraceBuffer.BUFFER_SIZE
+import static java.nio.charset.StandardCharsets.UTF_8
 
 @Timeout(5)
 class PendingTraceBufferTest extends DDSpecification {
@@ -443,6 +447,71 @@ class PendingTraceBufferTest extends DDSpecification {
     }
   }
 
+  def "testing tracer flare dump"() {
+    setup:
+    // Don't start the buffer thread
+    TracerFlare.addReporter {} // exercises default methods
+    def dumpReporter = Mock(PendingTraceBuffer.TracerDump)
+    TracerFlare.addReporter(dumpReporter)
+
+    when:
+    def pendingTrace = factory.create(DDTraceId.ONE)
+    def span = newSpanOf(pendingTrace)
+    def entries = buildAndExtractZip()
+
+    then:
+    1 * dumpReporter.prepareForFlare()
+
+    then:
+    1 * dumpReporter.addReportToFlare(_)
+
+    then:
+    1 * dumpReporter.cleanupAfterFlare()
+
+    and:
+    entries.size() == 2
+    entries["trace_dump.txt"] == "example text"
+    entries["flare_errors.txt"] =~
+      /^(java.lang.IllegalStateException: (bin|txt) \(expected\)\n){2}$/
+//    then:
+//    1 * tracer.captureTraceConfig() >> traceConfig
+//    pendingTrace.rootSpanWritten
+//    pendingTrace.isEnqueued == 0
+//    buffer.queue.size() == 0
+//    _ * bufferSpy.longRunningSpansEnabled()
+//    1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
+//    1 * tracer.write({ it.size() == 1 })
+//    1 * tracer.getPartialFlushMinSpans() >> 10000
+//    1 * traceConfig.getServiceMapping() >> [:]
+//    2 * tracer.getTimeWithNanoTicks(_)
+//    1 * tracer.onRootSpanPublished(_)
+//    0 * _
+//
+//    when: "fail to fill the buffer"
+//    for (i in  1..buffer.queue.capacity()) {
+//      addContinuation(newSpanOf(span)).finish()
+//    }
+//
+//    then:
+//    pendingTrace.isEnqueued == 1
+//    buffer.queue.size() == 1
+//    buffer.queue.capacity() * bufferSpy.enqueue(_)
+//    _ * bufferSpy.longRunningSpansEnabled()
+//    _ * tracer.getPartialFlushMinSpans() >> 10000
+//    _ * traceConfig.getServiceMapping() >> [:]
+//    _ * tracer.getTimeWithNanoTicks(_)
+//    0 * _
+//
+//    when: "process the buffer"
+//    buffer.start()
+//
+//    then:
+//    new PollingConditions(timeout: 3, initialDelay: 0, delay: 0.5, factor: 1).eventually {
+//      assert pendingTrace.isEnqueued == 0
+//    }
+  }
+
+
   def addContinuation(DDSpan span) {
     def scope = scopeManager.activate(span, ScopeSource.INSTRUMENTATION, true)
     continuations << scope.capture()
@@ -501,5 +570,28 @@ class PendingTraceBufferTest extends DDSpecification {
       false,
       PropagationTags.factory().empty())
     return DDSpan.create("test", 0, context, null)
+  }
+
+  def buildAndExtractZip() {
+    TracerFlare.prepareForFlare()
+    def out = new ByteArrayOutputStream()
+    try (ZipOutputStream zip = new ZipOutputStream(out)) {
+      TracerFlare.addReportsToFlare(zip)
+    } finally {
+      TracerFlare.cleanupAfterFlare()
+    }
+
+    def entries = [:]
+
+    def zip = new ZipInputStream(new ByteArrayInputStream(out.toByteArray()))
+    def entry
+    while (entry = zip.nextEntry) {
+      def bytes = new ByteArrayOutputStream()
+      bytes << zip
+      entries.put(entry.name, entry.name.endsWith(".bin")
+        ? bytes.toByteArray() : new String(bytes.toByteArray(), UTF_8))
+    }
+
+    return entries
   }
 }

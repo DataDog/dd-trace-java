@@ -303,60 +303,6 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
                   config, bufferSize, sharedCommunicationObjects, healthMetrics)
               : null;
     }
-
-    static class TracerDump implements TracerFlare.Reporter {
-
-      private final DelayingPendingTraceBuffer buffer;
-      private final Comparator<Element> TRACE_BY_START_TIME =
-          Comparator.comparingLong(trace -> trace.getRootSpan().getStartTime());
-
-      public TracerDump(DelayingPendingTraceBuffer buffer) {
-        this.buffer = buffer;
-      }
-
-      @Override
-      public void addReportToFlare(ZipOutputStream zip) throws IOException {
-        TracerFlare.addText(zip, "trace_dump.txt", getDumpText());
-      }
-
-      private String getDumpText() {
-        if (buffer.worker.isAlive()) {
-          int count = buffer.dumpCounter.get();
-          int loop = 1;
-          boolean signaled = buffer.queue.offer(DumpElement.DUMP_ELEMENT);
-          while (!buffer.closed && !signaled) {
-            buffer.yieldOrSleep(loop++);
-            signaled = buffer.queue.offer(DumpElement.DUMP_ELEMENT);
-          }
-          int newCount = buffer.dumpCounter.get();
-          while (!buffer.closed && count >= newCount) {
-            buffer.yieldOrSleep(loop++);
-            newCount = buffer.dumpCounter.get();
-          }
-        }
-
-        DumpDrain.data.removeIf(
-            (trace) ->
-                !(trace
-                    instanceof
-                    PendingTrace)); // Removing elements from the drain that are not instances of
-        // PendingTrace
-
-        DumpDrain.data.sort((TRACE_BY_START_TIME).reversed()); // Storing oldest traces first
-
-        StringBuilder dumpText = new StringBuilder();
-        for (Element e : DumpDrain.data) {
-          if (e instanceof PendingTrace) {
-            PendingTrace trace = (PendingTrace) e;
-            for (DDSpan span : trace.getSpans()) {
-              dumpText.append(span.toString()).append('\n');
-            }
-          }
-        }
-        DumpDrain.data.clear(); // releasing memory used for ArrayList in drain
-        return dumpText.toString();
-      }
-    }
   }
 
   static class DiscardingPendingTraceBuffer extends PendingTraceBuffer {
@@ -399,4 +345,58 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
   public abstract void flush();
 
   public abstract void enqueue(Element pendingTrace);
+
+  public static class TracerDump implements TracerFlare.Reporter {
+
+    private final DelayingPendingTraceBuffer buffer;
+    private final Comparator<Element> TRACE_BY_START_TIME =
+        Comparator.comparingLong(trace -> trace.getRootSpan().getStartTime());
+
+    public TracerDump(DelayingPendingTraceBuffer buffer) {
+      this.buffer = buffer;
+    }
+
+    @Override
+    public void addReportToFlare(ZipOutputStream zip) throws IOException {
+      TracerFlare.addText(zip, "trace_dump.txt", getDumpText());
+    }
+
+    private String getDumpText() {
+      if (buffer.worker.isAlive()) {
+        int count = buffer.dumpCounter.get();
+        int loop = 1;
+        boolean signaled = buffer.queue.offer(DelayingPendingTraceBuffer.DumpElement.DUMP_ELEMENT);
+        while (!buffer.closed && !signaled) {
+          buffer.yieldOrSleep(loop++);
+          signaled = buffer.queue.offer(DelayingPendingTraceBuffer.DumpElement.DUMP_ELEMENT);
+        }
+        int newCount = buffer.dumpCounter.get();
+        while (!buffer.closed && count >= newCount) {
+          buffer.yieldOrSleep(loop++);
+          newCount = buffer.dumpCounter.get();
+        }
+      }
+
+      DelayingPendingTraceBuffer.DumpDrain.data.removeIf(
+          (trace) ->
+              !(trace
+                  instanceof
+                  PendingTrace)); // Removing elements from the drain that are not instances of
+      // PendingTrace
+
+      DelayingPendingTraceBuffer.DumpDrain.data.sort((TRACE_BY_START_TIME).reversed()); // Storing oldest traces first
+
+      StringBuilder dumpText = new StringBuilder();
+      for (Element e : DelayingPendingTraceBuffer.DumpDrain.data) {
+        if (e instanceof PendingTrace) {
+          PendingTrace trace = (PendingTrace) e;
+          for (DDSpan span : trace.getSpans()) {
+            dumpText.append(span.toString()).append('\n');
+          }
+        }
+      }
+      DelayingPendingTraceBuffer.DumpDrain.data.clear(); // releasing memory used for ArrayList in drain
+      return dumpText.toString();
+    }
+  }
 }
