@@ -13,6 +13,7 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.SpanLink;
 import datadog.trace.util.AgentThreadFactory;
@@ -321,7 +322,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       builder.withTag("databricks_job_run_id", databricksJobRunId);
       builder.withTag("databricks_task_run_id", databricksTaskRunId);
 
-      AgentSpan.Context parentContext =
+      AgentSpanContext parentContext =
           new DatabricksParentContext(databricksJobId, databricksJobRunId, databricksTaskRunId);
 
       if (parentContext.getTraceId() != DDTraceId.ZERO) {

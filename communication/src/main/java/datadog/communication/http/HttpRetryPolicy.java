@@ -160,6 +160,8 @@ public class HttpRetryPolicy implements AutoCloseable {
   }
 
   public static class Factory {
+    public static final Factory NEVER_RETRY = new Factory(0, 0, 0);
+
     private final int maxRetries;
     private final long initialDelay;
     private final double delayFactor;

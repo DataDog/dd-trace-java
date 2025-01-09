@@ -18,7 +18,7 @@ import java.util.TreeMap;
  * When calling extract, we allow for grabbing other configured headers as tags. Those tags are
  * returned here even if the rest of the request would have returned null.
  */
-public class TagContext implements AgentSpan.Context.Extracted {
+public class TagContext implements AgentSpanContext.Extracted {
 
   private static final HttpHeaders EMPTY_HTTP_HEADERS = new HttpHeaders();
 

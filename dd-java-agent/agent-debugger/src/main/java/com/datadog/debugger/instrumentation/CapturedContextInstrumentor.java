@@ -902,7 +902,8 @@ public class CapturedContextInstrumentor extends Instrumentor {
       return;
     }
     Collection<LocalVariableNode> localVarNodes;
-    if (definition.isLineProbe()) {
+    boolean isLocalVarHoistingEnabled = Config.get().isDebuggerHoistLocalVarsEnabled();
+    if (definition.isLineProbe() || !isLocalVarHoistingEnabled) {
       localVarNodes = methodNode.localVariables;
     } else {
       localVarNodes = unscopedLocalVars;
@@ -913,7 +914,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
       int idx = variableNode.index - localVarBaseOffset;
       if (idx >= argOffset) {
         // var is local not arg
-        if (isLineProbe) {
+        if (isLineProbe || !isLocalVarHoistingEnabled) {
           if (ASMHelper.isInScope(methodNode, variableNode, location)) {
             applicableVars.add(variableNode);
           }

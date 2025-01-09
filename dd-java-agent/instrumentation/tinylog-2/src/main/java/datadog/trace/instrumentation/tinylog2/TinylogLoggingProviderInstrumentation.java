@@ -14,6 +14,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.tinylog.core.LogEntry;
@@ -32,7 +33,7 @@ public class TinylogLoggingProviderInstrumentation extends InstrumenterModule.Tr
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("org.tinylog.core.LogEntry", AgentSpan.Context.class.getName());
+    return singletonMap("org.tinylog.core.LogEntry", AgentSpanContext.class.getName());
   }
 
   @Override
@@ -52,7 +53,7 @@ public class TinylogLoggingProviderInstrumentation extends InstrumenterModule.Tr
       AgentSpan span = activeSpan();
 
       if (span != null && traceConfig(span).isLogsInjectionEnabled()) {
-        InstrumentationContext.get(LogEntry.class, AgentSpan.Context.class)
+        InstrumentationContext.get(LogEntry.class, AgentSpanContext.class)
             .put(event, span.context());
       }
     }

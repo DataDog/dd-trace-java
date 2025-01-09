@@ -26,6 +26,7 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.instrumentation.servlet.ServletBlockingHelper;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Collections;
@@ -104,7 +105,7 @@ public final class LibertyServerInstrumentation extends InstrumenterModule.Traci
       } catch (NullPointerException e) {
       }
 
-      final AgentSpan.Context.Extracted extractedContext = DECORATE.extract(request);
+      final AgentSpanContext.Extracted extractedContext = DECORATE.extract(request);
       request.setAttribute(DD_EXTRACTED_CONTEXT_ATTRIBUTE, extractedContext);
       final AgentSpan span = DECORATE.startSpan(request, extractedContext);
       scope = activateSpan(span, true);
