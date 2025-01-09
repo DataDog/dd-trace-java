@@ -13,7 +13,7 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class FormUrlEncodedInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public FormUrlEncodedInstrumentation() {
     super("play");
   }

@@ -16,7 +16,9 @@ import org.apache.hc.client5.http.classic.methods.HttpUriRequestBase;
 
 @AutoService(InstrumenterModule.class)
 public class IastHttpUriRequestBaseInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice {
+    implements Instrumenter.ForSingleType,
+        Instrumenter.HasTypeAdvice,
+        Instrumenter.HasMethodAdvice {
 
   public IastHttpUriRequestBaseInstrumentation() {
     super("apache-httpclient", "httpclient5");

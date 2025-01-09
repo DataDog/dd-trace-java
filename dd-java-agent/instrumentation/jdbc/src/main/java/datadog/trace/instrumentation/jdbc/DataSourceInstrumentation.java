@@ -20,7 +20,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class DataSourceInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForBootstrap,
+        Instrumenter.ForTypeHierarchy,
+        Instrumenter.HasMethodAdvice {
   public DataSourceInstrumentation() {
     super("jdbc-datasource");
   }

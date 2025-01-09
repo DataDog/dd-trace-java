@@ -19,7 +19,7 @@ import org.springframework.security.core.AuthenticationException;
 
 @AutoService(InstrumenterModule.class)
 public class AuthenticationManagerInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public AuthenticationManagerInstrumentation() {
     super("spring-security");

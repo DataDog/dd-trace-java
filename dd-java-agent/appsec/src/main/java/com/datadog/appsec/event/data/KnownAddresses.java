@@ -111,6 +111,8 @@ public interface KnownAddresses {
 
   Address<String> USER_ID = new Address<>("usr.id");
 
+  Address<String> USER_LOGIN = new Address<>("usr.login");
+
   Address<String> SESSION_ID = new Address<>("usr.session_id");
 
   /** The URL of a network resource being requested (outgoing request) */
@@ -130,6 +132,12 @@ public interface KnownAddresses {
 
   /** Login success business event */
   Address<String> LOGIN_SUCCESS = new Address<>("server.business_logic.users.login.success");
+
+  /** The Exec command being executed */
+  Address<String> EXEC_CMD = new Address<>("server.sys.exec.cmd");
+
+  /** The Shell command being executed */
+  Address<String> SHELL_CMD = new Address<>("server.sys.shell.cmd");
 
   Address<Map<String, Object>> WAF_CONTEXT_PROCESSOR = new Address<>("waf.context.processor");
 
@@ -189,6 +197,8 @@ public interface KnownAddresses {
         return SERVER_GRAPHQL_ALL_RESOLVERS;
       case "usr.id":
         return USER_ID;
+      case "usr.login":
+        return USER_LOGIN;
       case "usr.session_id":
         return SESSION_ID;
       case "server.io.net.url":
@@ -205,6 +215,10 @@ public interface KnownAddresses {
         return LOGIN_SUCCESS;
       case "server.business_logic.users.login.failure":
         return LOGIN_FAILURE;
+      case "server.sys.exec.cmd":
+        return EXEC_CMD;
+      case "server.sys.shell.cmd":
+        return SHELL_CMD;
       default:
         return null;
     }

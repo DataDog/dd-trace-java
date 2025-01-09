@@ -13,7 +13,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class ThreadContextInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   private static final String TYPE_NAME = "org.apache.logging.log4j.ThreadContext";
 
   public ThreadContextInstrumentation() {

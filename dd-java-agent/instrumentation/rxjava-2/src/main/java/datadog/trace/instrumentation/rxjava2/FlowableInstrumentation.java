@@ -22,7 +22,7 @@ import org.reactivestreams.Subscriber;
 
 @AutoService(InstrumenterModule.class)
 public final class FlowableInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public FlowableInstrumentation() {
     super("rxjava");
   }

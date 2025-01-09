@@ -28,7 +28,7 @@ import org.apache.tomcat.util.http.Parameters;
 
 @AutoService(InstrumenterModule.class)
 public class ParsedBodyParametersInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public ParsedBodyParametersInstrumentation() {
     super("tomcat");

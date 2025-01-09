@@ -16,7 +16,7 @@ import rx.Observable;
 
 @AutoService(InstrumenterModule.class)
 public class CouchbaseBucketInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   public CouchbaseBucketInstrumentation() {
     super("couchbase");

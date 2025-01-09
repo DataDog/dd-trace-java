@@ -25,7 +25,9 @@ import org.bson.ByteBuf;
 
 @AutoService(InstrumenterModule.class)
 public final class MongoClient31Instrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForKnownTypes, Instrumenter.WithTypeStructure {
+    implements Instrumenter.ForKnownTypes,
+        Instrumenter.WithTypeStructure,
+        Instrumenter.HasMethodAdvice {
 
   public MongoClient31Instrumentation() {
     super("mongo", "mongo-3.1");

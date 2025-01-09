@@ -22,7 +22,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class AbstractParserInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   static final String instrumentationName = "protobuf";
   static final String TARGET_TYPE = "com.google.protobuf.AbstractParser";

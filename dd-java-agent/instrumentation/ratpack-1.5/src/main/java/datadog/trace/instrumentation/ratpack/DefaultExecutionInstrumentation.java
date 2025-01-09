@@ -17,7 +17,7 @@ import ratpack.path.PathBinding;
 
 @AutoService(InstrumenterModule.class)
 public final class DefaultExecutionInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public DefaultExecutionInstrumentation() {
     super("ratpack");

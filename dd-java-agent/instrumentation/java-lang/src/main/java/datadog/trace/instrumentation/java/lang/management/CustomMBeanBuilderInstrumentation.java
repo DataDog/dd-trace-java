@@ -13,7 +13,7 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class CustomMBeanBuilderInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForConfiguredType {
+    implements Instrumenter.ForConfiguredType, Instrumenter.HasMethodAdvice {
 
   private final String customBuilder;
 

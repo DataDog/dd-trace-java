@@ -340,6 +340,10 @@ public class ASMHelper {
     return Strings.getClassName(classNode.superName);
   }
 
+  public static boolean isStore(int opcode) {
+    return opcode >= Opcodes.ISTORE && opcode <= Opcodes.ASTORE;
+  }
+
   /** Wraps ASM's {@link org.objectweb.asm.Type} with associated generic types */
   public static class Type {
     private final org.objectweb.asm.Type mainType;

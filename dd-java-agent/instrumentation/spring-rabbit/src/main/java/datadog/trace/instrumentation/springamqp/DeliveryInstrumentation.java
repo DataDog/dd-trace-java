@@ -16,7 +16,7 @@ import org.springframework.amqp.rabbit.support.Delivery;
 
 @AutoService(InstrumenterModule.class)
 public class DeliveryInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public DeliveryInstrumentation() {
     super("spring-rabbit");
   }

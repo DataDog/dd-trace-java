@@ -16,7 +16,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class RouterFunctionInstrumentation extends AbstractWebfluxInstrumentation
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public RouterFunctionInstrumentation() {
     super("spring-webflux-functional");

@@ -10,7 +10,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 
 @AutoService(InstrumenterModule.class)
 public class HeaderParamInjectorInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public HeaderParamInjectorInstrumentation() {
     super("resteasy");

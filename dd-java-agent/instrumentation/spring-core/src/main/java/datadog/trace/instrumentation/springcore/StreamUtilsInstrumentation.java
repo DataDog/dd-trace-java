@@ -20,7 +20,7 @@ import org.springframework.util.StreamUtils;
 
 @AutoService(InstrumenterModule.class)
 public final class StreamUtilsInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public StreamUtilsInstrumentation() {
     super("spring-core");

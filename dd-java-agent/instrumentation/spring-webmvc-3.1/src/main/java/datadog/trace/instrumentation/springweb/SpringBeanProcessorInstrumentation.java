@@ -18,7 +18,7 @@ import org.springframework.beans.factory.config.BeanDefinition;
  */
 @AutoService(InstrumenterModule.class)
 public class SpringBeanProcessorInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public SpringBeanProcessorInstrumentation() {
     super("spring-web");
   }

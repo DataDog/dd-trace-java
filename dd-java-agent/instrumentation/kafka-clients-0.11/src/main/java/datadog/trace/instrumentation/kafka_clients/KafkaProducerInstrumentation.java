@@ -46,7 +46,7 @@ import org.apache.kafka.common.record.RecordBatch;
 
 @AutoService(InstrumenterModule.class)
 public final class KafkaProducerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public KafkaProducerInstrumentation() {
     super("kafka", "kafka-0.11");

@@ -13,7 +13,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 /** Obtain template and matrix variables for RequestMappingInfoHandlerMapping. */
 @AutoService(InstrumenterModule.class)
 public class TemplateAndMatrixVariablesInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public TemplateAndMatrixVariablesInstrumentation() {
     super("spring-webflux");
   }

@@ -20,7 +20,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class HttpServerResponseInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
   @Override
   public Reference[] additionalMuzzleReferences() {
     return new Reference[] {PARSABLE_HEADER_VALUE, VIRTUAL_HOST_HANDLER};

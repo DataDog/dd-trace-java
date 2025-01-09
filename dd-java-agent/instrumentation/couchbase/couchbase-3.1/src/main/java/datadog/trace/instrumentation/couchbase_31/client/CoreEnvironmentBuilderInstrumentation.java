@@ -11,7 +11,7 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class CoreEnvironmentBuilderInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public CoreEnvironmentBuilderInstrumentation() {
     super("couchbase", "couchbase-3");

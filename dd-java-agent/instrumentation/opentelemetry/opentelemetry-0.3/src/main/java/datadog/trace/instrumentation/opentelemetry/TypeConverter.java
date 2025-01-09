@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.opentelemetry;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import io.opentelemetry.context.Scope;
@@ -67,7 +68,7 @@ public class TypeConverter {
     return new OtelScope(scope);
   }
 
-  public SpanContext toSpanContext(final AgentSpan.Context context) {
+  public SpanContext toSpanContext(final AgentSpanContext context) {
     if (context == null) {
       return null;
     }
@@ -78,7 +79,7 @@ public class TypeConverter {
     return new OtelSpanContext(context);
   }
 
-  public AgentSpan.Context toContext(final SpanContext spanContext) {
+  public AgentSpanContext toContext(final SpanContext spanContext) {
     if (spanContext instanceof OtelSpanContext) {
       return ((OtelSpanContext) spanContext).getDelegate();
     }

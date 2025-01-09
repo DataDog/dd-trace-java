@@ -2,12 +2,12 @@ package datadog.trace.api.gateway;
 
 import static datadog.trace.api.gateway.Events.DATABASE_CONNECTION_ID;
 import static datadog.trace.api.gateway.Events.DATABASE_SQL_QUERY_ID;
+import static datadog.trace.api.gateway.Events.EXEC_CMD_ID;
 import static datadog.trace.api.gateway.Events.FILE_LOADED_ID;
 import static datadog.trace.api.gateway.Events.GRAPHQL_SERVER_REQUEST_MESSAGE_ID;
 import static datadog.trace.api.gateway.Events.GRPC_SERVER_METHOD_ID;
 import static datadog.trace.api.gateway.Events.GRPC_SERVER_REQUEST_MESSAGE_ID;
-import static datadog.trace.api.gateway.Events.LOGIN_FAILURE_ID;
-import static datadog.trace.api.gateway.Events.LOGIN_SUCCESS_ID;
+import static datadog.trace.api.gateway.Events.LOGIN_EVENT_ID;
 import static datadog.trace.api.gateway.Events.MAX_EVENTS;
 import static datadog.trace.api.gateway.Events.NETWORK_CONNECTION_ID;
 import static datadog.trace.api.gateway.Events.REQUEST_BODY_CONVERTED_ID;
@@ -25,9 +25,11 @@ import static datadog.trace.api.gateway.Events.REQUEST_STARTED_ID;
 import static datadog.trace.api.gateway.Events.RESPONSE_HEADER_DONE_ID;
 import static datadog.trace.api.gateway.Events.RESPONSE_HEADER_ID;
 import static datadog.trace.api.gateway.Events.RESPONSE_STARTED_ID;
+import static datadog.trace.api.gateway.Events.SHELL_CMD_ID;
 import static datadog.trace.api.gateway.Events.USER_ID;
 
 import datadog.trace.api.UserIdCollectionMode;
+import datadog.trace.api.appsec.LoginEventCallback;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.http.StoredBodySupplier;
@@ -385,16 +387,36 @@ public class InstrumentationGateway {
               }
             };
       case USER_ID:
-      case LOGIN_SUCCESS_ID:
-      case LOGIN_FAILURE_ID:
         return (C)
             new TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>>() {
               @Override
-              public Flow<Void> apply(RequestContext ctx, UserIdCollectionMode mode, String arg) {
+              public Flow<Void> apply(
+                  RequestContext ctx, UserIdCollectionMode mode, String userId) {
                 try {
                   return ((TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>>)
                           callback)
-                      .apply(ctx, mode, arg);
+                      .apply(ctx, mode, userId);
+                } catch (Throwable t) {
+                  log.warn("Callback for {} threw.", eventType, t);
+                  return Flow.ResultFlow.empty();
+                }
+              }
+            };
+      case LOGIN_EVENT_ID:
+        return (C)
+            new LoginEventCallback() {
+
+              @Override
+              public Flow<Void> apply(
+                  RequestContext ctx,
+                  UserIdCollectionMode mode,
+                  String eventName,
+                  Boolean exists,
+                  String user,
+                  Map<String, String> metadata) {
+                try {
+                  return ((LoginEventCallback) callback)
+                      .apply(ctx, mode, eventName, exists, user, metadata);
                 } catch (Throwable t) {
                   log.warn("Callback for {} threw.", eventType, t);
                   return Flow.ResultFlow.empty();
@@ -418,12 +440,27 @@ public class InstrumentationGateway {
       case DATABASE_SQL_QUERY_ID:
       case NETWORK_CONNECTION_ID:
       case FILE_LOADED_ID:
+      case SHELL_CMD_ID:
         return (C)
             new BiFunction<RequestContext, String, Flow<Void>>() {
               @Override
               public Flow<Void> apply(RequestContext ctx, String arg) {
                 try {
                   return ((BiFunction<RequestContext, String, Flow<Void>>) callback)
+                      .apply(ctx, arg);
+                } catch (Throwable t) {
+                  log.warn("Callback for {} threw.", eventType, t);
+                  return Flow.ResultFlow.empty();
+                }
+              }
+            };
+      case EXEC_CMD_ID:
+        return (C)
+            new BiFunction<RequestContext, String[], Flow<Void>>() {
+              @Override
+              public Flow<Void> apply(RequestContext ctx, String[] arg) {
+                try {
+                  return ((BiFunction<RequestContext, String[], Flow<Void>>) callback)
                       .apply(ctx, arg);
                 } catch (Throwable t) {
                   log.warn("Callback for {} threw.", eventType, t);

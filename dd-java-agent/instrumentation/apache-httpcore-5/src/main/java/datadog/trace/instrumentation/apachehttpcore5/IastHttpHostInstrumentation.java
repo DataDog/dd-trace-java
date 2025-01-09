@@ -14,7 +14,7 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class IastHttpHostInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public IastHttpHostInstrumentation() {
     super("httpcore-5", "apache-httpcore-5", "apache-http-core-5");

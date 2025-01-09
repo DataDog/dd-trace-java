@@ -19,7 +19,7 @@ import org.springframework.security.core.context.SecurityContext;
 
 @AutoService(InstrumenterModule.class)
 public class SecurityContextHolderInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public SecurityContextHolderInstrumentation() {
     super("spring-security");

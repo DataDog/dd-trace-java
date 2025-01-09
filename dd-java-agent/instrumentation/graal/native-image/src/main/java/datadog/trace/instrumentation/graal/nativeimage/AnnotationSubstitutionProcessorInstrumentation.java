@@ -12,7 +12,8 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public final class AnnotationSubstitutionProcessorInstrumentation
-    extends AbstractNativeImageInstrumentation implements Instrumenter.ForSingleType {
+    extends AbstractNativeImageInstrumentation
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   @Override
   public String instrumentedType() {

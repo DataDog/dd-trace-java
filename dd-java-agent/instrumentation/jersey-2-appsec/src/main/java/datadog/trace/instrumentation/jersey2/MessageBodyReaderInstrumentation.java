@@ -23,7 +23,7 @@ import net.bytebuddy.asm.Advice;
 // keep in sync with jersey3 (jakarta packages)
 @AutoService(InstrumenterModule.class)
 public class MessageBodyReaderInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public MessageBodyReaderInstrumentation() {
     super("jersey");

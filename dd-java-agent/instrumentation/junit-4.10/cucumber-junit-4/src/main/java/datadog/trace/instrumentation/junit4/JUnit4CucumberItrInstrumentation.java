@@ -25,7 +25,7 @@ import org.junit.runner.notification.RunNotifier;
 
 @AutoService(InstrumenterModule.class)
 public class JUnit4CucumberItrInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public JUnit4CucumberItrInstrumentation() {
     super("ci-visibility", "junit-4", "junit-4-cucumber");

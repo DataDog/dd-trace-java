@@ -24,7 +24,7 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class SingleThreadEventExecutorInstrumentation extends InstrumenterModule.Profiling
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
   public SingleThreadEventExecutorInstrumentation() {
     super("netty-concurrent", "netty-event-executor");
   }

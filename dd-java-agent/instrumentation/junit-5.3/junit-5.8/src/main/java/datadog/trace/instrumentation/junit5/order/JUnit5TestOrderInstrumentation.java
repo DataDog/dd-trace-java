@@ -24,7 +24,7 @@ import org.junit.jupiter.engine.config.JupiterConfiguration;
 
 @AutoService(InstrumenterModule.class)
 public class JUnit5TestOrderInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   private final String parentPackageName =
       Strings.getPackageName(JUnitPlatformUtils.class.getName());

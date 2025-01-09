@@ -7,6 +7,7 @@ import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import net.bytebuddy.asm.Advice;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.internal.HttpChannelState;
@@ -27,7 +28,7 @@ public class JettyServerAdvice {
         }
       }
 
-      final AgentSpan.Context.Extracted extractedContext = JettyDecorator.DECORATE.extract(req);
+      final AgentSpanContext.Extracted extractedContext = JettyDecorator.DECORATE.extract(req);
       final AgentSpan span = JettyDecorator.DECORATE.startSpan(req, extractedContext);
       try (final AgentScope scope = activateSpan(span, true)) {
         span.setMeasured(true);

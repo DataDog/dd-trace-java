@@ -22,7 +22,7 @@ import redis.clients.jedis.commands.ProtocolCommand;
 
 @AutoService(InstrumenterModule.class)
 public final class JedisInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public JedisInstrumentation() {
     super("jedis", "redis");

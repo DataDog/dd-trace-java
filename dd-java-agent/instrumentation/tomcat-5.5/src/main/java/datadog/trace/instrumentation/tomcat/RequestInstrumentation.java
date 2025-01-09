@@ -30,7 +30,9 @@ import org.apache.catalina.connector.Response;
 
 @AutoService(InstrumenterModule.class)
 public final class RequestInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice {
+    implements Instrumenter.ForSingleType,
+        Instrumenter.HasTypeAdvice,
+        Instrumenter.HasMethodAdvice {
 
   public RequestInstrumentation() {
     super("tomcat");

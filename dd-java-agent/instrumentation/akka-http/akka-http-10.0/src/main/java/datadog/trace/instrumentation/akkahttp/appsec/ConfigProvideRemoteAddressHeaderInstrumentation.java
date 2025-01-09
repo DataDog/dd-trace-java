@@ -13,7 +13,7 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class ConfigProvideRemoteAddressHeaderInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public ConfigProvideRemoteAddressHeaderInstrumentation() {
     super("akka-http");
   }

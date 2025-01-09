@@ -15,7 +15,7 @@ import org.eclipse.jetty.server.HttpChannel;
 
 @AutoService(InstrumenterModule.class)
 public class ArmeriaJettyInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public ArmeriaJettyInstrumentation() {
     super("armeria-jetty", "armeria");
   }

@@ -19,7 +19,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 @AutoService(InstrumenterModule.class)
 public class CompletableFutureUniCompletionSubclassInstrumentation
     extends InstrumenterModule.Tracing
-    implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForBootstrap,
+        Instrumenter.ForTypeHierarchy,
+        Instrumenter.HasMethodAdvice {
 
   public CompletableFutureUniCompletionSubclassInstrumentation() {
     super("java_completablefuture", "java_concurrent");

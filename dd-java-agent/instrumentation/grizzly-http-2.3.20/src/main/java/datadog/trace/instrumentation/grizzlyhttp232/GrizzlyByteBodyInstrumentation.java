@@ -28,7 +28,7 @@ import org.glassfish.grizzly.utils.Charsets;
 
 @AutoService(InstrumenterModule.class)
 public class GrizzlyByteBodyInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public GrizzlyByteBodyInstrumentation() {
     super("grizzly");
   }

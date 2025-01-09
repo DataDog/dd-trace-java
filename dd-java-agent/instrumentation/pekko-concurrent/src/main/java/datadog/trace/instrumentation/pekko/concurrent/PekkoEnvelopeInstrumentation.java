@@ -15,7 +15,7 @@ import org.apache.pekko.dispatch.Envelope;
 
 @AutoService(InstrumenterModule.class)
 public class PekkoEnvelopeInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public PekkoEnvelopeInstrumentation() {
     super("pekko_actor_send", "pekko_actor", "pekko_concurrent", "java_concurrent");

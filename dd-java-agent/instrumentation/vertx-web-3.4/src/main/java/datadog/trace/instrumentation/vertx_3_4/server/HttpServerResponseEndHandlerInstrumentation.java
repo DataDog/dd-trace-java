@@ -11,7 +11,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 
 @AutoService(InstrumenterModule.class)
 public class HttpServerResponseEndHandlerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public HttpServerResponseEndHandlerInstrumentation() {
     super("vertx", "vertx-3.4");
   }

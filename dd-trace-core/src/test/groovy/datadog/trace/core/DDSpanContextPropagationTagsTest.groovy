@@ -1,7 +1,7 @@
 package datadog.trace.core
 
 import datadog.trace.api.DDTraceId
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.propagation.ExtractedContext
 import datadog.trace.core.propagation.PropagationTags
@@ -27,7 +27,7 @@ class DDSpanContextPropagationTagsTest extends DDCoreSpecification {
     def extracted = new ExtractedContext(DDTraceId.from(123), 456, priority, "789", propagationTags, DATADOG)
       .withRequestContextDataAppSec("dummy")
     def span = (DDSpan) tracer.buildSpan("top")
-      .asChildOf((AgentSpan.Context) extracted)
+      .asChildOf((AgentSpanContext) extracted)
       .start()
     def dd = span.context().getPropagationTags()
 
@@ -56,7 +56,7 @@ class DDSpanContextPropagationTagsTest extends DDCoreSpecification {
     def extracted = new ExtractedContext(DDTraceId.from(123), 456, priority, "789", propagationTags, DATADOG)
       .withRequestContextDataAppSec("dummy")
     def rootSpan = (DDSpan) tracer.buildSpan("top")
-      .asChildOf((AgentSpan.Context) extracted)
+      .asChildOf((AgentSpanContext) extracted)
       .start()
     def ddRoot = rootSpan.context().getPropagationTags()
     def span = (DDSpan) tracer.buildSpan("current").asChildOf(rootSpan).start()
@@ -86,7 +86,7 @@ class DDSpanContextPropagationTagsTest extends DDCoreSpecification {
     def extracted = new ExtractedContext(DDTraceId.from(123), 456, priority, "789", propagationTags, DATADOG)
       .withRequestContextDataAppSec("dummy")
     def span = (DDSpan) tracer.buildSpan("top")
-      .asChildOf((AgentSpan.Context) extracted)
+      .asChildOf((AgentSpanContext) extracted)
       .start()
     def dd = span.context().getPropagationTags()
 
@@ -113,7 +113,7 @@ class DDSpanContextPropagationTagsTest extends DDCoreSpecification {
     def extracted = new ExtractedContext(DDTraceId.from(123), 456, priority, "789", propagationTags, DATADOG)
       .withRequestContextDataAppSec("dummy")
     def rootSpan = (DDSpan) tracer.buildSpan("top")
-      .asChildOf((AgentSpan.Context) extracted)
+      .asChildOf((AgentSpanContext) extracted)
       .start()
     def ddRoot = rootSpan.context().getPropagationTags()
     def span = (DDSpan) tracer.buildSpan("current").asChildOf(rootSpan).start()
