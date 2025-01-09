@@ -236,6 +236,7 @@ include ':dd-java-agent:instrumentation:graphql-java'
 include ':dd-java-agent:instrumentation:graphql-java:graphql-java-14.0'
 include ':dd-java-agent:instrumentation:graphql-java:graphql-java-20.0'
 include ':dd-java-agent:instrumentation:graphql-java:graphql-java-common'
+include ':dd-java-agent:instrumentation:graalvmjs'
 include ':dd-java-agent:instrumentation:grizzly-2'
 include ':dd-java-agent:instrumentation:grizzly-client-1.9'
 include ':dd-java-agent:instrumentation:grizzly-http-2.3.20'
@@ -479,4 +480,5 @@ include ':dd-java-agent:benchmark'
 include ':dd-java-agent:benchmark-integration'
 include ':dd-java-agent:benchmark-integration:jetty-perftest'
 include ':dd-java-agent:benchmark-integration:play-perftest'
+
 
