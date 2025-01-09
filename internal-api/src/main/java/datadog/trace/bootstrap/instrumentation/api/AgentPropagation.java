@@ -29,26 +29,13 @@ public interface AgentPropagation {
     void set(C carrier, String key, String value);
   }
 
-  interface BinarySetter<C> extends Setter<C> {
-    void set(C carrier, String key, byte[] value);
-  }
-
   <C> AgentSpanContext.Extracted extract(C carrier, ContextVisitor<C> getter);
 
   interface KeyClassifier {
-
     boolean accept(String key, String value);
-  }
-
-  interface BinaryKeyClassifier {
-    boolean accept(String key, byte[] value);
   }
 
   interface ContextVisitor<C> {
     void forEachKey(C carrier, KeyClassifier classifier);
-  }
-
-  interface BinaryContextVisitor<C> extends ContextVisitor<C> {
-    void forEachKey(C carrier, BinaryKeyClassifier classifier);
   }
 }

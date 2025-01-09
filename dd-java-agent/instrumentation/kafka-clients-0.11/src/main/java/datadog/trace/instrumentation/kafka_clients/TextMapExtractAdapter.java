@@ -5,6 +5,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation.ContextVisitor;
 import java.nio.ByteBuffer;
 import java.util.Base64;
 import org.apache.kafka.common.header.Header;
@@ -12,10 +13,7 @@ import org.apache.kafka.common.header.Headers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class TextMapExtractAdapter
-    implements AgentPropagation.ContextVisitor<Headers>,
-        AgentPropagation.BinaryContextVisitor<Headers> {
-
+public class TextMapExtractAdapter implements ContextVisitor<Headers> {
   private static final Logger log = LoggerFactory.getLogger(TextMapExtractAdapter.class);
 
   public static final TextMapExtractAdapter GETTER =
@@ -32,27 +30,14 @@ public class TextMapExtractAdapter
     for (Header header : carrier) {
       String key = header.key();
       byte[] value = header.value();
-      if (null != value) {
-        String string =
-            base64 != null
-                ? new String(base64.decode(header.value()), UTF_8)
-                : new String(header.value(), UTF_8);
-        if (!classifier.accept(key, string)) {
-          return;
-        }
+      if (null == value) {
+        continue;
       }
-    }
-  }
-
-  @Override
-  public void forEachKey(Headers carrier, AgentPropagation.BinaryKeyClassifier classifier) {
-    for (Header header : carrier) {
-      String key = header.key();
-      byte[] value = header.value();
-      if (null != value) {
-        if (!classifier.accept(key, value)) {
-          return;
-        }
+      if (base64 != null) {
+        value = base64.decode(value);
+      }
+      if (!classifier.accept(key, new String(value, UTF_8))) {
+        return;
       }
     }
   }
