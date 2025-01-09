@@ -27,7 +27,6 @@ import static org.objectweb.asm.Type.LONG_TYPE;
 import static org.objectweb.asm.Type.VOID_TYPE;
 import static org.objectweb.asm.Type.getType;
 
-import com.datadog.debugger.probe.ExceptionProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.Where;
@@ -70,6 +69,7 @@ import org.slf4j.LoggerFactory;
 public class CapturedContextInstrumentor extends Instrumentor {
   private static final Logger LOGGER = LoggerFactory.getLogger(CapturedContextInstrumentor.class);
   private final boolean captureSnapshot;
+  private final boolean captureEntry;
   private final Limits limits;
   private final LabelNode contextInitLabel = new LabelNode();
   private int entryContextVar = -1;
@@ -84,9 +84,11 @@ public class CapturedContextInstrumentor extends Instrumentor {
       List<DiagnosticMessage> diagnostics,
       List<ProbeId> probeIds,
       boolean captureSnapshot,
+      boolean captureEntry,
       Limits limits) {
     super(definition, methodInfo, diagnostics, probeIds);
     this.captureSnapshot = captureSnapshot;
+    this.captureEntry = captureEntry;
     this.limits = limits;
   }
 
@@ -423,11 +425,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
     LabelNode targetNode = new LabelNode();
     LabelNode gotoNode = new LabelNode();
     insnList.add(new JumpInsnNode(Opcodes.IFEQ, targetNode));
-    // if evaluation is at exit and with condition and not exception probe, skip collecting data at
-    // enter
-    if ((definition.getEvaluateAt() != MethodLocation.EXIT
-          || !definition.hasCondition())
-        && !(definition instanceof ExceptionProbe)) {
+    if (captureEntry) {
       LabelNode inProbeStartLabel = new LabelNode();
       insnList.add(inProbeStartLabel);
       // stack []
