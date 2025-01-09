@@ -259,62 +259,32 @@ public abstract class ProfilerSettingsSupport {
 
   @Override
   public String toString() {
+    // spotless:off
     return "{"
-        + "kind='"
-        + profilerKind()
-        + '\''
-        + ", uploadPeriod="
-        + uploadPeriod
-        + ", uploadTimeout="
-        + uploadTimeout
-        + ", uploadCompression='"
-        + uploadCompression
-        + '\''
-        + ", allocationProfilingEnabled="
-        + allocationProfilingEnabled
-        + ", heapProfilingEnabled="
-        + heapProfilingEnabled
-        + ", startForceFirst="
-        + startForceFirst
-        + ", templateOverride='"
-        + templateOverride
-        + '\''
-        + ", exceptionSampleLimit="
-        + exceptionSampleLimit
-        + ", exceptionHistogramTopItems="
-        + exceptionHistogramTopItems
-        + ", exceptionHistogramMaxSize="
-        + exceptionHistogramMaxSize
-        + ", hotspotsEnabled="
-        + hotspotsEnabled
-        + ", endpointsEnabled="
-        + endpointsEnabled
-        + ", auxiliaryProfiler='"
-        + auxiliaryProfiler
-        + '\''
-        + ", perfEventsParanoid='"
-        + perfEventsParanoid
-        + '\''
-        + ", hasNativeStacks="
-        + hasNativeStacks
-        + ", seLinuxStatus='"
-        + seLinuxStatus
-        + '\''
-        + ", serviceInstrumentationType='"
-        + serviceInstrumentationType
-        + '\''
-        + ", serviceInjection='"
-        + serviceInjection
-        + '\''
-        + ", ddprofUnavailableReason='"
-        + ddprofUnavailableReason
-        + '\''
-        + ", profilerActivationSetting="
-        + profilerActivationSetting
-        + ", stackDepth="
-        + stackDepth
-        + ", hasJfrStackDepthApplied="
-        + hasJfrStackDepthApplied
+        + "kind='" + profilerKind() + '\''
+        + ", uploadPeriod=" + uploadPeriod
+        + ", uploadTimeout=" + uploadTimeout
+        + ", uploadCompression='" + uploadCompression + '\''
+        + ", allocationProfilingEnabled=" + allocationProfilingEnabled
+        + ", heapProfilingEnabled=" + heapProfilingEnabled
+        + ", startForceFirst=" + startForceFirst
+        + ", templateOverride='" + templateOverride + '\''
+        + ", exceptionSampleLimit=" + exceptionSampleLimit
+        + ", exceptionHistogramTopItems=" + exceptionHistogramTopItems
+        + ", exceptionHistogramMaxSize=" + exceptionHistogramMaxSize
+        + ", hotspotsEnabled=" + hotspotsEnabled
+        + ", endpointsEnabled=" + endpointsEnabled
+        + ", auxiliaryProfiler='" + auxiliaryProfiler + '\''
+        + ", perfEventsParanoid='" + perfEventsParanoid + '\''
+        + ", hasNativeStacks=" + hasNativeStacks
+        + ", seLinuxStatus='" + seLinuxStatus + '\''
+        + ", serviceInstrumentationType='" + serviceInstrumentationType + '\''
+        + ", serviceInjection='" + serviceInjection + '\''
+        + ", ddprofUnavailableReason='" + ddprofUnavailableReason + '\''
+        + ", profilerActivationSetting=" + profilerActivationSetting
+        + ", stackDepth=" + stackDepth
+        + ", hasJfrStackDepthApplied=" + hasJfrStackDepthApplied
         + '}';
+    // spotless:on
   }
 }
