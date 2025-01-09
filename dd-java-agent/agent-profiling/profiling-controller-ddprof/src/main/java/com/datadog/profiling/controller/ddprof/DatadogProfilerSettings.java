@@ -40,4 +40,9 @@ public class DatadogProfilerSettings extends ProfilerSettingsSupport {
     datadogProfiler.recordSetting(
         SSI_MECHANISM, profilerActivationSetting.ssiMechanism.name().toLowerCase());
   }
+
+  @Override
+  protected String profilerKind() {
+    return "datadog";
+  }
 }

@@ -15,8 +15,10 @@
  */
 package com.datadog.profiling.controller;
 
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_RECORDING_SCHEDULER;
 
+import datadog.trace.api.Platform;
 import datadog.trace.api.profiling.ProfilingListenersRegistry;
 import datadog.trace.api.profiling.ProfilingSnapshot;
 import datadog.trace.api.profiling.RecordingData;
@@ -160,7 +162,15 @@ public final class ProfilingSystem {
       started = true;
     } catch (UnsupportedEnvironmentException unsupported) {
       log.warn(
-          "Datadog Profiling was enabled on an unsupported JVM, will not profile application. See {} for more details about supported JVMs.",
+          SEND_TELEMETRY,
+          "Datadog Profiling was enabled on an unsupported JVM, will not profile application. "
+              + "(OS: {}, JVM: lang={}, runtime={}, vendor={}) See {} for more details about supported JVMs.",
+          Platform.isLinux()
+              ? "Linux"
+              : Platform.isWindows() ? "Windows" : Platform.isMac() ? "MacOS" : "Other",
+          Platform.getLangVersion(),
+          Platform.getRuntimeVersion(),
+          Platform.getRuntimeVendor(),
           "https://docs.datadoghq.com/profiler/enabling/java/?tab=commandarguments#requirements");
     } catch (Throwable t) {
       if (t instanceof RuntimeException) {
@@ -171,6 +181,7 @@ public final class ProfilingSystem {
           if (msg != null && msg.contains("com.oracle.jrockit:type=FlightRecorder")) {
             // Yes, the commercial JFR is not enabled
             log.warn(
+                SEND_TELEMETRY,
                 "You're running Oracle JDK 8. Datadog Continuous Profiler for Java depends on Java Flight Recorder, which requires a paid license in Oracle JDK 8. If you have one, please add the following `java` command line args: ‘-XX:+UnlockCommercialFeatures -XX:+FlightRecorder’. Alternatively, you can use a different Java 8 distribution like OpenJDK, where Java Flight Recorder is free.");
             // Do not log the underlying exception
             t = null;
@@ -183,7 +194,7 @@ public final class ProfilingSystem {
         if (t instanceof IllegalStateException && "Shutdown in progress".equals(t.getMessage())) {
           log.debug("Shutdown in progress, cannot start profiling");
         } else {
-          log.error("Fatal exception during profiling startup", t);
+          log.error(SEND_TELEMETRY, "Fatal exception during profiling startup", t);
           throw t instanceof RuntimeException ? (RuntimeException) t : new RuntimeException(t);
         }
       }
@@ -267,7 +278,7 @@ public final class ProfilingSystem {
           lastSnapshot = Instant.now();
         }
       } catch (final Exception e) {
-        log.error("Exception in profiling thread, continuing", e);
+        log.error(SEND_TELEMETRY, "Exception in profiling thread, continuing", e);
       } catch (final Throwable t) {
         /*
         Try to continue even after fatal exception. It seems to be useful to attempt to store profile when this happens.
@@ -276,7 +287,7 @@ public final class ProfilingSystem {
         Another reason is that it may be bad to stop profiling if the rest of the app is continuing.
          */
         try {
-          log.error("Fatal exception in profiling thread, trying to continue", t);
+          log.error(SEND_TELEMETRY, "Fatal exception in profiling thread, trying to continue", t);
         } catch (final Throwable t2) {
           // This should almost never happen and there is not much we can do here in cases like
           // OutOfMemoryError, so we will just ignore this.
