@@ -1,5 +1,7 @@
 package datadog.context;
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -43,9 +45,9 @@ public class SourceFileExtension implements TestExecutionListener {
         Matcher matcher = pattern.matcher(fileContent);
         StringBuffer result = new StringBuffer();
         while (matcher.find()) {
-          String beg_attributes = matcher.group(1);
+          String begAttributes = matcher.group(1);
           String className = matcher.group(2);
-          String end_attributes = matcher.group(3);
+          String endAttributes = matcher.group(3);
 
           // add source file attribute
           String fileAttribute = "";
@@ -54,12 +56,12 @@ public class SourceFileExtension implements TestExecutionListener {
           }
           String newTestCase =
               "<testcase"
-                  + beg_attributes
+                  + begAttributes
                   + "classname=\""
                   + className
                   + "\""
                   + fileAttribute
-                  + end_attributes
+                  + endAttributes
                   + ">";
           matcher.appendReplacement(result, newTestCase);
         }
@@ -68,7 +70,9 @@ public class SourceFileExtension implements TestExecutionListener {
 
         // set old filePath to new xml result
         //        System.out.println("result: " + result);
-        Files.write(filePath, result.toString().getBytes()); // does not work
+        BufferedWriter writer = new BufferedWriter(new FileWriter(pathString));
+        writer.write(result.toString());
+        writer.close();
       } catch (Exception e) {
         System.out.println("Modifying XML files did not work.");
       }
