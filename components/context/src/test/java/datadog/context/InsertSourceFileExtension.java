@@ -13,7 +13,7 @@ import org.junit.platform.launcher.TestExecutionListener;
 import org.junit.platform.launcher.TestIdentifier;
 import org.junit.platform.launcher.TestPlan;
 
-public class SourceFileExtension implements TestExecutionListener {
+public class InsertSourceFileExtension implements TestExecutionListener {
   public void executionStarted(TestIdentifier testIdentifier) {
     System.out.println("EXECUTIONSTARTED.");
   }
@@ -24,10 +24,9 @@ public class SourceFileExtension implements TestExecutionListener {
 
   public void executionFinished(
       TestIdentifier testIdentifier, TestExecutionResult testExecutionResult) {
-    // this should happen in testPlanExecutionFinished after all tests are run, but this method is
-    // easier to test locally for now
+    // should this happen in testPlanExecutionFinished after all tests are run?
 
-    Map<String, String> sourceFiles = TestSourceFileExtension.getSourceFiles();
+    Map<String, String> sourceFiles = GatherSourceFileInfoExtension.getSourceFiles();
 
     // for each test
     for (String sourceFile : sourceFiles.keySet()) {
@@ -69,10 +68,13 @@ public class SourceFileExtension implements TestExecutionListener {
         matcher.appendTail(result);
 
         // set old filePath to new xml result
-        //        System.out.println("result: " + result);
+        System.out.println("result: " + result.substring(0, 1000));
+
+        // i think this logic gets re-overwritten by xml reports
         BufferedWriter writer = new BufferedWriter(new FileWriter(pathString));
         writer.write(result.toString());
         writer.close();
+
       } catch (Exception e) {
         System.out.println("Modifying XML files did not work.");
       }
@@ -81,8 +83,5 @@ public class SourceFileExtension implements TestExecutionListener {
 
   public void testPlanExecutionFinished(TestPlan testPlan) {
     System.out.println("TESTPLANEXECUTIONFINISHED.");
-    // get xml report file
-    // modify report with test source file info
-    // save resulting file
   }
 }
