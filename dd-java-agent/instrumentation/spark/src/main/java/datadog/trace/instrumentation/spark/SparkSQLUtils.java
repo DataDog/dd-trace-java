@@ -322,28 +322,7 @@ public class SparkSQLUtils {
       this.stats = stats;
       this.type = type;
     }
-
-    public LineageDataset(String name, String schema, String stats, String properties) {
-      this.name = name;
-      this.schema = schema;
-      this.properties = properties;
-      this.stats = stats;
-      this.type = "unknown";
-    }
   }
-
-  static PartialFunction<LogicalPlan, DataSourceV2Relation> pf =
-      new PartialFunction<LogicalPlan, DataSourceV2Relation>() {
-        @Override
-        public boolean isDefinedAt(LogicalPlan x) {
-          return x instanceof DataSourceV2Relation;
-        }
-
-        @Override
-        public DataSourceV2Relation apply(LogicalPlan x) {
-          return (DataSourceV2Relation) x;
-        }
-      };
 
   static PartialFunction<LogicalPlan, LineageDataset> logicalPlanToDataset =
       new PartialFunction<LogicalPlan, LineageDataset>() {

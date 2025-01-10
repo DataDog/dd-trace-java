@@ -25,7 +25,6 @@ public class Spark212Instrumentation extends AbstractSparkInstrumentation {
       packageName + ".SparkSQLUtils$AccumulatorWithStage",
       packageName + ".SparkSQLUtils$LineageDataset",
       packageName + ".SparkSQLUtils$1",
-      packageName + ".SparkSQLUtils$2",
     };
   }
 
