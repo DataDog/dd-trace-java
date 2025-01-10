@@ -382,18 +382,20 @@ class RangesTest extends DDSpecification {
 
   void 'test excludeRangesBySource method'() {
     when:
-    final result = Ranges.excludeRangesBySource(ranges as Range[], source)
+    final result = Ranges.excludeRangesBySource(ranges as Range[], source as byte[])
 
     then:
     final expectedArray = expected as Range[]
     result == expectedArray
 
     where:
-    ranges                                          | source              | expected
-    [rangeWithSource(0, 5, SQL_TABLE), range(5, 3)] | SQL_TABLE           | [range(5, 3)]
-    [rangeWithSource(0, 5, SQL_TABLE), range(5, 3)] | REQUEST_HEADER_NAME | [rangeWithSource(0, 5, SQL_TABLE)]
-    [rangeWithSource(0, 5, SQL_TABLE), range(5, 3)] | REQUEST_QUERY       | [rangeWithSource(0, 5, SQL_TABLE), range(5, 3)]
-    []                                              | SQL_TABLE           | []
+    ranges                                          | source                               | expected
+    [rangeWithSource(0, 5, SQL_TABLE), range(5, 3)] | [SQL_TABLE]                          | [range(5, 3)]
+    [rangeWithSource(0, 5, SQL_TABLE), range(5, 3)] | [SQL_TABLE, REQUEST_QUERY]           | [range(5, 3)]
+    [rangeWithSource(0, 5, SQL_TABLE), range(5, 3)] | [REQUEST_HEADER_NAME]                | [rangeWithSource(0, 5, SQL_TABLE)]
+    [rangeWithSource(0, 5, SQL_TABLE), range(5, 3)] | [REQUEST_QUERY]                      | [rangeWithSource(0, 5, SQL_TABLE), range(5, 3)]
+    [rangeWithSource(0, 5, SQL_TABLE), range(5, 3)] | [REQUEST_QUERY, REQUEST_HEADER_NAME] | [rangeWithSource(0, 5, SQL_TABLE)]
+    []                                              | [SQL_TABLE]                          | []
   }
 
   Range[] rangesFromSpec(List<List<Object>> spec) {

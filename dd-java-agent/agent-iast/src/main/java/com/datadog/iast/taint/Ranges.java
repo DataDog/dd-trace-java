@@ -433,15 +433,28 @@ public final class Ranges {
    * @param ranges the ranges to filter
    * @param source the byte value of the source to exclude (see {@link SourceTypes})
    */
-  public static Range[] excludeRangesBySource(Range[] ranges, byte source) {
+  public static Range[] excludeRangesBySource(Range[] ranges, byte[] source) {
     RangeBuilder newRanges = new RangeBuilder(ranges.length);
 
     for (Range range : ranges) {
-      if (range.getSource().getOrigin() != source) {
+      boolean exclude = false;
+
+      for (byte origin : source) {
+        if (range.getSource().getOrigin() == origin) {
+          exclude = true;
+          break;
+        }
+      }
+
+      if (!exclude) {
         newRanges.add(range);
       }
     }
 
     return newRanges.toArray();
+  }
+
+  public static Range[] excludeRangesBySource(Range[] ranges, byte source) {
+    return excludeRangesBySource(ranges, new byte[] {source});
   }
 }
