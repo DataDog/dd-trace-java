@@ -33,6 +33,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.jetbrains.annotations.NotNull;
 
 public class StringModuleImpl implements StringModule {
 
@@ -290,6 +291,34 @@ public class StringModuleImpl implements StringModule {
     }
     if (!targetRanges.isEmpty()) {
       taintedObjects.taint(result, targetRanges.toArray());
+    }
+  }
+
+  @Override
+  public void onStringTranslateEscapes(
+      @NotNull String self, @org.jetbrains.annotations.Nullable String result) {
+    if (!canBeTainted(result)) {
+      return;
+    }
+    if (self == result) { // same ref, no change in taint status
+      return;
+    }
+    final IastContext ctx = IastContext.Provider.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    final TaintedObject taintedSelf = taintedObjects.get(self);
+    if (taintedSelf == null) {
+      return; // original string is not tainted
+    }
+    final Range[] rangesSelf = taintedSelf.getRanges();
+    if (rangesSelf.length == 0) {
+      return; // original string is not tainted
+    }
+    final Range[] newRanges = Ranges.forSubstring(0, result.length(), rangesSelf);
+    if (newRanges != null) {
+      taintedObjects.taint(result, newRanges); // only possibility left
     }
   }
 
