@@ -13,12 +13,11 @@ import datadog.trace.api.iast.propagation.StringModule;
 public class StringCallSite {
   @CallSite.After("java.lang.String java.lang.String.translateEscapes()")
   public static String afterTranslateEscapes(
-      @CallSite.This final String self,
-      @CallSite.Return final String result) {
+      @CallSite.This final String self, @CallSite.Return final String result) {
     final StringModule module = InstrumentationBridge.STRING;
     try {
       if (module != null) {
-        module.onTranslateEscapes(self, result);
+        module.onStringTranslateEscapes(self, result);
       }
     } catch (final Throwable e) {
       module.onUnexpectedException("afterTranslateEscapes threw", e);

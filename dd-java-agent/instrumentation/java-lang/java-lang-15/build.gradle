@@ -22,7 +22,7 @@ idea {
 }
 
 csi {
-  javaVersion = JavaLanguageVersion.of(15)
+  javaVersion = JavaLanguageVersion.of(17)
 }
 
 addTestSuiteForDir('latestDepTest', 'test')

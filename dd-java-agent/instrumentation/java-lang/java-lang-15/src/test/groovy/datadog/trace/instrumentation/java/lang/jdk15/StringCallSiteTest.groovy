@@ -22,7 +22,7 @@ class StringCallSiteTest extends AgentTestRunner {
     InstrumentationBridge.registerIastModule(iastModule)
 
     when:
-    final result = TestStringJDK15Suite.stringTranslateEscapes(input)
+    final result = TestStringJDK15Suite.onStringTranslateEscapes(input)
 
     then:
     result == output
