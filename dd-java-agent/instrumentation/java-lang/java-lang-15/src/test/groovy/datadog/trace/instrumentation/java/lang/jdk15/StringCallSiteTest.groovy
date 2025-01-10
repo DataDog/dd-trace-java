@@ -30,6 +30,6 @@ class StringCallSiteTest extends AgentTestRunner {
 
     where:
     input                   | output
-    'Hello\tThis is a line' | 'Hello\n   This is a line\n'
+    'Hello\tThis is a line' | 'Hello  This is a line'
   }
 }
