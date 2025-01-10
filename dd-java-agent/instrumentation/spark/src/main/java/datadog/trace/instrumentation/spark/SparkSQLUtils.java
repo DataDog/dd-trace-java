@@ -27,6 +27,7 @@ import org.apache.spark.sql.catalyst.catalog.CatalogTable;
 import org.apache.spark.sql.catalyst.catalog.HiveTableRelation;
 import org.apache.spark.sql.catalyst.plans.logical.AppendData;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
+import org.apache.spark.sql.catalyst.plans.logical.Statistics;
 import org.apache.spark.sql.execution.SparkPlanInfo;
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation;
 import org.apache.spark.sql.execution.metric.SQLMetricInfo;
@@ -42,6 +43,7 @@ public class SparkSQLUtils {
 
   private static final Class<?> dataSourceV2RelationClass;
   private static final MethodHandle tableMethod;
+  private static final MethodHandle computeStatsMethod;
 
   private static final Class<?> replaceDataClass;
   private static final MethodHandle tableMethodForReplaceData;
@@ -76,6 +78,7 @@ public class SparkSQLUtils {
   static {
     Class<?> relationClassFound = null;
     MethodHandle tableMethodFound = null;
+    MethodHandle computeStatsMethodFound = null;
 
     Class<?> replaceDataClassFound = null;
     MethodHandle tableMethodForReplaceDataFound = null;
@@ -100,6 +103,9 @@ public class SparkSQLUtils {
       if (relationClassFound != null && tableClassFound != null) {
         tableMethodFound =
             lookup.findVirtual(relationClassFound, "table", MethodType.methodType(tableClassFound));
+        computeStatsMethodFound =
+            lookup.findVirtual(
+                relationClassFound, "computeStats", MethodType.methodType(Statistics.class));
       }
 
       if (tableClassFound != null) {
@@ -121,6 +127,7 @@ public class SparkSQLUtils {
 
     dataSourceV2RelationClass = relationClassFound;
     tableMethod = tableMethodFound;
+    computeStatsMethod = computeStatsMethodFound;
 
     replaceDataClass = replaceDataClassFound;
     tableMethodForReplaceData = tableMethodForReplaceDataFound;
@@ -495,44 +502,41 @@ public class SparkSQLUtils {
 
             statsJson = new String(baos.toByteArray(), StandardCharsets.UTF_8);
 
-            log.info("CatalogTable stats: {}", stats);
+            log.debug("CatalogTable stats: {}", stats);
           } catch (Throwable ignored) {
-            log.warn("Error while converting stats to JSON", ignored);
-            return null;
           }
 
           return statsJson;
         }
 
         private String getDataSourceV2RelationStatsJson(Object logicalPlan) {
+          if (null == computeStatsMethod
+              || null == dataSourceV2RelationClass
+              || !dataSourceV2RelationClass.isInstance(logicalPlan)) {
+            return null;
+          }
+
           String statsJson = null;
 
-          try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
-              JsonGenerator generator = mapper.getFactory().createGenerator(baos)) {
-            if (logicalPlan.getClass().getMethod("computeStats") != null) {
-              Object stats = logicalPlan.getClass().getMethod("computeStats").invoke(logicalPlan);
+          try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+              JsonGenerator generator = mapper.getFactory().createGenerator(outputStream)) {
+            Statistics stats = (Statistics) computeStatsMethod.invoke(logicalPlan);
 
-              if (stats != null) {
-                generator.writeStartObject();
-                generator.writeNumberField(
-                    "sizeInBytes",
-                    ((scala.math.BigInt) stats.getClass().getMethod("sizeInBytes").invoke(stats))
-                        .longValue());
-                generator.writeStringField(
-                    "rowCount", stats.getClass().getMethod("rowCount").invoke(stats).toString());
-                generator.writeObjectField(
-                    "attributeStats", stats.getClass().getMethod("attributeStats").invoke(stats));
-                generator.writeEndObject();
+            if (stats != null) {
+              log.debug("DataSourceV2Relation stats: {}", stats);
+
+              generator.writeStartObject();
+              generator.writeNumberField("sizeInBytes", stats.sizeInBytes().longValue());
+              if (stats.rowCount().isDefined()) {
+                generator.writeNumberField("rowCount", stats.rowCount().get().longValue());
               }
+              generator.writeObjectField("attributeStats", stats.attributeStats());
+              generator.writeEndObject();
 
-              statsJson = new String(baos.toByteArray(), StandardCharsets.UTF_8);
-
-              log.info("DataSourceV2Relation stats: {}", stats.toString());
-            } else {
-              log.warn("no computeStats method found for {}", logicalPlan.getClass().getName());
+              statsJson = new String(outputStream.toByteArray(), StandardCharsets.UTF_8);
             }
           } catch (Throwable ignored) {
-            log.warn("Error while converting stats to JSON", ignored);
+            log.debug("Error while converting DataSourceV2Relation stats to JSON", ignored);
           }
 
           return statsJson;
