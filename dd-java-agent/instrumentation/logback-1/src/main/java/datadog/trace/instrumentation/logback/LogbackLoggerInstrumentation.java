@@ -20,12 +20,13 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class LogbackLoggerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public LogbackLoggerInstrumentation() {
     super("logback");
@@ -39,7 +40,7 @@ public class LogbackLoggerInstrumentation extends InstrumenterModule.Tracing
   @Override
   public Map<String, String> contextStore() {
     return singletonMap(
-        "ch.qos.logback.classic.spi.ILoggingEvent", AgentSpan.Context.class.getName());
+        "ch.qos.logback.classic.spi.ILoggingEvent", AgentSpanContext.class.getName());
   }
 
   @Override
@@ -59,7 +60,7 @@ public class LogbackLoggerInstrumentation extends InstrumenterModule.Tracing
       AgentSpan span = activeSpan();
 
       if (span != null && traceConfig(span).isLogsInjectionEnabled()) {
-        InstrumentationContext.get(ILoggingEvent.class, AgentSpan.Context.class)
+        InstrumentationContext.get(ILoggingEvent.class, AgentSpanContext.class)
             .put(event, span.context());
       }
     }

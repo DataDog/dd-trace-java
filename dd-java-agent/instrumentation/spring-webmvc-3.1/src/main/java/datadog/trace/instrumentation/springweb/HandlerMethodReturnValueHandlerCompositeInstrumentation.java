@@ -20,7 +20,8 @@ import org.springframework.web.servlet.view.AbstractUrlBasedView;
 
 @AutoService(InstrumenterModule.class)
 public final class HandlerMethodReturnValueHandlerCompositeInstrumentation
-    extends InstrumenterModule.Iast implements Instrumenter.ForSingleType {
+    extends InstrumenterModule.Iast
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public HandlerMethodReturnValueHandlerCompositeInstrumentation() {
     super("spring-web");

@@ -29,7 +29,7 @@ import scala.collection.Iterator;
 /** Propagates taint from a {@link Uri} to query strings fetched from it. */
 @AutoService(InstrumenterModule.class)
 public class UriInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public UriInstrumentation() {
     super("pekko-http");
   }

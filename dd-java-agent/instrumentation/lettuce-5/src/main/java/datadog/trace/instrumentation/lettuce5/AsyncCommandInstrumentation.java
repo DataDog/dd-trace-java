@@ -29,7 +29,7 @@ import net.bytebuddy.asm.Advice;
  */
 @AutoService(InstrumenterModule.class)
 public class AsyncCommandInstrumentation extends InstrumenterModule.Profiling
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public AsyncCommandInstrumentation() {
     super("lettuce", "lettuce-5", "lettuce-5-async");
   }

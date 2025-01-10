@@ -4,20 +4,44 @@ import static datadog.context.ContextProviders.binder;
 import static datadog.context.ContextProviders.manager;
 
 import javax.annotation.Nullable;
+import javax.annotation.ParametersAreNonnullByDefault;
 
 /**
  * Immutable context scoped to an execution unit or carrier object.
  *
- * <p>Each element of the context is accessible by its {@link ContextKey}. Keys represents product
- * or functional areas and should be created sparingly. Elements in the context may themselves be
- * mutable.
+ * <p>There are three ways to get a Context instance:
+ *
+ * <ul>
+ *   <li>The first one is to retrieve the one from the current execution unit using {@link
+ *       #current()}. A Context instance can be marked as current using {@link #attach()} within the
+ *       execution unit.
+ *   <li>The second one is to retrieve one from a carrier object using {@link #from(Object
+ *       carrier)}. A Context instance would need to be attached to the carrier first using {@link
+ *       #attachTo(Object carrier)} attached.
+ *   <li>Finally, the third option is to get the default root Context instance calling {@link
+ *       #root()}.
+ * </ul>
+ *
+ * <p>When there is no context attached to the current execution unit, {@link #current()} will
+ * return the root context. Similarly, {@link #from(Object carrier)} will return the root context
+ * when there is no context attached to the carrier.
+ *
+ * <p>From a {@link Context} instance, each value is stored and retrieved by its {@link ContextKey},
+ * using {@link #with(ContextKey key, Object value)} to store a value (creating a new immutable
+ * {@link Context} instance), and {@link #get(ContextKey)} to retrieve it. {@link ContextKey}s
+ * represent product of functional areas, and should be created sparingly.
+ *
+ * <p>{@link Context} instances are thread safe as they are immutable (including their {@link
+ * ContextKey}) but the value they hold may themselves be mutable.
+ *
+ * @see ContextKey
  */
+@ParametersAreNonnullByDefault
 public interface Context {
-
   /**
    * Returns the root context.
    *
-   * <p>This is the initial local context that all contexts extend.
+   * @return the initial local context that all contexts extend.
    */
   static Context root() {
     return manager().root();
@@ -26,7 +50,7 @@ public interface Context {
   /**
    * Returns the context attached to the current execution unit.
    *
-   * @return Attached context; {@link #root()} if there is none
+   * @return the attached context; {@link #root()} if there is none.
    */
   static Context current() {
     return manager().current();
@@ -35,7 +59,7 @@ public interface Context {
   /**
    * Attaches this context to the current execution unit.
    *
-   * @return Scope to be closed when the context is invalid.
+   * @return a scope to be closed when the context is invalid.
    */
   default ContextScope attach() {
     return manager().attach(this);
@@ -44,7 +68,7 @@ public interface Context {
   /**
    * Swaps this context with the one attached to current execution unit.
    *
-   * @return Previously attached context; {@link #root()} if there was none
+   * @return the previously attached context; {@link #root()} if there was none.
    */
   default Context swap() {
     return manager().swap(this);
@@ -53,13 +77,18 @@ public interface Context {
   /**
    * Returns the context attached to the given carrier object.
    *
-   * @return Attached context; {@link #root()} if there is none
+   * @param carrier the carrier object to get the context from.
+   * @return the attached context; {@link #root()} if there is none.
    */
   static Context from(Object carrier) {
     return binder().from(carrier);
   }
 
-  /** Attaches this context to the given carrier object. */
+  /**
+   * Attaches this context to the given carrier object.
+   *
+   * @param carrier the object to carry the context.
+   */
   default void attachTo(Object carrier) {
     binder().attachTo(carrier, this);
   }
@@ -67,7 +96,8 @@ public interface Context {
   /**
    * Detaches the context attached to the given carrier object, leaving it context-less.
    *
-   * @return Previously attached context; {@link #root()} if there was none
+   * @param carrier the carrier object to detach its context from.
+   * @return the previously attached context; {@link #root()} if there was none.
    */
   static Context detachFrom(Object carrier) {
     return binder().detachFrom(carrier);
@@ -76,24 +106,37 @@ public interface Context {
   /**
    * Gets the value stored in this context under the given key.
    *
-   * @return Value stored under the key; {@code null} if there is no value.
+   * @param <T> the type of the value.
+   * @param key the key used to store the value.
+   * @return the value stored under the key; {@code null} if there is none.
    */
   @Nullable
   <T> T get(ContextKey<T> key);
 
   /**
-   * Creates a new context from the same elements, except the key is now mapped to the given value.
+   * Creates a copy of this context with the given key-value set.
    *
-   * @return New context with the key-value mapping.
+   * <p>Existing value with the given key will be replaced, and mapping to a {@code null} value will
+   * remove the key-value from the context copy.
+   *
+   * @param <T> the type of the value.
+   * @param key the key to store the value.
+   * @param value the value to store.
+   * @return a new context with the key-value set.
    */
-  <T> Context with(ContextKey<T> key, T value);
+  <T> Context with(ContextKey<T> key, @Nullable T value);
 
   /**
-   * Creates a new context from the same elements, except the implicit key is mapped to this value.
+   * Creates a copy of this context with the implicit key is mapped to the value.
    *
-   * @return New context with the implicitly keyed value.
+   * @param value the value to store.
+   * @return a new context with the implicitly keyed value set.
+   * @see #with(ContextKey, Object)
    */
-  default Context with(ImplicitContextKeyed value) {
+  default Context with(@Nullable ImplicitContextKeyed value) {
+    if (value == null) {
+      return root();
+    }
     return value.storeInto(this);
   }
 }

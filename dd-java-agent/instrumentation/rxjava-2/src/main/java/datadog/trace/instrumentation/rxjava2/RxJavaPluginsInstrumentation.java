@@ -30,9 +30,4 @@ public class RxJavaPluginsInstrumentation extends InstrumenterModule.Tracing
       packageName + ".RxJavaAsyncResultExtension",
     };
   }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    // no-op
-  }
 }

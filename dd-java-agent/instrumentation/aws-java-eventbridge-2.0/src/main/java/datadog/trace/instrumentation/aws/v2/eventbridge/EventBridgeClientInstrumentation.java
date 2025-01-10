@@ -12,7 +12,7 @@ import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
 
 @AutoService(InstrumenterModule.class)
 public final class EventBridgeClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public EventBridgeClientInstrumentation() {
     super("eventbridge");
   }

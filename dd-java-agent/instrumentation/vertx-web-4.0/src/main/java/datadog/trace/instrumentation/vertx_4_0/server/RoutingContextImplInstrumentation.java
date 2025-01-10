@@ -16,7 +16,7 @@ import io.vertx.ext.web.impl.RoutingContextImpl;
  */
 @AutoService(InstrumenterModule.class)
 public class RoutingContextImplInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public RoutingContextImplInstrumentation() {
     super("vertx", "vertx-4.0");

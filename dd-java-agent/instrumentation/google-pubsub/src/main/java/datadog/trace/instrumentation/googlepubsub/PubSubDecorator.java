@@ -15,6 +15,7 @@ import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -127,8 +128,7 @@ public class PubSubDecorator extends MessagingClientDecorator {
   }
 
   public AgentSpan onConsume(final PubsubMessage message, final String subscription) {
-    final AgentSpan.Context spanContext =
-        propagate().extract(message, TextMapExtractAdapter.GETTER);
+    final AgentSpanContext spanContext = propagate().extract(message, TextMapExtractAdapter.GETTER);
     final AgentSpan span = startSpan(PUBSUB_CONSUME, spanContext);
     final CharSequence parsedSubscription = extractSubscription(subscription);
     final LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>(3);

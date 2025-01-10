@@ -4,7 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 
 import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.util.Strings;
 import java.net.InetSocketAddress;
 import java.util.Properties;
@@ -29,7 +29,7 @@ public class ProcessHierarchy {
     }
   }
 
-  @Nullable public final AgentSpan.Context.Extracted parentProcessModuleContext;
+  @Nullable public final AgentSpanContext.Extracted parentProcessModuleContext;
 
   ProcessHierarchy() {
     parentProcessModuleContext =

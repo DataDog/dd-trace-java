@@ -330,12 +330,7 @@ public class DDSpan
 
   @Override
   public boolean isSameTrace(final AgentSpan otherSpan) {
-    // FIXME [API] AgentSpan or AgentSpan.Context should have a "getTraceId()" type method
-    if (otherSpan instanceof DDSpan) {
-      return getTraceId().equals(otherSpan.getTraceId());
-    }
-
-    return false;
+    return null != otherSpan && getTraceId().equals(otherSpan.getTraceId());
   }
 
   @Override

@@ -19,7 +19,7 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public final class AkkaForkJoinPoolInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public AkkaForkJoinPoolInstrumentation() {
     super("java_concurrent", "akka_concurrent");

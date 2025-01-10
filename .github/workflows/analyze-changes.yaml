@@ -7,6 +7,11 @@ on:
     # The branches below must be a subset of the branches above
     branches: [ master ]
 
+# Cancel long-running jobs when a new commit is pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   datadog-static-analyzer:
     name: Analyze changes with DataDog Static Analyzer

@@ -2,6 +2,7 @@ package com.datadog.profiling.agent;
 
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_FORCE_FIRST;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_FORCE_FIRST_DEFAULT;
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
 import com.datadog.profiling.controller.ConfigurationException;
@@ -166,10 +167,10 @@ public class ProfilingAgent {
         }
       } catch (final UnsupportedEnvironmentException e) {
         log.warn(e.getMessage());
-        log.debug("", e);
+        log.debug(SEND_TELEMETRY, "Unsupported environment for Datadog profiler", e);
       } catch (final ConfigurationException e) {
         log.warn("Failed to initialize profiling agent! {}", e.getMessage());
-        log.debug("Failed to initialize profiling agent!", e);
+        log.debug(SEND_TELEMETRY, "Failed to initialize profiling agent!", e);
       }
     }
   }

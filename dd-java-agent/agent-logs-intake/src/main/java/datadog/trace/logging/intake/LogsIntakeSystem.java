@@ -1,6 +1,5 @@
 package datadog.trace.logging.intake;
 
-import datadog.communication.BackendApi;
 import datadog.communication.BackendApiFactory;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
@@ -12,7 +11,7 @@ public class LogsIntakeSystem {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(LogsIntakeSystem.class);
 
-  public static void start(SharedCommunicationObjects sco) {
+  public static void install(SharedCommunicationObjects sco) {
     Config config = Config.get();
     if (!config.isAgentlessLogSubmissionEnabled()) {
       LOGGER.debug("Agentless logs intake is disabled");
@@ -20,10 +19,8 @@ public class LogsIntakeSystem {
     }
 
     BackendApiFactory apiFactory = new BackendApiFactory(config, sco);
-    BackendApi backendApi = apiFactory.createBackendApi(BackendApiFactory.Intake.LOGS);
-    LogsDispatcher dispatcher = new LogsDispatcher(backendApi);
-    LogsWriterImpl writer = new LogsWriterImpl(config, dispatcher);
-    writer.start();
+    LogsWriterImpl writer = new LogsWriterImpl(config, apiFactory);
+    sco.whenReady(writer::start);
 
     LogsIntake.registerWriter(writer);
   }

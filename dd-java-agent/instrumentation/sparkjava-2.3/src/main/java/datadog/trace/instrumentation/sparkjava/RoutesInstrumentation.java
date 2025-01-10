@@ -17,7 +17,7 @@ import spark.routematch.RouteMatch;
 
 @AutoService(InstrumenterModule.class)
 public class RoutesInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public RoutesInstrumentation() {
     super("sparkjava", "sparkjava-2.4");

@@ -30,7 +30,7 @@ import scala.util.Try;
 
 @AutoService(InstrumenterModule.class)
 public final class PromiseTransformationInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, ExcludeFilterProvider {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice, ExcludeFilterProvider {
 
   public PromiseTransformationInstrumentation() {
     super("scala_concurrent");

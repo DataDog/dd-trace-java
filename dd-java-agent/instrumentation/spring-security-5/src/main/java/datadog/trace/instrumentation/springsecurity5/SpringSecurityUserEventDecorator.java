@@ -5,6 +5,9 @@ import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 
 import datadog.trace.api.UserIdCollectionMode;
 import datadog.trace.api.appsec.AppSecEventTracker;
+import datadog.trace.api.telemetry.LoginEvent;
+import datadog.trace.api.telemetry.LoginFramework;
+import datadog.trace.api.telemetry.WafMetricCollector;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -35,7 +38,6 @@ public class SpringSecurityUserEventDecorator {
     if (tracker == null) {
       return;
     }
-
     tracker.onUserNotFound(UserIdCollectionMode.get());
   }
 
@@ -52,7 +54,10 @@ public class SpringSecurityUserEventDecorator {
     }
 
     UserIdCollectionMode mode = UserIdCollectionMode.get();
-    String userId = user.getUsername();
+    String username = user.getUsername();
+    if (missingUsername(username, LoginEvent.SIGN_UP)) {
+      return;
+    }
     Map<String, String> metadata = null;
     if (mode == IDENTIFICATION) {
       metadata = new HashMap<>();
@@ -62,7 +67,7 @@ public class SpringSecurityUserEventDecorator {
           user.getAuthorities().stream().map(Object::toString).collect(Collectors.joining(",")));
     }
 
-    tracker.onSignupEvent(mode, userId, metadata);
+    tracker.onSignupEvent(mode, username, metadata);
   }
 
   public void onLogin(Authentication authentication, Throwable throwable, Authentication result) {
@@ -80,8 +85,11 @@ public class SpringSecurityUserEventDecorator {
     }
 
     UserIdCollectionMode mode = UserIdCollectionMode.get();
-    String userId = result != null ? result.getName() : authentication.getName();
+    String username = result != null ? result.getName() : authentication.getName();
     if (throwable == null && result != null && result.isAuthenticated()) {
+      if (missingUsername(username, LoginEvent.LOGIN_SUCCESS)) {
+        return;
+      }
       Map<String, String> metadata = null;
       Object principal = result.getPrincipal();
       if (principal instanceof User) {
@@ -95,8 +103,11 @@ public class SpringSecurityUserEventDecorator {
         metadata.put("accountNonLocked", String.valueOf(user.isAccountNonLocked()));
         metadata.put("credentialsNonExpired", String.valueOf(user.isCredentialsNonExpired()));
       }
-      tracker.onLoginSuccessEvent(mode, userId, metadata);
+      tracker.onLoginSuccessEvent(mode, username, metadata);
     } else if (throwable != null) {
+      if (missingUsername(username, LoginEvent.LOGIN_FAILURE)) {
+        return;
+      }
       // On bad password, throwable would be
       // org.springframework.security.authentication.BadCredentialsException,
       // on user not found, throwable can be BadCredentials or
@@ -107,7 +118,7 @@ public class SpringSecurityUserEventDecorator {
       // This would be the ideal place to check whether the user exists or not, but we cannot do
       // so reliably yet.
       // See UsernameNotFoundExceptionInstrumentation for more details.
-      tracker.onLoginFailureEvent(mode, userId, null, null);
+      tracker.onLoginFailureEvent(mode, username, null, null);
     }
   }
 
@@ -126,8 +137,11 @@ public class SpringSecurityUserEventDecorator {
     }
 
     UserIdCollectionMode mode = UserIdCollectionMode.get();
-    String userId = authentication.getName();
-    tracker.onUserEvent(mode, userId);
+    String username = authentication.getName();
+    if (missingUserId(username)) {
+      return;
+    }
+    tracker.onUserEvent(mode, username);
   }
 
   private static boolean shouldSkipAuthentication(final Authentication authentication) {
@@ -150,5 +164,21 @@ public class SpringSecurityUserEventDecorator {
       authentication = authentication.getSuperclass();
     }
     return Authentication.class.getName(); // set this a default for really custom impls
+  }
+
+  private static boolean missingUserId(final String username) {
+    if (username == null || username.isEmpty()) {
+      WafMetricCollector.get().missingUserId(LoginFramework.SPRING_SECURITY);
+      return true;
+    }
+    return false;
+  }
+
+  private static boolean missingUsername(final String username, final LoginEvent event) {
+    if (username == null || username.isEmpty()) {
+      WafMetricCollector.get().missingUserLogin(LoginFramework.SPRING_SECURITY, event);
+      return true;
+    }
+    return false;
   }
 }

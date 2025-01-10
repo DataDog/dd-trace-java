@@ -2,7 +2,7 @@ package datadog.trace.agent.test.server.http
 
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.base.HttpServer
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
@@ -379,7 +379,7 @@ class TestHttpServer implements AutoCloseable {
         isDDServer = Boolean.parseBoolean(request.getHeader("is-dd-server"))
       }
       if (isDDServer) {
-        final AgentSpan.Context extractedContext = propagate().extract(req.orig, GETTER)
+        final AgentSpanContext extractedContext = propagate().extract(req.orig, GETTER)
         if (extractedContext != null) {
           startSpan("test-http-server", extractedContext)
             .setTag("path", request.path)

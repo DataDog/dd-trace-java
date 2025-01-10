@@ -1,5 +1,7 @@
 package com.datadog.profiling.controller;
 
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
+
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.util.PidHelper;
@@ -239,6 +241,7 @@ public final class TempLocationManager {
                 ProfilingConfig.PROFILING_TEMP_DIR, ProfilingConfig.PROFILING_TEMP_DIR_DEFAULT));
     if (!Files.exists(configuredTempDir)) {
       log.warn(
+          SEND_TELEMETRY,
           "Base temp directory, as defined in '"
               + ProfilingConfig.PROFILING_TEMP_DIR
               + "' does not exist: "
@@ -312,7 +315,7 @@ public final class TempLocationManager {
             rslt,
             PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
       } catch (Exception e) {
-        log.warn("Failed to create temp directory: {}", tempDir, e);
+        log.warn(SEND_TELEMETRY, "Failed to create temp directory: {}", tempDir, e);
         throw new IllegalStateException("Failed to create temp directory: " + tempDir, e);
       }
     }

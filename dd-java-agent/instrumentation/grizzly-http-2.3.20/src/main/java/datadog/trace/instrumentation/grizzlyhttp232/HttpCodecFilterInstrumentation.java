@@ -12,7 +12,7 @@ import java.util.Collections;
 
 @AutoService(InstrumenterModule.class)
 public final class HttpCodecFilterInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public HttpCodecFilterInstrumentation() {
     super("grizzly-filterchain");

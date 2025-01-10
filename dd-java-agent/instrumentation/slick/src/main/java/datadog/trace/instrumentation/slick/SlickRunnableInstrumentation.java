@@ -23,7 +23,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 /** Instruments runnables from the slick framework, which are excluded elsewhere. */
 @AutoService(InstrumenterModule.class)
 public final class SlickRunnableInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
   public SlickRunnableInstrumentation() {
     super("slick");
   }

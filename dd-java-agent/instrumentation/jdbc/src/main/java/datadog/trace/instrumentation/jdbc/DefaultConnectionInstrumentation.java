@@ -7,7 +7,9 @@ import datadog.trace.api.InstrumenterConfig;
 
 @AutoService(InstrumenterModule.class)
 public class DefaultConnectionInstrumentation extends AbstractConnectionInstrumentation
-    implements Instrumenter.ForKnownTypes, Instrumenter.ForConfiguredType {
+    implements Instrumenter.ForKnownTypes,
+        Instrumenter.ForConfiguredType,
+        Instrumenter.HasMethodAdvice {
 
   static final String[] CONCRETE_TYPES = {
     // redshift

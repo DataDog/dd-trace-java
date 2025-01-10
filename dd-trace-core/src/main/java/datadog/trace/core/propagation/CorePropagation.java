@@ -4,6 +4,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.datastreams.DataStreamContextInjector;
 import java.util.LinkedHashMap;
@@ -41,7 +42,7 @@ public class CorePropagation implements AgentPropagation {
   }
 
   @Override
-  public <C> void inject(AgentSpan.Context context, C carrier, Setter<C> setter) {
+  public <C> void inject(AgentSpanContext context, C carrier, Setter<C> setter) {
     inject(context, carrier, setter, null);
   }
 
@@ -51,7 +52,7 @@ public class CorePropagation implements AgentPropagation {
   }
 
   private <C> void inject(
-      AgentSpan.Context context, C carrier, Setter<C> setter, TracePropagationStyle style) {
+      AgentSpanContext context, C carrier, Setter<C> setter, TracePropagationStyle style) {
     if (!(context instanceof DDSpanContext)) {
       return;
     }
@@ -101,7 +102,7 @@ public class CorePropagation implements AgentPropagation {
   }
 
   @Override
-  public <C> AgentSpan.Context.Extracted extract(final C carrier, final ContextVisitor<C> getter) {
+  public <C> AgentSpanContext.Extracted extract(final C carrier, final ContextVisitor<C> getter) {
     return extractor.extract(carrier, getter);
   }
 }

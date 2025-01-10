@@ -9,9 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.Request;
 import com.amazonaws.handlers.RequestHandler2;
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -22,24 +20,17 @@ import net.bytebuddy.asm.Advice;
  * {@link AmazonClientException} (for example an error thrown by another handler). In these cases
  * {@link RequestHandler2#afterError} is not called.
  */
-@AutoService(InstrumenterModule.class)
-public class AWSHttpClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+public class AWSHttpClientInstrumentation
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+  private final String namespace;
 
-  public AWSHttpClientInstrumentation() {
-    super("aws-sdk");
+  public AWSHttpClientInstrumentation(String namespace) {
+    this.namespace = namespace;
   }
 
   @Override
   public String instrumentedType() {
-    return "com.amazonaws.http.AmazonHttpClient";
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".OnErrorDecorator", packageName + ".AwsNameCache",
-    };
+    return namespace + ".http.AmazonHttpClient";
   }
 
   @Override
@@ -70,59 +61,6 @@ public class AWSHttpClientInstrumentation extends InstrumenterModule.Tracing
           DECORATE.onError(span, throwable);
           DECORATE.beforeFinish(span);
           span.finish();
-        }
-      }
-    }
-  }
-
-  /**
-   * Due to a change in the AmazonHttpClient class, this instrumentation is needed to support newer
-   * versions. The above class should cover older versions.
-   */
-  @AutoService(InstrumenterModule.class)
-  public static final class RequestExecutorInstrumentation extends AWSHttpClientInstrumentation {
-
-    @Override
-    public String instrumentedType() {
-      return "com.amazonaws.http.AmazonHttpClient$RequestExecutor";
-    }
-
-    @Override
-    public String[] helperClassNames() {
-      return new String[] {
-        packageName + ".OnErrorDecorator", packageName + ".AwsNameCache",
-      };
-    }
-
-    @Override
-    public void methodAdvice(MethodTransformer transformer) {
-      transformer.applyAdvice(
-          isMethod().and(named("doExecute")),
-          RequestExecutorInstrumentation.class.getName() + "$RequestExecutorAdvice");
-    }
-
-    public static class RequestExecutorAdvice {
-      @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-      public static void methodExit(
-          @Advice.FieldValue("request") final Request<?> request,
-          @Advice.Thrown final Throwable throwable) {
-
-        final AgentScope scope = activeScope();
-        // check name in case TracingRequestHandler failed to activate the span
-        if (scope != null
-            && (AwsNameCache.spanName(request).equals(scope.span().getSpanName())
-                || scope.span() instanceof AgentTracer.NoopAgentSpan)) {
-          scope.close();
-        }
-
-        if (throwable != null) {
-          final AgentSpan span = request.getHandlerContext(SPAN_CONTEXT_KEY);
-          if (span != null) {
-            request.addHandlerContext(SPAN_CONTEXT_KEY, null);
-            DECORATE.onError(span, throwable);
-            DECORATE.beforeFinish(span);
-            span.finish();
-          }
         }
       }
     }

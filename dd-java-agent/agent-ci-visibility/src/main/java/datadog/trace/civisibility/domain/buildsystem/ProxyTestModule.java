@@ -8,6 +8,7 @@ import datadog.trace.api.civisibility.retry.TestRetryPolicy;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.config.EarlyFlakeDetectionSettings;
@@ -41,7 +42,7 @@ import org.slf4j.LoggerFactory;
 public class ProxyTestModule implements TestFrameworkModule {
   private static final Logger log = LoggerFactory.getLogger(ProxyTestModule.class);
 
-  private final AgentSpan.Context parentProcessModuleContext;
+  private final AgentSpanContext parentProcessModuleContext;
   private final String moduleName;
   private final ExecutionStrategy executionStrategy;
   private final SignalClient.Factory signalClientFactory;
@@ -56,7 +57,7 @@ public class ProxyTestModule implements TestFrameworkModule {
   private final Collection<TestFramework> testFrameworks = ConcurrentHashMap.newKeySet();
 
   public ProxyTestModule(
-      AgentSpan.Context parentProcessModuleContext,
+      AgentSpanContext parentProcessModuleContext,
       String moduleName,
       ExecutionStrategy executionStrategy,
       Config config,

@@ -29,7 +29,7 @@ import scala.util.Try;
 
 @AutoService(InstrumenterModule.class)
 public class CallbackRunnableInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, ExcludeFilterProvider {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice, ExcludeFilterProvider {
 
   public CallbackRunnableInstrumentation() {
     super("scala_concurrent");

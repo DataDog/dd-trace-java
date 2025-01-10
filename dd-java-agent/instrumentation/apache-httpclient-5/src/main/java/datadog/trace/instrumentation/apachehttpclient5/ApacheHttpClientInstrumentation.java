@@ -22,7 +22,7 @@ import org.apache.hc.core5.http.protocol.HttpContext;
 
 @AutoService(InstrumenterModule.class)
 public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.CanShortcutTypeMatching {
+    implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
 
   public ApacheHttpClientInstrumentation() {
     super(

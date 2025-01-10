@@ -1,10 +1,14 @@
 package datadog.context;
 
 import static java.lang.Math.max;
+import static java.util.Objects.requireNonNull;
 
 import java.util.Objects;
+import javax.annotation.Nullable;
+import javax.annotation.ParametersAreNonnullByDefault;
 
 /** {@link Context} containing a single value. */
+@ParametersAreNonnullByDefault
 final class SingletonContext implements Context {
   private final int index;
   private final Object value;
@@ -15,19 +19,24 @@ final class SingletonContext implements Context {
   }
 
   @Override
+  @Nullable
   @SuppressWarnings("unchecked")
   public <V> V get(ContextKey<V> key) {
-    return index == key.index ? (V) value : null;
+    requireNonNull(key, "Context key cannot be null");
+    return this.index == key.index ? (V) this.value : null;
   }
 
   @Override
-  public <V> Context with(ContextKey<V> secondKey, V secondValue) {
+  public <V> Context with(ContextKey<V> secondKey, @Nullable V secondValue) {
+    requireNonNull(secondKey, "Context key cannot be null");
     int secondIndex = secondKey.index;
-    if (index == secondIndex) {
-      return new SingletonContext(index, secondValue);
+    if (this.index == secondIndex) {
+      return secondValue == null
+          ? EmptyContext.INSTANCE
+          : new SingletonContext(this.index, secondValue);
     } else {
-      Object[] store = new Object[max(index, secondIndex) + 1];
-      store[index] = value;
+      Object[] store = new Object[max(this.index, secondIndex) + 1];
+      store[this.index] = this.value;
       store[secondIndex] = secondValue;
       return new IndexedContext(store);
     }
@@ -38,14 +47,14 @@ final class SingletonContext implements Context {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     SingletonContext that = (SingletonContext) o;
-    return index == that.index && Objects.equals(value, that.value);
+    return this.index == that.index && Objects.equals(this.value, that.value);
   }
 
   @Override
   public int hashCode() {
     int result = 31;
-    result = 31 * result + index;
-    result = 31 * result + Objects.hashCode(value);
+    result = 31 * result + this.index;
+    result = 31 * result + Objects.hashCode(this.value);
     return result;
   }
 }

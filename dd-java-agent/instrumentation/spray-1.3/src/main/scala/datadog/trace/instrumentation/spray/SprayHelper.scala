@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.spray
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import datadog.trace.instrumentation.spray.SprayHttpServerDecorator.DECORATE
 import spray.http.HttpResponse
@@ -12,7 +13,7 @@ object SprayHelper {
   def wrapRequestContext(
       ctx: RequestContext,
       span: AgentSpan,
-      extracted: AgentSpan.Context.Extracted
+      extracted: AgentSpanContext.Extracted
   ): RequestContext = {
     ctx.withRouteResponseMapped(message => {
       DECORATE.onRequest(span, ctx, ctx.request, extracted)

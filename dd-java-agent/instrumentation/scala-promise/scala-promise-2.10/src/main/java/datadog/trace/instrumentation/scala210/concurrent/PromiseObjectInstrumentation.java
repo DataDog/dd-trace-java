@@ -25,7 +25,7 @@ import scala.util.Try;
  */
 @AutoService(InstrumenterModule.class)
 public class PromiseObjectInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public PromiseObjectInstrumentation() {
     super("scala_promise_resolve", "scala_concurrent");

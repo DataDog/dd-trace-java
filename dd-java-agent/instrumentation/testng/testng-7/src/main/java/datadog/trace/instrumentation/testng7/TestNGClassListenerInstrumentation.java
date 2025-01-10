@@ -19,7 +19,7 @@ import org.testng.xml.XmlTest;
 
 @AutoService(InstrumenterModule.class)
 public class TestNGClassListenerInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   private final String commonPackageName = Strings.getPackageName(TestNGUtils.class.getName());
 

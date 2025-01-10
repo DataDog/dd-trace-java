@@ -13,7 +13,7 @@ import org.springframework.data.repository.core.support.RepositoryProxyPostProce
 
 @AutoService(InstrumenterModule.class)
 public final class SpringRepositoryInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public SpringRepositoryInstrumentation() {
     super("spring-data");

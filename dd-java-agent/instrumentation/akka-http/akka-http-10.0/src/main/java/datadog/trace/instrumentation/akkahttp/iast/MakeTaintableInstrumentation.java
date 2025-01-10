@@ -35,7 +35,4 @@ public class MakeTaintableInstrumentation extends InstrumenterModule.Iast
   public void typeAdvice(TypeTransformer transformer) {
     transformer.applyAdvice(new TaintableVisitor(knownMatchingTypes()));
   }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {}
 }

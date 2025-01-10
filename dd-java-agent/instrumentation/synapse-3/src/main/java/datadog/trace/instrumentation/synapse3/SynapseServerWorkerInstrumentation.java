@@ -21,7 +21,7 @@ import org.apache.synapse.transport.passthru.SourceRequest;
 
 @AutoService(InstrumenterModule.class)
 public final class SynapseServerWorkerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public SynapseServerWorkerInstrumentation() {
     super("synapse3-server", "synapse3");

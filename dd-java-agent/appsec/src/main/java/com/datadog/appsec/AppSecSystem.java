@@ -8,7 +8,6 @@ import com.datadog.appsec.event.EventDispatcher;
 import com.datadog.appsec.event.ReplaceableEventProducerService;
 import com.datadog.appsec.gateway.GatewayBridge;
 import com.datadog.appsec.powerwaf.PowerWAFModule;
-import com.datadog.appsec.user.AppSecEventTrackerImpl;
 import com.datadog.appsec.util.AbortStartupException;
 import com.datadog.appsec.util.StandardizedLogging;
 import datadog.appsec.api.blocking.Blocking;
@@ -99,7 +98,7 @@ public class AppSecSystem {
 
     Blocking.setBlockingService(new BlockingServiceImpl(REPLACEABLE_EVENT_PRODUCER));
 
-    AppSecEventTracker.setEventTracker(new AppSecEventTrackerImpl());
+    AppSecEventTracker.setEventTracker(new AppSecEventTracker());
 
     STARTED.set(true);
 

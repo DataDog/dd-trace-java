@@ -27,7 +27,8 @@ import net.bytebuddy.asm.Advice;
 public class HttpUrlConnectionInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap,
         Instrumenter.ForKnownTypes,
-        Instrumenter.ForConfiguredType {
+        Instrumenter.ForConfiguredType,
+        Instrumenter.HasMethodAdvice {
 
   public HttpUrlConnectionInstrumentation() {
     super("httpurlconnection");

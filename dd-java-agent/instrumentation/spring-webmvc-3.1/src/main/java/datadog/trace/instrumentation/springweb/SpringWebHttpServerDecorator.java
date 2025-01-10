@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourc
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
@@ -94,7 +95,7 @@ public class SpringWebHttpServerDecorator
       final AgentSpan span,
       final HttpServletRequest connection,
       final HttpServletRequest request,
-      AgentSpan.Context.Extracted context) {
+      AgentSpanContext.Extracted context) {
     if (request != null) {
       final String method = request.getMethod();
       final Object bestMatchingPattern =
