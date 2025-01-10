@@ -488,8 +488,8 @@ public class SparkSQLUtils {
 
           String statsJson = null;
 
-          try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
-              JsonGenerator generator = mapper.getFactory().createGenerator(baos)) {
+          try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+              JsonGenerator generator = mapper.getFactory().createGenerator(outputStream)) {
             CatalogStatistics stats = table.stats().get();
 
             generator.writeStartObject();
@@ -500,7 +500,7 @@ public class SparkSQLUtils {
             generator.writeObjectField("colStats", stats.colStats());
             generator.writeEndObject();
 
-            statsJson = new String(baos.toByteArray(), StandardCharsets.UTF_8);
+            statsJson = new String(outputStream.toByteArray(), StandardCharsets.UTF_8);
 
             log.debug("CatalogTable stats: {}", stats);
           } catch (Throwable ignored) {
