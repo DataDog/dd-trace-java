@@ -31,6 +31,5 @@ class StringCallSiteTest extends AgentTestRunner {
     where:
     input                   | output
     'Hello\tThis is a line' | 'Hello\tThis is a line'
-    0 * _
   }
 }
