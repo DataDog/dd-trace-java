@@ -3,7 +3,6 @@ package datadog.context;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -14,32 +13,32 @@ import org.junit.platform.launcher.TestIdentifier;
 import org.junit.platform.launcher.TestPlan;
 
 public class InsertSourceFileExtension implements TestExecutionListener {
+  @Override
   public void executionStarted(TestIdentifier testIdentifier) {
-    System.out.println("EXECUTIONSTARTED.");
+    System.out.println(testIdentifier.getDisplayName() + " test started.");
   }
 
+  @Override
   public void testPlanExecutionStarted(TestPlan testPlan) {
-    System.out.println("TESTPLANEXECUTIONSTARTED.");
+    // does not print when tested locally
+    System.out.println("---testPlanExecutionStarted---");
   }
 
+  @Override
   public void executionFinished(
       TestIdentifier testIdentifier, TestExecutionResult testExecutionResult) {
-    // should this happen in testPlanExecutionFinished after all tests are run?
-
+    // get mapping of test classname to source file
     Map<String, String> sourceFiles = GatherSourceFileInfoExtension.getSourceFiles();
 
-    // for each test
+    // for each test...
     for (String sourceFile : sourceFiles.keySet()) {
-      String pathString =
-          Paths.get("").toAbsolutePath() + "/build/test-results/test/TEST-" + sourceFile + ".xml";
-
       // get xml report file
-      Path filePath = Paths.get(pathString);
+      String filePath =
+          Paths.get("").toAbsolutePath() + "/build/test-results/test/TEST-" + sourceFile + ".xml";
       try {
-        String fileContent = new String(Files.readAllBytes(filePath));
+        String fileContent = new String(Files.readAllBytes(Paths.get(filePath)));
 
-        // modify report with test source file info
-        // use regex pattern to get class name
+        // add test source file info to report
         Pattern pattern = Pattern.compile("<testcase(.*?)classname=\"(.*?)\"(.*?)>");
         Matcher matcher = pattern.matcher(fileContent);
         StringBuffer result = new StringBuffer();
@@ -48,11 +47,7 @@ public class InsertSourceFileExtension implements TestExecutionListener {
           String className = matcher.group(2);
           String endAttributes = matcher.group(3);
 
-          // add source file attribute
-          String fileAttribute = "";
-          if (sourceFiles.containsKey(className)) {
-            fileAttribute = " file=\"" + sourceFiles.get(className) + "\"";
-          }
+          String fileAttribute = " file=\"" + sourceFiles.getOrDefault(className, "") + "\"";
           String newTestCase =
               "<testcase"
                   + begAttributes
@@ -64,24 +59,23 @@ public class InsertSourceFileExtension implements TestExecutionListener {
                   + ">";
           matcher.appendReplacement(result, newTestCase);
         }
-        // add the rest
         matcher.appendTail(result);
 
         // set old filePath to new xml result
-        System.out.println("result: " + result.substring(0, 1000));
-
-        // i think this logic gets re-overwritten by xml reports
-        BufferedWriter writer = new BufferedWriter(new FileWriter(pathString));
+        // this logic must be wrong or go elsewhere bc its getting overwritten. `result` output
+        // seems correct.
+        BufferedWriter writer = new BufferedWriter(new FileWriter(filePath));
         writer.write(result.toString());
         writer.close();
-
       } catch (Exception e) {
         System.out.println("Modifying XML files did not work.");
       }
     }
   }
 
+  @Override
   public void testPlanExecutionFinished(TestPlan testPlan) {
-    System.out.println("TESTPLANEXECUTIONFINISHED.");
+    // does not print when tested locally
+    System.out.println("---testPlanExecutionFinished---.");
   }
 }

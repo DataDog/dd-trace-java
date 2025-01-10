@@ -19,7 +19,7 @@ public class GatherSourceFileInfoExtension implements TestInstancePostProcessor 
   }
 
   private static void getTestData(ExtensionContext context) {
-    // get test class name and source file
+    // get test classname and source file
     String testClassName = context.getTestClass().get().getName();
     String testClassPath = testClassName.replace(".", "/") + ".java";
     String absolutePath = Paths.get("").toAbsolutePath() + "/src/test/java/" + testClassPath;
