@@ -2,7 +2,6 @@ package datadog.trace.api;
 
 import static datadog.trace.api.ConfigDefaults.*;
 import static datadog.trace.api.DDTags.*;
-import static datadog.trace.api.DDTags.PROFILING_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.*;
 import static datadog.trace.api.config.CiVisibilityConfig.*;
 import static datadog.trace.api.config.CrashTrackingConfig.*;
@@ -3431,6 +3430,9 @@ public class Config {
     result.put(RUNTIME_VERSION_TAG, runtimeVersion);
     if (azureAppServices) {
       result.putAll(getAzureAppServicesTags());
+    }
+    if (ServerlessInfo.get().isRunningInServerlessEnvironment()) {
+      result.put("functionname", ServerlessInfo.get().getFunctionName());
     }
     return Collections.unmodifiableMap(result);
   }
