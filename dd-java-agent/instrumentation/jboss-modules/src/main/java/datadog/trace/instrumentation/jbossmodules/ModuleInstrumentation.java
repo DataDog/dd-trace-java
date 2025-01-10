@@ -164,8 +164,7 @@ public final class ModuleInstrumentation extends InstrumenterModule.Tracing
     public static void afterConstruct(@Advice.This final Module module) {
       final String name = ModuleNameHelper.extractDeploymentName(module.getClassLoader());
       if (name != null && !name.isEmpty()) {
-        ClassloaderConfigurationOverrides.addContextualInfo(
-            module.getClassLoader(), new ClassloaderConfigurationOverrides.ContextualInfo(name));
+        ClassloaderConfigurationOverrides.withPinnedServiceName(module.getClassLoader(), name);
       }
     }
   }

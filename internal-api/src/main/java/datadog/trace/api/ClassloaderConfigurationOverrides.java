@@ -82,6 +82,16 @@ public class ClassloaderConfigurationOverrides {
   }
 
   @Nullable
+  public static ContextualInfo withPinnedServiceName(ClassLoader classLoader, String serviceName) {
+    if (!CAN_SPLIT_SERVICE_NAME_BY_DEPLOYMENT) {
+      return null;
+    }
+    final ContextualInfo contextualInfo = new ContextualInfo(serviceName);
+    addContextualInfo(classLoader, contextualInfo);
+    return contextualInfo;
+  }
+
+  @Nullable
   public static ContextualInfo maybeGetContextualInfo(ClassLoader classLoader) {
     if (atLeastOneEntry) {
       return Lazy.INSTANCE.weakCache.get(classLoader);

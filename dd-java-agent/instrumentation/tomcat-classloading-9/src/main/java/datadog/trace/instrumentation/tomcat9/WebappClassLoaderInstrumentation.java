@@ -9,6 +9,8 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.ClassloaderConfigurationOverrides;
+import java.util.HashMap;
+import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.apache.catalina.Context;
 import org.apache.catalina.WebResourceRoot;
@@ -47,14 +49,12 @@ public class WebappClassLoaderInstrumentation extends InstrumenterModule.Tracing
 
       final String contextName = context.getBaseName();
       if (contextName != null && !contextName.isEmpty()) {
-        info = new ClassloaderConfigurationOverrides.ContextualInfo(contextName);
+        info = ClassloaderConfigurationOverrides.withPinnedServiceName(classLoader, contextName);
       }
       if (context.getNamingResources() != null) {
         final ContextEnvironment[] envs = context.getNamingResources().findEnvironments();
         if (envs != null) {
-          if (info == null) {
-            info = new ClassloaderConfigurationOverrides.ContextualInfo(null);
-          }
+          final Map<String, String> tags = new HashMap<>();
           for (final ContextEnvironment env : envs) {
             // as a limitation here we simplify a lot the logic and we do not try to resolve the
             // typed value but we just take the string representation. It avoids implementing the
@@ -70,13 +70,16 @@ public class WebappClassLoaderInstrumentation extends InstrumenterModule.Tracing
               name = env.getName().substring(DATADOG_TAGS_JNDI_PREFIX.length());
             }
             if (name != null && !name.isEmpty()) {
-              info.addTag(name, env.getValue());
+              tags.put(name, env.getValue());
             }
           }
+          if (!tags.isEmpty()) {
+            if (info == null) {
+              info = ClassloaderConfigurationOverrides.maybeCreateContextualInfo(classLoader);
+            }
+            tags.forEach(info::addTag);
+          }
         }
-      }
-      if (info != null) {
-        ClassloaderConfigurationOverrides.addContextualInfo(classLoader, info);
       }
     }
   }
