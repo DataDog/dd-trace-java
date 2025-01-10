@@ -129,7 +129,7 @@ public abstract class SinkModuleBase {
       final TaintedObject tainted = origin == null ? null : to.get(origin);
       if (origin != null && tainted != null) {
         valueRanges = Ranges.getNotMarkedRanges(tainted.getRanges(), type.mark());
-        addSecurityControlMetrics(valueRanges, tainted.getRanges(), type);
+        addSecurityControlMetrics(ctx, valueRanges, tainted.getRanges(), type);
         value = origin;
       } else {
         valueRanges = Ranges.forObject((Source) taintable.$$DD$getSource(), type.mark());
@@ -141,7 +141,7 @@ public abstract class SinkModuleBase {
         return null;
       }
       valueRanges = Ranges.getNotMarkedRanges(tainted.getRanges(), type.mark());
-      addSecurityControlMetrics(valueRanges, tainted.getRanges(), type);
+      addSecurityControlMetrics(ctx, valueRanges, tainted.getRanges(), type);
     }
 
     if (valueRanges == null || valueRanges.length == 0) {
@@ -166,6 +166,7 @@ public abstract class SinkModuleBase {
   }
 
   private void addSecurityControlMetrics(
+      @Nonnull final IastContext ctx,
       @Nullable final Range[] valueRanges,
       @Nonnull final Range[] taintedRanges,
       @Nonnull final VulnerabilityType type) {
@@ -179,7 +180,7 @@ public abstract class SinkModuleBase {
     // check if there are tainted ranges without the security control mark
     Range[] marked = Ranges.getNotMarkedRanges(taintedRanges, CUSTOM_SECURITY_CONTROL_MARK);
     if (marked == null || marked.length == 0) {
-      IastMetricCollector.add(IastMetric.SUPPRESSED_VULNERABILITIES, type.type(), 1);
+      IastMetricCollector.add(IastMetric.SUPPRESSED_VULNERABILITIES, type.type(), 1, ctx);
     }
   }
 
