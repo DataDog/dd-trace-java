@@ -33,7 +33,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import org.jetbrains.annotations.NotNull;
 
 public class StringModuleImpl implements StringModule {
 
@@ -295,8 +294,7 @@ public class StringModuleImpl implements StringModule {
   }
 
   @Override
-  public void onStringTranslateEscapes(
-      @NotNull String self, @org.jetbrains.annotations.Nullable String result) {
+  public void onStringTranslateEscapes(@Nonnull String self, @Nullable String result) {
     if (!canBeTainted(result)) {
       return;
     }
