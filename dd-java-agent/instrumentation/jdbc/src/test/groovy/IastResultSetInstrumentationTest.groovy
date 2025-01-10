@@ -1,11 +1,15 @@
 import com.datadog.iast.taint.TaintedObject
 import com.datadog.iast.test.IastAgentTestRunner
 import datadog.trace.api.iast.SourceTypes
+import datadog.trace.bootstrap.CallDepthThreadLocalMap
 import foo.bar.IastInstrumentedConnection
 import spock.lang.Shared
 
 import javax.sql.DataSource
 import java.sql.Connection
+import java.sql.ResultSet
+
+import static datadog.trace.api.config.IastConfig.IAST_DB_ROWS_TO_TAINT
 
 class IastResultSetInstrumentationTest extends IastAgentTestRunner {
   @Shared
@@ -59,6 +63,7 @@ class IastResultSetInstrumentationTest extends IastAgentTestRunner {
     }
 
     then:
+    CallDepthThreadLocalMap.getCallDepth(ResultSet) == 0
     valueRead == "foo"
     taintedObject != null
     with(taintedObject) {
@@ -92,6 +97,7 @@ class IastResultSetInstrumentationTest extends IastAgentTestRunner {
     }
 
     then:
+    CallDepthThreadLocalMap.getCallDepth(ResultSet) == 0
     valuesRead[0] == "foo"
     taintedObjects[0] != null
     with(taintedObjects[0]) {
@@ -128,6 +134,7 @@ class IastResultSetInstrumentationTest extends IastAgentTestRunner {
     }
 
     then:
+    CallDepthThreadLocalMap.getCallDepth(ResultSet) == 0
     valuesRead[0] == "foo"
     taintedObjects[0] != null
     with(taintedObjects[0]) {
@@ -150,7 +157,7 @@ class IastResultSetInstrumentationTest extends IastAgentTestRunner {
 
   void 'returned string is tainted with source values as sql table and can taint up to two values'() {
     given:
-    injectSysConfig('dd.iast.dbRowsToTaint', "2")
+    injectSysConfig(IAST_DB_ROWS_TO_TAINT, "2")
 
     when:
     List<String> valuesRead = []
@@ -173,6 +180,7 @@ class IastResultSetInstrumentationTest extends IastAgentTestRunner {
     }
 
     then:
+    CallDepthThreadLocalMap.getCallDepth(ResultSet) == 0
     valuesRead[0] == "foo"
     taintedObjects[0] != null
     with(taintedObjects[0]) {
@@ -213,7 +221,34 @@ class IastResultSetInstrumentationTest extends IastAgentTestRunner {
     }
 
     then:
+    CallDepthThreadLocalMap.getCallDepth(ResultSet) == 0
     valueRead == 42
+    taintedObject == null
+  }
+
+  void 'when CallDepthThreadLocalMap is greater than 0 does not taint the values' () {
+    when:
+    def valueRead
+    TaintedObject taintedObject
+    CallDepthThreadLocalMap.incrementCallDepth(ResultSet)
+    runUnderIastTrace {
+      String sql = 'SELECT name FROM TEST LIMIT 1'
+      Connection constWrapper = new IastInstrumentedConnection(conn: connection)
+
+      constWrapper.prepareStatement(sql).withCloseable { stmt ->
+        stmt.executeQuery().withCloseable { rs ->
+          if (rs.next()) {
+            valueRead = rs.getString(1)
+          }
+        }
+      }
+
+      taintedObject = localTaintedObjects.get(valueRead)
+    }
+
+    then:
+    CallDepthThreadLocalMap.getCallDepth(ResultSet) == 1
+    valueRead == "foo"
     taintedObject == null
   }
 }

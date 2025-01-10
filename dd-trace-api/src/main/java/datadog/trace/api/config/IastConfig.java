@@ -30,7 +30,7 @@ public final class IastConfig {
   public static final String IAST_SECURITY_CONTROLS_ENABLED = "iast.security-controls.enabled";
   public static final String IAST_SECURITY_CONTROLS_CONFIGURATION =
       "iast.security-controls.configuration";
-  public static final String IAST_DB_ROWS_TO_TAINT = "iast.dbRowsToTaint";
+  public static final String IAST_DB_ROWS_TO_TAINT = "iast.db.rows-to-taint";
 
   private IastConfig() {}
 }
