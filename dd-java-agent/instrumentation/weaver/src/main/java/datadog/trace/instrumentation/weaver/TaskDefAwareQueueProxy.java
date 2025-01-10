@@ -15,6 +15,7 @@ public final class TaskDefAwareQueueProxy<T> extends ConcurrentLinkedQueue<T> {
   public TaskDefAwareQueueProxy(TaskDef taskDef, ConcurrentLinkedQueue<T> delegate) {
     this.taskDef = taskDef;
     this.delegate = delegate;
+    DatadogWeaverReporter.start();
   }
 
   @Override

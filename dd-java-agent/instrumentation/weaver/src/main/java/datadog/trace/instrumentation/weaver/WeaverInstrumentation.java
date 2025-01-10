@@ -41,12 +41,12 @@ public class WeaverInstrumentation extends InstrumenterModule.CiVisibility
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isConstructor(), WeaverInstrumentation.class.getName() + "$QueuePollAdvice");
+        isConstructor(), WeaverInstrumentation.class.getName() + "$SbtTaskCreationAdvice");
   }
 
-  public static class QueuePollAdvice {
+  public static class SbtTaskCreationAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void onQueuePoll(
+    public static void onTaskCreation(
         @Advice.FieldValue(value = "queue", readOnly = false)
             ConcurrentLinkedQueue<SuiteEvent> queue,
         @Advice.FieldValue("taskDef") TaskDef taskDef) {

@@ -16,7 +16,7 @@ dependencies {
 
   testImplementation testFixtures(project(':dd-java-agent:agent-ci-visibility'))
 
-  testImplementation group: 'org.scala-lang', name: 'scala-library', version: '2.12.15'
+  testImplementation group: 'org.scala-lang', name: 'scala-library', version: '2.12.20'
   testImplementation group: 'com.disneystreaming', name: 'weaver-cats_3', version: '0.8.4'
 
   testImplementation group: 'com.disneystreaming', name: 'weaver-cats_3', version: '+'

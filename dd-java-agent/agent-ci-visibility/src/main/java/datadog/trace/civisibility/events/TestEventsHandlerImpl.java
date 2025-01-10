@@ -135,6 +135,37 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
       final @Nullable String testMethodName,
       final @Nullable Method testMethod,
       final boolean isRetry) {
+    onTestStart(
+        suiteDescriptor,
+        descriptor,
+        testSuiteName,
+        testName,
+        testFramework,
+        testFrameworkVersion,
+        testParameters,
+        categories,
+        testClass,
+        testMethodName,
+        testMethod,
+        isRetry,
+        null);
+  }
+
+  @Override
+  public void onTestStart(
+      final SuiteKey suiteDescriptor,
+      final TestKey descriptor,
+      final String testSuiteName,
+      final String testName,
+      final @Nullable String testFramework,
+      final @Nullable String testFrameworkVersion,
+      final @Nullable String testParameters,
+      final @Nullable Collection<String> categories,
+      final @Nullable Class<?> testClass,
+      final @Nullable String testMethodName,
+      final @Nullable Method testMethod,
+      final boolean isRetry,
+      final @Nullable Long startTime) {
     if (skipTrace(testClass)) {
       return;
     }
@@ -148,7 +179,7 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
               + descriptor);
     }
 
-    TestImpl test = testSuite.testStart(testName, testParameters, testMethod, null);
+    TestImpl test = testSuite.testStart(testName, testParameters, testMethod, startTime);
 
     TestIdentifier thisTest = new TestIdentifier(testSuiteName, testName, testParameters);
     if (testModule.isNew(thisTest)) {
@@ -213,12 +244,17 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
 
   @Override
   public void onTestFinish(TestKey descriptor) {
+    onTestFinish(descriptor, null);
+  }
+
+  @Override
+  public void onTestFinish(TestKey descriptor, @Nullable Long endTime) {
     TestImpl test = inProgressTests.remove(descriptor);
     if (test == null) {
       log.debug("Ignoring finish event, could not find test {}", descriptor);
       return;
     }
-    test.end(null);
+    test.end(endTime);
   }
 
   @Override
