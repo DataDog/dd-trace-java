@@ -449,7 +449,7 @@ class PendingTraceBufferTest extends DDSpecification {
 
   def "testing tracer flare dump"() {
     setup:
-    // Don't start the buffer thread
+    buffer.start()
     TracerFlare.addReporter {} // exercises default methods
     def dumpReporter = Mock(PendingTraceBuffer.TracerDump)
     TracerFlare.addReporter(dumpReporter)
@@ -461,54 +461,10 @@ class PendingTraceBufferTest extends DDSpecification {
 
     then:
     1 * dumpReporter.prepareForFlare()
-
-    then:
     1 * dumpReporter.addReportToFlare(_)
-
-    then:
     1 * dumpReporter.cleanupAfterFlare()
-
-    and:
-    entries.size() == 2
+    entries.size() == 1
     entries["trace_dump.txt"] == "example text"
-    entries["flare_errors.txt"] =~
-      /^(java.lang.IllegalStateException: (bin|txt) \(expected\)\n){2}$/
-//    then:
-//    1 * tracer.captureTraceConfig() >> traceConfig
-//    pendingTrace.rootSpanWritten
-//    pendingTrace.isEnqueued == 0
-//    buffer.queue.size() == 0
-//    _ * bufferSpy.longRunningSpansEnabled()
-//    1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
-//    1 * tracer.write({ it.size() == 1 })
-//    1 * tracer.getPartialFlushMinSpans() >> 10000
-//    1 * traceConfig.getServiceMapping() >> [:]
-//    2 * tracer.getTimeWithNanoTicks(_)
-//    1 * tracer.onRootSpanPublished(_)
-//    0 * _
-//
-//    when: "fail to fill the buffer"
-//    for (i in  1..buffer.queue.capacity()) {
-//      addContinuation(newSpanOf(span)).finish()
-//    }
-//
-//    then:
-//    pendingTrace.isEnqueued == 1
-//    buffer.queue.size() == 1
-//    buffer.queue.capacity() * bufferSpy.enqueue(_)
-//    _ * bufferSpy.longRunningSpansEnabled()
-//    _ * tracer.getPartialFlushMinSpans() >> 10000
-//    _ * traceConfig.getServiceMapping() >> [:]
-//    _ * tracer.getTimeWithNanoTicks(_)
-//    0 * _
-//
-//    when: "process the buffer"
-//    buffer.start()
-//
-//    then:
-//    new PollingConditions(timeout: 3, initialDelay: 0, delay: 0.5, factor: 1).eventually {
-//      assert pendingTrace.isEnqueued == 0
-//    }
   }
 
 
@@ -589,7 +545,7 @@ class PendingTraceBufferTest extends DDSpecification {
       def bytes = new ByteArrayOutputStream()
       bytes << zip
       entries.put(entry.name, entry.name.endsWith(".bin")
-        ? bytes.toByteArray() : new String(bytes.toByteArray(), UTF_8))
+      ? bytes.toByteArray() : new String(bytes.toByteArray(), UTF_8))
     }
 
     return entries

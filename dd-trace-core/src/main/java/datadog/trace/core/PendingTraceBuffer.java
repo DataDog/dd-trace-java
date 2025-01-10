@@ -384,7 +384,8 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
                   PendingTrace)); // Removing elements from the drain that are not instances of
       // PendingTrace
 
-      DelayingPendingTraceBuffer.DumpDrain.data.sort((TRACE_BY_START_TIME).reversed()); // Storing oldest traces first
+      DelayingPendingTraceBuffer.DumpDrain.data.sort(
+          (TRACE_BY_START_TIME).reversed()); // Storing oldest traces first
 
       StringBuilder dumpText = new StringBuilder();
       for (Element e : DelayingPendingTraceBuffer.DumpDrain.data) {
@@ -395,7 +396,8 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
           }
         }
       }
-      DelayingPendingTraceBuffer.DumpDrain.data.clear(); // releasing memory used for ArrayList in drain
+      DelayingPendingTraceBuffer.DumpDrain.data
+          .clear(); // releasing memory used for ArrayList in drain
       return dumpText.toString();
     }
   }
