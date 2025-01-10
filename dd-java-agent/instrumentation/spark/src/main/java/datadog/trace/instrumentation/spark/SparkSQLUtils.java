@@ -344,7 +344,7 @@ public class SparkSQLUtils {
   static PartialFunction<LogicalPlan, LineageDataset> logicalPlanToDataset =
       new PartialFunction<LogicalPlan, LineageDataset>() {
         private final ObjectMapper mapper =
-            new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);;
+            new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
         @Override
         public boolean isDefinedAt(LogicalPlan x) {
@@ -358,40 +358,33 @@ public class SparkSQLUtils {
 
         @Override
         public LineageDataset apply(LogicalPlan x) {
-          if (dataSourceV2RelationClass != null && dataSourceV2RelationClass.isInstance(x)) {
-            return parseDataSourceV2Relation(x, "input");
-          } else if (x instanceof AppendData) {
-            AppendData appendData = (AppendData) x;
-            NamedRelation table = appendData.table();
-            if (dataSourceV2RelationClass != null && dataSourceV2RelationClass.isInstance(table)) {
-              return parseDataSourceV2Relation(table, "output");
-            }
-          } else if (replaceDataClass != null
-              && replaceDataClass.isInstance(x)
-              && tableMethodForReplaceData != null) {
-            try {
+          try {
+            if (dataSourceV2RelationClass != null && dataSourceV2RelationClass.isInstance(x)) {
+              return parseDataSourceV2Relation(x, "input");
+            } else if (x instanceof AppendData) {
+              AppendData appendData = (AppendData) x;
+              NamedRelation table = appendData.table();
+              if (dataSourceV2RelationClass != null
+                  && dataSourceV2RelationClass.isInstance(table)) {
+                return parseDataSourceV2Relation(table, "output");
+              }
+            } else if (replaceDataClass != null
+                && replaceDataClass.isInstance(x)
+                && tableMethodForReplaceData != null) {
               Object table = tableMethodForReplaceData.invoke(x);
               if (table != null
                   && dataSourceV2RelationClass != null
                   && dataSourceV2RelationClass.isInstance(table)) {
                 return parseDataSourceV2Relation(table, "output");
-              } else {
-                log.debug(
-                    "table is null or not instance of {}, cannot parse current LogicalPlan",
-                    dataSourceV2RelationClass.getName());
               }
-            } catch (Throwable ignored) {
-              log.debug("Error while converting logical plan to dataset", ignored);
-            }
-          } else if (insertIntoHiveTableClass != null && insertIntoHiveTableClass.isInstance(x)) {
-            try {
+            } else if (insertIntoHiveTableClass != null && insertIntoHiveTableClass.isInstance(x)) {
               return parseCatalogTable(
                   (CatalogTable) x.getClass().getMethod("table").invoke(x), "output");
-            } catch (Throwable ignored) {
-              log.debug("Error while converting logical plan to dataset", ignored);
+            } else if (x instanceof HiveTableRelation) {
+              return parseCatalogTable(((HiveTableRelation) x).tableMeta(), "input");
             }
-          } else if (x instanceof HiveTableRelation) {
-            return parseCatalogTable(((HiveTableRelation) x).tableMeta(), "input");
+          } catch (Throwable ignored) {
+            log.debug("Error while converting logical plan to dataset", ignored);
           }
           return null;
         }
