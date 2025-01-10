@@ -23,11 +23,6 @@ public class ResourceReferenceProcessorInstrumentation extends InstrumenterModul
     super("wildfly", "jee-env-entry");
   }
 
-  public ResourceReferenceProcessorInstrumentation(
-      String instrumentationName, String... additionalNames) {
-    super(instrumentationName, additionalNames);
-  }
-
   @Override
   public String instrumentedType() {
     return "org.jboss.as.ee.component.deployers.ResourceReferenceProcessor";
