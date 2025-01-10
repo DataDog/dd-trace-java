@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.spark;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -43,6 +44,8 @@ public class SparkSQLUtils {
   private static final MethodHandle tableMethod;
 
   private static final Class<?> replaceDataClass;
+  private static final MethodHandle tableMethodForReplaceData;
+
   private static final Class<?> insertIntoHiveTableClass;
 
   private static final Class<?> tableClass;
@@ -72,12 +75,14 @@ public class SparkSQLUtils {
 
   static {
     Class<?> relationClassFound = null;
-    Class<?> tableClassFound = null;
-    Class<?> replaceDataClassFound = null;
-    Class<?> insertIntoHiveTableClassFound = null;
-
     MethodHandle tableMethodFound = null;
 
+    Class<?> replaceDataClassFound = null;
+    MethodHandle tableMethodForReplaceDataFound = null;
+
+    Class<?> insertIntoHiveTableClassFound = null;
+
+    Class<?> tableClassFound = null;
     MethodHandle nameMethodFound = null;
     MethodHandle schemaMethodFound = null;
     MethodHandle propertiesMethodFound = null;
@@ -105,6 +110,12 @@ public class SparkSQLUtils {
         propertiesMethodFound =
             lookup.findVirtual(tableClassFound, "properties", MethodType.methodType(Map.class));
       }
+
+      if (replaceDataClassFound != null) {
+        tableMethodForReplaceDataFound =
+            lookup.findVirtual(
+                replaceDataClassFound, "table", MethodType.methodType(NamedRelation.class));
+      }
     } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException ignored) {
     }
 
@@ -112,6 +123,8 @@ public class SparkSQLUtils {
     tableMethod = tableMethodFound;
 
     replaceDataClass = replaceDataClassFound;
+    tableMethodForReplaceData = tableMethodForReplaceDataFound;
+
     insertIntoHiveTableClass = insertIntoHiveTableClassFound;
 
     tableClass = tableClassFound;
@@ -308,11 +321,15 @@ public class SparkSQLUtils {
   }
 
   static class LineageDataset {
-    final String name;
-    final String schema;
-    final String properties;
-    final String stats;
-    final String type;
+    @JsonProperty final String name;
+
+    @JsonProperty final String schema;
+
+    @JsonProperty final String properties;
+
+    @JsonProperty final String stats;
+
+    @JsonProperty final String type;
 
     public LineageDataset(
         String name, String schema, String stats, String properties, String type) {
@@ -349,21 +366,19 @@ public class SparkSQLUtils {
             if (dataSourceV2RelationClass != null && dataSourceV2RelationClass.isInstance(table)) {
               return parseDataSourceV2Relation(table, "output");
             }
-          } else if (replaceDataClass != null && replaceDataClass.isInstance(x)) {
+          } else if (replaceDataClass != null
+              && replaceDataClass.isInstance(x)
+              && tableMethodForReplaceData != null) {
             try {
-              if (x.getClass().getMethod("table") != null) {
-                Object table = x.getClass().getMethod("table").invoke(x);
-                if (table != null
-                    && dataSourceV2RelationClass != null
-                    && dataSourceV2RelationClass.isInstance(table)) {
-                  return parseDataSourceV2Relation(table, "output");
-                } else {
-                  log.debug(
-                      "table is null or not instance of {}, cannot parse current LogicalPlan",
-                      dataSourceV2RelationClass.getName());
-                }
+              Object table = tableMethodForReplaceData.invoke(x);
+              if (table != null
+                  && dataSourceV2RelationClass != null
+                  && dataSourceV2RelationClass.isInstance(table)) {
+                return parseDataSourceV2Relation(table, "output");
               } else {
-                log.debug("method table does not exist for {}", x.getClass().getName());
+                log.debug(
+                    "table is null or not instance of {}, cannot parse current LogicalPlan",
+                    dataSourceV2RelationClass.getName());
               }
             } catch (Throwable ignored) {
               log.debug("Error while converting logical plan to dataset", ignored);
