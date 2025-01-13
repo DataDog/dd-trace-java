@@ -43,6 +43,7 @@ muzzle {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
+apply plugin: "idea"
 
 addTestSuiteForDir('mule46ForkedTest', 'test')
 addTestSuiteForDir('latestDepForkedTest', 'test')
@@ -81,6 +82,9 @@ configurations.all {
 }
 
 sourceSets {
+  main_java11 {
+    java.srcDirs "${project.projectDir}/src/main/java11"
+  }
   test {
     output.dir("$buildDir/generated-resources/test", builtBy: 'generateAppResources')
   }
@@ -90,6 +94,20 @@ sourceSets {
   latestDepForkedTest {
     output.dir("$buildDir/generated-resources/latestDepForkedTest", builtBy: 'generateAppResourcesLatest')
   }
+}
+
+compileMain_java11Java.configure {
+  setJavaVersion(it, 11)
+  sourceCompatibility = JavaVersion.VERSION_1_8
+  targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+jar {
+  from sourceSets.main_java11.output
+}
+
+forbiddenApisMain_java11 {
+  failOnMissingClasses = false
 }
 
 tasks.named("compileTestGroovy").configure {
@@ -112,7 +130,10 @@ tasks.named("compileLatestDepForkedTestJava").configure {
 dependencies {
   compileOnly group: 'org.mule.runtime', name: 'mule-core', version: muleVersion
   compileOnly group: 'org.mule.runtime', name: 'mule-tracer-customization-impl', version: muleVersion
-
+  main_java11CompileOnly project(':internal-api')
+  main_java11CompileOnly project(':dd-java-agent:agent-tooling')
+  main_java11CompileOnly project(':dd-java-agent:agent-bootstrap')
+  main_java11CompileOnly sourceSets.main.output
   testImplementation project(':dd-java-agent:instrumentation:aws-common')
   testImplementation project(':dd-java-agent:instrumentation:reactor-core-3.1')
   testImplementation project(':dd-java-agent:instrumentation:reactive-streams')
@@ -232,5 +253,11 @@ def createAppResourceTask(Task task, String name) {
 spotless {
   java {
     target "**/*.java"
+  }
+}
+
+idea {
+  module {
+    jdkName = '11'
   }
 }
