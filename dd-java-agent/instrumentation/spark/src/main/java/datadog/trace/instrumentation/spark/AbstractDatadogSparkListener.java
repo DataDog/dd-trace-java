@@ -22,6 +22,7 @@ import java.io.StringWriter;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.lang.reflect.Field;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
@@ -32,9 +33,11 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.apache.spark.ExceptionFailure;
 import org.apache.spark.SparkConf;
 import org.apache.spark.TaskFailedReason;
@@ -104,10 +107,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   protected final HashMap<Long, SparkPlanInfo> sqlPlans = new HashMap<>();
   private final HashMap<String, SparkListenerExecutorAdded> liveExecutors = new HashMap<>();
 
-  private volatile int lineageDatasetParsed = 0;
-  private volatile int lineageDatasetSent = 0;
-  private final HashMap<Long, List<SparkSQLUtils.LineageDataset>> lineageDatasets = new HashMap<>();
-  private final List<SparkSQLUtils.LineageDataset> allLineageDatasets = new ArrayList<>();
+  private final List<SparkSQLUtils.LineageDataset> inputLineageDatasets = new ArrayList<>();
+  private final List<SparkSQLUtils.LineageDataset> outputLineageDatasets = new ArrayList<>();
 
   // There is no easy way to know if an accumulator is not useful anymore (meaning it is not part of
   // an active SQL query)
@@ -759,32 +760,6 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   private synchronized void onSQLExecutionStart(SparkListenerSQLExecutionStart sqlStart) {
     sqlPlans.put(sqlStart.executionId(), sqlStart.sparkPlanInfo());
     sqlQueries.put(sqlStart.executionId(), sqlStart);
-
-    if (Config.get().isSparkDataLineageEnabled()
-        && lineageDatasetParsed < Config.get().getSparkDataLineageLimit()) {
-      long sqlExecutionId = sqlStart.executionId();
-      QueryExecution queryExecution = SQLExecution.getQueryExecution(sqlExecutionId);
-      if (queryExecution != null) {
-        LogicalPlan logicalPlan = queryExecution.analyzed();
-
-        log.info("Logical plan for query execution id {}: {}", sqlExecutionId, logicalPlan);
-
-        if (logicalPlan != null) {
-          List<SparkSQLUtils.LineageDataset> datasets =
-              JavaConverters.seqAsJavaList(logicalPlan.collect(SparkSQLUtils.logicalPlanToDataset));
-          if (!datasets.isEmpty()) {
-            log.info(
-                "Parsed {} datasets for query execution id {}", datasets.size(), sqlExecutionId);
-            lineageDatasets.put(sqlExecutionId, datasets);
-            lineageDatasetParsed += datasets.size();
-          } else {
-            log.info("No datasets found for query execution id {}", sqlExecutionId);
-          }
-        }
-      } else {
-        log.warn("Start: QueryExecution not found for sqlEnd queryExecutionId: {}", sqlExecutionId);
-      }
-    }
   }
 
   private synchronized void onSQLExecutionEnd(SparkListenerSQLExecutionEnd sqlEnd) {
@@ -803,58 +778,129 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       log.info("End: Span not found for query execution id {}", sqlEnd.executionId());
     }
 
-    List<SparkSQLUtils.LineageDataset> datasets = lineageDatasets.remove(sqlEnd.executionId());
-    if (Config.get().isSparkDataLineageEnabled() && datasets != null && applicationSpan != null) {
-      // limit the number of datasets can be added to the span
-      final int dataLineageLimit = Config.get().getSparkDataLineageLimit();
-      int updatedLineageDatasetSent = lineageDatasetSent + datasets.size();
-      if (updatedLineageDatasetSent > dataLineageLimit) {
-        int datasetAboveLimit = updatedLineageDatasetSent - dataLineageLimit;
-        datasets = datasets.subList(0, datasets.size() - datasetAboveLimit);
-        updatedLineageDatasetSent = dataLineageLimit;
-
-        log.debug(
-            "Data lineage limit {} reached, {} datasets will be skipped, and only adding {} datasets to span for query execution id {}",
-            dataLineageLimit,
-            datasetAboveLimit,
-            datasets.size(),
-            sqlEnd.executionId());
-      }
-
-      allLineageDatasets.addAll(datasets);
-      try {
-        applicationSpan.setTag(
-            "spark.sql._dataset", objectMapper.writeValueAsString(allLineageDatasets));
-      } catch (Exception ignored) {
-      }
-
-      log.info(
-          "adding {} datasets to span for query execution id {}",
-          datasets.size(),
-          sqlEnd.executionId());
-
-      int datasetIndex = lineageDatasetSent;
-      for (int i = 0; i < datasets.size(); i++) {
-        SparkSQLUtils.LineageDataset dataset = datasets.get(i);
-
-        if (dataset == null) {
-          continue;
-        }
-
-        // add to Application span
-        applicationSpan.setTag("spark.sql.dataset." + datasetIndex + ".name", dataset.name);
-        applicationSpan.setTag("spark.sql.dataset." + datasetIndex + ".schema", dataset.schema);
-        applicationSpan.setTag("spark.sql.dataset." + datasetIndex + ".stats", dataset.stats);
-        applicationSpan.setTag(
-            "spark.sql.dataset." + datasetIndex + ".properties", dataset.properties);
-        applicationSpan.setTag("spark.sql.dataset." + datasetIndex + ".type", dataset.type);
-
-        datasetIndex++;
-      }
-
-      lineageDatasetSent = updatedLineageDatasetSent;
-      applicationSpan.setTag("spark.sql.dataset_count", updatedLineageDatasetSent);
+    try {
+      addLineageDatasetsToSpan(sqlEnd);
+    } catch (Throwable ignored) {
     }
+  }
+
+  private void addLineageDatasetsToSpan(SparkListenerSQLExecutionEnd sqlEnd) {
+    if (!Config.get().isSparkDataLineageEnabled()) {
+      return;
+    }
+
+    if (null == applicationSpan) {
+      return;
+    }
+
+    if (inputLineageDatasets.size() + outputLineageDatasets.size()
+        >= Config.get().getSparkDataLineageLimit()) {
+      return;
+    }
+
+    Optional<LogicalPlan> logicalPlan = getAnalyzedLogicalPlan(sqlEnd);
+    if (!logicalPlan.isPresent()) {
+      return;
+    }
+
+    List<SparkSQLUtils.LineageDataset> datasets =
+        adjustForLimit(parseDatasetsFromLogicalPlan(logicalPlan.get()));
+    if (datasets.isEmpty()) {
+      return;
+    }
+
+    log.info(
+        "adding {} datasets to span for query execution id {}",
+        datasets.size(),
+        sqlEnd.executionId());
+
+    List<SparkSQLUtils.LineageDataset> inputDatasets =
+        datasets.stream()
+            .filter(dataset -> dataset.type.equals("input"))
+            .collect(Collectors.toList());
+    List<SparkSQLUtils.LineageDataset> outputDatasets =
+        datasets.stream()
+            .filter(dataset -> dataset.type.equals("output"))
+            .collect(Collectors.toList());
+
+    updateLineageDatasetTag(
+        applicationSpan, inputDatasets, inputLineageDatasets, "spark.sql.dataset.input");
+    updateLineageDatasetTag(
+        applicationSpan, outputDatasets, outputLineageDatasets, "spark.sql.dataset.output");
+  }
+
+  private void updateLineageDatasetTag(
+      AgentSpan span,
+      List<SparkSQLUtils.LineageDataset> datasets,
+      List<SparkSQLUtils.LineageDataset> lineageDatasets,
+      String tagPrefix) {
+    if (datasets.isEmpty()) {
+      return;
+    }
+
+    final int lastLineageDatasetIndex = lineageDatasets.size();
+    for (int i = 0; i < datasets.size(); i++) {
+      SparkSQLUtils.LineageDataset dataset = datasets.get(i);
+      int datasetIndex = lastLineageDatasetIndex + i;
+
+      span.setTag(tagPrefix + ".details." + datasetIndex + ".name", dataset.name);
+      span.setTag(tagPrefix + ".details." + datasetIndex + ".schema", dataset.schema);
+      span.setTag(tagPrefix + ".details." + datasetIndex + ".stats", dataset.stats);
+      span.setTag(tagPrefix + ".details." + datasetIndex + ".properties", dataset.properties);
+      span.setTag(tagPrefix + ".details." + datasetIndex + ".type", dataset.type);
+    }
+
+    lineageDatasets.addAll(datasets);
+    try {
+      applicationSpan.setTag(tagPrefix + ".json", objectMapper.writeValueAsString(lineageDatasets));
+      applicationSpan.setTag(tagPrefix + ".count", lineageDatasets.size());
+    } catch (Exception ignored) {
+    }
+  }
+
+  private List<SparkSQLUtils.LineageDataset> parseDatasetsFromLogicalPlan(LogicalPlan logicalPlan) {
+    return JavaConverters.seqAsJavaList(logicalPlan.collect(SparkSQLUtils.logicalPlanToDataset))
+        .stream()
+        .filter(Objects::nonNull)
+        .collect(Collectors.toList());
+  }
+
+  private List<SparkSQLUtils.LineageDataset> adjustForLimit(
+      List<SparkSQLUtils.LineageDataset> datasets) {
+    int datasetAboveLimit =
+        inputLineageDatasets.size()
+            + outputLineageDatasets.size()
+            + datasets.size()
+            - Config.get().getSparkDataLineageLimit();
+    if (datasetAboveLimit > 0) {
+      return datasets.subList(0, datasets.size() - datasetAboveLimit);
+    } else {
+      return datasets;
+    }
+  }
+
+  private Optional<LogicalPlan> getAnalyzedLogicalPlan(SparkListenerSQLExecutionEnd sqlEnd) {
+    long sqlExecutionId = sqlEnd.executionId();
+    QueryExecution queryExecution = SQLExecution.getQueryExecution(sqlExecutionId);
+
+    if (queryExecution != null) {
+      return Optional.ofNullable(queryExecution.analyzed());
+    }
+
+    try {
+      Field qeField = sqlEnd.getClass().getDeclaredField("qe");
+      qeField.setAccessible(true);
+      QueryExecution qe = (QueryExecution) qeField.get(sqlEnd);
+      if (qe != null) {
+        return Optional.ofNullable(qe.analyzed());
+      } else {
+        log.info("End: QueryExecution not found for sqlEnd queryExecutionId: {}", sqlExecutionId);
+      }
+    } catch (Exception e) {
+      log.error("Error while fetching QueryExecution from SparkListenerSQLExecutionEnd object", e);
+    }
+
+    return Optional.empty();
   }
 
   private synchronized void onStreamingQueryStartedEvent(
