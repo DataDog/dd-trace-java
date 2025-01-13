@@ -30,13 +30,14 @@ public class InsertSourceFileExtension implements TestExecutionListener {
     // get mapping of test classname to source file
     Map<String, String> sourceFiles = GatherSourceFileInfoExtension.getSourceFiles();
 
+    String filePath = Paths.get("").toAbsolutePath() + "/build/test-results/test/";
+
     // for each test...
     for (String sourceFile : sourceFiles.keySet()) {
-      // get xml report file
-      String filePath =
-          Paths.get("").toAbsolutePath() + "/build/test-results/test/TEST-" + sourceFile + ".xml";
       try {
-        String fileContent = new String(Files.readAllBytes(Paths.get(filePath)));
+        // get xml report file
+        String fileContent =
+            new String(Files.readAllBytes(Paths.get(filePath + "TEST-" + sourceFile + ".xml")));
 
         // add test source file info to report
         Pattern pattern = Pattern.compile("<testcase(.*?)classname=\"(.*?)\"(.*?)>");
@@ -62,9 +63,8 @@ public class InsertSourceFileExtension implements TestExecutionListener {
         matcher.appendTail(result);
 
         // set old filePath to new xml result
-        // this logic must be wrong or go elsewhere bc its getting overwritten. `result` output
-        // seems correct.
-        BufferedWriter writer = new BufferedWriter(new FileWriter(filePath));
+        BufferedWriter writer =
+            new BufferedWriter(new FileWriter(filePath + "MOD-" + sourceFile + ".xml"));
         writer.write(result.toString());
         writer.close();
       } catch (Exception e) {
