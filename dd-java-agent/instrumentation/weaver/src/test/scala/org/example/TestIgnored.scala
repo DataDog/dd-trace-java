@@ -3,7 +3,7 @@ package org.example
 import cats.effect._
 import weaver._
 
-object IgnoreTest extends SimpleIOSuite {
+object TestIgnored extends SimpleIOSuite {
   test("test ignored") {
     for {
       _ <- ignore("ignore reason")

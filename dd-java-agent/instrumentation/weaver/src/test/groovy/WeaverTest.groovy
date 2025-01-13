@@ -2,13 +2,13 @@ import datadog.trace.api.DisableTestTrace
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.instrumentation.weaver.WeaverInstrumentationTestRunner
 import datadog.trace.instrumentation.weaver.WeaverUtils
-import org.example.CancelTest
-import org.example.FailTest
-import org.example.IgnoreTest
-import org.example.PureExceptionTest
-import org.example.PureFailTest
-import org.example.PureSucceedTest
-import org.example.SucceedTest
+import org.example.TestCanceled
+import org.example.TestFailed
+import org.example.TestIgnored
+import org.example.TestPureException
+import org.example.TestPureFailed
+import org.example.TestPureSucceeded
+import org.example.TestSucceded
 
 @DisableTestTrace(reason = "avoid self-tracing")
 class WeaverTest extends CiVisibilityInstrumentationTest {
@@ -16,17 +16,17 @@ class WeaverTest extends CiVisibilityInstrumentationTest {
   def "test #testcaseName"() {
     runTests(tests)
 
-    result = 1
+    assertSpansData(testcaseName, expectedTracesCount)
 
     where:
-    testcaseName          | tests               | result
-    "test-pure-succeed"   | [PureSucceedTest]   | 1
-    "test-pure-fail"      | [PureFailTest]      | 1
-    "test-pure-exception" | [PureExceptionTest] | 1
-    "test-succeed"        | [SucceedTest]       | 1
-    "test-fail"           | [FailTest]          | 1
-    "test-ignored"        | [IgnoreTest]        | 1
-    "test-canceled"       | [CancelTest]        | 1
+    testcaseName          | tests               | expectedTracesCount
+    "test-pure-succeeded" | [TestPureSucceeded] | 2
+    "test-pure-failed"    | [TestPureFailed]    | 2
+    "test-pure-exception" | [TestPureException] | 2
+    "test-succeeded"      | [TestSucceded]      | 2
+    "test-failed"         | [TestFailed]        | 2
+    "test-ignored"        | [TestIgnored]       | 2
+    "test-canceled"       | [TestCanceled]      | 2
   }
 
   @Override
