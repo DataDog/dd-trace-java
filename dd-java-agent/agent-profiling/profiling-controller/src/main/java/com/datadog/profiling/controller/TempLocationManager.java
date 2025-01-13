@@ -4,6 +4,7 @@ import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.PidHelper;
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
@@ -17,10 +18,8 @@ import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,7 +63,7 @@ public final class TempLocationManager {
     default void onCleanupStart(boolean selfCleanup, long timeout, TimeUnit unit) {}
   }
 
-  private class CleanupVisitor implements FileVisitor<Path> {
+  private final class CleanupVisitor implements FileVisitor<Path> {
     private boolean shouldClean;
 
     private final Set<String> pidSet = PidHelper.getJavaPids();
@@ -175,12 +174,37 @@ public final class TempLocationManager {
     }
   }
 
+  private final class CleanupTask implements Runnable {
+    private final CountDownLatch latch = new CountDownLatch(1);
+    private volatile Throwable throwable = null;
+
+    @Override
+    public void run() {
+      try {
+        cleanup(false);
+      } catch (OutOfMemoryError oom) {
+        throw oom;
+      } catch (Throwable t) {
+        throwable = t;
+      } finally {
+        latch.countDown();
+      }
+    }
+
+    boolean await(long timeout, TimeUnit unit) throws Throwable {
+      boolean ret = latch.await(timeout, unit);
+      if (throwable != null) {
+        throw throwable;
+      }
+      return ret;
+    }
+  }
+
   private final Path baseTempDir;
   private final Path tempDir;
   private final long cutoffSeconds;
 
-  private final CompletableFuture<Void> cleanupTask;
-
+  private final CleanupTask cleanupTask = new CleanupTask();
   private final CleanupHook cleanupTestHook;
 
   /**
@@ -202,11 +226,7 @@ public final class TempLocationManager {
   static TempLocationManager getInstance(boolean waitForCleanup) {
     TempLocationManager instance = SingletonHolder.INSTANCE;
     if (waitForCleanup) {
-      try {
-        instance.waitForCleanup(5, TimeUnit.SECONDS);
-      } catch (TimeoutException ignored) {
-
-      }
+      instance.waitForCleanup(5, TimeUnit.SECONDS);
     }
     return instance;
   }
@@ -259,20 +279,17 @@ public final class TempLocationManager {
     baseTempDir.toFile().deleteOnExit();
 
     tempDir = baseTempDir.resolve("pid_" + pid);
-    cleanupTask = CompletableFuture.runAsync(() -> cleanup(false));
+    AgentTaskScheduler.INSTANCE.execute(() -> cleanup(false));
 
     Thread selfCleanup =
         new Thread(
             () -> {
-              try {
-                waitForCleanup(1, TimeUnit.SECONDS);
-              } catch (TimeoutException e) {
+              if (!waitForCleanup(1, TimeUnit.SECONDS)) {
                 log.info(
                     "Cleanup task timed out. {} temp directory might not have been cleaned up properly",
                     tempDir);
-              } finally {
-                cleanup(true);
               }
+              cleanup(true);
             },
             "Temp Location Manager Cleanup");
     Runtime.getRuntime().addShutdownHook(selfCleanup);
@@ -362,21 +379,19 @@ public final class TempLocationManager {
   }
 
   // accessible for tests
-  void waitForCleanup(long timeout, TimeUnit unit) throws TimeoutException {
+  boolean waitForCleanup(long timeout, TimeUnit unit) {
     try {
-      cleanupTask.get(timeout, unit);
+      return cleanupTask.await(timeout, unit);
     } catch (InterruptedException e) {
-      cleanupTask.cancel(true);
+      log.debug("Temp directory cleanup was interrupted");
       Thread.currentThread().interrupt();
-    } catch (TimeoutException e) {
-      cleanupTask.cancel(true);
-      throw e;
-    } catch (ExecutionException e) {
+    } catch (Throwable t) {
       if (log.isDebugEnabled()) {
-        log.debug("Failed to cleanup temp directory: {}", tempDir, e);
+        log.debug("Failed to cleanup temp directory: {}", tempDir, t);
       } else {
         log.debug("Failed to cleanup temp directory: {}", tempDir);
       }
     }
+    return false;
   }
 }
