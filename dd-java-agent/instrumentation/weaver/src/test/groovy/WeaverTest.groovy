@@ -1,5 +1,6 @@
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
+import datadog.trace.instrumentation.weaver.DatadogWeaverReporter
 import datadog.trace.instrumentation.weaver.WeaverInstrumentationTestRunner
 import datadog.trace.instrumentation.weaver.WeaverUtils
 import org.example.TestCanceled
@@ -40,7 +41,9 @@ class WeaverTest extends CiVisibilityInstrumentationTest {
   }
 
   void runTests(List<Class<?>> tests) {
+    DatadogWeaverReporter.start()
     def testNames = tests.collect { it.name }
     WeaverInstrumentationTestRunner.runTests(testNames)
+    DatadogWeaverReporter.stop()
   }
 }

@@ -62,6 +62,24 @@ public class NoOpTestEventsHandler<SuiteKey, TestKey>
   }
 
   @Override
+  public void onTestStart(
+      SuiteKey suiteDescriptor,
+      TestKey descriptor,
+      String testSuiteName,
+      String testName,
+      @Nullable String testFramework,
+      @Nullable String testFrameworkVersion,
+      @Nullable String testParameters,
+      @Nullable Collection<String> categories,
+      @Nullable Class<?> testClass,
+      @Nullable String testMethodName,
+      @Nullable Method testMethod,
+      boolean isRetry,
+      @Nullable Long startTime) {
+    // do nothing
+  }
+
+  @Override
   public void onTestSkip(TestKey descriptor, @Nullable String reason) {
     // do nothing
   }
@@ -73,6 +91,11 @@ public class NoOpTestEventsHandler<SuiteKey, TestKey>
 
   @Override
   public void onTestFinish(TestKey descriptor) {
+    // do nothing
+  }
+
+  @Override
+  public void onTestFinish(TestKey descriptor, @Nullable Long endTime) {
     // do nothing
   }
 

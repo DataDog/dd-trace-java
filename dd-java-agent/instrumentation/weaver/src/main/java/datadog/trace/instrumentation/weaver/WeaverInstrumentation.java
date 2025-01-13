@@ -13,7 +13,7 @@ import weaver.framework.SuiteEvent;
 
 @AutoService(InstrumenterModule.class)
 public class WeaverInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public WeaverInstrumentation() {
     super("ci-visibility", "weaver");
