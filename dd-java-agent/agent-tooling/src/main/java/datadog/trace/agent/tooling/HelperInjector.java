@@ -93,6 +93,7 @@ public class HelperInjector implements Instrumenter.TransformingAdvice {
         byte[] classBytes = classFileLocator.locate(helperName).resolve();
         if (adviceShader != null) {
           classBytes = adviceShader.shadeClass(classBytes);
+          helperName = adviceShader.uniqueHelper(helperName);
         }
         classnameToBytes.put(helperName, classBytes);
       }

@@ -1,7 +1,12 @@
 package datadog.trace.agent.tooling;
 
+import static java.util.Arrays.asList;
+import static java.util.Collections.emptyList;
+
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import net.bytebuddy.jar.asm.ClassReader;
 import net.bytebuddy.jar.asm.ClassVisitor;
@@ -12,18 +17,32 @@ import net.bytebuddy.jar.asm.commons.Remapper;
 /** Shades advice bytecode by applying relocations to all references. */
 public final class AdviceShader {
   private final Map<String, String> relocations;
+  private final List<String> helperNames;
 
   private volatile Remapper remapper;
 
-  public static AdviceShader with(Map<String, String> relocations) {
-    if (relocations != null) {
-      return new AdviceShader(relocations);
+  /**
+   * Used when installing {@link InstrumenterModule}s. Ensures any injected helpers have unique
+   * names so the original and relocated modules can inject helpers into the same class-loader.
+   */
+  public static AdviceShader with(InstrumenterModule module) {
+    if (module.adviceShading() != null) {
+      return new AdviceShader(module.adviceShading(), asList(module.helperClassNames()));
     }
     return null;
   }
 
-  private AdviceShader(Map<String, String> relocations) {
+  /** Used to generate and check muzzle references. Only applies relocations declared in modules. */
+  public static AdviceShader with(Map<String, String> relocations) {
+    if (relocations != null) {
+      return new AdviceShader(relocations, emptyList());
+    }
+    return null;
+  }
+
+  private AdviceShader(Map<String, String> relocations, List<String> helperNames) {
     this.relocations = relocations;
+    this.helperNames = helperNames;
   }
 
   /** Applies shading before calling the given {@link ClassVisitor}. */
@@ -42,13 +61,29 @@ public final class AdviceShader {
     return cw.toByteArray();
   }
 
+  /** Generates a unique shaded name for the given helper. */
+  public String uniqueHelper(String dottedName) {
+    int packageEnd = dottedName.lastIndexOf('.');
+    if (packageEnd > 0) {
+      return dottedName.substring(0, packageEnd + 1) + "shaded" + dottedName.substring(packageEnd);
+    }
+    return dottedName;
+  }
+
   final class AdviceMapper extends Remapper {
     private final DDCache<String, String> mappingCache = DDCaches.newFixedSizeCache(64);
 
     /** Flattened sequence of old-prefix, new-prefix relocations. */
     private final String[] prefixes;
 
+    private final Map<String, String> helperMapping;
+
     AdviceMapper() {
+      // record the unique names that we've given to injected helpers
+      this.helperMapping = new HashMap<>(helperNames.size() + 1, 1f);
+      for (String h : helperNames) {
+        this.helperMapping.put(h.replace('.', '/'), uniqueHelper(h).replace('.', '/'));
+      }
       // convert relocations to a flattened sequence: old-prefix, new-prefix, etc.
       this.prefixes = new String[relocations.size() * 2];
       int i = 0;
@@ -68,6 +103,10 @@ public final class AdviceShader {
 
     @Override
     public String map(String internalName) {
+      String uniqueName = helperMapping.get(internalName);
+      if (uniqueName != null) {
+        return uniqueName;
+      }
       if (internalName.startsWith("java/")
           || internalName.startsWith("datadog/")
           || internalName.startsWith("net/bytebuddy/")) {
