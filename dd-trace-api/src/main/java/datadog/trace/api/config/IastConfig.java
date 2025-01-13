@@ -27,7 +27,6 @@ public final class IastConfig {
   public static final String IAST_EXPERIMENTAL_PROPAGATION_ENABLED =
       "iast.experimental.propagation.enabled";
   public static final String IAST_STACK_TRACE_ENABLED = "iast.stacktrace.enabled";
-  public static final String IAST_SECURITY_CONTROLS_ENABLED = "iast.security-controls.enabled";
   public static final String IAST_SECURITY_CONTROLS_CONFIGURATION =
       "iast.security-controls.configuration";
 
