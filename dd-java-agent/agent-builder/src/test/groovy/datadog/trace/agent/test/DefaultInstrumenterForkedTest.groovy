@@ -141,8 +141,5 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
     TestDefaultInstrumenter(String instrumentationName, String additionalName) {
       super(instrumentationName, [additionalName] as String[])
     }
-
-    @Override
-    void methodAdvice(MethodTransformer transformer) {}
   }
 }

@@ -11,7 +11,7 @@ import datadog.trace.agent.tooling.muzzle.Reference;
 
 @AutoService(InstrumenterModule.class)
 public class DefaultErrorUtilInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public DefaultErrorUtilInstrumentation() {
     super("couchbase", "couchbase-3");

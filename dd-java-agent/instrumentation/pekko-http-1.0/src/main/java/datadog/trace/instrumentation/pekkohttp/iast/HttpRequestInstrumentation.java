@@ -36,7 +36,7 @@ import scala.collection.immutable.Seq;
  */
 @AutoService(InstrumenterModule.class)
 public class HttpRequestInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public HttpRequestInstrumentation() {
     super("pekko-http");
   }

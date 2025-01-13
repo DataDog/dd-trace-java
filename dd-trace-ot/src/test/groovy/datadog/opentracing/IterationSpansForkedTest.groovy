@@ -7,11 +7,8 @@ import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.test.util.DDSpecification
 import io.opentracing.ScopeManager
-import spock.util.concurrent.PollingConditions
 
 class IterationSpansForkedTest extends DDSpecification {
-  def conditions = new PollingConditions(timeout: 10, initialDelay: 0.1)
-
   ListWriter writer
   DDTracer tracer
   ScopeManager scopeManager
@@ -23,8 +20,8 @@ class IterationSpansForkedTest extends DDSpecification {
 
     writer = new ListWriter()
     statsDClient = Mock()
-    scopeManager = new TestScopeManager()
-    tracer = DDTracer.builder().writer(writer).statsDClient(statsDClient).scopeManager(scopeManager).build()
+    tracer = DDTracer.builder().writer(writer).statsDClient(statsDClient).build()
+    scopeManager = tracer.scopeManager()
     coreTracer = tracer.tracer
   }
 
@@ -43,7 +40,7 @@ class IterationSpansForkedTest extends DDSpecification {
 
     and:
     scope1.span() == span1
-    scopeManager.active() == scope1.scope
+    scopeManager.active().delegate == scope1
     !spanFinished(span1)
 
     when:
@@ -57,7 +54,7 @@ class IterationSpansForkedTest extends DDSpecification {
 
     and:
     scope2.span() == span2
-    scopeManager.active() == scope2.scope
+    scopeManager.active().delegate == scope2
     !spanFinished(span2)
 
     when:
@@ -72,7 +69,7 @@ class IterationSpansForkedTest extends DDSpecification {
 
     and:
     scope3.span() == span3
-    scopeManager.active() == scope3.scope
+    scopeManager.active().delegate == scope3
     !spanFinished(span3)
 
     when:
@@ -99,7 +96,7 @@ class IterationSpansForkedTest extends DDSpecification {
 
     and:
     scope1.span() == span1
-    scopeManager.active() == scope1.scope
+    scopeManager.active().delegate == scope1
     !spanFinished(span1)
 
     when:
@@ -113,7 +110,7 @@ class IterationSpansForkedTest extends DDSpecification {
 
     and:
     scope2.span() == span2
-    scopeManager.active() == scope2.scope
+    scopeManager.active().delegate == scope2
     !spanFinished(span2)
 
     when:
@@ -127,12 +124,8 @@ class IterationSpansForkedTest extends DDSpecification {
 
     and:
     scope3.span() == span3
-    scopeManager.active() == scope3.scope
+    scopeManager.active().delegate == scope3
     !spanFinished(span3)
-
-    when:
-    // 'next3' should time out & finish after 1s
-    conditions.eventually { assert spanFinished(span3) }
 
     // close and finish the surrounding (non-iteration) span to complete the trace
     scope0.close()
@@ -157,7 +150,7 @@ class IterationSpansForkedTest extends DDSpecification {
 
     and:
     scope1.span() == span1
-    scopeManager.active() == scope1.scope
+    scopeManager.active().delegate == scope1
     !spanFinished(span1)
 
     when:
@@ -175,7 +168,7 @@ class IterationSpansForkedTest extends DDSpecification {
 
     and:
     scope1A1.span() == span1A1
-    scopeManager.active() == scope1A1.scope
+    scopeManager.active().delegate == scope1A1
     !spanFinished(span1A1)
 
     when:
@@ -189,7 +182,7 @@ class IterationSpansForkedTest extends DDSpecification {
 
     and:
     scope1A2.span() == span1A2
-    scopeManager.active() == scope1A2.scope
+    scopeManager.active().delegate == scope1A2
     !spanFinished(span1A2)
 
     when:

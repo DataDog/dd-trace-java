@@ -26,31 +26,19 @@ public class MBeanServerBuilderSetter {
     } else if (System.getProperty("javax.management.builder.initial") != null) {
       System.out.println("javax.management.builder.initial != null");
 
-      if (ClassLoader.getSystemResource(
-              System.getProperty("javax.management.builder.initial").replaceAll("\\.", "/")
-                  + ".class")
-          == null) {
-        customAssert(
-            isJmxfetchStarted(false),
-            false,
-            "jmxfetch startup must be delayed when management builder system property is present.");
-        // Change back to a valid MBeanServerBuilder.
-        System.setProperty(
-            "javax.management.builder.initial", "jvmbootstraptest.CustomMBeanServerBuilder");
-        customAssert(
-            isCustomMBeanRegistered(),
-            true,
-            "Javaagent should not prevent setting a custom MBeanServerBuilder");
-        customAssert(
-            isJmxfetchStarted(true),
-            true,
-            "jmxfetch should start after loading MBeanServerBuilder.");
-      } else {
-        customAssert(
-            isJmxfetchStarted(false),
-            true,
-            "jmxfetch should start in premain when custom MBeanServerBuilder found on classpath.");
-      }
+      customAssert(
+          isJmxfetchStarted(false),
+          false,
+          "jmxfetch startup must be delayed when management builder system property is present.");
+      // Change back to a valid MBeanServerBuilder.
+      System.setProperty(
+          "javax.management.builder.initial", "jvmbootstraptest.CustomMBeanServerBuilder");
+      customAssert(
+          isCustomMBeanRegistered(),
+          true,
+          "Javaagent should not prevent setting a custom MBeanServerBuilder");
+      customAssert(
+          isJmxfetchStarted(true), true, "jmxfetch should start after loading MBeanServerBuilder.");
     } else {
       System.out.println("No custom MBeanServerBuilder");
 
@@ -75,10 +63,13 @@ public class MBeanServerBuilderSetter {
   }
 
   private static boolean isThreadStarted(final String name, final boolean wait) {
+    System.out.println("Checking for thread " + name + "...");
+
     // Wait up to 10 seconds for thread to appear
     for (int i = 0; i < 20; i++) {
       for (final Thread thread : Thread.getAllStackTraces().keySet()) {
         if (name.equals(thread.getName())) {
+          System.out.println("...thread " + name + " has started");
           return true;
         }
       }
@@ -91,6 +82,7 @@ public class MBeanServerBuilderSetter {
         e.printStackTrace();
       }
     }
+    System.out.println("...thread " + name + " has not started");
     return false;
   }
 

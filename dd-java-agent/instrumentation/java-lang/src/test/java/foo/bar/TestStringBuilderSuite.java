@@ -108,4 +108,11 @@ public class TestStringBuilderSuite implements TestAbstractStringBuilderSuite<St
     LOGGER.debug("After string builder subSequence {}", result);
     return result;
   }
+
+  @Override
+  public void setLength(final StringBuilder self, final int length) {
+    LOGGER.debug("Before string builder setLength {} with length {}", self, length);
+    self.setLength(length);
+    LOGGER.debug("After string builder setLength {}", self);
+  }
 }

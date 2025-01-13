@@ -29,7 +29,7 @@ import scala.Some;
 
 @AutoService(InstrumenterModule.class)
 public class FinatraInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
   public FinatraInstrumentation() {
     super("finatra");
   }

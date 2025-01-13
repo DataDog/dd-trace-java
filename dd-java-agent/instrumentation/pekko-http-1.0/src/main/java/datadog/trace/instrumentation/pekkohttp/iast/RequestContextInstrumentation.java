@@ -25,7 +25,7 @@ import org.apache.pekko.http.scaladsl.server.RequestContext;
 /** Propagates taint when fetching the {@link HttpRequest} from the {@link RequestContext}. */
 @AutoService(InstrumenterModule.class)
 public class RequestContextInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public RequestContextInstrumentation() {
     super("pekko-http");
   }

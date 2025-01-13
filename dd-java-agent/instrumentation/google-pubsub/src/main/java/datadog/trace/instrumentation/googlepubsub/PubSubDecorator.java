@@ -15,6 +15,7 @@ import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -22,6 +23,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.MessagingClientDecorator;
 import java.util.LinkedHashMap;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -91,12 +93,13 @@ public class PubSubDecorator extends MessagingClientDecorator {
               .inboundService(PUBSUB, Config.get().isGooglePubSubLegacyTracingEnabled()));
   private final String spanKind;
   private final CharSequence spanType;
-  private final String serviceName;
+  private final Supplier<String> serviceNameSupplier;
 
-  protected PubSubDecorator(String spanKind, CharSequence spanType, String serviceName) {
+  protected PubSubDecorator(
+      String spanKind, CharSequence spanType, Supplier<String> serviceNameSupplier) {
     this.spanKind = spanKind;
     this.spanType = spanType;
-    this.serviceName = serviceName;
+    this.serviceNameSupplier = serviceNameSupplier;
   }
 
   @Override
@@ -111,7 +114,7 @@ public class PubSubDecorator extends MessagingClientDecorator {
 
   @Override
   protected String service() {
-    return serviceName;
+    return serviceNameSupplier.get();
   }
 
   @Override
@@ -125,8 +128,7 @@ public class PubSubDecorator extends MessagingClientDecorator {
   }
 
   public AgentSpan onConsume(final PubsubMessage message, final String subscription) {
-    final AgentSpan.Context spanContext =
-        propagate().extract(message, TextMapExtractAdapter.GETTER);
+    final AgentSpanContext spanContext = propagate().extract(message, TextMapExtractAdapter.GETTER);
     final AgentSpan span = startSpan(PUBSUB_CONSUME, spanContext);
     final CharSequence parsedSubscription = extractSubscription(subscription);
     final LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>(3);

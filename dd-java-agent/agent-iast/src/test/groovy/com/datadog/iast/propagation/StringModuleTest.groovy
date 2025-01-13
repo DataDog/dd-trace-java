@@ -1436,6 +1436,78 @@ class StringModuleTest extends IastModuleImplTestBase {
     taintFormat(result, taintedObject.getRanges()) == "==>my_input<=="
   }
 
+  void 'onStringBuilderSetLength is empty or different lengths (#self, #length)'() {
+    given:
+    self?.setLength(self.length())
+
+    when:
+    module.onStringBuilderSetLength(self, length)
+
+    then:
+    mockCalls * tracer.activeSpan() >> null
+    0 * _
+
+    where:
+    self       | length | mockCalls
+    sb("123")  | 2      | 0
+    sb()       | 0      | 1
+    sbf("123") | 2      | 0
+    sbf()      | 0      | 1
+  }
+
+  void 'onStringBuilderSetLength (#input, #length)'() {
+    final taintedObjects = ctx.getTaintedObjects()
+    def self = addFromTaintFormat(taintedObjects, input)
+    if (self instanceof StringBuilder) {
+      ((StringBuilder) self).setLength(length)
+    } else if (self instanceof StringBuffer) {
+      ((StringBuffer) self).setLength(length)
+    }
+    final result = self.toString()
+
+    when:
+    module.onStringBuilderSetLength(self, length)
+    def taintedObject = taintedObjects.get(self)
+
+    then:
+    1 * tracer.activeSpan() >> span
+    taintFormat(result, taintedObject.getRanges()) == expected
+
+    where:
+    input                          | length | expected
+    sb("==>0123<==")               | 3      | "==>012<=="
+    sb("0123==>456<==78")          | 5      | "0123==>4<=="
+    sb("01==>234<==5==>678<==90")  | 8      | "01==>234<==5==>67<=="
+    sbf("==>0123<==")              | 3      | "==>012<=="
+    sbf("0123==>456<==78")         | 5      | "0123==>4<=="
+    sbf("01==>234<==5==>678<==90") | 8      | "01==>234<==5==>67<=="
+  }
+
+  void 'onStringBuilderSetLength untainting after setLength (#input, #length)'() {
+    final taintedObjects = ctx.getTaintedObjects()
+    def self = addFromTaintFormat(taintedObjects, input)
+    if (self instanceof StringBuilder) {
+      ((StringBuilder) self).setLength(length)
+    } else if (self instanceof StringBuffer) {
+      ((StringBuffer) self).setLength(length)
+    }
+
+    when:
+    module.onStringBuilderSetLength(self, length)
+    def taintedObject = taintedObjects.get(self)
+
+    then:
+    1 * tracer.activeSpan() >> span
+    taintedObject == null
+
+    where:
+    input                  | length
+    sb("==>0123<==")       | 0
+    sb("0123==>456<==78")  | 3
+    sbf("==>0123<==")      | 0
+    sbf("0123==>456<==78") | 3
+  }
+
   private static Date date(final String pattern, final String value) {
     return new SimpleDateFormat(pattern).parse(value)
   }

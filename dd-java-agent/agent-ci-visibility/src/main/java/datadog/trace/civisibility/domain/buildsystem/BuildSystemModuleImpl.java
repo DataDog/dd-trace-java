@@ -14,6 +14,7 @@ import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.config.ExecutionSettings;
@@ -49,7 +50,7 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
   private volatile boolean testSkippingEnabled;
 
   public <T extends CoverageCalculator> BuildSystemModuleImpl(
-      AgentSpan.Context sessionSpanContext,
+      AgentSpanContext sessionSpanContext,
       String moduleName,
       String startCommand,
       @Nullable Long startTime,

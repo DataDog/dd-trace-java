@@ -18,7 +18,7 @@ import org.junit.runner.notification.RunNotifier;
 
 @AutoService(InstrumenterModule.class)
 public class MUnitInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public MUnitInstrumentation() {
     super("ci-visibility", "junit-4", "junit-4-munit");

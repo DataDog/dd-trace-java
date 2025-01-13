@@ -24,7 +24,7 @@ import org.hibernate.procedure.ProcedureCall;
 
 @AutoService(InstrumenterModule.class)
 public class SessionInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.CanShortcutTypeMatching {
+    implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
 
   static final String SESSION_STATE = "datadog.trace.instrumentation.hibernate.SessionState";
 

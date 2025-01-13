@@ -30,7 +30,7 @@ import org.eclipse.jetty.client.api.Response;
 
 @AutoService(InstrumenterModule.class)
 public class JettyClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, ExcludeFilterProvider {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice, ExcludeFilterProvider {
   public JettyClientInstrumentation() {
     super("jetty-client");
   }

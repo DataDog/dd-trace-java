@@ -21,7 +21,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  */
 @AutoService(InstrumenterModule.class)
 public class ContainerRequestFilterInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public ContainerRequestFilterInstrumentation() {
     super("jakarta-rs", "jakartars", "jakarta-rs-filter");

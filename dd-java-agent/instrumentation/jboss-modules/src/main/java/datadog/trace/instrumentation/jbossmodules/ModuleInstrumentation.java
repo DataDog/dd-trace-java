@@ -9,7 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.naming.ClassloaderServiceNames;
+import datadog.trace.api.ClassloaderConfigurationOverrides;
 import datadog.trace.bootstrap.AgentClassLoading;
 import java.io.IOException;
 import java.io.InputStream;
@@ -20,7 +20,7 @@ import org.jboss.modules.ModuleLinkageHelper;
 
 @AutoService(InstrumenterModule.class)
 public final class ModuleInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public ModuleInstrumentation() {
     super("classloading", "jboss-modules");
   }
@@ -164,7 +164,7 @@ public final class ModuleInstrumentation extends InstrumenterModule.Tracing
     public static void afterConstruct(@Advice.This final Module module) {
       final String name = ModuleNameHelper.extractDeploymentName(module.getClassLoader());
       if (name != null && !name.isEmpty()) {
-        ClassloaderServiceNames.addServiceName(module.getClassLoader(), name);
+        ClassloaderConfigurationOverrides.withPinnedServiceName(module.getClassLoader(), name);
       }
     }
   }

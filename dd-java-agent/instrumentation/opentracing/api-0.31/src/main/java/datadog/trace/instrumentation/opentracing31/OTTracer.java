@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.opentracing31;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
@@ -47,7 +48,7 @@ public class OTTracer implements Tracer {
   @Override
   public <C> void inject(final SpanContext spanContext, final Format<C> format, final C carrier) {
     if (carrier instanceof TextMap) {
-      final AgentSpan.Context context = converter.toContext(spanContext);
+      final AgentSpanContext context = converter.toContext(spanContext);
 
       tracer.propagate().inject(context, (TextMap) carrier, OTTextMapSetter.INSTANCE);
     } else {
@@ -58,7 +59,7 @@ public class OTTracer implements Tracer {
   @Override
   public <C> SpanContext extract(final Format<C> format, final C carrier) {
     if (carrier instanceof TextMap) {
-      final AgentSpan.Context tagContext =
+      final AgentSpanContext tagContext =
           tracer
               .propagate()
               .extract((TextMap) carrier, ContextVisitors.<TextMap>stringValuesEntrySet());
@@ -98,7 +99,7 @@ public class OTTracer implements Tracer {
         return this;
       }
 
-      final AgentSpan.Context context = converter.toContext(referencedContext);
+      final AgentSpanContext context = converter.toContext(referencedContext);
 
       if (References.CHILD_OF.equals(referenceType)
           || References.FOLLOWS_FROM.equals(referenceType)) {

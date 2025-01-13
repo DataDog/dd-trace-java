@@ -25,7 +25,7 @@ import org.elasticsearch.action.ActionType;
 /** This class is identical to version 6's instrumentation, except Action is now ActionType. */
 @AutoService(InstrumenterModule.class)
 public class Elasticsearch73TransportClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public Elasticsearch73TransportClientInstrumentation() {
     super("elasticsearch", "elasticsearch-transport", "elasticsearch-transport-7");

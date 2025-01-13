@@ -21,6 +21,7 @@ import reactor.util.context.Context
 import spock.lang.Shared
 
 import java.time.Duration
+import java.util.concurrent.CompletableFuture
 
 class ReactorCoreTest extends AgentTestRunner {
 
@@ -440,6 +441,44 @@ class ReactorCoreTest extends AgentTestRunner {
     })
   }
 
+  def "test currentContext() calls on inner operator is not throwing a NPE on the advice"() {
+    when:
+    def mono = Flux.range(1, 100).windowUntil { it % 10 == 0 }.count()
+    then:
+    // we are not interested into asserting a trace structure but only that the instrumentation error count is 0
+    assert mono.block() == 11
+  }
+
+
+  def "span in the context has to be activated when the publisher subscribes"() {
+    when:
+    // the mono is subscribed (block) when first is active.
+    // However we expect that the span third will have second as parent and not first
+    // because we set the parent explicitly in the reactor context (dd.span key)
+    def result = runUnderTrace("first", {
+      runUnderTrace("second", {
+        def mono = Mono.defer {
+          Mono.fromCompletionStage(CompletableFuture.supplyAsync {
+            runUnderTrace("third", {
+              "hello world"
+            })
+          })
+        }.subscriberContext(Context.of("dd.span", TEST_TRACER.activeSpan()))
+        mono
+      })
+      .block()
+    })
+    then:
+    assert result == "hello world"
+    assertTraces(1, {
+      trace(3, true) {
+        basicSpan(it, "first")
+        basicSpan(it, "second", span(0))
+        basicSpan(it, "third", span(1))
+      }
+    })
+  }
+
   @Trace(operationName = "trace-parent", resourceName = "trace-parent")
   def assemblePublisherUnderTrace(def publisherSupplier) {
     def span = startSpan("publisher-parent")
@@ -488,14 +527,6 @@ class ReactorCoreTest extends AgentTestRunner {
 
     scope.close()
     span.finish()
-  }
-
-  def "test currentContext() calls on inner operator is not throwing a NPE on the advice"() {
-    when:
-    def mono = Flux.range(1, 100).windowUntil {it % 10 == 0}.count()
-    then:
-    // we are not interested into asserting a trace structure but only that the instrumentation error count is 0
-    assert mono.block() == 11
   }
 
   @Trace(operationName = "addOne", resourceName = "addOne")

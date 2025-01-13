@@ -24,7 +24,7 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public final class QueuedCommandInstrumentation extends InstrumenterModule.Profiling
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   private static final String QUEUED_COMMAND = "io.grpc.netty.WriteQueue$QueuedCommand";
   private static final String STATE =

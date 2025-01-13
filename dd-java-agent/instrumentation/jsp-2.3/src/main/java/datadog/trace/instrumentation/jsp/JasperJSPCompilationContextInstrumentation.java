@@ -18,7 +18,7 @@ import org.apache.jasper.JspCompilationContext;
 
 @AutoService(InstrumenterModule.class)
 public final class JasperJSPCompilationContextInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public JasperJSPCompilationContextInstrumentation() {
     super("jsp", "jsp-compile");

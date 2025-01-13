@@ -7,10 +7,11 @@ import akka.http.scaladsl.model.HttpRequest;
 import akka.http.scaladsl.model.HttpResponse;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 
 public class DatadogWrapperHelper {
   public static AgentScope createSpan(final HttpRequest request) {
-    final AgentSpan.Context.Extracted extractedContext = DECORATE.extract(request);
+    final AgentSpanContext.Extracted extractedContext = DECORATE.extract(request);
     final AgentSpan span = DECORATE.startSpan(request, extractedContext);
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, request, request, extractedContext);

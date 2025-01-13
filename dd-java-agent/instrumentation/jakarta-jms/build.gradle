@@ -4,6 +4,7 @@ ext {
 
 muzzle {
   pass {
+    name = "jakarta.jms"
     group = "jakarta.jms"
     module = "jakarta.jms-api"
     versions = "[3.0.0,4)"
@@ -28,7 +29,8 @@ compileTestGroovy {
 }
 
 dependencies {
-  compileOnly 'jakarta.jms:jakarta.jms-api:3.0.0'
+  implementation project(':dd-java-agent:instrumentation:jms')
+
   testImplementation 'jakarta.jms:jakarta.jms-api:3.0.0'
   testImplementation 'jakarta.ejb:jakarta.ejb-api:4.0.0'
   testImplementation group: 'org.springframework', name: 'spring-jms', version: '6.0.11'
