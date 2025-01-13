@@ -449,14 +449,28 @@ class PendingTraceBufferTest extends DDSpecification {
 
   def "testing tracer flare dump"() {
     setup:
-    buffer.start()
     TracerFlare.addReporter {} // exercises default methods
     def dumpReporter = Mock(PendingTraceBuffer.TracerDump)
     TracerFlare.addReporter(dumpReporter)
+    def pendingTrace = factory.create(DDTraceId.ONE)
+    def parent = newSpanOf(pendingTrace)
+    def child = newSpanOf(parent)
 
     when:
-    def pendingTrace = factory.create(DDTraceId.ONE)
-    def span = newSpanOf(pendingTrace)
+    parent.finish()
+
+    then:
+    pendingTrace.size() == 1
+    pendingTrace.pendingReferenceCount == 1
+    1 * bufferSpy.enqueue(pendingTrace)
+    _ * bufferSpy.longRunningSpansEnabled()
+    _ * tracer.getPartialFlushMinSpans() >> 10
+    1 * tracer.getTimeWithNanoTicks(_)
+    1 * tracer.onRootSpanPublished(parent)
+    0 * _
+
+    when:
+    buffer.start()
     def entries = buildAndExtractZip()
 
     then:
