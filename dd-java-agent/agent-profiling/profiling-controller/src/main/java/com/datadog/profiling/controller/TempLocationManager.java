@@ -20,6 +20,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,8 +33,9 @@ import org.slf4j.LoggerFactory;
  */
 public final class TempLocationManager {
   private static final Logger log = LoggerFactory.getLogger(TempLocationManager.class);
-  // accessible to tests
-  static final String TEMPDIR_PREFIX = "pid_";
+  private static final Pattern JFR_DIR_PATTERN =
+      Pattern.compile("\\d{4}_\\d{2}_\\d{2}_\\d{2}_\\d{2}_\\d{2}_\\d{6}");
+  private static final String TEMPDIR_PREFIX = "pid_";
 
   private static final class SingletonHolder {
     private static final TempLocationManager INSTANCE = new TempLocationManager();
@@ -102,6 +104,11 @@ public final class TempLocationManager {
         terminated = true;
         return FileVisitResult.TERMINATE;
       }
+      if (cleanSelf && JFR_DIR_PATTERN.matcher(dir.getFileName().toString()).matches()) {
+        // do not delete JFR repository on 'self-cleanup' - it conflicts with the JFR's own cleanup
+        return FileVisitResult.SKIP_SUBTREE;
+      }
+
       cleanupTestHook.preVisitDirectory(dir, attrs);
 
       if (dir.equals(baseTempDir)) {
