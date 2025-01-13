@@ -18,6 +18,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,6 +30,8 @@ import org.slf4j.LoggerFactory;
  */
 public final class TempLocationManager {
   private static final Logger log = LoggerFactory.getLogger(TempLocationManager.class);
+  // accessible to tests
+  static final String TEMPDIR_PREFIX = "pid_";
 
   private static final class SingletonHolder {
     private static final TempLocationManager INSTANCE = new TempLocationManager();
@@ -104,7 +107,7 @@ public final class TempLocationManager {
       }
       String fileName = dir.getFileName().toString();
       // the JFR repository directories are under <basedir>/pid_<pid>
-      String pid = fileName.startsWith("pid_") ? fileName.substring(4) : null;
+      String pid = fileName.startsWith(TEMPDIR_PREFIX) ? fileName.substring(4) : null;
       boolean isSelfPid = pid != null && pid.equals(PidHelper.getPid());
       shouldClean |= cleanSelf ? isSelfPid : !isSelfPid && !pidSet.contains(pid);
       if (shouldClean) {
@@ -166,7 +169,7 @@ public final class TempLocationManager {
         }
         String fileName = dir.getFileName().toString();
         // reset the flag only if we are done cleaning the top-level directory
-        shouldClean = !fileName.startsWith("pid_");
+        shouldClean = !fileName.startsWith(TEMPDIR_PREFIX);
       }
       return FileVisitResult.CONTINUE;
     }
@@ -234,10 +237,11 @@ public final class TempLocationManager {
   }
 
   TempLocationManager(ConfigProvider configProvider) {
-    this(configProvider, CleanupHook.EMPTY);
+    this(configProvider, true, CleanupHook.EMPTY);
   }
 
-  TempLocationManager(ConfigProvider configProvider, CleanupHook testHook) {
+  TempLocationManager(
+      ConfigProvider configProvider, boolean runStartupCleanup, CleanupHook testHook) {
     cleanupTestHook = testHook;
 
     // In order to avoid racy attempts to clean up files which are currently being processed in a
@@ -275,8 +279,11 @@ public final class TempLocationManager {
     baseTempDir = configuredTempDir.resolve("ddprof");
     baseTempDir.toFile().deleteOnExit();
 
-    tempDir = baseTempDir.resolve("pid_" + pid);
-    AgentTaskScheduler.INSTANCE.execute(() -> cleanup(false));
+    tempDir = baseTempDir.resolve(TEMPDIR_PREFIX + pid);
+    if (runStartupCleanup) {
+      // do not execute the background cleanup task when running in tests
+      AgentTaskScheduler.INSTANCE.execute(() -> cleanup(false));
+    }
 
     Thread selfCleanup =
         new Thread(
@@ -361,6 +368,19 @@ public final class TempLocationManager {
    */
   boolean cleanup(boolean cleanSelf, long timeout, TimeUnit unit) {
     try {
+      if (!Files.exists(baseTempDir)) {
+        // not event the main temp location exists; nothing to clean up
+        return true;
+      }
+      try (Stream<Path> paths = Files.walk(baseTempDir)) {
+        if (paths.noneMatch(
+            path ->
+                Files.isDirectory(path)
+                    && path.getFileName().toString().startsWith(TEMPDIR_PREFIX))) {
+          // nothing to clean up; bail out early
+          return true;
+        }
+      }
       cleanupTestHook.onCleanupStart(cleanSelf, timeout, unit);
       CleanupVisitor visitor = new CleanupVisitor(cleanSelf, timeout, unit);
       Files.walkFileTree(baseTempDir, visitor);
@@ -390,5 +410,10 @@ public final class TempLocationManager {
       }
     }
     return false;
+  }
+
+  // accessible for tests
+  void createDirStructure() throws IOException {
+    Files.createDirectories(baseTempDir);
   }
 }
