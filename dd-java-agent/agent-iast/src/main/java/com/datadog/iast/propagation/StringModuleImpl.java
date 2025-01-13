@@ -314,10 +314,7 @@ public class StringModuleImpl implements StringModule {
     if (rangesSelf.length == 0) {
       return; // original string is not tainted
     }
-    final Range[] newRanges = Ranges.forSubstring(0, result.length(), rangesSelf);
-    if (newRanges != null) {
-      taintedObjects.taint(result, newRanges); // only possibility left
-    }
+    taintedObjects.taint(result, rangesSelf); // only possibility left
   }
 
   @Override

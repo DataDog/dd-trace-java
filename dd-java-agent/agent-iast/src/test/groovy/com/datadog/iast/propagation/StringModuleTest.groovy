@@ -1414,6 +1414,26 @@ class StringModuleTest extends IastModuleImplTestBase {
     taintFormat(result, taintedObject.getRanges()) == "==>my_input<=="
   }
 
+  void 'test translate escapes'() {
+    given:
+    final taintedObjects = ctx.getTaintedObjects()
+    def self = addFromTaintFormat(taintedObjects, testString)
+    def result = self
+
+    when:
+    module.onStringTranslateEscapes(self, result)
+    def taintedObject = taintedObjects.get(result)
+
+    then:
+    taintFormat(result, taintedObject.getRanges()) == expected
+
+    where:
+    testString            | expected
+    "==>hello world\t<==" | "==>hello world\t<=="
+    "==>hello world\n<==" | "==>hello world\n<=="
+    "==>hello worldn<=="  | "==>hello worldn<=="
+  }
+
   void 'test valueOf with special objects and make sure IastRequestContext is called'() {
     given:
     final taintedObjects = ctx.getTaintedObjects()
