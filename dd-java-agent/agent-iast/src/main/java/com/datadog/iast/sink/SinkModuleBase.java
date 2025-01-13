@@ -231,6 +231,7 @@ public abstract class SinkModuleBase {
       Range[] valueRanges = null;
       if (tainted != null) {
         valueRanges = Ranges.getNotMarkedRanges(tainted.getRanges(), type.mark());
+        addSecurityControlMetrics(ctx, valueRanges, tainted.getRanges(), type);
       }
       addToEvidence(type, evidence, ranges, value, valueRanges, evidenceBuilder);
 
