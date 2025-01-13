@@ -35,6 +35,7 @@ public final class CorrelationIdInjectors {
   @SuppressForbidden
   private static void enableInjector(String className, InternalTracer tracer) {
     try {
+      System.out.println("TEST INSIDE ENABLEINJECTOR");
       Class<?> injectorClass = Class.forName(className);
       injectorClass.getConstructor(InternalTracer.class).newInstance(tracer);
     } catch (ReflectiveOperationException e) {
