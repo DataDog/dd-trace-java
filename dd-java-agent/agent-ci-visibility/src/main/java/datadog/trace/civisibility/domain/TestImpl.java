@@ -54,6 +54,7 @@ public class TestImpl implements DDTest {
   private final long suiteId;
   private final Consumer<AgentSpan> onSpanFinish;
   private final TestContext context;
+  private final TestIdentifier identifier;
 
   public TestImpl(
       AgentSpanContext moduleSpanContext,
@@ -82,7 +83,7 @@ public class TestImpl implements DDTest {
     this.suiteId = suiteId;
     this.onSpanFinish = onSpanFinish;
 
-    TestIdentifier identifier = new TestIdentifier(testSuiteName, testName, testParameters);
+    this.identifier = new TestIdentifier(testSuiteName, testName, testParameters);
     CoverageStore coverageStore = coverageStoreFactory.create(identifier);
     CoveragePerTestBridge.setThreadLocalCoverageProbes(coverageStore.getProbes());
 
@@ -177,6 +178,10 @@ public class TestImpl implements DDTest {
     if (testCodeOwners != null) {
       span.setTag(Tags.TEST_CODEOWNERS, toJson(testCodeOwners));
     }
+  }
+
+  public TestIdentifier getIdentifier() {
+    return identifier;
   }
 
   @Override

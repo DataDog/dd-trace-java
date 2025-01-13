@@ -95,6 +95,7 @@ excludedClassesCoverage += [
   "datadog.trace.api.civisibility.config.EarlyFlakeDetectionSettings.ExecutionsByDuration",
   "datadog.trace.api.civisibility.config.TestIdentifier",
   "datadog.trace.api.civisibility.config.TestMetadata",
+  "datadog.trace.api.civisibility.config.TestSourceData",
   "datadog.trace.api.civisibility.coverage.CoveragePercentageBridge",
   "datadog.trace.api.civisibility.coverage.CoveragePerTestBridge",
   "datadog.trace.api.civisibility.coverage.NoOpCoverageStore",
