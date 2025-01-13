@@ -3,7 +3,7 @@ package org.example
 import cats.effect._
 import weaver._
 
-object TestSucceded extends SimpleIOSuite {
+object TestSucceed extends SimpleIOSuite {
   test("test succeeds") {
     for {
       x <- IO.delay(1)
