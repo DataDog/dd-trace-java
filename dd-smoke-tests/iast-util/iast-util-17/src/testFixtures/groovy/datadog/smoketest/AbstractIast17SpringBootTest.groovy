@@ -51,6 +51,6 @@ abstract class AbstractIast17SpringBootTest extends AbstractIastServerSmokeTest 
 
     where:
     value       | expected
-    "withEscape/ttab" | "withEscape#0009tab"
+    "withEscape/ttab" | "withEscape" + Character.toString((char)9) + "tab"
   }
 }
