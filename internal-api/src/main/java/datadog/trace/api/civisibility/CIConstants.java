@@ -12,4 +12,6 @@ public interface CIConstants {
   String CI_VISIBILITY_INSTRUMENTATION_NAME = "civisibility";
 
   String FAIL_FAST_TEST_ORDER = "FAILFAST";
+
+  String CIAPP_TEST_ORIGIN = "ciapp-test";
 }

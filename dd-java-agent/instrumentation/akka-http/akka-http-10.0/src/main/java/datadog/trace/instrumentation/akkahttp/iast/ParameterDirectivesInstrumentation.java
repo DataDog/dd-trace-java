@@ -30,7 +30,7 @@ import net.bytebuddy.asm.Advice;
  */
 @AutoService(InstrumenterModule.class)
 public class ParameterDirectivesInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
   private static final String TRAIT_NAME =
       "akka.http.scaladsl.server.directives.ParameterDirectives";
 

@@ -7,6 +7,7 @@ import static com.datadog.debugger.instrumentation.ASMHelper.invokeStatic;
 import static com.datadog.debugger.instrumentation.ASMHelper.invokeVirtual;
 import static com.datadog.debugger.instrumentation.ASMHelper.isFinalField;
 import static com.datadog.debugger.instrumentation.ASMHelper.isStaticField;
+import static com.datadog.debugger.instrumentation.ASMHelper.isStore;
 import static com.datadog.debugger.instrumentation.ASMHelper.ldc;
 import static com.datadog.debugger.instrumentation.ASMHelper.newInstance;
 import static com.datadog.debugger.instrumentation.Types.CAPTURED_CONTEXT_TYPE;
@@ -68,7 +69,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class CapturedContextInstrumentor extends Instrumentor {
-  private static final Logger log = LoggerFactory.getLogger(CapturedContextInstrumentor.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(CapturedContextInstrumentor.class);
   private final boolean captureSnapshot;
   private final Limits limits;
   private final LabelNode contextInitLabel = new LabelNode();
@@ -396,7 +397,11 @@ public class CapturedContextInstrumentor extends Instrumentor {
     if (methodNode.tryCatchBlocks.size() > 0) {
       throwableListVar = declareThrowableList(insnList);
     }
-    unscopedLocalVars = initAndHoistLocalVars(insnList);
+    unscopedLocalVars = Collections.emptyList();
+    if (Config.get().isDebuggerHoistLocalVarsEnabled() && language == JvmLanguage.JAVA) {
+      // for now, only hoist local vars for Java
+      unscopedLocalVars = initAndHoistLocalVars(insnList);
+    }
     insnList.add(contextInitLabel);
     if (definition instanceof SpanDecorationProbe
         && definition.getEvaluateAt() == MethodLocation.EXIT) {
@@ -635,8 +640,8 @@ public class CapturedContextInstrumentor extends Instrumentor {
   //   10: astore_1
   //   11: aload_1
   // range for slot 1 starts at 11
-  // javac always starts the range right after the init of the local var, so we can just look for
-  // the previous instruction
+  // javac often starts the range right after the init of the local var, so we can just look for
+  // the previous instruction. But not always, and we put an arbitrary limit to 10 instructions
   // for kotlinc, many instructions can separate the init and the range start
   // ex:
   //    LocalVariableTable:
@@ -652,16 +657,24 @@ public class CapturedContextInstrumentor extends Instrumentor {
   private static void rewritePreviousStoreInsn(
       LocalVariableNode localVar, int oldSlot, int newSlot) {
     AbstractInsnNode previous = localVar.start.getPrevious();
-    while (previous != null
-        && (!(previous instanceof VarInsnNode) || ((VarInsnNode) previous).var != oldSlot)) {
+    int processed = 0;
+    // arbitrary fixing limit to 10 previous instructions to look at
+    while (previous != null && !isVarStoreForSlot(previous, oldSlot) && processed < 10) {
       previous = previous.getPrevious();
+      processed++;
     }
-    if (previous != null) {
+    if (isVarStoreForSlot(previous, oldSlot)) {
       VarInsnNode varInsnNode = (VarInsnNode) previous;
       if (varInsnNode.var == oldSlot) {
         varInsnNode.var = newSlot;
       }
     }
+  }
+
+  private static boolean isVarStoreForSlot(AbstractInsnNode node, int slotIdx) {
+    return node instanceof VarInsnNode
+        && isStore(node.getOpcode())
+        && ((VarInsnNode) node).var == slotIdx;
   }
 
   private void createInProbeFinallyHandler(LabelNode inProbeStartLabel, LabelNode inProbeEndLabel) {
@@ -889,7 +902,8 @@ public class CapturedContextInstrumentor extends Instrumentor {
       return;
     }
     Collection<LocalVariableNode> localVarNodes;
-    if (definition.isLineProbe()) {
+    boolean isLocalVarHoistingEnabled = Config.get().isDebuggerHoistLocalVarsEnabled();
+    if (definition.isLineProbe() || !isLocalVarHoistingEnabled) {
       localVarNodes = methodNode.localVariables;
     } else {
       localVarNodes = unscopedLocalVars;
@@ -900,7 +914,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
       int idx = variableNode.index - localVarBaseOffset;
       if (idx >= argOffset) {
         // var is local not arg
-        if (isLineProbe) {
+        if (isLineProbe || !isLocalVarHoistingEnabled) {
           if (ASMHelper.isInScope(methodNode, variableNode, location)) {
             applicableVars.add(variableNode);
           }
@@ -1230,7 +1244,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
             FieldNode fieldNode =
                 new FieldNode(field.getModifiers(), field.getName(), desc, null, field);
             results.add(fieldNode);
-            log.debug("Adding static inherited field {}", fieldNode.name);
+            LOGGER.debug("Adding static inherited field {}", fieldNode.name);
             fieldCount++;
             if (fieldCount > limits.maxFieldCount) {
               return;

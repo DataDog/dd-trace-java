@@ -16,13 +16,14 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import net.bytebuddy.asm.Advice;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.handler.invocation.InvocableHandlerMethod;
 
 @AutoService(InstrumenterModule.class)
 public final class SpringMessageHandlerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public SpringMessageHandlerInstrumentation() {
     super("spring-messaging", "spring-messaging-4");
@@ -56,7 +57,7 @@ public final class SpringMessageHandlerInstrumentation extends InstrumenterModul
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(
         @Advice.This InvocableHandlerMethod thiz, @Advice.Argument(0) Message<?> message) {
-      AgentSpan.Context parentContext;
+      AgentSpanContext parentContext;
       AgentSpan parent = activeSpan();
       if (null != parent) {
         // prefer existing context, assume it was already extracted from this message

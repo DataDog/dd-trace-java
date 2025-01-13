@@ -18,7 +18,7 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class HttpClientRequestBaseInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
   static final String[] CONCRETE_TYPES = {
     "io.vertx.core.http.impl.HttpClientRequestImpl",
     "io.vertx.core.http.impl.HttpClientRequestPushPromise"

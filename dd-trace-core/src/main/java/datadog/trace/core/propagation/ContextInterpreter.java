@@ -269,7 +269,8 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
             baggage,
             samplingPriorityOrDefault(traceId, samplingPriority),
             traceConfig,
-            style());
+            style(),
+            DDTraceId.ZERO);
       }
     }
     return null;

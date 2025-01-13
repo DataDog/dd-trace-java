@@ -24,7 +24,9 @@ import org.apache.axis2.context.MessageContext;
 
 @AutoService(InstrumenterModule.class)
 public final class AxisTransportInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForKnownTypes, Instrumenter.ForConfiguredType {
+    implements Instrumenter.ForKnownTypes,
+        Instrumenter.ForConfiguredType,
+        Instrumenter.HasMethodAdvice {
 
   public AxisTransportInstrumentation() {
     super("axis2", "axis2-transport");

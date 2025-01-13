@@ -15,7 +15,7 @@ import org.junit.platform.engine.support.hierarchical.ThrowableCollector;
 
 @AutoService(InstrumenterModule.class)
 public class JUnit5NodeTestTaskContextInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   private final String parentPackageName =
       Strings.getPackageName(JUnitPlatformUtils.class.getName());

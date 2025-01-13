@@ -63,7 +63,4 @@ public class GradlePluginInjectorInstrumentation extends InstrumenterModule.CiVi
   public boolean useAgentCodeSource() {
     return true;
   }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {}
 }

@@ -122,11 +122,11 @@ public class DebuggerAgentTest {
     ConfigurationPoller configurationPoller =
         (ConfigurationPoller) sharedCommunicationObjects.configurationPoller(Config.get());
     configurationPoller.start();
-    RecordedRequest request = datadogAgentServer.takeRequest(5, TimeUnit.SECONDS);
-    assertNotNull(request);
-    assertEquals("/info", request.getPath());
-    request = datadogAgentServer.takeRequest(5, TimeUnit.SECONDS);
-    assertNotNull(request);
+    RecordedRequest request;
+    do {
+      request = datadogAgentServer.takeRequest(5, TimeUnit.SECONDS);
+      assertNotNull(request);
+    } while ("/info".equals(request.getPath()));
     assertEquals("/v0.7/config", request.getPath());
     DebuggerAgent.stop();
     datadogAgentServer.shutdown();

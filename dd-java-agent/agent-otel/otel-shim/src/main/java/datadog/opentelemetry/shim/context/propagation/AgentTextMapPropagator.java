@@ -7,8 +7,8 @@ import datadog.opentelemetry.shim.context.OtelContext;
 import datadog.opentelemetry.shim.trace.OtelExtractedContext;
 import datadog.opentelemetry.shim.trace.OtelSpan;
 import datadog.trace.api.TracePropagationStyle;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context.Extracted;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext.Extracted;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.util.PropagationUtils;
@@ -38,7 +38,7 @@ public class AgentTextMapPropagator implements TextMapPropagator {
     }
     Span span = Span.fromContext(context);
     if (span.getSpanContext().isValid()) {
-      AgentSpan.Context agentSpanContext = OtelExtractedContext.extract(context);
+      AgentSpanContext agentSpanContext = OtelExtractedContext.extract(context);
       AgentTracer.propagate().inject(agentSpanContext, carrier, setter::set);
     }
   }

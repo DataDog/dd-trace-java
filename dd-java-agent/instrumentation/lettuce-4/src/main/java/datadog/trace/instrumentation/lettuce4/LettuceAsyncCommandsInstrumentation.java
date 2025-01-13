@@ -12,7 +12,7 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class LettuceAsyncCommandsInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public LettuceAsyncCommandsInstrumentation() {
     super("lettuce", "lettuce-4", "lettuce-4-async");

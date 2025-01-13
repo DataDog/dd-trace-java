@@ -18,7 +18,7 @@ import org.apache.avro.Schema;
 
 @AutoService(InstrumenterModule.class)
 public final class GenericDatumWriterInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public GenericDatumWriterInstrumentation() {
     super("avro");

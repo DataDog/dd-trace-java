@@ -13,6 +13,7 @@ import static datadog.trace.api.config.GeneralConfig.*;
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static datadog.trace.api.config.IastConfig.*;
 import static datadog.trace.api.config.JmxFetchConfig.*;
+import static datadog.trace.api.config.LlmObsConfig.*;
 import static datadog.trace.api.config.ProfilingConfig.*;
 import static datadog.trace.api.config.RemoteConfigConfig.*;
 import static datadog.trace.api.config.TraceInstrumentationConfig.*;
@@ -172,6 +173,7 @@ public class Config {
   private final boolean dbClientSplitByInstanceTypeSuffix;
   private final boolean dbClientSplitByHost;
   private final Set<String> splitByTags;
+  private final boolean jeeSplitByDeployment;
   private final int scopeDepthLimit;
   private final boolean scopeStrictMode;
   private final int scopeIterationKeepAlive;
@@ -306,6 +308,10 @@ public class Config {
   private final int iastSourceMappingMaxSize;
   private final boolean iastStackTraceEnabled;
   private final boolean iastExperimentalPropagationEnabled;
+  private final String iastSecurityControlsConfiguration;
+
+  private final boolean llmObsAgentlessEnabled;
+  private final String llmObsMlApp;
 
   private final boolean ciVisibilityTraceSanitationEnabled;
   private final boolean ciVisibilityAgentlessEnabled;
@@ -375,6 +381,7 @@ public class Config {
   private final int remoteConfigMaxExtraServices;
 
   private final String DBMPropagationMode;
+  private final boolean DBMTracePreparedStatements;
 
   private final boolean debuggerEnabled;
   private final int debuggerUploadTimeout;
@@ -394,6 +401,7 @@ public class Config {
   private final String debuggerRedactedIdentifiers;
   private final Set<String> debuggerRedactionExcludedIdentifiers;
   private final String debuggerRedactedTypes;
+  private final boolean debuggerHoistLocalVarsEnabled;
   private final boolean debuggerSymbolEnabled;
   private final boolean debuggerSymbolForceUpload;
   private final String debuggerSymbolIncludes;
@@ -537,6 +545,8 @@ public class Config {
   @Nullable private final List<String> cloudResponsePayloadTagging;
   private final int cloudPayloadTaggingMaxDepth;
   private final int cloudPayloadTaggingMaxTags;
+
+  private final long dependecyResolutionPeriodMillis;
 
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
@@ -848,7 +858,15 @@ public class Config {
         configProvider.getString(
             DB_DBM_PROPAGATION_MODE_MODE, DEFAULT_DB_DBM_PROPAGATION_MODE_MODE);
 
+    DBMTracePreparedStatements =
+        configProvider.getBoolean(
+            DB_DBM_TRACE_PREPARED_STATEMENTS, DEFAULT_DB_DBM_TRACE_PREPARED_STATEMENTS);
+
     splitByTags = tryMakeImmutableSet(configProvider.getList(SPLIT_BY_TAGS));
+
+    jeeSplitByDeployment =
+        configProvider.getBoolean(
+            EXPERIMENTATAL_JEE_SPLIT_BY_DEPLOYMENT, DEFAULT_EXPERIMENTATAL_JEE_SPLIT_BY_DEPLOYMENT);
 
     springDataRepositoryInterfaceResourceName =
         configProvider.getBoolean(SPRING_DATA_REPOSITORY_INTERFACE_RESOURCE_NAME, true);
@@ -1321,6 +1339,12 @@ public class Config {
         configProvider.getBoolean(IAST_STACK_TRACE_ENABLED, DEFAULT_IAST_STACK_TRACE_ENABLED);
     iastExperimentalPropagationEnabled =
         configProvider.getBoolean(IAST_EXPERIMENTAL_PROPAGATION_ENABLED, false);
+    iastSecurityControlsConfiguration =
+        configProvider.getString(IAST_SECURITY_CONTROLS_CONFIGURATION, null);
+
+    llmObsAgentlessEnabled =
+        configProvider.getBoolean(LLMOBS_AGENTLESS_ENABLED, DEFAULT_LLM_OBS_AGENTLESS_ENABLED);
+    llmObsMlApp = configProvider.getString(LLMOBS_ML_APP);
 
     ciVisibilityTraceSanitationEnabled =
         configProvider.getBoolean(CIVISIBILITY_TRACE_SANITATION_ENABLED, true);
@@ -1528,6 +1552,9 @@ public class Config {
     debuggerRedactionExcludedIdentifiers =
         tryMakeImmutableSet(configProvider.getList(DEBUGGER_REDACTION_EXCLUDED_IDENTIFIERS));
     debuggerRedactedTypes = configProvider.getString(DEBUGGER_REDACTED_TYPES, null);
+    debuggerHoistLocalVarsEnabled =
+        configProvider.getBoolean(
+            DEBUGGER_HOIST_LOCALVARS_ENABLED, DEFAULT_DEBUGGER_HOIST_LOCALVARS_ENABLED);
     debuggerSymbolEnabled =
         configProvider.getBoolean(DEBUGGER_SYMBOL_ENABLED, DEFAULT_DEBUGGER_SYMBOL_ENABLED);
     debuggerSymbolForceUpload =
@@ -1755,21 +1782,46 @@ public class Config {
     this.traceFlushIntervalSeconds =
         configProvider.getFloat(
             TracerConfig.TRACE_FLUSH_INTERVAL, ConfigDefaults.DEFAULT_TRACE_FLUSH_INTERVAL);
-    if (profilingAgentless && apiKey == null) {
-      log.warn(
-          "Agentless profiling activated but no api key provided. Profile uploading will likely fail");
-    }
 
     this.tracePostProcessingTimeout =
         configProvider.getLong(
             TRACE_POST_PROCESSING_TIMEOUT, ConfigDefaults.DEFAULT_TRACE_POST_PROCESSING_TIMEOUT);
 
-    if (isCiVisibilityEnabled()
-        && ciVisibilityAgentlessEnabled
-        && (apiKey == null || apiKey.isEmpty())) {
-      throw new FatalAgentMisconfigurationError(
-          "Attempt to start in Agentless mode without API key. "
-              + "Please ensure that either an API key is configured, or the tracer is set up to work with the Agent");
+    if (isLlmObsEnabled()) {
+      log.debug("Attempting to enable LLM Observability");
+      if (llmObsMlApp == null || llmObsMlApp.isEmpty()) {
+        throw new IllegalArgumentException(
+            "Attempt to enable LLM Observability without ML app defined."
+                + "Please ensure that the name of the ML app is provided through properties or env variable");
+      }
+
+      log.debug(
+          "LLM Observability enabled for ML app {}, agentless mode {}",
+          llmObsMlApp,
+          llmObsAgentlessEnabled);
+    }
+
+    // if API key is not provided, check if any products are using agentless mode and require it
+    if (apiKey == null || apiKey.isEmpty()) {
+      // CI Visibility
+      if (isCiVisibilityEnabled() && ciVisibilityAgentlessEnabled) {
+        throw new FatalAgentMisconfigurationError(
+            "Attempt to start in CI Visibility in Agentless mode without API key. "
+                + "Please ensure that either an API key is configured, or the tracer is set up to work with the Agent");
+      }
+
+      // Profiling
+      if (profilingAgentless) {
+        log.warn(
+            "Agentless profiling activated but no api key provided. Profile uploading will likely fail");
+      }
+
+      // LLM Observability
+      if (isLlmObsEnabled() && llmObsAgentlessEnabled) {
+        throw new FatalAgentMisconfigurationError(
+            "Attempt to start LLM Observability in Agentless mode without API key. "
+                + "Please ensure that either an API key is configured, or the tracer is set up to work with the Agent");
+      }
     }
 
     this.telemetryDebugRequestsEnabled =
@@ -1799,6 +1851,11 @@ public class Config {
         configProvider.getInteger(TracerConfig.TRACE_CLOUD_PAYLOAD_TAGGING_MAX_DEPTH, 10);
     this.cloudPayloadTaggingMaxTags =
         configProvider.getInteger(TracerConfig.TRACE_CLOUD_PAYLOAD_TAGGING_MAX_TAGS, 758);
+
+    this.dependecyResolutionPeriodMillis =
+        configProvider.getLong(
+            GeneralConfig.TELEMETRY_DEPENDENCY_RESOLUTION_PERIOD_MILLIS,
+            1000); // 1 second by default
 
     timelineEventsEnabled =
         configProvider.getBoolean(
@@ -2077,6 +2134,10 @@ public class Config {
 
   public Set<String> getSplitByTags() {
     return splitByTags;
+  }
+
+  public boolean isJeeSplitByDeployment() {
+    return jeeSplitByDeployment;
   }
 
   public int getScopeDepthLimit() {
@@ -2616,6 +2677,22 @@ public class Config {
     return iastExperimentalPropagationEnabled;
   }
 
+  public String getIastSecurityControlsConfiguration() {
+    return iastSecurityControlsConfiguration;
+  }
+
+  public boolean isLlmObsEnabled() {
+    return instrumenterConfig.isLlmObsEnabled();
+  }
+
+  public boolean isLlmObsAgentlessEnabled() {
+    return llmObsAgentlessEnabled;
+  }
+
+  public String getLlmObsMlApp() {
+    return llmObsMlApp;
+  }
+
   public boolean isCiVisibilityEnabled() {
     return instrumenterConfig.isCiVisibilityEnabled();
   }
@@ -3048,6 +3125,10 @@ public class Config {
 
   public String getDebuggerRedactedTypes() {
     return debuggerRedactedTypes;
+  }
+
+  public boolean isDebuggerHoistLocalVarsEnabled() {
+    return debuggerHoistLocalVarsEnabled;
   }
 
   public boolean isAwsPropagationEnabled() {
@@ -3702,6 +3783,14 @@ public class Config {
         Collections.singletonList(settingName), "", settingSuffix, defaultEnabled);
   }
 
+  public long getDependecyResolutionPeriodMillis() {
+    return dependecyResolutionPeriodMillis;
+  }
+
+  public boolean isDBMTracePreparedStatements() {
+    return DBMTracePreparedStatements;
+  }
+
   public String getDBMPropagationMode() {
     return DBMPropagationMode;
   }
@@ -4194,6 +4283,8 @@ public class Config {
         + DBMPropagationMode
         + ", splitByTags="
         + splitByTags
+        + ", jeeSplitByDeployment="
+        + jeeSplitByDeployment
         + ", scopeDepthLimit="
         + scopeDepthLimit
         + ", scopeStrictMode="

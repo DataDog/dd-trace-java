@@ -38,8 +38,10 @@ public class StringBuilderCallSite {
 
   @CallSite.After("java.lang.StringBuilder java.lang.StringBuilder.append(java.lang.String)")
   @CallSite.After("java.lang.StringBuilder java.lang.StringBuilder.append(java.lang.CharSequence)")
+  @CallSite.After("java.lang.StringBuilder java.lang.StringBuilder.append(java.lang.StringBuffer)")
   @CallSite.After("java.lang.StringBuffer java.lang.StringBuffer.append(java.lang.String)")
   @CallSite.After("java.lang.StringBuffer java.lang.StringBuffer.append(java.lang.CharSequence)")
+  @CallSite.After("java.lang.StringBuffer java.lang.StringBuffer.append(java.lang.StringBuffer)")
   @Nonnull
   public static CharSequence afterAppend(
       @CallSite.This @Nonnull final CharSequence self,
@@ -51,6 +53,28 @@ public class StringBuilderCallSite {
         module.onStringBuilderAppend(self, param);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterAppend threw", e);
+      }
+    }
+    return result;
+  }
+
+  @CallSite.After(
+      "java.lang.StringBuilder java.lang.StringBuilder.append(java.lang.CharSequence, int, int)")
+  @CallSite.After(
+      "java.lang.StringBuffer java.lang.StringBuffer.append(java.lang.CharSequence, int, int)")
+  @Nonnull
+  public static CharSequence afterAppendWithSubstring(
+      @CallSite.This @Nonnull final CharSequence self,
+      @CallSite.Argument(0) @Nullable final CharSequence param,
+      @CallSite.Argument(1) final int start,
+      @CallSite.Argument(2) final int end,
+      @CallSite.Return @Nonnull final CharSequence result) {
+    final StringModule module = InstrumentationBridge.STRING;
+    if (module != null) {
+      try {
+        module.onStringBuilderAppend(self, param, start, end);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterAppendWithSubstring threw", e);
       }
     }
     return result;
@@ -141,6 +165,7 @@ public class StringBuilderCallSite {
   }
 
   @CallSite.After("java.lang.CharSequence java.lang.StringBuilder.subSequence(int, int)")
+  @CallSite.After("java.lang.CharSequence java.lang.StringBuffer.subSequence(int, int)")
   public static CharSequence afterSubSequence(
       @CallSite.This final CharSequence self,
       @CallSite.Argument final int beginIndex,
@@ -155,5 +180,19 @@ public class StringBuilderCallSite {
       }
     }
     return result;
+  }
+
+  @CallSite.After("void java.lang.StringBuilder.setLength(int)")
+  @CallSite.After("void java.lang.StringBuffer.setLength(int)")
+  public static void afterSetLength(
+      @CallSite.This final CharSequence self, @CallSite.Argument final int length) {
+    final StringModule module = InstrumentationBridge.STRING;
+    if (module != null) {
+      try {
+        module.onStringBuilderSetLength(self, length);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterSetLength threw", e);
+      }
+    }
   }
 }

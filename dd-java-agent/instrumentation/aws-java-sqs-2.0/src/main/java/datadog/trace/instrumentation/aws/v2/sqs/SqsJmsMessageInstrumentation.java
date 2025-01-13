@@ -19,7 +19,7 @@ import software.amazon.awssdk.services.sqs.model.MessageAttributeValue;
 
 @AutoService(InstrumenterModule.class)
 public class SqsJmsMessageInstrumentation extends AbstractSqsInstrumentation
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   @Override
   public String instrumentedType() {

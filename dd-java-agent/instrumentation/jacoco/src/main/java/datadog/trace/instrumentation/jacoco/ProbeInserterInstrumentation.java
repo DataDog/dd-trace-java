@@ -27,7 +27,9 @@ import org.objectweb.asm.Opcodes;
 
 @AutoService(InstrumenterModule.class)
 public class ProbeInserterInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.WithTypeStructure {
+    implements Instrumenter.ForTypeHierarchy,
+        Instrumenter.WithTypeStructure,
+        Instrumenter.HasMethodAdvice {
   public ProbeInserterInstrumentation() {
     super("jacoco");
   }

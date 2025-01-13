@@ -3,7 +3,7 @@ package datadog.opentelemetry.shim.trace;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.sampling.PrioritySampling;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTraceCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
@@ -14,7 +14,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class OtelExtractedContext implements AgentSpan.Context {
+public class OtelExtractedContext implements AgentSpanContext {
   private static final Logger LOGGER = LoggerFactory.getLogger(OtelExtractedContext.class);
   private final DDTraceId traceId;
   private final long spanId;
@@ -27,7 +27,7 @@ public class OtelExtractedContext implements AgentSpan.Context {
         context.isSampled() ? PrioritySampling.SAMPLER_KEEP : PrioritySampling.UNSET;
   }
 
-  public static AgentSpan.Context extract(Context context) {
+  public static AgentSpanContext extract(Context context) {
     Span span = Span.fromContext(context);
     if (span instanceof OtelSpan) {
       // avoid creating unnecessary OtelSpanContext

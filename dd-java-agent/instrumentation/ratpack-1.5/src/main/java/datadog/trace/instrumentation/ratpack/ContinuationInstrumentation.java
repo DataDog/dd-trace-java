@@ -18,7 +18,7 @@ import ratpack.path.PathBinding;
 
 @AutoService(InstrumenterModule.class)
 public final class ContinuationInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public ContinuationInstrumentation() {
     super("ratpack");

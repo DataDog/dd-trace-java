@@ -21,6 +21,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -30,6 +31,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.MessagingClientDecorato
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 public class RabbitDecorator extends MessagingClientDecorator {
 
@@ -84,12 +86,13 @@ public class RabbitDecorator extends MessagingClientDecorator {
 
   private final String spanKind;
   private final CharSequence spanType;
-  private final String serviceName;
+  private final Supplier<String> serviceNameSupplier;
 
-  public RabbitDecorator(String spanKind, CharSequence spanType, String serviceName) {
+  public RabbitDecorator(
+      String spanKind, CharSequence spanType, Supplier<String> serviceNameSupplier) {
     this.spanKind = spanKind;
     this.spanType = spanType;
-    this.serviceName = serviceName;
+    this.serviceNameSupplier = serviceNameSupplier;
   }
 
   @Override
@@ -99,7 +102,7 @@ public class RabbitDecorator extends MessagingClientDecorator {
 
   @Override
   protected String service() {
-    return serviceName;
+    return serviceNameSupplier.get();
   }
 
   @Override
@@ -201,7 +204,7 @@ public class RabbitDecorator extends MessagingClientDecorator {
       String queue) {
     final Map<String, Object> headers =
         propagate && null != properties ? properties.getHeaders() : null;
-    AgentSpan.Context parentContext =
+    AgentSpanContext parentContext =
         null != headers ? propagate().extract(headers, ContextVisitors.objectValuesMap()) : null;
     // TODO: check dynamically bound queues -
     // https://github.com/DataDog/dd-trace-java/pull/2955#discussion_r677787875

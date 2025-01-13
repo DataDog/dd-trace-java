@@ -14,7 +14,7 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class RedisAPIInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
   public RedisAPIInstrumentation() {
     super("vertx", "vertx-redis-client");
   }

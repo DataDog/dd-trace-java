@@ -9,6 +9,7 @@ import datadog.trace.api.civisibility.retry.TestRetryPolicy;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.config.EarlyFlakeDetectionSettings;
@@ -39,7 +40,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
   private final ExecutionStrategy executionStrategy;
 
   public HeadlessTestModule(
-      AgentSpan.Context sessionSpanContext,
+      AgentSpanContext sessionSpanContext,
       String moduleName,
       @Nullable Long startTime,
       Config config,

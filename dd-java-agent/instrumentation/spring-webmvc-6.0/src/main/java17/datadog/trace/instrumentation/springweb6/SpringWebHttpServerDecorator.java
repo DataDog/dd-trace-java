@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourc
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
@@ -97,7 +98,7 @@ public class SpringWebHttpServerDecorator
       final AgentSpan span,
       final HttpServletRequest connection,
       final HttpServletRequest request,
-      AgentSpan.Context.Extracted context) {
+      AgentSpanContext.Extracted context) {
     // FIXME: adding a filter to avoid resource name to be overridden on redirect and forwards.
     // Remove myself when jakarta.servlet will be available
     if (request != null && request.getAttribute(DD_FILTERED_SPRING_ROUTE_ALREADY_APPLIED) == null) {

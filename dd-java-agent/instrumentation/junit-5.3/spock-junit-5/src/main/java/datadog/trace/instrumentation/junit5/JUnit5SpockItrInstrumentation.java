@@ -25,7 +25,7 @@ import org.spockframework.runtime.SpockNode;
 
 @AutoService(InstrumenterModule.class)
 public class JUnit5SpockItrInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public JUnit5SpockItrInstrumentation() {
     super("ci-visibility", "junit-5", "junit-5-spock");

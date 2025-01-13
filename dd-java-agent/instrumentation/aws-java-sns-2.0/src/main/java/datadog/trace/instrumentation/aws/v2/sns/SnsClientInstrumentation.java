@@ -15,7 +15,7 @@ import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
 /** AWS SDK v2 SNS instrumentation */
 @AutoService(InstrumenterModule.class)
 public final class SnsClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public SnsClientInstrumentation() {
     super("sns", "aws-sdk");
   }

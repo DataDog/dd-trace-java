@@ -129,6 +129,45 @@ public class StringModuleImpl implements StringModule {
   }
 
   @Override
+  public void onStringBuilderAppend(
+      @Nonnull CharSequence builder, @Nullable CharSequence param, int start, int end) {
+    if (!canBeTainted(builder) || !canBeTainted(param)) {
+      return;
+    }
+    if (start < 0 || end > param.length() || start > end) {
+      return;
+    }
+    final IastContext ctx = IastContext.Provider.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    final TaintedObject paramTainted = taintedObjects.get(param);
+    if (paramTainted == null) {
+      return;
+    }
+    // We get the ranges for the new substring that will be appended to the builder
+    final Range[] paramRanges = paramTainted.getRanges();
+    final Range[] newParamRanges = Ranges.forSubstring(start, end - start, paramRanges);
+    if (newParamRanges == null) {
+      return;
+    }
+    final TaintedObject builderTainted = taintedObjects.get(builder);
+    // If the builder is not tainted we must shift the ranges of the parameter
+    // Else we shift the ranges of the parameter and merge with the ranges of the builder
+    final int shift = builder.length() - (end - start);
+    if (builderTainted == null) {
+      final Range[] ranges = new Range[newParamRanges.length];
+      Ranges.copyShift(newParamRanges, ranges, 0, shift);
+      taintedObjects.taint(builder, ranges);
+    } else {
+      final Range[] builderRanges = builderTainted.getRanges();
+      final Range[] ranges = mergeRanges(shift, builderRanges, newParamRanges);
+      builderTainted.setRanges(ranges);
+    }
+  }
+
+  @Override
   public void onStringBuilderToString(
       @Nonnull final CharSequence builder, @Nonnull final String result) {
     if (!canBeTainted(builder) || !canBeTainted(result)) {
@@ -789,6 +828,32 @@ public class StringModuleImpl implements StringModule {
       } else {
         taintedObjects.taint(result, rangesParam);
       }
+    }
+  }
+
+  @Override
+  public void onStringBuilderSetLength(@Nonnull CharSequence self, int length) {
+    if (self.length() != length) {
+      return;
+    }
+    final IastContext ctx = IastContext.Provider.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    final TaintedObject selfTainted = taintedObjects.get(self);
+    if (selfTainted == null) {
+      return;
+    }
+    final Range[] rangesSelf = selfTainted.getRanges();
+    if (rangesSelf.length == 0) {
+      return;
+    }
+    Range[] newRanges = Ranges.forSubstring(0, length, rangesSelf);
+    if (newRanges != null && newRanges.length > 0) {
+      selfTainted.setRanges(newRanges);
+    } else {
+      selfTainted.clear();
     }
   }
 

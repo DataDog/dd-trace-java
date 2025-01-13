@@ -1,12 +1,12 @@
 package datadog.trace.civisibility.domain.headless
 
 import datadog.trace.api.Config
-import datadog.trace.civisibility.config.EarlyFlakeDetectionSettings
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.api.civisibility.coverage.CoverageStore
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
 import datadog.trace.civisibility.codeowners.Codeowners
+import datadog.trace.civisibility.config.EarlyFlakeDetectionSettings
 import datadog.trace.civisibility.config.ExecutionSettings
 import datadog.trace.civisibility.decorator.TestDecorator
 import datadog.trace.civisibility.source.LinesResolver
@@ -32,7 +32,7 @@ class HeadlessTestModuleTest extends DDSpecification {
 
     given:
     def headlessTestModule = new HeadlessTestModule(
-    Stub(AgentSpan.Context),
+    Stub(AgentSpanContext),
     "test-module",
     null,
     config,

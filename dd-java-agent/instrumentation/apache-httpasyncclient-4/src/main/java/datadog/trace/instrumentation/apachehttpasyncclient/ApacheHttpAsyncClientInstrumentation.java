@@ -24,7 +24,7 @@ import org.apache.http.protocol.HttpContext;
 
 @AutoService(InstrumenterModule.class)
 public class ApacheHttpAsyncClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.CanShortcutTypeMatching {
+    implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
 
   public ApacheHttpAsyncClientInstrumentation() {
     super("httpasyncclient", "apache-httpasyncclient");

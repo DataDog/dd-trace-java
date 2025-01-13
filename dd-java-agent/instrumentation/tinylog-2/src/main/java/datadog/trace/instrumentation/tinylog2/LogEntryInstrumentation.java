@@ -15,7 +15,7 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.HashMap;
@@ -26,7 +26,7 @@ import org.tinylog.core.LogEntry;
 
 @AutoService(InstrumenterModule.class)
 public class LogEntryInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public LogEntryInstrumentation() {
     super("tinylog");
   }
@@ -38,7 +38,7 @@ public class LogEntryInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("org.tinylog.core.LogEntry", AgentSpan.Context.class.getName());
+    return singletonMap("org.tinylog.core.LogEntry", AgentSpanContext.class.getName());
   }
 
   @Override
@@ -68,8 +68,8 @@ public class LogEntryInstrumentation extends InstrumenterModule.Tracing
         return;
       }
 
-      AgentSpan.Context context =
-          InstrumentationContext.get(LogEntry.class, AgentSpan.Context.class).get(event);
+      AgentSpanContext context =
+          InstrumentationContext.get(LogEntry.class, AgentSpanContext.class).get(event);
 
       // TinyLoggingProviderInstrumentation only populates the context if injection is enabled
       // Impossible for context to be not null while injection is disabled

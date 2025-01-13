@@ -18,7 +18,7 @@ import java.util.TreeMap;
  * When calling extract, we allow for grabbing other configured headers as tags. Those tags are
  * returned here even if the rest of the request would have returned null.
  */
-public class TagContext implements AgentSpan.Context.Extracted {
+public class TagContext implements AgentSpanContext.Extracted {
 
   private static final HttpHeaders EMPTY_HTTP_HEADERS = new HttpHeaders();
 
@@ -34,13 +34,14 @@ public class TagContext implements AgentSpan.Context.Extracted {
   private final int samplingPriority;
   private final TraceConfig traceConfig;
   private final TracePropagationStyle propagationStyle;
+  private final DDTraceId traceId;
 
   public TagContext() {
     this(null, null);
   }
 
-  public TagContext(final String origin, final Map<String, String> tags) {
-    this(origin, tags, null, null, PrioritySampling.UNSET, null, NONE);
+  public TagContext(final CharSequence origin, final Map<String, String> tags) {
+    this(origin, tags, null, null, PrioritySampling.UNSET, null, NONE, DDTraceId.ZERO);
   }
 
   public TagContext(
@@ -50,7 +51,8 @@ public class TagContext implements AgentSpan.Context.Extracted {
       final Map<String, String> baggage,
       final int samplingPriority,
       final TraceConfig traceConfig,
-      final TracePropagationStyle propagationStyle) {
+      final TracePropagationStyle propagationStyle,
+      final DDTraceId traceId) {
     this.origin = origin;
     this.tags = tags;
     this.terminatedContextLinks = null;
@@ -59,6 +61,7 @@ public class TagContext implements AgentSpan.Context.Extracted {
     this.samplingPriority = samplingPriority;
     this.traceConfig = traceConfig;
     this.propagationStyle = propagationStyle;
+    this.traceId = traceId;
   }
 
   public TraceConfig getTraceConfig() {
@@ -187,7 +190,7 @@ public class TagContext implements AgentSpan.Context.Extracted {
 
   @Override
   public DDTraceId getTraceId() {
-    return DDTraceId.ZERO;
+    return traceId;
   }
 
   @Override

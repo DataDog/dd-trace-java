@@ -13,6 +13,7 @@ import static java.util.Locale.ROOT;
 
 import datadog.opentelemetry.shim.context.OtelContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
@@ -58,7 +59,7 @@ public class OtelSpanBuilder implements SpanBuilder {
 
   @Override
   public SpanBuilder setParent(Context context) {
-    AgentSpan.Context extractedContext = extract(context);
+    AgentSpanContext extractedContext = extract(context);
     if (extractedContext != null) {
       this.delegate.asChildOf(extractedContext);
       this.ignoreActiveSpan = true;

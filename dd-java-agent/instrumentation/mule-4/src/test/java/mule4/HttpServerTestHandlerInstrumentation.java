@@ -14,7 +14,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
  */
 @AutoService(InstrumenterModule.class)
 public class HttpServerTestHandlerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public HttpServerTestHandlerInstrumentation() {
     super("mule4-http-server-test-handler");

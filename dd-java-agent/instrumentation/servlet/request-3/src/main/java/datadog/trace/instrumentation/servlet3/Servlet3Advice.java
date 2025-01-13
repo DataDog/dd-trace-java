@@ -7,6 +7,7 @@ import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecora
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.servlet3.Servlet3Decorator.DECORATE;
 
+import datadog.trace.api.ClassloaderConfigurationOverrides;
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.DDTags;
@@ -14,6 +15,7 @@ import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.instrumentation.servlet.ServletBlockingHelper;
 import java.security.Principal;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -60,12 +62,14 @@ public class Servlet3Advice {
     Object spanAttrValue = request.getAttribute(DD_SPAN_ATTRIBUTE);
     final boolean hasServletTrace = spanAttrValue instanceof AgentSpan;
     if (hasServletTrace) {
+      final AgentSpan span = (AgentSpan) spanAttrValue;
+      ClassloaderConfigurationOverrides.maybeEnrichSpan(span);
       // Tracing might already be applied by other instrumentation,
       // the FilterChain or a parent request (forward/include).
       return false;
     }
 
-    final AgentSpan.Context.Extracted extractedContext = DECORATE.extract(httpServletRequest);
+    final AgentSpanContext.Extracted extractedContext = DECORATE.extract(httpServletRequest);
     final AgentSpan span = DECORATE.startSpan(httpServletRequest, extractedContext);
     scope = activateSpan(span, true);
 

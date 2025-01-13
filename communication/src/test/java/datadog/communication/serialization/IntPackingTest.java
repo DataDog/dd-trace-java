@@ -92,7 +92,7 @@ public class IntPackingTest {
     return random;
   }
 
-  @ParameterizedTest
+  @ParameterizedTest(name = "Input case {index}")
   @MethodSource("inputs")
   public void packLongs(long[] input) {
     ByteBuffer buffer = ByteBuffer.allocate(input.length * 9 + 10);
@@ -116,7 +116,7 @@ public class IntPackingTest {
     messageFormatter.flush();
   }
 
-  @ParameterizedTest
+  @ParameterizedTest(name = "Input case {index}")
   @MethodSource("inputs")
   public void packInts(long[] input) {
     final int[] asInts = new int[input.length];

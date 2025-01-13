@@ -21,7 +21,7 @@ import org.hibernate.procedure.ProcedureCall;
 
 @AutoService(InstrumenterModule.class)
 public class ProcedureCallInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.CanShortcutTypeMatching {
+    implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
 
   public ProcedureCallInstrumentation() {
     super("hibernate", "hibernate-core");

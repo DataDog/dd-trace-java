@@ -24,7 +24,7 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public final class MessagesAvailableInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   public MessagesAvailableInstrumentation() {
     super("grpc", "grpc-client", "grpc-message");

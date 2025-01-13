@@ -1,10 +1,12 @@
 muzzle {
   pass {
+    name = "javax.jms"
     group = "javax.jms"
     module = "jms-api"
     versions = "[,]"
   }
   pass {
+    name = "javax.jms"
     group = "javax.jms"
     module = "javax.jms-api"
     versions = "[,]"

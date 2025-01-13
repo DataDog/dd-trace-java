@@ -22,7 +22,7 @@ import scala.concurrent.Future;
  */
 @AutoService(InstrumenterModule.class)
 public final class AkkaHttp2ServerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
   public AkkaHttp2ServerInstrumentation() {
     super("akka-http2", "akka-http", "akka-http-server");
   }

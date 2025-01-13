@@ -24,7 +24,7 @@ import org.redisson.client.protocol.CommandsData;
 
 @AutoService(InstrumenterModule.class)
 public final class RedissonInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public RedissonInstrumentation() {
     super("redisson", "redis");

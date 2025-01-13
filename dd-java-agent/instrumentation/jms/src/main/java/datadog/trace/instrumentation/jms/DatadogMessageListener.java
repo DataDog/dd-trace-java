@@ -14,6 +14,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.jms.MessageConsumerState;
 import datadog.trace.bootstrap.instrumentation.jms.SessionState;
 import javax.jms.Message;
@@ -37,7 +38,7 @@ public class DatadogMessageListener implements MessageListener {
   @Override
   public void onMessage(Message message) {
     AgentSpan span;
-    AgentSpan.Context propagatedContext = null;
+    AgentSpanContext propagatedContext = null;
     if (!consumerState.isPropagationDisabled()) {
       propagatedContext = propagate().extract(message, GETTER);
     }

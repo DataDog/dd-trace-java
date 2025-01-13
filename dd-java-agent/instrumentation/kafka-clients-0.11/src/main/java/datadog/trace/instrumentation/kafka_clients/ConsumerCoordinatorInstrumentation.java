@@ -28,7 +28,7 @@ import org.apache.kafka.common.TopicPartition;
 
 @AutoService(InstrumenterModule.class)
 public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public ConsumerCoordinatorInstrumentation() {
     super("kafka", "kafka-0.11");

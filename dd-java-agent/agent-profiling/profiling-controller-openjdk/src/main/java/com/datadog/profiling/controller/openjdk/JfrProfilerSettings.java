@@ -75,4 +75,9 @@ final class JfrProfilerSettings extends ProfilerSettingsSupport {
           .commit();
     }
   }
+
+  @Override
+  protected String profilerKind() {
+    return "jfr";
+  }
 }
