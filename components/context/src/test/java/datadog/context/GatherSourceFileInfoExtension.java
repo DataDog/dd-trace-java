@@ -1,5 +1,8 @@
 package datadog.context;
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
@@ -10,7 +13,8 @@ public class GatherSourceFileInfoExtension implements TestInstancePostProcessor 
   private static Map<String, String> sourceFiles = new HashMap<String, String>();
 
   @Override
-  public void postProcessTestInstance(Object testInstance, ExtensionContext context) {
+  public void postProcessTestInstance(Object testInstance, ExtensionContext context)
+      throws IOException {
     getTestData(context);
   }
 
@@ -18,14 +22,20 @@ public class GatherSourceFileInfoExtension implements TestInstancePostProcessor 
     return sourceFiles;
   }
 
-  private static void getTestData(ExtensionContext context) {
+  private static void getTestData(ExtensionContext context) throws IOException {
     // get test classname and source file
     String testClassName = context.getTestClass().get().getName();
     String testClassPath = testClassName.replace(".", "/") + ".java";
-    String absolutePath = Paths.get("").toAbsolutePath() + "/src/test/java/" + testClassPath;
+    String root = Paths.get("").toAbsolutePath().toString();
+    String absolutePath = root + "/src/test/java/" + testClassPath;
     String subPath =
         absolutePath.substring(absolutePath.indexOf("dd-trace-java") + "dd-trace-java".length());
     // add info to sourceFiles map
     sourceFiles.put(testClassName, subPath);
+    // print to sourceFiles.xml
+    BufferedWriter writer =
+        new BufferedWriter(new FileWriter(root + "/build/test-results/test/sourceFiles.xml"));
+    writer.write(sourceFiles.toString());
+    writer.close();
   }
 }
