@@ -773,9 +773,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       if (metrics != null) {
         metrics.setSpanMetrics(span);
       }
+
       span.finish(sqlEnd.time() * 1000);
-    } else {
-      log.info("End: Span not found for query execution id {}", sqlEnd.executionId());
     }
 
     try {
@@ -893,11 +892,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       QueryExecution qe = (QueryExecution) qeField.get(sqlEnd);
       if (qe != null) {
         return Optional.ofNullable(qe.analyzed());
-      } else {
-        log.info("End: QueryExecution not found for sqlEnd queryExecutionId: {}", sqlExecutionId);
       }
-    } catch (Exception e) {
-      log.error("Error while fetching QueryExecution from SparkListenerSQLExecutionEnd object", e);
+    } catch (Exception ignored) {
     }
 
     return Optional.empty();
