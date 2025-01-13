@@ -74,23 +74,18 @@ public class MUnitTracingListener extends TracingListener {
   public void testStarted(final Description description) {
     TestSuiteDescriptor suiteDescriptor = MUnitUtils.toSuiteDescriptor(description);
     TestDescriptor testDescriptor = MUnitUtils.toTestDescriptor(description);
-    String testSuiteName = description.getClassName();
-    Class<?> testClass = description.getTestClass();
     String testName = description.getMethodName();
     List<String> categories = getCategories(description);
     TestRetryPolicy retryPolicy = retryPolicies.get(description);
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestStart(
         suiteDescriptor,
         testDescriptor,
-        testSuiteName,
         testName,
         FRAMEWORK_NAME,
         FRAMEWORK_VERSION,
         null,
         categories,
-        testClass,
-        null,
-        null,
+        JUnit4Utils.toTestSourceData(description),
         retryPolicy != null && retryPolicy.currentExecutionIsRetry(),
         null);
   }
@@ -147,7 +142,6 @@ public class MUnitTracingListener extends TracingListener {
   @Override
   public void testIgnored(final Description description) {
     Class<?> testClass = description.getTestClass();
-    String testSuiteName = description.getClassName();
     String testName = description.getMethodName();
 
     if (Strings.isNotBlank(testName)) {
@@ -160,15 +154,12 @@ public class MUnitTracingListener extends TracingListener {
         TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestStart(
             suiteDescriptor,
             testDescriptor,
-            testSuiteName,
             testName,
             FRAMEWORK_NAME,
             FRAMEWORK_VERSION,
             null,
             categories,
-            testClass,
-            null,
-            null,
+            JUnit4Utils.toTestSourceData(description),
             false,
             null);
       }
@@ -181,6 +172,7 @@ public class MUnitTracingListener extends TracingListener {
       boolean suiteStarted = isSpanInProgress(InternalSpanTypes.TEST_SUITE_END);
       if (!suiteStarted) {
         // there is a bug in MUnit 1.0.1+: start/finish events are not fired for skipped suites
+        String testSuiteName = description.getClassName();
         List<String> categories = getCategories(description);
         TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
             suiteDescriptor,
@@ -218,22 +210,17 @@ public class MUnitTracingListener extends TracingListener {
   private void testCaseIgnored(final Description description) {
     TestSuiteDescriptor suiteDescriptor = MUnitUtils.toSuiteDescriptor(description);
     TestDescriptor testDescriptor = MUnitUtils.toTestDescriptor(description);
-    String testSuiteName = description.getClassName();
     String testName = description.getMethodName();
-    Class<?> testClass = description.getTestClass();
     List<String> categories = getCategories(description);
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestIgnore(
         suiteDescriptor,
         testDescriptor,
-        testSuiteName,
         testName,
         FRAMEWORK_NAME,
         FRAMEWORK_VERSION,
         null,
         categories,
-        testClass,
-        null,
-        null,
+        JUnit4Utils.toTestSourceData(description),
         null);
   }
 

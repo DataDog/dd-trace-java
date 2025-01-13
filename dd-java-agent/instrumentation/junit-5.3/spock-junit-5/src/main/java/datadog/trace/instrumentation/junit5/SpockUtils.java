@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.junit5;
 
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.config.TestSourceData;
 import java.lang.invoke.MethodHandle;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -35,7 +36,7 @@ public class SpockUtils {
       METHOD_HANDLES.method("org.spockframework.runtime.model.TestTag", "getValue");
 
   static {
-    TestIdentifierFactory.register("spock", SpockUtils::toTestIdentifier);
+    TestDataFactory.register("spock", SpockUtils::toTestIdentifier, SpockUtils::toTestSourceData);
   }
 
   /*
@@ -66,7 +67,7 @@ public class SpockUtils {
   }
 
   public static boolean isUnskippable(SpockNode<?> spockNode) {
-    Collection<TestTag> tags = SpockUtils.getTags(spockNode);
+    Collection<TestTag> tags = getTags(spockNode);
     for (TestTag tag : tags) {
       if (InstrumentationBridge.ITR_UNSKIPPABLE_TAG.equals(tag.getName())) {
         return true;
@@ -75,7 +76,35 @@ public class SpockUtils {
     return false;
   }
 
-  public static Method getTestMethod(MethodSource methodSource) {
+  public static TestIdentifier toTestIdentifier(TestDescriptor testDescriptor) {
+    TestSource testSource = testDescriptor.getSource().orElse(null);
+    if (testSource instanceof MethodSource && testDescriptor instanceof SpockNode) {
+      SpockNode spockNode = (SpockNode) testDescriptor;
+      MethodSource methodSource = (MethodSource) testSource;
+      String testSuiteName = methodSource.getClassName();
+      String displayName = spockNode.getDisplayName();
+      String testParameters = JUnitPlatformUtils.getParameters(methodSource, displayName);
+      return new TestIdentifier(testSuiteName, displayName, testParameters);
+
+    } else {
+      return null;
+    }
+  }
+
+  public static TestSourceData toTestSourceData(TestDescriptor testDescriptor) {
+    TestSource testSource = testDescriptor.getSource().orElse(null);
+    if (testSource instanceof MethodSource) {
+      MethodSource methodSource = (MethodSource) testSource;
+      Class<?> testClass = methodSource.getJavaClass();
+      Method testMethod = getTestMethod(methodSource);
+      String testMethodName = methodSource.getMethodName();
+      return new TestSourceData(testClass, testMethod, testMethodName);
+    } else {
+      return TestSourceData.UNKNOWN;
+    }
+  }
+
+  private static Method getTestMethod(MethodSource methodSource) {
     String methodName = methodSource.getMethodName();
     if (methodName == null) {
       return null;
@@ -102,21 +131,6 @@ public class SpockUtils {
       LOGGER.warn("Could not get test method from method source", e);
     }
     return null;
-  }
-
-  public static TestIdentifier toTestIdentifier(TestDescriptor testDescriptor) {
-    TestSource testSource = testDescriptor.getSource().orElse(null);
-    if (testSource instanceof MethodSource && testDescriptor instanceof SpockNode) {
-      SpockNode spockNode = (SpockNode) testDescriptor;
-      MethodSource methodSource = (MethodSource) testSource;
-      String testSuiteName = methodSource.getClassName();
-      String displayName = spockNode.getDisplayName();
-      String testParameters = JUnitPlatformUtils.getParameters(methodSource, displayName);
-      return new TestIdentifier(testSuiteName, displayName, testParameters);
-
-    } else {
-      return null;
-    }
   }
 
   public static boolean isSpec(TestDescriptor testDescriptor) {

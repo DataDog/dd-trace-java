@@ -3,11 +3,11 @@ package datadog.trace.api.civisibility.events;
 import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.api.civisibility.DDTestSuite;
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.ContextStore;
 import java.io.Closeable;
-import java.lang.reflect.Method;
 import java.util.Collection;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -41,15 +41,12 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
   void onTestStart(
       SuiteKey suiteDescriptor,
       TestKey descriptor,
-      String testSuiteName,
       String testName,
       @Nullable String testFramework,
       @Nullable String testFrameworkVersion,
       @Nullable String testParameters,
       @Nullable Collection<String> categories,
-      @Nullable Class<?> testClass,
-      @Nullable String testMethodName,
-      @Nullable Method testMethod,
+      @Nonnull TestSourceData testSourceData,
       boolean isRetry,
       @Nullable Long startTime);
 
@@ -62,15 +59,12 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
   void onTestIgnore(
       SuiteKey suiteDescriptor,
       TestKey testDescriptor,
-      String testSuiteName,
       String testName,
       @Nullable String testFramework,
       @Nullable String testFrameworkVersion,
       @Nullable String testParameters,
       @Nullable Collection<String> categories,
-      @Nullable Class<?> testClass,
-      @Nullable String testMethodName,
-      @Nullable Method testMethod,
+      @Nonnull TestSourceData testSourceData,
       @Nullable String reason);
 
   boolean skip(TestIdentifier test);
@@ -78,7 +72,7 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
   boolean shouldBeSkipped(TestIdentifier test);
 
   @Nonnull
-  TestRetryPolicy retryPolicy(TestIdentifier test);
+  TestRetryPolicy retryPolicy(TestIdentifier test, TestSourceData source);
 
   boolean isNew(TestIdentifier test);
 

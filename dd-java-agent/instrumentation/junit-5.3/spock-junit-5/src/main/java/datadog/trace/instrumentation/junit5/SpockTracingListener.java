@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.junit5;
 
+import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
-import java.lang.reflect.Method;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.junit.platform.engine.EngineExecutionListener;
@@ -109,26 +109,21 @@ public class SpockTracingListener implements EngineExecutionListener {
 
   private void testMethodExecutionStarted(TestDescriptor testDescriptor, MethodSource testSource) {
     TestDescriptor suiteDescriptor = SpockUtils.getSpecDescriptor(testDescriptor);
-    String testSuitName = testSource.getClassName();
     String displayName = testDescriptor.getDisplayName();
     String testParameters = JUnitPlatformUtils.getParameters(testSource, displayName);
     List<String> tags =
         testDescriptor.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
-    Class<?> testClass = testSource.getJavaClass();
-    Method testMethod = SpockUtils.getTestMethod(testSource);
-    String testMethodName = testSource.getMethodName();
+    TestSourceData testSourceData = SpockUtils.toTestSourceData(testDescriptor);
+
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestStart(
         suiteDescriptor,
         testDescriptor,
-        testSuitName,
         displayName,
         testFramework,
         testFrameworkVersion,
         testParameters,
         tags,
-        testClass,
-        testMethodName,
-        testMethod,
+        testSourceData,
         JUnitPlatformUtils.isRetry(testDescriptor),
         null);
   }
@@ -202,26 +197,21 @@ public class SpockTracingListener implements EngineExecutionListener {
   private void testMethodExecutionSkipped(
       final TestDescriptor testDescriptor, final MethodSource methodSource, final String reason) {
     TestDescriptor suiteDescriptor = SpockUtils.getSpecDescriptor(testDescriptor);
-    String testSuiteName = methodSource.getClassName();
     String displayName = testDescriptor.getDisplayName();
     String testParameters = JUnitPlatformUtils.getParameters(methodSource, displayName);
     List<String> tags =
         testDescriptor.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
-    Class<?> testClass = methodSource.getJavaClass();
-    Method testMethod = SpockUtils.getTestMethod(methodSource);
-    String testMethodName = methodSource.getMethodName();
+    TestSourceData testSourceData = SpockUtils.toTestSourceData(testDescriptor);
+
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestIgnore(
         suiteDescriptor,
         testDescriptor,
-        testSuiteName,
         displayName,
         testFramework,
         testFrameworkVersion,
         testParameters,
         tags,
-        testClass,
-        testMethodName,
-        testMethod,
+        testSourceData,
         reason);
   }
 }
