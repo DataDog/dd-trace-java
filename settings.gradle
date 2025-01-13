@@ -168,6 +168,7 @@ include ':dd-smoke-tests:datastreams:kafkaschemaregistry'
 include ':dd-smoke-tests:iast-propagation'
 include ':dd-smoke-tests:iast-util'
 include ':dd-smoke-tests:iast-util:iast-util-11'
+include ':dd-smoke-tests:iast-util:iast-util-17'
 // TODO this fails too often with a jgit failure, so disable until fixed
 //include ':dd-smoke-tests:debugger-integration-tests:latest-jdk-app'
 
