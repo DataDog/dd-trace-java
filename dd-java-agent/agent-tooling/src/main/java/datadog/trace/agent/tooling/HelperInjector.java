@@ -89,12 +89,12 @@ public class HelperInjector implements Instrumenter.TransformingAdvice {
   private Map<String, byte[]> getHelperMap() throws IOException {
     if (dynamicTypeMap.isEmpty()) {
       final Map<String, byte[]> classnameToBytes = new LinkedHashMap<>();
-      for (final String helperClassName : helperClassNames) {
-        byte[] classBytes = classFileLocator.locate(helperClassName).resolve();
+      for (String helperName : helperClassNames) {
+        byte[] classBytes = classFileLocator.locate(helperName).resolve();
         if (adviceShader != null) {
-          classBytes = adviceShader.shade(classBytes);
+          classBytes = adviceShader.shadeClass(classBytes);
         }
-        classnameToBytes.put(helperClassName, classBytes);
+        classnameToBytes.put(helperName, classBytes);
       }
 
       return classnameToBytes;
