@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.aws.v2.s3;
 import static datadog.trace.bootstrap.instrumentation.spanpointers.SpanPointersHelper.S3_PTR_KIND;
 import static datadog.trace.bootstrap.instrumentation.spanpointers.SpanPointersHelper.addSpanPointer;
 
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstanceStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import org.slf4j.Logger;
@@ -28,8 +29,7 @@ public class S3Interceptor implements ExecutionInterceptor {
   @Override
   public void afterExecution(
       Context.AfterExecution context, ExecutionAttributes executionAttributes) {
-    String flag = System.getenv("DD_AWS_SDK_ADD_SPAN_POINTERS");
-    if (flag != null && flag.equalsIgnoreCase("false")) {
+    if (!Config.get().isSpanPointersEnabled()) {
       return;
     }
 

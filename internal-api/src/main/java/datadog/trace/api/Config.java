@@ -422,6 +422,7 @@ public class Config {
   private final boolean awsPropagationEnabled;
   private final boolean sqsPropagationEnabled;
   private final boolean sqsBodyPropagationEnabled;
+  private final boolean addSpanPointers;
 
   private final boolean kafkaClientPropagationEnabled;
   private final Set<String> kafkaClientPropagationDisabledTopics;
@@ -1600,6 +1601,7 @@ public class Config {
     awsPropagationEnabled = isPropagationEnabled(true, "aws", "aws-sdk");
     sqsPropagationEnabled = isPropagationEnabled(true, "sqs");
     sqsBodyPropagationEnabled = configProvider.getBoolean(SQS_BODY_PROPAGATION_ENABLED, false);
+    addSpanPointers = configProvider.getBoolean(ADD_SPAN_POINTERS, true);
 
     kafkaClientPropagationEnabled = isPropagationEnabled(true, "kafka", "kafka.client");
     kafkaClientPropagationDisabledTopics =
@@ -3133,6 +3135,10 @@ public class Config {
 
   public boolean isSqsBodyPropagationEnabled() {
     return sqsBodyPropagationEnabled;
+  }
+
+  public boolean isSpanPointersEnabled() {
+    return addSpanPointers;
   }
 
   public boolean isKafkaClientPropagationEnabled() {
