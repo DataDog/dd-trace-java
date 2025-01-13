@@ -28,6 +28,7 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -866,16 +867,19 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   private List<SparkSQLUtils.LineageDataset> adjustForLimit(
       List<SparkSQLUtils.LineageDataset> datasets) {
-    int datasetAboveLimit =
-        inputLineageDatasets.size()
-            + outputLineageDatasets.size()
-            + datasets.size()
-            - Config.get().getSparkDataLineageLimit();
-    if (datasetAboveLimit > 0) {
-      return datasets.subList(0, datasets.size() - datasetAboveLimit);
-    } else {
-      return datasets;
+    final int currentLineageDatasetSize =
+        inputLineageDatasets.size() + outputLineageDatasets.size();
+    if (currentLineageDatasetSize >= Config.get().getSparkDataLineageLimit()) {
+      return Collections.emptyList();
     }
+
+    final int datasetAboveLimit =
+        currentLineageDatasetSize + datasets.size() - Config.get().getSparkDataLineageLimit();
+    if (datasetAboveLimit > 0) {
+      datasets = datasets.subList(0, datasets.size() - datasetAboveLimit);
+    }
+
+    return datasets;
   }
 
   private Optional<LogicalPlan> getAnalyzedLogicalPlan(SparkListenerSQLExecutionEnd sqlEnd) {
