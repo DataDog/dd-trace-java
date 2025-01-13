@@ -1,6 +1,5 @@
 name: Feature Request (Low Priority)
 description: Create a public Feature Request. Note that these may not be addressed as it depeonds on capacity and that looking up account information will be difficult.
-title: ""
 labels: "type: feature request"
 body:
   - type: input
@@ -15,7 +14,7 @@ body:
     attributes:
       label: Library Version(s)
       description: "If your feature request is to add instrumentation support for a library please provide the version you use"
-      placeholder: 1.2
+      placeholder: "1.2"
     validations:
       required: false
 
