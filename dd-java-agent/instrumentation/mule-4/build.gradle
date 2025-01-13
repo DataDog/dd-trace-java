@@ -35,10 +35,18 @@ muzzle {
     module = 'mule-core'
     versions = "[$muleVersion,)"
     javaVersion = "17"
-    assertInverse true
     excludeDependency 'om.google.guava:guava'
     excludeDependency 'com.google.code.findbugs:jsr305'
     additionalDependencies +="org.mule.runtime:mule-tracer-customization-impl:$muleVersion"
+  }
+
+  fail {
+    name = 'before-4.5.0'
+    group = 'org.mule.runtime'
+    module = 'mule-core'
+    versions =  "[, $muleVersion)"
+    excludeDependency 'om.google.guava:guava'
+    excludeDependency 'com.google.code.findbugs:jsr305'
   }
 }
 
@@ -130,10 +138,9 @@ tasks.named("compileLatestDepForkedTestJava").configure {
 dependencies {
   compileOnly group: 'org.mule.runtime', name: 'mule-core', version: muleVersion
   compileOnly group: 'org.mule.runtime', name: 'mule-tracer-customization-impl', version: muleVersion
-  main_java11CompileOnly project(':internal-api')
-  main_java11CompileOnly project(':dd-java-agent:agent-tooling')
-  main_java11CompileOnly project(':dd-java-agent:agent-bootstrap')
-  main_java11CompileOnly sourceSets.main.output
+  compileOnly sourceSets.main_java11.output
+  testImplementation sourceSets.main_java11.output
+
   testImplementation project(':dd-java-agent:instrumentation:aws-common')
   testImplementation project(':dd-java-agent:instrumentation:reactor-core-3.1')
   testImplementation project(':dd-java-agent:instrumentation:reactive-streams')
