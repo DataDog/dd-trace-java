@@ -294,6 +294,7 @@ public class StringModuleImpl implements StringModule {
   }
 
   @Override
+  @SuppressFBWarnings("ES_COMPARING_PARAMETER_STRING_WITH_EQ")
   public void onStringTranslateEscapes(@Nonnull String self, @Nullable String result) {
     if (!canBeTainted(result)) {
       return;
