@@ -233,6 +233,7 @@ public class HttpCodec {
             context = extractedContext;
             // Stop extraction if only extracting first valid context and drop everything else
             if (this.extractFirst) {
+              // TODO: change this logic to always extract baggage
               break;
             }
           }
