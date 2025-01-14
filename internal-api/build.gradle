@@ -9,7 +9,7 @@ ext {
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/tries.gradle"
 
-tasks.compileTestJava.configure {
+tasks.withType(JavaCompile).configureEach {
   setJavaVersion(it, 8)
 }
 

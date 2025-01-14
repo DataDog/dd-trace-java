@@ -65,6 +65,12 @@ targetCompatibility = JavaVersion.VERSION_1_8
 
 ext.setJavaVersion = (it, javaVersionInteger) -> {
   // TODO: kotlin support?
+  if (it instanceof Javadoc) {
+    (it as Javadoc).javadocTool = javaToolchains.javadocToolFor() {
+      languageVersion = JavaLanguageVersion.of(javaVersionInteger)
+    }
+    return
+  }
   AbstractCompile ac = (AbstractCompile) it
   Provider<JavaCompiler> compiler = javaToolchains.compilerFor {
     languageVersion = JavaLanguageVersion.of(javaVersionInteger)
@@ -379,6 +385,10 @@ tasks.withType(JavaCompile).configureEach {
       targetCompatibility = defaultJavaVersion
     }
   }
+}
+
+tasks.withType(Javadoc).configureEach {
+  setJavaVersion(it, defaultJdkVersion)
 }
 
 if (project.plugins.hasPlugin('groovy')) {
