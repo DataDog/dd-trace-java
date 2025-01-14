@@ -8,6 +8,9 @@ import org.gradle.api.logging.Logger
 import org.gradle.api.logging.Logging
 import org.gradle.api.tasks.testing.Test
 
+import java.nio.file.Files
+import java.nio.file.Paths
+
 class AndroidGradleUtils {
 
   private static final Logger LOGGER = Logging.getLogger(AndroidGradleUtils)
@@ -29,7 +32,10 @@ class AndroidGradleUtils {
   }
 
   private static getVariant(Project project, Test task) {
-    def androidPlugin = project.plugins.findPlugin('android') ?: project.plugins.findPlugin('android-library')
+    def androidPlugin = project.plugins.findPlugin('android')
+      ?: project.plugins.findPlugin('android-library')
+      ?: project.plugins.findPlugin('com.android.application')
+      ?: project.plugins.findPlugin('com.android.library')
 
     def variants
     if (androidPlugin.class.simpleName == 'LibraryPlugin') {
@@ -39,7 +45,7 @@ class AndroidGradleUtils {
     }
 
     for (def v : variants) {
-      if (task.path.endsWith("test${v.name.capitalize()}UnitTest")) {
+      if (task.path.endsWith("test${v.name.capitalize()}UnitTest") || task.path.endsWith("test${v.name.capitalize()}")) {
         return v
       }
     }
@@ -75,8 +81,8 @@ class AndroidGradleUtils {
     FileTree javaTree = project.fileTree(dir: javaDestinations, excludes: EXCLUDES)
 
     FileTree destinationsTree
-    if (project.plugins.findPlugin('kotlin-android') != null) {
-      def kotlinDestinations = "${project.buildDir}/tmp/kotlin-classes/${variant.name}"
+    def kotlinDestinations = "${project.buildDir}/tmp/kotlin-classes/${variant.name}"
+    if (Files.exists(Paths.get(kotlinDestinations))) {
       def kotlinTree = project.fileTree(dir: kotlinDestinations, excludes: EXCLUDES)
       destinationsTree = javaTree + kotlinTree
     } else {
