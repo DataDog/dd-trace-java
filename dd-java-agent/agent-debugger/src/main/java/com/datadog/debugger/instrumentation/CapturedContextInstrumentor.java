@@ -14,7 +14,6 @@ import static com.datadog.debugger.instrumentation.Types.CAPTURED_CONTEXT_TYPE;
 import static com.datadog.debugger.instrumentation.Types.CAPTURED_VALUE;
 import static com.datadog.debugger.instrumentation.Types.CAPTURE_THROWABLE_TYPE;
 import static com.datadog.debugger.instrumentation.Types.CLASS_TYPE;
-import static com.datadog.debugger.instrumentation.Types.CORRELATION_ACCESS_TYPE;
 import static com.datadog.debugger.instrumentation.Types.DEBUGGER_CONTEXT_TYPE;
 import static com.datadog.debugger.instrumentation.Types.METHOD_LOCATION_TYPE;
 import static com.datadog.debugger.instrumentation.Types.OBJECT_TYPE;
@@ -34,7 +33,6 @@ import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.sink.Snapshot;
 import com.datadog.debugger.util.ClassFileLines;
 import datadog.trace.api.Config;
-import datadog.trace.bootstrap.debugger.CorrelationAccess;
 import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
@@ -778,8 +776,6 @@ public class CapturedContextInstrumentor extends Instrumentor {
     // stack: [capturedcontext]
     collectStaticFields(insnList);
     // stack: [capturedcontext]
-    collectCorrelationInfo(insnList);
-    // stack: [capturedcontext]
     /*
      * It makes no sense collecting local variables for exceptions - the ones contributing to the exception
      * are most likely to be outside of the scope in the exception handler block and there is no way to figure
@@ -1096,109 +1092,12 @@ public class CapturedContextInstrumentor extends Instrumentor {
     // stack: [capturedcontext]
   }
 
-  private void collectCorrelationInfo(InsnList insnList) {
-    // expected stack top: [capturedcontext]
-    /*
-     * We are cheating a bit with CorrelationAccess - utilizing the knowledge that it is a singleton loaded by the
-     * bootstrap class loader we can assume that the availability will not change during the app life time.
-     * As a side effect, we happen to initialize the access here and not from the injected code.
-     */
-    boolean correlationAvailable = CorrelationAccess.instance().isAvailable();
-    if (isStatic && !correlationAvailable) {
-      // static method and no correlation info, no need to capture fields
-      return;
-    }
-    extractSpecialId(insnList, "dd.trace_id", "getTraceId", "addTraceId");
-    // stack: [capturedcontext]
-    extractSpecialId(insnList, "dd.span_id", "getSpanId", "addSpanId");
-    // stack: [capturedcontext]
-  }
-
-  private void extractSpecialId(
-      InsnList insnList, String fieldName, String getMethodName, String addMethodName) {
-    insnList.add(new InsnNode(Opcodes.DUP));
-    // stack: [capturedcontext, capturedcontext]
-    ldc(insnList, fieldName);
-    // stack: [capturedcontext, capturedcontext, name]
-    ldc(insnList, STRING_TYPE.getClassName());
-    // stack: [capturedcontext, capturedcontext, name, type_name]
-    invokeStatic(insnList, CORRELATION_ACCESS_TYPE, "instance", CORRELATION_ACCESS_TYPE);
-    // stack: [capturedcontext, capturedcontext, name, type_name, access]
-    invokeVirtual(insnList, CORRELATION_ACCESS_TYPE, getMethodName, STRING_TYPE);
-    // stack: [capturedcontext, capturedcontext, name, type_name, id]
-    addCapturedValueOf(insnList, limits);
-    // stack: [capturedcontext, capturedcontext, captured_value]
-    invokeVirtual(insnList, CAPTURED_CONTEXT_TYPE, addMethodName, Type.VOID_TYPE, CAPTURED_VALUE);
-    // stack: [capturedcontext]
-  }
-
   private static boolean isAccessible(FieldNode fieldNode) {
     Object value = fieldNode.value;
     if (value instanceof Field) {
       return ((Field) value).isAccessible();
     }
     return true;
-  }
-
-  private static List<FieldNode> extractInstanceField(
-      ClassNode classNode, boolean isStatic, ClassLoader classLoader, Limits limits) {
-    List<FieldNode> results = new ArrayList<>();
-    if (CorrelationAccess.instance().isAvailable()) {
-      results.add(
-          new FieldNode(
-              Opcodes.ACC_PRIVATE, "dd.trace_id", STRING_TYPE.getDescriptor(), null, null));
-      results.add(
-          new FieldNode(
-              Opcodes.ACC_PRIVATE, "dd.span_id", STRING_TYPE.getDescriptor(), null, null));
-    }
-    if (isStatic) {
-      return results;
-    }
-    int fieldCount = 0;
-    for (FieldNode fieldNode : classNode.fields) {
-      if (isStaticField(fieldNode)) {
-        continue;
-      }
-      results.add(fieldNode);
-      fieldCount++;
-      if (fieldCount > limits.maxFieldCount) {
-        return results;
-      }
-    }
-    addInheritedFields(classNode, classLoader, limits, results, fieldCount);
-    return results;
-  }
-
-  private static void addInheritedFields(
-      ClassNode classNode,
-      ClassLoader classLoader,
-      Limits limits,
-      List<FieldNode> results,
-      int fieldCount) {
-    String superClassName = extractSuperClass(classNode);
-    while (!superClassName.equals(Object.class.getTypeName())) {
-      Class<?> clazz;
-      try {
-        clazz = Class.forName(superClassName, false, classLoader);
-      } catch (ClassNotFoundException ex) {
-        break;
-      }
-      for (Field field : clazz.getDeclaredFields()) {
-        if (isStaticField(field)) {
-          continue;
-        }
-        String desc = Type.getDescriptor(field.getType());
-        FieldNode fieldNode =
-            new FieldNode(field.getModifiers(), field.getName(), desc, null, field);
-        results.add(fieldNode);
-        fieldCount++;
-        if (fieldCount > limits.maxFieldCount) {
-          return;
-        }
-      }
-      clazz = clazz.getSuperclass();
-      superClassName = clazz.getTypeName();
-    }
   }
 
   private static List<FieldNode> extractStaticFields(
