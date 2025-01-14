@@ -35,7 +35,6 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.UUID;
@@ -181,6 +180,9 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   /** Parent Ids of a Stage. Provide an implementation based on a specific scala version */
   protected abstract int[] getStageParentIds(StageInfo info);
+
+  protected abstract List<SparkSQLUtils.LineageDataset> parseDatasetsFromLogicalPlan(
+      LogicalPlan logicalPlan);
 
   @Override
   public synchronized void onApplicationStart(SparkListenerApplicationStart applicationStart) {
@@ -857,13 +859,6 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       applicationSpan.setTag(tagPrefix + ".count", lineageDatasets.size());
     } catch (Exception ignored) {
     }
-  }
-
-  private List<SparkSQLUtils.LineageDataset> parseDatasetsFromLogicalPlan(LogicalPlan logicalPlan) {
-    return JavaConverters.seqAsJavaList(logicalPlan.collect(SparkSQLUtils.logicalPlanToDataset))
-        .stream()
-        .filter(Objects::nonNull)
-        .collect(Collectors.toList());
   }
 
   private List<SparkSQLUtils.LineageDataset> adjustForLimit(

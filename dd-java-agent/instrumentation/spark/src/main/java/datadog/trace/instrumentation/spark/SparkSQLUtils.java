@@ -411,9 +411,6 @@ public class SparkSQLUtils {
           properties.put("last_access_time", Long.toString(table.lastAccessTime()));
           properties.put("owner", table.owner());
           properties.put("comment", table.comment().getOrElse(() -> ""));
-          properties.put(
-              "partition_columns",
-              JavaConverters.asJavaCollection(table.partitionColumnNames()).toString());
 
           String propertiesJson = null;
           try {

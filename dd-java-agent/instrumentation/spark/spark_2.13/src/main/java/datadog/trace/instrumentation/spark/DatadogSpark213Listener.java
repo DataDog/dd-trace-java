@@ -3,9 +3,12 @@ package datadog.trace.instrumentation.spark;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 import org.apache.spark.SparkConf;
 import org.apache.spark.scheduler.SparkListenerJobStart;
 import org.apache.spark.scheduler.StageInfo;
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.execution.SparkPlanInfo;
 import org.apache.spark.sql.execution.metric.SQLMetricInfo;
 import scala.jdk.javaapi.CollectionConverters;
@@ -51,6 +54,15 @@ public class DatadogSpark213Listener extends AbstractDatadogSparkListener {
   @Override
   protected List<SQLMetricInfo> getPlanInfoMetrics(SparkPlanInfo info) {
     return CollectionConverters.asJava(info.metrics());
+  }
+
+  @Override
+  protected List<SparkSQLUtils.LineageDataset> parseDatasetsFromLogicalPlan(
+      LogicalPlan logicalPlan) {
+    return CollectionConverters.asJava(logicalPlan.collect(SparkSQLUtils.logicalPlanToDataset))
+        .stream()
+        .filter(Objects::nonNull)
+        .collect(Collectors.toList());
   }
 
   @Override
