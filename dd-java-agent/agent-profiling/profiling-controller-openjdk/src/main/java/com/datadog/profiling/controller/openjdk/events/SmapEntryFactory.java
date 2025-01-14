@@ -3,9 +3,16 @@ package com.datadog.profiling.controller.openjdk.events;
 import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.instrumentation.jfr.JfrHelper;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
+
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.lang.management.ManagementFactory;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -34,7 +41,8 @@ public class SmapEntryFactory {
   private static final Pattern SYSTEM_MAP_ENTRY_PATTERN =
       Pattern.compile(
           "([0-9a-fA-Fx]+)\\s+-\\s+([0-9a-fA-Fx]+)\\s+(\\d+)\\s+(\\S+)\\s+(\\S+)(?:\\s+(.*))?");
-  private static final String VSYSCALL_START_ADDRESS = "ffffffffff600000";
+  private static final String VSYSCALL_START_ADDRESS_STR = "ffffffffff600000";
+  private static final long VSYSCALL_START_ADDRESS = 0xffffffffff600000L;
   private static final SmapEntryEvent SMAP_ENTRY_EVENT = new SmapEntryEvent();
 
   private enum ErrorReason {
@@ -81,6 +89,57 @@ public class SmapEntryFactory {
     }
   }
 
+  static class AnnotatedRegion {
+    final long startAddress;
+    final String description;
+
+    AnnotatedRegion(long startAddress, String description) {
+      this.startAddress = startAddress;
+      this.description = description;
+    }
+  }
+
+  static AnnotatedRegion fromAnnotatedEntry(String line) {
+    boolean isRegion = line.startsWith("0x");
+    if (isRegion) {
+      // 0x0000000420000000 - 0x000000043b000000   452984832  rw-p 00000000    JAVAHEAP
+      boolean isVsyscall = line.startsWith("0x" + VSYSCALL_START_ADDRESS_STR); // can't be parsed to Long safely(?)
+      long startAddress = -1;
+      int dashIndex = line.indexOf('-');
+      if (dashIndex > 0) {
+        startAddress = isVsyscall ? -0x1000 - 1 : Long.decode(line.substring(0, dashIndex - 1));
+        String description = extractElement(line, 4, dashIndex + 1);
+        if (description == null || description.isEmpty()) {
+          return new AnnotatedRegion(startAddress, "UNDEFINED");
+        } else if (description.startsWith("STACK")) {
+          return new AnnotatedRegion(startAddress, "STACK");
+        } else if (description.startsWith("[") || description.startsWith("/")) {
+          return new AnnotatedRegion(startAddress, "SYSTEM");
+        } else {
+          return new AnnotatedRegion(startAddress, description);
+        }
+      }
+    }
+    return null;
+  }
+
+  static String extractElement(String line, int index, int from) {
+    int wsCount = 0;
+    int wsIndex = line.indexOf(' ', from + 1);
+    if (wsIndex > 0) {
+      wsCount++;
+      while (wsCount < index) {
+        while (line.charAt(++wsIndex) == ' ') {}
+        wsIndex = line.indexOf(' ', wsIndex + 1);
+        if (wsIndex <= 0) {
+          break;
+        }
+        wsCount++;
+      }
+    }
+    return wsCount == index ? line.substring(wsIndex + 1).trim() : null;
+  }
+
   @SuppressForbidden
   private static HashMap<Long, String> getAnnotatedRegions() {
     if (annotatedMapsAvailable) {
@@ -97,28 +156,33 @@ public class SmapEntryFactory {
         HashMap<Long, String> annotatedRegions = new HashMap<>();
 
         for (String line : lines) {
-          Matcher matcher = SYSTEM_MAP_ENTRY_PATTERN.matcher(line);
-          if (matcher.matches()) {
-            long startAddress;
-            if (matcher.group(1).equals("0x" + VSYSCALL_START_ADDRESS)) {
-              // See how smap entry parsing is done for vsyscall
-              startAddress = -0x1000 - 1;
-            } else {
-              startAddress = Long.decode(matcher.group(1));
-            }
-            String description = matcher.group(6);
-            annotatedRegions.put(startAddress, description);
-            if (description.isEmpty()) {
-              annotatedRegions.put(startAddress, "UNDEFINED");
-            } else if (description.startsWith("STACK")) {
-              annotatedRegions.put(startAddress, "STACK");
-            } else if (description.startsWith("[") || description.startsWith("/")) {
-              annotatedRegions.put(startAddress, "SYSTEM");
-            } else {
-              annotatedRegions.put(startAddress, description.split("\\s+")[0]);
-            }
+          AnnotatedRegion region = fromAnnotatedEntry(line);
+          if (region != null) {
+            annotatedRegions.put(region.startAddress, region.description);
           }
         }
+//          Matcher matcher = SYSTEM_MAP_ENTRY_PATTERN.matcher(line);
+//          if (matcher.matches()) {
+//            long startAddress;
+//            if (matcher.group(1).equals("0x" + VSYSCALL_START_ADDRESS)) {
+//              // See how smap entry parsing is done for vsyscall
+//              startAddress = -0x1000 - 1;
+//            } else {
+//              startAddress = Long.decode(matcher.group(1));
+//            }
+//            String description = matcher.group(6);
+//            annotatedRegions.put(startAddress, description);
+//            if (description.isEmpty()) {
+//              annotatedRegions.put(startAddress, "UNDEFINED");
+//            } else if (description.startsWith("STACK")) {
+//              annotatedRegions.put(startAddress, "STACK");
+//            } else if (description.startsWith("[") || description.startsWith("/")) {
+//              annotatedRegions.put(startAddress, "SYSTEM");
+//            } else {
+//              annotatedRegions.put(startAddress, description.split("\\s+")[0]);
+//            }
+//          }
+//        }
         return annotatedRegions;
       } catch (Exception e) {
         new SmapParseErrorEvent(ErrorReason.VM_MAP_PARSING_ERROR).commit();
@@ -128,6 +192,67 @@ public class SmapEntryFactory {
       new SmapParseErrorEvent(ErrorReason.VM_MAP_UNAVAILABLE).commit();
       return null;
     }
+  }
+
+  private static int nextDelimitedStart(String line, int from) {
+    if (from < 0) {
+      return from;
+    }
+    int idx = line.indexOf(' ', from + 1);
+    while (line.charAt(++idx) == ' ') {}
+    return idx;
+  }
+
+  private static int nextDelimitedEnd(String line, int from) {
+    if (from < 0) {
+      return from;
+    }
+    int idx = line.indexOf(' ', from + 1);
+    if (idx <= 0) {
+      return line.length();
+    }
+    return idx;
+  }
+
+  static final class SmapHeader {
+    long startAddress;
+    long endAddress;
+    String perms;
+    long offset;
+    String dev;
+    int inode;
+    String pathname = "";
+  }
+
+  static int nextValueIdx(String line, int from) {
+    int limit = line.length() - 1;
+    while (from < limit && line.charAt(++from) == ' ') {}
+    if (from == limit) {
+      return -1;
+    }
+    int next = line.indexOf(' ', from + 1);
+    return next == -1 ? limit + 1 : next;
+  }
+
+  static long nextLongValue(String line, int[] position) {
+    int from = position[0];
+    int limit = line.length() - 1;
+    while (from < limit && line.charAt(++from) == ' ') {}
+    if (from == limit) {
+      position[0] = -1;
+      return -1;
+    }
+    long val = 0;
+    while (from < limit && line.charAt(++from) != ' ') {
+      char c = line.charAt(from);
+      if (c < '0' || c > '9') {
+        position[0] = -1;
+        return -1;
+      }
+      val = val * 10 + (c - '0');
+    }
+    position[0] = from + 1;
+    return val;
   }
 
   @SuppressForbidden // split with one-char String use a fast-path without regex usage
@@ -178,7 +303,7 @@ public class SmapEntryFactory {
       while (scanner.hasNextLine()) {
         boolean encounteredForeignKeys = false;
         String[] addresses = scanner.next().split("-");
-        if (!addresses[0].equals(VSYSCALL_START_ADDRESS)) {
+        if (!addresses[0].equals(VSYSCALL_START_ADDRESS_STR)) {
           startAddress = Long.parseLong(addresses[0], 16);
           endAddress = Long.parseLong(addresses[1], 16);
         } else {
@@ -347,7 +472,7 @@ public class SmapEntryFactory {
                 nmtCategory));
       }
       return events;
-    } catch (FileNotFoundException e) {
+    } catch (IOException e) {
       return List.of(new SmapParseErrorEvent(ErrorReason.SMAP_FILE_NOT_FOUND));
     } catch (Exception e) {
       return List.of(new SmapParseErrorEvent(ErrorReason.SMAP_PARSING_ERROR));
