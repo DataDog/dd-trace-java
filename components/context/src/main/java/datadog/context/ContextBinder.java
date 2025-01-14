@@ -1,9 +1,6 @@
 package datadog.context;
 
-import javax.annotation.ParametersAreNonnullByDefault;
-
 /** Binds context to carrier objects. */
-@ParametersAreNonnullByDefault
 public interface ContextBinder {
   /**
    * Returns the context attached to the given carrier object.
