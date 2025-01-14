@@ -1,5 +1,6 @@
 package datadog.smoketest
 
+import com.github.javaparser.utils.StringEscapeUtils
 import okhttp3.FormBody
 import okhttp3.Request
 
@@ -53,5 +54,7 @@ abstract class AbstractIast17SpringBootTest extends AbstractIastServerSmokeTest 
     where:
     value             | expected
     "withEscape\ttab" | "withEscape" + Character.toString((char)9) + "tab"
+    "withEscape\nnewline" | "withEscape" + StringEscapeUtils.unescapeJava("\\u000A")+ "newline"
+    "withEscape\bbackline" | "withEscape" + StringEscapeUtils.unescapeJava("\\u0008")+ "backline"
   }
 }
