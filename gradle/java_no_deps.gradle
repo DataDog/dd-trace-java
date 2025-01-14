@@ -29,7 +29,6 @@ assert project.defaultJavaVersion <= project.defaultJdkVersion
 apply plugin: 'java-library'
 
 apply from: "$rootDir/gradle/codenarc.gradle"
-apply from: "$rootDir/gradle/forbiddenapis.gradle"
 apply from: "$rootDir/gradle/spotless.gradle"
 apply from: "$rootDir/gradle/spotbugs.gradle"
 apply from: "$rootDir/gradle/repositories.gradle"
@@ -431,3 +430,5 @@ tasks.register('testJar', Jar) {
 }
 
 apply from: "$rootDir/gradle/configure_tests.gradle"
+// Run last to pick up targetCompatibility changes
+apply from: "$rootDir/gradle/forbiddenapis.gradle"
