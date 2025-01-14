@@ -706,10 +706,9 @@ public class DebuggerTransformer implements ClassFileTransformer {
         LogProbe logProbe = (LogProbe) definition;
         captureSnapshot = captureSnapshot | logProbe.isCaptureSnapshot();
         capture = mergeCapture(capture, logProbe.getCapture());
-        probeCondition =
-            probeCondition == null && logProbe.getProbeCondition() != null
-                ? logProbe.getProbeCondition()
-                : probeCondition;
+        if (probeCondition == null) {
+          probeCondition = logProbe.getProbeCondition();
+        }
       }
       if (definition.getEvaluateAt() == MethodLocation.ENTRY
           || definition.getEvaluateAt() == MethodLocation.DEFAULT) {
