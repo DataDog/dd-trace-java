@@ -13,5 +13,9 @@ public interface SchemaBuilder {
       String format,
       List<String> enumValues);
 
+  void addToHash(int value);
+
+  void addToHash(String value);
+
   boolean shouldExtractSchema(String schemaName, int depth);
 }

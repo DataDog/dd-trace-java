@@ -17,6 +17,8 @@ public class SchemaBuilder implements datadog.trace.bootstrap.instrumentation.ap
   private static final DDCache<String, Schema> CACHE = DDCaches.newFixedSizeCache(32);
   private static final int maxDepth = 10;
   private static final int maxProperties = 1000;
+  private static final long HASH_INIT = FNV64Hash.generateHash(new byte[0], FNV64Hash.Version.v1A);
+  private long currentHash = HASH_INIT;
   private int properties;
   private final SchemaIterator iterator;
 
@@ -47,13 +49,25 @@ public class SchemaBuilder implements datadog.trace.bootstrap.instrumentation.ap
     return true;
   }
 
+  public void addToHash(int value) {
+    addToHash(Integer.toString(value));
+  }
+
+  public void addToHash(String value) {
+    currentHash = FNV64Hash.continueHash(currentHash, value, FNV64Hash.Version.v1A);
+  }
+
   public Schema build() {
     this.iterator.iterateOverSchema(this);
     Moshi moshi = new Moshi.Builder().build();
     JsonAdapter<OpenApiSchema> jsonAdapter = moshi.adapter(OpenApiSchema.class);
     String definition = jsonAdapter.toJson(this.schema);
-    String id = Long.toUnsignedString(FNV64Hash.generateHash(definition, FNV64Hash.Version.v1A));
-    return new Schema(definition, id);
+    if (currentHash == HASH_INIT) {
+      // if hash was not computed along the way,
+      // we fall back to computing it from the json representation of the schema
+      currentHash = FNV64Hash.generateHash(definition, FNV64Hash.Version.v1A);
+    }
+    return new Schema(definition, Long.toUnsignedString(currentHash));
   }
 
   @Override
