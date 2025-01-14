@@ -6,6 +6,7 @@ $ProgressPreference = 'SilentlyContinue'
 # winget may not be available for a few minutes if you just signed into Windows for the first time
 if (-not (Get-Command 'winget.exe' -ErrorAction SilentlyContinue)) {
   # this command will ensure it is available.
+  Write-Host 'WinGet not availalbe. Trying to enable WinGet...'
   Add-AppxPackage -RegisterByFamilyName -MainPackage Microsoft.DesktopAppInstaller_8wekyb3d8bbwe -ErrorAction SilentlyContinue
 }
 
