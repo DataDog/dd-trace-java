@@ -118,13 +118,7 @@ public class ExceptionProbeManager {
       ExceptionProbeManager exceptionProbeManager, Where where, int chainedExceptionIdx) {
     String probeId = UUID.randomUUID().toString();
     return new ExceptionProbe(
-        new ProbeId(probeId, 0),
-        where,
-        null,
-        null,
-        null,
-        exceptionProbeManager,
-        chainedExceptionIdx);
+        new ProbeId(probeId, 0), where, null, null, exceptionProbeManager, chainedExceptionIdx);
   }
 
   public boolean isAlreadyInstrumented(String fingerprint) {
