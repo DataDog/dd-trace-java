@@ -332,19 +332,21 @@ project.afterEvaluate {
     }
   }
 
-  if (project.plugins.hasPlugin('kotlin')) {
-    ['compileKotlin', 'compileTestKotlin'].each { type ->
-      tasks.named(type).configure {
-        kotlinOptions {
-          freeCompilerArgs += '-Xmx256m'
-        }
-      }
-    }
-  }
-
   tasks.withType(JavaExec).configureEach {
     if (!it.maxHeapSize) {
       it.maxHeapSize('256M')
+    }
+  }
+}
+
+if (project.plugins.hasPlugin('kotlin')) {
+  ['compileKotlin', 'compileTestKotlin'].each { type ->
+    tasks.named(type).configure {
+      kotlinOptions {
+        freeCompilerArgs += '-Xmx256m'
+        // Kotlin's jvmTarget must match Java's targetCompatibility, see https://kotl.in/gradle/jvm/target-validation
+        jvmTarget = defaultJdkVersion == 8 ? '1.8' : defaultJavaCompilerRelease.toString()
+      }
     }
   }
 }
