@@ -139,8 +139,12 @@ dependencies {
   compileOnly group: 'org.mule.runtime', name: 'mule-core', version: muleVersion
   compileOnly group: 'org.mule.runtime', name: 'mule-tracer-customization-impl', version: muleVersion
   compileOnly sourceSets.main_java11.output
-  testImplementation sourceSets.main_java11.output
 
+  main_java11CompileOnly project(':internal-api')
+  main_java11CompileOnly project(':dd-java-agent:agent-tooling')
+  main_java11CompileOnly project(':dd-java-agent:agent-bootstrap')
+
+  testImplementation sourceSets.main_java11.output
   testImplementation project(':dd-java-agent:instrumentation:aws-common')
   testImplementation project(':dd-java-agent:instrumentation:reactor-core-3.1')
   testImplementation project(':dd-java-agent:instrumentation:reactive-streams')
