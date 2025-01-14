@@ -1,8 +1,10 @@
 package datadog.trace.util.stacktrace;
 
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
+@SuppressForbidden // sun.misc.JavaLangAccess
 public class HotSpotStackTraceIterator implements Iterator<StackTraceElement> {
 
   private int index = 0;
