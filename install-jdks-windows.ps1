@@ -43,8 +43,10 @@ foreach ($jdkDir in $jdkDirs) {
     $envVarName = "JAVA_${version}_HOME"
     Write-Host "ℹ️ Setting $envVarName=$jdkDirFullName"
     [System.Environment]::SetEnvironmentVariable($envVarName, $jdkDirFullName, [System.EnvironmentVariableTarget]::User)
+
+    if ($version -eq '8') {
+      Write-Host "ℹ️ Setting JAVA_HOME=$jdkDirFullName"
+      [System.Environment]::SetEnvironmentVariable('JAVA_HOME', $jdkDirFullName, [System.EnvironmentVariableTarget]::User)
+    }
   }
 }
-
-Write-Host 'ℹ️ Setting JAVA_HOME=%JAVA_8_HOME%'
-[System.Environment]::SetEnvironmentVariable('JAVA_HOME', '%JAVA_8_HOME%', [System.EnvironmentVariableTarget]::User)
