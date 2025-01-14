@@ -1,8 +1,37 @@
 apply from: "$rootDir/gradle/java.gradle"
+apply plugin: "idea"
+
+sourceSets {
+  main_java17 {
+    java.srcDirs "${project.projectDir}/src/main/java17"
+  }
+}
+
+compileMain_java17Java.configure {
+  setJavaVersion(it, 17)
+  sourceCompatibility = JavaVersion.VERSION_1_8
+  targetCompatibility = JavaVersion.VERSION_1_8
+}
 
 dependencies {
+  compileOnly sourceSets.main_java17.output
+
   implementation libs.slf4j
   implementation project(':internal-api')
 
   implementation group: 'com.github.jnr', name: 'jnr-unixsocket', version: libs.versions.jnr.unixsocket.get()
+}
+
+jar {
+  from sourceSets.main_java17.output
+}
+
+forbiddenApisMain_java17 {
+  failOnMissingClasses = false
+}
+
+idea {
+  module {
+    jdkName = '17'
+  }
 }
