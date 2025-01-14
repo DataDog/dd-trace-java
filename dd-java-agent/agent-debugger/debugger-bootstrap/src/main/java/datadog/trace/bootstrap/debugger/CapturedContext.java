@@ -32,8 +32,6 @@ public class CapturedContext implements ValueReferenceResolver {
   private Map<String, CapturedValue> staticFields;
   private Limits limits = Limits.DEFAULT;
   private String thisClassName;
-  private String traceId;
-  private String spanId;
   private long duration;
   private final Map<String, Status> statusByProbeId = new LinkedHashMap<>();
   private Map<String, CapturedValue> watches;
@@ -239,19 +237,6 @@ public class CapturedContext implements ValueReferenceResolver {
     }
   }
 
-  public void addTraceId(CapturedValue capturedValue) {
-    traceId = extractStringId(capturedValue);
-  }
-
-  public void addSpanId(CapturedValue capturedValue) {
-    spanId = extractStringId(capturedValue);
-  }
-
-  private String extractStringId(CapturedValue capturedValue) {
-    Object value = capturedValue.getValue();
-    return value instanceof String ? (String) value : null;
-  }
-
   public void setLimits(
       int maxReferenceDepth, int maxCollectionSize, int maxLength, int maxFieldCount) {
     this.limits = new Limits(maxReferenceDepth, maxCollectionSize, maxLength, maxFieldCount);
@@ -283,14 +268,6 @@ public class CapturedContext implements ValueReferenceResolver {
 
   public String getThisClassName() {
     return thisClassName;
-  }
-
-  public String getTraceId() {
-    return traceId;
-  }
-
-  public String getSpanId() {
-    return spanId;
   }
 
   /**
