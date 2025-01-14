@@ -33,7 +33,7 @@ abstract class AbstractIast17SpringBootTest extends AbstractIastServerSmokeTest 
     ]
   }
 
-  void 'test String#translateEscapes'() {
+  void 'test String translateEscapes'() {
     setup:
     final url = "http://localhost:${httpPort}/string/translateEscapes"
     final body = new FormBody.Builder()
