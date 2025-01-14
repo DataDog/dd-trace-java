@@ -1,4 +1,4 @@
-package datadog.smoketest.springboot17
+package datadog.smoketest.springboot
 
 import datadog.smoketest.AbstractIast17SpringBootTest
 

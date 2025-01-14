@@ -37,9 +37,10 @@ abstract class AbstractIast17SpringBootTest extends AbstractIastServerSmokeTest 
     setup:
     final url = "http://localhost:${httpPort}/string/translateEscapes"
     final body = new FormBody.Builder()
-      .add('paramater', value)
+      .add('parameter', value)
       .build()
     final request = new Request.Builder().url(url).post(body).build()
+
 
     when:
     client.newCall(request).execute()
@@ -50,7 +51,7 @@ abstract class AbstractIast17SpringBootTest extends AbstractIastServerSmokeTest 
     }
 
     where:
-    value       | expected
-    "withEscape/ttab" | "withEscape" + Character.toString((char)9) + "tab"
+    value             | expected
+    "withEscape\ttab" | "withEscape" + Character.toString((char)9) + "tab"
   }
 }

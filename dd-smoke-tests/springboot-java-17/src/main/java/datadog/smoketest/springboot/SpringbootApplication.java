@@ -1,4 +1,4 @@
-package datadog.smoketest.springboot17;
+package datadog.smoketest.springboot;
 
 import java.lang.management.ManagementFactory;
 import org.springframework.boot.SpringApplication;
