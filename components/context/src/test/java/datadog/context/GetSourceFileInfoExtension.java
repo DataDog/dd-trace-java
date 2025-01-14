@@ -30,12 +30,16 @@ public class GetSourceFileInfoExtension implements TestInstancePostProcessor {
     String absolutePath = root + "/src/test/java/" + testClassPath;
     String subPath =
         absolutePath.substring(absolutePath.indexOf("dd-trace-java") + "dd-trace-java".length());
-    // add info to sourceFiles map
+
+    // print to sourceFiles.xml only if source file has not already been added
+    if (!sourceFiles.containsKey(testClassName)) {
+      BufferedWriter writer =
+          new BufferedWriter(
+              new FileWriter(root + "/build/test-results/test/sourceFiles.xml", true));
+      writer.write(testClassName + ":" + subPath);
+      writer.newLine();
+      writer.close();
+    }
     sourceFiles.put(testClassName, subPath);
-    // print to sourceFiles.xml
-    BufferedWriter writer =
-        new BufferedWriter(new FileWriter(root + "/build/test-results/test/sourceFiles.xml"));
-    writer.write(sourceFiles.toString());
-    writer.close();
   }
 }
