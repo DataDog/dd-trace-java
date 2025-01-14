@@ -132,7 +132,7 @@ public class MuzzleVersionScanPlugin {
           ClassFileLocator.ForClassLoader.of(module.getClass().getClassLoader());
       byte[] classBytes = locator.locate(helperName).resolve();
       if (null != adviceShader) {
-        classBytes = adviceShader.shade(classBytes);
+        classBytes = adviceShader.shadeClass(classBytes);
       }
       helperMap.put(helperName, classBytes);
     }
