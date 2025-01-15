@@ -382,20 +382,20 @@ class RangesTest extends DDSpecification {
 
   void 'test excludeRangesBySource method'() {
     when:
-    final result = Ranges.excludeRangesBySource(ranges as Range[], source as byte[])
+    final result = Ranges.excludeRangesBySource(ranges as Range[], source as BitSet)
 
     then:
     final expectedArray = expected as Range[]
     result == expectedArray
 
     where:
-    ranges                                          | source                               | expected
-    [rangeWithSource(0, 5, SQL_TABLE), range(5, 3)] | [SQL_TABLE]                          | [range(5, 3)]
-    [rangeWithSource(0, 5, SQL_TABLE), range(5, 3)] | [SQL_TABLE, REQUEST_QUERY]           | [range(5, 3)]
-    [rangeWithSource(0, 5, SQL_TABLE), range(5, 3)] | [REQUEST_HEADER_NAME]                | [rangeWithSource(0, 5, SQL_TABLE)]
-    [rangeWithSource(0, 5, SQL_TABLE), range(5, 3)] | [REQUEST_QUERY]                      | [rangeWithSource(0, 5, SQL_TABLE), range(5, 3)]
-    [rangeWithSource(0, 5, SQL_TABLE), range(5, 3)] | [REQUEST_QUERY, REQUEST_HEADER_NAME] | [rangeWithSource(0, 5, SQL_TABLE)]
-    []                                              | [SQL_TABLE]                          | []
+    ranges                                          | source                                       | expected
+    [rangeWithSource(0, 5, SQL_TABLE), range(5, 3)] | bitSetOf(SQL_TABLE)                          | [range(5, 3)]
+    [rangeWithSource(0, 5, SQL_TABLE), range(5, 3)] | bitSetOf(SQL_TABLE, REQUEST_QUERY)           | [range(5, 3)]
+    [rangeWithSource(0, 5, SQL_TABLE), range(5, 3)] | bitSetOf(REQUEST_HEADER_NAME)                | [rangeWithSource(0, 5, SQL_TABLE)]
+    [rangeWithSource(0, 5, SQL_TABLE), range(5, 3)] | bitSetOf(REQUEST_QUERY)                      | [rangeWithSource(0, 5, SQL_TABLE), range(5, 3)]
+    [rangeWithSource(0, 5, SQL_TABLE), range(5, 3)] | bitSetOf(REQUEST_QUERY, REQUEST_HEADER_NAME) | [rangeWithSource(0, 5, SQL_TABLE)]
+    []                                              | bitSetOf(SQL_TABLE)                          | []
   }
 
   Range[] rangesFromSpec(List<List<Object>> spec) {
@@ -436,5 +436,13 @@ class RangesTest extends DDSpecification {
 
   Range rangeWithSource(final int start, final int length, final byte source, final String name = 'name', final String value = 'value') {
     return new Range(start, length, new Source(source, name, value), NOT_MARKED)
+  }
+
+  BitSet bitSetOf(byte... values) {
+    BitSet bitSet = new BitSet()
+    for (byte value : values) {
+      bitSet.set(value)
+    }
+    return bitSet
   }
 }
