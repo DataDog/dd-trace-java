@@ -74,6 +74,11 @@ class BuildkiteInfo implements CIProviderInfo {
         .build();
   }
 
+  @Override
+  public PullRequestInfo buildPullRequestInfo() {
+    return PullRequestInfo.EMPTY;
+  }
+
   private String buildCiNodeLabels() {
     List<String> labels = new ArrayList<>();
     for (Map.Entry<String, String> e : environment.get().entrySet()) {

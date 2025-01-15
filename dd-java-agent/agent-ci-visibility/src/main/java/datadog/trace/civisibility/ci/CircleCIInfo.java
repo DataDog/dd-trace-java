@@ -56,6 +56,11 @@ class CircleCIInfo implements CIProviderInfo {
         .build();
   }
 
+  @Override
+  public PullRequestInfo buildPullRequestInfo() {
+    return PullRequestInfo.EMPTY;
+  }
+
   private String buildPipelineUrl(final String pipelineId) {
     if (pipelineId == null) {
       return null;

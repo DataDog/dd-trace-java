@@ -81,6 +81,11 @@ class AzurePipelinesInfo implements CIProviderInfo {
         .build();
   }
 
+  @Override
+  public PullRequestInfo buildPullRequestInfo() {
+    return PullRequestInfo.EMPTY;
+  }
+
   private String buildGitBranch() {
     String gitBranchOrTag = getGitBranchOrTag();
     if (!isTagReference(gitBranchOrTag)) {

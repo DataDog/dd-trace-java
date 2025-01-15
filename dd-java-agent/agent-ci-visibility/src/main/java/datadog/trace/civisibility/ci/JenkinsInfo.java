@@ -68,6 +68,11 @@ class JenkinsInfo implements CIProviderInfo {
         .build();
   }
 
+  @Override
+  public PullRequestInfo buildPullRequestInfo() {
+    return PullRequestInfo.EMPTY;
+  }
+
   private String buildCiNodeLabels() {
     String labels = environment.get(JENKINS_NODE_LABELS);
     if (labels == null || labels.isEmpty()) {

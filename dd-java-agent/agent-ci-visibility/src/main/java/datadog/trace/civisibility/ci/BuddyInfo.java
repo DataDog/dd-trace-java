@@ -58,6 +58,11 @@ class BuddyInfo implements CIProviderInfo {
         .build();
   }
 
+  @Override
+  public PullRequestInfo buildPullRequestInfo() {
+    return PullRequestInfo.EMPTY;
+  }
+
   private String getPipelineId(String pipelineNumber) {
     String pipelineId = environment.get(BUDDY_PIPELINE_ID);
     if (pipelineId == null) {

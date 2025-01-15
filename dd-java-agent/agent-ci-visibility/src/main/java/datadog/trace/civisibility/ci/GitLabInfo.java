@@ -38,6 +38,12 @@ class GitLabInfo implements CIProviderInfo {
   public static final String GITLAB_GIT_COMMIT_TIMESTAMP = "CI_COMMIT_TIMESTAMP";
   public static final String GITLAB_CI_RUNNER_ID = "CI_RUNNER_ID";
   public static final String GITLAB_CI_RUNNER_TAGS = "CI_RUNNER_TAGS";
+  public static final String GITLAB_PULL_REQUEST_BASE_BRANCH =
+      "CI_MERGE_REQUEST_TARGET_BRANCH_NAME";
+  public static final String GITLAB_PULL_REQUEST_BASE_BRANCH_SHA =
+      "CI_MERGE_REQUEST_TARGET_BRANCH_SHA";
+  public static final String GITLAB_PULL_REQUEST_COMMIT_HEAD_SHA =
+      "CI_MERGE_REQUEST_SOURCE_BRANCH_SHA";
 
   private final CiEnvironment environment;
 
@@ -74,6 +80,14 @@ class GitLabInfo implements CIProviderInfo {
         .ciNodeLabels(environment.get(GITLAB_CI_RUNNER_TAGS))
         .ciEnvVars(GITLAB_PROJECT_URL, GITLAB_PIPELINE_ID, GITLAB_JOB_ID)
         .build();
+  }
+
+  @Override
+  public PullRequestInfo buildPullRequestInfo() {
+    return new PullRequestInfo(
+        environment.get(GITLAB_PULL_REQUEST_BASE_BRANCH),
+        environment.get(GITLAB_PULL_REQUEST_BASE_BRANCH_SHA),
+        environment.get(GITLAB_PULL_REQUEST_COMMIT_HEAD_SHA));
   }
 
   private PersonInfo buildGitCommitAuthor() {

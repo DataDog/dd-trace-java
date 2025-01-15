@@ -60,6 +60,11 @@ class TravisInfo implements CIProviderInfo {
         .build();
   }
 
+  @Override
+  public PullRequestInfo buildPullRequestInfo() {
+    return PullRequestInfo.EMPTY;
+  }
+
   private String buildGitBranch() {
     final String fromBranch = environment.get(TRAVIS_GIT_PR_BRANCH);
     if (fromBranch != null && !fromBranch.isEmpty()) {
