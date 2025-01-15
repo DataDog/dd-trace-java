@@ -430,7 +430,6 @@ public class DebuggerTransformer implements ClassFileTransformer {
       classNode.version = Opcodes.V1_8;
     }
     ClassWriter writer = new SafeClassWriter(loader);
-
     log.debug("Generating bytecode for class: {}", Strings.getClassName(classFilePath));
     try {
       classNode.accept(writer);
@@ -695,6 +694,8 @@ public class DebuggerTransformer implements ClassFileTransformer {
   private ProbeDefinition selectReferenceDefinition(
       List<ProbeDefinition> capturedContextProbes, ClassFileLines classFileLines) {
     boolean hasLogProbe = false;
+    boolean hasOnlyExceptionProbe =
+        capturedContextProbes.stream().allMatch(def -> def instanceof ExceptionProbe);
     MethodLocation evaluateAt = MethodLocation.EXIT;
     LogProbe.Capture capture = null;
     boolean captureSnapshot = false;
@@ -718,6 +719,10 @@ public class DebuggerTransformer implements ClassFileTransformer {
           || definition.getEvaluateAt() == MethodLocation.DEFAULT) {
         evaluateAt = definition.getEvaluateAt();
       }
+    }
+    if (hasOnlyExceptionProbe) {
+      // only exception probes return the first one
+      return capturedContextProbes.get(0);
     }
     if (hasLogProbe) {
       return LogProbe.builder()
