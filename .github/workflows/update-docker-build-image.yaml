@@ -17,7 +17,9 @@ on:
 jobs:
   update-docker-build-image:
     runs-on: ubuntu-latest
-  
+    permissions:
+      contents: write # Required to commit and push changes to a new branch
+      pull-requests: write # Required to create a pull request
     steps:
       - name: Checkout the repository
         uses: actions/checkout@v2
