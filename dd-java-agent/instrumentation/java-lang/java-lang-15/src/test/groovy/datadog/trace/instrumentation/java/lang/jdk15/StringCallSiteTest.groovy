@@ -31,7 +31,7 @@ class StringCallSiteTest extends AgentTestRunner {
 
     where:
     input                   | output
-    "HelloThisisaline" | "HelloThisisaline"
+    "HelloThisisaline"      | "HelloThisisaline"
     "Hello\tThis is a line" | "Hello"+ StringEscapeUtils.unescapeJava("\\u0009") +"This is a line"
     /Hello\sThis is a line/ | "Hello"+ StringEscapeUtils.unescapeJava("\\u0020") +"This is a line"
     /Hello\"This is a line/ | "Hello"+ StringEscapeUtils.unescapeJava("\\u0022") +"This is a line"
