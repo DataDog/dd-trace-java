@@ -52,9 +52,9 @@ abstract class AbstractIast17SpringBootTest extends AbstractIastServerSmokeTest 
     }
 
     where:
-    value             | expected
-    "withEscape\ttab" | "withEscape" + Character.toString((char)9) + "tab"
-    "withEscape\nnewline" | "withEscape" + StringEscapeUtils.unescapeJava("\\u000A")+ "newline"
-    "withEscape\bbackline" | "withEscape" + StringEscapeUtils.unescapeJava("\\u0008")+ "backline"
+    value                   | expected
+    "withEscape\ttab"       | "withEscape" + Character.toString((char)9) + "tab"
+    "withEscape\nnewline"   | "withEscape" + StringEscapeUtils.unescapeJava("\\u000A")+ "newline"
+    "withEscape\bbackline"  | "withEscape" + StringEscapeUtils.unescapeJava("\\u0008")+ "backline"
   }
 }
