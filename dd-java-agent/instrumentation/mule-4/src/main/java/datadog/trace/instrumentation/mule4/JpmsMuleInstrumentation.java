@@ -30,13 +30,6 @@ public class JpmsMuleInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JpmsAdvisingHelper",
-    };
-  }
-
-  @Override
   public Reference[] additionalMuzzleReferences() {
     return new Reference[] {
       // added in 4.5.0
@@ -54,6 +47,7 @@ public class JpmsMuleInstrumentation extends InstrumenterModule.Tracing
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     // it does not work with typeInitializer()
-    transformer.applyAdvice(isConstructor(), packageName + ".JpmsClearanceAdvice");
+    transformer.applyAdvice(
+        isConstructor(), "datadog.trace.bootstrap.instrumentation.jpms.JpmsClearanceAdvice");
   }
 }
