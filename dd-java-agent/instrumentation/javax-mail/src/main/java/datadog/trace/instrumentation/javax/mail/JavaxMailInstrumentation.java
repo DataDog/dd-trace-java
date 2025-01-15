@@ -39,7 +39,7 @@ public class JavaxMailInstrumentation extends InstrumenterModule.Iast
   public static class MailInjectionAdvice {
     @Sink(VulnerabilityTypes.EMAIL_HTML_INJECTION)
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    private static void onSend(@Advice.This final Message message) {
+    private static void onSend(@Advice.Argument(0) final Message message) {
       EmailInjectionModule emailInjectionModule = InstrumentationBridge.EMAIL_INJECTION;
       if (message != null) {
         try {
