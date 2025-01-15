@@ -55,6 +55,7 @@ class FieldInjectionSmokeTest extends Specification {
     command.add(javaPath())
     command.add("${getMaxMemoryArgumentForFork()}" as String)
     command.add("${getMinMemoryArgumentForFork()}" as String)
+    command.add("-verbose:class")
     command.add("-javaagent:${shadowJarPath}" as String)
     command.add("-XX:ErrorFile=/tmp/hs_err_pid%p.log")
     // turn off these features as their debug output can break up our expected logging lines on IBM JVMs
