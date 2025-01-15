@@ -4,8 +4,10 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 
 import com.google.auto.service.AutoService;
+import com.oracle.truffle.api.library.Message;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -29,6 +31,15 @@ public class JavaxMailInstrumentation extends InstrumenterModule.Iast
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    // TODO
+    transformer.applyAdvice(
+        named("javaxMailInstrumentation"),
+        JavaxMailInstrumentation.class.getName() + "$MailInjectionAdvice");
+  }
+
+  public static class MailInjectionAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    private static void onSend(@Advice.This final Message message) {
+      // TODO
+    }
   }
 }
