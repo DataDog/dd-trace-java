@@ -19,15 +19,15 @@ public class SpanPointersProcessor implements TagsPostProcessor {
 
   // The pointer direction will always be down. The serverless agent handles cases where the
   // direction is up.
-  public static final String DOWN_DIRECTION = "d";
-  public static final String S3_PTR_KIND = "aws.s3.object";
-  public static final String LINK_KIND = "span-pointer";
-  private static final String eTagKey = "s3.eTag";
+  private static final String DOWN_DIRECTION = "d";
+  private static final String S3_PTR_KIND = "aws.s3.object";
+  private static final String LINK_KIND = "span-pointer";
+  private static final String ETAG_KEY = "s3.eTag";
 
   @Override
   public Map<String, Object> processTags(
       Map<String, Object> unsafeTags, DDSpanContext spanContext, List<AgentSpanLink> spanLinks) {
-    String eTag = asString(unsafeTags.get(eTagKey));
+    String eTag = asString(unsafeTags.get(ETAG_KEY));
     if (eTag == null) {
       return unsafeTags;
     }
@@ -59,7 +59,7 @@ public class SpanPointersProcessor implements TagsPostProcessor {
     } catch (Exception e) {
       log.debug("Failed to add span pointer: {}", e.getMessage());
     }
-    unsafeTags.remove(eTagKey);
+    unsafeTags.remove(ETAG_KEY);
 
     return unsafeTags;
   }

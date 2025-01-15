@@ -1,6 +1,6 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanTypes
-import datadog.trace.bootstrap.instrumentation.spanpointers.SpanPointersHelper
+import datadog.trace.core.tagprocessor.SpanPointersProcessor
 import groovy.json.JsonSlurper
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.utility.DockerImageName
@@ -95,10 +95,10 @@ class S3ClientTest extends AgentTestRunner {
             assert links.size() == 1
             def link = links[0]
             assert link["attributes"] != null
-            assert link["attributes"]["ptr.kind"] == SpanPointersHelper.S3_PTR_KIND
-            assert link["attributes"]["ptr.dir"] == SpanPointersHelper.DOWN_DIRECTION
+            assert link["attributes"]["ptr.kind"] == SpanPointersProcessor.S3_PTR_KIND
+            assert link["attributes"]["ptr.dir"] == SpanPointersProcessor.DOWN_DIRECTION
             assert link["attributes"]["ptr.hash"] == "6d1a2fe194c6579187408f827f942be3"
-            assert link["attributes"]["link.kind"] == SpanPointersHelper.LINK_KIND
+            assert link["attributes"]["link.kind"] == SpanPointersProcessor.LINK_KIND
           }
         }
       }
@@ -186,10 +186,10 @@ class S3ClientTest extends AgentTestRunner {
             assert links.size() == 1
             def link = links[0]
             assert link["attributes"] != null
-            assert link["attributes"]["ptr.kind"] == SpanPointersHelper.S3_PTR_KIND
-            assert link["attributes"]["ptr.dir"] == SpanPointersHelper.DOWN_DIRECTION
+            assert link["attributes"]["ptr.kind"] == SpanPointersProcessor.S3_PTR_KIND
+            assert link["attributes"]["ptr.dir"] == SpanPointersProcessor.DOWN_DIRECTION
             assert link["attributes"]["ptr.hash"] == "1542053ce6d393c424b1374bac1fc0c5"
-            assert link["attributes"]["link.kind"] == SpanPointersHelper.LINK_KIND
+            assert link["attributes"]["link.kind"] == SpanPointersProcessor.LINK_KIND
           }
         }
       }
@@ -372,10 +372,10 @@ class S3ClientTest extends AgentTestRunner {
             assert links.size() == 1
             def link = links[0]
             assert link["attributes"] != null
-            assert link["attributes"]["ptr.kind"] == SpanPointersHelper.S3_PTR_KIND
-            assert link["attributes"]["ptr.dir"] == SpanPointersHelper.DOWN_DIRECTION
+            assert link["attributes"]["ptr.kind"] == SpanPointersProcessor.S3_PTR_KIND
+            assert link["attributes"]["ptr.dir"] == SpanPointersProcessor.DOWN_DIRECTION
             assert link["attributes"]["ptr.hash"] == "422412aa6b472a7194f3e24f4b12b4a6"
-            assert link["attributes"]["link.kind"] == SpanPointersHelper.LINK_KIND
+            assert link["attributes"]["link.kind"] == SpanPointersProcessor.LINK_KIND
           }
         }
       }
