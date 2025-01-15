@@ -309,6 +309,7 @@ public class Config {
   private final boolean iastStackTraceEnabled;
   private final boolean iastExperimentalPropagationEnabled;
   private final String iastSecurityControlsConfiguration;
+  private final int iastDbRowsToTaint;
 
   private final boolean llmObsAgentlessEnabled;
   private final String llmObsMlApp;
@@ -1339,6 +1340,8 @@ public class Config {
         configProvider.getBoolean(IAST_EXPERIMENTAL_PROPAGATION_ENABLED, false);
     iastSecurityControlsConfiguration =
         configProvider.getString(IAST_SECURITY_CONTROLS_CONFIGURATION, null);
+    iastDbRowsToTaint =
+        configProvider.getInteger(IAST_DB_ROWS_TO_TAINT, DEFAULT_IAST_DB_ROWS_TO_TAINT);
 
     llmObsAgentlessEnabled =
         configProvider.getBoolean(LLMOBS_AGENTLESS_ENABLED, DEFAULT_LLM_OBS_AGENTLESS_ENABLED);
@@ -2671,6 +2674,10 @@ public class Config {
 
   public String getIastSecurityControlsConfiguration() {
     return iastSecurityControlsConfiguration;
+  }
+
+  public int getIastDbRowsToTaint() {
+    return iastDbRowsToTaint;
   }
 
   public boolean isLlmObsEnabled() {
