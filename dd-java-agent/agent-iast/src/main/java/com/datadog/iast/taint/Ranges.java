@@ -10,6 +10,7 @@ import com.datadog.iast.util.RangeBuilder;
 import com.datadog.iast.util.Ranged;
 import com.datadog.iast.util.StringUtils;
 import datadog.trace.api.iast.SourceTypes;
+import java.util.BitSet;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -433,28 +434,15 @@ public final class Ranges {
    * @param ranges the ranges to filter
    * @param source the byte value of the source to exclude (see {@link SourceTypes})
    */
-  public static Range[] excludeRangesBySource(Range[] ranges, byte[] source) {
+  public static Range[] excludeRangesBySource(Range[] ranges, BitSet source) {
     RangeBuilder newRanges = new RangeBuilder(ranges.length);
 
     for (Range range : ranges) {
-      boolean exclude = false;
-
-      for (byte origin : source) {
-        if (range.getSource().getOrigin() == origin) {
-          exclude = true;
-          break;
-        }
-      }
-
-      if (!exclude) {
+      if (!source.get(range.getSource().getOrigin())) {
         newRanges.add(range);
       }
     }
 
     return newRanges.toArray();
-  }
-
-  public static Range[] excludeRangesBySource(Range[] ranges, byte source) {
-    return excludeRangesBySource(ranges, new byte[] {source});
   }
 }

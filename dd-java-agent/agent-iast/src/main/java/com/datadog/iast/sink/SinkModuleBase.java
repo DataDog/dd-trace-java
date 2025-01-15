@@ -145,7 +145,7 @@ public abstract class SinkModuleBase {
 
     // filter excluded ranges
     final Range[] filteredRanges;
-    if (type.excludedSources().length > 0) {
+    if (!type.excludedSources().isEmpty()) {
       filteredRanges = Ranges.excludeRangesBySource(valueRanges, type.excludedSources());
     } else {
       filteredRanges = valueRanges;
