@@ -695,7 +695,7 @@ public class Config {
     if (agentHostFromEnvironment == null) {
       agentHost = DEFAULT_AGENT_HOST;
     } else if (agentHostFromEnvironment.charAt(0) == '[') {
-      agentHost = agentHostFromEnvironment.substring(1, agentHostFromEnvironment.length() - 2);
+      agentHost = agentHostFromEnvironment.substring(1, agentHostFromEnvironment.length() - 1);
     } else {
       agentHost = agentHostFromEnvironment;
     }

@@ -93,7 +93,7 @@ class SharedCommunicationsObjectsSpecification extends DDSpecification {
     sco.featuresDiscovery.is(agentFeaturesDiscovery)
   }
 
-  void 'supports ipv6 agent host'() {
+  void 'supports ipv6 agent host w/o brackets'() {
     given:
     injectSysConfig(AGENT_HOST, "2600:1f18:19c0:bd07:d55b::17")
     Config config = Mock()
@@ -107,15 +107,21 @@ class SharedCommunicationsObjectsSpecification extends DDSpecification {
     1 * config.agentTimeout >> 1
     1 * config.agentUnixDomainSocket >> null
     sco.agentUrl as String == 'http://[2600:1f18:19c0:bd07:d55b::17]:8126/'
-    sco.okHttpClient != null
-    sco.monitoring.is(Monitoring.DISABLED)
+  }
+
+  void 'supports ipv6 agent host w/ brackets'() {
+    given:
+    injectSysConfig(AGENT_HOST, "[2600:1f18:19c0:bd07:d55b::17]")
+    Config config = Mock()
 
     when:
-    sco.featuresDiscovery(config)
+    sco.createRemaining(config)
 
     then:
-    1 * config.traceAgentV05Enabled >> false
-    1 * config.tracerMetricsEnabled >> false
-    sco.featuresDiscovery != null
+    1 * config.getAgentUrl() >> 'http://[2600:1f18:19c0:bd07:d55b::17]:8126'
+    1 * config.agentNamedPipe >> null
+    1 * config.agentTimeout >> 1
+    1 * config.agentUnixDomainSocket >> null
+    sco.agentUrl as String == 'http://[2600:1f18:19c0:bd07:d55b::17]:8126/'
   }
 }
