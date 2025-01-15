@@ -40,14 +40,14 @@ jobs:
           if [ -n "${{ github.event.inputs.tag }}" ]; then
             TAG=${{ github.event.inputs.tag }}
           else
-            current_month=$(date +%m)
-            current_year=$(date +%y)
-            case $current_month in
-              01) TAG_DATE="$$(($current_year - 1)).10" ;;
-              02|03|04) TAG_DATE="${current_year}.01" ;;
-              05|06|07) TAG_DATE="${current_year}.04" ;;
-              08|09|10) TAG_DATE="${current_year}.07" ;;
-              11|12) TAG_DATE="${current_year}.10" ;;
+            CURRENT_MONTH=$(date +%m)
+            CURRENT_YEAR=$(date +%y)
+            case $CURRENT_MONTH in
+              01) TAG_DATE="$(($CURRENT_YEAR - 1)).10" ;;
+              02|03|04) TAG_DATE="${CURRENT_YEAR}.01" ;;
+              05|06|07) TAG_DATE="${CURRENT_YEAR}.04" ;;
+              08|09|10) TAG_DATE="${CURRENT_YEAR}.07" ;;
+              11|12) TAG_DATE="${CURRENT_YEAR}.10" ;;
             esac
             TAG="v${TAG_DATE}-base"
           fi
@@ -69,13 +69,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           # use echo to set a multiline body for the PR
-          gh pr create --title "Update Docker build image" \
-            --base master \
-            --head ${{ steps.define-branch.outputs.branch }} \
-            --label "comp: tooling" \
-            --label "type: enhancement" \
-            --label "tag: no release notes" \
-            --body "This PR updates the Docker build image to ${{ steps.define-tag.outputs.tag }}."
+          # gh pr create --title "Update Docker build image" \
+          #   --base master \
+          #   --head ${{ steps.define-branch.outputs.branch }} \
+          #   --label "comp: tooling" \
+          #   --label "type: enhancement" \
+          #   --label "tag: no release notes" \
+          #   --body "This PR updates the Docker build image to ${{ steps.define-tag.outputs.tag }}."
   
 
           
