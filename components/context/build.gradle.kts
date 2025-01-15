@@ -13,5 +13,5 @@ val excludedClassesInstructionCoverage by extra {
 }
 
 tasks.test {
-  systemProperty("junit.jupiter.extensions.autodetection.enabled", "true")
+  jvmArgs("-Djunit.jupiter.extensions.autodetection.enabled=true")
 }

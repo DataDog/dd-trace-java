@@ -1,6 +1,7 @@
 package datadog.context;
 
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Paths;
@@ -33,9 +34,11 @@ public class GetSourceFileInfoExtension implements TestInstancePostProcessor {
 
     // print to sourceFiles.xml only if source file has not already been added
     if (!sourceFiles.containsKey(testClassName)) {
-      BufferedWriter writer =
-          new BufferedWriter(
-              new FileWriter(root + "/build/test-results/test/sourceFiles.xml", true));
+      File sourceFile = new File(root + "/build/test-results/sourceFiles.xml");
+      if (!sourceFile.exists()) {
+        sourceFile.createNewFile();
+      }
+      BufferedWriter writer = new BufferedWriter(new FileWriter(sourceFile, true));
       writer.write(testClassName + ":" + subPath);
       writer.newLine();
       writer.close();

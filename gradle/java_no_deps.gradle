@@ -19,6 +19,7 @@ ext.testcontainersLimit = gradle.sharedServices.registerIfAbsent("testcontainers
 if (tasks.matching({it.name == 'forkedTest'}).empty) {
   tasks.register('forkedTest', Test).configure {
     useJUnitPlatform()
+    jvmArgs("-Djunit.jupiter.extensions.autodetection.enabled=true")
   }
 }
 
