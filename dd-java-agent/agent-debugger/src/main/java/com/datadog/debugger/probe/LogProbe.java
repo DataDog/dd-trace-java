@@ -37,6 +37,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDSpanContext;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
 import java.time.Duration;
@@ -58,6 +59,7 @@ public class LogProbe extends ProbeDefinition implements Sampled {
   private static final Limits LIMITS = new Limits(1, 3, 8192, 5);
   private static final int LOG_MSG_LIMIT = 8192;
 
+  @SuppressForbidden // String#split(String)
   private static Map<String, String> getDebugSessions() {
     HashMap<String, String> sessions = new HashMap<>();
     TracerAPI tracer = AgentTracer.get();
@@ -365,6 +367,7 @@ public class LogProbe extends ProbeDefinition implements Sampled {
     this.sampling = sampling;
   }
 
+  @SuppressForbidden // String#split(String)
   private static List<ValueScript> parseWatchesFromTags(Tag[] tags) {
     if (tags == null || tags.length == 0) {
       return Collections.emptyList();
