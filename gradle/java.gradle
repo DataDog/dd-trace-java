@@ -2,3 +2,20 @@ apply plugin: 'datadog.dependency-locking'
 
 apply from: "$rootDir/gradle/java_deps.gradle"
 apply from: "$rootDir/gradle/java_no_deps.gradle"
+
+tasks.named("test") {
+  finalizedBy("myCustomTask")
+}
+
+tasks.named("forkedTest") {
+  finalizedBy("myCustomTask")
+}
+
+tasks.register('myCustomTask') {
+  group = "Custom Tasks" // Optional, for better organization
+  description = "This is a custom task that prints a message"
+
+  doLast {
+    println("Running my custom task!")
+  }
+}
