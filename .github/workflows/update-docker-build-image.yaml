@@ -1,0 +1,76 @@
+name: Update Docker Build Image
+
+on:
+  schedule:
+    # A day after creating the tag from https://github.com/DataDog/dd-trace-java-docker-build/blob/master/.github/workflows/docker-tag.yml
+    - cron: '0 0 1 2,5,8,11 *'
+  push:
+    branches:
+      - bbujon/gh-workflow
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'The tag to use for the Docker build image'
+        required: true
+        default: 'vYY.MM-base'
+    
+jobs:
+  update-docker-build-image:
+    runs-on: ubuntu-latest
+  
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v2
+      - name: Download ghcommit CLI
+        run: |
+          curl https://github.com/planetscale/ghcommit/releases/download/v0.1.48/ghcommit_linux_amd64 -o /usr/local/bin/ghcommit -L
+          chmod +x /usr/local/bin/ghcommit
+      - name: Pick a branch name
+        id: define-branch
+        run: echo "branch=ci/update-docker-build-image-$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
+      - name: Create branch
+        run: |
+          git checkout -b ${{ steps.define-branch.outputs.branch }}
+          git push -u origin ${{ steps.define-branch.outputs.branch }} --force
+      - name: Define the Docker build image tage to use
+        id: define-tag
+        run: |
+          if [ -z "${{ github.event.inputs.tag }}" ]; then
+            TAG=${{ github.event.inputs.tag }}
+          else
+            current_month=$(date +%m)
+            current_year=$(date +%y)
+            case $current_month in
+              01) TAG_DATE="$$(($current_year - 1)).10" ;;
+              02|03|04) TAG_DATE="${current_year}.01" ;;
+              05|06|07) TAG_DATE="${current_year}.04" ;;
+              08|09|10) TAG_DATE="${current_year}.07" ;;
+              11|12) TAG_DATE="${current_year}.10" ;;
+            esac
+            TAG = "v${TAG_DATE}-base"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "::notice::Using Docker build image tag: ${TAG}"
+      - name: Update the Docker build image in CircleCI config
+        run: |
+          sed -i 's|DOCKER_IMAGE_VERSION=.*|DOCKER_IMAGE_VERSION="${{ steps.define-tag.outputs.tag }}"|' .circleci/render_config.py
+          ghcommit --repository ${{ github.repository }} --branch ${{ steps.define-branch.outputs.branch }} --add .circleci/render_config.py --message "feat(ci): Update Docker build image"
+      - name: Update the Docker build image in GitLab CI config
+        run: |
+          sed -i 's|image: ghcr.io/datadog/dd-trace-java-docker-build:.*|image: ghcr.io/datadog/dd-trace-java-docker-build:${{ steps.define-tag.outputs.tag }}|' .gitlab-ci.yml
+          ghcommit --repository ${{ github.repository }} --branch ${{ steps.define-branch.outputs.branch }} --add .gitlab-ci.yml --message "feat(ci): Update Docker build image"
+      - name: Create pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # use echo to set a multiline body for the PR
+          gh pr create --title "Update Docker build image" \
+            --base master \
+            --head ${{ steps.define-branch.outputs.branch }} \
+            --label "comp: tooling" \
+            --label "type: enhancement" \
+            --label "tag: no release notes" \
+            --body "This PR updates the Docker build image to ${{ steps.define-tag.outputs.tag }}."
+  
+
+          
