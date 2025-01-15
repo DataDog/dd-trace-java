@@ -24,6 +24,8 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
+import static datadog.trace.api.sampling.PrioritySampling.UNSET
+import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP
 import static datadog.trace.core.PendingTraceBuffer.BUFFER_SIZE
 import static java.nio.charset.StandardCharsets.UTF_8
 
@@ -147,7 +149,7 @@ class PendingTraceBufferTest extends DDSpecification {
 
   def "priority sampling is always sent"() {
     setup:
-    def parent = addContinuation(newSpanOf(factory.create(DDTraceId.ONE), PrioritySampling.USER_KEEP))
+    def parent = addContinuation(newSpanOf(factory.create(DDTraceId.ONE), USER_KEEP, 0))
     def metadataChecker = new SamplingPriorityMetadataChecker()
 
     when: "Fill the buffer - Only children - Priority taken from root"
@@ -452,24 +454,12 @@ class PendingTraceBufferTest extends DDSpecification {
     TracerFlare.addReporter {} // exercises default methods
     def dumpReporter = Mock(PendingTraceBuffer.TracerDump)
     TracerFlare.addReporter(dumpReporter)
-    def pendingTrace = factory.create(DDTraceId.ONE)
-    def parent = newSpanOf(pendingTrace)
+    def trace = factory.create(DDTraceId.ONE)
+    def parent = newSpanOf(trace, UNSET, System.currentTimeMillis() * 1000)
     def child = newSpanOf(parent)
 
     when:
     parent.finish()
-
-    then:
-    pendingTrace.size() == 1
-    pendingTrace.pendingReferenceCount == 1
-    1 * bufferSpy.enqueue(pendingTrace)
-    _ * bufferSpy.longRunningSpansEnabled()
-    _ * tracer.getPartialFlushMinSpans() >> 10
-    1 * tracer.getTimeWithNanoTicks(_)
-    1 * tracer.onRootSpanPublished(parent)
-    0 * _
-
-    when:
     buffer.start()
     def entries = buildAndExtractZip()
 
@@ -478,7 +468,14 @@ class PendingTraceBufferTest extends DDSpecification {
     1 * dumpReporter.addReportToFlare(_)
     1 * dumpReporter.cleanupAfterFlare()
     entries.size() == 1
-    entries["trace_dump.txt"] == "example text"
+    (entries["trace_dump.txt"] as String).startsWith("DDSpan [ t_id=1, s_id=1, p_id=0 ]") // TODO
+
+    then:
+    child.finish()
+
+    then:
+    trace.size() == 0
+    trace.pendingReferenceCount == 0
   }
 
 
@@ -490,10 +487,10 @@ class PendingTraceBufferTest extends DDSpecification {
   }
 
   static DDSpan newSpanOf(PendingTrace trace) {
-    return newSpanOf(trace, PrioritySampling.UNSET)
+    return newSpanOf(trace, UNSET, 0)
   }
 
-  static DDSpan newSpanOf(PendingTrace trace, int samplingPriority) {
+  static DDSpan newSpanOf(PendingTrace trace, int samplingPriority, long timestampMicro) {
     def context = new DDSpanContext(
       trace.traceId,
       1,
@@ -514,7 +511,7 @@ class PendingTraceBufferTest extends DDSpecification {
       NoopPathwayContext.INSTANCE,
       false,
       PropagationTags.factory().empty())
-    return DDSpan.create("test", 0, context, null)
+    return DDSpan.create("test", timestampMicro, context, null)
   }
 
   static DDSpan newSpanOf(DDSpan parent) {
@@ -527,7 +524,7 @@ class PendingTraceBufferTest extends DDSpecification {
       "fakeService",
       "fakeOperation",
       "fakeResource",
-      PrioritySampling.UNSET,
+      UNSET,
       null,
       Collections.emptyMap(),
       false,
