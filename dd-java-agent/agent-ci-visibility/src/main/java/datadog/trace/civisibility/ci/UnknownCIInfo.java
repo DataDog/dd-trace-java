@@ -60,6 +60,11 @@ class UnknownCIInfo implements CIProviderInfo {
     return CIInfo.builder(environment).ciWorkspace(workspace.toAbsolutePath().toString()).build();
   }
 
+  @Override
+  public PullRequestInfo buildPullRequestInfo() {
+    return PullRequestInfo.EMPTY;
+  }
+
   protected String getTargetFolder() {
     return targetFolder;
   }

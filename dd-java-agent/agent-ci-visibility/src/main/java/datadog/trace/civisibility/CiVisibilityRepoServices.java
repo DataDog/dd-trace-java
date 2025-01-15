@@ -8,6 +8,7 @@ import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.civisibility.ci.CIInfo;
 import datadog.trace.civisibility.ci.CIProviderInfo;
 import datadog.trace.civisibility.ci.CITagsProvider;
+import datadog.trace.civisibility.ci.PullRequestInfo;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.codeowners.CodeownersProvider;
 import datadog.trace.civisibility.codeowners.NoCodeowners;
@@ -59,9 +60,10 @@ public class CiVisibilityRepoServices {
     ciProvider = ciProviderInfo.getProvider();
 
     CIInfo ciInfo = ciProviderInfo.buildCIInfo();
+    PullRequestInfo pullRequestInfo = ciProviderInfo.buildPullRequestInfo();
     repoRoot = ciInfo.getNormalizedCiWorkspace();
     moduleName = getModuleName(services.config, path, ciInfo);
-    ciTags = new CITagsProvider().getCiTags(ciInfo);
+    ciTags = new CITagsProvider().getCiTags(ciInfo, pullRequestInfo);
 
     gitDataUploader =
         buildGitDataUploader(

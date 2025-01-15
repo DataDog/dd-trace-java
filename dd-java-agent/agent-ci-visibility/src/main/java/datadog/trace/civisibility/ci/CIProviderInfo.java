@@ -9,5 +9,7 @@ public interface CIProviderInfo {
 
   CIInfo buildCIInfo();
 
+  PullRequestInfo buildPullRequestInfo();
+
   Provider getProvider();
 }

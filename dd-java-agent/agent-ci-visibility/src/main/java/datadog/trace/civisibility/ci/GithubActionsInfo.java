@@ -18,7 +18,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.HashMap;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,10 +42,6 @@ class GithubActionsInfo implements CIProviderInfo {
   public static final String GHACTIONS_JOB = "GITHUB_JOB";
   public static final String GITHUB_BASE_REF = "GITHUB_BASE_REF";
   public static final String GITHUB_EVENT_PATH = "GITHUB_EVENT_PATH";
-
-  public static final String GIT_PULL_REQUEST_BASE_BRANCH = "git.pull_request.base_branch";
-  public static final String GIT_PULL_REQUEST_BASE_BRANCH_SHA = "git.pull_request.base_branch_sha";
-  public static final String GIT_COMMIT_HEAD_SHA = "git.commit.head_sha";
 
   private final CiEnvironment environment;
 
@@ -80,9 +75,6 @@ class GithubActionsInfo implements CIProviderInfo {
             environment.get(GHACTIONS_SHA));
 
     CIInfo.Builder builder = CIInfo.builder(environment);
-
-    setAdditionalTagsIfApplicable(builder);
-
     return builder
         .ciProviderName(GHACTIONS_PROVIDER_NAME)
         .ciPipelineId(environment.get(GHACTIONS_PIPELINE_ID))
@@ -97,16 +89,14 @@ class GithubActionsInfo implements CIProviderInfo {
         .build();
   }
 
-  private void setAdditionalTagsIfApplicable(CIInfo.Builder builder) {
+  @Override
+  public PullRequestInfo buildPullRequestInfo() {
     String baseRef = environment.get(GITHUB_BASE_REF);
     if (!Strings.isNotBlank(baseRef)) {
-      return;
+      return PullRequestInfo.EMPTY;
     }
 
     try {
-      Map<String, String> additionalTags = new HashMap<>();
-      additionalTags.put(GIT_PULL_REQUEST_BASE_BRANCH, baseRef);
-
       Path eventPath = Paths.get(environment.get(GITHUB_EVENT_PATH));
       String event = new String(Files.readAllBytes(eventPath), StandardCharsets.UTF_8);
 
@@ -115,25 +105,27 @@ class GithubActionsInfo implements CIProviderInfo {
           moshi.adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
       Map<String, Object> eventJson = mapJsonAdapter.fromJson(event);
 
+      String baseSha = null;
+      String headSha = null;
+
       Map<String, Object> pullRequest = (Map<String, Object>) eventJson.get("pull_request");
       if (pullRequest != null) {
         Map<String, Object> head = (Map<String, Object>) pullRequest.get("head");
         if (head != null) {
-          String headSha = (String) head.get("sha");
-          additionalTags.put(GIT_COMMIT_HEAD_SHA, headSha);
+          headSha = (String) head.get("sha");
         }
 
         Map<String, Object> base = (Map<String, Object>) pullRequest.get("base");
         if (base != null) {
-          String baseSha = (String) base.get("sha");
-          additionalTags.put(GIT_PULL_REQUEST_BASE_BRANCH_SHA, baseSha);
+          baseSha = (String) base.get("sha");
         }
       }
 
-      builder.additionalTags(additionalTags);
+      return new PullRequestInfo(baseRef, baseSha, headSha);
 
     } catch (Exception e) {
       LOGGER.warn("Error while parsing GitHub event", e);
+      return PullRequestInfo.EMPTY;
     }
   }
 

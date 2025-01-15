@@ -70,6 +70,11 @@ class BitBucketInfo implements CIProviderInfo {
         .build();
   }
 
+  @Override
+  public PullRequestInfo buildPullRequestInfo() {
+    return PullRequestInfo.EMPTY;
+  }
+
   private String buildPipelineUrl(final String repo, final String number) {
     return String.format(
         "https://bitbucket.org/%s/addon/pipelines/home#!/results/%s", repo, number);

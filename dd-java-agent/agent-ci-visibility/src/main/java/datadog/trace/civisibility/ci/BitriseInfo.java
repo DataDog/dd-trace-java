@@ -66,6 +66,11 @@ class BitriseInfo implements CIProviderInfo {
         .build();
   }
 
+  @Override
+  public PullRequestInfo buildPullRequestInfo() {
+    return PullRequestInfo.EMPTY;
+  }
+
   private String buildGitCommit() {
     final String fromCommit = environment.get(BITRISE_GIT_PR_COMMIT);
     if (fromCommit != null && !fromCommit.isEmpty()) {

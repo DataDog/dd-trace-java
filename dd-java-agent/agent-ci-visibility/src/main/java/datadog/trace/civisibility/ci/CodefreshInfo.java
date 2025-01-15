@@ -40,6 +40,11 @@ public class CodefreshInfo implements CIProviderInfo {
             environment.get(CF_COMMIT_MESSAGE)));
   }
 
+  @Override
+  public PullRequestInfo buildPullRequestInfo() {
+    return PullRequestInfo.EMPTY;
+  }
+
   private String buildGitBranch() {
     String gitBranchOrTag = getGitBranchOrTag();
     if (!isTagReference(gitBranchOrTag)) {

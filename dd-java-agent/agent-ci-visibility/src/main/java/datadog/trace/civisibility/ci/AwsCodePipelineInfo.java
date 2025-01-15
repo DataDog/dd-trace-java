@@ -36,6 +36,11 @@ class AwsCodePipelineInfo implements CIProviderInfo {
   }
 
   @Override
+  public PullRequestInfo buildPullRequestInfo() {
+    return PullRequestInfo.EMPTY;
+  }
+
+  @Override
   public Provider getProvider() {
     return Provider.AWS;
   }
