@@ -29,27 +29,14 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
       @Nullable Class<?> testClass,
       @Nullable Collection<String> categories,
       boolean parallelized,
-      TestFrameworkInstrumentation instrumentation);
+      TestFrameworkInstrumentation instrumentation,
+      @Nullable Long startTime);
 
   void onTestSuiteSkip(SuiteKey descriptor, @Nullable String reason);
 
   void onTestSuiteFailure(SuiteKey descriptor, @Nullable Throwable throwable);
 
-  void onTestSuiteFinish(SuiteKey descriptor);
-
-  void onTestStart(
-      SuiteKey suiteDescriptor,
-      TestKey descriptor,
-      String testSuiteName,
-      String testName,
-      @Nullable String testFramework,
-      @Nullable String testFrameworkVersion,
-      @Nullable String testParameters,
-      @Nullable Collection<String> categories,
-      @Nullable Class<?> testClass,
-      @Nullable String testMethodName,
-      @Nullable Method testMethod,
-      boolean isRetry);
+  void onTestSuiteFinish(SuiteKey descriptor, @Nullable Long endTime);
 
   void onTestStart(
       SuiteKey suiteDescriptor,
@@ -69,8 +56,6 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
   void onTestSkip(TestKey descriptor, @Nullable String reason);
 
   void onTestFailure(TestKey descriptor, @Nullable Throwable throwable);
-
-  void onTestFinish(TestKey descriptor);
 
   void onTestFinish(TestKey descriptor, @Nullable Long endTime);
 

@@ -43,7 +43,8 @@ public class JUnit4TracingListener extends TracingListener {
         testClass,
         categories,
         false,
-        TestFrameworkInstrumentation.JUNIT4);
+        TestFrameworkInstrumentation.JUNIT4,
+        null);
   }
 
   public void testSuiteFinished(final Description description) {
@@ -55,7 +56,7 @@ public class JUnit4TracingListener extends TracingListener {
     }
 
     TestSuiteDescriptor suiteDescriptor = JUnit4Utils.toSuiteDescriptor(description);
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor, null);
   }
 
   @Override
@@ -86,7 +87,8 @@ public class JUnit4TracingListener extends TracingListener {
         testClass,
         testMethodName,
         testMethod,
-        retryPolicy != null && retryPolicy.currentExecutionIsRetry());
+        retryPolicy != null && retryPolicy.currentExecutionIsRetry(),
+        null);
   }
 
   @Override
@@ -96,7 +98,7 @@ public class JUnit4TracingListener extends TracingListener {
     }
 
     TestDescriptor testDescriptor = JUnit4Utils.toTestDescriptor(description);
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(testDescriptor);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(testDescriptor, null);
   }
 
   // same callback is executed both for test cases and test suites (for setup/teardown errors)
@@ -175,7 +177,8 @@ public class JUnit4TracingListener extends TracingListener {
           testClass,
           categories,
           false,
-          TestFrameworkInstrumentation.JUNIT4);
+          TestFrameworkInstrumentation.JUNIT4,
+          null);
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteSkip(suiteDescriptor, reason);
 
       List<Method> testMethods = JUnit4Utils.getTestMethods(testClass);
@@ -183,7 +186,7 @@ public class JUnit4TracingListener extends TracingListener {
         testIgnored(description, testMethod, reason);
       }
 
-      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor);
+      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor, null);
     }
   }
 

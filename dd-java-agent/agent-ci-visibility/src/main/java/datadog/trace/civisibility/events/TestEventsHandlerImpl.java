@@ -50,6 +50,10 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
     this.inProgressTests = (ContextStore) testStore;
   }
 
+  private static boolean skipTrace(final Class<?> testClass) {
+    return testClass != null && testClass.getAnnotation(DisableTestTrace.class) != null;
+  }
+
   @Override
   public void onTestSuiteStart(
       final SuiteKey descriptor,
@@ -59,13 +63,15 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
       final @Nullable Class<?> testClass,
       final @Nullable Collection<String> categories,
       boolean parallelized,
-      TestFrameworkInstrumentation instrumentation) {
+      TestFrameworkInstrumentation instrumentation,
+      @Nullable Long startTime) {
     if (skipTrace(testClass)) {
       return;
     }
 
     TestSuiteImpl testSuite =
-        testModule.testSuiteStart(testSuiteName, testClass, null, parallelized, instrumentation);
+        testModule.testSuiteStart(
+            testSuiteName, testClass, startTime, parallelized, instrumentation);
 
     if (testFramework != null) {
       testSuite.setTag(Tags.TEST_FRAMEWORK, testFramework);
@@ -92,13 +98,13 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
   }
 
   @Override
-  public void onTestSuiteFinish(SuiteKey descriptor) {
+  public void onTestSuiteFinish(SuiteKey descriptor, @Nullable Long endTime) {
     if (skipTrace(descriptor.getClass())) {
       return;
     }
 
     TestSuiteImpl testSuite = inProgressTestSuites.remove(descriptor);
-    testSuite.end(null);
+    testSuite.end(endTime);
   }
 
   @Override
@@ -134,38 +140,8 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
       final @Nullable Class<?> testClass,
       final @Nullable String testMethodName,
       final @Nullable Method testMethod,
-      final boolean isRetry) {
-    onTestStart(
-        suiteDescriptor,
-        descriptor,
-        testSuiteName,
-        testName,
-        testFramework,
-        testFrameworkVersion,
-        testParameters,
-        categories,
-        testClass,
-        testMethodName,
-        testMethod,
-        isRetry,
-        null);
-  }
-
-  @Override
-  public void onTestStart(
-      final SuiteKey suiteDescriptor,
-      final TestKey descriptor,
-      final String testSuiteName,
-      final String testName,
-      final @Nullable String testFramework,
-      final @Nullable String testFrameworkVersion,
-      final @Nullable String testParameters,
-      final @Nullable Collection<String> categories,
-      final @Nullable Class<?> testClass,
-      final @Nullable String testMethodName,
-      final @Nullable Method testMethod,
       final boolean isRetry,
-      final @Nullable Long startTime) {
+      @Nullable Long startTime) {
     if (skipTrace(testClass)) {
       return;
     }
@@ -243,11 +219,6 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
   }
 
   @Override
-  public void onTestFinish(TestKey descriptor) {
-    onTestFinish(descriptor, null);
-  }
-
-  @Override
   public void onTestFinish(TestKey descriptor, @Nullable Long endTime) {
     TestImpl test = inProgressTests.remove(descriptor);
     if (test == null) {
@@ -283,13 +254,10 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
         testClass,
         testMethodName,
         testMethod,
-        false);
+        false,
+        null);
     onTestSkip(testDescriptor, reason);
-    onTestFinish(testDescriptor);
-  }
-
-  private static boolean skipTrace(final Class<?> testClass) {
-    return testClass != null && testClass.getAnnotation(DisableTestTrace.class) != null;
+    onTestFinish(testDescriptor, null);
   }
 
   @Override

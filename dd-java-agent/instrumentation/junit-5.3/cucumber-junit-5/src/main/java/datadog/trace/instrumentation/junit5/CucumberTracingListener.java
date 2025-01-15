@@ -71,7 +71,8 @@ public class CucumberTracingListener implements EngineExecutionListener {
         null,
         tags,
         false,
-        TestFrameworkInstrumentation.CUCUMBER);
+        TestFrameworkInstrumentation.CUCUMBER,
+        null);
   }
 
   private void containerExecutionFinished(
@@ -93,7 +94,7 @@ public class CucumberTracingListener implements EngineExecutionListener {
         TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFailure(suiteDescriptor, throwable);
       }
     }
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor, null);
   }
 
   private void testCaseExecutionStarted(final TestDescriptor testDescriptor) {
@@ -125,7 +126,8 @@ public class CucumberTracingListener implements EngineExecutionListener {
         null,
         null,
         null,
-        JUnitPlatformUtils.isRetry(testDescriptor));
+        JUnitPlatformUtils.isRetry(testDescriptor),
+        null);
 
     CoveragePerTestBridge.recordCoverage(classpathResourceName);
   }
@@ -149,7 +151,7 @@ public class CucumberTracingListener implements EngineExecutionListener {
         TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFailure(testDescriptor, throwable);
       }
     }
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(testDescriptor);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(testDescriptor, null);
   }
 
   @Override

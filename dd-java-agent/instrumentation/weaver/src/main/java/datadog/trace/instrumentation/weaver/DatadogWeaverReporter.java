@@ -61,14 +61,15 @@ public class DatadogWeaverReporter {
         testClass,
         categories,
         parallelized,
-        TestFrameworkInstrumentation.WEAVER);
+        TestFrameworkInstrumentation.WEAVER,
+        null);
   }
 
   public static void onSuiteFinish(SuiteFinished event) {
     String testSuiteName = event.name();
     Class<?> testClass = WeaverUtils.getClass(testSuiteName);
 
-    TEST_EVENTS_HANDLER.onTestSuiteFinish(new TestSuiteDescriptor(testSuiteName, testClass));
+    TEST_EVENTS_HANDLER.onTestSuiteFinish(new TestSuiteDescriptor(testSuiteName, testClass), null);
   }
 
   public static void onTestFinished(TestFinished event, TaskDef taskDef) {

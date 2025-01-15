@@ -5,7 +5,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import net.bytebuddy.asm.Advice;
 import sbt.testing.TaskDef;
@@ -17,11 +16,6 @@ public class WeaverInstrumentation extends InstrumenterModule.CiVisibility
 
   public WeaverInstrumentation() {
     super("ci-visibility", "weaver");
-  }
-
-  @Override
-  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems);
   }
 
   @Override
