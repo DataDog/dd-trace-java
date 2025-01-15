@@ -25,6 +25,9 @@ public final class TagsPostProcessorFactory {
           processors.add(ptp);
         }
       }
+      if (Config.get().isSpanPointersEnabled()) {
+        processors.add(new SpanPointersProcessor());
+      }
       return new PostProcessorChain(
           processors.toArray(processors.toArray(new TagsPostProcessor[0])));
     }
