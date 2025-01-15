@@ -28,15 +28,6 @@ _Action:_ Check the pull request complies with [the contribution guidelines](htt
 
 _Recovery:_ Manually verify the guideline compliance.
 
-### create-next-milestone [🔗](create-next-milestone.yaml)
-
-_Trigger:_ When closing a milestone.
-
-_Action:_ Create a new milestone by incrementing minor version.
-
-_Comment:_ Disabled as also covered by increment-milestone-on-tag.
-This will be removed after some testing.  
-
 ### draft-release-notes-on-tag [🔗](draft-release-notes-on-tag.yaml)
 
 _Trigger:_ When creating a tag, or manually (providing a tag)
