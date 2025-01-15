@@ -40,6 +40,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
 import org.slf4j.Logger;
@@ -434,7 +435,8 @@ public class LogProbe extends ProbeDefinition implements Sampled {
       // sample when no condition associated
       sample(logStatus, methodLocation);
     }
-    logStatus.setCondition(evaluateCondition(context, logStatus));
+    logStatus.setCondition(
+        !logStatus.getDebugSessionStatus().isDisabled() && evaluateCondition(context, logStatus));
     CapturedContext.CapturedThrowable throwable = context.getCapturedThrowable();
     if (logStatus.hasConditionErrors() && throwable != null) {
       logStatus.addError(
@@ -503,10 +505,16 @@ public class LogProbe extends ProbeDefinition implements Sampled {
     if (!MethodLocation.isSame(methodLocation, evaluateAt)) {
       return;
     }
-    boolean sampled = ProbeRateLimiter.tryProbe(id);
+    boolean sampled =
+        !logStatus.getDebugSessionStatus().isDisabled() && ProbeRateLimiter.tryProbe(id);
     logStatus.setSampled(sampled);
     if (!sampled) {
-      DebuggerAgent.getSink().skipSnapshot(id, DebuggerContext.SkipCause.RATE);
+      DebuggerAgent.getSink()
+          .skipSnapshot(
+              id,
+              logStatus.getDebugSessionStatus().isDisabled()
+                  ? DebuggerContext.SkipCause.DEBUG_SESSION_DISABLED
+                  : DebuggerContext.SkipCause.RATE);
     }
   }
 
@@ -685,6 +693,7 @@ public class LogProbe extends ProbeDefinition implements Sampled {
         new LogStatus(ProbeImplementation.UNKNOWN, true);
 
     private boolean condition = true;
+    private final DebugSessionStatus debugSessionStatus;
     private boolean hasLogTemplateErrors;
     private boolean hasConditionErrors;
     private boolean sampled = true;
@@ -693,10 +702,11 @@ public class LogProbe extends ProbeDefinition implements Sampled {
 
     public LogStatus(ProbeImplementation probeImplementation) {
       super(probeImplementation);
+      debugSessionStatus = debugSessionStatus();
     }
 
     private LogStatus(ProbeImplementation probeImplementation, boolean condition) {
-      super(probeImplementation);
+      this(probeImplementation);
       this.condition = condition;
     }
 
@@ -720,6 +730,26 @@ public class LogProbe extends ProbeDefinition implements Sampled {
 
     public boolean getCondition() {
       return condition;
+    }
+
+    public DebugSessionStatus getDebugSessionStatus() {
+      return debugSessionStatus;
+    }
+
+    private DebugSessionStatus debugSessionStatus() {
+      if (probeImplementation instanceof ProbeDefinition) {
+        ProbeDefinition definition = (ProbeDefinition) probeImplementation;
+        Map<String, String> sessions = getDebugSessions();
+        String sessionId = definition.getDebugSessionId();
+        if (sessionId == null) {
+          return DebugSessionStatus.NONE;
+        }
+        return "1".equals(sessions.get(sessionId)) || "1".equals(sessions.get("*"))
+            ? DebugSessionStatus.ACTIVE
+            : DebugSessionStatus.DISABLED;
+      }
+
+      return DebugSessionStatus.NONE;
     }
 
     public void setCondition(boolean value) {
@@ -764,6 +794,29 @@ public class LogProbe extends ProbeDefinition implements Sampled {
 
     public void setForceSampling(boolean forceSampling) {
       this.forceSampling = forceSampling;
+    }
+
+    @Override
+    public String toString() {
+      return "LogStatus{"
+          + ", probeId="
+          + probeImplementation.getId()
+          + ", condition="
+          + condition
+          + ", debugSessionStatus="
+          + debugSessionStatus
+          + ", forceSampling="
+          + forceSampling
+          + ", hasConditionErrors="
+          + hasConditionErrors
+          + ", hasLogTemplateErrors="
+          + hasLogTemplateErrors
+          + ", message='"
+          + message
+          + '\''
+          + ", sampled="
+          + sampled
+          + '}';
     }
   }
 

@@ -1,15 +1,35 @@
 package com.datadog.debugger.probe;
 
+import static com.datadog.debugger.agent.CapturingTestBase.mockConfig;
 import static com.datadog.debugger.util.LogProbeTestHelper.parseTemplate;
+import static java.lang.String.format;
+import static java.lang.Thread.currentThread;
+import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
 
+import com.datadog.debugger.agent.DebuggerAgentHelper;
+import com.datadog.debugger.probe.LogProbe.Builder;
+import com.datadog.debugger.probe.LogProbe.LogStatus;
+import com.datadog.debugger.probe.ProbeDefinition.DebugSessionStatus;
+import com.datadog.debugger.sink.DebuggerSink;
+import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.sink.Snapshot;
+import datadog.trace.api.IdGenerationStrategy;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.EvaluationError;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
+import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.core.CoreTracer;
+import java.util.UUID;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -21,6 +41,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 public class LogProbeTest {
   private static final String LANGUAGE = "java";
   private static final ProbeId PROBE_ID = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f8", 0);
+  private static final String DEBUG_SESSION_ID = "TestSession";
 
   @Test
   public void testCapture() {
@@ -36,6 +57,69 @@ public class LogProbeTest {
     LogProbe.Builder builder = createLog(null);
     LogProbe snapshotProbe = builder.sampling(0.25).build();
     Assertions.assertEquals(0.25, snapshotProbe.getSampling().getEventsPerSecond(), 0.01);
+  }
+
+  @Test
+  public void debugSessionActive() {
+    assertTrue(
+        fillSnapshot(DebugSessionStatus.ACTIVE),
+        "Session is active so snapshots should get filled.");
+  }
+
+  @Test
+  public void debugSessionDisabled() {
+    Assertions.assertFalse(
+        fillSnapshot(DebugSessionStatus.DISABLED),
+        "Session is disabled so snapshots should not get filled.");
+  }
+
+  @Test
+  public void noDebugSession() {
+    assertTrue(
+        fillSnapshot(DebugSessionStatus.NONE),
+        "With no debug sessions, snapshots should get filled.");
+  }
+
+  private boolean fillSnapshot(DebugSessionStatus status) {
+    DebuggerAgentHelper.injectSink(new DebuggerSink(mockConfig(), mock(ProbeStatusSink.class)));
+    TracerAPI tracer =
+        CoreTracer.builder().idGenerationStrategy(IdGenerationStrategy.fromName("random")).build();
+    AgentTracer.registerIfAbsent(tracer);
+    AgentSpan span = tracer.startSpan("log probe debug session testing", "test span");
+    try (AgentScope scope = tracer.activateSpan(span, ScopeSource.MANUAL)) {
+      if (status == DebugSessionStatus.ACTIVE) {
+        span.setTag(Tags.PROPAGATED_DEBUG, DEBUG_SESSION_ID + ":1");
+      } else if (status == DebugSessionStatus.DISABLED) {
+        span.setTag(Tags.PROPAGATED_DEBUG, DEBUG_SESSION_ID + ":0");
+      }
+
+      Builder builder =
+          createLog("I'm in a debug session").probeId(UUID.randomUUID().toString(), 0);
+      if (status != DebugSessionStatus.NONE) {
+        builder.tags(format("sessionId:%s", DEBUG_SESSION_ID));
+      }
+
+      LogProbe logProbe = builder.build();
+
+      CapturedContext entryContext = capturedContext(span, logProbe);
+      CapturedContext exitContext = capturedContext(span, logProbe);
+      logProbe.evaluate(entryContext, new LogStatus(logProbe), MethodLocation.ENTRY);
+      logProbe.evaluate(exitContext, new LogStatus(logProbe), MethodLocation.EXIT);
+
+      return logProbe.fillSnapshot(
+          entryContext, exitContext, emptyList(), new Snapshot(currentThread(), logProbe, 3));
+    }
+  }
+
+  private static CapturedContext capturedContext(AgentSpan span, ProbeDefinition probeDefinition) {
+    CapturedContext context = new CapturedContext();
+    context.evaluate(
+        probeDefinition.getProbeId().getEncodedId(),
+        probeDefinition,
+        "Log Probe test",
+        System.currentTimeMillis(),
+        MethodLocation.DEFAULT);
+    return context;
   }
 
   @Test

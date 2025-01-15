@@ -4,7 +4,7 @@ import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.uploader.BatchUploader;
 import com.datadog.debugger.util.DebuggerMetrics;
 import datadog.trace.api.Config;
-import datadog.trace.bootstrap.debugger.DebuggerContext;
+import datadog.trace.bootstrap.debugger.DebuggerContext.SkipCause;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.util.AgentTaskScheduler;
 import java.util.List;
@@ -223,20 +223,8 @@ public class DebuggerSink {
   }
 
   /** Notifies the snapshot was skipped for one of the SkipCause reason */
-  public void skipSnapshot(String probeId, DebuggerContext.SkipCause cause) {
-    String causeTag;
-    switch (cause) {
-      case RATE:
-        causeTag = "cause:rate";
-        break;
-      case CONDITION:
-        causeTag = "cause:condition";
-        break;
-      default:
-        throw new IllegalArgumentException("Unknown cause: " + cause);
-    }
-    String probeIdTag = "probe_id:" + probeId;
-    debuggerMetrics.incrementCounter(PREFIX + "skip", causeTag, probeIdTag);
+  public void skipSnapshot(String probeId, SkipCause cause) {
+    debuggerMetrics.incrementCounter(PREFIX + "skip", cause.tag(), "probe_id:" + probeId);
   }
 
   long getCurrentLowRateFlushInterval() {
