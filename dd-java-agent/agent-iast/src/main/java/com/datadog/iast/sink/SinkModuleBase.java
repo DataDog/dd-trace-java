@@ -148,9 +148,21 @@ public abstract class SinkModuleBase {
       return null;
     }
 
+    // filter excluded ranges
+    final Range[] filteredRanges;
+    if (!type.excludedSources().isEmpty()) {
+      filteredRanges = Ranges.excludeRangesBySource(valueRanges, type.excludedSources());
+    } else {
+      filteredRanges = valueRanges;
+    }
+
+    if (filteredRanges == null || filteredRanges.length == 0) {
+      return null;
+    }
+
     final StringBuilder evidence = new StringBuilder();
     final RangeBuilder ranges = new RangeBuilder();
-    addToEvidence(type, evidence, ranges, value, valueRanges, evidenceBuilder);
+    addToEvidence(type, evidence, ranges, value, filteredRanges, evidenceBuilder);
 
     // check if finally we have an injection
     if (ranges.isEmpty()) {
