@@ -40,14 +40,14 @@ jobs:
           if [ -n "${{ github.event.inputs.tag }}" ]; then
             TAG=${{ github.event.inputs.tag }}
           else
-            current_month=$(date +%m)
-            current_year=$(date +%y)
+            CURRENT_MONTH=$(date +%m)
+            CURRENT_YEAR=$(date +%y)
             case $current_month in
-              01) TAG_DATE="$$(($current_year - 1)).10" ;;
-              02|03|04) TAG_DATE="${current_year}.01" ;;
-              05|06|07) TAG_DATE="${current_year}.04" ;;
-              08|09|10) TAG_DATE="${current_year}.07" ;;
-              11|12) TAG_DATE="${current_year}.10" ;;
+              01) TAG_DATE="$(($CURRENT_YEAR - 1)).10" ;;
+              02|03|04) TAG_DATE="${CURRENT_YEAR}.01" ;;
+              05|06|07) TAG_DATE="${CURRENT_YEAR}.04" ;;
+              08|09|10) TAG_DATE="${CURRENT_YEAR}.07" ;;
+              11|12) TAG_DATE="${CURRENT_YEAR}.10" ;;
             esac
             TAG="v${TAG_DATE}-base"
           fi
