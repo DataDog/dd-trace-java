@@ -25,7 +25,7 @@ public class EmailInjectionModuleImpl extends SinkModuleBase implements EmailInj
     }
     try {
       for (int i = 0; i < message.getCount(); i++) {
-        checkInjection(VulnerabilityType.EMAIL_INJECTION, message.getBodyPart(i));
+        checkInjection(VulnerabilityType.EMAIL_HTML_INJECTION, message.getBodyPart(i));
       }
     } catch (MessagingException e) {
       LOGGER.debug("Exception while checking injections of mime multipart message", e);
@@ -37,6 +37,6 @@ public class EmailInjectionModuleImpl extends SinkModuleBase implements EmailInj
     if (message == null) {
       return;
     }
-    checkInjection(VulnerabilityType.EMAIL_INJECTION, message);
+    checkInjection(VulnerabilityType.EMAIL_HTML_INJECTION, message);
   }
 }
