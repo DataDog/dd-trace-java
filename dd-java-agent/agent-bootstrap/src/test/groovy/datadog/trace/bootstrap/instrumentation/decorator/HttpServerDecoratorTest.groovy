@@ -10,6 +10,7 @@ import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.bootstrap.ActiveSubsystems
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors
@@ -174,7 +175,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
 
   def "test onConnection"() {
     setup:
-    def ctx = Mock(AgentSpan.Context.Extracted)
+    def ctx = Mock(AgentSpanContext.Extracted)
     def decorator = newDecorator()
 
     when:
@@ -227,7 +228,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
 
   void 'preference for header derived vs peer ip address'() {
     setup:
-    def ctx = Mock(AgentSpan.Context.Extracted)
+    def ctx = Mock(AgentSpanContext.Extracted)
     def decorator = newDecorator()
 
     when:
@@ -249,7 +250,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     setup:
     injectSysConfig('dd.trace.client-ip.resolver.enabled', 'false')
 
-    def ctx = Mock(AgentSpan.Context.Extracted)
+    def ctx = Mock(AgentSpanContext.Extracted)
     def decorator = newDecorator()
 
     when:
@@ -265,7 +266,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     setup:
     ActiveSubsystems.APPSEC_ACTIVE = false
 
-    def ctx = Mock(AgentSpan.Context.Extracted)
+    def ctx = Mock(AgentSpanContext.Extracted)
     def decorator = newDecorator()
 
     when:
@@ -282,7 +283,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     injectSysConfig('dd.trace.client-ip.enabled', 'true')
     ActiveSubsystems.APPSEC_ACTIVE = false
 
-    def ctx = Mock(AgentSpan.Context.Extracted)
+    def ctx = Mock(AgentSpanContext.Extracted)
     def decorator = newDecorator()
 
     when:
@@ -303,7 +304,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     setup:
     injectSysConfig('dd.trace.client-ip-header', 'my-header')
 
-    def ctx = Mock(AgentSpan.Context.Extracted)
+    def ctx = Mock(AgentSpanContext.Extracted)
     def decorator = newDecorator()
 
     when:

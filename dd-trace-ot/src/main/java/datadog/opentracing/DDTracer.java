@@ -11,6 +11,7 @@ import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.profiling.Profiling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.writer.Writer;
@@ -463,7 +464,7 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
   @Override
   public <C> void inject(final SpanContext spanContext, final Format<C> format, final C carrier) {
     if (carrier instanceof TextMap) {
-      final AgentSpan.Context context = converter.toContext(spanContext);
+      final AgentSpanContext context = converter.toContext(spanContext);
 
       tracer.propagate().inject(context, (TextMap) carrier, TextMapSetter.INSTANCE);
     } else {
@@ -474,7 +475,7 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
   @Override
   public <C> SpanContext extract(final Format<C> format, final C carrier) {
     if (carrier instanceof TextMap) {
-      final AgentSpan.Context tagContext =
+      final AgentSpanContext tagContext =
           tracer.propagate().extract((TextMap) carrier, new TextMapGetter((TextMap) carrier));
 
       return converter.toSpanContext(tagContext);
@@ -507,7 +508,7 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
 
   @Override
   public TraceSegment getTraceSegment() {
-    AgentSpan.Context ctx = tracer.activeSpan().context();
+    AgentSpanContext ctx = tracer.activeSpan().context();
     if (ctx instanceof DDSpanContext) {
       return ((DDSpanContext) ctx).getTraceSegment();
     }
@@ -573,7 +574,7 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
         return this;
       }
 
-      final AgentSpan.Context context = converter.toContext(referencedContext);
+      final AgentSpanContext context = converter.toContext(referencedContext);
       if (!(context instanceof ExtractedContext) && !(context instanceof DDSpanContext)) {
         log.debug(
             "Expected to have a DDSpanContext or ExtractedContext but got "

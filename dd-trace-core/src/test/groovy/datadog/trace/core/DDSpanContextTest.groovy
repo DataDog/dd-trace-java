@@ -2,7 +2,7 @@ package datadog.trace.core
 
 import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration
 import datadog.trace.common.writer.ListWriter
@@ -185,7 +185,7 @@ class DDSpanContextTest extends DDCoreSpecification {
     def extracted = new ExtractedContext(DDTraceId.from(123), 456, SAMPLER_KEEP, "789", tracer.getPropagationTagsFactory().empty(), DATADOG)
       .withRequestContextDataAppSec("dummy")
 
-    def top = tracer.buildSpan("top").asChildOf((AgentSpan.Context) extracted).start()
+    def top = tracer.buildSpan("top").asChildOf((AgentSpanContext) extracted).start()
     def topC = (DDSpanContext) top.context()
     def topTS = top.getRequestContext().getTraceSegment()
     def current = tracer.buildSpan("current").asChildOf(top).start()

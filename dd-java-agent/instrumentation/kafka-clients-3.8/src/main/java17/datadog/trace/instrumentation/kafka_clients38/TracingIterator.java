@@ -16,7 +16,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.instrumentation.kafka_common.StreamingContext;
@@ -76,7 +76,7 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
       AgentSpan span, queueSpan = null;
       if (val != null) {
         if (!Config.get().isKafkaClientPropagationDisabledForTopic(val.topic())) {
-          final Context spanContext = propagate().extract(val.headers(), GETTER);
+          final AgentSpanContext spanContext = propagate().extract(val.headers(), GETTER);
           long timeInQueueStart = GETTER.extractTimeInQueueStart(val.headers());
           if (timeInQueueStart == 0 || !KafkaDecorator.TIME_IN_QUEUE_ENABLED) {
             span = startSpan(operationName, spanContext);

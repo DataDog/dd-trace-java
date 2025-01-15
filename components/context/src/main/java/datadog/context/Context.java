@@ -4,7 +4,6 @@ import static datadog.context.ContextProviders.binder;
 import static datadog.context.ContextProviders.manager;
 
 import javax.annotation.Nullable;
-import javax.annotation.ParametersAreNonnullByDefault;
 
 /**
  * Immutable context scoped to an execution unit or carrier object.
@@ -36,7 +35,6 @@ import javax.annotation.ParametersAreNonnullByDefault;
  *
  * @see ContextKey
  */
-@ParametersAreNonnullByDefault
 public interface Context {
   /**
    * Returns the root context.

@@ -3,7 +3,7 @@ package datadog.trace.civisibility.domain.buildsystem;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.coverage.percentage.child.ChildProcessCoverageReporter;
@@ -23,7 +23,7 @@ import javax.annotation.Nullable;
  */
 public class ProxyTestSession implements TestFrameworkSession {
 
-  private final AgentSpan.Context parentProcessModuleContext;
+  private final AgentSpanContext parentProcessModuleContext;
   private final Config config;
   private final CiVisibilityMetricCollector metricCollector;
   private final TestDecorator testDecorator;
@@ -36,7 +36,7 @@ public class ProxyTestSession implements TestFrameworkSession {
   private final ExecutionStrategy executionStrategy;
 
   public ProxyTestSession(
-      AgentSpan.Context parentProcessModuleContext,
+      AgentSpanContext parentProcessModuleContext,
       Config config,
       CiVisibilityMetricCollector metricCollector,
       TestDecorator testDecorator,

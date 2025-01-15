@@ -13,6 +13,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import io.undertow.server.HttpServerExchange;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -76,7 +77,7 @@ public class HttpRequestParserInstrumentation extends InstrumenterModule.Tracing
         if (scope != null) {
           span = scope.span();
         } else {
-          final AgentSpan.Context.Extracted extractedContext = DECORATE.extract(exchange);
+          final AgentSpanContext.Extracted extractedContext = DECORATE.extract(exchange);
           span = DECORATE.startSpan(exchange, extractedContext).setMeasured(true);
           scope = activateSpan(span);
           DECORATE.afterStart(span);

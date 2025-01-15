@@ -18,6 +18,7 @@ import datadog.communication.ddagent.ExternalAgentLauncher;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.monitor.Monitoring;
 import datadog.communication.monitor.Recording;
+import datadog.trace.api.ClassloaderConfigurationOverrides;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
@@ -40,7 +41,6 @@ import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.metrics.SpanMetricRegistry;
-import datadog.trace.api.naming.ClassloaderServiceNames;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.api.remoteconfig.ServiceNameCollector;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -52,6 +52,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentHistogram;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
@@ -138,8 +139,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   /** Tracer start time in nanoseconds measured up to a millisecond accuracy */
   private final long startTimeNano;
+
   /** Nanosecond ticks value at tracer start */
   private final long startNanoTicks;
+
   /** How often should traced threads check clock ticks against the wall clock */
   private final long clockSyncPeriod;
 
@@ -148,6 +151,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   /** Last time (in nanosecond ticks) the clock was checked for drift */
   private volatile long lastSyncTicks;
+
   /** Nanosecond offset to counter clock drift */
   private volatile long counterDrift;
 
@@ -159,10 +163,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   /** Default service name if none provided on the trace or span */
   final String serviceName;
+
   /** Writer is an charge of reporting traces and spans to the desired endpoint */
   final Writer writer;
+
   /** Sampler defines the sampling policy in order to reduce the number of traces for instance */
   final Sampler initialSampler;
+
   /** Scope manager is in charge of managing the scopes from which spans are created */
   final ContinuableScopeManager scopeManager;
 
@@ -170,10 +177,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   /** Initial static configuration associated with the tracer. */
   final Config initialConfig;
+
   /** Maintains dynamic configuration associated with the tracer */
   private final DynamicConfig<ConfigSnapshot> dynamicConfig;
+
   /** A set of tags that are added only to the application's root span */
   private final Map<String, ?> localRootSpanTags;
+
   /** A set of tags that are added to every span */
   private final Map<String, ?> defaultSpanTags;
 
@@ -873,7 +883,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public AgentSpan startSpan(
-      String instrumentationName, final CharSequence spanName, final AgentSpan.Context parent) {
+      String instrumentationName, final CharSequence spanName, final AgentSpanContext parent) {
     return buildSpan(instrumentationName, spanName).ignoreActiveSpan().asChildOf(parent).start();
   }
 
@@ -881,7 +891,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   public AgentSpan startSpan(
       final String instrumentationName,
       final CharSequence spanName,
-      final AgentSpan.Context parent,
+      final AgentSpanContext parent,
       final long startTimeMicros) {
     return buildSpan(instrumentationName, spanName)
         .ignoreActiveSpan()
@@ -955,7 +965,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public AgentSpan.Context notifyExtensionStart(Object event) {
+  public AgentSpanContext notifyExtensionStart(Object event) {
     return LambdaHandler.notifyStartInvocation(this, event);
   }
 
@@ -1179,7 +1189,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     if (activeSpan == null) {
       return null;
     }
-    AgentSpan.Context ctx = activeSpan.context();
+    AgentSpanContext ctx = activeSpan.context();
     if (ctx instanceof DDSpanContext) {
       return ((DDSpanContext) ctx).getTraceSegment();
     }
@@ -1264,7 +1274,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     // Builder attributes
     private Map<String, Object> tags;
     private long timestampMicro;
-    private AgentSpan.Context parent;
+    private AgentSpanContext parent;
     private String serviceName;
     private String resourceName;
     private boolean errorFlag;
@@ -1316,7 +1326,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     @Override
     public AgentSpan start() {
-      AgentSpan.Context pc = parent;
+      AgentSpanContext pc = parent;
       if (pc == null && !ignoreScope) {
         final AgentSpan span = activeSpan();
         if (span != null) {
@@ -1376,7 +1386,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
 
     @Override
-    public CoreSpanBuilder asChildOf(final AgentSpan.Context spanContext) {
+    public CoreSpanBuilder asChildOf(final AgentSpanContext spanContext) {
       // TODO we will start propagating stack trace hash and it will need to
       //  be extracted here if available
       parent = spanContext;
@@ -1467,9 +1477,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       } else {
         spanId = this.spanId;
       }
-      // FIXME [API] parentContext should be an interface implemented by ExtractedContext,
-      // TagContext, DDSpanContext, AgentSpan.Context
-      AgentSpan.Context parentContext = parent;
+
+      AgentSpanContext parentContext = parent;
       if (parentContext == null && !ignoreScope) {
         // use the Scope as parent unless overridden or ignored.
         final AgentSpan activeSpan = scopeManager.activeSpan();
@@ -1589,10 +1598,19 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       if (serviceName == null) {
         serviceName = traceConfig.getPreferredServiceName();
       }
-      if (serviceName == null && parentServiceName == null) {
-        // in this case we have a local root without service name. We can try to see if we can find
-        // one from the thread context classloader
-        serviceName = ClassloaderServiceNames.maybeGetForCurrentThread();
+      Map<String, Object> contextualTags = null;
+      if (parentServiceName == null) {
+        // only fetch this on local root spans
+        final ClassloaderConfigurationOverrides.ContextualInfo contextualInfo =
+            ClassloaderConfigurationOverrides.maybeGetContextualInfo();
+        if (contextualInfo != null) {
+          // in this case we have a local root without service name.
+          // We can try to see if we can find one from the thread context classloader
+          if (serviceName == null) {
+            serviceName = contextualInfo.getServiceName();
+          }
+          contextualTags = contextualInfo.getTags();
+        }
       }
       if (serviceName == null) {
         // it could be on the initial snapshot but may be overridden to null and service name
@@ -1609,7 +1627,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           mergedTracerTags.size()
               + (null == tags ? 0 : tags.size())
               + (null == coreTags ? 0 : coreTags.size())
-              + (null == rootSpanTags ? 0 : rootSpanTags.size());
+              + (null == rootSpanTags ? 0 : rootSpanTags.size())
+              + (null == contextualTags ? 0 : contextualTags.size());
 
       if (builderRequestContextDataAppSec != null) {
         requestContextDataAppSec = builderRequestContextDataAppSec;
@@ -1655,6 +1674,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       context.setAllTags(tags);
       context.setAllTags(coreTags);
       context.setAllTags(rootSpanTags);
+      if (contextualTags != null) {
+        context.setAllTags(contextualTags);
+      }
       return context;
     }
   }
