@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
 import java.util.List;
+import java.util.Map;
 
 public interface SchemaBuilder {
   boolean addProperty(
@@ -11,7 +12,8 @@ public interface SchemaBuilder {
       String description,
       String ref,
       String format,
-      List<String> enumValues);
+      List<String> enumValue,
+      Map<String, String> extensions);
 
   void addToHash(int value);
 

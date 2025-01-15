@@ -11,6 +11,7 @@ import datadog.trace.bootstrap.instrumentation.api.Schema;
 import datadog.trace.bootstrap.instrumentation.api.SchemaBuilder;
 import datadog.trace.bootstrap.instrumentation.api.SchemaIterator;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -147,8 +148,10 @@ public class SchemaExtractor implements SchemaIterator {
     builder.addToHash(field.getNumber());
     builder.addToHash(typeCode);
     builder.addToHash(depth);
+    HashMap<String, String> extensions = new HashMap<String, String>(1);
+    extensions.put("x-protobuf-number", Integer.toString(field.getNumber()));
     return builder.addProperty(
-        schemaName, fieldName, array, type, description, ref, format, enumValues);
+        schemaName, fieldName, array, type, description, ref, format, enumValues, extensions);
   }
 
   public static boolean extractSchema(Descriptor descriptor, SchemaBuilder builder, int depth) {

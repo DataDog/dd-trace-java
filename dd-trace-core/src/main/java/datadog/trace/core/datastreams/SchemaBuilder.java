@@ -35,15 +35,17 @@ public class SchemaBuilder implements datadog.trace.bootstrap.instrumentation.ap
       String description,
       String ref,
       String format,
-      List<String> enumValues) {
+      List<String> enumValues,
+      Map<String, String> extensions) {
     if (properties >= maxProperties) {
       return false;
     }
     properties++;
     OpenApiSchema.Property property =
-        new OpenApiSchema.Property(type, description, ref, format, enumValues, null);
+        new OpenApiSchema.Property(
+            type, description, ref, format, enumValues, isArray ? null : extensions, null);
     if (isArray) {
-      property = new OpenApiSchema.Property("array", null, null, null, null, property);
+      property = new OpenApiSchema.Property("array", null, null, null, null, extensions, property);
     }
     schema.components.schemas.get(schemaName).properties.put(fieldName, property);
     return true;
@@ -107,6 +109,7 @@ public class SchemaBuilder implements datadog.trace.bootstrap.instrumentation.ap
       @Json(name = "enum")
       public List<String> enumValues;
 
+      public final Map<String, String> extensions;
       public Property items;
 
       public Property(
@@ -115,12 +118,14 @@ public class SchemaBuilder implements datadog.trace.bootstrap.instrumentation.ap
           String ref,
           String format,
           List<String> enumValues,
+          Map<String, String> extensions,
           Property items) {
         this.type = type;
         this.description = description;
         this.ref = ref;
         this.format = format;
         this.enumValues = enumValues;
+        this.extensions = extensions;
         this.items = items;
       }
     }
