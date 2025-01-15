@@ -62,6 +62,16 @@ _Recovery:_ Manually [close the related milestone and create a new one](https://
 
 _Notes:_ This action will not apply to release candidate versions using `-RC` tags.
 
+### update-docker-build-image [🔗](update-docker-build-image.yaml)
+
+_Trigger:_ Quarterly released, loosely [a day after the new image tag is created](https://github.com/DataDog/dd-trace-java-docker-build/blob/master/.github/workflows/docker-tag.yml).
+
+_Action:_ Update the Docker build image used in CircleCI and GitLab CI with the latest tag.
+
+_Recovery:_ Download artifacts and upload them manually to the related _download release_.
+
+_Notes:_  Manually trigger the action again given the desired image tag as input.
+
 ### update-download-releases [🔗](update-download-releases.yaml)
 
 _Trigger:_ When a release is published.
@@ -103,7 +113,7 @@ _Recovery:_ Manually trigger the action again.
 
 ## Code Quality and Security
 
-### analyze-changes [🔗](analyze-changes-with-github-codeql.yaml)
+### analyze-changes [🔗](analyze-changes.yaml)
 
 _Trigger:_ When pushing commits to `master` or any pull request targeting `master`.
 
@@ -121,7 +131,7 @@ _Trigger:_ When creating a PR commits to `master` or a `release/*` branch with a
 
 _Action:_ Notify the PR author through comments that about the Git Submodule update.
 
-### update-gradle-dependencies [🔗](update-gradle-dependencies.yml)
+### update-gradle-dependencies [🔗](update-gradle-dependencies.yaml)
 
 _Trigger:_ Every week or manually.
 
