@@ -15,11 +15,11 @@ public class FieldInjectionApp {
         while (klass != null) {
           for (Field field : klass.getDeclaredFields()) {
             if (field.getName().startsWith("__datadogContext")) {
-              System.err.println("___FIELD___:" + className + ":" + field.getName());
+              System.out.println("___FIELD___:" + className + ":" + field.getName());
             }
           }
           for (Class<?> intf : klass.getInterfaces()) {
-            System.err.println("___INTERFACE___:" + className + ":" + intf.getName());
+            System.out.println("___INTERFACE___:" + className + ":" + intf.getName());
           }
           for (Type genericIntf : klass.getGenericInterfaces()) {
             Class<?> intf;
@@ -28,7 +28,7 @@ public class FieldInjectionApp {
             } else {
               intf = (Class<?>) genericIntf;
             }
-            System.err.println("___GENERIC_INTERFACE___:" + className + ":" + intf.getName());
+            System.out.println("___GENERIC_INTERFACE___:" + className + ":" + intf.getName());
           }
           klass = klass.getSuperclass();
         }
