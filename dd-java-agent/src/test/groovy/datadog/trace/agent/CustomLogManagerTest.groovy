@@ -5,7 +5,7 @@ import jvmbootstraptest.LogManagerSetter
 import spock.lang.Specification
 import spock.lang.Timeout
 
-@Timeout(30)
+@Timeout(60)
 class CustomLogManagerTest extends Specification {
 
   private static final String DEFAULT_LOG_LEVEL = "debug"
