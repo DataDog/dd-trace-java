@@ -231,7 +231,11 @@ public class IntegrationTestUtils {
     outputGobbler.start();
     errorGobbler.start();
 
-    waitFor(process, 30, TimeUnit.SECONDS);
+    if (!waitFor(process, 30, TimeUnit.SECONDS)) {
+      System.out.println("======== APP TIMED OUT");
+      waitFor(process, 30, TimeUnit.SECONDS);
+      throw new TimeoutException();
+    }
 
     outputGobbler.join();
     errorGobbler.join();
@@ -278,15 +282,15 @@ public class IntegrationTestUtils {
     return processBuilder.start();
   }
 
-  private static void waitFor(final Process process, final long timeout, final TimeUnit unit)
-      throws InterruptedException, TimeoutException {
+  private static boolean waitFor(final Process process, final long timeout, final TimeUnit unit)
+      throws InterruptedException {
     final long startTime = System.nanoTime();
     long rem = unit.toNanos(timeout);
 
     do {
       try {
         process.exitValue();
-        return;
+        return true;
       } catch (final IllegalThreadStateException ex) {
         if (rem > 0) {
           Thread.sleep(Math.min(TimeUnit.NANOSECONDS.toMillis(rem) + 1, 100));
@@ -294,7 +298,7 @@ public class IntegrationTestUtils {
       }
       rem = unit.toNanos(timeout) - (System.nanoTime() - startTime);
     } while (rem > 0);
-    throw new TimeoutException();
+    return false;
   }
 
   private static class StreamGobbler extends Thread {
