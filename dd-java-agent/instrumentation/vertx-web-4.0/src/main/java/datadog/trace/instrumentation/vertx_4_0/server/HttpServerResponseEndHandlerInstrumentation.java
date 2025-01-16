@@ -28,7 +28,6 @@ public class HttpServerResponseEndHandlerInstrumentation extends InstrumenterMod
       packageName + ".EndHandlerWrapper",
       packageName + ".RouteHandlerWrapper",
       packageName + ".VertxDecorator",
-      packageName + ".VertxDecorator$VertxURIDataAdapter",
     };
   }
 
