@@ -384,6 +384,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     false // not all servers support session ids
   }
 
+  boolean testParallelRequest() {
+    true
+  }
+
   @Override
   int version() {
     return 0
@@ -530,15 +534,20 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/4690", suites = ["MuleHttpServerForkedTest"])
   def "test success with #count requests"() {
     setup:
+    def responses
     def request = request(SUCCESS, method, body).build()
-    def executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())
-    def completionService = new ExecutorCompletionService(executor)
-    (1..count).each {
-      completionService.submit {
-        client.newCall(request).execute()
+    if (testParallelRequest()) {
+      def executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())
+      def completionService = new ExecutorCompletionService(executor)
+      (1..count).each {
+        completionService.submit {
+          client.newCall(request).execute()
+        }
       }
+      responses = (1..count).collect { completionService.take().get() }
+    } else {
+      responses = (1..count).collect {client.newCall(request).execute()}
     }
-    def responses = (1..count).collect {completionService.take().get()}
 
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
