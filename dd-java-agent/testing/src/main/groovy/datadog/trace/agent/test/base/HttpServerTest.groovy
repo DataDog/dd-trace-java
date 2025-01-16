@@ -47,6 +47,8 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
 import javax.annotation.Nonnull
+import java.util.concurrent.ExecutorCompletionService
+import java.util.concurrent.Executors
 import java.util.function.BiFunction
 import java.util.function.Function
 import java.util.function.Supplier
@@ -529,9 +531,15 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   def "test success with #count requests"() {
     setup:
     def request = request(SUCCESS, method, body).build()
-    List<Response> responses = (1..count).parallelStream().collect {
-      return client.newCall(request).execute()
+    def executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())
+    def completionService = new ExecutorCompletionService(executor)
+    (1..count).each {
+      completionService.submit {
+        client.newCall(request).execute()
+      }
     }
+    def responses = (1..count).collect {completionService.take().get()}
+
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
