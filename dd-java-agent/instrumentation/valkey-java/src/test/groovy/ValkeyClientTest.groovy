@@ -9,6 +9,7 @@ import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import io.valkey.Jedis
 import redis.embedded.RedisServer
+
 import spock.lang.Shared
 
 abstract class ValkeyClientTest extends VersionedNamingTestBase {
@@ -17,10 +18,12 @@ abstract class ValkeyClientTest extends VersionedNamingTestBase {
   int port = PortUtils.randomOpenPort()
 
   @Shared
-  RedisServer redisServer = RedisServer.builder()
-  .setting("bind 127.0.0.1")
+  RedisServer redisServer = RedisServer.newRedisServer()
+  .port(port)
+  .setting("bind 127.0.0.1") // good for local development on Windows to prevent security popups
   .setting("maxmemory 128M")
-  .port(port).build()
+  .build()
+
   @Shared
   Jedis jedis = new Jedis("localhost", port)
 
@@ -32,7 +35,6 @@ abstract class ValkeyClientTest extends VersionedNamingTestBase {
   }
 
   def setupSpec() {
-    println "Using redis: $redisServer.args"
     redisServer.start()
   }
 
