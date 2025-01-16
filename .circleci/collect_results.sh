@@ -27,6 +27,7 @@ do
 
   # Get source file of XML file
   FILE_PATH="${RESULT_XML_FILE%%"build"*}"
+  FILE_PATH="${FILE_PATH/#workspace\//}"
   FILE="${RESULT_XML_FILE##*"TEST-"}"
   CLASS="${FILE%%".xml"*}"
   if [[ $CLASS == *"#"* ]]; then
