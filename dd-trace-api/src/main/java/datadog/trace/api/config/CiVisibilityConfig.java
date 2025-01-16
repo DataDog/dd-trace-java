@@ -39,6 +39,7 @@ public final class CiVisibilityConfig {
   public static final String CIVISIBILITY_ITR_ENABLED = "civisibility.itr.enabled";
   public static final String CIVISIBILITY_TEST_SKIPPING_ENABLED =
       "civisibility.test.skipping.enabled";
+  public static final String CIVISIBILITY_SKIP_ALL_TESTS = "civisibility.skip.all.tests";
   public static final String CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED =
       "civisibility.ciprovider.integration.enabled";
   public static final String CIVISIBILITY_REPO_INDEX_DUPLICATE_KEY_CHECK_ENABLED =

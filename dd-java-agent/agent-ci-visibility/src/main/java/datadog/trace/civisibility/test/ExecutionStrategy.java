@@ -52,6 +52,9 @@ public class ExecutionStrategy {
     if (test == null) {
       return false;
     }
+    if (config.isCiVisibilitySkipAllTests()) {
+      return true;
+    }
     if (!executionSettings.isTestSkippingEnabled()) {
       return false;
     }

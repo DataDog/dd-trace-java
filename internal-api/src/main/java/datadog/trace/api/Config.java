@@ -348,6 +348,7 @@ public class Config {
   private final int ciVisibilitySignalClientTimeoutMillis;
   private final boolean ciVisibilityItrEnabled;
   private final boolean ciVisibilityTestSkippingEnabled;
+  private final boolean ciVisibilitySkipAllTests;
   private final boolean ciVisibilityCiProviderIntegrationEnabled;
   private final boolean ciVisibilityRepoIndexDuplicateKeyCheckEnabled;
   private final int ciVisibilityExecutionSettingsCacheSize;
@@ -1453,6 +1454,7 @@ public class Config {
     ciVisibilityItrEnabled = configProvider.getBoolean(CIVISIBILITY_ITR_ENABLED, true);
     ciVisibilityTestSkippingEnabled =
         configProvider.getBoolean(CIVISIBILITY_TEST_SKIPPING_ENABLED, true);
+    ciVisibilitySkipAllTests = configProvider.getBoolean(CIVISIBILITY_SKIP_ALL_TESTS, false);
     ciVisibilityCiProviderIntegrationEnabled =
         configProvider.getBoolean(CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED, true);
     ciVisibilityRepoIndexDuplicateKeyCheckEnabled =
@@ -2851,6 +2853,10 @@ public class Config {
 
   public boolean isCiVisibilityTestSkippingEnabled() {
     return ciVisibilityTestSkippingEnabled;
+  }
+
+  public boolean isCiVisibilitySkipAllTests() {
+    return ciVisibilitySkipAllTests;
   }
 
   public boolean isCiVisibilityCiProviderIntegrationEnabled() {
