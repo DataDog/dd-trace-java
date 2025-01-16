@@ -1,15 +1,16 @@
-package datadog.trace.civisibility.git
+package datadog.trace.civisibility.diff
 
-import datadog.trace.civisibility.ipc.Serializer
+
+import datadog.trace.civisibility.ipc.serialization.Serializer
 import spock.lang.Specification
 
 import static datadog.trace.civisibility.TestUtils.lines
 
-class DiffTest extends Specification {
+class LineDiffTest extends Specification {
 
   def "test diff contains line interval"() {
     when:
-    def diff = new Diff(lines)
+    def diff = new LineDiff(lines)
 
     then:
     diff.contains(path, interval[0], interval[1]) == result
@@ -39,7 +40,7 @@ class DiffTest extends Specification {
   def "test serialization: #lines"() {
     given:
 
-    def diff = new Diff(lines)
+    def diff = new LineDiff(lines)
 
     when:
     def serializer = new Serializer()
@@ -47,7 +48,7 @@ class DiffTest extends Specification {
     def buf = serializer.flush()
 
     then:
-    Diff.deserialize(buf) == diff
+    LineDiff.deserialize(buf) == diff
 
     where:
     lines << [

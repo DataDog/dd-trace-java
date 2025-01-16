@@ -2,8 +2,8 @@ package datadog.trace.civisibility.config;
 
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestMetadata;
-import datadog.trace.civisibility.git.Diff;
-import datadog.trace.civisibility.ipc.Serializer;
+import datadog.trace.civisibility.diff.Diff;
+import datadog.trace.civisibility.ipc.serialization.Serializer;
 import java.nio.ByteBuffer;
 import java.util.BitSet;
 import java.util.Collection;
@@ -205,7 +205,7 @@ public class ExecutionSettings {
       s.write(settings.flakyTests, TestIdentifierSerializer::serialize);
       s.write(settings.knownTests, TestIdentifierSerializer::serialize);
 
-      settings.pullRequestDiff.serialize(s);
+      Diff.SERIALIZER.serialize(settings.pullRequestDiff, s);
 
       return s.flush();
     }
@@ -234,7 +234,7 @@ public class ExecutionSettings {
       Collection<TestIdentifier> knownTests =
           Serializer.readSet(buffer, TestIdentifierSerializer::deserialize);
 
-      Diff diff = Diff.deserialize(buffer);
+      Diff diff = Diff.SERIALIZER.deserialize(buffer);
 
       return new ExecutionSettings(
           itrEnabled,

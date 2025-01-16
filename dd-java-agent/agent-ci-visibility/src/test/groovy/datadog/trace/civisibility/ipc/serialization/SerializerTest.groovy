@@ -1,4 +1,5 @@
-package datadog.trace.civisibility.ipc
+package datadog.trace.civisibility.ipc.serialization
+
 
 import spock.lang.Specification
 

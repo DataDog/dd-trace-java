@@ -1,19 +1,20 @@
-package datadog.trace.civisibility.git;
+package datadog.trace.civisibility.diff;
 
-import datadog.trace.civisibility.ipc.Serializer;
+import datadog.trace.civisibility.ipc.serialization.Serializer;
 import java.nio.ByteBuffer;
 import java.util.BitSet;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
 
-public class Diff {
+/** Diff data with per-line granularity. */
+public class LineDiff implements Diff {
 
-  public static final Diff EMPTY = new Diff(Collections.emptyMap());
+  public static final LineDiff EMPTY = new LineDiff(Collections.emptyMap());
 
   private final Map<String, BitSet> linesByRelativePath;
 
-  public Diff(Map<String, BitSet> linesByRelativePath) {
+  public LineDiff(Map<String, BitSet> linesByRelativePath) {
     this.linesByRelativePath = linesByRelativePath;
   }
 
@@ -21,6 +22,7 @@ public class Diff {
     return Collections.unmodifiableMap(linesByRelativePath);
   }
 
+  @Override
   public boolean contains(String relativePath, int startLine, int endLine) {
     BitSet lines = linesByRelativePath.get(relativePath);
     if (lines == null) {
@@ -31,14 +33,15 @@ public class Diff {
     return changedLine != -1 && changedLine <= endLine;
   }
 
+  @Override
   public void serialize(Serializer s) {
     s.write(linesByRelativePath, Serializer::write, Serializer::write);
   }
 
-  public static Diff deserialize(ByteBuffer buffer) {
+  public static LineDiff deserialize(ByteBuffer buffer) {
     Map<String, BitSet> linesByRelativePath =
         Serializer.readMap(buffer, Serializer::readString, Serializer::readBitSet);
-    return new Diff(linesByRelativePath);
+    return new LineDiff(linesByRelativePath);
   }
 
   @Override
@@ -49,7 +52,7 @@ public class Diff {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    Diff diff = (Diff) o;
+    LineDiff diff = (LineDiff) o;
     return Objects.equals(linesByRelativePath, diff.linesByRelativePath);
   }
 
@@ -60,6 +63,6 @@ public class Diff {
 
   @Override
   public String toString() {
-    return "Diff{" + "linesByRelativePath=" + linesByRelativePath + '}';
+    return "LineDiff{linesByRelativePath=" + linesByRelativePath + '}';
   }
 }
