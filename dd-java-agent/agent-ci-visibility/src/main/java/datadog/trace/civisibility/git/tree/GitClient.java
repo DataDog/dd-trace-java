@@ -7,6 +7,7 @@ import datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.Command;
 import datadog.trace.api.civisibility.telemetry.tag.ExitCode;
+import datadog.trace.civisibility.git.Diff;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
 import datadog.trace.util.Strings;
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -517,6 +518,36 @@ public class GitClient {
       // otherwise git command will fail
       Files.delete(tempDirectory);
       return Files.createTempDirectory(repoRootDirectory, DD_TEMP_DIRECTORY_PREFIX);
+    }
+  }
+
+  /**
+   * Returns Git diff between two commits.
+   *
+   * @param baseCommit Commit SHA or reference (HEAD, branch name, etc) of the base commit
+   * @param targetCommit Commit SHA or reference (HEAD, branch name, etc) of the target commit
+   * @return Diff between two commits
+   * @throws IOException If an error was encountered while writing command input or reading output
+   * @throws TimeoutException If timeout was reached while waiting for Git command to finish
+   * @throws InterruptedException If current thread was interrupted while waiting for Git command to
+   *     finish
+   */
+  public @NonNull Diff getGitDiff(String baseCommit, String targetCommit)
+      throws IOException, TimeoutException, InterruptedException {
+    if (Strings.isNotBlank(baseCommit) && Strings.isNotBlank(targetCommit)) {
+      return executeCommand(
+          Command.DIFF,
+          () ->
+              commandExecutor.executeCommand(
+                  GitDiffParser::parse,
+                  "git",
+                  "diff",
+                  "-U0",
+                  "--word-diff=porcelain",
+                  baseCommit,
+                  targetCommit));
+    } else {
+      return Diff.EMPTY;
     }
   }
 
