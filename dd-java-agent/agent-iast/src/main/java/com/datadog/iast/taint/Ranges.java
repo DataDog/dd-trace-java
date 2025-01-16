@@ -438,7 +438,8 @@ public final class Ranges {
     RangeBuilder newRanges = new RangeBuilder(ranges.length);
 
     for (Range range : ranges) {
-      if (!source.get(range.getSource().getOrigin())) {
+      if (range.getSource().getOrigin() == SourceTypes.NONE
+          || !source.get(range.getSource().getOrigin())) {
         newRanges.add(range);
       }
     }
