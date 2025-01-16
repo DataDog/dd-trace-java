@@ -21,7 +21,7 @@ public class JavaxMailInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public JavaxMailInstrumentation(String instrumentationName, String... additionalNames) {
-    super("javaxmailinstrumentation", "javaxmail");
+    super("javax-mail", "transport");
   }
 
   @Override
