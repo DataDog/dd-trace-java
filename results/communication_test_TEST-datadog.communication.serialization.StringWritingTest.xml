@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="datadog.communication.serialization.StringWritingTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2025-01-03T18:40:25" hostname="COMP-GHXRH1QQ7F" time="0.006">
+  <properties/>
+  <testcase name="[1] [{foo=bar, english=bye}, {german=tschüß, foo=bar}, {hani=道, foo=bar}, {hani=道道道, foo=bar}, {CJK=罿潯罿潯罿潯罿潯罿潯}]" classname="datadog.communication.serialization.StringWritingTest" time="0.0"/>
+  <testcase name="[2] [{foo=bar, 123456789012390-2394-3=alshjdhlasjhLKASJKLDAHsdlkAHSDKLJAHsdklHASDKSa}, {foo=bar, 123456789012390-2394-3=Straßenschilder}, {hani=道可道非常道名可名非常名, foo=bar}]" classname="datadog.communication.serialization.StringWritingTest" time="0.001"/>
+  <testcase name="[3] [{foo=bar, 123456789012390-2394-3=ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß}, {hani=道可道非常道名可名非常名名名名名名名名名名名, foo=bar}]" classname="datadog.communication.serialization.StringWritingTest" time="0.0"/>
+  <testcase name="[4] [{emoji=&#x1f44d;, foo=bar}, {emoji=&#x1f44d;&#x1f44d;&#x1f44d;&#x1f44d;&#x1f44d;&#x1f44d;&#x1f44d;&#x1f44d;&#x1f44d;&#x1f44d;&#x1f44d;&#x1f44d;&#x1f44d;&#x1f44d;&#x1f44d;&#x1f44d;&#x1f44d;, foo=bar}]" classname="datadog.communication.serialization.StringWritingTest" time="0.0"/>
+  <testcase name="[1] [{foo=bar, english=bye}, {german=tschüß, foo=bar}, {hani=道, foo=bar}, {hani=道道道, foo=bar}, {CJK=罿潯罿潯罿潯罿潯罿潯}]" classname="datadog.communication.serialization.StringWritingTest" time="0.001"/>
+  <testcase name="[2] [{foo=bar, 123456789012390-2394-3=alshjdhlasjhLKASJKLDAHsdlkAHSDKLJAHsdklHASDKSa}, {foo=bar, 123456789012390-2394-3=Straßenschilder}, {hani=道可道非常道名可名非常名, foo=bar}]" classname="datadog.communication.serialization.StringWritingTest" time="0.0"/>
+  <testcase name="[3] [{foo=bar, 123456789012390-2394-3=ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß}, {hani=道可道非常道名可名非常名名名名名名名名名名名, foo=bar}]" classname="datadog.communication.serialization.StringWritingTest" time="0.0"/>
+  <testcase name="[4] [{emoji=&#x1f44d;, foo=bar}, {emoji=&#x1f44d;&#x1f44d;&#x1f44d;&#x1f44d;&#x1f44d;&#x1f44d;&#x1f44d;&#x1f44d;&#x1f44d;&#x1f44d;&#x1f44d;&#x1f44d;&#x1f44d;&#x1f44d;&#x1f44d;&#x1f44d;&#x1f44d;, foo=bar}]" classname="datadog.communication.serialization.StringWritingTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

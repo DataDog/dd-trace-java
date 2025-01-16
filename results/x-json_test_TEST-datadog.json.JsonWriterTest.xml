@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="datadog.json.JsonWriterTest" tests="11" skipped="0" failures="0" errors="0" timestamp="2025-01-03T18:40:42" hostname="COMP-GHXRH1QQ7F" time="0.019">
+  <properties/>
+  <testcase name="testArray()" classname="datadog.json.JsonWriterTest" time="0.001" file="./components/json/src/test/groovy/datadog/json/JsonWriterTest.groovy"/>
+  <testcase name="testNullName()" classname="datadog.json.JsonWriterTest" time="0.003" file="./components/json/src/test/groovy/datadog/json/JsonWriterTest.groovy"/>
+  <testcase name="testStringEscaping()" classname="datadog.json.JsonWriterTest" time="0.003" file="./components/json/src/test/groovy/datadog/json/JsonWriterTest.groovy"/>
+  <testcase name="testCompleteObject()" classname="datadog.json.JsonWriterTest" time="0.002" file="./components/json/src/test/groovy/datadog/json/JsonWriterTest.groovy"/>
+  <testcase name="testNaNValues()" classname="datadog.json.JsonWriterTest" time="0.001" file="./components/json/src/test/groovy/datadog/json/JsonWriterTest.groovy"/>
+  <testcase name="testArrayObjectNesting()" classname="datadog.json.JsonWriterTest" time="0.001" file="./components/json/src/test/groovy/datadog/json/JsonWriterTest.groovy"/>
+  <testcase name="testObjectArrayNesting()" classname="datadog.json.JsonWriterTest" time="0.001" file="./components/json/src/test/groovy/datadog/json/JsonWriterTest.groovy"/>
+  <testcase name="testObject()" classname="datadog.json.JsonWriterTest" time="0.0" file="./components/json/src/test/groovy/datadog/json/JsonWriterTest.groovy"/>
+  <testcase name="testNameOnlyInObject()" classname="datadog.json.JsonWriterTest" time="0.001" file="./components/json/src/test/groovy/datadog/json/JsonWriterTest.groovy"/>
+  <testcase name="testNullValue()" classname="datadog.json.JsonWriterTest" time="0.001" file="./components/json/src/test/groovy/datadog/json/JsonWriterTest.groovy"/>
+  <testcase name="testCompleteArray()" classname="datadog.json.JsonWriterTest" time="0.001" file="./components/json/src/test/groovy/datadog/json/JsonWriterTest.groovy"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

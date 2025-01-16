@@ -47,7 +47,7 @@ do
 
   # Insert file attribute to testcase XML nodes
   # NOTE: this assumes the same source file to each test case of the XML
-  sed -i "/<testcase/ s/\(time=\"[^\"]*\"\)/\1 file=$FILE_PATH/g" "$TEST_RESULTS_DIR/$AGGREGATED_FILE_NAME"
+  sed -i "/<testcase/ s|\(time=\"[^\"]*\"\)|\1 file=\"$FILE_PATH\"|g" "$TEST_RESULTS_DIR/$AGGREGATED_FILE_NAME"
 
 
   # Replace Java Object hashCode by marker in testcase XML nodes to get stable test names

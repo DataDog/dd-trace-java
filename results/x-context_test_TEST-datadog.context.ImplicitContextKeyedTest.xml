@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="datadog.context.ImplicitContextKeyedTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2025-01-15T00:46:00" hostname="COMP-GHXRH1QQ7F" time="0.0">
+  <properties/>
+  <testcase name="testImplicitKey()" classname="datadog.context.ImplicitContextKeyedTest" time="0.0" file="./components/context/src/test/groovy/datadog/context/ImplicitContextKeyedTest.groovy"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

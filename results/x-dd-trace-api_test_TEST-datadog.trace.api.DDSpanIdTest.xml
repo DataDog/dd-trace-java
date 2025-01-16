@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="datadog.trace.api.DDSpanIdTest" tests="40" skipped="0" failures="0" errors="0" timestamp="2025-01-03T18:40:46" hostname="COMP-GHXRH1QQ7F" time="0.816">
+  <properties/>
+  <testcase name="convert ids from/to String 0" classname="datadog.trace.api.DDSpanIdTest" time="0.04" file="./dd-trace-api/src/test/groovy/datadog/trace/api/DDSpanIdTest.groovy"/>
+  <testcase name="convert ids from/to String 1" classname="datadog.trace.api.DDSpanIdTest" time="0.007" file="./dd-trace-api/src/test/groovy/datadog/trace/api/DDSpanIdTest.groovy"/>
+  <testcase name="convert ids from/to String 18446744073709551615" classname="datadog.trace.api.DDSpanIdTest" time="0.006" file="./dd-trace-api/src/test/groovy/datadog/trace/api/DDSpanIdTest.groovy"/>
+  <testcase name="convert ids from/to String 9223372036854775807" classname="datadog.trace.api.DDSpanIdTest" time="0.007" file="./dd-trace-api/src/test/groovy/datadog/trace/api/DDSpanIdTest.groovy"/>
+  <testcase name="convert ids from/to String 9223372036854775808" classname="datadog.trace.api.DDSpanIdTest" time="0.002" file="./dd-trace-api/src/test/groovy/datadog/trace/api/DDSpanIdTest.groovy"/>
+  <testcase name="fail on illegal String [stringId: null, #0]" classname="datadog.trace.api.DDSpanIdTest" time="0.158" file="./dd-trace-api/src/test/groovy/datadog/trace/api/DDSpanIdTest.groovy"/>
+  <testcase name="fail on illegal String [stringId: , #1]" classname="datadog.trace.api.DDSpanIdTest" time="0.011" file="./dd-trace-api/src/test/groovy/datadog/trace/api/DDSpanIdTest.groovy"/>
+  <testcase name="fail on illegal String [stringId: -1, #2]" classname="datadog.trace.api.DDSpanIdTest" time="0.003" file="./dd-trace-api/src/test/groovy/datadog/trace/api/DDSpanIdTest.groovy"/>
+  <testcase name="fail on illegal String [stringId: 18446744073709551616, #3]" classname="datadog.trace.api.DDSpanIdTest" time="0.002" file="./dd-trace-api/src/test/groovy/datadog/trace/api/DDSpanIdTest.groovy"/>
+  <testcase name="fail on illegal String [stringId: 18446744073709551625, #4]" classname="datadog.trace.api.DDSpanIdTest" time="0.002" file="./dd-trace-api/src/test/groovy/datadog/trace/api/DDSpanIdTest.groovy"/>
+  <testcase name="fail on illegal String [stringId: 184467440737095516150, #5]" classname="datadog.trace.api.DDSpanIdTest" time="0.004" file="./dd-trace-api/src/test/groovy/datadog/trace/api/DDSpanIdTest.groovy"/>
+  <testcase name="fail on illegal String [stringId: 18446744073709551a1, #6]" classname="datadog.trace.api.DDSpanIdTest" time="0.003" file="./dd-trace-api/src/test/groovy/datadog/trace/api/DDSpanIdTest.groovy"/>
+  <testcase name="fail on illegal String [stringId: 184467440737095511a, #7]" classname="datadog.trace.api.DDSpanIdTest" time="0.002" file="./dd-trace-api/src/test/groovy/datadog/trace/api/DDSpanIdTest.groovy"/>
+  <testcase name="convert ids from/to hex String [hexId: 0, expectedId: 0, #0]" classname="datadog.trace.api.DDSpanIdTest" time="0.008" file="./dd-trace-api/src/test/groovy/datadog/trace/api/DDSpanIdTest.groovy"/>
+  <testcase name="convert ids from/to hex String [hexId: 1, expectedId: 1, #1]" classname="datadog.trace.api.DDSpanIdTest" time="0.001" file="./dd-trace-api/src/test/groovy/datadog/trace/api/DDSpanIdTest.groovy"/>
+  <testcase name="convert ids from/to hex String [hexId: ffffffffffffffff, expectedId: -1, #2]" classname="datadog.trace.api.DDSpanIdTest" time="0.009" file="./dd-trace-api/src/test/groovy/datadog/trace/api/DDSpanIdTest.groovy"/>
+  <testcase name="convert ids from/to hex String [hexId: 7fffffffffffffff, expectedId: 9223372036854775807, #3]" classname="datadog.trace.api.DDSpanIdTest" time="0.002" file="./dd-trace-api/src/test/groovy/datadog/trace/api/DDSpanIdTest.groovy"/>
+  <testcase name="convert ids from/to hex String [hexId: 8000000000000000, expectedId: -9223372036854775808, #4]" classname="datadog.trace.api.DDSpanIdTest" time="0.002" file="./dd-trace-api/src/test/groovy/datadog/trace/api/DDSpanIdTest.groovy"/>
+  <testcase name="convert ids from/to hex String [hexId: 00008000000000000000, expectedId: -9223372036854775808, #5]" classname="datadog.trace.api.DDSpanIdTest" time="0.005" file="./dd-trace-api/src/test/groovy/datadog/trace/api/DDSpanIdTest.groovy"/>
+  <testcase name="convert ids from/to hex String [hexId: cafebabe, expectedId: 3405691582, #6]" classname="datadog.trace.api.DDSpanIdTest" time="0.002" file="./dd-trace-api/src/test/groovy/datadog/trace/api/DDSpanIdTest.groovy"/>
+  <testcase name="convert ids from/to hex String [hexId: 123456789abcdef, expectedId: 81985529216486895, #7]" classname="datadog.trace.api.DDSpanIdTest" time="0.002" file="./dd-trace-api/src/test/groovy/datadog/trace/api/DDSpanIdTest.groovy"/>
+  <testcase name="convert ids from part of hex String [hexId: null, start: 1, length: 1, lcOnly: false, expectedId: null, #0]" classname="datadog.trace.api.DDSpanIdTest" time="0.003" file="./dd-trace-api/src/test/groovy/datadog/trace/api/DDSpanIdTest.groovy"/>
+  <testcase name="convert ids from part of hex String [hexId: , start: 1, length: 1, lcOnly: false, expectedId: null, #1]" classname="datadog.trace.api.DDSpanIdTest" time="0.001" file="./dd-trace-api/src/test/groovy/datadog/trace/api/DDSpanIdTest.groovy"/>
+  <testcase name="convert ids from part of hex String [hexId: 00, start: -1, length: 1, lcOnly: false, expectedId: null, #2]" classname="datadog.trace.api.DDSpanIdTest" time="0.002" file="./dd-trace-api/src/test/groovy/datadog/trace/api/DDSpanIdTest.groovy"/>
+  <testcase name="convert ids from part of hex String [hexId: 00, start: 0, length: 0, lcOnly: false, expectedId: null, #3]" classname="datadog.trace.api.DDSpanIdTest" time="0.007" file="./dd-trace-api/src/test/groovy/datadog/trace/api/DDSpanIdTest.groovy"/>
+  <testcase name="convert ids from part of hex String [hexId: 00, start: 0, length: 1, lcOnly: false, expectedId: 0, #4]" classname="datadog.trace.api.DDSpanIdTest" time="0.006" file="./dd-trace-api/src/test/groovy/datadog/trace/api/DDSpanIdTest.groovy"/>
+  <testcase name="convert ids from part of hex String [hexId: 00, start: 1, length: 1, lcOnly: false, expectedId: 0, #5]" classname="datadog.trace.api.DDSpanIdTest" time="0.024" file="./dd-trace-api/src/test/groovy/datadog/trace/api/DDSpanIdTest.groovy"/>
+  <testcase name="convert ids from part of hex String [hexId: 00, start: 1, length: 1, lcOnly: false, expectedId: 0, #6]" classname="datadog.trace.api.DDSpanIdTest" time="0.019" file="./dd-trace-api/src/test/groovy/datadog/trace/api/DDSpanIdTest.groovy"/>
+  <testcase name="convert ids from part of hex String [hexId: ffffffffffffffff, start: 0, length: 16, lcOnly: true, expectedId: -1, #7]" classname="datadog.trace.api.DDSpanIdTest" time="0.006" file="./dd-trace-api/src/test/groovy/datadog/trace/api/DDSpanIdTest.groovy"/>
+  <testcase name="convert ids from part of hex String [hexId: ffffffffffffFfff, start: 0, length: 16, lcOnly: true, expectedId: null, #8]" classname="datadog.trace.api.DDSpanIdTest" time="0.005" file="./dd-trace-api/src/test/groovy/datadog/trace/api/DDSpanIdTest.groovy"/>
+  <testcase name="convert ids from part of hex String [hexId: ffffffffffffFfff, start: 0, length: 16, lcOnly: false, expectedId: -1, #9]" classname="datadog.trace.api.DDSpanIdTest" time="0.005" file="./dd-trace-api/src/test/groovy/datadog/trace/api/DDSpanIdTest.groovy"/>
+  <testcase name="fail on illegal hex String [hexId: null, #0]" classname="datadog.trace.api.DDSpanIdTest" time="0.011" file="./dd-trace-api/src/test/groovy/datadog/trace/api/DDSpanIdTest.groovy"/>
+  <testcase name="fail on illegal hex String [hexId: , #1]" classname="datadog.trace.api.DDSpanIdTest" time="0.009" file="./dd-trace-api/src/test/groovy/datadog/trace/api/DDSpanIdTest.groovy"/>
+  <testcase name="fail on illegal hex String [hexId: -1, #2]" classname="datadog.trace.api.DDSpanIdTest" time="0.043" file="./dd-trace-api/src/test/groovy/datadog/trace/api/DDSpanIdTest.groovy"/>
+  <testcase name="fail on illegal hex String [hexId: 10000000000000000, #3]" classname="datadog.trace.api.DDSpanIdTest" time="0.003" file="./dd-trace-api/src/test/groovy/datadog/trace/api/DDSpanIdTest.groovy"/>
+  <testcase name="fail on illegal hex String [hexId: ffffffffffffffzf, #4]" classname="datadog.trace.api.DDSpanIdTest" time="0.007" file="./dd-trace-api/src/test/groovy/datadog/trace/api/DDSpanIdTest.groovy"/>
+  <testcase name="fail on illegal hex String [hexId: fffffffffffffffz, #5]" classname="datadog.trace.api.DDSpanIdTest" time="0.001" file="./dd-trace-api/src/test/groovy/datadog/trace/api/DDSpanIdTest.groovy"/>
+  <testcase name="generate id with RANDOM" classname="datadog.trace.api.DDSpanIdTest" time="0.144" file="./dd-trace-api/src/test/groovy/datadog/trace/api/DDSpanIdTest.groovy"/>
+  <testcase name="generate id with SEQUENTIAL" classname="datadog.trace.api.DDSpanIdTest" time="0.085" file="./dd-trace-api/src/test/groovy/datadog/trace/api/DDSpanIdTest.groovy"/>
+  <testcase name="generate id with SECURE_RANDOM" classname="datadog.trace.api.DDSpanIdTest" time="0.079" file="./dd-trace-api/src/test/groovy/datadog/trace/api/DDSpanIdTest.groovy"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

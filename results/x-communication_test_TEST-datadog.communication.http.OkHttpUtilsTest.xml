@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="datadog.communication.http.OkHttpUtilsTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2025-01-03T18:40:22" hostname="COMP-GHXRH1QQ7F" time="0.047">
+  <properties/>
+  <testcase name="It is possible to register a custom listener for HTTP requests" classname="datadog.communication.http.OkHttpUtilsTest" time="0.047" file="./communication/src/test/groovy/datadog/communication/http/OkHttpUtilsTest.groovy"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[Jan 03, 2025 12:40:22 PM okhttp3.mockwebserver.MockWebServer$2 execute
+INFO: MockWebServer[63414] starting to accept connections
+Jan 03, 2025 12:40:22 PM okhttp3.mockwebserver.MockWebServer$3 processOneRequest
+INFO: MockWebServer[63414] received request: GET / HTTP/1.1 and responded: HTTP/1.1 200 OK
+Jan 03, 2025 12:40:22 PM okhttp3.mockwebserver.MockWebServer$2 acceptConnections
+INFO: MockWebServer[63414] done accepting connections: Socket closed
+]]></system-err>
+</testsuite>

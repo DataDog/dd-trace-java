@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="datadog.json.SafeJsonWriterTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2025-01-03T18:40:42" hostname="COMP-GHXRH1QQ7F" time="0.006">
+  <properties/>
+  <testcase name="testNestedElements()" classname="datadog.json.SafeJsonWriterTest" time="0.003" file="./components/json/src/test/groovy/datadog/json/SafeJsonWriterTest.groovy"/>
+  <testcase name="testCompleteJson()" classname="datadog.json.SafeJsonWriterTest" time="0.001" file="./components/json/src/test/groovy/datadog/json/SafeJsonWriterTest.groovy"/>
+  <testcase name="testRootElement()" classname="datadog.json.SafeJsonWriterTest" time="0.001" file="./components/json/src/test/groovy/datadog/json/SafeJsonWriterTest.groovy"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

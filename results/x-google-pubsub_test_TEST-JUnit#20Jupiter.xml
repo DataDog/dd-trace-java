@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="JUnit Jupiter" tests="2" skipped="0" failures="0" errors="0" timestamp="2025-01-15T20:55:37" hostname="COMP-GHXRH1QQ7F" time="1.095">
+  <properties/>
+  <testcase name="classMethod" classname="JUnit Jupiter" time="0.0" file="./dd-java-agent/instrumentation/google-pubsub/src/test"/>
+  <testcase name="classMethod" classname="JUnit Jupiter" time="0.0" file="./dd-java-agent/instrumentation/google-pubsub/src/test"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

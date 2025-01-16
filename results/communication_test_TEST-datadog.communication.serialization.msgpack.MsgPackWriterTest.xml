@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="datadog.communication.serialization.msgpack.MsgPackWriterTest" tests="41" skipped="0" failures="0" errors="0" timestamp="2025-01-03T18:40:25" hostname="COMP-GHXRH1QQ7F" time="0.036">
+  <properties/>
+  <testcase name="testWriteBooleanArray()" classname="datadog.communication.serialization.msgpack.MsgPackWriterTest" time="0.0"/>
+  <testcase name="testWriteBooleanAsObject()" classname="datadog.communication.serialization.msgpack.MsgPackWriterTest" time="0.0"/>
+  <testcase name="testWriteFloatArray()" classname="datadog.communication.serialization.msgpack.MsgPackWriterTest" time="0.0"/>
+  <testcase name="testFlushOfOverflow()" classname="datadog.communication.serialization.msgpack.MsgPackWriterTest" time="0.0"/>
+  <testcase name="testStartStringHeader()" classname="datadog.communication.serialization.msgpack.MsgPackWriterTest" time="0.0"/>
+  <testcase name="testWriteIntPrimitive()" classname="datadog.communication.serialization.msgpack.MsgPackWriterTest" time="0.0"/>
+  <testcase name="testInsertAfterOverflow()" classname="datadog.communication.serialization.msgpack.MsgPackWriterTest" time="0.001"/>
+  <testcase name="testWriteLongPrimitive()" classname="datadog.communication.serialization.msgpack.MsgPackWriterTest" time="0.0"/>
+  <testcase name="testWriteCharArray()" classname="datadog.communication.serialization.msgpack.MsgPackWriterTest" time="0.001"/>
+  <testcase name="testWriteNegativeLongPrimitive()" classname="datadog.communication.serialization.msgpack.MsgPackWriterTest" time="0.006"/>
+  <testcase name="testUnknownObject()" classname="datadog.communication.serialization.msgpack.MsgPackWriterTest" time="0.002"/>
+  <testcase name="testWriteBinaryAsObject()" classname="datadog.communication.serialization.msgpack.MsgPackWriterTest" time="0.001"/>
+  <testcase name="testWriteNull()" classname="datadog.communication.serialization.msgpack.MsgPackWriterTest" time="0.0"/>
+  <testcase name="testWriteByteBuffer()" classname="datadog.communication.serialization.msgpack.MsgPackWriterTest" time="0.001"/>
+  <testcase name="testWriteByteBufferAsObject()" classname="datadog.communication.serialization.msgpack.MsgPackWriterTest" time="0.002"/>
+  <testcase name="testWriteStringGeneralCharSequence()" classname="datadog.communication.serialization.msgpack.MsgPackWriterTest" time="0.001"/>
+  <testcase name="testWriteBoolean()" classname="datadog.communication.serialization.msgpack.MsgPackWriterTest" time="0.001"/>
+  <testcase name="testWriteBinaryNoArgVariant()" classname="datadog.communication.serialization.msgpack.MsgPackWriterTest" time="0.0"/>
+  <testcase name="testStackTraceBatch()" classname="datadog.communication.serialization.msgpack.MsgPackWriterTest" time="0.001"/>
+  <testcase name="testWriteUTF8ByteString()" classname="datadog.communication.serialization.msgpack.MsgPackWriterTest" time="0.0"/>
+  <testcase name="testSimpleStackTraceEvent()" classname="datadog.communication.serialization.msgpack.MsgPackWriterTest" time="0.0"/>
+  <testcase name="testSimpleStackTraceFrame()" classname="datadog.communication.serialization.msgpack.MsgPackWriterTest" time="0.0"/>
+  <testcase name="testWriteBinary()" classname="datadog.communication.serialization.msgpack.MsgPackWriterTest" time="0.001"/>
+  <testcase name="testWriteIntArray()" classname="datadog.communication.serialization.msgpack.MsgPackWriterTest" time="0.0"/>
+  <testcase name="testWriteIntBoxed()" classname="datadog.communication.serialization.msgpack.MsgPackWriterTest" time="0.001"/>
+  <testcase name="testWriteStringEncodingCache()" classname="datadog.communication.serialization.msgpack.MsgPackWriterTest" time="0.0"/>
+  <testcase name="testRecycle()" classname="datadog.communication.serialization.msgpack.MsgPackWriterTest" time="0.001"/>
+  <testcase name="testWriteStringUTF8BytesString()" classname="datadog.communication.serialization.msgpack.MsgPackWriterTest" time="0.001"/>
+  <testcase name="testWriteShortArray()" classname="datadog.communication.serialization.msgpack.MsgPackWriterTest" time="0.0"/>
+  <testcase name="testWriteShortBoxed()" classname="datadog.communication.serialization.msgpack.MsgPackWriterTest" time="0.0"/>
+  <testcase name="testWriteObjectStringGeneralPath()" classname="datadog.communication.serialization.msgpack.MsgPackWriterTest" time="0.001"/>
+  <testcase name="testOverflow()" classname="datadog.communication.serialization.msgpack.MsgPackWriterTest" time="0.001"/>
+  <testcase name="testWriteDoubleArray()" classname="datadog.communication.serialization.msgpack.MsgPackWriterTest" time="0.001"/>
+  <testcase name="testWriteLongArray()" classname="datadog.communication.serialization.msgpack.MsgPackWriterTest" time="0.0"/>
+  <testcase name="testWriteLongBoxed()" classname="datadog.communication.serialization.msgpack.MsgPackWriterTest" time="0.0"/>
+  <testcase name="testWriteGenericNumber()" classname="datadog.communication.serialization.msgpack.MsgPackWriterTest" time="0.001"/>
+  <testcase name="testStartArray()" classname="datadog.communication.serialization.msgpack.MsgPackWriterTest" time="0.0"/>
+  <testcase name="testWriteObjectArray()" classname="datadog.communication.serialization.msgpack.MsgPackWriterTest" time="0.001"/>
+  <testcase name="testWriteStringNull()" classname="datadog.communication.serialization.msgpack.MsgPackWriterTest" time="0.0"/>
+  <testcase name="tesEmptyContentInStackTraceBatch()" classname="datadog.communication.serialization.msgpack.MsgPackWriterTest" time="0.0"/>
+  <testcase name="testStartMap()" classname="datadog.communication.serialization.msgpack.MsgPackWriterTest" time="0.0"/>
+  <system-out><![CDATA[12:40:25.298 [Test worker] DEBUG datadog.communication.serialization.msgpack.MsgPackWriter - dropping message because its serialized size is too large (> 0MB)
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

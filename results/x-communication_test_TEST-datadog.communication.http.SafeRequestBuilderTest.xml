@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="datadog.communication.http.SafeRequestBuilderTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2025-01-03T18:40:25" hostname="COMP-GHXRH1QQ7F" time="0.034">
+  <properties/>
+  <testcase name="test adding bad header2()" classname="datadog.communication.http.SafeRequestBuilderTest" time="0.033" file="./communication/src/test/groovy/datadog/communication/http/SafeRequestBuilderTest.groovy"/>
+  <testcase name="test adding bad header()" classname="datadog.communication.http.SafeRequestBuilderTest" time="0.001" file="./communication/src/test/groovy/datadog/communication/http/SafeRequestBuilderTest.groovy"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

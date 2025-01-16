@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="datadog.json.JsonMapperTest" tests="30" skipped="0" failures="0" errors="0" timestamp="2025-01-03T18:40:41" hostname="COMP-GHXRH1QQ7F" time="0.544">
+  <properties/>
+  <testcase name="test mapping to JSON object: null" classname="datadog.json.JsonMapperTest" time="0.142" file="./components/json/src/test/groovy/datadog/json/JsonMapperTest.groovy"/>
+  <testcase name="test mapping to JSON object: [:]" classname="datadog.json.JsonMapperTest" time="0.076" file="./components/json/src/test/groovy/datadog/json/JsonMapperTest.groovy"/>
+  <testcase name="test mapping to JSON object: [key1:value1]" classname="datadog.json.JsonMapperTest" time="0.022" file="./components/json/src/test/groovy/datadog/json/JsonMapperTest.groovy"/>
+  <testcase name="test mapping to JSON object: [key1:value1, key2:value2]" classname="datadog.json.JsonMapperTest" time="0.0" file="./components/json/src/test/groovy/datadog/json/JsonMapperTest.groovy"/>
+  <testcase name="test mapping to JSON object: [key1:va&quot;lu&quot;e1, ke&quot;y2:value2]" classname="datadog.json.JsonMapperTest" time="0.0" file="./components/json/src/test/groovy/datadog/json/JsonMapperTest.groovy"/>
+  <testcase name="test mapping to JSON object: [key1:null, key2:bar, key3:3, key4:3456789123, key5:3.142, key6:3.141592653589793, key7:true, key8:toString]" classname="datadog.json.JsonMapperTest" time="0.001" file="./components/json/src/test/groovy/datadog/json/JsonMapperTest.groovy"/>
+  <testcase name="test mapping iterable to JSON array: null" classname="datadog.json.JsonMapperTest" time="0.0" file="./components/json/src/test/groovy/datadog/json/JsonMapperTest.groovy"/>
+  <testcase name="test mapping iterable to JSON array: []" classname="datadog.json.JsonMapperTest" time="0.004" file="./components/json/src/test/groovy/datadog/json/JsonMapperTest.groovy"/>
+  <testcase name="test mapping iterable to JSON array: [value1]" classname="datadog.json.JsonMapperTest" time="0.002" file="./components/json/src/test/groovy/datadog/json/JsonMapperTest.groovy"/>
+  <testcase name="test mapping iterable to JSON array: [value1, value2]" classname="datadog.json.JsonMapperTest" time="0.002" file="./components/json/src/test/groovy/datadog/json/JsonMapperTest.groovy"/>
+  <testcase name="test mapping iterable to JSON array: [va&quot;lu&quot;e1, value2]" classname="datadog.json.JsonMapperTest" time="0.003" file="./components/json/src/test/groovy/datadog/json/JsonMapperTest.groovy"/>
+  <testcase name="test mapping array to JSON array: null" classname="datadog.json.JsonMapperTest" time="0.001" file="./components/json/src/test/groovy/datadog/json/JsonMapperTest.groovy"/>
+  <testcase name="test mapping array to JSON array: []" classname="datadog.json.JsonMapperTest" time="0.003" file="./components/json/src/test/groovy/datadog/json/JsonMapperTest.groovy"/>
+  <testcase name="test mapping array to JSON array: [value1]" classname="datadog.json.JsonMapperTest" time="0.0" file="./components/json/src/test/groovy/datadog/json/JsonMapperTest.groovy"/>
+  <testcase name="test mapping array to JSON array: [value1, value2]" classname="datadog.json.JsonMapperTest" time="0.002" file="./components/json/src/test/groovy/datadog/json/JsonMapperTest.groovy"/>
+  <testcase name="test mapping array to JSON array: [va&quot;lu&quot;e1, value2]" classname="datadog.json.JsonMapperTest" time="0.001" file="./components/json/src/test/groovy/datadog/json/JsonMapperTest.groovy"/>
+  <testcase name="test mapping to JSON string: input [string: null, expected: , #0]" classname="datadog.json.JsonMapperTest" time="0.001" file="./components/json/src/test/groovy/datadog/json/JsonMapperTest.groovy"/>
+  <testcase name="test mapping to JSON string: input [string: , expected: , #1]" classname="datadog.json.JsonMapperTest" time="0.0" file="./components/json/src/test/groovy/datadog/json/JsonMapperTest.groovy"/>
+  <testcase name="test mapping to JSON string: input [string: က, expected: &quot;\u1000&quot;, #2]" classname="datadog.json.JsonMapperTest" time="0.001" file="./components/json/src/test/groovy/datadog/json/JsonMapperTest.groovy"/>
+  <testcase name="test mapping to JSON string: input [string: Ā, expected: &quot;\u0100&quot;, #3]" classname="datadog.json.JsonMapperTest" time="0.001" file="./components/json/src/test/groovy/datadog/json/JsonMapperTest.groovy"/>
+  <testcase name="test mapping to JSON string: input [string: &#x80;, expected: &quot;\u0080&quot;, #4]" classname="datadog.json.JsonMapperTest" time="0.0" file="./components/json/src/test/groovy/datadog/json/JsonMapperTest.groovy"/>
+  <testcase name="test mapping to JSON string: input [string: ?, expected: &quot;\b&quot;, #5]" classname="datadog.json.JsonMapperTest" time="0.001" file="./components/json/src/test/groovy/datadog/json/JsonMapperTest.groovy"/>
+  <testcase name="test mapping to JSON string: input [string: &#9;, expected: &quot;\t&quot;, #6]" classname="datadog.json.JsonMapperTest" time="0.0" file="./components/json/src/test/groovy/datadog/json/JsonMapperTest.groovy"/>
+  <testcase name="test mapping to JSON string: input [string: &#10;, expected: &quot;\n&quot;, #7]" classname="datadog.json.JsonMapperTest" time="0.001" file="./components/json/src/test/groovy/datadog/json/JsonMapperTest.groovy"/>
+  <testcase name="test mapping to JSON string: input [string: ?, expected: &quot;\f&quot;, #8]" classname="datadog.json.JsonMapperTest" time="0.0" file="./components/json/src/test/groovy/datadog/json/JsonMapperTest.groovy"/>
+  <testcase name="test mapping to JSON string: input [string: &#13;, expected: &quot;\r&quot;, #9]" classname="datadog.json.JsonMapperTest" time="0.0" file="./components/json/src/test/groovy/datadog/json/JsonMapperTest.groovy"/>
+  <testcase name="test mapping to JSON string: input [string: &quot;, expected: &quot;\&quot;&quot;, #10]" classname="datadog.json.JsonMapperTest" time="0.0" file="./components/json/src/test/groovy/datadog/json/JsonMapperTest.groovy"/>
+  <testcase name="test mapping to JSON string: input [string: /, expected: &quot;\/&quot;, #11]" classname="datadog.json.JsonMapperTest" time="0.001" file="./components/json/src/test/groovy/datadog/json/JsonMapperTest.groovy"/>
+  <testcase name="test mapping to JSON string: input [string: \, expected: &quot;\\&quot;, #12]" classname="datadog.json.JsonMapperTest" time="0.0" file="./components/json/src/test/groovy/datadog/json/JsonMapperTest.groovy"/>
+  <testcase name="test mapping to JSON string: input [string: a, expected: &quot;a&quot;, #13]" classname="datadog.json.JsonMapperTest" time="0.001" file="./components/json/src/test/groovy/datadog/json/JsonMapperTest.groovy"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

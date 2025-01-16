@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="datadog.json.JsonStructureTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2025-01-03T18:40:42" hostname="COMP-GHXRH1QQ7F" time="0.029">
+  <properties/>
+  <testcase name="lenientStructure()" classname="datadog.json.JsonStructureTest" time="0.028" file="./components/json/src/test/groovy/datadog/json/JsonStructureTest.groovy"/>
+  <testcase name="coverToString()" classname="datadog.json.JsonStructureTest" time="0.0" file="./components/json/src/test/groovy/datadog/json/JsonStructureTest.groovy"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
