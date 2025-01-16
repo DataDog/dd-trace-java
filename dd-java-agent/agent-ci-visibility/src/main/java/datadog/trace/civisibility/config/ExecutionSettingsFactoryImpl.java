@@ -114,6 +114,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
     boolean codeCoverageEnabled = isCodeCoverageEnabled(ciVisibilitySettings);
     boolean testSkippingEnabled = isTestSkippingEnabled(ciVisibilitySettings);
     boolean flakyTestRetriesEnabled = isFlakyTestRetriesEnabled(ciVisibilitySettings);
+    boolean impactedTestsDetectionEnabled = isImpactedTestsDetectionEnabled(ciVisibilitySettings);
     boolean earlyFlakeDetectionEnabled = isEarlyFlakeDetectionEnabled(ciVisibilitySettings);
 
     LOGGER.info(
@@ -122,6 +123,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
             + "Per-test code coverage - {},\n"
             + "Tests skipping - {},\n"
             + "Early flakiness detection - {},\n"
+            + "Impacted tests detection - {},\n"
             + "Auto test retries - {}",
         repositoryRoot,
         tracerEnvironment.getConfigurations().getRuntimeName(),
@@ -131,6 +133,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
         codeCoverageEnabled,
         testSkippingEnabled,
         earlyFlakeDetectionEnabled,
+        impactedTestsDetectionEnabled,
         flakyTestRetriesEnabled);
 
     String itrCorrelationId = null;
@@ -170,7 +173,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
       moduleNames.addAll(knownTestsByModule.keySet());
     }
 
-    Diff pullRequestDiff = getPullRequestDiff();
+    Diff pullRequestDiff = getPullRequestDiff(impactedTestsDetectionEnabled);
 
     Map<String, ExecutionSettings> settingsByModule = new HashMap<>();
     for (String moduleName : moduleNames) {
@@ -181,6 +184,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
               codeCoverageEnabled,
               testSkippingEnabled,
               flakyTestRetriesEnabled,
+              impactedTestsDetectionEnabled,
               earlyFlakeDetectionEnabled
                   ? ciVisibilitySettings.getEarlyFlakeDetectionSettings()
                   : EarlyFlakeDetectionSettings.DEFAULT,
@@ -233,6 +237,11 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
   private boolean isFlakyTestRetriesEnabled(CiVisibilitySettings ciVisibilitySettings) {
     return ciVisibilitySettings.isFlakyTestRetriesEnabled()
         && config.isCiVisibilityFlakyRetryEnabled();
+  }
+
+  private boolean isImpactedTestsDetectionEnabled(CiVisibilitySettings ciVisibilitySettings) {
+    return ciVisibilitySettings.isImpactedTestsDetectionEnabled()
+        && config.isCiVisibilityImpactedTestsDetectionEnabled();
   }
 
   private boolean isEarlyFlakeDetectionEnabled(CiVisibilitySettings ciVisibilitySettings) {
@@ -291,13 +300,13 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
   }
 
   @NotNull
-  private Diff getPullRequestDiff() {
-    if (repositoryRoot == null) {
+  private Diff getPullRequestDiff(boolean impactedTestsDetectionEnabled) {
+    if (repositoryRoot == null || !impactedTestsDetectionEnabled) {
       return Diff.EMPTY;
     }
-    // FIXME nikita: return empty diff if impacted tests detection is disabled (killswitch)
     // FIXME nikita: add telemetry
     // FIXME nikita: add file-based granularity fallback if Git executable is not available?
+    // FIXME nikita: add integration/smoke tests
     try {
       GitClient gitClient = gitClientFactory.create(repositoryRoot);
       return gitClient.getGitDiff(

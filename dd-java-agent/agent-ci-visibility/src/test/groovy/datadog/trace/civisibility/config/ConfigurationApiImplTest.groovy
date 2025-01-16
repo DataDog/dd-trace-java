@@ -76,6 +76,7 @@ class ConfigurationApiImplTest extends Specification {
             '      "tests_skipping": true,' +
             '      "require_git": true,' +
             '      "flaky_test_retries_enabled": true,' +
+            '      "impacted_tests_enabled": true,' +
             '      "early_flake_detection": {' +
             '        "enabled": true,' +
             '        "slow_test_retries": {' +
@@ -419,6 +420,7 @@ class ConfigurationApiImplTest extends Specification {
     settings.testsSkippingEnabled
     settings.gitUploadRequired
     settings.flakyTestRetriesEnabled
+    settings.impactedTestsDetectionEnabled
     settings.earlyFlakeDetectionSettings.enabled
     settings.earlyFlakeDetectionSettings.faultySessionThreshold == 30
     settings.earlyFlakeDetectionSettings.getExecutions(TimeUnit.SECONDS.toMillis(3)) == 10

@@ -51,6 +51,8 @@ public final class CiVisibilityConfig {
   public static final String CIVISIBILITY_RESOURCE_FOLDER_NAMES =
       "civisibility.resource.folder.names";
   public static final String CIVISIBILITY_FLAKY_RETRY_ENABLED = "civisibility.flaky.retry.enabled";
+  public static final String CIVISIBILITY_IMPACTED_TESTS_DETECTION_ENABLED =
+      "civisibility.impacted.tests.detection.enabled";
   public static final String CIVISIBILITY_FLAKY_RETRY_ONLY_KNOWN_FLAKES =
       "civisibility.flaky.retry.only.known.flakes";
   public static final String CIVISIBILITY_EARLY_FLAKE_DETECTION_ENABLED =

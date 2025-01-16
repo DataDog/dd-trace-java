@@ -22,6 +22,7 @@ public class ExecutionSettings {
           false,
           false,
           false,
+          false,
           EarlyFlakeDetectionSettings.DEFAULT,
           null,
           Collections.emptyMap(),
@@ -34,6 +35,7 @@ public class ExecutionSettings {
   private final boolean codeCoverageEnabled;
   private final boolean testSkippingEnabled;
   private final boolean flakyTestRetriesEnabled;
+  private final boolean impactedTestsDetectionEnabled;
   @Nonnull private final EarlyFlakeDetectionSettings earlyFlakeDetectionSettings;
   @Nullable private final String itrCorrelationId;
   @Nonnull private final Map<TestIdentifier, TestMetadata> skippableTests;
@@ -47,6 +49,7 @@ public class ExecutionSettings {
       boolean codeCoverageEnabled,
       boolean testSkippingEnabled,
       boolean flakyTestRetriesEnabled,
+      boolean impactedTestsDetectionEnabled,
       @Nonnull EarlyFlakeDetectionSettings earlyFlakeDetectionSettings,
       @Nullable String itrCorrelationId,
       @Nonnull Map<TestIdentifier, TestMetadata> skippableTests,
@@ -58,6 +61,7 @@ public class ExecutionSettings {
     this.codeCoverageEnabled = codeCoverageEnabled;
     this.testSkippingEnabled = testSkippingEnabled;
     this.flakyTestRetriesEnabled = flakyTestRetriesEnabled;
+    this.impactedTestsDetectionEnabled = impactedTestsDetectionEnabled;
     this.earlyFlakeDetectionSettings = earlyFlakeDetectionSettings;
     this.itrCorrelationId = itrCorrelationId;
     this.skippableTests = skippableTests;
@@ -85,6 +89,10 @@ public class ExecutionSettings {
 
   public boolean isFlakyTestRetriesEnabled() {
     return flakyTestRetriesEnabled;
+  }
+
+  public boolean isImpactedTestsDetectionEnabled() {
+    return impactedTestsDetectionEnabled;
   }
 
   @Nonnull
@@ -169,6 +177,7 @@ public class ExecutionSettings {
     private static final int CODE_COVERAGE_ENABLED_FLAG = 2;
     private static final int TEST_SKIPPING_ENABLED_FLAG = 4;
     private static final int FLAKY_TEST_RETRIES_ENABLED_FLAG = 8;
+    private static final int IMPACTED_TESTS_DETECTION_ENABLED_FLAG = 16;
 
     public static ByteBuffer serialize(ExecutionSettings settings) {
       Serializer s = new Serializer();
@@ -178,7 +187,10 @@ public class ExecutionSettings {
               ((settings.itrEnabled ? ITR_ENABLED_FLAG : 0)
                   | (settings.codeCoverageEnabled ? CODE_COVERAGE_ENABLED_FLAG : 0)
                   | (settings.testSkippingEnabled ? TEST_SKIPPING_ENABLED_FLAG : 0)
-                  | (settings.flakyTestRetriesEnabled ? FLAKY_TEST_RETRIES_ENABLED_FLAG : 0));
+                  | (settings.flakyTestRetriesEnabled ? FLAKY_TEST_RETRIES_ENABLED_FLAG : 0)
+                  | (settings.impactedTestsDetectionEnabled
+                      ? IMPACTED_TESTS_DETECTION_ENABLED_FLAG
+                      : 0));
       s.write(flags);
 
       EarlyFlakeDetectionSettingsSerializer.serialize(s, settings.earlyFlakeDetectionSettings);
@@ -204,6 +216,7 @@ public class ExecutionSettings {
       boolean codeCoverageEnabled = (flags & CODE_COVERAGE_ENABLED_FLAG) != 0;
       boolean testSkippingEnabled = (flags & TEST_SKIPPING_ENABLED_FLAG) != 0;
       boolean flakyTestRetriesEnabled = (flags & FLAKY_TEST_RETRIES_ENABLED_FLAG) != 0;
+      boolean impactedTestsDetectionEnabled = (flags & IMPACTED_TESTS_DETECTION_ENABLED_FLAG) != 0;
 
       EarlyFlakeDetectionSettings earlyFlakeDetectionSettings =
           EarlyFlakeDetectionSettingsSerializer.deserialize(buffer);
@@ -228,6 +241,7 @@ public class ExecutionSettings {
           codeCoverageEnabled,
           testSkippingEnabled,
           flakyTestRetriesEnabled,
+          impactedTestsDetectionEnabled,
           earlyFlakeDetectionSettings,
           itrCorrelationId,
           skippableTests,

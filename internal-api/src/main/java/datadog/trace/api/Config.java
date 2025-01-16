@@ -356,6 +356,7 @@ public class Config {
   private final String ciVisibilityInjectedTracerVersion;
   private final List<String> ciVisibilityResourceFolderNames;
   private final boolean ciVisibilityFlakyRetryEnabled;
+  private final boolean ciVisibilityImpactedTestsDetectionEnabled;
   private final boolean ciVisibilityFlakyRetryOnlyKnownFlakes;
   private final int ciVisibilityFlakyRetryCount;
   private final int ciVisibilityTotalFlakyRetryCount;
@@ -1487,6 +1488,8 @@ public class Config {
             CIVISIBILITY_RESOURCE_FOLDER_NAMES, DEFAULT_CIVISIBILITY_RESOURCE_FOLDER_NAMES);
     ciVisibilityFlakyRetryEnabled =
         configProvider.getBoolean(CIVISIBILITY_FLAKY_RETRY_ENABLED, true);
+    ciVisibilityImpactedTestsDetectionEnabled =
+        configProvider.getBoolean(CIVISIBILITY_IMPACTED_TESTS_DETECTION_ENABLED, true);
     ciVisibilityFlakyRetryOnlyKnownFlakes =
         configProvider.getBoolean(CIVISIBILITY_FLAKY_RETRY_ONLY_KNOWN_FLAKES, false);
     ciVisibilityEarlyFlakeDetectionEnabled =
@@ -2892,6 +2895,10 @@ public class Config {
 
   public boolean isCiVisibilityFlakyRetryEnabled() {
     return ciVisibilityFlakyRetryEnabled;
+  }
+
+  public boolean isCiVisibilityImpactedTestsDetectionEnabled() {
+    return ciVisibilityImpactedTestsDetectionEnabled;
   }
 
   public boolean isCiVisibilityFlakyRetryOnlyKnownFlakes() {
