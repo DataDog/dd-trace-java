@@ -116,6 +116,8 @@
 1 com.thoughtworks.*
 1 com.typesafe.*
 1 com.zaxxer.*
+# APPSEC-56331
+1 com.facebook.presto.hive.RetryDriver
 1 commonj.work.*
 1 cryptix.*
 # Avoid weak random in dev.failsafe.internal.RetryPolicyExecutor
@@ -142,6 +144,8 @@
 1 io.r2dbc.*
 1 io.reactivex.*
 1 io.smallrye.*
+# APPSEC-56331
+1 io.trino.*
 1 io.springfox.*
 1 io.swagger.*
 1 io.undertow.*
