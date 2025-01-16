@@ -160,6 +160,10 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
       test.setTag(Tags.TEST_IS_NEW, true);
     }
 
+    if (testModule.isModified(testSourceData)) {
+      test.setTag(Tags.TEST_IS_MODIFIED, true);
+    }
+
     if (testFramework != null) {
       test.setTag(Tags.TEST_FRAMEWORK, testFramework);
       if (testFrameworkVersion != null) {
@@ -267,8 +271,8 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
 
   @Override
   @Nonnull
-  public TestRetryPolicy retryPolicy(TestIdentifier test, TestSourceData source) {
-    return testModule.retryPolicy(test);
+  public TestRetryPolicy retryPolicy(TestIdentifier test, TestSourceData testSource) {
+    return testModule.retryPolicy(test, testSource);
   }
 
   @Override

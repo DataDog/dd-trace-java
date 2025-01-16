@@ -46,6 +46,18 @@ class GitClientTest extends Specification {
     shallow
   }
 
+  def "test repo root"() {
+    given:
+    givenGitRepo()
+
+    when:
+    def gitClient = givenGitClient()
+    def repoRoot = gitClient.getRepoRoot()
+
+    then:
+    repoRoot == tempDir.toRealPath().toString()
+  }
+
   def "test get upstream branch SHA"() {
     given:
     givenGitRepo("ci/git/shallow/git")

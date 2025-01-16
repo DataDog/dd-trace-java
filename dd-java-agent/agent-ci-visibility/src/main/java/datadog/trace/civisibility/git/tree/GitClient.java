@@ -185,6 +185,24 @@ public class GitClient {
   }
 
   /**
+   * Returns the absolute path to Git repository
+   *
+   * @return absolute path
+   * @throws IOException If an error was encountered while writing command input or reading output
+   * @throws TimeoutException If timeout was reached while waiting for Git command to finish
+   * @throws InterruptedException If current thread was interrupted while waiting for Git command to
+   *     finish
+   */
+  public @NonNull String getRepoRoot() throws IOException, TimeoutException, InterruptedException {
+    return executeCommand(
+        Command.OTHER,
+        () ->
+            commandExecutor
+                .executeCommand(IOUtils::readFully, "git", "rev-parse", "--show-toplevel")
+                .trim());
+  }
+
+  /**
    * Returns URL of the remote with the given name
    *
    * @param remoteName Name of the remote
