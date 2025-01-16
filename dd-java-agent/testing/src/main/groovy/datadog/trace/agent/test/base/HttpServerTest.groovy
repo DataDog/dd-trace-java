@@ -529,7 +529,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   def "test success with #count requests"() {
     setup:
     def request = request(SUCCESS, method, body).build()
-    List<Response> responses = (1..count).collect {
+    List<Response> responses = (1..count).parallelStream().collect {
       return client.newCall(request).execute()
     }
     if (isDataStreamsEnabled()) {
