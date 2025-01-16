@@ -29,23 +29,21 @@ public interface TraceScope extends Closeable {
   @Override
   void close();
 
-  /** If true, this context will propagate across async boundaries. */
+  /**
+   * Deprecated. Use TracerAPI.isAsyncPropagationEnabled() instead. Will always return {@code false}
+   */
+  @Deprecated
   default boolean isAsyncPropagating() {
-    // TODO Deprecate and document the new method
-    // TODO Check expected behavior, returning false seems better
-    throw new UnsupportedOperationException();
+    return false;
   }
 
   /**
-   * Enable or disable async propagation. Async propagation is initially set to false.
+   * Deprecated. Use TracerAPI.setAsyncPropagationEnabled(boolean) instead. Will do nothing.
    *
-   * @param value The new propagation value. True == propagate. False == don't propagate.
+   * @param value ignored.
    */
-  default void setAsyncPropagation(boolean value) {
-    // TODO Deprecate and document the new method
-    // TODO Check expected behavior, doing nothing seems better
-    throw new UnsupportedOperationException();
-  }
+  @Deprecated
+  default void setAsyncPropagation(boolean value) {}
 
   /**
    * Used to pass async context between workers. A trace will not be reported until all spans and
