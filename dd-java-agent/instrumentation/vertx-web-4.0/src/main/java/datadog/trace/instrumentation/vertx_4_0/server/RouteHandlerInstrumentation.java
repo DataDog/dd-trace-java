@@ -29,7 +29,6 @@ public class RouteHandlerInstrumentation extends InstrumenterModule.Tracing
       packageName + ".EndHandlerWrapper",
       packageName + ".RouteHandlerWrapper",
       packageName + ".VertxDecorator",
-      packageName + ".VertxDecorator$VertxURIDataAdapter",
     };
   }
 
