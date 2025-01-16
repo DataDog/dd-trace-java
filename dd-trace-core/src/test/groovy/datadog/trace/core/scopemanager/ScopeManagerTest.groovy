@@ -27,6 +27,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagation
 import static datadog.trace.core.scopemanager.EVENT.ACTIVATE
 import static datadog.trace.core.scopemanager.EVENT.CLOSE
 import static datadog.trace.test.util.GCUtils.awaitGC
@@ -253,14 +254,14 @@ class ScopeManagerTest extends DDCoreSpecification {
     when:
     def span = tracer.buildSpan("test").start()
     def scope = tracer.activateSpan(span)
-    scope.setAsyncPropagation(false)
+    setAsyncPropagation(false)
     def continuation = concurrent ? scope.captureConcurrent() : scope.capture()
 
     then:
     continuation == null
 
     when:
-    scope.setAsyncPropagation(true)
+    setAsyncPropagation(true)
     continuation = concurrent ? scope.captureConcurrent() : scope.capture()
 
     then:
@@ -277,7 +278,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     when:
     def span = tracer.buildSpan("test").start()
     def scope = tracer.activateSpan(span)
-    scope.setAsyncPropagation(true)
+    setAsyncPropagation(true)
     def continuation = concurrent ? scope.captureConcurrent() : scope.capture()
 
     then:
@@ -298,7 +299,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     when:
     def span = tracer.buildSpan("test").start()
     def scopeRef = new AtomicReference<AgentScope>(tracer.activateSpan(span))
-    scopeRef.get().setAsyncPropagation(true)
+    setAsyncPropagation(true)
     def continuation = concurrent ? scopeRef.get().captureConcurrent() : scopeRef.get().capture()
 
     then:
@@ -329,7 +330,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     when:
     def span = tracer.buildSpan("test").start()
     def scope = tracer.activateSpan(span)
-    scope.setAsyncPropagation(true)
+    setAsyncPropagation(true)
     def continuation = concurrent ? scope.captureConcurrent() : scope.capture()
 
     then:
@@ -366,7 +367,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     def parentScope = tracer.activateSpan(parentSpan)
     def childSpan = tracer.buildSpan("child").start()
     def childScope = tracer.activateSpan(childSpan)
-    childScope.setAsyncPropagation(true)
+    setAsyncPropagation(true)
 
     def continuation = concurrentChild ? childScope.captureConcurrent() : childScope.capture()
     childScope.close()
@@ -433,7 +434,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     when: "creating and activating a continuation"
     def span = tracer.buildSpan("test").start()
     def scope = tracer.activateSpan(span)
-    scope.setAsyncPropagation(true)
+    setAsyncPropagation(true)
     def continuation = concurrent ? scope.captureConcurrent() : scope.capture()
     scope.close()
     span.finish()
@@ -725,7 +726,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     when:
     def span = tracer.buildSpan("test").start()
     def scope = tracer.activateSpan(span)
-    scope.setAsyncPropagation(true)
+    setAsyncPropagation(true)
     def continuation = concurrent ? scope.captureConcurrent() : scope.capture()
     scope.close()
     span.finish()
@@ -813,7 +814,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     when:
     def span = tracer.buildSpan("test").start()
     def scope = tracer.activateSpan(span)
-    scope.setAsyncPropagation(true)
+    setAsyncPropagation(true)
     def continuation = concurrent ? scope.captureConcurrent() : scope.capture()
     scope.close()
     span.finish()
@@ -840,7 +841,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     when: "completing another async scope lifecycle"
     def span2 = tracer.buildSpan("test").start()
     def scope2 = tracer.activateSpan(span2)
-    scope2.setAsyncPropagation(true)
+    setAsyncPropagation(true)
     def continuation2 = concurrent ? scope2.captureConcurrent() : scope2.capture()
 
     then:
@@ -878,7 +879,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     def span = tracer.buildSpan("test").start()
     def start = System.nanoTime()
     def scope = (ContinuableScope) tracer.activateSpan(span)
-    scope.setAsyncPropagation(true)
+    setAsyncPropagation(true)
     continuation = scope.captureConcurrent()
     scope.close()
     span.finish()

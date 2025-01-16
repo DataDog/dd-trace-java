@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.playws1;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.capture;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagation;
 import static datadog.trace.instrumentation.playws.PlayWSClientDecorator.DECORATE;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -54,7 +55,7 @@ public class AsyncHandlerWrapper implements AsyncHandler {
 
     if (continuation != null) {
       try (final AgentScope scope = continuation.activate()) {
-        scope.setAsyncPropagation(true);
+        setAsyncPropagation(true);
         return delegate.onCompleted();
       }
     } else {
@@ -70,7 +71,7 @@ public class AsyncHandlerWrapper implements AsyncHandler {
 
     if (continuation != null) {
       try (final AgentScope scope = continuation.activate()) {
-        scope.setAsyncPropagation(true);
+        setAsyncPropagation(true);
         delegate.onThrowable(throwable);
       }
     } else {

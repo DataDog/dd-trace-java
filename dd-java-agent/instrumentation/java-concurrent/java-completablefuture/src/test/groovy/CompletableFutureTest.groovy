@@ -11,7 +11,7 @@ import java.util.function.Supplier
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagation
 
 /**
  * Note: ideally this should live with the rest of ExecutorInstrumentationTest,
@@ -45,7 +45,7 @@ class CompletableFutureTest extends AgentTestRunner {
         @Trace(operationName = "parent")
         CompletableFuture<String> get() {
           try {
-            activeScope().setAsyncPropagation(true)
+            setAsyncPropagation(true)
             return CompletableFuture.supplyAsync(supplier, pool)
               .thenCompose({ s -> CompletableFuture.supplyAsync(new AppendingSupplier(s), differentPool) })
               .thenApply(function)

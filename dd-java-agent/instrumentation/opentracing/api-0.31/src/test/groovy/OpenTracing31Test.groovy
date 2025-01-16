@@ -27,6 +27,7 @@ import io.opentracing.util.GlobalTracer
 import spock.lang.Subject
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagation
 
 class OpenTracing31Test extends AgentTestRunner {
 
@@ -155,7 +156,7 @@ class OpenTracing31Test extends AgentTestRunner {
     setup:
     def span = tracer.buildSpan("some name").start()
     def scope = tracer.scopeManager().activate(span, finishSpan)
-    (scope as TraceScope).setAsyncPropagation(false)
+    setAsyncPropagation(false)
 
     expect:
     span instanceof MutableSpan
@@ -165,7 +166,7 @@ class OpenTracing31Test extends AgentTestRunner {
     (tracer.scopeManager().active().span().delegate == span.delegate)
 
     when:
-    (scope as TraceScope).setAsyncPropagation(true)
+    setAsyncPropagation(true)
     def continuation = (scope as TraceScope).capture()
     continuation.cancel()
 
@@ -215,7 +216,7 @@ class OpenTracing31Test extends AgentTestRunner {
     setup:
     def span = tracer.buildSpan("some name").start()
     TraceScope scope = tracer.scopeManager().activate(span, false)
-    scope.setAsyncPropagation(true)
+    setAsyncPropagation(true)
 
     expect:
     tracer.activeSpan().delegate == span.delegate

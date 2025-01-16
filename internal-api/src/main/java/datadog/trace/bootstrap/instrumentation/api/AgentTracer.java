@@ -140,6 +140,26 @@ public class AgentTracer {
     return activeScope == null ? null : activeScope.capture();
   }
 
+  /**
+   * Checks whether the asynchronous propagation is enabled, meaning this context will propagate
+   * across asynchronous boundaries.
+   */
+  public static boolean isAsyncPropagation() {
+    return get().isAsyncPropagation();
+  }
+
+  /**
+   * Enables or disables asynchronous propagation for the active span.
+   *
+   * <p>Asynchronous propagation is disabled by default.
+   *
+   * @param asyncPropagation @{@code true} to enable asynchronous propagation, {@code false} to
+   *     disable it.
+   */
+  public static void setAsyncPropagation(boolean asyncPropagation) {
+    get().setAsyncPropagation(asyncPropagation);
+  }
+
   public static AgentPropagation propagate() {
     return get().propagate();
   }
@@ -230,6 +250,22 @@ public class AgentTracer {
 
     AgentScope.Continuation captureSpan(AgentSpan span);
 
+    /**
+     * Checks whether the asynchronous propagation is enabled, meaning this context will propagate
+     * across asynchronous boundaries.
+     */
+    boolean isAsyncPropagation();
+
+    /**
+     * Enables or disables asynchronous propagation for the active span.
+     *
+     * <p>Asynchronous propagation is disabled by default.
+     *
+     * @param asyncPropagation @{@code true} to enable asynchronous propagation, {@code false} to
+     *     disable it.
+     */
+    void setAsyncPropagation(boolean asyncPropagation);
+
     void closePrevious(boolean finishSpan);
 
     AgentScope activateNext(AgentSpan span);
@@ -284,9 +320,9 @@ public class AgentTracer {
     AgentHistogram newHistogram(double relativeAccuracy, int maxNumBins);
 
     /**
-     * Sets the new service name to be used as a default
+     * Sets the new service name to be used as a default.
      *
-     * @param serviceName
+     * @param serviceName The service name to use as default.
      */
     void updatePreferredServiceName(String serviceName);
   }
@@ -370,6 +406,14 @@ public class AgentTracer {
     public AgentScope.Continuation captureSpan(final AgentSpan span) {
       return NoopContinuation.INSTANCE;
     }
+
+    @Override
+    public boolean isAsyncPropagation() {
+      return false;
+    }
+
+    @Override
+    public void setAsyncPropagation(boolean asyncPropagation) {}
 
     @Override
     public void closePrevious(final boolean finishSpan) {}

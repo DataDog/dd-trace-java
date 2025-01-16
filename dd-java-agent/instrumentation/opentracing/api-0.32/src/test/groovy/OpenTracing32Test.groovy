@@ -32,6 +32,7 @@ import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP
 import static datadog.trace.api.sampling.SamplingMechanism.AGENT_RATE
 import static datadog.trace.api.sampling.SamplingMechanism.DEFAULT
 import static datadog.trace.api.sampling.SamplingMechanism.MANUAL
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagation
 
 class OpenTracing32Test extends AgentTestRunner {
 
@@ -165,7 +166,7 @@ class OpenTracing32Test extends AgentTestRunner {
     setup:
     def span = tracer.buildSpan("some name").start()
     def scope = tracer.scopeManager().activate(span, finishSpan)
-    (scope as TraceScope).setAsyncPropagation(false)
+    setAsyncPropagation(false)
 
     expect:
     span instanceof MutableSpan
@@ -175,7 +176,7 @@ class OpenTracing32Test extends AgentTestRunner {
     (tracer.scopeManager().active().span().delegate == span.delegate)
 
     when:
-    (scope as TraceScope).setAsyncPropagation(true)
+    setAsyncPropagation(true)
     def continuation = (scope as TraceScope).capture()
     continuation.cancel()
 
@@ -230,7 +231,7 @@ class OpenTracing32Test extends AgentTestRunner {
     setup:
     def span = tracer.buildSpan("some name").start()
     TraceScope scope = tracer.scopeManager().activate(span, false)
-    scope.setAsyncPropagation(true)
+    setAsyncPropagation(true)
 
     expect:
     tracer.activeSpan().delegate == span.delegate

@@ -25,14 +25,4 @@ public class OtelScope implements Scope, TraceScope {
   public void close() {
     delegate.close();
   }
-
-  @Override
-  public boolean isAsyncPropagating() {
-    return delegate.isAsyncPropagating();
-  }
-
-  @Override
-  public void setAsyncPropagation(final boolean value) {
-    delegate.setAsyncPropagation(value);
-  }
 }

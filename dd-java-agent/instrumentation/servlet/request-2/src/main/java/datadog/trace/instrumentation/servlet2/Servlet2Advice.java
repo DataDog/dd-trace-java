@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.servlet2;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagation;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.servlet2.Servlet2Decorator.DECORATE;
 
@@ -118,7 +119,7 @@ public class Servlet2Advice {
     }
     DECORATE.beforeFinish(span);
 
-    scope.setAsyncPropagation(false);
+    setAsyncPropagation(false);
     scope.close();
     span.finish();
   }

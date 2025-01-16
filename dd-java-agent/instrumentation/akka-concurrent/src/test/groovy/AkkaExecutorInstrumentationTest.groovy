@@ -16,7 +16,8 @@ import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagation
+
 /**
  * Test executor instrumentation for Akka specific classes.
  * This is to large extent a copy of ExecutorInstrumentationTest.
@@ -45,7 +46,7 @@ class AkkaExecutorInstrumentationTest extends AgentTestRunner {
         @Override
         @Trace(operationName = "parent")
         void run() {
-          activeScope().setAsyncPropagation(true)
+          setAsyncPropagation(true)
           // this child will have a span
           m(pool, new AkkaAsyncChild())
           // this child won't
@@ -101,7 +102,7 @@ class AkkaExecutorInstrumentationTest extends AgentTestRunner {
         @Override
         @Trace(operationName = "parent")
         void run() {
-          activeScope().setAsyncPropagation(true)
+          setAsyncPropagation(true)
           // this child will have a span
           dispatcher.execute(new AkkaAsyncChild())
           // this child won't
@@ -132,7 +133,7 @@ class AkkaExecutorInstrumentationTest extends AgentTestRunner {
         @Override
         @Trace(operationName = "parent")
         void run() {
-          activeScope().setAsyncPropagation(true)
+          setAsyncPropagation(true)
           try {
             for (int i = 0; i < 20; ++i) {
               // Our current instrumentation instrumentation does not behave very well

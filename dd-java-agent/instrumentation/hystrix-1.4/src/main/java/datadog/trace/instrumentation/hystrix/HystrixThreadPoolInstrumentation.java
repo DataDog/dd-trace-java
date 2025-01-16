@@ -1,14 +1,14 @@
 package datadog.trace.instrumentation.hystrix;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagation;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagation;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
@@ -35,12 +35,9 @@ public class HystrixThreadPoolInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static boolean enableAsyncTracking() {
-      final AgentScope scope = activeScope();
-      if (scope != null) {
-        if (!scope.isAsyncPropagating()) {
-          scope.setAsyncPropagation(true);
-          return true;
-        }
+      if (!isAsyncPropagation()) {
+        setAsyncPropagation(true);
+        return true;
       }
       return false;
     }
@@ -48,10 +45,7 @@ public class HystrixThreadPoolInstrumentation extends InstrumenterModule.Tracing
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void disableAsyncTracking(@Advice.Enter final boolean wasEnabled) {
       if (wasEnabled) {
-        final AgentScope scope = activeScope();
-        if (scope != null) {
-          scope.setAsyncPropagation(false);
-        }
+        setAsyncPropagation(false);
       }
     }
   }

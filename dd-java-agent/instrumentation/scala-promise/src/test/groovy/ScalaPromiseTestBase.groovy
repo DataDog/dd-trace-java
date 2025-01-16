@@ -6,8 +6,8 @@ import spock.lang.Shared
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagation
 
 abstract class ScalaPromiseTestBase extends AbstractPromiseTest<Promise<Boolean>, Future<String>> {
 
@@ -61,7 +61,7 @@ abstract class ScalaPromiseTestBase extends AbstractPromiseTest<Promise<Boolean>
     }
 
     runUnderTrace("other") {
-      activeScope().setAsyncPropagation(false)
+      setAsyncPropagation(false)
       complete(promise, value)
     }
 

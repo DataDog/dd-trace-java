@@ -17,7 +17,7 @@ import java.util.concurrent.Future
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagation
 import static org.junit.Assume.assumeTrue
 
 class NettyExecutorInstrumentationTest extends AgentTestRunner {
@@ -65,7 +65,7 @@ class NettyExecutorInstrumentationTest extends AgentTestRunner {
         @Override
         @Trace(operationName = "parent")
         void run() {
-          activeScope().setAsyncPropagation(true)
+          setAsyncPropagation(true)
           // this child will have a span
           m(pool, new JavaAsyncChild())
           // this child won't
@@ -213,7 +213,7 @@ class NettyExecutorInstrumentationTest extends AgentTestRunner {
         @Override
         @Trace(operationName = "parent")
         void run() {
-          activeScope().setAsyncPropagation(true)
+          setAsyncPropagation(true)
           try {
             for (int i = 0; i < 20; ++i) {
               final JavaAsyncChild child = new JavaAsyncChild(false, true)

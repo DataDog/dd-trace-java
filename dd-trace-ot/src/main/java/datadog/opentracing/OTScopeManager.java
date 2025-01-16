@@ -101,20 +101,6 @@ class OTScopeManager implements ScopeManager {
       return delegate.captureConcurrent();
     }
 
-    @Override
-    public boolean isAsyncPropagating() {
-      return delegate.isAsyncPropagating();
-    }
-
-    @Override
-    public void setAsyncPropagation(final boolean value) {
-      delegate.setAsyncPropagation(value);
-    }
-
-    AgentScope unwrap() {
-      return delegate;
-    }
-
     boolean isFinishSpanOnClose() {
       return finishSpanOnClose;
     }
