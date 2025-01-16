@@ -121,6 +121,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
         false,
         itrEnabled,
         flakyRetryEnabled,
+        false, // FIXME nikita: add instrumentation tests for impacted tests detection
         earlyFlakinessDetectionSettings,
         itrEnabled ? "itrCorrelationId" : null,
         skippableTestsWithMetadata,

@@ -26,6 +26,7 @@ class ExecutionSettingsTest extends Specification {
       false,
       false,
       false,
+      false,
       EarlyFlakeDetectionSettings.DEFAULT,
       null,
       [:],
@@ -38,6 +39,7 @@ class ExecutionSettingsTest extends Specification {
       true,
       true,
       false,
+      true,
       true,
       new EarlyFlakeDetectionSettings(true, [], 10),
       "",
@@ -53,6 +55,7 @@ class ExecutionSettingsTest extends Specification {
       false,
       true,
       false,
+      true,
       new EarlyFlakeDetectionSettings(true, [new EarlyFlakeDetectionSettings.ExecutionsByDuration(10, 20)], 10),
       "itrCorrelationId",
       [:],
@@ -67,6 +70,7 @@ class ExecutionSettingsTest extends Specification {
       ),
 
       new ExecutionSettings(
+      true,
       true,
       true,
       true,
