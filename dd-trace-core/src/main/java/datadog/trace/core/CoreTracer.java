@@ -920,16 +920,16 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public boolean isAsyncPropagation() {
+  public boolean isAsyncPropagationEnabled() {
     AgentScope activeScope = this.scopeManager.active();
     return activeScope != null && activeScope.isAsyncPropagating();
   }
 
   @Override
-  public void setAsyncPropagation(boolean asyncPropagation) {
+  public void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {
     AgentScope activeScope = this.scopeManager.active();
     if (activeScope != null) {
-      activeScope.setAsyncPropagation(asyncPropagation);
+      activeScope.setAsyncPropagation(asyncPropagationEnabled);
     }
   }
 

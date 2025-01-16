@@ -144,8 +144,8 @@ public class AgentTracer {
    * Checks whether the asynchronous propagation is enabled, meaning this context will propagate
    * across asynchronous boundaries.
    */
-  public static boolean isAsyncPropagation() {
-    return get().isAsyncPropagation();
+  public static boolean isAsyncPropagationEnabled() {
+    return get().isAsyncPropagationEnabled();
   }
 
   /**
@@ -153,11 +153,11 @@ public class AgentTracer {
    *
    * <p>Asynchronous propagation is disabled by default.
    *
-   * @param asyncPropagation @{@code true} to enable asynchronous propagation, {@code false} to
-   *     disable it.
+   * @param asyncPropagationEnabled @{@code true} to enable asynchronous propagation, {@code false}
+   *     to disable it.
    */
-  public static void setAsyncPropagation(boolean asyncPropagation) {
-    get().setAsyncPropagation(asyncPropagation);
+  public static void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {
+    get().setAsyncPropagationEnabled(asyncPropagationEnabled);
   }
 
   public static AgentPropagation propagate() {
@@ -254,17 +254,17 @@ public class AgentTracer {
      * Checks whether the asynchronous propagation is enabled, meaning this context will propagate
      * across asynchronous boundaries.
      */
-    boolean isAsyncPropagation();
+    boolean isAsyncPropagationEnabled();
 
     /**
      * Enables or disables asynchronous propagation for the active span.
      *
      * <p>Asynchronous propagation is disabled by default.
      *
-     * @param asyncPropagation @{@code true} to enable asynchronous propagation, {@code false} to
-     *     disable it.
+     * @param asyncPropagationEnabled @{@code true} to enable asynchronous propagation, {@code
+     *     false} to disable it.
      */
-    void setAsyncPropagation(boolean asyncPropagation);
+    void setAsyncPropagationEnabled(boolean asyncPropagationEnabled);
 
     void closePrevious(boolean finishSpan);
 
@@ -408,12 +408,12 @@ public class AgentTracer {
     }
 
     @Override
-    public boolean isAsyncPropagation() {
+    public boolean isAsyncPropagationEnabled() {
       return false;
     }
 
     @Override
-    public void setAsyncPropagation(boolean asyncPropagation) {}
+    public void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {}
 
     @Override
     public void closePrevious(final boolean finishSpan) {}

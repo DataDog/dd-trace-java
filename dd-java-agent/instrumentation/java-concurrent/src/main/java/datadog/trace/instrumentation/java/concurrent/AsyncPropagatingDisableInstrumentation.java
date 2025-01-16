@@ -5,8 +5,8 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameEnd
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagation;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagation;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled;
 import static datadog.trace.instrumentation.java.concurrent.ConcurrentInstrumentationNames.EXECUTOR_INSTRUMENTATION_NAME;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isTypeInitializer;
@@ -178,8 +178,8 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
 
     @Advice.OnMethodEnter
     public static boolean before() {
-      if (isAsyncPropagation()) {
-        setAsyncPropagation(false);
+      if (isAsyncPropagationEnabled()) {
+        setAsyncPropagationEnabled(false);
         return true;
       }
       return false;
@@ -188,7 +188,7 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
     @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static void after(@Advice.Enter boolean wasDisabled) {
       if (wasDisabled) {
-        setAsyncPropagation(true);
+        setAsyncPropagationEnabled(true);
       }
     }
   }

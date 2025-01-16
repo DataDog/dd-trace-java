@@ -13,7 +13,7 @@ import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagation
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled
 
 /**
  * Test executor instrumentation for Scala specific classes.
@@ -43,7 +43,7 @@ class ScalaExecutorInstrumentationTest extends AgentTestRunner {
         @Override
         @Trace(operationName = "parent")
         void run() {
-          setAsyncPropagation(true)
+          setAsyncPropagationEnabled(true)
           // this child will have a span
           m(pool, new ScalaAsyncChild())
           // this child won't
@@ -94,7 +94,7 @@ class ScalaExecutorInstrumentationTest extends AgentTestRunner {
         @Override
         @Trace(operationName = "parent")
         void run() {
-          setAsyncPropagation(true)
+          setAsyncPropagationEnabled(true)
           try {
             for (int i = 0; i < 20; ++i) {
               // Our current instrumentation instrumentation does not behave very well

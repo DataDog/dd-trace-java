@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.hystrix;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagation;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagation;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
@@ -35,8 +35,8 @@ public class HystrixThreadPoolInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static boolean enableAsyncTracking() {
-      if (!isAsyncPropagation()) {
-        setAsyncPropagation(true);
+      if (!isAsyncPropagationEnabled()) {
+        setAsyncPropagationEnabled(true);
         return true;
       }
       return false;
@@ -45,7 +45,7 @@ public class HystrixThreadPoolInstrumentation extends InstrumenterModule.Tracing
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void disableAsyncTracking(@Advice.Enter final boolean wasEnabled) {
       if (wasEnabled) {
-        setAsyncPropagation(false);
+        setAsyncPropagationEnabled(false);
       }
     }
   }

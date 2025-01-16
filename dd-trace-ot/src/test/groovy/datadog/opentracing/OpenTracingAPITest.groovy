@@ -229,18 +229,18 @@ class OpenTracingAPITest extends DDSpecification {
     Scope scope = tracer.buildSpan("someOperation")
       .withTag(DDTags.SERVICE_NAME, "someService")
       .startActive(true)
-    internalTracer.setAsyncPropagation(false)
+    internalTracer.setAsyncPropagationEnabled(false)
 
     then:
     scope instanceof TraceScope
-    !internalTracer.isAsyncPropagation()
+    !internalTracer.isAsyncPropagationEnabled()
 
     when:
-    internalTracer.setAsyncPropagation(true)
+    internalTracer.setAsyncPropagationEnabled(true)
     TraceScope.Continuation continuation = ((TraceScope) scope).capture()
 
     then:
-    internalTracer.isAsyncPropagation()
+    internalTracer.isAsyncPropagationEnabled()
     continuation != null
 
     when:
@@ -273,19 +273,19 @@ class OpenTracingAPITest extends DDSpecification {
     Scope outer = tracer.buildSpan("someOperation")
       .withTag(DDTags.SERVICE_NAME, "someService")
       .startActive(true)
-    internalTracer.setAsyncPropagation(false)
+    internalTracer.setAsyncPropagationEnabled(false)
 
     then:
-    !internalTracer.isAsyncPropagation()
+    !internalTracer.isAsyncPropagationEnabled()
 
     when:
-    internalTracer.setAsyncPropagation(true)
+    internalTracer.setAsyncPropagationEnabled(true)
     Scope inner = tracer.buildSpan("otherOperation")
       .withTag(DDTags.SERVICE_NAME, "otherService")
       .startActive(true)
 
     then:
-    internalTracer.isAsyncPropagation()
+    internalTracer.isAsyncPropagationEnabled()
 
     when:
     inner.close()

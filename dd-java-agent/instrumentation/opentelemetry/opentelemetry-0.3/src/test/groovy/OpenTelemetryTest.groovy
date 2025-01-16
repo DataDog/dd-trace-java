@@ -19,7 +19,7 @@ import io.opentelemetry.trace.Status
 import io.opentelemetry.trace.TracingContextUtils
 import spock.lang.Subject
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagation
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled
 
 class OpenTelemetryTest extends AgentTestRunner {
   @Subject
@@ -234,7 +234,7 @@ class OpenTelemetryTest extends AgentTestRunner {
     setup:
     def span = tracer.spanBuilder("some name").startSpan()
     TraceScope scope = tracer.withSpan(span)
-    setAsyncPropagation(true)
+    setAsyncPropagationEnabled(true)
 
     expect:
     tracer.currentSpan.delegate == span.delegate
