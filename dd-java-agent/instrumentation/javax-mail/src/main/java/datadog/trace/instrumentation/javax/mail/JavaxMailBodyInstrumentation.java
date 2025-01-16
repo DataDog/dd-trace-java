@@ -17,17 +17,17 @@ import javax.mail.internet.MimeMultipart;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
-public class JavaxMailInstrumentation extends InstrumenterModule.Iast
+public class JavaxMailBodyInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public JavaxMailInstrumentation(String instrumentationName, String... additionalNames) {
-    super("javax-mail", "transport");
+  public JavaxMailBodyInstrumentation(String instrumentationName, String... additionalNames) {
+    super("javax-mail", "body");
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("send"), JavaxMailInstrumentation.class.getName() + "$MailInjectionAdvice");
+        named("send"), JavaxMailBodyInstrumentation.class.getName() + "$MailInjectionAdvice");
   }
 
   @Override
