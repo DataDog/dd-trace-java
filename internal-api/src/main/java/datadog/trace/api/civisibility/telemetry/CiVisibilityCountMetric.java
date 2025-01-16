@@ -131,8 +131,13 @@ public enum CiVisibilityCountMetric {
   EFD_REQUEST_ERRORS("early_flake_detection.request_errors", ErrorType.class, StatusCode.class),
   /** The number of requests sent to the flaky tests endpoint */
   FLAKY_TESTS_REQUEST("flaky_tests.request", RequestCompressed.class),
-  /** The number of known tests requests sent to the flaky tests that errored */
-  FLAKY_TESTS_REQUEST_ERRORS("flaky_tests.request_errors", ErrorType.class, StatusCode.class);
+  /** The number of tests requests sent to the flaky tests endpoint that errored */
+  FLAKY_TESTS_REQUEST_ERRORS("flaky_tests.request_errors", ErrorType.class, StatusCode.class),
+  /** The number of requests sent to the changed files endpoint */
+  IMPACTED_TESTS_DETECTION_REQUEST("impacted_tests_detection.request", RequestCompressed.class),
+  /** The number of tests requests sent to the changed files endpoint that errored */
+  IMPACTED_TESTS_DETECTION_REQUEST_ERRORS(
+      "impacted_tests_detection.request_errors", ErrorType.class, StatusCode.class);
 
   // need a "holder" class, as accessing static fields from enum constructors is illegal
   static class IndexHolder {

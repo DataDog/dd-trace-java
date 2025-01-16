@@ -45,12 +45,19 @@ public enum CiVisibilityDistributionMetric {
   EFD_RESPONSE_BYTES("early_flake_detection.response_bytes", ResponseCompressed.class),
   /** The number of tests received by the known tests endpoint */
   EFD_RESPONSE_TESTS("early_flake_detection.response_tests"),
-  /* The time it takes to get the response of the flaky tests endpoint request in ms */
+  /** The time it takes to get the response of the flaky tests endpoint request in ms */
   FLAKY_TESTS_REQUEST_MS("flaky_tests.request_ms"),
   /** The number of bytes received by the flaky tests endpoint */
   FLAKY_TESTS_RESPONSE_BYTES("flaky_tests.response_bytes", ResponseCompressed.class),
   /** The number of tests received by the flaky tests endpoint */
-  FLAKY_TESTS_RESPONSE_TESTS("flaky_tests.response_tests");
+  FLAKY_TESTS_RESPONSE_TESTS("flaky_tests.response_tests"),
+  /** The time it takes to get the response of the changed files endpoint request in ms */
+  IMPACTED_TESTS_DETECTION_REQUEST_MS("impacted_tests_detection.request_ms"),
+  /** The number of bytes received by the changed files endpoint */
+  IMPACTED_TESTS_DETECTION_RESPONSE_BYTES(
+      "impacted_tests_detection.response_bytes", ResponseCompressed.class),
+  /** The number of files received by the changed files endpoint */
+  IMPACTED_TESTS_DETECTION_RESPONSE_FILES("impacted_tests_detection.response_files");
 
   private static final String NAMESPACE = "civisibility";
 

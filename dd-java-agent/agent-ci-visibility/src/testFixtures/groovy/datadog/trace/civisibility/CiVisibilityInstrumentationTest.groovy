@@ -56,6 +56,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 
+// FIXME nikita: add integration/smoke tests
 abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
 
   static String dummyModule
@@ -121,7 +122,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
         false,
         itrEnabled,
         flakyRetryEnabled,
-        false, // FIXME nikita: add instrumentation tests for impacted tests detection
+        false,
         earlyFlakinessDetectionSettings,
         itrEnabled ? "itrCorrelationId" : null,
         skippableTestsWithMetadata,
@@ -205,8 +206,8 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       TestFrameworkSession testSession = testFrameworkSessionFactory.startSession(dummyModule, component, null)
       TestFrameworkModule testModule = testSession.testModuleStart(dummyModule, null)
       new TestEventsHandlerImpl(metricCollector, testSession, testModule,
-      suiteStore != null ? suiteStore : new ConcurrentHashMapContextStore<>(),
-      testStore != null ? testStore : new ConcurrentHashMapContextStore<>())
+        suiteStore != null ? suiteStore : new ConcurrentHashMapContextStore<>(),
+        testStore != null ? testStore : new ConcurrentHashMapContextStore<>())
     }
   }
 

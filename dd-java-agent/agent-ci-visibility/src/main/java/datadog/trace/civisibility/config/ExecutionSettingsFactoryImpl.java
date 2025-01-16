@@ -9,8 +9,10 @@ import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.civisibility.ci.PullRequestInfo;
 import datadog.trace.civisibility.diff.Diff;
+import datadog.trace.civisibility.diff.FileDiff;
 import datadog.trace.civisibility.git.tree.GitClient;
 import datadog.trace.civisibility.git.tree.GitDataUploader;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.BitSet;
@@ -173,7 +175,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
       moduleNames.addAll(knownTestsByModule.keySet());
     }
 
-    Diff pullRequestDiff = getPullRequestDiff(impactedTestsDetectionEnabled);
+    Diff pullRequestDiff = getPullRequestDiff(impactedTestsDetectionEnabled, tracerEnvironment);
 
     Map<String, ExecutionSettings> settingsByModule = new HashMap<>();
     for (String moduleName : moduleNames) {
@@ -300,24 +302,33 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
   }
 
   @NotNull
-  private Diff getPullRequestDiff(boolean impactedTestsDetectionEnabled) {
-    if (repositoryRoot == null || !impactedTestsDetectionEnabled) {
+  private Diff getPullRequestDiff(
+      boolean impactedTestsDetectionEnabled, TracerEnvironment tracerEnvironment) {
+    if (!impactedTestsDetectionEnabled) {
       return Diff.EMPTY;
     }
-    // FIXME nikita: add file-based granularity fallback (+ telemetry)
-    // FIXME nikita: add integration/smoke tests
+
     try {
-      GitClient gitClient = gitClientFactory.create(repositoryRoot);
-      return gitClient.getGitDiff(
-          pullRequestInfo.getPullRequestBaseBranchSha(), pullRequestInfo.getGitCommitHeadSha());
+      if (repositoryRoot != null && pullRequestInfo.isNotEmpty()) {
+        GitClient gitClient = gitClientFactory.create(repositoryRoot);
+        return gitClient.getGitDiff(
+            pullRequestInfo.getPullRequestBaseBranchSha(), pullRequestInfo.getGitCommitHeadSha());
+      }
 
     } catch (InterruptedException e) {
       LOGGER.error("Interrupted while getting git diff for PR: {}", pullRequestInfo, e);
       Thread.currentThread().interrupt();
-      return Diff.EMPTY;
 
     } catch (Exception e) {
       LOGGER.error("Could not get git diff for PR: {}", pullRequestInfo, e);
+    }
+
+    try {
+      // falling back to file-level granularity
+      return new FileDiff(configurationApi.getChangedFiles(tracerEnvironment));
+
+    } catch (IOException e) {
+      LOGGER.error("Could not get changed files from backend", e);
       return Diff.EMPTY;
     }
   }
