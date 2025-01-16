@@ -5,7 +5,9 @@ import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.interceptor.MutableSpan
 import datadog.trace.api.interceptor.TraceInterceptor
 import datadog.trace.api.scopemanager.ScopeListener
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.common.writer.ListWriter
+import datadog.trace.context.TraceScope
 import datadog.trace.test.util.DDSpecification
 import io.opentracing.Scope
 import io.opentracing.Span
@@ -211,6 +213,102 @@ class OpenTracingAPITest extends DDSpecification {
           operationName "someOperation2"
           resourceName "someOperation2"
           childOf(span(0))
+          tags {
+            defaultTags()
+          }
+        }
+      }
+    }
+  }
+
+  def "span with async propagation"() {
+    setup:
+    AgentTracer.TracerAPI internalTracer = tracer.tracer
+
+    when:
+    Scope scope = tracer.buildSpan("someOperation")
+      .withTag(DDTags.SERVICE_NAME, "someService")
+      .startActive(true)
+    internalTracer.setAsyncPropagation(false)
+
+    then:
+    scope instanceof TraceScope
+    !internalTracer.isAsyncPropagation()
+
+    when:
+    internalTracer.setAsyncPropagation(true)
+    TraceScope.Continuation continuation = ((TraceScope) scope).capture()
+
+    then:
+    internalTracer.isAsyncPropagation()
+    continuation != null
+
+    when:
+    continuation.cancel()
+    scope.close()
+    writer.waitForTraces(1)
+
+    then:
+    1 * traceInterceptor.onTraceComplete({ it.size() == 1 }) >> { args -> args[0] }
+
+    assertTraces(writer, 1) {
+      trace(1) {
+        span {
+          serviceName "someService"
+          operationName "someOperation"
+          resourceName "someOperation"
+          tags {
+            defaultTags()
+          }
+        }
+      }
+    }
+  }
+
+  def "span inherits async propagation"() {
+    setup:
+    AgentTracer.TracerAPI internalTracer = tracer.tracer
+
+    when:
+    Scope outer = tracer.buildSpan("someOperation")
+      .withTag(DDTags.SERVICE_NAME, "someService")
+      .startActive(true)
+    internalTracer.setAsyncPropagation(false)
+
+    then:
+    !internalTracer.isAsyncPropagation()
+
+    when:
+    internalTracer.setAsyncPropagation(true)
+    Scope inner = tracer.buildSpan("otherOperation")
+      .withTag(DDTags.SERVICE_NAME, "otherService")
+      .startActive(true)
+
+    then:
+    internalTracer.isAsyncPropagation()
+
+    when:
+    inner.close()
+    outer.close()
+    writer.waitForTraces(1)
+
+    then:
+    1 * traceInterceptor.onTraceComplete({ it.size() == 2 }) >> { args -> args[0] }
+
+    assertTraces(writer, 1) {
+      trace(2) {
+        span {
+          serviceName "someService"
+          operationName "someOperation"
+          resourceName "someOperation"
+          tags {
+            defaultTags()
+          }
+        }
+        span {
+          serviceName "otherService"
+          operationName "otherOperation"
+          resourceName "otherOperation"
           tags {
             defaultTags()
           }
