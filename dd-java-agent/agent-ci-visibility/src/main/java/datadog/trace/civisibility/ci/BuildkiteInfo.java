@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import javax.annotation.Nonnull;
 
 class BuildkiteInfo implements CIProviderInfo {
 
@@ -74,6 +75,7 @@ class BuildkiteInfo implements CIProviderInfo {
         .build();
   }
 
+  @Nonnull
   @Override
   public PullRequestInfo buildPullRequestInfo() {
     return PullRequestInfo.EMPTY;

@@ -24,9 +24,13 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeoutException;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Client for fetching data and performing operations on a local Git repository. */
 public class GitClient {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(GitClient.class);
 
   public static final String HEAD = "HEAD";
 
@@ -547,6 +551,10 @@ public class GitClient {
                   baseCommit,
                   targetCommit));
     } else {
+      LOGGER.debug(
+          "Base commit and/or target commit info is not available, returning empty git diff: {}/{}",
+          baseCommit,
+          targetCommit);
       return Diff.EMPTY;
     }
   }

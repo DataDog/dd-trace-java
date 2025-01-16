@@ -1,8 +1,11 @@
 package datadog.trace.civisibility.git;
 
+import datadog.trace.civisibility.ipc.Serializer;
+import java.nio.ByteBuffer;
 import java.util.BitSet;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Objects;
 
 public class Diff {
 
@@ -26,5 +29,37 @@ public class Diff {
 
     int changedLine = lines.nextSetBit(startLine);
     return changedLine != -1 && changedLine <= endLine;
+  }
+
+  public void serialize(Serializer s) {
+    s.write(linesByRelativePath, Serializer::write, Serializer::write);
+  }
+
+  public static Diff deserialize(ByteBuffer buffer) {
+    Map<String, BitSet> linesByRelativePath =
+        Serializer.readMap(buffer, Serializer::readString, Serializer::readBitSet);
+    return new Diff(linesByRelativePath);
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    Diff diff = (Diff) o;
+    return Objects.equals(linesByRelativePath, diff.linesByRelativePath);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(linesByRelativePath);
+  }
+
+  @Override
+  public String toString() {
+    return "Diff{" + "linesByRelativePath=" + linesByRelativePath + '}';
   }
 }

@@ -118,4 +118,8 @@ public class ExecutionStrategy {
 
     return detectionsUsed > threshold;
   }
+
+  public boolean isModified(String relativePath, int startLine, int endLine) {
+    return executionSettings.getPullRequestDiff().contains(relativePath, startLine, endLine);
+  }
 }

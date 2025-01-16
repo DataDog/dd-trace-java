@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.git
 
+import datadog.trace.civisibility.ipc.Serializer
 import spock.lang.Specification
 
 import static datadog.trace.civisibility.TestUtils.lines
@@ -33,5 +34,28 @@ class DiffTest extends Specification {
     ["path": lines(10, 11, 12, 13), "path-b": lines()]  | "path-b" | [0, 9999] | false
     ["path": lines(10, 11, 12, 13), "path-b": lines(8)] | "path-b" | [0, 9999] | true
     ["path": lines(10, 11, 12, 13), "path-b": lines(8)] | "path-b" | [7, 8]    | true
+  }
+
+  def "test serialization: #lines"() {
+    given:
+
+    def diff = new Diff(lines)
+
+    when:
+    def serializer = new Serializer()
+    diff.serialize(serializer)
+    def buf = serializer.flush()
+
+    then:
+    Diff.deserialize(buf) == diff
+
+    where:
+    lines << [
+      [:],
+      ["path": lines(10)],
+      ["path": lines(10, 11, 13)],
+      ["path": lines(10, 11, 12, 13), "path-b": lines()],
+      ["path": lines(10, 11, 12, 13), "path-b": lines(8, 18)]
+    ]
   }
 }

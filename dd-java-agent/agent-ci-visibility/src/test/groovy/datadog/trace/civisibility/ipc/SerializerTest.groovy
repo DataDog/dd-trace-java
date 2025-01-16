@@ -4,6 +4,8 @@ import spock.lang.Specification
 
 import java.nio.ByteBuffer
 
+import static datadog.trace.civisibility.TestUtils.bitset
+
 class SerializerTest extends Specification {
 
   def "test int serialization: #i"() {
@@ -143,6 +145,21 @@ class SerializerTest extends Specification {
     Serializer.readList(buf, MyPojo.&deserialize) == [new MyPojo(1, "a"), new MyPojo(2, "b")]
     Serializer.readString(buf) == "test2"
     Serializer.readStringMap(buf) == ["a": "b", "1": "2"]
+  }
+
+  def "test bitset serialization: #bitset"() {
+    given:
+    def serializer = new Serializer()
+
+    when:
+    serializer.write((BitSet) bitset)
+    def buf = serializer.flush()
+
+    then:
+    Serializer.readBitSet(buf) == bitset
+
+    where:
+    bitset << [null, bitset(), bitset(1), bitset(999), bitset(1, 2, 3), bitset(1, 2, 3, 18, 157, 956, 1234567)]
   }
 
   private static final class MyPojo {

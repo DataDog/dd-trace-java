@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.ci;
 
+import datadog.trace.util.Strings;
 import java.util.Objects;
 
 public class PullRequestInfo {
@@ -29,6 +30,12 @@ public class PullRequestInfo {
     return gitCommitHeadSha;
   }
 
+  public boolean isNotEmpty() {
+    return Strings.isNotBlank(pullRequestBaseBranch)
+        || Strings.isNotBlank(pullRequestBaseBranchSha)
+        || Strings.isNotBlank(gitCommitHeadSha);
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -50,14 +57,14 @@ public class PullRequestInfo {
 
   @Override
   public String toString() {
-    return "PullRequestInfo{"
-        + "pullRequestBaseBranch='"
+    return "PR{"
+        + "baseBranch='"
         + pullRequestBaseBranch
         + '\''
-        + ", pullRequestBaseBranchSha='"
+        + ", baseSHA='"
         + pullRequestBaseBranchSha
         + '\''
-        + ", gitCommitHeadSha='"
+        + ", commitSHA='"
         + gitCommitHeadSha
         + '\''
         + '}';

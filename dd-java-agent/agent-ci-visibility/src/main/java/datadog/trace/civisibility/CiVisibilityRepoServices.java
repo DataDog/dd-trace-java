@@ -61,6 +61,11 @@ public class CiVisibilityRepoServices {
 
     CIInfo ciInfo = ciProviderInfo.buildCIInfo();
     PullRequestInfo pullRequestInfo = ciProviderInfo.buildPullRequestInfo();
+
+    if (pullRequestInfo.isNotEmpty()) {
+      LOGGER.info("PR detected: {}", pullRequestInfo);
+    }
+
     repoRoot = ciInfo.getNormalizedCiWorkspace();
     moduleName = getModuleName(services.config, path, ciInfo);
     ciTags = new CITagsProvider().getCiTags(ciInfo, pullRequestInfo);
@@ -86,7 +91,9 @@ public class CiVisibilityRepoServices {
               services.config,
               services.metricCollector,
               services.backendApi,
+              services.gitClientFactory,
               gitDataUploader,
+              pullRequestInfo,
               repoRoot);
     }
   }
@@ -128,7 +135,9 @@ public class CiVisibilityRepoServices {
       Config config,
       CiVisibilityMetricCollector metricCollector,
       BackendApi backendApi,
+      GitClient.Factory gitClientFactory,
       GitDataUploader gitDataUploader,
+      PullRequestInfo pullRequestInfo,
       String repoRoot) {
     ConfigurationApi configurationApi;
     if (backendApi == null) {
@@ -140,7 +149,8 @@ public class CiVisibilityRepoServices {
     }
 
     ExecutionSettingsFactoryImpl factory =
-        new ExecutionSettingsFactoryImpl(config, configurationApi, gitDataUploader, repoRoot);
+        new ExecutionSettingsFactoryImpl(
+            config, configurationApi, gitClientFactory, gitDataUploader, pullRequestInfo, repoRoot);
     if (processHierarchy.isHeadless()) {
       return factory;
     } else {
