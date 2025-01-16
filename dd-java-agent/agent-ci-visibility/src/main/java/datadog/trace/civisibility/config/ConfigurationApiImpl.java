@@ -30,6 +30,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
@@ -47,6 +48,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
 
   private static final String SETTINGS_URI = "libraries/tests/services/setting";
   private static final String SKIPPABLE_TESTS_URI = "ci/tests/skippable";
+  private static final String CHANGED_FILES_URI = "ci/tests/diffs";
   private static final String FLAKY_TESTS_URI = "ci/libraries/tests/flaky";
   private static final String KNOWN_TESTS_URI = "ci/libraries/tests";
 
@@ -58,6 +60,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
   private final JsonAdapter<EnvelopeDto<CiVisibilitySettings>> settingsResponseAdapter;
   private final JsonAdapter<MultiEnvelopeDto<TestIdentifierJson>> testIdentifiersResponseAdapter;
   private final JsonAdapter<EnvelopeDto<KnownTestsDto>> testFullNamesResponseAdapter;
+  private final JsonAdapter<EnvelopeDto<ChangedFilesDto>> changedFilesResponseAdapter;
 
   public ConfigurationApiImpl(BackendApi backendApi, CiVisibilityMetricCollector metricCollector) {
     this(backendApi, metricCollector, () -> UUID.randomUUID().toString());
@@ -98,6 +101,11 @@ public class ConfigurationApiImpl implements ConfigurationApi {
         Types.newParameterizedTypeWithOwner(
             ConfigurationApiImpl.class, EnvelopeDto.class, KnownTestsDto.class);
     testFullNamesResponseAdapter = moshi.adapter(testFullNamesResponseType);
+
+    ParameterizedType changedFilesResponseAdapterType =
+        Types.newParameterizedTypeWithOwner(
+            ConfigurationApiImpl.class, EnvelopeDto.class, ChangedFilesDto.class);
+    changedFilesResponseAdapter = moshi.adapter(changedFilesResponseAdapterType);
   }
 
   @Override
@@ -285,6 +293,37 @@ public class ConfigurationApiImpl implements ConfigurationApi {
     return testIdentifiers;
   }
 
+  @Override
+  public Set<String> getChangedFiles(TracerEnvironment tracerEnvironment) throws IOException {
+    OkHttpUtils.CustomListener telemetryListener =
+        new TelemetryListener.Builder(metricCollector)
+            .requestCount(CiVisibilityCountMetric.IMPACTED_TESTS_DETECTION_REQUEST)
+            .requestErrors(CiVisibilityCountMetric.IMPACTED_TESTS_DETECTION_REQUEST_ERRORS)
+            .requestDuration(CiVisibilityDistributionMetric.IMPACTED_TESTS_DETECTION_REQUEST_MS)
+            .responseBytes(CiVisibilityDistributionMetric.IMPACTED_TESTS_DETECTION_RESPONSE_BYTES)
+            .build();
+
+    String uuid = uuidGenerator.get();
+    EnvelopeDto<TracerEnvironment> request =
+        new EnvelopeDto<>(new DataDto<>(uuid, "ci_app_tests_diffs_request", tracerEnvironment));
+    String json = requestAdapter.toJson(request);
+    RequestBody requestBody = RequestBody.create(JSON, json);
+    ChangedFilesDto changedFiles =
+        backendApi.post(
+            CHANGED_FILES_URI,
+            requestBody,
+            is ->
+                changedFilesResponseAdapter.fromJson(Okio.buffer(Okio.source(is))).data.attributes,
+            telemetryListener,
+            false);
+
+    LOGGER.debug("Received {} changed files", changedFiles.files.size());
+    metricCollector.add(
+        CiVisibilityDistributionMetric.IMPACTED_TESTS_DETECTION_RESPONSE_FILES,
+        changedFiles.files.size());
+    return changedFiles.files;
+  }
+
   private static final class EnvelopeDto<T> {
     private final DataDto<T> data;
 
@@ -370,6 +409,14 @@ public class ConfigurationApiImpl implements ConfigurationApi {
 
     private KnownTestsDto(Map<String, Map<String, List<String>>> tests) {
       this.tests = tests;
+    }
+  }
+
+  private static final class ChangedFilesDto {
+    private final Set<String> files;
+
+    private ChangedFilesDto(Set<String> files) {
+      this.files = files;
     }
   }
 }
