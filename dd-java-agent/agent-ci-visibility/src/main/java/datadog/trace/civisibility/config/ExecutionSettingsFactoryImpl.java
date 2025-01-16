@@ -7,6 +7,9 @@ import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestMetadata;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
+import datadog.trace.civisibility.ci.PullRequestInfo;
+import datadog.trace.civisibility.git.Diff;
+import datadog.trace.civisibility.git.tree.GitClient;
 import datadog.trace.civisibility.git.tree.GitDataUploader;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -38,17 +41,23 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
 
   private final Config config;
   private final ConfigurationApi configurationApi;
+  private final GitClient.Factory gitClientFactory;
   private final GitDataUploader gitDataUploader;
+  private final PullRequestInfo pullRequestInfo;
   private final String repositoryRoot;
 
   public ExecutionSettingsFactoryImpl(
       Config config,
       ConfigurationApi configurationApi,
+      GitClient.Factory gitClientFactory,
       GitDataUploader gitDataUploader,
+      PullRequestInfo pullRequestInfo,
       String repositoryRoot) {
     this.config = config;
     this.configurationApi = configurationApi;
+    this.gitClientFactory = gitClientFactory;
     this.gitDataUploader = gitDataUploader;
+    this.pullRequestInfo = pullRequestInfo;
     this.repositoryRoot = repositoryRoot;
   }
 
@@ -161,6 +170,8 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
       moduleNames.addAll(knownTestsByModule.keySet());
     }
 
+    Diff pullRequestDiff = getPullRequestDiff();
+
     Map<String, ExecutionSettings> settingsByModule = new HashMap<>();
     for (String moduleName : moduleNames) {
       settingsByModule.put(
@@ -183,7 +194,8 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
               flakyTestsByModule != null
                   ? flakyTestsByModule.getOrDefault(moduleName, Collections.emptyList())
                   : null,
-              knownTestsByModule != null ? knownTestsByModule.get(moduleName) : null));
+              knownTestsByModule != null ? knownTestsByModule.get(moduleName) : null,
+              pullRequestDiff));
     }
     return settingsByModule;
   }
@@ -282,6 +294,27 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
           "Could not obtain list of known tests, early flakiness detection will not be available",
           e);
       return null;
+    }
+  }
+
+  @NotNull
+  private Diff getPullRequestDiff() {
+    if (repositoryRoot == null) {
+      return Diff.EMPTY;
+    }
+    try {
+      GitClient gitClient = gitClientFactory.create(repositoryRoot);
+      return gitClient.getGitDiff(
+          pullRequestInfo.getPullRequestBaseBranchSha(), pullRequestInfo.getGitCommitHeadSha());
+
+    } catch (InterruptedException e) {
+      LOGGER.error("Interrupted while getting git diff for PR: {}", pullRequestInfo, e);
+      Thread.currentThread().interrupt();
+      return Diff.EMPTY;
+
+    } catch (Exception e) {
+      LOGGER.error("Could not get git diff for PR: {}", pullRequestInfo, e);
+      return Diff.EMPTY;
     }
   }
 }

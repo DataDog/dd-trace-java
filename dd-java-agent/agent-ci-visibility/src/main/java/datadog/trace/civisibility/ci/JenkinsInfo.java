@@ -15,6 +15,7 @@ import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import javax.annotation.Nonnull;
 
 @SuppressForbidden
 class JenkinsInfo implements CIProviderInfo {
@@ -68,6 +69,7 @@ class JenkinsInfo implements CIProviderInfo {
         .build();
   }
 
+  @Nonnull
   @Override
   public PullRequestInfo buildPullRequestInfo() {
     return PullRequestInfo.EMPTY;

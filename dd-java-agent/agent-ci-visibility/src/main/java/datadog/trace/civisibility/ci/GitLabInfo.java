@@ -12,6 +12,7 @@ import datadog.trace.api.git.GitUtils;
 import datadog.trace.api.git.PersonInfo;
 import datadog.trace.civisibility.ci.env.CiEnvironment;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
+import javax.annotation.Nonnull;
 
 @SuppressForbidden
 class GitLabInfo implements CIProviderInfo {
@@ -82,6 +83,7 @@ class GitLabInfo implements CIProviderInfo {
         .build();
   }
 
+  @Nonnull
   @Override
   public PullRequestInfo buildPullRequestInfo() {
     return new PullRequestInfo(

@@ -3,6 +3,7 @@ package datadog.trace.civisibility.ci;
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.civisibility.ci.env.CiEnvironment;
+import javax.annotation.Nonnull;
 
 class AwsCodePipelineInfo implements CIProviderInfo {
 
@@ -35,6 +36,7 @@ class AwsCodePipelineInfo implements CIProviderInfo {
         .build();
   }
 
+  @Nonnull
   @Override
   public PullRequestInfo buildPullRequestInfo() {
     return PullRequestInfo.EMPTY;

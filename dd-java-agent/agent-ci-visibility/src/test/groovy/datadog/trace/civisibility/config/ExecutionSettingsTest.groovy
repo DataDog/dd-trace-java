@@ -3,7 +3,11 @@ package datadog.trace.civisibility.config
 
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.api.civisibility.config.TestMetadata
+import datadog.trace.civisibility.TestUtils
+import datadog.trace.civisibility.git.Diff
 import spock.lang.Specification
+
+import static datadog.trace.civisibility.TestUtils.*
 
 class ExecutionSettingsTest extends Specification {
 
@@ -27,7 +31,8 @@ class ExecutionSettingsTest extends Specification {
       [:],
       [:],
       null,
-      new HashSet<>([])),
+      new HashSet<>([]),
+      Diff.EMPTY),
 
       new ExecutionSettings(
       true,
@@ -39,7 +44,8 @@ class ExecutionSettingsTest extends Specification {
       [new TestIdentifier("bc", "def", "g"): new TestMetadata(true), new TestIdentifier("de", "f", null): new TestMetadata(false)],
       [:],
       new HashSet<>([new TestIdentifier("name", null, null)]),
-      new HashSet<>([new TestIdentifier("b", "c", "g")])
+      new HashSet<>([new TestIdentifier("b", "c", "g")]),
+      new Diff(["path": lines()])
       ),
 
       new ExecutionSettings(
@@ -50,13 +56,14 @@ class ExecutionSettingsTest extends Specification {
       new EarlyFlakeDetectionSettings(true, [new EarlyFlakeDetectionSettings.ExecutionsByDuration(10, 20)], 10),
       "itrCorrelationId",
       [:],
-      ["cov": BitSet.valueOf(new byte[]{
+      ["cov"    : BitSet.valueOf(new byte[]{
           1, 2, 3
         }), "cov2": BitSet.valueOf(new byte[]{
           4, 5, 6
         })],
       new HashSet<>([new TestIdentifier("name", null, "g"), new TestIdentifier("b", "c", null)]),
       new HashSet<>([new TestIdentifier("b", "c", null), new TestIdentifier("bb", "cc", null)]),
+      new Diff(["path": lines(1, 2, 3)]),
       ),
 
       new ExecutionSettings(
@@ -67,13 +74,14 @@ class ExecutionSettingsTest extends Specification {
       new EarlyFlakeDetectionSettings(true, [new EarlyFlakeDetectionSettings.ExecutionsByDuration(10, 20), new EarlyFlakeDetectionSettings.ExecutionsByDuration(30, 40)], 10),
       "itrCorrelationId",
       [new TestIdentifier("bc", "def", null): new TestMetadata(true), new TestIdentifier("de", "f", null): new TestMetadata(true)],
-      ["cov": BitSet.valueOf(new byte[]{
+      ["cov"    : BitSet.valueOf(new byte[]{
           1, 2, 3
         }), "cov2": BitSet.valueOf(new byte[]{
           4, 5, 6
         })],
       new HashSet<>([]),
       new HashSet<>([new TestIdentifier("b", "c", null), new TestIdentifier("bb", "cc", "g")]),
+      new Diff(["path": lines(1, 2, 3), "path-b": lines(1, 2, 128, 257, 999)]),
       ),
     ]
   }

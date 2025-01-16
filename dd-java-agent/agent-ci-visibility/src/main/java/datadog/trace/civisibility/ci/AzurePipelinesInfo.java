@@ -11,6 +11,7 @@ import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.PersonInfo;
 import datadog.trace.civisibility.ci.env.CiEnvironment;
+import javax.annotation.Nonnull;
 
 class AzurePipelinesInfo implements CIProviderInfo {
 
@@ -81,6 +82,7 @@ class AzurePipelinesInfo implements CIProviderInfo {
         .build();
   }
 
+  @Nonnull
   @Override
   public PullRequestInfo buildPullRequestInfo() {
     return PullRequestInfo.EMPTY;
