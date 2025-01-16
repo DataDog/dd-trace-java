@@ -27,7 +27,7 @@ public class JavaxMailInstrumentation extends InstrumenterModule.Iast
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("javaxMailInstrumentation"),
+        named("send"),
         JavaxMailInstrumentation.class.getName() + "$MailInjectionAdvice");
   }
 
