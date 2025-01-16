@@ -20,7 +20,7 @@ import scala.collection.Seq;
  */
 @AutoService(InstrumenterModule.class)
 public class PredefinedFromEntityUnmarshallersInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   private static final String TRAIT_NAME =
       "akka.http.scaladsl.unmarshalling.PredefinedFromEntityUnmarshallers";

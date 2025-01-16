@@ -5,12 +5,13 @@ import static datadog.trace.instrumentation.pekkohttp.PekkoHttpServerDecorator.D
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import org.apache.pekko.http.scaladsl.model.HttpRequest;
 import org.apache.pekko.http.scaladsl.model.HttpResponse;
 
 public class DatadogWrapperHelper {
   public static AgentScope createSpan(final HttpRequest request) {
-    final AgentSpan.Context.Extracted extractedContext = DECORATE.extract(request);
+    final AgentSpanContext.Extracted extractedContext = DECORATE.extract(request);
     final AgentSpan span = DECORATE.startSpan(request, extractedContext);
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, request, request, extractedContext);

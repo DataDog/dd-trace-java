@@ -5,6 +5,9 @@ on:
     branches:
     - master
     - release/v*
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   check_pull_requests:
     name: Check pull requests

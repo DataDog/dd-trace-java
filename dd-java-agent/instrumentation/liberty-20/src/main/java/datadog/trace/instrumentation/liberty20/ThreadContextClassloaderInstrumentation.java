@@ -6,12 +6,12 @@ import com.google.auto.service.AutoService;
 import com.ibm.ws.classloading.internal.ThreadContextClassLoader;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.naming.ClassloaderServiceNames;
+import datadog.trace.api.ClassloaderConfigurationOverrides;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class ThreadContextClassloaderInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public ThreadContextClassloaderInstrumentation() {
     super("liberty", "liberty-classloading");
@@ -40,7 +40,7 @@ public class ThreadContextClassloaderInstrumentation extends InstrumenterModule.
     public static void afterConstruct(@Advice.This ThreadContextClassLoader self) {
       final String name = BundleNameHelper.extractDeploymentName(self);
       if (name != null && !name.isEmpty()) {
-        ClassloaderServiceNames.addServiceName(self, name);
+        ClassloaderConfigurationOverrides.withPinnedServiceName(self, name);
       }
     }
   }

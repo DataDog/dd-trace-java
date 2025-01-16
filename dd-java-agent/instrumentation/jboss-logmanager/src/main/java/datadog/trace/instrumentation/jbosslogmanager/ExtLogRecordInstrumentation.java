@@ -17,7 +17,7 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.HashMap;
@@ -30,7 +30,7 @@ import org.jboss.logmanager.ExtLogRecord;
 
 @AutoService(InstrumenterModule.class)
 public class ExtLogRecordInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
   public ExtLogRecordInstrumentation() {
     super("jboss-logmanager");
   }
@@ -47,7 +47,7 @@ public class ExtLogRecordInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("org.jboss.logmanager.ExtLogRecord", AgentSpan.Context.class.getName());
+    return singletonMap("org.jboss.logmanager.ExtLogRecord", AgentSpanContext.class.getName());
   }
 
   @Override
@@ -83,8 +83,8 @@ public class ExtLogRecordInstrumentation extends InstrumenterModule.Tracing
         return;
       }
 
-      AgentSpan.Context context =
-          InstrumentationContext.get(ExtLogRecord.class, AgentSpan.Context.class).get(record);
+      AgentSpanContext context =
+          InstrumentationContext.get(ExtLogRecord.class, AgentSpanContext.class).get(record);
 
       // Nothing to add so return early
       if (context == null && !AgentTracer.traceConfig().isLogsInjectionEnabled()) {
@@ -142,8 +142,8 @@ public class ExtLogRecordInstrumentation extends InstrumenterModule.Tracing
         return;
       }
 
-      AgentSpan.Context context =
-          InstrumentationContext.get(ExtLogRecord.class, AgentSpan.Context.class).get(record);
+      AgentSpanContext context =
+          InstrumentationContext.get(ExtLogRecord.class, AgentSpanContext.class).get(record);
 
       // Nothing to add so return early
       if (context == null && !AgentTracer.traceConfig().isLogsInjectionEnabled()) {

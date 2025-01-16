@@ -24,7 +24,7 @@ import scala.concurrent.Future;
 
 @AutoService(InstrumenterModule.class)
 public final class PekkoHttpSingleRequestInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public PekkoHttpSingleRequestInstrumentation() {
     super("pekko-http", "pekko-http-client");
   }

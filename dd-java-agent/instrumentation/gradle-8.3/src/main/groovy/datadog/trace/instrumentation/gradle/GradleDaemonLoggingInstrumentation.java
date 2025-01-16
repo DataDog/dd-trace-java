@@ -10,7 +10,7 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class GradleDaemonLoggingInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public GradleDaemonLoggingInstrumentation() {
     super("gradle", "gradle-daemon-logging");

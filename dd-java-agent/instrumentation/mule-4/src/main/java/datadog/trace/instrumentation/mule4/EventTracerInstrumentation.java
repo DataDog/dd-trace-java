@@ -14,7 +14,7 @@ import org.mule.runtime.tracer.api.span.info.InitialSpanInfo;
 
 @AutoService(InstrumenterModule.class)
 public class EventTracerInstrumentation extends AbstractMuleInstrumentation
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   @Override
   public String instrumentedType() {

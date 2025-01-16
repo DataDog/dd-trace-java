@@ -16,7 +16,7 @@ import org.apache.http.HttpHost;
 
 @AutoService(InstrumenterModule.class)
 public class IastHttpHostInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public IastHttpHostInstrumentation() {
     super("httpcore", "apache-httpcore", "apache-http-core");

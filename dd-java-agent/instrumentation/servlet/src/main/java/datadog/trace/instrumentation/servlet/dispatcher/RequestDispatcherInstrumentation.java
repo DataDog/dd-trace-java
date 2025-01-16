@@ -27,6 +27,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.util.Map;
@@ -39,7 +40,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class RequestDispatcherInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
   public RequestDispatcherInstrumentation() {
     super("servlet", "servlet-dispatcher");
   }
@@ -98,7 +99,7 @@ public final class RequestDispatcherInstrumentation extends InstrumenterModule.T
         // Don't want to generate a new top-level span
         return null;
       }
-      final AgentSpan.Context parent;
+      final AgentSpanContext parent;
       if (servletSpan == null || (parentSpan != null && servletSpan.isSameTrace(parentSpan))) {
         // Use the parentSpan if the servletSpan is null or part of the same trace.
         parent = parentSpan.context();

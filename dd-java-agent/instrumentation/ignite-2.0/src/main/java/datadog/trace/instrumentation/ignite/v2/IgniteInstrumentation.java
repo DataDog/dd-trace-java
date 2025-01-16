@@ -23,7 +23,7 @@ import org.apache.ignite.IgniteCache;
 
 @AutoService(InstrumenterModule.class)
 public class IgniteInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public IgniteInstrumentation() {
     super("ignite");

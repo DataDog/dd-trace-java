@@ -36,10 +36,16 @@ public class SetContextPathAdvice {
         ((AgentSpan) span).setTag(SERVLET_CONTEXT, servletContext);
         req.setAttribute(DD_CONTEXT_PATH_ATTRIBUTE, servletContext);
         if (pathInContext != null) {
-          final String relativePath =
+          // the following can be cached however than can be issues for application having
+          // dynamically generated URL
+          // since a bounded cache might collide
+          String relativePath =
               pathInContext.startsWith(servletContext)
                   ? pathInContext.substring(servletContext.length())
                   : pathInContext;
+          if (relativePath.isEmpty() || relativePath.charAt(0) != '/') {
+            relativePath = "/" + relativePath;
+          }
           ((AgentSpan) span).setTag(SERVLET_PATH, relativePath);
           req.setAttribute(DD_SERVLET_PATH_ATTRIBUTE, relativePath);
         }

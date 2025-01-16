@@ -19,7 +19,7 @@ import org.xnio.channels.StreamSinkChannel;
 
 @AutoService(InstrumenterModule.class)
 public class HttpServerExchangeSenderInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public HttpServerExchangeSenderInstrumentation() {
     super("undertow", "undertow-2.0");
   }

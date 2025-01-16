@@ -21,7 +21,7 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class EnableWallclockProfilingInstrumentation extends InstrumenterModule.Profiling
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   public EnableWallclockProfilingInstrumentation() {
     super("wallclock");

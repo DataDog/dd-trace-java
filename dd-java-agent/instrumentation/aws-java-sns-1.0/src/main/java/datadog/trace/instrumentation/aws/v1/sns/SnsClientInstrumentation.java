@@ -16,7 +16,7 @@ import net.bytebuddy.asm.Advice;
 /** AWS SDK v1 SNS instrumentation */
 @AutoService(InstrumenterModule.class)
 public final class SnsClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public SnsClientInstrumentation() {
     super("sns", "aws-sdk");

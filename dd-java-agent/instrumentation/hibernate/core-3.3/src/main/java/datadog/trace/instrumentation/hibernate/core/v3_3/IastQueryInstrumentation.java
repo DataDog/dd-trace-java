@@ -18,7 +18,7 @@ import org.hibernate.transaction.JBossTransactionManagerLookup;
 
 @AutoService(InstrumenterModule.class)
 public class IastQueryInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public IastQueryInstrumentation() {
     super("hibernate", "hibernate-core");

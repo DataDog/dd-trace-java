@@ -135,7 +135,7 @@ public class Reporter {
   }
 
   private AgentSpan startNewSpan() {
-    final AgentSpan.Context tagContext =
+    final AgentSpanContext tagContext =
         new TagContext()
             .withRequestContextDataIast(new IastRequestContext(TaintedObjects.NoOp.INSTANCE));
     final AgentSpan span =

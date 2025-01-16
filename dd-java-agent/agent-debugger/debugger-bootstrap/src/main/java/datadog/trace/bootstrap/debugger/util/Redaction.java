@@ -46,7 +46,6 @@ public class Redaction {
           "dburl",
           "encryptionkey",
           "encryptionkeyid",
-          "env",
           "geolocation",
           "gpgkey",
           "ipaddress",

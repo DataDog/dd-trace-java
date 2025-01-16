@@ -15,7 +15,7 @@ import org.gradle.invocation.DefaultGradle;
 
 @AutoService(InstrumenterModule.class)
 public class GradleBuildListenerInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public GradleBuildListenerInstrumentation() {
     super("gradle", "gradle-build-listener");

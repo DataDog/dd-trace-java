@@ -22,7 +22,7 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class PekkoMailboxInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, ExcludeFilterProvider {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice, ExcludeFilterProvider {
 
   public PekkoMailboxInstrumentation() {
     super("pekko_actor_mailbox", "pekko_actor", "pekko_concurrent", "java_concurrent");

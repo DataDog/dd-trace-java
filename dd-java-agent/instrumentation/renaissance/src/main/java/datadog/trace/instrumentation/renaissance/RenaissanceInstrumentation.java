@@ -17,7 +17,7 @@ import org.slf4j.LoggerFactory;
 
 @AutoService(InstrumenterModule.class)
 public class RenaissanceInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   private static final Logger log = LoggerFactory.getLogger(RenaissanceInstrumentation.class);
 
   public RenaissanceInstrumentation() {

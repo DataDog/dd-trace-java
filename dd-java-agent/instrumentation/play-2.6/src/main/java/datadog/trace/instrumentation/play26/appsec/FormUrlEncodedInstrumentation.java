@@ -17,7 +17,7 @@ import play.mvc.Http;
 /** @see play.mvc.BodyParser.FormUrlEncoded#parse(Http.RequestHeader, ByteString) */
 @AutoService(InstrumenterModule.class)
 public class FormUrlEncodedInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public FormUrlEncodedInstrumentation() {
     super("play");
   }

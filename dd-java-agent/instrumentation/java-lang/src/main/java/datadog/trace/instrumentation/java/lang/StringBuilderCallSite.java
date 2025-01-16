@@ -181,4 +181,18 @@ public class StringBuilderCallSite {
     }
     return result;
   }
+
+  @CallSite.After("void java.lang.StringBuilder.setLength(int)")
+  @CallSite.After("void java.lang.StringBuffer.setLength(int)")
+  public static void afterSetLength(
+      @CallSite.This final CharSequence self, @CallSite.Argument final int length) {
+    final StringModule module = InstrumentationBridge.STRING;
+    if (module != null) {
+      try {
+        module.onStringBuilderSetLength(self, length);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterSetLength threw", e);
+      }
+    }
+  }
 }

@@ -33,7 +33,7 @@ import scala.collection.immutable.Seq;
  */
 @AutoService(InstrumenterModule.class)
 public class CookieHeaderInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public CookieHeaderInstrumentation() {
     super("akka-http");
   }

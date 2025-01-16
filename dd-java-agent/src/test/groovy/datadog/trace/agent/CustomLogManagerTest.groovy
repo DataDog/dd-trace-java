@@ -27,7 +27,7 @@ class CustomLogManagerTest extends Specification {
       , true) == 0
   }
 
-  def "agent services starts up in premain if configured log manager on system classpath"() {
+  def "agent services startup is delayed even if configured log manager on system classpath"() {
     expect:
     IntegrationTestUtils.runOnSeparateJvm(LogManagerSetter.getName()
       , [

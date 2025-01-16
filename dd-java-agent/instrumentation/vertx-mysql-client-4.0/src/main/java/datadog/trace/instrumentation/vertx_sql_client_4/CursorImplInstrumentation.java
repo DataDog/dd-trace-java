@@ -13,7 +13,7 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class CursorImplInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public CursorImplInstrumentation() {
     super("vertx", "vertx-sql-client");
   }

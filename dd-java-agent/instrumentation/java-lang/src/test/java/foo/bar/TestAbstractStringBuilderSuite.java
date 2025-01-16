@@ -20,5 +20,7 @@ public interface TestAbstractStringBuilderSuite<E> {
 
   CharSequence subSequence(final E self, final int beginIndex, final int endIndex);
 
+  void setLength(final E self, final int length);
+
   String toString(final E target);
 }

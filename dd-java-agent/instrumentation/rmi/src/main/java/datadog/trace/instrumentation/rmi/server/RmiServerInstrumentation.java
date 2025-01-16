@@ -17,6 +17,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import java.lang.reflect.Method;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -24,7 +25,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class RmiServerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForBootstrap,
+        Instrumenter.ForTypeHierarchy,
+        Instrumenter.HasMethodAdvice {
 
   public RmiServerInstrumentation() {
     super("rmi", "rmi-server");
@@ -50,7 +53,7 @@ public final class RmiServerInstrumentation extends InstrumenterModule.Tracing
     @Advice.OnMethodEnter(suppress = Throwable.class, inline = true)
     public static AgentScope onEnter(
         @Advice.This final Object thiz, @Advice.Origin final Method method) {
-      final AgentSpan.Context context = THREAD_LOCAL_CONTEXT.getAndResetContext();
+      final AgentSpanContext context = THREAD_LOCAL_CONTEXT.getAndResetContext();
 
       final AgentSpan span;
       if (context == null) {

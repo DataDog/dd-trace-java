@@ -15,7 +15,7 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public final class DispatcherHandlerInstrumentation extends AbstractWebfluxInstrumentation
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   @Override
   public String instrumentedType() {

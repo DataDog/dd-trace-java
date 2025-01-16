@@ -9,7 +9,7 @@ import static datadog.trace.instrumentation.play23.PlayHttpServerDecorator.REPOR
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import net.bytebuddy.asm.Advice;
 import play.api.mvc.Action;
 import play.api.mvc.Headers;
@@ -23,7 +23,7 @@ public class PlayAdvice {
     final AgentSpan span;
     if (activeSpan() == null) {
       Headers headers = req.headers();
-      final Context.Extracted extractedContext = DECORATE.extract(headers);
+      final AgentSpanContext.Extracted extractedContext = DECORATE.extract(headers);
       span = DECORATE.startSpan(headers, extractedContext);
     } else {
       // An upstream framework (e.g. akka-http, netty) has already started the span.

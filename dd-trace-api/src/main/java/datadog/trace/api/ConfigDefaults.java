@@ -136,6 +136,10 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_IAST_ANONYMOUS_CLASSES_ENABLED = true;
 
   static final boolean DEFAULT_IAST_STACK_TRACE_ENABLED = true;
+  static final int DEFAULT_IAST_DB_ROWS_TO_TAINT = 1;
+
+  static final boolean DEFAULT_LLM_OBS_ENABLED = false;
+  static final boolean DEFAULT_LLM_OBS_AGENTLESS_ENABLED = false;
 
   static final boolean DEFAULT_USM_ENABLED = false;
 
@@ -181,7 +185,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_DEBUGGER_VERIFY_BYTECODE = true;
   static final boolean DEFAULT_DEBUGGER_INSTRUMENT_THE_WORLD = false;
   static final int DEFAULT_DEBUGGER_CAPTURE_TIMEOUT = 100; // milliseconds
-  static final boolean DEFAULT_DEBUGGER_HOIST_LOCALVARS_ENABLED = true;
+  static final boolean DEFAULT_DEBUGGER_HOIST_LOCALVARS_ENABLED = false;
   static final boolean DEFAULT_DEBUGGER_SYMBOL_ENABLED = true;
   static final boolean DEFAULT_DEBUGGER_SYMBOL_FORCE_UPLOAD = false;
   static final int DEFAULT_DEBUGGER_SYMBOL_FLUSH_THRESHOLD = 100; // nb of classes

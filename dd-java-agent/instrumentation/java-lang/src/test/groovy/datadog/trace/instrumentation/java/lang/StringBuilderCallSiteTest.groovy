@@ -250,6 +250,25 @@ class StringBuilderCallSiteTest extends AgentTestRunner {
     "buffer"  | new TestStringBufferSuite()  | sbf('012345') | 1          | 5        | '1234'
   }
 
+  def 'test string #type setLength with length: #length call site'() {
+    setup:
+    final iastModule = Mock(StringModule)
+    InstrumentationBridge.registerIastModule(iastModule)
+
+    when:
+    suite.setLength(param, length)
+
+    then:
+    param.toString() == expected
+    1 * iastModule.onStringBuilderSetLength(param, length)
+    0 * _
+
+    where:
+    type      | suite                        | param         | length | expected
+    "builder" | new TestStringBuilderSuite() | sb('012345')  | 5      | '01234'
+    "buffer"  | new TestStringBufferSuite()  | sbf('012345') | 5      | '01234'
+  }
+
   private static class BrokenToString {
     @Override
     String toString() {

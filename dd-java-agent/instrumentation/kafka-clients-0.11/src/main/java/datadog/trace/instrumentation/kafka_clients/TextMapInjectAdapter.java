@@ -1,9 +1,9 @@
 package datadog.trace.instrumentation.kafka_clients;
 
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_PRODUCED_KEY;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import org.apache.kafka.common.header.Headers;
 
 public class TextMapInjectAdapter implements TextMapInjectAdapterInterface {
@@ -11,12 +11,7 @@ public class TextMapInjectAdapter implements TextMapInjectAdapterInterface {
 
   @Override
   public void set(final Headers headers, final String key, final String value) {
-    headers.remove(key).add(key, value.getBytes(StandardCharsets.UTF_8));
-  }
-
-  @Override
-  public void set(Headers headers, String key, byte[] value) {
-    headers.remove(key).add(key, value);
+    headers.remove(key).add(key, value.getBytes(UTF_8));
   }
 
   public void injectTimeInQueue(Headers headers) {

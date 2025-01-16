@@ -15,7 +15,7 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class DefaultExceptionHandlerInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public DefaultExceptionHandlerInstrumentation() {
     super("akka-http", "akka-http-server");
   }

@@ -359,6 +359,20 @@ public enum ErrorCode implements Function<Object[], String> {
     }
   },
 
+  ADVICE_AFTER_VOID_METHOD_SHOULD_RETURN_VOID {
+    @Override
+    public String apply(final Object[] objects) {
+      return "After advice for void method should return void";
+    }
+  },
+
+  ADVICE_AFTER_VOID_METHOD_SHOULD_NOT_HAVE_RETURN {
+    @Override
+    public String apply(final Object[] objects) {
+      return "After advice for void method should not contain @Return annotated parameters";
+    }
+  },
+
   ADVICE_AFTER_SHOULD_HAVE_RETURN {
     @Override
     public String apply(final Object[] objects) {

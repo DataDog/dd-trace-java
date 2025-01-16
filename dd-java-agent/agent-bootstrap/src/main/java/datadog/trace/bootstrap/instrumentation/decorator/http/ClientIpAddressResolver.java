@@ -1,7 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.decorator.http;
 
 import datadog.trace.api.interceptor.MutableSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.decorator.http.utils.IPAddressUtil;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
@@ -28,7 +28,7 @@ public class ClientIpAddressResolver {
    * @param context extracted context with http headers
    * @return the inferred IP address, if any
    */
-  public static InetAddress resolve(AgentSpan.Context.Extracted context, MutableSpan span) {
+  public static InetAddress resolve(AgentSpanContext.Extracted context, MutableSpan span) {
     try {
       return doResolve(context, span);
     } catch (RuntimeException rte) {
@@ -37,7 +37,7 @@ public class ClientIpAddressResolver {
     }
   }
 
-  private static InetAddress doResolve(AgentSpan.Context.Extracted context, MutableSpan span) {
+  private static InetAddress doResolve(AgentSpanContext.Extracted context, MutableSpan span) {
     if (context == null) {
       return null;
     }

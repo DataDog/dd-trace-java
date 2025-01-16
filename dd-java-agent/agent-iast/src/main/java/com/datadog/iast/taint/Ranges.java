@@ -10,6 +10,7 @@ import com.datadog.iast.util.RangeBuilder;
 import com.datadog.iast.util.Ranged;
 import com.datadog.iast.util.StringUtils;
 import datadog.trace.api.iast.SourceTypes;
+import java.util.BitSet;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -425,5 +426,23 @@ public final class Ranges {
     splittedRanges[1] = copyWithPosition(range, rangeEnd - secondLength, secondLength);
 
     return splittedRanges;
+  }
+
+  /**
+   * Remove the ranges that have the same origin as the input source.
+   *
+   * @param ranges the ranges to filter
+   * @param source the byte value of the source to exclude (see {@link SourceTypes})
+   */
+  public static Range[] excludeRangesBySource(Range[] ranges, BitSet source) {
+    RangeBuilder newRanges = new RangeBuilder(ranges.length);
+
+    for (Range range : ranges) {
+      if (!source.get(range.getSource().getOrigin())) {
+        newRanges.add(range);
+      }
+    }
+
+    return newRanges.toArray();
   }
 }

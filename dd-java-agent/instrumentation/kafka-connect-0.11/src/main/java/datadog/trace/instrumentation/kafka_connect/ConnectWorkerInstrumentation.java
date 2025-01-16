@@ -16,7 +16,7 @@ import org.apache.kafka.connect.util.ConnectorTaskId;
 
 @AutoService(InstrumenterModule.class)
 public final class ConnectWorkerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   static final String TARGET_TYPE = "org.apache.kafka.connect.runtime.WorkerTask";
 

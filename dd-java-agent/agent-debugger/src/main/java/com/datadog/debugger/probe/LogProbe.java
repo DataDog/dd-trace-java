@@ -23,6 +23,7 @@ import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Types;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.CapturedContext;
+import datadog.trace.bootstrap.debugger.CorrelationAccess;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.EvaluationError;
 import datadog.trace.bootstrap.debugger.Limits;
@@ -408,8 +409,16 @@ public class LogProbe extends ProbeDefinition implements Sampled {
   @Override
   public InstrumentationResult.Status instrument(
       MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<ProbeId> probeIds) {
+    // if evaluation is at exit and with condition, skip collecting data at entry
+    boolean captureEntry = !(getEvaluateAt() == MethodLocation.EXIT && hasCondition());
     return new CapturedContextInstrumentor(
-            this, methodInfo, diagnostics, probeIds, isCaptureSnapshot(), toLimits(getCapture()))
+            this,
+            methodInfo,
+            diagnostics,
+            probeIds,
+            isCaptureSnapshot(),
+            captureEntry,
+            toLimits(getCapture()))
         .instrument();
   }
 
@@ -549,25 +558,19 @@ public class LogProbe extends ProbeDefinition implements Sampled {
     LogStatus entryStatus = convertStatus(entryContext.getStatus(probeId.getEncodedId()));
     LogStatus exitStatus = convertStatus(exitContext.getStatus(probeId.getEncodedId()));
     String message = null;
-    String traceId = null;
-    String spanId = null;
     switch (evaluateAt) {
       case ENTRY:
       case DEFAULT:
         message = entryStatus.getMessage();
-        traceId = entryContext.getTraceId();
-        spanId = entryContext.getSpanId();
         break;
       case EXIT:
         message = exitStatus.getMessage();
-        traceId = exitContext.getTraceId();
-        spanId = exitContext.getSpanId();
         break;
     }
     boolean shouldCommit = false;
     if (entryStatus.shouldSend() && exitStatus.shouldSend()) {
-      snapshot.setTraceId(traceId);
-      snapshot.setSpanId(spanId);
+      snapshot.setTraceId(CorrelationAccess.instance().getTraceId());
+      snapshot.setSpanId(CorrelationAccess.instance().getSpanId());
       if (isCaptureSnapshot()) {
         snapshot.setEntry(entryContext);
         snapshot.setExit(exitContext);
@@ -643,8 +646,8 @@ public class LogProbe extends ProbeDefinition implements Sampled {
     Snapshot snapshot = createSnapshot();
     boolean shouldCommit = false;
     if (status.shouldSend()) {
-      snapshot.setTraceId(lineContext.getTraceId());
-      snapshot.setSpanId(lineContext.getSpanId());
+      snapshot.setTraceId(CorrelationAccess.instance().getTraceId());
+      snapshot.setSpanId(CorrelationAccess.instance().getSpanId());
       snapshot.setMessage(status.getMessage());
       shouldCommit = true;
     }

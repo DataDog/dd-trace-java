@@ -7,7 +7,9 @@ import datadog.trace.api.InstrumenterConfig;
 
 @AutoService(InstrumenterModule.class)
 public final class PreparedStatementInstrumentation extends AbstractPreparedStatementInstrumentation
-    implements Instrumenter.ForKnownTypes, Instrumenter.ForConfiguredType {
+    implements Instrumenter.ForKnownTypes,
+        Instrumenter.ForConfiguredType,
+        Instrumenter.HasMethodAdvice {
 
   private static final String[] CONCRETE_TYPES = {
     // redshift

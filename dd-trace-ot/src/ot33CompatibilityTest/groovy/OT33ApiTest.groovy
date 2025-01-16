@@ -8,13 +8,18 @@ import datadog.trace.test.util.DDSpecification
 import io.opentracing.Tracer
 import io.opentracing.propagation.Format
 import io.opentracing.propagation.TextMap
-import io.opentracing.util.ThreadLocalScopeManager
 import spock.lang.Subject
 
 import static datadog.trace.agent.test.asserts.ListWriterAssert.assertTraces
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
-import static datadog.trace.api.sampling.PrioritySampling.*
-import static datadog.trace.api.sampling.SamplingMechanism.*
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP
+import static datadog.trace.api.sampling.PrioritySampling.UNSET
+import static datadog.trace.api.sampling.PrioritySampling.USER_DROP
+import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP
+import static datadog.trace.api.sampling.SamplingMechanism.AGENT_RATE
+import static datadog.trace.api.sampling.SamplingMechanism.DEFAULT
+import static datadog.trace.api.sampling.SamplingMechanism.MANUAL
 
 // This test focuses on things that are different between OpenTracing API 0.32.0 and 0.33.0
 class OT33ApiTest extends DDSpecification {
@@ -64,26 +69,6 @@ class OT33ApiTest extends DDSpecification {
     cleanup:
     scope.close()
     span.finish()
-  }
-
-  def "test custom scopemanager"() {
-    setup:
-    def customTracer = DDTracer.builder().writer(writer).scopeManager(new ThreadLocalScopeManager()).build()
-    def coreTracer = customTracer.tracer
-
-    when:
-    def span = customTracer.buildSpan("some name").start()
-    def scope = customTracer.scopeManager().activate(span)
-
-    then:
-    customTracer.activeSpan().delegate == span.delegate
-    coreTracer.activeScope().span() == span.delegate
-    coreTracer.activeSpan() == span.delegate
-
-    cleanup:
-    scope.close()
-    span.finish()
-    customTracer.close()
   }
 
   def "test inject extract"() {

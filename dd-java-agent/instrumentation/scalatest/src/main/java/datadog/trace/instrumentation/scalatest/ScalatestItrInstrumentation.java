@@ -22,7 +22,7 @@ import scala.Tuple2;
 
 @AutoService(InstrumenterModule.class)
 public class ScalatestItrInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   public ScalatestItrInstrumentation() {
     super("ci-visibility", "scalatest");

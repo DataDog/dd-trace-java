@@ -19,7 +19,7 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public final class AbstractClientStreamInstrumentation extends InstrumenterModule.Profiling
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public AbstractClientStreamInstrumentation() {
     super("grpc", "grpc-client");

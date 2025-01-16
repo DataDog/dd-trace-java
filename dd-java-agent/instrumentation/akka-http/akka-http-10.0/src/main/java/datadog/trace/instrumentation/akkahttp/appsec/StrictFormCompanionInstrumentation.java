@@ -20,7 +20,7 @@ import net.bytebuddy.asm.Advice;
 /** @see akka.http.scaladsl.common.StrictForm$#unmarshaller(Unmarshaller, Unmarshaller) */
 @AutoService(InstrumenterModule.class)
 public class StrictFormCompanionInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public StrictFormCompanionInstrumentation() {
     super("akka-http");
   }

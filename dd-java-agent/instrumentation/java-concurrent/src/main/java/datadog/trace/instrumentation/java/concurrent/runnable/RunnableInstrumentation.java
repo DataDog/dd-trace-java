@@ -28,7 +28,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 /** Instrument {@link Runnable} */
 @AutoService(InstrumenterModule.class)
 public final class RunnableInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForBootstrap,
+        Instrumenter.ForTypeHierarchy,
+        Instrumenter.HasMethodAdvice {
 
   public RunnableInstrumentation() {
     super(EXECUTOR_INSTRUMENTATION_NAME, RUNNABLE_INSTRUMENTATION_NAME);

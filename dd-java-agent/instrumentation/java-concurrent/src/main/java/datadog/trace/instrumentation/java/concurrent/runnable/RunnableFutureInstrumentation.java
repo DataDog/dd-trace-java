@@ -37,7 +37,10 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class RunnableFutureInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy, ExcludeFilterProvider {
+    implements Instrumenter.ForBootstrap,
+        Instrumenter.ForTypeHierarchy,
+        Instrumenter.HasMethodAdvice,
+        ExcludeFilterProvider {
   public RunnableFutureInstrumentation() {
     super(EXECUTOR_INSTRUMENTATION_NAME, "runnable-future");
   }
