@@ -173,6 +173,30 @@ public class GatewayBridge {
     }
   }
 
+  /**
+   * This method clears all the cached subscriptions, should be used everytime the configuration
+   * changes and new addresses might appear or disappear from the config.
+   */
+  public void reset() {
+    initialReqDataSubInfo = null;
+    rawRequestBodySubInfo = null;
+    requestBodySubInfo = null;
+    pathParamsSubInfo = null;
+    respDataSubInfo = null;
+    grpcServerMethodSubInfo = null;
+    grpcServerRequestMsgSubInfo = null;
+    graphqlServerRequestMsgSubInfo = null;
+    requestEndSubInfo = null;
+    dbSqlQuerySubInfo = null;
+    ioNetUrlSubInfo = null;
+    ioFileSubInfo = null;
+    sessionIdSubInfo = null;
+    userIdSubInfo = null;
+    loginEventSubInfo.clear();
+    execCmdSubInfo = null;
+    shellCmdSubInfo = null;
+  }
+
   private Flow<Void> onUser(
       final RequestContext ctx_, final UserIdCollectionMode mode, final String originalUser) {
     if (mode == DISABLED) {
