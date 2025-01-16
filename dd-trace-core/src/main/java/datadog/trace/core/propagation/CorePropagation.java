@@ -14,6 +14,7 @@ public class CorePropagation implements AgentPropagation {
   private final HttpCodec.Injector injector;
   private final Map<TracePropagationStyle, HttpCodec.Injector> injectors;
   private final DataStreamContextInjector dataStreamContextInjector;
+  private final W3CBaggageInjector baggageInjector;
   private final HttpCodec.Extractor extractor;
 
   /**
@@ -29,11 +30,13 @@ public class CorePropagation implements AgentPropagation {
       HttpCodec.Extractor extractor,
       HttpCodec.Injector defaultInjector,
       Map<TracePropagationStyle, HttpCodec.Injector> injectors,
-      DataStreamContextInjector dataStreamContextInjector) {
+      DataStreamContextInjector dataStreamContextInjector,
+      W3CBaggageInjector baggageInjector) {
     this.extractor = extractor;
     this.injector = defaultInjector;
     this.injectors = injectors;
     this.dataStreamContextInjector = dataStreamContextInjector;
+    this.baggageInjector = baggageInjector;
   }
 
   @Override

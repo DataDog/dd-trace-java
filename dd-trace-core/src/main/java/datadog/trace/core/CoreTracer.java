@@ -74,6 +74,8 @@ import datadog.trace.common.writer.Writer;
 import datadog.trace.common.writer.WriterFactory;
 import datadog.trace.common.writer.ddintake.DDIntakeTraceInterceptor;
 import datadog.trace.context.TraceScope;
+import datadog.trace.core.propagation.W3CBaggageExtractor;
+import datadog.trace.core.propagation.W3CBaggageInjector;
 import datadog.trace.core.datastreams.DataStreamContextInjector;
 import datadog.trace.core.datastreams.DataStreamsMonitoring;
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring;
@@ -707,17 +709,19 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     sharedCommunicationObjects.whenReady(this.dataStreamsMonitoring::start);
 
-    // Create default extractor from config if not provided and decorate it with DSM extractor
+    // Create default extractor from config if not provided and decorate it with DSM and baggage extractors
     HttpCodec.Extractor builtExtractor =
         extractor == null ? HttpCodec.createExtractor(config, this::captureTraceConfig) : extractor;
     builtExtractor = this.dataStreamsMonitoring.extractor(builtExtractor);
-    // Create all HTTP injectors plus the DSM one
+    builtExtractor = new W3CBaggageExtractor(builtExtractor);
+    // Create all HTTP injectors plus the DSM and baggage injectors
     Map<TracePropagationStyle, HttpCodec.Injector> injectors =
         HttpCodec.allInjectorsFor(config, invertMap(baggageMapping));
     DataStreamContextInjector dataStreamContextInjector = this.dataStreamsMonitoring.injector();
+    W3CBaggageInjector baggageInjector = new W3CBaggageInjector();
     // Store all propagators to propagation
     this.propagation =
-        new CorePropagation(builtExtractor, injector, injectors, dataStreamContextInjector);
+        new CorePropagation(builtExtractor, injector, injectors, dataStreamContextInjector, baggageInjector);
 
     this.tagInterceptor =
         null == tagInterceptor ? new TagInterceptor(new RuleFlags(config)) : tagInterceptor;

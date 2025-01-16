@@ -1,8 +1,7 @@
-package datadog.trace.core.baggage;
+package datadog.trace.core.propagation;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
-import datadog.trace.core.propagation.HttpCodec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,6 +16,10 @@ public class W3CBaggageExtractor implements HttpCodec.Extractor {
   @Override
   public <C> TagContext extract(C carrier, AgentPropagation.ContextVisitor<C> getter) {
     // delegate to the default HTTP extraction
-    return this.delegate.extract(carrier, getter);
+    TagContext context = this.delegate.extract(carrier, getter);
+
+    // TODO: extract baggage from carrier and add it to context
+
+    return context;
   }
 }
