@@ -115,6 +115,7 @@ public class LogManagerSetter {
             "profiling should start in premain when no custom log manager is set.");
       }
     }
+    System.out.println("LogManagerSetter complete");
   }
 
   private static void customAssert(
