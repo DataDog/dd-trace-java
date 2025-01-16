@@ -252,16 +252,16 @@ class ScopeManagerTest extends DDCoreSpecification {
 
   def "DDScope only creates continuations when propagation is set"() {
     when:
-    def span = tracer.buildSpan("test").start()
+    def span = tracer.buildSpan("test", "test").start()
     def scope = tracer.activateSpan(span)
-    setAsyncPropagation(false)
+    tracer.setAsyncPropagation(false)
     def continuation = concurrent ? scope.captureConcurrent() : scope.capture()
 
     then:
     continuation == null
 
     when:
-    setAsyncPropagation(true)
+    tracer.setAsyncPropagation(true)
     continuation = concurrent ? scope.captureConcurrent() : scope.capture()
 
     then:
