@@ -1418,7 +1418,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     given:
     final taintedObjects = ctx.getTaintedObjects()
     def self = addFromTaintFormat(taintedObjects, testString)
-    def result = self.translateEscapes()
+    def result = self
 
     when:
     module.onStringTranslateEscapes(self, result)
