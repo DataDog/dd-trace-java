@@ -32,6 +32,8 @@ import datadog.trace.civisibility.source.NoOpSourcePathResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.source.index.RepoIndexProvider;
 import datadog.trace.civisibility.source.index.RepoIndexSourcePathResolver;
+import datadog.trace.util.Strings;
+import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
@@ -66,8 +68,8 @@ public class CiVisibilityRepoServices {
       LOGGER.info("PR detected: {}", pullRequestInfo);
     }
 
-    repoRoot = ciInfo.getNormalizedCiWorkspace();
-    moduleName = getModuleName(services.config, path, ciInfo);
+    repoRoot = appendSlashIfNeeded(getRepoRoot(ciInfo, services.gitClientFactory));
+    moduleName = getModuleName(services.config, repoRoot, path);
     ciTags = new CITagsProvider().getCiTags(ciInfo, pullRequestInfo);
 
     gitDataUploader =
@@ -98,13 +100,41 @@ public class CiVisibilityRepoServices {
     }
   }
 
-  static String getModuleName(Config config, Path path, CIInfo ciInfo) {
+  private static String getRepoRoot(CIInfo ciInfo, GitClient.Factory gitClientFactory) {
+    String ciWorkspace = ciInfo.getNormalizedCiWorkspace();
+    if (Strings.isNotBlank(ciWorkspace)) {
+      return ciWorkspace;
+
+    } else {
+      try {
+        return gitClientFactory.create(".").getRepoRoot();
+
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        LOGGER.error("Interrupted while getting repo root", e);
+        return null;
+
+      } catch (Exception e) {
+        LOGGER.error("Error while getting repo root", e);
+        return null;
+      }
+    }
+  }
+
+  private static String appendSlashIfNeeded(String repoRoot) {
+    if (repoRoot != null && !repoRoot.endsWith(File.separator)) {
+      return repoRoot + File.separator;
+    } else {
+      return repoRoot;
+    }
+  }
+
+  static String getModuleName(Config config, String repoRoot, Path path) {
     // if parent process is instrumented, it will provide build system's module name
     String parentModuleName = config.getCiVisibilityModuleName();
     if (parentModuleName != null) {
       return parentModuleName;
     }
-    String repoRoot = ciInfo.getNormalizedCiWorkspace();
     if (repoRoot != null && path.startsWith(repoRoot)) {
       String relativePath = Paths.get(repoRoot).relativize(path).toString();
       if (!relativePath.isEmpty()) {

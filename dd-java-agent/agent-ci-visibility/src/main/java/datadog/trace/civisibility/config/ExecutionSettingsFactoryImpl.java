@@ -181,11 +181,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
               codeCoverageEnabled,
               testSkippingEnabled,
               flakyTestRetriesEnabled,
-              // knownTests being null covers the following cases:
-              //  - early flake detection is disabled in remote settings
-              //  - early flake detection is disabled via local config killswitch
-              //  - the list of known tests could not be obtained
-              knownTestsByModule != null
+              earlyFlakeDetectionEnabled
                   ? ciVisibilitySettings.getEarlyFlakeDetectionSettings()
                   : EarlyFlakeDetectionSettings.DEFAULT,
               itrCorrelationId,
@@ -278,8 +274,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
       return configurationApi.getFlakyTestsByModule(tracerEnvironment);
 
     } catch (Exception e) {
-      LOGGER.error(
-          "Could not obtain list of flaky tests, flaky test retries will not be available", e);
+      LOGGER.error("Could not obtain list of flaky tests", e);
       return Collections.emptyMap();
     }
   }
@@ -290,9 +285,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
       return configurationApi.getKnownTestsByModule(tracerEnvironment);
 
     } catch (Exception e) {
-      LOGGER.error(
-          "Could not obtain list of known tests, early flakiness detection will not be available",
-          e);
+      LOGGER.error("Could not obtain list of known tests", e);
       return null;
     }
   }
@@ -302,6 +295,9 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
     if (repositoryRoot == null) {
       return Diff.EMPTY;
     }
+    // FIXME nikita: return empty diff if impacted tests detection is disabled (killswitch)
+    // FIXME nikita: add telemetry
+    // FIXME nikita: add file-based granularity fallback if Git executable is not available?
     try {
       GitClient gitClient = gitClientFactory.create(repositoryRoot);
       return gitClient.getGitDiff(

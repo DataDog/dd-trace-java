@@ -1,6 +1,7 @@
 package datadog.trace.civisibility.domain;
 
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import javax.annotation.Nonnull;
@@ -27,6 +28,8 @@ public interface TestFrameworkModule {
 
   boolean isFlaky(TestIdentifier test);
 
+  boolean isModified(TestSourceData testSourceData);
+
   /**
    * Checks if a given test should be skipped with Intelligent Test Runner or not
    *
@@ -45,7 +48,7 @@ public interface TestFrameworkModule {
   boolean skip(TestIdentifier test);
 
   @Nonnull
-  TestRetryPolicy retryPolicy(TestIdentifier test);
+  TestRetryPolicy retryPolicy(TestIdentifier test, TestSourceData testSource);
 
   void end(Long startTime);
 }

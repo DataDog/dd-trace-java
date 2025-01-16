@@ -147,7 +147,11 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       codeowners,
       linesResolver,
       coverageStoreFactory,
-      new ExecutionStrategy(config, executionSettingsFactory.create(JvmInfo.CURRENT_JVM, ""))
+      new ExecutionStrategy(
+      config,
+      executionSettingsFactory.create(JvmInfo.CURRENT_JVM, ""),
+      sourcePathResolver,
+      linesResolver)
       )
     }
 
