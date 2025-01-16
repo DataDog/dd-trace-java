@@ -1,6 +1,7 @@
 package datadog.trace.core.propagation
 
 import datadog.trace.api.Config
+import datadog.trace.api.ProductTs
 import datadog.trace.core.test.DDCoreSpecification
 
 import static datadog.trace.api.sampling.PrioritySampling.*
@@ -72,9 +73,9 @@ class DatadogPropagationTagsTest extends DDCoreSpecification {
     "_dd.p.tid=123456789ABCDEF0"                                                                                                 | null                                       | ["_dd.propagation_error": "malformed_tid 123456789ABCDEF0"] // invalid tid tag value: upper-case characters
     "_dd.p.tid=123456789abcdefg"                                                                                                 | null                                       | ["_dd.propagation_error": "malformed_tid 123456789abcdefg"] // invalid tid tag value: non-hexadecimal characters
     "_dd.p.tid=-123456789abcdef"                                                                                                 | null                                       | ["_dd.propagation_error": "malformed_tid -123456789abcdef"] // invalid tid tag value: non-hexadecimal characters
-    "_dd.p.appsec=1"                                                                                                             | "_dd.p.appsec=1"                           | ["_dd.p.appsec": "1"]
-    "_dd.p.appsec=0"                                                                                                             | null                                       | [:]
-    "_dd.p.appsec=foo"                                                                                                           | null                                       | ["_dd.propagation_error":"decoding_error"]
+    "_dd.p.ts=02"                                                                                                                | "_dd.p.ts=02"                              | ["_dd.p.ts": "02"]
+    "_dd.p.ts=00"                                                                                                                | null                                       | [:]
+    "_dd.p.ts=foo"                                                                                                           | null                                       | ["_dd.propagation_error":"decoding_error"]
   }
 
   def "datadog propagation tags should translate to w3c tags #headerValue"() {
@@ -138,7 +139,7 @@ class DatadogPropagationTagsTest extends DDCoreSpecification {
     ",_dd.p.dm=Value"                                           | SAMPLER_KEEP | AGENT_RATE | "_dd.p.dm=-1"                                               | ["_dd.propagation_error": "decoding_error", "_dd.p.dm": "-1"]
   }
 
-  def "update propagation tags appsec propagation #originalTagSet"() {
+  def "update propagation tags ts propagation #originalTagSet"() {
     setup:
     def config = Mock(Config)
     config.getxDatadogTagsMaxLength() >> 512
@@ -146,20 +147,23 @@ class DatadogPropagationTagsTest extends DDCoreSpecification {
     def propagationTags = propagationTagsFactory.fromHeaderValue(PropagationTags.HeaderType.DATADOG, originalTagSet)
 
     when:
-    propagationTags.updateAppsecPropagation(enabled)
+    propagationTags.updatePropagatedTraceSource(product)
 
     then:
     propagationTags.headerValue(PropagationTags.HeaderType.DATADOG) == expectedHeaderValue
     propagationTags.createTagMap() == tags
 
     where:
-    originalTagSet                         | enabled       | expectedHeaderValue   | tags
+    originalTagSet                       | product       | expectedHeaderValue | tags
     // keep the existing dm tag as is
-    "_dd.p.appsec=1"                       | true          | "_dd.p.appsec=1"      | ["_dd.p.appsec": "1"]
-    "_dd.p.appsec=0"                       | false         | null      | [:]
-    ""                                     | false         | null                  | [:]
+    ""                                   | ProductTs.ASM | "_dd.p.ts=02"       | ["_dd.p.ts": "02"]
+    "_dd.p.ts=00"                        | ProductTs.ASM | "_dd.p.ts=02"       | ["_dd.p.ts": "02"]
+    "_dd.p.ts=02"                        | ProductTs.DBM | "_dd.p.ts=12"       | ["_dd.p.ts": "12"]
     //Invalid input
-    "_dd.p.appsec=foo"                       | false         | null                  | ["_dd.propagation_error": "decoding_error"]
+    "_dd.p.ts="                          | 0             | null                | ["_dd.propagation_error": "decoding_error"]
+    "_dd.p.ts=0"                         | 0             | null                | ["_dd.propagation_error": "decoding_error"]
+    "_dd.p.ts=GG"                        | 0             | null                | ["_dd.propagation_error": "decoding_error"]
+    "_dd.p.ts=foo"                       | 0         | null                  | ["_dd.propagation_error": "decoding_error"]
   }
 
   def extractionLimitExceeded() {

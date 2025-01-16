@@ -7,7 +7,7 @@ import datadog.trace.api.sampling.PrioritySampling
 import java.time.Clock
 import java.util.concurrent.atomic.AtomicLong
 
-class AsmStandaloneSamplerTest extends DDCoreSpecification{
+class ApmTracingDisabledSamplerTest extends DDCoreSpecification{
 
   def writer = new ListWriter()
 
@@ -19,7 +19,7 @@ class AsmStandaloneSamplerTest extends DDCoreSpecification{
         current.get()
       }
     }
-    def sampler = new AsmStandaloneSampler(clock)
+    def sampler = new ApmTracingDisabledSampler(clock)
     def tracer = tracerBuilder().writer(writer).sampler(sampler).build()
 
     when:

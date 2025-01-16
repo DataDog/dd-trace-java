@@ -8,6 +8,7 @@ import com.datadog.iast.model.Vulnerability;
 import com.datadog.iast.model.VulnerabilityBatch;
 import com.datadog.iast.taint.TaintedObjects;
 import datadog.trace.api.Config;
+import datadog.trace.api.ProductTs;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.internal.TraceSegment;
@@ -125,7 +126,7 @@ public class Reporter {
       // TODO: We need to check if we can have an API with more fine-grained semantics on why traces
       // are kept.
       segment.setTagTop(Tags.ASM_KEEP, true);
-      segment.setTagTop(Tags.PROPAGATED_APPSEC, true);
+      segment.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTs.ASM);
       return batch;
     }
 

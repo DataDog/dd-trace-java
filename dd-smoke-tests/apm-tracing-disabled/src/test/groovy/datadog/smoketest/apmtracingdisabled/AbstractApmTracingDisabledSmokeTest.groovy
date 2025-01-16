@@ -1,10 +1,10 @@
-package datadog.smoketest.asmstandalonebilling
+package datadog.smoketest.apmtracingdisabled
 
 import datadog.smoketest.AbstractServerSmokeTest
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.test.agent.decoder.DecodedTrace
 
-abstract class AbstractAsmStandaloneBillingSmokeTest extends AbstractServerSmokeTest {
+abstract class AbstractApmTracingDisabledSmokeTest extends AbstractServerSmokeTest {
 
   @Override
   File createTemporaryFile(int processIndex) {
@@ -67,7 +67,7 @@ abstract class AbstractAsmStandaloneBillingSmokeTest extends AbstractServerSmoke
   }
 
   protected hasAppsecPropagationTag(DecodedTrace trace) {
-    return trace.spans[0].meta['_dd.p.appsec'] == "1"
+    return trace.spans[0].meta['_dd.p.ts'] == "02"
   }
 
   protected hasApmDisabledTag(DecodedTrace trace) {

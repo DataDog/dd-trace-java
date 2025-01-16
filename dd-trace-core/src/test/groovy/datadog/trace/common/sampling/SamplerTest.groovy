@@ -7,13 +7,13 @@ class SamplerTest extends DDSpecification{
 
   void "test that TimeSampler is selected when experimentalAppSecStandalone is enabled"() {
     setup:
-    System.setProperty("dd.experimental.appsec.standalone.enabled", "true")
+    System.setProperty("dd.apm.tracing.enabled", "false")
     Config config = new Config()
 
     when:
     Sampler sampler = Sampler.Builder.forConfig(config, null)
 
     then:
-    sampler instanceof AsmStandaloneSampler
+    sampler instanceof ApmTracingDisabledSampler
   }
 }

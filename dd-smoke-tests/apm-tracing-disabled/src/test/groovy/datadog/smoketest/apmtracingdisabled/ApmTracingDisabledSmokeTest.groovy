@@ -1,20 +1,20 @@
-package datadog.smoketest.asmstandalonebilling
+package datadog.smoketest.apmtracingdisabled
 
 import okhttp3.Request
 
-class AsmStandaloneBillingSmokeTest extends AbstractAsmStandaloneBillingSmokeTest {
+class ApmTracingDisabledSmokeTest extends AbstractApmTracingDisabledSmokeTest {
 
-  private static final String STANDALONE_BILLING_SERVICE_NAME = "asm-standalone-billing-smoketest-app"
+  private static final String APM_TRACING_DISABLED_SERVICE_NAME = "asm-standalone-billing-smoketest-app"
   private static final String APM_ENABLED_SERVICE_NAME = "apm-enabled-smoketest-app"
 
-  static final String[] STANDALONE_BILLING_PROPERTIES = [
-    "-Ddd.experimental.appsec.standalone.enabled=true",
+  static final String[] APM_TRACING_DISABLED_PROPERTIES = [
+    "-Ddd.apm.tracing.enabled=false",
     "-Ddd.iast.enabled=true",
     "-Ddd.iast.detection.mode=FULL",
     "-Ddd.iast.debug.enabled=true",
     "-Ddd.appsec.enabled=true",
     "-Ddd.trace.tracer.metrics.enabled=true",
-    "-Ddd.service.name=${STANDALONE_BILLING_SERVICE_NAME}",
+    "-Ddd.service.name=${APM_TRACING_DISABLED_SERVICE_NAME}",
   ]
 
   static final String[] APM_ENABLED_PROPERTIES = ["-Ddd.service.name=${APM_ENABLED_SERVICE_NAME}", "-Ddd.trace.tracer.metrics.enabled=true",]
@@ -26,7 +26,7 @@ class AsmStandaloneBillingSmokeTest extends AbstractAsmStandaloneBillingSmokeTes
   @Override
   ProcessBuilder createProcessBuilder(int processIndex) {
     if(processIndex == 0){
-      return createProcess(processIndex, STANDALONE_BILLING_PROPERTIES)
+      return createProcess(processIndex, APM_TRACING_DISABLED_PROPERTIES)
     }
     return createProcess(processIndex, APM_ENABLED_PROPERTIES)
   }
@@ -46,7 +46,7 @@ class AsmStandaloneBillingSmokeTest extends AbstractAsmStandaloneBillingSmokeTes
     response1.successful
     response2.successful
     waitForTraceCount(2)
-    hasApmDisabledTag(getServiceTrace(STANDALONE_BILLING_SERVICE_NAME))
+    hasApmDisabledTag(getServiceTrace(APM_TRACING_DISABLED_SERVICE_NAME))
     !hasApmDisabledTag(getServiceTrace(APM_ENABLED_SERVICE_NAME))
   }
 
@@ -68,7 +68,7 @@ class AsmStandaloneBillingSmokeTest extends AbstractAsmStandaloneBillingSmokeTes
     isLogPresent { it.contains('datadog.trace.agent.common.metrics.MetricsAggregatorFactory - tracer metrics disabled') }
   }
 
-  void 'test _dd.p.appsec propagation for appsec event'() {
+  void 'test _dd.p.ts propagation for appsec event'() {
     setup:
     final downstreamUrl = "http://localhost:${httpPorts[1]}/rest-api/greetings"
     final url = localUrl + "url=${downstreamUrl}"
@@ -77,7 +77,7 @@ class AsmStandaloneBillingSmokeTest extends AbstractAsmStandaloneBillingSmokeTes
     when: "Request to an endpoint that triggers ASM events and then calls another endpoint"
     final response1 = client.newCall(request).execute()
 
-    then: "Both traces should have a root span with _dd.p.appsec=1 tag"
+    then: "Both traces should have a root span with _dd.p.ts=02 tag"
     response1.successful
     waitForTraceCount(2)
     assert traces.size() == 2

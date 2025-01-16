@@ -35,9 +35,9 @@ public interface Sampler {
     public static Sampler forConfig(final Config config, final TraceConfig traceConfig) {
       Sampler sampler;
       if (config != null) {
-        if (config.isAppSecStandaloneEnabled()) {
+        if (!config.isApmTracingEnabled()) {
           log.debug("APM is disabled. Only 1 trace per minute will be sent.");
-          return new AsmStandaloneSampler(Clock.systemUTC());
+          return new ApmTracingDisabledSampler(Clock.systemUTC());
         }
         final Map<String, String> serviceRules = config.getTraceSamplingServiceRules();
         final Map<String, String> operationRules = config.getTraceSamplingOperationRules();

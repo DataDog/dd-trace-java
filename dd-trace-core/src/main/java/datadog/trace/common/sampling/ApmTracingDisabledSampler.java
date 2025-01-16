@@ -8,21 +8,20 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * This class is designed to only allow 1 APM trace per minute as standalone ASM is only interested
- * in the traces containing ASM events. But the service catalog and the billing need a continuous
- * ingestion of at least at 1 trace per minute to consider a service as being live and billable. In
- * the absence of ASM events, no APM traces must be sent, so we need to let some regular APM traces
- * go through, even in the absence of ASM events.
+ * This class is designed to only allow 1 APM trace per minute for apm tracing disabled. The service
+ * catalog and the billing need a continuous ingestion of at least at 1 trace per minute to consider
+ * a service as being live and billable. In the absence of other products events, no APM traces must
+ * be sent, so we need to let some regular APM traces go through.
  */
-public class AsmStandaloneSampler implements Sampler, PrioritySampler {
+public class ApmTracingDisabledSampler implements Sampler, PrioritySampler {
 
-  private static final Logger log = LoggerFactory.getLogger(AsmStandaloneSampler.class);
+  private static final Logger log = LoggerFactory.getLogger(ApmTracingDisabledSampler.class);
   private static final int RATE_IN_MILLISECONDS = 60000; // 1 minute
 
   private final AtomicLong lastSampleTime;
   private final Clock clock;
 
-  public AsmStandaloneSampler(final Clock clock) {
+  public ApmTracingDisabledSampler(final Clock clock) {
     this.clock = clock;
     this.lastSampleTime = new AtomicLong(clock.millis() - RATE_IN_MILLISECONDS);
   }

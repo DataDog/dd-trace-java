@@ -101,9 +101,9 @@ public abstract class PropagationTags {
   public abstract void fillTagMap(Map<String, String> tagMap);
 
   /** Add the appsec propagation tag to the propagation tags. */
-  public abstract void updateAppsecPropagation(boolean enabled);
+  public abstract void updatePropagatedTraceSource(int product);
 
-  public abstract boolean isAppsecPropagationEnabled();
+  public abstract int getPropagatedTraceSource();
 
   public abstract void updateDebugPropagation(String value);
 

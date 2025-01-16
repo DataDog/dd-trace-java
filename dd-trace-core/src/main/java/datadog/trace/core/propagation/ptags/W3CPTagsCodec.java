@@ -2,6 +2,7 @@ package datadog.trace.core.propagation.ptags;
 
 import static datadog.trace.api.internal.util.LongStringUtils.toHexStringPadded;
 
+import datadog.trace.api.ProductTs;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.propagation.ptags.PTagsFactory.PTags;
@@ -93,7 +94,7 @@ public class W3CPTagsCodec extends PTagsCodec {
     CharSequence origin = null;
     TagValue decisionMakerTagValue = null;
     TagValue traceIdTagValue = null;
-    boolean appsecPropagationEnabled = false;
+    int traceSource = 0;
     int maxUnknownSize = 0;
     CharSequence lastParentId = null;
     while (tagPos < ddMemberValueEnd) {
@@ -147,8 +148,8 @@ public class W3CPTagsCodec extends PTagsCodec {
             decisionMakerTagValue = tagValue;
           } else if (tagKey.equals(TRACE_ID_TAG)) {
             traceIdTagValue = tagValue;
-          } else if (tagKey.equals(APPSEC_TAG)) {
-            appsecPropagationEnabled = tagValue.charAt(0) == '1';
+          } else if (tagKey.equals(TRACE_SOURCE_TAG)) {
+            traceSource = ProductTs.parseBitfieldHex(tagValue.toString());
           } else {
             if (tagPairs == null) {
               // This is roughly the size of a two element linked list but can hold six
@@ -182,7 +183,7 @@ public class W3CPTagsCodec extends PTagsCodec {
         tagPairs,
         decisionMakerTagValue,
         traceIdTagValue,
-        appsecPropagationEnabled,
+        traceSource,
         samplingPriority,
         origin,
         value,
@@ -707,7 +708,7 @@ public class W3CPTagsCodec extends PTagsCodec {
         null,
         null,
         null,
-        false,
+        0,
         PrioritySampling.UNSET,
         null,
         original,
@@ -739,7 +740,7 @@ public class W3CPTagsCodec extends PTagsCodec {
         List<TagElement> tagPairs,
         TagValue decisionMakerTagValue,
         TagValue traceIdTagValue,
-        boolean appsecPropagationEnabled,
+        int traceSource,
         int samplingPriority,
         CharSequence origin,
         String original,
@@ -753,7 +754,7 @@ public class W3CPTagsCodec extends PTagsCodec {
           tagPairs,
           decisionMakerTagValue,
           traceIdTagValue,
-          appsecPropagationEnabled,
+          traceSource,
           samplingPriority,
           origin,
           lastParentId);

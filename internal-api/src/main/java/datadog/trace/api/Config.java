@@ -287,7 +287,6 @@ public class Config {
   private final boolean appSecStackTraceEnabled;
   private final int appSecMaxStackTraces;
   private final int appSecMaxStackTraceDepth;
-  private final boolean appSecStandaloneEnabled;
   private final boolean apiSecurityEnabled;
   private final float apiSecurityRequestSampleRate;
 
@@ -553,6 +552,8 @@ public class Config {
   private final int cloudPayloadTaggingMaxTags;
 
   private final long dependecyResolutionPeriodMillis;
+
+  private final boolean apmTracingEnabled;
 
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
@@ -1292,7 +1293,6 @@ public class Config {
             configProvider.getStringNotEmpty(APPSEC_AUTO_USER_INSTRUMENTATION_MODE, null),
             configProvider.getStringNotEmpty(APPSEC_AUTOMATED_USER_EVENTS_TRACKING, null));
     appSecScaEnabled = configProvider.getBoolean(APPSEC_SCA_ENABLED);
-    appSecStandaloneEnabled = configProvider.getBoolean(APPSEC_STANDALONE_ENABLED, false);
     appSecRaspEnabled = configProvider.getBoolean(APPSEC_RASP_ENABLED, DEFAULT_APPSEC_RASP_ENABLED);
     appSecStackTraceEnabled =
         configProvider.getBoolean(
@@ -1915,6 +1915,8 @@ public class Config {
           "AppSec SCA is enabled but telemetry is disabled. AppSec SCA will not work.");
     }
 
+    this.apmTracingEnabled = configProvider.getBoolean(GeneralConfig.APM_TRACING_ENABLED, true);
+
     log.debug("New instance: {}", this);
   }
 
@@ -2333,7 +2335,7 @@ public class Config {
 
   public boolean isTracerMetricsEnabled() {
     // When ASM Standalone Billing is enabled metrics should be disabled
-    return tracerMetricsEnabled && !isAppSecStandaloneEnabled();
+    return tracerMetricsEnabled && isApmTracingEnabled();
   }
 
   public boolean isTracerMetricsBufferingEnabled() {
@@ -3445,6 +3447,10 @@ public class Config {
     return dataJobsCommandPattern;
   }
 
+  public boolean isApmTracingEnabled() {
+    return apmTracingEnabled;
+  }
+
   /** @return A map of tags to be applied only to the local application root span. */
   public Map<String, Object> getLocalRootSpanTags() {
     final Map<String, String> runtimeTags = getRuntimeTags();
@@ -3453,7 +3459,7 @@ public class Config {
     result.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
     result.put(SCHEMA_VERSION_TAG_KEY, SpanNaming.instance().version());
     result.put(DDTags.PROFILING_ENABLED, isProfilingEnabled() ? 1 : 0);
-    if (isAppSecStandaloneEnabled()) {
+    if (!isApmTracingEnabled()) {
       result.put(APM_ENABLED, 0);
     }
 
@@ -3634,97 +3640,6 @@ public class Config {
 
   private Map<String, Long> getProcessIdTag() {
     return Collections.singletonMap(PID_TAG, getProcessId());
-  }
-
-  private Map<String, String> getAzureAppServicesTags() {
-    // These variable names and derivations are copied from the dotnet tracer
-    // See
-    // https://github.com/DataDog/dd-trace-dotnet/blob/master/tracer/src/Datadog.Trace/PlatformHelpers/AzureAppServices.cs
-    // and
-    // https://github.com/DataDog/dd-trace-dotnet/blob/master/tracer/src/Datadog.Trace/TraceContext.cs#L207
-    Map<String, String> aasTags = new HashMap<>();
-
-    /// The site name of the site instance in Azure where the traced application is running.
-    String siteName = getEnv("WEBSITE_SITE_NAME");
-    if (siteName != null) {
-      aasTags.put("aas.site.name", siteName);
-    }
-
-    // The kind of application instance running in Azure.
-    // Possible values: app, api, mobileapp, app_linux, app_linux_container, functionapp,
-    // functionapp_linux, functionapp_linux_container
-
-    // The type of application instance running in Azure.
-    // Possible values: app, function
-    if (getEnv("FUNCTIONS_WORKER_RUNTIME") != null
-        || getEnv("FUNCTIONS_EXTENSIONS_VERSION") != null) {
-      aasTags.put("aas.site.kind", "functionapp");
-      aasTags.put("aas.site.type", "function");
-    } else {
-      aasTags.put("aas.site.kind", "app");
-      aasTags.put("aas.site.type", "app");
-    }
-
-    //  The resource group of the site instance in Azure App Services
-    String resourceGroup = getEnv("WEBSITE_RESOURCE_GROUP");
-    if (resourceGroup != null) {
-      aasTags.put("aas.resource.group", resourceGroup);
-    }
-
-    // Example: 8c500027-5f00-400e-8f00-60000000000f+apm-dotnet-EastUSwebspace
-    // Format: {subscriptionId}+{planResourceGroup}-{hostedInRegion}
-    String websiteOwner = getEnv("WEBSITE_OWNER_NAME");
-    int plusIndex = websiteOwner == null ? -1 : websiteOwner.indexOf("+");
-
-    // The subscription ID of the site instance in Azure App Services
-    String subscriptionId = null;
-    if (plusIndex > 0) {
-      subscriptionId = websiteOwner.substring(0, plusIndex);
-      aasTags.put("aas.subscription.id", subscriptionId);
-    }
-
-    if (subscriptionId != null && siteName != null && resourceGroup != null) {
-      // The resource ID of the site instance in Azure App Services
-      String resourceId =
-          "/subscriptions/"
-              + subscriptionId
-              + "/resourcegroups/"
-              + resourceGroup
-              + "/providers/microsoft.web/sites/"
-              + siteName;
-      resourceId = resourceId.toLowerCase(Locale.ROOT);
-      aasTags.put("aas.resource.id", resourceId);
-    } else {
-      log.warn(
-          "Unable to generate resource id subscription id: {}, site name: {}, resource group {}",
-          subscriptionId,
-          siteName,
-          resourceGroup);
-    }
-
-    // The instance ID in Azure
-    String instanceId = getEnv("WEBSITE_INSTANCE_ID");
-    instanceId = instanceId == null ? "unknown" : instanceId;
-    aasTags.put("aas.environment.instance_id", instanceId);
-
-    // The instance name in Azure
-    String instanceName = getEnv("COMPUTERNAME");
-    instanceName = instanceName == null ? "unknown" : instanceName;
-    aasTags.put("aas.environment.instance_name", instanceName);
-
-    // The operating system in Azure
-    String operatingSystem = getEnv("WEBSITE_OS");
-    operatingSystem = operatingSystem == null ? "unknown" : operatingSystem;
-    aasTags.put("aas.environment.os", operatingSystem);
-
-    // The version of the extension installed
-    String siteExtensionVersion = getEnv("DD_AAS_JAVA_EXTENSION_VERSION");
-    siteExtensionVersion = siteExtensionVersion == null ? "unknown" : siteExtensionVersion;
-    aasTags.put("aas.environment.extension_version", siteExtensionVersion);
-
-    aasTags.put("aas.environment.runtime", getProp("java.vm.name", "unknown"));
-
-    return aasTags;
   }
 
   private int schemaVersionFromConfig() {
@@ -3948,6 +3863,97 @@ public class Config {
     return telemetryDebugRequestsEnabled;
   }
 
+  private Map<String, String> getAzureAppServicesTags() {
+    // These variable names and derivations are copied from the dotnet tracer
+    // See
+    // https://github.com/DataDog/dd-trace-dotnet/blob/master/tracer/src/Datadog.Trace/PlatformHelpers/AzureAppServices.cs
+    // and
+    // https://github.com/DataDog/dd-trace-dotnet/blob/master/tracer/src/Datadog.Trace/TraceContext.cs#L207
+    Map<String, String> aasTags = new HashMap<>();
+
+    /// The site name of the site instance in Azure where the traced application is running.
+    String siteName = getEnv("WEBSITE_SITE_NAME");
+    if (siteName != null) {
+      aasTags.put("aas.site.name", siteName);
+    }
+
+    // The kind of application instance running in Azure.
+    // Possible values: app, api, mobileapp, app_linux, app_linux_container, functionapp,
+    // functionapp_linux, functionapp_linux_container
+
+    // The type of application instance running in Azure.
+    // Possible values: app, function
+    if (getEnv("FUNCTIONS_WORKER_RUNTIME") != null
+        || getEnv("FUNCTIONS_EXTENSIONS_VERSION") != null) {
+      aasTags.put("aas.site.kind", "functionapp");
+      aasTags.put("aas.site.type", "function");
+    } else {
+      aasTags.put("aas.site.kind", "app");
+      aasTags.put("aas.site.type", "app");
+    }
+
+    //  The resource group of the site instance in Azure App Services
+    String resourceGroup = getEnv("WEBSITE_RESOURCE_GROUP");
+    if (resourceGroup != null) {
+      aasTags.put("aas.resource.group", resourceGroup);
+    }
+
+    // Example: 8c500027-5f00-400e-8f00-60000000000f+apm-dotnet-EastUSwebspace
+    // Format: {subscriptionId}+{planResourceGroup}-{hostedInRegion}
+    String websiteOwner = getEnv("WEBSITE_OWNER_NAME");
+    int plusIndex = websiteOwner == null ? -1 : websiteOwner.indexOf('+');
+
+    // The subscription ID of the site instance in Azure App Services
+    String subscriptionId = null;
+    if (plusIndex > 0) {
+      subscriptionId = websiteOwner.substring(0, plusIndex);
+      aasTags.put("aas.subscription.id", subscriptionId);
+    }
+
+    if (subscriptionId != null && siteName != null && resourceGroup != null) {
+      // The resource ID of the site instance in Azure App Services
+      String resourceId =
+          "/subscriptions/"
+              + subscriptionId
+              + "/resourcegroups/"
+              + resourceGroup
+              + "/providers/microsoft.web/sites/"
+              + siteName;
+      resourceId = resourceId.toLowerCase(Locale.ROOT);
+      aasTags.put("aas.resource.id", resourceId);
+    } else {
+      log.warn(
+          "Unable to generate resource id subscription id: {}, site name: {}, resource group {}",
+          subscriptionId,
+          siteName,
+          resourceGroup);
+    }
+
+    // The instance ID in Azure
+    String instanceId = getEnv("WEBSITE_INSTANCE_ID");
+    instanceId = instanceId == null ? "unknown" : instanceId;
+    aasTags.put("aas.environment.instance_id", instanceId);
+
+    // The instance name in Azure
+    String instanceName = getEnv("COMPUTERNAME");
+    instanceName = instanceName == null ? "unknown" : instanceName;
+    aasTags.put("aas.environment.instance_name", instanceName);
+
+    // The operating system in Azure
+    String operatingSystem = getEnv("WEBSITE_OS");
+    operatingSystem = operatingSystem == null ? "unknown" : operatingSystem;
+    aasTags.put("aas.environment.os", operatingSystem);
+
+    // The version of the extension installed
+    String siteExtensionVersion = getEnv("DD_AAS_JAVA_EXTENSION_VERSION");
+    siteExtensionVersion = siteExtensionVersion == null ? "unknown" : siteExtensionVersion;
+    aasTags.put("aas.environment.extension_version", siteExtensionVersion);
+
+    aasTags.put("aas.environment.runtime", getProp("java.vm.name", "unknown"));
+
+    return aasTags;
+  }
+
   public boolean isAgentlessLogSubmissionEnabled() {
     return agentlessLogSubmissionEnabled;
   }
@@ -3970,10 +3976,6 @@ public class Config {
 
   public Boolean getAppSecScaEnabled() {
     return appSecScaEnabled;
-  }
-
-  public boolean isAppSecStandaloneEnabled() {
-    return appSecStandaloneEnabled;
   }
 
   public boolean isAppSecRaspEnabled() {
@@ -4684,8 +4686,8 @@ public class Config {
         + dataJobsEnabled
         + ", dataJobsCommandPattern="
         + dataJobsCommandPattern
-        + ", appSecStandaloneEnabled="
-        + appSecStandaloneEnabled
+        + ", apmTracingEnabled="
+        + apmTracingEnabled
         + ", cloudRequestPayloadTagging="
         + cloudRequestPayloadTagging
         + ", cloudResponsePayloadTagging="
