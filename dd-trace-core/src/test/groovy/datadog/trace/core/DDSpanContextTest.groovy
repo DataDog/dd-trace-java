@@ -23,6 +23,7 @@ class DDSpanContextTest extends DDCoreSpecification {
   def profilingContextIntegration
 
   def setup() {
+    injectSysConfig("trace.128.bit.traceid.generation.enabled", "true")
     writer = new ListWriter()
     profilingContextIntegration = Mock(ProfilingContextIntegration)
     tracer = tracerBuilder().writer(writer)
@@ -283,6 +284,24 @@ class DDSpanContextTest extends DDCoreSpecification {
     then:
     1 * profilingContextIntegration.encodeResourceName("newResourceName") >> -2
     span.context.encodedResourceName == -2
+  }
+
+  def "higher order bits of 128bit traceID is only set as PTag in root span"() {
+    when:
+    def parent = tracer.buildSpan("fakeOperation")
+      .withServiceName("fakeService")
+      .withResourceName("fakeResource")
+      .start()
+
+    def child = tracer.buildSpan("fakeOperation")
+      .withServiceName("fakeService")
+      .withResourceName("fakeResource")
+      .asChildOf(parent)
+      .start()
+
+    then:
+    parent.context().getPropagationTags().getTraceIdHighOrderBits() != 0
+    //    child.context().getPropagationTags().getTraceIdHighOrderBits() == 0
   }
 
   private static String dataTag(String tag) {

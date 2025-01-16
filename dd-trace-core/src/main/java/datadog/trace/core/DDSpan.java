@@ -716,6 +716,7 @@ public class DDSpan
 
   @Override
   public void processTagsAndBaggage(final MetadataConsumer consumer) {
+    System.out.println("Context.toString(): " + context.toString());
     context.processTagsAndBaggage(consumer, longRunningVersion, links);
   }
 
