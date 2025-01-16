@@ -12,6 +12,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import groovy.transform.CompileDynamic
 import org.junit.jupiter.api.Assertions
+import spock.lang.IgnoreIf
 
 import java.text.SimpleDateFormat
 
@@ -1414,11 +1415,12 @@ class StringModuleTest extends IastModuleImplTestBase {
     taintFormat(result, taintedObject.getRanges()) == "==>my_input<=="
   }
 
+  @IgnoreIf({ System.getProperty('java.specification.version').toBigDecimal() < 15 })
   void 'test translate escapes'() {
     given:
     final taintedObjects = ctx.getTaintedObjects()
     def self = addFromTaintFormat(taintedObjects, testString)
-    def result = self
+    def result = self.translateEscapes()
 
     when:
     module.onStringTranslateEscapes(self, result)
