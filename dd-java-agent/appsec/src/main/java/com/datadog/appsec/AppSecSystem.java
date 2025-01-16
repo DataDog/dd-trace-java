@@ -129,9 +129,12 @@ public class AppSecSystem {
       return;
     }
     REPLACEABLE_EVENT_PRODUCER = null;
-    STOP_SUBSCRIPTION_SERVICE.run();
-    STOP_SUBSCRIPTION_SERVICE = null;
-    RESET_SUBSCRIPTION_SERVICE = null;
+    final Runnable stop = STOP_SUBSCRIPTION_SERVICE;
+    if (stop != null) {
+      stop.run();
+      STOP_SUBSCRIPTION_SERVICE = null;
+      RESET_SUBSCRIPTION_SERVICE = null;
+    }
     Blocking.setBlockingService(BlockingService.NOOP);
 
     APP_SEC_CONFIG_SERVICE.close();
@@ -180,8 +183,9 @@ public class AppSecSystem {
 
     replaceableEventProducerService.replaceEventProducerService(newEd);
 
-    if (RESET_SUBSCRIPTION_SERVICE != null) {
-      RESET_SUBSCRIPTION_SERVICE.run();
+    final Runnable reset = RESET_SUBSCRIPTION_SERVICE;
+    if (reset != null) {
+      reset.run();
     }
   }
 
