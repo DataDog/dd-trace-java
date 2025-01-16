@@ -1,13 +1,13 @@
 package datadog.trace.instrumentation.weaver
 
-import sbt.testing._
+import sbt.testing.*
 import weaver.framework.CatsFingerprints.SuiteFingerprint
 import weaver.framework.{CatsEffect, LoggedEvent}
-import scala.jdk.CollectionConverters._
 
 import java.io.PrintStream
+import scala.jdk.CollectionConverters.*
 
-object WeaverInstrumentationTestRunner {
+object WeaverIntegrationTestRunner {
   def runTests(testNames: java.util.List[String]): Unit = {
     class WeaverTestEventHandler() extends EventHandler {
       val events = scala.collection.mutable.ListBuffer.empty[sbt.testing.Event]
