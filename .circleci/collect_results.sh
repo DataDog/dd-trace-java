@@ -4,7 +4,7 @@
 # This folder will be saved by circleci and available after test runs.
 
 set -e
-#Enable '**' support
+# Enable '**' support
 shopt -s globstar
 
 TEST_RESULTS_DIR=results
@@ -23,34 +23,26 @@ echo "Saving test results:"
 while IFS= read -r -d '' RESULT_XML_FILE
 do
   echo -n "- $RESULT_XML_FILE"
-
-
-  # Get source file of XML file
-  FILE_PATH="${RESULT_XML_FILE%%"build"*}"
-  FILE_PATH="${FILE_PATH/#workspace\//}"
-  FILE="${RESULT_XML_FILE##*"TEST-"}"
-  CLASS="${FILE%%".xml"*}"
-  if [[ $CLASS == *"#"* ]]; then
-    # NOTE: if the XML file is of a particular test case, the source file is set to the parent test directory of the file that the test case was run from
-    SUBDIRS="src/test"
-  else
-    CLASS_FILE="${CLASS//./\/}"
-    SUBDIRS="src/test/groovy/$CLASS_FILE.groovy"
+  # Get source file for testcases
+  FILE_PATH="${RESULT_XML_FILE%%"/build"*}"
+  FILE_PATH="${FILE_PATH/#"$WORKSPACE_DIR"\//}/src"
+  if ! [[ $RESULT_XML_FILE == *"#"* ]]; then
+    CLASS="${RESULT_XML_FILE%.xml}"
+    CLASS="${CLASS##*"."}"
+    CLASS_PATH=$(grep -rl "class $CLASS" "$FILE_PATH" | tail -n 1)
+    FILE_PATH="$CLASS_PATH"
   fi
-  FILE_PATH+="$SUBDIRS"
-  echo -n "$FILE_PATH"
-
-
   AGGREGATED_FILE_NAME=$(echo "$RESULT_XML_FILE" | rev | cut -d "/" -f 1,2,5 | rev | tr "/" "_")
   echo -n " as $AGGREGATED_FILE_NAME"
   cp "$RESULT_XML_FILE" "$TEST_RESULTS_DIR/$AGGREGATED_FILE_NAME"
-
-
   # Insert file attribute to testcase XML nodes
-  # NOTE: this assumes the same source file to each test case of the XML
+  echo "***"
+  echo "FILEPATH: $FILE_PATH"
+  echo "***"
   sed -i "/<testcase/ s|\(time=\"[^\"]*\"\)|\1 file=\"$FILE_PATH\"|g" "$TEST_RESULTS_DIR/$AGGREGATED_FILE_NAME"
-
-
+  echo "---"
+  cat "$TEST_RESULTS_DIR/$AGGREGATED_FILE_NAME"
+  echo "---"
   # Replace Java Object hashCode by marker in testcase XML nodes to get stable test names
   sed -i '/<testcase/ s/@[0-9a-f]\{5,\}/@HASHCODE/g' "$TEST_RESULTS_DIR/$AGGREGATED_FILE_NAME"
   # Replace random port numbers by marker in testcase XML nodes to get stable test names
