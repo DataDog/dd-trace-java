@@ -17,7 +17,7 @@ public final class ShadedAdviceLocator implements ClassFileLocator {
   public Resolution locate(String className) throws IOException {
     final Resolution resolution = adviceLocator.locate(className);
     if (resolution.isResolved()) {
-      return new Resolution.Explicit(adviceShader.shade(resolution.resolve()));
+      return new Resolution.Explicit(adviceShader.shadeClass(resolution.resolve()));
     } else {
       return resolution;
     }

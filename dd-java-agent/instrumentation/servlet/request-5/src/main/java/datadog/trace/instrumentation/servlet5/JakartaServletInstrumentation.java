@@ -11,9 +11,9 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.ClassloaderConfigurationOverrides;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
-import datadog.trace.api.naming.ClassloaderServiceNames;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import jakarta.servlet.ServletRequest;
@@ -61,7 +61,7 @@ public class JakartaServletInstrumentation extends InstrumenterModule.Tracing
       if (span instanceof AgentSpan
           && CallDepthThreadLocalMap.incrementCallDepth(HttpServletRequest.class) == 0) {
         final AgentSpan agentSpan = (AgentSpan) span;
-        ClassloaderServiceNames.maybeSetToSpan(agentSpan);
+        ClassloaderConfigurationOverrides.maybeEnrichSpan(agentSpan);
         return agentSpan;
       }
       return null;

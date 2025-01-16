@@ -1,18 +1,24 @@
 package com.datadog.iast.securitycontrol
 
+import com.datadog.iast.IastModuleImplTestBase
+import com.datadog.iast.sink.XssModuleImpl
+import static com.datadog.iast.taint.TaintUtils.addFromTaintFormat
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.VulnerabilityMarks
+import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
+import datadog.trace.api.iast.VulnerabilityTypes
 import datadog.trace.api.iast.propagation.PropagationModule
 import datadog.trace.api.iast.securitycontrol.SecurityControl
 import datadog.trace.api.iast.securitycontrol.SecurityControlFormatter
-import datadog.trace.test.util.DDSpecification
+import static datadog.trace.api.iast.telemetry.IastMetric.SUPPRESSED_VULNERABILITIES
+import datadog.trace.api.iast.telemetry.IastMetricCollector
 import foo.bar.securitycontrol.SecurityControlStaticTestSuite
 import foo.bar.securitycontrol.SecurityControlTestSuite
 import net.bytebuddy.agent.ByteBuddyAgent
 
 import java.lang.instrument.Instrumentation
 
-class IastSecurityControlTransformerForkedTest extends DDSpecification{
+class IastSecurityControlTransformerForkedTest extends IastModuleImplTestBase{
 
   //static methods
   private static final String STATIC_SANITIZER = 'SANITIZER:XSS:foo.bar.securitycontrol.SecurityControlStaticTestSuite:sanitize'
@@ -43,6 +49,7 @@ class IastSecurityControlTransformerForkedTest extends DDSpecification{
   private static final String INPUT_VALIDATOR_VALIDATE_SELECTED_LONG = 'INPUT_VALIDATOR:XSS:foo.bar.securitycontrol.SecurityControlTestSuite:validateSelectedLong:0'
 
 
+  private IastMetricCollector mockCollector
 
   def setupSpec() {
     final staticConfig = "${STATIC_SANITIZER};${STATIC_SANITIZE_VALIDATE_OBJECT};${STATIC_SANITIZE_INPUTS};${STATIC_SANITIZE_MANY_INPUTS};${STATIC_SANITIZE_INT};${STATIC_SANITIZE_LONG};${STATIC_INPUT_VALIDATOR_VALIDATE_ALL};${STATIC_INPUT_VALIDATOR_VALIDATE_OVERLOADED};${STATIC_INPUT_VALIDATOR_VALIDATE_RETURNING_INT};${STATIC_INPUT_VALIDATOR_VALIDATE_OBJECT};${STATIC_INPUT_VALIDATOR_VALIDATE_LONG};${STATIC_INPUT_VALIDATOR_VALIDATE_SELECTED_LONG}"
@@ -55,18 +62,23 @@ class IastSecurityControlTransformerForkedTest extends DDSpecification{
     instrumentation.addTransformer(new IastSecurityControlTransformer(securityControls), true)
   }
 
+  void setup() {
+    mockCollector = Mock(IastMetricCollector)
+    ctx.collector = mockCollector
+  }
+
 
   void 'test sanitize'(){
     given:
-    final iastModule = Mock(PropagationModule)
-    InstrumentationBridge.registerIastModule(iastModule)
+    final propagationModule = Mock(PropagationModule)
+    InstrumentationBridge.registerIastModule(propagationModule)
     final marks = (VulnerabilityMarks.XSS_MARK | VulnerabilityMarks.CUSTOM_SECURITY_CONTROL_MARK)
 
     when:
     SecurityControlStaticTestSuite.&"$method".call(*args)
 
     then:
-    expected * iastModule.markIfTainted( toSanitize, marks)
+    expected * propagationModule.markIfTainted( toSanitize, marks)
     0 * _
 
     when:
@@ -74,7 +86,7 @@ class IastSecurityControlTransformerForkedTest extends DDSpecification{
     suite.&"$method".call(*args)
 
     then:
-    expected * iastModule.markIfTainted( toSanitize, marks)
+    expected * propagationModule.markIfTainted( toSanitize, marks)
     0 * _
 
     where:
@@ -89,8 +101,8 @@ class IastSecurityControlTransformerForkedTest extends DDSpecification{
 
   void 'test validate'(){
     given:
-    final iastModule = Mock(PropagationModule)
-    InstrumentationBridge.registerIastModule(iastModule)
+    final propagationModule = Mock(PropagationModule)
+    InstrumentationBridge.registerIastModule(propagationModule)
     final marks = (VulnerabilityMarks.XSS_MARK | VulnerabilityMarks.CUSTOM_SECURITY_CONTROL_MARK)
 
     when:
@@ -98,7 +110,7 @@ class IastSecurityControlTransformerForkedTest extends DDSpecification{
 
     then:
     for (final validate : toValidate){
-      expected * iastModule.markIfTainted(validate, marks)
+      expected * propagationModule.markIfTainted(validate, marks)
     }
     0 * _
 
@@ -108,7 +120,7 @@ class IastSecurityControlTransformerForkedTest extends DDSpecification{
 
     then:
     for (final validate : toValidate){
-      expected * iastModule.markIfTainted(validate, marks)
+      expected * propagationModule.markIfTainted(validate, marks)
     }
     0 * _
 
@@ -127,5 +139,37 @@ class IastSecurityControlTransformerForkedTest extends DDSpecification{
     'validateLong'         | [1L, 'test2', 2L]                                                                          | [args[1]]          | 1
     'validateSelectedLong' | [1L]                                                                                       | args               | 0
     'validateSelectedLong' | [1L, 2L]                                                                                   | [args[0]]          | 0
+  }
+
+  void 'test metrics'() {
+    setup:
+    final iastModule = new XssModuleImpl(dependencies)
+    final param = mapTainted(s, mark)
+
+    when:
+    iastModule.onXss(param as String)
+
+    then:
+    expected * mockCollector.addMetric(SUPPRESSED_VULNERABILITIES, VulnerabilityTypes.XSS, 1)
+
+    where:
+    s            | mark                                                                   | expected
+    null         | NOT_MARKED                                                             | 0
+    '/var'       | NOT_MARKED                                                             | 0
+    '/==>var<==' | NOT_MARKED                                                             | 0
+    '/==>var<==' | VulnerabilityMarks.XSS_MARK                                            | 0
+    '/==>var<==' | VulnerabilityMarks.SQL_INJECTION_MARK                                  | 0
+    '/==>var<==' | combine(VulnerabilityMarks.SQL_INJECTION_MARK, VulnerabilityMarks.CUSTOM_SECURITY_CONTROL_MARK) | 0
+    '/==>var<==' | combine(VulnerabilityMarks.XSS_MARK, VulnerabilityMarks.CUSTOM_SECURITY_CONTROL_MARK)           | 1
+  }
+
+  private static int combine(int mark1, int mark2) {
+    return mark1 | mark2 // Perform the bitwise OR
+  }
+
+  private String mapTainted(final String value, final int mark) {
+    final result = addFromTaintFormat(ctx.taintedObjects, value, mark)
+    objectHolder.add(result)
+    return result
   }
 }

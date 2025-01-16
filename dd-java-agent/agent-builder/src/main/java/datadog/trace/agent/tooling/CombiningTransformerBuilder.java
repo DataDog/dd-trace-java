@@ -119,7 +119,7 @@ public final class CombiningTransformerBuilder
                 new FieldBackedContextRequestRewriter(contextStore, module.name()))
             : null;
 
-    adviceShader = AdviceShader.with(module.adviceShading());
+    adviceShader = AdviceShader.with(module);
 
     String[] helperClassNames = module.helperClassNames();
     if (module.injectHelperDependencies()) {

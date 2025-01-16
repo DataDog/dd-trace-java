@@ -2,6 +2,7 @@ package com.datadog.iast.sink;
 
 import static com.datadog.iast.util.ObjectVisitor.State.CONTINUE;
 import static com.datadog.iast.util.ObjectVisitor.State.EXIT;
+import static datadog.trace.api.iast.VulnerabilityMarks.CUSTOM_SECURITY_CONTROL_MARK;
 
 import com.datadog.iast.Dependencies;
 import com.datadog.iast.Reporter;
@@ -22,6 +23,8 @@ import datadog.trace.api.Config;
 import datadog.trace.api.Pair;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.Taintable;
+import datadog.trace.api.iast.telemetry.IastMetric;
+import datadog.trace.api.iast.telemetry.IastMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.instrumentation.iastinstrumenter.IastExclusionTrie;
@@ -126,6 +129,7 @@ public abstract class SinkModuleBase {
       final TaintedObject tainted = origin == null ? null : to.get(origin);
       if (origin != null && tainted != null) {
         valueRanges = Ranges.getNotMarkedRanges(tainted.getRanges(), type.mark());
+        addSecurityControlMetrics(ctx, valueRanges, tainted.getRanges(), type);
         value = origin;
       } else {
         valueRanges = Ranges.forObject((Source) taintable.$$DD$getSource(), type.mark());
@@ -137,15 +141,28 @@ public abstract class SinkModuleBase {
         return null;
       }
       valueRanges = Ranges.getNotMarkedRanges(tainted.getRanges(), type.mark());
+      addSecurityControlMetrics(ctx, valueRanges, tainted.getRanges(), type);
     }
 
     if (valueRanges == null || valueRanges.length == 0) {
       return null;
     }
 
+    // filter excluded ranges
+    final Range[] filteredRanges;
+    if (!type.excludedSources().isEmpty()) {
+      filteredRanges = Ranges.excludeRangesBySource(valueRanges, type.excludedSources());
+    } else {
+      filteredRanges = valueRanges;
+    }
+
+    if (filteredRanges == null || filteredRanges.length == 0) {
+      return null;
+    }
+
     final StringBuilder evidence = new StringBuilder();
     final RangeBuilder ranges = new RangeBuilder();
-    addToEvidence(type, evidence, ranges, value, valueRanges, evidenceBuilder);
+    addToEvidence(type, evidence, ranges, value, filteredRanges, evidenceBuilder);
 
     // check if finally we have an injection
     if (ranges.isEmpty()) {
@@ -158,6 +175,25 @@ public abstract class SinkModuleBase {
     }
 
     return report(span, type, evidence, ranges, locationSupplier);
+  }
+
+  private void addSecurityControlMetrics(
+      @Nonnull final IastContext ctx,
+      @Nullable final Range[] valueRanges,
+      @Nonnull final Range[] taintedRanges,
+      @Nonnull final VulnerabilityType type) {
+    if ((valueRanges != null
+            && valueRanges.length
+                != 0) // ranges without the vulnerability mark implies vulnerability
+        || taintedRanges.length == 0 // no tainted ranges
+    ) {
+      return;
+    }
+    // check if there are tainted ranges without the security control mark
+    Range[] marked = Ranges.getNotMarkedRanges(taintedRanges, CUSTOM_SECURITY_CONTROL_MARK);
+    if (marked == null || marked.length == 0) {
+      IastMetricCollector.add(IastMetric.SUPPRESSED_VULNERABILITIES, type.type(), 1, ctx);
+    }
   }
 
   @Nullable
@@ -207,6 +243,7 @@ public abstract class SinkModuleBase {
       Range[] valueRanges = null;
       if (tainted != null) {
         valueRanges = Ranges.getNotMarkedRanges(tainted.getRanges(), type.mark());
+        addSecurityControlMetrics(ctx, valueRanges, tainted.getRanges(), type);
       }
       addToEvidence(type, evidence, ranges, value, valueRanges, evidenceBuilder);
 

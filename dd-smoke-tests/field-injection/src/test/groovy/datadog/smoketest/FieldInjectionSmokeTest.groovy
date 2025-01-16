@@ -33,7 +33,9 @@ class FieldInjectionSmokeTest extends Specification {
   @Shared
   protected String shadowJarPath = System.getProperty("datadog.smoketest.agent.shadowJar.path")
   @Shared
-  protected String logFilePath = "${buildDirectory}/reports/testProcess.${this.getClass().getName()}.log"
+  protected String outFilePath = "${buildDirectory}/reports/testProcess.${this.getClass().getName()}.out.log"
+  @Shared
+  protected String errFilePath = "${buildDirectory}/reports/testProcess.${this.getClass().getName()}.err.log"
 
   def "types are injected with expected fields"() {
     setup:
@@ -72,21 +74,36 @@ class FieldInjectionSmokeTest extends Specification {
     processBuilder.directory(new File(buildDirectory))
     processBuilder.environment().put("JAVA_HOME", System.getProperty("java.home"))
 
-    Path testOutput = Paths.get(logFilePath)
-    processBuilder.redirectErrorStream(true)
-    processBuilder.redirectOutput(testOutput.toFile())
+    Path testOut = Paths.get(outFilePath)
+    Path testErr = Paths.get(errFilePath)
+    processBuilder.redirectOutput(testOut.toFile())
+    processBuilder.redirectError(testErr.toFile())
     Process testedProcess = processBuilder.start()
 
     expect:
     testedProcess.waitFor(TIMEOUT_SECS, SECONDS)
     testedProcess.exitValue() == 0
-    List<String> lines = Files.readAllLines(testOutput)
+    List<String> linesOut = Files.readAllLines(testOut)
+    List<String> linesErr = Files.readAllLines(testErr)
     Map<String, Set<String>> foundTypesAndFields = new HashMap<>()
     Map<String, List<String>> foundTypesAndInterfaces = new HashMap<>()
     Map<String, List<String>> foundTypesAndGenericInterfaces = new HashMap<>()
     Map<String, String> storeFieldAliases = new HashMap<>()
-    for (String line : lines) {
+    for (String line : linesErr) {
+      System.err.println(line)
+      // extract context-store allocations from tracer logging
+      Matcher storeAllocation = CONTEXT_STORE_ALLOCATION.matcher(line)
+      if (storeAllocation.matches()) {
+        // assertions use context key while internally we use storeId,
+        // so we need to record the storeId alias for each context key
+        String storeId = storeAllocation.group(1)
+        String keyName = storeAllocation.group(2)
+        storeFieldAliases.put(fieldName(storeId), fieldName(keyName))
+      }
+    }
+    for (String line : linesOut) {
       System.out.println(line)
+      // extract structural info from test application logging
       if (line.startsWith("___FIELD___")) {
         String[] parts = line.split(":")
         parts[2] = storeFieldAliases.get(parts[2])
@@ -97,22 +114,12 @@ class FieldInjectionSmokeTest extends Specification {
       } else if (line.startsWith("___GENERIC_INTERFACE___")) {
         String[] parts = line.split(":")
         foundTypesAndGenericInterfaces.computeIfAbsent(parts[1], { new HashSet<>() }).add(parts[2])
-      } else {
-        Matcher storeAllocation = CONTEXT_STORE_ALLOCATION.matcher(line)
-        if (storeAllocation.matches()) {
-          // assertions use context key while internally we use storeId,
-          // so we need to record the storeId alias for each context key
-          String storeId = storeAllocation.group(1)
-          String keyName = storeAllocation.group(2)
-          storeFieldAliases.put(fieldName(storeId), fieldName(keyName))
-        }
       }
     }
     assert testedTypesAndExpectedFields == foundTypesAndFields
     // check same list of names for interfaces and generic interfaces
     assert foundTypesAndInterfaces == foundTypesAndGenericInterfaces
   }
-
 
   def fieldName(Class<?> klass) {
     return fieldName(klass.getName())

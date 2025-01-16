@@ -40,5 +40,8 @@ public class RoutingContextImplInstrumentation extends InstrumenterModule.AppSec
             .and(takesArguments(1))
             .and(takesArgument(0, int.class)),
         packageName + ".RoutingContextJsonAdvice");
+    transformer.applyAdvice(
+        named("setSession").and(takesArgument(0, named("io.vertx.ext.web.Session"))),
+        packageName + ".RoutingContextSessionAdvice");
   }
 }

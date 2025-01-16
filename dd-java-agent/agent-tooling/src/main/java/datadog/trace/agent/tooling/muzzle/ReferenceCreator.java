@@ -70,7 +70,7 @@ public class ReferenceCreator extends ClassVisitor {
         if (null == adviceShader) {
           reader.accept(cv, ClassReader.SKIP_FRAMES);
         } else {
-          reader.accept(adviceShader.shade(cv), ClassReader.SKIP_FRAMES);
+          reader.accept(adviceShader.shadeClass(cv), ClassReader.SKIP_FRAMES);
         }
 
         final Map<String, Reference> instrumentationReferences = cv.getReferences();
