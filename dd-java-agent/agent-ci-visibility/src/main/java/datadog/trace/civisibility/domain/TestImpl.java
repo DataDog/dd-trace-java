@@ -18,6 +18,7 @@ import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.BrowserDriver;
 import datadog.trace.api.civisibility.telemetry.tag.EventType;
+import datadog.trace.api.civisibility.telemetry.tag.IsModified;
 import datadog.trace.api.civisibility.telemetry.tag.IsNew;
 import datadog.trace.api.civisibility.telemetry.tag.IsRetry;
 import datadog.trace.api.civisibility.telemetry.tag.IsRum;
@@ -262,6 +263,7 @@ public class TestImpl implements DDTest {
         instrumentation,
         EventType.TEST,
         span.getTag(Tags.TEST_IS_NEW) != null ? IsNew.TRUE : null,
+        span.getTag(Tags.TEST_IS_MODIFIED) != null ? IsModified.TRUE : null,
         span.getTag(Tags.TEST_IS_RETRY) != null ? IsRetry.TRUE : null,
         span.getTag(Tags.TEST_IS_RUM_ACTIVE) != null ? IsRum.TRUE : null,
         CIConstants.SELENIUM_BROWSER_DRIVER.equals(span.getTag(Tags.TEST_BROWSER_DRIVER))
