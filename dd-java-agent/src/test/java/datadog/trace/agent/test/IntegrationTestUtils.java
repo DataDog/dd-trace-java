@@ -13,8 +13,6 @@ import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
-import java.lang.management.ThreadInfo;
-import java.lang.management.ThreadMXBean;
 import java.lang.reflect.Field;
 import java.net.URL;
 import java.util.ArrayList;
@@ -235,11 +233,6 @@ public class IntegrationTestUtils {
 
     if (!waitFor(process, 30, TimeUnit.SECONDS)) {
       out.println("======== APP TIMED OUT");
-      ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
-      for (ThreadInfo info : threadMXBean.dumpAllThreads(true, true)) {
-        out.println(info);
-      }
-      out.println("======== -------------");
       waitFor(process, 30, TimeUnit.SECONDS);
       throw new TimeoutException();
     }

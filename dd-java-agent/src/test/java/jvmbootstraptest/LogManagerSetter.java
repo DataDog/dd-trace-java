@@ -1,6 +1,9 @@
 package jvmbootstraptest;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadInfo;
+import java.lang.management.ThreadMXBean;
 import java.util.logging.LogManager;
 
 public class LogManagerSetter {
@@ -9,6 +12,29 @@ public class LogManagerSetter {
   private static final String CUSTOM_LOG_MANAGER_CLASS_NAME = "jvmbootstraptest.CustomLogManager";
 
   public static void main(final String... args) throws Exception {
+    Thread t =
+        new Thread(
+            new Runnable() {
+              @Override
+              public void run() {
+                try {
+                  Thread.sleep(30_000);
+                } catch (InterruptedException ignore) {
+                }
+                while (true) {
+                  ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
+                  for (ThreadInfo info : threadMXBean.dumpAllThreads(true, true)) {
+                    System.out.println(info);
+                  }
+                  try {
+                    Thread.sleep(1_000);
+                  } catch (InterruptedException ignore) {
+                  }
+                }
+              }
+            });
+    t.setDaemon(true);
+    t.start();
     if (System.getProperty("dd.app.customlogmanager") != null) {
       System.out.println("dd.app.customlogmanager != null");
 
