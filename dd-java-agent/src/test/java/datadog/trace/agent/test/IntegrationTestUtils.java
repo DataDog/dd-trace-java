@@ -234,12 +234,12 @@ public class IntegrationTestUtils {
     errorGobbler.start();
 
     if (!waitFor(process, 30, TimeUnit.SECONDS)) {
-      System.out.println("======== APP TIMED OUT");
+      out.println("======== APP TIMED OUT");
       ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
       for (ThreadInfo info : threadMXBean.dumpAllThreads(true, true)) {
-        System.out.println(info);
+        out.println(info);
       }
-      System.out.println("======== -------------");
+      out.println("======== -------------");
       waitFor(process, 30, TimeUnit.SECONDS);
       throw new TimeoutException();
     }
