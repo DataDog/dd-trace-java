@@ -95,12 +95,14 @@ public final class ScriptInitializer {
               new Thread(
                   AGENT_THREAD_GROUP,
                   () -> {
+                    System.err.println("======== ENTER ScriptInitializer.shutdown");
                     try {
                       LOG.debug("Deleting config file: {}", cfgPath);
                       Files.deleteIfExists(cfgPath);
                     } catch (IOException e) {
                       LOG.warn("Failed deleting config file: {}", cfgPath, e);
                     }
+                    System.err.println("======== LEAVE ScriptInitializer.shutdown");
                   }));
       LOG.debug("Config file written: {}", cfgPath);
     } catch (IOException e) {

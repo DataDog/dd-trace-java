@@ -1691,10 +1691,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     @Override
     public void run() {
+      System.err.println("======== ENTER CoreTracer.shutdown");
       final CoreTracer tracer = reference.get();
       if (tracer != null) {
         tracer.close();
       }
+      System.err.println("======== LEAVE CoreTracer.shutdown");
     }
   }
 

@@ -193,6 +193,7 @@ public class ProfilingAgent {
 
   private static void shutdown(
       ProfilingSystem profiler, ProfileUploader uploader, boolean snapshot) {
+    System.err.println("======== ENTER ProfilingAgent.shutdown");
     if (shutDownFlag.compareAndSet(false, true)) {
       if (profiler != null) {
         profiler.shutdown(snapshot);
@@ -202,6 +203,7 @@ public class ProfilingAgent {
         uploader.shutdown();
       }
     }
+    System.err.println("======== LEAVE ProfilingAgent.shutdown");
   }
 
   private static class ShutdownHook extends Thread {
