@@ -11,6 +11,8 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 
+import static datadog.trace.civisibility.TestUtils.lines
+
 class GitClientTest extends Specification {
 
   private static final int GIT_COMMAND_TIMEOUT_MILLIS = 10_000
@@ -299,6 +301,20 @@ class GitClientTest extends Specification {
 
     !gitPackObject.raisedError()
     gitPackObject.getType() == GitObject.COMMIT_TYPE
+  }
+
+  def "test git diff"() {
+    given:
+    givenGitRepo()
+
+    when:
+    def gitClient = givenGitClient()
+    def diff = gitClient.getGitDiff("10599ae3c17d66d642f9f143b1ff3dd236111e2a", "6aaa4085c10d16b63a910043e35dbd35d2ef7f1c")
+
+    then:
+    diff.linesByRelativePath == [
+      "src/Datadog.Trace/Logging/DatadogLogging.cs": lines(26, 32, 91, 95, 159, 160)
+    ]
   }
 
   private void givenGitRepo() {
