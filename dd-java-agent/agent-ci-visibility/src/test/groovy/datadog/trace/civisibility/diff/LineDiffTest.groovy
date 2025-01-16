@@ -39,7 +39,6 @@ class LineDiffTest extends Specification {
 
   def "test serialization: #lines"() {
     given:
-
     def diff = new LineDiff(lines)
 
     when:
