@@ -304,8 +304,8 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
     if (repositoryRoot == null || !impactedTestsDetectionEnabled) {
       return Diff.EMPTY;
     }
-    // FIXME nikita: add telemetry
-    // FIXME nikita: add file-based granularity fallback if Git executable is not available?
+    // FIXME nikita: add file-based granularity fallback if Git executable is not available (add
+    // telemetry for backend)?
     // FIXME nikita: add integration/smoke tests
     try {
       GitClient gitClient = gitClientFactory.create(repositoryRoot);

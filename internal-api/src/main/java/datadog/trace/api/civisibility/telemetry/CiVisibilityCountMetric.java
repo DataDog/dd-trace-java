@@ -17,6 +17,7 @@ import datadog.trace.api.civisibility.telemetry.tag.FlakyTestRetriesEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.HasCodeowner;
 import datadog.trace.api.civisibility.telemetry.tag.IsBenchmark;
 import datadog.trace.api.civisibility.telemetry.tag.IsHeadless;
+import datadog.trace.api.civisibility.telemetry.tag.IsModified;
 import datadog.trace.api.civisibility.telemetry.tag.IsNew;
 import datadog.trace.api.civisibility.telemetry.tag.IsRetry;
 import datadog.trace.api.civisibility.telemetry.tag.IsRum;
@@ -62,6 +63,7 @@ public enum CiVisibilityCountMetric {
       IsBenchmark.class,
       EarlyFlakeDetectionAbortReason.class,
       IsNew.class,
+      IsModified.class,
       IsRetry.class,
       IsRum.class,
       BrowserDriver.class),
