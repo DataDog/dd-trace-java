@@ -3,8 +3,8 @@ package datadog.trace.civisibility.config
 
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.api.civisibility.config.TestMetadata
-import datadog.trace.civisibility.TestUtils
-import datadog.trace.civisibility.git.Diff
+import datadog.trace.civisibility.diff.Diff
+import datadog.trace.civisibility.diff.LineDiff
 import spock.lang.Specification
 
 import static datadog.trace.civisibility.TestUtils.*
@@ -47,7 +47,7 @@ class ExecutionSettingsTest extends Specification {
       [:],
       new HashSet<>([new TestIdentifier("name", null, null)]),
       new HashSet<>([new TestIdentifier("b", "c", "g")]),
-      new Diff(["path": lines()])
+      new LineDiff(["path": lines()])
       ),
 
       new ExecutionSettings(
@@ -66,7 +66,7 @@ class ExecutionSettingsTest extends Specification {
         })],
       new HashSet<>([new TestIdentifier("name", null, "g"), new TestIdentifier("b", "c", null)]),
       new HashSet<>([new TestIdentifier("b", "c", null), new TestIdentifier("bb", "cc", null)]),
-      new Diff(["path": lines(1, 2, 3)]),
+      new LineDiff(["path": lines(1, 2, 3)]),
       ),
 
       new ExecutionSettings(
@@ -85,7 +85,7 @@ class ExecutionSettingsTest extends Specification {
         })],
       new HashSet<>([]),
       new HashSet<>([new TestIdentifier("b", "c", null), new TestIdentifier("bb", "cc", "g")]),
-      new Diff(["path": lines(1, 2, 3), "path-b": lines(1, 2, 128, 257, 999)]),
+      new LineDiff(["path": lines(1, 2, 3), "path-b": lines(1, 2, 128, 257, 999)]),
       ),
     ]
   }

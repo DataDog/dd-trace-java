@@ -7,7 +7,7 @@ import datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.Command;
 import datadog.trace.api.civisibility.telemetry.tag.ExitCode;
-import datadog.trace.civisibility.git.Diff;
+import datadog.trace.civisibility.diff.LineDiff;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
 import datadog.trace.util.Strings;
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -554,7 +554,7 @@ public class GitClient {
    * @throws InterruptedException If current thread was interrupted while waiting for Git command to
    *     finish
    */
-  public @NonNull Diff getGitDiff(String baseCommit, String targetCommit)
+  public @NonNull LineDiff getGitDiff(String baseCommit, String targetCommit)
       throws IOException, TimeoutException, InterruptedException {
     if (Strings.isNotBlank(baseCommit) && Strings.isNotBlank(targetCommit)) {
       return executeCommand(
@@ -573,7 +573,7 @@ public class GitClient {
           "Base commit and/or target commit info is not available, returning empty git diff: {}/{}",
           baseCommit,
           targetCommit);
-      return Diff.EMPTY;
+      return LineDiff.EMPTY;
     }
   }
 

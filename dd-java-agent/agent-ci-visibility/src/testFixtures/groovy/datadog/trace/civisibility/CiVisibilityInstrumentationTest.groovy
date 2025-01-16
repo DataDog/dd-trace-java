@@ -36,7 +36,7 @@ import datadog.trace.civisibility.domain.buildsystem.ModuleSignalRouter
 import datadog.trace.civisibility.domain.headless.HeadlessTestSession
 import datadog.trace.civisibility.events.BuildEventsHandlerImpl
 import datadog.trace.civisibility.events.TestEventsHandlerImpl
-import datadog.trace.civisibility.git.Diff
+import datadog.trace.civisibility.diff.Diff
 import datadog.trace.civisibility.ipc.SignalServer
 import datadog.trace.civisibility.source.LinesResolver
 import datadog.trace.civisibility.source.SourcePathResolver

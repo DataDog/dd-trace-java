@@ -8,7 +8,7 @@ import datadog.trace.api.civisibility.config.TestMetadata;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.civisibility.ci.PullRequestInfo;
-import datadog.trace.civisibility.git.Diff;
+import datadog.trace.civisibility.diff.Diff;
 import datadog.trace.civisibility.git.tree.GitClient;
 import datadog.trace.civisibility.git.tree.GitDataUploader;
 import java.nio.file.Path;
@@ -304,8 +304,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
     if (repositoryRoot == null || !impactedTestsDetectionEnabled) {
       return Diff.EMPTY;
     }
-    // FIXME nikita: add file-based granularity fallback if Git executable is not available (add
-    // telemetry for backend)?
+    // FIXME nikita: add file-based granularity fallback (+ telemetry)
     // FIXME nikita: add integration/smoke tests
     try {
       GitClient gitClient = gitClientFactory.create(repositoryRoot);

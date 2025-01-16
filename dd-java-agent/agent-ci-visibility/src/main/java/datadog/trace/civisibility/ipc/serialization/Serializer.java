@@ -1,4 +1,4 @@
-package datadog.trace.civisibility.ipc;
+package datadog.trace.civisibility.ipc.serialization;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
