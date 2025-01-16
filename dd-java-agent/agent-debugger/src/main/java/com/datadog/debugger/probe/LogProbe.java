@@ -32,6 +32,11 @@ import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
+import datadog.trace.core.DDSpan;
+import datadog.trace.core.DDSpanContext;
 import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
 import java.time.Duration;
@@ -39,6 +44,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -51,6 +57,30 @@ public class LogProbe extends ProbeDefinition implements Sampled {
   private static final Logger LOGGER = LoggerFactory.getLogger(LogProbe.class);
   private static final Limits LIMITS = new Limits(1, 3, 8192, 5);
   private static final int LOG_MSG_LIMIT = 8192;
+
+  private static Map<String, String> getDebugSessions() {
+    HashMap<String, String> sessions = new HashMap<>();
+    TracerAPI tracer = AgentTracer.get();
+    if (tracer != null) {
+      AgentSpan span = tracer.activeSpan();
+      if (span instanceof DDSpan) {
+        DDSpanContext context = (DDSpanContext) span.context();
+        String debug = context.getPropagationTags().getDebugPropagation();
+        if (debug != null) {
+          String[] entries = debug.split(",");
+          for (String entry : entries) {
+            if (!entry.contains(":")) {
+              sessions.put("*", entry);
+            } else {
+              String[] values = entry.split(":");
+              sessions.put(values[0], values[1]);
+            }
+          }
+        }
+      }
+    }
+    return sessions;
+  }
 
   /** Stores part of a templated message either a str or an expression */
   public static class Segment {
@@ -681,6 +711,10 @@ public class LogProbe extends ProbeDefinition implements Sampled {
     return probeCondition != null;
   }
 
+  protected String getDebugSessionId() {
+    return getTagMap().get("sessionId");
+  }
+
   @Override
   public CapturedContext.Status createStatus() {
     return new LogStatus(this);
@@ -737,8 +771,8 @@ public class LogProbe extends ProbeDefinition implements Sampled {
     }
 
     private DebugSessionStatus debugSessionStatus() {
-      if (probeImplementation instanceof ProbeDefinition) {
-        ProbeDefinition definition = (ProbeDefinition) probeImplementation;
+      if (probeImplementation instanceof LogProbe) {
+        LogProbe definition = (LogProbe) probeImplementation;
         Map<String, String> sessions = getDebugSessions();
         String sessionId = definition.getDebugSessionId();
         if (sessionId == null) {

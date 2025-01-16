@@ -12,11 +12,6 @@ import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.debugger.ProbeLocation;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
-import datadog.trace.core.DDSpan;
-import datadog.trace.core.DDSpanContext;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -147,10 +142,6 @@ public abstract class ProbeDefinition implements ProbeImplementation {
   public void evaluate(
       CapturedContext context, CapturedContext.Status status, MethodLocation methodLocation) {}
 
-  protected String getDebugSessionId() {
-    return getTagMap().get("sessionId");
-  }
-
   @Override
   public void commit(
       CapturedContext entryContext,
@@ -179,16 +170,6 @@ public abstract class ProbeDefinition implements ProbeImplementation {
   public boolean isLineProbe() {
     Where.SourceLine[] sourceLines = where.getSourceLines();
     return sourceLines != null && sourceLines.length > 0;
-  }
-
-  public enum DebugSessionStatus {
-    NONE,
-    ACTIVE,
-    DISABLED;
-
-    public boolean isDisabled() {
-      return this == DISABLED;
-    }
   }
 
   public abstract static class Builder<T extends Builder> {
@@ -384,29 +365,5 @@ public abstract class ProbeDefinition implements ProbeImplementation {
       }
       jsonWriter.endArray();
     }
-  }
-
-  public static Map<String, String> getDebugSessions() {
-    HashMap<String, String> sessions = new HashMap<>();
-    TracerAPI tracer = AgentTracer.get();
-    if (tracer != null) {
-      AgentSpan span = tracer.activeSpan();
-      if (span instanceof DDSpan) {
-        DDSpanContext context = (DDSpanContext) span.context();
-        String debug = context.getPropagationTags().getDebugPropagation();
-        if (debug != null) {
-          String[] entries = debug.split(",");
-          for (String entry : entries) {
-            if (!entry.contains(":")) {
-              sessions.put("*", entry);
-            } else {
-              String[] values = entry.split(":");
-              sessions.put(values[0], values[1]);
-            }
-          }
-        }
-      }
-    }
-    return sessions;
   }
 }

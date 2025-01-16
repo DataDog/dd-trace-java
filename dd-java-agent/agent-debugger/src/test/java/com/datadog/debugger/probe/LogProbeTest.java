@@ -13,7 +13,6 @@ import static org.mockito.Mockito.mock;
 import com.datadog.debugger.agent.DebuggerAgentHelper;
 import com.datadog.debugger.probe.LogProbe.Builder;
 import com.datadog.debugger.probe.LogProbe.LogStatus;
-import com.datadog.debugger.probe.ProbeDefinition.DebugSessionStatus;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.sink.Snapshot;
