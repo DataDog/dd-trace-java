@@ -168,7 +168,7 @@ class LongRunningTracesTrackerTest extends DDSpecification {
 
   PendingTrace newTraceToTrack() {
     PendingTrace trace = factory.create(DDTraceId.ONE)
-    PendingTraceBufferTest::newSpanOf(trace, PrioritySampling.SAMPLER_KEEP)
+    PendingTraceBufferTest::newSpanOf(trace, PrioritySampling.SAMPLER_KEEP, 0)
     return trace
   }
 
