@@ -712,7 +712,7 @@ public class LogProbe extends ProbeDefinition implements Sampled {
   }
 
   protected String getDebugSessionId() {
-    return getTagMap().get("sessionId");
+    return getTagMap().get("session_id");
   }
 
   @Override

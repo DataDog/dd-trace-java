@@ -95,7 +95,7 @@ public class LogProbeTest {
       Builder builder =
           createLog("I'm in a debug session").probeId(UUID.randomUUID().toString(), 0);
       if (status != DebugSessionStatus.NONE) {
-        builder.tags(format("sessionId:%s", DEBUG_SESSION_ID));
+        builder.tags(format("session_id:%s", DEBUG_SESSION_ID));
       }
 
       LogProbe logProbe = builder.build();

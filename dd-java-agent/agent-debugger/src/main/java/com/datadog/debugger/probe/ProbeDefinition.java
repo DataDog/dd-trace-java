@@ -26,7 +26,7 @@ public abstract class ProbeDefinition implements ProbeImplementation {
   protected static final String LANGUAGE = "java";
 
   protected final String language;
-  protected String id;
+  protected final String id;
   protected final int version;
   protected transient ProbeId probeId;
   protected final Tag[] tags;
@@ -54,9 +54,6 @@ public abstract class ProbeDefinition implements ProbeImplementation {
 
   @Override
   public String getId() {
-    if (id == null) {
-      id = probeId != null ? probeId.getId() : null;
-    }
     return id;
   }
 
