@@ -59,9 +59,9 @@ public class LogsWriterImpl implements LogsWriter {
 
   @Override
   public void shutdown() {
-    System.err.println("======== ENTER LogsWriterImpl.shutdown");
+    System.out.println("======== ENTER LogsWriterImpl.shutdown");
     if (!messagePollingThread.isAlive()) {
-      System.err.println("======== LEAVE LogsWriterImpl.shutdown");
+      System.out.println("======== LEAVE LogsWriterImpl.shutdown");
       return;
     }
 
@@ -72,7 +72,7 @@ public class LogsWriterImpl implements LogsWriter {
       Thread.currentThread().interrupt();
       LOGGER.debug("Interrupted while waiting for log polling thread to stop");
     }
-    System.err.println("======== LEAVE LogsWriterImpl.shutdown");
+    System.out.println("======== LEAVE LogsWriterImpl.shutdown");
   }
 
   @Override

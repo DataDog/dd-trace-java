@@ -227,7 +227,7 @@ public class AgentTaskScheduler implements Executor {
   }
 
   public void shutdown(final long timeout, final TimeUnit unit) {
-    System.err.println("======== ENTER AgentTaskScheduler.shutdown");
+    System.out.println("======== ENTER AgentTaskScheduler.shutdown");
     shutdown = true;
     final Thread t = worker;
     if (t != null) {
@@ -240,7 +240,7 @@ public class AgentTaskScheduler implements Executor {
         }
       }
     }
-    System.err.println("======== LEAVE AgentTaskScheduler.shutdown");
+    System.out.println("======== LEAVE AgentTaskScheduler.shutdown");
   }
 
   private static <T> String describeTask(final Task<T> task, final Target<T> target) {

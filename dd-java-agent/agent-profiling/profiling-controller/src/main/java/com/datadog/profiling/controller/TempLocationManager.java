@@ -300,14 +300,14 @@ public final class TempLocationManager {
         new Thread(
             AGENT_THREAD_GROUP,
             () -> {
-              System.err.println("======== ENTER TempLocationManager.shutdown");
+              System.out.println("======== ENTER TempLocationManager.shutdown");
               if (!waitForCleanup(1, TimeUnit.SECONDS)) {
                 log.info(
                     "Cleanup task timed out. {} temp directory might not have been cleaned up properly",
                     tempDir);
               }
               cleanup(true);
-              System.err.println("======== LEAVE TempLocationManager.shutdown");
+              System.out.println("======== LEAVE TempLocationManager.shutdown");
             },
             "Temp Location Manager Cleanup");
     Runtime.getRuntime().addShutdownHook(selfCleanup);
