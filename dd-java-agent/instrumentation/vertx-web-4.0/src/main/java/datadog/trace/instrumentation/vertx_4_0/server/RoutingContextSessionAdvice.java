@@ -17,11 +17,10 @@ import net.bytebuddy.asm.Advice;
 
 @RequiresRequestContext(RequestContextSlot.APPSEC)
 class RoutingContextSessionAdvice {
-  @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+  @Advice.OnMethodEnter(suppress = Throwable.class)
   static void after(
       @ActiveRequestContext final RequestContext reqCtx,
-      @Advice.Argument(0) final Session session,
-      @Advice.Thrown(readOnly = false) Throwable throwable) {
+      @Advice.Argument(0) final Session session) {
 
     if (session == null) {
       return;
@@ -47,9 +46,7 @@ class RoutingContextSessionAdvice {
           rba.getStatusCode(),
           rba.getBlockingContentType(),
           rba.getExtraHeaders());
-      if (throwable == null) {
-        throwable = new BlockingException("Blocked request (for session)");
-      }
+      throw new BlockingException("Blocked request (for session)");
     }
   }
 }
