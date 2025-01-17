@@ -23,6 +23,7 @@ import datadog.trace.civisibility.git.tree.GitClient;
 import datadog.trace.civisibility.git.tree.GitDataApi;
 import datadog.trace.civisibility.git.tree.GitDataUploader;
 import datadog.trace.civisibility.git.tree.GitDataUploaderImpl;
+import datadog.trace.civisibility.git.tree.GitRepoUnshallow;
 import datadog.trace.civisibility.ipc.ExecutionSettingsRequest;
 import datadog.trace.civisibility.ipc.ExecutionSettingsResponse;
 import datadog.trace.civisibility.ipc.SignalClient;
@@ -72,12 +73,16 @@ public class CiVisibilityRepoServices {
     moduleName = getModuleName(services.config, repoRoot, path);
     ciTags = new CITagsProvider().getCiTags(ciInfo, pullRequestInfo);
 
+    GitClient gitClient = services.gitClientFactory.create(repoRoot);
+    GitRepoUnshallow gitRepoUnshallow = new GitRepoUnshallow(services.config, gitClient);
+
     gitDataUploader =
         buildGitDataUploader(
             services.config,
             services.metricCollector,
             services.gitInfoProvider,
-            services.gitClientFactory,
+            gitClient,
+            gitRepoUnshallow,
             services.backendApi,
             repoRoot);
     repoIndexProvider = services.repoIndexProviderFactory.create(repoRoot);
@@ -93,7 +98,8 @@ public class CiVisibilityRepoServices {
               services.config,
               services.metricCollector,
               services.backendApi,
-              services.gitClientFactory,
+              gitClient,
+              gitRepoUnshallow,
               gitDataUploader,
               pullRequestInfo,
               repoRoot);
@@ -165,7 +171,8 @@ public class CiVisibilityRepoServices {
       Config config,
       CiVisibilityMetricCollector metricCollector,
       BackendApi backendApi,
-      GitClient.Factory gitClientFactory,
+      GitClient gitClient,
+      GitRepoUnshallow gitRepoUnshallow,
       GitDataUploader gitDataUploader,
       PullRequestInfo pullRequestInfo,
       String repoRoot) {
@@ -180,7 +187,13 @@ public class CiVisibilityRepoServices {
 
     ExecutionSettingsFactoryImpl factory =
         new ExecutionSettingsFactoryImpl(
-            config, configurationApi, gitClientFactory, gitDataUploader, pullRequestInfo, repoRoot);
+            config,
+            configurationApi,
+            gitClient,
+            gitRepoUnshallow,
+            gitDataUploader,
+            pullRequestInfo,
+            repoRoot);
     if (processHierarchy.isHeadless()) {
       return factory;
     } else {
@@ -192,7 +205,8 @@ public class CiVisibilityRepoServices {
       Config config,
       CiVisibilityMetricCollector metricCollector,
       GitInfoProvider gitInfoProvider,
-      GitClient.Factory gitClientFactory,
+      GitClient gitClient,
+      GitRepoUnshallow gitRepoUnshallow,
       BackendApi backendApi,
       String repoRoot) {
     if (!config.isCiVisibilityGitUploadEnabled()) {
@@ -213,9 +227,15 @@ public class CiVisibilityRepoServices {
 
     String remoteName = config.getCiVisibilityGitRemoteName();
     GitDataApi gitDataApi = new GitDataApi(backendApi, metricCollector);
-    GitClient gitClient = gitClientFactory.create(repoRoot);
     return new GitDataUploaderImpl(
-        config, metricCollector, gitDataApi, gitClient, gitInfoProvider, repoRoot, remoteName);
+        config,
+        metricCollector,
+        gitDataApi,
+        gitClient,
+        gitRepoUnshallow,
+        gitInfoProvider,
+        repoRoot,
+        remoteName);
   }
 
   private static SourcePathResolver buildSourcePathResolver(
