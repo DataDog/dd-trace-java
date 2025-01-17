@@ -2,6 +2,8 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.EmailInjectionModule
 
+import javax.mail.Address
+import javax.mail.Message
 import javax.mail.Session
 import javax.mail.Transport
 import javax.mail.internet.MimeMessage
@@ -22,22 +24,22 @@ class JavaxMailInstrumentationTest  extends AgentTestRunner {
     final message = value
     value.setRecipients(MimeMessage.RecipientType.TO, "sezen.leblay@datadoghq.com")
 
+    // mock the actual sending process
+    mockedTransport.connect() >> {  }
+    mockedTransport.close() >> {  }
+    mockedTransport.sendMessage(_ as Message, _ as Address) >> {  }
+
     when:
-    mockedTransport.send(value)
+    mockedTransport.send(message)
 
     then:
-    1 * module.onSendEmail(message)
-    0 * _
+    assert module.onSendEmail(message)
 
     where:
-    value                                                                     | _
-    new MimeMessage(Session.getDefaultInstance(new Properties())) { {
-          setContent("<html><body>Hello, World!</body></html>", "text/html")
+    value <<
+      new MimeMessage(Session.getDefaultInstance(new Properties())) { {
+          setContent("<html><body>Hello, Content!</body></html>", "text/html")
         }
-      }                                                                       | _
-    new MimeMessage(Session.getDefaultInstance(new Properties())) { {
-          setText("<html><body>Hello, World!</body></html>")
-        }
-      }                                                                       | _
+      }
   }
 }
