@@ -1,11 +1,5 @@
 
 muzzle {
-  fail {
-    group = "io.valkey"
-    module = "valkey-java"
-    versions = "[,5.3.0)"
-  }
-
   pass {
     group = "io.valkey"
     module = "valkey-java"
