@@ -39,7 +39,7 @@ class GitDataUploaderImplTest extends Specification {
     def gitInfoProvider = Stub(GitInfoProvider)
     gitInfoProvider.getGitInfo(repoRoot) >> new GitInfo(repoUrl, null, null, null)
 
-    def gitClient = new GitClient(metricCollector, repoRoot, "25 years ago", 3, TIMEOUT_MILLIS)
+    def gitClient = new ShellGitClient(metricCollector, repoRoot, "25 years ago", 3, TIMEOUT_MILLIS)
     def unshallow = new GitRepoUnshallow(config, gitClient)
     def uploader = new GitDataUploaderImpl(config, metricCollector, api, gitClient, unshallow, gitInfoProvider, repoRoot, "origin")
 

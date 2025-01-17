@@ -621,10 +621,11 @@ class ConfigurationApiImplTest extends Specification {
     when:
     def api = givenIntakeApi(true)
     def configurationApi = new ConfigurationApiImpl(api, Stub(CiVisibilityMetricCollector), () -> "1234")
-    def files = configurationApi.getChangedFiles(tracerEnvironment)
+    def changedFiles = configurationApi.getChangedFiles(tracerEnvironment)
 
     then:
-    files == new HashSet([
+    changedFiles.baseSha == "ef733331f7cee9b1c89d82df87942d8606edf3f7"
+    changedFiles.files == new HashSet([
       "domains/ci-app/apps/apis/rapid-ci-app/internal/itrapihttp/api.go",
       "domains/ci-app/apps/apis/rapid-ci-app/internal/itrapihttp/api_test.go"
     ])

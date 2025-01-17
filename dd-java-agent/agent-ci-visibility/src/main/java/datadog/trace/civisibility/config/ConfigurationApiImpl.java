@@ -30,7 +30,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
@@ -60,7 +59,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
   private final JsonAdapter<EnvelopeDto<CiVisibilitySettings>> settingsResponseAdapter;
   private final JsonAdapter<MultiEnvelopeDto<TestIdentifierJson>> testIdentifiersResponseAdapter;
   private final JsonAdapter<EnvelopeDto<KnownTestsDto>> testFullNamesResponseAdapter;
-  private final JsonAdapter<EnvelopeDto<ChangedFilesDto>> changedFilesResponseAdapter;
+  private final JsonAdapter<EnvelopeDto<ChangedFiles>> changedFilesResponseAdapter;
 
   public ConfigurationApiImpl(BackendApi backendApi, CiVisibilityMetricCollector metricCollector) {
     this(backendApi, metricCollector, () -> UUID.randomUUID().toString());
@@ -104,7 +103,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
 
     ParameterizedType changedFilesResponseAdapterType =
         Types.newParameterizedTypeWithOwner(
-            ConfigurationApiImpl.class, EnvelopeDto.class, ChangedFilesDto.class);
+            ConfigurationApiImpl.class, EnvelopeDto.class, ChangedFiles.class);
     changedFilesResponseAdapter = moshi.adapter(changedFilesResponseAdapterType);
   }
 
@@ -294,7 +293,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
   }
 
   @Override
-  public Set<String> getChangedFiles(TracerEnvironment tracerEnvironment) throws IOException {
+  public ChangedFiles getChangedFiles(TracerEnvironment tracerEnvironment) throws IOException {
     OkHttpUtils.CustomListener telemetryListener =
         new TelemetryListener.Builder(metricCollector)
             .requestCount(CiVisibilityCountMetric.IMPACTED_TESTS_DETECTION_REQUEST)
@@ -308,7 +307,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
         new EnvelopeDto<>(new DataDto<>(uuid, "ci_app_tests_diffs_request", tracerEnvironment));
     String json = requestAdapter.toJson(request);
     RequestBody requestBody = RequestBody.create(JSON, json);
-    ChangedFilesDto changedFiles =
+    ChangedFiles changedFiles =
         backendApi.post(
             CHANGED_FILES_URI,
             requestBody,
@@ -317,11 +316,11 @@ public class ConfigurationApiImpl implements ConfigurationApi {
             telemetryListener,
             false);
 
-    LOGGER.debug("Received {} changed files", changedFiles.files.size());
+    int filesCount = changedFiles.getFiles().size();
+    LOGGER.debug("Received {} changed files", filesCount);
     metricCollector.add(
-        CiVisibilityDistributionMetric.IMPACTED_TESTS_DETECTION_RESPONSE_FILES,
-        changedFiles.files.size());
-    return changedFiles.files;
+        CiVisibilityDistributionMetric.IMPACTED_TESTS_DETECTION_RESPONSE_FILES, filesCount);
+    return changedFiles;
   }
 
   private static final class EnvelopeDto<T> {
@@ -409,14 +408,6 @@ public class ConfigurationApiImpl implements ConfigurationApi {
 
     private KnownTestsDto(Map<String, Map<String, List<String>>> tests) {
       this.tests = tests;
-    }
-  }
-
-  private static final class ChangedFilesDto {
-    private final Set<String> files;
-
-    private ChangedFilesDto(Set<String> files) {
-      this.files = files;
     }
   }
 }
