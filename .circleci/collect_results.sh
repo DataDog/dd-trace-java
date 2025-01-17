@@ -20,22 +20,22 @@ if [[ ${#TEST_RESULT_DIRS[@]} -eq 0 ]]; then
 fi
 
 function get_source_file () {
-  FILE_PATH="${RESULT_XML_FILE%%"/build"*}"
-  FILE_PATH="${FILE_PATH/#"$WORKSPACE_DIR"\//}/src"
+  file_path="${RESULT_XML_FILE%%"/build"*}"
+  file_path="${file_path/#"$WORKSPACE_DIR"\//}/src"
   if ! [[ $RESULT_XML_FILE == *"#"* ]]; then
-    CLASS="${RESULT_XML_FILE%.xml}"
-    CLASS="${CLASS##*"TEST-"}"
-    CLASS="${CLASS##*"."}"
-    COMMON_ROOT=$(grep -rl "class $CLASS" "$FILE_PATH" | head -n 1)
-    while IFS= read -r LINE; do
-      while [[ $LINE != "$COMMON_ROOT"* ]]; do
-        COMMON_ROOT=$(dirname "$COMMON_ROOT")
-        if [[ "$COMMON_ROOT" == "$COMMON_ROOT/.." ]]; then
+    class="${RESULT_XML_FILE%.xml}"
+    class="${class##*"TEST-"}"
+    class="${class##*"."}"
+    common_root=$(grep -rl "class $class" "$file_path" | head -n 1)
+    while IFS= read -r line; do
+      while [[ $line != "$common_root"* ]]; do
+        common_root=$(dirname "$common_root")
+        if [[ "$common_root" == "$common_root/.." ]]; then
           break
         fi
       done
-    done < <(grep -rl "class $CLASS" "$FILE_PATH")
-    FILE_PATH="$COMMON_ROOT"
+    done < <(grep -rl "class $class" "$file_path")
+    file_path="$common_root"
   fi
 }
 
@@ -48,7 +48,7 @@ do
   cp "$RESULT_XML_FILE" "$TEST_RESULTS_DIR/$AGGREGATED_FILE_NAME"
   # Insert file attribute to testcase XML nodes
   get_source_file
-  sed -i "/<testcase/ s|\(time=\"[^\"]*\"\)|\1 file=\"$FILE_PATH\"|g" "$TEST_RESULTS_DIR/$AGGREGATED_FILE_NAME"
+  sed -i "/<testcase/ s|\(time=\"[^\"]*\"\)|\1 file=\"$file_path\"|g" "$TEST_RESULTS_DIR/$AGGREGATED_FILE_NAME"
   # Replace Java Object hashCode by marker in testcase XML nodes to get stable test names
   sed -i '/<testcase/ s/@[0-9a-f]\{5,\}/@HASHCODE/g' "$TEST_RESULTS_DIR/$AGGREGATED_FILE_NAME"
   # Replace random port numbers by marker in testcase XML nodes to get stable test names
