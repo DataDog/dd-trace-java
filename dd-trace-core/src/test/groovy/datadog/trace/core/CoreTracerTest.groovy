@@ -582,6 +582,68 @@ class CoreTracerTest extends DDCoreSpecification {
     then:
     !writer.flushedTraces.empty
   }
+
+  def "verify no filtering of service/env"() {
+    setup:
+    injectSysConfig(SERVICE_NAME, service)
+    injectSysConfig(ENV, env)
+
+    def key = ParsedConfigKey.parse("datadog/2/APM_TRACING/config_overrides/config")
+    def poller = Mock(ConfigurationPoller)
+    def sco = new SharedCommunicationObjects(
+      okHttpClient: Mock(OkHttpClient),
+      monitoring: Mock(Monitoring),
+      agentUrl: HttpUrl.get('https://example.com'),
+      featuresDiscovery: Mock(DDAgentFeaturesDiscovery),
+      configurationPoller: poller
+      )
+
+    def updater
+
+    when:
+    def tracer = CoreTracer.builder()
+      .sharedCommunicationObjects(sco)
+      .pollForTracingConfiguration()
+      .build()
+
+    then:
+    1 * poller.addListener(Product.APM_TRACING, _ as ProductListener) >> {
+      updater = it[1] // capture config updater for further testing
+    }
+    and:
+    tracer.captureTraceConfig().serviceMapping == [:]
+
+    when:
+    updater.accept(key, """
+      {
+        "service_target": {
+          "service": "${targetService}",
+          "env": "${targetEnv}"
+        },
+        "lib_config":
+        {
+          "tracing_service_mapping":
+          [{
+             "from_key": "foobar",
+             "to_name": "bar"
+          }]
+        }
+      }
+      """.getBytes(StandardCharsets.UTF_8), null)
+    updater.commit()
+
+    then: "configuration should be applied"
+    tracer.captureTraceConfig().serviceMapping == ["foobar":"bar"]
+
+    cleanup:
+    tracer?.close()
+
+    where:
+    service   | env    | targetService | targetEnv
+    "service" | "env"  | "service_1"   | "env"
+    "service" | "env"  | "service"     | "env_1"
+    "service" | "env"  | "service_2"   | "env_2"
+  }
 }
 
 class WriterWithExplicitFlush implements datadog.trace.common.writer.Writer {
