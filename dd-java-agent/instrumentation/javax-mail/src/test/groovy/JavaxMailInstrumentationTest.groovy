@@ -20,19 +20,24 @@ class JavaxMailInstrumentationTest  extends AgentTestRunner {
     InstrumentationBridge.registerIastModule(module)
     final mockedTransport = Mock(Transport)
     final message = value
+    value.setRecipients(MimeMessage.RecipientType.TO, "sezen.leblay@datadoghq.com")
 
     when:
-    mockedTransport.send(message)
+    mockedTransport.send(value)
 
     then:
     1 * module.onSendEmail(message)
+    0 * _
 
     where:
-    value << [
-      new MimeMessage(Session.getDefaultInstance(new Properties())) { {
+    value                                                                     | _
+    new MimeMessage(Session.getDefaultInstance(new Properties())) { {
           setContent("<html><body>Hello, World!</body></html>", "text/html")
         }
-      }
-    ]
+      }                                                                       | _
+    new MimeMessage(Session.getDefaultInstance(new Properties())) { {
+          setText("<html><body>Hello, World!</body></html>")
+        }
+      }                                                                       | _
   }
 }
