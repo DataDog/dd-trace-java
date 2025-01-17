@@ -1,4 +1,9 @@
-﻿# Enable error handling
+﻿<#
+  .DESCRIPTION
+    This script installs the required JDKs and sets the environment variables for them.
+#>
+
+# Enable error handling
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'

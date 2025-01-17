@@ -1,7 +1,13 @@
-﻿# Enable error handling
+﻿<#
+  .DESCRIPTION
+    This script checks the development environment for required tools and configurations.
+#>
+
+# Enable error handling
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+# Check for required JDKs
 function TestJvm {
   param ($JavaHomeName, $ExpectedJavaVersion)
 
