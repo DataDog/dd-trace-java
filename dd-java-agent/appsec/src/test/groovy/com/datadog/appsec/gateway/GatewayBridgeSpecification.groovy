@@ -73,6 +73,10 @@ class GatewayBridgeSpecification extends DDSpecification {
     i
   }()
 
+  EventProducerService.DataSubscriberInfo emptyDsInfo = Stub() {
+    isEmpty() >> true
+  }
+
   TraceSegmentPostProcessor pp = Mock()
   GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, null, [pp])
 
@@ -1279,5 +1283,29 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * traceSegment.setTagTop('_dd.appsec.events.users.login.success.auto.mode', IDENTIFICATION.fullName(), true)
 
     0 * eventDispatcher.publishDataEvent
+  }
+
+  void 'test configuration updates should reset cached subscriptions'() {
+    when:
+    requestSessionCB.apply(ctx, UUID.randomUUID().toString())
+
+    then:
+    1 * eventDispatcher.getDataSubscribers(KnownAddresses.SESSION_ID) >> emptyDsInfo
+    0 * eventDispatcher.publishDataEvent
+
+    when:
+    requestSessionCB.apply(ctx, UUID.randomUUID().toString())
+
+    then:
+    0 * eventDispatcher.getDataSubscribers
+    0 * eventDispatcher.publishDataEvent
+
+    when:
+    bridge.reset()
+    requestSessionCB.apply(ctx, UUID.randomUUID().toString())
+
+    then:
+    1 * eventDispatcher.getDataSubscribers(KnownAddresses.SESSION_ID) >> nonEmptyDsInfo
+    1 * eventDispatcher.publishDataEvent(_, _, _, _)
   }
 }
