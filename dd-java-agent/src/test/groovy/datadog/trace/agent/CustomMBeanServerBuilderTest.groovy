@@ -9,7 +9,6 @@ import spock.lang.Timeout
 class CustomMBeanServerBuilderTest extends Specification {
 
   private static final String DEFAULT_LOG_LEVEL = "debug"
-  private static final String API_KEY = "01234567890abcdef123456789ABCDEF"
 
   // Run all tests using forked jvm so we try different JMX settings
   def "JMXFetch starts up in premain with no custom MBeanServerBuilder set"() {
@@ -24,7 +23,7 @@ class CustomMBeanServerBuilderTest extends Specification {
         "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=$DEFAULT_LOG_LEVEL"
       ] as String[]
       , "" as String[]
-      , ["DD_API_KEY": API_KEY]
+      , [:]
       , true) == 0
   }
 
@@ -41,7 +40,7 @@ class CustomMBeanServerBuilderTest extends Specification {
         "-Djavax.management.builder.initial=jvmbootstraptest.CustomMBeanServerBuilder"
       ] as String[]
       , "" as String[]
-      , ["DD_API_KEY": API_KEY]
+      , [:]
       , true) == 0
   }
 
@@ -58,7 +57,7 @@ class CustomMBeanServerBuilderTest extends Specification {
         "-Djavax.management.builder.initial=jvmbootstraptest.MissingMBeanServerBuilder"
       ] as String[]
       , "" as String[]
-      , ["DD_API_KEY": API_KEY]
+      , [:]
       , true) == 0
   }
 
@@ -75,7 +74,7 @@ class CustomMBeanServerBuilderTest extends Specification {
         "-Ddd.app.customjmxbuilder=true"
       ] as String[]
       , "" as String[]
-      , ["DD_API_KEY": API_KEY]
+      , [:]
       , true) == 0
   }
 
@@ -93,7 +92,7 @@ class CustomMBeanServerBuilderTest extends Specification {
         "-Djavax.management.builder.initial=jvmbootstraptest.CustomMBeanServerBuilder"
       ] as String[]
       , "" as String[]
-      , ["DD_API_KEY": API_KEY]
+      , [:]
       , true) == 0
   }
 }
