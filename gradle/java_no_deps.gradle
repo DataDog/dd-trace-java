@@ -74,17 +74,23 @@ ext.setJavaVersion = (it, javaVersionInteger) -> {
   Provider<JavaCompiler> compiler = javaToolchains.compilerFor {
     languageVersion = JavaLanguageVersion.of(javaVersionInteger)
   }
+  Provider<JavaLauncher> launcher = javaToolchains.launcherFor {
+    languageVersion = JavaLanguageVersion.of(javaVersionInteger)
+  }
   try {
-    //ac.configure {
     it.options.fork = true
-    if (it.hasProperty('javaCompiler')) {
-      // Works for JavaCompile
-      it.javaCompiler = compiler
+    if (it instanceof JavaCompile) {
+      JavaCompile jc = (JavaCompile) it
+      jc.javaCompiler = compiler
+    } else if (it instanceof GroovyCompile) {
+      GroovyCompile gc = (GroovyCompile) it
+      gc.javaLauncher = launcher
+    } else if (it instanceof ScalaCompile) {
+      ScalaCompile sc = (ScalaCompile) it
+      sc.javaLauncher = launcher
     } else {
-      // Works for GroovyCompile and ScalaCompile
-      it.options.forkOptions.javaHome = compiler.get().metadata.installationPath.asFile
+      throw new GradleException("Unsupported compile type: ${it.getClass()}")
     }
-    //}
   } catch (NoSuchElementException ignored) {
     throw new GradleException("Unable to find compiler for Java $javaVersionInteger. Have you set JAVA_${javaVersionInteger}_HOME?")
   }
