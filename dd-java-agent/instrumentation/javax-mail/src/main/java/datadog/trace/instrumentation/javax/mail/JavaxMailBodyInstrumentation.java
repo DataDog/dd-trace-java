@@ -6,9 +6,9 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.InstrumentationBridge;
-import datadog.trace.api.iast.Sink;
-import datadog.trace.api.iast.VulnerabilityTypes;
-import datadog.trace.api.iast.sink.EmailInjectionModule;
+import datadog.trace.api.iast.Propagation;
+import datadog.trace.api.iast.propagation.PropagationModule;
+import javax.mail.Part;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
@@ -34,23 +34,24 @@ public class JavaxMailBodyInstrumentation extends InstrumenterModule.Iast
   }
 
   public static class ContentInjectionAdvice {
-    @Sink(VulnerabilityTypes.EMAIL_HTML_INJECTION)
+    @Propagation
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    private static void onSetContent(@Advice.Argument(0) final Object content) {
-      EmailInjectionModule emailInjectionModule = InstrumentationBridge.EMAIL_INJECTION;
-      if (content != null) {
-        emailInjectionModule.taint(content);
+    private static void onSetContent(
+        @Advice.This Part part, @Advice.Argument(0) final Object content) {
+      PropagationModule propagationModule = InstrumentationBridge.PROPAGATION;
+      if (propagationModule != null && content != null) {
+        propagationModule.taintObjectIfTainted(part, content);
       }
     }
   }
 
   public static class TextInjectionAdvice {
-    @Sink(VulnerabilityTypes.EMAIL_HTML_INJECTION)
+    @Propagation
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    private static void onSetText(@Advice.Argument(0) final String text) {
-      EmailInjectionModule emailInjectionModule = InstrumentationBridge.EMAIL_INJECTION;
-      if (text != null) {
-        emailInjectionModule.taint(text);
+    private static void onSetText(@Advice.This Part part, @Advice.Argument(0) final String text) {
+      PropagationModule propagationModule = InstrumentationBridge.PROPAGATION;
+      if (propagationModule != null && text != null) {
+        propagationModule.taintObjectIfTainted(part, text);
       }
     }
   }

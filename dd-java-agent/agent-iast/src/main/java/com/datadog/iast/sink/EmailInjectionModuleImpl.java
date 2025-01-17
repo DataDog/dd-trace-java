@@ -11,25 +11,10 @@ public class EmailInjectionModuleImpl extends SinkModuleBase implements EmailInj
   }
 
   @Override
-  public void onSendEmail(@Nullable final String messageContent) {
+  public void onSendEmail(@Nullable final Object messageContent) {
     if (messageContent == null) {
       return;
     }
     checkInjection(VulnerabilityType.EMAIL_HTML_INJECTION, messageContent);
-  }
-
-  @Override
-  public void taint(String content) {
-    if (content == null || content.isEmpty()) {
-      return;
-    }
-    checkInjection(VulnerabilityType.EMAIL_HTML_INJECTION, content);
-  }
-
-  @Override
-  public void taint(Object content) {
-    if (content != null) {
-      checkInjection(VulnerabilityType.EMAIL_HTML_INJECTION, content.toString());
-    }
   }
 }

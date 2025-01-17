@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.javax.mail;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 
 import com.google.auto.service.AutoService;
@@ -14,14 +13,12 @@ import java.io.IOException;
 import javax.mail.MessagingException;
 import javax.mail.Part;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @AutoService(InstrumenterModule.class)
 public class JavaxMailInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   private static Logger LOGGER = LoggerFactory.getLogger(JavaxMailInstrumentation.class);
 
@@ -32,32 +29,31 @@ public class JavaxMailInstrumentation extends InstrumenterModule.Iast
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("send"), JavaxMailInstrumentation.class.getName() + "$MailInjectionAdvice");
+        named("send0"), JavaxMailInstrumentation.class.getName() + "$MailInjectionAdvice");
   }
 
   @Override
-  public String hierarchyMarkerType() {
+  public String instrumentedType() {
     return "javax.mail.Transport";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
   }
 
   public static class MailInjectionAdvice {
     @Sink(VulnerabilityTypes.EMAIL_HTML_INJECTION)
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    private static void onSend(@Advice.Argument(0) final Part message) {
+    private static void onSend(@Advice.Argument(0) final Part message)
+        throws MessagingException, IOException {
       EmailInjectionModule emailInjectionModule = InstrumentationBridge.EMAIL_INJECTION;
-      try {
-        if (message != null && message.getContent() != null) {
-          // content can be set via Object(setContent) or String(setText) so we need to check both
-          // the Object and String
-          // content ends up being set in BodyPart.setContent(Object) and BodyPart.setText(String)
+      if (message != null && message.getContent() != null) {
+        if (message.isMimeType("text/html")) {
+          emailInjectionModule.onSendEmail(message.getContent());
+        } else if (message.isMimeType("multipart/*")) {
+          Part[] parts = (Part[]) message.getContent();
+          for (Part part : parts) {
+            if (part.isMimeType("text/html")) {
+              emailInjectionModule.onSendEmail(part.getContent());
+            }
+          }
         }
-      } catch (IOException | MessagingException e) {
-        LOGGER.debug("Failed to get content from message", e);
       }
     }
   }
