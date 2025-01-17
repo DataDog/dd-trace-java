@@ -15,7 +15,7 @@ import net.bytebuddy.asm.Advice;
 public class JavaxMailBodyInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public JavaxMailBodyInstrumentation(String instrumentationName, String... additionalNames) {
+  public JavaxMailBodyInstrumentation() {
     super("javax-mail", "body");
   }
 

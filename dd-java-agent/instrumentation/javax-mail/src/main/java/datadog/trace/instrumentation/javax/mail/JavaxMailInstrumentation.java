@@ -22,7 +22,7 @@ public class JavaxMailInstrumentation extends InstrumenterModule.Iast
 
   private static Logger LOGGER = LoggerFactory.getLogger(JavaxMailInstrumentation.class);
 
-  public JavaxMailInstrumentation(String instrumentationName, String... additionalNames) {
+  public JavaxMailInstrumentation() {
     super("javax-mail", "transport");
   }
 
@@ -40,7 +40,7 @@ public class JavaxMailInstrumentation extends InstrumenterModule.Iast
   public static class MailInjectionAdvice {
     @Sink(VulnerabilityTypes.EMAIL_HTML_INJECTION)
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    private static void onSend(@Advice.Argument(0) final Part message)
+    public static void onSend(@Advice.Argument(0) final Part message)
         throws MessagingException, IOException {
       EmailInjectionModule emailInjectionModule = InstrumentationBridge.EMAIL_INJECTION;
       if (message != null && message.getContent() != null) {
