@@ -28,6 +28,7 @@ do
   FILE_PATH="${FILE_PATH/#"$WORKSPACE_DIR"\//}/src"
   if ! [[ $RESULT_XML_FILE == *"#"* ]]; then
     CLASS="${RESULT_XML_FILE%.xml}"
+    CLASS="${CLASS##*"TEST-"}"
     CLASS="${CLASS##*"."}"
     CLASS_PATH=$(grep -rl "class $CLASS" "$FILE_PATH" | tail -n 1)
     FILE_PATH="$CLASS_PATH"
