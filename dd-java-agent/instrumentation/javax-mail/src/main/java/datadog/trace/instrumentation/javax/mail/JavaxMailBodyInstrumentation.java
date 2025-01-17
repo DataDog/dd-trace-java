@@ -38,7 +38,9 @@ public class JavaxMailBodyInstrumentation extends InstrumenterModule.Iast
     @Advice.OnMethodEnter(suppress = Throwable.class)
     private static void onSetContent(@Advice.Argument(0) final Object content) {
       EmailInjectionModule emailInjectionModule = InstrumentationBridge.EMAIL_INJECTION;
-      if (content != null) {}
+      if (content != null) {
+        emailInjectionModule.taint(content);
+      }
     }
   }
 
@@ -47,7 +49,9 @@ public class JavaxMailBodyInstrumentation extends InstrumenterModule.Iast
     @Advice.OnMethodEnter(suppress = Throwable.class)
     private static void onSetText(@Advice.Argument(0) final String text) {
       EmailInjectionModule emailInjectionModule = InstrumentationBridge.EMAIL_INJECTION;
-      if (text != null) {}
+      if (text != null) {
+        emailInjectionModule.taint(text);
+      }
     }
   }
 }
