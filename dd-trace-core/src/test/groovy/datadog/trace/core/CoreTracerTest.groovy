@@ -583,7 +583,7 @@ class CoreTracerTest extends DDCoreSpecification {
     !writer.flushedTraces.empty
   }
 
-  def "verify no filtering of service/env"() {
+  def "verify no filtering of service/env when mismatched with DD_SERVICE/DD_ENV"() {
     setup:
     injectSysConfig(SERVICE_NAME, service)
     injectSysConfig(ENV, env)
