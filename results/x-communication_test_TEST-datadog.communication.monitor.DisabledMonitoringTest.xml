@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="datadog.communication.monitor.DisabledMonitoringTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2025-01-03T18:40:25" hostname="COMP-GHXRH1QQ7F" time="0.004">
-  <properties/>
-  <testcase name="newCounter returns noop()" classname="datadog.communication.monitor.DisabledMonitoringTest" time="0.002" file="./communication/src/test/groovy/datadog/communication/monitor/DisabledMonitoringTest.groovy"/>
-  <testcase name="newTimer returns noop()" classname="datadog.communication.monitor.DisabledMonitoringTest" time="0.002" file="./communication/src/test/groovy/datadog/communication/monitor/DisabledMonitoringTest.groovy"/>
-  <system-out><![CDATA[]]></system-out>
-  <system-err><![CDATA[]]></system-err>
-</testsuite>

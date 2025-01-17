@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="datadog.communication.monitor.NoopCounterTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2025-01-03T18:40:25" hostname="COMP-GHXRH1QQ7F" time="0.0">
-  <properties/>
-  <testcase name="cover the empty methods()" classname="datadog.communication.monitor.NoopCounterTest" time="0.0"/>
-  <system-out><![CDATA[]]></system-out>
-  <system-err><![CDATA[]]></system-err>
-</testsuite>

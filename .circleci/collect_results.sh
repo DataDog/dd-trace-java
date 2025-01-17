@@ -36,13 +36,7 @@ do
   echo -n " as $AGGREGATED_FILE_NAME"
   cp "$RESULT_XML_FILE" "$TEST_RESULTS_DIR/$AGGREGATED_FILE_NAME"
   # Insert file attribute to testcase XML nodes
-  echo "***"
-  echo "FILEPATH: $FILE_PATH"
-  echo "***"
   sed -i "/<testcase/ s|\(time=\"[^\"]*\"\)|\1 file=\"$FILE_PATH\"|g" "$TEST_RESULTS_DIR/$AGGREGATED_FILE_NAME"
-  echo "---"
-  cat "$TEST_RESULTS_DIR/$AGGREGATED_FILE_NAME"
-  echo "---"
   # Replace Java Object hashCode by marker in testcase XML nodes to get stable test names
   sed -i '/<testcase/ s/@[0-9a-f]\{5,\}/@HASHCODE/g' "$TEST_RESULTS_DIR/$AGGREGATED_FILE_NAME"
   # Replace random port numbers by marker in testcase XML nodes to get stable test names

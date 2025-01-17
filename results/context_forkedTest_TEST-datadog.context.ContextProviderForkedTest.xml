@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="datadog.context.ContextProviderForkedTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2025-01-15T00:45:59" hostname="COMP-GHXRH1QQ7F" time="0.016">
-  <properties/>
-  <testcase name="testCustomManager()" classname="datadog.context.ContextProviderForkedTest" time="0.014"/>
-  <testcase name="testCustomBinder()" classname="datadog.context.ContextProviderForkedTest" time="0.002"/>
-  <system-out><![CDATA[]]></system-out>
-  <system-err><![CDATA[]]></system-err>
-</testsuite>
