@@ -41,15 +41,13 @@ class SQLCommenterTest extends AgentTestRunner {
     String sqlWithComment = ""
     if (injectTrace) {
       sqlWithComment = SQLCommenter.inject(query, dbService, dbType, host, dbName, traceParent, true, appendComment)
-    } else {
-      if (appendComment) {
-        sqlWithComment = SQLCommenter.append(query, dbService, dbType, host, dbName)
-      } else {
-        sqlWithComment = SQLCommenter.prepend(query, dbService, dbType, host, dbName)
-      }
+    } else if (appendComment) {
+      sqlWithComment = SQLCommenter.append(query, dbService, dbType, host, dbName)
+    }
+    else {
+      sqlWithComment = SQLCommenter.prepend(query, dbService, dbType, host, dbName)
     }
 
-    sqlWithComment == expected
 
     then:
     sqlWithComment == expected
@@ -126,15 +124,14 @@ class SQLCommenterTest extends AgentTestRunner {
 
       if (injectTrace) {
         sqlWithComment = SQLCommenter.inject(query, dbService, dbType, host, dbName, traceParent, true, appendComment)
-      } else {
-        if (appendComment) {
-          sqlWithComment = SQLCommenter.append(query, dbService, dbType, host, dbName)
-        } else {
-          sqlWithComment = SQLCommenter.prepend(query, dbService, dbType, host, dbName)
-        }
+      }
+      else if (appendComment) {
+        sqlWithComment = SQLCommenter.append(query, dbService, dbType, host, dbName)
+      }
+      else {
+        sqlWithComment = SQLCommenter.prepend(query, dbService, dbType, host, dbName)
       }
     }
-    sqlWithComment == expected
 
     then:
     sqlWithComment == expected
