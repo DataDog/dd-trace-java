@@ -2,9 +2,11 @@ import datadog.trace.api.Trace
 import datadog.trace.instrumentation.kotlin.coroutines.CoreKotlinCoroutineTests
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.single
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 
@@ -36,6 +38,23 @@ class KotlinCoroutineTests(dispatcher: CoroutineDispatcher) : CoreKotlinCoroutin
   }
 
   @Trace
+  fun traceAfterFlow(): Int = runTest {
+    val f = flow {
+      childSpan("inside-flow").activateAndUse {
+        println("insideFlowSpan")
+      }
+      emit(1)
+    }.flowOn(Dispatchers.IO)
+    val ff = f.single()
+    // FIXME: This span is detached
+    childSpan("outside-flow").activateAndUse {
+      println("hello $ff")
+    }
+
+    3
+  }
+
+  @Trace
   override fun tracePreventedByCancellation(): Int {
     return super.tracePreventedByCancellation()
   }
@@ -63,6 +82,11 @@ class KotlinCoroutineTests(dispatcher: CoroutineDispatcher) : CoreKotlinCoroutin
   @Trace
   override fun tracedWithLazyStarting(): Int {
     return super.tracedWithLazyStarting()
+  }
+
+  @Trace
+  override fun traceAfterTimeout(): Int {
+    return super.traceAfterTimeout()
   }
 
   @Trace
