@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.javax.mail;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 
 import com.google.auto.service.AutoService;
@@ -10,15 +11,19 @@ import datadog.trace.api.iast.Sink;
 import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.iast.sink.EmailInjectionModule;
 import java.io.IOException;
-import javax.mail.Message;
 import javax.mail.MessagingException;
 import javax.mail.Part;
-import javax.mail.internet.MimeMultipart;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.matcher.ElementMatcher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @AutoService(InstrumenterModule.class)
 public class JavaxMailInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+
+  private static Logger LOGGER = LoggerFactory.getLogger(JavaxMailInstrumentation.class);
 
   public JavaxMailInstrumentation(String instrumentationName, String... additionalNames) {
     super("javax-mail", "transport");
@@ -31,47 +36,29 @@ public class JavaxMailInstrumentation extends InstrumenterModule.Iast
   }
 
   @Override
-  public String instrumentedType() {
+  public String hierarchyMarkerType() {
     return "javax.mail.Transport";
+  }
+
+  @Override
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
+    return implementsInterface(named(hierarchyMarkerType()));
   }
 
   public static class MailInjectionAdvice {
     @Sink(VulnerabilityTypes.EMAIL_HTML_INJECTION)
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    private static void onSend(@Advice.Argument(0) final Message message) {
+    private static void onSend(@Advice.Argument(0) final Part message) {
       EmailInjectionModule emailInjectionModule = InstrumentationBridge.EMAIL_INJECTION;
-      if (message != null) {
-        try {
-          if (message.getContent() != null) {
-            if (message.isMimeType("text/html")) { // simple html
-              emailInjectionModule.onSendEmail(message.getContent().toString());
-            } else if (message.isMimeType(
-                "multipart/*")) { // needs to be converted into single string
-              if (message.getContent() instanceof MimeMultipart) {
-                emailInjectionModule.onSendEmail(
-                    convertPartToString((MimeMultipart) message.getContent()));
-              }
-            }
-          }
-        } catch (IOException | MessagingException e) {
-          throw new RuntimeException(e);
+      try {
+        if (message != null && message.getContent() != null) {
+          // content can be set via Object(setContent) or String(setText) so we need to check both
+          // the Object and String
+          // content ends up being set in BodyPart.setContent(Object) and BodyPart.setText(String)
         }
+      } catch (IOException | MessagingException e) {
+        LOGGER.debug("Failed to get content from message", e);
       }
-    }
-
-    private static String convertPartToString(MimeMultipart content)
-        throws MessagingException, IOException {
-      if (content.getCount() == 0) {
-        return null;
-      }
-      StringBuilder sb = new StringBuilder();
-      for (int i = 0; i < content.getCount(); i++) {
-        Part part = content.getBodyPart(i);
-        if (part.isMimeType("text/html")) { // only concerned with html injection
-          sb.append(part.getContent().toString());
-        }
-      }
-      return sb.toString();
     }
   }
 }

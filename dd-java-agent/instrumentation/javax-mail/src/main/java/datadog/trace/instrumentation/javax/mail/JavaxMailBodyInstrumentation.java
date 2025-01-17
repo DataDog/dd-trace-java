@@ -9,11 +9,6 @@ import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Sink;
 import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.iast.sink.EmailInjectionModule;
-import java.io.IOException;
-import javax.mail.Message;
-import javax.mail.MessagingException;
-import javax.mail.Part;
-import javax.mail.internet.MimeMultipart;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
@@ -27,51 +22,32 @@ public class JavaxMailBodyInstrumentation extends InstrumenterModule.Iast
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("send"), JavaxMailBodyInstrumentation.class.getName() + "$MailInjectionAdvice");
+        named("setContent"),
+        JavaxMailBodyInstrumentation.class.getName() + "$ContentInjectionAdvice");
+    transformer.applyAdvice(
+        named("setText"), JavaxMailBodyInstrumentation.class.getName() + "$TextInjectionAdvice");
   }
 
   @Override
   public String instrumentedType() {
-    return "javax.mail.Transport";
+    return "javax.mail.Part";
   }
 
-  public static class MailInjectionAdvice {
+  public static class ContentInjectionAdvice {
     @Sink(VulnerabilityTypes.EMAIL_HTML_INJECTION)
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    private static void onSend(@Advice.Argument(0) final Message message) {
+    private static void onSetContent(@Advice.Argument(0) final Object content) {
       EmailInjectionModule emailInjectionModule = InstrumentationBridge.EMAIL_INJECTION;
-      if (message != null) {
-        try {
-          if (message.getContent() != null) {
-            if (message.isMimeType("text/html")) { // simple html
-              emailInjectionModule.onSendEmail(message.getContent().toString());
-            } else if (message.isMimeType(
-                "multipart/*")) { // needs to be converted into single string
-              if (message.getContent() instanceof MimeMultipart) {
-                emailInjectionModule.onSendEmail(
-                    convertPartToString((MimeMultipart) message.getContent()));
-              }
-            }
-          }
-        } catch (IOException | MessagingException e) {
-          throw new RuntimeException(e);
-        }
-      }
+      if (content != null) {}
     }
+  }
 
-    private static String convertPartToString(MimeMultipart content)
-        throws MessagingException, IOException {
-      if (content.getCount() == 0) {
-        return null;
-      }
-      StringBuilder sb = new StringBuilder();
-      for (int i = 0; i < content.getCount(); i++) {
-        Part part = content.getBodyPart(i);
-        if (part.isMimeType("text/html")) { // only concerned with html injection
-          sb.append(part.getContent().toString());
-        }
-      }
-      return sb.toString();
+  public static class TextInjectionAdvice {
+    @Sink(VulnerabilityTypes.EMAIL_HTML_INJECTION)
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    private static void onSetText(@Advice.Argument(0) final String text) {
+      EmailInjectionModule emailInjectionModule = InstrumentationBridge.EMAIL_INJECTION;
+      if (text != null) {}
     }
   }
 }
