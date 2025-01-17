@@ -11,6 +11,7 @@ addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  implementation 'javax.mail:mail:1.4.4'
 }
 
 
