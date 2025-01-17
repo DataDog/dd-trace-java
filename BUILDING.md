@@ -18,8 +18,8 @@ This documentation provides information for developers to set up their environme
 Requirements to build the full project:
 
 * The JDK versions 8, 11, 17 and 21 must be installed.
-* The `JAVA_8_HOME`, `JAVA_11_HOME`, `JAVA_17_HOME`, `JAVA_21_HOME` and `JAVA_GRAALVM17_HOME` must point to their respective JDK location.
-* The JDK-8 `bin` directory must be the only JDK on the PATH (e.g. `$JAVA_8_HOME/bin`).
+* The `JAVA_8_HOME`, `JAVA_11_HOME`, `JAVA_17_HOME`, `JAVA_21_HOME`, and `JAVA_GRAALVM17_HOME` must point to their respective JDK location.
+* The JDK 8 `bin` directory must be the only JDK on the PATH (e.g. `$JAVA_8_HOME/bin`).
 * The `JAVA_HOME` environment variable may be unset. If set, it must point to the JDK 8 location (same as `JAVA_8_HOME`).
 * The `git` command line must be installed.
 * A container runtime environment must be available to run all tests (e.g. Docker Desktop).
@@ -109,15 +109,15 @@ Download and install Eclipse Temurin JDK versions 8, 11, 17 and 21, and GraalVM.
 
 #### Windows
 
-Use the `install-jdks-windows.ps1` script to download and install Eclipse Temurin JDK versions 8, 11, 17, and 21, and set the required environment variables.
+Use the `tooling/install-jdks-windows.ps1` script to download and install Eclipse Temurin JDK versions 8, 11, 17, and 21, and set the required environment variables.
 
 > [!NOTE]
-> This scripts currently does _not_ install GraalVM.
+> This scripts currently does _not_ install GraalVM due to license changes in October 2024.
 
 <details>
 <summary>Manual installation</summary>
 
-* To install the JDKs manually, download the installers from [Eclipse Temurin releases](https://adoptium.net/temurin/releases/) and GraalVM from [Oracle downloads](https://www.graalvm.org/downloads/), or use `winget`:
+* To install the JDKs manually, download the installers from [Eclipse Temurin releases](https://adoptium.net/temurin/releases/) and or use `winget`:
 
 ```
 winget install --id EclipseAdoptium.Temurin.8.JDK
@@ -125,17 +125,16 @@ winget install --id EclipseAdoptium.Temurin.11.JDK
 winget install --id EclipseAdoptium.Temurin.17.JDK
 winget install --id EclipseAdoptium.Temurin.21.JDK
 ```
+* Install GraalVM from [Oracle downloads](https://www.graalvm.org/downloads/). Note that GraalVM for JDK 17.0.13 and later are released under a different license and may be unavailable.
+  * Install the GraalVM native image requirements for native builds by following [the GraalVM official documentation](https://www.graalvm.org/latest/docs/getting-started/windows/#prerequisites-for-native-image-on-windows).
 
-* Install the GraalVM native image requirements for native builds by following [the GraalVM official documentation](https://www.graalvm.org/latest/docs/getting-started/windows/#prerequisites-for-native-image-on-windows).
-
-* To add the required environment variables, run this PowerShell command for each SDK version:
+* To add the required environment variables, run the following PowerShell commands for each SDK version, replacing `<full-version>` with the full version number. For example, `C:\Program Files\Eclipse Adoptium\jdk-8.0.432.6-hotspot`.
   ```pwsh
-  [Environment]::SetEnvironmentVariable("JAVA_<version>_HOME", "C:\Program Files\Eclipse Adoptium\<path>", [EnvironmentVariableTarget]::User)
-  ```
-
-  For example:
-  ```pwsh
-  [Environment]::SetEnvironmentVariable("JAVA_8_HOME", "C:\Program Files\Eclipse Adoptium\jdk-8.0.432.6-hotspot", [EnvironmentVariableTarget]::User)
+  [Environment]::SetEnvironmentVariable("JAVA_HOME",    "C:\Program Files\Eclipse Adoptium\jdk-8.0.432.6-hotspot", [EnvironmentVariableTarget]::User)
+  [Environment]::SetEnvironmentVariable("JAVA_8_HOME",  "C:\Program Files\Eclipse Adoptium\jdk-8.0.432.6-hotspot", [EnvironmentVariableTarget]::User)
+  [Environment]::SetEnvironmentVariable("JAVA_11_HOME", "C:\Program Files\Eclipse Adoptium\jdk-11.0.25.9-hotspot", [EnvironmentVariableTarget]::User)
+  [Environment]::SetEnvironmentVariable("JAVA_17_HOME", "C:\Program Files\Eclipse Adoptium\jdk-17.0.12.7-hotspot", [EnvironmentVariableTarget]::User)
+  [Environment]::SetEnvironmentVariable("JAVA_21_HOME", "C:\Program Files\Eclipse Adoptium\jdk-21.0.5.11-hotspot", [EnvironmentVariableTarget]::User)
   ```
 
 </details>
