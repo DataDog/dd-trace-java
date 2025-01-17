@@ -64,6 +64,11 @@ class KotlinCoroutineTests(dispatcher: CoroutineDispatcher) : CoreKotlinCoroutin
   }
 
   @Trace
+  override fun traceAfterTimeout(): Int {
+    return super.traceAfterTimeout()
+  }
+
+  @Trace
   override fun tracedChild(opName: String) {
     super.tracedChild(opName)
   }

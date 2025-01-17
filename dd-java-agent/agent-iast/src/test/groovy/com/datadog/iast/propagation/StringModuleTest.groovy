@@ -12,6 +12,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import groovy.transform.CompileDynamic
 import org.junit.jupiter.api.Assertions
+import spock.lang.IgnoreIf
 
 import java.text.SimpleDateFormat
 
@@ -1412,6 +1413,27 @@ class StringModuleTest extends IastModuleImplTestBase {
     then:
     1 * tracer.activeSpan() >> span
     taintFormat(result, taintedObject.getRanges()) == "==>my_input<=="
+  }
+
+  @IgnoreIf({ System.getProperty('java.specification.version').toBigDecimal() < 15 })
+  void 'test translate escapes'() {
+    given:
+    final taintedObjects = ctx.getTaintedObjects()
+    def self = addFromTaintFormat(taintedObjects, testString)
+    def result = self.translateEscapes()
+
+    when:
+    module.onStringTranslateEscapes(self, result)
+    def taintedObject = taintedObjects.get(result)
+
+    then:
+    taintFormat(result, taintedObject.getRanges()) == expected
+
+    where:
+    testString            | expected
+    "==>hello world\t<==" | "==>hello world\t<=="
+    "==>hello world\n<==" | "==>hello world\n<=="
+    "==>hello worldn<=="  | "==>hello worldn<=="
   }
 
   void 'test valueOf with special objects and make sure IastRequestContext is called'() {

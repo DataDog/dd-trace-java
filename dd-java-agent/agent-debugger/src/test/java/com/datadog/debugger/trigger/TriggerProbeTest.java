@@ -35,6 +35,7 @@ import org.junit.jupiter.api.Test;
 
 public class TriggerProbeTest extends CapturingTestBase {
   private static final ProbeId TRIGGER_PROBE_ID1 = new ProbeId("trigger probe 1", 0);
+  private static final String TRIGGER_PROBE_SESSION_ID = "trigger probe sessionID";
 
   private TestTraceInterceptor traceInterceptor;
 
@@ -61,7 +62,13 @@ public class TriggerProbeTest extends CapturingTestBase {
       final String className = "com.datadog.debugger.TriggerProbe01";
       TriggerProbe probe1 =
           createTriggerProbe(
-              TRIGGER_PROBE_ID1, className, "entry", "()", null, new Sampling(10, 10.0));
+              TRIGGER_PROBE_ID1,
+              TRIGGER_PROBE_SESSION_ID,
+              className,
+              "entry",
+              "()",
+              null,
+              new Sampling(10, 10.0));
       installProbes(
           Configuration.builder()
               .setService(SERVICE_NAME)
@@ -75,6 +82,8 @@ public class TriggerProbeTest extends CapturingTestBase {
 
       assertEquals(1, sampler.getCallCount());
       List<List<? extends MutableSpan>> allTraces = traceInterceptor.getAllTraces();
+      assertEquals(runs, allTraces.size(), "actual traces: " + allTraces.size());
+
       long debugSessions =
           allTraces.stream()
               .map(span -> span.get(0))
@@ -82,9 +91,11 @@ public class TriggerProbeTest extends CapturingTestBase {
                   span -> {
                     DDSpan ddSpan = (DDSpan) span;
                     PropagationTags tags = ddSpan.context().getPropagationTags();
-                    return "1".equals(tags.getDebugPropagation());
+                    return (TRIGGER_PROBE_SESSION_ID + ":1").equals(tags.getDebugPropagation());
                   })
               .count();
+      assertEquals(1, debugSessions, "Should only have 1 debug session.  found: " + debugSessions);
+
       long tagged =
           allTraces.stream()
               .flatMap(Collection::stream)
@@ -92,8 +103,6 @@ public class TriggerProbeTest extends CapturingTestBase {
                   span ->
                       span.getTag(format("_dd.ld.probe_id.%s", TRIGGER_PROBE_ID1.getId())) != null)
               .count();
-      assertEquals(runs, allTraces.size(), "actual traces: " + allTraces.size());
-      assertEquals(1, debugSessions, "Should only have 1 debug session.  found: " + debugSessions);
       assertEquals(1, tagged, "Should only have 1 tagged span.  found: " + tagged);
     } finally {
       ProbeRateLimiter.setSamplerSupplier(null);
@@ -108,7 +117,14 @@ public class TriggerProbeTest extends CapturingTestBase {
 
       final String className = "com.datadog.debugger.TriggerProbe01";
       TriggerProbe probe1 =
-          createTriggerProbe(TRIGGER_PROBE_ID1, className, "entry", "()", null, new Sampling(10.0));
+          createTriggerProbe(
+              TRIGGER_PROBE_ID1,
+              TRIGGER_PROBE_SESSION_ID,
+              className,
+              "entry",
+              "()",
+              null,
+              new Sampling(10.0));
       Configuration config =
           Configuration.builder()
               .setService(SERVICE_NAME)
@@ -133,6 +149,7 @@ public class TriggerProbeTest extends CapturingTestBase {
     TriggerProbe probe1 =
         createTriggerProbe(
             TRIGGER_PROBE_ID1,
+            TRIGGER_PROBE_SESSION_ID,
             className,
             "entry",
             "(int)",
@@ -155,7 +172,7 @@ public class TriggerProbeTest extends CapturingTestBase {
                 span -> {
                   DDSpan ddSpan = (DDSpan) span;
                   PropagationTags tags = ddSpan.context().getPropagationTags();
-                  return "1".equals(tags.getDebugPropagation());
+                  return (TRIGGER_PROBE_SESSION_ID + ":1").equals(tags.getDebugPropagation());
                 })
             .count();
     assertEquals(100, allTraces.size(), "actual traces: " + allTraces.size());
@@ -164,6 +181,7 @@ public class TriggerProbeTest extends CapturingTestBase {
 
   public static TriggerProbe createTriggerProbe(
       ProbeId id,
+      String sessionId,
       String typeName,
       String methodName,
       String signature,
@@ -171,6 +189,7 @@ public class TriggerProbeTest extends CapturingTestBase {
       Sampling sampling,
       String... lines) {
     return new TriggerProbe(id, Where.of(typeName, methodName, signature, lines))
+        .setSessionId(sessionId)
         .setProbeCondition(probeCondition)
         .setSampling(sampling);
   }

@@ -9,7 +9,6 @@ import io.vertx.core.http.HttpClientOptions
 import io.vertx.core.http.HttpClientResponse
 import io.vertx.core.http.HttpMethod
 import io.vertx.core.http.RequestOptions
-import io.vertx.core.http.impl.NoStackTraceTimeoutException
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 
@@ -97,7 +96,10 @@ class VertxHttpClientForkedTest extends HttpClientTest implements TestingNettyHt
     status == 0
     assertTraces(1) {
       trace(size(1)) {
-        clientSpan(it, null, method, false, false, url, null, true, ex)
+        clientSpan(it, null, method, false, false, url, null, true, null, false,
+          ["error.stack": { String },
+            "error.message": { String s -> s.startsWith("The timeout period of ${timeout}ms has been exceeded")},
+            "error.type": { String s -> s.endsWith("NoStackTraceTimeoutException")}])
       }
     }
 
@@ -105,6 +107,5 @@ class VertxHttpClientForkedTest extends HttpClientTest implements TestingNettyHt
     timeout = 1000
     method = "GET"
     url = server.address.resolve("/timeout")
-    ex = new NoStackTraceTimeoutException("The timeout period of ${timeout}ms has been exceeded while executing GET http://localhost:${url.port}/timeout for server localhost:${url.port}")
   }
 }

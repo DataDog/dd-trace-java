@@ -59,6 +59,15 @@ public class TriggerProbe extends ProbeDefinition implements Sampled {
         .instrument();
   }
 
+  public String getSessionId() {
+    return sessionId;
+  }
+
+  public TriggerProbe setSessionId(String sessionId) {
+    this.sessionId = sessionId;
+    return this;
+  }
+
   public Sampling getSampling() {
     return sampling;
   }
@@ -110,7 +119,7 @@ public class TriggerProbe extends ProbeDefinition implements Sampled {
     AgentTracer.TracerAPI tracerAPI = AgentTracer.get();
 
     AgentSpan agentSpan = tracerAPI.activeSpan().getLocalRootSpan();
-    agentSpan.setTag(Tags.PROPAGATED_DEBUG, "1");
+    agentSpan.setTag(Tags.PROPAGATED_DEBUG, sessionId + ":1");
     agentSpan.setTag(format("_dd.ld.probe_id.%s", probeId.getId()), true);
   }
 
@@ -148,8 +157,20 @@ public class TriggerProbe extends ProbeDefinition implements Sampled {
 
   @Override
   public String toString() {
-    return format(
-        "TriggerProbe{id='%s', where=%s, sampling=%s, probeCondition=%s}",
-        id, where, sampling, probeCondition);
+    return String.format(
+        "TriggerProbe{id='%s', sessionId='%s', evaluateAt=%s, language='%s', location=%s, probeCondition=%s, probeId=%s,"
+            + " sampling=%s, tagMap=%s, tags=%s, version=%d, where=%s}",
+        id,
+        sessionId,
+        evaluateAt,
+        language,
+        location,
+        probeCondition,
+        probeId,
+        sampling,
+        tagMap,
+        Arrays.toString(tags),
+        version,
+        where);
   }
 }
