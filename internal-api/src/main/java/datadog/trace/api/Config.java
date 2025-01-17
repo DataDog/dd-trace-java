@@ -1287,15 +1287,17 @@ public class Config {
         configProvider.getBoolean(
             APPSEC_STACK_TRACE_ENABLED,
             DEFAULT_APPSEC_STACK_TRACE_ENABLED,
-            APPSEC_STACKTRACE_ENABLED);
+            APPSEC_STACKTRACE_ENABLED_DEPRECATED);
     appSecMaxStackTraces =
         configProvider.getInteger(
-            APPSEC_MAX_STACK_TRACES, DEFAULT_APPSEC_MAX_STACK_TRACES, APPSEC_MAX_STACKTRACES);
+            APPSEC_MAX_STACK_TRACES,
+            DEFAULT_APPSEC_MAX_STACK_TRACES,
+            APPSEC_MAX_STACKTRACES_DEPRECATED);
     appSecMaxStackTraceDepth =
         configProvider.getInteger(
             APPSEC_MAX_STACK_TRACE_DEPTH,
             DEFAULT_APPSEC_MAX_STACK_TRACE_DEPTH,
-            APPSEC_MAX_STACKTRACE_DEPTH);
+            APPSEC_MAX_STACKTRACE_DEPTH_DEPRECATED);
     apiSecurityEnabled =
         configProvider.getBoolean(
             API_SECURITY_ENABLED, DEFAULT_API_SECURITY_ENABLED, API_SECURITY_ENABLED_EXPERIMENTAL);
@@ -1338,7 +1340,7 @@ public class Config {
         configProvider.getBoolean(
             IAST_STACK_TRACE_LEAK_SUPPRESS,
             DEFAULT_IAST_STACKTRACE_LEAK_SUPPRESS,
-            IAST_STACKTRACE_LEAK_SUPPRESS);
+            IAST_STACKTRACE_LEAK_SUPPRESS_DEPRECATED);
     iastHardcodedSecretEnabled =
         configProvider.getBoolean(
             IAST_HARDCODED_SECRET_ENABLED, DEFAULT_IAST_HARDCODED_SECRET_ENABLED);
@@ -1349,7 +1351,9 @@ public class Config {
     iastSourceMappingMaxSize = configProvider.getInteger(IAST_SOURCE_MAPPING_MAX_SIZE, 1000);
     iastStackTraceEnabled =
         configProvider.getBoolean(
-            IAST_STACK_TRACE_ENABLED, DEFAULT_IAST_STACK_TRACE_ENABLED, IAST_STACKTRACE_ENABLED);
+            IAST_STACK_TRACE_ENABLED,
+            DEFAULT_IAST_STACK_TRACE_ENABLED,
+            IAST_STACKTRACE_ENABLED_DEPRECATED);
     iastExperimentalPropagationEnabled =
         configProvider.getBoolean(IAST_EXPERIMENTAL_PROPAGATION_ENABLED, false);
     iastSecurityControlsConfiguration =

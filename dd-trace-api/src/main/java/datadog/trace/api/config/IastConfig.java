@@ -17,7 +17,7 @@ public final class IastConfig {
   public static final String IAST_REDACTION_NAME_PATTERN = "iast.redaction.name.pattern";
   public static final String IAST_REDACTION_VALUE_PATTERN = "iast.redaction.value.pattern";
   public static final String IAST_STACK_TRACE_LEAK_SUPPRESS = "iast.stack-trace-leak.suppress";
-  public static final String IAST_STACKTRACE_LEAK_SUPPRESS =
+  public static final String IAST_STACKTRACE_LEAK_SUPPRESS_DEPRECATED =
       "iast.stacktrace-leak.suppress"; // old non-standard as a fallback alias
   public static final String IAST_HARDCODED_SECRET_ENABLED = "iast.hardcoded-secret.enabled";
   public static final String IAST_MAX_RANGE_COUNT = "iast.max-range-count";
@@ -29,7 +29,7 @@ public final class IastConfig {
   public static final String IAST_EXPERIMENTAL_PROPAGATION_ENABLED =
       "iast.experimental.propagation.enabled";
   public static final String IAST_STACK_TRACE_ENABLED = "iast.stack-trace.enabled";
-  public static final String IAST_STACKTRACE_ENABLED =
+  public static final String IAST_STACKTRACE_ENABLED_DEPRECATED =
       "iast.stacktrace.enabled"; // old non-standard as a fallback alias
   public static final String IAST_SECURITY_CONTROLS_CONFIGURATION =
       "iast.security-controls.configuration";
