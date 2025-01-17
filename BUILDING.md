@@ -112,7 +112,7 @@ Download and install Eclipse Temurin JDK versions 8, 11, 17 and 21, and GraalVM.
 Use the `tooling/install-jdks-windows.ps1` script to download and install Eclipse Temurin JDK versions 8, 11, 17, and 21, and set the required environment variables.
 
 > [!NOTE]
-> This scripts currently does _not_ install GraalVM due to license changes in October 2024.
+> This scripts currently does _not_ install GraalVM due to license changes in October 2024 for GraalVM 17.0.13 and later.
 
 <details>
 <summary>Manual installation</summary>
