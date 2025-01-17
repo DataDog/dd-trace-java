@@ -12,6 +12,7 @@ import datadog.trace.civisibility.diff.Diff;
 import datadog.trace.civisibility.diff.FileDiff;
 import datadog.trace.civisibility.git.tree.GitClient;
 import datadog.trace.civisibility.git.tree.GitDataUploader;
+import datadog.trace.civisibility.git.tree.GitRepoUnshallow;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -43,7 +44,8 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
 
   private final Config config;
   private final ConfigurationApi configurationApi;
-  private final GitClient.Factory gitClientFactory;
+  private final GitClient gitClient;
+  private final GitRepoUnshallow gitRepoUnshallow;
   private final GitDataUploader gitDataUploader;
   private final PullRequestInfo pullRequestInfo;
   private final String repositoryRoot;
@@ -51,13 +53,15 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
   public ExecutionSettingsFactoryImpl(
       Config config,
       ConfigurationApi configurationApi,
-      GitClient.Factory gitClientFactory,
+      GitClient gitClient,
+      GitRepoUnshallow gitRepoUnshallow,
       GitDataUploader gitDataUploader,
       PullRequestInfo pullRequestInfo,
       String repositoryRoot) {
     this.config = config;
     this.configurationApi = configurationApi;
-    this.gitClientFactory = gitClientFactory;
+    this.gitClient = gitClient;
+    this.gitRepoUnshallow = gitRepoUnshallow;
     this.gitDataUploader = gitDataUploader;
     this.pullRequestInfo = pullRequestInfo;
     this.repositoryRoot = repositoryRoot;
@@ -310,7 +314,8 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
 
     try {
       if (repositoryRoot != null && pullRequestInfo.isNotEmpty()) {
-        GitClient gitClient = gitClientFactory.create(repositoryRoot);
+        // ensure repo is not shallow before attempting to get git diff
+        gitRepoUnshallow.unshallow();
         return gitClient.getGitDiff(
             pullRequestInfo.getPullRequestBaseBranchSha(), pullRequestInfo.getGitCommitHeadSha());
       }
