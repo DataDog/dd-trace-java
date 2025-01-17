@@ -190,6 +190,6 @@ class VertxHttpServerWorkerForkedTest extends VertxHttpServerForkedTest {
     //FIXME: ASM
     // on the worker the requests are dispatched through a queue.
     // Despite the blocking works, we fails recording that blocking exception
-    !isVertxLatest4x
+    false
   }
 }
