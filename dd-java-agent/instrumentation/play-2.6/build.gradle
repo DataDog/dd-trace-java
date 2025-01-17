@@ -50,6 +50,10 @@ muzzle {
   }
 }
 
+ext {
+  latestDepTestMinJavaVersionForTests = JavaVersion.VERSION_11
+}
+
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'scala'
 
@@ -180,7 +184,6 @@ tasks.register('buildLatestDepTestRoutes', JavaExec) {
   dependsOn compileRouteGeneratorScala, compileLatestDepTestScala
 }
 compileLatestDepTestGeneratedScala {
-  javaLauncher = getJavaLauncherFor(11)
   classpath = classpath + files(compileLatestDepTestScala.destinationDirectory)
   dependsOn buildLatestDepTestRoutes, compileLatestDepTestScala
 }
@@ -189,7 +192,6 @@ forbiddenApisLatestDepTestGenerated {
 }
 
 compileLatestDepTestGroovy {
-  javaLauncher = getJavaLauncherFor(11)
   classpath = classpath +
     files(compileLatestDepTestScala.destinationDirectory) +
     files(compileBaseTestGroovy.destinationDirectory) +
