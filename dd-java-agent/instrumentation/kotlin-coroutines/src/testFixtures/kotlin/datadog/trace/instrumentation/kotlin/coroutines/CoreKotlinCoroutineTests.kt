@@ -312,6 +312,30 @@ abstract class CoreKotlinCoroutineTests(private val dispatcher: CoroutineDispatc
   }
 
   @Trace
+  open fun traceAfterTimeout(): Int = runTest {
+    childSpan("1-before-timeout").activateAndUse {
+      delay(10)
+    }
+    withTimeout(50) {
+      childSpan("2-inside-timeout").activateAndUse {
+        delay(10)
+      }
+    }
+    // FIXME: This span is detached
+    childSpan("3-after-timeout").activateAndUse {
+      delay(10)
+    }
+    childSpan("4-after-timeout-2").activateAndUse {
+      delay(10)
+    }
+    childSpan("5-after-timeout-3").activateAndUse {
+      delay(10)
+    }
+
+    6
+  }
+
+  @Trace
   protected open fun tracedChild(opName: String) {
     activeSpan().setSpanName(opName)
   }
