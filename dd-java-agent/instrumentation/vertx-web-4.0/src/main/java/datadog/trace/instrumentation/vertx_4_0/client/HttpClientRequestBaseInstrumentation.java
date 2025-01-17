@@ -56,7 +56,6 @@ public class HttpClientRequestBaseInstrumentation extends InstrumenterModule.Tra
         @Advice.Argument(value = 0) Throwable cause,
         @Advice.FieldValue("stream") final HttpClientStream stream,
         @Advice.Return boolean result) {
-      cause.printStackTrace();
       if (result) {
         AgentSpan nettySpan =
             stream.connection().channel().attr(AttributeKeys.SPAN_ATTRIBUTE_KEY).get();
