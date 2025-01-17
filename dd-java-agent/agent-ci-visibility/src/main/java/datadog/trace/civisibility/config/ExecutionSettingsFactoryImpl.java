@@ -13,7 +13,6 @@ import datadog.trace.civisibility.diff.FileDiff;
 import datadog.trace.civisibility.git.tree.GitClient;
 import datadog.trace.civisibility.git.tree.GitDataUploader;
 import datadog.trace.civisibility.git.tree.GitRepoUnshallow;
-import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.BitSet;
@@ -26,7 +25,6 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -113,7 +111,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
         .build();
   }
 
-  private @NotNull Map<String, ExecutionSettings> create(TracerEnvironment tracerEnvironment) {
+  private @Nonnull Map<String, ExecutionSettings> create(TracerEnvironment tracerEnvironment) {
     CiVisibilitySettings ciVisibilitySettings = getCiVisibilitySettings(tracerEnvironment);
 
     boolean itrEnabled = isItrEnabled(ciVisibilitySettings);
@@ -305,7 +303,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
     }
   }
 
-  @NotNull
+  @Nonnull
   private Diff getPullRequestDiff(
       boolean impactedTestsDetectionEnabled, TracerEnvironment tracerEnvironment) {
     if (!impactedTestsDetectionEnabled) {
@@ -313,11 +311,16 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
     }
 
     try {
-      if (repositoryRoot != null && pullRequestInfo.isNotEmpty()) {
+      if (repositoryRoot != null) {
         // ensure repo is not shallow before attempting to get git diff
         gitRepoUnshallow.unshallow();
-        return gitClient.getGitDiff(
-            pullRequestInfo.getPullRequestBaseBranchSha(), pullRequestInfo.getGitCommitHeadSha());
+        Diff diff =
+            gitClient.getGitDiff(
+                pullRequestInfo.getPullRequestBaseBranchSha(),
+                pullRequestInfo.getGitCommitHeadSha());
+        if (diff != null) {
+          return diff;
+        }
       }
 
     } catch (InterruptedException e) {
@@ -329,12 +332,29 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
     }
 
     try {
-      // falling back to file-level granularity
-      return new FileDiff(configurationApi.getChangedFiles(tracerEnvironment));
+      ChangedFiles changedFiles = configurationApi.getChangedFiles(tracerEnvironment);
 
-    } catch (IOException e) {
-      LOGGER.error("Could not get changed files from backend", e);
-      return Diff.EMPTY;
+      // attempting to use base SHA returned by the backend to calculate git diff
+      if (repositoryRoot != null) {
+        // ensure repo is not shallow before attempting to get git diff
+        gitRepoUnshallow.unshallow();
+        Diff diff = gitClient.getGitDiff(changedFiles.getBaseSha(), tracerEnvironment.getSha());
+        if (diff != null) {
+          return diff;
+        }
+      }
+
+      // falling back to file-level granularity
+      return new FileDiff(changedFiles.getFiles());
+
+    } catch (InterruptedException e) {
+      LOGGER.error("Interrupted while getting git diff for: {}", tracerEnvironment, e);
+      Thread.currentThread().interrupt();
+
+    } catch (Exception e) {
+      LOGGER.error("Could not get git diff for: {}", tracerEnvironment, e);
     }
+
+    return Diff.EMPTY;
   }
 }

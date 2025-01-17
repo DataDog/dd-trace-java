@@ -342,6 +342,6 @@ class GitClientTest extends Specification {
 
   private givenGitClient() {
     def metricCollector = Stub(CiVisibilityMetricCollectorImpl)
-    new GitClient(metricCollector, tempDir.toString(), "25 years ago", 10, GIT_COMMAND_TIMEOUT_MILLIS)
+    new ShellGitClient(metricCollector, tempDir.toString(), "25 years ago", 10, GIT_COMMAND_TIMEOUT_MILLIS)
   }
 }

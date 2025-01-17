@@ -1,6 +1,7 @@
 package datadog.trace.civisibility.utils;
 
 import datadog.communication.util.IOUtils;
+import datadog.trace.api.civisibility.telemetry.tag.ExitCode;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.context.TraceScope;
 import datadog.trace.util.AgentThreadFactory;
@@ -226,6 +227,21 @@ public class ShellCommandExecutor {
 
     public int getExitCode() {
       return exitCode;
+    }
+  }
+
+  public static ExitCode getExitCode(Exception e) {
+    if (e instanceof ShellCommandFailedException) {
+      ShellCommandFailedException scfe = (ShellCommandFailedException) e;
+      return ExitCode.from(scfe.getExitCode());
+
+    } else {
+      String m = e.getMessage();
+      if (m != null && m.toLowerCase().contains("no such file or directory")) {
+        return ExitCode.EXECUTABLE_MISSING;
+      } else {
+        return ExitCode.CODE_UNKNOWN;
+      }
     }
   }
 }

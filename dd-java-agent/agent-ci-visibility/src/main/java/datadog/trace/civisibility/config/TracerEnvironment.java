@@ -36,8 +36,38 @@ public class TracerEnvironment {
     this.configurations = configurations;
   }
 
+  public String getSha() {
+    return sha;
+  }
+
   public Configurations getConfigurations() {
     return configurations;
+  }
+
+  @Override
+  public String toString() {
+    return "TracerEnvironment{"
+        + "service='"
+        + service
+        + '\''
+        + ", env='"
+        + env
+        + '\''
+        + ", repositoryUrl='"
+        + repositoryUrl
+        + '\''
+        + ", branch='"
+        + branch
+        + '\''
+        + ", sha='"
+        + sha
+        + '\''
+        + ", testLevel='"
+        + testLevel
+        + '\''
+        + ", configurations="
+        + configurations
+        + '}';
   }
 
   public static Builder builder() {

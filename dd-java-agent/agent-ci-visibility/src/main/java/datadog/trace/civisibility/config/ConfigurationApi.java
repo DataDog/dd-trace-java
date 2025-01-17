@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
-import java.util.Set;
 
 public interface ConfigurationApi {
 
@@ -34,8 +33,8 @@ public interface ConfigurationApi {
         }
 
         @Override
-        public Set<String> getChangedFiles(TracerEnvironment tracerEnvironment) {
-          return Collections.emptySet();
+        public ChangedFiles getChangedFiles(TracerEnvironment tracerEnvironment) {
+          return ChangedFiles.EMPTY;
         }
       };
 
@@ -49,5 +48,5 @@ public interface ConfigurationApi {
   Map<String, Collection<TestIdentifier>> getKnownTestsByModule(TracerEnvironment tracerEnvironment)
       throws IOException;
 
-  Set<String> getChangedFiles(TracerEnvironment tracerEnvironment) throws IOException;
+  ChangedFiles getChangedFiles(TracerEnvironment tracerEnvironment) throws IOException;
 }
