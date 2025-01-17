@@ -1,13 +1,11 @@
 package datadog.trace.civisibility.config
 
-
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.api.civisibility.config.TestMetadata
-import datadog.trace.civisibility.diff.Diff
 import datadog.trace.civisibility.diff.LineDiff
 import spock.lang.Specification
 
-import static datadog.trace.civisibility.TestUtils.*
+import static datadog.trace.civisibility.TestUtils.lines
 
 class ExecutionSettingsTest extends Specification {
 
@@ -33,7 +31,7 @@ class ExecutionSettingsTest extends Specification {
       [:],
       null,
       new HashSet<>([]),
-      Diff.EMPTY),
+      LineDiff.EMPTY),
 
       new ExecutionSettings(
       true,

@@ -19,15 +19,12 @@ import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.bootstrap.ContextStore
 import datadog.trace.civisibility.codeowners.Codeowners
-import datadog.trace.civisibility.config.EarlyFlakeDetectionSettings
-import datadog.trace.civisibility.config.ExecutionSettings
-import datadog.trace.civisibility.config.ExecutionSettingsFactory
-import datadog.trace.civisibility.config.JvmInfo
-import datadog.trace.civisibility.config.JvmInfoFactoryImpl
+import datadog.trace.civisibility.config.*
 import datadog.trace.civisibility.coverage.file.FileCoverageStore
 import datadog.trace.civisibility.coverage.percentage.NoOpCoverageCalculator
 import datadog.trace.civisibility.decorator.TestDecorator
 import datadog.trace.civisibility.decorator.TestDecoratorImpl
+import datadog.trace.civisibility.diff.LineDiff
 import datadog.trace.civisibility.domain.BuildSystemSession
 import datadog.trace.civisibility.domain.TestFrameworkModule
 import datadog.trace.civisibility.domain.TestFrameworkSession
@@ -36,7 +33,6 @@ import datadog.trace.civisibility.domain.buildsystem.ModuleSignalRouter
 import datadog.trace.civisibility.domain.headless.HeadlessTestSession
 import datadog.trace.civisibility.events.BuildEventsHandlerImpl
 import datadog.trace.civisibility.events.TestEventsHandlerImpl
-import datadog.trace.civisibility.diff.Diff
 import datadog.trace.civisibility.ipc.SignalServer
 import datadog.trace.civisibility.source.LinesResolver
 import datadog.trace.civisibility.source.SourcePathResolver
@@ -129,7 +125,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
         [:],
         flakyTests,
         earlyFlakinessDetectionEnabled || CIConstants.FAIL_FAST_TEST_ORDER.equalsIgnoreCase(Config.get().ciVisibilityTestOrder) ? knownTests : null,
-        Diff.EMPTY)
+        LineDiff.EMPTY)
       }
     }
 

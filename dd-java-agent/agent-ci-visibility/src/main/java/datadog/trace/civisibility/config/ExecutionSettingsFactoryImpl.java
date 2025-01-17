@@ -10,6 +10,7 @@ import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.civisibility.ci.PullRequestInfo;
 import datadog.trace.civisibility.diff.Diff;
 import datadog.trace.civisibility.diff.FileDiff;
+import datadog.trace.civisibility.diff.LineDiff;
 import datadog.trace.civisibility.git.tree.GitClient;
 import datadog.trace.civisibility.git.tree.GitDataUploader;
 import datadog.trace.civisibility.git.tree.GitRepoUnshallow;
@@ -307,7 +308,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
   private Diff getPullRequestDiff(
       boolean impactedTestsDetectionEnabled, TracerEnvironment tracerEnvironment) {
     if (!impactedTestsDetectionEnabled) {
-      return Diff.EMPTY;
+      return LineDiff.EMPTY;
     }
 
     try {
@@ -355,6 +356,6 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
       LOGGER.error("Could not get git diff for: {}", tracerEnvironment, e);
     }
 
-    return Diff.EMPTY;
+    return LineDiff.EMPTY;
   }
 }
