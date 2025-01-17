@@ -3,6 +3,7 @@ package datadog.trace.civisibility.config;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestMetadata;
 import datadog.trace.civisibility.diff.Diff;
+import datadog.trace.civisibility.diff.LineDiff;
 import datadog.trace.civisibility.ipc.serialization.Serializer;
 import java.nio.ByteBuffer;
 import java.util.BitSet;
@@ -29,7 +30,7 @@ public class ExecutionSettings {
           Collections.emptyMap(),
           Collections.emptyList(),
           null,
-          Diff.EMPTY);
+          LineDiff.EMPTY);
 
   private final boolean itrEnabled;
   private final boolean codeCoverageEnabled;

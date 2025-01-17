@@ -5,8 +5,6 @@ import datadog.trace.civisibility.ipc.serialization.SerializableType;
 
 public interface Diff extends SerializableType {
 
-  Diff EMPTY = LineDiff.EMPTY;
-
   PolymorphicSerializer<Diff> SERIALIZER =
       new PolymorphicSerializer<>(LineDiff.class, FileDiff.class);
 
