@@ -465,8 +465,7 @@ public class LogProbe extends ProbeDefinition implements Sampled {
       // sample when no condition associated
       sample(logStatus, methodLocation);
     }
-    logStatus.setCondition(
-        !logStatus.getDebugSessionStatus().isDisabled() && evaluateCondition(context, logStatus));
+    logStatus.setCondition(evaluateCondition(context, logStatus));
     CapturedContext.CapturedThrowable throwable = context.getCapturedThrowable();
     if (logStatus.hasConditionErrors() && throwable != null) {
       logStatus.addError(
@@ -755,7 +754,11 @@ public class LogProbe extends ProbeDefinition implements Sampled {
     }
 
     public boolean shouldSend() {
-      return sampled && condition && !hasConditionErrors;
+      DebugSessionStatus status = getDebugSessionStatus();
+      // an ACTIVE status overrides the sampling as the sampling decision was made by the trigger
+      // probe
+      return status == DebugSessionStatus.ACTIVE
+          || !status.isDisabled() && sampled && condition && !hasConditionErrors;
     }
 
     public boolean shouldReportError() {

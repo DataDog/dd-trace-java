@@ -59,6 +59,15 @@ public class TriggerProbe extends ProbeDefinition implements Sampled {
         .instrument();
   }
 
+  public String getSessionId() {
+    return sessionId;
+  }
+
+  public TriggerProbe setSessionId(String sessionId) {
+    this.sessionId = sessionId;
+    return this;
+  }
+
   public Sampling getSampling() {
     return sampling;
   }
