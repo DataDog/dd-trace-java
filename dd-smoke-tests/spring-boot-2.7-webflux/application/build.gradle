@@ -30,3 +30,6 @@ dependencies {
     implementation "com.datadoghq:dd-trace-api:0.110.0"
   }
 }
+
+targetCompatibility = JavaVersion.VERSION_1_8
+sourceCompatibility = JavaVersion.VERSION_1_8
