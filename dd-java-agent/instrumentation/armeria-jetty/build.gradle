@@ -15,6 +15,11 @@ muzzle {
   }
 }
 
+ext {
+  jetty11TestMinJavaVersionForTests = JavaVersion.VERSION_11
+  jetty11LatestDepTestMinJavaVersionForTests = JavaVersion.VERSION_11
+}
+
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/configure_tests.gradle"
 
@@ -24,12 +29,6 @@ addTestSuiteForDir("jetty9Test", "test/jetty9")
 addTestSuiteForDir("jetty11Test", "test/jetty11")
 addTestSuiteExtendingForDir("jetty9LatestDepTest", "latestDepTest", "test/jetty9")
 addTestSuiteExtendingForDir("jetty11LatestDepTest", "latestDepTest", "test/jetty11")
-
-[compileJetty11TestGroovy, jetty11Test, compileJetty11LatestDepTestGroovy, jetty11LatestDepTest].each {
-  it.configure {
-    javaLauncher = getJavaLauncherFor(11)
-  }
-}
 
 dependencies {
   compileOnly group: 'com.linecorp.armeria', name: 'armeria-jetty9', version: '1.24.0'
