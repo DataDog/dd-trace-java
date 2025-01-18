@@ -7,6 +7,10 @@ muzzle {
   }
 }
 
+ext {
+  latestDepJava11TestMinJavaVersionForTests = JavaVersion.VERSION_11
+}
+
 apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
@@ -16,10 +20,7 @@ tasks.named("compileLatestDepJava11TestJava").configure {
   setJavaVersion(it, 11)
 }
 tasks.named("compileLatestDepJava11TestGroovy").configure {
-  javaLauncher = getJavaLauncherFor(11)
-}
-tasks.named("latestDepJava11Test").configure {
-  javaLauncher = getJavaLauncherFor(11)
+  setJavaVersion(it, 11)
 }
 
 dependencies {
