@@ -11,6 +11,10 @@ muzzle {
   }
 }
 
+ext {
+  latestDepJava11TestMinJavaVersionForTests = JavaVersion.VERSION_11
+}
+
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'call-site-instrumentation'
 
@@ -76,10 +80,6 @@ dependencies {
 tasks.named("check").configure {
   dependsOn "oldH2Test"
   dependsOn "oldPostgresTest"
-}
-
-tasks.named("latestDepJava11Test").configure {
-  javaLauncher = getJavaLauncherFor(11)
 }
 
 tasks.withType(Test).configureEach {
