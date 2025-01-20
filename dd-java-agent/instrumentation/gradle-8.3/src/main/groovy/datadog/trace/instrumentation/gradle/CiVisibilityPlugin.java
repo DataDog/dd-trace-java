@@ -15,18 +15,18 @@ import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.file.SourceDirectorySet;
-import org.gradle.api.logging.Logger;
-import org.gradle.api.logging.Logging;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.SourceSetContainer;
 import org.gradle.api.tasks.SourceSetOutput;
 import org.gradle.api.tasks.compile.JavaCompile;
 import org.gradle.api.tasks.testing.Test;
 import org.gradle.testing.jacoco.plugins.JacocoPluginExtension;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public abstract class CiVisibilityPlugin implements Plugin<Project> {
 
-  private static final Logger LOGGER = Logging.getLogger(CiVisibilityPlugin.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(CiVisibilityPlugin.class);
 
   private static final String PLUGIN_EXTENSION_NAME = "dd-ci-visibility";
   private static final String JACOCO_PLUGIN_ID = "jacoco";
