@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.weaver;
 
 import datadog.trace.api.civisibility.InstrumentationBridge;
+import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
@@ -98,15 +99,12 @@ public class DatadogWeaverReporter {
     TEST_EVENTS_HANDLER.onTestStart(
         testSuiteDescriptor,
         testDescriptor,
-        testSuiteName,
         testName,
         TEST_FRAMEWORK,
         TEST_FRAMEWORK_VERSION,
         testParameters,
         categories,
-        testClass,
-        testMethodName,
-        testMethod,
+        new TestSourceData(testClass, testMethod, testMethodName),
         isRetry,
         startMicros);
 
