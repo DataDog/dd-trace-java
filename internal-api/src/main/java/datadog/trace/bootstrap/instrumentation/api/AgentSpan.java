@@ -167,6 +167,6 @@ public interface AgentSpan
 
   @Override
   default <T> Context with(ContextKey<T> key, @Nullable T value) {
-    return Context.root().with(SPAN_KEY, this).with(key, value);
+    return Context.root().with(SPAN_KEY, this, key, value);
   }
 }

@@ -114,7 +114,7 @@ public interface Context {
   /**
    * Creates a copy of this context with the given key-value set.
    *
-   * <p>Existing value with the given key will be replaced, and mapping to a {@code null} value will
+   * <p>Existing value with the given key will be replaced. Mapping to a {@code null} value will
    * remove the key-value from the context copy.
    *
    * @param <T> the type of the value.
@@ -123,6 +123,28 @@ public interface Context {
    * @return a new context with the key-value set.
    */
   <T> Context with(ContextKey<T> key, @Nullable T value);
+
+  /**
+   * Creates a copy of this context with the given pair of key-values.
+   *
+   * <p>Existing values with the given keys will be replaced. Mapping to a {@code null} value will
+   * remove the key-value from the context copy.
+   *
+   * @param <T> the type of the first value.
+   * @param <U> the type of the second value.
+   * @param firstKey the first key to store the first value.
+   * @param firstValue the first value to store.
+   * @param secondKey the second key to store the second value.
+   * @param secondValue the second value to store.
+   * @return a new context with the pair of key-values set.
+   */
+  default <T, U> Context with(
+      ContextKey<T> firstKey,
+      @Nullable T firstValue,
+      ContextKey<U> secondKey,
+      @Nullable U secondValue) {
+    return with(firstKey, firstValue).with(secondKey, secondValue);
+  }
 
   /**
    * Creates a copy of this context with the implicit key is mapped to the value.

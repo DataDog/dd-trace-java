@@ -65,6 +65,41 @@ class ContextTest {
 
   @ParameterizedTest
   @MethodSource("contextImplementations")
+  void testWithPair(Context context) {
+    // Test retrieving value
+    String stringValue = "value";
+    Context context1 = context.with(BOOLEAN_KEY, false, STRING_KEY, stringValue);
+    assertEquals(stringValue, context1.get(STRING_KEY));
+    assertEquals(false, context1.get(BOOLEAN_KEY));
+    // Test overriding value
+    String stringValue2 = "value2";
+    Context context2 = context1.with(STRING_KEY, stringValue2, BOOLEAN_KEY, true);
+    assertEquals(stringValue2, context2.get(STRING_KEY));
+    assertEquals(true, context2.get(BOOLEAN_KEY));
+    // Test clearing value
+    Context context3 = context2.with(BOOLEAN_KEY, null, STRING_KEY, null);
+    assertNull(context3.get(STRING_KEY));
+    assertNull(context3.get(BOOLEAN_KEY));
+    // Test null key handling
+    assertThrows(
+        NullPointerException.class,
+        () -> context.with(null, "test", STRING_KEY, "test"),
+        "Context forbids null keys");
+    assertThrows(
+        NullPointerException.class,
+        () -> context.with(STRING_KEY, "test", null, "test"),
+        "Context forbids null keys");
+    // Test null value handling
+    assertDoesNotThrow(
+        () -> context.with(BOOLEAN_KEY, null, STRING_KEY, "test"),
+        "Null value should not throw exception");
+    assertDoesNotThrow(
+        () -> context.with(STRING_KEY, "test", BOOLEAN_KEY, null),
+        "Null value should not throw exception");
+  }
+
+  @ParameterizedTest
+  @MethodSource("contextImplementations")
   void testGet(Context original) {
     // Setup context
     String value = "value";
