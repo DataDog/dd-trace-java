@@ -11,6 +11,7 @@ import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.iast.sink.EmailInjectionModule;
 import java.io.IOException;
 import javax.mail.MessagingException;
+import javax.mail.Multipart;
 import javax.mail.Part;
 import net.bytebuddy.asm.Advice;
 import org.slf4j.Logger;
@@ -47,10 +48,10 @@ public class JavaxMailInstrumentation extends InstrumenterModule.Iast
         if (message.isMimeType("text/html")) {
           emailInjectionModule.onSendEmail(message.getContent());
         } else if (message.isMimeType("multipart/*")) {
-          Part[] parts = (Part[]) message.getContent();
-          for (Part part : parts) {
-            if (part.isMimeType("text/html")) {
-              emailInjectionModule.onSendEmail(part.getContent());
+          Multipart parts = (Multipart) message.getContent();
+          for (int i = 0; i < parts.getCount(); i++) {
+            if (parts.getBodyPart(i).isMimeType("text/html")) {
+              emailInjectionModule.onSendEmail(parts.getBodyPart(i).getContent());
             }
           }
         }

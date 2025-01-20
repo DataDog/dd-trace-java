@@ -1,12 +1,18 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.EmailInjectionModule
+
+import javax.mail.Part
 import javax.mail.Transport
 import javax.mail.Message
 import javax.mail.Session
 import javax.mail.internet.InternetAddress
+import javax.mail.internet.InternetHeaders
+import javax.mail.internet.MimeBodyPart
 import javax.mail.internet.MimeMessage
 import de.saly.javamail.mock2.MockTransport
+
+import javax.mail.internet.MimeMultipart
 
 
 class JavaxMailInstrumentationTest  extends AgentTestRunner {
@@ -46,18 +52,26 @@ class JavaxMailInstrumentationTest  extends AgentTestRunner {
     final session = Session.getInstance(new Properties())
     final message = new MimeMessage(session)
     message.setRecipient(Message.RecipientType.TO, new InternetAddress("mock@datadoghq.com"))
-    message.setContent(content, mimetype)
 
+    MimeMultipart content = new MimeMultipart()
+    content.addBodyPart(new MimeBodyPart())
+    content.addBodyPart(new MimeBodyPart())
+    content.getBodyPart(0).setContent(body[0], "text/plain")
+    content.getBodyPart(1).setContent(body[1], "text/html")
+    message.setContent(content, mimetype)
 
     when:
     Transport.send(message)
 
     then:
-    1 * module.onSendEmail(message.getContent())
+    0 * module.onSendEmail(((MimeMultipart[])message.getContent())[0].getBodyPart(0).getContent())
+    1 * module.onSendEmail(((MimeMultipart[])message.getContent())[0].getBodyPart(1).getContent())
 
     where:
-    mimetype | content
-    "text/html" | "<html><body>Hello, Content!</body></html>"
+    mimetype | body
+    "multipart/*" | new String[]{
+      "<html><body>Hello, Content!</body></html>", "<html><body>Evil Content!</body></html>"
+    }
   }
 
   void 'test javax.mail.Message simple text'() {
@@ -100,7 +114,7 @@ class JavaxMailInstrumentationTest  extends AgentTestRunner {
     "text/html" | "<html><body>Hello, Content!</body></html>"
   }
 
-  void 'test javax.mail.Message sanitized Object'() {
+  void 'test javax.mail.Message half sanitized Object'() {
     given:
     final module = Mock(EmailInjectionModule)
     InstrumentationBridge.registerIastModule(module)
