@@ -1,6 +1,7 @@
 package com.datadog.profiling.controller;
 
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
+import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
@@ -297,6 +298,7 @@ public final class TempLocationManager {
 
     Thread selfCleanup =
         new Thread(
+            AGENT_THREAD_GROUP,
             () -> {
               if (!waitForCleanup(1, TimeUnit.SECONDS)) {
                 log.info(

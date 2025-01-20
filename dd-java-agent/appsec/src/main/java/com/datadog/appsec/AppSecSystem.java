@@ -39,6 +39,7 @@ public class AppSecSystem {
   private static final Map<AppSecModule, String> STARTED_MODULES_INFO = new HashMap<>();
   private static AppSecConfigServiceImpl APP_SEC_CONFIG_SERVICE;
   private static ReplaceableEventProducerService REPLACEABLE_EVENT_PRODUCER; // testing
+  private static Runnable STOP_SUBSCRIPTION_SERVICE;
   private static Runnable RESET_SUBSCRIPTION_SERVICE;
 
   public static void start(SubscriptionService gw, SharedCommunicationObjects sco) {
@@ -90,7 +91,8 @@ public class AppSecSystem {
     loadModules(eventDispatcher, sco.monitoring);
 
     gatewayBridge.init();
-    RESET_SUBSCRIPTION_SERVICE = gatewayBridge::stop;
+    STOP_SUBSCRIPTION_SERVICE = gatewayBridge::stop;
+    RESET_SUBSCRIPTION_SERVICE = gatewayBridge::reset;
 
     setActive(appSecEnabledConfig == ProductActivation.FULLY_ENABLED);
 
@@ -127,8 +129,12 @@ public class AppSecSystem {
       return;
     }
     REPLACEABLE_EVENT_PRODUCER = null;
-    RESET_SUBSCRIPTION_SERVICE.run();
-    RESET_SUBSCRIPTION_SERVICE = null;
+    final Runnable stop = STOP_SUBSCRIPTION_SERVICE;
+    if (stop != null) {
+      stop.run();
+      STOP_SUBSCRIPTION_SERVICE = null;
+      RESET_SUBSCRIPTION_SERVICE = null;
+    }
     Blocking.setBlockingService(BlockingService.NOOP);
 
     APP_SEC_CONFIG_SERVICE.close();
@@ -176,6 +182,11 @@ public class AppSecSystem {
     newEd.subscribeDataAvailable(dataSubscriptionSet);
 
     replaceableEventProducerService.replaceEventProducerService(newEd);
+
+    final Runnable reset = RESET_SUBSCRIPTION_SERVICE;
+    if (reset != null) {
+      reset.run();
+    }
   }
 
   public static boolean isStarted() {

@@ -93,6 +93,9 @@ public abstract class ProbeDefinition implements ProbeImplementation {
   }
 
   public Map<String, String> getTagMap() {
+    if (tagMap.isEmpty() && tags != null) {
+      initTagMap(tagMap, tags);
+    }
     return Collections.unmodifiableMap(tagMap);
   }
 

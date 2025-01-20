@@ -43,6 +43,7 @@ public final class WrapRunnableAsNewTaskInstrumentation extends InstrumenterModu
       "java.util.concurrent.AbstractExecutorService",
       "org.glassfish.grizzly.threadpool.GrizzlyExecutorService",
       "org.jboss.threads.EnhancedQueueExecutor",
+      "io.vertx.core.impl.WorkerExecutor",
     };
   }
 

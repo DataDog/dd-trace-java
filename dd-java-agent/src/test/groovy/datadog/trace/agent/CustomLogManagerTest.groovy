@@ -9,7 +9,6 @@ import spock.lang.Timeout
 class CustomLogManagerTest extends Specification {
 
   private static final String DEFAULT_LOG_LEVEL = "debug"
-  private static final String API_KEY = "01234567890abcdef123456789ABCDEF"
 
   // Run all tests using forked jvm because groovy has already set the global log manager
   def "agent services starts up in premain with no custom log manager set"() {
@@ -23,7 +22,7 @@ class CustomLogManagerTest extends Specification {
         "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=$DEFAULT_LOG_LEVEL"
       ] as String[]
       , "" as String[]
-      , ["DD_API_KEY": API_KEY]
+      , [:]
       , true) == 0
   }
 
@@ -39,7 +38,7 @@ class CustomLogManagerTest extends Specification {
         "-Djava.util.logging.manager=jvmbootstraptest.CustomLogManager"
       ] as String[]
       , "" as String[]
-      , ["DD_API_KEY": API_KEY]
+      , [:]
       , true) == 0
   }
 
@@ -55,7 +54,7 @@ class CustomLogManagerTest extends Specification {
         "-Djava.util.logging.manager=jvmbootstraptest.MissingLogManager"
       ] as String[]
       , "" as String[]
-      , ["DD_API_KEY": API_KEY, "DD_SITE": ""]
+      , [:]
       , true) == 0
   }
 
@@ -71,7 +70,7 @@ class CustomLogManagerTest extends Specification {
         "-Ddd.app.customlogmanager=true"
       ] as String[]
       , "" as String[]
-      , ["DD_API_KEY": API_KEY]
+      , [:]
       , true) == 0
   }
 
@@ -87,7 +86,7 @@ class CustomLogManagerTest extends Specification {
         "-Ddd.app.customjmxbuilder=false"
       ] as String[]
       , "" as String[]
-      , ["JBOSS_HOME": "/", "DD_API_KEY": API_KEY, "DD_SITE": ""]
+      , ["JBOSS_HOME": "/"]
       , true) == 0
   }
 
@@ -105,7 +104,7 @@ class CustomLogManagerTest extends Specification {
         "-Djava.util.logging.manager=jvmbootstraptest.CustomLogManager"
       ] as String[]
       , "" as String[]
-      , ["JBOSS_HOME": "/", "DD_API_KEY": API_KEY]
+      , ["JBOSS_HOME": "/"]
       , true) == 0
   }
 }

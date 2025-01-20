@@ -6,6 +6,8 @@ import datadog.trace.test.util.DDSpecification
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 
+import static datadog.trace.api.config.TracerConfig.AGENT_HOST
+
 class SharedCommunicationsObjectsSpecification extends DDSpecification {
   SharedCommunicationObjects sco = new SharedCommunicationObjects()
 
@@ -89,5 +91,37 @@ class SharedCommunicationsObjectsSpecification extends DDSpecification {
     sco.okHttpClient.is(okHttpClient)
     sco.monitoring.is(monitoring)
     sco.featuresDiscovery.is(agentFeaturesDiscovery)
+  }
+
+  void 'supports ipv6 agent host w/o brackets'() {
+    given:
+    injectSysConfig(AGENT_HOST, "2600:1f18:19c0:bd07:d55b::17")
+    Config config = Mock()
+
+    when:
+    sco.createRemaining(config)
+
+    then:
+    1 * config.getAgentUrl() >> 'http://[2600:1f18:19c0:bd07:d55b::17]:8126'
+    1 * config.agentNamedPipe >> null
+    1 * config.agentTimeout >> 1
+    1 * config.agentUnixDomainSocket >> null
+    sco.agentUrl as String == 'http://[2600:1f18:19c0:bd07:d55b::17]:8126/'
+  }
+
+  void 'supports ipv6 agent host w/ brackets'() {
+    given:
+    injectSysConfig(AGENT_HOST, "[2600:1f18:19c0:bd07:d55b::17]")
+    Config config = Mock()
+
+    when:
+    sco.createRemaining(config)
+
+    then:
+    1 * config.getAgentUrl() >> 'http://[2600:1f18:19c0:bd07:d55b::17]:8126'
+    1 * config.agentNamedPipe >> null
+    1 * config.agentTimeout >> 1
+    1 * config.agentUnixDomainSocket >> null
+    sco.agentUrl as String == 'http://[2600:1f18:19c0:bd07:d55b::17]:8126/'
   }
 }
