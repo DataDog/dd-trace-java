@@ -14,7 +14,7 @@ import java.nio.file.Paths
 
 class AndroidGradleUtils {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(AndroidGradleUtils.class)
+  private static final Logger LOGGER = LoggerFactory.getLogger(AndroidGradleUtils)
 
   static BuildModuleLayout getAndroidModuleLayout(Project project, Test task) {
     try {
