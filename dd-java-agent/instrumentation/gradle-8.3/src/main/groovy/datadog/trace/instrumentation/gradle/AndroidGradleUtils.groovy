@@ -1,19 +1,20 @@
 package datadog.trace.instrumentation.gradle
 
+
 import datadog.trace.api.civisibility.domain.BuildModuleLayout
 import datadog.trace.api.civisibility.domain.SourceSet
 import org.gradle.api.Project
 import org.gradle.api.file.FileTree
-import org.gradle.api.logging.Logger
-import org.gradle.api.logging.Logging
 import org.gradle.api.tasks.testing.Test
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 
 import java.nio.file.Files
 import java.nio.file.Paths
 
 class AndroidGradleUtils {
 
-  private static final Logger LOGGER = Logging.getLogger(AndroidGradleUtils)
+  private static final Logger LOGGER = LoggerFactory.getLogger(AndroidGradleUtils.class)
 
   static BuildModuleLayout getAndroidModuleLayout(Project project, Test task) {
     try {
@@ -22,6 +23,7 @@ class AndroidGradleUtils {
         return null
       }
 
+      LOGGER.debug("Found Android plugin variant: {} for task {}", variant.name, task.path)
       def sources = getSources(variant)
       def destinations = getDestinations(variant, project)
       return new BuildModuleLayout(Collections.singletonList(new SourceSet(SourceSet.Type.CODE, sources, destinations)))
@@ -37,6 +39,7 @@ class AndroidGradleUtils {
       ?: project.plugins.findPlugin('com.android.application')
       ?: project.plugins.findPlugin('com.android.library')
 
+    LOGGER.debug("Found Android plugin: {}", androidPlugin.getClass().getName())
     def variants
     if (androidPlugin.class.simpleName == 'LibraryPlugin') {
       variants = project.android.libraryVariants
@@ -88,6 +91,8 @@ class AndroidGradleUtils {
     } else {
       destinationsTree = javaTree
     }
+
+    LOGGER.debug("Using destination tree: {}", destinationsTree.sourceTrees)
     return destinationsTree.files
   }
 
