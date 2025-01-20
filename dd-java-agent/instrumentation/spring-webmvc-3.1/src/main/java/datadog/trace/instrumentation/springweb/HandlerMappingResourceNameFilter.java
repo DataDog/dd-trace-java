@@ -7,6 +7,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -54,87 +55,54 @@ public class HandlerMappingResourceNameFilter extends OncePerRequestFilter imple
         filterChain.doFilter(request, response);
         return;
       }
-
       AgentSpan span = (AgentSpan) parentSpan;
-
-      ContentCachingResponseWrapper responseWrapper = new ContentCachingResponseWrapper(response);
-      ContentCachingRequestWrapper requestWrapper = null;
-      String contextType = null;
-      String methodType = null;
-
-      requestWrapper = new ContentCachingRequestWrapper(request);
-      filterChain.doFilter(requestWrapper, responseWrapper);
-
-      byte[] data = responseWrapper.getContentAsByteArray();
-      responseWrapper.copyBodyToResponse();
-
-      if (tracerHeader) {
-
-        contextType = requestWrapper.getContentType();
-        methodType = requestWrapper.getMethod();
-        StringBuffer requestHeader = new StringBuffer("");
-        StringBuffer responseHeader = new StringBuffer("");
-        Enumeration<String> headerNames = requestWrapper.getHeaderNames();
-        int count = 0;
-        while (headerNames.hasMoreElements()) {
-          if (count == 0) {
-            requestHeader.append("{");
-          } else {
-            requestHeader.append(",\n");
-          }
-          String headerName = headerNames.nextElement();
-          requestHeader
-              .append("\"")
-              .append(headerName)
-              .append("\":")
-              .append("\"")
-              .append(requestWrapper.getHeader(headerName).replace("\"", ""))
-              .append("\"");
-          count++;
-        }
-        if (count > 0) {
-          requestHeader.append("}");
-        }
-        count = 0;
-        for (String headerName : responseWrapper.getHeaderNames()) {
-          if (count == 0) {
-            responseHeader.append("{");
-            //
-            // responseHeader.append("\"guance_trace_id\":").append("\"").append(GlobalTracer.get().getTraceId()).append("\"");
-          } else {
-            responseHeader.append(",\n");
-          }
-          responseHeader
-              .append("\"")
-              .append(headerName)
-              .append("\":")
-              .append("\"")
-              .append(responseWrapper.getHeader(headerName))
-              .append("\"");
-          count++;
-        }
-
-        if (count > 0) {
-          responseHeader.append("}");
-        }
-        span.setTag("request_header", requestHeader.toString());
-        span.setTag("response_header", responseHeader.toString());
+      if (tracerHeader && !requestBodyEnabled && !responseBodyEnabled) {
+        filterChain.doFilter(request, response);
+        buildHeaderTags(span,request, response);
+        return;
       }
+
+      ContentCachingRequestWrapper requestWrapper = null;
+      if (requestBodyEnabled){
+        requestWrapper = new ContentCachingRequestWrapper(request);
+      }
+      String contextType = requestWrapper==null?request.getContentType():requestWrapper.getContentType();
+      String methodType = requestWrapper==null?request.getMethod():requestWrapper.getMethod();
+      String url = requestWrapper==null?request.getRequestURI():requestWrapper.getRequestURI();
+      boolean hasBlackList = false;
+      if (!isEmpty(Config.get().getTracerResponseBodyBlackListUrls())){
+        hasBlackList = Arrays.stream(Config.get().getTracerResponseBodyBlackListUrls().split(",")).anyMatch(uri -> uri.equals(url));
+      }
+      ContentCachingResponseWrapper responseWrapper = null;
+      boolean responseBodyEnabledTmp = responseBodyEnabled && !hasBlackList;
+      if (responseBodyEnabledTmp){
+        responseWrapper = new ContentCachingResponseWrapper(response);
+      }
+      filterChain.doFilter(requestWrapper==null?request:requestWrapper, responseWrapper==null?response:responseWrapper);
+      byte[] data =null;
+      if (responseBodyEnabledTmp) {
+        // 必须放到 filterChain.doFilter 之后，否则 responseWrapper.getContentAsByteArray() 为空
+        data = responseWrapper.getContentAsByteArray();
+        responseWrapper.copyBodyToResponse();
+      }
+      if (tracerHeader) {
+        buildHeaderTags(span,requestWrapper==null?request:requestWrapper, responseWrapper==null?response:responseWrapper);
+      }
+
       if (Config.get().isTracerRequestBodyEnabled()
           && "POST".equalsIgnoreCase(methodType)
           && contextType != null
           && (contextType.contains("application/json"))) {
         span.setTag("request_body", new String(requestWrapper.getContentAsByteArray()));
       }
-      int dataLength = data.length;
+      int dataLength = data==null?0:data.length;
       log.debug(
-          "response.getContentType() >>>> :{},traceId:{},spanId:{},dataLength:{},responseBodyEnabled:{}",
-          responseWrapper.getContentType(),
+          "traceId:{},spanId:{},dataLength:{},responseBodyEnabled:{}",
           GlobalTracer.get().getTraceId(),
           span.getSpanId(),
           dataLength,
-          Config.get().isTracerResponseBodyEnabled());
-      if (Config.get().isTracerResponseBodyEnabled()) {
+          responseBodyEnabled);
+      if (responseBodyEnabledTmp) {
         if (responseWrapper.getContentType() != null
             && (responseWrapper.getContentType().contains("application/json")
                 || responseWrapper.getContentType().contains("text/plain"))) {
@@ -158,6 +126,57 @@ public class HandlerMappingResourceNameFilter extends OncePerRequestFilter imple
     }
   }
 
+  private boolean isEmpty(String str) {
+    return str == null || str.length() == 0;
+  }
+
+  private void buildHeaderTags(AgentSpan span,final HttpServletRequest request, final HttpServletResponse response) {
+    StringBuffer requestHeader = new StringBuffer("");
+    StringBuffer responseHeader = new StringBuffer("");
+    Enumeration<String> headerNames = request.getHeaderNames();
+    int count = 0;
+    while (headerNames.hasMoreElements()) {
+      if (count == 0) {
+        requestHeader.append("{");
+      } else {
+        requestHeader.append(",\n");
+      }
+      String headerName = headerNames.nextElement();
+      requestHeader
+          .append("\"")
+          .append(headerName)
+          .append("\":")
+          .append("\"")
+          .append(request.getHeader(headerName).replace("\"", ""))
+          .append("\"");
+      count++;
+    }
+    if (count > 0) {
+      requestHeader.append("}");
+    }
+    count = 0;
+    for (String headerName : response.getHeaderNames()) {
+      if (count == 0) {
+        responseHeader.append("{");
+      } else {
+        responseHeader.append(",\n");
+      }
+      responseHeader
+          .append("\"")
+          .append(headerName)
+          .append("\":")
+          .append("\"")
+          .append(response.getHeader(headerName))
+          .append("\"");
+      count++;
+    }
+
+    if (count > 0) {
+      responseHeader.append("}");
+    }
+    span.setTag("request_header", requestHeader.toString());
+    span.setTag("response_header", responseHeader.toString());
+  }
   /**
    * When a HandlerMapping matches a request, it sets HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE
    * as an attribute on the request. This attribute is read by
