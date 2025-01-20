@@ -528,6 +528,7 @@ public class Config {
   private final boolean tracerRequestBodyEnabled;
   private final boolean tracerResponseBodyEnabled;
   private final String tracerResponseBodyEncoding;
+  private final String tracerResponseBodyBlackListUrls;
   private final boolean axisPromoteResourceName;
   private final float traceFlushIntervalSeconds;
   private final long tracePostProcessingTimeout;
@@ -1684,6 +1685,9 @@ public class Config {
         configProvider.getBoolean(TRACE_HEADER_ENABLED, DEFAULT_TRACE_HEADER_ENABLED);
     tracerRequestBodyEnabled =
         configProvider.getBoolean(TRACE_REQUEST_BODY_ENABLED, DEFAULT_TRACE_REQUEST_BODY_ENABLED);
+
+    tracerResponseBodyBlackListUrls =
+        configProvider.getString(TRACE_RESPONSE_BODY_BLACKLIST_URLS);
 
     dubboProviderPropagateEnabled =
         configProvider.getBoolean(
@@ -4151,6 +4155,10 @@ public class Config {
     return redisCommandArgs;
   }
 
+  public String getTracerResponseBodyBlackListUrls() {
+    return tracerResponseBodyBlackListUrls;
+  }
+
   @Override
   public String toString() {
     return "Config{"
@@ -4251,6 +4259,8 @@ public class Config {
         + tracerResponseBodyEnabled
         + ", tracerResponseBodyEncoding="
         + tracerResponseBodyEncoding
+        + ", tracerResponseBodyBlackListUrls="
+        + tracerResponseBodyBlackListUrls
         + ", dbClientSplitByInstance="
         + dbClientSplitByInstance
         + ", dbClientSplitByInstanceTypeSuffix="
