@@ -33,7 +33,7 @@ public class JavaxMailBodyInstrumentation extends InstrumenterModule.Iast
 
   @Override
   public String hierarchyMarkerType() {
-    return "javax.mail.Part";
+    return "javax.mail.Message";
   }
 
   @Override

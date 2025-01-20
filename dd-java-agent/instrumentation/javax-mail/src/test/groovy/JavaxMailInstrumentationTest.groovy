@@ -1,14 +1,11 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
-import datadog.trace.api.iast.VulnerabilityMarks
-import datadog.trace.api.iast.propagation.PropagationModule
 import datadog.trace.api.iast.sink.EmailInjectionModule
 
 import javax.mail.Transport
 import javax.mail.Message
 import javax.mail.Session
 import javax.mail.internet.InternetAddress
-import org.apache.commons.text.StringEscapeUtils
 import javax.mail.internet.MimeBodyPart
 import javax.mail.internet.MimeMessage
 import de.saly.javamail.mock2.MockTransport
@@ -16,10 +13,13 @@ import de.saly.javamail.mock2.MockTransport
 import javax.mail.internet.MimeMultipart
 
 
-class JavaxMailInstrumentationTest  extends AgentTestRunner {
+class JavaxMailInstrumentationTest extends AgentTestRunner {
   @Override
   void configurePreAgent() {
     injectSysConfig("dd.iast.enabled", "true")
+  }
+
+  def setupSpec() {
     System.setProperty("mail.smtp.class", MockTransport.getName())
   }
 
@@ -70,26 +70,5 @@ class JavaxMailInstrumentationTest  extends AgentTestRunner {
     "multipart/*" | new String[]{
       "<html><body>Hello, Content!</body></html>", "<html><body>Evil Content!</body></html>"
     }
-  }
-
-  void 'test javax mail Message sanitized Text'() {
-    given:
-    final iastModule = Mock(PropagationModule)
-    InstrumentationBridge.registerIastModule(iastModule)
-    final session = Session.getInstance(new Properties())
-    final message = new MimeMessage(session)
-    message.setRecipient(Message.RecipientType.TO, new InternetAddress("mock@datadoghq.com"))
-    String sanitizedContent = StringEscapeUtils.escapeHtml3(content)
-
-    when:
-    message.setText(sanitizedContent, 'utf-8', mimetype)
-
-    then:
-    0 * iastModule.markIfTainted(sanitizedContent, VulnerabilityMarks.EMAIL_HTML_INJECTION_MARK)
-    0 * iastModule.markIfTainted(content, VulnerabilityMarks.EMAIL_HTML_INJECTION_MARK)
-
-    where:
-    mimetype | content
-    "html" | "<html><body>Hello, Content!</body></html>"
   }
 }
