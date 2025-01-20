@@ -328,7 +328,7 @@ class ErrorHandlerValve extends ErrorReportValve {
 }
 
 class TestAccessLogValve extends ValveBase implements AccessLog {
-  List<Tuple2<String, String>> loggedIds = []
+  List<Tuple2<String, String>> loggedIds = Collections.<Tuple2<String, String>>synchronizedList([])
 
   TestAccessLogValve() {
     super(true)
