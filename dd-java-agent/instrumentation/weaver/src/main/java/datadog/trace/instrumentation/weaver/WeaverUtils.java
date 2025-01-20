@@ -46,7 +46,6 @@ public abstract class WeaverUtils {
       return CLASS_LOADER.loadClass(className);
     } catch (Exception e) {
       log.debug("Could not load class {}", className, e);
-      log.warn("Could not load a Weaver class");
       return null;
     }
   }
