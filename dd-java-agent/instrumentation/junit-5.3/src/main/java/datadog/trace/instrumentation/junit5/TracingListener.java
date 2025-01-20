@@ -72,7 +72,8 @@ public class TracingListener implements EngineExecutionListener {
         testClass,
         tags,
         false,
-        TestFrameworkInstrumentation.JUNIT5);
+        TestFrameworkInstrumentation.JUNIT5,
+        null);
   }
 
   private void containerExecutionFinished(
@@ -94,7 +95,7 @@ public class TracingListener implements EngineExecutionListener {
         TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFailure(suiteDescriptor, throwable);
       }
     }
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor, null);
   }
 
   private void testCaseExecutionStarted(final TestDescriptor testDescriptor) {
@@ -138,7 +139,8 @@ public class TracingListener implements EngineExecutionListener {
         testClass,
         testMethodName,
         testMethod,
-        JUnitPlatformUtils.isRetry(testDescriptor));
+        JUnitPlatformUtils.isRetry(testDescriptor),
+        null);
   }
 
   private void testCaseExecutionFinished(
@@ -160,7 +162,7 @@ public class TracingListener implements EngineExecutionListener {
         TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFailure(testDescriptor, throwable);
       }
     }
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(testDescriptor);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(testDescriptor, null);
   }
 
   @Override
@@ -197,14 +199,15 @@ public class TracingListener implements EngineExecutionListener {
         testClass,
         tags,
         false,
-        TestFrameworkInstrumentation.JUNIT5);
+        TestFrameworkInstrumentation.JUNIT5,
+        null);
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteSkip(suiteDescriptor, reason);
 
     for (TestDescriptor child : suiteDescriptor.getChildren()) {
       executionSkipped(child, reason);
     }
 
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor, null);
   }
 
   private void testMethodExecutionSkipped(

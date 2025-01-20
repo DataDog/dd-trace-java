@@ -71,7 +71,8 @@ public class SpockTracingListener implements EngineExecutionListener {
         testClass,
         tags,
         false,
-        TestFrameworkInstrumentation.SPOCK);
+        TestFrameworkInstrumentation.SPOCK,
+        null);
   }
 
   private void containerExecutionFinished(
@@ -96,7 +97,7 @@ public class SpockTracingListener implements EngineExecutionListener {
       }
     }
 
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor, null);
   }
 
   private void testCaseExecutionStarted(final TestDescriptor testDescriptor) {
@@ -128,7 +129,8 @@ public class SpockTracingListener implements EngineExecutionListener {
         testClass,
         testMethodName,
         testMethod,
-        JUnitPlatformUtils.isRetry(testDescriptor));
+        JUnitPlatformUtils.isRetry(testDescriptor),
+        null);
   }
 
   private void testCaseExecutionFinished(
@@ -150,7 +152,7 @@ public class SpockTracingListener implements EngineExecutionListener {
         TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFailure(testDescriptor, throwable);
       }
     }
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(testDescriptor);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(testDescriptor, null);
   }
 
   @Override
@@ -186,14 +188,15 @@ public class SpockTracingListener implements EngineExecutionListener {
         testClass,
         tags,
         false,
-        TestFrameworkInstrumentation.SPOCK);
+        TestFrameworkInstrumentation.SPOCK,
+        null);
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteSkip(suiteDescriptor, reason);
 
     for (TestDescriptor child : suiteDescriptor.getChildren()) {
       executionSkipped(child, reason);
     }
 
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor, null);
   }
 
   private void testMethodExecutionSkipped(

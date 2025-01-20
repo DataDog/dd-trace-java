@@ -54,7 +54,8 @@ public class MUnitTracingListener extends TracingListener {
         testClass,
         categories,
         false,
-        TestFrameworkInstrumentation.MUNIT);
+        TestFrameworkInstrumentation.MUNIT,
+        null);
   }
 
   public void testSuiteFinished(final Description description) {
@@ -66,7 +67,7 @@ public class MUnitTracingListener extends TracingListener {
     }
 
     TestSuiteDescriptor suiteDescriptor = MUnitUtils.toSuiteDescriptor(description);
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor, null);
   }
 
   @Override
@@ -90,13 +91,14 @@ public class MUnitTracingListener extends TracingListener {
         testClass,
         null,
         null,
-        retryPolicy != null && retryPolicy.currentExecutionIsRetry());
+        retryPolicy != null && retryPolicy.currentExecutionIsRetry(),
+        null);
   }
 
   @Override
   public void testFinished(final Description description) {
     TestDescriptor testDescriptor = MUnitUtils.toTestDescriptor(description);
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(testDescriptor);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(testDescriptor, null);
   }
 
   // same callback is executed both for test cases and test suites (for setup/teardown errors)
@@ -167,10 +169,11 @@ public class MUnitTracingListener extends TracingListener {
             testClass,
             null,
             null,
-            false);
+            false,
+            null);
       }
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSkip(testDescriptor, null);
-      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(testDescriptor);
+      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(testDescriptor, null);
 
     } else if (testClass != null) {
       TestSuiteDescriptor suiteDescriptor = MUnitUtils.toSuiteDescriptor(description);
@@ -187,7 +190,8 @@ public class MUnitTracingListener extends TracingListener {
             testClass,
             categories,
             false,
-            TestFrameworkInstrumentation.MUNIT);
+            TestFrameworkInstrumentation.MUNIT,
+            null);
       }
 
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteSkip(suiteDescriptor, null);
@@ -196,7 +200,7 @@ public class MUnitTracingListener extends TracingListener {
       }
 
       if (!suiteStarted) {
-        TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor);
+        TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor, null);
       }
     }
   }

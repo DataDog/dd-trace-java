@@ -42,13 +42,14 @@ public class TracingListener extends TestNGClassListener
         testSuiteClass,
         groups,
         parallelized,
-        TestFrameworkInstrumentation.TESTNG);
+        TestFrameworkInstrumentation.TESTNG,
+        null);
   }
 
   @Override
   protected void onAfterClass(ITestClass testClass) {
     TestSuiteDescriptor suiteDescriptor = TestNGUtils.toSuiteDescriptor(testClass);
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor, null);
   }
 
   @Override
@@ -94,7 +95,8 @@ public class TracingListener extends TestNGClassListener
         testClass,
         testMethodName,
         testMethod,
-        isRetry(result));
+        isRetry(result),
+        null);
   }
 
   private boolean isRetry(final ITestResult result) {
@@ -108,14 +110,14 @@ public class TracingListener extends TestNGClassListener
 
   @Override
   public void onTestSuccess(final ITestResult result) {
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(result);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(result, null);
   }
 
   @Override
   public void onTestFailure(final ITestResult result) {
     Throwable throwable = result.getThrowable();
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFailure(result, throwable);
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(result);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(result, null);
   }
 
   @Override
@@ -137,6 +139,6 @@ public class TracingListener extends TestNGClassListener
       String reason = throwable != null ? throwable.getMessage() : null;
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSkip(result, reason);
     }
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(result);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(result, null);
   }
 }
