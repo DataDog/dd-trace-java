@@ -1,13 +1,14 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.VulnerabilityMarks
+import datadog.trace.api.iast.propagation.PropagationModule
 import datadog.trace.api.iast.sink.EmailInjectionModule
 
-import javax.mail.Part
 import javax.mail.Transport
 import javax.mail.Message
 import javax.mail.Session
 import javax.mail.internet.InternetAddress
-import javax.mail.internet.InternetHeaders
+import org.apache.commons.text.StringEscapeUtils
 import javax.mail.internet.MimeBodyPart
 import javax.mail.internet.MimeMessage
 import de.saly.javamail.mock2.MockTransport
@@ -19,20 +20,17 @@ class JavaxMailInstrumentationTest  extends AgentTestRunner {
   @Override
   void configurePreAgent() {
     injectSysConfig("dd.iast.enabled", "true")
-  }
-
-  def setupSpec() {
     System.setProperty("mail.smtp.class", MockTransport.getName())
   }
 
-  void 'test javax.mail.Message text'() {
+  void 'test javax mail Message text'() {
     given:
     final module = Mock(EmailInjectionModule)
     InstrumentationBridge.registerIastModule(module)
     final session = Session.getInstance(new Properties())
     final message = new MimeMessage(session)
     message.setRecipient(Message.RecipientType.TO, new InternetAddress("mock@datadoghq.com"))
-    message.setContent(content, mimetype)
+    message.setText(content, "utf-8", mimetype)
 
     when:
     Transport.send(message)
@@ -41,11 +39,11 @@ class JavaxMailInstrumentationTest  extends AgentTestRunner {
     1 * module.onSendEmail(message.getContent())
 
     where:
-    mimetype | content
-    "text/html" | "<html><body>Hello, Content!</body></html>"
+    mimetype  | content
+    "html"    | "<html><body>Hello, Content!</body></html>"
   }
 
-  void 'test javax.mail.Message Content'() {
+  void 'test javax mail Message Content'() {
     given:
     final module = Mock(EmailInjectionModule)
     InstrumentationBridge.registerIastModule(module)
@@ -64,8 +62,8 @@ class JavaxMailInstrumentationTest  extends AgentTestRunner {
     Transport.send(message)
 
     then:
-    0 * module.onSendEmail(((MimeMultipart[])message.getContent())[0].getBodyPart(0).getContent())
-    1 * module.onSendEmail(((MimeMultipart[])message.getContent())[0].getBodyPart(1).getContent())
+    0 * module.onSendEmail(((MimeMultipart)message.getContent()).getBodyPart(0).getContent())
+    1 * module.onSendEmail(((MimeMultipart)message.getContent()).getBodyPart(1).getContent())
 
     where:
     mimetype | body
@@ -74,63 +72,24 @@ class JavaxMailInstrumentationTest  extends AgentTestRunner {
     }
   }
 
-  void 'test javax.mail.Message simple text'() {
+  void 'test javax mail Message sanitized Text'() {
     given:
-    final module = Mock(EmailInjectionModule)
-    InstrumentationBridge.registerIastModule(module)
+    final iastModule = Mock(PropagationModule)
+    InstrumentationBridge.registerIastModule(iastModule)
     final session = Session.getInstance(new Properties())
     final message = new MimeMessage(session)
     message.setRecipient(Message.RecipientType.TO, new InternetAddress("mock@datadoghq.com"))
-    message.setContent(content, mimetype)
+    String sanitizedContent = StringEscapeUtils.escapeHtml3(content)
 
     when:
-    Transport.send(message)
+    message.setText(sanitizedContent, 'utf-8', mimetype)
 
     then:
-    1 * module.onSendEmail(message.getContent())
+    0 * iastModule.markIfTainted(sanitizedContent, VulnerabilityMarks.EMAIL_HTML_INJECTION_MARK)
+    0 * iastModule.markIfTainted(content, VulnerabilityMarks.EMAIL_HTML_INJECTION_MARK)
 
     where:
     mimetype | content
-    "text/html" | "<html><body>Hello, Content!</body></html>"
-  }
-
-  void 'test javax.mail.Message sanitized Text'() {
-    given:
-    final module = Mock(EmailInjectionModule)
-    InstrumentationBridge.registerIastModule(module)
-    final session = Session.getInstance(new Properties())
-    final message = new MimeMessage(session)
-    message.setRecipient(Message.RecipientType.TO, new InternetAddress("mock@datadoghq.com"))
-    message.setContent(content, mimetype)
-
-    when:
-    Transport.send(message)
-
-    then:
-    1 * module.onSendEmail(message.getContent())
-
-    where:
-    mimetype | content
-    "text/html" | "<html><body>Hello, Content!</body></html>"
-  }
-
-  void 'test javax.mail.Message half sanitized Object'() {
-    given:
-    final module = Mock(EmailInjectionModule)
-    InstrumentationBridge.registerIastModule(module)
-    final session = Session.getInstance(new Properties())
-    final message = new MimeMessage(session)
-    message.setRecipient(Message.RecipientType.TO, new InternetAddress("mock@datadoghq.com"))
-    message.setContent(content, mimetype)
-
-    when:
-    Transport.send(message)
-
-    then:
-    1 * module.onSendEmail(message.getContent())
-
-    where:
-    mimetype | content
-    "text/html" | "<html><body>Hello, Content!</body></html>"
+    "html" | "<html><body>Hello, Content!</body></html>"
   }
 }

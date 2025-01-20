@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.javax.mail;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 
 import com.google.auto.service.AutoService;
@@ -10,10 +11,12 @@ import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import javax.mail.Part;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class JavaxMailBodyInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public JavaxMailBodyInstrumentation() {
     super("javax-mail", "body");
@@ -29,8 +32,13 @@ public class JavaxMailBodyInstrumentation extends InstrumenterModule.Iast
   }
 
   @Override
-  public String instrumentedType() {
+  public String hierarchyMarkerType() {
     return "javax.mail.Part";
+  }
+
+  @Override
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
+    return implementsInterface(named(hierarchyMarkerType()));
   }
 
   public static class ContentInjectionAdvice {
