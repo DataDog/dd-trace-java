@@ -22,7 +22,7 @@ import org.slf4j.LoggerFactory;
 
 @AutoService(InstrumenterModule.class)
 public final class VMRuntimeInstrumentation extends AbstractNativeImageInstrumentation
-    implements Instrumenter.ForSingleType, ExcludeFilterProvider {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice, ExcludeFilterProvider {
 
   @Override
   public String instrumentedType() {

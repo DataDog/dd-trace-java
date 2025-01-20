@@ -19,7 +19,7 @@ import org.springframework.web.server.ServerWebExchange;
  */
 @AutoService(InstrumenterModule.class)
 public class RequestHeaderMapResolverInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public RequestHeaderMapResolverInstrumentation() {
     super("spring-webflux");
   }

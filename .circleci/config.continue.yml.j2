@@ -36,7 +36,7 @@ instrumentation_modules: &instrumentation_modules "dd-java-agent/instrumentation
 debugger_modules: &debugger_modules "dd-java-agent/agent-debugger|dd-java-agent/agent-bootstrap|dd-java-agent/agent-builder|internal-api|communication|dd-trace-core"
 profiling_modules: &profiling_modules "dd-java-agent/agent-profiling"
 
-default_system_tests_commit: &default_system_tests_commit 67fe30ac7504997685859d31feae1782f3527f39
+default_system_tests_commit: &default_system_tests_commit 2cb5033072c1813eccdce332153a378607e73d85
 
 parameters:
   nightly:
@@ -273,6 +273,12 @@ commands:
             git fetch origin << parameters.systemTestsCommit >>
             git reset --hard FETCH_HEAD
 
+      - run:
+          name: Install dependencies
+          command: |
+            sudo apt-get update
+            sudo apt-get install -y python3.12-venv
+
 jobs:
   build:
     <<: *defaults
@@ -416,6 +422,7 @@ jobs:
             -PgitBaseRef=origin/{{ pr_base_ref }}
 {% endif %}
             -PrunBuildSrcTests
+            -PskipSpotless
             -PtaskPartitionCount=${CIRCLE_NODE_TOTAL} -PtaskPartition=${CIRCLE_NODE_INDEX}
             << pipeline.parameters.gradle_flags >>
             --max-workers=8
@@ -1101,12 +1108,20 @@ build_test_jobs: &build_test_jobs
       gradleTarget: ":profilingCheck"
       cacheType: profiling
 
+  - check:
+      requires:
+        - ok_to_test
+      name: check_debugger
+      gradleTarget: ":debuggerCheck"
+      cacheType: base
+
   - fan_in:
       requires:
         - check_base
         - check_inst
         - check_smoke
         - check_profiling
+        - check_debugger
       name: check
       stage: check
 

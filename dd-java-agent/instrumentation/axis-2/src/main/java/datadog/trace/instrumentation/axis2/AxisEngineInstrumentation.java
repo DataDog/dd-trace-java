@@ -23,7 +23,7 @@ import org.apache.axis2.engine.Handler.InvocationResponse;
 
 @AutoService(InstrumenterModule.class)
 public final class AxisEngineInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public AxisEngineInstrumentation() {
     super("axis2");

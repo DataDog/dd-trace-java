@@ -19,7 +19,7 @@ import org.openqa.selenium.WebDriver;
 
 @AutoService(InstrumenterModule.class)
 public class SeleniumInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public SeleniumInstrumentation() {
     super("ci-visibility", "selenium");

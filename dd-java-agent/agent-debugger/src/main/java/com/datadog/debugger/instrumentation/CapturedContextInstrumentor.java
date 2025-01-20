@@ -7,13 +7,13 @@ import static com.datadog.debugger.instrumentation.ASMHelper.invokeStatic;
 import static com.datadog.debugger.instrumentation.ASMHelper.invokeVirtual;
 import static com.datadog.debugger.instrumentation.ASMHelper.isFinalField;
 import static com.datadog.debugger.instrumentation.ASMHelper.isStaticField;
+import static com.datadog.debugger.instrumentation.ASMHelper.isStore;
 import static com.datadog.debugger.instrumentation.ASMHelper.ldc;
 import static com.datadog.debugger.instrumentation.ASMHelper.newInstance;
 import static com.datadog.debugger.instrumentation.Types.CAPTURED_CONTEXT_TYPE;
 import static com.datadog.debugger.instrumentation.Types.CAPTURED_VALUE;
 import static com.datadog.debugger.instrumentation.Types.CAPTURE_THROWABLE_TYPE;
 import static com.datadog.debugger.instrumentation.Types.CLASS_TYPE;
-import static com.datadog.debugger.instrumentation.Types.CORRELATION_ACCESS_TYPE;
 import static com.datadog.debugger.instrumentation.Types.DEBUGGER_CONTEXT_TYPE;
 import static com.datadog.debugger.instrumentation.Types.METHOD_LOCATION_TYPE;
 import static com.datadog.debugger.instrumentation.Types.OBJECT_TYPE;
@@ -33,7 +33,6 @@ import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.sink.Snapshot;
 import com.datadog.debugger.util.ClassFileLines;
 import datadog.trace.api.Config;
-import datadog.trace.bootstrap.debugger.CorrelationAccess;
 import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
@@ -68,8 +67,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class CapturedContextInstrumentor extends Instrumentor {
-  private static final Logger log = LoggerFactory.getLogger(CapturedContextInstrumentor.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(CapturedContextInstrumentor.class);
   private final boolean captureSnapshot;
+  private final boolean captureEntry;
   private final Limits limits;
   private final LabelNode contextInitLabel = new LabelNode();
   private int entryContextVar = -1;
@@ -84,9 +84,11 @@ public class CapturedContextInstrumentor extends Instrumentor {
       List<DiagnosticMessage> diagnostics,
       List<ProbeId> probeIds,
       boolean captureSnapshot,
+      boolean captureEntry,
       Limits limits) {
     super(definition, methodInfo, diagnostics, probeIds);
     this.captureSnapshot = captureSnapshot;
+    this.captureEntry = captureEntry;
     this.limits = limits;
   }
 
@@ -423,8 +425,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
     LabelNode targetNode = new LabelNode();
     LabelNode gotoNode = new LabelNode();
     insnList.add(new JumpInsnNode(Opcodes.IFEQ, targetNode));
-    // if evaluation is at exit, skip collecting data at enter
-    if (definition.getEvaluateAt() != MethodLocation.EXIT) {
+    if (captureEntry) {
       LabelNode inProbeStartLabel = new LabelNode();
       insnList.add(inProbeStartLabel);
       // stack []
@@ -639,8 +640,8 @@ public class CapturedContextInstrumentor extends Instrumentor {
   //   10: astore_1
   //   11: aload_1
   // range for slot 1 starts at 11
-  // javac always starts the range right after the init of the local var, so we can just look for
-  // the previous instruction
+  // javac often starts the range right after the init of the local var, so we can just look for
+  // the previous instruction. But not always, and we put an arbitrary limit to 10 instructions
   // for kotlinc, many instructions can separate the init and the range start
   // ex:
   //    LocalVariableTable:
@@ -656,16 +657,24 @@ public class CapturedContextInstrumentor extends Instrumentor {
   private static void rewritePreviousStoreInsn(
       LocalVariableNode localVar, int oldSlot, int newSlot) {
     AbstractInsnNode previous = localVar.start.getPrevious();
-    while (previous != null
-        && (!(previous instanceof VarInsnNode) || ((VarInsnNode) previous).var != oldSlot)) {
+    int processed = 0;
+    // arbitrary fixing limit to 10 previous instructions to look at
+    while (previous != null && !isVarStoreForSlot(previous, oldSlot) && processed < 10) {
       previous = previous.getPrevious();
+      processed++;
     }
-    if (previous != null) {
+    if (isVarStoreForSlot(previous, oldSlot)) {
       VarInsnNode varInsnNode = (VarInsnNode) previous;
       if (varInsnNode.var == oldSlot) {
         varInsnNode.var = newSlot;
       }
     }
+  }
+
+  private static boolean isVarStoreForSlot(AbstractInsnNode node, int slotIdx) {
+    return node instanceof VarInsnNode
+        && isStore(node.getOpcode())
+        && ((VarInsnNode) node).var == slotIdx;
   }
 
   private void createInProbeFinallyHandler(LabelNode inProbeStartLabel, LabelNode inProbeEndLabel) {
@@ -768,8 +777,6 @@ public class CapturedContextInstrumentor extends Instrumentor {
     collectArguments(insnList, kind);
     // stack: [capturedcontext]
     collectStaticFields(insnList);
-    // stack: [capturedcontext]
-    collectCorrelationInfo(insnList);
     // stack: [capturedcontext]
     /*
      * It makes no sense collecting local variables for exceptions - the ones contributing to the exception
@@ -893,7 +900,8 @@ public class CapturedContextInstrumentor extends Instrumentor {
       return;
     }
     Collection<LocalVariableNode> localVarNodes;
-    if (definition.isLineProbe()) {
+    boolean isLocalVarHoistingEnabled = Config.get().isDebuggerHoistLocalVarsEnabled();
+    if (definition.isLineProbe() || !isLocalVarHoistingEnabled) {
       localVarNodes = methodNode.localVariables;
     } else {
       localVarNodes = unscopedLocalVars;
@@ -904,7 +912,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
       int idx = variableNode.index - localVarBaseOffset;
       if (idx >= argOffset) {
         // var is local not arg
-        if (isLineProbe) {
+        if (isLineProbe || !isLocalVarHoistingEnabled) {
           if (ASMHelper.isInScope(methodNode, variableNode, location)) {
             applicableVars.add(variableNode);
           }
@@ -1086,109 +1094,12 @@ public class CapturedContextInstrumentor extends Instrumentor {
     // stack: [capturedcontext]
   }
 
-  private void collectCorrelationInfo(InsnList insnList) {
-    // expected stack top: [capturedcontext]
-    /*
-     * We are cheating a bit with CorrelationAccess - utilizing the knowledge that it is a singleton loaded by the
-     * bootstrap class loader we can assume that the availability will not change during the app life time.
-     * As a side effect, we happen to initialize the access here and not from the injected code.
-     */
-    boolean correlationAvailable = CorrelationAccess.instance().isAvailable();
-    if (isStatic && !correlationAvailable) {
-      // static method and no correlation info, no need to capture fields
-      return;
-    }
-    extractSpecialId(insnList, "dd.trace_id", "getTraceId", "addTraceId");
-    // stack: [capturedcontext]
-    extractSpecialId(insnList, "dd.span_id", "getSpanId", "addSpanId");
-    // stack: [capturedcontext]
-  }
-
-  private void extractSpecialId(
-      InsnList insnList, String fieldName, String getMethodName, String addMethodName) {
-    insnList.add(new InsnNode(Opcodes.DUP));
-    // stack: [capturedcontext, capturedcontext]
-    ldc(insnList, fieldName);
-    // stack: [capturedcontext, capturedcontext, name]
-    ldc(insnList, STRING_TYPE.getClassName());
-    // stack: [capturedcontext, capturedcontext, name, type_name]
-    invokeStatic(insnList, CORRELATION_ACCESS_TYPE, "instance", CORRELATION_ACCESS_TYPE);
-    // stack: [capturedcontext, capturedcontext, name, type_name, access]
-    invokeVirtual(insnList, CORRELATION_ACCESS_TYPE, getMethodName, STRING_TYPE);
-    // stack: [capturedcontext, capturedcontext, name, type_name, id]
-    addCapturedValueOf(insnList, limits);
-    // stack: [capturedcontext, capturedcontext, captured_value]
-    invokeVirtual(insnList, CAPTURED_CONTEXT_TYPE, addMethodName, Type.VOID_TYPE, CAPTURED_VALUE);
-    // stack: [capturedcontext]
-  }
-
   private static boolean isAccessible(FieldNode fieldNode) {
     Object value = fieldNode.value;
     if (value instanceof Field) {
       return ((Field) value).isAccessible();
     }
     return true;
-  }
-
-  private static List<FieldNode> extractInstanceField(
-      ClassNode classNode, boolean isStatic, ClassLoader classLoader, Limits limits) {
-    List<FieldNode> results = new ArrayList<>();
-    if (CorrelationAccess.instance().isAvailable()) {
-      results.add(
-          new FieldNode(
-              Opcodes.ACC_PRIVATE, "dd.trace_id", STRING_TYPE.getDescriptor(), null, null));
-      results.add(
-          new FieldNode(
-              Opcodes.ACC_PRIVATE, "dd.span_id", STRING_TYPE.getDescriptor(), null, null));
-    }
-    if (isStatic) {
-      return results;
-    }
-    int fieldCount = 0;
-    for (FieldNode fieldNode : classNode.fields) {
-      if (isStaticField(fieldNode)) {
-        continue;
-      }
-      results.add(fieldNode);
-      fieldCount++;
-      if (fieldCount > limits.maxFieldCount) {
-        return results;
-      }
-    }
-    addInheritedFields(classNode, classLoader, limits, results, fieldCount);
-    return results;
-  }
-
-  private static void addInheritedFields(
-      ClassNode classNode,
-      ClassLoader classLoader,
-      Limits limits,
-      List<FieldNode> results,
-      int fieldCount) {
-    String superClassName = extractSuperClass(classNode);
-    while (!superClassName.equals(Object.class.getTypeName())) {
-      Class<?> clazz;
-      try {
-        clazz = Class.forName(superClassName, false, classLoader);
-      } catch (ClassNotFoundException ex) {
-        break;
-      }
-      for (Field field : clazz.getDeclaredFields()) {
-        if (isStaticField(field)) {
-          continue;
-        }
-        String desc = Type.getDescriptor(field.getType());
-        FieldNode fieldNode =
-            new FieldNode(field.getModifiers(), field.getName(), desc, null, field);
-        results.add(fieldNode);
-        fieldCount++;
-        if (fieldCount > limits.maxFieldCount) {
-          return;
-        }
-      }
-      clazz = clazz.getSuperclass();
-      superClassName = clazz.getTypeName();
-    }
   }
 
   private static List<FieldNode> extractStaticFields(
@@ -1234,7 +1145,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
             FieldNode fieldNode =
                 new FieldNode(field.getModifiers(), field.getName(), desc, null, field);
             results.add(fieldNode);
-            log.debug("Adding static inherited field {}", fieldNode.name);
+            LOGGER.debug("Adding static inherited field {}", fieldNode.name);
             fieldCount++;
             if (fieldCount > limits.maxFieldCount) {
               return;

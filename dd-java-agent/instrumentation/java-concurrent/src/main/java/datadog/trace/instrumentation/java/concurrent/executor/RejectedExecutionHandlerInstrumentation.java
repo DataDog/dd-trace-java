@@ -27,7 +27,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class RejectedExecutionHandlerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForBootstrap, Instrumenter.CanShortcutTypeMatching {
+    implements Instrumenter.ForBootstrap,
+        Instrumenter.CanShortcutTypeMatching,
+        Instrumenter.HasMethodAdvice {
 
   public RejectedExecutionHandlerInstrumentation() {
     super(EXECUTOR_INSTRUMENTATION_NAME, "rejected-execution-handler");

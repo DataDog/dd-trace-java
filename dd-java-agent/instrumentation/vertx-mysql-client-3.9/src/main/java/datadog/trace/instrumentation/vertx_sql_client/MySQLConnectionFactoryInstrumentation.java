@@ -13,7 +13,7 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class MySQLConnectionFactoryInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public MySQLConnectionFactoryInstrumentation() {
     super("vertx", "vertx-sql-client");
   }

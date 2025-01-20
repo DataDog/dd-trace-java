@@ -1,5 +1,6 @@
 package datadog.trace.agent.tooling.muzzle;
 
+import datadog.trace.agent.tooling.AdviceShader;
 import datadog.trace.agent.tooling.HelperInjector;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
@@ -109,6 +110,7 @@ public class MuzzleVersionScanPlugin {
     String[] helperClasses = module.helperClassNames();
     final Map<String, byte[]> helperMap = new LinkedHashMap<>(helperClasses.length);
     Set<String> helperClassNames = new HashSet<>(Arrays.asList(helperClasses));
+    AdviceShader adviceShader = AdviceShader.with(module.adviceShading());
     for (final String helperName : helperClasses) {
       int nestedClassIndex = helperName.lastIndexOf('$');
       if (nestedClassIndex > 0) {
@@ -128,7 +130,10 @@ public class MuzzleVersionScanPlugin {
       }
       final ClassFileLocator locator =
           ClassFileLocator.ForClassLoader.of(module.getClass().getClassLoader());
-      final byte[] classBytes = locator.locate(helperName).resolve();
+      byte[] classBytes = locator.locate(helperName).resolve();
+      if (null != adviceShader) {
+        classBytes = adviceShader.shadeClass(classBytes);
+      }
       helperMap.put(helperName, classBytes);
     }
     return helperMap;

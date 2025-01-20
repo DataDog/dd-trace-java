@@ -3,6 +3,7 @@ package com.datadog.debugger.agent;
 import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.toList;
 
+import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.instrumentation.MethodInfo;
@@ -73,7 +74,7 @@ import org.slf4j.LoggerFactory;
  */
 public class DebuggerTransformer implements ClassFileTransformer {
   private static final Logger log = LoggerFactory.getLogger(DebuggerTransformer.class);
-  private static final String CANNOT_FIND_METHOD = "Cannot find method %s::%s";
+  private static final String CANNOT_FIND_METHOD = "Cannot find method %s::%s%s";
   private static final String INSTRUMENTATION_FAILS = "Instrumentation fails for %s";
   private static final String CANNOT_FIND_LINE = "No executable code was found at %s:L%s";
   private static final Pattern COMMA_PATTERN = Pattern.compile(",");
@@ -422,7 +423,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
       ClassLoader loader,
       String classFilePath,
       ClassNode classNode) {
-    if (classNode.version < Opcodes.V1_8) {
+    if ((classNode.version & 0xFF) < Opcodes.V1_8) {
       // Class file version must be at least 1.8 (52)
       classNode.version = Opcodes.V1_8;
     }
@@ -536,7 +537,10 @@ public class DebuggerTransformer implements ClassFileTransformer {
   private void reportLocationNotFound(
       ProbeDefinition definition, String className, String methodName) {
     if (methodName != null) {
-      reportErrorForAllProbes(singletonList(definition), CANNOT_FIND_METHOD, className, methodName);
+      String signature = definition.getWhere().getSignature();
+      signature = signature == null ? "" : signature;
+      String msg = String.format(CANNOT_FIND_METHOD, className, methodName, signature);
+      reportErrorForAllProbes(singletonList(definition), msg);
       return;
     }
     // This is a line probe, so we don't report line not found because the line may be found later
@@ -544,12 +548,11 @@ public class DebuggerTransformer implements ClassFileTransformer {
   }
 
   private void reportInstrumentationFails(List<ProbeDefinition> definitions, String className) {
-    reportErrorForAllProbes(definitions, INSTRUMENTATION_FAILS, className, null);
+    String msg = String.format(INSTRUMENTATION_FAILS, className);
+    reportErrorForAllProbes(definitions, msg);
   }
 
-  private void reportErrorForAllProbes(
-      List<ProbeDefinition> definitions, String format, String className, String location) {
-    String msg = String.format(format, className, location);
+  private void reportErrorForAllProbes(List<ProbeDefinition> definitions, String msg) {
     DiagnosticMessage diagnosticMessage = new DiagnosticMessage(DiagnosticMessage.Kind.ERROR, msg);
     for (ProbeDefinition definition : definitions) {
       addDiagnostics(definition, singletonList(diagnosticMessage));
@@ -691,6 +694,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
     MethodLocation evaluateAt = MethodLocation.EXIT;
     LogProbe.Capture capture = null;
     boolean captureSnapshot = false;
+    ProbeCondition probeCondition = null;
     Where where = capturedContextProbes.get(0).getWhere();
     ProbeId probeId = capturedContextProbes.get(0).getProbeId();
     for (ProbeDefinition definition : capturedContextProbes) {
@@ -702,6 +706,9 @@ public class DebuggerTransformer implements ClassFileTransformer {
         LogProbe logProbe = (LogProbe) definition;
         captureSnapshot = captureSnapshot | logProbe.isCaptureSnapshot();
         capture = mergeCapture(capture, logProbe.getCapture());
+        if (probeCondition == null) {
+          probeCondition = logProbe.getProbeCondition();
+        }
       }
       if (definition.getEvaluateAt() == MethodLocation.ENTRY
           || definition.getEvaluateAt() == MethodLocation.DEFAULT) {
@@ -711,6 +718,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
     if (hasLogProbe) {
       return LogProbe.builder()
           .probeId(probeId)
+          .when(probeCondition)
           .where(where)
           .evaluateAt(evaluateAt)
           .capture(capture)

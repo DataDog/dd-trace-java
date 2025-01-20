@@ -13,7 +13,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
  */
 @AutoService(InstrumenterModule.class)
 public final class EventContextInstrumentation extends AbstractMuleInstrumentation
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   @Override
   public String[] knownMatchingTypes() {

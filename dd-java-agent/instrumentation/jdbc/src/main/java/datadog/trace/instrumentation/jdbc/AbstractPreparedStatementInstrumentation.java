@@ -30,7 +30,7 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 public abstract class AbstractPreparedStatementInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForBootstrap {
+    implements Instrumenter.ForBootstrap, Instrumenter.HasMethodAdvice {
 
   public AbstractPreparedStatementInstrumentation(
       String instrumentationName, String... additionalNames) {
@@ -91,6 +91,9 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
           } else if (DECORATE.isPostgres(dbInfo) && DBM_TRACE_PREPARED_STATEMENTS) {
             span = startSpan(DATABASE_QUERY);
             DECORATE.setApplicationName(span, connection);
+          } else if (DECORATE.isOracle(dbInfo)) {
+            span = startSpan(DATABASE_QUERY);
+            DECORATE.setAction(span, connection);
           } else {
             span = startSpan(DATABASE_QUERY);
           }

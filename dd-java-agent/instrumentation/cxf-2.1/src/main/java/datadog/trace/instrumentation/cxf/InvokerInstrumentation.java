@@ -18,7 +18,7 @@ import org.apache.cxf.message.Exchange;
 
 @AutoService(InstrumenterModule.class)
 public class InvokerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
   public InvokerInstrumentation() {
     super("cxf", "cxf-invoker");
   }

@@ -12,7 +12,7 @@ import datadog.trace.agent.tooling.muzzle.Reference;
 
 @AutoService(InstrumenterModule.class)
 public class HttpServerResponseEndHandlerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
   public HttpServerResponseEndHandlerInstrumentation() {
     super("vertx", "vertx-4.0");
   }
@@ -28,7 +28,6 @@ public class HttpServerResponseEndHandlerInstrumentation extends InstrumenterMod
       packageName + ".EndHandlerWrapper",
       packageName + ".RouteHandlerWrapper",
       packageName + ".VertxDecorator",
-      packageName + ".VertxDecorator$VertxURIDataAdapter",
     };
   }
 

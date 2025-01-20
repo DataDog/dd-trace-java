@@ -22,7 +22,7 @@ import org.springframework.beans.factory.support.BeanDefinitionRegistry;
  */
 @AutoService(InstrumenterModule.class)
 public class ServletPathRequestFilterInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
   public ServletPathRequestFilterInstrumentation() {
     super("spring-web", "spring-path-filter");
   }

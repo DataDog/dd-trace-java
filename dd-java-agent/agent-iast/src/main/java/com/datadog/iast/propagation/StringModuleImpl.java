@@ -295,6 +295,27 @@ public class StringModuleImpl implements StringModule {
 
   @Override
   @SuppressFBWarnings("ES_COMPARING_PARAMETER_STRING_WITH_EQ")
+  public void onStringTranslateEscapes(@Nonnull String self, @Nullable String result) {
+    if (!canBeTainted(result)) {
+      return;
+    }
+    if (self == result) { // same ref, no change in taint status
+      return;
+    }
+    final IastContext ctx = IastContext.Provider.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    final TaintedObject taintedSelf = taintedObjects.get(self);
+    if (taintedSelf == null) {
+      return; // original string is not tainted
+    }
+    taintedObjects.taint(result, taintedSelf.getRanges()); // only possibility left
+  }
+
+  @Override
+  @SuppressFBWarnings("ES_COMPARING_PARAMETER_STRING_WITH_EQ")
   public void onStringRepeat(@Nonnull String self, int count, @Nonnull String result) {
     if (!canBeTainted(self) || !canBeTainted(result) || self == result) {
       return;
@@ -828,6 +849,32 @@ public class StringModuleImpl implements StringModule {
       } else {
         taintedObjects.taint(result, rangesParam);
       }
+    }
+  }
+
+  @Override
+  public void onStringBuilderSetLength(@Nonnull CharSequence self, int length) {
+    if (self.length() != length) {
+      return;
+    }
+    final IastContext ctx = IastContext.Provider.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    final TaintedObject selfTainted = taintedObjects.get(self);
+    if (selfTainted == null) {
+      return;
+    }
+    final Range[] rangesSelf = selfTainted.getRanges();
+    if (rangesSelf.length == 0) {
+      return;
+    }
+    Range[] newRanges = Ranges.forSubstring(0, length, rangesSelf);
+    if (newRanges != null && newRanges.length > 0) {
+      selfTainted.setRanges(newRanges);
+    } else {
+      selfTainted.clear();
     }
   }
 

@@ -16,7 +16,7 @@ import org.gradle.internal.service.scopes.BuildScopeServices;
 
 @AutoService(InstrumenterModule.class)
 public class GradleBuildScopeServices_8_3_Instrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public GradleBuildScopeServices_8_3_Instrumentation() {
     super("gradle", "gradle-build-scope-services");

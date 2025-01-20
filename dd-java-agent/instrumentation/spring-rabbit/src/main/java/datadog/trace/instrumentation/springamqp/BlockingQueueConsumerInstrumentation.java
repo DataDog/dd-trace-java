@@ -17,7 +17,7 @@ import org.springframework.amqp.rabbit.support.Delivery;
 
 @AutoService(InstrumenterModule.class)
 public class BlockingQueueConsumerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public BlockingQueueConsumerInstrumentation() {
     super("spring-rabbit");
   }

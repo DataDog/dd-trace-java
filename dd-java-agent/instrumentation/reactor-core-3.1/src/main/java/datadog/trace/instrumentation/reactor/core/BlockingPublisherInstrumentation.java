@@ -27,7 +27,7 @@ import org.reactivestreams.Subscriber;
  */
 @AutoService(InstrumenterModule.class)
 public class BlockingPublisherInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
   public BlockingPublisherInstrumentation() {
     super("reactor-core");
   }

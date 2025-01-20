@@ -28,6 +28,7 @@ import datadog.trace.api.iast.IastContext
 import datadog.trace.api.normalize.SimpleHttpPathNormalizer
 import datadog.trace.bootstrap.blocking.BlockingActionHelper
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.URIUtils
@@ -46,6 +47,8 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
 import javax.annotation.Nonnull
+import java.util.concurrent.ExecutorCompletionService
+import java.util.concurrent.Executors
 import java.util.function.BiFunction
 import java.util.function.Function
 import java.util.function.Supplier
@@ -381,6 +384,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     false // not all servers support session ids
   }
 
+  boolean testParallelRequest() {
+    true
+  }
+
   @Override
   int version() {
     return 0
@@ -527,10 +534,21 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/4690", suites = ["MuleHttpServerForkedTest"])
   def "test success with #count requests"() {
     setup:
+    def responses
     def request = request(SUCCESS, method, body).build()
-    List<Response> responses = (1..count).collect {
-      return client.newCall(request).execute()
+    if (testParallelRequest()) {
+      def executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())
+      def completionService = new ExecutorCompletionService(executor)
+      (1..count).each {
+        completionService.submit {
+          client.newCall(request).execute()
+        }
+      }
+      responses = (1..count).collect { completionService.take().get() }
+    } else {
+      responses = (1..count).collect {client.newCall(request).execute()}
     }
+
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
@@ -1965,6 +1983,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         }
         if (null != expectedServerSpanRoute) {
           "$Tags.HTTP_ROUTE" expectedServerSpanRoute
+        }
+        if (span.getTag(InstrumentationTags.SERVLET_PATH) != null) {
+          assert span.getTag(InstrumentationTags.SERVLET_PATH).toString().startsWith("/")
         }
         if (null != expectedExtraErrorInformation) {
           addTags(expectedExtraErrorInformation)

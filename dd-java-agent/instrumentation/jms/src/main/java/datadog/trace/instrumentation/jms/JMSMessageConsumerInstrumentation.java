@@ -19,16 +19,13 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.jms.MessageConsumerState;
 import datadog.trace.bootstrap.instrumentation.jms.SessionState;
-import java.util.HashMap;
-import java.util.Map;
 import javax.jms.Message;
 import javax.jms.MessageConsumer;
 import javax.jms.MessageListener;
@@ -36,40 +33,22 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-@AutoService(InstrumenterModule.class)
-public final class JMSMessageConsumerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+public final class JMSMessageConsumerInstrumentation
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+  private final String namespace;
 
-  public JMSMessageConsumerInstrumentation() {
-    super("jms", "jms-1", "jms-2");
+  public JMSMessageConsumerInstrumentation(String namespace) {
+    this.namespace = namespace;
   }
 
   @Override
   public String hierarchyMarkerType() {
-    return "javax.jms.MessageConsumer";
+    return namespace + ".jms.MessageConsumer";
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JMSDecorator",
-      packageName + ".MessageExtractAdapter",
-      packageName + ".MessageExtractAdapter$1",
-      packageName + ".DatadogMessageListener"
-    };
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    Map<String, String> contextStore = new HashMap<>(4);
-    contextStore.put("javax.jms.MessageConsumer", MessageConsumerState.class.getName());
-    contextStore.put("javax.jms.Message", SessionState.class.getName());
-    return contextStore;
   }
 
   @Override
@@ -86,7 +65,7 @@ public final class JMSMessageConsumerInstrumentation extends InstrumenterModule.
     transformer.applyAdvice(
         isMethod()
             .and(named("setMessageListener"))
-            .and(takesArgument(0, hasInterface(named("javax.jms.MessageListener")))),
+            .and(takesArgument(0, hasInterface(named(namespace + ".jms.MessageListener")))),
         getClass().getName() + "$DecorateMessageListener");
   }
 
@@ -139,7 +118,7 @@ public final class JMSMessageConsumerInstrumentation extends InstrumenterModule.
       }
 
       AgentSpan span;
-      AgentSpan.Context propagatedContext = null;
+      AgentSpanContext propagatedContext = null;
       if (!consumerState.isPropagationDisabled()) {
         propagatedContext = propagate().extract(message, GETTER);
       }

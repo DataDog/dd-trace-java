@@ -13,6 +13,7 @@ import static datadog.trace.api.config.GeneralConfig.*;
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static datadog.trace.api.config.IastConfig.*;
 import static datadog.trace.api.config.JmxFetchConfig.*;
+import static datadog.trace.api.config.LlmObsConfig.*;
 import static datadog.trace.api.config.ProfilingConfig.*;
 import static datadog.trace.api.config.RemoteConfigConfig.*;
 import static datadog.trace.api.config.TraceInstrumentationConfig.*;
@@ -307,6 +308,11 @@ public class Config {
   private final int iastSourceMappingMaxSize;
   private final boolean iastStackTraceEnabled;
   private final boolean iastExperimentalPropagationEnabled;
+  private final String iastSecurityControlsConfiguration;
+  private final int iastDbRowsToTaint;
+
+  private final boolean llmObsAgentlessEnabled;
+  private final String llmObsMlApp;
 
   private final boolean ciVisibilityTraceSanitationEnabled;
   private final boolean ciVisibilityAgentlessEnabled;
@@ -688,6 +694,8 @@ public class Config {
 
     if (agentHostFromEnvironment == null) {
       agentHost = DEFAULT_AGENT_HOST;
+    } else if (agentHostFromEnvironment.charAt(0) == '[') {
+      agentHost = agentHostFromEnvironment.substring(1, agentHostFromEnvironment.length() - 1);
     } else {
       agentHost = agentHostFromEnvironment;
     }
@@ -698,8 +706,12 @@ public class Config {
       agentPort = agentPortFromEnvironment;
     }
 
-    if (rebuildAgentUrl) {
-      agentUrl = "http://" + agentHost + ":" + agentPort;
+    if (rebuildAgentUrl) { // check if agenthost contains ':'
+      if (agentHost.indexOf(':') != -1) { // Checking to see whether host address is IPv6 vs IPv4
+        agentUrl = "http://[" + agentHost + "]:" + agentPort;
+      } else {
+        agentUrl = "http://" + agentHost + ":" + agentPort;
+      }
     } else {
       agentUrl = agentUrlFromEnvironment;
     }
@@ -1223,8 +1235,7 @@ public class Config {
     }
     telemetryMetricsInterval = telemetryInterval;
 
-    telemetryMetricsEnabled =
-        configProvider.getBoolean(GeneralConfig.TELEMETRY_METRICS_ENABLED, true);
+    telemetryMetricsEnabled = configProvider.getBoolean(TELEMETRY_METRICS_ENABLED, true);
 
     isTelemetryLogCollectionEnabled =
         instrumenterConfig.isTelemetryEnabled()
@@ -1273,12 +1284,20 @@ public class Config {
     appSecStandaloneEnabled = configProvider.getBoolean(APPSEC_STANDALONE_ENABLED, false);
     appSecRaspEnabled = configProvider.getBoolean(APPSEC_RASP_ENABLED, DEFAULT_APPSEC_RASP_ENABLED);
     appSecStackTraceEnabled =
-        configProvider.getBoolean(APPSEC_STACK_TRACE_ENABLED, DEFAULT_APPSEC_STACK_TRACE_ENABLED);
+        configProvider.getBoolean(
+            APPSEC_STACK_TRACE_ENABLED,
+            DEFAULT_APPSEC_STACK_TRACE_ENABLED,
+            APPSEC_STACKTRACE_ENABLED_DEPRECATED);
     appSecMaxStackTraces =
-        configProvider.getInteger(APPSEC_MAX_STACK_TRACES, DEFAULT_APPSEC_MAX_STACK_TRACES);
+        configProvider.getInteger(
+            APPSEC_MAX_STACK_TRACES,
+            DEFAULT_APPSEC_MAX_STACK_TRACES,
+            APPSEC_MAX_STACKTRACES_DEPRECATED);
     appSecMaxStackTraceDepth =
         configProvider.getInteger(
-            APPSEC_MAX_STACK_TRACE_DEPTH, DEFAULT_APPSEC_MAX_STACK_TRACE_DEPTH);
+            APPSEC_MAX_STACK_TRACE_DEPTH,
+            DEFAULT_APPSEC_MAX_STACK_TRACE_DEPTH,
+            APPSEC_MAX_STACKTRACE_DEPTH_DEPRECATED);
     apiSecurityEnabled =
         configProvider.getBoolean(
             API_SECURITY_ENABLED, DEFAULT_API_SECURITY_ENABLED, API_SECURITY_ENABLED_EXPERIMENTAL);
@@ -1319,7 +1338,9 @@ public class Config {
     iastMaxRangeCount = iastDetectionMode.getIastMaxRangeCount(configProvider);
     iastStacktraceLeakSuppress =
         configProvider.getBoolean(
-            IAST_STACKTRACE_LEAK_SUPPRESS, DEFAULT_IAST_STACKTRACE_LEAK_SUPPRESS);
+            IAST_STACK_TRACE_LEAK_SUPPRESS,
+            DEFAULT_IAST_STACKTRACE_LEAK_SUPPRESS,
+            IAST_STACKTRACE_LEAK_SUPPRESS_DEPRECATED);
     iastHardcodedSecretEnabled =
         configProvider.getBoolean(
             IAST_HARDCODED_SECRET_ENABLED, DEFAULT_IAST_HARDCODED_SECRET_ENABLED);
@@ -1329,9 +1350,20 @@ public class Config {
     iastSourceMappingEnabled = configProvider.getBoolean(IAST_SOURCE_MAPPING_ENABLED, false);
     iastSourceMappingMaxSize = configProvider.getInteger(IAST_SOURCE_MAPPING_MAX_SIZE, 1000);
     iastStackTraceEnabled =
-        configProvider.getBoolean(IAST_STACK_TRACE_ENABLED, DEFAULT_IAST_STACK_TRACE_ENABLED);
+        configProvider.getBoolean(
+            IAST_STACK_TRACE_ENABLED,
+            DEFAULT_IAST_STACK_TRACE_ENABLED,
+            IAST_STACKTRACE_ENABLED_DEPRECATED);
     iastExperimentalPropagationEnabled =
         configProvider.getBoolean(IAST_EXPERIMENTAL_PROPAGATION_ENABLED, false);
+    iastSecurityControlsConfiguration =
+        configProvider.getString(IAST_SECURITY_CONTROLS_CONFIGURATION, null);
+    iastDbRowsToTaint =
+        configProvider.getInteger(IAST_DB_ROWS_TO_TAINT, DEFAULT_IAST_DB_ROWS_TO_TAINT);
+
+    llmObsAgentlessEnabled =
+        configProvider.getBoolean(LLMOBS_AGENTLESS_ENABLED, DEFAULT_LLM_OBS_AGENTLESS_ENABLED);
+    llmObsMlApp = configProvider.getString(LLMOBS_ML_APP);
 
     ciVisibilityTraceSanitationEnabled =
         configProvider.getBoolean(CIVISIBILITY_TRACE_SANITATION_ENABLED, true);
@@ -1710,17 +1742,14 @@ public class Config {
     apiKey = tmpApiKey;
 
     boolean longRunningEnabled =
-        configProvider.getBoolean(
-            TracerConfig.TRACE_LONG_RUNNING_ENABLED,
-            ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_ENABLED);
+        configProvider.getBoolean(TRACE_LONG_RUNNING_ENABLED, DEFAULT_TRACE_LONG_RUNNING_ENABLED);
     long longRunningTraceInitialFlushInterval =
         configProvider.getLong(
-            TracerConfig.TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL,
+            TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL,
             DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL);
     long longRunningTraceFlushInterval =
         configProvider.getLong(
-            TracerConfig.TRACE_LONG_RUNNING_FLUSH_INTERVAL,
-            ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL);
+            TRACE_LONG_RUNNING_FLUSH_INTERVAL, DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL);
 
     if (longRunningEnabled
         && (longRunningTraceInitialFlushInterval < 10
@@ -1747,66 +1776,86 @@ public class Config {
 
     this.sparkTaskHistogramEnabled =
         configProvider.getBoolean(
-            SPARK_TASK_HISTOGRAM_ENABLED, ConfigDefaults.DEFAULT_SPARK_TASK_HISTOGRAM_ENABLED);
+            SPARK_TASK_HISTOGRAM_ENABLED, DEFAULT_SPARK_TASK_HISTOGRAM_ENABLED);
 
     this.sparkAppNameAsService =
-        configProvider.getBoolean(
-            SPARK_APP_NAME_AS_SERVICE, ConfigDefaults.DEFAULT_SPARK_APP_NAME_AS_SERVICE);
+        configProvider.getBoolean(SPARK_APP_NAME_AS_SERVICE, DEFAULT_SPARK_APP_NAME_AS_SERVICE);
 
     this.jaxRsExceptionAsErrorsEnabled =
         configProvider.getBoolean(
-            JAX_RS_EXCEPTION_AS_ERROR_ENABLED,
-            ConfigDefaults.DEFAULT_JAX_RS_EXCEPTION_AS_ERROR_ENABLED);
+            JAX_RS_EXCEPTION_AS_ERROR_ENABLED, DEFAULT_JAX_RS_EXCEPTION_AS_ERROR_ENABLED);
 
     axisPromoteResourceName = configProvider.getBoolean(AXIS_PROMOTE_RESOURCE_NAME, false);
 
     this.traceFlushIntervalSeconds =
         configProvider.getFloat(
             TracerConfig.TRACE_FLUSH_INTERVAL, ConfigDefaults.DEFAULT_TRACE_FLUSH_INTERVAL);
-    if (profilingAgentless && apiKey == null) {
-      log.warn(
-          "Agentless profiling activated but no api key provided. Profile uploading will likely fail");
-    }
 
     this.tracePostProcessingTimeout =
         configProvider.getLong(
-            TRACE_POST_PROCESSING_TIMEOUT, ConfigDefaults.DEFAULT_TRACE_POST_PROCESSING_TIMEOUT);
+            TRACE_POST_PROCESSING_TIMEOUT, DEFAULT_TRACE_POST_PROCESSING_TIMEOUT);
 
-    if (isCiVisibilityEnabled()
-        && ciVisibilityAgentlessEnabled
-        && (apiKey == null || apiKey.isEmpty())) {
-      throw new FatalAgentMisconfigurationError(
-          "Attempt to start in Agentless mode without API key. "
-              + "Please ensure that either an API key is configured, or the tracer is set up to work with the Agent");
+    if (isLlmObsEnabled()) {
+      log.debug("Attempting to enable LLM Observability");
+      if (llmObsMlApp == null || llmObsMlApp.isEmpty()) {
+        throw new IllegalArgumentException(
+            "Attempt to enable LLM Observability without ML app defined."
+                + "Please ensure that the name of the ML app is provided through properties or env variable");
+      }
+
+      log.debug(
+          "LLM Observability enabled for ML app {}, agentless mode {}",
+          llmObsMlApp,
+          llmObsAgentlessEnabled);
+    }
+
+    // if API key is not provided, check if any products are using agentless mode and require it
+    if (apiKey == null || apiKey.isEmpty()) {
+      // CI Visibility
+      if (isCiVisibilityEnabled() && ciVisibilityAgentlessEnabled) {
+        throw new FatalAgentMisconfigurationError(
+            "Attempt to start in CI Visibility in Agentless mode without API key. "
+                + "Please ensure that either an API key is configured, or the tracer is set up to work with the Agent");
+      }
+
+      // Profiling
+      if (profilingAgentless) {
+        log.warn(
+            "Agentless profiling activated but no api key provided. Profile uploading will likely fail");
+      }
+
+      // LLM Observability
+      if (isLlmObsEnabled() && llmObsAgentlessEnabled) {
+        throw new FatalAgentMisconfigurationError(
+            "Attempt to start LLM Observability in Agentless mode without API key. "
+                + "Please ensure that either an API key is configured, or the tracer is set up to work with the Agent");
+      }
     }
 
     this.telemetryDebugRequestsEnabled =
         configProvider.getBoolean(
-            GeneralConfig.TELEMETRY_DEBUG_REQUESTS_ENABLED,
-            ConfigDefaults.DEFAULT_TELEMETRY_DEBUG_REQUESTS_ENABLED);
+            TELEMETRY_DEBUG_REQUESTS_ENABLED, DEFAULT_TELEMETRY_DEBUG_REQUESTS_ENABLED);
 
     this.agentlessLogSubmissionEnabled =
-        configProvider.getBoolean(GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED, false);
+        configProvider.getBoolean(AGENTLESS_LOG_SUBMISSION_ENABLED, false);
     this.agentlessLogSubmissionQueueSize =
-        configProvider.getInteger(GeneralConfig.AGENTLESS_LOG_SUBMISSION_QUEUE_SIZE, 1024);
+        configProvider.getInteger(AGENTLESS_LOG_SUBMISSION_QUEUE_SIZE, 1024);
     this.agentlessLogSubmissionLevel =
-        configProvider.getString(GeneralConfig.AGENTLESS_LOG_SUBMISSION_LEVEL, "INFO");
-    this.agentlessLogSubmissionUrl =
-        configProvider.getString(GeneralConfig.AGENTLESS_LOG_SUBMISSION_URL);
+        configProvider.getString(AGENTLESS_LOG_SUBMISSION_LEVEL, "INFO");
+    this.agentlessLogSubmissionUrl = configProvider.getString(AGENTLESS_LOG_SUBMISSION_URL);
     this.agentlessLogSubmissionProduct = isCiVisibilityEnabled() ? "citest" : "apm";
 
     this.cloudPayloadTaggingServices =
         configProvider.getSet(
-            TracerConfig.TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES,
-            ConfigDefaults.DEFAULT_TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES);
+            TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES, DEFAULT_TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES);
     this.cloudRequestPayloadTagging =
-        configProvider.getList(TracerConfig.TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING, null);
+        configProvider.getList(TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING, null);
     this.cloudResponsePayloadTagging =
-        configProvider.getList(TracerConfig.TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING, null);
+        configProvider.getList(TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING, null);
     this.cloudPayloadTaggingMaxDepth =
-        configProvider.getInteger(TracerConfig.TRACE_CLOUD_PAYLOAD_TAGGING_MAX_DEPTH, 10);
+        configProvider.getInteger(TRACE_CLOUD_PAYLOAD_TAGGING_MAX_DEPTH, 10);
     this.cloudPayloadTaggingMaxTags =
-        configProvider.getInteger(TracerConfig.TRACE_CLOUD_PAYLOAD_TAGGING_MAX_TAGS, 758);
+        configProvider.getInteger(TRACE_CLOUD_PAYLOAD_TAGGING_MAX_TAGS, 758);
 
     this.dependecyResolutionPeriodMillis =
         configProvider.getLong(
@@ -1815,8 +1864,7 @@ public class Config {
 
     timelineEventsEnabled =
         configProvider.getBoolean(
-            ProfilingConfig.PROFILING_TIMELINE_EVENTS_ENABLED,
-            ProfilingConfig.PROFILING_TIMELINE_EVENTS_ENABLED_DEFAULT);
+            PROFILING_TIMELINE_EVENTS_ENABLED, PROFILING_TIMELINE_EVENTS_ENABLED_DEFAULT);
 
     if (appSecScaEnabled != null
         && appSecScaEnabled
@@ -2631,6 +2679,26 @@ public class Config {
 
   public boolean isIastExperimentalPropagationEnabled() {
     return iastExperimentalPropagationEnabled;
+  }
+
+  public String getIastSecurityControlsConfiguration() {
+    return iastSecurityControlsConfiguration;
+  }
+
+  public int getIastDbRowsToTaint() {
+    return iastDbRowsToTaint;
+  }
+
+  public boolean isLlmObsEnabled() {
+    return instrumenterConfig.isLlmObsEnabled();
+  }
+
+  public boolean isLlmObsAgentlessEnabled() {
+    return llmObsAgentlessEnabled;
+  }
+
+  public String getLlmObsMlApp() {
+    return llmObsMlApp;
   }
 
   public boolean isCiVisibilityEnabled() {
@@ -3775,7 +3843,7 @@ public class Config {
   }
 
   public boolean isSamplingMechanismValidationDisabled() {
-    return configProvider.getBoolean(TracerConfig.SAMPLING_MECHANISM_VALIDATION_DISABLED, false);
+    return configProvider.getBoolean(SAMPLING_MECHANISM_VALIDATION_DISABLED, false);
   }
 
   public <T extends Enum<T>> T getEnumValue(

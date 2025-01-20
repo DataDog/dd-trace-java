@@ -29,7 +29,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class IastOptOutHttpServletRequest3Instrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public IastOptOutHttpServletRequest3Instrumentation() {
     super("servlet", "servlet-3");

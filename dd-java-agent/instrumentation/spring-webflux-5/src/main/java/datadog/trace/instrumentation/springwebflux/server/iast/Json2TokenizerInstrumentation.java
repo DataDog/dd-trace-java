@@ -13,7 +13,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 /** @see org.springframework.http.codec.json.Jackson2Tokenizer */
 @AutoService(InstrumenterModule.class)
 public class Json2TokenizerInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public Json2TokenizerInstrumentation() {
     super("spring-webflux");
   }

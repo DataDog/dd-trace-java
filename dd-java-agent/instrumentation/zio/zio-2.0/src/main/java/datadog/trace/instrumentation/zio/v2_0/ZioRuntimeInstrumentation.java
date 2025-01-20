@@ -20,7 +20,7 @@ import zio.Supervisor;
 
 @AutoService(InstrumenterModule.class)
 public class ZioRuntimeInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, ExcludeFilterProvider {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice, ExcludeFilterProvider {
 
   public ZioRuntimeInstrumentation() {
     super("zio.experimental");

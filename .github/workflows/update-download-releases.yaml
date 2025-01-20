@@ -4,6 +4,8 @@ on:
     types:
       - released
   workflow_dispatch:
+concurrency: # Avoid running multiple instances to prevent asset conflicts
+  group: ${{ github.workflow }}
 jobs:
   update-releases:
     permissions:

@@ -18,7 +18,7 @@ import net.bytebuddy.asm.Advice;
 // tested in GrizzlyTest (grizzly-http)
 @AutoService(InstrumenterModule.class)
 public class ServerRuntimeResponderInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public ServerRuntimeResponderInstrumentation() {
     super("jersey");
   }

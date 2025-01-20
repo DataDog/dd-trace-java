@@ -345,4 +345,6 @@ public interface PropagationModule extends IastModule {
    */
   @Nullable
   Source findSource(@Nullable IastContext ctx, @Nullable Object target);
+
+  void markIfTainted(@Nullable Object target, int mark);
 }

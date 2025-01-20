@@ -17,7 +17,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class WithSpanAnnotationInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public WithSpanAnnotationInstrumentation() {
     super("opentelemetry-annotations", "opentelemetry-annotations-1.20");

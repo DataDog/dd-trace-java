@@ -32,7 +32,7 @@ import org.glassfish.jersey.message.internal.MediaTypes;
 
 @AutoService(InstrumenterModule.class)
 public class MultiPartReaderServerSideInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public MultiPartReaderServerSideInstrumentation() {
     super("jersey");

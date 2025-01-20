@@ -30,7 +30,7 @@ import net.bytebuddy.implementation.bytecode.assign.Assigner;
  */
 @AutoService(InstrumenterModule.class)
 public class FormFieldDirectivesInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   private static final String TRAIT_CLASS =
       "akka.http.scaladsl.server.directives.FormFieldDirectives";

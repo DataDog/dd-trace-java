@@ -24,7 +24,7 @@ import net.bytebuddy.matcher.ElementMatcher.Junction;
 
 @AutoService(InstrumenterModule.class)
 public final class WrapRunnableAsNewTaskInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForBootstrap, Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForBootstrap, Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
   public WrapRunnableAsNewTaskInstrumentation() {
     super(EXECUTOR_INSTRUMENTATION_NAME, "new-task-for");
   }
@@ -43,6 +43,7 @@ public final class WrapRunnableAsNewTaskInstrumentation extends InstrumenterModu
       "java.util.concurrent.AbstractExecutorService",
       "org.glassfish.grizzly.threadpool.GrizzlyExecutorService",
       "org.jboss.threads.EnhancedQueueExecutor",
+      "io.vertx.core.impl.WorkerExecutor",
     };
   }
 

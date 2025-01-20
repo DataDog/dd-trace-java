@@ -3,17 +3,17 @@ package datadog.trace.instrumentation.gradle;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.Arrays;
-import org.gradle.api.logging.Logger;
-import org.gradle.api.logging.Logging;
 import org.gradle.initialization.ClassLoaderRegistry;
 import org.gradle.internal.service.DefaultServiceRegistry;
 import org.gradle.internal.service.ServiceRegistration;
 import org.gradle.internal.service.ServiceRegistry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class CiVisibilityGradleListenerInjector_8_10 {
 
   private static final Logger LOGGER =
-      Logging.getLogger(CiVisibilityGradleListenerInjector_8_10.class);
+      LoggerFactory.getLogger(CiVisibilityGradleListenerInjector_8_10.class);
 
   /**
    * Performs listener injection for Gradle v8.10+. As the tracer currently uses v8.4, some of the

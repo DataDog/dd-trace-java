@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.httpurlconnection.HttpUrlConnectionDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPackagePrivate;
+import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
@@ -18,8 +19,9 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class HttpClientRequestBaseInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
   static final String[] CONCRETE_TYPES = {
+    "io.vertx.core.http.impl.HttpClientRequestBase",
     "io.vertx.core.http.impl.HttpClientRequestImpl",
     "io.vertx.core.http.impl.HttpClientRequestPushPromise"
   };
@@ -37,7 +39,7 @@ public class HttpClientRequestBaseInstrumentation extends InstrumenterModule.Tra
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(isPackagePrivate())
+            .and(isPackagePrivate().or(isPrivate()))
             .and(named("reset"))
             .and(takesArgument(0, named("java.lang.Throwable"))),
         HttpClientRequestBaseInstrumentation.class.getName() + "$ResetAdvice");
@@ -53,7 +55,7 @@ public class HttpClientRequestBaseInstrumentation extends InstrumenterModule.Tra
     public static void onExit(
         @Advice.Argument(value = 0) Throwable cause,
         @Advice.FieldValue("stream") final HttpClientStream stream,
-        @Advice.Return(readOnly = false) boolean result) {
+        @Advice.Return boolean result) {
       if (result) {
         AgentSpan nettySpan =
             stream.connection().channel().attr(AttributeKeys.SPAN_ATTRIBUTE_KEY).get();

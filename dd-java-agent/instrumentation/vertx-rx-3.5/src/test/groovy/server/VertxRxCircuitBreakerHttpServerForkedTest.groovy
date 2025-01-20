@@ -49,6 +49,11 @@ class VertxRxCircuitBreakerHttpServerForkedTest extends VertxHttpServerForkedTes
     false
   }
 
+  @Override
+  boolean testSessionId() {
+    false
+  }
+
   static class VertxRxCircuitBreakerWebTestServer extends AbstractVerticle {
 
     @Override

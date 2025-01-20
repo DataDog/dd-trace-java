@@ -27,7 +27,7 @@ import org.springframework.beans.factory.support.RootBeanDefinition;
  */
 @AutoService(InstrumenterModule.class)
 public class BeanFactoryInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
   public BeanFactoryInstrumentation() {
     super("spring-beans");
   }

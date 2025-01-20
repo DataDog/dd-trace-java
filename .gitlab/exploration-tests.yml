@@ -12,49 +12,63 @@ build-exploration-tests-image:
     - docker push $EXPLORATION_TESTS_IMAGE
 
 .common-exploration-tests: &common-exploration-tests
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - if: $CI_PIPELINE_SOURCE != "schedule"
+      changes:
+        paths:
+          - dd-java-agent/agent-debugger/**/*
+        compare_to: "master"
+      when: on_success
+    - when: manual
+      allow_failure: true
   before_script:
-    - source $HOME/.sdkman/bin/sdkman-init.sh
-    - export JAVA_HOME=$JAVA_8_HOME
-    - ./gradlew :dd-java-agent:shadowJar --no-scan
     - cp workspace/dd-java-agent/build/libs/*.jar /exploration-tests/dd-java-agent.jar
     - cp dd-java-agent/agent-debugger/exploration-tests/run-exploration-tests.sh /exploration-tests
     - cp dd-java-agent/agent-debugger/exploration-tests/exclude_*.txt /exploration-tests
     - cp dd-java-agent/agent-debugger/exploration-tests/include_*.txt /exploration-tests
+    - source $HOME/.sdkman/bin/sdkman-init.sh && cd / && sdk env
     - cd /exploration-tests
+    - java -version
   after_script:
-    - echo "$PROJECT"
-    - cd $CI_PROJECT_DIR
-    - cp /exploration-tests/$PROJECT/agent.log ${PROJECT}_agent.log
+    - cp /exploration-tests/${PROJECT}/agent.log ${PROJECT}_agent.log
     - gzip ${PROJECT}_agent.log
     - tar czf ${PROJECT}_surefire-reports.tar.gz /exploration-tests/${PROJECT}/target/surefire-reports
     - tar czf ${PROJECT}_debugger-dumps.tar.gz /tmp/debugger
   stage: exploration-tests
-  when: manual
   tags: [ "runner:main"]
-  needs: []
   image: $EXPLORATION_TESTS_IMAGE
   artifacts:
     paths:
-      - ${PROJECT}_agent.log.gz
-      - ${PROJECT}_surefire-reports.tar.gz
-      - ${PROJECT}_debugger-dumps.tar.gz
+      - "*_agent.log.gz"
+      - "*_surefire-reports.tar.gz"
+      - "*_debugger-dumps.tar.gz"
 
 exploration-tests-jsoup:
+  needs: [ build ]
+  dependencies:
+    - build
+  <<: *common-exploration-tests
   variables:
     PROJECT: jsoup
-  <<: *common-exploration-tests
   script:
-    - ./run-exploration-tests.sh "$PROJECT" "mvn verify" "include_jsoup.txt" "exclude_jsoup.txt"
-
+    - ./run-exploration-tests.sh "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_${PROJECT}.txt"
 
 exploration-tests-jackson-core:
+  needs: [ build ]
+  dependencies:
+    - build
   <<: *common-exploration-tests
   variables:
     PROJECT: jackson-core
   script:
-    - ./run-exploration-tests.sh "$PROJECT" "./mvnw verify"
+    - ./run-exploration-tests.sh "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_${PROJECT}.txt"
 
 exploration-tests-jackson-databind:
+  needs: [ build ]
+  dependencies:
+    - build
   <<: *common-exploration-tests
   variables:
     PROJECT: jackson-databind

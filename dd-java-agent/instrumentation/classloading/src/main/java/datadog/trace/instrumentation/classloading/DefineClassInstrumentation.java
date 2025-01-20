@@ -16,7 +16,7 @@ import net.bytebuddy.asm.Advice;
 /** Updates j.l.ClassLoader to notify the tracer when classes are about to be defined. */
 @AutoService(InstrumenterModule.class)
 public final class DefineClassInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType {
+    implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public DefineClassInstrumentation() {
     super("defineclass");
   }

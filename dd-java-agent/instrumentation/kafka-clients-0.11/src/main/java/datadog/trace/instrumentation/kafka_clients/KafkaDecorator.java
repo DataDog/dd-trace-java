@@ -18,6 +18,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.MessagingClientDecorator;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -41,7 +42,7 @@ public class KafkaDecorator extends MessagingClientDecorator {
   public static final String KAFKA_PRODUCED_KEY = "x_datadog_kafka_produced";
   private final String spanKind;
   private final CharSequence spanType;
-  private final String serviceName;
+  private final Supplier<String> serviceNameSupplier;
 
   private static final DDCache<CharSequence, CharSequence> PRODUCER_RESOURCE_NAME_CACHE =
       DDCaches.newFixedSizeCache(32);
@@ -78,10 +79,11 @@ public class KafkaDecorator extends MessagingClientDecorator {
           InternalSpanTypes.MESSAGE_BROKER,
           SpanNaming.instance().namingSchema().messaging().timeInQueueService(KAFKA));
 
-  protected KafkaDecorator(String spanKind, CharSequence spanType, String serviceName) {
+  protected KafkaDecorator(
+      String spanKind, CharSequence spanType, Supplier<String> serviceNameSupplier) {
     this.spanKind = spanKind;
     this.spanType = spanType;
-    this.serviceName = serviceName;
+    this.serviceNameSupplier = serviceNameSupplier;
   }
 
   @Override
@@ -96,7 +98,7 @@ public class KafkaDecorator extends MessagingClientDecorator {
 
   @Override
   protected String service() {
-    return serviceName;
+    return serviceNameSupplier.get();
   }
 
   @Override

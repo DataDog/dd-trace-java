@@ -12,7 +12,7 @@ import datadog.trace.agent.tooling.muzzle.Reference;
 
 @AutoService(InstrumenterModule.class)
 public class DispatchableInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
   public DispatchableInstrumentation() {
     super("jetty");
   }

@@ -16,7 +16,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class SqsReceiveRequestInstrumentation extends AbstractSqsInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.WithTypeStructure {
+    implements Instrumenter.ForSingleType,
+        Instrumenter.WithTypeStructure,
+        Instrumenter.HasMethodAdvice {
 
   @Override
   public String instrumentedType() {

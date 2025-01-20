@@ -11,8 +11,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import javax.inject.Inject;
 import org.gradle.api.file.FileCollection;
-import org.gradle.api.logging.Logger;
-import org.gradle.api.logging.Logging;
 import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.provider.Property;
 import org.gradle.api.services.ServiceReference;
@@ -24,10 +22,12 @@ import org.gradle.internal.jvm.Jvm;
 import org.gradle.jvm.toolchain.JavaLauncher;
 import org.gradle.process.CommandLineArgumentProvider;
 import org.gradle.testing.jacoco.plugins.JacocoTaskExtension;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public abstract class CiVisibilityPluginExtension {
 
-  private static final Logger LOGGER = Logging.getLogger(CiVisibilityPluginExtension.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(CiVisibilityPluginExtension.class);
 
   public static final String MODULE_LAYOUT_PROPERTY = "moduleLayout";
 

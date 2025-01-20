@@ -15,7 +15,7 @@ import net.bytebuddy.matcher.ElementMatchers;
  */
 @AutoService(InstrumenterModule.class)
 public class SpringServletInitializerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
   public SpringServletInitializerInstrumentation() {
     super("spring-boot");
   }

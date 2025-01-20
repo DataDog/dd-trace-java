@@ -14,7 +14,7 @@ import org.junit.jupiter.engine.extension.ExtensionRegistrar;
 
 @AutoService(InstrumenterModule.class)
 public class JUnit5BeforeAfterInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public JUnit5BeforeAfterInstrumentation() {
     super("ci-visibility", "junit-5", "setup-teardown");
