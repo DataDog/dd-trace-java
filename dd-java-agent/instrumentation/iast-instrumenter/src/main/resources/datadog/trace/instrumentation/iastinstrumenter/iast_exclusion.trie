@@ -149,11 +149,11 @@
 1 io.r2dbc.*
 1 io.reactivex.*
 1 io.smallrye.*
+1 io.springfox.*
+1 io.swagger.*
 # APPSEC-56331
 1 io.trino.hdfs.s3.RetryDriver
 1 io.trino.plugin.hive.metastore.thrift.RetryDriver
-1 io.springfox.*
-1 io.swagger.*
 1 io.undertow.*
 1 io.vertx.*
 # https://github.com/tsegismont/vertx-musicstore
