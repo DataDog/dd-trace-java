@@ -376,7 +376,7 @@ abstract class AbstractKotlinCoroutineInstrumentationTest<T extends CoreKotlinCo
     assertTraces(1) {
       trace(expectedNumberOfSpans, true) {
         span(5) {
-          operationName "top-level"
+          operationName "trace.annotation"
           parent()
         }
         span(0) {
@@ -397,6 +397,46 @@ abstract class AbstractKotlinCoroutineInstrumentationTest<T extends CoreKotlinCo
         }
         span(4) {
           operationName "5-after-timeout-3"
+          childOf span(5)
+        }
+      }
+    }
+
+    where:
+    [dispatcherName, dispatcher] << dispatchersToTest
+  }
+
+  @Ignore("Not working: disconnected trace")
+  def "kotlin trace consistent after delay"() {
+    setup:
+    CoreKotlinCoroutineTests kotlinTest = getCoreKotlinCoroutineTestsInstance(dispatcher)
+    int expectedNumberOfSpans = kotlinTest.traceAfterDelay()
+
+    expect:
+    assertTraces(1) {
+      trace(expectedNumberOfSpans, true) {
+        span(5) {
+          operationName "trace.annotation"
+          parent()
+        }
+        span(1) {
+          operationName "before-process"
+          childOf span(5)
+        }
+        span(2) {
+          operationName "process-url-a"
+          childOf span(5)
+        }
+        span(3) {
+          operationName "process-url-b"
+          childOf span(5)
+        }
+        span(4) {
+          operationName "process-url-c"
+          childOf span(5)
+        }
+        span(0) {
+          operationName "after-process"
           childOf span(5)
         }
       }
