@@ -1107,12 +1107,20 @@ build_test_jobs: &build_test_jobs
       gradleTarget: ":profilingCheck"
       cacheType: profiling
 
+  - check:
+      requires:
+        - ok_to_test
+      name: check_debugger
+      gradleTarget: ":debuggerCheck"
+      cacheType: base
+
   - fan_in:
       requires:
         - check_base
         - check_inst
         - check_smoke
         - check_profiling
+        - check_debugger
       name: check
       stage: check
 
