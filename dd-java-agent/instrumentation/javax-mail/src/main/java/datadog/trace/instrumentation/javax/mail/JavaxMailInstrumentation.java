@@ -24,7 +24,7 @@ public class JavaxMailInstrumentation extends InstrumenterModule.Iast
   private static Logger LOGGER = LoggerFactory.getLogger(JavaxMailInstrumentation.class);
 
   public JavaxMailInstrumentation() {
-    super("javax-mail", "transport");
+    super("javax-mail", "javax-mail-transport");
   }
 
   @Override
