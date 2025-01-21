@@ -5,8 +5,10 @@ import org.junit.jupiter.api.Test;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.util.List;
 import java.util.Objects;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 public class SmapEntryFactoryTest {
@@ -24,11 +26,11 @@ public class SmapEntryFactoryTest {
   }
 
   @Test
-  void testNextLongValue() throws Exception {
-    String line = "3232 fsdasg 1232352523";
-    int[] pos = new int[]{0};
-    long val = SmapEntryFactory.nextLongValue(line, pos);
-    val = SmapEntryFactory.nextLongValue(line, pos);
-    val = SmapEntryFactory.nextLongValue(line, pos);
+  void testSmapSanity() throws Exception {
+    try (BufferedReader br = new BufferedReader(new InputStreamReader(Objects.requireNonNull(SmapEntryFactory.class.getResourceAsStream("/smap/smaps.txt"))))) {
+      List<SmapEntryEvent> events = SmapEntryFactory.readEvents(br);
+      assertNotNull(events);
+      assertEquals(747, events.size());
+    }
   }
 }
