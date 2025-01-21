@@ -308,4 +308,16 @@ class LambdaHandlerTest extends DDCoreSpecification {
     then:
     result == body
   }
+
+  def "test moshi toJson OutputStream"() {
+    given:
+    def body = "{\"body\":\"bababango\",\"statusCode\":\"200\"}"
+    def myEvent = new ByteArrayOutputStream(body.getBytes())
+
+    when:
+    def result = LambdaHandler.writeValueAsString(myEvent)
+
+    then:
+    result == body
+  }
 }
