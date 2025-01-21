@@ -216,6 +216,9 @@ public abstract class TestNGUtils {
 
   public static IRetryAnalyzer getRetryAnalyzer(ITestResult result) {
     ITestNGMethod method = result.getMethod();
+    if (method == null) {
+      return null;
+    }
     IRetryAnalyzer analyzer = METHOD_HANDLES.invoke(TEST_METHOD_GET_RETRY_ANALYZER, method, result);
     if (analyzer != null) {
       return analyzer;

@@ -136,6 +136,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_IAST_ANONYMOUS_CLASSES_ENABLED = true;
 
   static final boolean DEFAULT_IAST_STACK_TRACE_ENABLED = true;
+  static final int DEFAULT_IAST_DB_ROWS_TO_TAINT = 1;
 
   static final boolean DEFAULT_LLM_OBS_ENABLED = false;
   static final boolean DEFAULT_LLM_OBS_AGENTLESS_ENABLED = false;
@@ -242,6 +243,7 @@ public final class ConfigDefaults {
 
   static final long DEFAULT_TRACE_POST_PROCESSING_TIMEOUT = 1000; // 1 second
 
+  static final boolean DEFAULT_CASSANDRA_KEYSPACE_STATEMENT_EXTRACTION_ENABLED = false;
   static final boolean DEFAULT_COUCHBASE_INTERNAL_SPANS_ENABLED = true;
   static final boolean DEFAULT_ELASTICSEARCH_BODY_ENABLED = false;
   static final boolean DEFAULT_ELASTICSEARCH_PARAMS_ENABLED = true;

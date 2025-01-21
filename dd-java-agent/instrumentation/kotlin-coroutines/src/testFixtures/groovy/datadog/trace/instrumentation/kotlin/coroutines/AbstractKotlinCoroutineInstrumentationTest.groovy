@@ -5,6 +5,7 @@ import datadog.trace.core.DDSpan
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ThreadPoolDispatcherKt
+import spock.lang.Ignore
 import spock.lang.Shared
 
 abstract class AbstractKotlinCoroutineInstrumentationTest<T extends CoreKotlinCoroutineTests> extends AgentTestRunner {
@@ -357,6 +358,86 @@ abstract class AbstractKotlinCoroutineInstrumentationTest<T extends CoreKotlinCo
         span(0) {
           operationName "top-level"
           parent()
+        }
+      }
+    }
+
+    where:
+    [dispatcherName, dispatcher] << dispatchersToTest
+  }
+
+  @Ignore("Not working: disconnected trace")
+  def "kotlin trace consistent with timeout"() {
+    setup:
+    CoreKotlinCoroutineTests kotlinTest = getCoreKotlinCoroutineTestsInstance(dispatcher)
+    int expectedNumberOfSpans = kotlinTest.traceAfterTimeout()
+
+    expect:
+    assertTraces(1) {
+      trace(expectedNumberOfSpans, true) {
+        span(5) {
+          operationName "trace.annotation"
+          parent()
+        }
+        span(0) {
+          operationName "1-before-timeout"
+          childOf span(5)
+        }
+        span(1) {
+          operationName "2-inside-timeout"
+          childOf span(5)
+        }
+        span(2) {
+          operationName "3-after-timeout"
+          childOf span(5)
+        }
+        span(3) {
+          operationName "4-after-timeout-2"
+          childOf span(5)
+        }
+        span(4) {
+          operationName "5-after-timeout-3"
+          childOf span(5)
+        }
+      }
+    }
+
+    where:
+    [dispatcherName, dispatcher] << dispatchersToTest
+  }
+
+  @Ignore("Not working: disconnected trace")
+  def "kotlin trace consistent after delay"() {
+    setup:
+    CoreKotlinCoroutineTests kotlinTest = getCoreKotlinCoroutineTestsInstance(dispatcher)
+    int expectedNumberOfSpans = kotlinTest.traceAfterDelay()
+
+    expect:
+    assertTraces(1) {
+      trace(expectedNumberOfSpans, true) {
+        span(5) {
+          operationName "trace.annotation"
+          parent()
+        }
+        span(1) {
+          operationName "before-process"
+          childOf span(5)
+        }
+        span(2) {
+          operationName "process-url-a"
+          childOf span(5)
+        }
+        span(3) {
+          operationName "process-url-b"
+          childOf span(5)
+        }
+        span(4) {
+          operationName "process-url-c"
+          childOf span(5)
+        }
+        span(0) {
+          operationName "after-process"
+          childOf span(5)
         }
       }
     }

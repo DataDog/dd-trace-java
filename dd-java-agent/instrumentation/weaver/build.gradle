@@ -1,0 +1,33 @@
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'scala'
+
+muzzle {
+  pass {
+    group = 'com.disneystreaming'
+    module = 'weaver-cats_3'
+    versions = '[0.8.4,)'
+  }
+}
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'com.disneystreaming', name: 'weaver-cats_3', version: '0.8.4'
+
+  testImplementation testFixtures(project(':dd-java-agent:agent-ci-visibility'))
+
+  testImplementation group: 'org.scala-lang', name: 'scala-library', version: '2.12.20'
+  testImplementation group: 'com.disneystreaming', name: 'weaver-cats_3', version: '0.8.4'
+
+  testImplementation group: 'com.disneystreaming', name: 'weaver-cats_3', version: '+'
+}
+
+compileTestGroovy {
+  dependsOn compileTestScala
+  classpath += files(sourceSets.test.scala.destinationDirectory)
+}
+
+compileLatestDepTestGroovy {
+  dependsOn compileLatestDepTestScala
+  classpath += files(sourceSets.latestDepTest.scala.destinationDirectory)
+}

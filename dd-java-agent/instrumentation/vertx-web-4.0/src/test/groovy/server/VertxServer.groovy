@@ -14,10 +14,12 @@ class VertxServer implements HttpServer {
   private String routerBasePath
   private port
   Class<AbstractVerticle> verticle
+  boolean useWorker
 
-  VertxServer(Class<AbstractVerticle> verticle, String routerBasePath) {
+  VertxServer(Class<AbstractVerticle> verticle, String routerBasePath, boolean useWorker = false) {
     this.routerBasePath = routerBasePath
     this.verticle = verticle
+    this.useWorker = useWorker
   }
 
   @Override
@@ -35,6 +37,8 @@ class VertxServer implements HttpServer {
     server.deployVerticle(verticle.name,
       new DeploymentOptions()
       .setConfig(new JsonObject().put(VertxTestServer.CONFIG_HTTP_SERVER_PORT, 0))
+      .setWorkerPoolSize(1)
+      .setWorker(useWorker)
       .setInstances(1)) { res ->
         if (!res.succeeded()) {
           throw new RuntimeException("Cannot deploy server Verticle", res.cause())

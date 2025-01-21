@@ -3,6 +3,7 @@ package com.datadog.debugger.probe;
 import static com.datadog.debugger.util.ExceptionHelper.getInnerMostThrowable;
 import static java.util.Collections.emptyList;
 
+import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.exception.ExceptionProbeManager;
 import com.datadog.debugger.exception.Fingerprinter;
@@ -26,7 +27,6 @@ public class ExceptionProbe extends LogProbe implements ForceMethodInstrumentati
   public ExceptionProbe(
       ProbeId probeId,
       Where where,
-      ProbeCondition probeCondition,
       Capture capture,
       Sampling sampling,
       ExceptionProbeManager exceptionProbeManager,
@@ -40,7 +40,8 @@ public class ExceptionProbe extends LogProbe implements ForceMethodInstrumentati
         null,
         null,
         true,
-        probeCondition,
+        // forcing a useless condition to be instrumented with captureEntry=false
+        new ProbeCondition(DSL.when(DSL.TRUE), "true"),
         capture,
         sampling);
     this.exceptionProbeManager = exceptionProbeManager;

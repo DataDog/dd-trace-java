@@ -35,6 +35,8 @@ public interface StringModule extends IastModule {
 
   void onStringToUpperCase(@Nonnull String self, @Nullable String result);
 
+  void onStringTranslateEscapes(@Nonnull String self, @Nullable String result);
+
   void onStringToLowerCase(@Nonnull String self, @Nullable String result);
 
   void onStringTrim(@Nonnull String self, @Nullable String result);

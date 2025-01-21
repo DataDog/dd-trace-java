@@ -3,6 +3,7 @@ package com.datadog.debugger.agent;
 import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.toList;
 
+import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.instrumentation.MethodInfo;
@@ -693,6 +694,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
     MethodLocation evaluateAt = MethodLocation.EXIT;
     LogProbe.Capture capture = null;
     boolean captureSnapshot = false;
+    ProbeCondition probeCondition = null;
     Where where = capturedContextProbes.get(0).getWhere();
     ProbeId probeId = capturedContextProbes.get(0).getProbeId();
     for (ProbeDefinition definition : capturedContextProbes) {
@@ -704,6 +706,9 @@ public class DebuggerTransformer implements ClassFileTransformer {
         LogProbe logProbe = (LogProbe) definition;
         captureSnapshot = captureSnapshot | logProbe.isCaptureSnapshot();
         capture = mergeCapture(capture, logProbe.getCapture());
+        if (probeCondition == null) {
+          probeCondition = logProbe.getProbeCondition();
+        }
       }
       if (definition.getEvaluateAt() == MethodLocation.ENTRY
           || definition.getEvaluateAt() == MethodLocation.DEFAULT) {
@@ -713,6 +718,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
     if (hasLogProbe) {
       return LogProbe.builder()
           .probeId(probeId)
+          .when(probeCondition)
           .where(where)
           .evaluateAt(evaluateAt)
           .capture(capture)

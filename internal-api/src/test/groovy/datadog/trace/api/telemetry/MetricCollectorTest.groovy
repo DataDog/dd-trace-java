@@ -4,7 +4,7 @@ import spock.lang.Specification
 
 class MetricCollectorTest extends Specification {
 
-  void 'test metric equality'() {
+  void 'test metric equality #iterationIndex'() {
     when:
     final sameMetric = first == second
 
@@ -21,6 +21,14 @@ class MetricCollectorTest extends Specification {
     counter(tags: ['a:b'], value: 2)        | counter(tags: ['a:b'], value: 6)        | true
     counter(tags: ['a:b'], value: 2)        | counter(tags: ['c:d'], value: 6)        | false
     counter(tags: ['a:b', 'c:d'], value: 2) | counter(tags: ['a:b', 'c:d'], value: 6) | true
+  }
+
+  void 'test metric toString'() {
+    expect:
+    metric.toString() != null
+
+    where:
+    metric << [counter(value: 2), counter(namespace: 'other', value: 6), counter(tags: ['a:b', 'c:d'], value: 2)]
   }
 
   private static MetricCollector.Metric counter(final Map metric) {

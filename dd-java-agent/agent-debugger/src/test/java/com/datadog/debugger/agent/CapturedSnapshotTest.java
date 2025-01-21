@@ -135,6 +135,43 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   }
 
   @Test
+  public void methodProbeAtExit() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot01";
+    TestSnapshotListener listener =
+        installSingleProbeAtExit(CLASS_NAME, "main", "int (java.lang.String)");
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.onClass(testClass).call("main", "1").get();
+    assertEquals(3, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    assertCaptureArgs(snapshot.getCaptures().getEntry(), "arg", "java.lang.String", "1");
+    assertCaptureArgs(snapshot.getCaptures().getReturn(), "arg", "java.lang.String", "1");
+    assertTrue(snapshot.getDuration() > 0);
+    assertTrue(snapshot.getStack().size() > 0);
+    assertEquals("CapturedSnapshot01.main", snapshot.getStack().get(0).getFunction());
+  }
+
+  @Test
+  public void methodProbeAtExitWithCondition() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot01";
+    LogProbe probe =
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "main", "int (java.lang.String)")
+            .when(
+                new ProbeCondition(DSL.when(DSL.eq(DSL.ref("arg"), DSL.value("1"))), "arg == '1'"))
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    TestSnapshotListener listener = installProbes(probe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.onClass(testClass).call("main", "1").get();
+    assertEquals(3, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    assertEquals(CapturedContext.EMPTY_CAPTURING_CONTEXT, snapshot.getCaptures().getEntry());
+    assertCaptureArgs(snapshot.getCaptures().getReturn(), "arg", "java.lang.String", "1");
+    assertTrue(snapshot.getDuration() > 0);
+    assertTrue(snapshot.getStack().size() > 0);
+    assertEquals("CapturedSnapshot01.main", snapshot.getStack().get(0).getFunction());
+  }
+
+  @Test
   public void localVarHoistingNoPreviousStore() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.fasterxml.jackson.core.json.ByteSourceJsonBootstrapper";
     TestSnapshotListener listener = installSingleProbe(CLASS_NAME, "detectEncoding", null);
