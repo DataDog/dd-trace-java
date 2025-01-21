@@ -90,6 +90,11 @@ class KotlinCoroutineTests(dispatcher: CoroutineDispatcher) : CoreKotlinCoroutin
   }
 
   @Trace
+  override fun traceAfterDelay(): Int {
+    return super.traceAfterDelay()
+  }
+
+  @Trace
   override fun tracedChild(opName: String) {
     super.tracedChild(opName)
   }
