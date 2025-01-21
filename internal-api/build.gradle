@@ -36,6 +36,8 @@ excludedClassesCoverage += [
   "datadog.trace.api.WithGlobalTracer.1",
   "datadog.trace.api.naming.**",
   "datadog.trace.api.gateway.RequestContext.Noop",
+  "datadog.trace.api.ClassloaderConfigurationOverrides",
+  "datadog.trace.api.ClassloaderConfigurationOverrides.Lazy",
   // an enum
   "datadog.trace.api.sampling.AdaptiveSampler",
   "datadog.trace.api.sampling.ConstantSampler",
@@ -195,6 +197,7 @@ excludedClassesCoverage += [
 ]
 excludedClassesBranchCoverage = [
   'datadog.trace.api.ProductActivationConfig',
+  'datadog.trace.api.ClassloaderConfigurationOverrides.Lazy',
   'datadog.trace.api.Config',
   'datadog.trace.util.stacktrace.HotSpotStackWalker',
   'datadog.trace.util.stacktrace.StackWalkerFactory'

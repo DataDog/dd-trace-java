@@ -1,3 +1,5 @@
+import static datadog.trace.api.config.TraceInstrumentationConfig.CASSANDRA_KEYSPACE_STATEMENT_EXTRACTION_ENABLED
+
 import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.config.DefaultDriverOption
 import com.datastax.oss.driver.api.core.config.DriverConfigLoader
@@ -50,7 +52,9 @@ abstract class CassandraClientTest extends VersionedNamingTestBase {
     runUnderTrace("setup") {
       Session session = sessionBuilder().build()
       session.execute("DROP KEYSPACE IF EXISTS test_keyspace")
+      session.execute("DROP KEYSPACE IF EXISTS a_ks")
       session.execute("CREATE KEYSPACE test_keyspace WITH REPLICATION = {'class':'SimpleStrategy', 'replication_factor':3}")
+      session.execute("CREATE KEYSPACE a_ks WITH REPLICATION = {'class':'SimpleStrategy', 'replication_factor':3}")
       session.execute("CREATE TABLE test_keyspace.users ( id UUID PRIMARY KEY, name text )")
     }
 
@@ -66,6 +70,9 @@ abstract class CassandraClientTest extends VersionedNamingTestBase {
     setup:
     Session session = sessionBuilder().withKeyspace((String) keyspace).build()
     injectSysConfig(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService")
+    if (extractFromStatement) {
+      injectSysConfig(CASSANDRA_KEYSPACE_STATEMENT_EXTRACTION_ENABLED, "true")
+    }
 
     when:
     session.execute(statement)
@@ -73,7 +80,7 @@ abstract class CassandraClientTest extends VersionedNamingTestBase {
     then:
     assertTraces(1) {
       trace(1) {
-        cassandraSpan(it, statement, keyspace, renameService)
+        cassandraSpan(it, statement, expectedKeySpace, renameService)
       }
     }
 
@@ -81,11 +88,17 @@ abstract class CassandraClientTest extends VersionedNamingTestBase {
     session?.close()
 
     where:
-    statement                                                  | keyspace        | renameService
-    "DROP KEYSPACE IF EXISTS does_not_exist"                   | null            | false
-    "DROP KEYSPACE IF EXISTS does_not_exist"                   | null            | true
-    "SELECT * FROM users where name = 'alice' ALLOW FILTERING" | "test_keyspace" | false
-    "SELECT * FROM users where name = 'alice' ALLOW FILTERING" | "test_keyspace" | true
+
+    statement                                                                     | keyspace          | expectedKeySpace  | renameService   | extractFromStatement
+    "DROP KEYSPACE IF EXISTS does_not_exist"                                      | null              | null              | false           | true
+    "DROP KEYSPACE IF EXISTS does_not_exist"                                      | null              | null              | false           | true
+    "SELECT * FROM users where name = 'alice' ALLOW FILTERING"                    | "test_keyspace"   | "test_keyspace"   | false           | true
+    "SELECT * FROM users where name = 'alice' ALLOW FILTERING"                    | "test_keyspace"   | "test_keyspace"   | true            | true
+    "SELECT * FROM test_keyspace.users where name = 'alice' ALLOW FILTERING"      | "a_ks"            | "test_keyspace"   | false           | true
+    "SELECT * FROM test_keyspace.users where name = 'alice' ALLOW FILTERING"      | "a_ks"            | "test_keyspace"   | true            | true
+    "SELECT * FROM test_keyspace.users where name = 'alice' ALLOW FILTERING"      | null              | "test_keyspace"   | false           | true
+    "SELECT * FROM test_keyspace.users where name = 'alice' ALLOW FILTERING"      | null              | "test_keyspace"   | true            | true
+    "SELECT * FROM test_keyspace.users where name = 'alice' ALLOW FILTERING"      | null              | null              | false           | false
   }
 
   def "test sync with error"() {
@@ -120,6 +133,9 @@ abstract class CassandraClientTest extends VersionedNamingTestBase {
     setup:
     CqlSession session = sessionBuilder().withKeyspace((String) keyspace).build()
     injectSysConfig(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService")
+    if (extractFromStatement) {
+      injectSysConfig(CASSANDRA_KEYSPACE_STATEMENT_EXTRACTION_ENABLED, "true")
+    }
     def callbackExecuted = new CountDownLatch(1)
 
 
@@ -141,7 +157,7 @@ abstract class CassandraClientTest extends VersionedNamingTestBase {
       trace(3) {
         sortSpansByStart()
         basicSpan(it, "parent")
-        cassandraSpan(it, statement, keyspace, renameService, span(0))
+        cassandraSpan(it, statement, expectedKeySpace, renameService, span(0))
         basicSpan(it, "callbackListener", span(0))
       }
     }
@@ -150,11 +166,13 @@ abstract class CassandraClientTest extends VersionedNamingTestBase {
     session?.close()
 
     where:
-    statement                                                  | keyspace        | renameService
-    "DROP KEYSPACE IF EXISTS does_not_exist"                   | null            | false
-    "DROP KEYSPACE IF EXISTS does_not_exist"                   | null            | true
-    "SELECT * FROM users where name = 'alice' ALLOW FILTERING" | "test_keyspace" | false
-    "SELECT * FROM users where name = 'alice' ALLOW FILTERING" | "test_keyspace" | true
+    statement                                                                     | keyspace          | expectedKeySpace  | renameService   | extractFromStatement
+    "DROP KEYSPACE IF EXISTS does_not_exist"                                      | null              | null              | false           | false
+    "DROP KEYSPACE IF EXISTS does_not_exist"                                      | null              | null              | false           | false
+    "SELECT * FROM users where name = 'alice' ALLOW FILTERING"                    | "test_keyspace"   | "test_keyspace"   | false           | false
+    "SELECT * FROM users where name = 'alice' ALLOW FILTERING"                    | "test_keyspace"   | "test_keyspace"   | true            | false
+    "SELECT * FROM test_keyspace.users where name = 'alice' ALLOW FILTERING"      | null              | null              | false           | false
+    "SELECT * FROM test_keyspace.users where name = 'alice' ALLOW FILTERING"      | null              | "test_keyspace"   | true            | true
   }
 
   def "test async with error"() {

@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.servlet3;
 
-import datadog.trace.api.naming.ClassloaderServiceNames;
+import datadog.trace.api.ClassloaderConfigurationOverrides;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -84,7 +84,7 @@ public class Servlet3Decorator
       final HttpServletRequest request,
       AgentSpanContext.Extracted context) {
     assert span != null;
-    ClassloaderServiceNames.maybeSetToSpan(span);
+    ClassloaderConfigurationOverrides.maybeEnrichSpan(span);
     if (request != null) {
       String contextPath = request.getContextPath();
       String servletPath = request.getServletPath();

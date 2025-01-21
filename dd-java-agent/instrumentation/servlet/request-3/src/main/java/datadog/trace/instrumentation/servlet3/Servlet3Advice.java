@@ -7,12 +7,12 @@ import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecora
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.servlet3.Servlet3Decorator.DECORATE;
 
+import datadog.trace.api.ClassloaderConfigurationOverrides;
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.gateway.Flow;
-import datadog.trace.api.naming.ClassloaderServiceNames;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -63,7 +63,7 @@ public class Servlet3Advice {
     final boolean hasServletTrace = spanAttrValue instanceof AgentSpan;
     if (hasServletTrace) {
       final AgentSpan span = (AgentSpan) spanAttrValue;
-      ClassloaderServiceNames.maybeSetToSpan(span);
+      ClassloaderConfigurationOverrides.maybeEnrichSpan(span);
       // Tracing might already be applied by other instrumentation,
       // the FilterChain or a parent request (forward/include).
       return false;

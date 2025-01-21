@@ -4,6 +4,7 @@ import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
 import static java.lang.invoke.MethodType.methodType;
 
 import datadog.trace.bootstrap.debugger.CapturedContext;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Field;
@@ -12,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A helper class to resolve a reference path using reflection. */
+@SuppressForbidden // Class#forName(String)
 public class ReflectiveFieldValueResolver {
   private static final Logger LOGGER = LoggerFactory.getLogger(ReflectiveFieldValueResolver.class);
   // This is a workaround for the fact that Field.trySetAccessible is not available in Java 8

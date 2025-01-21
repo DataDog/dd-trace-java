@@ -34,9 +34,7 @@ public class VertxImplInstrumentation extends InstrumenterModule.AppSec
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".BlockingExceptionHandler",
-      packageName + ".VertxDecorator",
-      packageName + ".VertxDecorator$VertxURIDataAdapter",
+      packageName + ".BlockingExceptionHandler", packageName + ".VertxDecorator",
     };
   }
 

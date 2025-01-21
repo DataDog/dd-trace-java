@@ -101,7 +101,8 @@ public class DatadogReporter {
         testClass,
         categories,
         parallelized,
-        TestFrameworkInstrumentation.SCALATEST);
+        TestFrameworkInstrumentation.SCALATEST,
+        null);
   }
 
   private static void onSuiteFinish(SuiteCompleted event) {
@@ -111,7 +112,7 @@ public class DatadogReporter {
 
     String testSuiteName = event.suiteId();
     Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
-    eventHandler.onTestSuiteFinish(new TestSuiteDescriptor(testSuiteName, testClass));
+    eventHandler.onTestSuiteFinish(new TestSuiteDescriptor(testSuiteName, testClass), null);
   }
 
   private static void onSuiteAbort(SuiteAborted event) {
@@ -123,7 +124,7 @@ public class DatadogReporter {
     Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
     Throwable throwable = event.throwable().getOrElse(null);
     eventHandler.onTestSuiteFailure(new TestSuiteDescriptor(testSuiteName, testClass), throwable);
-    eventHandler.onTestSuiteFinish(new TestSuiteDescriptor(testSuiteName, testClass));
+    eventHandler.onTestSuiteFinish(new TestSuiteDescriptor(testSuiteName, testClass), null);
   }
 
   private static void onTestStart(TestStarting event) {
@@ -159,7 +160,8 @@ public class DatadogReporter {
         testClass,
         testMethodName,
         testMethod,
-        retryPolicy != null && retryPolicy.currentExecutionIsRetry());
+        retryPolicy != null && retryPolicy.currentExecutionIsRetry(),
+        null);
   }
 
   private static void onTestSuccess(TestSucceeded event) {
@@ -174,7 +176,7 @@ public class DatadogReporter {
     String testParameters = null;
     TestDescriptor testDescriptor =
         new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier);
-    eventHandler.onTestFinish(testDescriptor);
+    eventHandler.onTestFinish(testDescriptor, null);
   }
 
   private static void onTestFailure(TestFailed event) {
@@ -191,7 +193,7 @@ public class DatadogReporter {
     TestDescriptor testDescriptor =
         new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier);
     eventHandler.onTestFailure(testDescriptor, throwable);
-    eventHandler.onTestFinish(testDescriptor);
+    eventHandler.onTestFinish(testDescriptor, null);
   }
 
   private static void onTestIgnore(TestIgnored event) {
@@ -251,7 +253,7 @@ public class DatadogReporter {
     } else {
       eventHandler.onTestSkip(testDescriptor, reason);
     }
-    eventHandler.onTestFinish(testDescriptor);
+    eventHandler.onTestFinish(testDescriptor, null);
   }
 
   private static void onTestPending(TestPending event) {
@@ -269,6 +271,6 @@ public class DatadogReporter {
     TestDescriptor testDescriptor =
         new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier);
     eventHandler.onTestSkip(testDescriptor, reason);
-    eventHandler.onTestFinish(testDescriptor);
+    eventHandler.onTestFinish(testDescriptor, null);
   }
 }

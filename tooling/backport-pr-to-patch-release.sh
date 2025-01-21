@@ -94,7 +94,7 @@ git push -u origin "$BRANCH_NAME" --no-verify
 # Create a PR
 gh pr create --base "$PATCH_RELEASE_BRANCH" \
     --head "$BRANCH_NAME" \
-    --title "[🍒 $PR_NUMBER] $PR_TITLE" \
+    --title "🍒 $PR_NUMBER - $PR_TITLE" \
     --body "Backport #$PR_NUMBER to $PATCH_RELEASE_BRANCH" \
     --label "$PR_LABELS"
 

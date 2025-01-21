@@ -36,4 +36,5 @@ public class DDSpanTypes {
   public static final String PROTOBUF = "protobuf";
 
   public static final String MULE = "mule";
+  public static final String VALKEY = "valkey";
 }
