@@ -138,7 +138,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
     then:
     hasTainted { tainted ->
-      tainted.value == messageContent
+      tainted.value == 'messageContent'
     }
   }
 
