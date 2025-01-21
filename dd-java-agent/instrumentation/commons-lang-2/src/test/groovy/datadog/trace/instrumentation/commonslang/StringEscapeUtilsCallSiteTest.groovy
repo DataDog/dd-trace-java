@@ -39,7 +39,7 @@ class StringEscapeUtilsCallSiteTest extends AgentTestRunner {
     'escapeXml'        | ['Ø-This is a quote'] | '&#216;-This is a quote'
   }
 
-  void 'test #method'() {
+  void 'test #method sql'() {
     given:
     final module = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(module)
