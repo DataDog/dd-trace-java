@@ -268,6 +268,15 @@ class AppSecEventTrackerSpecification extends DDSpecification {
     thrown(BlockingException)
   }
 
+  void 'should not fail on null callback'() {
+    when:
+    tracker.onUserEvent(UserIdCollectionMode.IDENTIFICATION, 'test-user')
+
+    then:
+    noExceptionThrown()
+    provider.getCallback(EVENTS.user()) >> null
+  }
+
   private static class ActionFlow<T> implements Flow<T> {
 
     private Action action

@@ -142,6 +142,9 @@ public class AppSecEventTracker extends EventTracker {
       return;
     }
     final T callback = cbp.getCallback(event);
+    if (callback == null) {
+      return;
+    }
     final Flow<Void> flow = consumer.apply(ctx, callback);
     if (flow == null) {
       return;
