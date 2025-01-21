@@ -10,7 +10,6 @@ import static net.bytebuddy.asm.Advice.OnMethodEnter;
 import static net.bytebuddy.asm.Advice.OnMethodExit;
 import static net.bytebuddy.asm.Advice.Origin;
 import static net.bytebuddy.asm.Advice.This;
-import static net.bytebuddy.implementation.bytecode.assign.Assigner.Typing.DYNAMIC;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
