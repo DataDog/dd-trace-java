@@ -5,6 +5,7 @@ import com.google.gson.JsonParser;
 import datadog.communication.util.IOUtils;
 import datadog.smoketest.springboot.TestBean;
 import ddtest.client.sources.Hasher;
+import de.saly.javamail.mock2.MockTransport;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
 import java.io.IOException;
@@ -20,6 +21,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
+import javax.mail.Message;
+import javax.mail.MessagingException;
+import javax.mail.Session;
+import javax.mail.internet.MimeMessage;
 import javax.servlet.ServletException;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
@@ -330,6 +335,16 @@ public class IastWebController {
     } catch (IOException e) {
     }
     return "fileName: " + file.getName();
+  }
+
+  @PostMapping("/mailHtmlVulnerability")
+  public String mailHtmlVulnerability(@RequestParam("mail") String messageContent)
+      throws MessagingException {
+    System.setProperty("mail.smtp.class", MockTransport.class.getName());
+    Session session = Session.getDefaultInstance(System.getProperties());
+    Message message = new MimeMessage(session);
+    MockTransport.send(message);
+    return "ok";
   }
 
   @GetMapping(value = "/xcontenttypeoptionsecure", produces = "text/html")
