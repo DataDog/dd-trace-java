@@ -1,7 +1,7 @@
 class CapturedSnapshot201 {
 
   def f1(int value) {
-    value
+    value // beae1817-f3b0-4ea8-a74f-000000000001
   }
 
   def f2(int value) {

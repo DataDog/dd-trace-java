@@ -173,9 +173,8 @@ public class TriggerProbeTest extends CapturingTestBase {
       String methodName,
       String signature,
       ProbeCondition probeCondition,
-      Sampling sampling,
-      String... lines) {
-    return new TriggerProbe(id, Where.of(typeName, methodName, signature, lines))
+      Sampling sampling) {
+    return new TriggerProbe(id, Where.of(typeName, methodName, signature))
         .setSessionId(sessionId)
         .setProbeCondition(probeCondition)
         .setSampling(sampling);
