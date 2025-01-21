@@ -1,8 +1,12 @@
 package datadog.trace.instrumentation.datastax.cassandra;
 
+import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_INSTANCE;
+
+import com.datastax.driver.core.ColumnDefinitions;
 import com.datastax.driver.core.Host;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Session;
+import datadog.trace.api.Config;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.naming.SpanNaming;
@@ -11,6 +15,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
+import datadog.trace.util.Strings;
 import java.util.function.ToIntFunction;
 
 public class CassandraClientDecorator extends DBTypeProcessingDatabaseClientDecorator<Session> {
@@ -82,6 +87,18 @@ public class CassandraClientDecorator extends DBTypeProcessingDatabaseClientDeco
     if (result != null) {
       final Host host = result.getExecutionInfo().getQueriedHost();
       onPeerConnection(span, host.getSocketAddress());
+      try {
+        if (Config.get().isCassandraKeyspaceStatementExtractionEnabled()) {
+          final ColumnDefinitions defs = result.getColumnDefinitions();
+          if (defs != null && defs.size() > 0) {
+            final String keySpace = defs.getKeyspace(0);
+            if (Strings.isNotBlank(keySpace) && !keySpace.equals(span.getTag(DB_INSTANCE))) {
+              onInstance(span, keySpace);
+            }
+          }
+        }
+      } catch (final Throwable ignored) {
+      }
     }
     return span;
   }

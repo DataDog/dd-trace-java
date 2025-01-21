@@ -519,6 +519,7 @@ public class Config {
   private final boolean longRunningTraceEnabled;
   private final long longRunningTraceInitialFlushInterval;
   private final long longRunningTraceFlushInterval;
+  private final boolean cassandraKeyspaceStatementExtractionEnabled;
   private final boolean couchbaseInternalSpansEnabled;
   private final boolean elasticsearchBodyEnabled;
   private final boolean elasticsearchParamsEnabled;
@@ -622,6 +623,10 @@ public class Config {
     } else {
       secureRandom = configProvider.getBoolean(SECURE_RANDOM, DEFAULT_SECURE_RANDOM);
     }
+    cassandraKeyspaceStatementExtractionEnabled =
+        configProvider.getBoolean(
+            CASSANDRA_KEYSPACE_STATEMENT_EXTRACTION_ENABLED,
+            DEFAULT_CASSANDRA_KEYSPACE_STATEMENT_EXTRACTION_ENABLED);
     couchbaseInternalSpansEnabled =
         configProvider.getBoolean(
             COUCHBASE_INTERNAL_SPANS_ENABLED, DEFAULT_COUCHBASE_INTERNAL_SPANS_ENABLED);
@@ -3333,6 +3338,10 @@ public class Config {
     return grpcClientErrorStatuses;
   }
 
+  public boolean isCassandraKeyspaceStatementExtractionEnabled() {
+    return cassandraKeyspaceStatementExtractionEnabled;
+  }
+
   public boolean isCouchbaseInternalSpansEnabled() {
     return couchbaseInternalSpansEnabled;
   }
@@ -4557,6 +4566,8 @@ public class Config {
         + longRunningTraceInitialFlushInterval
         + ", longRunningTraceFlushInterval="
         + longRunningTraceFlushInterval
+        + ", cassandraKeyspaceStatementExtractionEnabled="
+        + cassandraKeyspaceStatementExtractionEnabled
         + ", couchbaseInternalSpansEnabled="
         + couchbaseInternalSpansEnabled
         + ", elasticsearchBodyEnabled="
