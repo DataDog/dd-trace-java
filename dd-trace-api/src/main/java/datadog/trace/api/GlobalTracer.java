@@ -26,6 +26,14 @@ public class GlobalTracer {
         }
 
         @Override
+        public boolean isAsyncPropagationEnabled() {
+          return false;
+        }
+
+        @Override
+        public void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {}
+
+        @Override
         public boolean addTraceInterceptor(TraceInterceptor traceInterceptor) {
           return false;
         }

@@ -2,9 +2,9 @@ package datadog.trace.instrumentation.kotlin.coroutines
 
 import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.get
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource.INSTRUMENTATION
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import kotlinx.coroutines.CompletableDeferred
@@ -390,7 +390,7 @@ abstract class CoreKotlinCoroutineTests(private val dispatcher: CoroutineDispatc
   }
 
   protected fun <T> runTest(asyncPropagation: Boolean = true, block: suspend CoroutineScope.() -> T): T {
-    activeScope()?.setAsyncPropagation(asyncPropagation)
+    setAsyncPropagationEnabled(asyncPropagation)
     return runBlocking(jobName("test") + dispatcher, block = block)
   }
 }

@@ -1,8 +1,3 @@
-import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
-import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan
-
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
@@ -22,6 +17,11 @@ import spock.lang.Shared
 
 import java.time.Duration
 import java.util.concurrent.CompletableFuture
+
+import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan
 
 class ReactorCoreTest extends AgentTestRunner {
 
@@ -483,12 +483,10 @@ class ReactorCoreTest extends AgentTestRunner {
   def assemblePublisherUnderTrace(def publisherSupplier) {
     def span = startSpan("publisher-parent")
     // After this activation, the "add two" operations below should be children of this span
-    def scope = activateSpan(span)
+    def scope = activateSpan(span, true)
 
     Publisher<Integer> publisher = publisherSupplier()
     try {
-      scope.setAsyncPropagation(true)
-
       // Read all data from publisher
       if (publisher instanceof Mono) {
         return publisher.block()
@@ -506,8 +504,7 @@ class ReactorCoreTest extends AgentTestRunner {
   @Trace(operationName = "trace-parent", resourceName = "trace-parent")
   def cancelUnderTrace(def publisherSupplier) {
     final AgentSpan span = startSpan("publisher-parent")
-    AgentScope scope = activateSpan(span)
-    scope.setAsyncPropagation(true)
+    AgentScope scope = activateSpan(span, true)
 
     def publisher = publisherSupplier()
     publisher.subscribe(new Subscriber<Integer>() {

@@ -15,9 +15,6 @@ public interface AgentScope extends TraceScope, Closeable {
   Continuation captureConcurrent();
 
   @Override
-  void setAsyncPropagation(boolean value);
-
-  @Override
   void close();
 
   interface Continuation extends TraceScope.Continuation {
