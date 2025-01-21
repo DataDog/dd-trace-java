@@ -68,11 +68,7 @@ public class TriggerProbeTest extends CapturingTestBase {
               "()",
               null,
               new Sampling(10, 10.0));
-      installProbes(
-          Configuration.builder()
-              .setService(SERVICE_NAME)
-              .add(probe1)
-              .build());
+      installProbes(Configuration.builder().setService(SERVICE_NAME).add(probe1).build());
       Class<?> testClass = compileAndLoadClass(className);
       int runs = 10000;
       for (int i = 0; i < runs; i++) {
@@ -124,11 +120,7 @@ public class TriggerProbeTest extends CapturingTestBase {
               "()",
               null,
               new Sampling(10.0));
-      Configuration config =
-          Configuration.builder()
-              .setService(SERVICE_NAME)
-              .add(probe1)
-              .build();
+      Configuration config = Configuration.builder().setService(SERVICE_NAME).add(probe1).build();
       installProbes(config);
       Class<?> testClass = compileAndLoadClass(className);
       for (int i = 0; i < 100; i++) {

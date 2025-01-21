@@ -1,6 +1,6 @@
 package com.datadog.debugger.probe;
 
-import static com.datadog.debugger.agent.CapturingTestBase.mockConfig;
+import static com.datadog.debugger.agent.CapturingTestBase.getConfig;
 import static com.datadog.debugger.util.LogProbeTestHelper.parseTemplate;
 import static java.lang.String.format;
 import static java.lang.Thread.currentThread;
@@ -80,7 +80,7 @@ public class LogProbeTest {
   }
 
   private boolean fillSnapshot(DebugSessionStatus status) {
-    DebuggerAgentHelper.injectSink(new DebuggerSink(mockConfig(), mock(ProbeStatusSink.class)));
+    DebuggerAgentHelper.injectSink(new DebuggerSink(getConfig(), mock(ProbeStatusSink.class)));
     TracerAPI tracer =
         CoreTracer.builder().idGenerationStrategy(IdGenerationStrategy.fromName("random")).build();
     AgentTracer.registerIfAbsent(tracer);
