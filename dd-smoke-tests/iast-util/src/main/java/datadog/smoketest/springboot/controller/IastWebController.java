@@ -24,7 +24,9 @@ import java.util.concurrent.ThreadLocalRandom;
 import javax.mail.Message;
 import javax.mail.MessagingException;
 import javax.mail.Session;
+import javax.mail.internet.MimeBodyPart;
 import javax.mail.internet.MimeMessage;
+import javax.mail.internet.MimeMultipart;
 import javax.servlet.ServletException;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
@@ -340,7 +342,7 @@ public class IastWebController {
   @PostMapping("/mailHtmlVulnerability")
   public String mailHtmlVulnerability(
       @RequestParam("messageText") String messageText,
-      @RequestParam("messageContent") Object messageContent)
+      @RequestParam("messageContent") String messageContent)
       throws MessagingException {
     System.setProperty("mail.smtp.class", MockTransport.class.getName());
     Session session = Session.getDefaultInstance(System.getProperties());
@@ -348,7 +350,10 @@ public class IastWebController {
     if (messageText != null) {
       message.setContent(messageText, "text/html");
     } else {
-      message.setContent(messageContent, "multipart/*");
+      MimeMultipart content = new MimeMultipart();
+      content.addBodyPart(new MimeBodyPart());
+      content.getBodyPart(0).setContent(messageContent, "text/html");
+      message.setContent(content, "multipart/*");
     }
     MockTransport.send(message);
     return "ok";

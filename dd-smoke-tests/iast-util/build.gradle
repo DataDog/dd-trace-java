@@ -5,7 +5,11 @@ plugins {
 apply from: "$rootDir/gradle/java.gradle"
 
 description = 'iast-smoke-tests-utils'
-
+repositories {
+  mavenCentral {
+    url 'https://central.sonatype.com/artifact/'
+  }
+}
 dependencies {
   api project(':dd-smoke-tests')
   compileOnly group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '1.5.18.RELEASE'
@@ -21,5 +25,5 @@ dependencies {
   compileOnly group: 'org.apache.httpcomponents', name: 'httpasyncclient', version: '4.0'
   compileOnly 'de.saly:javamail-mock2:0.4-beta3'
   // mail
-  implementation 'javax.mail:mail:1.4.4'
+  compileOnly 'javax.mail:mail:1.4.4'
 }
