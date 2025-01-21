@@ -19,7 +19,7 @@ public class JavaxMailBodyInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public JavaxMailBodyInstrumentation() {
-    super("javax-mail", "body");
+    super("javax-mail", "javax-mail-body");
   }
 
   @Override
