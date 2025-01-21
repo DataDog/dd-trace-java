@@ -3,6 +3,7 @@ package datadog.trace.bootstrap.instrumentation.api;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 import static java.util.Collections.emptyList;
 
+import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.EndpointCheckpointer;
@@ -141,8 +142,10 @@ public class AgentTracer {
   }
 
   /**
-   * Checks whether the asynchronous propagation is enabled, meaning this context will propagate
-   * across asynchronous boundaries.
+   * Checks whether asynchronous propagation is enabled, meaning this context will propagate across
+   * asynchronous boundaries.
+   *
+   * @return {@code true} if asynchronous propagation is enabled, {@code false} otherwise.
    */
   public static boolean isAsyncPropagationEnabled() {
     return get().isAsyncPropagationEnabled();
@@ -151,7 +154,8 @@ public class AgentTracer {
   /**
    * Enables or disables asynchronous propagation for the active span.
    *
-   * <p>Asynchronous propagation is disabled by default.
+   * <p>Asynchronous propagation is enabled by default from {@link
+   * ConfigDefaults#DEFAULT_ASYNC_PROPAGATING}.
    *
    * @param asyncPropagationEnabled @{@code true} to enable asynchronous propagation, {@code false}
    *     to disable it.
@@ -249,22 +253,6 @@ public class AgentTracer {
     AgentScope activateSpan(AgentSpan span, ScopeSource source, boolean isAsyncPropagating);
 
     AgentScope.Continuation captureSpan(AgentSpan span);
-
-    /**
-     * Checks whether the asynchronous propagation is enabled, meaning this context will propagate
-     * across asynchronous boundaries.
-     */
-    boolean isAsyncPropagationEnabled();
-
-    /**
-     * Enables or disables asynchronous propagation for the active span.
-     *
-     * <p>Asynchronous propagation is disabled by default.
-     *
-     * @param asyncPropagationEnabled @{@code true} to enable asynchronous propagation, {@code
-     *     false} to disable it.
-     */
-    void setAsyncPropagationEnabled(boolean asyncPropagationEnabled);
 
     void closePrevious(boolean finishSpan);
 
