@@ -51,7 +51,8 @@ public class CucumberTracingListener extends TracingListener {
           null,
           Collections.emptyList(),
           false,
-          TestFrameworkInstrumentation.CUCUMBER);
+          TestFrameworkInstrumentation.CUCUMBER,
+          null);
     }
   }
 
@@ -59,7 +60,7 @@ public class CucumberTracingListener extends TracingListener {
   public void testSuiteFinished(final Description description) {
     if (isFeature(description)) {
       TestSuiteDescriptor suiteDescriptor = CucumberUtils.toSuiteDescriptor(description);
-      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor);
+      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor, null);
     }
   }
 
@@ -82,7 +83,8 @@ public class CucumberTracingListener extends TracingListener {
         null,
         null,
         null,
-        retryPolicy != null && retryPolicy.currentExecutionIsRetry());
+        retryPolicy != null && retryPolicy.currentExecutionIsRetry(),
+        null);
 
     recordFeatureFileCodeCoverage(description);
   }
@@ -100,7 +102,7 @@ public class CucumberTracingListener extends TracingListener {
   @Override
   public void testFinished(final Description description) {
     TestDescriptor testDescriptor = CucumberUtils.toTestDescriptor(description);
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(testDescriptor);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(testDescriptor, null);
   }
 
   // same callback is executed both for test cases and test suites (for setup/teardown errors)
@@ -154,9 +156,10 @@ public class CucumberTracingListener extends TracingListener {
           null,
           Collections.emptyList(),
           false,
-          TestFrameworkInstrumentation.CUCUMBER);
+          TestFrameworkInstrumentation.CUCUMBER,
+          null);
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteSkip(suiteDescriptor, reason);
-      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor);
+      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor, null);
     } else {
       String testSuiteName = CucumberUtils.getTestSuiteNameForScenario(description);
       String testName = CucumberUtils.getTestNameForScenario(description);

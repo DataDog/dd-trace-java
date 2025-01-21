@@ -422,6 +422,7 @@ jobs:
             -PgitBaseRef=origin/{{ pr_base_ref }}
 {% endif %}
             -PrunBuildSrcTests
+            -PskipSpotless
             -PtaskPartitionCount=${CIRCLE_NODE_TOTAL} -PtaskPartition=${CIRCLE_NODE_INDEX}
             << pipeline.parameters.gradle_flags >>
             --max-workers=8
@@ -1107,12 +1108,20 @@ build_test_jobs: &build_test_jobs
       gradleTarget: ":profilingCheck"
       cacheType: profiling
 
+  - check:
+      requires:
+        - ok_to_test
+      name: check_debugger
+      gradleTarget: ":debuggerCheck"
+      cacheType: base
+
   - fan_in:
       requires:
         - check_base
         - check_inst
         - check_smoke
         - check_profiling
+        - check_debugger
       name: check
       stage: check
 

@@ -3,6 +3,7 @@ package datadog.trace.bootstrap.instrumentation.api;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 import static java.util.Collections.emptyList;
 
+import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.EndpointCheckpointer;
@@ -138,6 +139,29 @@ public class AgentTracer {
   public static AgentScope.Continuation capture() {
     final AgentScope activeScope = activeScope();
     return activeScope == null ? null : activeScope.capture();
+  }
+
+  /**
+   * Checks whether asynchronous propagation is enabled, meaning this context will propagate across
+   * asynchronous boundaries.
+   *
+   * @return {@code true} if asynchronous propagation is enabled, {@code false} otherwise.
+   */
+  public static boolean isAsyncPropagationEnabled() {
+    return get().isAsyncPropagationEnabled();
+  }
+
+  /**
+   * Enables or disables asynchronous propagation for the active span.
+   *
+   * <p>Asynchronous propagation is enabled by default from {@link
+   * ConfigDefaults#DEFAULT_ASYNC_PROPAGATING}.
+   *
+   * @param asyncPropagationEnabled @{@code true} to enable asynchronous propagation, {@code false}
+   *     to disable it.
+   */
+  public static void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {
+    get().setAsyncPropagationEnabled(asyncPropagationEnabled);
   }
 
   public static AgentPropagation propagate() {
@@ -284,9 +308,9 @@ public class AgentTracer {
     AgentHistogram newHistogram(double relativeAccuracy, int maxNumBins);
 
     /**
-     * Sets the new service name to be used as a default
+     * Sets the new service name to be used as a default.
      *
-     * @param serviceName
+     * @param serviceName The service name to use as default.
      */
     void updatePreferredServiceName(String serviceName);
   }
@@ -370,6 +394,14 @@ public class AgentTracer {
     public AgentScope.Continuation captureSpan(final AgentSpan span) {
       return NoopContinuation.INSTANCE;
     }
+
+    @Override
+    public boolean isAsyncPropagationEnabled() {
+      return false;
+    }
+
+    @Override
+    public void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {}
 
     @Override
     public void closePrevious(final boolean finishSpan) {}

@@ -10,8 +10,8 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.civisibility.retry.NeverRetry;
 import java.lang.reflect.Method;
 import java.util.Collection;
+import javax.annotation.Nullable;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 public class NoOpTestEventsHandler<SuiteKey, TestKey>
     implements TestEventsHandler<SuiteKey, TestKey> {
@@ -25,7 +25,8 @@ public class NoOpTestEventsHandler<SuiteKey, TestKey>
       @Nullable Class<?> testClass,
       @Nullable Collection<String> categories,
       boolean parallelized,
-      TestFrameworkInstrumentation instrumentation) {
+      TestFrameworkInstrumentation instrumentation,
+      @Nullable Long startTime) {
     // do nothing
   }
 
@@ -40,7 +41,7 @@ public class NoOpTestEventsHandler<SuiteKey, TestKey>
   }
 
   @Override
-  public void onTestSuiteFinish(SuiteKey descriptor) {
+  public void onTestSuiteFinish(SuiteKey descriptor, @Nullable Long endTime) {
     // do nothing
   }
 
@@ -57,7 +58,8 @@ public class NoOpTestEventsHandler<SuiteKey, TestKey>
       @Nullable Class<?> testClass,
       @Nullable String testMethodName,
       @Nullable Method testMethod,
-      boolean isRetry) {
+      boolean isRetry,
+      @Nullable Long startTime) {
     // do nothing
   }
 
@@ -72,7 +74,7 @@ public class NoOpTestEventsHandler<SuiteKey, TestKey>
   }
 
   @Override
-  public void onTestFinish(TestKey descriptor) {
+  public void onTestFinish(TestKey descriptor, @Nullable Long endTime) {
     // do nothing
   }
 

@@ -55,12 +55,13 @@ public class KarateTracingHook implements RuntimeHook {
         null,
         KarateUtils.getCategories(feature.getTags()),
         suite.parallel,
-        TestFrameworkInstrumentation.KARATE);
+        TestFrameworkInstrumentation.KARATE,
+        null);
 
     if (!isFeatureContainingScenarios(fr)) {
       // Karate will not trigger the afterFeature hook if suite has no scenarios
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteSkip(suiteDescriptor, null);
-      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor);
+      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor, null);
     }
 
     return true;
@@ -86,7 +87,7 @@ public class KarateTracingHook implements RuntimeHook {
     } else if (result.isEmpty()) {
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteSkip(suiteDescriptor, null);
     }
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor, null);
   }
 
   @Override
@@ -145,7 +146,8 @@ public class KarateTracingHook implements RuntimeHook {
         null,
         null,
         null,
-        sr.magicVariables.containsKey(KarateUtils.RETRY_MAGIC_VARIABLE));
+        sr.magicVariables.containsKey(KarateUtils.RETRY_MAGIC_VARIABLE),
+        null);
     return true;
   }
 
@@ -162,7 +164,7 @@ public class KarateTracingHook implements RuntimeHook {
     } else if (result.getStepResults().isEmpty()) {
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSkip(testDescriptor, null);
     }
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(testDescriptor);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(testDescriptor, null);
 
     Boolean runHooksManually = manualFeatureHooks.remove(sr.featureRuntime);
     if (runHooksManually != null && runHooksManually) {
