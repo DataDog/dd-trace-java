@@ -38,6 +38,7 @@ class S3ClientTest extends AgentTestRunner {
       .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create("test", "test")))
       .serviceConfiguration(S3Configuration.builder()
       .pathStyleAccessEnabled(true)
+      .checksumValidationEnabled(false)
       .build())
       .build()
 
