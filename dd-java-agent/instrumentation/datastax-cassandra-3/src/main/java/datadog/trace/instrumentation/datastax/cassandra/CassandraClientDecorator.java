@@ -87,14 +87,17 @@ public class CassandraClientDecorator extends DBTypeProcessingDatabaseClientDeco
     if (result != null) {
       final Host host = result.getExecutionInfo().getQueriedHost();
       onPeerConnection(span, host.getSocketAddress());
-      if (Config.get().isCassandraKeyspaceStatementExtractionEnabled()) {
-        final ColumnDefinitions defs = result.getColumnDefinitions();
-        if (defs != null && defs.size() > 0) {
-          final String keySpace = defs.getKeyspace(0);
-          if (Strings.isNotBlank(keySpace) && !keySpace.equals(span.getTag(DB_INSTANCE))) {
-            onInstance(span, keySpace);
+      try {
+        if (Config.get().isCassandraKeyspaceStatementExtractionEnabled()) {
+          final ColumnDefinitions defs = result.getColumnDefinitions();
+          if (defs != null && defs.size() > 0) {
+            final String keySpace = defs.getKeyspace(0);
+            if (Strings.isNotBlank(keySpace) && !keySpace.equals(span.getTag(DB_INSTANCE))) {
+              onInstance(span, keySpace);
+            }
           }
         }
+      } catch (final Throwable ignored) {
       }
     }
     return span;
