@@ -20,8 +20,3 @@ dependencies {
   implementation 'javax.mail:mail:1.4.4'
   testImplementation 'de.saly:javamail-mock2:0.4-beta3'
 }
-
-
-tasks.compileTestJava.configure {
-  setJavaVersion(it, 8)
-}
