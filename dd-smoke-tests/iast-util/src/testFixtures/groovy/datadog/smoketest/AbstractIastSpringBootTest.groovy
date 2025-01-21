@@ -102,6 +102,27 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   }
 
+  void 'Tainted mail'() {
+    given:
+    String url = "http://localhost:${httpPort}/mailHtmlVulnerability"
+    String messageText = "This is a test message"
+    RequestBody requestBody = new MultipartBody.Builder().setType(MultipartBody.FORM)
+      .addFormDataPart("messageText", messageText).build()
+    Request request = new Request.Builder()
+      .url(url)
+      .post(requestBody)
+      .build()
+
+    when:
+    client.newCall(request).execute().body().string()
+
+    then:
+    hasTainted { tainted ->
+      tainted.value == messageText
+    }
+
+  }
+
   void 'Multipart Request original file name'() {
     given:
     String url = "http://localhost:${httpPort}/multipart"

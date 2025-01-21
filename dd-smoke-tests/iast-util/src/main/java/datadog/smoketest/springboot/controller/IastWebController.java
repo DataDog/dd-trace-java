@@ -338,11 +338,18 @@ public class IastWebController {
   }
 
   @PostMapping("/mailHtmlVulnerability")
-  public String mailHtmlVulnerability(@RequestParam("mail") String messageContent)
+  public String mailHtmlVulnerability(
+      @RequestParam("messageText") String messageText,
+      @RequestParam("messageContent") Object messageContent)
       throws MessagingException {
     System.setProperty("mail.smtp.class", MockTransport.class.getName());
     Session session = Session.getDefaultInstance(System.getProperties());
     Message message = new MimeMessage(session);
+    if (messageText != null) {
+      message.setContent(messageText, "text/html");
+    } else {
+      message.setContent(messageContent, "multipart/*");
+    }
     MockTransport.send(message);
     return "ok";
   }
