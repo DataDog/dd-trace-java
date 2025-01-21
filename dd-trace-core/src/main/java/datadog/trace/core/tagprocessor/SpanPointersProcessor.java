@@ -6,9 +6,11 @@ import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import datadog.trace.bootstrap.instrumentation.api.SpanLink;
 import datadog.trace.core.DDSpanContext;
+import datadog.trace.util.Strings;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -27,7 +29,7 @@ public class SpanPointersProcessor implements TagsPostProcessor {
   @Override
   public Map<String, Object> processTags(
       Map<String, Object> unsafeTags, DDSpanContext spanContext, List<AgentSpanLink> spanLinks) {
-    String eTag = asString(unsafeTags.get(ETAG_KEY));
+    String eTag = asString(unsafeTags.remove(ETAG_KEY));
     if (eTag == null) {
       return unsafeTags;
     }
@@ -59,13 +61,12 @@ public class SpanPointersProcessor implements TagsPostProcessor {
     } catch (Exception e) {
       log.debug("Failed to add span pointer: {}", e.getMessage());
     }
-    unsafeTags.remove(ETAG_KEY);
 
     return unsafeTags;
   }
 
   private static String asString(Object o) {
-    return o instanceof String ? (String) o : null;
+    return o == null ? null : o.toString();
   }
 
   /**
@@ -91,11 +92,8 @@ public class SpanPointersProcessor implements TagsPostProcessor {
     }
 
     byte[] fullHash = messageDigest.digest();
-    StringBuilder hex = new StringBuilder(32);
-    for (int i = 0; i < 16; i++) {
-      hex.append(String.format("%02x", fullHash[i]));
-    }
-
-    return hex.toString();
+    // Only take first 16 bytes of the hash and convert to hex
+    byte[] truncatedHash = Arrays.copyOf(fullHash, 16);
+    return Strings.toHexString(truncatedHash);
   }
 }
