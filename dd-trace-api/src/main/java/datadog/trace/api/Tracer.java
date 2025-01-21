@@ -18,8 +18,10 @@ public interface Tracer {
    * Checks whether asynchronous propagation is enabled, meaning this context will propagate across
    * asynchronous boundaries.
    *
+   * @deprecated Unstable API. Might be removed at any time.
    * @return {@code true} if asynchronous propagation is enabled, {@code false} otherwise.
    */
+  @Deprecated
   boolean isAsyncPropagationEnabled();
 
   /**
@@ -28,9 +30,11 @@ public interface Tracer {
    * <p>Asynchronous propagation is enabled by default from {@link
    * ConfigDefaults#DEFAULT_ASYNC_PROPAGATING}.
    *
+   * @deprecated Unstable API. Might be removed at any time.
    * @param asyncPropagationEnabled @{@code true} to enable asynchronous propagation, {@code false}
    *     to disable it.
    */
+  @Deprecated
   void setAsyncPropagationEnabled(boolean asyncPropagationEnabled);
 
   /**
