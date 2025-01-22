@@ -109,6 +109,7 @@ abstract class CiVisibilityTestUtils {
 
   static final ObjectMapper JSON_MAPPER = new ObjectMapper() { {
       enable(SerializationFeature.INDENT_OUTPUT)
+      enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
     }
   }
 

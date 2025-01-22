@@ -1,23 +1,23 @@
 [ {
-  "test_session_id" : ${content_test_session_id},
-  "test_suite_id" : ${content_test_suite_id},
+  "files" : [ {
+    "bitmap" : "gAw=",
+    "filename" : "src/test/java/datadog/smoke/TestSucceed.java"
+  }, {
+    "bitmap" : "IA==",
+    "filename" : "src/main/java/datadog/smoke/Calculator.java"
+  } ],
   "span_id" : ${content_span_id_4},
-  "files" : [ {
-    "filename" : "src/test/java/datadog/smoke/TestSucceed.java",
-    "bitmap" : "gAw="
-  }, {
-    "filename" : "src/main/java/datadog/smoke/Calculator.java",
-    "bitmap" : "IA=="
-  } ]
-}, {
   "test_session_id" : ${content_test_session_id},
-  "test_suite_id" : ${content_test_suite_id_2},
-  "span_id" : ${content_span_id_5},
+  "test_suite_id" : ${content_test_suite_id}
+}, {
   "files" : [ {
-    "filename" : "src/main/java/datadog/smoke/Calculator.java",
-    "bitmap" : "AAE="
+    "bitmap" : "AAE=",
+    "filename" : "src/main/java/datadog/smoke/Calculator.java"
   }, {
-    "filename" : "src/test/java/datadog/smoke/TestSucceedJunit5.java",
-    "bitmap" : "AAw="
-  } ]
+    "bitmap" : "AAw=",
+    "filename" : "src/test/java/datadog/smoke/TestSucceedJunit5.java"
+  } ],
+  "span_id" : ${content_span_id_5},
+  "test_session_id" : ${content_test_session_id},
+  "test_suite_id" : ${content_test_suite_id_2}
 } ]
