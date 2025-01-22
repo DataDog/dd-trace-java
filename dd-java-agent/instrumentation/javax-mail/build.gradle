@@ -9,14 +9,9 @@ apply plugin: 'call-site-instrumentation'
 
 addTestSuiteForDir('latestDepTest', 'test')
 
-repositories {
-  mavenCentral {
-    url 'https://central.sonatype.com/artifact/'
-  }
-}
-
 dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
-  implementation 'javax.mail:mail:1.4.4'
+  implementation 'javax.mail:javax.mail-api:1.4.4'
+  latestDepTestImplementation 'javax.mail:javax.mail-api:+'
   testImplementation 'de.saly:javamail-mock2:0.4-beta3'
 }
