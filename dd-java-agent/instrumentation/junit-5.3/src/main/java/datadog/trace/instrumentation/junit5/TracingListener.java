@@ -124,7 +124,7 @@ public class TracingListener implements EngineExecutionListener {
         testParameters,
         tags,
         testSourceData,
-        JUnitPlatformUtils.isRetry(testDescriptor),
+        JUnitPlatformUtils.retryReason(testDescriptor),
         null);
   }
 

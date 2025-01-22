@@ -31,7 +31,7 @@ public class RetryAnalyzer implements IRetryAnalyzer {
     return retryPolicy.retry(result.isSuccess(), result.getEndMillis() - result.getStartMillis());
   }
 
-  public boolean currentExecutionIsRetry() {
-    return retryPolicy != null && retryPolicy.currentExecutionIsRetry();
+  public String currentExecutionRetryReason() {
+    return retryPolicy != null ? retryPolicy.currentExecutionRetryReason() : null;
   }
 }

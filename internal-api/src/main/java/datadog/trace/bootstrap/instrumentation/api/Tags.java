@@ -94,6 +94,7 @@ public class Tags {
   public static final String TEST_EARLY_FLAKE_ABORT_REASON = "test.early_flake.abort_reason";
   public static final String TEST_IS_NEW = "test.is_new";
   public static final String TEST_IS_RETRY = "test.is_retry";
+  public static final String TEST_RETRY_REASON = "test.retry_reason";
   public static final String TEST_IS_MODIFIED = "test.is_modified";
 
   public static final String CI_PROVIDER_NAME = "ci.provider.name";

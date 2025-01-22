@@ -22,6 +22,7 @@ import datadog.trace.api.civisibility.telemetry.tag.IsModified;
 import datadog.trace.api.civisibility.telemetry.tag.IsNew;
 import datadog.trace.api.civisibility.telemetry.tag.IsRetry;
 import datadog.trace.api.civisibility.telemetry.tag.IsRum;
+import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -265,10 +266,23 @@ public class TestImpl implements DDTest {
         span.getTag(Tags.TEST_IS_NEW) != null ? IsNew.TRUE : null,
         span.getTag(Tags.TEST_IS_MODIFIED) != null ? IsModified.TRUE : null,
         span.getTag(Tags.TEST_IS_RETRY) != null ? IsRetry.TRUE : null,
+        getRetryReason(),
         span.getTag(Tags.TEST_IS_RUM_ACTIVE) != null ? IsRum.TRUE : null,
         CIConstants.SELENIUM_BROWSER_DRIVER.equals(span.getTag(Tags.TEST_BROWSER_DRIVER))
             ? BrowserDriver.SELENIUM
             : null);
+  }
+
+  private RetryReason getRetryReason() {
+    String retryReason = (String) span.getTag(Tags.TEST_RETRY_REASON);
+    if (retryReason != null) {
+      try {
+        return RetryReason.valueOf(retryReason.toUpperCase());
+      } catch (IllegalArgumentException e) {
+        log.debug("Non-standard retry-reason: {}", retryReason);
+      }
+    }
+    return null;
   }
 
   /**
