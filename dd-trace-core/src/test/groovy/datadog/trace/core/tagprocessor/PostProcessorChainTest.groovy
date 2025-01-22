@@ -1,5 +1,6 @@
 package datadog.trace.core.tagprocessor
 
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink
 import datadog.trace.core.DDSpanContext
 import datadog.trace.test.util.DDSpecification
 
@@ -8,7 +9,7 @@ class PostProcessorChainTest extends DDSpecification {
     setup:
     def processor1 = new TagsPostProcessor() {
         @Override
-        Map<String, Object> processTags(Map<String, Object> unsafeTags, DDSpanContext spanContext) {
+        Map<String, Object> processTags(Map<String, Object> unsafeTags, DDSpanContext spanContext, List<AgentSpanLink> spanLinks) {
           unsafeTags.put("key1", "processor1")
           unsafeTags.put("key2", "processor1")
           return unsafeTags
@@ -16,7 +17,7 @@ class PostProcessorChainTest extends DDSpecification {
       }
     def processor2 = new TagsPostProcessor() {
         @Override
-        Map<String, Object> processTags(Map<String, Object> unsafeTags, DDSpanContext spanContext) {
+        Map<String, Object> processTags(Map<String, Object> unsafeTags, DDSpanContext spanContext, List<AgentSpanLink> spanLinks) {
           unsafeTags.put("key1", "processor2")
           return unsafeTags
         }
@@ -26,7 +27,7 @@ class PostProcessorChainTest extends DDSpecification {
     def tags = ["key1": "root", "key3": "root"]
 
     when:
-    def out = chain.processTags(tags, null)
+    def out = chain.processTags(tags, null, [])
 
     then:
     assert out == ["key1": "processor2", "key2": "processor1", "key3": "root"]
@@ -36,13 +37,13 @@ class PostProcessorChainTest extends DDSpecification {
     setup:
     def processor1 = new TagsPostProcessor() {
         @Override
-        Map<String, Object> processTags(Map<String, Object> unsafeTags, DDSpanContext spanContext) {
+        Map<String, Object> processTags(Map<String, Object> unsafeTags, DDSpanContext spanContext, List<AgentSpanLink> spanLinks) {
           return ["my": "tag"]
         }
       }
     def processor2 = new TagsPostProcessor() {
         @Override
-        Map<String, Object> processTags(Map<String, Object> unsafeTags, DDSpanContext spanContext) {
+        Map<String, Object> processTags(Map<String, Object> unsafeTags, DDSpanContext spanContext, List<AgentSpanLink> spanLinks) {
           if (unsafeTags.containsKey("test")) {
             unsafeTags.put("found", "true")
           }
@@ -54,7 +55,7 @@ class PostProcessorChainTest extends DDSpecification {
     def tags = ["test": "test"]
 
     when:
-    def out = chain.processTags(tags, null)
+    def out = chain.processTags(tags, null, [])
 
     then:
     assert out == ["my": "tag"]

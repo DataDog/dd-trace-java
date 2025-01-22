@@ -3786,6 +3786,14 @@ public class Config {
             Arrays.asList(integrationNames), "", ".time-in-queue.enabled", defaultEnabled);
   }
 
+  public boolean isAddSpanPointers(final String integrationName) {
+    return configProvider.isEnabled(
+        Collections.singletonList(ADD_SPAN_POINTERS),
+        integrationName,
+        "",
+        DEFAULT_ADD_SPAN_POINTERS);
+  }
+
   public boolean isEnabled(
       final boolean defaultEnabled, final String settingName, String settingSuffix) {
     return configProvider.isEnabled(
