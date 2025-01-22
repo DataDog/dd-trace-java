@@ -20,10 +20,12 @@ public class S3Interceptor implements ExecutionInterceptor {
       InstanceStore.of(ExecutionAttribute.class)
           .putIfAbsent("DatadogSpan", () -> new ExecutionAttribute<>("DatadogSpan"));
 
+  private static final boolean CAN_ADD_SPAN_POINTERS = Config.get().isAddSpanPointers("aws");
+
   @Override
   public void afterExecution(
       Context.AfterExecution context, ExecutionAttributes executionAttributes) {
-    if (!Config.get().isSpanPointersEnabled()) {
+    if (!CAN_ADD_SPAN_POINTERS) {
       return;
     }
 
