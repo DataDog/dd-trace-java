@@ -172,7 +172,7 @@ public class OtelSpan implements Span, WithAgentSpan {
 
   @Override
   public AgentSpan asAgentSpan() {
-    return delegate;
+    return this.delegate;
   }
 
   private static class NoopSpan implements Span {

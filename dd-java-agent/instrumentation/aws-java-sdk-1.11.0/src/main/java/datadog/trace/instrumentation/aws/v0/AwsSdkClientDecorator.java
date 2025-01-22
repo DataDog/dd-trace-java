@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javax.annotation.ParametersAreNonnullByDefault;
 
 public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response>
     implements AgentPropagation.Setter<Request<?>> {

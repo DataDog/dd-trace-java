@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.netty38.client;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
@@ -65,7 +66,7 @@ public class HttpClientRequestTracingHandler extends SimpleChannelDownstreamHand
         decorate.onPeerConnection(span, (InetSocketAddress) socketAddress);
       }
 
-      propagate().inject(span, request.headers(), SETTER);
+      defaultPropagator().inject(span, request.headers(), SETTER);
       propagate()
           .injectPathwayContext(
               span, request.headers(), SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);

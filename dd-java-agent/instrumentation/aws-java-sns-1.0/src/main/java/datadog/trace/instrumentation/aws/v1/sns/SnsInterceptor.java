@@ -37,7 +37,12 @@ public class SnsInterceptor extends RequestHandler2 {
     final AgentSpan span = newSpan(request);
     StringBuilder jsonBuilder = new StringBuilder();
     jsonBuilder.append('{');
-    propagate().inject(span, jsonBuilder, SETTER, TracePropagationStyle.DATADOG);
+    propagate()
+        .inject(
+            span,
+            jsonBuilder,
+            SETTER,
+            TracePropagationStyle.DATADOG); // TODO Is forcing Datadog encoding on purpose?
     if (traceConfig().isDataStreamsEnabled()) {
       propagate().injectPathwayContext(span, jsonBuilder, SETTER, getTags(snsTopicName));
     }

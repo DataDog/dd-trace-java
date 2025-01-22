@@ -2,7 +2,9 @@ package datadog.trace.instrumentation.armeria.grpc.client;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import io.grpc.Metadata;
+import javax.annotation.ParametersAreNonnullByDefault;
 
+@ParametersAreNonnullByDefault
 public final class GrpcInjectAdapter implements AgentPropagation.Setter<Metadata> {
 
   public static final GrpcInjectAdapter SETTER = new GrpcInjectAdapter();
