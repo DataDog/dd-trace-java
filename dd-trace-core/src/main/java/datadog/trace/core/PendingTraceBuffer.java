@@ -9,7 +9,7 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.flare.TracerFlare;
 import datadog.trace.api.time.TimeSource;
-import datadog.trace.common.writer.TraceDumpWriter;
+import datadog.trace.common.writer.TraceDumpJsonExporter;
 import datadog.trace.core.monitor.HealthMetrics;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -353,7 +353,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
       // Storing oldest traces first
       DelayingPendingTraceBuffer.DumpDrain.DATA.sort((TRACE_BY_START_TIME).reversed());
 
-      TraceDumpWriter writer = new TraceDumpWriter();
+      TraceDumpJsonExporter writer = new TraceDumpJsonExporter();
       for (Element e : DelayingPendingTraceBuffer.DumpDrain.DATA) {
         if (e instanceof PendingTrace) {
           PendingTrace trace = (PendingTrace) e;

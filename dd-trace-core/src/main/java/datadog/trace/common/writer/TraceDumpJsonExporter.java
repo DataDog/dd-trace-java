@@ -6,7 +6,7 @@ import com.squareup.moshi.Types;
 import datadog.trace.core.DDSpan;
 import java.util.List;
 
-public class TraceDumpWriter {
+public class TraceDumpJsonExporter {
 
   private StringBuilder dumpText;
   private static final JsonAdapter<List<DDSpan>> TRACE_ADAPTER =
@@ -15,7 +15,7 @@ public class TraceDumpWriter {
           .build()
           .adapter(Types.newParameterizedType(List.class, DDSpan.class));
 
-  public TraceDumpWriter() {
+  public TraceDumpJsonExporter() {
     dumpText = new StringBuilder();
   }
 
