@@ -120,6 +120,9 @@ public class CiVisibilityServices {
 
   private static GitClient.Factory buildGitClientFactory(
       Config config, CiVisibilityMetricCollector metricCollector) {
+    if (!config.isCiVisibilityGitClientEnabled()) {
+      return r -> NoOpGitClient.INSTANCE;
+    }
     try {
       ShellCommandExecutor shellCommandExecutor =
           new ShellCommandExecutor(new File("."), config.getCiVisibilityGitCommandTimeoutMillis());

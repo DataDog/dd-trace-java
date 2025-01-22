@@ -336,6 +336,7 @@ public class Config {
   private final String[] ciVisibilityCodeCoverageExcludedPackages;
   private final List<String> ciVisibilityJacocoGradleSourceSets;
   private final Integer ciVisibilityDebugPort;
+  private final boolean ciVisibilityGitClientEnabled;
   private final boolean ciVisibilityGitUploadEnabled;
   private final boolean ciVisibilityGitUnshallowEnabled;
   private final boolean ciVisibilityGitUnshallowDefer;
@@ -1444,6 +1445,7 @@ public class Config {
     ciVisibilityJacocoGradleSourceSets =
         configProvider.getList(CIVISIBILITY_GRADLE_SOURCE_SETS, Arrays.asList("main", "test"));
     ciVisibilityDebugPort = configProvider.getInteger(CIVISIBILITY_DEBUG_PORT);
+    ciVisibilityGitClientEnabled = configProvider.getBoolean(CIVISIBILITY_GIT_CLIENT_ENABLED, true);
     ciVisibilityGitUploadEnabled =
         configProvider.getBoolean(
             CIVISIBILITY_GIT_UPLOAD_ENABLED, DEFAULT_CIVISIBILITY_GIT_UPLOAD_ENABLED);
@@ -2820,6 +2822,10 @@ public class Config {
 
   public Integer getCiVisibilityDebugPort() {
     return ciVisibilityDebugPort;
+  }
+
+  public boolean isCiVisibilityGitClientEnabled() {
+    return ciVisibilityGitClientEnabled;
   }
 
   public boolean isCiVisibilityGitUploadEnabled() {

@@ -21,6 +21,7 @@ public final class CiVisibilityConfig {
   public static final String CIVISIBILITY_COMPILER_PLUGIN_VERSION =
       "civisibility.compiler.plugin.version";
   public static final String CIVISIBILITY_DEBUG_PORT = "civisibility.debug.port";
+  public static final String CIVISIBILITY_GIT_CLIENT_ENABLED = "civisibility.git.client.enabled";
   public static final String CIVISIBILITY_GIT_UPLOAD_ENABLED = "civisibility.git.upload.enabled";
   public static final String CIVISIBILITY_GIT_UNSHALLOW_ENABLED =
       "civisibility.git.unshallow.enabled";
