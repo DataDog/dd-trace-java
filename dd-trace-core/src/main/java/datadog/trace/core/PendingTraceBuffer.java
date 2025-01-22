@@ -9,11 +9,13 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.flare.TracerFlare;
 import datadog.trace.api.time.TimeSource;
+import datadog.trace.common.writer.TraceDumpWriter;
 import datadog.trace.core.monitor.HealthMetrics;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
@@ -347,27 +349,20 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
 
     @Override
     public void addReportToFlare(ZipOutputStream zip) throws IOException {
-      TracerFlare.addText(zip, "trace_dump.txt", getDumpText());
-    }
-
-    private String getDumpText() {
-      // Removing elements from the drain that are not instances of PendingTrace
       DelayingPendingTraceBuffer.DumpDrain.DATA.removeIf(NOT_PENDING_TRACE);
       // Storing oldest traces first
       DelayingPendingTraceBuffer.DumpDrain.DATA.sort((TRACE_BY_START_TIME).reversed());
 
-      StringBuilder dumpText = new StringBuilder();
+      TraceDumpWriter writer = new TraceDumpWriter();
       for (Element e : DelayingPendingTraceBuffer.DumpDrain.DATA) {
         if (e instanceof PendingTrace) {
           PendingTrace trace = (PendingTrace) e;
-          for (DDSpan span : trace.getSpans()) {
-            dumpText.append(span.toString()).append('\n');
-          }
+          writer.write(new ArrayList<DDSpan>((ConcurrentLinkedDeque<DDSpan>) trace.getSpans()));
         }
       }
       // Releasing memory used for ArrayList in drain
       DelayingPendingTraceBuffer.DumpDrain.DATA.clear();
-      return dumpText.toString();
+      TracerFlare.addText(zip, "trace_dump.txt", writer.getDumpText());
     }
   }
 }

@@ -468,7 +468,7 @@ class PendingTraceBufferTest extends DDSpecification {
     1 * dumpReporter.addReportToFlare(_)
     1 * dumpReporter.cleanupAfterFlare()
     entries.size() == 1
-    (entries["trace_dump.txt"] as String).startsWith("DDSpan [ t_id=1, s_id=1, p_id=0 ]") // TODO
+    (entries["trace_dump.txt"] as String).startsWith('[{"service":"fakeService","name":"fakeOperation","resource":"fakeResource","trace_id":1,"span_id":1,"parent_id":0') // TODO
 
     then:
     child.finish()
