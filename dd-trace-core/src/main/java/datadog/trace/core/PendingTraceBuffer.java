@@ -221,7 +221,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
             }
 
             if (pendingTrace == DUMP_ELEMENT) {
-              queue.drain(DumpDrain.DUMP_DRAIN);
+              queue.drain(DumpDrain.DUMP_DRAIN, 50);
               queue.fill(DumpDrain.DUMP_DRAIN, DumpDrain.DATA.size());
               dumpCounter.incrementAndGet();
               continue;
@@ -357,7 +357,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
       for (Element e : DelayingPendingTraceBuffer.DumpDrain.DATA) {
         if (e instanceof PendingTrace) {
           PendingTrace trace = (PendingTrace) e;
-          writer.write(new ArrayList<DDSpan>((ConcurrentLinkedDeque<DDSpan>) trace.getSpans()));
+          writer.addTrace(new ArrayList<>((ConcurrentLinkedDeque<DDSpan>) trace.getSpans()));
         }
       }
       // Releasing memory used for ArrayList in drain

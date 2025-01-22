@@ -6,7 +6,7 @@ import com.squareup.moshi.Types;
 import datadog.trace.core.DDSpan;
 import java.util.List;
 
-public class TraceDumpWriter implements Writer {
+public class TraceDumpWriter {
 
   private StringBuilder dumpText;
   private static final JsonAdapter<List<DDSpan>> TRACE_ADAPTER =
@@ -19,8 +19,7 @@ public class TraceDumpWriter implements Writer {
     dumpText = new StringBuilder();
   }
 
-  @Override
-  public void write(final List<DDSpan> trace) {
+  public void addTrace(final List<DDSpan> trace) {
     dumpText.append(TRACE_ADAPTER.toJson(trace));
     dumpText.append("\n");
   }
@@ -28,22 +27,4 @@ public class TraceDumpWriter implements Writer {
   public String getDumpText() {
     return dumpText.toString();
   }
-
-  @Override
-  public void start() {
-    // Do nothing
-  }
-
-  @Override
-  public boolean flush() {
-    return true;
-  }
-
-  @Override
-  public void close() {
-    // Do nothing
-  }
-
-  @Override
-  public void incrementDropCounts(int spanCount) {}
 }

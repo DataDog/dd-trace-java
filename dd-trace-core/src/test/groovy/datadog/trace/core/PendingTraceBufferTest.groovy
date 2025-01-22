@@ -6,7 +6,6 @@ import datadog.trace.SamplingPriorityMetadataChecker
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.flare.TracerFlare
-import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.time.SystemTimeSource
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource
@@ -468,7 +467,7 @@ class PendingTraceBufferTest extends DDSpecification {
     1 * dumpReporter.addReportToFlare(_)
     1 * dumpReporter.cleanupAfterFlare()
     entries.size() == 1
-    (entries["trace_dump.txt"] as String).startsWith('[{"service":"fakeService","name":"fakeOperation","resource":"fakeResource","trace_id":1,"span_id":1,"parent_id":0') // TODO
+    (entries["trace_dump.txt"] as String).startsWith('[{"service":"fakeService","name":"fakeOperation","resource":"fakeResource","trace_id":1,"span_id":1,"parent_id":0') // Rest of dump is timestamp specific
 
     then:
     child.finish()
