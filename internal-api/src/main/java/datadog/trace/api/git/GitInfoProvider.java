@@ -23,7 +23,7 @@ public class GitInfoProvider {
     INSTANCE = new GitInfoProvider();
     INSTANCE.registerGitInfoBuilder(new UserSuppliedGitInfoBuilder());
   }
-  
+
   static final String NULL_PATH_STRING = Paths.get("").toAbsolutePath().toString();
 
   private volatile Collection<GitInfoBuilder> builders = Collections.emptyList();
