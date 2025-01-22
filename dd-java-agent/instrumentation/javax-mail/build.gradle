@@ -14,4 +14,5 @@ dependencies {
   compileOnly 'javax.mail:javax.mail-api:1.4.4'
   latestDepTestImplementation 'javax.mail:javax.mail-api:+'
   testImplementation 'de.saly:javamail-mock2:0.4-beta3'
+  latestDepTestImplementation 'com.sun.activation:javax.activation:+'
 }
