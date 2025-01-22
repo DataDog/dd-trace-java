@@ -40,7 +40,8 @@ dependencies {
   testImplementation(testFixtures(project(":dd-smoke-tests:iast-util")))
 
   implementation project(':dd-smoke-tests:iast-util')
-  implementation('javax.mail:javax.mail-api:1.4.4')
+  compileOnly('javax.mail:javax.mail-api:1.4.4')
+  testImplementation('javax.mail:javax.mail-api:1.4.4')
 }
 
 tasks.withType(Test).configureEach {
