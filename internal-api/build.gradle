@@ -81,6 +81,7 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.api.StatsPoint",
   "datadog.trace.bootstrap.instrumentation.api.Schema",
   "datadog.trace.bootstrap.instrumentation.api.ScopeSource",
+  "datadog.trace.bootstrap.instrumentation.api.InternalContextKeys",
   "datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes",
   "datadog.trace.bootstrap.instrumentation.api.TagContext",
   "datadog.trace.bootstrap.instrumentation.api.TagContext.HttpHeaders",
@@ -210,6 +211,7 @@ dependencies {
   // references TraceScope and Continuation from public api
   api project(':dd-trace-api')
   api libs.slf4j
+  api project(':components:context')
   api project(":utils:time-utils")
 
   // has to be loaded by system classloader:
