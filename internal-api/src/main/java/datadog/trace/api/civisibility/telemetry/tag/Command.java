@@ -11,6 +11,7 @@ public enum Command implements TagValue {
   GET_LOCAL_COMMITS,
   GET_OBJECTS,
   PACK_OBJECTS,
+  DIFF,
   OTHER;
 
   private final String s;

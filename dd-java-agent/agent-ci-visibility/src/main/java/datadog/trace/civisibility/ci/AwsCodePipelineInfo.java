@@ -3,6 +3,7 @@ package datadog.trace.civisibility.ci;
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.civisibility.ci.env.CiEnvironment;
+import javax.annotation.Nonnull;
 
 class AwsCodePipelineInfo implements CIProviderInfo {
 
@@ -33,6 +34,12 @@ class AwsCodePipelineInfo implements CIProviderInfo {
             AWS_CODEPIPELINE_ACTION_EXECUTION_ID,
             AWS_CODEPIPELINE_ARN)
         .build();
+  }
+
+  @Nonnull
+  @Override
+  public PullRequestInfo buildPullRequestInfo() {
+    return PullRequestInfo.EMPTY;
   }
 
   @Override

@@ -55,7 +55,7 @@ public class JUnit5CucumberItrInstrumentation extends InstrumenterModule.CiVisib
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".TestIdentifierFactory",
+      packageName + ".TestDataFactory",
       packageName + ".JUnitPlatformUtils",
       packageName + ".CucumberUtils",
       packageName + ".TestEventsHandlerHolder",

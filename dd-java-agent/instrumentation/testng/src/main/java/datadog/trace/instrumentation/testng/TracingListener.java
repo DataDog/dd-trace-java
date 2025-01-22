@@ -1,9 +1,9 @@
 package datadog.trace.instrumentation.testng;
 
+import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.instrumentation.testng.retry.RetryAnalyzer;
-import java.lang.reflect.Method;
 import java.util.List;
 import org.testng.IConfigurationListener;
 import org.testng.IRetryAnalyzer;
@@ -75,26 +75,21 @@ public class TracingListener extends TestNGClassListener
   public void onTestStart(final ITestResult result) {
     TestSuiteDescriptor suiteDescriptor =
         TestNGUtils.toSuiteDescriptor(result.getMethod().getTestClass());
-    String testSuiteName = result.getInstanceName();
     String testName =
         (result.getName() != null) ? result.getName() : result.getMethod().getMethodName();
     String testParameters = TestNGUtils.getParameters(result);
     List<String> groups = TestNGUtils.getGroups(result);
-    Class<?> testClass = TestNGUtils.getTestClass(result);
-    Method testMethod = TestNGUtils.getTestMethod(result);
-    String testMethodName = testMethod != null ? testMethod.getName() : null;
+    TestSourceData testSourceData = TestNGUtils.toTestSourceData(result);
+
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestStart(
         suiteDescriptor,
         result,
-        testSuiteName,
         testName,
         FRAMEWORK_NAME,
         FRAMEWORK_VERSION,
         testParameters,
         groups,
-        testClass,
-        testMethodName,
-        testMethod,
+        testSourceData,
         isRetry(result),
         null);
   }

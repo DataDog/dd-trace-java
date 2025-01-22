@@ -1,9 +1,10 @@
-package datadog.trace.civisibility.ipc;
+package datadog.trace.civisibility.ipc.serialization;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -94,6 +95,14 @@ public class Serializer {
     }
   }
 
+  public void write(BitSet bitSet) {
+    if (bitSet != null) {
+      write(bitSet.toByteArray());
+    } else {
+      write((byte[]) null);
+    }
+  }
+
   public int length() {
     return baos.size();
   }
@@ -178,5 +187,10 @@ public class Serializer {
       m.put(keyDeserializer.apply(byteBuffer), valueDeserializer.apply(byteBuffer));
     }
     return m;
+  }
+
+  public static BitSet readBitSet(ByteBuffer byteBuffer) {
+    byte[] bytes = readByteArray(byteBuffer);
+    return bytes != null ? BitSet.valueOf(bytes) : null;
   }
 }

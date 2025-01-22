@@ -18,6 +18,7 @@ import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.BrowserDriver;
 import datadog.trace.api.civisibility.telemetry.tag.EventType;
+import datadog.trace.api.civisibility.telemetry.tag.IsModified;
 import datadog.trace.api.civisibility.telemetry.tag.IsNew;
 import datadog.trace.api.civisibility.telemetry.tag.IsRetry;
 import datadog.trace.api.civisibility.telemetry.tag.IsRum;
@@ -54,6 +55,7 @@ public class TestImpl implements DDTest {
   private final long suiteId;
   private final Consumer<AgentSpan> onSpanFinish;
   private final TestContext context;
+  private final TestIdentifier identifier;
 
   public TestImpl(
       AgentSpanContext moduleSpanContext,
@@ -82,7 +84,7 @@ public class TestImpl implements DDTest {
     this.suiteId = suiteId;
     this.onSpanFinish = onSpanFinish;
 
-    TestIdentifier identifier = new TestIdentifier(testSuiteName, testName, testParameters);
+    this.identifier = new TestIdentifier(testSuiteName, testName, testParameters);
     CoverageStore coverageStore = coverageStoreFactory.create(identifier);
     CoveragePerTestBridge.setThreadLocalCoverageProbes(coverageStore.getProbes());
 
@@ -179,6 +181,10 @@ public class TestImpl implements DDTest {
     }
   }
 
+  public TestIdentifier getIdentifier() {
+    return identifier;
+  }
+
   @Override
   public void setTag(String key, Object value) {
     span.setTag(key, value);
@@ -257,6 +263,7 @@ public class TestImpl implements DDTest {
         instrumentation,
         EventType.TEST,
         span.getTag(Tags.TEST_IS_NEW) != null ? IsNew.TRUE : null,
+        span.getTag(Tags.TEST_IS_MODIFIED) != null ? IsModified.TRUE : null,
         span.getTag(Tags.TEST_IS_RETRY) != null ? IsRetry.TRUE : null,
         span.getTag(Tags.TEST_IS_RUM_ACTIVE) != null ? IsRum.TRUE : null,
         CIConstants.SELENIUM_BROWSER_DRIVER.equals(span.getTag(Tags.TEST_BROWSER_DRIVER))
