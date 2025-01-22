@@ -132,9 +132,9 @@ public enum CiVisibilityCountMetric {
    */
   ITR_FORCED_RUN("itr_forced_run", EventType.class),
   /** The number of requests sent to the known tests endpoint */
-  EFD_REQUEST("known_tests.request", RequestCompressed.class),
+  KNOWN_TESTS_REQUEST("known_tests.request", RequestCompressed.class),
   /** The number of known tests requests sent to the known tests endpoint that errored */
-  EFD_REQUEST_ERRORS("known_tests.request_errors", ErrorType.class, StatusCode.class),
+  KNOWN_TESTS_REQUEST_ERRORS("known_tests.request_errors", ErrorType.class, StatusCode.class),
   /** The number of requests sent to the flaky tests endpoint */
   FLAKY_TESTS_REQUEST("flaky_tests.request", RequestCompressed.class),
   /** The number of tests requests sent to the flaky tests endpoint that errored */

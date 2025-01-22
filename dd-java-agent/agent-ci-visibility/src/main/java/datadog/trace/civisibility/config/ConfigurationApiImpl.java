@@ -248,10 +248,10 @@ public class ConfigurationApiImpl implements ConfigurationApi {
       TracerEnvironment tracerEnvironment) throws IOException {
     OkHttpUtils.CustomListener telemetryListener =
         new TelemetryListener.Builder(metricCollector)
-            .requestCount(CiVisibilityCountMetric.EFD_REQUEST)
-            .requestErrors(CiVisibilityCountMetric.EFD_REQUEST_ERRORS)
-            .requestDuration(CiVisibilityDistributionMetric.EFD_REQUEST_MS)
-            .responseBytes(CiVisibilityDistributionMetric.EFD_RESPONSE_BYTES)
+            .requestCount(CiVisibilityCountMetric.KNOWN_TESTS_REQUEST)
+            .requestErrors(CiVisibilityCountMetric.KNOWN_TESTS_REQUEST_ERRORS)
+            .requestDuration(CiVisibilityDistributionMetric.KNOWN_TESTS_REQUEST_MS)
+            .responseBytes(CiVisibilityDistributionMetric.KNOWN_TESTS_RESPONSE_BYTES)
             .build();
 
     String uuid = uuidGenerator.get();
@@ -293,7 +293,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
     }
 
     LOGGER.debug("Received {} known tests in total", knownTestsCount);
-    metricCollector.add(CiVisibilityDistributionMetric.EFD_RESPONSE_TESTS, knownTestsCount);
+    metricCollector.add(CiVisibilityDistributionMetric.KNOWN_TESTS_RESPONSE_TESTS, knownTestsCount);
     return knownTestsCount > 0
         ? testIdentifiers
         // returning null if there are no known tests:
