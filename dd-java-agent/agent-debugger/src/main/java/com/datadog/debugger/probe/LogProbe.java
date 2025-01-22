@@ -59,8 +59,6 @@ public class LogProbe extends ProbeDefinition implements Sampled {
   private static final Limits LIMITS = new Limits(1, 3, 8192, 5);
   private static final int LOG_MSG_LIMIT = 8192;
 
-  private Consumer<Snapshot> snapshotProcessor;
-
   /** Stores part of a templated message either a str or an expression */
   public static class Segment {
     private final String str;
@@ -279,6 +277,7 @@ public class LogProbe extends ProbeDefinition implements Sampled {
 
   private final Capture capture;
   private final Sampling sampling;
+  private transient Consumer<Snapshot> snapshotProcessor;
 
   // no-arg constructor is required by Moshi to avoid creating instance with unsafe and by-passing
   // constructors, including field initializers.
