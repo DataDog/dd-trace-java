@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.aws.v2.s3;
 
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.S3_ETAG;
+
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstanceStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -52,6 +54,6 @@ public class S3Interceptor implements ExecutionInterceptor {
     // Store eTag as tag, then calculate hash + add span pointers in SpanPointersProcessor.
     // Bucket and key are already stored as tags in AwsSdkClientDecorator, so need to make redundant
     // tags.
-    span.setTag("s3.eTag", eTag);
+    span.setTag(S3_ETAG, eTag);
   }
 }

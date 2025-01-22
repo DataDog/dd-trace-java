@@ -27,7 +27,7 @@ class PostProcessorChainTest extends DDSpecification {
     def tags = ["key1": "root", "key3": "root"]
 
     when:
-    def out = chain.processTags(tags, null)
+    def out = chain.processTags(tags, null, [])
 
     then:
     assert out == ["key1": "processor2", "key2": "processor1", "key3": "root"]
@@ -55,7 +55,7 @@ class PostProcessorChainTest extends DDSpecification {
     def tags = ["test": "test"]
 
     when:
-    def out = chain.processTags(tags, null)
+    def out = chain.processTags(tags, null, [])
 
     then:
     assert out == ["my": "tag"]

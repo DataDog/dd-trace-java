@@ -36,6 +36,7 @@ public class InstrumentationTags {
   public static final String TABLE_NAME = "tablename";
   public static final String AWS_REQUEST_ID = "aws.requestId";
   public static final String AWS_STORAGE_CLASS = "aws.storage.class";
+  public static final String S3_ETAG = "s3.eTag";
 
   public static final String BUCKET = "bucket";
   public static final String CASSANDRA_CONTACT_POINTS = "db.cassandra.contact.points";

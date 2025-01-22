@@ -1,8 +1,11 @@
 package datadog.trace.core.tagprocessor;
 
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AWS_BUCKET_NAME;
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AWS_OBJECT_KEY;
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.S3_ETAG;
+
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import datadog.trace.bootstrap.instrumentation.api.SpanLink;
 import datadog.trace.core.DDSpanContext;
@@ -17,26 +20,25 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class SpanPointersProcessor implements TagsPostProcessor {
-  private static final Logger log = LoggerFactory.getLogger(SpanPointersProcessor.class);
+  private static final Logger LOG = LoggerFactory.getLogger(SpanPointersProcessor.class);
 
   // The pointer direction will always be down. The serverless agent handles cases where the
   // direction is up.
-  private static final String DOWN_DIRECTION = "d";
-  private static final String S3_PTR_KIND = "aws.s3.object";
-  private static final String LINK_KIND = "span-pointer";
-  private static final String ETAG_KEY = "s3.eTag";
+  static final String DOWN_DIRECTION = "d";
+  static final String S3_PTR_KIND = "aws.s3.object";
+  static final String LINK_KIND = "span-pointer";
 
   @Override
   public Map<String, Object> processTags(
       Map<String, Object> unsafeTags, DDSpanContext spanContext, List<AgentSpanLink> spanLinks) {
-    String eTag = asString(unsafeTags.remove(ETAG_KEY));
+    String eTag = asString(unsafeTags.remove(S3_ETAG));
     if (eTag == null) {
       return unsafeTags;
     }
-    String bucket = asString(unsafeTags.get(InstrumentationTags.AWS_BUCKET_NAME));
-    String key = asString(unsafeTags.get(InstrumentationTags.AWS_OBJECT_KEY));
+    String bucket = asString(unsafeTags.get(AWS_BUCKET_NAME));
+    String key = asString(unsafeTags.get(AWS_OBJECT_KEY));
     if (bucket == null || key == null) {
-      log.debug("Unable to calculate span pointer hash because could not find bucket or key tags.");
+      LOG.debug("Unable to calculate span pointer hash because could not find bucket or key tags.");
       return unsafeTags;
     }
 
@@ -59,7 +61,7 @@ public class SpanPointersProcessor implements TagsPostProcessor {
       AgentSpanLink link = SpanLink.from(zeroContext, AgentSpanLink.DEFAULT_FLAGS, "", attributes);
       spanLinks.add(link);
     } catch (Exception e) {
-      log.debug("Failed to add span pointer: {}", e.getMessage());
+      LOG.debug("Failed to add span pointer: {}", e.getMessage());
     }
 
     return unsafeTags;
