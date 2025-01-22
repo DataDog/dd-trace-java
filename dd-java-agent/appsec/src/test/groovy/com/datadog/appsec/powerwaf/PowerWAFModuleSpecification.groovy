@@ -975,10 +975,10 @@ class PowerWAFModuleSpecification extends DDSpecification {
     def mockWafMetricCollector = Mock(WafMetricCollector)
     WafMetricCollector.INSTANCE = mockWafMetricCollector
 
-    GatewayContext gwCtxWithRasp = new GatewayContext(false, RuleType.SQL_INJECTION)
+    gwCtx = new GatewayContext(false, RuleType.SQL_INJECTION)
 
     when:
-    dataListener.onDataAvailable(flow, ctx, db, gwCtxWithRasp)
+    dataListener.onDataAvailable(flow, ctx, db, gwCtx)
 
     then:
     ctx.getOrCreateAdditive(_, true) >> {
@@ -987,7 +987,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.increaseWafTimeouts()
     1 * mockWafMetricCollector.get().wafRequestTimeout()
     1 * ctx.increaseRaspTimeouts()
-    1 * mockWafMetricCollector.get().raspTimeout(gwCtxWithRasp.raspRuleType)
+    1 * mockWafMetricCollector.get().raspTimeout(gwCtx.raspRuleType)
 
     when:
     pp.processTraceSegment(segment, ctx, [])
@@ -1000,6 +1000,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     cleanup:
     injectSysConfig('appsec.waf.timeout', ConfigDefaults.DEFAULT_APPSEC_WAF_TIMEOUT as String)
     PowerWAFModule.createLimitsObject()
+    gwCtx = new GatewayContext(false)
   }
 
   void 'configuration can be given later'() {
