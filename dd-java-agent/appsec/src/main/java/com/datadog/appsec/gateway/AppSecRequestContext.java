@@ -122,7 +122,8 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private volatile PowerwafMetrics raspMetrics;
   private final AtomicInteger raspMetricsCounter = new AtomicInteger(0);
   private volatile boolean blocked;
-  private volatile int timeouts;
+  private volatile int wafTimeouts;
+  private volatile int raspTimeouts;
 
   // keep a reference to the last published usr.id
   private volatile String userId;
@@ -133,8 +134,10 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   // keep a reference to the last published usr.session_id
   private volatile String sessionId;
 
-  private static final AtomicIntegerFieldUpdater<AppSecRequestContext> TIMEOUTS_UPDATER =
-      AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "timeouts");
+  private static final AtomicIntegerFieldUpdater<AppSecRequestContext> WAF_TIMEOUTS_UPDATER =
+      AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "wafTimeouts");
+  private static final AtomicIntegerFieldUpdater<AppSecRequestContext> RASP_TIMEOUTS_UPDATER =
+      AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "raspTimeouts");
 
   // to be called by the Event Dispatcher
   public void addAll(DataBundle newData) {
@@ -177,12 +180,20 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return blocked;
   }
 
-  public void increaseTimeouts() {
-    TIMEOUTS_UPDATER.incrementAndGet(this);
+  public void increaseWafTimeouts() {
+    WAF_TIMEOUTS_UPDATER.incrementAndGet(this);
   }
 
-  public int getTimeouts() {
-    return timeouts;
+  public void increaseRaspTimeouts() {
+    RASP_TIMEOUTS_UPDATER.incrementAndGet(this);
+  }
+
+  public int getWafTimeouts() {
+    return wafTimeouts;
+  }
+
+  public int getRaspTimeouts() {
+    return raspTimeouts;
   }
 
   public Additive getOrCreateAdditive(PowerwafContext ctx, boolean createMetrics, boolean isRasp) {
