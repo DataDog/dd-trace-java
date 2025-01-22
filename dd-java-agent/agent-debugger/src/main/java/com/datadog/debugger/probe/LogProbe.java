@@ -760,8 +760,8 @@ public class LogProbe extends ProbeDefinition implements Sampled {
       DebugSessionStatus status = getDebugSessionStatus();
       // an ACTIVE status overrides the sampling as the sampling decision was made by the trigger
       // probe
-      return status == DebugSessionStatus.ACTIVE
-          || !status.isDisabled() && sampled && condition && !hasConditionErrors;
+      return status.isActive()
+          || !status.isDefined() && sampled && condition && !hasConditionErrors;
     }
 
     public boolean shouldReportError() {
@@ -951,7 +951,6 @@ public class LogProbe extends ProbeDefinition implements Sampled {
     private ProbeCondition probeCondition;
     private Capture capture;
     private Sampling sampling;
-    private String sessionId;
 
     public Builder template(String template, List<Segment> segments) {
       this.template = template;
@@ -971,11 +970,6 @@ public class LogProbe extends ProbeDefinition implements Sampled {
 
     public Builder sampling(Sampling sampling) {
       this.sampling = sampling;
-      return this;
-    }
-
-    public Builder sessionId(String sessionId) {
-      this.sessionId = sessionId;
       return this;
     }
 

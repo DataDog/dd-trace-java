@@ -18,7 +18,6 @@ import static utils.InstrumentationTestHelper.compileAndLoadClass;
 import com.datadog.debugger.agent.CapturingTestBase;
 import com.datadog.debugger.codeorigin.DefaultCodeOriginRecorder;
 import com.datadog.debugger.probe.CodeOriginProbe;
-import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.util.ClassNameFiltering;
@@ -36,7 +35,6 @@ import datadog.trace.core.CoreTracer;
 import datadog.trace.util.AgentTaskScheduler;
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -113,29 +111,27 @@ public class CodeOriginTest extends CapturingTestBase {
   }
 
   @Test
-  public void withLogProbe() throws IOException, URISyntaxException {
+  public void withLogProbe() throws Exception {
     final String CLASS_NAME = "com.datadog.debugger.CodeOrigin03";
-    LogProbe logProbe =
+    installProbes(
         createProbeBuilder(PROBE_ID, CLASS_NAME, "entry", "()")
             .capture(1, 100, 255, Limits.DEFAULT_FIELD_COUNT)
-            .build();
-    List<ProbeDefinition> probes = codeOriginProbes(CLASS_NAME);
-    installProbes(probes);
+            .build());
     final Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    checkResults(testClass, "debug_1", false);
+    codeOriginRecorder.captureCodeOrigin(testClass.getMethod("entry"), true);
+    codeOriginRecorder.captureCodeOrigin(testClass.getMethod("exit"), false);
+    checkResults(testClass, "debug_1", true);
   }
 
   @Test
   public void doubleEntry() throws IOException, URISyntaxException {
     final String className = "com.datadog.debugger.CodeOrigin05";
 
-    List<ProbeDefinition> probes =
-        asList(
-            new CodeOriginProbe(CODE_ORIGIN_ID1, true, Where.of(className, "entry", "()", "53")),
-            new CodeOriginProbe(CODE_ORIGIN_ID2, false, Where.of(className, "exit", "()", "62")),
-            new CodeOriginProbe(
-                CODE_ORIGIN_DOUBLE_ENTRY_ID, true, Where.of(className, "doubleEntry", "()", "66")));
-    installProbes(probes);
+    installProbes(
+        new CodeOriginProbe(CODE_ORIGIN_ID1, true, Where.of(className, "entry", "()", "53")),
+        new CodeOriginProbe(CODE_ORIGIN_ID2, false, Where.of(className, "exit", "()", "62")),
+        new CodeOriginProbe(
+            CODE_ORIGIN_DOUBLE_ENTRY_ID, true, Where.of(className, "doubleEntry", "()", "66")));
     final Class<?> testClass = compileAndLoadClass(className);
     checkResults(testClass, "fullTrace", false);
     List<? extends MutableSpan> trace = traceInterceptor.getTrace();
@@ -211,12 +207,12 @@ public class CodeOriginTest extends CapturingTestBase {
   }
 
   @NotNull
-  private List<ProbeDefinition> codeOriginProbes(String type) {
+  private CodeOriginProbe[] codeOriginProbes(String type) {
     CodeOriginProbe entry =
         new CodeOriginProbe(CODE_ORIGIN_ID1, true, Where.of(type, "entry", "()", "53"));
     CodeOriginProbe exit =
         new CodeOriginProbe(CODE_ORIGIN_ID2, false, Where.of(type, "exit", "()", "60"));
-    return new ArrayList<>(asList(entry, exit));
+    return new CodeOriginProbe[] {entry, exit};
   }
 
   private void checkResults(Class<?> testClass, String parameter, boolean includeSnapshot) {
@@ -261,10 +257,6 @@ public class CodeOriginTest extends CapturingTestBase {
     DebuggerContext.initCodeOrigin(codeOriginRecorder);
 
     return listener;
-  }
-
-  protected TestSnapshotListener installProbes(List<ProbeDefinition> probes) {
-    return installProbes(probes.toArray(new ProbeDefinition[0]));
   }
 
   private static void checkEntrySpanTags(MutableSpan span, boolean includeSnapshot) {

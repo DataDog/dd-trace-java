@@ -6,6 +6,7 @@ import com.datadog.debugger.agent.ConfigurationUpdater;
 import com.datadog.debugger.exception.Fingerprinter;
 import com.datadog.debugger.probe.CodeOriginProbe;
 import com.datadog.debugger.probe.LogProbe;
+import com.datadog.debugger.probe.LogProbe.Builder;
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.Where;
 import datadog.trace.api.Config;
@@ -85,16 +86,18 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
   }
 
   public void registerLogProbe(CodeOriginProbe probe) {
-    logProbes.computeIfAbsent(
-        probe.getId(),
-        key ->
-            new LogProbe.Builder()
-                .language(probe.getLanguage())
-                .probeId(ProbeId.newId())
-                .where(probe.getWhere())
-                .evaluateAt(probe.getEvaluateAt())
-                .captureSnapshot(true)
-                .build());
+    LogProbe logProbe =
+        logProbes.computeIfAbsent(
+            probe.getId(),
+            key ->
+                new Builder()
+                    .language(probe.getLanguage())
+                    .probeId(ProbeId.newId())
+                    .where(probe.getWhere())
+                    .evaluateAt(probe.getEvaluateAt())
+                    .captureSnapshot(true)
+                    .tags("session_id:*")
+                    .build());
   }
 
   private CodeOriginProbe createProbe(String fingerPrint, boolean entry, Where where) {
