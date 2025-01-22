@@ -29,9 +29,9 @@ import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.DebuggerContext.ClassNameFilter;
-import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.core.CoreTracer;
+import datadog.trace.core.DDSpan;
 import datadog.trace.util.AgentTaskScheduler;
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -97,7 +97,7 @@ public class CodeOriginTest extends CapturingTestBase {
 
     installProbes(codeOriginProbes(className));
     final Class<?> testClass = compileAndLoadClass(className);
-    checkResults(testClass, "fullTrace", false);
+    checkResults(testClass, "fullTrace", 0);
   }
 
   @Test
@@ -107,20 +107,19 @@ public class CodeOriginTest extends CapturingTestBase {
     final Class<?> testClass = compileAndLoadClass(className);
     codeOriginRecorder.captureCodeOrigin(testClass.getMethod("entry"), true);
     codeOriginRecorder.captureCodeOrigin(testClass.getMethod("exit"), false);
-    checkResults(testClass, "debug_1", true);
+    checkResults(testClass, "fullTrace", 0);
+    checkResults(testClass, "debug_1", 2);
   }
 
   @Test
   public void withLogProbe() throws Exception {
     final String CLASS_NAME = "com.datadog.debugger.CodeOrigin03";
     installProbes(
-        createProbeBuilder(PROBE_ID, CLASS_NAME, "entry", "()")
-            .capture(1, 100, 255, Limits.DEFAULT_FIELD_COUNT)
-            .build());
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "entry", "()").captureSnapshot(true).build());
     final Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     codeOriginRecorder.captureCodeOrigin(testClass.getMethod("entry"), true);
     codeOriginRecorder.captureCodeOrigin(testClass.getMethod("exit"), false);
-    checkResults(testClass, "debug_1", true);
+    checkResults(testClass, "debug_1", 3);
   }
 
   @Test
@@ -133,7 +132,7 @@ public class CodeOriginTest extends CapturingTestBase {
         new CodeOriginProbe(
             CODE_ORIGIN_DOUBLE_ENTRY_ID, true, Where.of(className, "doubleEntry", "()", "66")));
     final Class<?> testClass = compileAndLoadClass(className);
-    checkResults(testClass, "fullTrace", false);
+    checkResults(testClass, "fullTrace", 0);
     List<? extends MutableSpan> trace = traceInterceptor.getTrace();
     MutableSpan span = trace.get(0);
     // this should be entry but until we get the ordering resolved, it's this.
@@ -215,25 +214,30 @@ public class CodeOriginTest extends CapturingTestBase {
     return new CodeOriginProbe[] {entry, exit};
   }
 
-  private void checkResults(Class<?> testClass, String parameter, boolean includeSnapshot) {
+  private void checkResults(Class<?> testClass, String parameter, int snapshotsExpected) {
     int result = Reflect.onClass(testClass).call("main", parameter).get();
     assertEquals(0, result);
-    List<? extends MutableSpan> spans = traceInterceptor.getTrace();
+    List<DDSpan> spans = (List<DDSpan>) traceInterceptor.getTrace();
     assertEquals(3, spans.size());
     assertEquals("main", spans.get(2).getLocalRootSpan().getOperationName());
 
-    List<? extends MutableSpan> list =
+    List<DDSpan> list =
         spans.stream()
             .filter(span -> !span.getOperationName().equals("exit"))
             .collect(Collectors.toList());
 
-    for (MutableSpan span : list) {
-      checkEntrySpanTags(span, false);
+    for (DDSpan span : list) {
+      checkEntrySpanTags(span, snapshotsExpected != 0);
     }
-    if (includeSnapshot) {
-      assertNotEquals(0, listener.snapshots.size());
-    }
-    Optional<? extends MutableSpan> exit =
+
+    assertEquals(
+        snapshotsExpected,
+        listener.snapshots.stream()
+            .filter(s -> s.getCaptures().getEntry() != null && s.getCaptures().getReturn() != null)
+            .collect(Collectors.toList())
+            .size());
+
+    Optional<DDSpan> exit =
         spans.stream().filter(span -> span.getOperationName().equals("exit")).findFirst();
     assertTrue(exit.isPresent());
     exit.ifPresent(span -> checkExitSpanTags(span, false));
@@ -259,7 +263,7 @@ public class CodeOriginTest extends CapturingTestBase {
     return listener;
   }
 
-  private static void checkEntrySpanTags(MutableSpan span, boolean includeSnapshot) {
+  private static void checkEntrySpanTags(DDSpan span, boolean includeSnapshot) {
     assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "file"));
     assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "line"));
     assertNotEquals(-1, span.getTag(format(DD_CODE_ORIGIN_FRAME, 0, "line")));
@@ -274,7 +278,9 @@ public class CodeOriginTest extends CapturingTestBase {
     }
   }
 
-  private static void assertKeyPresent(MutableSpan span, String key) {
+  private static void assertKeyPresent(DDSpan span, String key) {
+    System.out.println(
+        "****** CodeOriginTest.assertKeyPresent span.getSpanId() = " + span.getSpanId());
     assertNotNull(
         span.getTag(key),
         format(
@@ -288,7 +294,7 @@ public class CodeOriginTest extends CapturingTestBase {
         format("'%s' key found in '%s' span when it shouldn't be.", key, span.getOperationName()));
   }
 
-  private static void checkExitSpanTags(MutableSpan span, boolean includeSnapshot) {
+  private static void checkExitSpanTags(DDSpan span, boolean includeSnapshot) {
     String keys =
         format("Existing keys for %s: %s", span.getOperationName(), new TreeSet<>(ldKeys(span)));
 

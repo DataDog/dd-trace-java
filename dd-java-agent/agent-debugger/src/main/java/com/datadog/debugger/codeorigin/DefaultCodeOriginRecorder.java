@@ -1,6 +1,8 @@
 package com.datadog.debugger.codeorigin;
 
 import static com.datadog.debugger.agent.ConfigurationAcceptor.Source.CODE_ORIGIN;
+import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_FRAME;
+import static java.lang.String.format;
 
 import com.datadog.debugger.agent.ConfigurationUpdater;
 import com.datadog.debugger.exception.Fingerprinter;
@@ -9,6 +11,7 @@ import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.LogProbe.Builder;
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.Where;
+import com.datadog.debugger.sink.Snapshot;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
@@ -25,6 +28,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
@@ -97,6 +101,7 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
                     .evaluateAt(probe.getEvaluateAt())
                     .captureSnapshot(true)
                     .tags("session_id:*")
+                    .snapshotProcessor(new CodeOriginSnapshotConsumer(probe.entrySpanProbe()))
                     .build());
   }
 
@@ -149,5 +154,23 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
     return Stream.of(probes.values(), logProbes.values())
         .flatMap(Collection::stream)
         .collect(Collectors.toList());
+  }
+
+  private static class CodeOriginSnapshotConsumer implements Consumer<Snapshot> {
+    private final boolean entrySpanProbe;
+
+    public CodeOriginSnapshotConsumer(boolean entrySpanProbe) {
+      this.entrySpanProbe = entrySpanProbe;
+    }
+
+    @Override
+    public void accept(Snapshot snapshot) {
+      AgentSpan span = AgentTracer.get().activeSpan();
+      String snapshotId = format(DD_CODE_ORIGIN_FRAME, 0, "snapshot_id");
+      span.setTag(snapshotId, snapshot.getId());
+      if (entrySpanProbe) {
+        span.getLocalRootSpan().setTag(snapshotId, snapshot.getId());
+      }
+    }
   }
 }
