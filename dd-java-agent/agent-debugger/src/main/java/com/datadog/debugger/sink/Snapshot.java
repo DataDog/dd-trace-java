@@ -36,7 +36,6 @@ public class Snapshot {
   private transient int chainedExceptionIdx;
 
   public Snapshot(java.lang.Thread thread, ProbeImplementation probeImplementation, int maxDepth) {
-    this.id = UUID.randomUUID().toString();
     this.version = VERSION;
     this.timestamp = System.currentTimeMillis();
     this.captures = new Captures();

@@ -279,8 +279,6 @@ public class CodeOriginTest extends CapturingTestBase {
   }
 
   private static void assertKeyPresent(DDSpan span, String key) {
-    System.out.println(
-        "****** CodeOriginTest.assertKeyPresent span.getSpanId() = " + span.getSpanId());
     assertNotNull(
         span.getTag(key),
         format(
