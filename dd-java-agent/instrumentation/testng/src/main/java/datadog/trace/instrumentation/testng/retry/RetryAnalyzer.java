@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.testng.retry;
 
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
 import datadog.trace.instrumentation.testng.TestEventsHandlerHolder;
 import datadog.trace.instrumentation.testng.TestNGUtils;
@@ -20,7 +21,10 @@ public class RetryAnalyzer implements IRetryAnalyzer {
       synchronized (this) {
         if (retryPolicy == null) {
           TestIdentifier testIdentifier = TestNGUtils.toTestIdentifier(result);
-          retryPolicy = TestEventsHandlerHolder.TEST_EVENTS_HANDLER.retryPolicy(testIdentifier);
+          TestSourceData testSourceData = TestNGUtils.toTestSourceData(result);
+          retryPolicy =
+              TestEventsHandlerHolder.TEST_EVENTS_HANDLER.retryPolicy(
+                  testIdentifier, testSourceData);
         }
       }
     }

@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.junit5;
 import static datadog.json.JsonMapper.toJson;
 
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -11,6 +12,8 @@ import datadog.trace.util.MethodHandles;
 import java.lang.invoke.MethodHandle;
 import java.lang.reflect.Method;
 import java.util.List;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.junit.platform.commons.JUnitException;
 import org.junit.platform.commons.util.ClassLoaderUtils;
 import org.junit.platform.commons.util.ReflectionUtils;
@@ -50,7 +53,7 @@ public abstract class JUnitPlatformUtils {
   private static final MethodHandle GET_JAVA_METHOD =
       METHOD_HANDLES.method(MethodSource.class, "getJavaMethod");
 
-  public static Class<?> getTestClass(MethodSource methodSource) {
+  private static Class<?> getTestClass(MethodSource methodSource) {
     Class<?> javaClass = METHOD_HANDLES.invoke(GET_JAVA_CLASS, methodSource);
     if (javaClass != null) {
       return javaClass;
@@ -58,7 +61,7 @@ public abstract class JUnitPlatformUtils {
     return ReflectionUtils.loadClass(methodSource.getClassName()).orElse(null);
   }
 
-  public static Method getTestMethod(MethodSource methodSource) {
+  private static Method getTestMethod(MethodSource methodSource) {
     Method javaMethod = METHOD_HANDLES.invoke(GET_JAVA_METHOD, methodSource);
     if (javaMethod != null) {
       return javaMethod;
@@ -93,6 +96,7 @@ public abstract class JUnitPlatformUtils {
     return "{\"metadata\":{\"test_name\":" + toJson(displayName) + "}}";
   }
 
+  @Nullable
   public static TestIdentifier toTestIdentifier(TestDescriptor testDescriptor) {
     TestSource testSource = testDescriptor.getSource().orElse(null);
     if (testSource instanceof MethodSource) {
@@ -106,6 +110,22 @@ public abstract class JUnitPlatformUtils {
     } else {
       return null;
     }
+  }
+
+  @Nonnull
+  public static TestSourceData toTestSourceData(TestDescriptor testDescriptor) {
+    TestSource testSource = testDescriptor.getSource().orElse(null);
+    if (!(testSource instanceof MethodSource)) {
+      return TestSourceData.UNKNOWN;
+    }
+
+    MethodSource methodSource = (MethodSource) testSource;
+    TestDescriptor suiteDescriptor = getSuiteDescriptor(testDescriptor);
+    Class<?> testClass =
+        suiteDescriptor != null ? getJavaClass(suiteDescriptor) : getTestClass(methodSource);
+    Method testMethod = getTestMethod(methodSource);
+    String testMethodName = methodSource.getMethodName();
+    return new TestSourceData(testClass, testMethod, testMethodName);
   }
 
   public static boolean isAssumptionFailure(Throwable throwable) {

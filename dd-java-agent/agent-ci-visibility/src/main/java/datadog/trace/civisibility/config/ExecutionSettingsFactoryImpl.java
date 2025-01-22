@@ -7,7 +7,13 @@ import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestMetadata;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
+import datadog.trace.civisibility.ci.PullRequestInfo;
+import datadog.trace.civisibility.diff.Diff;
+import datadog.trace.civisibility.diff.FileDiff;
+import datadog.trace.civisibility.diff.LineDiff;
+import datadog.trace.civisibility.git.tree.GitClient;
 import datadog.trace.civisibility.git.tree.GitDataUploader;
+import datadog.trace.civisibility.git.tree.GitRepoUnshallow;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.BitSet;
@@ -20,7 +26,6 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,17 +43,26 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
 
   private final Config config;
   private final ConfigurationApi configurationApi;
+  private final GitClient gitClient;
+  private final GitRepoUnshallow gitRepoUnshallow;
   private final GitDataUploader gitDataUploader;
+  private final PullRequestInfo pullRequestInfo;
   private final String repositoryRoot;
 
   public ExecutionSettingsFactoryImpl(
       Config config,
       ConfigurationApi configurationApi,
+      GitClient gitClient,
+      GitRepoUnshallow gitRepoUnshallow,
       GitDataUploader gitDataUploader,
+      PullRequestInfo pullRequestInfo,
       String repositoryRoot) {
     this.config = config;
     this.configurationApi = configurationApi;
+    this.gitClient = gitClient;
+    this.gitRepoUnshallow = gitRepoUnshallow;
     this.gitDataUploader = gitDataUploader;
+    this.pullRequestInfo = pullRequestInfo;
     this.repositoryRoot = repositoryRoot;
   }
 
@@ -98,13 +112,14 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
         .build();
   }
 
-  private @NotNull Map<String, ExecutionSettings> create(TracerEnvironment tracerEnvironment) {
+  private @Nonnull Map<String, ExecutionSettings> create(TracerEnvironment tracerEnvironment) {
     CiVisibilitySettings ciVisibilitySettings = getCiVisibilitySettings(tracerEnvironment);
 
     boolean itrEnabled = isItrEnabled(ciVisibilitySettings);
     boolean codeCoverageEnabled = isCodeCoverageEnabled(ciVisibilitySettings);
     boolean testSkippingEnabled = isTestSkippingEnabled(ciVisibilitySettings);
     boolean flakyTestRetriesEnabled = isFlakyTestRetriesEnabled(ciVisibilitySettings);
+    boolean impactedTestsDetectionEnabled = isImpactedTestsDetectionEnabled(ciVisibilitySettings);
     boolean earlyFlakeDetectionEnabled = isEarlyFlakeDetectionEnabled(ciVisibilitySettings);
 
     LOGGER.info(
@@ -113,6 +128,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
             + "Per-test code coverage - {},\n"
             + "Tests skipping - {},\n"
             + "Early flakiness detection - {},\n"
+            + "Impacted tests detection - {},\n"
             + "Auto test retries - {}",
         repositoryRoot,
         tracerEnvironment.getConfigurations().getRuntimeName(),
@@ -122,6 +138,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
         codeCoverageEnabled,
         testSkippingEnabled,
         earlyFlakeDetectionEnabled,
+        impactedTestsDetectionEnabled,
         flakyTestRetriesEnabled);
 
     String itrCorrelationId = null;
@@ -161,6 +178,8 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
       moduleNames.addAll(knownTestsByModule.keySet());
     }
 
+    Diff pullRequestDiff = getPullRequestDiff(impactedTestsDetectionEnabled, tracerEnvironment);
+
     Map<String, ExecutionSettings> settingsByModule = new HashMap<>();
     for (String moduleName : moduleNames) {
       settingsByModule.put(
@@ -170,11 +189,8 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
               codeCoverageEnabled,
               testSkippingEnabled,
               flakyTestRetriesEnabled,
-              // knownTests being null covers the following cases:
-              //  - early flake detection is disabled in remote settings
-              //  - early flake detection is disabled via local config killswitch
-              //  - the list of known tests could not be obtained
-              knownTestsByModule != null
+              impactedTestsDetectionEnabled,
+              earlyFlakeDetectionEnabled
                   ? ciVisibilitySettings.getEarlyFlakeDetectionSettings()
                   : EarlyFlakeDetectionSettings.DEFAULT,
               itrCorrelationId,
@@ -183,7 +199,8 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
               flakyTestsByModule != null
                   ? flakyTestsByModule.getOrDefault(moduleName, Collections.emptyList())
                   : null,
-              knownTestsByModule != null ? knownTestsByModule.get(moduleName) : null));
+              knownTestsByModule != null ? knownTestsByModule.get(moduleName) : null,
+              pullRequestDiff));
     }
     return settingsByModule;
   }
@@ -227,6 +244,11 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
         && config.isCiVisibilityFlakyRetryEnabled();
   }
 
+  private boolean isImpactedTestsDetectionEnabled(CiVisibilitySettings ciVisibilitySettings) {
+    return ciVisibilitySettings.isImpactedTestsDetectionEnabled()
+        && config.isCiVisibilityImpactedTestsDetectionEnabled();
+  }
+
   private boolean isEarlyFlakeDetectionEnabled(CiVisibilitySettings ciVisibilitySettings) {
     return ciVisibilitySettings.getEarlyFlakeDetectionSettings().isEnabled()
         && config.isCiVisibilityEarlyFlakeDetectionEnabled();
@@ -266,8 +288,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
       return configurationApi.getFlakyTestsByModule(tracerEnvironment);
 
     } catch (Exception e) {
-      LOGGER.error(
-          "Could not obtain list of flaky tests, flaky test retries will not be available", e);
+      LOGGER.error("Could not obtain list of flaky tests", e);
       return Collections.emptyMap();
     }
   }
@@ -278,10 +299,63 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
       return configurationApi.getKnownTestsByModule(tracerEnvironment);
 
     } catch (Exception e) {
-      LOGGER.error(
-          "Could not obtain list of known tests, early flakiness detection will not be available",
-          e);
+      LOGGER.error("Could not obtain list of known tests", e);
       return null;
     }
+  }
+
+  @Nonnull
+  private Diff getPullRequestDiff(
+      boolean impactedTestsDetectionEnabled, TracerEnvironment tracerEnvironment) {
+    if (!impactedTestsDetectionEnabled) {
+      return LineDiff.EMPTY;
+    }
+
+    try {
+      if (repositoryRoot != null) {
+        // ensure repo is not shallow before attempting to get git diff
+        gitRepoUnshallow.unshallow();
+        Diff diff =
+            gitClient.getGitDiff(
+                pullRequestInfo.getPullRequestBaseBranchSha(),
+                pullRequestInfo.getGitCommitHeadSha());
+        if (diff != null) {
+          return diff;
+        }
+      }
+
+    } catch (InterruptedException e) {
+      LOGGER.error("Interrupted while getting git diff for PR: {}", pullRequestInfo, e);
+      Thread.currentThread().interrupt();
+
+    } catch (Exception e) {
+      LOGGER.error("Could not get git diff for PR: {}", pullRequestInfo, e);
+    }
+
+    try {
+      ChangedFiles changedFiles = configurationApi.getChangedFiles(tracerEnvironment);
+
+      // attempting to use base SHA returned by the backend to calculate git diff
+      if (repositoryRoot != null) {
+        // ensure repo is not shallow before attempting to get git diff
+        gitRepoUnshallow.unshallow();
+        Diff diff = gitClient.getGitDiff(changedFiles.getBaseSha(), tracerEnvironment.getSha());
+        if (diff != null) {
+          return diff;
+        }
+      }
+
+      // falling back to file-level granularity
+      return new FileDiff(changedFiles.getFiles());
+
+    } catch (InterruptedException e) {
+      LOGGER.error("Interrupted while getting git diff for: {}", tracerEnvironment, e);
+      Thread.currentThread().interrupt();
+
+    } catch (Exception e) {
+      LOGGER.error("Could not get git diff for: {}", tracerEnvironment, e);
+    }
+
+    return LineDiff.EMPTY;
   }
 }

@@ -1,8 +1,6 @@
 package datadog.trace.civisibility
 
-
 import datadog.trace.api.Config
-import datadog.trace.civisibility.ci.CIInfo
 import spock.lang.Specification
 
 import java.nio.file.Paths
@@ -18,11 +16,8 @@ class CiVisibilityRepoServicesTest extends Specification {
     def repoRoot = "/path/to/repo/root/"
     def path = Paths.get(repoRoot + repoSubFolder)
 
-    def ciInfo = Stub(CIInfo)
-    ciInfo.getNormalizedCiWorkspace() >> repoRoot
-
     expect:
-    CiVisibilityRepoServices.getModuleName(config, path, ciInfo) == moduleName
+    CiVisibilityRepoServices.getModuleName(config, repoRoot, path) == moduleName
 
     where:
     parentModuleName | repoSubFolder  | serviceName    | moduleName

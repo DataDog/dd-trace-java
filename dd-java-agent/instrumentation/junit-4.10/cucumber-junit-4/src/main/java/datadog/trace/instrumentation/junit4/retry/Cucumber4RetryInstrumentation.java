@@ -9,6 +9,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.junit4.CucumberUtils;
@@ -93,7 +94,8 @@ public class Cucumber4RetryInstrumentation extends InstrumenterModule.CiVisibili
       Description description = CucumberUtils.getPickleRunnerDescription(pickleRunner);
       TestIdentifier testIdentifier = CucumberUtils.toTestIdentifier(description);
       TestRetryPolicy retryPolicy =
-          TestEventsHandlerHolder.TEST_EVENTS_HANDLER.retryPolicy(testIdentifier);
+          TestEventsHandlerHolder.TEST_EVENTS_HANDLER.retryPolicy(
+              testIdentifier, TestSourceData.UNKNOWN);
       if (!retryPolicy.retriesLeft()) {
         // retries not applicable, run original method
         return null;

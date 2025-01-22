@@ -8,13 +8,14 @@ public class CiVisibilitySettings {
 
   public static final CiVisibilitySettings DEFAULT =
       new CiVisibilitySettings(
-          false, false, false, false, false, EarlyFlakeDetectionSettings.DEFAULT);
+          false, false, false, false, false, false, EarlyFlakeDetectionSettings.DEFAULT);
 
   private final boolean itrEnabled;
   private final boolean codeCoverage;
   private final boolean testsSkipping;
   private final boolean requireGit;
   private final boolean flakyTestRetriesEnabled;
+  private final boolean impactedTestsDetectionEnabled;
   private final EarlyFlakeDetectionSettings earlyFlakeDetectionSettings;
 
   private CiVisibilitySettings(
@@ -23,12 +24,14 @@ public class CiVisibilitySettings {
       boolean testsSkipping,
       boolean requireGit,
       boolean flakyTestRetriesEnabled,
+      boolean impactedTestsDetectionEnabled,
       EarlyFlakeDetectionSettings earlyFlakeDetectionSettings) {
     this.itrEnabled = itrEnabled;
     this.codeCoverage = codeCoverage;
     this.testsSkipping = testsSkipping;
     this.requireGit = requireGit;
     this.flakyTestRetriesEnabled = flakyTestRetriesEnabled;
+    this.impactedTestsDetectionEnabled = impactedTestsDetectionEnabled;
     this.earlyFlakeDetectionSettings = earlyFlakeDetectionSettings;
   }
 
@@ -50,6 +53,10 @@ public class CiVisibilitySettings {
 
   public boolean isFlakyTestRetriesEnabled() {
     return flakyTestRetriesEnabled;
+  }
+
+  public boolean isImpactedTestsDetectionEnabled() {
+    return impactedTestsDetectionEnabled;
   }
 
   public EarlyFlakeDetectionSettings getEarlyFlakeDetectionSettings() {
@@ -76,6 +83,7 @@ public class CiVisibilitySettings {
           getBoolean(json, "tests_skipping", false),
           getBoolean(json, "require_git", false),
           getBoolean(json, "flaky_test_retries_enabled", false),
+          getBoolean(json, "impacted_tests_enabled", false),
           EarlyFlakeDetectionSettingsJsonAdapter.INSTANCE.fromJson(
               (Map<String, Object>) json.get("early_flake_detection")));
     }

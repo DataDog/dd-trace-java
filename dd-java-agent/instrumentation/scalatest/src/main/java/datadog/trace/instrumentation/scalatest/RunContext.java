@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.scalatest;
 
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
@@ -116,8 +117,9 @@ public class RunContext {
     return testTags != null && testTags.contains(InstrumentationBridge.ITR_UNSKIPPABLE_TAG);
   }
 
-  public TestRetryPolicy retryPolicy(TestIdentifier testIdentifier) {
-    return retryPolicies.computeIfAbsent(testIdentifier, eventHandler::retryPolicy);
+  public TestRetryPolicy retryPolicy(TestIdentifier testIdentifier, TestSourceData testSourceData) {
+    return retryPolicies.computeIfAbsent(
+        testIdentifier, test -> eventHandler.retryPolicy(test, testSourceData));
   }
 
   @Nullable

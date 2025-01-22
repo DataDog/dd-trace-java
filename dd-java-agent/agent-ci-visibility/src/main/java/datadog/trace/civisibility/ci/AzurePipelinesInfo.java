@@ -11,6 +11,7 @@ import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.PersonInfo;
 import datadog.trace.civisibility.ci.env.CiEnvironment;
+import javax.annotation.Nonnull;
 
 class AzurePipelinesInfo implements CIProviderInfo {
 
@@ -79,6 +80,12 @@ class AzurePipelinesInfo implements CIProviderInfo {
         .ciWorkspace(expandTilde(environment.get(AZURE_WORKSPACE_PATH)))
         .ciEnvVars(AZURE_SYSTEM_TEAMPROJECTID, AZURE_BUILD_BUILDID, AZURE_SYSTEM_JOBID)
         .build();
+  }
+
+  @Nonnull
+  @Override
+  public PullRequestInfo buildPullRequestInfo() {
+    return PullRequestInfo.EMPTY;
   }
 
   private String buildGitBranch() {

@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.karate;
 
 import com.intuit.karate.core.Scenario;
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
 
 public class RetryContext {
@@ -39,6 +40,7 @@ public class RetryContext {
   public static RetryContext create(Scenario scenario) {
     TestIdentifier testIdentifier = KarateUtils.toTestIdentifier(scenario);
     return new RetryContext(
-        TestEventsHandlerHolder.TEST_EVENTS_HANDLER.retryPolicy(testIdentifier));
+        TestEventsHandlerHolder.TEST_EVENTS_HANDLER.retryPolicy(
+            testIdentifier, TestSourceData.UNKNOWN));
   }
 }

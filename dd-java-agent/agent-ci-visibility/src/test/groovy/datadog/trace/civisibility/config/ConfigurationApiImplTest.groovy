@@ -67,7 +67,7 @@ class ConfigurationApiImplTest extends Specification {
 
         def response = response
         if (expectedRequest) {
-          def requestBody = ('{' +
+          def responseBody = ('{' +
             '  "data": {' +
             '    "type": "ci_app_tracers_test_service_settings",' +
             '    "id": "uuid",' +
@@ -76,6 +76,7 @@ class ConfigurationApiImplTest extends Specification {
             '      "tests_skipping": true,' +
             '      "require_git": true,' +
             '      "flaky_test_retries_enabled": true,' +
+            '      "impacted_tests_enabled": true,' +
             '      "early_flake_detection": {' +
             '        "enabled": true,' +
             '        "slow_test_retries": {' +
@@ -94,10 +95,10 @@ class ConfigurationApiImplTest extends Specification {
           def gzipSupported = header != null && header.contains("gzip")
           if (gzipSupported) {
             response.addHeader("Content-Encoding", "gzip")
-            requestBody = gzip(requestBody)
+            responseBody = gzip(responseBody)
           }
 
-          response.status(200).send(requestBody)
+          response.status(200).send(responseBody)
         } else {
           response.status(400).send()
         }
@@ -186,7 +187,7 @@ class ConfigurationApiImplTest extends Specification {
         }
 
         def response = response
-        def requestBody = """
+        def responseBody = """
 {
   "data": [
     ${tests.join(',')}
@@ -206,10 +207,10 @@ class ConfigurationApiImplTest extends Specification {
         def gzipSupported = header != null && header.contains("gzip")
         if (gzipSupported) {
           response.addHeader("Content-Encoding", "gzip")
-          requestBody = gzip(requestBody)
+          responseBody = gzip(responseBody)
         }
 
-        response.status(200).send(requestBody)
+        response.status(200).send(responseBody)
       }
 
       prefix("/api/v2/ci/libraries/tests/flaky") {
@@ -295,7 +296,7 @@ class ConfigurationApiImplTest extends Specification {
         }
 
         def response = response
-        def requestBody = """
+        def responseBody = """
 {
   "data": [
     ${tests.join(',')}
@@ -315,10 +316,10 @@ class ConfigurationApiImplTest extends Specification {
         def gzipSupported = header != null && header.contains("gzip")
         if (gzipSupported) {
           response.addHeader("Content-Encoding", "gzip")
-          requestBody = gzip(requestBody)
+          responseBody = gzip(responseBody)
         }
 
-        response.status(200).send(requestBody)
+        response.status(200).send(responseBody)
       }
 
       prefix("/api/v2/ci/libraries/tests") {
@@ -353,7 +354,7 @@ class ConfigurationApiImplTest extends Specification {
 
         def response = response
         if (expectedRequest) {
-          def requestBody = ("""
+          def responseBody = ("""
 {
     "data": {
         "id": "9p1jTQLXB8g",
@@ -386,13 +387,61 @@ class ConfigurationApiImplTest extends Specification {
           def gzipSupported = header != null && header.contains("gzip")
           if (gzipSupported) {
             response.addHeader("Content-Encoding", "gzip")
-            requestBody = gzip(requestBody)
+            responseBody = gzip(responseBody)
           }
 
-          response.status(200).send(requestBody)
+          response.status(200).send(responseBody)
         } else {
           response.status(400).send()
         }
+      }
+
+      prefix("/api/v2/ci/tests/diffs") {
+        def requestJson = moshi.adapter(Map).fromJson(new String(request.body))
+
+        // assert request contents
+        def requestData = requestJson['data']
+        if (requestData['type'] != "ci_app_tests_diffs_request") {
+          response.status(400).send()
+          return
+        }
+
+        def requestAttrs = requestData['attributes']
+        if (requestAttrs['service'] != "foo"
+          || requestAttrs['env'] != "foo_env"
+          || requestAttrs['repository_url'] != "https://github.com/DataDog/foo"
+          || requestAttrs['branch'] != "prod"
+          || requestAttrs['sha'] != "d64185e45d1722ab3a53c45be47accae"
+          ) {
+          response.status(400).send()
+          return
+        }
+
+        def response = response
+        def responseBody = """
+{
+  "data": {
+    "type": "ci_app_tests_diffs_response",
+    "id": "<some-hash>",
+    "attributes": {
+      "base_sha": "ef733331f7cee9b1c89d82df87942d8606edf3f7",
+      "files": [
+         "domains/ci-app/apps/apis/rapid-ci-app/internal/itrapihttp/api.go",
+         "domains/ci-app/apps/apis/rapid-ci-app/internal/itrapihttp/api_test.go"
+      ]
+    }
+  }
+}
+""".bytes
+
+        def header = request.getHeader("Accept-Encoding")
+        def gzipSupported = header != null && header.contains("gzip")
+        if (gzipSupported) {
+          response.addHeader("Content-Encoding", "gzip")
+          responseBody = gzip(responseBody)
+        }
+
+        response.status(200).send(responseBody)
       }
     }
   }
@@ -419,6 +468,7 @@ class ConfigurationApiImplTest extends Specification {
     settings.testsSkippingEnabled
     settings.gitUploadRequired
     settings.flakyTestRetriesEnabled
+    settings.impactedTestsDetectionEnabled
     settings.earlyFlakeDetectionSettings.enabled
     settings.earlyFlakeDetectionSettings.faultySessionThreshold == 30
     settings.earlyFlakeDetectionSettings.getExecutions(TimeUnit.SECONDS.toMillis(3)) == 10
@@ -562,6 +612,23 @@ class ConfigurationApiImplTest extends Specification {
     givenEvpProxy(true)   | "EVP proxy, response compression enabled"
     givenIntakeApi(false) | "intake, response compression disabled"
     givenIntakeApi(true)  | "intake, response compression enabled"
+  }
+
+  def "test changed files request"() {
+    given:
+    def tracerEnvironment = givenTracerEnvironment()
+
+    when:
+    def api = givenIntakeApi(true)
+    def configurationApi = new ConfigurationApiImpl(api, Stub(CiVisibilityMetricCollector), () -> "1234")
+    def changedFiles = configurationApi.getChangedFiles(tracerEnvironment)
+
+    then:
+    changedFiles.baseSha == "ef733331f7cee9b1c89d82df87942d8606edf3f7"
+    changedFiles.files == new HashSet([
+      "domains/ci-app/apps/apis/rapid-ci-app/internal/itrapihttp/api.go",
+      "domains/ci-app/apps/apis/rapid-ci-app/internal/itrapihttp/api_test.go"
+    ])
   }
 
   private BackendApi givenEvpProxy(boolean responseCompression) {

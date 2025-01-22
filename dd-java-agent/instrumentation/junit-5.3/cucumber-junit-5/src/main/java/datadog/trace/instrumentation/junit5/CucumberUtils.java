@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.junit5;
 
 import datadog.trace.api.Pair;
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.config.TestSourceData;
 import java.io.InputStream;
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -19,7 +20,8 @@ import org.junit.platform.engine.support.descriptor.ClasspathResourceSource;
 public abstract class CucumberUtils {
 
   static {
-    TestIdentifierFactory.register("cucumber", CucumberUtils::toTestIdentifier);
+    TestDataFactory.register(
+        "cucumber", CucumberUtils::toTestIdentifier, d -> TestSourceData.UNKNOWN);
   }
 
   public static @Nullable String getCucumberVersion(TestEngine cucumberEngine) {

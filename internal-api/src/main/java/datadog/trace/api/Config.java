@@ -336,6 +336,7 @@ public class Config {
   private final String[] ciVisibilityCodeCoverageExcludedPackages;
   private final List<String> ciVisibilityJacocoGradleSourceSets;
   private final Integer ciVisibilityDebugPort;
+  private final boolean ciVisibilityGitClientEnabled;
   private final boolean ciVisibilityGitUploadEnabled;
   private final boolean ciVisibilityGitUnshallowEnabled;
   private final boolean ciVisibilityGitUnshallowDefer;
@@ -356,6 +357,7 @@ public class Config {
   private final String ciVisibilityInjectedTracerVersion;
   private final List<String> ciVisibilityResourceFolderNames;
   private final boolean ciVisibilityFlakyRetryEnabled;
+  private final boolean ciVisibilityImpactedTestsDetectionEnabled;
   private final boolean ciVisibilityFlakyRetryOnlyKnownFlakes;
   private final int ciVisibilityFlakyRetryCount;
   private final int ciVisibilityTotalFlakyRetryCount;
@@ -1443,6 +1445,7 @@ public class Config {
     ciVisibilityJacocoGradleSourceSets =
         configProvider.getList(CIVISIBILITY_GRADLE_SOURCE_SETS, Arrays.asList("main", "test"));
     ciVisibilityDebugPort = configProvider.getInteger(CIVISIBILITY_DEBUG_PORT);
+    ciVisibilityGitClientEnabled = configProvider.getBoolean(CIVISIBILITY_GIT_CLIENT_ENABLED, true);
     ciVisibilityGitUploadEnabled =
         configProvider.getBoolean(
             CIVISIBILITY_GIT_UPLOAD_ENABLED, DEFAULT_CIVISIBILITY_GIT_UPLOAD_ENABLED);
@@ -1492,6 +1495,8 @@ public class Config {
             CIVISIBILITY_RESOURCE_FOLDER_NAMES, DEFAULT_CIVISIBILITY_RESOURCE_FOLDER_NAMES);
     ciVisibilityFlakyRetryEnabled =
         configProvider.getBoolean(CIVISIBILITY_FLAKY_RETRY_ENABLED, true);
+    ciVisibilityImpactedTestsDetectionEnabled =
+        configProvider.getBoolean(CIVISIBILITY_IMPACTED_TESTS_DETECTION_ENABLED, true);
     ciVisibilityFlakyRetryOnlyKnownFlakes =
         configProvider.getBoolean(CIVISIBILITY_FLAKY_RETRY_ONLY_KNOWN_FLAKES, false);
     ciVisibilityEarlyFlakeDetectionEnabled =
@@ -2819,6 +2824,10 @@ public class Config {
     return ciVisibilityDebugPort;
   }
 
+  public boolean isCiVisibilityGitClientEnabled() {
+    return ciVisibilityGitClientEnabled;
+  }
+
   public boolean isCiVisibilityGitUploadEnabled() {
     return ciVisibilityGitUploadEnabled;
   }
@@ -2897,6 +2906,10 @@ public class Config {
 
   public boolean isCiVisibilityFlakyRetryEnabled() {
     return ciVisibilityFlakyRetryEnabled;
+  }
+
+  public boolean isCiVisibilityImpactedTestsDetectionEnabled() {
+    return ciVisibilityImpactedTestsDetectionEnabled;
   }
 
   public boolean isCiVisibilityFlakyRetryOnlyKnownFlakes() {
@@ -3784,6 +3797,14 @@ public class Config {
     return SpanNaming.instance().namingSchema().allowInferredServices()
         && configProvider.isEnabled(
             Arrays.asList(integrationNames), "", ".time-in-queue.enabled", defaultEnabled);
+  }
+
+  public boolean isAddSpanPointers(final String integrationName) {
+    return configProvider.isEnabled(
+        Collections.singletonList(ADD_SPAN_POINTERS),
+        integrationName,
+        "",
+        DEFAULT_ADD_SPAN_POINTERS);
   }
 
   public boolean isEnabled(

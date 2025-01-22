@@ -1,7 +1,7 @@
 package datadog.trace.civisibility.config
 
 
-import datadog.trace.civisibility.ipc.Serializer
+import datadog.trace.civisibility.ipc.serialization.Serializer
 import spock.lang.Specification
 
 class EarlyFlakeDetectionSettingsSerializerTest extends Specification {

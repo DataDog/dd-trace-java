@@ -12,12 +12,13 @@ import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.agent.tooling.muzzle.ReferenceProvider;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.junit5.JUnitPlatformUtils;
+import datadog.trace.instrumentation.junit5.TestDataFactory;
 import datadog.trace.instrumentation.junit5.TestEventsHandlerHolder;
-import datadog.trace.instrumentation.junit5.TestIdentifierFactory;
 import datadog.trace.util.Strings;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
@@ -60,7 +61,7 @@ public class JUnit5RetryInstrumentation extends InstrumenterModule.CiVisibility
       packageName + ".TestDescriptorHandle",
       packageName + ".ThrowableCollectorFactoryWrapper",
       parentPackageName + ".JUnitPlatformUtils",
-      parentPackageName + ".TestIdentifierFactory",
+      parentPackageName + ".TestDataFactory",
       parentPackageName + ".TestEventsHandlerHolder",
     };
   }
@@ -141,9 +142,10 @@ public class JUnit5RetryInstrumentation extends InstrumenterModule.CiVisibility
         return null;
       }
 
-      TestIdentifier testIdentifier = TestIdentifierFactory.createTestIdentifier(testDescriptor);
+      TestIdentifier testIdentifier = TestDataFactory.createTestIdentifier(testDescriptor);
+      TestSourceData testSource = TestDataFactory.createTestSourceData(testDescriptor);
       TestRetryPolicy retryPolicy =
-          TestEventsHandlerHolder.TEST_EVENTS_HANDLER.retryPolicy(testIdentifier);
+          TestEventsHandlerHolder.TEST_EVENTS_HANDLER.retryPolicy(testIdentifier, testSource);
       if (!retryPolicy.retriesLeft()) {
         return null;
       }

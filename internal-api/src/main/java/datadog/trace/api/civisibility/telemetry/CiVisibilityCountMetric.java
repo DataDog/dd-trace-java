@@ -17,6 +17,7 @@ import datadog.trace.api.civisibility.telemetry.tag.FlakyTestRetriesEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.HasCodeowner;
 import datadog.trace.api.civisibility.telemetry.tag.IsBenchmark;
 import datadog.trace.api.civisibility.telemetry.tag.IsHeadless;
+import datadog.trace.api.civisibility.telemetry.tag.IsModified;
 import datadog.trace.api.civisibility.telemetry.tag.IsNew;
 import datadog.trace.api.civisibility.telemetry.tag.IsRetry;
 import datadog.trace.api.civisibility.telemetry.tag.IsRum;
@@ -62,6 +63,7 @@ public enum CiVisibilityCountMetric {
       IsBenchmark.class,
       EarlyFlakeDetectionAbortReason.class,
       IsNew.class,
+      IsModified.class,
       IsRetry.class,
       IsRum.class,
       BrowserDriver.class),
@@ -129,8 +131,13 @@ public enum CiVisibilityCountMetric {
   EFD_REQUEST_ERRORS("early_flake_detection.request_errors", ErrorType.class, StatusCode.class),
   /** The number of requests sent to the flaky tests endpoint */
   FLAKY_TESTS_REQUEST("flaky_tests.request", RequestCompressed.class),
-  /** The number of known tests requests sent to the flaky tests that errored */
-  FLAKY_TESTS_REQUEST_ERRORS("flaky_tests.request_errors", ErrorType.class, StatusCode.class);
+  /** The number of tests requests sent to the flaky tests endpoint that errored */
+  FLAKY_TESTS_REQUEST_ERRORS("flaky_tests.request_errors", ErrorType.class, StatusCode.class),
+  /** The number of requests sent to the changed files endpoint */
+  IMPACTED_TESTS_DETECTION_REQUEST("impacted_tests_detection.request", RequestCompressed.class),
+  /** The number of tests requests sent to the changed files endpoint that errored */
+  IMPACTED_TESTS_DETECTION_REQUEST_ERRORS(
+      "impacted_tests_detection.request_errors", ErrorType.class, StatusCode.class);
 
   // need a "holder" class, as accessing static fields from enum constructors is illegal
   static class IndexHolder {

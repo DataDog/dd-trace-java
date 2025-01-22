@@ -11,6 +11,8 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 
+import static datadog.trace.civisibility.TestUtils.lines
+
 class GitClientTest extends Specification {
 
   private static final int GIT_COMMAND_TIMEOUT_MILLIS = 10_000
@@ -42,6 +44,18 @@ class GitClientTest extends Specification {
 
     then:
     shallow
+  }
+
+  def "test repo root"() {
+    given:
+    givenGitRepo()
+
+    when:
+    def gitClient = givenGitClient()
+    def repoRoot = gitClient.getRepoRoot()
+
+    then:
+    repoRoot == tempDir.toRealPath().toString()
   }
 
   def "test get upstream branch SHA"() {
@@ -301,6 +315,20 @@ class GitClientTest extends Specification {
     gitPackObject.getType() == GitObject.COMMIT_TYPE
   }
 
+  def "test git diff"() {
+    given:
+    givenGitRepo()
+
+    when:
+    def gitClient = givenGitClient()
+    def diff = gitClient.getGitDiff("10599ae3c17d66d642f9f143b1ff3dd236111e2a", "6aaa4085c10d16b63a910043e35dbd35d2ef7f1c")
+
+    then:
+    diff.linesByRelativePath == [
+      "src/Datadog.Trace/Logging/DatadogLogging.cs": lines(26, 32, 91, 95, 159, 160)
+    ]
+  }
+
   private void givenGitRepo() {
     givenGitRepo("ci/git/with_pack/git")
   }
@@ -314,6 +342,6 @@ class GitClientTest extends Specification {
 
   private givenGitClient() {
     def metricCollector = Stub(CiVisibilityMetricCollectorImpl)
-    new GitClient(metricCollector, tempDir.toString(), "25 years ago", 10, GIT_COMMAND_TIMEOUT_MILLIS)
+    new ShellGitClient(metricCollector, tempDir.toString(), "25 years ago", 10, GIT_COMMAND_TIMEOUT_MILLIS)
   }
 }
