@@ -17,6 +17,7 @@ import com.datadog.appsec.event.data.MapDataBundle
 import com.datadog.appsec.gateway.AppSecRequestContext
 import com.datadog.appsec.gateway.GatewayContext
 import com.datadog.appsec.report.AppSecEvent
+import datadog.trace.api.telemetry.RuleType
 import datadog.trace.util.stacktrace.StackTraceEvent
 import com.datadog.appsec.test.StubAppSecConfigService
 import datadog.communication.monitor.Monitoring
@@ -974,21 +975,26 @@ class PowerWAFModuleSpecification extends DDSpecification {
     def mockWafMetricCollector = Mock(WafMetricCollector)
     WafMetricCollector.INSTANCE = mockWafMetricCollector
 
+    GatewayContext gwCtxWithRasp = new GatewayContext(false, RuleType.SQL_INJECTION)
+
     when:
-    dataListener.onDataAvailable(flow, ctx, db, gwCtx)
+    dataListener.onDataAvailable(flow, ctx, db, gwCtxWithRasp)
 
     then:
     ctx.getOrCreateAdditive(_, true) >> {
       pwafAdditive = it[0].openAdditive() }
     assert !flow.blocking
-    1 * ctx.increaseTimeouts()
+    1 * ctx.increaseWafTimeouts()
     1 * mockWafMetricCollector.get().wafRequestTimeout()
+    1 * ctx.increaseRaspTimeouts()
+    1 * mockWafMetricCollector.get().raspTimeout(gwCtxWithRasp.raspRuleType)
 
     when:
     pp.processTraceSegment(segment, ctx, [])
 
     then:
     1 * segment.setTagTop('_dd.appsec.waf.timeouts', 1L)
+    1 * segment.setTagTop('_dd.appsec.rasp.timeout', 1L)
     _ * segment.setTagTop(_, _)
 
     cleanup:
@@ -1112,7 +1118,8 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.getWafMetrics()
     1 * ctx.isAdditiveClosed() >> false
     1 * ctx.closeAdditive() >> { pwafAdditive.close() }
-    _ * ctx.increaseTimeouts()
+    _ * ctx.increaseWafTimeouts()
+    _ * ctx.increaseRaspTimeouts()
     0 * _
 
     when: 'removing data and override config'
@@ -1136,7 +1143,8 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.isAdditiveClosed() >> false
     1 * ctx.closeAdditive() >> {pwafAdditive.close()}
     1 * reconf.reloadSubscriptions()
-    _ * ctx.increaseTimeouts()
+    _ * ctx.increaseWafTimeouts()
+    _ * ctx.increaseRaspTimeouts()
     0 * _
 
     when: 'data is readded'
@@ -1162,7 +1170,8 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.closeAdditive() >> {pwafAdditive.close()}
     1 * flow.isBlocking()
     1 * ctx.isThrottled(null)
-    _ * ctx.increaseTimeouts()
+    _ * ctx.increaseWafTimeouts()
+    _ * ctx.increaseRaspTimeouts()
     0 * _
 
     when: 'toggling the rule off'
@@ -1184,7 +1193,8 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.getWafMetrics()
     1 * ctx.isAdditiveClosed() >> false
     1 * ctx.closeAdditive()
-    _ * ctx.increaseTimeouts()
+    _ * ctx.increaseWafTimeouts()
+    _ * ctx.increaseRaspTimeouts()
     0 * _
   }
 
@@ -1214,7 +1224,8 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.getWafMetrics()
     1 * ctx.isAdditiveClosed() >> false
     1 * ctx.closeAdditive() >> {pwafAdditive.close()}
-    _ * ctx.increaseTimeouts()
+    _ * ctx.increaseWafTimeouts()
+    _ * ctx.increaseRaspTimeouts()
     0 * _
 
     when: 'rule enabled in config a has no effect'
@@ -1238,7 +1249,8 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.getWafMetrics()
     1 * ctx.isAdditiveClosed() >> false
     1 * ctx.closeAdditive() >> {pwafAdditive.close()}
-    _ * ctx.increaseTimeouts()
+    _ * ctx.increaseWafTimeouts()
+    _ * ctx.increaseRaspTimeouts()
     0 * _
 
     when: 'rule enabled in config c overrides b'
@@ -1266,7 +1278,8 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
     1 * ctx.isAdditiveClosed() >> false
     1 * ctx.closeAdditive() >> {pwafAdditive.close()}
-    _ * ctx.increaseTimeouts()
+    _ * ctx.increaseWafTimeouts()
+    _ * ctx.increaseRaspTimeouts()
     1 * ctx.isThrottled(null)
     0 * _
 
@@ -1289,7 +1302,8 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.getWafMetrics()
     1 * ctx.isAdditiveClosed() >> false
     1 * ctx.closeAdditive()
-    _ * ctx.increaseTimeouts()
+    _ * ctx.increaseWafTimeouts()
+    _ * ctx.increaseRaspTimeouts()
     0 * _
   }
 
