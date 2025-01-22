@@ -23,7 +23,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -86,24 +85,23 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
   }
 
   public void registerLogProbe(CodeOriginProbe probe) {
-    if (!logProbes.containsKey(probe.getId())) {
-      LogProbe logProbe =
-          new LogProbe.Builder()
-              .language(probe.getLanguage())
-              .probeId(ProbeId.newId())
-              .where(probe.getWhere())
-              .evaluateAt(probe.getEvaluateAt())
-              .captureSnapshot(true)
-              .build();
-      logProbes.put(probe.getId(), logProbe);
-    }
+    logProbes.computeIfAbsent(
+        probe.getId(),
+        key ->
+            new LogProbe.Builder()
+                .language(probe.getLanguage())
+                .probeId(ProbeId.newId())
+                .where(probe.getWhere())
+                .evaluateAt(probe.getEvaluateAt())
+                .captureSnapshot(true)
+                .build());
   }
 
   private CodeOriginProbe createProbe(String fingerPrint, boolean entry, Where where) {
     CodeOriginProbe probe;
     AgentSpan span = AgentTracer.activeSpan();
 
-    probe = new CodeOriginProbe(new ProbeId(UUID.randomUUID().toString(), 0), entry, where);
+    probe = new CodeOriginProbe(ProbeId.newId(), entry, where);
     addFingerprint(fingerPrint, probe);
     CodeOriginProbe installed = probes.putIfAbsent(probe.getId(), probe);
 

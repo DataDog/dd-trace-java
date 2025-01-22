@@ -339,10 +339,14 @@ public class DebuggerContext {
   }
 
   public static void codeOrigin(String probeId) {
-    ProbeImplementation probe = probeResolver.resolve(probeId);
-    if (probe != null) {
-      probe.commit(
-          CapturedContext.EMPTY_CONTEXT, CapturedContext.EMPTY_CONTEXT, Collections.emptyList());
+    try {
+      ProbeImplementation probe = probeResolver.resolve(probeId);
+      if (probe != null) {
+        probe.commit(
+            CapturedContext.EMPTY_CONTEXT, CapturedContext.EMPTY_CONTEXT, Collections.emptyList());
+      }
+    } catch (Exception e) {
+      LOGGER.debug("Error in codeOrigin: ", e);
     }
   }
 

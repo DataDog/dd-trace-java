@@ -1,6 +1,7 @@
 package com.datadog.debugger.instrumentation;
 
 import com.datadog.debugger.util.ClassFileLines;
+import datadog.trace.util.Strings;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
 
@@ -55,6 +56,6 @@ public class MethodInfo {
   }
 
   public String getTypeName() {
-    return classNode.name.replace('/', '.');
+    return Strings.getClassName(classNode.name);
   }
 }

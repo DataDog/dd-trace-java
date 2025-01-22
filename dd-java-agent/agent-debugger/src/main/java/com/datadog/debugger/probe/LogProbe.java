@@ -951,6 +951,7 @@ public class LogProbe extends ProbeDefinition implements Sampled {
     private ProbeCondition probeCondition;
     private Capture capture;
     private Sampling sampling;
+    private String sessionId;
 
     public Builder template(String template, List<Segment> segments) {
       this.template = template;
@@ -970,6 +971,11 @@ public class LogProbe extends ProbeDefinition implements Sampled {
 
     public Builder sampling(Sampling sampling) {
       this.sampling = sampling;
+      return this;
+    }
+
+    public Builder sessionId(String sessionId) {
+      this.sessionId = sessionId;
       return this;
     }
 

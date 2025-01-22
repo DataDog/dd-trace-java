@@ -29,7 +29,7 @@ public class CodeOriginInstrumentor extends Instrumentor {
 
     invokeStatic(insnList, DEBUGGER_CONTEXT_TYPE, "codeOrigin", Type.VOID_TYPE, STRING_TYPE);
 
-    methodNode.instructions.insert(methodNode.instructions.getFirst(), insnList);
+    methodNode.instructions.insert(methodEnterLabel, insnList);
 
     return InstrumentationResult.Status.INSTALLED;
   }
