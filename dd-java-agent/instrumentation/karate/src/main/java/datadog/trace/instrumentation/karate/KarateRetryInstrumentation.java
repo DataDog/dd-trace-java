@@ -94,7 +94,8 @@ public class KarateRetryInstrumentation extends InstrumenterModule.CiVisibility
       if (retryPolicy.retry(!retryContext.getAndResetFailed(), duration)) {
         ScenarioRuntime retry =
             new ScenarioRuntime(scenarioRuntime.featureRuntime, scenarioRuntime.scenario);
-        retry.magicVariables.put(KarateUtils.RETRY_MAGIC_VARIABLE, true);
+        retry.magicVariables.put(
+            KarateUtils.RETRY_MAGIC_VARIABLE, retryPolicy.currentExecutionRetryReason());
         retry.run();
         retry.featureRuntime.result.addResult(retry.result);
       }

@@ -1,6 +1,5 @@
 package datadog.trace.civisibility.config
 
-import com.squareup.moshi.Moshi
 import datadog.communication.BackendApi
 import datadog.communication.BackendApiFactory
 import datadog.communication.EvpProxyApi
@@ -11,14 +10,14 @@ import datadog.trace.agent.test.server.http.TestHttpServer
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.api.civisibility.config.TestMetadata
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector
+import datadog.trace.civisibility.CiVisibilityTestUtils
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import org.apache.commons.io.IOUtils
-import spock.lang.AutoCleanup
-import spock.lang.Shared
+import org.skyscreamer.jsonassert.JSONAssert
+import org.skyscreamer.jsonassert.JSONCompareMode
 import spock.lang.Specification
 
-import java.util.concurrent.TimeUnit
 import java.util.function.Function
 import java.util.zip.GZIPOutputStream
 
@@ -28,477 +27,61 @@ class ConfigurationApiImplTest extends Specification {
 
   private static final int REQUEST_TIMEOUT_MILLIS = 15_000
 
-  @Shared
-  Moshi moshi = new Moshi.Builder().build()
+  private static final String REQUEST_UID = "1234"
 
-  @Shared
-  @AutoCleanup
-  TestHttpServer intakeServer = httpServer {
-    handlers {
-      prefix("/api/v2/libraries/tests/services/setting") {
-        def requestJson = moshi.adapter(Map).fromJson(new String(request.body))
-        boolean expectedRequest = requestJson == [
-          "data": [
-            "type"      : "ci_app_test_service_libraries_settings",
-            "id"        : "1234",
-            "attributes": [
-              "service"       : "foo",
-              "env"           : "foo_env",
-              "repository_url": "https://github.com/DataDog/foo",
-              "branch"        : "prod",
-              "sha"           : "d64185e45d1722ab3a53c45be47accae",
-              "test_level"    : "test",
-              "configurations": [
-                "os.platform"         : "linux",
-                "os.architecture"     : "amd64",
-                "os.arch"             : "amd64",
-                "os.version"          : "bionic",
-                "runtime.name"        : "runtimeName",
-                "runtime.version"     : "runtimeVersion",
-                "runtime.vendor"      : "vendor",
-                "runtime.architecture": "amd64",
-                "custom"              : [
-                  "customTag": "customValue"
-                ]
-              ]
-            ]
-          ]
-        ]
-
-        def response = response
-        if (expectedRequest) {
-          def responseBody = ('{' +
-            '  "data": {' +
-            '    "type": "ci_app_tracers_test_service_settings",' +
-            '    "id": "uuid",' +
-            '    "attributes": {' +
-            '      "code_coverage": true,' +
-            '      "tests_skipping": true,' +
-            '      "require_git": true,' +
-            '      "flaky_test_retries_enabled": true,' +
-            '      "impacted_tests_enabled": true,' +
-            '      "early_flake_detection": {' +
-            '        "enabled": true,' +
-            '        "slow_test_retries": {' +
-            '          "5s": 10,' +
-            '          "10s": 5,' +
-            '          "30s": 3,' +
-            '          "5m": 2' +
-            '        },' +
-            '        "faulty_session_threshold": 30' +
-            '      }' +
-            '    }' +
-            '  }' +
-            '}').bytes
-
-          def header = request.getHeader("Accept-Encoding")
-          def gzipSupported = header != null && header.contains("gzip")
-          if (gzipSupported) {
-            response.addHeader("Content-Encoding", "gzip")
-            responseBody = gzip(responseBody)
-          }
-
-          response.status(200).send(responseBody)
-        } else {
-          response.status(400).send()
-        }
-      }
-
-      prefix("/api/v2/ci/tests/skippable") {
-        def requestJson = moshi.adapter(Map).fromJson(new String(request.body))
-
-        // assert request contents
-        def requestData = requestJson['data']
-        if (requestData['type'] != "test_params"
-          || requestData['id'] != "1234"
-          ) {
-          response.status(400).send()
-          return
-        }
-
-        def requestAttrs = requestData['attributes']
-        if (requestAttrs['service'] != "foo"
-          || requestAttrs['env'] != "foo_env"
-          || requestAttrs['repository_url'] != "https://github.com/DataDog/foo"
-          || requestAttrs['branch'] != "prod"
-          || requestAttrs['sha'] != "d64185e45d1722ab3a53c45be47accae"
-          || requestAttrs['test_level'] != "test"
-          ) {
-          response.status(400).send()
-          return
-        }
-
-        def requestConfs = requestAttrs['configurations']
-        if (requestConfs['os.platform'] != "linux"
-          || requestConfs['os.architecture'] != "amd64"
-          || requestConfs['os.arch'] != "amd64"
-          || requestConfs['os.version'] != "bionic"
-          || requestConfs['runtime.name'] != "runtimeName"
-          || requestConfs['runtime.version'] != "runtimeVersion"
-          || requestConfs['runtime.vendor'] != "vendor"
-          || requestConfs['runtime.architecture'] != "amd64"
-          || requestConfs['custom']['customTag'] != "customValue"
-          ) {
-          response.status(400).send()
-          return
-        }
-
-        def testBundle = requestConfs['test.bundle']
-
-        def moduleATest = """{
-          "id": "49968354e2091cdb",
-          "type": "test",
-          "attributes": {
-            "configurations": {
-              ${!testBundle ? '"test.bundle": "testBundle-a",' : ""}
-              "custom": {
-                "customTag": "customValue"
-              }
-            },
-            "suite": "suite-a",
-            "name": "name-a",
-            "parameters": "parameters-a",
-            "_missing_line_code_coverage": true
-          }
-        }"""
-
-        def moduleBTest = """{
-          "id": "49968354e2091cdc",
-          "type": "test",
-          "attributes": {
-            "configurations": {
-              ${!testBundle ? '"test.bundle": "testBundle-b",' : ""}
-              "custom": {
-                "customTag": "customValue"
-              }
-            },
-            "suite": "suite-b",
-            "name": "name-b",
-            "parameters": "parameters-b"
-          }
-        }"""
-
-        def tests = []
-        if (!testBundle || testBundle == 'testBundle-a') {
-          tests << moduleATest
-        }
-        if (!testBundle || testBundle == 'testBundle-b') {
-          tests << moduleBTest
-        }
-
-        def response = response
-        def responseBody = """
-{
-  "data": [
-    ${tests.join(',')}
-  ],
-  "meta": {
-    "correlation_id": "11223344",
-    "coverage": {
-        "src/main/java/Calculator.java": "/8AA/w==",
-        "src/main/java/utils/Math.java": "AAAAf+AA/A==",
-        "src/test/java/CalculatorTest.java": "//AAeAAA/A=="
-    }
-  }
-}
-""".bytes
-
-        def header = request.getHeader("Accept-Encoding")
-        def gzipSupported = header != null && header.contains("gzip")
-        if (gzipSupported) {
-          response.addHeader("Content-Encoding", "gzip")
-          responseBody = gzip(responseBody)
-        }
-
-        response.status(200).send(responseBody)
-      }
-
-      prefix("/api/v2/ci/libraries/tests/flaky") {
-        def requestJson = moshi.adapter(Map).fromJson(new String(request.body))
-
-        // assert request contents
-        def requestData = requestJson['data']
-        if (requestData['type'] != "flaky_test_from_libraries_params"
-          || requestData['id'] != "1234"
-          ) {
-          response.status(400).send()
-          return
-        }
-
-        def requestAttrs = requestData['attributes']
-        if (requestAttrs['service'] != "foo"
-          || requestAttrs['env'] != "foo_env"
-          || requestAttrs['repository_url'] != "https://github.com/DataDog/foo"
-          || requestAttrs['branch'] != "prod"
-          || requestAttrs['sha'] != "d64185e45d1722ab3a53c45be47accae"
-          || requestAttrs['test_level'] != "test"
-          ) {
-          response.status(400).send()
-          return
-        }
-
-        def requestConfs = requestAttrs['configurations']
-        if (requestConfs['os.platform'] != "linux"
-          || requestConfs['os.architecture'] != "amd64"
-          || requestConfs['os.arch'] != "amd64"
-          || requestConfs['os.version'] != "bionic"
-          || requestConfs['runtime.name'] != "runtimeName"
-          || requestConfs['runtime.version'] != "runtimeVersion"
-          || requestConfs['runtime.vendor'] != "vendor"
-          || requestConfs['runtime.architecture'] != "amd64"
-          || requestConfs['custom']['customTag'] != "customValue"
-          ) {
-          response.status(400).send()
-          return
-        }
-
-        def testBundle = requestConfs['test.bundle']
-
-        def moduleATest = """{
-          "id": "49968354e2091cdb",
-          "type": "test",
-          "attributes": {
-            "configurations": {
-              ${!testBundle ? '"test.bundle": "testBundle-a",' : ""}
-              "custom": {
-                "customTag": "customValue"
-              }
-            },
-            "suite": "suite-a",
-            "name": "name-a",
-            "parameters": "parameters-a",
-            "_missing_line_code_coverage": true
-          }
-        }"""
-
-        def moduleBTest = """{
-          "id": "49968354e2091cdc",
-          "type": "test",
-          "attributes": {
-            "configurations": {
-              ${!testBundle ? '"test.bundle": "testBundle-b",' : ""}
-              "custom": {
-                "customTag": "customValue"
-              }
-            },
-            "suite": "suite-b",
-            "name": "name-b",
-            "parameters": "parameters-b"
-          }
-        }"""
-
-        def tests = []
-        if (!testBundle || testBundle == 'testBundle-a') {
-          tests << moduleATest
-        }
-        if (!testBundle || testBundle == 'testBundle-b') {
-          tests << moduleBTest
-        }
-
-        def response = response
-        def responseBody = """
-{
-  "data": [
-    ${tests.join(',')}
-  ],
-  "meta": {
-    "correlation_id": "11223344",
-    "coverage": {
-        "src/main/java/Calculator.java": "/8AA/w==",
-        "src/main/java/utils/Math.java": "AAAAf+AA/A==",
-        "src/test/java/CalculatorTest.java": "//AAeAAA/A=="
-    }
-  }
-}
-""".bytes
-
-        def header = request.getHeader("Accept-Encoding")
-        def gzipSupported = header != null && header.contains("gzip")
-        if (gzipSupported) {
-          response.addHeader("Content-Encoding", "gzip")
-          responseBody = gzip(responseBody)
-        }
-
-        response.status(200).send(responseBody)
-      }
-
-      prefix("/api/v2/ci/libraries/tests") {
-        def requestJson = moshi.adapter(Map).fromJson(new String(request.body))
-        boolean expectedRequest = requestJson == [
-          "data": [
-            "type"      : "ci_app_libraries_tests_request",
-            "id"        : "1234",
-            "attributes": [
-              "service"       : "foo",
-              "env"           : "foo_env",
-              "repository_url": "https://github.com/DataDog/foo",
-              "branch"        : "prod",
-              "sha"           : "d64185e45d1722ab3a53c45be47accae",
-              "test_level"    : "test",
-              "configurations": [
-                "os.platform"         : "linux",
-                "os.architecture"     : "amd64",
-                "os.arch"             : "amd64",
-                "os.version"          : "bionic",
-                "runtime.name"        : "runtimeName",
-                "runtime.version"     : "runtimeVersion",
-                "runtime.vendor"      : "vendor",
-                "runtime.architecture": "amd64",
-                "custom"              : [
-                  "customTag": "customValue"
-                ]
-              ]
-            ]
-          ]
-        ]
-
-        def response = response
-        if (expectedRequest) {
-          def responseBody = ("""
-{
-    "data": {
-        "id": "9p1jTQLXB8g",
-        "type": "ci_app_libraries_tests",
-        "attributes": {
-            "tests": {
-                "test-bundle-a": {
-                    "test-suite-a": [
-                        "test-name-1",
-                        "test-name-2"
-                    ],
-                    "test-suite-b": [
-                        "another-test-name-1",
-                        "test-name-2"
-                    ]
-                },
-                "test-bundle-N": {
-                    "test-suite-M": [
-                        "test-name-1",
-                        "test-name-2"
-                    ]
-                }
-            }
-        }
-    }
-}
-          """).bytes
-
-          def header = request.getHeader("Accept-Encoding")
-          def gzipSupported = header != null && header.contains("gzip")
-          if (gzipSupported) {
-            response.addHeader("Content-Encoding", "gzip")
-            responseBody = gzip(responseBody)
-          }
-
-          response.status(200).send(responseBody)
-        } else {
-          response.status(400).send()
-        }
-      }
-
-      prefix("/api/v2/ci/tests/diffs") {
-        def requestJson = moshi.adapter(Map).fromJson(new String(request.body))
-
-        // assert request contents
-        def requestData = requestJson['data']
-        if (requestData['type'] != "ci_app_tests_diffs_request") {
-          response.status(400).send()
-          return
-        }
-
-        def requestAttrs = requestData['attributes']
-        if (requestAttrs['service'] != "foo"
-          || requestAttrs['env'] != "foo_env"
-          || requestAttrs['repository_url'] != "https://github.com/DataDog/foo"
-          || requestAttrs['branch'] != "prod"
-          || requestAttrs['sha'] != "d64185e45d1722ab3a53c45be47accae"
-          ) {
-          response.status(400).send()
-          return
-        }
-
-        def response = response
-        def responseBody = """
-{
-  "data": {
-    "type": "ci_app_tests_diffs_response",
-    "id": "<some-hash>",
-    "attributes": {
-      "base_sha": "ef733331f7cee9b1c89d82df87942d8606edf3f7",
-      "files": [
-         "domains/ci-app/apps/apis/rapid-ci-app/internal/itrapihttp/api.go",
-         "domains/ci-app/apps/apis/rapid-ci-app/internal/itrapihttp/api_test.go"
-      ]
-    }
-  }
-}
-""".bytes
-
-        def header = request.getHeader("Accept-Encoding")
-        def gzipSupported = header != null && header.contains("gzip")
-        if (gzipSupported) {
-          response.addHeader("Content-Encoding", "gzip")
-          responseBody = gzip(responseBody)
-        }
-
-        response.status(200).send(responseBody)
-      }
-    }
-  }
-
-  private static byte[] gzip(byte[] payload) {
-    def baos = new ByteArrayOutputStream()
-    try (GZIPOutputStream zip = new GZIPOutputStream(baos)) {
-      IOUtils.copy(new ByteArrayInputStream(payload), zip)
-    }
-    return baos.toByteArray()
-  }
-
-  def "test settings request: #displayName"() {
+  def "test settings request"() {
     given:
     def tracerEnvironment = givenTracerEnvironment()
-    def metricCollector = Stub(CiVisibilityMetricCollector)
+
+    def intakeServer = givenBackendEndpoint(
+      "/api/v2/libraries/tests/services/setting",
+      "/datadog/trace/civisibility/config/settings-request.ftl",
+      [uid: REQUEST_UID, tracerEnvironment: tracerEnvironment],
+      "/datadog/trace/civisibility/config/settings-response.ftl",
+      [settings: expectedSettings]
+      )
+
+    def configurationApi = givenConfigurationApi(intakeServer, agentless, compression)
 
     when:
-    def configurationApi = new ConfigurationApiImpl(api, metricCollector, () -> "1234")
     def settings = configurationApi.getSettings(tracerEnvironment)
 
     then:
-    settings.codeCoverageEnabled
-    settings.testsSkippingEnabled
-    settings.gitUploadRequired
-    settings.flakyTestRetriesEnabled
-    settings.impactedTestsDetectionEnabled
-    settings.earlyFlakeDetectionSettings.enabled
-    settings.earlyFlakeDetectionSettings.faultySessionThreshold == 30
-    settings.earlyFlakeDetectionSettings.getExecutions(TimeUnit.SECONDS.toMillis(3)) == 10
-    settings.earlyFlakeDetectionSettings.getExecutions(TimeUnit.SECONDS.toMillis(9)) == 5
-    settings.earlyFlakeDetectionSettings.getExecutions(TimeUnit.SECONDS.toMillis(29)) == 3
-    settings.earlyFlakeDetectionSettings.getExecutions(TimeUnit.MINUTES.toMillis(4)) == 2
-    settings.earlyFlakeDetectionSettings.getExecutions(TimeUnit.MINUTES.toMillis(6)) == 0
+    settings == expectedSettings
+
+    cleanup:
+    intakeServer.close()
 
     where:
-    api                   | displayName
-    givenEvpProxy(false)  | "EVP proxy, compression disabled"
-    givenEvpProxy(true)   | "EVP proxy, compression enabled"
-    givenIntakeApi(false) | "intake, compression disabled"
-    givenIntakeApi(true)  | "intake, compression enabled"
+    agentless | compression | expectedSettings
+    false     | false       | new CiVisibilitySettings(false, false, false, false, false, false, false, EarlyFlakeDetectionSettings.DEFAULT)
+    false     | true        | new CiVisibilitySettings(true, true, true, true, true, true, true, EarlyFlakeDetectionSettings.DEFAULT)
+    true      | false       | new CiVisibilitySettings(false, true, false, true, false, true, false, new EarlyFlakeDetectionSettings(true, [new EarlyFlakeDetectionSettings.ExecutionsByDuration(1000, 3)], 10))
+    true      | true        | new CiVisibilitySettings(false, false, true, true, false, false, true, new EarlyFlakeDetectionSettings(true, [
+      new EarlyFlakeDetectionSettings.ExecutionsByDuration(5000, 3),
+      new EarlyFlakeDetectionSettings.ExecutionsByDuration(120000, 2)
+    ], 10))
   }
 
-  def "test skippable tests request: #displayName"() {
+  def "test skippable tests request"() {
     given:
-    def tracerEnvironment = givenTracerEnvironment()
-    def metricCollector = Stub(CiVisibilityMetricCollector)
+    def tracerEnvironment = givenTracerEnvironment(testBundle)
+
+    def intakeServer = givenBackendEndpoint(
+    "/api/v2/ci/tests/skippable",
+    "/datadog/trace/civisibility/config/${request}",
+    [uid: REQUEST_UID, tracerEnvironment: tracerEnvironment],
+    "/datadog/trace/civisibility/config/${response}",
+    [:]
+    )
+
+    def configurationApi = givenConfigurationApi(intakeServer)
 
     when:
-    def configurationApi = new ConfigurationApiImpl(api, metricCollector, () -> "1234")
     def skippableTests = configurationApi.getSkippableTests(tracerEnvironment)
 
     then:
-    skippableTests.identifiersByModule == [
-      "testBundle-a": [ new TestIdentifier("suite-a", "name-a", "parameters-a"): new TestMetadata(true), ],
-      "testBundle-b": [ new TestIdentifier("suite-b", "name-b", "parameters-b"): new TestMetadata(false) ],
-    ]
+    skippableTests.identifiersByModule == expectedTests
 
     skippableTests.correlationId == "11223344"
 
@@ -507,83 +90,72 @@ class ConfigurationApiImplTest extends Specification {
     skippableTests.coveredLinesByRelativeSourcePath["src/test/java/CalculatorTest.java"] == bits(0, 1, 2, 3, 4, 5, 6, 7, 12, 13, 14, 15, 27, 28, 29, 30, 50, 51, 52, 53, 54, 55)
     skippableTests.coveredLinesByRelativeSourcePath["src/main/java/utils/Math.java"] == bits(24, 25, 26, 27, 28, 29, 30, 37, 38, 39, 50, 51, 52, 53, 54, 55)
 
+    cleanup:
+    intakeServer.close()
+
     where:
-    api                   | displayName
-    givenEvpProxy(false)  | "EVP proxy, compression disabled"
-    givenEvpProxy(true)   | "EVP proxy, compression enabled"
-    givenIntakeApi(false) | "intake, compression disabled"
-    givenIntakeApi(true)  | "intake, compression enabled"
-  }
-
-  def "test skippable tests request with module name"() {
-    given:
-    def tracerEnvironment = givenTracerEnvironment("testBundle-a")
-    def metricCollector = Stub(CiVisibilityMetricCollector)
-    def api = givenIntakeApi(false)
-
-    when:
-    def configurationApi = new ConfigurationApiImpl(api, metricCollector, () -> "1234")
-    def skippableTests = configurationApi.getSkippableTests(tracerEnvironment)
-
-    then:
-    skippableTests.identifiersByModule == [
-      "testBundle-a": [ new TestIdentifier("suite-a", "name-a", "parameters-a"): new TestMetadata(true), ]
+    testBundle     | request                            | response                            | expectedTests
+    null           | "skippable-request.ftl"            | "skippable-response.ftl"            | [
+      "testBundle-a": [new TestIdentifier("suite-a", "name-a", "parameters-a"): new TestMetadata(true)],
+      "testBundle-b": [new TestIdentifier("suite-b", "name-b", null): new TestMetadata(false)]
+    ]
+    "testBundle-a" | "skippable-request-one-module.ftl" | "skippable-response-one-module.ftl" | [
+      "testBundle-a": [
+        new TestIdentifier("suite-a", "name-a", "parameters-a"): new TestMetadata(true),
+        new TestIdentifier("suite-b", "name-b", null)          : new TestMetadata(true)
+      ],
     ]
   }
 
-  def "test flaky tests request: #displayName"() {
+  def "test flaky tests request"() {
     given:
-    def tracerEnvironment = givenTracerEnvironment()
-    def metricCollector = Stub(CiVisibilityMetricCollector)
+    def tracerEnvironment = givenTracerEnvironment(testBundle)
+
+    def intakeServer = givenBackendEndpoint(
+    "/api/v2/ci/libraries/tests/flaky",
+    "/datadog/trace/civisibility/config/${request}",
+    [uid: REQUEST_UID, tracerEnvironment: tracerEnvironment],
+    "/datadog/trace/civisibility/config/${response}",
+    [:]
+    )
+
+    def configurationApi = givenConfigurationApi(intakeServer)
 
     when:
-    def configurationApi = new ConfigurationApiImpl(api, metricCollector, () -> "1234")
     def flakyTests = configurationApi.getFlakyTestsByModule(tracerEnvironment)
 
     then:
-    flakyTests == [
-      "testBundle-a": new HashSet<>([ new TestIdentifier("suite-a", "name-a", "parameters-a") ]),
-      "testBundle-b": new HashSet<>([ new TestIdentifier("suite-b", "name-b", "parameters-b") ]),
-    ]
+    flakyTests == expectedTests
+
+    cleanup:
+    intakeServer.close()
 
     where:
-    api                   | displayName
-    givenEvpProxy(false)  | "EVP proxy, compression disabled"
-    givenEvpProxy(true)   | "EVP proxy, compression enabled"
-    givenIntakeApi(false) | "intake, compression disabled"
-    givenIntakeApi(true)  | "intake, compression enabled"
-  }
-
-  def "test flaky tests request with module name"() {
-    given:
-    def tracerEnvironment = givenTracerEnvironment("testBundle-a")
-    def metricCollector = Stub(CiVisibilityMetricCollector)
-    def api = givenIntakeApi(false)
-
-    when:
-    def configurationApi = new ConfigurationApiImpl(api, metricCollector, () -> "1234")
-    def flakyTests = configurationApi.getFlakyTestsByModule(tracerEnvironment)
-
-    then:
-    flakyTests == [
-      "testBundle-a": new HashSet<>([ new TestIdentifier("suite-a", "name-a", "parameters-a") ])
+    testBundle     | request                        | response                        | expectedTests
+    null           | "flaky-request.ftl"            | "flaky-response.ftl"            | [
+      "testBundle-a": new HashSet<>([new TestIdentifier("suite-a", "name-a", "parameters-a")]),
+      "testBundle-b": new HashSet<>([new TestIdentifier("suite-b", "name-b", "parameters-b")]),
+    ]
+    "testBundle-a" | "flaky-request-one-module.ftl" | "flaky-response-one-module.ftl" | [
+      "testBundle-a": new HashSet<>([new TestIdentifier("suite-a", "name-a", "parameters-a")])
     ]
   }
 
-  private static BitSet bits(int... bits) {
-    BitSet bitSet = new BitSet()
-    for (int bit : bits) {
-      bitSet.set(bit)
-    }
-    return bitSet
-  }
-
-  def "test known tests request: #displayName"() {
+  def "test known tests request"() {
     given:
     def tracerEnvironment = givenTracerEnvironment()
 
+    def intakeServer = givenBackendEndpoint(
+    "/api/v2/ci/libraries/tests",
+    "/datadog/trace/civisibility/config/known-tests-request.ftl",
+    [uid: REQUEST_UID, tracerEnvironment: tracerEnvironment],
+    "/datadog/trace/civisibility/config/known-tests-response.ftl",
+    [:]
+    )
+
+    def configurationApi = givenConfigurationApi(intakeServer)
+
     when:
-    def configurationApi = new ConfigurationApiImpl(api, Stub(CiVisibilityMetricCollector), () -> "1234")
     def knownTests = configurationApi.getKnownTestsByModule(tracerEnvironment)
 
     for (Map.Entry<String, Collection<TestIdentifier>> e : knownTests.entrySet()) {
@@ -606,21 +178,25 @@ class ConfigurationApiImplTest extends Specification {
       ]
     ]
 
-    where:
-    api                   | displayName
-    givenEvpProxy(false)  | "EVP proxy, response compression disabled"
-    givenEvpProxy(true)   | "EVP proxy, response compression enabled"
-    givenIntakeApi(false) | "intake, response compression disabled"
-    givenIntakeApi(true)  | "intake, response compression enabled"
+    cleanup:
+    intakeServer.close()
   }
 
   def "test changed files request"() {
     given:
     def tracerEnvironment = givenTracerEnvironment()
 
+    def intakeServer = givenBackendEndpoint(
+    "/api/v2/ci/tests/diffs",
+    "/datadog/trace/civisibility/config/diffs-request.ftl",
+    [uid: REQUEST_UID, tracerEnvironment: tracerEnvironment],
+    "/datadog/trace/civisibility/config/diffs-response.ftl",
+    [:]
+    )
+
+    def configurationApi = givenConfigurationApi(intakeServer)
+
     when:
-    def api = givenIntakeApi(true)
-    def configurationApi = new ConfigurationApiImpl(api, Stub(CiVisibilityMetricCollector), () -> "1234")
     def changedFiles = configurationApi.getChangedFiles(tracerEnvironment)
 
     then:
@@ -631,16 +207,62 @@ class ConfigurationApiImplTest extends Specification {
     ])
   }
 
-  private BackendApi givenEvpProxy(boolean responseCompression) {
+  private ConfigurationApi givenConfigurationApi(TestHttpServer intakeServer, boolean agentless = true, boolean compression = true) {
+    def api = agentless
+    ? givenIntakeApi(intakeServer.address, compression)
+    : givenEvpProxy(intakeServer.address, compression)
+    return new ConfigurationApiImpl(api, Stub(CiVisibilityMetricCollector), () -> REQUEST_UID)
+  }
+
+  private TestHttpServer givenBackendEndpoint(String path,
+  String requestTemplate,
+  Map<String, Object> requestData,
+  String responseTemplate,
+  Map<String, Object> responseData) {
+    httpServer {
+      handlers {
+        prefix(path) {
+          def expectedRequestBody = CiVisibilityTestUtils.getFreemarkerTemplate(requestTemplate, requestData)
+
+          def response = response
+          try {
+            JSONAssert.assertEquals(expectedRequestBody, new String(request.body), JSONCompareMode.LENIENT)
+          } catch (AssertionError error) {
+            response.status(400).send(error.getMessage().bytes)
+          }
+
+          def responseBody = CiVisibilityTestUtils.getFreemarkerTemplate(responseTemplate, responseData).bytes
+          def header = request.getHeader("Accept-Encoding")
+          def gzipSupported = header != null && header.contains("gzip")
+          if (gzipSupported) {
+            response.addHeader("Content-Encoding", "gzip")
+            responseBody = gzip(responseBody)
+          }
+
+          response.status(200).send(responseBody)
+        }
+      }
+    }
+  }
+
+  private static byte[] gzip(byte[] payload) {
+    def baos = new ByteArrayOutputStream()
+    try (GZIPOutputStream zip = new GZIPOutputStream(baos)) {
+      IOUtils.copy(new ByteArrayInputStream(payload), zip)
+    }
+    return baos.toByteArray()
+  }
+
+  private BackendApi givenEvpProxy(URI address, boolean responseCompression) {
     String traceId = "a-trace-id"
-    HttpUrl proxyUrl = HttpUrl.get(intakeServer.address)
+    HttpUrl proxyUrl = HttpUrl.get(address)
     HttpRetryPolicy.Factory retryPolicyFactory = new HttpRetryPolicy.Factory(5, 100, 2.0)
     OkHttpClient client = OkHttpUtils.buildHttpClient(proxyUrl, REQUEST_TIMEOUT_MILLIS)
     return new EvpProxyApi(traceId, proxyUrl, retryPolicyFactory, client, responseCompression)
   }
 
-  private BackendApi givenIntakeApi(boolean responseCompression) {
-    HttpUrl intakeUrl = HttpUrl.get(String.format("%s/api/%s/", intakeServer.address.toString(), BackendApiFactory.Intake.API.version))
+  private BackendApi givenIntakeApi(URI address, boolean responseCompression) {
+    HttpUrl intakeUrl = HttpUrl.get(String.format("%s/api/%s/", address.toString(), BackendApiFactory.Intake.API.version))
 
     String apiKey = "api-key"
     String traceId = "a-trace-id"
@@ -657,20 +279,28 @@ class ConfigurationApiImplTest extends Specification {
 
   private static TracerEnvironment givenTracerEnvironment(String testBundle = null) {
     return TracerEnvironment.builder()
-      .service("foo")
-      .env("foo_env")
-      .repositoryUrl("https://github.com/DataDog/foo")
-      .branch("prod")
-      .sha("d64185e45d1722ab3a53c45be47accae")
-      .osPlatform("linux")
-      .osArchitecture("amd64")
-      .osVersion("bionic")
-      .runtimeName("runtimeName")
-      .runtimeVersion("runtimeVersion")
-      .runtimeVendor("vendor")
-      .runtimeArchitecture("amd64")
-      .customTag("customTag", "customValue")
-      .testBundle(testBundle)
-      .build()
+    .service("foo")
+    .env("foo_env")
+    .repositoryUrl("https://github.com/DataDog/foo")
+    .branch("prod")
+    .sha("d64185e45d1722ab3a53c45be47accae")
+    .osPlatform("linux")
+    .osArchitecture("amd64")
+    .osVersion("bionic")
+    .runtimeName("runtimeName")
+    .runtimeVersion("runtimeVersion")
+    .runtimeVendor("vendor")
+    .runtimeArchitecture("amd64")
+    .customTag("customTag", "customValue")
+    .testBundle(testBundle)
+    .build()
+  }
+
+  private static BitSet bits(int ... bits) {
+    BitSet bitSet = new BitSet()
+    for (int bit : bits) {
+      bitSet.set(bit)
+    }
+    return bitSet
   }
 }

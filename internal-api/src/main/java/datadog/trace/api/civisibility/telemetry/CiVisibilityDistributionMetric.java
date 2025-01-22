@@ -40,11 +40,11 @@ public enum CiVisibilityDistributionMetric {
   /** The number of files covered inside a coverage payload */
   CODE_COVERAGE_FILES("code_coverage.files"),
   /* The time it takes to get the response of the known tests endpoint request in ms */
-  EFD_REQUEST_MS("early_flake_detection.request_ms"),
+  EFD_REQUEST_MS("known_tests.request_ms"),
   /** The number of bytes received by the known tests endpoint */
-  EFD_RESPONSE_BYTES("early_flake_detection.response_bytes", ResponseCompressed.class),
+  EFD_RESPONSE_BYTES("known_tests.response_bytes", ResponseCompressed.class),
   /** The number of tests received by the known tests endpoint */
-  EFD_RESPONSE_TESTS("early_flake_detection.response_tests"),
+  EFD_RESPONSE_TESTS("known_tests.response_tests"),
   /** The time it takes to get the response of the flaky tests endpoint request in ms */
   FLAKY_TESTS_REQUEST_MS("flaky_tests.request_ms"),
   /** The number of bytes received by the flaky tests endpoint */

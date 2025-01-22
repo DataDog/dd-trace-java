@@ -56,7 +56,7 @@ public class NoOpTestEventsHandler<SuiteKey, TestKey>
       @Nullable String testParameters,
       @Nullable Collection<String> categories,
       @Nonnull TestSourceData testSourceData,
-      boolean isRetry,
+      String retryReason,
       @Nullable Long startTime) {
     // do nothing
   }

@@ -86,7 +86,7 @@ public class MUnitTracingListener extends TracingListener {
         null,
         categories,
         JUnit4Utils.toTestSourceData(description),
-        retryPolicy != null && retryPolicy.currentExecutionIsRetry(),
+        retryPolicy != null ? retryPolicy.currentExecutionRetryReason() : null,
         null);
   }
 
@@ -160,7 +160,7 @@ public class MUnitTracingListener extends TracingListener {
             null,
             categories,
             JUnit4Utils.toTestSourceData(description),
-            false,
+            null,
             null);
       }
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSkip(testDescriptor, null);
