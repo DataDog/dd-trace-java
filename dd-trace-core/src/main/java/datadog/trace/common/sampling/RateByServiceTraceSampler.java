@@ -6,7 +6,6 @@ import datadog.trace.core.CoreSpan;
 import java.util.Collections;
 import java.util.Map;
 import java.util.TreeMap;
-
 import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
