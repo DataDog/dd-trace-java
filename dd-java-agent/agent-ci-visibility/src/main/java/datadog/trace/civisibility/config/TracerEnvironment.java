@@ -40,6 +40,26 @@ public class TracerEnvironment {
     return sha;
   }
 
+  public String getService() {
+    return service;
+  }
+
+  public String getEnv() {
+    return env;
+  }
+
+  public String getRepositoryUrl() {
+    return repositoryUrl;
+  }
+
+  public String getBranch() {
+    return branch;
+  }
+
+  public String getTestLevel() {
+    return testLevel;
+  }
+
   public Configurations getConfigurations() {
     return configurations;
   }

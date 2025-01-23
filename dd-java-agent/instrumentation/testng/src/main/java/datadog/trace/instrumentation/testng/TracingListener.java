@@ -90,17 +90,17 @@ public class TracingListener extends TestNGClassListener
         testParameters,
         groups,
         testSourceData,
-        isRetry(result),
+        retryReason(result),
         null);
   }
 
-  private boolean isRetry(final ITestResult result) {
+  private String retryReason(final ITestResult result) {
     IRetryAnalyzer retryAnalyzer = TestNGUtils.getRetryAnalyzer(result);
     if (retryAnalyzer instanceof RetryAnalyzer) {
       RetryAnalyzer datadogAnalyzer = (RetryAnalyzer) retryAnalyzer;
-      return datadogAnalyzer.currentExecutionIsRetry();
+      return datadogAnalyzer.currentExecutionRetryReason();
     }
-    return false;
+    return null;
   }
 
   @Override

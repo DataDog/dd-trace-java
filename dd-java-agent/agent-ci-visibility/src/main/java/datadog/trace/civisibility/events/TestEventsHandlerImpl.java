@@ -137,8 +137,8 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
       final @Nullable String testParameters,
       final @Nullable Collection<String> categories,
       final @Nonnull TestSourceData testSourceData,
-      final boolean isRetry,
-      @Nullable Long startTime) {
+      final @Nullable String retryReason,
+      final @Nullable Long startTime) {
     if (skipTrace(testSourceData.getTestClass())) {
       return;
     }
@@ -196,8 +196,9 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
       }
     }
 
-    if (isRetry) {
+    if (retryReason != null) {
       test.setTag(Tags.TEST_IS_RETRY, true);
+      test.setTag(Tags.TEST_RETRY_REASON, retryReason);
     }
 
     inProgressTests.put(descriptor, test);
@@ -253,7 +254,7 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
         testParameters,
         categories,
         testSourceData,
-        false,
+        null,
         null);
     onTestSkip(testDescriptor, reason);
     onTestFinish(testDescriptor, null);

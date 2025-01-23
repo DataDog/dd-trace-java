@@ -182,6 +182,8 @@ public class JUnit5RetryInstrumentation extends InstrumenterModule.CiVisibility
          */
         TestDescriptor retryDescriptor =
             descriptorHandle.withIdSuffix(
+                JUnitPlatformUtils.RETRY_DESCRIPTOR_REASON_SUFFIX,
+                    retryPolicy.currentExecutionRetryReason(),
                 JUnitPlatformUtils.RETRY_DESCRIPTOR_ID_SUFFIX, String.valueOf(++retryAttemptIdx));
         taskHandle.setTestDescriptor(retryDescriptor);
         taskHandle.setNode((Node<?>) retryDescriptor);
