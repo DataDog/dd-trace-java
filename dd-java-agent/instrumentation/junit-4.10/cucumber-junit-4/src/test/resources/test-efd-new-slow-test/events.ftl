@@ -94,6 +94,7 @@
       "test.is_retry" : "true",
       "test.module" : "cucumber-junit-4",
       "test.name" : "Addition",
+      "test.retry_reason" : "efd",
       "test.status" : "pass",
       "test.suite" : "classpath:org/example/cucumber/calculator/basic_arithmetic_slow.feature:Basic Arithmetic",
       "test.traits" : "{\"category\":[\"foo\"]}",

@@ -168,6 +168,7 @@
       "test.is_retry" : "true",
       "test.module" : "munit-junit-4",
       "test.name" : "Calculator.add",
+      "test.retry_reason" : "efd",
       "test.source.file" : "dummy_source_path",
       "test.status" : "pass",
       "test.suite" : "org.example.TestSucceedMUnitSlow",

@@ -155,7 +155,7 @@ public class DatadogReporter {
         testParameters,
         categories,
         new TestSourceData(testClass, null, null),
-        retryPolicy != null && retryPolicy.currentExecutionIsRetry(),
+        retryPolicy != null ? retryPolicy.currentExecutionRetryReason() : null,
         null);
   }
 

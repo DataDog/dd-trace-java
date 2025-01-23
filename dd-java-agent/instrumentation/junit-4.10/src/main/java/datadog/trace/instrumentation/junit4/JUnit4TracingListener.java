@@ -85,7 +85,7 @@ public class JUnit4TracingListener extends TracingListener {
         testParameters,
         categories,
         testSourceData,
-        retryPolicy != null && retryPolicy.currentExecutionIsRetry(),
+        retryPolicy != null ? retryPolicy.currentExecutionRetryReason() : null,
         null);
   }
 

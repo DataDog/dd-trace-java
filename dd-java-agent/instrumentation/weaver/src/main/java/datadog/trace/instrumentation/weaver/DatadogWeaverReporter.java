@@ -91,7 +91,7 @@ public class DatadogWeaverReporter {
         new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier);
     String testMethodName = null;
     Method testMethod = null;
-    boolean isRetry = false;
+    String retryReason = null;
 
     // Only test finish is reported, so fake test start timestamp
     long endMicros = SystemTimeSource.INSTANCE.getCurrentTimeMicros();
@@ -105,7 +105,7 @@ public class DatadogWeaverReporter {
         testParameters,
         categories,
         new TestSourceData(testClass, testMethod, testMethodName),
-        isRetry,
+        retryReason,
         startMicros);
 
     if (testOutcome.result() instanceof Result.Ignored) {

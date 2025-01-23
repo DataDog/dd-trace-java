@@ -38,6 +38,22 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
 
   void onTestSuiteFinish(SuiteKey descriptor, @Nullable Long endTime);
 
+  /**
+   * Reports a "test started" event
+   *
+   * @param suiteDescriptor a descriptor uniquely identifying the test's suite
+   * @param descriptor a descriptor uniquely identifying the test
+   * @param testName the name of the test case
+   * @param testFramework name of the testing framework used to run the test case
+   * @param testFrameworkVersion version of the testing framework used to run the test case
+   * @param testParameters test parameters (as stringified JSON) if this is a parameterized test
+   *     case
+   * @param categories test categories (or test tags) if the test case is marked with any
+   * @param testSourceData metadata for locating the source code for the test case
+   * @param retryReason if this is a retry of the previously executed test case, the reason for
+   *     retrying
+   * @param startTime the timestamp of the test execution start ({@code null} for current timestamp)
+   */
   void onTestStart(
       SuiteKey suiteDescriptor,
       TestKey descriptor,
@@ -47,7 +63,7 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
       @Nullable String testParameters,
       @Nullable Collection<String> categories,
       @Nonnull TestSourceData testSourceData,
-      boolean isRetry,
+      @Nullable String retryReason,
       @Nullable Long startTime);
 
   void onTestSkip(TestKey descriptor, @Nullable String reason);

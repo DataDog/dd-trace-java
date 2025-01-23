@@ -34,6 +34,7 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class JUnitPlatformUtils {
 
+  public static final String RETRY_DESCRIPTOR_REASON_SUFFIX = "retry-reason";
   public static final String RETRY_DESCRIPTOR_ID_SUFFIX = "retry-attempt";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(JUnitPlatformUtils.class);
@@ -184,11 +185,23 @@ public abstract class JUnitPlatformUtils {
     return "test-template".equals(lastSegment.getType());
   }
 
+  public static String retryReason(TestDescriptor testDescriptor) {
+    return getIDSegmentValue(testDescriptor, RETRY_DESCRIPTOR_REASON_SUFFIX);
+  }
+
   public static boolean isRetry(TestDescriptor testDescriptor) {
+    return getIDSegmentValue(testDescriptor, RETRY_DESCRIPTOR_ID_SUFFIX) != null;
+  }
+
+  private static String getIDSegmentValue(TestDescriptor testDescriptor, String segmentName) {
     UniqueId uniqueId = testDescriptor.getUniqueId();
     List<UniqueId.Segment> segments = uniqueId.getSegments();
-    UniqueId.Segment lastSegment = segments.get(segments.size() - 1);
-    return RETRY_DESCRIPTOR_ID_SUFFIX.equals(lastSegment.getType());
+    for (UniqueId.Segment segment : segments) {
+      if (segmentName.equals(segment.getType())) {
+        return segment.getValue();
+      }
+    }
+    return null;
   }
 
   public static TestDescriptor getSuiteDescriptor(TestDescriptor testDescriptor) {
