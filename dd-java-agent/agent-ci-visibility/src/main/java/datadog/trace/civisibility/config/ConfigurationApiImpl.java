@@ -16,8 +16,10 @@ import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.CoverageEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.EarlyFlakeDetectionEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.FlakyTestRetriesEnabled;
+import datadog.trace.api.civisibility.telemetry.tag.ImpactedTestsDetectionEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.ItrEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.ItrSkipEnabled;
+import datadog.trace.api.civisibility.telemetry.tag.KnownTestsEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.RequireGit;
 import datadog.trace.civisibility.communication.TelemetryListener;
 import java.io.File;
@@ -141,6 +143,8 @@ public class ConfigurationApiImpl implements ConfigurationApi {
             ? EarlyFlakeDetectionEnabled.TRUE
             : null,
         settings.isFlakyTestRetriesEnabled() ? FlakyTestRetriesEnabled.TRUE : null,
+        settings.isKnownTestsEnabled() ? KnownTestsEnabled.TRUE : null,
+        settings.isImpactedTestsDetectionEnabled() ? ImpactedTestsDetectionEnabled.TRUE : null,
         settings.isGitUploadRequired() ? RequireGit.TRUE : null);
 
     return settings;
@@ -238,15 +242,16 @@ public class ConfigurationApiImpl implements ConfigurationApi {
     return testIdentifiers;
   }
 
+  @Nullable
   @Override
   public Map<String, Collection<TestIdentifier>> getKnownTestsByModule(
       TracerEnvironment tracerEnvironment) throws IOException {
     OkHttpUtils.CustomListener telemetryListener =
         new TelemetryListener.Builder(metricCollector)
-            .requestCount(CiVisibilityCountMetric.EFD_REQUEST)
-            .requestErrors(CiVisibilityCountMetric.EFD_REQUEST_ERRORS)
-            .requestDuration(CiVisibilityDistributionMetric.EFD_REQUEST_MS)
-            .responseBytes(CiVisibilityDistributionMetric.EFD_RESPONSE_BYTES)
+            .requestCount(CiVisibilityCountMetric.KNOWN_TESTS_REQUEST)
+            .requestErrors(CiVisibilityCountMetric.KNOWN_TESTS_REQUEST_ERRORS)
+            .requestDuration(CiVisibilityDistributionMetric.KNOWN_TESTS_REQUEST_MS)
+            .responseBytes(CiVisibilityDistributionMetric.KNOWN_TESTS_RESPONSE_BYTES)
             .build();
 
     String uuid = uuidGenerator.get();
@@ -288,8 +293,15 @@ public class ConfigurationApiImpl implements ConfigurationApi {
     }
 
     LOGGER.debug("Received {} known tests in total", knownTestsCount);
-    metricCollector.add(CiVisibilityDistributionMetric.EFD_RESPONSE_TESTS, knownTestsCount);
-    return testIdentifiers;
+    metricCollector.add(CiVisibilityDistributionMetric.KNOWN_TESTS_RESPONSE_TESTS, knownTestsCount);
+    return knownTestsCount > 0
+        ? testIdentifiers
+        // returning null if there are no known tests:
+        // this will disable the features that are reliant on known tests
+        // and is done on purpose:
+        // if no tests are known, this is likely the first execution for this repository,
+        // and we want to fill the backend with the initial set of tests
+        : null;
   }
 
   @Override

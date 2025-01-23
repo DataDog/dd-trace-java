@@ -24,6 +24,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -113,14 +114,41 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
   }
 
   private @Nonnull Map<String, ExecutionSettings> create(TracerEnvironment tracerEnvironment) {
-    CiVisibilitySettings ciVisibilitySettings = getCiVisibilitySettings(tracerEnvironment);
+    CiVisibilitySettings settings = getCiVisibilitySettings(tracerEnvironment);
 
-    boolean itrEnabled = isItrEnabled(ciVisibilitySettings);
-    boolean codeCoverageEnabled = isCodeCoverageEnabled(ciVisibilitySettings);
-    boolean testSkippingEnabled = isTestSkippingEnabled(ciVisibilitySettings);
-    boolean flakyTestRetriesEnabled = isFlakyTestRetriesEnabled(ciVisibilitySettings);
-    boolean impactedTestsDetectionEnabled = isImpactedTestsDetectionEnabled(ciVisibilitySettings);
-    boolean earlyFlakeDetectionEnabled = isEarlyFlakeDetectionEnabled(ciVisibilitySettings);
+    boolean itrEnabled =
+        isFeatureEnabled(
+            settings, CiVisibilitySettings::isItrEnabled, Config::isCiVisibilityItrEnabled);
+    boolean codeCoverageEnabled =
+        isFeatureEnabled(
+            settings,
+            CiVisibilitySettings::isCodeCoverageEnabled,
+            Config::isCiVisibilityCodeCoverageEnabled);
+    boolean testSkippingEnabled =
+        isFeatureEnabled(
+            settings,
+            CiVisibilitySettings::isTestsSkippingEnabled,
+            Config::isCiVisibilityTestSkippingEnabled);
+    boolean flakyTestRetriesEnabled =
+        isFeatureEnabled(
+            settings,
+            CiVisibilitySettings::isFlakyTestRetriesEnabled,
+            Config::isCiVisibilityFlakyRetryEnabled);
+    boolean impactedTestsDetectionEnabled =
+        isFeatureEnabled(
+            settings,
+            CiVisibilitySettings::isImpactedTestsDetectionEnabled,
+            Config::isCiVisibilityImpactedTestsDetectionEnabled);
+    boolean earlyFlakeDetectionEnabled =
+        isFeatureEnabled(
+            settings,
+            s -> s.getEarlyFlakeDetectionSettings().isEnabled(),
+            Config::isCiVisibilityEarlyFlakeDetectionEnabled);
+    boolean knownTestsRequest =
+        isFeatureEnabled(
+            settings,
+            CiVisibilitySettings::isKnownTestsEnabled,
+            Config::isCiVisibilityKnownTestsRequestEnabled);
 
     LOGGER.info(
         "CI Visibility settings ({}, {}/{}/{}):\n"
@@ -129,6 +157,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
             + "Tests skipping - {},\n"
             + "Early flakiness detection - {},\n"
             + "Impacted tests detection - {},\n"
+            + "Known tests marking - {},\n"
             + "Auto test retries - {}",
         repositoryRoot,
         tracerEnvironment.getConfigurations().getRuntimeName(),
@@ -139,6 +168,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
         testSkippingEnabled,
         earlyFlakeDetectionEnabled,
         impactedTestsDetectionEnabled,
+        knownTestsRequest,
         flakyTestRetriesEnabled);
 
     String itrCorrelationId = null;
@@ -163,11 +193,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
             : null;
 
     Map<String, Collection<TestIdentifier>> knownTestsByModule =
-        earlyFlakeDetectionEnabled
-                || CIConstants.FAIL_FAST_TEST_ORDER.equalsIgnoreCase(
-                    config.getCiVisibilityTestOrder())
-            ? getKnownTestsByModule(tracerEnvironment)
-            : null;
+        knownTestsRequest ? getKnownTestsByModule(tracerEnvironment) : null;
 
     Set<String> moduleNames = new HashSet<>(Collections.singleton(DEFAULT_SETTINGS));
     moduleNames.addAll(skippableTestIdentifiers.keySet());
@@ -191,7 +217,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
               flakyTestRetriesEnabled,
               impactedTestsDetectionEnabled,
               earlyFlakeDetectionEnabled
-                  ? ciVisibilitySettings.getEarlyFlakeDetectionSettings()
+                  ? settings.getEarlyFlakeDetectionSettings()
                   : EarlyFlakeDetectionSettings.DEFAULT,
               itrCorrelationId,
               skippableTestIdentifiers.getOrDefault(moduleName, Collections.emptyMap()),
@@ -225,33 +251,11 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
     }
   }
 
-  private boolean isItrEnabled(CiVisibilitySettings ciVisibilitySettings) {
-    return ciVisibilitySettings.isItrEnabled() && config.isCiVisibilityItrEnabled();
-  }
-
-  private boolean isTestSkippingEnabled(CiVisibilitySettings ciVisibilitySettings) {
-    return ciVisibilitySettings.isTestsSkippingEnabled()
-        && config.isCiVisibilityTestSkippingEnabled();
-  }
-
-  private boolean isCodeCoverageEnabled(CiVisibilitySettings ciVisibilitySettings) {
-    return ciVisibilitySettings.isCodeCoverageEnabled()
-        && config.isCiVisibilityCodeCoverageEnabled();
-  }
-
-  private boolean isFlakyTestRetriesEnabled(CiVisibilitySettings ciVisibilitySettings) {
-    return ciVisibilitySettings.isFlakyTestRetriesEnabled()
-        && config.isCiVisibilityFlakyRetryEnabled();
-  }
-
-  private boolean isImpactedTestsDetectionEnabled(CiVisibilitySettings ciVisibilitySettings) {
-    return ciVisibilitySettings.isImpactedTestsDetectionEnabled()
-        && config.isCiVisibilityImpactedTestsDetectionEnabled();
-  }
-
-  private boolean isEarlyFlakeDetectionEnabled(CiVisibilitySettings ciVisibilitySettings) {
-    return ciVisibilitySettings.getEarlyFlakeDetectionSettings().isEnabled()
-        && config.isCiVisibilityEarlyFlakeDetectionEnabled();
+  private boolean isFeatureEnabled(
+      CiVisibilitySettings ciVisibilitySettings,
+      Function<CiVisibilitySettings, Boolean> remoteSetting,
+      Function<Config, Boolean> killSwitch) {
+    return remoteSetting.apply(ciVisibilitySettings) && killSwitch.apply(config);
   }
 
   @Nullable

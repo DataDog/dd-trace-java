@@ -81,7 +81,7 @@ public class CucumberTracingListener extends TracingListener {
         null,
         categories,
         TestSourceData.UNKNOWN,
-        retryPolicy != null && retryPolicy.currentExecutionIsRetry(),
+        retryPolicy != null ? retryPolicy.currentExecutionRetryReason() : null,
         null);
 
     recordFeatureFileCodeCoverage(description);

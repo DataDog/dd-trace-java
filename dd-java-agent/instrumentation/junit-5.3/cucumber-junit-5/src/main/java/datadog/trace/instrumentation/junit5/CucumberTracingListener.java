@@ -123,7 +123,7 @@ public class CucumberTracingListener implements EngineExecutionListener {
         null,
         tags,
         TestSourceData.UNKNOWN,
-        JUnitPlatformUtils.isRetry(testDescriptor),
+        JUnitPlatformUtils.retryReason(testDescriptor),
         null);
 
     CoveragePerTestBridge.recordCoverage(classpathResourceName);

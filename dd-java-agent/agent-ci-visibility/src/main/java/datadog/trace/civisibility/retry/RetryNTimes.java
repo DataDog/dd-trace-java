@@ -2,9 +2,12 @@ package datadog.trace.civisibility.retry;
 
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
 import datadog.trace.civisibility.config.EarlyFlakeDetectionSettings;
+import org.jetbrains.annotations.Nullable;
 
 /** Retries a test case N times (N depends on test duration) regardless of success or failure. */
 public class RetryNTimes implements TestRetryPolicy {
+
+  private static final String EARLY_FLAKINESS_DETECTION = "efd";
 
   private final EarlyFlakeDetectionSettings earlyFlakeDetectionSettings;
   private int executions;
@@ -37,5 +40,11 @@ public class RetryNTimes implements TestRetryPolicy {
   @Override
   public boolean currentExecutionIsRetry() {
     return executions > 0;
+  }
+
+  @Nullable
+  @Override
+  public String currentExecutionRetryReason() {
+    return currentExecutionIsRetry() ? EARLY_FLAKINESS_DETECTION : null;
   }
 }
