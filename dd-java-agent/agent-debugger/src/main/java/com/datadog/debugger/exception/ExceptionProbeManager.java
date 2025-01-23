@@ -8,6 +8,7 @@ import com.datadog.debugger.util.WeakIdentityHashMap;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext.ClassNameFilter;
 import datadog.trace.bootstrap.debugger.ProbeId;
+import datadog.trace.util.RandomUtils;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -17,7 +18,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -116,7 +116,7 @@ public class ExceptionProbeManager {
 
   private static ExceptionProbe createMethodProbe(
       ExceptionProbeManager exceptionProbeManager, Where where, int chainedExceptionIdx) {
-    String probeId = UUID.randomUUID().toString();
+    String probeId = RandomUtils.randomUUID().toString();
     return new ExceptionProbe(
         new ProbeId(probeId, 0), where, null, null, exceptionProbeManager, chainedExceptionIdx);
   }
@@ -159,7 +159,7 @@ public class ExceptionProbeManager {
     }
     ThrowableState state =
         snapshotsByThrowable.computeIfAbsent(
-            throwable, key -> new ThrowableState(UUID.randomUUID().toString()));
+            throwable, key -> new ThrowableState(RandomUtils.randomUUID().toString()));
     snapshot.setExceptionId(state.getExceptionId());
     state.addSnapshot(snapshot);
   }

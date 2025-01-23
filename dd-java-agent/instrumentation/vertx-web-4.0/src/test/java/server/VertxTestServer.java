@@ -39,6 +39,13 @@ public class VertxTestServer extends AbstractVerticle {
   public static final String CONFIG_HTTP_SERVER_PORT = "http.server.port";
   public static final String PORT_DATA_ADDRESS = "PORT_DATA";
 
+  int fibonacci(int n) {
+    if (n <= 1) {
+      return n;
+    }
+    return fibonacci(n - 1) + fibonacci(n - 2);
+  }
+
   @Override
   public void start(final Promise<Void> startPromise) {
     final int port = config().getInteger(CONFIG_HTTP_SERVER_PORT);
@@ -53,8 +60,10 @@ public class VertxTestServer extends AbstractVerticle {
                 controller(
                     ctx,
                     SUCCESS,
-                    () ->
-                        ctx.response().setStatusCode(SUCCESS.getStatus()).end(SUCCESS.getBody())));
+                    () -> {
+                      fibonacci(40);
+                      ctx.response().setStatusCode(SUCCESS.getStatus()).end(SUCCESS.getBody());
+                    }));
     router
         .route(FORWARDED.getPath())
         .handler(

@@ -1,6 +1,7 @@
 package datadog.trace.civisibility.ipc;
 
 import datadog.trace.api.DDTraceId;
+import datadog.trace.civisibility.ipc.serialization.Serializer;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Objects;

@@ -15,6 +15,7 @@ import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import javax.annotation.Nonnull;
 
 @SuppressForbidden
 class JenkinsInfo implements CIProviderInfo {
@@ -66,6 +67,12 @@ class JenkinsInfo implements CIProviderInfo {
         .ciNodeLabels(buildCiNodeLabels())
         .ciEnvVars(JENKINS_DD_CUSTOM_TRACE_ID)
         .build();
+  }
+
+  @Nonnull
+  @Override
+  public PullRequestInfo buildPullRequestInfo() {
+    return PullRequestInfo.EMPTY;
   }
 
   private String buildCiNodeLabels() {

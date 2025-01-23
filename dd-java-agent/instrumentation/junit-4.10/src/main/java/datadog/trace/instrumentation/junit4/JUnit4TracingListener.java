@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.junit4;
 
+import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
@@ -43,7 +44,8 @@ public class JUnit4TracingListener extends TracingListener {
         testClass,
         categories,
         false,
-        TestFrameworkInstrumentation.JUNIT4);
+        TestFrameworkInstrumentation.JUNIT4,
+        null);
   }
 
   public void testSuiteFinished(final Description description) {
@@ -55,7 +57,7 @@ public class JUnit4TracingListener extends TracingListener {
     }
 
     TestSuiteDescriptor suiteDescriptor = JUnit4Utils.toSuiteDescriptor(description);
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor, null);
   }
 
   @Override
@@ -66,27 +68,25 @@ public class JUnit4TracingListener extends TracingListener {
 
     TestSuiteDescriptor suiteDescriptor = JUnit4Utils.toSuiteDescriptor(description);
     TestDescriptor testDescriptor = JUnit4Utils.toTestDescriptor(description);
-    Class<?> testClass = description.getTestClass();
-    Method testMethod = JUnit4Utils.getTestMethod(description);
-    String testMethodName = testMethod != null ? testMethod.getName() : null;
-    String testSuiteName = JUnit4Utils.getSuiteName(testClass, description);
-    String testName = JUnit4Utils.getTestName(description, testMethod);
+    TestSourceData testSourceData = JUnit4Utils.toTestSourceData(description);
+
+    String testName = JUnit4Utils.getTestName(description, testSourceData.getTestMethod());
     String testParameters = JUnit4Utils.getParameters(description);
-    List<String> categories = JUnit4Utils.getCategories(testClass, testMethod);
+    List<String> categories =
+        JUnit4Utils.getCategories(testSourceData.getTestClass(), testSourceData.getTestMethod());
     TestRetryPolicy retryPolicy = retryPolicies.get(description);
+
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestStart(
         suiteDescriptor,
         testDescriptor,
-        testSuiteName,
         testName,
         FRAMEWORK_NAME,
         FRAMEWORK_VERSION,
         testParameters,
         categories,
-        testClass,
-        testMethodName,
-        testMethod,
-        retryPolicy != null && retryPolicy.currentExecutionIsRetry());
+        testSourceData,
+        retryPolicy != null ? retryPolicy.currentExecutionRetryReason() : null,
+        null);
   }
 
   @Override
@@ -96,7 +96,7 @@ public class JUnit4TracingListener extends TracingListener {
     }
 
     TestDescriptor testDescriptor = JUnit4Utils.toTestDescriptor(description);
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(testDescriptor);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(testDescriptor, null);
   }
 
   // same callback is executed both for test cases and test suites (for setup/teardown errors)
@@ -175,7 +175,8 @@ public class JUnit4TracingListener extends TracingListener {
           testClass,
           categories,
           false,
-          TestFrameworkInstrumentation.JUNIT4);
+          TestFrameworkInstrumentation.JUNIT4,
+          null);
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteSkip(suiteDescriptor, reason);
 
       List<Method> testMethods = JUnit4Utils.getTestMethods(testClass);
@@ -183,7 +184,7 @@ public class JUnit4TracingListener extends TracingListener {
         testIgnored(description, testMethod, reason);
       }
 
-      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor);
+      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor, null);
     }
   }
 
@@ -194,24 +195,23 @@ public class JUnit4TracingListener extends TracingListener {
 
     TestSuiteDescriptor suiteDescriptor = JUnit4Utils.toSuiteDescriptor(description);
     TestDescriptor testDescriptor = JUnit4Utils.toTestDescriptor(description);
+
     Class<?> testClass = description.getTestClass();
     String testMethodName = testMethod != null ? testMethod.getName() : null;
-    String testSuiteName = JUnit4Utils.getSuiteName(testClass, description);
+    TestSourceData testSourceData = new TestSourceData(testClass, testMethod, testMethodName);
+
     String testName = JUnit4Utils.getTestName(description, testMethod);
     String testParameters = JUnit4Utils.getParameters(description);
     List<String> categories = JUnit4Utils.getCategories(testClass, testMethod);
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestIgnore(
         suiteDescriptor,
         testDescriptor,
-        testSuiteName,
         testName,
         FRAMEWORK_NAME,
         FRAMEWORK_VERSION,
         testParameters,
         categories,
-        testClass,
-        testMethodName,
-        testMethod,
+        testSourceData,
         reason);
   }
 }

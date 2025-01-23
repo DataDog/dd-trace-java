@@ -19,15 +19,13 @@ import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.bootstrap.ContextStore
 import datadog.trace.civisibility.codeowners.Codeowners
-import datadog.trace.civisibility.config.EarlyFlakeDetectionSettings
-import datadog.trace.civisibility.config.ExecutionSettings
-import datadog.trace.civisibility.config.ExecutionSettingsFactory
-import datadog.trace.civisibility.config.JvmInfo
-import datadog.trace.civisibility.config.JvmInfoFactoryImpl
+import datadog.trace.civisibility.config.*
 import datadog.trace.civisibility.coverage.file.FileCoverageStore
 import datadog.trace.civisibility.coverage.percentage.NoOpCoverageCalculator
 import datadog.trace.civisibility.decorator.TestDecorator
 import datadog.trace.civisibility.decorator.TestDecoratorImpl
+import datadog.trace.civisibility.diff.Diff
+import datadog.trace.civisibility.diff.LineDiff
 import datadog.trace.civisibility.domain.BuildSystemSession
 import datadog.trace.civisibility.domain.TestFrameworkModule
 import datadog.trace.civisibility.domain.TestFrameworkSession
@@ -72,9 +70,13 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
   private static final List<TestIdentifier> skippableTests = new ArrayList<>()
   private static final List<TestIdentifier> flakyTests = new ArrayList<>()
   private static final List<TestIdentifier> knownTests = new ArrayList<>()
+  private static volatile Diff diff = LineDiff.EMPTY
+
   private static volatile boolean itrEnabled = false
   private static volatile boolean flakyRetryEnabled = false
   private static volatile boolean earlyFlakinessDetectionEnabled = false
+  private static volatile boolean impactedTestsDetectionEnabled = false
+
   public static final int SLOW_TEST_THRESHOLD_MILLIS = 1000
   public static final int VERY_SLOW_TEST_THRESHOLD_MILLIS = 2000
 
@@ -120,12 +122,14 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
         false,
         itrEnabled,
         flakyRetryEnabled,
+        impactedTestsDetectionEnabled,
         earlyFlakinessDetectionSettings,
         itrEnabled ? "itrCorrelationId" : null,
         skippableTestsWithMetadata,
         [:],
         flakyTests,
-        earlyFlakinessDetectionEnabled || CIConstants.FAIL_FAST_TEST_ORDER.equalsIgnoreCase(Config.get().ciVisibilityTestOrder) ? knownTests : null)
+        earlyFlakinessDetectionEnabled || CIConstants.FAIL_FAST_TEST_ORDER.equalsIgnoreCase(Config.get().ciVisibilityTestOrder) ? knownTests : null,
+        diff)
       }
     }
 
@@ -145,7 +149,11 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       codeowners,
       linesResolver,
       coverageStoreFactory,
-      new ExecutionStrategy(config, executionSettingsFactory.create(JvmInfo.CURRENT_JVM, ""))
+      new ExecutionStrategy(
+      config,
+      executionSettingsFactory.create(JvmInfo.CURRENT_JVM, ""),
+      sourcePathResolver,
+      linesResolver)
       )
     }
 
@@ -213,9 +221,11 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     skippableTests.clear()
     flakyTests.clear()
     knownTests.clear()
+    diff = LineDiff.EMPTY
     itrEnabled = false
     flakyRetryEnabled = false
     earlyFlakinessDetectionEnabled = false
+    impactedTestsDetectionEnabled = false
   }
 
   def givenSkippableTests(List<TestIdentifier> tests) {
@@ -231,12 +241,20 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     knownTests.addAll(tests)
   }
 
+  def givenDiff(Diff diff) {
+    this.diff = diff
+  }
+
   def givenFlakyRetryEnabled(boolean flakyRetryEnabled) {
     this.flakyRetryEnabled = flakyRetryEnabled
   }
 
   def givenEarlyFlakinessDetectionEnabled(boolean earlyFlakinessDetectionEnabled) {
     this.earlyFlakinessDetectionEnabled = earlyFlakinessDetectionEnabled
+  }
+
+  def givenImpactedTestsDetectionEnabled(boolean impactedTestsDetectionEnabled) {
+    this.impactedTestsDetectionEnabled = impactedTestsDetectionEnabled
   }
 
   def givenTestsOrder(String testsOrder) {
@@ -347,4 +365,12 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
   abstract String instrumentedLibraryName()
 
   abstract String instrumentedLibraryVersion()
+
+  BitSet lines(int ... setBits) {
+    BitSet bitSet = new BitSet()
+    for (int bit : setBits) {
+      bitSet.set(bit)
+    }
+    return bitSet
+  }
 }

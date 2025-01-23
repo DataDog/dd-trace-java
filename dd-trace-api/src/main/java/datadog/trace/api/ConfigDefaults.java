@@ -243,10 +243,12 @@ public final class ConfigDefaults {
 
   static final long DEFAULT_TRACE_POST_PROCESSING_TIMEOUT = 1000; // 1 second
 
+  static final boolean DEFAULT_CASSANDRA_KEYSPACE_STATEMENT_EXTRACTION_ENABLED = false;
   static final boolean DEFAULT_COUCHBASE_INTERNAL_SPANS_ENABLED = true;
   static final boolean DEFAULT_ELASTICSEARCH_BODY_ENABLED = false;
   static final boolean DEFAULT_ELASTICSEARCH_PARAMS_ENABLED = true;
   static final boolean DEFAULT_ELASTICSEARCH_BODY_AND_PARAMS_ENABLED = false;
+  static final boolean DEFAULT_ADD_SPAN_POINTERS = true;
 
   static final boolean DEFAULT_SPARK_TASK_HISTOGRAM_ENABLED = true;
   static final boolean DEFAULT_SPARK_APP_NAME_AS_SERVICE = false;

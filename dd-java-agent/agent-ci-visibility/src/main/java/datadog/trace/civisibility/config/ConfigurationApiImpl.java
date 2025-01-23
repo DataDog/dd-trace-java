@@ -16,10 +16,13 @@ import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.CoverageEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.EarlyFlakeDetectionEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.FlakyTestRetriesEnabled;
+import datadog.trace.api.civisibility.telemetry.tag.ImpactedTestsDetectionEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.ItrEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.ItrSkipEnabled;
+import datadog.trace.api.civisibility.telemetry.tag.KnownTestsEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.RequireGit;
 import datadog.trace.civisibility.communication.TelemetryListener;
+import datadog.trace.util.RandomUtils;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
@@ -30,7 +33,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import okhttp3.MediaType;
@@ -47,6 +49,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
 
   private static final String SETTINGS_URI = "libraries/tests/services/setting";
   private static final String SKIPPABLE_TESTS_URI = "ci/tests/skippable";
+  private static final String CHANGED_FILES_URI = "ci/tests/diffs";
   private static final String FLAKY_TESTS_URI = "ci/libraries/tests/flaky";
   private static final String KNOWN_TESTS_URI = "ci/libraries/tests";
 
@@ -58,9 +61,10 @@ public class ConfigurationApiImpl implements ConfigurationApi {
   private final JsonAdapter<EnvelopeDto<CiVisibilitySettings>> settingsResponseAdapter;
   private final JsonAdapter<MultiEnvelopeDto<TestIdentifierJson>> testIdentifiersResponseAdapter;
   private final JsonAdapter<EnvelopeDto<KnownTestsDto>> testFullNamesResponseAdapter;
+  private final JsonAdapter<EnvelopeDto<ChangedFiles>> changedFilesResponseAdapter;
 
   public ConfigurationApiImpl(BackendApi backendApi, CiVisibilityMetricCollector metricCollector) {
-    this(backendApi, metricCollector, () -> UUID.randomUUID().toString());
+    this(backendApi, metricCollector, () -> RandomUtils.randomUUID().toString());
   }
 
   ConfigurationApiImpl(
@@ -98,6 +102,11 @@ public class ConfigurationApiImpl implements ConfigurationApi {
         Types.newParameterizedTypeWithOwner(
             ConfigurationApiImpl.class, EnvelopeDto.class, KnownTestsDto.class);
     testFullNamesResponseAdapter = moshi.adapter(testFullNamesResponseType);
+
+    ParameterizedType changedFilesResponseAdapterType =
+        Types.newParameterizedTypeWithOwner(
+            ConfigurationApiImpl.class, EnvelopeDto.class, ChangedFiles.class);
+    changedFilesResponseAdapter = moshi.adapter(changedFilesResponseAdapterType);
   }
 
   @Override
@@ -134,6 +143,8 @@ public class ConfigurationApiImpl implements ConfigurationApi {
             ? EarlyFlakeDetectionEnabled.TRUE
             : null,
         settings.isFlakyTestRetriesEnabled() ? FlakyTestRetriesEnabled.TRUE : null,
+        settings.isKnownTestsEnabled() ? KnownTestsEnabled.TRUE : null,
+        settings.isImpactedTestsDetectionEnabled() ? ImpactedTestsDetectionEnabled.TRUE : null,
         settings.isGitUploadRequired() ? RequireGit.TRUE : null);
 
     return settings;
@@ -231,15 +242,16 @@ public class ConfigurationApiImpl implements ConfigurationApi {
     return testIdentifiers;
   }
 
+  @Nullable
   @Override
   public Map<String, Collection<TestIdentifier>> getKnownTestsByModule(
       TracerEnvironment tracerEnvironment) throws IOException {
     OkHttpUtils.CustomListener telemetryListener =
         new TelemetryListener.Builder(metricCollector)
-            .requestCount(CiVisibilityCountMetric.EFD_REQUEST)
-            .requestErrors(CiVisibilityCountMetric.EFD_REQUEST_ERRORS)
-            .requestDuration(CiVisibilityDistributionMetric.EFD_REQUEST_MS)
-            .responseBytes(CiVisibilityDistributionMetric.EFD_RESPONSE_BYTES)
+            .requestCount(CiVisibilityCountMetric.KNOWN_TESTS_REQUEST)
+            .requestErrors(CiVisibilityCountMetric.KNOWN_TESTS_REQUEST_ERRORS)
+            .requestDuration(CiVisibilityDistributionMetric.KNOWN_TESTS_REQUEST_MS)
+            .responseBytes(CiVisibilityDistributionMetric.KNOWN_TESTS_RESPONSE_BYTES)
             .build();
 
     String uuid = uuidGenerator.get();
@@ -281,8 +293,46 @@ public class ConfigurationApiImpl implements ConfigurationApi {
     }
 
     LOGGER.debug("Received {} known tests in total", knownTestsCount);
-    metricCollector.add(CiVisibilityDistributionMetric.EFD_RESPONSE_TESTS, knownTestsCount);
-    return testIdentifiers;
+    metricCollector.add(CiVisibilityDistributionMetric.KNOWN_TESTS_RESPONSE_TESTS, knownTestsCount);
+    return knownTestsCount > 0
+        ? testIdentifiers
+        // returning null if there are no known tests:
+        // this will disable the features that are reliant on known tests
+        // and is done on purpose:
+        // if no tests are known, this is likely the first execution for this repository,
+        // and we want to fill the backend with the initial set of tests
+        : null;
+  }
+
+  @Override
+  public ChangedFiles getChangedFiles(TracerEnvironment tracerEnvironment) throws IOException {
+    OkHttpUtils.CustomListener telemetryListener =
+        new TelemetryListener.Builder(metricCollector)
+            .requestCount(CiVisibilityCountMetric.IMPACTED_TESTS_DETECTION_REQUEST)
+            .requestErrors(CiVisibilityCountMetric.IMPACTED_TESTS_DETECTION_REQUEST_ERRORS)
+            .requestDuration(CiVisibilityDistributionMetric.IMPACTED_TESTS_DETECTION_REQUEST_MS)
+            .responseBytes(CiVisibilityDistributionMetric.IMPACTED_TESTS_DETECTION_RESPONSE_BYTES)
+            .build();
+
+    String uuid = uuidGenerator.get();
+    EnvelopeDto<TracerEnvironment> request =
+        new EnvelopeDto<>(new DataDto<>(uuid, "ci_app_tests_diffs_request", tracerEnvironment));
+    String json = requestAdapter.toJson(request);
+    RequestBody requestBody = RequestBody.create(JSON, json);
+    ChangedFiles changedFiles =
+        backendApi.post(
+            CHANGED_FILES_URI,
+            requestBody,
+            is ->
+                changedFilesResponseAdapter.fromJson(Okio.buffer(Okio.source(is))).data.attributes,
+            telemetryListener,
+            false);
+
+    int filesCount = changedFiles.getFiles().size();
+    LOGGER.debug("Received {} changed files", filesCount);
+    metricCollector.add(
+        CiVisibilityDistributionMetric.IMPACTED_TESTS_DETECTION_RESPONSE_FILES, filesCount);
+    return changedFiles;
   }
 
   private static final class EnvelopeDto<T> {

@@ -10,7 +10,7 @@ import java.util.concurrent.Callable
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled
 import static org.junit.Assume.assumeTrue
 
 class JettyExecutorInstrumentationTest extends AgentTestRunner {
@@ -46,7 +46,7 @@ class JettyExecutorInstrumentationTest extends AgentTestRunner {
         @Override
         @Trace(operationName = "parent")
         void run() {
-          activeScope().setAsyncPropagation(true)
+          setAsyncPropagationEnabled(true)
           // this child will have a span
           m(pool, new JavaAsyncChild())
           // this child won't

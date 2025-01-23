@@ -10,6 +10,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Schema;
 import datadog.trace.bootstrap.instrumentation.api.SchemaBuilder;
 import datadog.trace.bootstrap.instrumentation.api.SchemaIterator;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -57,7 +59,8 @@ public class SchemaExtractor implements SchemaIterator {
     if (field.isRepeated()) {
       array = true;
     }
-    switch (field.getType().toProto().getNumber()) {
+    int typeCode = field.getType().toProto().getNumber();
+    switch (typeCode) {
       case TYPE_DOUBLE:
         type = "number";
         format = "double";
@@ -107,6 +110,7 @@ public class SchemaExtractor implements SchemaIterator {
         if (!extractSchema(field.getMessageType(), builder, depth)) {
           return false;
         }
+        builder.addToHash(field.getMessageType().getFullName());
         break;
       case TYPE_BYTES:
         type = "string";
@@ -123,6 +127,7 @@ public class SchemaExtractor implements SchemaIterator {
         enumValues =
             field.getEnumType().getValues().stream()
                 .map(Descriptors.EnumValueDescriptor::getName)
+                .peek(builder::addToHash)
                 .collect(Collectors.toList());
         break;
       case TYPE_SFIXED32:
@@ -140,8 +145,13 @@ public class SchemaExtractor implements SchemaIterator {
         description = "Unknown type";
         break;
     }
+    builder.addToHash(field.getNumber());
+    builder.addToHash(typeCode);
+    builder.addToHash(depth);
+    HashMap<String, String> extensions = new HashMap<String, String>(1);
+    extensions.put("x-protobuf-number", Integer.toString(field.getNumber()));
     return builder.addProperty(
-        schemaName, fieldName, array, type, description, ref, format, enumValues);
+        schemaName, fieldName, array, type, description, ref, format, enumValues, extensions);
   }
 
   public static boolean extractSchema(Descriptor descriptor, SchemaBuilder builder, int depth) {
@@ -150,7 +160,11 @@ public class SchemaExtractor implements SchemaIterator {
     if (!builder.shouldExtractSchema(schemaName, depth)) {
       return false;
     }
-    for (FieldDescriptor field : descriptor.getFields()) {
+    // iterate fields in number order to ensure hash stability
+    for (FieldDescriptor field :
+        descriptor.getFields().stream()
+            .sorted(Comparator.comparingInt(FieldDescriptor::getNumber))
+            .collect(Collectors.toList())) {
       if (!extractProperty(field, schemaName, field.getName(), builder, depth)) {
         return false;
       }

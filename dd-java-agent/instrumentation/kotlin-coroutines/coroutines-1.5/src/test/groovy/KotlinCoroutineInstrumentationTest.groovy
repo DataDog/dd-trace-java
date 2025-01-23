@@ -1,6 +1,7 @@
 import datadog.trace.core.DDSpan
 import datadog.trace.instrumentation.kotlin.coroutines.AbstractKotlinCoroutineInstrumentationTest
 import kotlinx.coroutines.CoroutineDispatcher
+import spock.lang.Ignore
 
 class KotlinCoroutineInstrumentationTest extends AbstractKotlinCoroutineInstrumentationTest<KotlinCoroutineTests> {
 
@@ -38,6 +39,35 @@ class KotlinCoroutineInstrumentationTest extends AbstractKotlinCoroutineInstrume
     trace[0].resourceName.toString() == "KotlinCoroutineTests.tracedAcrossFlows"
     findSpan(trace, "produce_2").context().getParentId() == trace[0].context().getSpanId()
     findSpan(trace, "consume_2").context().getParentId() == trace[0].context().getSpanId()
+
+    where:
+    [dispatcherName, dispatcher] << dispatchersToTest
+  }
+
+  @Ignore("Not working: disconnected trace")
+  def "kotlin trace consistent after flow"() {
+    setup:
+    KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(dispatcher)
+    int expectedNumberOfSpans = kotlinTest.traceAfterFlow()
+    TEST_WRITER.waitForTraces(1)
+
+    expect:
+    assertTraces(1) {
+      trace(expectedNumberOfSpans, true) {
+        span(2) {
+          operationName "trace.annotation"
+          parent()
+        }
+        span(1) {
+          operationName "outside-flow"
+          childOf span(2)
+        }
+        span(0) {
+          operationName "inside-flow"
+          childOf span(2)
+        }
+      }
+    }
 
     where:
     [dispatcherName, dispatcher] << dispatchersToTest

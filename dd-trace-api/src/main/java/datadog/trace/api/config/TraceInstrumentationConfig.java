@@ -148,6 +148,8 @@ public final class TraceInstrumentationConfig {
   public static final String RESOLVER_USE_URL_CACHES = "resolver.use.url.caches";
   public static final String RESOLVER_RESET_INTERVAL = "resolver.reset.interval";
   public static final String RESOLVER_NAMES_ARE_UNIQUE = "resolver.names.are.unique";
+  public static final String CASSANDRA_KEYSPACE_STATEMENT_EXTRACTION_ENABLED =
+      "trace.cassandra.keyspace.statement.extraction.enabled";
   public static final String COUCHBASE_INTERNAL_SPANS_ENABLED =
       "trace.couchbase.internal-spans.enabled";
   public static final String ELASTICSEARCH_BODY_ENABLED = "trace.elasticsearch.body.enabled";
@@ -165,6 +167,7 @@ public final class TraceInstrumentationConfig {
   public static final String AXIS_PROMOTE_RESOURCE_NAME = "trace.axis.promote.resource-name";
 
   public static final String SQS_BODY_PROPAGATION_ENABLED = "trace.sqs.body.propagation.enabled";
+  public static final String ADD_SPAN_POINTERS = "add.span.pointers";
 
   private TraceInstrumentationConfig() {}
 }

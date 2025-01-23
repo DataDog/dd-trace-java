@@ -160,6 +160,11 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
 
     propagatedSystemProperties.put(
         Strings.propertyNameToSystemPropertyName(
+            CiVisibilityConfig.CIVISIBILITY_IMPACTED_TESTS_DETECTION_ENABLED),
+        Boolean.toString(executionSettings.isImpactedTestsDetectionEnabled()));
+
+    propagatedSystemProperties.put(
+        Strings.propertyNameToSystemPropertyName(
             CiVisibilityConfig.CIVISIBILITY_EARLY_FLAKE_DETECTION_ENABLED),
         Boolean.toString(executionSettings.getEarlyFlakeDetectionSettings().isEnabled()));
 

@@ -8,6 +8,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.junit4.JUnit4Utils;
@@ -84,8 +85,10 @@ public class MUnitRetryInstrumentation extends InstrumenterModule.CiVisibility
 
       Description description = MUnitUtils.createDescription(runner, test);
       TestIdentifier testIdentifier = JUnit4Utils.toTestIdentifier(description);
+      TestSourceData testSourceData = JUnit4Utils.toTestSourceData(description);
+
       TestRetryPolicy retryPolicy =
-          TestEventsHandlerHolder.TEST_EVENTS_HANDLER.retryPolicy(testIdentifier);
+          TestEventsHandlerHolder.TEST_EVENTS_HANDLER.retryPolicy(testIdentifier, testSourceData);
       if (!retryPolicy.retriesLeft()) {
         // retries not applicable, run original method
         return null;

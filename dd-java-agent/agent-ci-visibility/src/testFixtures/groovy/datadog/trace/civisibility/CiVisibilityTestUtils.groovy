@@ -109,6 +109,7 @@ abstract class CiVisibilityTestUtils {
 
   static final ObjectMapper JSON_MAPPER = new ObjectMapper() { {
       enable(SerializationFeature.INDENT_OUTPUT)
+      enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
     }
   }
 
@@ -123,7 +124,7 @@ abstract class CiVisibilityTestUtils {
     }
   }
 
-  private static String getFreemarkerTemplate(String templatePath, Map<String, Object> replacements, List<Map<?, ?>> replacementsSource) {
+  static String getFreemarkerTemplate(String templatePath, Map<String, Object> replacements, List<Map<?, ?>> replacementsSource = []) {
     try {
       Template coveragesTemplate = FREEMARKER.getTemplate(templatePath)
       StringWriter coveragesOut = new StringWriter()

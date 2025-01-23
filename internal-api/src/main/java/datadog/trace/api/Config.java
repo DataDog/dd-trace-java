@@ -39,6 +39,7 @@ import datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.context.TraceScope;
 import datadog.trace.util.PidHelper;
+import datadog.trace.util.RandomUtils;
 import datadog.trace.util.Strings;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -97,7 +98,7 @@ public class Config {
    * and every JMX metric that is sent out.
    */
   static class RuntimeIdHolder {
-    static final String runtimeId = UUID.randomUUID().toString();
+    static final String runtimeId = RandomUtils.randomUUID().toString();
   }
 
   static class HostNameHolder {
@@ -336,6 +337,7 @@ public class Config {
   private final String[] ciVisibilityCodeCoverageExcludedPackages;
   private final List<String> ciVisibilityJacocoGradleSourceSets;
   private final Integer ciVisibilityDebugPort;
+  private final boolean ciVisibilityGitClientEnabled;
   private final boolean ciVisibilityGitUploadEnabled;
   private final boolean ciVisibilityGitUnshallowEnabled;
   private final boolean ciVisibilityGitUnshallowDefer;
@@ -356,6 +358,8 @@ public class Config {
   private final String ciVisibilityInjectedTracerVersion;
   private final List<String> ciVisibilityResourceFolderNames;
   private final boolean ciVisibilityFlakyRetryEnabled;
+  private final boolean ciVisibilityImpactedTestsDetectionEnabled;
+  private final boolean ciVisibilityKnownTestsRequestEnabled;
   private final boolean ciVisibilityFlakyRetryOnlyKnownFlakes;
   private final int ciVisibilityFlakyRetryCount;
   private final int ciVisibilityTotalFlakyRetryCount;
@@ -519,6 +523,7 @@ public class Config {
   private final boolean longRunningTraceEnabled;
   private final long longRunningTraceInitialFlushInterval;
   private final long longRunningTraceFlushInterval;
+  private final boolean cassandraKeyspaceStatementExtractionEnabled;
   private final boolean couchbaseInternalSpansEnabled;
   private final boolean elasticsearchBodyEnabled;
   private final boolean elasticsearchParamsEnabled;
@@ -622,6 +627,10 @@ public class Config {
     } else {
       secureRandom = configProvider.getBoolean(SECURE_RANDOM, DEFAULT_SECURE_RANDOM);
     }
+    cassandraKeyspaceStatementExtractionEnabled =
+        configProvider.getBoolean(
+            CASSANDRA_KEYSPACE_STATEMENT_EXTRACTION_ENABLED,
+            DEFAULT_CASSANDRA_KEYSPACE_STATEMENT_EXTRACTION_ENABLED);
     couchbaseInternalSpansEnabled =
         configProvider.getBoolean(
             COUCHBASE_INTERNAL_SPANS_ENABLED, DEFAULT_COUCHBASE_INTERNAL_SPANS_ENABLED);
@@ -694,6 +703,8 @@ public class Config {
 
     if (agentHostFromEnvironment == null) {
       agentHost = DEFAULT_AGENT_HOST;
+    } else if (agentHostFromEnvironment.charAt(0) == '[') {
+      agentHost = agentHostFromEnvironment.substring(1, agentHostFromEnvironment.length() - 1);
     } else {
       agentHost = agentHostFromEnvironment;
     }
@@ -704,8 +715,12 @@ public class Config {
       agentPort = agentPortFromEnvironment;
     }
 
-    if (rebuildAgentUrl) {
-      agentUrl = "http://" + agentHost + ":" + agentPort;
+    if (rebuildAgentUrl) { // check if agenthost contains ':'
+      if (agentHost.indexOf(':') != -1) { // Checking to see whether host address is IPv6 vs IPv4
+        agentUrl = "http://[" + agentHost + "]:" + agentPort;
+      } else {
+        agentUrl = "http://" + agentHost + ":" + agentPort;
+      }
     } else {
       agentUrl = agentUrlFromEnvironment;
     }
@@ -1229,8 +1244,7 @@ public class Config {
     }
     telemetryMetricsInterval = telemetryInterval;
 
-    telemetryMetricsEnabled =
-        configProvider.getBoolean(GeneralConfig.TELEMETRY_METRICS_ENABLED, true);
+    telemetryMetricsEnabled = configProvider.getBoolean(TELEMETRY_METRICS_ENABLED, true);
 
     isTelemetryLogCollectionEnabled =
         instrumenterConfig.isTelemetryEnabled()
@@ -1279,12 +1293,20 @@ public class Config {
     appSecStandaloneEnabled = configProvider.getBoolean(APPSEC_STANDALONE_ENABLED, false);
     appSecRaspEnabled = configProvider.getBoolean(APPSEC_RASP_ENABLED, DEFAULT_APPSEC_RASP_ENABLED);
     appSecStackTraceEnabled =
-        configProvider.getBoolean(APPSEC_STACK_TRACE_ENABLED, DEFAULT_APPSEC_STACK_TRACE_ENABLED);
+        configProvider.getBoolean(
+            APPSEC_STACK_TRACE_ENABLED,
+            DEFAULT_APPSEC_STACK_TRACE_ENABLED,
+            APPSEC_STACKTRACE_ENABLED_DEPRECATED);
     appSecMaxStackTraces =
-        configProvider.getInteger(APPSEC_MAX_STACK_TRACES, DEFAULT_APPSEC_MAX_STACK_TRACES);
+        configProvider.getInteger(
+            APPSEC_MAX_STACK_TRACES,
+            DEFAULT_APPSEC_MAX_STACK_TRACES,
+            APPSEC_MAX_STACKTRACES_DEPRECATED);
     appSecMaxStackTraceDepth =
         configProvider.getInteger(
-            APPSEC_MAX_STACK_TRACE_DEPTH, DEFAULT_APPSEC_MAX_STACK_TRACE_DEPTH);
+            APPSEC_MAX_STACK_TRACE_DEPTH,
+            DEFAULT_APPSEC_MAX_STACK_TRACE_DEPTH,
+            APPSEC_MAX_STACKTRACE_DEPTH_DEPRECATED);
     apiSecurityEnabled =
         configProvider.getBoolean(
             API_SECURITY_ENABLED, DEFAULT_API_SECURITY_ENABLED, API_SECURITY_ENABLED_EXPERIMENTAL);
@@ -1325,7 +1347,9 @@ public class Config {
     iastMaxRangeCount = iastDetectionMode.getIastMaxRangeCount(configProvider);
     iastStacktraceLeakSuppress =
         configProvider.getBoolean(
-            IAST_STACKTRACE_LEAK_SUPPRESS, DEFAULT_IAST_STACKTRACE_LEAK_SUPPRESS);
+            IAST_STACK_TRACE_LEAK_SUPPRESS,
+            DEFAULT_IAST_STACKTRACE_LEAK_SUPPRESS,
+            IAST_STACKTRACE_LEAK_SUPPRESS_DEPRECATED);
     iastHardcodedSecretEnabled =
         configProvider.getBoolean(
             IAST_HARDCODED_SECRET_ENABLED, DEFAULT_IAST_HARDCODED_SECRET_ENABLED);
@@ -1335,7 +1359,10 @@ public class Config {
     iastSourceMappingEnabled = configProvider.getBoolean(IAST_SOURCE_MAPPING_ENABLED, false);
     iastSourceMappingMaxSize = configProvider.getInteger(IAST_SOURCE_MAPPING_MAX_SIZE, 1000);
     iastStackTraceEnabled =
-        configProvider.getBoolean(IAST_STACK_TRACE_ENABLED, DEFAULT_IAST_STACK_TRACE_ENABLED);
+        configProvider.getBoolean(
+            IAST_STACK_TRACE_ENABLED,
+            DEFAULT_IAST_STACK_TRACE_ENABLED,
+            IAST_STACKTRACE_ENABLED_DEPRECATED);
     iastExperimentalPropagationEnabled =
         configProvider.getBoolean(IAST_EXPERIMENTAL_PROPAGATION_ENABLED, false);
     iastSecurityControlsConfiguration =
@@ -1420,6 +1447,7 @@ public class Config {
     ciVisibilityJacocoGradleSourceSets =
         configProvider.getList(CIVISIBILITY_GRADLE_SOURCE_SETS, Arrays.asList("main", "test"));
     ciVisibilityDebugPort = configProvider.getInteger(CIVISIBILITY_DEBUG_PORT);
+    ciVisibilityGitClientEnabled = configProvider.getBoolean(CIVISIBILITY_GIT_CLIENT_ENABLED, true);
     ciVisibilityGitUploadEnabled =
         configProvider.getBoolean(
             CIVISIBILITY_GIT_UPLOAD_ENABLED, DEFAULT_CIVISIBILITY_GIT_UPLOAD_ENABLED);
@@ -1469,6 +1497,10 @@ public class Config {
             CIVISIBILITY_RESOURCE_FOLDER_NAMES, DEFAULT_CIVISIBILITY_RESOURCE_FOLDER_NAMES);
     ciVisibilityFlakyRetryEnabled =
         configProvider.getBoolean(CIVISIBILITY_FLAKY_RETRY_ENABLED, true);
+    ciVisibilityImpactedTestsDetectionEnabled =
+        configProvider.getBoolean(CIVISIBILITY_IMPACTED_TESTS_DETECTION_ENABLED, true);
+    ciVisibilityKnownTestsRequestEnabled =
+        configProvider.getBoolean(CIVISIBILITY_KNOWN_TESTS_REQUEST_ENABLED, true);
     ciVisibilityFlakyRetryOnlyKnownFlakes =
         configProvider.getBoolean(CIVISIBILITY_FLAKY_RETRY_ONLY_KNOWN_FLAKES, false);
     ciVisibilityEarlyFlakeDetectionEnabled =
@@ -1724,17 +1756,14 @@ public class Config {
     apiKey = tmpApiKey;
 
     boolean longRunningEnabled =
-        configProvider.getBoolean(
-            TracerConfig.TRACE_LONG_RUNNING_ENABLED,
-            ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_ENABLED);
+        configProvider.getBoolean(TRACE_LONG_RUNNING_ENABLED, DEFAULT_TRACE_LONG_RUNNING_ENABLED);
     long longRunningTraceInitialFlushInterval =
         configProvider.getLong(
-            TracerConfig.TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL,
+            TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL,
             DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL);
     long longRunningTraceFlushInterval =
         configProvider.getLong(
-            TracerConfig.TRACE_LONG_RUNNING_FLUSH_INTERVAL,
-            ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL);
+            TRACE_LONG_RUNNING_FLUSH_INTERVAL, DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL);
 
     if (longRunningEnabled
         && (longRunningTraceInitialFlushInterval < 10
@@ -1761,16 +1790,14 @@ public class Config {
 
     this.sparkTaskHistogramEnabled =
         configProvider.getBoolean(
-            SPARK_TASK_HISTOGRAM_ENABLED, ConfigDefaults.DEFAULT_SPARK_TASK_HISTOGRAM_ENABLED);
+            SPARK_TASK_HISTOGRAM_ENABLED, DEFAULT_SPARK_TASK_HISTOGRAM_ENABLED);
 
     this.sparkAppNameAsService =
-        configProvider.getBoolean(
-            SPARK_APP_NAME_AS_SERVICE, ConfigDefaults.DEFAULT_SPARK_APP_NAME_AS_SERVICE);
+        configProvider.getBoolean(SPARK_APP_NAME_AS_SERVICE, DEFAULT_SPARK_APP_NAME_AS_SERVICE);
 
     this.jaxRsExceptionAsErrorsEnabled =
         configProvider.getBoolean(
-            JAX_RS_EXCEPTION_AS_ERROR_ENABLED,
-            ConfigDefaults.DEFAULT_JAX_RS_EXCEPTION_AS_ERROR_ENABLED);
+            JAX_RS_EXCEPTION_AS_ERROR_ENABLED, DEFAULT_JAX_RS_EXCEPTION_AS_ERROR_ENABLED);
 
     axisPromoteResourceName = configProvider.getBoolean(AXIS_PROMOTE_RESOURCE_NAME, false);
 
@@ -1780,7 +1807,7 @@ public class Config {
 
     this.tracePostProcessingTimeout =
         configProvider.getLong(
-            TRACE_POST_PROCESSING_TIMEOUT, ConfigDefaults.DEFAULT_TRACE_POST_PROCESSING_TIMEOUT);
+            TRACE_POST_PROCESSING_TIMEOUT, DEFAULT_TRACE_POST_PROCESSING_TIMEOUT);
 
     if (isLlmObsEnabled()) {
       log.debug("Attempting to enable LLM Observability");
@@ -1821,31 +1848,28 @@ public class Config {
 
     this.telemetryDebugRequestsEnabled =
         configProvider.getBoolean(
-            GeneralConfig.TELEMETRY_DEBUG_REQUESTS_ENABLED,
-            ConfigDefaults.DEFAULT_TELEMETRY_DEBUG_REQUESTS_ENABLED);
+            TELEMETRY_DEBUG_REQUESTS_ENABLED, DEFAULT_TELEMETRY_DEBUG_REQUESTS_ENABLED);
 
     this.agentlessLogSubmissionEnabled =
-        configProvider.getBoolean(GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED, false);
+        configProvider.getBoolean(AGENTLESS_LOG_SUBMISSION_ENABLED, false);
     this.agentlessLogSubmissionQueueSize =
-        configProvider.getInteger(GeneralConfig.AGENTLESS_LOG_SUBMISSION_QUEUE_SIZE, 1024);
+        configProvider.getInteger(AGENTLESS_LOG_SUBMISSION_QUEUE_SIZE, 1024);
     this.agentlessLogSubmissionLevel =
-        configProvider.getString(GeneralConfig.AGENTLESS_LOG_SUBMISSION_LEVEL, "INFO");
-    this.agentlessLogSubmissionUrl =
-        configProvider.getString(GeneralConfig.AGENTLESS_LOG_SUBMISSION_URL);
+        configProvider.getString(AGENTLESS_LOG_SUBMISSION_LEVEL, "INFO");
+    this.agentlessLogSubmissionUrl = configProvider.getString(AGENTLESS_LOG_SUBMISSION_URL);
     this.agentlessLogSubmissionProduct = isCiVisibilityEnabled() ? "citest" : "apm";
 
     this.cloudPayloadTaggingServices =
         configProvider.getSet(
-            TracerConfig.TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES,
-            ConfigDefaults.DEFAULT_TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES);
+            TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES, DEFAULT_TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES);
     this.cloudRequestPayloadTagging =
-        configProvider.getList(TracerConfig.TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING, null);
+        configProvider.getList(TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING, null);
     this.cloudResponsePayloadTagging =
-        configProvider.getList(TracerConfig.TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING, null);
+        configProvider.getList(TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING, null);
     this.cloudPayloadTaggingMaxDepth =
-        configProvider.getInteger(TracerConfig.TRACE_CLOUD_PAYLOAD_TAGGING_MAX_DEPTH, 10);
+        configProvider.getInteger(TRACE_CLOUD_PAYLOAD_TAGGING_MAX_DEPTH, 10);
     this.cloudPayloadTaggingMaxTags =
-        configProvider.getInteger(TracerConfig.TRACE_CLOUD_PAYLOAD_TAGGING_MAX_TAGS, 758);
+        configProvider.getInteger(TRACE_CLOUD_PAYLOAD_TAGGING_MAX_TAGS, 758);
 
     this.dependecyResolutionPeriodMillis =
         configProvider.getLong(
@@ -1854,8 +1878,7 @@ public class Config {
 
     timelineEventsEnabled =
         configProvider.getBoolean(
-            ProfilingConfig.PROFILING_TIMELINE_EVENTS_ENABLED,
-            ProfilingConfig.PROFILING_TIMELINE_EVENTS_ENABLED_DEFAULT);
+            PROFILING_TIMELINE_EVENTS_ENABLED, PROFILING_TIMELINE_EVENTS_ENABLED_DEFAULT);
 
     if (appSecScaEnabled != null
         && appSecScaEnabled
@@ -2805,6 +2828,10 @@ public class Config {
     return ciVisibilityDebugPort;
   }
 
+  public boolean isCiVisibilityGitClientEnabled() {
+    return ciVisibilityGitClientEnabled;
+  }
+
   public boolean isCiVisibilityGitUploadEnabled() {
     return ciVisibilityGitUploadEnabled;
   }
@@ -2883,6 +2910,14 @@ public class Config {
 
   public boolean isCiVisibilityFlakyRetryEnabled() {
     return ciVisibilityFlakyRetryEnabled;
+  }
+
+  public boolean isCiVisibilityImpactedTestsDetectionEnabled() {
+    return ciVisibilityImpactedTestsDetectionEnabled;
+  }
+
+  public boolean isCiVisibilityKnownTestsRequestEnabled() {
+    return ciVisibilityKnownTestsRequestEnabled;
   }
 
   public boolean isCiVisibilityFlakyRetryOnlyKnownFlakes() {
@@ -3322,6 +3357,10 @@ public class Config {
 
   public BitSet getGrpcClientErrorStatuses() {
     return grpcClientErrorStatuses;
+  }
+
+  public boolean isCassandraKeyspaceStatementExtractionEnabled() {
+    return cassandraKeyspaceStatementExtractionEnabled;
   }
 
   public boolean isCouchbaseInternalSpansEnabled() {
@@ -3768,6 +3807,14 @@ public class Config {
             Arrays.asList(integrationNames), "", ".time-in-queue.enabled", defaultEnabled);
   }
 
+  public boolean isAddSpanPointers(final String integrationName) {
+    return configProvider.isEnabled(
+        Collections.singletonList(ADD_SPAN_POINTERS),
+        integrationName,
+        "",
+        DEFAULT_ADD_SPAN_POINTERS);
+  }
+
   public boolean isEnabled(
       final boolean defaultEnabled, final String settingName, String settingSuffix) {
     return configProvider.isEnabled(
@@ -3834,7 +3881,7 @@ public class Config {
   }
 
   public boolean isSamplingMechanismValidationDisabled() {
-    return configProvider.getBoolean(TracerConfig.SAMPLING_MECHANISM_VALIDATION_DISABLED, false);
+    return configProvider.getBoolean(SAMPLING_MECHANISM_VALIDATION_DISABLED, false);
   }
 
   public <T extends Enum<T>> T getEnumValue(
@@ -4548,6 +4595,8 @@ public class Config {
         + longRunningTraceInitialFlushInterval
         + ", longRunningTraceFlushInterval="
         + longRunningTraceFlushInterval
+        + ", cassandraKeyspaceStatementExtractionEnabled="
+        + cassandraKeyspaceStatementExtractionEnabled
         + ", couchbaseInternalSpansEnabled="
         + couchbaseInternalSpansEnabled
         + ", elasticsearchBodyEnabled="

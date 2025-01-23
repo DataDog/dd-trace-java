@@ -9,6 +9,7 @@ import spock.util.concurrent.PollingConditions
 
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.stream.Collectors
 import java.util.zip.GZIPInputStream
 import java.util.zip.GZIPOutputStream
 
@@ -30,6 +31,7 @@ class MockBackend implements AutoCloseable {
 
   private final Collection<Map<String, Object>> skippableTests = new CopyOnWriteArrayList<>()
   private final Collection<Map<String, Object>> flakyTests = new CopyOnWriteArrayList<>()
+  private final Collection<String> changedFiles = new CopyOnWriteArrayList<>()
 
   private boolean itrEnabled = true
   private boolean codeCoverageEnabled = true
@@ -37,6 +39,8 @@ class MockBackend implements AutoCloseable {
   private boolean testsSkippingEnabled = true
 
   private boolean flakyRetriesEnabled = false
+
+  private boolean impactedTestsDetectionEnabled = false
 
   void reset() {
     receivedTraces.clear()
@@ -47,6 +51,7 @@ class MockBackend implements AutoCloseable {
 
     skippableTests.clear()
     flakyTests.clear()
+    changedFiles.clear()
   }
 
   @Override
@@ -68,6 +73,14 @@ class MockBackend implements AutoCloseable {
 
   void givenSkippableTest(String module, String suite, String name, Map<String, BitSet> coverage = null) {
     skippableTests.add(["module": module, "suite": suite, "name": name, "coverage": coverage ])
+  }
+
+  void givenImpactedTestsDetection(boolean impactedTestsDetectionEnabled) {
+    this.impactedTestsDetectionEnabled = impactedTestsDetectionEnabled
+  }
+
+  void givenChangedFile(String relativePath) {
+    changedFiles.add(relativePath)
   }
 
   String getIntakeUrl() {
@@ -113,7 +126,8 @@ class MockBackend implements AutoCloseable {
               "itr_enabled": $itrEnabled,
               "code_coverage": $codeCoverageEnabled,
               "tests_skipping": $testsSkippingEnabled,
-              "flaky_test_retries_enabled": $flakyRetriesEnabled
+              "flaky_test_retries_enabled": $flakyRetriesEnabled,
+              "impacted_tests_enabled": $impactedTestsDetectionEnabled
             }
           }
         }""").bytes)
@@ -235,6 +249,23 @@ class MockBackend implements AutoCloseable {
         receivedLogs.addAll(decodedEvent)
 
         response.status(200).send()
+      }
+
+      prefix("/api/v2/ci/tests/diffs") {
+        response.status(200)
+        .addHeader("Content-Encoding", "gzip")
+        .send(MockBackend.compress(("""
+          {
+            "data": {
+              "type": "ci_app_tests_diffs_response",
+              "id": "<some-hash>",
+              "attributes": {
+                "base_sha": "ef733331f7cee9b1c89d82df87942d8606edf3f7",
+                "files": [ ${changedFiles.stream().map(f -> '"' + f + '"').collect(Collectors.joining(","))} ]
+              }
+            }
+          }
+          """).bytes))
       }
     }
   }

@@ -55,7 +55,7 @@ public class JUnit5SpockItrInstrumentation extends InstrumenterModule.CiVisibili
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".JUnitPlatformUtils",
-      packageName + ".TestIdentifierFactory",
+      packageName + ".TestDataFactory",
       packageName + ".SpockUtils",
       packageName + ".TestEventsHandlerHolder",
     };

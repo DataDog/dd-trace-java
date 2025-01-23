@@ -1,0 +1,117 @@
+diff --git a/java/maven-junit4/pom.xml b/java/maven-junit4/pom.xml
+index 6d73cda..2a1f220 100644
+--- a/java/maven-junit4/pom.xml
++++ b/java/maven-junit4/pom.xml
+@@ -10 +10 @@
+     
+-<name>java-maven-junit4</name>
++<name>java-maven-junit4-test-project</name>
+~
+diff --git a/java/maven-junit5/module-a/pom.xml b/java/maven-junit5/module-a/pom.xml
+index 29a3a73..4567037 100644
+--- a/java/maven-junit5/module-a/pom.xml
++++ b/java/maven-junit5/module-a/pom.xml
+@@ -8,3 +8,3 @@
+         
+-<groupId>com.datadog.ci.test</groupId>
+~
+-        <artifactId>java-maven-junit5</artifactId>
+~
+-        <version>1.0-SNAPSHOT</version>
++<groupId>com.datadog.ci.test</groupId123>
+~
++        <artifactId>java-maven-junit5</artifactI121233d>
+~
++        <version>1.0-SNAPSHOT</versi123123on>
+~
+@@ -12,0 +13,3 @@
+~
++sssss
+~
+~
+@@ -16,0 +20,3 @@
+ 	
++<test>123</test>
+~
++	<12312
+~
+~
+@@ -21,2 +27,2 @@
+                 
+-<artifactId>maven-surefire-plugin</artifactId>
+~
+-                <configuration>
++<artifactIasdasdd>maven-surefire-plugin</artifactId>
+~
++                <configurationasdasd>
+~
+@@ -30 +36 @@
+             
+-</plugin>
++</plugiasdasdn>
+~
+@@ -34 +40 @@
+ </project>
+~
+diff --git a/java/maven-junit5/module-b/pom.xml b/java/maven-junit5/module-b/pom.xml
+deleted file mode 100644
+index f18dd09..0000000
+--- a/java/maven-junit5/module-b/pom.xml
++++ /dev/null
+@@ -1,17 +0,0 @@
+-<?xml version="1.0"?>
+~
+-<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd"
+~
+-         xmlns="http://maven.apache.org/POM/4.0.0"
+~
+-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+~
+-    <modelVersion>4.0.0</modelVersion>
+~
+-    <parent>
+~
+-        <groupId>com.datadog.ci.test</groupId>
+~
+-        <artifactId>java-maven-junit5</artifactId>
+~
+-        <version>1.0-SNAPSHOT</version>
+~
+-    </parent>
+~
+~
+-    <groupId>com.datadog.ci.test</groupId>
+~
+-    <artifactId>java-maven-junit5-module-b</artifactId>
+~
+-    <version>1.0-SNAPSHOT</version>
+~
+-    <name>module-b</name>
+~
+~
+-</project>
+~
+diff --git a/java/maven-junit5/pom.xml b/java/maven-junit5/pom.xml
+index 7b92d64..834a61c 100644
+--- a/java/maven-junit5/pom.xml
++++ b/java/maven-junit5/pom.xml
+@@ -14 +14 @@
+         
+-<module>module-b</module>
++<module>module-c</module>
+~
+@@ -18,3 +17,0 @@
+-        <maven.compiler.source>8</maven.compiler.source>
+~
+-        <maven.compiler.target>8</maven.compiler.target>
+~
+-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+~
+@@ -34 +30,0 @@
+-            <scope>test</scope>
+~
+@@ -45 +41 @@
+                     
+-<forkCount>1</forkCount>
++<forkCount>2</forkCount>
+~

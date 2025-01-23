@@ -712,11 +712,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
 
   private void installSpanProbes(String expectedClassName, SpanDecorationProbe... probes) {
     installSpanDecorationProbes(
-        expectedClassName,
-        Configuration.builder()
-            .setService(SERVICE_NAME)
-            .addSpanDecorationProbes(asList(probes))
-            .build());
+        expectedClassName, Configuration.builder().setService(SERVICE_NAME).add(probes).build());
   }
 
   private void installSpanDecorationProbes(String expectedClassName, Configuration configuration) {

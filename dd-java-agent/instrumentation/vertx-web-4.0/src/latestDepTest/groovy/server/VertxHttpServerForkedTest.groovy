@@ -168,3 +168,18 @@ class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
     }
   }
 }
+
+class VertxHttpServerWorkerForkedTest extends VertxHttpServerForkedTest {
+  @Override
+  HttpServer server() {
+    return new VertxServer(verticle(), routerBasePath(), true)
+  }
+
+  @Override
+  boolean testBlocking() {
+    //FIXME: ASM
+    // on the worker the requests are dispatched through a queue.
+    // Despite the blocking works, we fails recording that blocking exception
+    false
+  }
+}

@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.testng;
 
 import datadog.json.JsonWriter;
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
 import java.io.InputStream;
 import java.lang.invoke.MethodHandle;
@@ -44,7 +45,7 @@ public abstract class TestNGUtils {
   private static final MethodHandle TEST_METHOD_GET_RETRY_ANALYZER_LEGACY =
       METHOD_HANDLES.method(ITestNGMethod.class, "getRetryAnalyzer");
 
-  public static Class<?> getTestClass(final ITestResult result) {
+  private static Class<?> getTestClass(final ITestResult result) {
     IClass testClass = result.getTestClass();
     if (testClass == null) {
       return null;
@@ -52,7 +53,7 @@ public abstract class TestNGUtils {
     return testClass.getRealClass();
   }
 
-  public static Method getTestMethod(final ITestResult result) {
+  private static Method getTestMethod(final ITestResult result) {
     ITestNGMethod method = result.getMethod();
     if (method == null) {
       return null;
@@ -62,6 +63,12 @@ public abstract class TestNGUtils {
       return null;
     }
     return constructorOrMethod.getMethod();
+  }
+
+  public static TestSourceData toTestSourceData(final ITestResult result) {
+    Class<?> testClass = getTestClass(result);
+    Method testMethod = getTestMethod(result);
+    return new TestSourceData(testClass, testMethod);
   }
 
   public static String getParameters(final ITestResult result) {
@@ -216,6 +223,9 @@ public abstract class TestNGUtils {
 
   public static IRetryAnalyzer getRetryAnalyzer(ITestResult result) {
     ITestNGMethod method = result.getMethod();
+    if (method == null) {
+      return null;
+    }
     IRetryAnalyzer analyzer = METHOD_HANDLES.invoke(TEST_METHOD_GET_RETRY_ANALYZER, method, result);
     if (analyzer != null) {
       return analyzer;

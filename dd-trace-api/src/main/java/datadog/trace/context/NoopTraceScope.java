@@ -31,12 +31,4 @@ public class NoopTraceScope implements TraceScope {
 
   @Override
   public void close() {}
-
-  @Override
-  public boolean isAsyncPropagating() {
-    return false;
-  }
-
-  @Override
-  public void setAsyncPropagation(boolean value) {}
 }
