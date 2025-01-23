@@ -1,6 +1,6 @@
 package com.datadog.debugger.probe;
 
-import static com.datadog.debugger.agent.CapturingTestBase.mockConfig;
+import static com.datadog.debugger.agent.CapturingTestBase.getConfig;
 import static com.datadog.debugger.util.LogProbeTestHelper.parseTemplate;
 import static java.lang.String.format;
 import static java.lang.Thread.currentThread;
@@ -28,7 +28,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.CoreTracer;
-import java.util.UUID;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -80,7 +79,7 @@ public class LogProbeTest {
   }
 
   private boolean fillSnapshot(DebugSessionStatus status) {
-    DebuggerAgentHelper.injectSink(new DebuggerSink(mockConfig(), mock(ProbeStatusSink.class)));
+    DebuggerAgentHelper.injectSink(new DebuggerSink(getConfig(), mock(ProbeStatusSink.class)));
     TracerAPI tracer =
         CoreTracer.builder().idGenerationStrategy(IdGenerationStrategy.fromName("random")).build();
     AgentTracer.registerIfAbsent(tracer);
@@ -92,8 +91,7 @@ public class LogProbeTest {
         span.setTag(Tags.PROPAGATED_DEBUG, DEBUG_SESSION_ID + ":0");
       }
 
-      Builder builder =
-          createLog("I'm in a debug session").probeId(UUID.randomUUID().toString(), 0);
+      Builder builder = createLog("I'm in a debug session").probeId(ProbeId.newId());
       if (status != DebugSessionStatus.NONE) {
         builder.tags(format("session_id:%s", DEBUG_SESSION_ID));
       }
