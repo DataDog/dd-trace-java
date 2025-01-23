@@ -104,7 +104,7 @@ public class SchemaExtractor implements SchemaIterator {
     }
 
     return builder.addProperty(
-        schemaName, fieldName, array, type, description, ref, format, enumValues);
+        schemaName, fieldName, array, type, description, ref, format, enumValues, null);
   }
 
   public static boolean extractSchema(
