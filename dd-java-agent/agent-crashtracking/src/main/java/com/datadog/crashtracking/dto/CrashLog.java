@@ -3,9 +3,9 @@ package com.datadog.crashtracking.dto;
 import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
+import datadog.trace.util.RandomUtils;
 import java.io.IOException;
 import java.util.Objects;
-import java.util.UUID;
 
 public final class CrashLog {
   private static final int VERSION = 0;
@@ -17,7 +17,7 @@ public final class CrashLog {
     ADAPTER = moshi.adapter(CrashLog.class);
   }
 
-  public final String uuid = UUID.randomUUID().toString();
+  public final String uuid = RandomUtils.randomUUID().toString();
   public final String timestamp;
   public final boolean incomplete;
   public final ErrorData error;

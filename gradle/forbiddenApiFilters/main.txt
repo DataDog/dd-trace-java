@@ -7,6 +7,9 @@ java.lang.String#split(java.lang.String,int)
 java.lang.String#replaceAll(java.lang.String,java.lang.String)
 java.lang.String#replaceFirst(java.lang.String,java.lang.String)
 
+# can initialize java.util.logging when ACCP is installed, prefer RandomUtils instead
+java.util.UUID.randomUUID()
+
 # prefer the NameMatchers/HierarchyMatchers equivalent instead
 net.bytebuddy.matcher.ElementMatchers#named(java.lang.String)
 net.bytebuddy.matcher.ElementMatchers#namedOneOf(java.lang.String[])

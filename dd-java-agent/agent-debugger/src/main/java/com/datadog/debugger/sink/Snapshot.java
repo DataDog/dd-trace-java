@@ -6,12 +6,12 @@ import datadog.trace.bootstrap.debugger.CapturedContext.CapturedThrowable;
 import datadog.trace.bootstrap.debugger.CapturedStackFrame;
 import datadog.trace.bootstrap.debugger.EvaluationError;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
+import datadog.trace.util.RandomUtils;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.UUID;
 
 /** Data class representing all data collected at a probe location */
 public class Snapshot {
@@ -112,7 +112,7 @@ public class Snapshot {
   public String getId() {
     // lazily generates snapshot id
     if (id == null) {
-      id = UUID.randomUUID().toString();
+      id = RandomUtils.randomUUID().toString();
     }
     return id;
   }

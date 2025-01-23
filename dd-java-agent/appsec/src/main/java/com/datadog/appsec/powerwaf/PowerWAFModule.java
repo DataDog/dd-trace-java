@@ -33,6 +33,7 @@ import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.util.RandomUtils;
 import datadog.trace.util.stacktrace.StackTraceEvent;
 import datadog.trace.util.stacktrace.StackTraceFrame;
 import datadog.trace.util.stacktrace.StackUtils;
@@ -64,7 +65,6 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
@@ -228,7 +228,7 @@ public class PowerWAFModule implements AppSecModule {
     AppSecConfig ruleConfig = config.getMergedUpdateConfig();
     PowerwafContext newPwafCtx = null;
     try {
-      String uniqueId = UUID.randomUUID().toString();
+      String uniqueId = RandomUtils.randomUUID().toString();
 
       if (prevContextAndAddresses == null) {
         PowerwafConfig pwConfig = createPowerwafConfig();
