@@ -7,6 +7,9 @@ import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.exception.ExceptionProbeManager;
 import com.datadog.debugger.exception.Fingerprinter;
+import com.datadog.debugger.instrumentation.DiagnosticMessage;
+import com.datadog.debugger.instrumentation.ExceptionInstrumentor;
+import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.instrumentation.MethodInfo;
 import com.datadog.debugger.sink.Snapshot;
 import datadog.trace.bootstrap.debugger.CapturedContext;
@@ -49,6 +52,12 @@ public class ExceptionProbe extends LogProbe implements ForceMethodInstrumentati
   }
 
   @Override
+  public InstrumentationResult.Status instrument(
+      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<ProbeId> probeIds) {
+    return new ExceptionInstrumentor(this, methodInfo, diagnostics, probeIds).instrument();
+  }
+
+  @Override
   public boolean isLineProbe() {
     // Exception probe are always method probe even if there is a line number
     return false;
@@ -62,7 +71,11 @@ public class ExceptionProbe extends LogProbe implements ForceMethodInstrumentati
   @Override
   public void evaluate(
       CapturedContext context, CapturedContext.Status status, MethodLocation methodLocation) {
-    if (!(status instanceof ExceptionProbeStatus)) {
+    ExceptionProbeStatus exceptionStatus;
+    if (status instanceof ExceptionProbeStatus) {
+      exceptionStatus = (ExceptionProbeStatus) status;
+      exceptionStatus.setCapture(false);
+    } else {
       throw new IllegalStateException("Invalid status: " + status.getClass());
     }
     if (methodLocation != MethodLocation.EXIT) {
@@ -82,7 +95,6 @@ public class ExceptionProbe extends LogProbe implements ForceMethodInstrumentati
     if (exceptionProbeManager.shouldCaptureException(fingerprint)) {
       LOGGER.debug("Capturing exception matching fingerprint: {}", fingerprint);
       // capture only on uncaught exception matching the fingerprint
-      ExceptionProbeStatus exceptionStatus = (ExceptionProbeStatus) status;
       ExceptionProbeManager.ThrowableState state =
           exceptionProbeManager.getStateByThrowable(innerMostThrowable);
       if (state != null) {
@@ -148,7 +160,7 @@ public class ExceptionProbe extends LogProbe implements ForceMethodInstrumentati
   }
 
   public static class ExceptionProbeStatus extends LogStatus {
-    private boolean capture;
+    private boolean capture = true; // default to true for status entry when mixed with log probe
 
     public ExceptionProbeStatus(ProbeImplementation probeImplementation) {
       super(probeImplementation);

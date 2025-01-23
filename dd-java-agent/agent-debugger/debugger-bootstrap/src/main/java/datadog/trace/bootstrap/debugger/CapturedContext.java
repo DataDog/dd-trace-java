@@ -299,7 +299,7 @@ public class CapturedContext implements ValueReferenceResolver {
       MethodLocation methodLocation) {
     Status status =
         statusByProbeId.computeIfAbsent(encodedProbeId, key -> probeImplementation.createStatus());
-    if (methodLocation == MethodLocation.EXIT) {
+    if (methodLocation == MethodLocation.EXIT && startTimestamp > 0) {
       duration = System.nanoTime() - startTimestamp;
       addExtension(
           ValueReferences.DURATION_EXTENSION_NAME, duration / 1_000_000.0); // convert to ms
