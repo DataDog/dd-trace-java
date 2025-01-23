@@ -283,7 +283,7 @@ public class LogProbe extends ProbeDefinition implements Sampled {
   private final Capture capture;
   private final Sampling sampling;
   private transient Consumer<Snapshot> snapshotProcessor;
-  private transient Map<DDTraceId, AtomicInteger> budget = new WeakIdentityHashMap<>();
+  protected transient Map<DDTraceId, AtomicInteger> budget = new WeakIdentityHashMap<>();
 
   // no-arg constructor is required by Moshi to avoid creating instance with unsafe and by-passing
   // constructors, including field initializers.
@@ -863,7 +863,8 @@ public class LogProbe extends ProbeDefinition implements Sampled {
   }
 
   private boolean inBudget() {
-    AgentSpan span = AgentTracer.activeSpan();
+    TracerAPI tracer = AgentTracer.get();
+    AgentSpan span = tracer != null ? tracer.activeSpan() : null;
     return span == null
         || budget
                 .computeIfAbsent(span.getLocalRootSpan().getTraceId(), id -> new AtomicInteger())
