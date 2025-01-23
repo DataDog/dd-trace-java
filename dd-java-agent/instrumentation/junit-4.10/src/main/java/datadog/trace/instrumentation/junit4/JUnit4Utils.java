@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.junit4;
 import static datadog.json.JsonMapper.toJson;
 
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
 import datadog.trace.util.MethodHandles;
@@ -292,25 +293,31 @@ public abstract class JUnit4Utils {
   }
 
   public static TestIdentifier toTestIdentifier(Description description) {
-    Method testMethod = JUnit4Utils.getTestMethod(description);
+    Method testMethod = getTestMethod(description);
     String suite = description.getClassName();
-    String name = JUnit4Utils.getTestName(description, testMethod);
-    String parameters = JUnit4Utils.getParameters(description);
+    String name = getTestName(description, testMethod);
+    String parameters = getParameters(description);
     return new TestIdentifier(suite, name, parameters);
+  }
+
+  public static TestSourceData toTestSourceData(Description description) {
+    Class<?> testClass = description.getTestClass();
+    Method testMethod = getTestMethod(description);
+    return new TestSourceData(testClass, testMethod);
   }
 
   public static TestDescriptor toTestDescriptor(Description description) {
     Class<?> testClass = description.getTestClass();
-    Method testMethod = JUnit4Utils.getTestMethod(description);
-    String testSuiteName = JUnit4Utils.getSuiteName(testClass, description);
-    String testName = JUnit4Utils.getTestName(description, testMethod);
-    String testParameters = JUnit4Utils.getParameters(description);
+    Method testMethod = getTestMethod(description);
+    String testSuiteName = getSuiteName(testClass, description);
+    String testName = getTestName(description, testMethod);
+    String testParameters = getParameters(description);
     return new TestDescriptor(testSuiteName, testClass, testName, testParameters, null);
   }
 
   public static TestSuiteDescriptor toSuiteDescriptor(Description description) {
     Class<?> testClass = description.getTestClass();
-    String testSuiteName = JUnit4Utils.getSuiteName(testClass, description);
+    String testSuiteName = getSuiteName(testClass, description);
     // relying exclusively on class name: some runners (such as PowerMock) may redefine test classes
     return new TestSuiteDescriptor(testSuiteName, null);
   }

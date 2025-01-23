@@ -49,7 +49,7 @@ class UnknownCIInfoTest extends CITagsProviderTest {
     def ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(workspaceForTests)
     def ciInfo = ciProviderInfo.buildCIInfo()
     def ciTagsProvider = ciTagsProvider()
-    def ciTags = ciTagsProvider.getCiTags(ciInfo)
+    def ciTags = ciTagsProvider.getCiTags(ciInfo, PullRequestInfo.EMPTY)
 
     then:
     ciTags == expectedTags
@@ -69,7 +69,7 @@ class UnknownCIInfoTest extends CITagsProviderTest {
     def ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(workspaceForTests)
     def ciInfo = ciProviderInfo.buildCIInfo()
     def ciTagsProvider = new CITagsProvider(gitInfoProvider)
-    def ciTags = ciTagsProvider.getCiTags(ciInfo)
+    def ciTags = ciTagsProvider.getCiTags(ciInfo, PullRequestInfo.EMPTY)
 
     then:
     ciTags.get("$Tags.CI_WORKSPACE_PATH") == null

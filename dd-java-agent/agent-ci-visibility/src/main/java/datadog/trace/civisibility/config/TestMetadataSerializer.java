@@ -1,7 +1,7 @@
 package datadog.trace.civisibility.config;
 
 import datadog.trace.api.civisibility.config.TestMetadata;
-import datadog.trace.civisibility.ipc.Serializer;
+import datadog.trace.civisibility.ipc.serialization.Serializer;
 import java.nio.ByteBuffer;
 
 public abstract class TestMetadataSerializer {

@@ -2,13 +2,13 @@ package datadog.trace.instrumentation.scalatest;
 
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.instrumentation.scalatest.retry.SuppressedTestFailedException;
-import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Collections;
 import org.scalatest.events.Event;
@@ -144,23 +144,18 @@ public class DatadogReporter {
       categories = Collections.emptyList();
     }
     Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
-    String testMethodName = null;
-    Method testMethod = null;
     TestRetryPolicy retryPolicy = context.popRetryPolicy(testIdentifier);
 
     eventHandler.onTestStart(
         new TestSuiteDescriptor(testSuiteName, testClass),
         new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier),
-        testSuiteName,
         testName,
         TEST_FRAMEWORK,
         TEST_FRAMEWORK_VERSION,
         testParameters,
         categories,
-        testClass,
-        testMethodName,
-        testMethod,
-        retryPolicy != null && retryPolicy.currentExecutionIsRetry(),
+        new TestSourceData(testClass, null, null),
+        retryPolicy != null ? retryPolicy.currentExecutionRetryReason() : null,
         null);
   }
 
@@ -207,8 +202,6 @@ public class DatadogReporter {
     String testParameters = null;
     Collection<String> categories = Collections.emptyList();
     Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
-    String testMethodName = null;
-    Method testMethod = null;
 
     String reason;
     TestIdentifier skippableTest = new TestIdentifier(testSuiteName, testName, null);
@@ -221,15 +214,12 @@ public class DatadogReporter {
     eventHandler.onTestIgnore(
         new TestSuiteDescriptor(testSuiteName, testClass),
         new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier),
-        testSuiteName,
         testName,
         TEST_FRAMEWORK,
         TEST_FRAMEWORK_VERSION,
         testParameters,
         categories,
-        testClass,
-        testMethodName,
-        testMethod,
+        new TestSourceData(testClass, null, null),
         reason);
   }
 

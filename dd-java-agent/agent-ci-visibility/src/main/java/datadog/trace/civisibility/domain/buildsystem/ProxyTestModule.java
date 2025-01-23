@@ -3,6 +3,7 @@ package datadog.trace.civisibility.domain.buildsystem;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
@@ -94,6 +95,11 @@ public class ProxyTestModule implements TestFrameworkModule {
   }
 
   @Override
+  public boolean isModified(TestSourceData testSourceData) {
+    return executionStrategy.isModified(testSourceData);
+  }
+
+  @Override
   public boolean shouldBeSkipped(TestIdentifier test) {
     return executionStrategy.shouldBeSkipped(test);
   }
@@ -105,8 +111,8 @@ public class ProxyTestModule implements TestFrameworkModule {
 
   @Override
   @Nonnull
-  public TestRetryPolicy retryPolicy(TestIdentifier test) {
-    return executionStrategy.retryPolicy(test);
+  public TestRetryPolicy retryPolicy(TestIdentifier test, TestSourceData testSource) {
+    return executionStrategy.retryPolicy(test, testSource);
   }
 
   @Override
@@ -136,7 +142,7 @@ public class ProxyTestModule implements TestFrameworkModule {
           executionSettings.getEarlyFlakeDetectionSettings();
       boolean earlyFlakeDetectionEnabled = earlyFlakeDetectionSettings.isEnabled();
       boolean earlyFlakeDetectionFaulty =
-          earlyFlakeDetectionEnabled && executionStrategy.isEarlyFlakeDetectionLimitReached();
+          earlyFlakeDetectionEnabled && executionStrategy.isEFDLimitReached();
       long testsSkippedTotal = executionStrategy.getTestsSkipped();
 
       signalClient.send(

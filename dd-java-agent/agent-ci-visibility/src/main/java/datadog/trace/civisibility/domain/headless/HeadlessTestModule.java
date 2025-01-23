@@ -4,6 +4,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
@@ -79,6 +80,11 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
   }
 
   @Override
+  public boolean isModified(TestSourceData testSourceData) {
+    return executionStrategy.isModified(testSourceData);
+  }
+
+  @Override
   public boolean shouldBeSkipped(TestIdentifier test) {
     return executionStrategy.shouldBeSkipped(test);
   }
@@ -90,8 +96,8 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
 
   @Override
   @Nonnull
-  public TestRetryPolicy retryPolicy(TestIdentifier test) {
-    return executionStrategy.retryPolicy(test);
+  public TestRetryPolicy retryPolicy(TestIdentifier test, TestSourceData testSource) {
+    return executionStrategy.retryPolicy(test, testSource);
   }
 
   @Override
@@ -116,7 +122,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
         executionSettings.getEarlyFlakeDetectionSettings();
     if (earlyFlakeDetectionSettings.isEnabled()) {
       setTag(Tags.TEST_EARLY_FLAKE_ENABLED, true);
-      if (executionStrategy.isEarlyFlakeDetectionLimitReached()) {
+      if (executionStrategy.isEFDLimitReached()) {
         setTag(Tags.TEST_EARLY_FLAKE_ABORT_REASON, CIConstants.EFD_ABORT_REASON_FAULTY);
       }
     }

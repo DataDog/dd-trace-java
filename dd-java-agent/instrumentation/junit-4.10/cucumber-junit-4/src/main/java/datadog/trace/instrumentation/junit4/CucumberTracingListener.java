@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.junit4;
 
+import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.coverage.CoveragePerTestBridge;
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
@@ -74,16 +75,13 @@ public class CucumberTracingListener extends TracingListener {
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestStart(
         new TestSuiteDescriptor(testSuiteName, null),
         CucumberUtils.toTestDescriptor(description),
-        testSuiteName,
         testName,
         FRAMEWORK_NAME,
         FRAMEWORK_VERSION,
         null,
         categories,
-        null,
-        null,
-        null,
-        retryPolicy != null && retryPolicy.currentExecutionIsRetry(),
+        TestSourceData.UNKNOWN,
+        retryPolicy != null ? retryPolicy.currentExecutionRetryReason() : null,
         null);
 
     recordFeatureFileCodeCoverage(description);
@@ -167,15 +165,12 @@ public class CucumberTracingListener extends TracingListener {
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestIgnore(
           new TestSuiteDescriptor(testSuiteName, null),
           CucumberUtils.toTestDescriptor(description),
-          testSuiteName,
           testName,
           FRAMEWORK_NAME,
           FRAMEWORK_VERSION,
           null,
           categories,
-          null,
-          null,
-          null,
+          TestSourceData.UNKNOWN,
           reason);
     }
   }
