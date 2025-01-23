@@ -15,7 +15,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
@@ -353,16 +352,16 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
       // Storing oldest traces first
       DelayingPendingTraceBuffer.DumpDrain.DATA.sort((TRACE_BY_START_TIME).reversed());
 
-      TraceDumpJsonExporter writer = new TraceDumpJsonExporter();
+      TraceDumpJsonExporter writer = new TraceDumpJsonExporter(zip);
       for (Element e : DelayingPendingTraceBuffer.DumpDrain.DATA) {
         if (e instanceof PendingTrace) {
           PendingTrace trace = (PendingTrace) e;
-          writer.addTrace(new ArrayList<>((ConcurrentLinkedDeque<DDSpan>) trace.getSpans()));
+          writer.write(new ArrayList<>(trace.getSpans()));
         }
       }
       // Releasing memory used for ArrayList in drain
       DelayingPendingTraceBuffer.DumpDrain.DATA.clear();
-      TracerFlare.addText(zip, "trace_dump.txt", writer.getDumpText());
+      writer.flush();
     }
   }
 }
