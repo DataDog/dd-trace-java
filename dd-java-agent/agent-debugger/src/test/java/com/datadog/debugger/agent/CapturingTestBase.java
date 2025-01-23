@@ -3,18 +3,14 @@ package com.datadog.debugger.agent;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.NOT_CAPTURED_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotTestHelper.VALUE_ADAPTER;
 import static com.datadog.debugger.util.TestHelper.setFieldInConfig;
-import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
-import com.datadog.debugger.probe.SpanDecorationProbe;
-import com.datadog.debugger.probe.TriggerProbe;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.util.MoshiHelper;
@@ -325,12 +321,9 @@ public class CapturingTestBase {
     return createProbeBuilder(id, typeName, methodName, signature, lines).build();
   }
 
-  protected TestSnapshotListener installProbes(LogProbe... logProbes) {
+  protected TestSnapshotListener installProbes(ProbeDefinition... probes) {
     return installProbes(
-        Configuration.builder()
-            .setService(CapturedSnapshotTest.SERVICE_NAME)
-            .addLogProbes(asList(logProbes))
-            .build() /*, logProbes*/);
+        Configuration.builder().setService(CapturedSnapshotTest.SERVICE_NAME).add(probes).build());
   }
 
   public static LogProbe.Builder createProbeBuilder(
@@ -349,10 +342,8 @@ public class CapturingTestBase {
         .sampling(new LogProbe.Sampling(100));
   }
 
-  protected TestSnapshotListener installProbes(
-      Configuration configuration, ProbeDefinition... probes) {
-
-    config = mockConfig();
+  protected TestSnapshotListener installProbes(Configuration configuration) {
+    config = getConfig();
     instrumentationListener = new MockInstrumentationListener();
     probeStatusSink = mock(ProbeStatusSink.class);
 
@@ -372,22 +363,14 @@ public class CapturingTestBase {
     DebuggerAgentHelper.injectSink(listener);
 
     DebuggerContext.initProbeResolver(
-        (encodedId) ->
-            resolver(
-                encodedId,
-                configuration.getLogProbes(),
-                configuration.getSpanDecorationProbes(),
-                configuration.getTriggerProbes()));
+        (encodedId) -> resolver(encodedId, configuration.getDefinitions()));
     DebuggerContext.initClassFilter(new DenyListHelper(null));
     DebuggerContext.initValueSerializer(new JsonSnapshotSerializer());
 
-    Collection<LogProbe> logProbes = configuration.getLogProbes();
-    if (logProbes != null) {
-      for (LogProbe probe : logProbes) {
-        if (probe.getSampling() != null) {
-          ProbeRateLimiter.setRate(
-              probe.getId(), probe.getSampling().getEventsPerSecond(), probe.isCaptureSnapshot());
-        }
+    for (LogProbe probe : configuration.getLogProbes()) {
+      if (probe.getSampling() != null) {
+        ProbeRateLimiter.setRate(
+            probe.getId(), probe.getSampling().getEventsPerSecond(), probe.isCaptureSnapshot());
       }
     }
     if (configuration.getSampling() != null) {
@@ -397,47 +380,24 @@ public class CapturingTestBase {
     return listener;
   }
 
-  public static Config mockConfig() {
-    Config config = mock(Config.class);
-    when(config.isDebuggerEnabled()).thenReturn(true);
-    when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
-    when(config.isDebuggerVerifyByteCode()).thenReturn(false);
-    when(config.getFinalDebuggerSnapshotUrl())
-        .thenReturn("http://localhost:8126/debugger/v1/input");
-    when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
-    when(config.getDebuggerCodeOriginMaxUserFrames()).thenReturn(20);
+  public static Config getConfig() {
+    Config config = Config.get();
+    setFieldInConfig(config, "debuggerEnabled", true);
+    setFieldInConfig(config, "debuggerClassFileDumpEnabled", true);
+    setFieldInConfig(config, "debuggerVerifyByteCode", false);
+    setFieldInConfig(config, "debuggerCodeOriginMaxUserFrames", 20);
 
     return config;
   }
 
-  public static ProbeImplementation resolver(
-      String encodedId,
-      Collection<LogProbe> logProbes,
-      Collection<SpanDecorationProbe> spanDecorationProbes,
-      Collection<TriggerProbe> triggerProbes) {
-    if (logProbes != null) {
-      for (LogProbe probe : logProbes) {
-        if (probe.getProbeId().getEncodedId().equals(encodedId)) {
-          return probe;
-        }
-      }
-    }
-    if (spanDecorationProbes != null) {
-      for (SpanDecorationProbe probe : spanDecorationProbes) {
-        if (probe.getProbeId().getEncodedId().equals(encodedId)) {
-          return probe;
-        }
-      }
-    }
-    if (triggerProbes != null) {
-      for (TriggerProbe probe : triggerProbes) {
-        if (probe.getProbeId().getEncodedId().equals(encodedId)) {
-          return probe;
-        }
+  public ProbeImplementation resolver(String encodedId, List<ProbeDefinition> probes) {
+    for (ProbeDefinition probe : probes) {
+      if (probe.getProbeId().getEncodedId().equals(encodedId)) {
+        return probe;
       }
     }
 
-    return null;
+    return configurationUpdater.resolve(encodedId);
   }
 
   protected TestSnapshotListener installSingleProbeAtExit(

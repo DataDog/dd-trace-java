@@ -107,12 +107,12 @@ public abstract class ProbeDefinition implements ProbeImplementation {
     return evaluateAt;
   }
 
-  public void buildLocation(InstrumentationResult result) {
+  public void buildLocation(MethodInfo methodInfo) {
     String type = where.getTypeName();
     String method = where.getMethodName();
-    if (result != null) {
-      type = result.getTypeName();
-      method = result.getMethodName();
+    if (methodInfo != null) {
+      type = methodInfo.getTypeName();
+      method = methodInfo.getMethodName();
     }
     List<String> lines = where.getLines() != null ? Arrays.asList(where.getLines()) : null;
     this.location = new ProbeLocation(type, method, where.getSourceFile(), lines);

@@ -87,6 +87,8 @@ public class DebuggerTransformer implements ClassFileTransformer {
           SpanProbe.class);
   private static final String JAVA_IO_TMPDIR = "java.io.tmpdir";
 
+  public static Path DUMP_PATH = Paths.get(System.getProperty(JAVA_IO_TMPDIR), "debugger");
+
   private final Config config;
   private final TransformerDefinitionMatcher definitionMatcher;
   private final AllowListHelper allowListHelper;
@@ -517,7 +519,6 @@ public class DebuggerTransformer implements ClassFileTransformer {
   private void handleInstrumentationResult(
       List<ProbeDefinition> definitions, InstrumentationResult result) {
     for (ProbeDefinition definition : definitions) {
-      definition.buildLocation(result);
       if (listener != null) {
         listener.instrumentationResult(definition, result);
       }
@@ -578,7 +579,10 @@ public class DebuggerTransformer implements ClassFileTransformer {
       MethodInfo methodInfo, List<ProbeDefinition> definitions) {
     Map<ProbeId, List<DiagnosticMessage>> diagnostics = new HashMap<>();
     definitions.forEach(
-        probeDefinition -> diagnostics.put(probeDefinition.getProbeId(), new ArrayList<>()));
+        probeDefinition -> {
+          probeDefinition.buildLocation(methodInfo);
+          diagnostics.put(probeDefinition.getProbeId(), new ArrayList<>());
+        });
     InstrumentationResult.Status status = preCheckInstrumentation(diagnostics, methodInfo);
     if (status != InstrumentationResult.Status.ERROR) {
       try {
@@ -842,8 +846,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
 
   private static Path dumpClassFile(String className, byte[] classfileBuffer) {
     try {
-      Path classFilePath =
-          Paths.get(System.getProperty(JAVA_IO_TMPDIR), "debugger", className + ".class");
+      Path classFilePath = DUMP_PATH.resolve(className + ".class");
       Files.createDirectories(classFilePath.getParent());
       Files.write(classFilePath, classfileBuffer, StandardOpenOption.CREATE);
       return classFilePath;

@@ -35,7 +35,6 @@ import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -1313,10 +1312,7 @@ public class MetricProbesInstrumentationTest {
 
   private MetricForwarderListener installMetricProbes(MetricProbe... metricProbes) {
     return installMetricProbes(
-        Configuration.builder()
-            .setService(SERVICE_NAME)
-            .addMetricProbes(Arrays.asList(metricProbes))
-            .build());
+        Configuration.builder().setService(SERVICE_NAME).add(metricProbes).build());
   }
 
   static class MetricForwarderListener implements DebuggerContext.MetricForwarder {
