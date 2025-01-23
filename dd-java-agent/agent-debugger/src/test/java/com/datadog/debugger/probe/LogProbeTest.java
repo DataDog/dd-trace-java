@@ -78,6 +78,44 @@ public class LogProbeTest {
         "With no debug sessions, snapshots should get filled.");
   }
 
+  @Test
+  public void budgets() {
+    DebuggerSink sink = new DebuggerSink(getConfig(), mock(ProbeStatusSink.class));
+    DebuggerAgentHelper.injectSink(sink);
+    assertEquals(0, sink.getSnapshotSink().getLowRateSnapshots().size());
+    TracerAPI tracer =
+        CoreTracer.builder().idGenerationStrategy(IdGenerationStrategy.fromName("random")).build();
+    AgentTracer.registerIfAbsent(tracer);
+    int runs = 100;
+    for (int i = 0; i < runs; i++) {
+      runTrace(tracer);
+    }
+    assertEquals(runs * LogProbe.PROBE_BUDGET, sink.getSnapshotSink().getLowRateSnapshots().size());
+  }
+
+  private void runTrace(TracerAPI tracer) {
+    AgentSpan span = tracer.startSpan("budget testing", "test span");
+    try (AgentScope scope = tracer.activateSpan(span, ScopeSource.MANUAL)) {
+
+      LogProbe logProbe =
+          createLog("I'm in a debug session")
+              .probeId(ProbeId.newId())
+              .captureSnapshot(true)
+              .build();
+
+      CapturedContext entryContext = capturedContext(span, logProbe);
+      CapturedContext exitContext = capturedContext(span, logProbe);
+      logProbe.evaluate(entryContext, new LogStatus(logProbe), MethodLocation.ENTRY);
+      logProbe.evaluate(exitContext, new LogStatus(logProbe), MethodLocation.EXIT);
+
+      for (int i = 0; i < 20; i++) {
+        logProbe.commit(entryContext, exitContext, emptyList());
+      }
+      tracer.startSpan("budget testing", "test span");
+      tracer.activateNext(span);
+    }
+  }
+
   private boolean fillSnapshot(DebugSessionStatus status) {
     DebuggerAgentHelper.injectSink(new DebuggerSink(getConfig(), mock(ProbeStatusSink.class)));
     TracerAPI tracer =

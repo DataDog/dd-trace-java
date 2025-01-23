@@ -16,12 +16,14 @@ import com.datadog.debugger.instrumentation.MethodInfo;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.Snapshot;
 import com.datadog.debugger.util.MoshiHelper;
+import com.datadog.debugger.util.WeakIdentityHashMap;
 import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Types;
 import datadog.trace.api.Config;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.CorrelationAccess;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
@@ -49,6 +51,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,6 +61,8 @@ public class LogProbe extends ProbeDefinition implements Sampled {
   private static final Logger LOGGER = LoggerFactory.getLogger(LogProbe.class);
   private static final Limits LIMITS = new Limits(1, 3, 8192, 5);
   private static final int LOG_MSG_LIMIT = 8192;
+
+  protected static final int PROBE_BUDGET = 10;
 
   /** Stores part of a templated message either a str or an expression */
   public static class Segment {
@@ -278,6 +283,7 @@ public class LogProbe extends ProbeDefinition implements Sampled {
   private final Capture capture;
   private final Sampling sampling;
   private transient Consumer<Snapshot> snapshotProcessor;
+  private transient Map<DDTraceId, AtomicInteger> budget = new WeakIdentityHashMap<>();
 
   // no-arg constructor is required by Moshi to avoid creating instance with unsafe and by-passing
   // constructors, including field initializers.
@@ -568,7 +574,8 @@ public class LogProbe extends ProbeDefinition implements Sampled {
       CapturedContext exitContext,
       List<CapturedContext.CapturedThrowable> caughtExceptions) {
     Snapshot snapshot = createSnapshot();
-    boolean shouldCommit = fillSnapshot(entryContext, exitContext, caughtExceptions, snapshot);
+    boolean shouldCommit =
+        inBudget() && fillSnapshot(entryContext, exitContext, caughtExceptions, snapshot);
     DebuggerSink sink = DebuggerAgent.getSink();
     if (shouldCommit) {
       commitSnapshot(snapshot, sink);
@@ -853,6 +860,15 @@ public class LogProbe extends ProbeDefinition implements Sampled {
           + sampled
           + '}';
     }
+  }
+
+  private boolean inBudget() {
+    AgentSpan span = AgentTracer.activeSpan();
+    return span == null
+        || budget
+                .computeIfAbsent(span.getLocalRootSpan().getTraceId(), id -> new AtomicInteger())
+                .getAndIncrement()
+            < PROBE_BUDGET;
   }
 
   @Generated
