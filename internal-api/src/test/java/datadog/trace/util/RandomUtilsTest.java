@@ -15,4 +15,11 @@ public class RandomUtilsTest {
       assertThat(RandomUtils.randomUUID().toString()).matches(VERSION_4_UUID);
     }
   }
+
+  @Test
+  public void testSecureRandomUUIDMatchesSpec() {
+    for (int i = 0; i < 8; i++) {
+      assertThat(RandomUtils.secureRandomUUID().toString()).matches(VERSION_4_UUID);
+    }
+  }
 }
