@@ -87,6 +87,11 @@ public abstract class StringUtils {
       int firstRange = 0;
       int newLength = replacement.length();
 
+      // In case there is a '\' or '$' in the replacement string we need to make a
+      // quoteReplacement
+      // If there is no '\' or '$' it will return the same string.
+      String finalReplacement = Matcher.quoteReplacement(replacement);
+
       boolean canAddRange = true;
       StringBuffer sb = new StringBuffer();
       do {
@@ -165,10 +170,7 @@ public abstract class StringUtils {
           canAddRange = newRanges.add(rangesInput, start + offset);
         }
 
-        // In case there is a '\' or '$' in the replacement string we need to make a
-        // quoteReplacement
-        // If there is no '\' or '$' it will return the same string.
-        matcher.appendReplacement(sb, Matcher.quoteReplacement(replacement));
+        matcher.appendReplacement(sb, finalReplacement);
 
         offset = diffLength;
         numOfReplacements--;
