@@ -10,6 +10,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.core.CoreTracer;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import okhttp3.ConnectionPool;
@@ -63,6 +64,7 @@ public class LambdaHandler {
   private static final JsonAdapter<Object> adapter =
       new Moshi.Builder()
           .add(ByteArrayInputStream.class, new ReadFromInputStreamJsonAdapter())
+          .add(ByteArrayOutputStream.class, new ReadFromOutputStreamJsonAdapter())
           .add(SkipUnsupportedTypeJsonAdapter.newFactory())
           .build()
           .adapter(Object.class);
