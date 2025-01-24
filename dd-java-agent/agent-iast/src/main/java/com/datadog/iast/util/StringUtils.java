@@ -165,7 +165,10 @@ public abstract class StringUtils {
           canAddRange = newRanges.add(rangesInput, start + offset);
         }
 
-        matcher.appendReplacement(sb, replacement);
+        // In case there is a '\' or '$' in the replacement string we need to make a
+        // quoteReplacement
+        // If there is no '\' or '$' it will return the same string.
+        matcher.appendReplacement(sb, Matcher.quoteReplacement(replacement));
 
         offset = diffLength;
         numOfReplacements--;
