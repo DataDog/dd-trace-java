@@ -43,7 +43,7 @@ public class DebuggerContext {
     BUDGET {
       @Override
       public String tag() {
-        return "cause:budget exceeded";
+        return "cause:budget_exceeded";
       }
     };
 
