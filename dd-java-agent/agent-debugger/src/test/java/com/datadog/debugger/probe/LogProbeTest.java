@@ -95,11 +95,13 @@ public class LogProbeTest {
 
   private void runTrace(TracerAPI tracer) {
     AgentSpan span = tracer.startSpan("budget testing", "test span");
+    span.setTag(Tags.PROPAGATED_DEBUG, "12345:1");
     try (AgentScope scope = tracer.activateSpan(span, ScopeSource.MANUAL)) {
 
       LogProbe logProbe =
           createLog("I'm in a debug session")
               .probeId(ProbeId.newId())
+              .tags("session_id:12345")
               .captureSnapshot(true)
               .build();
 

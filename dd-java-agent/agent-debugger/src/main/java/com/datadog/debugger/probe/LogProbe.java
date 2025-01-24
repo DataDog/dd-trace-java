@@ -62,7 +62,9 @@ public class LogProbe extends ProbeDefinition implements Sampled {
   private static final Limits LIMITS = new Limits(1, 3, 8192, 5);
   private static final int LOG_MSG_LIMIT = 8192;
 
-  protected static final int PROBE_BUDGET = 10;
+  private static final AtomicInteger NO_BUDGET = new AtomicInteger();
+
+  public static final int PROBE_BUDGET = 10;
 
   /** Stores part of a templated message either a str or an expression */
   public static class Segment {
@@ -283,7 +285,8 @@ public class LogProbe extends ProbeDefinition implements Sampled {
   private final Capture capture;
   private final Sampling sampling;
   private transient Consumer<Snapshot> snapshotProcessor;
-  protected transient Map<DDTraceId, AtomicInteger> budget = new WeakIdentityHashMap<>();
+  protected transient Map<DDTraceId, AtomicInteger> budget =
+      Collections.synchronizedMap(new WeakIdentityHashMap<>());
 
   // no-arg constructor is required by Moshi to avoid creating instance with unsafe and by-passing
   // constructors, including field initializers.
@@ -579,11 +582,18 @@ public class LogProbe extends ProbeDefinition implements Sampled {
     DebuggerSink sink = DebuggerAgent.getSink();
     if (shouldCommit) {
       commitSnapshot(snapshot, sink);
+      incrementBudget();
       if (snapshotProcessor != null) {
         snapshotProcessor.accept(snapshot);
       }
     } else {
       sink.skipSnapshot(id, DebuggerContext.SkipCause.CONDITION);
+    }
+  }
+
+  private void incrementBudget() {
+    if (getDebugSessionId() != null) {
+      getBudgetLevel().incrementAndGet();
     }
   }
 
@@ -863,13 +873,15 @@ public class LogProbe extends ProbeDefinition implements Sampled {
   }
 
   private boolean inBudget() {
+    return getBudgetLevel().get() < PROBE_BUDGET;
+  }
+
+  private AtomicInteger getBudgetLevel() {
     TracerAPI tracer = AgentTracer.get();
     AgentSpan span = tracer != null ? tracer.activeSpan() : null;
-    return span == null
-        || budget
-                .computeIfAbsent(span.getLocalRootSpan().getTraceId(), id -> new AtomicInteger())
-                .getAndIncrement()
-            < PROBE_BUDGET;
+    return getDebugSessionId() == null || span == null
+        ? NO_BUDGET
+        : budget.computeIfAbsent(span.getLocalRootSpan().getTraceId(), id -> new AtomicInteger());
   }
 
   @Generated
