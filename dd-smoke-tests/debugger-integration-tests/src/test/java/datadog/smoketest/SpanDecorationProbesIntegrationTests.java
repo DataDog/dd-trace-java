@@ -23,11 +23,20 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.condition.DisabledIf;
 
 public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerIntegrationTest {
+
+  @BeforeEach
+  @Override
+  void setup(TestInfo testInfo) throws Exception {
+    super.setup(testInfo);
+    appUrl = startAppAndAndGetUrl();
+  }
 
   @Override
   protected ProcessBuilder createProcessBuilder(Path logFilePath, String... params) {
