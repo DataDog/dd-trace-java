@@ -24,6 +24,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static utils.InstrumentationTestHelper.compile;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
+import static utils.InstrumentationTestHelper.getLineForLineProbe;
 import static utils.InstrumentationTestHelper.loadClass;
 import static utils.TestHelper.getFixtureContent;
 
@@ -102,8 +103,9 @@ public class CapturedSnapshotTest extends CapturingTestBase {
       new ProbeId("beae1817-f3b0-4ea8-a74f-000000000003", 0);
   private static final ProbeId LINE_PROBE_ID4 =
       new ProbeId("beae1817-f3b0-4ea8-a74f-000000000004", 0);
-  private static final ProbeId LINE_PROBE_ID5 =
-      new ProbeId("beae1817-f3b0-4ea8-a74f-000000000005", 0);
+  private static final String KOTLIN_EXT = ".kt";
+  private static final String SCALA_EXT = ".scala";
+  private static final String GROOVY_EXT = ".groovy";
 
   @Test
   public void bridgeMethods() throws IOException, URISyntaxException {
@@ -195,7 +197,8 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   @Test
   public void singleLineProbe() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
-    TestSnapshotListener listener = installLineProbe(LINE_PROBE_ID1, CLASS_NAME, 8);
+    int line = getLineForLineProbe(CLASS_NAME, LINE_PROBE_ID1);
+    TestSnapshotListener listener = installLineProbe(LINE_PROBE_ID1, CLASS_NAME, line);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.onClass(testClass).call("main", "1").get();
     assertEquals(3, result);
@@ -203,8 +206,8 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     assertNull(snapshot.getCaptures().getEntry());
     assertNull(snapshot.getCaptures().getReturn());
     Assertions.assertEquals(1, snapshot.getCaptures().getLines().size());
-    assertCaptureArgs(snapshot.getCaptures().getLines().get(8), "arg", "java.lang.String", "1");
-    assertCaptureLocals(snapshot.getCaptures().getLines().get(8), "var1", "int", "1");
+    assertCaptureArgs(snapshot.getCaptures().getLines().get(line), "arg", "java.lang.String", "1");
+    assertCaptureLocals(snapshot.getCaptures().getLines().get(line), "var1", "int", "1");
     assertTrue(snapshot.getStack().size() > 0);
     assertEquals("CapturedSnapshot01.java", snapshot.getStack().get(0).getFileName());
   }
@@ -212,7 +215,8 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   @Test
   public void resolutionFails() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
-    TestSnapshotListener listener = installLineProbe(LINE_PROBE_ID1, CLASS_NAME, 8);
+    int line = getLineForLineProbe(CLASS_NAME, LINE_PROBE_ID1);
+    TestSnapshotListener listener = installLineProbe(LINE_PROBE_ID1, CLASS_NAME, line);
     DebuggerAgentHelper.injectSink(listener);
     DebuggerContext.initProbeResolver((encodedProbeId) -> null);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
@@ -224,7 +228,8 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   @Test
   public void resolutionThrows() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
-    LogProbe lineProbe = createLineProbe(LINE_PROBE_ID1, CLASS_NAME, 8);
+    int line = getLineForLineProbe(CLASS_NAME, LINE_PROBE_ID1);
+    LogProbe lineProbe = createLineProbe(LINE_PROBE_ID1, CLASS_NAME, line);
     LogProbe methodProbe =
         createMethodProbe(PROBE_ID2, CLASS_NAME, "main", "int (java.lang.String)");
     TestSnapshotListener listener = installProbes(lineProbe, methodProbe);
@@ -471,8 +476,9 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   @Test
   public void sourceFileProbe() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot03";
+    int line = getLineForLineProbe(CLASS_NAME, LINE_PROBE_ID1);
     TestSnapshotListener listener =
-        installProbes(createLineProbe(LINE_PROBE_ID1, CLASS_NAME + ".java", 4));
+        installProbes(createLineProbe(LINE_PROBE_ID1, CLASS_NAME + ".java", line));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.onClass(testClass).call("main", "").get();
     assertEquals(48, result);
@@ -482,14 +488,15 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     Assertions.assertEquals(1, snapshot.getCaptures().getLines().size());
     Assertions.assertEquals(CLASS_NAME, snapshot.getProbe().getLocation().getType());
     Assertions.assertEquals("f1", snapshot.getProbe().getLocation().getMethod());
-    assertCaptureArgs(snapshot.getCaptures().getLines().get(4), "value", "int", "31");
+    assertCaptureArgs(snapshot.getCaptures().getLines().get(line), "value", "int", "31");
   }
 
   @Test
   public void simpleSourceFileProbe() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot10";
+    int line = getLineForLineProbe(CLASS_NAME, LINE_PROBE_ID1);
     TestSnapshotListener listener =
-        installProbes(createLineProbe(LINE_PROBE_ID1, "CapturedSnapshot10.java", 11));
+        installProbes(createLineProbe(LINE_PROBE_ID1, "CapturedSnapshot10.java", line));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.onClass(testClass).call("main", "2").get();
     assertEquals(2, result);
@@ -499,16 +506,17 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     Assertions.assertEquals(1, snapshot.getCaptures().getLines().size());
     Assertions.assertEquals(CLASS_NAME, snapshot.getProbe().getLocation().getType());
     Assertions.assertEquals("main", snapshot.getProbe().getLocation().getMethod());
-    assertCaptureLocals(snapshot.getCaptures().getLines().get(11), "var1", "int", "1");
+    assertCaptureLocals(snapshot.getCaptures().getLines().get(line), "var1", "int", "1");
   }
 
   @Test
   public void sourceFileProbeFullPath() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot10";
     String DIR_CLASS_NAME = CLASS_NAME.replace('.', '/');
+    int line = getLineForLineProbe(CLASS_NAME, LINE_PROBE_ID1);
     TestSnapshotListener listener =
         installProbes(
-            createLineProbe(LINE_PROBE_ID1, "src/main/java/" + DIR_CLASS_NAME + ".java", 11));
+            createLineProbe(LINE_PROBE_ID1, "src/main/java/" + DIR_CLASS_NAME + ".java", line));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.onClass(testClass).call("main", "2").get();
     assertEquals(2, result);
@@ -518,16 +526,17 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     Assertions.assertEquals(1, snapshot.getCaptures().getLines().size());
     Assertions.assertEquals(CLASS_NAME, snapshot.getProbe().getLocation().getType());
     Assertions.assertEquals("main", snapshot.getProbe().getLocation().getMethod());
-    assertCaptureArgs(snapshot.getCaptures().getLines().get(11), "arg", "java.lang.String", "2");
+    assertCaptureArgs(snapshot.getCaptures().getLines().get(line), "arg", "java.lang.String", "2");
   }
 
   @Test
   public void sourceFileProbeFullPathTopLevelClass() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot10";
     String DIR_CLASS_NAME = CLASS_NAME.replace('.', '/');
+    int line = getLineForLineProbe(CLASS_NAME, LINE_PROBE_ID2);
     TestSnapshotListener listener =
         installProbes(
-            createLineProbe(LINE_PROBE_ID2, "src/main/java/" + DIR_CLASS_NAME + ".java", 21));
+            createLineProbe(LINE_PROBE_ID2, "src/main/java/" + DIR_CLASS_NAME + ".java", line));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.onClass(testClass).call("main", "1").get();
     assertEquals(42 * 42, result);
@@ -538,16 +547,17 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     Assertions.assertEquals(
         "com.datadog.debugger.TopLevel01", snapshot.getProbe().getLocation().getType());
     Assertions.assertEquals("process", snapshot.getProbe().getLocation().getMethod());
-    assertCaptureArgs(snapshot.getCaptures().getLines().get(21), "arg", "int", "42");
+    assertCaptureArgs(snapshot.getCaptures().getLines().get(line), "arg", "int", "42");
   }
 
   @Test
   public void methodProbeLineProbeMix() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot11";
     String DIR_CLASS_NAME = CLASS_NAME.replace('.', '/');
+    int line = getLineForLineProbe(CLASS_NAME, LINE_PROBE_ID1);
     TestSnapshotListener listener =
         installProbes(
-            createLineProbe(LINE_PROBE_ID1, "src/main/java/" + DIR_CLASS_NAME + ".java", 10),
+            createLineProbe(LINE_PROBE_ID1, "src/main/java/" + DIR_CLASS_NAME + ".java", line),
             createMethodProbe(PROBE_ID2, CLASS_NAME, "main", null));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.onClass(testClass).call("main", "2").get();
@@ -560,8 +570,8 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     Assertions.assertEquals(
         "com.datadog.debugger.CapturedSnapshot11", snapshot0.getProbe().getLocation().getType());
     assertEquals("main", snapshot0.getProbe().getLocation().getMethod());
-    assertCaptureArgs(snapshot0.getCaptures().getLines().get(10), "arg", "java.lang.String", "2");
-    assertCaptureLocals(snapshot0.getCaptures().getLines().get(10), "var1", "int", "1");
+    assertCaptureArgs(snapshot0.getCaptures().getLines().get(line), "arg", "java.lang.String", "2");
+    assertCaptureLocals(snapshot0.getCaptures().getLines().get(line), "var1", "int", "1");
     Snapshot snapshot1 = snapshots.get(1);
     assertEquals(
         "com.datadog.debugger.CapturedSnapshot11", snapshot1.getProbe().getLocation().getType());
@@ -573,8 +583,9 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   @Test
   public void sourceFileProbeScala() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot101";
-    final String FILE_NAME = CLASS_NAME + ".scala";
-    TestSnapshotListener listener = installProbes(createLineProbe(LINE_PROBE_ID1, FILE_NAME, 3));
+    final String FILE_NAME = CLASS_NAME + SCALA_EXT;
+    int line = getLineForLineProbe(CLASS_NAME, SCALA_EXT, LINE_PROBE_ID1);
+    TestSnapshotListener listener = installProbes(createLineProbe(LINE_PROBE_ID1, FILE_NAME, line));
     String source = getFixtureContent("/" + FILE_NAME);
     Class<?> testClass = ScalaHelper.compileAndLoad(source, CLASS_NAME, FILE_NAME);
     int result = Reflect.onClass(testClass).call("main", "").get();
@@ -585,15 +596,16 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     Assertions.assertEquals(1, snapshot.getCaptures().getLines().size());
     Assertions.assertEquals(CLASS_NAME, snapshot.getProbe().getLocation().getType());
     Assertions.assertEquals("f1", snapshot.getProbe().getLocation().getMethod());
-    assertCaptureArgs(snapshot.getCaptures().getLines().get(3), "value", "int", "31");
+    assertCaptureArgs(snapshot.getCaptures().getLines().get(line), "value", "int", "31");
   }
 
   @Test
   public void sourceFileProbeGroovy() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot201";
+    int line = getLineForLineProbe(CLASS_NAME, GROOVY_EXT, LINE_PROBE_ID1);
     TestSnapshotListener listener =
-        installProbes(createLineProbe(LINE_PROBE_ID1, CLASS_NAME + ".groovy", 4));
-    String source = getFixtureContent("/" + CLASS_NAME + ".groovy");
+        installProbes(createLineProbe(LINE_PROBE_ID1, CLASS_NAME + GROOVY_EXT, line));
+    String source = getFixtureContent("/" + CLASS_NAME + GROOVY_EXT);
     GroovyClassLoader groovyClassLoader = new GroovyClassLoader();
     Class<?> testClass = groovyClassLoader.parseClass(source);
     int result = Reflect.onClass(testClass).call("main", "").get();
@@ -604,18 +616,19 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     Assertions.assertEquals(1, snapshot.getCaptures().getLines().size());
     Assertions.assertEquals(CLASS_NAME, snapshot.getProbe().getLocation().getType());
     Assertions.assertEquals("f1", snapshot.getProbe().getLocation().getMethod());
-    assertCaptureArgs(snapshot.getCaptures().getLines().get(4), "value", "int", "31");
+    assertCaptureArgs(snapshot.getCaptures().getLines().get(line), "value", "int", "31");
   }
 
   @Test
   @DisabledIf(
       value = "datadog.trace.api.Platform#isJ9",
       disabledReason = "Issue with J9 when compiling Kotlin code")
-  public void sourceFileProbeKotlin() {
+  public void sourceFileProbeKotlin() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot301";
+    int line = getLineForLineProbe(CLASS_NAME, KOTLIN_EXT, LINE_PROBE_ID1);
     TestSnapshotListener listener =
-        installProbes(createLineProbe(LINE_PROBE_ID1, CLASS_NAME + ".kt", 4));
-    URL resource = CapturedSnapshotTest.class.getResource("/" + CLASS_NAME + ".kt");
+        installProbes(createLineProbe(LINE_PROBE_ID1, CLASS_NAME + KOTLIN_EXT, line));
+    URL resource = CapturedSnapshotTest.class.getResource("/" + CLASS_NAME + KOTLIN_EXT);
     assertNotNull(resource);
     List<File> filesToDelete = new ArrayList<>();
     try {
@@ -630,7 +643,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
       Assertions.assertEquals(1, snapshot.getCaptures().getLines().size());
       Assertions.assertEquals(CLASS_NAME, snapshot.getProbe().getLocation().getType());
       Assertions.assertEquals("f1", snapshot.getProbe().getLocation().getMethod());
-      assertCaptureArgs(snapshot.getCaptures().getLines().get(4), "value", "int", "31");
+      assertCaptureArgs(snapshot.getCaptures().getLines().get(line), "value", "int", "31");
     } finally {
       filesToDelete.forEach(File::delete);
     }
@@ -640,10 +653,11 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   @DisabledIf(
       value = "datadog.trace.api.Platform#isJ9",
       disabledReason = "Issue with J9 when compiling Kotlin code")
-  public void suspendKotlin() {
+  public void suspendKotlin() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot302";
+    int line = getLineForLineProbe(CLASS_NAME, ".kt", LINE_PROBE_ID1);
     TestSnapshotListener listener =
-        installProbes(createLineProbe(LINE_PROBE_ID1, CLASS_NAME + ".kt", 9));
+        installProbes(createLineProbe(LINE_PROBE_ID1, CLASS_NAME + ".kt", line));
     URL resource = CapturedSnapshotTest.class.getResource("/" + CLASS_NAME + ".kt");
     assertNotNull(resource);
     List<File> filesToDelete = new ArrayList<>();
@@ -654,7 +668,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
       int result = Reflect.on(companion).call("main", "").get();
       assertEquals(0, result);
       Snapshot snapshot = assertOneSnapshot(LINE_PROBE_ID1, listener);
-      assertCaptureFields(snapshot.getCaptures().getLines().get(9), "intField", "int", "42");
+      assertCaptureFields(snapshot.getCaptures().getLines().get(line), "intField", "int", "42");
       assertCaptureFields(
           snapshot.getCaptures().getLines().get(9), "strField", String.class.getTypeName(), "foo");
     } finally {
@@ -1035,9 +1049,12 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   @Test
   public void lineEmptyCaughtException() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot05";
-    LogProbe probe1 = createLineProbe(LINE_PROBE_ID1, CLASS_NAME, 26);
-    LogProbe probe2 = createLineProbe(LINE_PROBE_ID2, CLASS_NAME, 29);
-    LogProbe probe3 = createLineProbe(LINE_PROBE_ID3, CLASS_NAME, 32);
+    int line1 = getLineForLineProbe(CLASS_NAME, LINE_PROBE_ID1);
+    int line2 = getLineForLineProbe(CLASS_NAME, LINE_PROBE_ID2);
+    int line3 = getLineForLineProbe(CLASS_NAME, LINE_PROBE_ID3);
+    LogProbe probe1 = createLineProbe(LINE_PROBE_ID1, CLASS_NAME, line1);
+    LogProbe probe2 = createLineProbe(LINE_PROBE_ID2, CLASS_NAME, line2);
+    LogProbe probe3 = createLineProbe(LINE_PROBE_ID3, CLASS_NAME, line3);
     TestSnapshotListener listener = installProbes(probe1, probe2, probe3);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.onClass(testClass).call("main", "triggerSwallowedException").get();
@@ -1048,7 +1065,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     Map<String, String> expectedFields0 = new HashMap<>();
     expectedFields0.put("detailMessage", "oops");
     assertCaptureLocals(
-        snapshot0.getCaptures().getLines().get(26),
+        snapshot0.getCaptures().getLines().get(line1),
         "ex0",
         IllegalStateException.class.getTypeName(),
         expectedFields0);
@@ -1056,7 +1073,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     Map<String, String> expectedFields1 = new HashMap<>();
     expectedFields1.put("detailMessage", "nope!");
     assertCaptureLocals(
-        snapshot1.getCaptures().getLines().get(29),
+        snapshot1.getCaptures().getLines().get(line2),
         "ex",
         IllegalArgumentException.class.getTypeName(),
         expectedFields1);
@@ -1064,7 +1081,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     Map<String, String> expectedFields2 = new HashMap<>();
     expectedFields2.put("detailMessage", "not there");
     assertCaptureLocals(
-        snapshot2.getCaptures().getLines().get(32),
+        snapshot2.getCaptures().getLines().get(line3),
         "ex",
         FileNotFoundException.class.getTypeName(),
         expectedFields2);
@@ -1093,11 +1110,12 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   @Test
   public void rateLimitSnapshot() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
+    int line = getLineForLineProbe(CLASS_NAME, LINE_PROBE_ID1);
     LogProbe logProbes =
         new LogProbe.Builder()
             .language(LANGUAGE)
-            .probeId(PROBE_ID)
-            .where(CLASS_NAME, 8)
+            .probeId(LINE_PROBE_ID1)
+            .where(CLASS_NAME, line)
             .sampling(new LogProbe.Sampling(1))
             .build();
     TestSnapshotListener listener = installProbes(logProbes);
@@ -1169,8 +1187,9 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   @Test
   public void lineProbeCondition() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot08";
+    int line = getLineForLineProbe(CLASS_NAME, LINE_PROBE_ID1);
     LogProbe logProbe =
-        createProbeBuilder(LINE_PROBE_ID1, CLASS_NAME, 9)
+        createProbeBuilder(LINE_PROBE_ID1, CLASS_NAME, line)
             .when(
                 new ProbeCondition(
                     DSL.when(
@@ -1197,7 +1216,10 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     }
     assertEquals(1, listener.snapshots.size());
     assertCaptureArgs(
-        listener.snapshots.get(0).getCaptures().getLines().get(9), "arg", "java.lang.String", "5");
+        listener.snapshots.get(0).getCaptures().getLines().get(line),
+        "arg",
+        "java.lang.String",
+        "5");
   }
 
   @Test
@@ -1228,8 +1250,9 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   @Test
   public void simpleFalseConditionTest() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot08";
+    int line = getLineForLineProbe(CLASS_NAME, LINE_PROBE_ID2);
     LogProbe logProbe =
-        createProbeBuilder(LINE_PROBE_ID1, CLASS_NAME, 8)
+        createProbeBuilder(LINE_PROBE_ID2, CLASS_NAME, line)
             .when(
                 new ProbeCondition(DSL.when(DSL.eq(DSL.ref("arg"), DSL.value("5"))), "arg == '5'"))
             .evaluateAt(MethodLocation.EXIT)
@@ -1601,12 +1624,14 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     CorrelationAccess spyCorrelationAccess = spy(CorrelationAccess.instance());
     setCorrelationSingleton(spyCorrelationAccess);
     doReturn(true).when(spyCorrelationAccess).isAvailable();
-    TestSnapshotListener listener = installProbes(createLineProbe(LINE_PROBE_ID1, CLASS_NAME, 37));
+    int line = getLineForLineProbe(CLASS_NAME, LINE_PROBE_ID1);
+    TestSnapshotListener listener =
+        installProbes(createLineProbe(LINE_PROBE_ID1, CLASS_NAME, line));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.onClass(testClass).call("main", "static", "email@address").get();
     assertEquals(8, result);
     Snapshot snapshot = assertOneSnapshot(LINE_PROBE_ID1, listener);
-    CapturedContext context = snapshot.getCaptures().getLines().get(37);
+    CapturedContext context = snapshot.getCaptures().getLines().get(line);
     assertNotNull(context);
     assertCaptureLocals(context, "idx", "int", "5");
   }
@@ -1617,12 +1642,14 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     CorrelationAccess spyCorrelationAccess = spy(CorrelationAccess.instance());
     setCorrelationSingleton(spyCorrelationAccess);
     doReturn(true).when(spyCorrelationAccess).isAvailable();
-    TestSnapshotListener listener = installProbes(createLineProbe(LINE_PROBE_ID2, CLASS_NAME, 48));
+    int line = getLineForLineProbe(CLASS_NAME, LINE_PROBE_ID2);
+    TestSnapshotListener listener =
+        installProbes(createLineProbe(LINE_PROBE_ID2, CLASS_NAME, line));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.onClass(testClass).call("main", "capturing", "email@address").get();
     assertEquals(8, result);
     Snapshot snapshot = assertOneSnapshot(LINE_PROBE_ID2, listener);
-    CapturedContext context = snapshot.getCaptures().getLines().get(48);
+    CapturedContext context = snapshot.getCaptures().getLines().get(line);
     assertNotNull(context);
     assertCaptureLocals(context, "idx", "int", "5");
     assertCaptureFields(context, "strValue", "java.lang.String", "email@address");
@@ -1634,12 +1661,14 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     CorrelationAccess spyCorrelationAccess = spy(CorrelationAccess.instance());
     setCorrelationSingleton(spyCorrelationAccess);
     doReturn(true).when(spyCorrelationAccess).isAvailable();
-    TestSnapshotListener listener = installProbes(createLineProbe(LINE_PROBE_ID3, CLASS_NAME, 58));
+    int line = getLineForLineProbe(CLASS_NAME, LINE_PROBE_ID3);
+    TestSnapshotListener listener =
+        installProbes(createLineProbe(LINE_PROBE_ID3, CLASS_NAME, line));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.onClass(testClass).call("main", "multi", "FOO1,FOO2,FOO3").get();
     assertEquals(3, result);
     Snapshot snapshot = assertOneSnapshot(LINE_PROBE_ID3, listener);
-    CapturedContext context = snapshot.getCaptures().getLines().get(58);
+    CapturedContext context = snapshot.getCaptures().getLines().get(line);
     assertNotNull(context);
     assertCaptureArgs(context, "arg", String.class.getTypeName(), "FOO1,FOO2,FOO3");
   }
@@ -1787,7 +1816,9 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   @Test
   public void exceptionAsLocalVariable() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot18";
-    TestSnapshotListener listener = installProbes(createLineProbe(LINE_PROBE_ID1, CLASS_NAME, 14));
+    int line = getLineForLineProbe(CLASS_NAME, LINE_PROBE_ID1);
+    TestSnapshotListener listener =
+        installProbes(createLineProbe(LINE_PROBE_ID1, CLASS_NAME, line));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.onClass(testClass).call("main", "2").get();
     assertEquals(42, result);
@@ -1795,7 +1826,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     Map<String, String> expectedFields = new HashMap<>();
     expectedFields.put("detailMessage", "For input string: \"a\"");
     assertCaptureLocals(
-        snapshot.getCaptures().getLines().get(14),
+        snapshot.getCaptures().getLines().get(line),
         "ex",
         "java.lang.NumberFormatException",
         expectedFields);
@@ -1860,7 +1891,6 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   public void uncaughtExceptionConditionLocalVar() throws IOException, URISyntaxException {
     setFieldInConfig(Config.get(), "debuggerHoistLocalVarsEnabled", true);
     try {
-
       final String CLASS_NAME = "CapturedSnapshot05";
       LogProbe probe =
           createProbeBuilder(PROBE_ID, CLASS_NAME, "main", "(String)")
@@ -2168,25 +2198,29 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   @Test
   public void beforeForLoopLineProbe() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot02";
-    TestSnapshotListener listener = installLineProbe(LINE_PROBE_ID1, CLASS_NAME, 46);
+    int line = getLineForLineProbe(CLASS_NAME, LINE_PROBE_ID1);
+    TestSnapshotListener listener = installLineProbe(LINE_PROBE_ID1, CLASS_NAME, line);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.onClass(testClass).call("main", "synchronizedBlock").get();
     assertEquals(76, result);
     Snapshot snapshot = assertOneSnapshot(LINE_PROBE_ID1, listener);
-    assertCaptureLocals(snapshot.getCaptures().getLines().get(46), "count", "int", "31");
+    assertCaptureLocals(snapshot.getCaptures().getLines().get(line), "count", "int", "31");
   }
 
   @Test
   public void dupLineProbeSameTemplate() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot08";
     final String LOG_TEMPLATE = "msg1={typed.fld.fld.msg}";
+    int line1 = getLineForLineProbe(CLASS_NAME, LINE_PROBE_ID3);
+    int line2 = getLineForLineProbe(CLASS_NAME, LINE_PROBE_ID4);
+    assertTrue(line1 == line2);
     LogProbe probe1 =
-        createProbeBuilder(LINE_PROBE_ID2, CLASS_NAME, 14)
+        createProbeBuilder(LINE_PROBE_ID3, CLASS_NAME, line1)
             .template(LOG_TEMPLATE, parseTemplate(LOG_TEMPLATE))
             .evaluateAt(MethodLocation.EXIT)
             .build();
     LogProbe probe2 =
-        createProbeBuilder(LINE_PROBE_ID3, CLASS_NAME, 14)
+        createProbeBuilder(LINE_PROBE_ID4, CLASS_NAME, line2)
             .template(LOG_TEMPLATE, parseTemplate(LOG_TEMPLATE))
             .evaluateAt(MethodLocation.EXIT)
             .build();
@@ -2194,7 +2228,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.onClass(testClass).call("main", "1").get();
     assertEquals(3, result);
-    List<Snapshot> snapshots = assertSnapshots(listener, 2, LINE_PROBE_ID2, LINE_PROBE_ID3);
+    List<Snapshot> snapshots = assertSnapshots(listener, 2, LINE_PROBE_ID3, LINE_PROBE_ID4);
     for (Snapshot snapshot : snapshots) {
       assertEquals("msg1=hello", snapshot.getMessage());
     }
@@ -2479,13 +2513,14 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   public void lineRecord() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot29";
     final String RECORD_NAME = "com.datadog.debugger.MyRecord2";
-    LogProbe probe1 = createLineProbe(LINE_PROBE_ID1, RECORD_NAME, 29);
+    int line = getLineForLineProbe(CLASS_NAME, LINE_PROBE_ID1);
+    LogProbe probe1 = createLineProbe(LINE_PROBE_ID1, RECORD_NAME, line);
     TestSnapshotListener listener = installProbes(probe1);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME, "17");
     int result = Reflect.onClass(testClass).call("main", "1").get();
     assertEquals(42, result);
     Snapshot snapshot = assertOneSnapshot(LINE_PROBE_ID1, listener);
-    CapturedContext capturedContext = snapshot.getCaptures().getLines().get(29);
+    CapturedContext capturedContext = snapshot.getCaptures().getLines().get(line);
     assertCaptureArgs(capturedContext, "firstName", String.class.getTypeName(), "john");
     assertCaptureArgs(capturedContext, "lastName", String.class.getTypeName(), "doe");
     assertCaptureArgs(capturedContext, "age", Integer.TYPE.getTypeName(), "42");
