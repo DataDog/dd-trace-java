@@ -25,7 +25,7 @@ public interface AgentSpan
    * @return the span if existing, {@code null} otherwise.
    */
   static AgentSpan fromContext(Context context) {
-    return context.get(SPAN_KEY);
+    return context == null ? null : context.get(SPAN_KEY);
   }
 
   /**

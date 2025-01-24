@@ -156,4 +156,30 @@ class TracingPropagatorTest extends DDCoreSpecification {
     span.finish()
     tracer.close()
   }
+
+  def 'test ASM standalone billing propagator stop propagation'() {
+    setup:
+    injectSysConfig('experimental.appsec.standalone.enabled', standaloneAsmEnabled.toString())
+    def tracer = tracerBuilder().build()
+    def span = tracer.buildSpan('test', 'operation').start()
+    def setter = Mock(CarrierSetter)
+    def carrier = new Object()
+
+    when:
+    Propagators.defaultPropagator().inject(span, carrier, setter)
+
+    then:
+    if (standaloneAsmEnabled) {
+      0 * setter.set(_, _, _)
+    } else {
+      (1.._) * setter.set(_, _, _)
+    }
+
+    cleanup:
+    span.finish()
+    tracer.close()
+
+    where:
+    standaloneAsmEnabled << [true, false]
+  }
 }

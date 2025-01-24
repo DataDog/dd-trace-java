@@ -5,6 +5,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 import static datadog.trace.api.DDTags.DJM_ENABLED;
 import static datadog.trace.api.DDTags.DSM_ENABLED;
 import static datadog.trace.api.DDTags.PROFILING_CONTEXT_ENGINE;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.STANDALONE_ASM_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.TRACING_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.XRAY_TRACING_CONCERN;
 import static datadog.trace.common.metrics.MetricsAggregatorFactory.createMetricsAggregator;
@@ -90,6 +91,7 @@ import datadog.trace.core.propagation.CorePropagation;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.propagation.PropagationTags;
+import datadog.trace.core.propagation.StandaloneAsmPropagator;
 import datadog.trace.core.propagation.TracingPropagator;
 import datadog.trace.core.propagation.XRayPropagator;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
@@ -725,7 +727,14 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     this.propagation =
         new CorePropagation(builtExtractor, injector, injectors, dataStreamContextInjector);
 
-    Propagators.register(TRACING_CONCERN, new TracingPropagator(injector, extractor));
+    // Check if standalone AppSec is enabled:
+    // If enabled, use the standalone AppSec propagator by default that will limit tracing concern
+    // injection and delegate to the tracing propagator if needed,
+    // If disabled, the most common case, use the usual tracing propagator by default.
+    boolean standaloneAppSec = config.isAppSecStandaloneEnabled();
+    Propagators.register(STANDALONE_ASM_CONCERN, new StandaloneAsmPropagator(), standaloneAppSec);
+    Propagators.register(
+        TRACING_CONCERN, new TracingPropagator(injector, extractor), !standaloneAppSec);
     Propagators.register(XRAY_TRACING_CONCERN, new XRayPropagator(config), false);
 
     this.tagInterceptor =
