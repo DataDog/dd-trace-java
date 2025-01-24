@@ -10,6 +10,7 @@ import datadog.trace.api.TraceConfig;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.interceptor.MutableSpan;
+import java.util.Map;
 import javax.annotation.Nullable;
 
 public interface AgentSpan
@@ -34,6 +35,8 @@ public interface AgentSpan
   AgentSpan setTag(String key, CharSequence value);
 
   AgentSpan setTag(String key, Object value);
+
+  AgentSpan setAllTags(Map<String, ?> map);
 
   @Override
   AgentSpan setTag(String key, Number value);
