@@ -16,6 +16,7 @@ import com.datadog.debugger.probe.LogProbe.LogStatus;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.sink.Snapshot;
+import datadog.trace.api.Config;
 import datadog.trace.api.IdGenerationStrategy;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.EvaluationError;
@@ -28,6 +29,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.CoreTracer;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -80,20 +83,27 @@ public class LogProbeTest {
 
   @Test
   public void budgets() {
-    DebuggerSink sink = new DebuggerSink(getConfig(), mock(ProbeStatusSink.class));
+    BudgetSink sink = new BudgetSink(getConfig(), mock(ProbeStatusSink.class));
+
     DebuggerAgentHelper.injectSink(sink);
-    assertEquals(0, sink.getSnapshotSink().getLowRateSnapshots().size());
+    assertEquals(0, sink.captures.size());
     TracerAPI tracer =
         CoreTracer.builder().idGenerationStrategy(IdGenerationStrategy.fromName("random")).build();
     AgentTracer.registerIfAbsent(tracer);
     int runs = 100;
     for (int i = 0; i < runs; i++) {
-      runTrace(tracer);
+      runTrace(tracer, true);
     }
-    assertEquals(runs * LogProbe.PROBE_BUDGET, sink.getSnapshotSink().getLowRateSnapshots().size());
+    assertEquals(runs * LogProbe.CAPTURING_PROBE_BUDGET, sink.captures.size());
+
+    runs = 2000;
+    for (int i = 0; i < runs; i++) {
+      runTrace(tracer, false);
+    }
+    assertEquals(runs * LogProbe.NON_CAPTURING_PROBE_BUDGET, sink.highRate.size());
   }
 
-  private void runTrace(TracerAPI tracer) {
+  private void runTrace(TracerAPI tracer, boolean captureSnapshot) {
     AgentSpan span = tracer.startSpan("budget testing", "test span");
     span.setTag(Tags.PROPAGATED_DEBUG, "12345:1");
     try (AgentScope scope = tracer.activateSpan(span, ScopeSource.MANUAL)) {
@@ -102,20 +112,23 @@ public class LogProbeTest {
           createLog("I'm in a debug session")
               .probeId(ProbeId.newId())
               .tags("session_id:12345")
-              .captureSnapshot(true)
+              .captureSnapshot(captureSnapshot)
               .build();
-
       CapturedContext entryContext = capturedContext(span, logProbe);
       CapturedContext exitContext = capturedContext(span, logProbe);
       logProbe.evaluate(entryContext, new LogStatus(logProbe), MethodLocation.ENTRY);
       logProbe.evaluate(exitContext, new LogStatus(logProbe), MethodLocation.EXIT);
 
-      for (int i = 0; i < LogProbe.PROBE_BUDGET * 2; i++) {
+      int budget =
+          logProbe.isCaptureSnapshot()
+              ? LogProbe.CAPTURING_PROBE_BUDGET
+              : LogProbe.NON_CAPTURING_PROBE_BUDGET;
+      int runs = budget + 20;
+
+      for (int i = 0; i < runs; i++) {
         logProbe.commit(entryContext, exitContext, emptyList());
       }
-      assertEquals(
-          LogProbe.PROBE_BUDGET * 2,
-          span.getLocalRootSpan().getTag(format("_dd.ld.probe_id.%s", logProbe.id)));
+      assertEquals(runs, span.getLocalRootSpan().getTag(format("_dd.ld.probe_id.%s", logProbe.id)));
     }
   }
 
@@ -295,5 +308,35 @@ public class LogProbeTest {
         .language(LANGUAGE)
         .probeId(PROBE_ID)
         .template(template, parseTemplate(template));
+  }
+
+  private static class BudgetSink extends DebuggerSink {
+
+    public List<Snapshot> captures = new ArrayList<>();
+    public List<Snapshot> highRate = new ArrayList<>();
+
+    public BudgetSink(Config config, ProbeStatusSink probeStatusSink) {
+      super(config, probeStatusSink);
+    }
+
+    @Override
+    public void addHighRateSnapshot(Snapshot snapshot) {
+      highRate.add(snapshot);
+    }
+
+    @Override
+    public void addSnapshot(Snapshot snapshot) {
+      captures.add(snapshot);
+    }
+
+    @Override
+    public void start() {
+      super.start();
+    }
+
+    @Override
+    public void stop() {
+      super.stop();
+    }
   }
 }

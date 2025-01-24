@@ -63,7 +63,8 @@ public class LogProbe extends ProbeDefinition implements Sampled {
   private static final Limits LIMITS = new Limits(1, 3, 8192, 5);
   private static final int LOG_MSG_LIMIT = 8192;
 
-  public static final int PROBE_BUDGET = 10;
+  public static final int CAPTURING_PROBE_BUDGET = 10;
+  public static final int NON_CAPTURING_PROBE_BUDGET = 1000;
 
   /** Stores part of a templated message either a str or an expression */
   public static class Segment {
@@ -870,7 +871,9 @@ public class LogProbe extends ProbeDefinition implements Sampled {
 
   private boolean inBudget() {
     AtomicInteger budgetLevel = getBudgetLevel();
-    return budgetLevel == null || budgetLevel.get() <= PROBE_BUDGET;
+    return budgetLevel == null
+        || budgetLevel.get()
+            <= (captureSnapshot ? CAPTURING_PROBE_BUDGET : NON_CAPTURING_PROBE_BUDGET);
   }
 
   private AtomicInteger getBudgetLevel() {
