@@ -21,6 +21,7 @@ import com.datadog.profiling.uploader.util.JfrCliHelper;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
+import datadog.common.container.ServerlessInfo;
 import datadog.common.version.VersionInfo;
 import datadog.communication.http.OkHttpUtils;
 import datadog.trace.api.Config;
@@ -110,6 +111,8 @@ public final class ProfileUploader {
               + V4_ATTACHMENT_FILENAME
               + "\"");
 
+  static final String SERVELESS_TAG = "functionname";
+
   private final Config config;
   private final ConfigProvider configProvider;
 
@@ -172,6 +175,9 @@ public final class ProfileUploader {
     }
     if (Platform.isNativeImage()) {
       tagsMap.put(DDTags.RUNTIME_VERSION_TAG, tagsMap.get(DDTags.RUNTIME_VERSION_TAG) + "-aot");
+    }
+    if (ServerlessInfo.get().isRunningInServerlessEnvironment()) {
+      tagsMap.put(SERVELESS_TAG, ServerlessInfo.get().getFunctionName());
     }
 
     // Comma separated tags string for V2.4 format
