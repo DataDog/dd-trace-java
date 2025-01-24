@@ -29,8 +29,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.CoreTracer;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -84,9 +82,8 @@ public class LogProbeTest {
   @Test
   public void budgets() {
     BudgetSink sink = new BudgetSink(getConfig(), mock(ProbeStatusSink.class));
-
     DebuggerAgentHelper.injectSink(sink);
-    assertEquals(0, sink.captures.size());
+
     TracerAPI tracer =
         CoreTracer.builder().idGenerationStrategy(IdGenerationStrategy.fromName("random")).build();
     AgentTracer.registerIfAbsent(tracer);
@@ -94,13 +91,15 @@ public class LogProbeTest {
     for (int i = 0; i < runs; i++) {
       runTrace(tracer, true);
     }
-    assertEquals(runs * LogProbe.CAPTURING_PROBE_BUDGET, sink.captures.size());
+    assertEquals(runs * LogProbe.CAPTURING_PROBE_BUDGET, sink.captures);
 
-    runs = 2000;
+    sink = new BudgetSink(getConfig(), mock(ProbeStatusSink.class));
+    DebuggerAgentHelper.injectSink(sink);
+    runs = 1010;
     for (int i = 0; i < runs; i++) {
       runTrace(tracer, false);
     }
-    assertEquals(runs * LogProbe.NON_CAPTURING_PROBE_BUDGET, sink.highRate.size());
+    assertEquals(runs * LogProbe.NON_CAPTURING_PROBE_BUDGET, sink.highRate);
   }
 
   private void runTrace(TracerAPI tracer, boolean captureSnapshot) {
@@ -312,8 +311,8 @@ public class LogProbeTest {
 
   private static class BudgetSink extends DebuggerSink {
 
-    public List<Snapshot> captures = new ArrayList<>();
-    public List<Snapshot> highRate = new ArrayList<>();
+    public int captures;
+    public int highRate;
 
     public BudgetSink(Config config, ProbeStatusSink probeStatusSink) {
       super(config, probeStatusSink);
@@ -321,12 +320,12 @@ public class LogProbeTest {
 
     @Override
     public void addHighRateSnapshot(Snapshot snapshot) {
-      highRate.add(snapshot);
+      highRate++;
     }
 
     @Override
     public void addSnapshot(Snapshot snapshot) {
-      captures.add(snapshot);
+      captures++;
     }
 
     @Override
