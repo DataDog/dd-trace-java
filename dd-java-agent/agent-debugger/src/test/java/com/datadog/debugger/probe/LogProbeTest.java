@@ -110,9 +110,12 @@ public class LogProbeTest {
       logProbe.evaluate(entryContext, new LogStatus(logProbe), MethodLocation.ENTRY);
       logProbe.evaluate(exitContext, new LogStatus(logProbe), MethodLocation.EXIT);
 
-      for (int i = 0; i < 20; i++) {
+      for (int i = 0; i < LogProbe.PROBE_BUDGET * 2; i++) {
         logProbe.commit(entryContext, exitContext, emptyList());
       }
+      assertEquals(
+          LogProbe.PROBE_BUDGET * 2,
+          span.getLocalRootSpan().getTag(format("_dd.ld.probe_id.%s", logProbe.id)));
     }
   }
 
