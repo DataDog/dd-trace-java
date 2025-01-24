@@ -34,7 +34,7 @@ public class CapturedSnapshot07 {
   private int staticLambda(String arg) {
     Function<String, String> func = s -> {
       int idx = s.indexOf('@');
-      if (idx >= 0) {
+      if (idx >= 0) { // beae1817-f3b0-4ea8-a74f-000000000001
         return s.substring(idx);
       }
       return s.substring(0);
@@ -45,7 +45,7 @@ public class CapturedSnapshot07 {
   private int capturingLambda(String arg) {
     Function<String, String> func = s -> {
       int idx = strValue.indexOf('@');
-      if (idx >= 0) {
+      if (idx >= 0) { // beae1817-f3b0-4ea8-a74f-000000000002
         return strValue.substring(idx);
       }
       return strValue.substring(0);
@@ -55,7 +55,7 @@ public class CapturedSnapshot07 {
 
   private int multiLambda(String arg) {
     return (int)Arrays.stream(arg.split(","))
-        .map(s -> s.toUpperCase()).filter(s -> s.startsWith("FOO"))
+        .map(s -> s.toUpperCase()).filter(s -> s.startsWith("FOO")) // beae1817-f3b0-4ea8-a74f-000000000003
         .count();
   }
 }

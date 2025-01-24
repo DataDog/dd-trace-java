@@ -11,7 +11,7 @@ public class CapturedSnapshot18 {
       Integer.parseInt("a");
     } catch (Exception ex) {
       ex.fillInStackTrace();
-      ex.printStackTrace();
+      ex.printStackTrace(); // beae1817-f3b0-4ea8-a74f-000000000001
     }
   }
 }

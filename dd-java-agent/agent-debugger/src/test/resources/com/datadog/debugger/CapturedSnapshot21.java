@@ -64,6 +64,6 @@ public class CapturedSnapshot21 {
   }
 
   private int process3(String arg) {
-    return intField;
+    return intField; // beae1817-f3b0-4ea8-a74f-000000000001
   }
 }
