@@ -62,8 +62,6 @@ public class LogProbe extends ProbeDefinition implements Sampled {
   private static final Limits LIMITS = new Limits(1, 3, 8192, 5);
   private static final int LOG_MSG_LIMIT = 8192;
 
-  private static final AtomicInteger NO_BUDGET = new AtomicInteger();
-
   public static final int PROBE_BUDGET = 10;
 
   /** Stores part of a templated message either a str or an expression */
@@ -591,12 +589,6 @@ public class LogProbe extends ProbeDefinition implements Sampled {
     }
   }
 
-  private void incrementBudget() {
-    if (getDebugSessionId() != null) {
-      getBudgetLevel().incrementAndGet();
-    }
-  }
-
   protected Snapshot createSnapshot() {
     int maxDepth = capture != null ? capture.maxReferenceDepth : -1;
     return new Snapshot(Thread.currentThread(), this, maxDepth);
@@ -873,15 +865,23 @@ public class LogProbe extends ProbeDefinition implements Sampled {
   }
 
   private boolean inBudget() {
-    return getBudgetLevel().get() < PROBE_BUDGET;
+    AtomicInteger budgetLevel = getBudgetLevel();
+    return budgetLevel == null || budgetLevel.get() < PROBE_BUDGET;
   }
 
   private AtomicInteger getBudgetLevel() {
     TracerAPI tracer = AgentTracer.get();
     AgentSpan span = tracer != null ? tracer.activeSpan() : null;
     return getDebugSessionId() == null || span == null
-        ? NO_BUDGET
+        ? null
         : budget.computeIfAbsent(span.getLocalRootSpan().getTraceId(), id -> new AtomicInteger());
+  }
+
+  private void incrementBudget() {
+    AtomicInteger budgetLevel = getBudgetLevel();
+    if (budgetLevel != null) {
+      budgetLevel.incrementAndGet();
+    }
   }
 
   @Generated
