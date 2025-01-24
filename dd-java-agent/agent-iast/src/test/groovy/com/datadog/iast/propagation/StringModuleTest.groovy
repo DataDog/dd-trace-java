@@ -1289,6 +1289,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     final taintedObjects = ctx.getTaintedObjects()
     def self = addFromTaintFormat(taintedObjects, testString)
     def inputTainted = addFromTaintFormat(taintedObjects, newCharSeq)
+    def originalReplace = self.replace(oldCharSeq, inputTainted)
 
     when:
     def result = module.onStringReplace(self, oldCharSeq, inputTainted)
@@ -1296,6 +1297,7 @@ class StringModuleTest extends IastModuleImplTestBase {
 
     then:
     1 * tracer.activeSpan() >> span
+    originalReplace == result
     taintFormat(result, taintedObject.getRanges()) == expected
 
     where:
@@ -1324,6 +1326,12 @@ class StringModuleTest extends IastModuleImplTestBase {
     given:
     final taintedObjects = ctx.getTaintedObjects()
     def self = addFromTaintFormat(taintedObjects, testString)
+    def originalReplace
+    if (numReplacements > 1) {
+      originalReplace = self.replaceAll(regex, replacement)
+    } else {
+      originalReplace = self.replaceFirst(regex, replacement)
+    }
 
     when:
     def result = module.onStringReplace(self, regex, replacement, numReplacements)
@@ -1331,6 +1339,9 @@ class StringModuleTest extends IastModuleImplTestBase {
 
     then:
     1 * tracer.activeSpan() >> span
+    if (numReplacements > 0) {
+      originalReplace == result
+    }
     taintFormat(result, taintedObject.getRanges()) == expected
 
     where:
@@ -1350,7 +1361,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     "==>my_o<==u==>tput<====>my_o<==u==>tput<==" | 'out'    | 'in'        | Integer.MAX_VALUE | "==>my_<==in==>put<====>my_<==in==>put<=="
     "==>my_o<==u==>tp<==ut"                      | 'output' | 'input'     | Integer.MAX_VALUE | "==>my_<==input"
     "==>my_input<=="                             | '_'      | '/\\,.*+'   | Integer.MAX_VALUE | "==>my<==/\\,.*+==>input<=="
-    "==>my_input<=="                             | '_'      | '!?^&$#'    | Integer.MAX_VALUE | "==>my<==!?^&\$#==>input<=="
+    "==>my_input<=="                             | '_'      | '!?^&#'     | Integer.MAX_VALUE | "==>my<==!?^&#==>input<=="
     "==>my_input<=="                             | '_'      | ')(][}{'    | Integer.MAX_VALUE | "==>my<==)(][}{==>input<=="
   }
 
@@ -1359,6 +1370,12 @@ class StringModuleTest extends IastModuleImplTestBase {
     final taintedObjects = ctx.getTaintedObjects()
     def self = addFromTaintFormat(taintedObjects, testString)
     def inputTainted = addFromTaintFormat(taintedObjects, replacement)
+    def originalReplace
+    if (numReplacements > 1) {
+      originalReplace = self.replaceAll(regex, inputTainted)
+    } else {
+      originalReplace = self.replaceFirst(regex, inputTainted)
+    }
 
     when:
     def result = module.onStringReplace(self, regex, inputTainted, numReplacements)
@@ -1366,6 +1383,9 @@ class StringModuleTest extends IastModuleImplTestBase {
 
     then:
     1 * tracer.activeSpan() >> span
+    if (numReplacements > 0) {
+      originalReplace == result
+    }
     taintFormat(result, taintedObject.getRanges()) == expected
 
     where:
@@ -1388,7 +1408,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     "==>my_o<==u==>tput<====>my_o<==u==>tput<==" | 'out'    | '==>in<=='      | 1                 | "==>my_<====>in<====>put<====>my_o<==u==>tput<=="
     "==>my_o<==u==>tput<====>my_o<==u==>tput<==" | 'out'    | '==>in<=='      | 0                 | "==>my_o<==u==>tput<====>my_o<==u==>tput<=="
     "==>my_input<=="                             | '_'      | '==>/\\,.*+<==' | Integer.MAX_VALUE | "==>my<====>/\\,.*+<====>input<=="
-    "==>my_input<=="                             | '_'      | '==>!?^&$#<=='  | Integer.MAX_VALUE | "==>my<====>!?^&\$#<====>input<=="
+    "==>my_input<=="                             | '_'      | '==>!?^&#<=='   | Integer.MAX_VALUE | "==>my<====>!?^&#<====>input<=="
     "==>my_input<=="                             | '_'      | '==>)(][}{<=='  | Integer.MAX_VALUE | "==>my<====>)(][}{<====>input<=="
   }
 
