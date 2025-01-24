@@ -76,16 +76,6 @@ public class CapturingTestBase {
 
   protected ProbeStatusSink probeStatusSink;
 
-  protected static LogProbe createSourceFileProbe(ProbeId id, String sourceFile, int line) {
-    return new LogProbe.Builder()
-        .language(LANGUAGE)
-        .probeId(id)
-        .captureSnapshot(true)
-        .where(null, null, null, line, sourceFile)
-        .evaluateAt(MethodLocation.EXIT)
-        .build();
-  }
-
   @AfterEach
   public void after() {
     if (currentTransformer != null) {
@@ -309,16 +299,25 @@ public class CapturingTestBase {
     assertEquals(value, MoshiSnapshotTestHelper.getValue(watch));
   }
 
-  protected TestSnapshotListener installSingleProbe(
-      String typeName, String methodName, String signature, String... lines) {
-    LogProbe logProbes =
-        createProbe(CapturedSnapshotTest.PROBE_ID, typeName, methodName, signature, lines);
-    return installProbes(logProbes);
+  protected TestSnapshotListener installMethodProbe(
+      String typeName, String methodName, String signature) {
+    LogProbe logProbe =
+        createMethodProbe(CapturedSnapshotTest.PROBE_ID, typeName, methodName, signature);
+    return installProbes(logProbe);
   }
 
-  protected static LogProbe createProbe(
-      ProbeId id, String typeName, String methodName, String signature, String... lines) {
-    return createProbeBuilder(id, typeName, methodName, signature, lines).build();
+  protected TestSnapshotListener installLineProbe(ProbeId id, String typeName, int line) {
+    LogProbe logProbe = createLineProbe(id, typeName, line);
+    return installProbes(logProbe);
+  }
+
+  protected static LogProbe createMethodProbe(
+      ProbeId id, String typeName, String methodName, String signature) {
+    return createProbeBuilder(id, typeName, methodName, signature).build();
+  }
+
+  protected static LogProbe createLineProbe(ProbeId id, String sourceFile, int line) {
+    return createProbeBuilder(id, sourceFile, line).build();
   }
 
   protected TestSnapshotListener installProbes(ProbeDefinition... probes) {
@@ -328,27 +327,30 @@ public class CapturingTestBase {
 
   public static LogProbe.Builder createProbeBuilder(
       ProbeId id, String typeName, String methodName, String signature) {
-    return createProbeBuilder(id, typeName, methodName, signature, (String[]) null);
-  }
-
-  public static LogProbe.Builder createProbeBuilder(
-      ProbeId id, String typeName, String methodName, String signature, String... lines) {
-    return LogProbe.builder()
-        .language(LANGUAGE)
-        .probeId(id)
+    return createProbeBuilder(id)
         .captureSnapshot(true)
-        .where(typeName, methodName, signature, lines)
+        .where(typeName, methodName, signature, (String[]) null)
         // Increase sampling limit to avoid being sampled during tests
         .sampling(new LogProbe.Sampling(100));
+  }
+
+  public static LogProbe.Builder createProbeBuilder(ProbeId id, String sourceFile, int line) {
+    return createProbeBuilder(id)
+        .captureSnapshot(true)
+        .where(sourceFile, line)
+        // Increase sampling limit to avoid being sampled during tests
+        .sampling(new LogProbe.Sampling(100));
+  }
+
+  public static LogProbe.Builder createProbeBuilder(ProbeId id) {
+    return LogProbe.builder().language(LANGUAGE).probeId(id);
   }
 
   protected TestSnapshotListener installProbes(Configuration configuration) {
     config = getConfig();
     instrumentationListener = new MockInstrumentationListener();
     probeStatusSink = mock(ProbeStatusSink.class);
-
     TestSnapshotListener listener = new TestSnapshotListener(config, probeStatusSink);
-
     configurationUpdater =
         new ConfigurationUpdater(
             instr,
@@ -356,12 +358,10 @@ public class CapturingTestBase {
             config,
             new DebuggerSink(config, probeStatusSink),
             new ClassesToRetransformFinder());
-
     currentTransformer =
         new DebuggerTransformer(config, configuration, instrumentationListener, listener);
     instr.addTransformer(currentTransformer);
     DebuggerAgentHelper.injectSink(listener);
-
     DebuggerContext.initProbeResolver(
         (encodedId) -> resolver(encodedId, configuration.getDefinitions()));
     DebuggerContext.initClassFilter(new DenyListHelper(null));
@@ -376,7 +376,6 @@ public class CapturingTestBase {
     if (configuration.getSampling() != null) {
       ProbeRateLimiter.setGlobalSnapshotRate(configuration.getSampling().getEventsPerSecond());
     }
-
     return listener;
   }
 
@@ -400,16 +399,16 @@ public class CapturingTestBase {
     return configurationUpdater.resolve(encodedId);
   }
 
-  protected TestSnapshotListener installSingleProbeAtExit(
-      String typeName, String methodName, String signature, String... lines) {
+  protected TestSnapshotListener installMethodProbeAtExit(
+      String typeName, String methodName, String signature) {
     LogProbe logProbes =
-        createProbeAtExit(CapturedSnapshotTest.PROBE_ID, typeName, methodName, signature, lines);
+        createMethodProbeAtExit(CapturedSnapshotTest.PROBE_ID, typeName, methodName, signature);
     return installProbes(logProbes);
   }
 
-  protected static LogProbe createProbeAtExit(
-      ProbeId id, String typeName, String methodName, String signature, String... lines) {
-    return createProbeBuilder(id, typeName, methodName, signature, lines)
+  protected static LogProbe createMethodProbeAtExit(
+      ProbeId id, String typeName, String methodName, String signature) {
+    return createProbeBuilder(id, typeName, methodName, signature)
         .evaluateAt(MethodLocation.EXIT)
         .build();
   }

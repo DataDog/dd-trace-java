@@ -16,6 +16,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.util.PidHelper;
+import datadog.trace.util.RandomUtils;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.*;
 import java.nio.charset.Charset;
@@ -28,7 +29,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -283,7 +283,7 @@ public final class CrashUploader {
             .name("runtime_id")
             // this is unknowable at this point because the process has crashed
             // though we may be able to save it in the tmpdir
-            .value(UUID.randomUUID().toString());
+            .value(RandomUtils.randomUUID().toString());
         writer.name("tracer_time").value(Instant.now().getEpochSecond());
         writer.name("seq_id").value(1);
         writer.name("debug").value(true);

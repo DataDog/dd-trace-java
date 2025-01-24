@@ -29,6 +29,7 @@ import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
+import datadog.trace.util.RandomUtils;
 import datadog.trace.util.Strings;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -50,7 +51,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 import net.bytebuddy.description.type.TypeDescription;
@@ -301,7 +301,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
         if (isMethodIncludedForTransformation(methodNode, classNode, methodNames)) {
           LogProbe probe =
               LogProbe.builder()
-                  .probeId(UUID.randomUUID().toString(), 0)
+                  .probeId(RandomUtils.randomUUID().toString(), 0)
                   .where(classNode.name, methodNode.name)
                   .captureSnapshot(false)
                   .build();
@@ -430,7 +430,6 @@ public class DebuggerTransformer implements ClassFileTransformer {
       classNode.version = Opcodes.V1_8;
     }
     ClassWriter writer = new SafeClassWriter(loader);
-
     log.debug("Generating bytecode for class: {}", Strings.getClassName(classFilePath));
     try {
       classNode.accept(writer);
@@ -695,6 +694,8 @@ public class DebuggerTransformer implements ClassFileTransformer {
   private ProbeDefinition selectReferenceDefinition(
       List<ProbeDefinition> capturedContextProbes, ClassFileLines classFileLines) {
     boolean hasLogProbe = false;
+    boolean hasOnlyExceptionProbe =
+        capturedContextProbes.stream().allMatch(def -> def instanceof ExceptionProbe);
     MethodLocation evaluateAt = MethodLocation.EXIT;
     LogProbe.Capture capture = null;
     boolean captureSnapshot = false;
@@ -718,6 +719,10 @@ public class DebuggerTransformer implements ClassFileTransformer {
           || definition.getEvaluateAt() == MethodLocation.DEFAULT) {
         evaluateAt = definition.getEvaluateAt();
       }
+    }
+    if (hasOnlyExceptionProbe) {
+      // only exception probes return the first one
+      return capturedContextProbes.get(0);
     }
     if (hasLogProbe) {
       return LogProbe.builder()

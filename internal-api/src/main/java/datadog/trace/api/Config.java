@@ -39,6 +39,7 @@ import datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.context.TraceScope;
 import datadog.trace.util.PidHelper;
+import datadog.trace.util.RandomUtils;
 import datadog.trace.util.Strings;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -97,7 +98,7 @@ public class Config {
    * and every JMX metric that is sent out.
    */
   static class RuntimeIdHolder {
-    static final String runtimeId = UUID.randomUUID().toString();
+    static final String runtimeId = RandomUtils.randomUUID().toString();
   }
 
   static class HostNameHolder {
