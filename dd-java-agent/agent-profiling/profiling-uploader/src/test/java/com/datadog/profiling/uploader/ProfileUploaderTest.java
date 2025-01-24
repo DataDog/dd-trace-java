@@ -15,7 +15,9 @@
  */
 package com.datadog.profiling.uploader;
 
-import static com.datadog.profiling.uploader.ProfileUploader.*;
+import static com.datadog.profiling.uploader.ProfileUploader.SERVELESS_TAG;
+import static com.datadog.profiling.uploader.ProfileUploader.V4_PROFILE_END_PARAM;
+import static com.datadog.profiling.uploader.ProfileUploader.V4_PROFILE_START_PARAM;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
