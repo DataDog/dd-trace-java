@@ -73,7 +73,7 @@ public class TraceConfigInstrumentation extends InstrumenterModule {
   }
 
   // Not Using AutoService to hook up this instrumentation
-  public static class TracerClassInstrumentation implements ForTypeHierarchy, HasMethodAdvice {
+  public static class TracerClassInstrumentation implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
     private final String className;
     private final Set<String> methodNames;
 

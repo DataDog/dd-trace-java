@@ -4,7 +4,7 @@ import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.bootstrap.ExceptionLogger;
 import net.bytebuddy.ClassFileVersion;
-import net.bytebuddy.asm.Advice.ExceptionHandler;
+import net.bytebuddy.asm.Advice;
 import net.bytebuddy.implementation.Implementation;
 import net.bytebuddy.implementation.bytecode.StackManipulation;
 import net.bytebuddy.jar.asm.Label;
@@ -20,8 +20,8 @@ public class ExceptionHandlers {
   // Bootstrap ExceptionHandler.class will always be resolvable, so we'll use it in the log name
   private static final String HANDLER_NAME = ExceptionLogger.class.getName().replace('.', '/');
 
-  private static final ExceptionHandler EXCEPTION_STACK_HANDLER =
-      new ExceptionHandler.Simple(
+  private static final Advice.ExceptionHandler EXCEPTION_STACK_HANDLER =
+      new Advice.ExceptionHandler.Simple(
           new StackManipulation() {
             // Pops one Throwable off the stack. Maxes the stack to at least 3.
             private final Size size = new StackManipulation.Size(-1, 3);
@@ -131,7 +131,7 @@ public class ExceptionHandlers {
             }
           });
 
-  public static ExceptionHandler defaultExceptionHandler() {
+  public static Advice.ExceptionHandler defaultExceptionHandler() {
     return EXCEPTION_STACK_HANDLER;
   }
 }
