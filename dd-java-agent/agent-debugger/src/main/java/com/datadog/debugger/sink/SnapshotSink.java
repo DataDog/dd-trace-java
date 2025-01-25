@@ -53,10 +53,6 @@ public class SnapshotSink {
     this.snapshotUploader = snapshotUploader;
   }
 
-  public BlockingQueue<Snapshot> getLowRateSnapshots() {
-    return lowRateSnapshots;
-  }
-
   public void start() {
     if (started.compareAndSet(false, true)) {
       highRateScheduled =
