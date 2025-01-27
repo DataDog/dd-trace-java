@@ -960,7 +960,49 @@ class PowerWAFModuleSpecification extends DDSpecification {
     assert !flow.blocking
   }
 
-  void 'timeout is honored'() {
+  void 'timeout is honored (waf)'() {
+    setup:
+    injectSysConfig('appsec.waf.timeout', '1')
+    PowerWAFModule.createLimitsObject()
+    setupWithStubConfigService()
+    DataBundle db = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
+      new CaseInsensitiveMap<List<String>>(['user-agent': 'Arachni/v' + ('a' * 4000)]))
+    ChangeableFlow flow = new ChangeableFlow()
+
+    TraceSegment segment = Mock()
+    TraceSegmentPostProcessor pp = service.traceSegmentPostProcessors.last()
+
+    def mockWafMetricCollector = Mock(WafMetricCollector)
+    WafMetricCollector.INSTANCE = mockWafMetricCollector
+
+    when:
+    dataListener.onDataAvailable(flow, ctx, db, gwCtx)
+
+    then:
+    ctx.getOrCreateAdditive(_, true) >> {
+      pwafAdditive = it[0].openAdditive() }
+    assert !flow.blocking
+    1 * ctx.isAdditiveClosed()
+    1 * ctx.getOrCreateAdditive(_, true, false) >> {
+      pwafAdditive = it[0].openAdditive() }
+    1 * ctx.getWafMetrics()
+    1 * ctx.increaseWafTimeouts()
+    1 * mockWafMetricCollector.get().wafRequestTimeout()
+    0 * _
+
+    when:
+    pp.processTraceSegment(segment, ctx, [])
+
+    then:
+    1 * segment.setTagTop('_dd.appsec.waf.timeouts', 1L)
+    _ * segment.setTagTop(_, _)
+
+    cleanup:
+    injectSysConfig('appsec.waf.timeout', ConfigDefaults.DEFAULT_APPSEC_WAF_TIMEOUT as String)
+    PowerWAFModule.createLimitsObject()
+  }
+
+  void 'timeout is honored (rasp)'() {
     setup:
     injectSysConfig('appsec.waf.timeout', '1')
     PowerWAFModule.createLimitsObject()
@@ -984,16 +1026,20 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ctx.getOrCreateAdditive(_, true) >> {
       pwafAdditive = it[0].openAdditive() }
     assert !flow.blocking
-    1 * ctx.increaseWafTimeouts()
-    1 * mockWafMetricCollector.get().wafRequestTimeout()
+    1 * ctx.isAdditiveClosed()
+    1 * ctx.getOrCreateAdditive(_, true, true) >> {
+      pwafAdditive = it[0].openAdditive() }
+    1 * ctx.getRaspMetrics()
+    1 * ctx.getRaspMetricsCounter()
     1 * ctx.increaseRaspTimeouts()
     1 * mockWafMetricCollector.get().raspTimeout(gwCtx.raspRuleType)
+    1 * mockWafMetricCollector.raspRuleEval(RuleType.SQL_INJECTION)
+    0 * _
 
     when:
     pp.processTraceSegment(segment, ctx, [])
 
     then:
-    1 * segment.setTagTop('_dd.appsec.waf.timeouts', 1L)
     1 * segment.setTagTop('_dd.appsec.rasp.timeout', 1L)
     _ * segment.setTagTop(_, _)
 
