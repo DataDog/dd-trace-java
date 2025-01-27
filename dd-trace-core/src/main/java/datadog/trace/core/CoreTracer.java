@@ -32,7 +32,6 @@ import datadog.trace.api.IdGenerationStrategy;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.TraceConfig;
-import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.experimental.DataStreamsCheckpointer;
 import datadog.trace.api.flare.TracerFlare;
@@ -79,7 +78,6 @@ import datadog.trace.common.writer.Writer;
 import datadog.trace.common.writer.WriterFactory;
 import datadog.trace.common.writer.ddintake.DDIntakeTraceInterceptor;
 import datadog.trace.context.TraceScope;
-import datadog.trace.core.datastreams.DataStreamContextInjector;
 import datadog.trace.core.datastreams.DataStreamsMonitoring;
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring;
 import datadog.trace.core.flare.TracerFlarePoller;
@@ -719,13 +717,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     HttpCodec.Extractor builtExtractor =
         extractor == null ? HttpCodec.createExtractor(config, this::captureTraceConfig) : extractor;
     builtExtractor = this.dataStreamsMonitoring.extractor(builtExtractor);
-    // Create all HTTP injectors plus the DSM one
-    Map<TracePropagationStyle, HttpCodec.Injector> injectors =
-        HttpCodec.allInjectorsFor(config, invertMap(baggageMapping));
-    DataStreamContextInjector dataStreamContextInjector = this.dataStreamsMonitoring.injector();
     // Store all propagators to propagation
-    this.propagation =
-        new CorePropagation(builtExtractor, injector, injectors, dataStreamContextInjector);
+    this.propagation = new CorePropagation(builtExtractor, this.dataStreamsMonitoring.injector());
 
     // Check if standalone AppSec is enabled:
     // If enabled, use the standalone AppSec propagator by default that will limit tracing concern
