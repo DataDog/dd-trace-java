@@ -14,5 +14,6 @@ dependencies {
   testImplementation 'jakarta.activation:jakarta.activation-api:2.0.1'
   compileOnly 'jakarta.mail:jakarta.mail-api:2.0.1'
   testImplementation 'jakarta.mail:jakarta.mail-api:2.0.1'
-  testImplementation 'de.saly:javamail-mock2:0.4-beta3'
+  compileOnly 'com.sun.mail:jakarta.mail:2.0.1'
+  testImplementation 'com.sun.mail:jakarta.mail:2.0.1'
 }

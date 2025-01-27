@@ -8,7 +8,7 @@ import javax.mail.Session
 import javax.mail.internet.InternetAddress
 import javax.mail.internet.MimeBodyPart
 import javax.mail.internet.MimeMessage
-import de.saly.javamail.mock2.MockTransport
+import javax.mail.Provider
 
 import javax.mail.internet.MimeMultipart
 
@@ -19,15 +19,13 @@ class JavaxMailInstrumentationTest extends AgentTestRunner {
     injectSysConfig("dd.iast.enabled", "true")
   }
 
-  def setupSpec() {
-    System.setProperty("mail.smtp.class", MockTransport.getName())
-  }
-
   void 'test javax mail Message text'() {
     given:
     final module = Mock(EmailInjectionModule)
     InstrumentationBridge.registerIastModule(module)
-    final session = Session.getInstance(new Properties())
+    def session = Session.getDefaultInstance(new Properties())
+    def provider = new Provider(Provider.Type.TRANSPORT, "smtp", MockTransport.name, "MockTransport", "1.0")
+    session.setProvider(provider)
     final message = new MimeMessage(session)
     message.setRecipient(Message.RecipientType.TO, new InternetAddress("mock@datadoghq.com"))
     message.setText(content, "utf-8", mimetype)
@@ -47,7 +45,9 @@ class JavaxMailInstrumentationTest extends AgentTestRunner {
     given:
     final module = Mock(EmailInjectionModule)
     InstrumentationBridge.registerIastModule(module)
-    final session = Session.getInstance(new Properties())
+    def session = Session.getDefaultInstance(new Properties())
+    def provider = new Provider(Provider.Type.TRANSPORT, "smtp", MockTransport.name, "MockTransport", "1.0")
+    session.setProvider(provider)
     final message = new MimeMessage(session)
     message.setRecipient(Message.RecipientType.TO, new InternetAddress("mock@datadoghq.com"))
 

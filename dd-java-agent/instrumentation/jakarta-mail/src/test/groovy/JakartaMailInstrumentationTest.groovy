@@ -1,8 +1,7 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.EmailInjectionModule
-import de.saly.javamail.mock2.MockTransport
-
+import jakarta.mail.Provider
 import jakarta.mail.internet.MimeMessage
 import jakarta.mail.internet.InternetAddress
 import jakarta.mail.Message
@@ -11,21 +10,22 @@ import jakarta.mail.Transport
 import jakarta.mail.internet.MimeBodyPart
 import jakarta.mail.internet.MimeMultipart
 
+
 class JakartaMailInstrumentationTest extends AgentTestRunner {
+
   @Override
   void configurePreAgent() {
     injectSysConfig("dd.iast.enabled", "true")
   }
 
-  def setupSpec() {
-    System.setProperty("mail.smtp.class", MockTransport.getName())
-  }
 
-  void 'test javax mail Message text'() {
+  void 'test jakarta mail Message text'() {
     given:
     final module = Mock(EmailInjectionModule)
     InstrumentationBridge.registerIastModule(module)
-    final session = Session.getInstance(new Properties())
+    def session = Session.getDefaultInstance(new Properties())
+    def provider = new Provider(Provider.Type.TRANSPORT, "smtp", MockTransport.name, "MockTransport", "1.0")
+    session.setProvider(provider)
     final message = new MimeMessage(session)
     message.setRecipient(Message.RecipientType.TO, new InternetAddress("mock@datadoghq.com"))
     message.setText(content, "utf-8", mimetype)
@@ -41,11 +41,13 @@ class JakartaMailInstrumentationTest extends AgentTestRunner {
     "html"    | "<html><body>Hello, Content!</body></html>"
   }
 
-  void 'test javax mail Message Content'() {
+  void 'test jakarta mail Message Content'() {
     given:
     final module = Mock(EmailInjectionModule)
     InstrumentationBridge.registerIastModule(module)
-    final session = Session.getInstance(new Properties())
+    def session = Session.getDefaultInstance(new Properties())
+    def provider = new Provider(Provider.Type.TRANSPORT, "smtp", MockTransport.name, "MockTransport", "1.0")
+    session.setProvider(provider)
     final message = new MimeMessage(session)
     message.setRecipient(Message.RecipientType.TO, new InternetAddress("mock@datadoghq.com"))
 

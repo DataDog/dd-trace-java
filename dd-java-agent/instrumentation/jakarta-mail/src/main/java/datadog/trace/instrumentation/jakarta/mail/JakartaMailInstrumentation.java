@@ -35,7 +35,7 @@ public class JakartaMailInstrumentation extends InstrumenterModule.Iast
 
   @Override
   public String instrumentedType() {
-    return "javax.mail.Transport";
+    return "jakarta.mail.Transport";
   }
 
   public static class MailInjectionAdvice {
