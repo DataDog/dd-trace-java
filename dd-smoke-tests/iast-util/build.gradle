@@ -21,4 +21,5 @@ dependencies {
   compileOnly group: 'org.apache.httpcomponents', name: 'httpasyncclient', version: '4.0'
   // mail
   implementation 'javax.mail:javax.mail-api:1.4.4'
+  implementation 'jakarta.mail:jakarta.mail-api:2.0.1'
 }
