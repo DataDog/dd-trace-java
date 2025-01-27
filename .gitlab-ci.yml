@@ -31,9 +31,9 @@ default:
   image: ghcr.io/datadog/dd-trace-java-docker-build:v23.10-base
   variables:
     GRADLE_OPTS: "-Dorg.gradle.jvmargs='-Xmx2560M -Xms2560M'"
-    GRADLE_ARGS: " -PskipTests --build-cache --stacktrace --no-daemon --parallel --max-workers=8"
+    GRADLE_ARGS: " -PskipTests --build-cache --stacktrace --no-daemon --parallel --max-workers=2"
     KUBERNETES_CPU_REQUEST: 8
-    KUBERNETES_MEMORY_REQUEST: 16Gi
+    KUBERNETES_MEMORY_REQUEST: 6Gi
   cache:
     - key: '$CI_SERVER_VERSION-v2' # Dependencies cache. Reset the cache every time gitlab is upgraded.  ~Every couple months
       paths:
