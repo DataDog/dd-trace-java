@@ -313,6 +313,7 @@ public class Config {
   private final int iastDbRowsToTaint;
 
   private final boolean llmObsAgentlessEnabled;
+  private final String llmObsAgentlessUrl;
   private final String llmObsMlApp;
 
   private final boolean ciVisibilityTraceSanitationEnabled;
@@ -1376,6 +1377,21 @@ public class Config {
     llmObsAgentlessEnabled =
         configProvider.getBoolean(LLMOBS_AGENTLESS_ENABLED, DEFAULT_LLM_OBS_AGENTLESS_ENABLED);
     llmObsMlApp = configProvider.getString(LLMOBS_ML_APP);
+
+    final String llmObsAgentlessUrlStr = getFinalLLNObsUrl();
+    URI parsedLLMObsUri = null;
+    if (llmObsAgentlessUrlStr != null && !llmObsAgentlessUrlStr.isEmpty()) {
+      try {
+        parsedLLMObsUri = new URL(llmObsAgentlessUrlStr).toURI();
+      } catch (MalformedURLException | URISyntaxException ex) {
+        log.error("Cannot parse CI Visibility agentless URL '{}', skipping", llmObsAgentlessUrlStr);
+      }
+    }
+    if (parsedLLMObsUri != null) {
+      llmObsAgentlessUrl = llmObsAgentlessUrlStr;
+    } else {
+      llmObsAgentlessUrl = null;
+    }
 
     ciVisibilityTraceSanitationEnabled =
         configProvider.getBoolean(CIVISIBILITY_TRACE_SANITATION_ENABLED, true);
@@ -2743,6 +2759,10 @@ public class Config {
     return llmObsAgentlessEnabled;
   }
 
+  public String getLlMObsAgentlessUrl() {
+    return llmObsAgentlessUrl;
+  }
+
   public String getLlmObsMlApp() {
     return llmObsMlApp;
   }
@@ -3772,6 +3792,14 @@ public class Config {
       // when profilingUrl and agentless are not set we send to the dd trace agent running locally
       return "http://" + agentHost + ":" + agentPort + "/profiling/v1/input";
     }
+  }
+
+  public String getFinalLLNObsUrl() {
+    if (llmObsAgentlessEnabled) {
+      return "https://llmobs-intake." + site + "/api/v2/llmobs";
+    }
+    // TODO this may not be correct, agent support to come later
+    return "http:" + agentHost + ":" + agentPort + "/evp_proxy/v2/api/v2/llmobs";
   }
 
   public String getFinalCrashTrackingTelemetryUrl() {
