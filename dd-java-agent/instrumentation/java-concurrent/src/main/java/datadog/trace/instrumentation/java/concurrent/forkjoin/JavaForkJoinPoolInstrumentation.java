@@ -16,10 +16,8 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.java.concurrent.QueueTimerHelper;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Map;
-import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinTask;
 import net.bytebuddy.asm.Advice;
 
@@ -53,13 +51,11 @@ public class JavaForkJoinPoolInstrumentation extends InstrumenterModule.Tracing
   public static final class ExternalPush {
     @SuppressWarnings("rawtypes")
     @Advice.OnMethodEnter
-    public static <T> void externalPush(
-        @Advice.This ForkJoinPool pool, @Advice.Argument(0) ForkJoinTask<T> task) {
+    public static <T> void externalPush(@Advice.Argument(0) ForkJoinTask<T> task) {
       if (!exclude(FORK_JOIN_TASK, task)) {
         ContextStore<ForkJoinTask, State> contextStore =
             InstrumentationContext.get(ForkJoinTask.class, State.class);
         capture(contextStore, task);
-        QueueTimerHelper.startQueuingTimer(contextStore, pool.getClass(), task);
       }
     }
 
@@ -74,13 +70,11 @@ public class JavaForkJoinPoolInstrumentation extends InstrumenterModule.Tracing
 
   public static final class PoolSubmit {
     @Advice.OnMethodEnter
-    public static <T> void poolSubmit(
-        @Advice.This ForkJoinPool pool, @Advice.Argument(1) ForkJoinTask<T> task) {
+    public static <T> void poolSubmit(@Advice.Argument(1) ForkJoinTask<T> task) {
       if (!exclude(FORK_JOIN_TASK, task)) {
         ContextStore<ForkJoinTask, State> contextStore =
             InstrumentationContext.get(ForkJoinTask.class, State.class);
         capture(contextStore, task);
-        QueueTimerHelper.startQueuingTimer(contextStore, pool.getClass(), task);
       }
     }
 
