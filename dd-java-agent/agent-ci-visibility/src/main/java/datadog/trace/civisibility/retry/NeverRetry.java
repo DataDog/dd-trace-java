@@ -1,6 +1,7 @@
 package datadog.trace.civisibility.retry;
 
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
 import org.jetbrains.annotations.Nullable;
 
 public class NeverRetry implements TestRetryPolicy {
@@ -20,7 +21,7 @@ public class NeverRetry implements TestRetryPolicy {
   }
 
   @Override
-  public boolean retry(boolean successful, long duration) {
+  public boolean retry(boolean successful, long durationMillis) {
     return false;
   }
 
@@ -31,7 +32,7 @@ public class NeverRetry implements TestRetryPolicy {
 
   @Nullable
   @Override
-  public String currentExecutionRetryReason() {
+  public RetryReason currentExecutionRetryReason() {
     return null;
   }
 }

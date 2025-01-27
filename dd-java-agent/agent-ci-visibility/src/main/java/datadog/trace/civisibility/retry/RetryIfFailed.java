@@ -1,13 +1,12 @@
 package datadog.trace.civisibility.retry;
 
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.jetbrains.annotations.Nullable;
 
 /** Retries a test case if it failed, up to a maximum number of times. */
 public class RetryIfFailed implements TestRetryPolicy {
-
-  private static final String AUTO_TEST_RETRIES = "atr";
 
   private final int maxExecutions;
   private int executions;
@@ -32,7 +31,7 @@ public class RetryIfFailed implements TestRetryPolicy {
   }
 
   @Override
-  public boolean retry(boolean successful, long duration) {
+  public boolean retry(boolean successful, long durationMillis) {
     if (!successful && ++executions < maxExecutions) {
       totalExecutions.incrementAndGet();
       return true;
@@ -48,7 +47,7 @@ public class RetryIfFailed implements TestRetryPolicy {
 
   @Nullable
   @Override
-  public String currentExecutionRetryReason() {
-    return currentExecutionIsRetry() ? AUTO_TEST_RETRIES : null;
+  public RetryReason currentExecutionRetryReason() {
+    return currentExecutionIsRetry() ? RetryReason.atr : null;
   }
 }
