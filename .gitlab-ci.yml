@@ -79,17 +79,7 @@ build:
     reports:
       dotenv: build.env
 
-build_again:
-  extends: .gradle_build
-  stage: build
-  needs: [ build ]
-  script:
-    - ls -la .gradle
-    - ls -la .gradle/$GRADLE_VERSION
-    - ls -laR workspace/
-    - ./gradlew :dd-java-agent:shadowJar :dd-trace-api:jar :dd-trace-ot:shadowJar $GRADLE_ARGS
-
-build_with_cache:
+build_and_populate_dep_cache:
   extends: build
   variables:
     BUILD_CACHE_POLICY: push
