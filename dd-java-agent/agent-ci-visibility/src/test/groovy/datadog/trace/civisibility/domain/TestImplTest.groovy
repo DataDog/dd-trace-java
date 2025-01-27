@@ -16,6 +16,7 @@ import datadog.trace.civisibility.decorator.TestDecoratorImpl
 import datadog.trace.civisibility.source.LinesResolver
 import datadog.trace.civisibility.source.NoOpSourcePathResolver
 import datadog.trace.civisibility.telemetry.CiVisibilityMetricCollectorImpl
+import datadog.trace.civisibility.test.ExecutionResults
 import datadog.trace.civisibility.utils.SpanUtils
 
 class TestImplTest extends SpanWriterTest {
@@ -97,6 +98,7 @@ class TestImplTest extends SpanWriterTest {
     def testFramework = TestFrameworkInstrumentation.OTHER
     def config = Config.get()
     def metricCollector = Stub(CiVisibilityMetricCollectorImpl)
+    def executionResults = Stub(ExecutionResults)
     def testDecorator = new TestDecoratorImpl("component", "session-name", "test-command", [:])
 
     def linesResolver = Stub(LinesResolver)
@@ -123,6 +125,7 @@ class TestImplTest extends SpanWriterTest {
       linesResolver,
       codeowners,
       coverageStoreFactory,
+      executionResults,
       SpanUtils.DO_NOT_PROPAGATE_CI_VISIBILITY_TAGS
       )
   }
