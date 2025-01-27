@@ -10,6 +10,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Set;
@@ -18,9 +19,9 @@ import org.testng.SkipException;
 import org.testng.annotations.DataProvider;
 
 @AutoService(InstrumenterModule.class)
-public class TestNGItrInstrumentation extends InstrumenterModule.CiVisibility
+public class TestNGSkipInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-  public TestNGItrInstrumentation() {
+  public TestNGSkipInstrumentation() {
     super("testng", "testng-itr");
   }
 
@@ -45,7 +46,7 @@ public class TestNGItrInstrumentation extends InstrumenterModule.CiVisibility
             .and(takesArgument(0, Method.class))
             .and(takesArgument(1, Object.class))
             .and(takesArgument(2, Object[].class)),
-        TestNGItrInstrumentation.class.getName() + "$InvokeMethodAdvice");
+        TestNGSkipInstrumentation.class.getName() + "$InvokeMethodAdvice");
   }
 
   @Override
@@ -63,15 +64,21 @@ public class TestNGItrInstrumentation extends InstrumenterModule.CiVisibility
         @Advice.Argument(0) final Method method,
         @Advice.Argument(1) final Object instance,
         @Advice.Argument(2) final Object[] parameters) {
-      List<String> groups = TestNGUtils.getGroups(method);
-      if (groups.contains(InstrumentationBridge.ITR_UNSKIPPABLE_TAG)) {
+      TestIdentifier testIdentifier = TestNGUtils.toTestIdentifier(method, instance, parameters);
+      SkipReason skipReason =
+          TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skipReason(testIdentifier);
+      if (skipReason == null) {
         return;
       }
 
-      TestIdentifier skippableTest = TestNGUtils.toTestIdentifier(method, instance, parameters);
-      if (TestEventsHandlerHolder.TEST_EVENTS_HANDLER.isSkippable(skippableTest)) {
-        throw new SkipException(InstrumentationBridge.ITR_SKIP_REASON);
+      if (skipReason == SkipReason.ITR) {
+        List<String> groups = TestNGUtils.getGroups(method);
+        if (groups.contains(InstrumentationBridge.ITR_UNSKIPPABLE_TAG)) {
+          return;
+        }
       }
+
+      throw new SkipException(skipReason.getDescription());
     }
 
     // TestNG 6.4 and above

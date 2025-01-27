@@ -11,6 +11,7 @@ import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.cucumber.core.gherkin.Pickle;
 import java.util.List;
@@ -24,10 +25,10 @@ import org.junit.runner.notification.Failure;
 import org.junit.runner.notification.RunNotifier;
 
 @AutoService(InstrumenterModule.class)
-public class JUnit4CucumberItrInstrumentation extends InstrumenterModule.CiVisibility
+public class JUnit4CucumberSkipInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  public JUnit4CucumberItrInstrumentation() {
+  public JUnit4CucumberSkipInstrumentation() {
     super("ci-visibility", "junit-4", "junit-4-cucumber");
   }
 
@@ -51,7 +52,7 @@ public class JUnit4CucumberItrInstrumentation extends InstrumenterModule.CiVisib
     return new String[] {
       packageName + ".CucumberUtils",
       packageName + ".TestEventsHandlerHolder",
-      packageName + ".SkippedByItr",
+      packageName + ".SkippedByDatadog",
       packageName + ".JUnit4Utils",
       packageName + ".TracingListener",
       packageName + ".CucumberTracingListener",
@@ -67,10 +68,11 @@ public class JUnit4CucumberItrInstrumentation extends InstrumenterModule.CiVisib
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("run").and(takesArgument(0, named("org.junit.runner.notification.RunNotifier"))),
-        JUnit4CucumberItrInstrumentation.class.getName() + "$CucumberItrAdvice");
+        JUnit4CucumberSkipInstrumentation.class.getName() + "$CucumberSkipAdvice");
   }
 
-  public static class CucumberItrAdvice {
+  public static class CucumberSkipAdvice {
+    @SuppressWarnings("bytebuddy-exception-suppression")
     @SuppressFBWarnings("NP_BOOLEAN_RETURN_NULL")
     @Advice.OnMethodEnter(skipOn = Boolean.class)
     public static Boolean run(
@@ -78,23 +80,24 @@ public class JUnit4CucumberItrInstrumentation extends InstrumenterModule.CiVisib
         @Advice.FieldValue("description") Description description,
         @Advice.Argument(0) RunNotifier notifier) {
 
-      List<String> tags = pickle.getTags();
-      for (String tag : tags) {
-        if (tag.endsWith(InstrumentationBridge.ITR_UNSKIPPABLE_TAG)) {
-          return null;
+      TestIdentifier test = CucumberUtils.toTestIdentifier(description);
+      SkipReason skipReason = TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skipReason(test);
+      if (skipReason == null) {
+        return null;
+      }
+
+      if (skipReason == SkipReason.ITR) {
+        List<String> tags = pickle.getTags();
+        for (String tag : tags) {
+          if (tag.endsWith(InstrumentationBridge.ITR_UNSKIPPABLE_TAG)) {
+            return null;
+          }
         }
       }
 
-      TestIdentifier test = CucumberUtils.toTestIdentifier(description);
-      if (TestEventsHandlerHolder.TEST_EVENTS_HANDLER.isSkippable(test)) {
-        notifier.fireTestAssumptionFailed(
-            new Failure(
-                description,
-                new AssumptionViolatedException(InstrumentationBridge.ITR_SKIP_REASON)));
-        return Boolean.FALSE;
-      } else {
-        return null;
-      }
+      notifier.fireTestAssumptionFailed(
+          new Failure(description, new AssumptionViolatedException(skipReason.getDescription())));
+      return Boolean.FALSE;
     }
   }
 }

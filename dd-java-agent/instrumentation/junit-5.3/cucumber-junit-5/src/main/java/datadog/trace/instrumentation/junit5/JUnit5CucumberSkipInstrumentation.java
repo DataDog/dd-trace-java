@@ -11,29 +11,29 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.TestIdentifier;
-import datadog.trace.bootstrap.CallDepthThreadLocalMap;
+import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.util.Collection;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.junit.platform.engine.TestDescriptor;
+import org.junit.platform.engine.TestTag;
 import org.junit.platform.engine.support.hierarchical.Node;
 import org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService;
-import org.spockframework.runtime.SpecNode;
-import org.spockframework.runtime.SpockNode;
 
 @AutoService(InstrumenterModule.class)
-public class JUnit5SpockItrInstrumentation extends InstrumenterModule.CiVisibility
+public class JUnit5CucumberSkipInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  public JUnit5SpockItrInstrumentation() {
-    super("ci-visibility", "junit-5", "junit-5-spock");
+  public JUnit5CucumberSkipInstrumentation() {
+    super("ci-visibility", "junit-5", "junit-5-cucumber");
   }
 
   @Override
   public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    return hasClassNamed("org.spockframework.runtime.SpockEngine");
+    return hasClassNamed("io.cucumber.junit.platform.engine.CucumberTestEngine");
   }
 
   @Override
@@ -43,20 +43,22 @@ public class JUnit5SpockItrInstrumentation extends InstrumenterModule.CiVisibili
 
   @Override
   public String hierarchyMarkerType() {
-    return "org.spockframework.runtime.SpockNode";
+    return "io.cucumber.junit.platform.engine.CucumberTestEngine";
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return extendsClass(named(hierarchyMarkerType()));
+    return extendsClass(named("io.cucumber.junit.platform.engine.NodeDescriptor"))
+        // legacy Cucumber versions
+        .or(extendsClass(named("io.cucumber.junit.platform.engine.PickleDescriptor")));
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".JUnitPlatformUtils",
       packageName + ".TestDataFactory",
-      packageName + ".SpockUtils",
+      packageName + ".JUnitPlatformUtils",
+      packageName + ".CucumberUtils",
       packageName + ".TestEventsHandlerHolder",
     };
   }
@@ -65,7 +67,7 @@ public class JUnit5SpockItrInstrumentation extends InstrumenterModule.CiVisibili
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("shouldBeSkipped").and(takesArguments(1)),
-        JUnit5SpockItrInstrumentation.class.getName() + "$JUnit5ItrAdvice");
+        JUnit5CucumberSkipInstrumentation.class.getName() + "$JUnit5SkipAdvice");
   }
 
   /**
@@ -73,26 +75,15 @@ public class JUnit5SpockItrInstrumentation extends InstrumenterModule.CiVisibili
    * org.junit.platform.launcher} package in here: in some Gradle projects this package is not
    * available in CL where this instrumentation is injected
    */
-  public static class JUnit5ItrAdvice {
+  public static class JUnit5SkipAdvice {
 
-    @Advice.OnMethodEnter
-    public static void beforeSkipCheck() {
-      CallDepthThreadLocalMap.incrementCallDepth(SpockNode.class);
-    }
-
-    @SuppressWarnings("bytebuddy-exception-suppression")
     @SuppressFBWarnings(
         value = "UC_USELESS_OBJECT",
         justification = "skipResult is the return value of the instrumented method")
     @Advice.OnMethodExit
     public static void shouldBeSkipped(
-        @Advice.This SpockNode<?> spockNode,
+        @Advice.This TestDescriptor testDescriptor,
         @Advice.Return(readOnly = false) Node.SkipResult skipResult) {
-      if (CallDepthThreadLocalMap.decrementCallDepth(SpockNode.class) > 0) {
-        // nested call
-        return;
-      }
-
       if (skipResult.isSkipped()) {
         return;
       }
@@ -103,35 +94,26 @@ public class JUnit5SpockItrInstrumentation extends InstrumenterModule.CiVisibili
         return;
       }
 
-      if (SpockUtils.isUnskippable(spockNode)) {
+      TestIdentifier test = CucumberUtils.toTestIdentifier(testDescriptor);
+      if (test == null) {
         return;
       }
 
-      if (spockNode instanceof SpecNode) {
-        // suite
-        SpecNode specNode = (SpecNode) spockNode;
-        Set<? extends TestDescriptor> features = specNode.getChildren();
-        for (TestDescriptor feature : features) {
-          if (feature instanceof SpockNode && SpockUtils.isUnskippable((SpockNode<?>) feature)) {
+      SkipReason skipReason = TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skipReason(test);
+      if (skipReason == null) {
+        return;
+      }
+
+      if (skipReason == SkipReason.ITR) {
+        Collection<TestTag> tags = testDescriptor.getTags();
+        for (TestTag tag : tags) {
+          if (InstrumentationBridge.ITR_UNSKIPPABLE_TAG.equals(tag.getName())) {
             return;
           }
-
-          TestIdentifier featureIdentifier = SpockUtils.toTestIdentifier(feature);
-          if (featureIdentifier == null
-              || !TestEventsHandlerHolder.TEST_EVENTS_HANDLER.isSkippable(featureIdentifier)) {
-            return;
-          }
-        }
-
-        skipResult = Node.SkipResult.skip(InstrumentationBridge.ITR_SKIP_REASON);
-
-      } else {
-        // individual test case
-        TestIdentifier test = SpockUtils.toTestIdentifier(spockNode);
-        if (test != null && TestEventsHandlerHolder.TEST_EVENTS_HANDLER.isSkippable(test)) {
-          skipResult = Node.SkipResult.skip(InstrumentationBridge.ITR_SKIP_REASON);
         }
       }
+
+      skipResult = Node.SkipResult.skip(skipReason.getDescription());
     }
 
     // JUnit 5.3.0 and above

@@ -6,6 +6,7 @@ import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.civisibility.retry.NeverRetry;
@@ -91,8 +92,8 @@ public class NoOpTestEventsHandler<SuiteKey, TestKey>
   }
 
   @Override
-  public boolean isSkippable(TestIdentifier test) {
-    return false;
+  public SkipReason skipReason(TestIdentifier test) {
+    return null;
   }
 
   @NotNull
