@@ -20,6 +20,5 @@ dependencies {
   compileOnly group: 'org.apache.httpcomponents.client5', name: 'httpclient5', version: '5.0'
   compileOnly group: 'org.apache.httpcomponents', name: 'httpasyncclient', version: '4.0'
   // mail
-  compileOnly 'javax.mail:javax.mail-api:1.4.4'
-  testImplementation 'javax.mail:javax.mail-api:1.4.4'
+  implementation 'javax.mail:javax.mail-api:1.4.4'
 }
