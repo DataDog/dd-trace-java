@@ -4,8 +4,8 @@ import com.google.gson.Gson;
 import com.google.gson.JsonParser;
 import datadog.communication.util.IOUtils;
 import datadog.smoketest.springboot.TestBean;
+import datadog.smoketest.springboot.controller.mock.MockTransport;
 import ddtest.client.sources.Hasher;
-import de.saly.javamail.mock2.MockTransport;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
 import java.io.IOException;
@@ -19,11 +19,14 @@ import java.security.Principal;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.mail.Message;
 import javax.mail.MessagingException;
+import javax.mail.Provider;
 import javax.mail.Session;
+import javax.mail.Transport;
 import javax.mail.internet.MimeBodyPart;
 import javax.mail.internet.MimeMessage;
 import javax.mail.internet.MimeMultipart;
@@ -344,8 +347,9 @@ public class IastWebController {
       @RequestParam("messageText") String messageText,
       @RequestParam("messageContent") String messageContent)
       throws MessagingException {
-    System.setProperty("mail.smtp.class", MockTransport.class.getName());
-    Session session = Session.getDefaultInstance(System.getProperties());
+    Session session = Session.getDefaultInstance(new Properties());
+    Provider provider = new Provider(Provider.Type.TRANSPORT, "smtp", MockTransport.class.getName(), "MockTransport", "1.0");
+    session.setProvider(provider);
     Message message = new MimeMessage(session);
     if (messageText != null) {
       message.setContent(messageText, "text/html");
@@ -355,7 +359,7 @@ public class IastWebController {
       content.getBodyPart(0).setContent(messageContent, "text/html");
       message.setContent(content, "multipart/*");
     }
-    MockTransport.send(message);
+    Transport.send(message);
     return "ok";
   }
 
