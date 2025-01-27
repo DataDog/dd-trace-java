@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.junit5;
 
+import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
-import java.lang.reflect.Method;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.junit.platform.engine.EngineExecutionListener;
@@ -108,38 +108,23 @@ public class TracingListener implements EngineExecutionListener {
   private void testMethodExecutionStarted(TestDescriptor testDescriptor, MethodSource testSource) {
     TestDescriptor suiteDescriptor = JUnitPlatformUtils.getSuiteDescriptor(testDescriptor);
 
-    Class<?> testClass;
-    String testSuiteName;
-    if (suiteDescriptor != null) {
-      testClass = JUnitPlatformUtils.getJavaClass(suiteDescriptor);
-      testSuiteName =
-          testClass != null ? testClass.getName() : suiteDescriptor.getLegacyReportingName();
-    } else {
-      testClass = JUnitPlatformUtils.getTestClass(testSource);
-      testSuiteName = testSource.getClassName();
-    }
-
     String displayName = testDescriptor.getDisplayName();
     String testName = testSource.getMethodName();
     String testParameters = JUnitPlatformUtils.getParameters(testSource, displayName);
     List<String> tags =
         testDescriptor.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
-    Method testMethod = JUnitPlatformUtils.getTestMethod(testSource);
-    String testMethodName = testSource.getMethodName();
+    TestSourceData testSourceData = JUnitPlatformUtils.toTestSourceData(testDescriptor);
 
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestStart(
         suiteDescriptor,
         testDescriptor,
-        testSuiteName,
         testName,
         testFramework,
         testFrameworkVersion,
         testParameters,
         tags,
-        testClass,
-        testMethodName,
-        testMethod,
-        JUnitPlatformUtils.isRetry(testDescriptor),
+        testSourceData,
+        JUnitPlatformUtils.retryReason(testDescriptor),
         null);
   }
 
@@ -214,37 +199,22 @@ public class TracingListener implements EngineExecutionListener {
       final TestDescriptor testDescriptor, final MethodSource testSource, final String reason) {
     TestDescriptor suiteDescriptor = JUnitPlatformUtils.getSuiteDescriptor(testDescriptor);
 
-    Class<?> testClass;
-    String testSuiteName;
-    if (suiteDescriptor != null) {
-      testClass = JUnitPlatformUtils.getJavaClass(suiteDescriptor);
-      testSuiteName =
-          testClass != null ? testClass.getName() : suiteDescriptor.getLegacyReportingName();
-    } else {
-      testClass = JUnitPlatformUtils.getTestClass(testSource);
-      testSuiteName = testSource.getClassName();
-    }
-
     String displayName = testDescriptor.getDisplayName();
     String testName = testSource.getMethodName();
     String testParameters = JUnitPlatformUtils.getParameters(testSource, displayName);
     List<String> tags =
         testDescriptor.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
-    Method testMethod = JUnitPlatformUtils.getTestMethod(testSource);
-    String testMethodName = testSource.getMethodName();
+    TestSourceData testSourceData = JUnitPlatformUtils.toTestSourceData(testDescriptor);
 
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestIgnore(
         suiteDescriptor,
         testDescriptor,
-        testSuiteName,
         testName,
         testFramework,
         testFrameworkVersion,
         testParameters,
         tags,
-        testClass,
-        testMethodName,
-        testMethod,
+        testSourceData,
         reason);
   }
 }

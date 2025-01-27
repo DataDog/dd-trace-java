@@ -86,7 +86,7 @@ public class JUnit4CucumberItrInstrumentation extends InstrumenterModule.CiVisib
       }
 
       TestIdentifier test = CucumberUtils.toTestIdentifier(description);
-      if (TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skip(test)) {
+      if (TestEventsHandlerHolder.TEST_EVENTS_HANDLER.isSkippable(test)) {
         notifier.fireTestAssumptionFailed(
             new Failure(
                 description,

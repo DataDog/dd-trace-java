@@ -9,6 +9,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
 import datadog.trace.instrumentation.scalatest.RunContext;
 import datadog.trace.instrumentation.scalatest.ScalatestUtils;
@@ -83,7 +84,8 @@ public class ScalatestRetryInstrumentation extends InstrumenterModule.CiVisibili
         int runStamp = args.tracker().nextOrdinal().runStamp();
         RunContext context = RunContext.getOrCreate(runStamp);
         TestIdentifier testIdentifier = new TestIdentifier(suite.suiteId(), testName, null);
-        TestRetryPolicy retryPolicy = context.retryPolicy(testIdentifier);
+        TestSourceData testSourceData = new TestSourceData(suite.getClass(), null, null);
+        TestRetryPolicy retryPolicy = context.retryPolicy(testIdentifier, testSourceData);
 
         invokeWithFixture = new TestExecutionWrapper(invokeWithFixture, retryPolicy);
       }

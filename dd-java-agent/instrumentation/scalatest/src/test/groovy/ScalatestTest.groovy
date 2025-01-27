@@ -1,5 +1,7 @@
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
+import datadog.trace.civisibility.diff.FileDiff
+import datadog.trace.civisibility.diff.LineDiff
 import datadog.trace.instrumentation.scalatest.ScalatestUtils
 import org.example.TestFailed
 import org.example.TestFailedParameterized
@@ -82,6 +84,23 @@ class ScalatestTest extends CiVisibilityInstrumentationTest {
     "test-efd-new-test"                 | [TestSucceed]          | 4                   | []
     "test-efd-new-slow-test"            | [TestSucceedSlow]      | 3                   | [] // is executed only twice
     "test-efd-faulty-session-threshold" | [TestSucceedMoreCases] | 8                   | []
+  }
+
+  def "test impacted tests detection #testcaseName"() {
+    givenImpactedTestsDetectionEnabled(true)
+    givenDiff(prDiff)
+
+    runTests(tests)
+
+    assertSpansData(testcaseName, expectedTracesCount)
+
+    where:
+    testcaseName            | tests         | expectedTracesCount | prDiff
+    "test-succeed"          | [TestSucceed] | 2                   | LineDiff.EMPTY
+    "test-succeed"          | [TestSucceed] | 2                   | new FileDiff(new HashSet())
+    "test-succeed-impacted" | [TestSucceed] | 2                   | new FileDiff(new HashSet([DUMMY_SOURCE_PATH]))
+    "test-succeed"          | [TestSucceed] | 2                   | new LineDiff([(DUMMY_SOURCE_PATH): lines()])
+    "test-succeed-impacted" | [TestSucceed] | 2                   | new LineDiff([(DUMMY_SOURCE_PATH): lines(DUMMY_TEST_METHOD_START)])
   }
 
   @Override

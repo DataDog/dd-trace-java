@@ -55,7 +55,7 @@ public class JUnit5CucumberItrInstrumentation extends InstrumenterModule.CiVisib
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".TestIdentifierFactory",
+      packageName + ".TestDataFactory",
       packageName + ".JUnitPlatformUtils",
       packageName + ".CucumberUtils",
       packageName + ".TestEventsHandlerHolder",
@@ -101,7 +101,7 @@ public class JUnit5CucumberItrInstrumentation extends InstrumenterModule.CiVisib
       }
 
       TestIdentifier test = CucumberUtils.toTestIdentifier(testDescriptor);
-      if (test != null && TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skip(test)) {
+      if (test != null && TestEventsHandlerHolder.TEST_EVENTS_HANDLER.isSkippable(test)) {
         skipResult = Node.SkipResult.skip(InstrumentationBridge.ITR_SKIP_REASON);
       }
     }

@@ -9,6 +9,7 @@ import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.PersonInfo;
 import datadog.trace.civisibility.ci.env.CiEnvironment;
+import javax.annotation.Nonnull;
 
 class AppVeyorInfo implements CIProviderInfo {
 
@@ -77,6 +78,12 @@ class AppVeyorInfo implements CIProviderInfo {
         .ciJobUrl(url)
         .ciWorkspace(expandTilde(environment.get(APPVEYOR_WORKSPACE_PATH)))
         .build();
+  }
+
+  @Nonnull
+  @Override
+  public PullRequestInfo buildPullRequestInfo() {
+    return PullRequestInfo.EMPTY;
   }
 
   private String buildGitBranch(final String repoProvider) {

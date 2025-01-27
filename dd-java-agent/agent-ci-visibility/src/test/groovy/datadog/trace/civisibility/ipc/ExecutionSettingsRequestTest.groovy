@@ -5,7 +5,7 @@ import spock.lang.Specification
 
 import java.nio.file.Paths
 
-class ModuleSettingsRequestTest extends Specification {
+class ExecutionSettingsRequestTest extends Specification {
 
   def "test serialization and deserialization: #signal"() {
     when:

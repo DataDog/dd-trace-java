@@ -4,8 +4,8 @@ import static com.datadog.debugger.util.TestHelper.setFieldInConfig;
 import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_FRAME;
 import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_PREFIX;
 import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_TYPE;
+import static datadog.trace.util.AgentThreadFactory.AgentThread.TASK_SCHEDULER;
 import static java.lang.String.format;
-import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -18,7 +18,7 @@ import static utils.InstrumentationTestHelper.compileAndLoadClass;
 import com.datadog.debugger.agent.CapturingTestBase;
 import com.datadog.debugger.codeorigin.DefaultCodeOriginRecorder;
 import com.datadog.debugger.probe.CodeOriginProbe;
-import com.datadog.debugger.probe.LogProbe;
+import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.util.ClassNameFiltering;
 import com.datadog.debugger.util.TestSnapshotListener;
@@ -29,15 +29,12 @@ import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.DebuggerContext.ClassNameFilter;
-import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.core.CoreTracer;
-import java.io.File;
+import datadog.trace.core.DDSpan;
+import datadog.trace.util.AgentTaskScheduler;
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -46,7 +43,6 @@ import java.util.TreeSet;
 import java.util.stream.Collectors;
 import org.jetbrains.annotations.NotNull;
 import org.joor.Reflect;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -62,6 +58,8 @@ public class CodeOriginTest extends CapturingTestBase {
   private static final int MAX_FRAMES = 20;
 
   private DefaultCodeOriginRecorder codeOriginRecorder;
+
+  private TestSnapshotListener listener;
 
   private TestTraceInterceptor traceInterceptor;
 
@@ -93,88 +91,59 @@ public class CodeOriginTest extends CapturingTestBase {
     setFieldInConfig(InstrumenterConfig.get(), "codeOriginEnabled", true);
   }
 
-  @AfterAll
-  public static void collectClasses() throws IOException {
-    File[] files =
-        Paths.get(System.getProperty("java.io.tmpdir"), "debugger/com/datadog/debugger")
-            .toFile()
-            .listFiles(
-                file -> {
-                  String name = file.getName();
-                  return name.startsWith("CodeOrigin") && name.endsWith(".class");
-                });
-
-    if (new File("build").exists()) {
-      File buildDir = new File("build/debugger");
-      buildDir.mkdirs();
-      for (File file : files) {
-        Files.copy(
-            file.toPath(), Paths.get(buildDir.getAbsolutePath(), file.getName()), REPLACE_EXISTING);
-      }
-    }
-  }
-
   @Test
   public void basicInstrumentation() throws Exception {
     final String className = "com.datadog.debugger.CodeOrigin01";
 
     installProbes(codeOriginProbes(className));
     final Class<?> testClass = compileAndLoadClass(className);
-    checkResults(testClass, "fullTrace", false);
+    checkResults(testClass, "fullTrace", 0);
   }
 
   @Test
   public void withDebug1() throws Exception {
     final String className = "com.datadog.debugger.CodeOrigin02";
-    installProbes(codeOriginProbes(className));
+    installProbes();
     final Class<?> testClass = compileAndLoadClass(className);
-    checkResults(testClass, "debug_1", true);
+    codeOriginRecorder.captureCodeOrigin(testClass.getMethod("entry"), true);
+    codeOriginRecorder.captureCodeOrigin(testClass.getMethod("exit"), false);
+    checkResults(testClass, "fullTrace", 0);
+    checkResults(testClass, "debug_1", 2);
   }
 
   @Test
-  public void withLogProbe() throws IOException, URISyntaxException {
+  public void withLogProbe() throws Exception {
     final String CLASS_NAME = "com.datadog.debugger.CodeOrigin03";
-    LogProbe logProbe =
-        createProbeBuilder(PROBE_ID, CLASS_NAME, "entry", "()")
-            .capture(1, 100, 255, Limits.DEFAULT_FIELD_COUNT)
-            .build();
-    List<LogProbe> probes = codeOriginProbes(CLASS_NAME);
-    probes.add(logProbe);
-    installProbes(probes);
+    installProbes(
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "entry", "()").captureSnapshot(true).build());
     final Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    checkResults(testClass, "debug_1", true);
+    codeOriginRecorder.captureCodeOrigin(testClass.getMethod("entry"), true);
+    codeOriginRecorder.captureCodeOrigin(testClass.getMethod("exit"), false);
+    checkResults(testClass, "debug_1", 3);
   }
 
   @Test
   public void doubleEntry() throws IOException, URISyntaxException {
     final String className = "com.datadog.debugger.CodeOrigin05";
 
-    List<LogProbe> probes =
-        asList(
-            new CodeOriginProbe(
-                CODE_ORIGIN_ID1, true, Where.of(className, "entry", "()", "53"), MAX_FRAMES),
-            new CodeOriginProbe(
-                CODE_ORIGIN_ID2, false, Where.of(className, "exit", "()", "62"), MAX_FRAMES),
-            new CodeOriginProbe(
-                CODE_ORIGIN_DOUBLE_ENTRY_ID,
-                true,
-                Where.of(className, "doubleEntry", "()", "66"),
-                MAX_FRAMES));
-    installProbes(probes);
+    installProbes(
+        new CodeOriginProbe(CODE_ORIGIN_ID1, true, Where.of(className, "entry", "()", "53")),
+        new CodeOriginProbe(CODE_ORIGIN_ID2, false, Where.of(className, "exit", "()", "62")),
+        new CodeOriginProbe(
+            CODE_ORIGIN_DOUBLE_ENTRY_ID, true, Where.of(className, "doubleEntry", "()", "66")));
     final Class<?> testClass = compileAndLoadClass(className);
-    checkResults(testClass, "fullTrace", false);
+    checkResults(testClass, "fullTrace", 0);
     List<? extends MutableSpan> trace = traceInterceptor.getTrace();
     MutableSpan span = trace.get(0);
     // this should be entry but until we get the ordering resolved, it's this.
-    assertEquals("doubleEntry", span.getTag(format(DD_CODE_ORIGIN_FRAME, 0, "method")));
+    assertEquals("entry", span.getTag(format(DD_CODE_ORIGIN_FRAME, 0, "method")));
   }
 
   @Test
   public void stackDepth() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CodeOrigin04";
     installProbes(
-        new CodeOriginProbe(
-            CODE_ORIGIN_ID1, true, Where.of(CLASS_NAME, "exit", "()", "39"), MAX_FRAMES));
+        new CodeOriginProbe(CODE_ORIGIN_ID1, true, Where.of(CLASS_NAME, "exit", "()", "39")));
 
     Class<?> testClass = compileAndLoadClass("com.datadog.debugger.CodeOrigin04");
     countFrames(testClass, 10);
@@ -237,55 +206,64 @@ public class CodeOriginTest extends CapturingTestBase {
   }
 
   @NotNull
-  private List<LogProbe> codeOriginProbes(String type) {
+  private CodeOriginProbe[] codeOriginProbes(String type) {
     CodeOriginProbe entry =
-        new CodeOriginProbe(CODE_ORIGIN_ID1, true, Where.of(type, "entry", "()", "53"), MAX_FRAMES);
+        new CodeOriginProbe(CODE_ORIGIN_ID1, true, Where.of(type, "entry", "()", "53"));
     CodeOriginProbe exit =
-        new CodeOriginProbe(CODE_ORIGIN_ID2, false, Where.of(type, "exit", "()", "60"), MAX_FRAMES);
-    return new ArrayList<>(asList(entry, exit));
+        new CodeOriginProbe(CODE_ORIGIN_ID2, false, Where.of(type, "exit", "()", "60"));
+    return new CodeOriginProbe[] {entry, exit};
   }
 
-  private void checkResults(Class<?> testClass, String parameter, boolean includeSnapshot) {
+  private void checkResults(Class<?> testClass, String parameter, int snapshotsExpected) {
     int result = Reflect.onClass(testClass).call("main", parameter).get();
     assertEquals(0, result);
-    List<? extends MutableSpan> spans = traceInterceptor.getTrace();
+    List<DDSpan> spans = (List<DDSpan>) traceInterceptor.getTrace();
     assertEquals(3, spans.size());
     assertEquals("main", spans.get(2).getLocalRootSpan().getOperationName());
 
-    List<? extends MutableSpan> list =
+    List<DDSpan> list =
         spans.stream()
             .filter(span -> !span.getOperationName().equals("exit"))
             .collect(Collectors.toList());
 
-    for (MutableSpan span : list) {
-      checkEntrySpanTags(span, includeSnapshot);
+    for (DDSpan span : list) {
+      checkEntrySpanTags(span, snapshotsExpected != 0);
     }
-    Optional<? extends MutableSpan> exit =
+
+    assertEquals(
+        snapshotsExpected,
+        listener.snapshots.stream()
+            .filter(s -> s.getCaptures().getEntry() != null && s.getCaptures().getReturn() != null)
+            .collect(Collectors.toList())
+            .size());
+
+    Optional<DDSpan> exit =
         spans.stream().filter(span -> span.getOperationName().equals("exit")).findFirst();
     assertTrue(exit.isPresent());
-    exit.ifPresent(span -> checkExitSpanTags(span, includeSnapshot));
+    exit.ifPresent(span -> checkExitSpanTags(span, false));
   }
 
   @Override
-  protected TestSnapshotListener installProbes(LogProbe... probes) {
-    TestSnapshotListener listener = super.installProbes(probes);
+  protected TestSnapshotListener installProbes(ProbeDefinition... probes) {
+    listener = super.installProbes(probes);
 
     DebuggerContext.initClassNameFilter(classNameFilter);
-    codeOriginRecorder = new DefaultCodeOriginRecorder(config, configurationUpdater);
+    codeOriginRecorder =
+        new DefaultCodeOriginRecorder(
+            config,
+            configurationUpdater,
+            new AgentTaskScheduler(TASK_SCHEDULER) {
+              @Override
+              public void execute(Runnable target) {
+                target.run();
+              }
+            });
     DebuggerContext.initCodeOrigin(codeOriginRecorder);
 
     return listener;
   }
 
-  protected TestSnapshotListener installProbes(List<LogProbe> probes) {
-    return installProbes(probes.toArray(new LogProbe[0]));
-  }
-
-  private static void checkEntrySpanTags(MutableSpan span, boolean includeSnapshot) {
-    String keys = format("Existing keys for %s: %s", span.getOperationName(), ldKeys(span));
-
-    assertEquals(span.getTag(DD_CODE_ORIGIN_TYPE), "entry", keys);
-    assertKeyPresent(span, DD_CODE_ORIGIN_TYPE);
+  private static void checkEntrySpanTags(DDSpan span, boolean includeSnapshot) {
     assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "file"));
     assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "line"));
     assertNotEquals(-1, span.getTag(format(DD_CODE_ORIGIN_FRAME, 0, "line")));
@@ -300,9 +278,12 @@ public class CodeOriginTest extends CapturingTestBase {
     }
   }
 
-  private static void assertKeyPresent(MutableSpan span, String key) {
+  private static void assertKeyPresent(DDSpan span, String key) {
     assertNotNull(
-        span.getTag(key), format("'%s' key missing in '%s' span.", key, span.getOperationName()));
+        span.getTag(key),
+        format(
+            "'%s' key missing in '%s' span. current keys:  %s",
+            key, span.getOperationName(), ldKeys(span)));
   }
 
   private static void assertKeyNotPresent(MutableSpan span, String key) {
@@ -311,7 +292,7 @@ public class CodeOriginTest extends CapturingTestBase {
         format("'%s' key found in '%s' span when it shouldn't be.", key, span.getOperationName()));
   }
 
-  private static void checkExitSpanTags(MutableSpan span, boolean includeSnapshot) {
+  private static void checkExitSpanTags(DDSpan span, boolean includeSnapshot) {
     String keys =
         format("Existing keys for %s: %s", span.getOperationName(), new TreeSet<>(ldKeys(span)));
 

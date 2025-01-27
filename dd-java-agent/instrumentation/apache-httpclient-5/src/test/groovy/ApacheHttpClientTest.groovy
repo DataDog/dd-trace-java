@@ -208,7 +208,7 @@ abstract class ApacheClientResponseHandlerAll extends ApacheHttpClientTest<Class
 }
 
 @Timeout(5)
-class ApacheClientResponseHandlerAllV0ForkedTest extends ApacheClientResponseHandlerAll {
+class ApacheClientResponseHandlerAllV0Test extends ApacheClientResponseHandlerAll {
 }
 
 @Timeout(5)

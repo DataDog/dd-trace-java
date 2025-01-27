@@ -7,7 +7,9 @@ import datadog.trace.civisibility.ipc.TestFramework;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.TreeSet;
 import java.util.function.BinaryOperator;
 import java.util.function.Consumer;
@@ -83,8 +85,10 @@ public class SpanUtils {
     }
     if (frameworks.size() == 1) {
       TestFramework framework = frameworks.iterator().next();
-      span.setTag(Tags.TEST_FRAMEWORK, framework.getName());
-      span.setTag(Tags.TEST_FRAMEWORK_VERSION, framework.getVersion());
+      Map<String, String> tags = new HashMap<>();
+      tags.put(Tags.TEST_FRAMEWORK, framework.getName());
+      tags.put(Tags.TEST_FRAMEWORK_VERSION, framework.getVersion());
+      span.setAllTags(tags);
       return;
     }
     Collection<String> names = new ArrayList<>(frameworks.size());
@@ -93,8 +97,10 @@ public class SpanUtils {
       names.add(framework.getName());
       versions.add(framework.getVersion());
     }
-    span.setTag(Tags.TEST_FRAMEWORK, names);
-    span.setTag(Tags.TEST_FRAMEWORK_VERSION, versions);
+    Map<String, Collection<String>> tags = new HashMap<>();
+    tags.put(Tags.TEST_FRAMEWORK, names);
+    tags.put(Tags.TEST_FRAMEWORK_VERSION, versions);
+    span.setAllTags(tags);
   }
 
   private static void propagateStatus(AgentSpan parentSpan, AgentSpan childSpan) {

@@ -6,6 +6,7 @@ import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.civisibility.ci.env.CiEnvironment;
 import java.nio.file.Path;
+import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,6 +59,12 @@ class UnknownCIInfo implements CIProviderInfo {
     }
 
     return CIInfo.builder(environment).ciWorkspace(workspace.toAbsolutePath().toString()).build();
+  }
+
+  @Nonnull
+  @Override
+  public PullRequestInfo buildPullRequestInfo() {
+    return PullRequestInfo.EMPTY;
   }
 
   protected String getTargetFolder() {

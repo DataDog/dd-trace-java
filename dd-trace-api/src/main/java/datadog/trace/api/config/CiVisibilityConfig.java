@@ -21,6 +21,7 @@ public final class CiVisibilityConfig {
   public static final String CIVISIBILITY_COMPILER_PLUGIN_VERSION =
       "civisibility.compiler.plugin.version";
   public static final String CIVISIBILITY_DEBUG_PORT = "civisibility.debug.port";
+  public static final String CIVISIBILITY_GIT_CLIENT_ENABLED = "civisibility.git.client.enabled";
   public static final String CIVISIBILITY_GIT_UPLOAD_ENABLED = "civisibility.git.upload.enabled";
   public static final String CIVISIBILITY_GIT_UNSHALLOW_ENABLED =
       "civisibility.git.unshallow.enabled";
@@ -51,6 +52,10 @@ public final class CiVisibilityConfig {
   public static final String CIVISIBILITY_RESOURCE_FOLDER_NAMES =
       "civisibility.resource.folder.names";
   public static final String CIVISIBILITY_FLAKY_RETRY_ENABLED = "civisibility.flaky.retry.enabled";
+  public static final String CIVISIBILITY_IMPACTED_TESTS_DETECTION_ENABLED =
+      "civisibility.impacted.tests.detection.enabled";
+  public static final String CIVISIBILITY_KNOWN_TESTS_REQUEST_ENABLED =
+      "civisibility.known.tests.request.enabled";
   public static final String CIVISIBILITY_FLAKY_RETRY_ONLY_KNOWN_FLAKES =
       "civisibility.flaky.retry.only.known.flakes";
   public static final String CIVISIBILITY_EARLY_FLAKE_DETECTION_ENABLED =

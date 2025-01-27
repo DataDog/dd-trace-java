@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.junit5;
 
 import datadog.trace.api.Pair;
+import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.coverage.CoveragePerTestBridge;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import java.util.List;
@@ -110,23 +111,19 @@ public class CucumberTracingListener implements EngineExecutionListener {
     String classpathResourceName = testSource.getClasspathResourceName();
     Pair<String, String> names =
         CucumberUtils.getFeatureAndScenarioNames(testDescriptor, classpathResourceName);
-    String testSuiteName = names.getLeft();
     String testName = names.getRight();
     List<String> tags =
         testDescriptor.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestStart(
         suiteDescriptor,
         testDescriptor,
-        testSuiteName,
         testName,
         testFramework,
         testFrameworkVersion,
         null,
         tags,
-        null,
-        null,
-        null,
-        JUnitPlatformUtils.isRetry(testDescriptor),
+        TestSourceData.UNKNOWN,
+        JUnitPlatformUtils.retryReason(testDescriptor),
         null);
 
     CoveragePerTestBridge.recordCoverage(classpathResourceName);
@@ -168,22 +165,18 @@ public class CucumberTracingListener implements EngineExecutionListener {
     String classpathResourceName = testSource.getClasspathResourceName();
     Pair<String, String> names =
         CucumberUtils.getFeatureAndScenarioNames(testDescriptor, classpathResourceName);
-    String testSuiteName = names.getLeft();
     String testName = names.getRight();
     List<String> tags =
         testDescriptor.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestIgnore(
         suiteDescriptor,
         testDescriptor,
-        testSuiteName,
         testName,
         testFramework,
         testFrameworkVersion,
         null,
         tags,
-        null,
-        null,
-        null,
+        TestSourceData.UNKNOWN,
         reason);
   }
 }

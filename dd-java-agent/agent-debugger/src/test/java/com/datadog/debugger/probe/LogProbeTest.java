@@ -1,6 +1,6 @@
 package com.datadog.debugger.probe;
 
-import static com.datadog.debugger.agent.CapturingTestBase.mockConfig;
+import static com.datadog.debugger.agent.CapturingTestBase.getConfig;
 import static com.datadog.debugger.util.LogProbeTestHelper.parseTemplate;
 import static java.lang.String.format;
 import static java.lang.Thread.currentThread;
@@ -16,6 +16,7 @@ import com.datadog.debugger.probe.LogProbe.LogStatus;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.sink.Snapshot;
+import datadog.trace.api.Config;
 import datadog.trace.api.IdGenerationStrategy;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.EvaluationError;
@@ -28,7 +29,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.CoreTracer;
-import java.util.UUID;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -44,18 +44,18 @@ public class LogProbeTest {
 
   @Test
   public void testCapture() {
-    LogProbe.Builder builder = createLog(null);
+    Builder builder = createLog(null);
     LogProbe snapshotProbe = builder.capture(1, 420, 255, 20).build();
-    Assertions.assertEquals(1, snapshotProbe.getCapture().getMaxReferenceDepth());
-    Assertions.assertEquals(420, snapshotProbe.getCapture().getMaxCollectionSize());
-    Assertions.assertEquals(255, snapshotProbe.getCapture().getMaxLength());
+    assertEquals(1, snapshotProbe.getCapture().getMaxReferenceDepth());
+    assertEquals(420, snapshotProbe.getCapture().getMaxCollectionSize());
+    assertEquals(255, snapshotProbe.getCapture().getMaxLength());
   }
 
   @Test
   public void testSampling() {
-    LogProbe.Builder builder = createLog(null);
+    Builder builder = createLog(null);
     LogProbe snapshotProbe = builder.sampling(0.25).build();
-    Assertions.assertEquals(0.25, snapshotProbe.getSampling().getEventsPerSecond(), 0.01);
+    assertEquals(0.25, snapshotProbe.getSampling().getEventsPerSecond(), 0.01);
   }
 
   @Test
@@ -79,8 +79,60 @@ public class LogProbeTest {
         "With no debug sessions, snapshots should get filled.");
   }
 
+  @Test
+  public void budgets() {
+    BudgetSink sink = new BudgetSink(getConfig(), mock(ProbeStatusSink.class));
+    DebuggerAgentHelper.injectSink(sink);
+
+    TracerAPI tracer =
+        CoreTracer.builder().idGenerationStrategy(IdGenerationStrategy.fromName("random")).build();
+    AgentTracer.registerIfAbsent(tracer);
+    int runs = 100;
+    for (int i = 0; i < runs; i++) {
+      runTrace(tracer, true);
+    }
+    assertEquals(runs * LogProbe.CAPTURING_PROBE_BUDGET, sink.captures);
+
+    sink = new BudgetSink(getConfig(), mock(ProbeStatusSink.class));
+    DebuggerAgentHelper.injectSink(sink);
+    runs = 1010;
+    for (int i = 0; i < runs; i++) {
+      runTrace(tracer, false);
+    }
+    assertEquals(runs * LogProbe.NON_CAPTURING_PROBE_BUDGET, sink.highRate);
+  }
+
+  private void runTrace(TracerAPI tracer, boolean captureSnapshot) {
+    AgentSpan span = tracer.startSpan("budget testing", "test span");
+    span.setTag(Tags.PROPAGATED_DEBUG, "12345:1");
+    try (AgentScope scope = tracer.activateSpan(span, ScopeSource.MANUAL)) {
+
+      LogProbe logProbe =
+          createLog("I'm in a debug session")
+              .probeId(ProbeId.newId())
+              .tags("session_id:12345")
+              .captureSnapshot(captureSnapshot)
+              .build();
+      CapturedContext entryContext = capturedContext(span, logProbe);
+      CapturedContext exitContext = capturedContext(span, logProbe);
+      logProbe.evaluate(entryContext, new LogStatus(logProbe), MethodLocation.ENTRY);
+      logProbe.evaluate(exitContext, new LogStatus(logProbe), MethodLocation.EXIT);
+
+      int budget =
+          logProbe.isCaptureSnapshot()
+              ? LogProbe.CAPTURING_PROBE_BUDGET
+              : LogProbe.NON_CAPTURING_PROBE_BUDGET;
+      int runs = budget + 20;
+
+      for (int i = 0; i < runs; i++) {
+        logProbe.commit(entryContext, exitContext, emptyList());
+      }
+      assertEquals(runs, span.getLocalRootSpan().getTag(format("_dd.ld.probe_id.%s", logProbe.id)));
+    }
+  }
+
   private boolean fillSnapshot(DebugSessionStatus status) {
-    DebuggerAgentHelper.injectSink(new DebuggerSink(mockConfig(), mock(ProbeStatusSink.class)));
+    DebuggerAgentHelper.injectSink(new DebuggerSink(getConfig(), mock(ProbeStatusSink.class)));
     TracerAPI tracer =
         CoreTracer.builder().idGenerationStrategy(IdGenerationStrategy.fromName("random")).build();
     AgentTracer.registerIfAbsent(tracer);
@@ -92,8 +144,7 @@ public class LogProbeTest {
         span.setTag(Tags.PROPAGATED_DEBUG, DEBUG_SESSION_ID + ":0");
       }
 
-      Builder builder =
-          createLog("I'm in a debug session").probeId(UUID.randomUUID().toString(), 0);
+      Builder builder = createLog("I'm in a debug session").probeId(ProbeId.newId());
       if (status != DebugSessionStatus.NONE) {
         builder.tags(format("session_id:%s", DEBUG_SESSION_ID));
       }
@@ -154,12 +205,11 @@ public class LogProbeTest {
     LogProbe logProbe = createLog(null).evaluateAt(MethodLocation.valueOf(methodLocation)).build();
     CapturedContext entryContext = new CapturedContext();
     CapturedContext exitContext = new CapturedContext();
-    LogProbe.LogStatus logEntryStatus =
-        prepareContext(entryContext, logProbe, MethodLocation.ENTRY);
+    LogStatus logEntryStatus = prepareContext(entryContext, logProbe, MethodLocation.ENTRY);
     logEntryStatus.setSampled(true); // force sampled to avoid rate limiting executing tests!
-    LogProbe.LogStatus logExitStatus = prepareContext(exitContext, logProbe, MethodLocation.EXIT);
+    LogStatus logExitStatus = prepareContext(exitContext, logProbe, MethodLocation.EXIT);
     logExitStatus.setSampled(true); // force sampled to avoid rate limiting executing tests!
-    Snapshot snapshot = new Snapshot(Thread.currentThread(), logProbe, 10);
+    Snapshot snapshot = new Snapshot(currentThread(), logProbe, 10);
     assertTrue(logProbe.fillSnapshot(entryContext, exitContext, null, snapshot));
   }
 
@@ -174,16 +224,16 @@ public class LogProbeTest {
     LogProbe logProbe = createLog(null).evaluateAt(MethodLocation.EXIT).build();
     CapturedContext entryContext = new CapturedContext();
     CapturedContext exitContext = new CapturedContext();
-    LogProbe.LogStatus entryStatus = prepareContext(entryContext, logProbe, MethodLocation.ENTRY);
+    LogStatus entryStatus = prepareContext(entryContext, logProbe, MethodLocation.ENTRY);
     fillStatus(entryStatus, sampled, condition, conditionErrors, logTemplateErrors);
-    LogProbe.LogStatus exitStatus = prepareContext(exitContext, logProbe, MethodLocation.EXIT);
+    LogStatus exitStatus = prepareContext(exitContext, logProbe, MethodLocation.EXIT);
     fillStatus(exitStatus, sampled, condition, conditionErrors, logTemplateErrors);
-    Snapshot snapshot = new Snapshot(Thread.currentThread(), logProbe, 10);
+    Snapshot snapshot = new Snapshot(currentThread(), logProbe, 10);
     assertEquals(shouldCommit, logProbe.fillSnapshot(entryContext, exitContext, null, snapshot));
   }
 
   private void fillStatus(
-      LogProbe.LogStatus entryStatus,
+      LogStatus entryStatus,
       boolean sampled,
       boolean condition,
       boolean conditionErrors,
@@ -195,10 +245,10 @@ public class LogProbeTest {
     entryStatus.setLogTemplateErrors(logTemplateErrors);
   }
 
-  private LogProbe.LogStatus prepareContext(
+  private LogStatus prepareContext(
       CapturedContext context, LogProbe logProbe, MethodLocation methodLocation) {
     context.evaluate(PROBE_ID.getEncodedId(), logProbe, "", 0, methodLocation);
-    return (LogProbe.LogStatus) context.getStatus(PROBE_ID.getEncodedId());
+    return (LogStatus) context.getStatus(PROBE_ID.getEncodedId());
   }
 
   private static Stream<Arguments> statusValues() {
@@ -224,7 +274,7 @@ public class LogProbeTest {
     prepareContext(entryContext, logProbe, MethodLocation.ENTRY);
     CapturedContext exitContext = new CapturedContext();
     prepareContext(exitContext, logProbe, MethodLocation.EXIT);
-    Snapshot snapshot = new Snapshot(Thread.currentThread(), logProbe, 10);
+    Snapshot snapshot = new Snapshot(currentThread(), logProbe, 10);
     assertTrue(logProbe.fillSnapshot(entryContext, exitContext, null, snapshot));
   }
 
@@ -232,7 +282,7 @@ public class LogProbeTest {
   public void fillSnapshot_shouldSend_evalErrors() {
     LogProbe logProbe = createLog(null).evaluateAt(MethodLocation.EXIT).build();
     CapturedContext entryContext = new CapturedContext();
-    LogProbe.LogStatus logStatus = prepareContext(entryContext, logProbe, MethodLocation.ENTRY);
+    LogStatus logStatus = prepareContext(entryContext, logProbe, MethodLocation.ENTRY);
     logStatus.addError(new EvaluationError("expr", "msg1"));
     logStatus.setLogTemplateErrors(true);
     entryContext.addThrowable(new RuntimeException("errorEntry"));
@@ -241,7 +291,7 @@ public class LogProbeTest {
     logStatus.addError(new EvaluationError("expr", "msg2"));
     logStatus.setLogTemplateErrors(true);
     exitContext.addThrowable(new RuntimeException("errorExit"));
-    Snapshot snapshot = new Snapshot(Thread.currentThread(), logProbe, 10);
+    Snapshot snapshot = new Snapshot(currentThread(), logProbe, 10);
     assertTrue(logProbe.fillSnapshot(entryContext, exitContext, null, snapshot));
     assertEquals(2, snapshot.getEvaluationErrors().size());
     assertEquals("msg1", snapshot.getEvaluationErrors().get(0).getMessage());
@@ -252,10 +302,40 @@ public class LogProbeTest {
         "errorExit", snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
   }
 
-  private LogProbe.Builder createLog(String template) {
+  private Builder createLog(String template) {
     return LogProbe.builder()
         .language(LANGUAGE)
         .probeId(PROBE_ID)
         .template(template, parseTemplate(template));
+  }
+
+  private static class BudgetSink extends DebuggerSink {
+
+    public int captures;
+    public int highRate;
+
+    public BudgetSink(Config config, ProbeStatusSink probeStatusSink) {
+      super(config, probeStatusSink);
+    }
+
+    @Override
+    public void addHighRateSnapshot(Snapshot snapshot) {
+      highRate++;
+    }
+
+    @Override
+    public void addSnapshot(Snapshot snapshot) {
+      captures++;
+    }
+
+    @Override
+    public void start() {
+      super.start();
+    }
+
+    @Override
+    public void stop() {
+      super.stop();
+    }
   }
 }

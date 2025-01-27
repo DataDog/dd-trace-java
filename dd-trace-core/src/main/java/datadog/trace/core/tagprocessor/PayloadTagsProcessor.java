@@ -3,6 +3,7 @@ package datadog.trace.core.tagprocessor;
 import datadog.trace.api.Config;
 import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.telemetry.LogCollector;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.payloadtags.PayloadTagsData;
 import datadog.trace.payloadtags.json.JsonPath;
@@ -68,7 +69,8 @@ public final class PayloadTagsProcessor implements TagsPostProcessor {
   }
 
   @Override
-  public Map<String, Object> processTags(Map<String, Object> spanTags, DDSpanContext spanContext) {
+  public Map<String, Object> processTags(
+      Map<String, Object> spanTags, DDSpanContext spanContext, List<AgentSpanLink> spanLinks) {
     int spanMaxTags = maxTags + spanTags.size();
     for (Map.Entry<String, RedactionRules> tagPrefixRedactionRules :
         redactionRulesByTagPrefix.entrySet()) {
