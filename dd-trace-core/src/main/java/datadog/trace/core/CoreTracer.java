@@ -5,6 +5,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 import static datadog.trace.api.DDTags.DJM_ENABLED;
 import static datadog.trace.api.DDTags.DSM_ENABLED;
 import static datadog.trace.api.DDTags.PROFILING_CONTEXT_ENGINE;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.STANDALONE_ASM_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.TRACING_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.XRAY_TRACING_CONCERN;
@@ -713,22 +714,25 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     sharedCommunicationObjects.whenReady(this.dataStreamsMonitoring::start);
 
-    // Create default extractor from config if not provided and decorate it with DSM extractor
-    HttpCodec.Extractor builtExtractor =
-        extractor == null ? HttpCodec.createExtractor(config, this::captureTraceConfig) : extractor;
-    builtExtractor = this.dataStreamsMonitoring.extractor(builtExtractor);
-    // Store all propagators to propagation
-    this.propagation = new CorePropagation(builtExtractor, this.dataStreamsMonitoring.injector());
+    // Store all propagators to propagation -- only DSM injection left
+    this.propagation = new CorePropagation(this.dataStreamsMonitoring.injector());
 
+    // Register context propagators
+    HttpCodec.Extractor tracingExtractor =
+        extractor == null ? HttpCodec.createExtractor(config, this::captureTraceConfig) : extractor;
+    TracingPropagator tracingPropagator = new TracingPropagator(injector, tracingExtractor);
     // Check if standalone AppSec is enabled:
     // If enabled, use the standalone AppSec propagator by default that will limit tracing concern
     // injection and delegate to the tracing propagator if needed,
     // If disabled, the most common case, use the usual tracing propagator by default.
     boolean standaloneAppSec = config.isAppSecStandaloneEnabled();
+    boolean dsm = config.isDataStreamsEnabled();
     Propagators.register(STANDALONE_ASM_CONCERN, new StandaloneAsmPropagator(), standaloneAppSec);
-    Propagators.register(
-        TRACING_CONCERN, new TracingPropagator(injector, extractor), !standaloneAppSec);
+    Propagators.register(TRACING_CONCERN, tracingPropagator, !standaloneAppSec);
     Propagators.register(XRAY_TRACING_CONCERN, new XRayPropagator(config), false);
+    if (dsm) {
+      Propagators.register(DSM_CONCERN, this.dataStreamsMonitoring.propagator());
+    }
 
     this.tagInterceptor =
         null == tagInterceptor ? new TagInterceptor(new RuleFlags(config)) : tagInterceptor;

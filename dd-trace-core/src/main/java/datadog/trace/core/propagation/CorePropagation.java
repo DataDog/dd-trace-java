@@ -7,18 +7,14 @@ import java.util.LinkedHashMap;
 
 public class CorePropagation implements AgentPropagation {
   private final DataStreamContextInjector dataStreamContextInjector;
-  private final HttpCodec.Extractor extractor;
 
   /**
    * Constructor
    *
-   * @param extractor The context extractor.
    * @param dataStreamContextInjector The DSM context injector, as a specific object until generic
    *     context injection is available.
    */
-  public CorePropagation(
-      HttpCodec.Extractor extractor, DataStreamContextInjector dataStreamContextInjector) {
-    this.extractor = extractor;
+  public CorePropagation(DataStreamContextInjector dataStreamContextInjector) {
     this.dataStreamContextInjector = dataStreamContextInjector;
   }
 

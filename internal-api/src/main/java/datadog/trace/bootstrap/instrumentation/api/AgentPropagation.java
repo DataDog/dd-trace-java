@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
 import static datadog.context.propagation.Concern.named;
+import static datadog.context.propagation.Concern.withPriority;
 
 import datadog.context.Context;
 import datadog.context.propagation.CarrierSetter;
@@ -15,6 +16,9 @@ public interface AgentPropagation {
   Concern TRACING_CONCERN = named("tracing");
   Concern XRAY_TRACING_CONCERN = named("tracing-xray");
   Concern STANDALONE_ASM_CONCERN = named("asm-standalone");
+  // TODO DSM propagator should run after the other propagators as it stores the pathway context
+  // TODO into the span context for now. Remove priority after the migration is complete.
+  Concern DSM_CONCERN = withPriority("data-stream-monitoring", 110);
 
   // The input tags should be sorted.
   <C> void injectPathwayContext(
