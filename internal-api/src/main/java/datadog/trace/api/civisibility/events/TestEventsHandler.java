@@ -83,16 +83,14 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
       @Nonnull TestSourceData testSourceData,
       @Nullable String reason);
 
-  boolean skip(TestIdentifier test);
-
-  boolean shouldBeSkipped(TestIdentifier test);
-
   @Nonnull
   TestRetryPolicy retryPolicy(TestIdentifier test, TestSourceData source);
 
   boolean isNew(TestIdentifier test);
 
   boolean isFlaky(TestIdentifier test);
+
+  boolean isSkippable(TestIdentifier test);
 
   @Override
   void close();

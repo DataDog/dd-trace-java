@@ -37,6 +37,7 @@ import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.source.SourceResolutionException;
+import datadog.trace.civisibility.test.ExecutionResults;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Collections;
@@ -50,6 +51,7 @@ public class TestImpl implements DDTest {
   private static final Logger log = LoggerFactory.getLogger(TestImpl.class);
 
   private final CiVisibilityMetricCollector metricCollector;
+  private final ExecutionResults executionResults;
   private final TestFrameworkInstrumentation instrumentation;
   private final AgentSpan span;
   private final DDTraceId sessionId;
@@ -78,11 +80,13 @@ public class TestImpl implements DDTest {
       LinesResolver linesResolver,
       Codeowners codeowners,
       CoverageStore.Factory coverageStoreFactory,
+      ExecutionResults executionResults,
       Consumer<AgentSpan> onSpanFinish) {
     this.instrumentation = instrumentation;
     this.metricCollector = metricCollector;
     this.sessionId = moduleSpanContext.getTraceId();
     this.suiteId = suiteId;
+    this.executionResults = executionResults;
     this.onSpanFinish = onSpanFinish;
 
     this.identifier = new TestIdentifier(testSuiteName, testName, testParameters);
@@ -256,6 +260,10 @@ public class TestImpl implements DDTest {
       span.finish(endTime);
     } else {
       span.finish();
+    }
+
+    if (InstrumentationBridge.ITR_SKIP_REASON.equals(span.getTag(Tags.TEST_SKIP_REASON))) {
+      executionResults.incrementTestsSkippedByItr();
     }
 
     metricCollector.add(

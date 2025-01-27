@@ -69,7 +69,7 @@ public class TestNGItrInstrumentation extends InstrumenterModule.CiVisibility
       }
 
       TestIdentifier skippableTest = TestNGUtils.toTestIdentifier(method, instance, parameters);
-      if (TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skip(skippableTest)) {
+      if (TestEventsHandlerHolder.TEST_EVENTS_HANDLER.isSkippable(skippableTest)) {
         throw new SkipException(InstrumentationBridge.ITR_SKIP_REASON);
       }
     }

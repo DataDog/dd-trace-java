@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_STARTUP_LOGS_ENABLED;
-import static datadog.trace.api.Platform.getRuntimeVendor;
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 import static datadog.trace.api.Platform.isOracleJDK8;
 import static datadog.trace.bootstrap.Library.WILDFLY;
@@ -329,7 +328,7 @@ public class Agent {
       if (appUsingCustomJMXBuilder) {
         log.debug("Custom JMX builder detected. Delaying JMXFetch initialization.");
         registerMBeanServerBuilderCallback(new StartJmxCallback(jmxStartDelay));
-        // one minute fail-safe in case nothing touches JMX and and callback isn't triggered
+        // one minute fail-safe in case nothing touches JMX and callback isn't triggered
         scheduleJmxStart(60 + jmxStartDelay);
       } else if (appUsingCustomLogManager) {
         log.debug("Custom logger detected. Delaying JMXFetch initialization.");
@@ -339,20 +338,31 @@ public class Agent {
       }
     }
 
-    boolean delayOkHttp = appUsingCustomLogManager && okHttpMayIndirectlyLoadJUL();
-
     /*
      * Similar thing happens with DatadogTracer on (at least) zulu-8 because it uses OkHttp which indirectly loads JFR
      * events which in turn loads LogManager. This is not a problem on newer JDKs because there JFR uses different
      * logging facility. Likewise on IBM JDKs OkHttp may indirectly load 'IBMSASL' which in turn loads LogManager.
      */
+    boolean delayOkHttp = !ciVisibilityEnabled && okHttpMayIndirectlyLoadJUL();
+    boolean waitForJUL = appUsingCustomLogManager && delayOkHttp;
+    int okHttpDelayMillis;
+    if (waitForJUL) {
+      okHttpDelayMillis = 1_000;
+    } else if (delayOkHttp) {
+      okHttpDelayMillis = 100;
+    } else {
+      okHttpDelayMillis = 0;
+    }
+
     InstallDatadogTracerCallback installDatadogTracerCallback =
-        new InstallDatadogTracerCallback(initTelemetry, inst, delayOkHttp);
-    if (delayOkHttp) {
+        new InstallDatadogTracerCallback(initTelemetry, inst, okHttpDelayMillis);
+    if (waitForJUL) {
       log.debug("Custom logger detected. Delaying Datadog Tracer initialization.");
       registerLogManagerCallback(installDatadogTracerCallback);
+    } else if (okHttpDelayMillis > 0) {
+      installDatadogTracerCallback.run(); // complete on different thread (after premain)
     } else {
-      installDatadogTracerCallback.execute();
+      installDatadogTracerCallback.execute(); // complete on primordial thread in premain
     }
 
     /*
@@ -362,7 +372,7 @@ public class Agent {
     if (profilingEnabled && !isOracleJDK8()) {
       StaticEventLogger.begin("Profiling");
 
-      if (delayOkHttp) {
+      if (waitForJUL) {
         log.debug("Custom logger detected. Delaying Profiling initialization.");
         registerLogManagerCallback(new StartProfilingAgentCallback(inst));
       } else {
@@ -499,18 +509,18 @@ public class Agent {
     private final Instrumentation instrumentation;
     private final Object sco;
     private final Class<?> scoClass;
-    private final boolean delayOkHttp;
+    private final int okHttpDelayMillis;
 
     public InstallDatadogTracerCallback(
         InitializationTelemetry initTelemetry,
         Instrumentation instrumentation,
-        boolean delayOkHttp) {
-      this.delayOkHttp = delayOkHttp;
+        int okHttpDelayMillis) {
+      this.okHttpDelayMillis = okHttpDelayMillis;
       this.instrumentation = instrumentation;
       try {
         scoClass =
             AGENT_CLASSLOADER.loadClass("datadog.communication.ddagent.SharedCommunicationObjects");
-        sco = scoClass.getConstructor(boolean.class).newInstance(delayOkHttp);
+        sco = scoClass.getConstructor(boolean.class).newInstance(okHttpDelayMillis > 0);
       } catch (ClassNotFoundException
           | NoSuchMethodException
           | InstantiationException
@@ -530,7 +540,7 @@ public class Agent {
 
     @Override
     public void execute() {
-      if (delayOkHttp) {
+      if (okHttpDelayMillis > 0) {
         resumeRemoteComponents();
       }
 
@@ -550,7 +560,7 @@ public class Agent {
       try {
         // remote components were paused for custom log-manager/jmx-builder
         // add small delay before resuming remote I/O to help stabilization
-        Thread.sleep(1_000);
+        Thread.sleep(okHttpDelayMillis);
         scoClass.getMethod("resume").invoke(sco);
       } catch (InterruptedException ignore) {
       } catch (Throwable e) {
@@ -1339,13 +1349,23 @@ public class Agent {
   }
 
   private static boolean okHttpMayIndirectlyLoadJUL() {
-    if ("IBM Corporation".equals(getRuntimeVendor())) {
-      return true; // IBM JDKs ship with 'IBMSASL' which will load JUL when OkHttp accesses TLS
+    if (isIBMSASLInstalled() || isACCPInstalled()) {
+      return true; // 'IBMSASL' and 'ACCP' crypto providers can load JUL when OkHttp accesses TLS
     }
     if (isJavaVersionAtLeast(9)) {
       return false; // JDKs since 9 have reworked JFR to use a different logging facility, not JUL
     }
     return isJFRSupported(); // assume OkHttp will indirectly load JUL via its JFR events
+  }
+
+  private static boolean isIBMSASLInstalled() {
+    return ClassLoader.getSystemResource("com/ibm/security/sasl/IBMSASL.class") != null;
+  }
+
+  private static boolean isACCPInstalled() {
+    return ClassLoader.getSystemResource(
+            "com/amazon/corretto/crypto/provider/AmazonCorrettoCryptoProvider.class")
+        != null;
   }
 
   private static boolean isJFRSupported() {
