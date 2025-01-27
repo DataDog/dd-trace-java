@@ -99,7 +99,8 @@ class ConfigConverterTest extends DDSpecification {
     // spotless:on
   }
 
-  def "parsing map #mapString with List of arg separators #argSeparators for with key value separator #separator"() { //testing parsing for DD_TAGS
+  def "parsing map #mapString with List of arg separators for with key value separator #separator"() {
+    //testing parsing for DD_TAGS
     setup:
     def separatorList = [','.charAt(0), ' '.charAt(0)]
 

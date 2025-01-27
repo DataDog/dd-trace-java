@@ -68,12 +68,19 @@ final class ConfigConverter {
 
   @Nonnull
   static Map<String, String> parseMap(final String str, final String settingName) {
-    return parseMap(str, settingName, ':', Arrays.asList(',', ' ')); //is this the best place stylistically to put the list?
+    return parseMap(
+        str,
+        settingName,
+        ':',
+        Arrays.asList(',', ' ')); // is this the best place stylistically to put the list?
   }
 
   @Nonnull
   static Map<String, String> parseMap(
-      final String str, final String settingName, final char keyValueSeparator, final List<Character> argSeparators) {
+      final String str,
+      final String settingName,
+      final char keyValueSeparator,
+      final List<Character> argSeparators) {
     // If we ever want to have default values besides an empty map, this will need to change.
     String trimmed = Strings.trim(str);
     if (trimmed.isEmpty()) {
@@ -122,7 +129,12 @@ final class ConfigConverter {
       return Collections.emptyMap();
     }
     Map<String, String> map = new LinkedHashMap<>();
-    loadMap(map, trimmed, settingName, ':', Arrays.asList(',', ' ')); //is this the best place stylistically to put the list?
+    loadMap(
+        map,
+        trimmed,
+        settingName,
+        ':',
+        Arrays.asList(',', ' ')); // is this the best place stylistically to put the list?
     return map;
   }
 
@@ -133,64 +145,57 @@ final class ConfigConverter {
   }
 
   private static void loadMap(
-      Map<String, String> map, String str, String settingName, char keyValueSeparator, final List<Character> argSeparators) {
-    // we know that the str is trimmed and rely on that there is no leading/trailing whitespace
-    try {
-      int start = 0;
-      int splitter = str.indexOf(keyValueSeparator, start);
-      char argSeparator = '\u0000';
-      int argSeparatorInd = -1;
-      for (Character sep : argSeparators){ //find the first instance of the first possible separator
-        argSeparatorInd = str.indexOf(sep, splitter + 1);
-        if (argSeparatorInd != -1) {
-          argSeparator = sep;
-          break;
-        }
+      Map<String, String> map,
+      String str,
+      String settingName,
+      char keyValueSeparator,
+      final List<Character> argSeparators) {
+    int start = 0;
+    int splitter = str.indexOf(keyValueSeparator, start);
+    char argSeparator = '\0';
+    int argSeparatorInd = -1;
+    for (Character sep : argSeparators) { // find the first instance of the first possible separator
+      argSeparatorInd = str.indexOf(sep);
+      if (argSeparatorInd != -1) {
+        argSeparator = sep;
+        break;
       }
-      while (splitter != -1 || start < str.length()) {
-        int nextSplitter = argSeparatorInd == -1 ? -1 : str.indexOf(keyValueSeparator, argSeparatorInd + 1); //next splitter after the next argSeparator
-        int nextArgSeparator = argSeparatorInd == -1 ? -1 : str.indexOf(argSeparator, argSeparatorInd + 1);
-        int end = argSeparatorInd == -1 ? str.length() : argSeparatorInd;
+    }
+    while (start < str.length()) {
+      int nextSplitter =
+          argSeparatorInd == -1
+              ? -1
+              : str.indexOf(
+                  keyValueSeparator,
+                  argSeparatorInd + 1); // next splitter after the next argSeparator
+      int nextArgSeparator =
+          argSeparatorInd == -1 ? -1 : str.indexOf(argSeparator, argSeparatorInd + 1);
+      int end = argSeparatorInd == -1 ? str.length() : argSeparatorInd;
 
-        if(start >= end){ //the character is only the delimiter
-          start = end + 1;
-          splitter = nextSplitter;
-          argSeparatorInd = nextArgSeparator;
-          continue;
-        }
-
-        if(splitter >= end || splitter == -1){ //only key, no value; either due end of string or substring not having splitter
-          String key = str.substring(start, end).trim();
-          if(!key.isEmpty()){
-            map.put(key, "");
-          }
-        }else{
-          String key = str.substring(start, splitter).trim();
-          String value = str.substring(splitter + 1, end).trim();
-          if (!key.isEmpty()) {
-            map.put(key, value);
-          }
-        }
+      if (start >= end) { // the character is only the delimiter
+        start = end + 1;
         splitter = nextSplitter;
         argSeparatorInd = nextArgSeparator;
-        start = end + 1;
+        continue;
       }
-    } catch (Throwable t) {
-      if (t instanceof BadFormatException) {
-        log.warn(
-            "Invalid config for {}. {}. Must match "
-                + "'key1{}value1,key2{}value2' or "
-                + "'key1{}value1 key2{}value2'.",
-            settingName,
-            t.getMessage(),
-            keyValueSeparator,
-            keyValueSeparator,
-            keyValueSeparator,
-            keyValueSeparator);
+
+      String key, value;
+      if (splitter >= end
+          || splitter
+              == -1) { // only key, no value; either due end of string or substring not having
+        // splitter
+        key = str.substring(start, end).trim();
+        value = "";
       } else {
-        log.warn("Unexpected exception during config parsing of {}.", settingName, t);
+        key = str.substring(start, splitter).trim();
+        value = str.substring(splitter + 1, end).trim();
       }
-      map.clear();
+      if (!key.isEmpty()) {
+        map.put(key, value);
+      }
+      splitter = nextSplitter;
+      argSeparatorInd = nextArgSeparator;
+      start = end + 1;
     }
   }
 
