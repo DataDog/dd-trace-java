@@ -1364,8 +1364,9 @@ public class Agent {
 
   private static boolean isACCPInstalled() {
     return ClassLoader.getSystemResource(
-            "com/amazon/corretto/crypto/provider/AmazonCorrettoCryptoProvider.class")
-        != null;
+                "com/amazon/corretto/crypto/provider/AmazonCorrettoCryptoProvider.class")
+            != null
+        || ClassLoader.getSystemResource("bundled/accp/BundledACCP.class") != null;
   }
 
   private static boolean isJFRSupported() {
