@@ -3,7 +3,10 @@ package datadog.trace.llmobs.domain
 import datadog.trace.agent.tooling.TracerInstaller
 import datadog.trace.api.DDTags
 import datadog.trace.api.IdGenerationStrategy
+<<<<<<< HEAD
 import datadog.trace.api.llmobs.LLMObs
+=======
+>>>>>>> f4f99e754e (impl llmobs agent and llmobs apis)
 import datadog.trace.api.llmobs.LLMObsSpan
 import datadog.trace.api.llmobs.LLMObsTags
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
@@ -200,6 +203,7 @@ class DDLLMObsSpanTest  extends DDSpecification{
     assert Tags.LLMOBS_LLM_SPAN_KIND.equals(innerSpan.getTag(LLMOBS_TAG_PREFIX + "span.kind"))
 
     assert null == innerSpan.getTag("input")
+<<<<<<< HEAD
     def spanInput = innerSpan.getTag(INPUT)
     assert spanInput instanceof List
     assert ((List)spanInput).size() == 1
@@ -259,6 +263,13 @@ class DDLLMObsSpanTest  extends DDSpecification{
     assert toolCall.getToolID().equals("6176241000")
     def expectedToolArgs = Maps.of("location", "paris")
     assert toolCall.getArguments().equals(expectedToolArgs)
+=======
+    def expectedInput = Arrays.asList(Maps.of("content", input))
+    assert expectedInput.equals(innerSpan.getTag(INPUT))
+    assert null == innerSpan.getTag("output")
+    def expectedOutput = Arrays.asList(Maps.of("content", output))
+    assert expectedOutput.equals(innerSpan.getTag(OUTPUT))
+>>>>>>> f4f99e754e (impl llmobs agent and llmobs apis)
   }
 
   private LLMObsSpan givenALLMObsSpan(String kind, name){
