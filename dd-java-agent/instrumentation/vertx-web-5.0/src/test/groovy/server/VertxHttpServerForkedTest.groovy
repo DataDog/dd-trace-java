@@ -130,12 +130,6 @@ class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
   }
 
   @Override
-  boolean testBlockingErrorTypeSet() {
-    //FIXME: error type is not set in netty
-    false
-  }
-
-  @Override
   Serializable expectedServerSpanRoute(ServerEndpoint endpoint) {
     switch (endpoint) {
       case LOGIN:

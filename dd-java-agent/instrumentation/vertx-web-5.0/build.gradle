@@ -1,7 +1,5 @@
 // Set properties before any plugins get loaded
 ext {
-  // vertx-web doesn't support Java 17 until v4.2
-  maxJavaVersionForTests = JavaVersion.VERSION_15
   // unbound it for latest
   latestDepTestMinJavaVersionForTests = JavaVersion.VERSION_11
   latestDepForkedTestMinJavaVersionForTests = JavaVersion.VERSION_11
@@ -14,17 +12,24 @@ apply from: "$rootDir/gradle/java.gradle"
 muzzle {
   pass {
     group = 'io.vertx'
-    module = "vertx-web"
-    versions = "[4.0.0,5)"
-    assertInverse = true
+    module = 'vertx-web'
+    versions = '[5.0.0.CR1,)'
+    javaVersion = '11'
+    includeSnapshots = true // to remove when vert.x 5 is finally released
   }
 }
 
-addTestSuiteForDir('latestDepTest', 'latestDepTest')
-addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'latestDepTest')
+addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
 configurations {
   testArtifacts
+}
+
+java {
+  toolchain {
+    languageVersion.set(JavaLanguageVersion.of(11))
+  }
 }
 
 // Create test artifacts so vertx-rx can reuse the server test instrumentation and base class
@@ -32,31 +37,28 @@ artifacts {
   testArtifacts testJar
 }
 
+final vertxVersion = '5.0.0.CR3'
+
 dependencies {
   api project(':dd-java-agent:instrumentation:netty-4.1-shared')
 
-  compileOnly group: 'io.vertx', name: 'vertx-web', version: '4.0.0'
+  compileOnly group: 'io.vertx', name: 'vertx-web', version: vertxVersion
 
   testImplementation project(':dd-java-agent:instrumentation:netty-4.1')
+  testImplementation project(':dd-java-agent:instrumentation:vertx-web-4.0')
+
   testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
   testImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
 
-  testImplementation group: 'io.vertx', name: 'vertx-web', version: '4.0.0'
-  testImplementation group: 'io.vertx', name: 'vertx-web-client', version: '4.0.0'
+  testImplementation group: 'io.vertx', name: 'vertx-web', version: vertxVersion
+  testImplementation group: 'io.vertx', name: 'vertx-web-client', version: vertxVersion
 
   testImplementation testFixtures(project(':dd-java-agent:appsec'))
 
   testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core')
   testRuntimeOnly project(':dd-java-agent:instrumentation:netty-buffer-4')
 
-  latestDepTestImplementation group: 'io.vertx', name: 'vertx-web', version: '4.+'
-  latestDepTestImplementation group: 'io.vertx', name: 'vertx-web-client', version: '4.+'
-}
-
-[compileLatestDepTestJava, compileLatestDepForkedTestJava].each {
-  setJavaVersion(it, 11)
-}
-[compileLatestDepForkedTestGroovy, compileLatestDepTestGroovy].each {
-  it.javaLauncher = getJavaLauncherFor(11)
+  latestDepTestImplementation group: 'io.vertx', name: 'vertx-web', version: '+'
+  latestDepTestImplementation group: 'io.vertx', name: 'vertx-web-client', version: '+'
 }

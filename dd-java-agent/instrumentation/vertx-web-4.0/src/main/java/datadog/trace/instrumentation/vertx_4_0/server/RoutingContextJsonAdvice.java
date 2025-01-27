@@ -10,18 +10,31 @@ import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.vertx.core.json.JsonObject;
+import io.vertx.ext.web.RoutingContext;
 import java.util.function.BiFunction;
 import net.bytebuddy.asm.Advice;
 
 @RequiresRequestContext(RequestContextSlot.APPSEC)
 class RoutingContextJsonAdvice {
+
+  @Advice.OnMethodEnter(suppress = Throwable.class)
+  static void before() {
+    CallDepthThreadLocalMap.incrementCallDepth(RoutingContext.class);
+  }
+
   @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
   static void after(
       @Advice.Return Object obj_,
       @ActiveRequestContext RequestContext reqCtx,
       @Advice.Thrown(readOnly = false) Throwable throwable) {
+
+    if (CallDepthThreadLocalMap.decrementCallDepth(RoutingContext.class) != 0) {
+      return;
+    }
+
     if (obj_ == null) {
       return;
     }
