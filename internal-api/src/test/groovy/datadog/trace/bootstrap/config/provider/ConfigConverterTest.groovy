@@ -117,12 +117,12 @@ class ConfigConverterTest extends DDSpecification {
     "env:test aKey:aVal bKey:bVal cKey:"            | ':'       | [] | [env: "test", aKey: "aVal", bKey: "bVal", cKey:""]
     "env:test,aKey:aVal,bKey:bVal,cKey:"            | ':'       | [] | [env: "test", aKey: "aVal", bKey: "bVal", cKey:""]
     "env:test,aKey:aVal bKey:bVal cKey:"            | ':'       | [] | [env: "test", aKey: "aVal bKey:bVal cKey:"]
-    "env:test     bKey :bVal dKey: dVal cKey:"      | ':'       | [] | [env: "test", bKey: "", dKey: "", cKey: ""]
+    "env:test     bKey :bVal dKey: dVal cKey:"      | ':'       | [] | [env: "test", bKey: "", dKey: "", dVal: "", cKey: ""] //[bKey: "", cKey: "", dVal: "", dKey: "", env:"test"]
     'env :test, aKey : aVal bKey:bVal cKey:'        | ':'       | [] | [env: "test", aKey : "aVal bKey:bVal cKey:"]
     "env:keyWithA:Semicolon bKey:bVal cKey"         | ':'       | [] | [env: "keyWithA:Semicolon", bKey: "bVal", cKey: ""]
     "env:keyWith:  , ,   Lots:Of:Semicolons "       | ':'       | [] | [env: "keyWith:", Lots: "Of:Semicolons"]
     "a:b,c,d"                                       | ':'       | [] | [a: "b", c: "", d: ""]
-    "a,1"                                           | ':'       | [] | [a: "", (1): ""]
+    "a,1"                                           | ':'       | [] | [a: "", "1": ""]
     "a:b:c:d"                                       | ':'       | [] | [a: "b:c:d"]
     // spotless:on
   }

@@ -138,9 +138,6 @@ final class ConfigConverter {
     try {
       int start = 0;
       int splitter = str.indexOf(keyValueSeparator, start);
-      if (splitter == -1){
-        return;
-      }
       char argSeparator = '\u0000';
       int argSeparatorInd = -1;
       for (Character sep : argSeparators){ //find the first instance of the first possible separator
@@ -150,45 +147,43 @@ final class ConfigConverter {
           break;
         }
       }
-      if (argSeparator == '\u0000'){ //no argSeparator found
-        return;
-      }
-      while (splitter != -1) {
-        int nextSplitter = str.indexOf(keyValueSeparator, splitter + 1);
-        int nextArgSeparator = -1;
-        nextArgSeparator = str.indexOf(argSeparator, splitter + 1);
-        nextArgSeparator = nextArgSeparator == -1 ? str.length() : nextArgSeparator;
-        // if we have a delimiter after this splitter, then try to move the splitter forward to
-        // allow for tags with ':' in them
-        int end = nextArgSeparator;
-        while (nextSplitter != -1 && nextSplitter < end) { //skips all following splitters before the nextArgSeparator
-          nextSplitter = str.indexOf(keyValueSeparator, nextSplitter + 1);
+      while (splitter != -1 || start < str.length()) {
+        int nextSplitter = argSeparatorInd == -1 ? -1 : str.indexOf(keyValueSeparator, argSeparatorInd + 1);
+        int nextArgSeparator = argSeparatorInd == -1 ? -1 : str.indexOf(argSeparator, argSeparatorInd + 1);
+        int end = argSeparatorInd == -1 ? str.length() : argSeparatorInd;
+
+        if(start >= end){ //the character is only the delimiter
+          start = end + 1;
+          splitter = nextSplitter;
+          argSeparatorInd = nextArgSeparator;
+          continue;
         }
-        if (nextSplitter == -1) {
-          // this is either the end of the string or the next position where the value should be
-          // trimmed
-          if (end < str.length() - 1) {
-            // there are characters after the argSeparator
-            throw new BadFormatException(String.format("Non white space characters after trailing '%c'", nextArgSeparator));
+
+        if(splitter >= end || splitter == -1){ //only key, no value
+          String key = str.substring(start, end).trim();
+          if(!key.isEmpty()){
+            map.put(key, "");
           }
-        } else {
-          if (end >= str.length()) {
-            // this should not happen
-            throw new BadFormatException("Illegal position of split character ':'");
+        }else{
+          String key = str.substring(start, splitter).trim();
+          if (key.indexOf(argSeparator) != -1) {
+            throw new BadFormatException("Illegal '" + argSeparator + "'  character in key '" + key + "'");
           }
-        }
-        String key = str.substring(start, splitter).trim();
-        if (key.indexOf(argSeparator) != -1) {
-          throw new BadFormatException("Illegal '" + argSeparator + "'  character in key '" + key + "'");
-        }
-        String value = str.substring(splitter + 1, end).trim();
-        if (value.indexOf(argSeparator) != -1) {
-          throw new BadFormatException("Illegal '" + argSeparator + "'  character in value for key '" + key + "'");
-        }
-        if (!key.isEmpty()) {
-          map.put(key, value);
+          String value;
+          if (splitter + 1 >= end){ // no splitter in this string: only key, no value
+            value = "";
+          }else{
+            value = str.substring(splitter + 1, end).trim();
+          }
+          if (value.indexOf(argSeparator) != -1) {
+            throw new BadFormatException("Illegal '" + argSeparator + "'  character in value for key '" + key + "'");
+          }
+          if (!key.isEmpty()) {
+            map.put(key, value);
+          }
         }
         splitter = nextSplitter;
+        argSeparatorInd = nextArgSeparator;
         start = end + 1;
       }
     } catch (Throwable t) {
