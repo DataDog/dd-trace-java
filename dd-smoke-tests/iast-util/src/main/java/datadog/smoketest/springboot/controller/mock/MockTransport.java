@@ -1,12 +1,12 @@
 package datadog.smoketest.springboot.controller.mock;
 
+import java.util.Properties;
 import javax.mail.Address;
 import javax.mail.Message;
 import javax.mail.MessagingException;
 import javax.mail.Session;
 import javax.mail.Transport;
 import javax.mail.URLName;
-import java.util.Properties;
 
 public class MockTransport extends Transport {
   public MockTransport(Session session, URLName urlname) {

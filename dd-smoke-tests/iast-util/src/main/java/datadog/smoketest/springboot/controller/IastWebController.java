@@ -348,7 +348,9 @@ public class IastWebController {
       @RequestParam("messageContent") String messageContent)
       throws MessagingException {
     Session session = Session.getDefaultInstance(new Properties());
-    Provider provider = new Provider(Provider.Type.TRANSPORT, "smtp", MockTransport.class.getName(), "MockTransport", "1.0");
+    Provider provider =
+        new Provider(
+            Provider.Type.TRANSPORT, "smtp", MockTransport.class.getName(), "MockTransport", "1.0");
     session.setProvider(provider);
     Message message = new MimeMessage(session);
     if (messageText != null) {
