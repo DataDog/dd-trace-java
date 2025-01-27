@@ -68,19 +68,19 @@ final class ConfigConverter {
 
   @Nonnull
   static Map<String, String> parseMap(final String str, final String settingName) {
-    return parseMap(str, settingName, ':');
+    return parseMap(str, settingName, ':', Arrays.asList(',', ' ')); //is this the best place stylistically to put the list?
   }
 
   @Nonnull
   static Map<String, String> parseMap(
-      final String str, final String settingName, final char keyValueSeparator) {
+      final String str, final String settingName, final char keyValueSeparator, final List<Character> argSeparators) {
     // If we ever want to have default values besides an empty map, this will need to change.
     String trimmed = Strings.trim(str);
     if (trimmed.isEmpty()) {
       return Collections.emptyMap();
     }
     Map<String, String> map = new HashMap<>();
-    loadMap(map, trimmed, settingName, keyValueSeparator);
+    loadMap(map, trimmed, settingName, keyValueSeparator, argSeparators);
     return map;
   }
 
@@ -122,7 +122,7 @@ final class ConfigConverter {
       return Collections.emptyMap();
     }
     Map<String, String> map = new LinkedHashMap<>();
-    loadMap(map, trimmed, settingName, ':');
+    loadMap(map, trimmed, settingName, ':', Arrays.asList(',', ' ')); //is this the best place stylistically to put the list?
     return map;
   }
 
@@ -133,50 +133,59 @@ final class ConfigConverter {
   }
 
   private static void loadMap(
-      Map<String, String> map, String str, String settingName, char keyValueSeparator) {
+      Map<String, String> map, String str, String settingName, char keyValueSeparator, final List<Character> argSeparators) {
     // we know that the str is trimmed and rely on that there is no leading/trailing whitespace
     try {
       int start = 0;
       int splitter = str.indexOf(keyValueSeparator, start);
+      if (splitter == -1){
+        return;
+      }
+      char argSeparator = '\u0000';
+      int argSeparatorInd = -1;
+      for (Character sep : argSeparators){ //find the first instance of the first possible separator
+        argSeparatorInd = str.indexOf(sep, splitter + 1);
+        if (argSeparatorInd != -1) {
+          argSeparator = sep;
+          break;
+        }
+      }
+      if (argSeparator == '\u0000'){ //no argSeparator found
+        return;
+      }
       while (splitter != -1) {
         int nextSplitter = str.indexOf(keyValueSeparator, splitter + 1);
-        int nextComma = str.indexOf(',', splitter + 1);
-        nextComma = nextComma == -1 ? str.length() : nextComma;
-        int nextSpace = str.indexOf(' ', splitter + 1);
-        nextSpace = nextSpace == -1 ? str.length() : nextSpace;
+        int nextArgSeparator = -1;
+        nextArgSeparator = str.indexOf(argSeparator, splitter + 1);
+        nextArgSeparator = nextArgSeparator == -1 ? str.length() : nextArgSeparator;
         // if we have a delimiter after this splitter, then try to move the splitter forward to
         // allow for tags with ':' in them
-        int end = nextComma < str.length() ? nextComma : nextSpace;
-        while (nextSplitter != -1 && nextSplitter < end) {
+        int end = nextArgSeparator;
+        while (nextSplitter != -1 && nextSplitter < end) { //skips all following splitters before the nextArgSeparator
           nextSplitter = str.indexOf(keyValueSeparator, nextSplitter + 1);
         }
         if (nextSplitter == -1) {
           // this is either the end of the string or the next position where the value should be
           // trimmed
-          end = nextComma;
-          if (nextComma < str.length() - 1) {
-            // there are non-space characters after the ','
-            throw new BadFormatException("Non white space characters after trailing ','");
+          if (end < str.length() - 1) {
+            // there are characters after the argSeparator
+            throw new BadFormatException(String.format("Non white space characters after trailing '%c'", nextArgSeparator));
           }
         } else {
-          if (nextComma < str.length()) {
-            end = nextComma;
-          } else if (nextSpace < str.length()) {
-            end = nextSpace;
-          } else {
+          if (end >= str.length()) {
             // this should not happen
             throw new BadFormatException("Illegal position of split character ':'");
           }
         }
         String key = str.substring(start, splitter).trim();
-        if (key.indexOf(',') != -1) {
-          throw new BadFormatException("Illegal ',' character in key '" + key + "'");
+        if (key.indexOf(argSeparator) != -1) {
+          throw new BadFormatException("Illegal '" + argSeparator + "'  character in key '" + key + "'");
         }
         String value = str.substring(splitter + 1, end).trim();
-        if (value.indexOf(' ') != -1) {
-          throw new BadFormatException("Illegal ' ' character in value for key '" + key + "'");
+        if (value.indexOf(argSeparator) != -1) {
+          throw new BadFormatException("Illegal '" + argSeparator + "'  character in value for key '" + key + "'");
         }
-        if (!key.isEmpty() && !value.isEmpty()) {
+        if (!key.isEmpty()) {
           map.put(key, value);
         }
         splitter = nextSplitter;

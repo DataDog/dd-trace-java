@@ -99,6 +99,34 @@ class ConfigConverterTest extends DDSpecification {
     // spotless:on
   }
 
+  def "parsing map #mapString with List of arg separators #argSeparators for with key value separator #separator"() {
+    setup:
+    def separatorList = [','.charAt(0), ' '.charAt(0)]
+
+    when:
+    def result = ConfigConverter.parseMap(mapString, "test", separator as char, separatorList as List<Character>)
+
+    then:
+    result == expected
+
+    where:
+    // spotless:off
+    mapString                                       | separator | argSeparators | expected
+    "key1:value1,key2:value2"                       | ':'       | [] | [key1: "value1", key2: "value2"]
+    "key1:value1 key2:value2"                       | ':'       | [] | [key1: "value1", key2: "value2"]
+    "env:test aKey:aVal bKey:bVal cKey:"            | ':'       | [] | [env: "test", aKey: "aVal", bKey: "bVal", cKey:""]
+    "env:test,aKey:aVal,bKey:bVal,cKey:"            | ':'       | [] | [env: "test", aKey: "aVal", bKey: "bVal", cKey:""]
+    "env:test,aKey:aVal bKey:bVal cKey:"            | ':'       | [] | [env: "test", aKey: "aVal bKey:bVal cKey:"]
+    "env:test     bKey :bVal dKey: dVal cKey:"      | ':'       | [] | [env: "test", bKey: "", dKey: "", cKey: ""]
+    'env :test, aKey : aVal bKey:bVal cKey:'        | ':'       | [] | [env: "test", aKey : "aVal bKey:bVal cKey:"]
+    "env:keyWithA:Semicolon bKey:bVal cKey"         | ':'       | [] | [env: "keyWithA:Semicolon", bKey: "bVal", cKey: ""]
+    "env:keyWith:  , ,   Lots:Of:Semicolons "       | ':'       | [] | [env: "keyWith:", Lots: "Of:Semicolons"]
+    "a:b,c,d"                                       | ':'       | [] | [a: "b", c: "", d: ""]
+    "a,1"                                           | ':'       | [] | [a: "", (1): ""]
+    "a:b:c:d"                                       | ':'       | [] | [a: "b:c:d"]
+    // spotless:on
+  }
+
   def "test parseMapWithOptionalMappings"() {
     when:
     def result = ConfigConverter.parseMapWithOptionalMappings(mapString, "test", "", lowercaseKeys)
