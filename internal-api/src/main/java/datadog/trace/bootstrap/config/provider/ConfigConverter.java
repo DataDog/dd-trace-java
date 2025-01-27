@@ -148,7 +148,7 @@ final class ConfigConverter {
         }
       }
       while (splitter != -1 || start < str.length()) {
-        int nextSplitter = argSeparatorInd == -1 ? -1 : str.indexOf(keyValueSeparator, argSeparatorInd + 1);
+        int nextSplitter = argSeparatorInd == -1 ? -1 : str.indexOf(keyValueSeparator, argSeparatorInd + 1); //next splitter after the next argSeparator
         int nextArgSeparator = argSeparatorInd == -1 ? -1 : str.indexOf(argSeparator, argSeparatorInd + 1);
         int end = argSeparatorInd == -1 ? str.length() : argSeparatorInd;
 
@@ -159,25 +159,14 @@ final class ConfigConverter {
           continue;
         }
 
-        if(splitter >= end || splitter == -1){ //only key, no value
+        if(splitter >= end || splitter == -1){ //only key, no value; either due end of string or substring not having splitter
           String key = str.substring(start, end).trim();
           if(!key.isEmpty()){
             map.put(key, "");
           }
         }else{
           String key = str.substring(start, splitter).trim();
-          if (key.indexOf(argSeparator) != -1) {
-            throw new BadFormatException("Illegal '" + argSeparator + "'  character in key '" + key + "'");
-          }
-          String value;
-          if (splitter + 1 >= end){ // no splitter in this string: only key, no value
-            value = "";
-          }else{
-            value = str.substring(splitter + 1, end).trim();
-          }
-          if (value.indexOf(argSeparator) != -1) {
-            throw new BadFormatException("Illegal '" + argSeparator + "'  character in value for key '" + key + "'");
-          }
+          String value = str.substring(splitter + 1, end).trim();
           if (!key.isEmpty()) {
             map.put(key, value);
           }
