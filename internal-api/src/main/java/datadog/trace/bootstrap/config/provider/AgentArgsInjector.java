@@ -13,7 +13,7 @@ public class AgentArgsInjector {
    */
   public static void injectAgentArgsConfig(String agentArgs) {
     Map<String, String> args =
-        ConfigConverter.parseMap(agentArgs, "javaagent arguments", '=', Arrays.asList(',', ' '));
+        ConfigConverter.parseMap(agentArgs, "javaagent arguments", '=');
     injectAgentArgsConfig(args);
   }
 

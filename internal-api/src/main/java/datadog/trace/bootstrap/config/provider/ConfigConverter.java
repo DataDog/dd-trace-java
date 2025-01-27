@@ -68,15 +68,35 @@ final class ConfigConverter {
 
   @Nonnull
   static Map<String, String> parseMap(final String str, final String settingName) {
-    return parseMap(
-        str,
-        settingName,
-        ':',
-        Arrays.asList(',', ' ')); // is this the best place stylistically to put the list?
+    if (settingName.equals("trace.tags")){
+      return parseTraceTagsMap(str,
+          settingName,
+          ':', Arrays.asList(',', ' '));
+    } else{
+      return parseMap(
+          str,
+          settingName,
+          ':');
+    }
   }
 
   @Nonnull
   static Map<String, String> parseMap(
+      final String str,
+      final String settingName,
+      final char keyValueSeparator) {
+    // If we ever want to have default values besides an empty map, this will need to change.
+    String trimmed = Strings.trim(str);
+    if (trimmed.isEmpty()) {
+      return Collections.emptyMap();
+    }
+    Map<String, String> map = new HashMap<>();
+    loadMap(map, trimmed, settingName, keyValueSeparator);
+    return map;
+  }
+
+  @Nonnull
+  static Map<String, String> parseTraceTagsMap(
       final String str,
       final String settingName,
       final char keyValueSeparator,
@@ -87,7 +107,7 @@ final class ConfigConverter {
       return Collections.emptyMap();
     }
     Map<String, String> map = new HashMap<>();
-    loadMap(map, trimmed, settingName, keyValueSeparator, argSeparators);
+    loadTraceTagsMap(map, trimmed, settingName, keyValueSeparator, argSeparators);
     return map;
   }
 
@@ -133,8 +153,7 @@ final class ConfigConverter {
         map,
         trimmed,
         settingName,
-        ':',
-        Arrays.asList(',', ' ')); // is this the best place stylistically to put the list?
+        ':');
     return map;
   }
 
@@ -144,7 +163,78 @@ final class ConfigConverter {
     }
   }
 
+
   private static void loadMap(
+      Map<String, String> map, String str, String settingName, char keyValueSeparator) {
+    // we know that the str is trimmed and rely on that there is no leading/trailing whitespace
+    try {
+      int start = 0;
+      int splitter = str.indexOf(keyValueSeparator, start);
+      while (splitter != -1) {
+        int nextSplitter = str.indexOf(keyValueSeparator, splitter + 1);
+        int nextComma = str.indexOf(',', splitter + 1);
+        nextComma = nextComma == -1 ? str.length() : nextComma;
+        int nextSpace = str.indexOf(' ', splitter + 1);
+        nextSpace = nextSpace == -1 ? str.length() : nextSpace;
+        // if we have a delimiter after this splitter, then try to move the splitter forward to
+        // allow for tags with ':' in them
+        int end = nextComma < str.length() ? nextComma : nextSpace;
+        while (nextSplitter != -1 && nextSplitter < end) {
+          nextSplitter = str.indexOf(keyValueSeparator, nextSplitter + 1);
+        }
+        if (nextSplitter == -1) {
+          // this is either the end of the string or the next position where the value should be
+          // trimmed
+          end = nextComma;
+          if (nextComma < str.length() - 1) {
+            // there are non-space characters after the ','
+            throw new BadFormatException("Non white space characters after trailing ','");
+          }
+        } else {
+          if (nextComma < str.length()) {
+            end = nextComma;
+          } else if (nextSpace < str.length()) {
+            end = nextSpace;
+          } else {
+            // this should not happen
+            throw new BadFormatException("Illegal position of split character ':'");
+          }
+        }
+        String key = str.substring(start, splitter).trim();
+        if (key.indexOf(',') != -1) {
+          throw new BadFormatException("Illegal ',' character in key '" + key + "'");
+        }
+        String value = str.substring(splitter + 1, end).trim();
+        if (value.indexOf(' ') != -1) {
+          throw new BadFormatException("Illegal ' ' character in value for key '" + key + "'");
+        }
+        if (!key.isEmpty() && !value.isEmpty()) {
+          map.put(key, value);
+        }
+        splitter = nextSplitter;
+        start = end + 1;
+      }
+    } catch (Throwable t) {
+      if (t instanceof BadFormatException) {
+        log.warn(
+            "Invalid config for {}. {}. Must match "
+                + "'key1{}value1,key2{}value2' or "
+                + "'key1{}value1 key2{}value2'.",
+            settingName,
+            t.getMessage(),
+            keyValueSeparator,
+            keyValueSeparator,
+            keyValueSeparator,
+            keyValueSeparator);
+      } else {
+        log.warn("Unexpected exception during config parsing of {}.", settingName, t);
+      }
+      map.clear();
+    }
+  }
+
+
+  private static void loadTraceTagsMap(
       Map<String, String> map,
       String str,
       String settingName,
