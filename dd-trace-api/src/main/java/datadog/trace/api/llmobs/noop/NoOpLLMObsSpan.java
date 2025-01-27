@@ -3,24 +3,59 @@ package datadog.trace.api.llmobs.noop;
 import datadog.trace.api.llmobs.LLMObsSpan;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 
 public class NoOpLLMObsSpan implements LLMObsSpan {
   public static final LLMObsSpan INSTANCE = new NoOpLLMObsSpan();
 
   @Override
-  public void annotate(
-      @Nullable List<Map<String, Object>> inputData,
-      @Nullable List<Map<String, Object>> outputData,
-      @Nullable Map<String, Object> metadata,
-      @Nullable Map<String, Number> metrics,
-      @Nullable Map<String, Object> tags) {}
+  public void annotateIO(
+      List<Map<String, Object>> inputData, List<Map<String, Object>> outputData) {}
 
   @Override
-  public void annotate(
-      @Nullable String inputData,
-      @Nullable String outputData,
-      @Nullable Map<String, Object> metadata,
-      @Nullable Map<String, Number> metrics,
-      @Nullable Map<String, Object> tags) {}
+  public void annotateIO(String inputData, String outputData) {}
+
+  @Override
+  public void setMetadata(Map<String, Object> metadata) {}
+
+  @Override
+  public void setMetrics(Map<String, Number> metrics) {}
+
+  @Override
+  public void setMetric(CharSequence key, int value) {}
+
+  @Override
+  public void setMetric(CharSequence key, long value) {}
+
+  @Override
+  public void setMetric(CharSequence key, double value) {}
+
+  @Override
+  public void setTags(Map<String, Object> tags) {}
+
+  @Override
+  public void setTag(String key, String value) {}
+
+  @Override
+  public void setTag(String key, boolean value) {}
+
+  @Override
+  public void setTag(String key, int value) {}
+
+  @Override
+  public void setTag(String key, long value) {}
+
+  @Override
+  public void setTag(String key, double value) {}
+
+  @Override
+  public void setError(boolean error) {}
+
+  @Override
+  public void setErrorMessage(String errorMessage) {}
+
+  @Override
+  public void addThrowable(Throwable throwable) {}
+
+  @Override
+  public void finish() {}
 }
