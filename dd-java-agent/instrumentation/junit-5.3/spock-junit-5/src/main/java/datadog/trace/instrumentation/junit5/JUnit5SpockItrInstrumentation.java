@@ -80,6 +80,7 @@ public class JUnit5SpockItrInstrumentation extends InstrumenterModule.CiVisibili
       CallDepthThreadLocalMap.incrementCallDepth(SpockNode.class);
     }
 
+    @SuppressWarnings("bytebuddy-exception-suppression")
     @SuppressFBWarnings(
         value = "UC_USELESS_OBJECT",
         justification = "skipResult is the return value of the instrumented method")
@@ -117,21 +118,17 @@ public class JUnit5SpockItrInstrumentation extends InstrumenterModule.CiVisibili
 
           TestIdentifier featureIdentifier = SpockUtils.toTestIdentifier(feature);
           if (featureIdentifier == null
-              || !TestEventsHandlerHolder.TEST_EVENTS_HANDLER.shouldBeSkipped(featureIdentifier)) {
+              || !TestEventsHandlerHolder.TEST_EVENTS_HANDLER.isSkippable(featureIdentifier)) {
             return;
           }
         }
 
-        // all children are skippable
-        for (TestDescriptor feature : features) {
-          TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skip(SpockUtils.toTestIdentifier(feature));
-        }
         skipResult = Node.SkipResult.skip(InstrumentationBridge.ITR_SKIP_REASON);
 
       } else {
         // individual test case
         TestIdentifier test = SpockUtils.toTestIdentifier(spockNode);
-        if (test != null && TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skip(test)) {
+        if (test != null && TestEventsHandlerHolder.TEST_EVENTS_HANDLER.isSkippable(test)) {
           skipResult = Node.SkipResult.skip(InstrumentationBridge.ITR_SKIP_REASON);
         }
       }

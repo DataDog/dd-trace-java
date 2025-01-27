@@ -99,7 +99,7 @@ public class JUnit4ItrInstrumentation extends InstrumenterModule.CiVisibility
       }
 
       TestIdentifier test = JUnit4Utils.toTestIdentifier(description);
-      if (TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skip(test)) {
+      if (TestEventsHandlerHolder.TEST_EVENTS_HANDLER.isSkippable(test)) {
         Description skippedDescription = JUnit4Utils.getSkippedDescription(description);
         notifier.fireTestIgnored(skippedDescription);
         return Boolean.FALSE;

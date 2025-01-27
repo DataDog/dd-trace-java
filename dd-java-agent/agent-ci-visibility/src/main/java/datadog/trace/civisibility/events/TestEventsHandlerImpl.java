@@ -187,7 +187,7 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
           test.setTag(Tags.TEST_ITR_UNSKIPPABLE, true);
           metricCollector.add(CiVisibilityCountMetric.ITR_UNSKIPPABLE, 1, EventType.TEST);
 
-          if (testModule.shouldBeSkipped(thisTest)) {
+          if (testModule.isSkippable(thisTest)) {
             test.setTag(Tags.TEST_ITR_FORCED_RUN, true);
             metricCollector.add(CiVisibilityCountMetric.ITR_FORCED_RUN, 1, EventType.TEST);
           }
@@ -261,16 +261,6 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
   }
 
   @Override
-  public boolean skip(TestIdentifier test) {
-    return testModule.skip(test);
-  }
-
-  @Override
-  public boolean shouldBeSkipped(TestIdentifier test) {
-    return testModule.shouldBeSkipped(test);
-  }
-
-  @Override
   @Nonnull
   public TestRetryPolicy retryPolicy(TestIdentifier test, TestSourceData testSource) {
     return testModule.retryPolicy(test, testSource);
@@ -284,6 +274,11 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
   @Override
   public boolean isFlaky(TestIdentifier test) {
     return testModule.isFlaky(test);
+  }
+
+  @Override
+  public boolean isSkippable(TestIdentifier test) {
+    return testModule.isSkippable(test);
   }
 
   @Override

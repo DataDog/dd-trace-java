@@ -16,7 +16,6 @@ import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.LongAdder;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,7 +24,6 @@ public class ExecutionStrategy {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ExecutionStrategy.class);
 
-  private final LongAdder testsSkipped = new LongAdder();
   private final AtomicInteger earlyFlakeDetectionsUsed = new AtomicInteger(0);
   private final AtomicInteger autoRetriesUsed = new AtomicInteger(0);
 
@@ -50,10 +48,6 @@ public class ExecutionStrategy {
     return executionSettings;
   }
 
-  public long getTestsSkipped() {
-    return testsSkipped.sum();
-  }
-
   public boolean isNew(TestIdentifier test) {
     Collection<TestIdentifier> knownTests = executionSettings.getKnownTests();
     return knownTests != null && !knownTests.contains(test.withoutParameters());
@@ -64,7 +58,7 @@ public class ExecutionStrategy {
     return flakyTests != null && flakyTests.contains(test.withoutParameters());
   }
 
-  public boolean shouldBeSkipped(TestIdentifier test) {
+  public boolean isSkippable(TestIdentifier test) {
     if (test == null) {
       return false;
     }
@@ -76,15 +70,6 @@ public class ExecutionStrategy {
     return testMetadata != null
         && !(config.isCiVisibilityCoverageLinesEnabled()
             && testMetadata.isMissingLineCodeCoverage());
-  }
-
-  public boolean skip(TestIdentifier test) {
-    if (shouldBeSkipped(test)) {
-      testsSkipped.increment();
-      return true;
-    } else {
-      return false;
-    }
   }
 
   @Nonnull

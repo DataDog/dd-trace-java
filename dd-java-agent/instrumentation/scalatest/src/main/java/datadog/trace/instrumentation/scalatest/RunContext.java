@@ -87,7 +87,7 @@ public class RunContext {
       unskippableTests.add(test);
       return testNameAndSkipStatus;
 
-    } else if (eventHandler.skip(test)) {
+    } else if (eventHandler.isSkippable(test)) {
       skippedTests.add(test);
       return new Tuple2<>(testName, true);
 
@@ -100,7 +100,7 @@ public class RunContext {
     if (isUnskippable(test, tags)) {
       unskippableTests.add(test);
       return false;
-    } else if (eventHandler.skip(test)) {
+    } else if (eventHandler.isSkippable(test)) {
       skippedTests.add(test);
       return true;
     } else {
