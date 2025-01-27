@@ -4,7 +4,7 @@ import datadog.trace.api.llmobs.noop.NoOpLLMObsSpanFactory;
 import javax.annotation.Nullable;
 
 public class LLMObs {
-  private static LLMObsSpanFactory SPAN_FACTORY = NoOpLLMObsSpanFactory.INSTANCE;
+  protected static LLMObsSpanFactory SPAN_FACTORY = NoOpLLMObsSpanFactory.INSTANCE;
 
   public static LLMObsSpan startLLMSpan(
       String spanName,
