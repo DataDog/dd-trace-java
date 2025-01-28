@@ -1,6 +1,8 @@
 muzzle {
   pass {
-    coreJdk()
+    group = 'jakarta.mail'
+    module = 'jakarta.mail-api'
+    versions = '[2.0.1, ]'
   }
 }
 

@@ -1,6 +1,8 @@
 muzzle {
   pass {
-    coreJdk()
+    group = 'javax.mail'
+    module = 'javax.mail-api'
+    versions = '[1.4.4, ]'
   }
 }
 
