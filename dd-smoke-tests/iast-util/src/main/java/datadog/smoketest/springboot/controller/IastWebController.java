@@ -43,8 +43,6 @@ import javax.xml.xpath.XPath;
 import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
-
-import jakarta.mail.NoSuchProviderException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
@@ -375,7 +373,11 @@ public class IastWebController {
     jakarta.mail.Session session = jakarta.mail.Session.getDefaultInstance(new Properties());
     jakarta.mail.Provider provider =
         new jakarta.mail.Provider(
-            jakarta.mail.Provider.Type.TRANSPORT, "smtp", MockTransport.class.getName(), "MockTransport", "1.0");
+            jakarta.mail.Provider.Type.TRANSPORT,
+            "smtp",
+            MockTransport.class.getName(),
+            "MockTransport",
+            "1.0");
     session.setProvider(provider);
     jakarta.mail.Message message = new jakarta.mail.internet.MimeMessage(session);
     if (messageText != null) {
