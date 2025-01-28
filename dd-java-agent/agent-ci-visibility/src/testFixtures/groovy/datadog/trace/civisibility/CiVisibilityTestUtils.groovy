@@ -124,7 +124,7 @@ abstract class CiVisibilityTestUtils {
     }
   }
 
-  private static String getFreemarkerTemplate(String templatePath, Map<String, Object> replacements, List<Map<?, ?>> replacementsSource) {
+  static String getFreemarkerTemplate(String templatePath, Map<String, Object> replacements, List<Map<?, ?>> replacementsSource = []) {
     try {
       Template coveragesTemplate = FREEMARKER.getTemplate(templatePath)
       StringWriter coveragesOut = new StringWriter()

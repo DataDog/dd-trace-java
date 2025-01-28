@@ -238,7 +238,11 @@ public class CiVisibilitySystem {
           new TestDecoratorImpl(component, sessionName, testCommand, repoServices.ciTags);
 
       ExecutionStrategy executionStrategy =
-          new ExecutionStrategy(services.config, executionSettings);
+          new ExecutionStrategy(
+              services.config,
+              executionSettings,
+              repoServices.sourcePathResolver,
+              services.linesResolver);
 
       return new ProxyTestSession(
           services.processHierarchy.parentProcessModuleContext,
@@ -268,7 +272,11 @@ public class CiVisibilitySystem {
           new TestDecoratorImpl(component, sessionName, projectName, repoServices.ciTags);
 
       ExecutionStrategy executionStrategy =
-          new ExecutionStrategy(services.config, executionSettings);
+          new ExecutionStrategy(
+              services.config,
+              executionSettings,
+              repoServices.sourcePathResolver,
+              services.linesResolver);
       return new HeadlessTestSession(
           projectName,
           startTime,

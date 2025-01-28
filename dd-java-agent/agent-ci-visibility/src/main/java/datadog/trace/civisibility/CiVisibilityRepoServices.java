@@ -8,6 +8,7 @@ import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.civisibility.ci.CIInfo;
 import datadog.trace.civisibility.ci.CIProviderInfo;
 import datadog.trace.civisibility.ci.CITagsProvider;
+import datadog.trace.civisibility.ci.PullRequestInfo;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.codeowners.CodeownersProvider;
 import datadog.trace.civisibility.codeowners.NoCodeowners;
@@ -22,6 +23,7 @@ import datadog.trace.civisibility.git.tree.GitClient;
 import datadog.trace.civisibility.git.tree.GitDataApi;
 import datadog.trace.civisibility.git.tree.GitDataUploader;
 import datadog.trace.civisibility.git.tree.GitDataUploaderImpl;
+import datadog.trace.civisibility.git.tree.GitRepoUnshallow;
 import datadog.trace.civisibility.ipc.ExecutionSettingsRequest;
 import datadog.trace.civisibility.ipc.ExecutionSettingsResponse;
 import datadog.trace.civisibility.ipc.SignalClient;
@@ -31,6 +33,8 @@ import datadog.trace.civisibility.source.NoOpSourcePathResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.source.index.RepoIndexProvider;
 import datadog.trace.civisibility.source.index.RepoIndexSourcePathResolver;
+import datadog.trace.util.Strings;
+import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
@@ -59,16 +63,26 @@ public class CiVisibilityRepoServices {
     ciProvider = ciProviderInfo.getProvider();
 
     CIInfo ciInfo = ciProviderInfo.buildCIInfo();
-    repoRoot = ciInfo.getNormalizedCiWorkspace();
-    moduleName = getModuleName(services.config, path, ciInfo);
-    ciTags = new CITagsProvider().getCiTags(ciInfo);
+    PullRequestInfo pullRequestInfo = ciProviderInfo.buildPullRequestInfo();
+
+    if (pullRequestInfo.isNotEmpty()) {
+      LOGGER.info("PR detected: {}", pullRequestInfo);
+    }
+
+    repoRoot = appendSlashIfNeeded(getRepoRoot(ciInfo, services.gitClientFactory));
+    moduleName = getModuleName(services.config, repoRoot, path);
+    ciTags = new CITagsProvider().getCiTags(ciInfo, pullRequestInfo);
+
+    GitClient gitClient = services.gitClientFactory.create(repoRoot);
+    GitRepoUnshallow gitRepoUnshallow = new GitRepoUnshallow(services.config, gitClient);
 
     gitDataUploader =
         buildGitDataUploader(
             services.config,
             services.metricCollector,
             services.gitInfoProvider,
-            services.gitClientFactory,
+            gitClient,
+            gitRepoUnshallow,
             services.backendApi,
             repoRoot);
     repoIndexProvider = services.repoIndexProviderFactory.create(repoRoot);
@@ -84,18 +98,49 @@ public class CiVisibilityRepoServices {
               services.config,
               services.metricCollector,
               services.backendApi,
+              gitClient,
+              gitRepoUnshallow,
               gitDataUploader,
+              pullRequestInfo,
               repoRoot);
     }
   }
 
-  static String getModuleName(Config config, Path path, CIInfo ciInfo) {
+  private static String getRepoRoot(CIInfo ciInfo, GitClient.Factory gitClientFactory) {
+    String ciWorkspace = ciInfo.getNormalizedCiWorkspace();
+    if (Strings.isNotBlank(ciWorkspace)) {
+      return ciWorkspace;
+
+    } else {
+      try {
+        return gitClientFactory.create(".").getRepoRoot();
+
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        LOGGER.error("Interrupted while getting repo root", e);
+        return null;
+
+      } catch (Exception e) {
+        LOGGER.error("Error while getting repo root", e);
+        return null;
+      }
+    }
+  }
+
+  private static String appendSlashIfNeeded(String repoRoot) {
+    if (repoRoot != null && !repoRoot.endsWith(File.separator)) {
+      return repoRoot + File.separator;
+    } else {
+      return repoRoot;
+    }
+  }
+
+  static String getModuleName(Config config, String repoRoot, Path path) {
     // if parent process is instrumented, it will provide build system's module name
     String parentModuleName = config.getCiVisibilityModuleName();
     if (parentModuleName != null) {
       return parentModuleName;
     }
-    String repoRoot = ciInfo.getNormalizedCiWorkspace();
     if (repoRoot != null && path.startsWith(repoRoot)) {
       String relativePath = Paths.get(repoRoot).relativize(path).toString();
       if (!relativePath.isEmpty()) {
@@ -126,7 +171,10 @@ public class CiVisibilityRepoServices {
       Config config,
       CiVisibilityMetricCollector metricCollector,
       BackendApi backendApi,
+      GitClient gitClient,
+      GitRepoUnshallow gitRepoUnshallow,
       GitDataUploader gitDataUploader,
+      PullRequestInfo pullRequestInfo,
       String repoRoot) {
     ConfigurationApi configurationApi;
     if (backendApi == null) {
@@ -138,7 +186,14 @@ public class CiVisibilityRepoServices {
     }
 
     ExecutionSettingsFactoryImpl factory =
-        new ExecutionSettingsFactoryImpl(config, configurationApi, gitDataUploader, repoRoot);
+        new ExecutionSettingsFactoryImpl(
+            config,
+            configurationApi,
+            gitClient,
+            gitRepoUnshallow,
+            gitDataUploader,
+            pullRequestInfo,
+            repoRoot);
     if (processHierarchy.isHeadless()) {
       return factory;
     } else {
@@ -150,7 +205,8 @@ public class CiVisibilityRepoServices {
       Config config,
       CiVisibilityMetricCollector metricCollector,
       GitInfoProvider gitInfoProvider,
-      GitClient.Factory gitClientFactory,
+      GitClient gitClient,
+      GitRepoUnshallow gitRepoUnshallow,
       BackendApi backendApi,
       String repoRoot) {
     if (!config.isCiVisibilityGitUploadEnabled()) {
@@ -171,9 +227,15 @@ public class CiVisibilityRepoServices {
 
     String remoteName = config.getCiVisibilityGitRemoteName();
     GitDataApi gitDataApi = new GitDataApi(backendApi, metricCollector);
-    GitClient gitClient = gitClientFactory.create(repoRoot);
     return new GitDataUploaderImpl(
-        config, metricCollector, gitDataApi, gitClient, gitInfoProvider, repoRoot, remoteName);
+        config,
+        metricCollector,
+        gitDataApi,
+        gitClient,
+        gitRepoUnshallow,
+        gitInfoProvider,
+        repoRoot,
+        remoteName);
   }
 
   private static SourcePathResolver buildSourcePathResolver(

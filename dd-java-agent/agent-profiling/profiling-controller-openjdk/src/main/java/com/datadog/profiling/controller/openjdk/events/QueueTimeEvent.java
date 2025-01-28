@@ -33,6 +33,12 @@ public class QueueTimeEvent extends Event implements QueueTiming {
   @Label("Scheduler")
   private Class<?> scheduler;
 
+  @Label("Queue")
+  private Class<?> queueType;
+
+  @Label("Queue Length on Entry")
+  private int queueLength;
+
   public QueueTimeEvent() {
     this.origin = Thread.currentThread();
     AgentSpan activeSpan = AgentTracer.activeSpan();
@@ -53,6 +59,16 @@ public class QueueTimeEvent extends Event implements QueueTiming {
   @Override
   public void setScheduler(Class<?> scheduler) {
     this.scheduler = scheduler;
+  }
+
+  @Override
+  public void setQueue(Class<?> queueType) {
+    this.queueType = queueType;
+  }
+
+  @Override
+  public void setQueueLength(int queueLength) {
+    this.queueLength = queueLength;
   }
 
   @Override

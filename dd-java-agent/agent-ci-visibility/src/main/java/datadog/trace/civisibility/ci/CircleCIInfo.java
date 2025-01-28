@@ -9,6 +9,7 @@ import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.civisibility.ci.env.CiEnvironment;
+import javax.annotation.Nonnull;
 
 class CircleCIInfo implements CIProviderInfo {
 
@@ -54,6 +55,12 @@ class CircleCIInfo implements CIProviderInfo {
         .ciWorkspace(expandTilde(environment.get(CIRCLECI_WORKSPACE_PATH)))
         .ciEnvVars(CIRCLECI_PIPELINE_ID, CIRCLECI_BUILD_NUM)
         .build();
+  }
+
+  @Nonnull
+  @Override
+  public PullRequestInfo buildPullRequestInfo() {
+    return PullRequestInfo.EMPTY;
   }
 
   private String buildPipelineUrl(final String pipelineId) {

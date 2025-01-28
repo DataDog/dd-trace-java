@@ -17,6 +17,8 @@ public class SchemaBuilder implements datadog.trace.bootstrap.instrumentation.ap
   private static final DDCache<String, Schema> CACHE = DDCaches.newFixedSizeCache(32);
   private static final int maxDepth = 10;
   private static final int maxProperties = 1000;
+  private static final long HASH_INIT = FNV64Hash.generateHash(new byte[0], FNV64Hash.Version.v1A);
+  private long currentHash = HASH_INIT;
   private int properties;
   private final SchemaIterator iterator;
 
@@ -33,18 +35,28 @@ public class SchemaBuilder implements datadog.trace.bootstrap.instrumentation.ap
       String description,
       String ref,
       String format,
-      List<String> enumValues) {
+      List<String> enumValues,
+      Map<String, String> extensions) {
     if (properties >= maxProperties) {
       return false;
     }
     properties++;
     OpenApiSchema.Property property =
-        new OpenApiSchema.Property(type, description, ref, format, enumValues, null);
+        new OpenApiSchema.Property(
+            type, description, ref, format, enumValues, isArray ? null : extensions, null);
     if (isArray) {
-      property = new OpenApiSchema.Property("array", null, null, null, null, property);
+      property = new OpenApiSchema.Property("array", null, null, null, null, extensions, property);
     }
     schema.components.schemas.get(schemaName).properties.put(fieldName, property);
     return true;
+  }
+
+  public void addToHash(int value) {
+    addToHash(Integer.toString(value));
+  }
+
+  public void addToHash(String value) {
+    currentHash = FNV64Hash.continueHash(currentHash, value, FNV64Hash.Version.v1A);
   }
 
   public Schema build() {
@@ -52,8 +64,12 @@ public class SchemaBuilder implements datadog.trace.bootstrap.instrumentation.ap
     Moshi moshi = new Moshi.Builder().build();
     JsonAdapter<OpenApiSchema> jsonAdapter = moshi.adapter(OpenApiSchema.class);
     String definition = jsonAdapter.toJson(this.schema);
-    String id = Long.toUnsignedString(FNV64Hash.generateHash(definition, FNV64Hash.Version.v1A));
-    return new Schema(definition, id);
+    if (currentHash == HASH_INIT) {
+      // if hash was not computed along the way,
+      // we fall back to computing it from the json representation of the schema
+      currentHash = FNV64Hash.generateHash(definition, FNV64Hash.Version.v1A);
+    }
+    return new Schema(definition, Long.toUnsignedString(currentHash));
   }
 
   @Override
@@ -93,6 +109,7 @@ public class SchemaBuilder implements datadog.trace.bootstrap.instrumentation.ap
       @Json(name = "enum")
       public List<String> enumValues;
 
+      public final Map<String, String> extensions;
       public Property items;
 
       public Property(
@@ -101,12 +118,14 @@ public class SchemaBuilder implements datadog.trace.bootstrap.instrumentation.ap
           String ref,
           String format,
           List<String> enumValues,
+          Map<String, String> extensions,
           Property items) {
         this.type = type;
         this.description = description;
         this.ref = ref;
         this.format = format;
         this.enumValues = enumValues;
+        this.extensions = extensions;
         this.items = items;
       }
     }

@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
+import javax.annotation.Nullable;
 
 public interface ConfigurationApi {
 
@@ -31,6 +32,11 @@ public interface ConfigurationApi {
             TracerEnvironment tracerEnvironment) {
           return Collections.emptyMap();
         }
+
+        @Override
+        public ChangedFiles getChangedFiles(TracerEnvironment tracerEnvironment) {
+          return ChangedFiles.EMPTY;
+        }
       };
 
   CiVisibilitySettings getSettings(TracerEnvironment tracerEnvironment) throws IOException;
@@ -40,6 +46,9 @@ public interface ConfigurationApi {
   Map<String, Collection<TestIdentifier>> getFlakyTestsByModule(TracerEnvironment tracerEnvironment)
       throws IOException;
 
+  @Nullable
   Map<String, Collection<TestIdentifier>> getKnownTestsByModule(TracerEnvironment tracerEnvironment)
       throws IOException;
+
+  ChangedFiles getChangedFiles(TracerEnvironment tracerEnvironment) throws IOException;
 }

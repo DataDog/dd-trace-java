@@ -3,6 +3,7 @@ package datadog.trace.civisibility.domain.buildsystem;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
@@ -24,6 +25,7 @@ import datadog.trace.civisibility.ipc.SignalClient;
 import datadog.trace.civisibility.ipc.TestFramework;
 import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
+import datadog.trace.civisibility.test.ExecutionResults;
 import datadog.trace.civisibility.test.ExecutionStrategy;
 import java.util.Collection;
 import java.util.TreeSet;
@@ -45,6 +47,7 @@ public class ProxyTestModule implements TestFrameworkModule {
   private final AgentSpanContext parentProcessModuleContext;
   private final String moduleName;
   private final ExecutionStrategy executionStrategy;
+  private final ExecutionResults executionResults;
   private final SignalClient.Factory signalClientFactory;
   private final ChildProcessCoverageReporter childProcessCoverageReporter;
   private final Config config;
@@ -72,6 +75,7 @@ public class ProxyTestModule implements TestFrameworkModule {
     this.parentProcessModuleContext = parentProcessModuleContext;
     this.moduleName = moduleName;
     this.executionStrategy = executionStrategy;
+    this.executionResults = new ExecutionResults();
     this.signalClientFactory = signalClientFactory;
     this.childProcessCoverageReporter = childProcessCoverageReporter;
     this.config = config;
@@ -94,19 +98,19 @@ public class ProxyTestModule implements TestFrameworkModule {
   }
 
   @Override
-  public boolean shouldBeSkipped(TestIdentifier test) {
-    return executionStrategy.shouldBeSkipped(test);
+  public boolean isModified(TestSourceData testSourceData) {
+    return executionStrategy.isModified(testSourceData);
   }
 
   @Override
-  public boolean skip(TestIdentifier test) {
-    return executionStrategy.skip(test);
+  public boolean isSkippable(TestIdentifier test) {
+    return executionStrategy.isSkippable(test);
   }
 
   @Override
   @Nonnull
-  public TestRetryPolicy retryPolicy(TestIdentifier test) {
-    return executionStrategy.retryPolicy(test);
+  public TestRetryPolicy retryPolicy(TestIdentifier test, TestSourceData testSource) {
+    return executionStrategy.retryPolicy(test, testSource);
   }
 
   @Override
@@ -136,8 +140,8 @@ public class ProxyTestModule implements TestFrameworkModule {
           executionSettings.getEarlyFlakeDetectionSettings();
       boolean earlyFlakeDetectionEnabled = earlyFlakeDetectionSettings.isEnabled();
       boolean earlyFlakeDetectionFaulty =
-          earlyFlakeDetectionEnabled && executionStrategy.isEarlyFlakeDetectionLimitReached();
-      long testsSkippedTotal = executionStrategy.getTestsSkipped();
+          earlyFlakeDetectionEnabled && executionStrategy.isEFDLimitReached();
+      long testsSkippedTotal = executionResults.getTestsSkippedByItr();
 
       signalClient.send(
           new ModuleExecutionResult(
@@ -179,6 +183,7 @@ public class ProxyTestModule implements TestFrameworkModule {
         codeowners,
         linesResolver,
         coverageStoreFactory,
+        executionResults,
         this::propagateTestFrameworkData);
   }
 

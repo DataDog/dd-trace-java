@@ -26,7 +26,7 @@ record MyRecord1(String firstName, String lastName, int age) {}
 record MyRecord2(String firstName, String lastName, int age) {
 
   MyRecord2 {
-    Objects.requireNonNull(firstName);
+    Objects.requireNonNull(firstName); // beae1817-f3b0-4ea8-a74f-000000000001
     Objects.requireNonNull(lastName);
     if (age < 0) {
       throw new IllegalArgumentException("age < 0");

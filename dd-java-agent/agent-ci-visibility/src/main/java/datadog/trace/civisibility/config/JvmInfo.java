@@ -2,7 +2,7 @@ package datadog.trace.civisibility.config;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CiVisibilityWellKnownTags;
-import datadog.trace.civisibility.ipc.Serializer;
+import datadog.trace.civisibility.ipc.serialization.Serializer;
 import java.nio.ByteBuffer;
 import java.util.Objects;
 

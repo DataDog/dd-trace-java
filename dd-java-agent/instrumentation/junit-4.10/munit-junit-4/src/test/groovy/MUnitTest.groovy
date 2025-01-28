@@ -1,6 +1,8 @@
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
+import datadog.trace.civisibility.diff.FileDiff
+import datadog.trace.civisibility.diff.LineDiff
 import datadog.trace.instrumentation.junit4.MUnitTracingListener
 import datadog.trace.instrumentation.junit4.TestEventsHandlerHolder
 import org.example.TestFailedAssumptionMUnit
@@ -58,6 +60,23 @@ class MUnitTest extends CiVisibilityInstrumentationTest {
     "test-efd-known-test"    | [TestSucceedMUnit]     | 2                   | [new TestIdentifier("org.example.TestSucceedMUnit", "Calculator.add", null)]
     "test-efd-new-test"      | [TestSucceedMUnit]     | 4                   | []
     "test-efd-new-slow-test" | [TestSucceedMUnitSlow] | 3                   | [] // is executed only twice
+  }
+
+  def "test impacted tests detection #testcaseName"() {
+    givenImpactedTestsDetectionEnabled(true)
+    givenDiff(prDiff)
+
+    runTests(tests)
+
+    assertSpansData(testcaseName, expectedTracesCount)
+
+    where:
+    testcaseName            | tests              | expectedTracesCount | prDiff
+    "test-succeed"          | [TestSucceedMUnit] | 2                   | LineDiff.EMPTY
+    "test-succeed"          | [TestSucceedMUnit] | 2                   | new FileDiff(new HashSet())
+    "test-succeed-impacted" | [TestSucceedMUnit] | 2                   | new FileDiff(new HashSet([DUMMY_SOURCE_PATH]))
+    "test-succeed"          | [TestSucceedMUnit] | 2                   | new LineDiff([(DUMMY_SOURCE_PATH): lines()])
+    "test-succeed-impacted" | [TestSucceedMUnit] | 2                   | new LineDiff([(DUMMY_SOURCE_PATH): lines(DUMMY_TEST_METHOD_START)])
   }
 
   private void runTests(Collection<Class<?>> tests) {

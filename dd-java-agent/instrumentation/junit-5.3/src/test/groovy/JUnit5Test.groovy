@@ -1,6 +1,8 @@
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
+import datadog.trace.civisibility.diff.FileDiff
+import datadog.trace.civisibility.diff.LineDiff
 import datadog.trace.instrumentation.junit5.TestEventsHandlerHolder
 import org.example.TestAssumption
 import org.example.TestAssumptionAndSucceed
@@ -138,6 +140,23 @@ class JUnit5Test extends CiVisibilityInstrumentationTest {
     "test-efd-new-slow-test"            | [TestSucceedSlow]      | 3                   | [] // is executed only twice
     "test-efd-new-very-slow-test"       | [TestSucceedVerySlow]  | 2                   | [] // is executed only once
     "test-efd-faulty-session-threshold" | [TestFailedAndSucceed] | 8                   | []
+  }
+
+  def "test impacted tests detection #testcaseName"() {
+    givenImpactedTestsDetectionEnabled(true)
+    givenDiff(prDiff)
+
+    runTests(tests)
+
+    assertSpansData(testcaseName, expectedTracesCount)
+
+    where:
+    testcaseName            | tests         | expectedTracesCount | prDiff
+    "test-succeed"          | [TestSucceed] | 2                   | LineDiff.EMPTY
+    "test-succeed"          | [TestSucceed] | 2                   | new FileDiff(new HashSet())
+    "test-succeed-impacted" | [TestSucceed] | 2                   | new FileDiff(new HashSet([DUMMY_SOURCE_PATH]))
+    "test-succeed"          | [TestSucceed] | 2                   | new LineDiff([(DUMMY_SOURCE_PATH): lines()])
+    "test-succeed-impacted" | [TestSucceed] | 2                   | new LineDiff([(DUMMY_SOURCE_PATH): lines(DUMMY_TEST_METHOD_START)])
   }
 
   private static void runTests(List<Class<?>> tests) {

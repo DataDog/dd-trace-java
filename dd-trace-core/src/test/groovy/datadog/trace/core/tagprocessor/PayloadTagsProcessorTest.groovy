@@ -82,7 +82,7 @@ class PayloadTagsProcessorTest extends DDSpecification {
     ]
 
     expect:
-    ptp.processTags(spanTags, null) == ["foo": "bar", "tag1": 1]
+    ptp.processTags(spanTags, null, []) == ["foo": "bar", "tag1": 1]
   }
 
   static PathAndValue pv(PathCursor path, Object value) {
@@ -107,7 +107,7 @@ class PayloadTagsProcessorTest extends DDSpecification {
     ]
 
     expect:
-    ptp.processTags(spanTags, null) == ["foo": "bar", "tag1": 1, "payload.tag1": 0]
+    ptp.processTags(spanTags, null, []) == ["foo": "bar", "tag1": 1, "payload.tag1": 0]
   }
 
   def "expand preserving tag types"() {
@@ -124,7 +124,7 @@ class PayloadTagsProcessorTest extends DDSpecification {
     ])
 
     expect:
-    ptp.processTags(st, null) == [
+    ptp.processTags(st, null, []) == [
       "payload.tag1": 11,
       "payload.tag2.Value": 2342l,
       "payload.tag3.0": 3.14d,
@@ -142,7 +142,7 @@ class PayloadTagsProcessorTest extends DDSpecification {
     def st = spanTags("payload", [pv(pc().push("tag7"), unknownValue),])
 
     expect:
-    ptp.processTags(st, null) == [
+    ptp.processTags(st, null, []) == [
       "payload.tag7": unknownValue.toString(),
     ]
   }
@@ -159,7 +159,7 @@ class PayloadTagsProcessorTest extends DDSpecification {
     ])
 
     expect:
-    ptp.processTags(st, null) == [
+    ptp.processTags(st, null, []) == [
       "p.j3.0": "1",
       "p.j3.1": 2,
       "p.j3.2": 3.14d,
@@ -204,7 +204,7 @@ class PayloadTagsProcessorTest extends DDSpecification {
     def st = spanTags("dd", [pv(pc(), json),])
 
     expect:
-    ptp.processTags(st, null) == [
+    ptp.processTags(st, null, []) == [
       'dd.a'                    : 33,
       'dd.Message.id'           : 45,
       'dd.Message.user.a'       : 1.15d,
@@ -220,7 +220,7 @@ class PayloadTagsProcessorTest extends DDSpecification {
     def st = spanTags("p", [pv(pc().push("key"), invalidJson),])
 
     expect:
-    ptp.processTags(st, null) == [
+    ptp.processTags(st, null, []) == [
       "p.key": invalidJson,
     ]
 
@@ -246,7 +246,7 @@ class PayloadTagsProcessorTest extends DDSpecification {
     ])
 
     expect:
-    ptp.processTags(st, null) == [
+    ptp.processTags(st, null, []) == [
       "p.j1.foo": "bar",
       "p.j2.0": 1,
       "p.j2.1": true,
@@ -261,7 +261,7 @@ class PayloadTagsProcessorTest extends DDSpecification {
     def st = spanTags("p", [pv(pc().push("v"), new ByteArrayInputStream("""{ "inner": $innerJson}""".bytes))])
 
     then:
-    ptp.processTags(st, null) == [
+    ptp.processTags(st, null, []) == [
       "p.v.inner.a": 1.15d,
       "p.v.inner.password": "my-secret-password",
     ]
@@ -283,7 +283,7 @@ class PayloadTagsProcessorTest extends DDSpecification {
     def st = spanTags("p", [pv(pc().push("key"), new ByteArrayInputStream(invalidJson.bytes)),])
 
     expect:
-    ptp.processTags(st, null) == [
+    ptp.processTags(st, null, []) == [
       "p.key": "<binary>",
     ]
 
@@ -303,7 +303,7 @@ class PayloadTagsProcessorTest extends DDSpecification {
     ])
 
     expect:
-    ptp.processTags(st, null) == [
+    ptp.processTags(st, null, []) == [
       "p.j3.0": "redacted",
       "p.j3.1": 2,
       "p.j3.2": 3.14d,
@@ -326,7 +326,7 @@ class PayloadTagsProcessorTest extends DDSpecification {
     ])
 
     expect:
-    ptp.processTags(st, null) == [
+    ptp.processTags(st, null, []) == [
       "p.j3.0": "redacted",
       "p.j3.1": 2,
       "p.j3.2": 3.14d,
@@ -345,7 +345,7 @@ class PayloadTagsProcessorTest extends DDSpecification {
     ])
 
     expect:
-    ptp.processTags(st, null) == [
+    ptp.processTags(st, null, []) == [
       "p.j3.0": "redacted",
       "p.j3.1": 2,
       "p.j3.2": 3.14d,

@@ -35,7 +35,7 @@ public class TraceContinuedFutureCallback<T> implements FutureCallback<T> {
 
   @Override
   public void completed(final T result) {
-    DECORATE.onResponse(clientSpan, getResponseFromHttpContext());
+    DECORATE.onResponse(clientSpan, extractHttpResponse(result));
     DECORATE.beforeFinish(clientSpan);
     clientSpan.finish(); // Finish span before calling delegate
 
@@ -51,7 +51,7 @@ public class TraceContinuedFutureCallback<T> implements FutureCallback<T> {
 
   @Override
   public void failed(final Exception ex) {
-    DECORATE.onResponse(clientSpan, getResponseFromHttpContext());
+    DECORATE.onResponse(clientSpan, extractHttpResponse(null));
     DECORATE.onError(clientSpan, ex);
     DECORATE.beforeFinish(clientSpan);
     clientSpan.finish(); // Finish span before calling delegate
@@ -68,7 +68,7 @@ public class TraceContinuedFutureCallback<T> implements FutureCallback<T> {
 
   @Override
   public void cancelled() {
-    DECORATE.onResponse(clientSpan, getResponseFromHttpContext());
+    DECORATE.onResponse(clientSpan, extractHttpResponse(null));
     DECORATE.beforeFinish(clientSpan);
     clientSpan.finish(); // Finish span before calling delegate
 
@@ -101,7 +101,16 @@ public class TraceContinuedFutureCallback<T> implements FutureCallback<T> {
   }
 
   @Nullable
-  private HttpResponse getResponseFromHttpContext() {
-    return (HttpResponse) context.getAttribute(HttpCoreContext.HTTP_RESPONSE);
+  private HttpResponse extractHttpResponse(Object futureResult) {
+    if (context != null) {
+      Object fromContext = context.getAttribute(HttpCoreContext.HTTP_RESPONSE);
+      if (fromContext instanceof HttpResponse) {
+        return (HttpResponse) fromContext;
+      }
+    }
+    if (futureResult instanceof HttpResponse) {
+      return (HttpResponse) futureResult;
+    }
+    return null;
   }
 }

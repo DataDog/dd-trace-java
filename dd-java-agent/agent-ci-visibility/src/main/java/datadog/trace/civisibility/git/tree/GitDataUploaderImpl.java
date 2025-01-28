@@ -7,9 +7,7 @@ import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.civisibility.utils.FileUtils;
-import datadog.trace.civisibility.utils.ShellCommandExecutor;
 import datadog.trace.util.AgentThreadFactory;
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -31,6 +29,7 @@ public class GitDataUploaderImpl implements GitDataUploader {
   private final CiVisibilityMetricCollector metricCollector;
   private final GitDataApi gitDataApi;
   private final GitClient gitClient;
+  private final GitRepoUnshallow gitRepoUnshallow;
   private final GitInfoProvider gitInfoProvider;
   private final String repoRoot;
   private final String remoteName;
@@ -42,6 +41,7 @@ public class GitDataUploaderImpl implements GitDataUploader {
       CiVisibilityMetricCollector metricCollector,
       GitDataApi gitDataApi,
       GitClient gitClient,
+      GitRepoUnshallow gitRepoUnshallow,
       GitInfoProvider gitInfoProvider,
       String repoRoot,
       String remoteName) {
@@ -49,6 +49,7 @@ public class GitDataUploaderImpl implements GitDataUploader {
     this.metricCollector = metricCollector;
     this.gitDataApi = gitDataApi;
     this.gitClient = gitClient;
+    this.gitRepoUnshallow = gitRepoUnshallow;
     this.gitInfoProvider = gitInfoProvider;
     this.repoRoot = repoRoot;
     this.remoteName = remoteName;
@@ -89,10 +90,8 @@ public class GitDataUploaderImpl implements GitDataUploader {
     try {
       LOGGER.debug("Starting git data upload, {}", gitClient);
 
-      if (config.isCiVisibilityGitUnshallowEnabled()
-          && !config.isCiVisibilityGitUnshallowDefer()
-          && gitClient.isShallow()) {
-        unshallowRepository();
+      if (!config.isCiVisibilityGitUnshallowDefer()) {
+        gitRepoUnshallow.unshallow();
       }
 
       GitInfo gitInfo = gitInfoProvider.getGitInfo(repoRoot);
@@ -113,10 +112,7 @@ public class GitDataUploaderImpl implements GitDataUploader {
         return;
       }
 
-      if (config.isCiVisibilityGitUnshallowEnabled()
-          && config.isCiVisibilityGitUnshallowDefer()
-          && gitClient.isShallow()) {
-        unshallowRepository();
+      if (config.isCiVisibilityGitUnshallowDefer() && gitRepoUnshallow.unshallow()) {
         latestCommits = gitClient.getLatestCommits();
         commitsToSkip = gitDataApi.searchCommits(remoteUrl, latestCommits);
       }
@@ -182,29 +178,6 @@ public class GitDataUploaderImpl implements GitDataUploader {
     } catch (IllegalStateException e) {
       // JVM is being shutdown
     }
-  }
-
-  private void unshallowRepository() throws IOException, TimeoutException, InterruptedException {
-    long unshallowStart = System.currentTimeMillis();
-    try {
-      gitClient.unshallow(GitClient.HEAD);
-      return;
-    } catch (ShellCommandExecutor.ShellCommandFailedException e) {
-      LOGGER.debug(
-          "Could not unshallow using HEAD - assuming HEAD points to a local commit that does not exist in the remote repo",
-          e);
-    }
-
-    try {
-      String upstreamBranch = gitClient.getUpstreamBranchSha();
-      gitClient.unshallow(upstreamBranch);
-    } catch (ShellCommandExecutor.ShellCommandFailedException e) {
-      LOGGER.debug(
-          "Could not unshallow using upstream branch - assuming currently checked out local branch does not track any remote branch",
-          e);
-      gitClient.unshallow(null);
-    }
-    LOGGER.debug("Repository unshallowing took {} ms", System.currentTimeMillis() - unshallowStart);
   }
 
   private void waitForUploadToFinish() {

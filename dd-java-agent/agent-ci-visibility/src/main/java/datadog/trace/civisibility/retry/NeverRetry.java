@@ -1,6 +1,7 @@
 package datadog.trace.civisibility.retry;
 
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import org.jetbrains.annotations.Nullable;
 
 public class NeverRetry implements TestRetryPolicy {
 
@@ -26,5 +27,11 @@ public class NeverRetry implements TestRetryPolicy {
   @Override
   public boolean currentExecutionIsRetry() {
     return false;
+  }
+
+  @Nullable
+  @Override
+  public String currentExecutionRetryReason() {
+    return null;
   }
 }

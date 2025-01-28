@@ -21,7 +21,7 @@ public class CapturedSnapshot06 {
     strValue = "done";
     strList.add(strValue);
     strMap.put("foo", "bar");
-    return 42;
+    return 42; // beae1817-f3b0-4ea8-a74f-000000000001
   }
 
   public static int main(String arg) {

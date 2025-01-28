@@ -158,10 +158,13 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
       String tagName = String.format(SNAPSHOT_ID_TAG_FMT, frameIndex);
       span.setTag(tagName, snapshot.getId());
       LOGGER.debug("add tag to span[{}]: {}: {}", span.getSpanId(), tagName, snapshot.getId());
-      DebuggerAgent.getSink().addSnapshot(snapshot);
+      if (!state.isSnapshotSent()) {
+        DebuggerAgent.getSink().addSnapshot(snapshot);
+      }
       snapshotAssigned = true;
     }
     if (snapshotAssigned) {
+      state.markAsSnapshotSent();
       span.setTag(DD_DEBUG_ERROR_EXCEPTION_ID, state.getExceptionId());
       LOGGER.debug(
           "add tag to span[{}]: {}: {}",

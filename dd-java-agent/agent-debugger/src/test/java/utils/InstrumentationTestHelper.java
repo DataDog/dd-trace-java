@@ -1,8 +1,10 @@
 package utils;
 
 import static utils.TestHelper.getFixtureContent;
+import static utils.TestHelper.getFixtureLines;
 
 import com.datadog.debugger.agent.CapturedSnapshotTest;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
@@ -11,6 +13,7 @@ import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class InstrumentationTestHelper {
@@ -65,5 +68,22 @@ public class InstrumentationTestHelper {
     URLClassLoader jarClassLoader =
         new URLClassLoader(new URL[] {new URL("file://" + jarFileName)});
     return jarClassLoader.loadClass(className);
+  }
+
+  public static int getLineForLineProbe(String className, ProbeId lineProbeId)
+      throws IOException, URISyntaxException {
+    return getLineForLineProbe(className, ".java", lineProbeId);
+  }
+
+  public static int getLineForLineProbe(String className, String ext, ProbeId lineProbeId)
+      throws IOException, URISyntaxException {
+    List<String> lines = getFixtureLines("/" + className.replace('.', '/') + ext);
+    for (int i = 0; i < lines.size(); i++) {
+      String line = lines.get(i);
+      if (line.contains("//") && line.contains(lineProbeId.getId())) {
+        return i + 1;
+      }
+    }
+    return -1;
   }
 }

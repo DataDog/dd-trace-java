@@ -24,6 +24,8 @@ public class GitInfoProvider {
     INSTANCE.registerGitInfoBuilder(new UserSuppliedGitInfoBuilder());
   }
 
+  static final String NULL_PATH_STRING = Paths.get("").toAbsolutePath().toString();
+
   private volatile Collection<GitInfoBuilder> builders = Collections.emptyList();
 
   // in regular cases git info has to be built only once,
@@ -42,7 +44,7 @@ public class GitInfoProvider {
 
   public GitInfo getGitInfo(@Nullable String repositoryPath) {
     if (repositoryPath == null) {
-      repositoryPath = Paths.get("").toAbsolutePath().toString();
+      repositoryPath = NULL_PATH_STRING;
     }
     return gitInfoCache.computeIfAbsent(repositoryPath, this::buildGitInfo);
   }

@@ -14,7 +14,7 @@ class QueryObfuscatorTest extends DDSpecification {
     ]
 
     when:
-    def result = obfuscator.processTags(tags, null)
+    def result = obfuscator.processTags(tags, null, [])
 
     then:
     assert result.get(DDTags.HTTP_QUERY) == expectedQuery
@@ -36,7 +36,7 @@ class QueryObfuscatorTest extends DDSpecification {
     ]
 
     when:
-    def result = obfuscator.processTags(tags, null)
+    def result = obfuscator.processTags(tags, null, [])
 
     then:
     assert result.get(DDTags.HTTP_QUERY) == expectedQuery

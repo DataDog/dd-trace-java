@@ -6,6 +6,7 @@ import com.datadog.iast.IastSystem;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.json.TaintedObjectEncoding;
 import com.datadog.iast.util.Wrapper;
+import datadog.trace.util.RandomUtils;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -86,7 +87,7 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
 
     public TaintedObjectsDebugAdapter(final TaintedObjectsImpl delegated) {
       this.delegated = delegated;
-      id = UUID.randomUUID();
+      id = RandomUtils.randomUUID();
       LOGGER.debug("new: id={}", id);
     }
 
