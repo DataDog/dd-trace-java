@@ -10,11 +10,43 @@ import static datadog.trace.instrumentation.springscheduling.SpringSchedulingDec
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.util.MethodHandles;
+import java.lang.invoke.MethodHandle;
+import org.springframework.scheduling.SchedulingAwareRunnable;
 
 public class SpringSchedulingRunnableWrapper implements Runnable {
   private static final boolean LEGACY_TRACING =
       Config.get().isLegacyTracingEnabled(false, "spring-scheduling");
-  private final Runnable runnable;
+
+  private static final MethodHandle GET_QUALIFIER_MH =
+      new MethodHandles(Thread.currentThread().getContextClassLoader())
+          .method(SchedulingAwareRunnable.class, "getQualifier");
+
+  static class SchedulingAware extends SpringSchedulingRunnableWrapper
+      implements SchedulingAwareRunnable {
+
+    private SchedulingAware(Runnable runnable) {
+      super(runnable);
+    }
+
+    @Override
+    public boolean isLongLived() {
+      return ((SchedulingAwareRunnable) runnable).isLongLived();
+    }
+
+    // this is implemented on 6.1+
+    public String getQualifier() {
+      if (GET_QUALIFIER_MH != null) {
+        try {
+          return (String) GET_QUALIFIER_MH.invoke(runnable);
+        } catch (Throwable ignored) {
+        }
+      }
+      return null;
+    }
+  }
+
+  protected final Runnable runnable;
 
   private SpringSchedulingRunnableWrapper(final Runnable runnable) {
     this.runnable = runnable;
@@ -44,6 +76,9 @@ public class SpringSchedulingRunnableWrapper implements Runnable {
   public static Runnable wrapIfNeeded(final Runnable task) {
     if (task instanceof SpringSchedulingRunnableWrapper || exclude(RUNNABLE, task)) {
       return task;
+    }
+    if (task instanceof SchedulingAwareRunnable) {
+      return new SchedulingAware(task);
     }
     return new SpringSchedulingRunnableWrapper(task);
   }
