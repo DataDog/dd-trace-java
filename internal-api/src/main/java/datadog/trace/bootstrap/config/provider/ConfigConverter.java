@@ -68,23 +68,17 @@ final class ConfigConverter {
 
   @Nonnull
   static Map<String, String> parseMap(final String str, final String settingName) {
-    if (settingName.equals("trace.tags")){
-      return parseTraceTagsMap(str,
-          settingName,
-          ':', Arrays.asList(',', ' '));
-    } else{
-      return parseMap(
-          str,
-          settingName,
-          ':');
+    if (settingName.equals(
+        "trace.tags")) { // if we are parsing dd.tags, use the tags specific parser
+      return parseTraceTagsMap(str, settingName, ':', Arrays.asList(',', ' '));
+    } else {
+      return parseMap(str, settingName, ':');
     }
   }
 
   @Nonnull
   static Map<String, String> parseMap(
-      final String str,
-      final String settingName,
-      final char keyValueSeparator) {
+      final String str, final String settingName, final char keyValueSeparator) {
     // If we ever want to have default values besides an empty map, this will need to change.
     String trimmed = Strings.trim(str);
     if (trimmed.isEmpty()) {
@@ -149,11 +143,7 @@ final class ConfigConverter {
       return Collections.emptyMap();
     }
     Map<String, String> map = new LinkedHashMap<>();
-    loadMap(
-        map,
-        trimmed,
-        settingName,
-        ':');
+    loadMap(map, trimmed, settingName, ':');
     return map;
   }
 
@@ -162,7 +152,6 @@ final class ConfigConverter {
       super(message);
     }
   }
-
 
   private static void loadMap(
       Map<String, String> map, String str, String settingName, char keyValueSeparator) {
@@ -232,7 +221,6 @@ final class ConfigConverter {
       map.clear();
     }
   }
-
 
   private static void loadTraceTagsMap(
       Map<String, String> map,

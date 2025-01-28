@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap.config.provider;
 
 import datadog.trace.util.Strings;
-import java.util.Arrays;
 import java.util.Map;
 
 public class AgentArgsInjector {
@@ -12,8 +11,7 @@ public class AgentArgsInjector {
    * @param agentArgs Agent arguments to be parsed and set
    */
   public static void injectAgentArgsConfig(String agentArgs) {
-    Map<String, String> args =
-        ConfigConverter.parseMap(agentArgs, "javaagent arguments", '=');
+    Map<String, String> args = ConfigConverter.parseMap(agentArgs, "javaagent arguments", '=');
     injectAgentArgsConfig(args);
   }
 
