@@ -19,7 +19,7 @@ public class SpringSchedulingRunnableWrapper implements Runnable {
       Config.get().isLegacyTracingEnabled(false, "spring-scheduling");
 
   private static final MethodHandle GET_QUALIFIER_MH =
-      new MethodHandles(Thread.currentThread().getContextClassLoader())
+      new MethodHandles(SchedulingAwareRunnable.class.getClassLoader())
           .method(SchedulingAwareRunnable.class, "getQualifier");
 
   static class SchedulingAware extends SpringSchedulingRunnableWrapper
