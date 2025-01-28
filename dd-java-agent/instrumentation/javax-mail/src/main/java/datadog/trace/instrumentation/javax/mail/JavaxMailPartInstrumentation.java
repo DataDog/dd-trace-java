@@ -1,7 +1,8 @@
-package datadog.trace.instrumentation.jakarta.mail;
+package datadog.trace.instrumentation.javax.mail;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -9,31 +10,32 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
-import jakarta.mail.Part;
+import javax.mail.Part;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
-public class JakartaMailBodyInstrumentation extends InstrumenterModule.Iast
+public class JavaxMailPartInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  public JakartaMailBodyInstrumentation() {
-    super("jakarta-mail", "jakarta-mail-body");
+  public JavaxMailPartInstrumentation() {
+    super("javax-mail", "javax-mail-body");
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("setContent"),
-        JakartaMailBodyInstrumentation.class.getName() + "$ContentInjectionAdvice");
+        named("setContent").and(takesArgument(0, Object.class)),
+        JavaxMailPartInstrumentation.class.getName() + "$ContentInjectionAdvice");
     transformer.applyAdvice(
-        named("setText"), JakartaMailBodyInstrumentation.class.getName() + "$TextInjectionAdvice");
+        named("setText").and(takesArgument(0, String.class)),
+        JavaxMailPartInstrumentation.class.getName() + "$TextInjectionAdvice");
   }
 
   @Override
   public String hierarchyMarkerType() {
-    return "jakarta.mail.Message";
+    return "javax.mail.Part";
   }
 
   @Override
