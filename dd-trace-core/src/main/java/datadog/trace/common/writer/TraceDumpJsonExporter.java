@@ -27,7 +27,7 @@ public class TraceDumpJsonExporter implements Writer {
   @Override
   public void write(final List<DDSpan> trace) {
     dumpText.append(TRACE_ADAPTER.toJson(trace));
-    dumpText.append("\n");
+    dumpText.append('\n');
   }
 
   @Override
@@ -38,7 +38,7 @@ public class TraceDumpJsonExporter implements Writer {
   @Override
   public boolean flush() {
     try {
-      TracerFlare.addText(zip, "trace_dump.txt", dumpText.toString());
+      TracerFlare.addText(zip, "pending_traces.txt", dumpText.toString());
     } catch (IOException e) {
       // do nothing
     }
