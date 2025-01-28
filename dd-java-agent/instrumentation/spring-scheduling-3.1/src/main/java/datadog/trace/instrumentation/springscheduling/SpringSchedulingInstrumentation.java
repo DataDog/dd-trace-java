@@ -32,7 +32,8 @@ public final class SpringSchedulingInstrumentation extends InstrumenterModule.Tr
     return new String[] {
       packageName + ".SpringSchedulingDecorator",
       packageName + ".SpringSchedulingRunnableWrapper",
-      packageName + ".SpringSchedulingRunnableWrapper$SchedulingAware"
+      packageName + ".SpringSchedulingRunnableWrapper$SchedulingAware",
+      packageName + ".SpringSchedulingRunnableWrapper$1",
     };
   }
 
