@@ -467,7 +467,7 @@ class PendingTraceBufferTest extends DDSpecification {
     1 * dumpReporter.addReportToFlare(_)
     1 * dumpReporter.cleanupAfterFlare()
     entries.size() == 1
-    (entries["trace_dump.txt"] as String).startsWith('[{"service":"fakeService","name":"fakeOperation","resource":"fakeResource","trace_id":1,"span_id":1,"parent_id":0') // Rest of dump is timestamp specific
+    (entries["pending_traces.txt"] as String).startsWith('[{"service":"fakeService","name":"fakeOperation","resource":"fakeResource","trace_id":1,"span_id":1,"parent_id":0') // Rest of dump is timestamp specific
 
     then:
     child.finish()
