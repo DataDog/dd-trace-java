@@ -57,7 +57,7 @@ public class JUnit4RetryInstrumentation extends InstrumenterModule.CiVisibility
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      parentPackageName + ".SkippedByItr",
+      parentPackageName + ".SkippedByDatadog",
       parentPackageName + ".JUnit4Utils",
       parentPackageName + ".TracingListener",
       parentPackageName + ".TestEventsHandlerHolder",
@@ -82,6 +82,7 @@ public class JUnit4RetryInstrumentation extends InstrumenterModule.CiVisibility
   }
 
   public static class RetryAdvice {
+    @SuppressWarnings("bytebuddy-exception-suppression")
     @SuppressFBWarnings("NP_BOOLEAN_RETURN_NULL")
     @Advice.OnMethodEnter(skipOn = Boolean.class)
     public static Boolean retryIfNeeded(

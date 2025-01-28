@@ -8,7 +8,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.DDTest;
-import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.InstrumentationTestBridge;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.coverage.CoveragePerTestBridge;
@@ -23,6 +22,7 @@ import datadog.trace.api.civisibility.telemetry.tag.IsNew;
 import datadog.trace.api.civisibility.telemetry.tag.IsRetry;
 import datadog.trace.api.civisibility.telemetry.tag.IsRum;
 import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
+import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -208,9 +208,10 @@ public class TestImpl implements DDTest {
     if (skipReason != null) {
       span.setTag(Tags.TEST_SKIP_REASON, skipReason);
 
-      if (skipReason.equals(InstrumentationBridge.ITR_SKIP_REASON)) {
+      if (skipReason.equals(SkipReason.ITR.getDescription())) {
         span.setTag(Tags.TEST_SKIPPED_BY_ITR, true);
         metricCollector.add(CiVisibilityCountMetric.ITR_SKIPPED, 1, EventType.TEST);
+        executionResults.incrementTestsSkippedByItr();
       }
     }
   }
@@ -260,10 +261,6 @@ public class TestImpl implements DDTest {
       span.finish(endTime);
     } else {
       span.finish();
-    }
-
-    if (InstrumentationBridge.ITR_SKIP_REASON.equals(span.getTag(Tags.TEST_SKIP_REASON))) {
-      executionResults.incrementTestsSkippedByItr();
     }
 
     metricCollector.add(

@@ -5,6 +5,7 @@ import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestMetadata;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.civisibility.config.EarlyFlakeDetectionSettings;
 import datadog.trace.civisibility.config.ExecutionSettings;
 import datadog.trace.civisibility.retry.NeverRetry;
@@ -17,6 +18,7 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,18 +60,23 @@ public class ExecutionStrategy {
     return flakyTests != null && flakyTests.contains(test.withoutParameters());
   }
 
-  public boolean isSkippable(TestIdentifier test) {
+  @Nullable
+  public SkipReason skipReason(TestIdentifier test) {
     if (test == null) {
-      return false;
+      return null;
     }
     if (!executionSettings.isTestSkippingEnabled()) {
-      return false;
+      return null;
     }
     Map<TestIdentifier, TestMetadata> skippableTests = executionSettings.getSkippableTests();
     TestMetadata testMetadata = skippableTests.get(test);
-    return testMetadata != null
-        && !(config.isCiVisibilityCoverageLinesEnabled()
-            && testMetadata.isMissingLineCodeCoverage());
+    if (testMetadata == null) {
+      return null;
+    }
+    if (config.isCiVisibilityCoverageLinesEnabled() && testMetadata.isMissingLineCodeCoverage()) {
+      return null;
+    }
+    return SkipReason.ITR;
   }
 
   @Nonnull
