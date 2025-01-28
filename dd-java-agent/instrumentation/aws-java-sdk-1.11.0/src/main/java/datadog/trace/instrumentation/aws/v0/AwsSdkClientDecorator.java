@@ -333,6 +333,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     return response.getHttpResponse().getStatusCode();
   }
 
+  @ParametersAreNonnullByDefault
   @Override
   public void set(Request<?> carrier, String key, String value) {
     carrier.addHeader(key, value);

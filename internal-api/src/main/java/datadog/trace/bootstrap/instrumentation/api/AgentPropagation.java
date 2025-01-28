@@ -10,6 +10,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 public interface AgentPropagation {
   Concern TRACING_CONCERN = Concern.named("tracing");
+  Concern XRAY_TRACING_CONCERN = Concern.named("tracing-xray");
 
   <C> void inject(AgentSpan span, C carrier, Setter<C> setter);
 
