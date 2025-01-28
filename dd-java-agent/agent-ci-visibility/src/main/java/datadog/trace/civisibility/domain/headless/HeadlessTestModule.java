@@ -22,6 +22,7 @@ import datadog.trace.civisibility.domain.TestFrameworkModule;
 import datadog.trace.civisibility.domain.TestSuiteImpl;
 import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
+import datadog.trace.civisibility.test.ExecutionResults;
 import datadog.trace.civisibility.test.ExecutionStrategy;
 import datadog.trace.civisibility.utils.SpanUtils;
 import java.util.function.Consumer;
@@ -39,6 +40,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
 
   private final CoverageStore.Factory coverageStoreFactory;
   private final ExecutionStrategy executionStrategy;
+  private final ExecutionResults executionResults;
 
   public HeadlessTestModule(
       AgentSpanContext sessionSpanContext,
@@ -67,6 +69,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
         onSpanFinish);
     this.coverageStoreFactory = coverageStoreFactory;
     this.executionStrategy = executionStrategy;
+    this.executionResults = new ExecutionResults();
   }
 
   @Override
@@ -85,13 +88,8 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
   }
 
   @Override
-  public boolean shouldBeSkipped(TestIdentifier test) {
-    return executionStrategy.shouldBeSkipped(test);
-  }
-
-  @Override
-  public boolean skip(TestIdentifier test) {
-    return executionStrategy.skip(test);
+  public boolean isSkippable(TestIdentifier test) {
+    return executionStrategy.isSkippable(test);
   }
 
   @Override
@@ -111,7 +109,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
       setTag(Tags.TEST_ITR_TESTS_SKIPPING_ENABLED, true);
       setTag(Tags.TEST_ITR_TESTS_SKIPPING_TYPE, "test");
 
-      long testsSkippedTotal = executionStrategy.getTestsSkipped();
+      long testsSkippedTotal = executionResults.getTestsSkippedByItr();
       setTag(Tags.TEST_ITR_TESTS_SKIPPING_COUNT, testsSkippedTotal);
       if (testsSkippedTotal > 0) {
         setTag(DDTags.CI_ITR_TESTS_SKIPPED, true);
@@ -154,6 +152,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
         codeowners,
         linesResolver,
         coverageStoreFactory,
+        executionResults,
         SpanUtils.propagateCiVisibilityTagsTo(span));
   }
 }

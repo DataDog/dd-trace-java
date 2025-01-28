@@ -91,12 +91,7 @@ public class NoOpTestEventsHandler<SuiteKey, TestKey>
   }
 
   @Override
-  public boolean skip(TestIdentifier test) {
-    return false;
-  }
-
-  @Override
-  public boolean shouldBeSkipped(TestIdentifier test) {
+  public boolean isSkippable(TestIdentifier test) {
     return false;
   }
 

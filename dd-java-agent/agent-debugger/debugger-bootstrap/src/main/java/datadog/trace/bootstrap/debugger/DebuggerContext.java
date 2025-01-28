@@ -39,6 +39,12 @@ public class DebuggerContext {
       public String tag() {
         return "cause:debug session disabled";
       }
+    },
+    BUDGET {
+      @Override
+      public String tag() {
+        return "cause:budget_exceeded";
+      }
     };
 
     public abstract String tag();

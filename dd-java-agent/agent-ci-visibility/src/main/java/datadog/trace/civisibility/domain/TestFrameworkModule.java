@@ -31,21 +31,12 @@ public interface TestFrameworkModule {
   boolean isModified(TestSourceData testSourceData);
 
   /**
-   * Checks if a given test should be skipped with Intelligent Test Runner or not
+   * Checks if a given test can be skipped with Intelligent Test Runner or not.
    *
    * @param test Test to be checked
    * @return {@code true} if the test can be skipped, {@code false} otherwise
    */
-  boolean shouldBeSkipped(TestIdentifier test);
-
-  /**
-   * Checks if a given test can be skipped with Intelligent Test Runner or not. If the test is
-   * considered skippable, the count of skippable tests is incremented.
-   *
-   * @param test Test to be checked
-   * @return {@code true} if the test can be skipped, {@code false} otherwise
-   */
-  boolean skip(TestIdentifier test);
+  boolean isSkippable(TestIdentifier test);
 
   @Nonnull
   TestRetryPolicy retryPolicy(TestIdentifier test, TestSourceData testSource);

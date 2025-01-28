@@ -15,6 +15,7 @@
  */
 package com.datadog.profiling.uploader;
 
+import static com.datadog.profiling.uploader.ProfileUploader.SERVELESS_TAG;
 import static com.datadog.profiling.uploader.ProfileUploader.V4_PROFILE_END_PARAM;
 import static com.datadog.profiling.uploader.ProfileUploader.V4_PROFILE_START_PARAM;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -81,6 +82,7 @@ import okhttp3.mockwebserver.SocketPolicy;
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.io.IOUtils;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -104,6 +106,8 @@ public class ProfileUploaderTest {
 
   private static final Map<String, String> TAGS;
 
+  private static final String FUNCTION_NAME = "my_function";
+
   static {
     // Not using Guava's ImmutableMap because we want to test null value
     final Map<String, String> tags = new HashMap<>();
@@ -120,6 +124,7 @@ public class ProfileUploaderTest {
       new ImmutableMap.Builder<String, String>()
           .put("baz", "123")
           .put("foo", "bar")
+          .put(SERVELESS_TAG, FUNCTION_NAME)
           .put("quoted", "quoted")
           .put(DDTags.PID_TAG, PidHelper.getPid())
           .put(VersionInfo.PROFILER_VERSION_TAG, VersionInfo.VERSION)
@@ -148,6 +153,20 @@ public class ProfileUploaderTest {
   private HttpUrl url;
 
   private ProfileUploader uploader;
+
+  @BeforeAll
+  static void setUpAll() throws Exception {
+    Map<String, String> env = System.getenv();
+
+    Field field = env.getClass().getDeclaredField("m");
+    field.setAccessible(true);
+
+    @SuppressWarnings("unchecked")
+    Map<String, String> modifiableEnv = (Map<String, String>) field.get(env);
+    // hard-coding the env variable here; we could theoretically make the field from ServerlessInfo
+    // public instead
+    modifiableEnv.put("AWS_LAMBDA_FUNCTION_NAME", FUNCTION_NAME);
+  }
 
   @BeforeEach
   public void setup() throws IOException {

@@ -14,6 +14,7 @@ import datadog.trace.civisibility.domain.InstrumentationType;
 import datadog.trace.civisibility.domain.TestSuiteImpl;
 import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
+import datadog.trace.civisibility.test.ExecutionResults;
 import datadog.trace.civisibility.utils.SpanUtils;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
@@ -25,6 +26,7 @@ import javax.annotation.Nullable;
 public class ManualApiTestModule extends AbstractTestModule implements DDTestModule {
 
   private final CoverageStore.Factory coverageStoreFactory;
+  private final ExecutionResults executionResults = new ExecutionResults();
 
   public ManualApiTestModule(
       AgentSpanContext sessionSpanContext,
@@ -76,6 +78,7 @@ public class ManualApiTestModule extends AbstractTestModule implements DDTestMod
         codeowners,
         linesResolver,
         coverageStoreFactory,
+        executionResults,
         SpanUtils.propagateCiVisibilityTagsTo(span));
   }
 }

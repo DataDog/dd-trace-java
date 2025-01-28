@@ -6,7 +6,7 @@ class CapturedSnapshot302 {
   val list: MutableList<Int> = mutableListOf()
 
   suspend fun process(arg: String): Int {
-    println(intField)
+    println(intField) // beae1817-f3b0-4ea8-a74f-000000000001
     try {
       list.add(1)
       val content = download(arg)

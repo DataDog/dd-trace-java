@@ -2,7 +2,6 @@ package datadog.trace.api;
 
 import static datadog.trace.api.ConfigDefaults.*;
 import static datadog.trace.api.DDTags.*;
-import static datadog.trace.api.DDTags.PROFILING_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.*;
 import static datadog.trace.api.config.CiVisibilityConfig.*;
 import static datadog.trace.api.config.CrashTrackingConfig.*;
@@ -3410,7 +3409,7 @@ public class Config {
     result.putAll(runtimeTags);
     result.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
     result.put(SCHEMA_VERSION_TAG_KEY, SpanNaming.instance().version());
-    result.put(PROFILING_ENABLED, isProfilingEnabled() ? 1 : 0);
+    result.put(DDTags.PROFILING_ENABLED, isProfilingEnabled() ? 1 : 0);
     if (isAppSecStandaloneEnabled()) {
       result.put(APM_ENABLED, 0);
     }

@@ -183,6 +183,7 @@ public class ExceptionProbeManager {
   public static class ThrowableState {
     private final String exceptionId;
     private List<Snapshot> snapshots;
+    private boolean snapshotSent;
 
     private ThrowableState(String exceptionId) {
       this.exceptionId = exceptionId;
@@ -205,6 +206,14 @@ public class ExceptionProbeManager {
         snapshots = new ArrayList<>();
       }
       snapshots.add(snapshot);
+    }
+
+    public boolean isSnapshotSent() {
+      return snapshotSent;
+    }
+
+    public void markAsSnapshotSent() {
+      snapshotSent = true;
     }
   }
 }

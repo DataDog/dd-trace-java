@@ -1,7 +1,9 @@
 ext {
+  latestDepForkedTestMinJavaVersionForTests = JavaVersion.VERSION_17
+  latestDepTestMinJavaVersionForTests = JavaVersion.VERSION_17
   spring6TestMinJavaVersionForTests = JavaVersion.VERSION_17
-  spring6LatestDepTestMinJavaVersionForTests = JavaVersion.VERSION_17
 }
+
 muzzle {
   pass {
     group = 'org.springframework'
@@ -20,22 +22,30 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-addTestSuiteForDir('latestDepTest', 'test')
+addTestSuite('latestDepTest')
+addTestSuiteExtendingForDir('latestDepForkedTest','latestDepTest', 'latestDepTest')
 addTestSuiteForDir('spring6Test', 'test')
-addTestSuiteExtendingForDir('spring6LatestDepTest', 'latestDepTest', 'test')
+addTestSuiteForDir('latestSpring5Test', 'test')
 
-[compileSpring6TestJava, compileSpring6LatestDepTestJava].each {
+[compileSpring6TestJava, compileLatestDepTestJava, compileLatestDepForkedTestJava].each {
   setJavaVersion(it, 17)
   sourceCompatibility = JavaVersion.VERSION_1_8
   targetCompatibility = JavaVersion.VERSION_1_8
 }
 
 
-[compileSpring6TestGroovy, compileSpring6LatestDepTestGroovy, spring6Test, spring6LatestDepTest].each {
+[
+  compileSpring6TestGroovy,
+  compileLatestDepTestGroovy,
+  compileLatestDepForkedTestGroovy,
+  spring6Test,
+  latestDepTest,
+  latestDepForkedTest
+].each {
   it.javaLauncher = getJavaLauncherFor(17)
 }
 
-[spring6Test, spring6LatestDepTest].each {
+[spring6Test, latestDepTest, latestDepForkedTest].each {
   it.jvmArgs '--add-opens', 'java.base/java.util=ALL-UNNAMED'
 }
 
@@ -55,19 +65,17 @@ dependencies {
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-actuator', version: '2.4.0'
 
 
-  latestDepTestImplementation group: 'org.springframework', name: 'spring-context', version: '5.+'
+  latestSpring5TestImplementation group: 'org.springframework', name: 'spring-context', version: '5.+'
 
-  latestDepTestImplementation group: 'net.javacrumbs.shedlock', name: 'shedlock-spring', version: '4.+'
-  latestDepTestImplementation group: 'net.javacrumbs.shedlock', name: 'shedlock-provider-jdbc-template', version: '4.+'
-  latestDepTestImplementation group: 'com.h2database', name: 'h2', version: '2.2.+' // 2.3+ requires Java 11
-  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-data-jpa', version: '2.+'
+  latestSpring5TestImplementation group: 'net.javacrumbs.shedlock', name: 'shedlock-spring', version: '4.+'
+  latestSpring5TestImplementation group: 'net.javacrumbs.shedlock', name: 'shedlock-provider-jdbc-template', version: '4.+'
+  latestSpring5TestImplementation group: 'com.h2database', name: 'h2', version: '2.2.+' // 2.3+ requires Java 11
+  latestSpring5TestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-data-jpa', version: '2.+'
 
   spring6TestImplementation group: 'org.springframework', name: 'spring-context', version: '6.0.0.RELEASE'
   spring6TestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-data-jpa', version: '3.0.0'
 
-  spring6LatestDepTestImplementation group: 'com.h2database', name: 'h2', version: '+'
-  spring6LatestDepTestImplementation group: 'org.springframework', name: 'spring-context', version: '6.+'
-  spring6LatestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-data-jpa', version: '3.+'
-
-
+  latestDepTestImplementation group: 'com.h2database', name: 'h2', version: '+'
+  latestDepTestImplementation group: 'org.springframework', name: 'spring-context', version: '6.+'
+  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-data-jpa', version: '3.+'
 }
