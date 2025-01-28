@@ -20,9 +20,6 @@ public interface TestRetryPolicy {
    */
   boolean retry(boolean successful, long durationMillis);
 
-  /** @return {@code true} if current execution is a retry */
-  boolean currentExecutionIsRetry();
-
   /**
    * Returns retry reason for current execution (will be {@code null} if current execution is not a
    * retry)

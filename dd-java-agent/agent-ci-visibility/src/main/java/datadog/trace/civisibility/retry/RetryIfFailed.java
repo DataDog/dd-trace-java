@@ -27,7 +27,9 @@ public class RetryIfFailed implements TestRetryPolicy {
 
   @Override
   public boolean suppressFailures() {
-    return true;
+    // if this isn't the last attempt,
+    // possible failures should be suppressed
+    return retriesLeft();
   }
 
   @Override
@@ -40,14 +42,13 @@ public class RetryIfFailed implements TestRetryPolicy {
     }
   }
 
-  @Override
-  public boolean currentExecutionIsRetry() {
-    return executions > 0;
-  }
-
   @Nullable
   @Override
   public RetryReason currentExecutionRetryReason() {
     return currentExecutionIsRetry() ? RetryReason.atr : null;
+  }
+
+  private boolean currentExecutionIsRetry() {
+    return executions > 0;
   }
 }

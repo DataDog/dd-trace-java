@@ -36,14 +36,13 @@ public class RetryNTimes implements TestRetryPolicy {
     return ++executions < maxExecutions;
   }
 
-  @Override
-  public boolean currentExecutionIsRetry() {
-    return executions > 0;
-  }
-
   @Nullable
   @Override
   public RetryReason currentExecutionRetryReason() {
     return currentExecutionIsRetry() ? RetryReason.efd : null;
+  }
+
+  private boolean currentExecutionIsRetry() {
+    return executions > 0;
   }
 }

@@ -25,11 +25,6 @@ public class NeverRetry implements TestRetryPolicy {
     return false;
   }
 
-  @Override
-  public boolean currentExecutionIsRetry() {
-    return false;
-  }
-
   @Nullable
   @Override
   public RetryReason currentExecutionRetryReason() {

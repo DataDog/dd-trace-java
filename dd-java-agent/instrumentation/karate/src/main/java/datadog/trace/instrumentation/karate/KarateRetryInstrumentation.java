@@ -124,7 +124,7 @@ public class KarateRetryInstrumentation extends InstrumenterModule.CiVisibility
         retryContext.setFailed(true);
 
         TestRetryPolicy retryPolicy = retryContext.getRetryPolicy();
-        if (retryPolicy.suppressFailures() && retryPolicy.retriesLeft()) {
+        if (retryPolicy.suppressFailures()) {
           stepResult = new StepResult(stepResult.getStep(), KarateUtils.abortedResult());
           stepResult.setFailedReason(result.getError());
           stepResult.setErrorIgnored(true);
