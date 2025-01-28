@@ -4,8 +4,8 @@
 This documentation provides information for developers to set up their environment and build their project from sources.
 
 * [Development environment](#development-environment)
-  * [Requirements](#requirements)
   * [Quick check](#quick-check)
+  * [Requirements](#requirements)
   * [Install the required JDKs](#install-the-required-jdks)
   * [Install git](#install-git)
   * [Install Docker Desktop](#install-docker-desktop)
@@ -13,17 +13,6 @@ This documentation provides information for developers to set up their environme
 * [Building the project](#building-the-project)
 
 ## Development environment
-
-### Requirements
-
-Requirements to build the full project:
-
-* The JDK versions 8, 11, 17 and 21 must be installed.
-* The `JAVA_8_HOME`, `JAVA_11_HOME`, `JAVA_17_HOME`, `JAVA_21_HOME`, and `JAVA_GRAALVM17_HOME` must point to their respective JDK location.
-* The JDK 8 `bin` directory must be the only JDK on the PATH (e.g. `$JAVA_8_HOME/bin`).
-* The `JAVA_HOME` environment variable may be unset. If set, it must point to the JDK 8 location (same as `JAVA_8_HOME`).
-* The `git` command line must be installed.
-* A container runtime environment must be available to run all tests (e.g. Docker Desktop).
 
 ### Quick check
 
@@ -59,6 +48,16 @@ Your output should look something like the following:
 
 If there is any issue with your output, check the requirements above and use the following guide to install and configure the required tools.
 
+### Requirements
+
+Requirements to build the full project:
+
+* The JDK versions 8, 11, 17 and 21 must be installed.
+* The `JAVA_8_HOME`, `JAVA_11_HOME`, `JAVA_17_HOME`, `JAVA_21_HOME`, and `JAVA_GRAALVM17_HOME` must point to their respective JDK location.
+* The JDK 8 `bin` directory must be the only JDK on the PATH (e.g. `$JAVA_8_HOME/bin`).
+* The `JAVA_HOME` environment variable may be unset. If set, it must point to the JDK 8 location (same as `JAVA_8_HOME`).
+* The `git` command line must be installed.
+* A container runtime environment must be available to run all tests (e.g. Docker Desktop).
 
 ### Install the required JDKs
 
