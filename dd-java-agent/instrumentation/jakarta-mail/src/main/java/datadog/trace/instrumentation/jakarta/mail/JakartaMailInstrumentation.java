@@ -32,7 +32,8 @@ public class JakartaMailInstrumentation extends InstrumenterModule.Iast
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("send0").and(takesArgument(0, named("jakarta.mail.Message"))), JakartaMailInstrumentation.class.getName() + "$MailInjectionAdvice");
+        named("send0").and(takesArgument(0, named("jakarta.mail.Message"))),
+        JakartaMailInstrumentation.class.getName() + "$MailInjectionAdvice");
   }
 
   @Override

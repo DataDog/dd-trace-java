@@ -29,7 +29,8 @@ public class JakartaMailPartInstrumentation extends InstrumenterModule.Iast
         named("setContent").and(takesArgument(0, Object.class)),
         JakartaMailPartInstrumentation.class.getName() + "$ContentInjectionAdvice");
     transformer.applyAdvice(
-        named("setText").and(takesArgument(0, String.class)), JakartaMailPartInstrumentation.class.getName() + "$TextInjectionAdvice");
+        named("setText").and(takesArgument(0, String.class)),
+        JakartaMailPartInstrumentation.class.getName() + "$TextInjectionAdvice");
   }
 
   @Override
