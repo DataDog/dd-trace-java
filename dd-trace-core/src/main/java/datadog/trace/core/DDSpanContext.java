@@ -768,8 +768,6 @@ public class DDSpanContext
   }
 
   void unsafeSetTag(final String tag, final Object value) {
-    //    System.out.println("Tag: " + tag);
-    //    System.out.println("Value: " + value);
     unsafeTags.put(tag, value);
   }
 
