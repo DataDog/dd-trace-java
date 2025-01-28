@@ -20,24 +20,34 @@ stages:
 variables:
   REGISTRY: 486234852809.dkr.ecr.us-east-1.amazonaws.com
   BUILD_JOB_NAME: "build"
+  DEPENDENCY_CACHE_POLICY: pull
+  BUILD_CACHE_POLICY: pull
+  GRADLE_VERSION: "8.4" # must match gradle-wrapper.properties
 
-.common: &common
-  tags: [ "runner:main", "size:large" ]
+default:
+  tags: [ "arch:amd64" ]
 
 .gradle_build: &gradle_build
-  <<: *common
   image: ghcr.io/datadog/dd-trace-java-docker-build:v23.10-base
   variables:
     GRADLE_OPTS: "-Dorg.gradle.jvmargs='-Xmx2560M -Xms2560M'"
-    GRADLE_ARGS: " -PskipTests --build-cache --stacktrace --no-daemon --parallel --max-workers=8"
+    GRADLE_ARGS: " -PskipTests --build-cache --stacktrace --no-daemon --parallel --max-workers=2"
     KUBERNETES_CPU_REQUEST: 8
-    KUBERNETES_MEMORY_REQUEST: 4Gi
-  cache: &default_cache
-    key: '$CI_SERVER_VERSION' # Reset the cache every time gitlab is upgraded.  ~Every couple months
-    paths:
-      - .gradle/wrapper
-      - .gradle/caches
-    policy: pull
+    KUBERNETES_MEMORY_REQUEST: 6Gi
+  cache:
+    - key: '$CI_SERVER_VERSION-v2' # Dependencies cache. Reset the cache every time gitlab is upgraded.  ~Every couple months
+      paths:
+        # Cached dependencies and wrappers for gradle
+        - .gradle/wrapper
+        - .gradle/caches
+        - .gradle/notifications
+      policy: $DEPENDENCY_CACHE_POLICY
+    - key: $CI_PIPELINE_ID # Incremental build cache. Shared by all jobs in the pipeline
+      paths:
+        - .gradle/caches/$GRADLE_VERSION
+        - .gradle/$GRADLE_VERSION/executionHistory
+        - workspace
+      policy: $BUILD_CACHE_POLICY
   before_script:
     - export GRADLE_USER_HOME=`pwd`/.gradle
     # for weird reasons, gradle will always "chmod 700" the .gradle folder
@@ -49,9 +59,12 @@ variables:
     - mv .gradle-copy .gradle
     - ls -la
 
-build: &build
-  <<: *gradle_build
+build:
+  extends: .gradle_build
   stage: build
+  variables:
+    BUILD_CACHE_POLICY: push
+    DEPENDENCY_CACHE_POLICY: pull
   script:
     - ./gradlew clean :dd-java-agent:shadowJar :dd-trace-api:jar :dd-trace-ot:shadowJar $GRADLE_ARGS
     - echo UPSTREAM_TRACER_VERSION=$(java -jar workspace/dd-java-agent/build/libs/*.jar) >> upstream.env
@@ -66,16 +79,16 @@ build: &build
     reports:
       dotenv: build.env
 
-build_with_cache:
-  <<: *build
+build_and_populate_dep_cache:
+  extends: build
+  variables:
+    BUILD_CACHE_POLICY: push
+    DEPENDENCY_CACHE_POLICY: push
   rules:
     - if: '$POPULATE_CACHE'
       when: on_success
     - when: manual
       allow_failure: true
-  cache:
-    <<: *default_cache
-    policy: push
 
 deploy_to_profiling_backend:
   stage: publish
@@ -149,7 +162,7 @@ deploy_to_di_backend:manual:
     UPSTREAM_COMMIT_SHORT_SHA: $CI_COMMIT_SHORT_SHA
 
 deploy_to_sonatype:
-  <<: *gradle_build
+  extends: .gradle_build
   stage: publish
   needs: [ build ]
   rules:
@@ -177,7 +190,6 @@ deploy_to_sonatype:
 deploy_artifacts_to_github:
   stage: publish
   image: registry.ddbuild.io/github-cli:v27480869-eafb11d-2.43.0
-  tags: [ "arch:amd64" ]
   rules:
     - if: '$POPULATE_CACHE'
       when: never
@@ -234,7 +246,6 @@ create_key:
   stage: generate-signing-key
   when: manual
   needs: [ ]
-  tags: [ "arch:amd64", "size:large" ]
   variables:
     PROJECT_NAME: "dd-trace-java"
     EXPORT_TO_KEYSERVER: "true"
