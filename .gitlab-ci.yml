@@ -29,9 +29,10 @@ default:
 
 .gradle_build: &gradle_build
   image: ghcr.io/datadog/dd-trace-java-docker-build:v24.10-base
+  stage: build
   variables:
-    GRADLE_OPTS: "-Dorg.gradle.jvmargs='-Xmx2560M -Xms2560M'"
-    GRADLE_ARGS: " -PskipTests --build-cache --stacktrace --no-daemon --parallel --max-workers=2"
+    GRADLE_OPTS: "-Dorg.gradle.jvmargs='-Xmx2560M -Xms2560M' -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
+    GRADLE_ARGS: " --build-cache --stacktrace --no-daemon --parallel --max-workers=2"
     KUBERNETES_CPU_REQUEST: 8
     KUBERNETES_MEMORY_REQUEST: 6Gi
   cache:
@@ -42,7 +43,7 @@ default:
         - .gradle/caches
         - .gradle/notifications
       policy: $DEPENDENCY_CACHE_POLICY
-    - key: $CI_PIPELINE_ID # Incremental build cache. Shared by all jobs in the pipeline
+    - key: $CI_PIPELINE_ID-$BUILD_CACHE_TYPE # Incremental build cache. Shared by all jobs in the pipeline of the same type
       paths:
         - .gradle/caches/$GRADLE_VERSION
         - .gradle/$GRADLE_VERSION/executionHistory
@@ -61,12 +62,13 @@ default:
 
 build:
   extends: .gradle_build
-  stage: build
   variables:
     BUILD_CACHE_POLICY: push
+    BUILD_CACHE_TYPE: lib
     DEPENDENCY_CACHE_POLICY: pull
   script:
-    - ./gradlew clean :dd-java-agent:shadowJar :dd-trace-api:jar :dd-trace-ot:shadowJar $GRADLE_ARGS
+    - ./gradlew resolveAndLockAll --write-locks
+    - ./gradlew clean :dd-java-agent:shadowJar :dd-trace-api:jar :dd-trace-ot:shadowJar -PskipTests $GRADLE_ARGS
     - echo UPSTREAM_TRACER_VERSION=$(java -jar workspace/dd-java-agent/build/libs/*.jar) >> upstream.env
     - echo "BUILD_JOB_NAME=$CI_JOB_NAME" >> build.env
     - echo "BUILD_JOB_ID=$CI_JOB_ID" >> build.env
@@ -79,6 +81,16 @@ build:
     reports:
       dotenv: build.env
 
+build_tests:
+  extends: .gradle_build
+  variables:
+    BUILD_CACHE_POLICY: push
+    BUILD_CACHE_TYPE: test
+    DEPENDENCY_CACHE_POLICY: pull
+  script:
+    - ./gradlew resolveAndLockAll --write-locks
+    - ./gradlew clean :baseTest :instrumentationTest :instrumentationLatestDepTest :instrumentationTest :profilingTest -PskipTests $GRADLE_ARGS
+
 build_and_populate_dep_cache:
   extends: build
   variables:
@@ -89,6 +101,68 @@ build_and_populate_dep_cache:
       when: on_success
     - when: manual
       allow_failure: true
+
+spotless:
+  extends: .gradle_build
+  script:
+    - JAVA_HOME=$JAVA_11_HOME ./gradlew spotlessCheck $GRADLE_ARGS
+
+.check_job:
+  extends: .gradle_build
+  needs: [ "build_tests" ]
+  variables:
+    BUILD_CACHE_TYPE: test
+  script:
+    - ./gradlew $GRADLE_TARGET -PskipTests -PrunBuildSrcTests -PskipSpotless $GRADLE_ARGS
+  after_script:
+    - .circleci/collect_reports.sh --destination ./check_reports --move
+  artifacts:
+    paths:
+      - ./check_reports
+
+check_base:
+  extends: .check_job
+  variables:
+    GRADLE_TARGET: ":baseCheck"
+
+check_inst:
+  extends: .check_job
+  variables:
+    GRADLE_TARGET: ":instrumentationCheck"
+
+check_smoke:
+  extends: .check_job
+  variables:
+    GRADLE_TARGET: ":smokeCheck"
+
+check_profiling:
+  extends: .check_job
+  variables:
+    GRADLE_TARGET: ":profilingCheck"
+
+check_debugger:
+  extends: .check_job
+  variables:
+    GRADLE_TARGET: ":debuggerCheck"
+
+test_published_artifacts:
+  extends: .gradle_build
+  needs: [ build ]
+  variables:
+    BUILD_CACHE_TYPE: build
+  script:
+    - mvn_local_repo=$(./mvnw help:evaluate -Dexpression=settings.localRepository -q -DforceStdout)
+    - rm -rf "${mvn_local_repo}/com/datadoghq"
+    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
+    - ./gradlew publishToMavenLocal $GRADLE_ARGS
+    - cd test-published-dependencies
+    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx512M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
+    - ./gradlew check --info --max-workers=3
+  after_script:
+    - .circleci/collect_reports.sh
+  artifacts:
+    paths:
+      - ./check_reports
 
 deploy_to_profiling_backend:
   stage: publish
@@ -165,6 +239,8 @@ deploy_to_sonatype:
   extends: .gradle_build
   stage: publish
   needs: [ build ]
+  variables:
+    BUILD_CACHE_TYPE: lib
   rules:
     - if: '$POPULATE_CACHE'
       when: never
@@ -180,7 +256,7 @@ deploy_to_sonatype:
     - export SONATYPE_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.sonatype_password --with-decryption --query "Parameter.Value" --out text)
     - export GPG_PRIVATE_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_private_key --with-decryption --query "Parameter.Value" --out text)
     - export GPG_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_passphrase --with-decryption --query "Parameter.Value" --out text)
-    - ./gradlew -PbuildInfo.build.number=$CI_JOB_ID publishToSonatype closeSonatypeStagingRepository $GRADLE_ARGS
+    - ./gradlew -PbuildInfo.build.number=$CI_JOB_ID publishToSonatype closeSonatypeStagingRepository -PskipTests $GRADLE_ARGS
   artifacts:
     paths:
       - 'workspace/dd-java-agent/build/libs/*.jar'
