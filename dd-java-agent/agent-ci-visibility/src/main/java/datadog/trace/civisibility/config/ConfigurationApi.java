@@ -18,7 +18,7 @@ public interface ConfigurationApi {
 
         @Override
         public SkippableTests getSkippableTests(TracerEnvironment tracerEnvironment) {
-          return new SkippableTests(null, Collections.emptyMap(), null);
+          return SkippableTests.EMPTY;
         }
 
         @Override
