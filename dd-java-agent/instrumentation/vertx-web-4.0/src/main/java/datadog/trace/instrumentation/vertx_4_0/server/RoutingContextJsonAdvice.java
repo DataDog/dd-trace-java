@@ -31,6 +31,8 @@ class RoutingContextJsonAdvice {
       @ActiveRequestContext RequestContext reqCtx,
       @Advice.Thrown(readOnly = false) Throwable throwable) {
 
+    // in newer versions of vert.x rc.getBodyAsJson() calls internally rc.body().asJsonObject()
+    // so we need to prevent sending the body twice to the WAF
     if (CallDepthThreadLocalMap.decrementCallDepth(RoutingContext.class) != 0) {
       return;
     }
