@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.testng.retry;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
 import datadog.trace.instrumentation.testng.TestEventsHandlerHolder;
 import datadog.trace.instrumentation.testng.TestNGUtils;
 import org.testng.IRetryAnalyzer;
@@ -31,7 +32,7 @@ public class RetryAnalyzer implements IRetryAnalyzer {
     return retryPolicy.retry(result.isSuccess(), result.getEndMillis() - result.getStartMillis());
   }
 
-  public String currentExecutionRetryReason() {
+  public RetryReason currentExecutionRetryReason() {
     return retryPolicy != null ? retryPolicy.currentExecutionRetryReason() : null;
   }
 }

@@ -29,7 +29,7 @@ public class TestExecutionWrapper implements scala.Function1<SuperEngine<?>.Test
 
     if (outcome.isFailed()) {
       executionFailed = true;
-      if (retryPolicy.retriesLeft() && retryPolicy.suppressFailures()) {
+      if (retryPolicy.suppressFailures()) {
         Throwable t = outcome.toOption().get();
         return Canceled.apply(
             new SuppressedTestFailedException("Test failed and will be retried", t, 0));

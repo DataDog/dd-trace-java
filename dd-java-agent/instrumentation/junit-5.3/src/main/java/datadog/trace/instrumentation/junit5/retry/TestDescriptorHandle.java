@@ -43,10 +43,12 @@ public class TestDescriptorHandle {
   }
 
   public TestDescriptor withIdSuffix(
-      String segmentName, String segmentValue, String otherSegmentName, String otherSegmentValue) {
+      String segmentName, Object segmentValue, String otherSegmentName, Object otherSegmentValue) {
     UniqueId uniqueId = testDescriptor.getUniqueId();
     UniqueId updatedId =
-        uniqueId.append(segmentName, segmentValue).append(otherSegmentName, otherSegmentValue);
+        uniqueId
+            .append(segmentName, String.valueOf(segmentValue))
+            .append(otherSegmentName, String.valueOf(otherSegmentValue));
     TestDescriptor descriptorClone = UnsafeUtils.tryShallowClone(testDescriptor);
     METHOD_HANDLES.invoke(UNIQUE_ID_SETTER, descriptorClone, updatedId);
     return descriptorClone;

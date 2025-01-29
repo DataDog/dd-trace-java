@@ -158,7 +158,7 @@ public class JUnit5RetryInstrumentation extends InstrumenterModule.CiVisibility
       int retryAttemptIdx = 0;
       boolean retry;
       while (true) {
-        factory.setSuppressFailures(retryPolicy.retriesLeft() && retryPolicy.suppressFailures());
+        factory.setSuppressFailures(retryPolicy.suppressFailures());
 
         long startTimestamp = System.currentTimeMillis();
         CallDepthThreadLocalMap.incrementCallDepth(HierarchicalTestExecutorService.TestTask.class);

@@ -12,6 +12,7 @@ import datadog.trace.api.civisibility.retry.TestRetryPolicy;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.EventType;
+import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.ContextStore;
@@ -138,7 +139,7 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
       final @Nullable String testParameters,
       final @Nullable Collection<String> categories,
       final @Nonnull TestSourceData testSourceData,
-      final @Nullable String retryReason,
+      final @Nullable RetryReason retryReason,
       final @Nullable Long startTime) {
     if (skipTrace(testSourceData.getTestClass())) {
       return;
