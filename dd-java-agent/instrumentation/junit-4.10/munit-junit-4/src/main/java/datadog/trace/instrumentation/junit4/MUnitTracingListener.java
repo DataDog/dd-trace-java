@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.junit4;
 
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
-import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -23,9 +23,9 @@ public class MUnitTracingListener extends TracingListener {
 
   public static final String FRAMEWORK_NAME = "munit";
   public static final String FRAMEWORK_VERSION = getVersion();
-  private final ContextStore<Description, TestRetryPolicy> retryPolicies;
+  private final ContextStore<Description, TestExecutionPolicy> retryPolicies;
 
-  public MUnitTracingListener(ContextStore<Description, TestRetryPolicy> retryPolicies) {
+  public MUnitTracingListener(ContextStore<Description, TestExecutionPolicy> retryPolicies) {
     this.retryPolicies = retryPolicies;
   }
 
@@ -76,7 +76,7 @@ public class MUnitTracingListener extends TracingListener {
     TestDescriptor testDescriptor = MUnitUtils.toTestDescriptor(description);
     String testName = description.getMethodName();
     List<String> categories = getCategories(description);
-    TestRetryPolicy retryPolicy = retryPolicies.get(description);
+    TestExecutionPolicy retryPolicy = retryPolicies.get(description);
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestStart(
         suiteDescriptor,
         testDescriptor,

@@ -1,6 +1,6 @@
-package datadog.trace.instrumentation.junit4.retry;
+package datadog.trace.instrumentation.junit4.execution;
 
-import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.instrumentation.junit4.JUnit4Utils;
 import datadog.trace.instrumentation.junit4.TracingListener;
 import java.util.List;
@@ -8,14 +8,14 @@ import org.junit.runner.notification.Failure;
 import org.junit.runner.notification.RunListener;
 import org.junit.runner.notification.RunNotifier;
 
-public class RetryAwareNotifier extends RunNotifier {
+public class FailureSuppressingNotifier extends RunNotifier {
 
-  private final TestRetryPolicy retryPolicy;
+  private final TestExecutionPolicy executionPolicy;
 
   private boolean failed;
 
-  public RetryAwareNotifier(TestRetryPolicy retryPolicy, RunNotifier notifier) {
-    this.retryPolicy = retryPolicy;
+  public FailureSuppressingNotifier(TestExecutionPolicy executionPolicy, RunNotifier notifier) {
+    this.executionPolicy = executionPolicy;
 
     List<RunListener> listeners = JUnit4Utils.runListenersFromRunNotifier(notifier);
     for (RunListener listener : listeners) {
@@ -27,7 +27,7 @@ public class RetryAwareNotifier extends RunNotifier {
   public void fireTestFailure(Failure failure) {
     this.failed = true;
 
-    if (!retryPolicy.suppressFailures()) {
+    if (!executionPolicy.suppressFailures()) {
       super.fireTestFailure(failure);
       return;
     }

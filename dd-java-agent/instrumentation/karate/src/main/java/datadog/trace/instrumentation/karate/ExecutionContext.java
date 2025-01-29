@@ -3,16 +3,16 @@ package datadog.trace.instrumentation.karate;
 import com.intuit.karate.core.Scenario;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
-import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 
-public class RetryContext {
+public class ExecutionContext {
 
-  private final TestRetryPolicy retryPolicy;
+  private final TestExecutionPolicy executionPolicy;
   private boolean failed;
   private long startTimestamp;
 
-  public RetryContext(TestRetryPolicy retryPolicy) {
-    this.retryPolicy = retryPolicy;
+  public ExecutionContext(TestExecutionPolicy executionPolicy) {
+    this.executionPolicy = executionPolicy;
   }
 
   public void setStartTimestamp(long startTimestamp) {
@@ -33,14 +33,14 @@ public class RetryContext {
     return failed;
   }
 
-  public TestRetryPolicy getRetryPolicy() {
-    return retryPolicy;
+  public TestExecutionPolicy getExecutionPolicy() {
+    return executionPolicy;
   }
 
-  public static RetryContext create(Scenario scenario) {
+  public static ExecutionContext create(Scenario scenario) {
     TestIdentifier testIdentifier = KarateUtils.toTestIdentifier(scenario);
-    return new RetryContext(
-        TestEventsHandlerHolder.TEST_EVENTS_HANDLER.retryPolicy(
+    return new ExecutionContext(
+        TestEventsHandlerHolder.TEST_EVENTS_HANDLER.executionPolicy(
             testIdentifier, TestSourceData.UNKNOWN));
   }
 }

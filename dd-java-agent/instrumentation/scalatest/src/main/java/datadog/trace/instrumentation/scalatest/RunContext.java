@@ -6,7 +6,7 @@ import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
-import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
@@ -38,7 +38,7 @@ public class RunContext {
   private final java.util.Map<TestIdentifier, SkipReason> skipReasonByTest =
       new ConcurrentHashMap<>();
   private final java.util.Set<TestIdentifier> itrUnskippableTests = ConcurrentHashMap.newKeySet();
-  private final java.util.Map<TestIdentifier, TestRetryPolicy> retryPolicies =
+  private final java.util.Map<TestIdentifier, TestExecutionPolicy> executionPolicies =
       new ConcurrentHashMap<>();
 
   public RunContext(int runStamp) {
@@ -128,19 +128,20 @@ public class RunContext {
     return testTags != null && testTags.contains(InstrumentationBridge.ITR_UNSKIPPABLE_TAG);
   }
 
-  public TestRetryPolicy retryPolicy(TestIdentifier testIdentifier, TestSourceData testSourceData) {
-    return retryPolicies.computeIfAbsent(
-        testIdentifier, test -> eventHandler.retryPolicy(test, testSourceData));
+  public TestExecutionPolicy executionPolicy(
+      TestIdentifier testIdentifier, TestSourceData testSourceData) {
+    return executionPolicies.computeIfAbsent(
+        testIdentifier, test -> eventHandler.executionPolicy(test, testSourceData));
   }
 
   @Nullable
-  public TestRetryPolicy popRetryPolicy(TestIdentifier testIdentifier) {
-    TestRetryPolicy[] holder = new TestRetryPolicy[1];
-    retryPolicies.computeIfPresent(
+  public TestExecutionPolicy popExecutionPolicy(TestIdentifier testIdentifier) {
+    TestExecutionPolicy[] holder = new TestExecutionPolicy[1];
+    executionPolicies.computeIfPresent(
         testIdentifier,
-        (ti, retryPolicy) -> {
-          holder[0] = retryPolicy;
-          return retryPolicy.retriesLeft() ? retryPolicy : null;
+        (ti, policy) -> {
+          holder[0] = policy;
+          return policy.applicable() ? policy : null;
         });
     return holder[0];
   }

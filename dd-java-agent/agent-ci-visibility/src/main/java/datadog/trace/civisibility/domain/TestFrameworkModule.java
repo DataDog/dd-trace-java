@@ -2,7 +2,7 @@ package datadog.trace.civisibility.domain;
 
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
-import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import javax.annotation.Nonnull;
@@ -41,7 +41,7 @@ public interface TestFrameworkModule {
   SkipReason skipReason(TestIdentifier test);
 
   @Nonnull
-  TestRetryPolicy retryPolicy(TestIdentifier test, TestSourceData testSource);
+  TestExecutionPolicy executionPolicy(TestIdentifier test, TestSourceData testSource);
 
   void end(Long startTime);
 }

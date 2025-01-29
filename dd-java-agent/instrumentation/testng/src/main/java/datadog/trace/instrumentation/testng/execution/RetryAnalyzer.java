@@ -1,8 +1,8 @@
-package datadog.trace.instrumentation.testng.retry;
+package datadog.trace.instrumentation.testng.execution;
 
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
-import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
 import datadog.trace.instrumentation.testng.TestEventsHandlerHolder;
 import datadog.trace.instrumentation.testng.TestNGUtils;
@@ -11,28 +11,29 @@ import org.testng.ITestResult;
 
 public class RetryAnalyzer implements IRetryAnalyzer {
 
-  private volatile TestRetryPolicy retryPolicy;
+  private volatile TestExecutionPolicy executionPolicy;
 
   @Override
   public boolean retry(ITestResult result) {
     if (TestEventsHandlerHolder.TEST_EVENTS_HANDLER == null) {
       return false;
     }
-    if (retryPolicy == null) {
+    if (executionPolicy == null) {
       synchronized (this) {
-        if (retryPolicy == null) {
+        if (executionPolicy == null) {
           TestIdentifier testIdentifier = TestNGUtils.toTestIdentifier(result);
           TestSourceData testSourceData = TestNGUtils.toTestSourceData(result);
-          retryPolicy =
-              TestEventsHandlerHolder.TEST_EVENTS_HANDLER.retryPolicy(
+          executionPolicy =
+              TestEventsHandlerHolder.TEST_EVENTS_HANDLER.executionPolicy(
                   testIdentifier, testSourceData);
         }
       }
     }
-    return retryPolicy.retry(result.isSuccess(), result.getEndMillis() - result.getStartMillis());
+    return executionPolicy.retry(
+        result.isSuccess(), result.getEndMillis() - result.getStartMillis());
   }
 
   public RetryReason currentExecutionRetryReason() {
-    return retryPolicy != null ? retryPolicy.currentExecutionRetryReason() : null;
+    return executionPolicy != null ? executionPolicy.currentExecutionRetryReason() : null;
   }
 }

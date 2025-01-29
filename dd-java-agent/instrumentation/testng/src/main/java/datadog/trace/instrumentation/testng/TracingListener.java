@@ -4,7 +4,7 @@ import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
 import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
-import datadog.trace.instrumentation.testng.retry.RetryAnalyzer;
+import datadog.trace.instrumentation.testng.execution.RetryAnalyzer;
 import java.util.List;
 import org.testng.IConfigurationListener;
 import org.testng.IRetryAnalyzer;

@@ -8,7 +8,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.instrumentation.testng.TestNGUtils;
-import datadog.trace.instrumentation.testng.retry.RetryAnalyzer;
+import datadog.trace.instrumentation.testng.execution.RetryAnalyzer;
 import datadog.trace.util.Strings;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Set;
@@ -18,18 +18,19 @@ import org.testng.ITestNGMethod;
 import org.testng.ITestResult;
 
 @AutoService(InstrumenterModule.class)
-public class TestNGRetryInstrumentation extends InstrumenterModule.CiVisibility
+public class TestNGExecutionInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   private final String commonPackageName = Strings.getPackageName(TestNGUtils.class.getName());
 
-  public TestNGRetryInstrumentation() {
+  public TestNGExecutionInstrumentation() {
     super("ci-visibility", "testng", "test-retry");
   }
 
   @Override
   public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems) && Config.get().isCiVisibilityTestRetryEnabled();
+    return super.isApplicable(enabledSystems)
+        && Config.get().isCiVisibilityExecutionPoliciesEnabled();
   }
 
   @Override
@@ -41,7 +42,7 @@ public class TestNGRetryInstrumentation extends InstrumenterModule.CiVisibility
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("shouldRetryTestMethod").and(takesArgument(1, named("org.testng.ITestResult"))),
-        TestNGRetryInstrumentation.class.getName() + "$RetryAdvice");
+        TestNGExecutionInstrumentation.class.getName() + "$ExecutionAdvice");
   }
 
   @Override
@@ -50,11 +51,11 @@ public class TestNGRetryInstrumentation extends InstrumenterModule.CiVisibility
       commonPackageName + ".TestNGUtils",
       commonPackageName + ".TestEventsHandlerHolder",
       commonPackageName + ".TestNGClassListener",
-      commonPackageName + ".retry.RetryAnalyzer",
+      commonPackageName + ".execution.RetryAnalyzer",
     };
   }
 
-  public static class RetryAdvice {
+  public static class ExecutionAdvice {
     @SuppressWarnings("bytebuddy-exception-suppression")
     @SuppressFBWarnings("NP_BOOLEAN_RETURN_NULL")
     @Advice.OnMethodExit

@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.junit4.retry;
+package datadog.trace.instrumentation.junit4.execution;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
@@ -10,7 +10,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
-import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.junit4.JUnit4Utils;
 import datadog.trace.instrumentation.junit4.TestEventsHandlerHolder;
@@ -30,18 +30,19 @@ import org.junit.runners.ParentRunner;
 import org.junit.runners.model.Statement;
 
 @AutoService(InstrumenterModule.class)
-public class JUnit4RetryInstrumentation extends InstrumenterModule.CiVisibility
+public class JUnit4ExecutionInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   private final String parentPackageName = Strings.getPackageName(JUnit4Utils.class.getName());
 
-  public JUnit4RetryInstrumentation() {
+  public JUnit4ExecutionInstrumentation() {
     super("ci-visibility", "junit-4", "test-retry");
   }
 
   @Override
   public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems) && Config.get().isCiVisibilityTestRetryEnabled();
+    return super.isApplicable(enabledSystems)
+        && Config.get().isCiVisibilityExecutionPoliciesEnabled();
   }
 
   @Override
@@ -61,14 +62,14 @@ public class JUnit4RetryInstrumentation extends InstrumenterModule.CiVisibility
       parentPackageName + ".JUnit4Utils",
       parentPackageName + ".TracingListener",
       parentPackageName + ".TestEventsHandlerHolder",
-      packageName + ".RetryAwareNotifier"
+      packageName + ".FailureSuppressingNotifier"
     };
   }
 
   @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
-        "org.junit.runner.Description", TestRetryPolicy.class.getName());
+        "org.junit.runner.Description", TestExecutionPolicy.class.getName());
   }
 
   @Override
@@ -78,50 +79,52 @@ public class JUnit4RetryInstrumentation extends InstrumenterModule.CiVisibility
             .and(takesArgument(0, named("org.junit.runners.model.Statement")))
             .and(takesArgument(1, named("org.junit.runner.Description")))
             .and(takesArgument(2, named("org.junit.runner.notification.RunNotifier"))),
-        JUnit4RetryInstrumentation.class.getName() + "$RetryAdvice");
+        JUnit4ExecutionInstrumentation.class.getName() + "$ExecutionAdvice");
   }
 
-  public static class RetryAdvice {
+  public static class ExecutionAdvice {
     @SuppressWarnings("bytebuddy-exception-suppression")
     @SuppressFBWarnings("NP_BOOLEAN_RETURN_NULL")
     @Advice.OnMethodEnter(skipOn = Boolean.class)
-    public static Boolean retryIfNeeded(
+    public static Boolean apply(
         @Advice.Origin Method runTest,
         @Advice.This ParentRunner<?> runner,
         @Advice.Argument(0) Statement statement,
         @Advice.Argument(1) Description description,
         @Advice.Argument(2) RunNotifier notifier) {
-      if (notifier instanceof RetryAwareNotifier) {
+      if (notifier instanceof FailureSuppressingNotifier) {
         // notifier already wrapped, run original method
         return null;
       }
 
       TestIdentifier testIdentifier = JUnit4Utils.toTestIdentifier(description);
       TestSourceData testSourceData = JUnit4Utils.toTestSourceData(description);
-      TestRetryPolicy retryPolicy =
-          TestEventsHandlerHolder.TEST_EVENTS_HANDLER.retryPolicy(testIdentifier, testSourceData);
-      if (!retryPolicy.retriesLeft()) {
+      TestExecutionPolicy executionPolicy =
+          TestEventsHandlerHolder.TEST_EVENTS_HANDLER.executionPolicy(
+              testIdentifier, testSourceData);
+      if (!executionPolicy.applicable()) {
         // retries not applicable, run original method
         return null;
       }
 
-      InstrumentationContext.get(Description.class, TestRetryPolicy.class)
-          .put(description, retryPolicy);
+      InstrumentationContext.get(Description.class, TestExecutionPolicy.class)
+          .put(description, executionPolicy);
 
-      RetryAwareNotifier retryAwareNotifier = new RetryAwareNotifier(retryPolicy, notifier);
+      FailureSuppressingNotifier failureSuppressingNotifier =
+          new FailureSuppressingNotifier(executionPolicy, notifier);
       long duration;
       boolean testFailed;
       do {
         long startTimestamp = System.currentTimeMillis();
         try {
           runTest.setAccessible(true);
-          runTest.invoke(runner, statement, description, retryAwareNotifier);
-          testFailed = retryAwareNotifier.getAndResetFailedFlag();
+          runTest.invoke(runner, statement, description, failureSuppressingNotifier);
+          testFailed = failureSuppressingNotifier.getAndResetFailedFlag();
         } catch (Throwable throwable) {
           testFailed = true;
         }
         duration = System.currentTimeMillis() - startTimestamp;
-      } while (retryPolicy.retry(!testFailed, duration));
+      } while (executionPolicy.retry(!testFailed, duration));
 
       // skip original method
       return Boolean.TRUE;
