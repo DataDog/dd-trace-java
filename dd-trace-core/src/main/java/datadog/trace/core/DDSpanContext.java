@@ -367,9 +367,7 @@ public class DDSpanContext
         propagationTags != null
             ? propagationTags
             : traceCollector.getTracer().getPropagationTagsFactory().empty();
-    if (parentId == 0) { // higher bits of traceID are only used in root span
-      this.propagationTags.updateTraceIdHighOrderBits(this.traceId.toHighOrderLong());
-    }
+    this.propagationTags.updateTraceIdHighOrderBits(this.traceId.toHighOrderLong());
     this.injectBaggageAsTags = injectBaggageAsTags;
     if (origin != null) {
       setOrigin(origin);
