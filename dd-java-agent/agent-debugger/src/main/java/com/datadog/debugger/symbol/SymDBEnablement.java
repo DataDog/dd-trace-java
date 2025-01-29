@@ -119,7 +119,9 @@ public class SymDBEnablement implements ProductListener {
         symbolExtractionTransformer =
             new SymbolExtractionTransformer(symbolAggregator, classNameFilter);
         instrumentation.addTransformer(symbolExtractionTransformer);
-        extractSymbolForLoadedClasses();
+        SymDBReport symDBReport = new SymDBReport();
+        extractSymbolForLoadedClasses(symDBReport);
+        symDBReport.report();
         lastUploadTimestamp = System.currentTimeMillis();
       } catch (Throwable ex) {
         // catch all Throwables because LinkageError is possible (duplicate class definition)
@@ -130,7 +132,7 @@ public class SymDBEnablement implements ProductListener {
     }
   }
 
-  private void extractSymbolForLoadedClasses() {
+  private void extractSymbolForLoadedClasses(SymDBReport symDBReport) {
     Class<?>[] classesToExtract;
     try {
       classesToExtract =
@@ -148,7 +150,7 @@ public class SymDBEnablement implements ProductListener {
     for (Class<?> clazz : classesToExtract) {
       Path jarPath;
       try {
-        jarPath = JarScanner.extractJarPath(clazz);
+        jarPath = JarScanner.extractJarPath(clazz, symDBReport);
       } catch (URISyntaxException e) {
         throw new RuntimeException(e);
       }
@@ -156,11 +158,13 @@ public class SymDBEnablement implements ProductListener {
         continue;
       }
       if (!Files.exists(jarPath)) {
+        symDBReport.addMissingJar(jarPath.toString());
         continue;
       }
       File jarPathFile = jarPath.toFile();
       if (jarPathFile.isDirectory()) {
         // we are not supporting class directories (classpath) but only jar files
+        symDBReport.addDirectoryJar(jarPath.toString());
         continue;
       }
       if (alreadyScannedJars.contains(jarPath.toString())) {
@@ -178,6 +182,7 @@ public class SymDBEnablement implements ProductListener {
         }
         alreadyScannedJars.add(jarPath.toString());
       } catch (IOException e) {
+        symDBReport.addIOException(jarPath.toString(), e);
         throw new RuntimeException(e);
       }
     }

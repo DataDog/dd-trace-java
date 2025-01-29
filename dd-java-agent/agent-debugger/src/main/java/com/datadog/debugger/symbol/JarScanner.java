@@ -19,11 +19,12 @@ public class JarScanner {
   private static final String SPRING_CLASSES_PREFIX = "BOOT-INF/classes/";
   private static final String SPRING_DEPS_PREFIX = "BOOT-INF/lib/";
 
-  public static Path extractJarPath(Class<?> clazz) throws URISyntaxException {
-    return extractJarPath(clazz.getProtectionDomain());
+  public static Path extractJarPath(Class<?> clazz, SymDBReport symDBReport)
+      throws URISyntaxException {
+    return extractJarPath(clazz.getProtectionDomain(), symDBReport);
   }
 
-  public static Path extractJarPath(ProtectionDomain protectionDomain) throws URISyntaxException {
+  public static Path extractJarPath(ProtectionDomain protectionDomain, SymDBReport symDBReport) {
     if (protectionDomain == null) {
       return null;
     }
@@ -49,6 +50,9 @@ public class JarScanner {
       }
     } else if (locationStr.startsWith(FILE_PREFIX)) {
       return getPathFromPrefixedFileName(locationStr, FILE_PREFIX, locationStr.length());
+    }
+    if (symDBReport != null) {
+      symDBReport.addLocationError(locationStr);
     }
     return null;
   }
