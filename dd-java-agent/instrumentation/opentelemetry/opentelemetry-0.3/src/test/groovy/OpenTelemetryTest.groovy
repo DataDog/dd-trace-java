@@ -1,3 +1,10 @@
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CONSUMER
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_INTERNAL
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_PRODUCER
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_SERVER
+
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
@@ -94,6 +101,36 @@ class OpenTelemetryTest extends AgentTestRunner {
     true       | true
     false      | false
     false      | true
+  }
+
+  def "test span kinds as attributes"() {
+    setup:
+    def result = tracer.spanBuilder("some-name")
+      .setAttribute("span.kind", otelSpanKind)
+      .startSpan()
+
+    when:
+    result.end()
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          tags {
+            defaultTags()
+            "$SPAN_KIND" "$tagSpanKind"
+          }
+        }
+      }
+    }
+
+    where:
+    otelSpanKind | tagSpanKind
+    "internal"     | SPAN_KIND_INTERNAL
+    "server"       | SPAN_KIND_SERVER
+    "client"       | SPAN_KIND_CLIENT
+    "producer"     | SPAN_KIND_PRODUCER
+    "consumer"     | SPAN_KIND_CONSUMER
   }
 
   def "test span exception"() {
