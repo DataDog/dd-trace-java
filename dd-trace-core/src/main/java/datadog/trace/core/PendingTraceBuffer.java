@@ -146,7 +146,14 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
     private static final class DumpDrain
         implements MessagePassingQueue.Consumer<Element>, MessagePassingQueue.Supplier<Element> {
       private static final DumpDrain DUMP_DRAIN = new DumpDrain();
-      private static final List<Element> DATA = new ArrayList<>();
+      private static final int MAX_DUMPED_TRACES = 50;
+
+      private static final Comparator<Element> TRACE_BY_START_TIME =
+          comparingLong(trace -> trace.getRootSpan().getStartTime());
+      private static final Predicate<Element> NOT_PENDING_TRACE =
+          element -> !(element instanceof PendingTrace);
+
+      private volatile List<Element> DATA = new ArrayList<>();
       private int index = 0;
 
       @Override
@@ -161,6 +168,19 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
         }
         return null; // Should never reach here or else queue may break according to
         // MessagePassingQueue docs
+      }
+
+      public List<Element> collectTraces() {
+        DATA.removeIf(NOT_PENDING_TRACE);
+        // Storing oldest traces first
+        DATA.sort(TRACE_BY_START_TIME.reversed());
+        List<Element> orderedTraces = DATA;
+        DATA = new ArrayList<>();
+        return orderedTraces;
+      }
+
+      public void clear() {
+        DATA.clear();
       }
     }
 
@@ -220,8 +240,9 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
             }
 
             if (pendingTrace == DUMP_ELEMENT) {
-              queue.drain(DumpDrain.DUMP_DRAIN, 50);
-              queue.fill(DumpDrain.DUMP_DRAIN, DumpDrain.DATA.size());
+              queue.fill(
+                  DumpDrain.DUMP_DRAIN,
+                  queue.drain(DumpDrain.DUMP_DRAIN, DumpDrain.MAX_DUMPED_TRACES));
               dumpCounter.incrementAndGet();
               continue;
             }
@@ -318,10 +339,6 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
   public abstract void enqueue(Element pendingTrace);
 
   private static class TracerDump implements TracerFlare.Reporter {
-    private static final Comparator<Element> TRACE_BY_START_TIME =
-        comparingLong(trace -> trace.getRootSpan().getStartTime());
-    private static final Predicate<Element> NOT_PENDING_TRACE =
-        element -> !(element instanceof PendingTrace);
     private final DelayingPendingTraceBuffer buffer;
 
     private TracerDump(DelayingPendingTraceBuffer buffer) {
@@ -348,19 +365,13 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
 
     @Override
     public void addReportToFlare(ZipOutputStream zip) throws IOException {
-      DelayingPendingTraceBuffer.DumpDrain.DATA.removeIf(NOT_PENDING_TRACE);
-      // Storing oldest traces first
-      DelayingPendingTraceBuffer.DumpDrain.DATA.sort((TRACE_BY_START_TIME).reversed());
-
       TraceDumpJsonExporter writer = new TraceDumpJsonExporter(zip);
-      for (Element e : DelayingPendingTraceBuffer.DumpDrain.DATA) {
+      for (Element e : DelayingPendingTraceBuffer.DumpDrain.DUMP_DRAIN.collectTraces()) {
         if (e instanceof PendingTrace) {
           PendingTrace trace = (PendingTrace) e;
-          writer.write(new ArrayList<>(trace.getSpans()));
+          writer.write(trace.getSpans());
         }
       }
-      // Releasing memory used for ArrayList in drain
-      DelayingPendingTraceBuffer.DumpDrain.DATA.clear();
       writer.flush();
     }
   }
