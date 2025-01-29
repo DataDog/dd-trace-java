@@ -4,6 +4,7 @@ import static datadog.json.JsonMapper.toJson;
 
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
+import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -185,8 +186,9 @@ public abstract class JUnitPlatformUtils {
     return "test-template".equals(lastSegment.getType());
   }
 
-  public static String retryReason(TestDescriptor testDescriptor) {
-    return getIDSegmentValue(testDescriptor, RETRY_DESCRIPTOR_REASON_SUFFIX);
+  public static RetryReason retryReason(TestDescriptor testDescriptor) {
+    String retryReasonSegment = getIDSegmentValue(testDescriptor, RETRY_DESCRIPTOR_REASON_SUFFIX);
+    return retryReasonSegment != null ? RetryReason.valueOf(retryReasonSegment) : null;
   }
 
   public static boolean isRetry(TestDescriptor testDescriptor) {

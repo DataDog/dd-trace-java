@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.testng;
 
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
+import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.instrumentation.testng.retry.RetryAnalyzer;
 import java.util.List;
@@ -94,7 +95,7 @@ public class TracingListener extends TestNGClassListener
         null);
   }
 
-  private String retryReason(final ITestResult result) {
+  private RetryReason retryReason(final ITestResult result) {
     IRetryAnalyzer retryAnalyzer = TestNGUtils.getRetryAnalyzer(result);
     if (retryAnalyzer instanceof RetryAnalyzer) {
       RetryAnalyzer datadogAnalyzer = (RetryAnalyzer) retryAnalyzer;

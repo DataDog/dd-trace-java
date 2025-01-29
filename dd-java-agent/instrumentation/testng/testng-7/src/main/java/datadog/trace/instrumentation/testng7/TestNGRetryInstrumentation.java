@@ -55,6 +55,7 @@ public class TestNGRetryInstrumentation extends InstrumenterModule.CiVisibility
   }
 
   public static class RetryAdvice {
+    @SuppressWarnings("bytebuddy-exception-suppression")
     @SuppressFBWarnings("NP_BOOLEAN_RETURN_NULL")
     @Advice.OnMethodExit
     public static void shouldRetryTestMethod(
