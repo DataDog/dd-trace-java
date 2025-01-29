@@ -1,6 +1,10 @@
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: "idea"
 
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_17
+}
+
 sourceSets {
   main_java17 {
     java.srcDirs "${project.projectDir}/src/main/java17"
