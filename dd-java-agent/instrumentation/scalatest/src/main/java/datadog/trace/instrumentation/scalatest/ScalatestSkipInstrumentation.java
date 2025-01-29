@@ -21,10 +21,10 @@ import org.scalatest.Tracker;
 import scala.Tuple2;
 
 @AutoService(InstrumenterModule.class)
-public class ScalatestItrInstrumentation extends InstrumenterModule.CiVisibility
+public class ScalatestSkipInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
-  public ScalatestItrInstrumentation() {
+  public ScalatestSkipInstrumentation() {
     super("ci-visibility", "scalatest");
   }
 
@@ -59,7 +59,7 @@ public class ScalatestItrInstrumentation extends InstrumenterModule.CiVisibility
         isConstructor()
             .and(takesArgument(2, named("org.scalatest.Filter")))
             .and(takesArgument(5, named("org.scalatest.Tracker"))),
-        ScalatestItrInstrumentation.class.getName() + "$ArgsContructorAdvice");
+        ScalatestSkipInstrumentation.class.getName() + "$ArgsContructorAdvice");
     // org.scalatest.Filter
     transformer.applyAdvice(
         named("apply")
@@ -67,14 +67,14 @@ public class ScalatestItrInstrumentation extends InstrumenterModule.CiVisibility
             .and(takesArgument(0, String.class))
             .and(takesArgument(1, named("scala.collection.immutable.Map")))
             .and(takesArgument(2, String.class)),
-        ScalatestItrInstrumentation.class.getName() + "$SingleTestFilterAdvice");
+        ScalatestSkipInstrumentation.class.getName() + "$SingleTestFilterAdvice");
     transformer.applyAdvice(
         named("apply")
             .and(takesArguments(3))
             .and(takesArgument(0, named("scala.collection.immutable.Set")))
             .and(takesArgument(1, named("scala.collection.immutable.Map")))
             .and(takesArgument(2, String.class)),
-        ScalatestItrInstrumentation.class.getName() + "$MultipleTestsFilterAdvice");
+        ScalatestSkipInstrumentation.class.getName() + "$MultipleTestsFilterAdvice");
   }
 
   public static class ArgsContructorAdvice {

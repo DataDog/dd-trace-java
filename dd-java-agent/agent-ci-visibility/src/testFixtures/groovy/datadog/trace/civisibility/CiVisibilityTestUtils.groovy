@@ -7,6 +7,7 @@ import com.jayway.jsonpath.JsonPath
 import com.jayway.jsonpath.Option
 import com.jayway.jsonpath.ReadContext
 import com.jayway.jsonpath.WriteContext
+import freemarker.core.InvalidReferenceException
 import freemarker.template.Template
 import freemarker.template.TemplateExceptionHandler
 import org.skyscreamer.jsonassert.JSONAssert
@@ -130,6 +131,16 @@ abstract class CiVisibilityTestUtils {
       StringWriter coveragesOut = new StringWriter()
       coveragesTemplate.process(replacements, coveragesOut)
       return coveragesOut.toString()
+    } catch (InvalidReferenceException e) {
+      def missingExpression = e.getBlamedExpressionString()
+      if (missingExpression != null) {
+        replacements.put(missingExpression, "<VALUE_MISSING>") // to simplify debugging failures
+        return getFreemarkerTemplate(templatePath, replacements, replacementsSource)
+
+      } else {
+        throw new RuntimeException("Could not get Freemarker template " + templatePath + "; replacements map: " + replacements + "; replacements source: " + replacementsSource, e)
+      }
+
     } catch (Exception e) {
       throw new RuntimeException("Could not get Freemarker template " + templatePath + "; replacements map: " + replacements + "; replacements source: " + replacementsSource, e)
     }
