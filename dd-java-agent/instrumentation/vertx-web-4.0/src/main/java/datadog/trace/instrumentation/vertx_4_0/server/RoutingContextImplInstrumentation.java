@@ -15,10 +15,10 @@ import io.vertx.ext.web.impl.RoutingContextImpl;
  * @see RoutingContextImpl#getBodyAsJsonArray(int)
  */
 @AutoService(InstrumenterModule.class)
-public class RoutingContextImplBodyInstrumentation extends InstrumenterModule.AppSec
+public class RoutingContextImplInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public RoutingContextImplBodyInstrumentation() {
+  public RoutingContextImplInstrumentation() {
     super("vertx", "vertx-4.0");
   }
 
@@ -40,5 +40,8 @@ public class RoutingContextImplBodyInstrumentation extends InstrumenterModule.Ap
             .and(takesArguments(1))
             .and(takesArgument(0, int.class)),
         packageName + ".RoutingContextJsonAdvice");
+    transformer.applyAdvice(
+        named("setSession").and(takesArgument(0, named("io.vertx.ext.web.Session"))),
+        packageName + ".RoutingContextSessionAdvice");
   }
 }
