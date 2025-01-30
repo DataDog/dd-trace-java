@@ -12,6 +12,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Collection;
 import java.util.Set;
@@ -24,10 +25,10 @@ import org.junit.platform.engine.support.hierarchical.Node;
 import org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService;
 
 @AutoService(InstrumenterModule.class)
-public class JUnit5ItrInstrumentation extends InstrumenterModule.CiVisibility
+public class JUnit5SkipInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  public JUnit5ItrInstrumentation() {
+  public JUnit5SkipInstrumentation() {
     super("ci-visibility", "junit-5");
   }
 
@@ -62,7 +63,7 @@ public class JUnit5ItrInstrumentation extends InstrumenterModule.CiVisibility
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("shouldBeSkipped").and(takesArguments(1)),
-        JUnit5ItrInstrumentation.class.getName() + "$JUnit5ItrAdvice");
+        JUnit5SkipInstrumentation.class.getName() + "$JUnit5SkipAdvice");
   }
 
   /**
@@ -70,7 +71,7 @@ public class JUnit5ItrInstrumentation extends InstrumenterModule.CiVisibility
    * org.junit.platform.launcher} package in here: in some Gradle projects this package is not
    * available in CL where this instrumentation is injected
    */
-  public static class JUnit5ItrAdvice {
+  public static class JUnit5SkipAdvice {
 
     @SuppressFBWarnings(
         value = "UC_USELESS_OBJECT",
@@ -89,17 +90,25 @@ public class JUnit5ItrInstrumentation extends InstrumenterModule.CiVisibility
         return;
       }
 
-      Collection<TestTag> tags = testDescriptor.getTags();
-      for (TestTag tag : tags) {
-        if (InstrumentationBridge.ITR_UNSKIPPABLE_TAG.equals(tag.getName())) {
-          return;
+      TestIdentifier test = JUnitPlatformUtils.toTestIdentifier(testDescriptor);
+      if (test == null) {
+        return;
+      }
+      SkipReason skipReason = TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skipReason(test);
+      if (skipReason == null) {
+        return;
+      }
+
+      if (skipReason == SkipReason.ITR) {
+        Collection<TestTag> tags = testDescriptor.getTags();
+        for (TestTag tag : tags) {
+          if (InstrumentationBridge.ITR_UNSKIPPABLE_TAG.equals(tag.getName())) {
+            return;
+          }
         }
       }
 
-      TestIdentifier test = JUnitPlatformUtils.toTestIdentifier(testDescriptor);
-      if (test != null && TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skip(test)) {
-        skipResult = Node.SkipResult.skip(InstrumentationBridge.ITR_SKIP_REASON);
-      }
+      skipResult = Node.SkipResult.skip(skipReason.getDescription());
     }
 
     // JUnit 5.3.0 and above

@@ -1,6 +1,7 @@
 package com.datadog.debugger.probe;
 
 import static com.datadog.debugger.probe.LogProbe.Capture.toLimits;
+import static java.lang.String.format;
 
 import com.datadog.debugger.agent.DebuggerAgent;
 import com.datadog.debugger.agent.Generated;
@@ -16,12 +17,14 @@ import com.datadog.debugger.instrumentation.MethodInfo;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.Snapshot;
 import com.datadog.debugger.util.MoshiHelper;
+import com.datadog.debugger.util.WeakIdentityHashMap;
 import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Types;
 import datadog.trace.api.Config;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.CorrelationAccess;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
@@ -49,6 +52,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,6 +62,9 @@ public class LogProbe extends ProbeDefinition implements Sampled {
   private static final Logger LOGGER = LoggerFactory.getLogger(LogProbe.class);
   private static final Limits LIMITS = new Limits(1, 3, 8192, 5);
   private static final int LOG_MSG_LIMIT = 8192;
+
+  public static final int CAPTURING_PROBE_BUDGET = 10;
+  public static final int NON_CAPTURING_PROBE_BUDGET = 1000;
 
   /** Stores part of a templated message either a str or an expression */
   public static class Segment {
@@ -278,6 +285,8 @@ public class LogProbe extends ProbeDefinition implements Sampled {
   private final Capture capture;
   private final Sampling sampling;
   private transient Consumer<Snapshot> snapshotProcessor;
+  protected transient Map<DDTraceId, AtomicInteger> budget =
+      Collections.synchronizedMap(new WeakIdentityHashMap<>());
 
   // no-arg constructor is required by Moshi to avoid creating instance with unsafe and by-passing
   // constructors, including field initializers.
@@ -571,9 +580,14 @@ public class LogProbe extends ProbeDefinition implements Sampled {
     boolean shouldCommit = fillSnapshot(entryContext, exitContext, caughtExceptions, snapshot);
     DebuggerSink sink = DebuggerAgent.getSink();
     if (shouldCommit) {
-      commitSnapshot(snapshot, sink);
-      if (snapshotProcessor != null) {
-        snapshotProcessor.accept(snapshot);
+      incrementBudget();
+      if (inBudget()) {
+        commitSnapshot(snapshot, sink);
+        if (snapshotProcessor != null) {
+          snapshotProcessor.accept(snapshot);
+        }
+      } else {
+        sink.skipSnapshot(id, DebuggerContext.SkipCause.BUDGET);
       }
     } else {
       sink.skipSnapshot(id, DebuggerContext.SkipCause.CONDITION);
@@ -852,6 +866,33 @@ public class LogProbe extends ProbeDefinition implements Sampled {
           + ", sampled="
           + sampled
           + '}';
+    }
+  }
+
+  private boolean inBudget() {
+    AtomicInteger budgetLevel = getBudgetLevel();
+    return budgetLevel == null
+        || budgetLevel.get()
+            <= (captureSnapshot ? CAPTURING_PROBE_BUDGET : NON_CAPTURING_PROBE_BUDGET);
+  }
+
+  private AtomicInteger getBudgetLevel() {
+    TracerAPI tracer = AgentTracer.get();
+    AgentSpan span = tracer != null ? tracer.activeSpan() : null;
+    return getDebugSessionId() == null || span == null
+        ? null
+        : budget.computeIfAbsent(span.getLocalRootSpan().getTraceId(), id -> new AtomicInteger());
+  }
+
+  private void incrementBudget() {
+    AtomicInteger budgetLevel = getBudgetLevel();
+    if (budgetLevel != null) {
+      budgetLevel.incrementAndGet();
+      TracerAPI tracer = AgentTracer.get();
+      AgentSpan span = tracer != null ? tracer.activeSpan() : null;
+      if (span != null) {
+        span.getLocalRootSpan().setTag(format("_dd.ld.probe_id.%s", id), budgetLevel.get());
+      }
     }
   }
 

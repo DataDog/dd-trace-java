@@ -12,6 +12,8 @@ import datadog.trace.api.civisibility.retry.TestRetryPolicy;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.EventType;
+import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
+import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -137,7 +139,7 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
       final @Nullable String testParameters,
       final @Nullable Collection<String> categories,
       final @Nonnull TestSourceData testSourceData,
-      final @Nullable String retryReason,
+      final @Nullable RetryReason retryReason,
       final @Nullable Long startTime) {
     if (skipTrace(testSourceData.getTestClass())) {
       return;
@@ -187,7 +189,7 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
           test.setTag(Tags.TEST_ITR_UNSKIPPABLE, true);
           metricCollector.add(CiVisibilityCountMetric.ITR_UNSKIPPABLE, 1, EventType.TEST);
 
-          if (testModule.shouldBeSkipped(thisTest)) {
+          if (testModule.skipReason(thisTest) == SkipReason.ITR) {
             test.setTag(Tags.TEST_ITR_FORCED_RUN, true);
             metricCollector.add(CiVisibilityCountMetric.ITR_FORCED_RUN, 1, EventType.TEST);
           }
@@ -261,16 +263,6 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
   }
 
   @Override
-  public boolean skip(TestIdentifier test) {
-    return testModule.skip(test);
-  }
-
-  @Override
-  public boolean shouldBeSkipped(TestIdentifier test) {
-    return testModule.shouldBeSkipped(test);
-  }
-
-  @Override
   @Nonnull
   public TestRetryPolicy retryPolicy(TestIdentifier test, TestSourceData testSource) {
     return testModule.retryPolicy(test, testSource);
@@ -284,6 +276,12 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
   @Override
   public boolean isFlaky(TestIdentifier test) {
     return testModule.isFlaky(test);
+  }
+
+  @Nullable
+  @Override
+  public SkipReason skipReason(TestIdentifier test) {
+    return testModule.skipReason(test);
   }
 
   @Override

@@ -5,6 +5,7 @@ import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestMetadata;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.civisibility.config.EarlyFlakeDetectionSettings;
 import datadog.trace.civisibility.config.ExecutionSettings;
 import datadog.trace.civisibility.retry.NeverRetry;
@@ -16,8 +17,8 @@ import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.LongAdder;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,7 +26,6 @@ public class ExecutionStrategy {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ExecutionStrategy.class);
 
-  private final LongAdder testsSkipped = new LongAdder();
   private final AtomicInteger earlyFlakeDetectionsUsed = new AtomicInteger(0);
   private final AtomicInteger autoRetriesUsed = new AtomicInteger(0);
 
@@ -50,10 +50,6 @@ public class ExecutionStrategy {
     return executionSettings;
   }
 
-  public long getTestsSkipped() {
-    return testsSkipped.sum();
-  }
-
   public boolean isNew(TestIdentifier test) {
     Collection<TestIdentifier> knownTests = executionSettings.getKnownTests();
     return knownTests != null && !knownTests.contains(test.withoutParameters());
@@ -64,27 +60,23 @@ public class ExecutionStrategy {
     return flakyTests != null && flakyTests.contains(test.withoutParameters());
   }
 
-  public boolean shouldBeSkipped(TestIdentifier test) {
+  @Nullable
+  public SkipReason skipReason(TestIdentifier test) {
     if (test == null) {
-      return false;
+      return null;
     }
     if (!executionSettings.isTestSkippingEnabled()) {
-      return false;
+      return null;
     }
     Map<TestIdentifier, TestMetadata> skippableTests = executionSettings.getSkippableTests();
     TestMetadata testMetadata = skippableTests.get(test);
-    return testMetadata != null
-        && !(config.isCiVisibilityCoverageLinesEnabled()
-            && testMetadata.isMissingLineCodeCoverage());
-  }
-
-  public boolean skip(TestIdentifier test) {
-    if (shouldBeSkipped(test)) {
-      testsSkipped.increment();
-      return true;
-    } else {
-      return false;
+    if (testMetadata == null) {
+      return null;
     }
+    if (config.isCiVisibilityCoverageLinesEnabled() && testMetadata.isMissingLineCodeCoverage()) {
+      return null;
+    }
+    return SkipReason.ITR;
   }
 
   @Nonnull

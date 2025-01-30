@@ -43,7 +43,7 @@ public class SymbolAggregator {
       String className, byte[] classfileBuffer, ProtectionDomain protectionDomain) {
     try {
       String jarName = "DEFAULT";
-      Path jarPath = JarScanner.extractJarPath(protectionDomain);
+      Path jarPath = JarScanner.extractJarPath(protectionDomain, null);
       if (jarPath != null && Files.exists(jarPath)) {
         LOGGER.debug("jarpath: {}", jarPath);
         jarName = jarPath.toString();

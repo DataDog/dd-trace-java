@@ -50,7 +50,7 @@ public class MUnitRetryInstrumentation extends InstrumenterModule.CiVisibility
   public String[] helperClassNames() {
     return new String[] {
       parentPackageName + ".MUnitUtils",
-      parentPackageName + ".SkippedByItr",
+      parentPackageName + ".SkippedByDatadog",
       parentPackageName + ".JUnit4Utils",
       parentPackageName + ".TracingListener",
       parentPackageName + ".TestEventsHandlerHolder",
@@ -72,6 +72,7 @@ public class MUnitRetryInstrumentation extends InstrumenterModule.CiVisibility
   }
 
   public static class RetryAdvice {
+    @SuppressWarnings("bytebuddy-exception-suppression")
     @Advice.OnMethodEnter(skipOn = Future.class)
     public static Future<?> retryIfNeeded(
         @Advice.Origin Method runTest,
@@ -118,6 +119,7 @@ public class MUnitRetryInstrumentation extends InstrumenterModule.CiVisibility
       return result;
     }
 
+    @SuppressWarnings("bytebuddy-exception-suppression")
     @SuppressFBWarnings(
         value = "UC_USELESS_OBJECT",
         justification = "result is the return value of the original method")

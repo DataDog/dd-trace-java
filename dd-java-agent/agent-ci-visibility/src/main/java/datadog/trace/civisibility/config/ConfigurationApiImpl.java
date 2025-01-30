@@ -29,6 +29,7 @@ import java.lang.reflect.ParameterizedType;
 import java.util.Base64;
 import java.util.BitSet;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -191,7 +192,9 @@ public class ConfigurationApiImpl implements ConfigurationApi {
 
     String correlationId = response.meta != null ? response.meta.correlation_id : null;
     Map<String, BitSet> coveredLinesByRelativeSourcePath =
-        response.meta != null ? response.meta.coverage : null;
+        response.meta != null && response.meta.coverage != null
+            ? response.meta.coverage
+            : Collections.emptyMap();
     return new SkippableTests(
         correlationId, testIdentifiersByModule, coveredLinesByRelativeSourcePath);
   }

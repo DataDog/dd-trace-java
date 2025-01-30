@@ -48,6 +48,8 @@ dependencies {
   api group: 'io.opentracing.contrib', name: 'opentracing-tracerresolver', version: '0.1.6'
 
   api libs.slf4j
+  api libs.jnr.unixsocket
+
   implementation project(':dd-trace-ot:correlation-id-injection')
 
   testImplementation project(":dd-java-agent:testing")
@@ -96,16 +98,15 @@ shadowJar {
     exclude(dependency('io.opentracing:'))
     exclude(dependency('io.opentracing.contrib:'))
     exclude(dependency('org.slf4j:'))
+    exclude(dependency('com.github.jnr:'))
   }
 
   relocate('com.', 'ddtrot.com.') {
-    // don't relocate native methods
-    exclude('com.kenai.jffi.*')
-    exclude('com.kenai.jffi.internal.*')
+    // leave our PatchInit class shaded even though its not used in this deployment
+    // unfortunately the shadow plugin doesn't let us completely remove this class
+    exclude('%regex[com/kenai/jffi/(?!PatchInit)[^/]*]')
   }
   relocate('dogstatsd/', 'ddtrot/dogstatsd/')
-  relocate('jni/', 'ddtrot/jni/')
-  relocate('jnr/', 'ddtrot/jnr/')
   relocate('okhttp3.', 'ddtrot.okhttp3.')
   relocate('okio.', 'ddtrot.okio.')
   relocate('org.', 'ddtrot.org.') {

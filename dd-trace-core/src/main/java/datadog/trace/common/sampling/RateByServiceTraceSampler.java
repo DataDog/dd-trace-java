@@ -6,8 +6,9 @@ import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.common.writer.RemoteResponseListener;
 import datadog.trace.core.CoreSpan;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,8 +72,8 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
     }
 
     log.debug("Update service sampler rates: {} -> {}", endpoint, responseJson);
-    final Map<String, Map<String, RateSampler>> updatedEnvServiceRates =
-        new HashMap<>(newServiceRates.size() * 2);
+    final TreeMap<String, TreeMap<String, RateSampler>> updatedEnvServiceRates =
+        new TreeMap<>(String::compareToIgnoreCase);
 
     RateSampler fallbackSampler = RateSamplersByEnvAndService.DEFAULT_SAMPLER;
     for (final Map.Entry<String, Number> entry : newServiceRates.entrySet()) {
@@ -87,7 +88,7 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
       } else {
         Map<String, RateSampler> serviceRates =
             updatedEnvServiceRates.computeIfAbsent(
-                envAndService.lowerEnv, env -> new HashMap<>(newServiceRates.size() * 2));
+                envAndService.lowerEnv, env -> new TreeMap<>(String::compareToIgnoreCase));
 
         serviceRates.computeIfAbsent(
             envAndService.lowerService,
@@ -114,38 +115,34 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
   private static final class RateSamplersByEnvAndService {
     private static final RateSampler DEFAULT_SAMPLER = createRateSampler(DEFAULT_RATE);
 
-    private final Map<String, Map<String, RateSampler>> envServiceRates;
+    private final Map<String, TreeMap<String, RateSampler>> envServiceRates;
     private final RateSampler fallbackSampler;
 
     RateSamplersByEnvAndService() {
-      this(new HashMap<>(0), DEFAULT_SAMPLER);
+      this(Collections.emptyMap(), DEFAULT_SAMPLER);
     }
 
     RateSamplersByEnvAndService(
-        Map<String, Map<String, RateSampler>> envServiceRates, RateSampler fallbackSampler) {
+        Map<String, TreeMap<String, RateSampler>> envServiceRates, RateSampler fallbackSampler) {
       this.envServiceRates = envServiceRates;
       this.fallbackSampler = fallbackSampler;
     }
 
     // used in tests only
     RateSampler getSampler(EnvAndService envAndService) {
-      return getSamplerImpl(envAndService.lowerEnv, envAndService.lowerService);
+      return getSampler(envAndService.lowerEnv, envAndService.lowerService);
     }
 
     public RateSampler getSampler(String env, String service) {
-      return getSamplerImpl(env.toLowerCase(), service.toLowerCase());
-    }
-
-    private RateSampler getSamplerImpl(String lowerEnv, String lowerService) {
-      if (EnvAndService.isFallback(lowerEnv, lowerService)) {
+      if (EnvAndService.isFallback(env, service)) {
         return fallbackSampler;
       }
 
-      Map<String, RateSampler> serviceRates = envServiceRates.get(lowerEnv);
+      Map<String, RateSampler> serviceRates = envServiceRates.get(env);
       if (serviceRates == null) {
         return fallbackSampler;
       }
-      RateSampler sampler = serviceRates.get(lowerService);
+      RateSampler sampler = serviceRates.get(service);
       return null == sampler ? fallbackSampler : sampler;
     }
   }

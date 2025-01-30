@@ -59,6 +59,7 @@ public class JUnit5SpockParameterizedRetryInstrumentation extends InstrumenterMo
 
   public static class SpockParameterizedRetryAdvice {
 
+    @SuppressWarnings("bytebuddy-exception-suppression")
     @SuppressFBWarnings(
         value = "UC_USELESS_OBJECT",
         justification = "executionListener is a field in the instrumented class")

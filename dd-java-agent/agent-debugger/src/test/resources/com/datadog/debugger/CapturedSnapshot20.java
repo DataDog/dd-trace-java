@@ -44,7 +44,7 @@ public class CapturedSnapshot20 {
 
   private int process(String arg) {
     int intLocal = intField + 42;
-    return intLocal;
+    return intLocal; // beae1817-f3b0-4ea8-a74f-000000000001
   }
 
   private int processWithException(String arg) {
