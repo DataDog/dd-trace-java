@@ -21,19 +21,19 @@ class JUnit413Test extends CiVisibilityInstrumentationTest {
   def "test #testcaseName"() {
     runTests(tests)
 
-    assertSpansData(testcaseName, expectedTracesCount)
+    assertSpansData(testcaseName)
 
     where:
-    testcaseName                            | tests                              | expectedTracesCount
-    "test-succeed-before-after"             | [TestSucceedBeforeAfter]           | 3
-    "test-succeed-before-class-after-class" | [TestSucceedBeforeClassAfterClass] | 3
-    "test-succeed-before-param-after-param" | [TestSucceedBeforeParamAfterParam] | 2
-    "test-failed-before-class"              | [TestFailedBeforeClass]            | 1
-    "test-failed-after-class"               | [TestFailedAfterClass]             | 3
-    "test-failed-before"                    | [TestFailedBefore]                 | 3
-    "test-failed-after"                     | [TestFailedAfter]                  | 3
-    "test-failed-before-param"              | [TestFailedBeforeParam]            | 2
-    "test-failed-after-param"               | [TestFailedAfterParam]             | 2
+    testcaseName                            | tests
+    "test-succeed-before-after"             | [TestSucceedBeforeAfter]
+    "test-succeed-before-class-after-class" | [TestSucceedBeforeClassAfterClass]
+    "test-succeed-before-param-after-param" | [TestSucceedBeforeParamAfterParam]
+    "test-failed-before-class"              | [TestFailedBeforeClass]
+    "test-failed-after-class"               | [TestFailedAfterClass]
+    "test-failed-before"                    | [TestFailedBefore]
+    "test-failed-after"                     | [TestFailedAfter]
+    "test-failed-before-param"              | [TestFailedBeforeParam]
+    "test-failed-after-param"               | [TestFailedAfterParam]
   }
 
   private void runTests(Collection<Class<?>> tests) {

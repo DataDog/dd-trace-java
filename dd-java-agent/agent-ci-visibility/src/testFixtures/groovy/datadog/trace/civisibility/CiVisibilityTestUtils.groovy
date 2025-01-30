@@ -7,8 +7,10 @@ import com.jayway.jsonpath.JsonPath
 import com.jayway.jsonpath.Option
 import com.jayway.jsonpath.ReadContext
 import com.jayway.jsonpath.WriteContext
+import freemarker.core.Environment
 import freemarker.core.InvalidReferenceException
 import freemarker.template.Template
+import freemarker.template.TemplateException
 import freemarker.template.TemplateExceptionHandler
 import org.skyscreamer.jsonassert.JSONAssert
 import org.skyscreamer.jsonassert.JSONCompareMode
@@ -114,11 +116,22 @@ abstract class CiVisibilityTestUtils {
     }
   }
 
+  static final TemplateExceptionHandler SUPPRESS_EXCEPTION_HANDLER = new TemplateExceptionHandler() {
+    @Override
+    void handleTemplateException(TemplateException e, Environment environment, Writer writer) throws TemplateException {
+      if (e instanceof InvalidReferenceException) {
+        writer.write('"<VALUE_MISSING>"')
+      } else {
+        throw e
+      }
+    }
+  }
+
   static final freemarker.template.Configuration FREEMARKER = new freemarker.template.Configuration(freemarker.template.Configuration.VERSION_2_3_30) { {
       setClassLoaderForTemplateLoading(CiVisibilityTestUtils.classLoader, "")
       setDefaultEncoding("UTF-8")
-      setTemplateExceptionHandler(TemplateExceptionHandler.RETHROW_HANDLER)
-      setLogTemplateExceptions(true)
+      setTemplateExceptionHandler(SUPPRESS_EXCEPTION_HANDLER)
+      setLogTemplateExceptions(false)
       setWrapUncheckedExceptions(true)
       setFallbackOnNullLoopVariable(false)
       setNumberFormat("0.######")
@@ -131,15 +144,6 @@ abstract class CiVisibilityTestUtils {
       StringWriter coveragesOut = new StringWriter()
       coveragesTemplate.process(replacements, coveragesOut)
       return coveragesOut.toString()
-    } catch (InvalidReferenceException e) {
-      def missingExpression = e.getBlamedExpressionString()
-      if (missingExpression != null) {
-        replacements.put(missingExpression, "<VALUE_MISSING>") // to simplify debugging failures
-        return getFreemarkerTemplate(templatePath, replacements, replacementsSource)
-
-      } else {
-        throw new RuntimeException("Could not get Freemarker template " + templatePath + "; replacements map: " + replacements + "; replacements source: " + replacementsSource, e)
-      }
 
     } catch (Exception e) {
       throw new RuntimeException("Could not get Freemarker template " + templatePath + "; replacements map: " + replacements + "; replacements source: " + replacementsSource, e)

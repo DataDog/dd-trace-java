@@ -39,40 +39,40 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
   def "test #testcaseName"() {
     runTests(tests, null)
 
-    assertSpansData(testcaseName, expectedTracesCount)
+    assertSpansData(testcaseName)
 
     where:
-    testcaseName                                          | tests                                              | expectedTracesCount
-    "test-succeed"                                        | [TestSucceed]                                      | 2
-    "test-inheritance"                                    | [TestInheritance]                                  | 2
-    "test-failed-${version()}"                            | [TestFailed]                                       | 2
-    "test-failed-with-success-percentage-${version()}"    | [TestFailedWithSuccessPercentage]                  | 6
-    "test-error"                                          | [TestError]                                        | 2
-    "test-skipped"                                        | [TestSkipped]                                      | 2
-    "test-parameterized"                                  | [TestParameterized]                                | 3
-    "test-parameterized-modifies-params"                  | [TestParameterizedModifiesParams]                  | 2
-    "test-success-with-groups"                            | [TestSucceedGroups]                                | 2
-    "test-class-skipped"                                  | [TestSkippedClass]                                 | 3
-    "test-success-and-skipped"                            | [TestSucceedAndSkipped]                            | 3
-    "test-success-and-failure-${version()}"               | [TestFailedAndSucceed]                             | 4
-    "test-suite-teardown-failure"                         | [TestFailedSuiteTearDown]                          | 3
-    "test-suite-setup-failure"                            | [TestFailedSuiteSetup]                             | 3
-    "test-multiple-successful-suites"                     | [TestSucceed, TestSucceedAndSkipped]               | 4
-    "test-successful-suite-and-failed-suite-${version()}" | [TestSucceed, TestFailedAndSucceed]                | 5
-    "test-nested-successful-suites"                       | [TestSucceedNested, TestSucceedNested.NestedSuite] | 3
-    "test-nested-skipped-suites-${version()}"             | [TestSkippedNested]                                | 3
-    "test-factory-data-provider"                          | [TestSucceedDataProvider]                          | 2
+    testcaseName                                          | tests
+    "test-succeed"                                        | [TestSucceed]
+    "test-inheritance"                                    | [TestInheritance]
+    "test-failed-${version()}"                            | [TestFailed]
+    "test-failed-with-success-percentage-${version()}"    | [TestFailedWithSuccessPercentage]
+    "test-error"                                          | [TestError]
+    "test-skipped"                                        | [TestSkipped]
+    "test-parameterized"                                  | [TestParameterized]
+    "test-parameterized-modifies-params"                  | [TestParameterizedModifiesParams]
+    "test-success-with-groups"                            | [TestSucceedGroups]
+    "test-class-skipped"                                  | [TestSkippedClass]
+    "test-success-and-skipped"                            | [TestSucceedAndSkipped]
+    "test-success-and-failure-${version()}"               | [TestFailedAndSucceed]
+    "test-suite-teardown-failure"                         | [TestFailedSuiteTearDown]
+    "test-suite-setup-failure"                            | [TestFailedSuiteSetup]
+    "test-multiple-successful-suites"                     | [TestSucceed, TestSucceedAndSkipped]
+    "test-successful-suite-and-failed-suite-${version()}" | [TestSucceed, TestFailedAndSucceed]
+    "test-nested-successful-suites"                       | [TestSucceedNested, TestSucceedNested.NestedSuite]
+    "test-nested-skipped-suites-${version()}"             | [TestSkippedNested]
+    "test-factory-data-provider"                          | [TestSucceedDataProvider]
   }
 
   def "test parallel execution #testcaseName"() {
     runTests(tests, parallelMode)
 
-    assertSpansData(testcaseName, expectedTracesCount)
+    assertSpansData(testcaseName)
 
     where:
-    testcaseName                                | tests                 | expectedTracesCount | parallelMode
-    "test-successful-test-cases-in-parallel"    | [TestSucceedMultiple] | 3                   | "methods"
-    "test-parameterized-test-cases-in-parallel" | [TestParameterized]   | 3                   | "methods"
+    testcaseName                                | tests                 | parallelMode
+    "test-successful-test-cases-in-parallel"    | [TestSucceedMultiple] | "methods"
+    "test-parameterized-test-cases-in-parallel" | [TestParameterized]   | "methods"
   }
 
   def "test XML suites #testcaseName"() {
@@ -82,33 +82,33 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
     }
     runXmlSuites([xmlSuite], parallelMode)
 
-    assertSpansData(testcaseName, expectedTracesCount)
+    assertSpansData(testcaseName)
 
     where:
-    testcaseName                                                                      | expectedTracesCount | parallelMode
-    "test-successful-test-cases-in-TESTS-parallel-mode"                               | 3                   | "tests"
-    "test-successful-test-cases-in-TESTS-parallel-mode-not-all-test-methods-included" | 3                   | "tests"
-    "test-successful-test-cases-in-TESTS-parallel-mode-same-test-case"                | 4                   | "tests"
+    testcaseName                                                                      | parallelMode
+    "test-successful-test-cases-in-TESTS-parallel-mode"                               | "tests"
+    "test-successful-test-cases-in-TESTS-parallel-mode-not-all-test-methods-included" | "tests"
+    "test-successful-test-cases-in-TESTS-parallel-mode-same-test-case"                | "tests"
   }
 
   def "test ITR #testcaseName"() {
     givenSkippableTests(skippedTests)
     runTests(tests, null)
 
-    assertSpansData(testcaseName, expectedTracesCount)
+    assertSpansData(testcaseName)
 
     where:
-    testcaseName                              | tests                     | expectedTracesCount | skippedTests
-    "test-itr-skipping"                       | [TestFailedAndSucceed]    | 4                   | [
+    testcaseName                              | tests                     | skippedTests
+    "test-itr-skipping"                       | [TestFailedAndSucceed]    | [
       new TestIdentifier("org.example.TestFailedAndSucceed", "test_another_succeed", null),
       new TestIdentifier("org.example.TestFailedAndSucceed", "test_failed", null)
     ]
-    "test-itr-skipping-parameterized"         | [TestParameterized]       | 3                   | [
+    "test-itr-skipping-parameterized"         | [TestParameterized]       | [
       new TestIdentifier("org.example.TestParameterized", "parameterized_test_succeed", '{"arguments":{"0":"hello","1":"true"}}')
     ]
-    "test-itr-skipping-factory-data-provider" | [TestSucceedDataProvider] | 2                   | [new TestIdentifier("org.example.TestSucceedDataProvider", "testMethod", null)]
-    "test-itr-unskippable"                    | [TestSucceedUnskippable]  | 2                   | [new TestIdentifier("org.example.TestSucceedUnskippable", "test_succeed", null)]
-    "test-itr-unskippable-not-skipped"        | [TestSucceedUnskippable]  | 2                   | []
+    "test-itr-skipping-factory-data-provider" | [TestSucceedDataProvider] | [new TestIdentifier("org.example.TestSucceedDataProvider", "testMethod", null)]
+    "test-itr-unskippable"                    | [TestSucceedUnskippable]  | [new TestIdentifier("org.example.TestSucceedUnskippable", "test_succeed", null)]
+    "test-itr-unskippable-not-skipped"        | [TestSucceedUnskippable]  | []
   }
 
   def "test flaky retries #testcaseName"() {
@@ -116,16 +116,16 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
     givenFlakyTests(retriedTests)
     runTests(tests, null)
 
-    assertSpansData(testcaseName, expectedTracesCount)
+    assertSpansData(testcaseName)
 
     where:
-    testcaseName                            | tests                     | expectedTracesCount | retriedTests
-    "test-failed-${version()}"              | [TestFailed]              | 2                   | []
-    "test-skipped"                          | [TestSkipped]             | 2                   | [new TestIdentifier("org.example.TestSkipped", "test_skipped", null)]
-    "test-retry-failed-${version()}"        | [TestFailed]              | 6                   | [new TestIdentifier("org.example.TestFailed", "test_failed", null)]
-    "test-retry-error"                      | [TestError]               | 6                   | [new TestIdentifier("org.example.TestError", "test_error", null)]
-    "test-retry-parameterized"              | [TestFailedParameterized] | 7                   | [new TestIdentifier("org.example.TestFailedParameterized", "parameterized_test_succeed", null)]
-    "test-failed-then-succeed-${version()}" | [TestFailedThenSucceed]   | 4                   | [new TestIdentifier("org.example.TestFailedThenSucceed", "test_failed", null)]
+    testcaseName                            | tests                     | retriedTests
+    "test-failed-${version()}"              | [TestFailed]              | []
+    "test-skipped"                          | [TestSkipped]             | [new TestIdentifier("org.example.TestSkipped", "test_skipped", null)]
+    "test-retry-failed-${version()}"        | [TestFailed]              | [new TestIdentifier("org.example.TestFailed", "test_failed", null)]
+    "test-retry-error"                      | [TestError]               | [new TestIdentifier("org.example.TestError", "test_error", null)]
+    "test-retry-parameterized"              | [TestFailedParameterized] | [new TestIdentifier("org.example.TestFailedParameterized", "parameterized_test_succeed", null)]
+    "test-failed-then-succeed-${version()}" | [TestFailedThenSucceed]   | [new TestIdentifier("org.example.TestFailedThenSucceed", "test_failed", null)]
   }
 
   def "test early flakiness detection #testcaseName"() {
@@ -136,21 +136,21 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
 
     runTests(tests)
 
-    assertSpansData(testcaseName, expectedTracesCount)
+    assertSpansData(testcaseName)
 
     where:
-    testcaseName                        | tests                  | expectedTracesCount | knownTestsList
-    "test-efd-known-test"               | [TestSucceed]          | 2                   | [new TestIdentifier("org.example.TestSucceed", "test_succeed", null)]
-    "test-efd-known-parameterized-test" | [TestParameterized]    | 3                   | [new TestIdentifier("org.example.TestParameterized", "parameterized_test_succeed", null)]
-    "test-efd-new-test"                 | [TestSucceed]          | 4                   | []
-    "test-efd-new-parameterized-test"   | [TestParameterized]    | 7                   | []
-    "test-efd-known-tests-and-new-test" | [TestFailedAndSucceed] | 6                   | [
+    testcaseName                        | tests                  | knownTestsList
+    "test-efd-known-test"               | [TestSucceed]          | [new TestIdentifier("org.example.TestSucceed", "test_succeed", null)]
+    "test-efd-known-parameterized-test" | [TestParameterized]    | [new TestIdentifier("org.example.TestParameterized", "parameterized_test_succeed", null)]
+    "test-efd-new-test"                 | [TestSucceed]          | []
+    "test-efd-new-parameterized-test"   | [TestParameterized]    | []
+    "test-efd-known-tests-and-new-test" | [TestFailedAndSucceed] | [
       new TestIdentifier("org.example.TestFailedAndSucceed", "test_failed", null),
       new TestIdentifier("org.example.TestFailedAndSucceed", "test_succeed", null)
     ]
-    "test-efd-new-slow-test"            | [TestSucceedSlow]      | 3                   | [] // is executed only twice
-    "test-efd-new-very-slow-test"       | [TestSucceedVerySlow]  | 2                   | [] // is executed only once
-    "test-efd-faulty-session-threshold" | [TestFailedAndSucceed] | 8                   | []
+    "test-efd-new-slow-test"            | [TestSucceedSlow]      | [] // is executed only twice
+    "test-efd-new-very-slow-test"       | [TestSucceedVerySlow]  | [] // is executed only once
+    "test-efd-faulty-session-threshold" | [TestFailedAndSucceed] | []
   }
 
   def "test impacted tests detection #testcaseName"() {
@@ -159,15 +159,15 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
 
     runTests(tests)
 
-    assertSpansData(testcaseName, expectedTracesCount)
+    assertSpansData(testcaseName)
 
     where:
-    testcaseName            | tests         | expectedTracesCount | prDiff
-    "test-succeed"          | [TestSucceed] | 2                   | LineDiff.EMPTY
-    "test-succeed"          | [TestSucceed] | 2                   | new FileDiff(new HashSet())
-    "test-succeed-impacted" | [TestSucceed] | 2                   | new FileDiff(new HashSet([DUMMY_SOURCE_PATH]))
-    "test-succeed"          | [TestSucceed] | 2                   | new LineDiff([(DUMMY_SOURCE_PATH): lines()])
-    "test-succeed-impacted" | [TestSucceed] | 2                   | new LineDiff([(DUMMY_SOURCE_PATH): lines(DUMMY_TEST_METHOD_START)])
+    testcaseName            | tests         | prDiff
+    "test-succeed"          | [TestSucceed] | LineDiff.EMPTY
+    "test-succeed"          | [TestSucceed] | new FileDiff(new HashSet())
+    "test-succeed-impacted" | [TestSucceed] | new FileDiff(new HashSet([DUMMY_SOURCE_PATH]))
+    "test-succeed"          | [TestSucceed] | new LineDiff([(DUMMY_SOURCE_PATH): lines()])
+    "test-succeed-impacted" | [TestSucceed] | new LineDiff([(DUMMY_SOURCE_PATH): lines(DUMMY_TEST_METHOD_START)])
   }
 
   private static boolean isEFDSupported() {

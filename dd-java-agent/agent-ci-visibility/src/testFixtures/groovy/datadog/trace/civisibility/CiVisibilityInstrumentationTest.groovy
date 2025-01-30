@@ -43,6 +43,7 @@ import datadog.trace.civisibility.test.ExecutionStrategy
 import datadog.trace.civisibility.utils.ConcurrentHashMapContextStore
 import datadog.trace.civisibility.writer.ddintake.CiTestCovMapperV2
 import datadog.trace.civisibility.writer.ddintake.CiTestCycleMapperV1
+import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.RemoteMapper
 import datadog.trace.core.DDSpan
 import org.msgpack.jackson.dataformat.MessagePackFactory
@@ -52,6 +53,8 @@ import java.nio.ByteBuffer
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.util.concurrent.TimeUnit
+import java.util.function.Predicate
 
 abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
 
@@ -216,6 +219,35 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     "RANDOM"
   }
 
+  final ListWriter.Filter spanFilter = new ListWriter.Filter() {
+    private final Object lock = new Object()
+    private Collection<DDSpan> spans = new ArrayList<>()
+
+    @Override
+    boolean accept(List<DDSpan> trace) {
+      synchronized (lock) {
+        spans.addAll(trace)
+        lock.notifyAll()
+      }
+      return true
+    }
+
+    boolean waitForSpan(Predicate<DDSpan> predicate, long timeoutMillis) {
+      long deadline = System.currentTimeMillis() + timeoutMillis
+      synchronized (lock) {
+        while (!spans.stream().anyMatch(predicate)) {
+          def timeLeft = deadline - System.currentTimeMillis()
+          if (timeLeft > 0) {
+            lock.wait(timeLeft)
+          } else {
+            return false
+          }
+        }
+        return true
+      }
+    }
+  }
+
   @Override
   void setup() {
     skippableTests.clear()
@@ -226,6 +258,8 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     flakyRetryEnabled = false
     earlyFlakinessDetectionEnabled = false
     impactedTestsDetectionEnabled = false
+
+    TEST_WRITER.setFilter(spanFilter)
   }
 
   def givenSkippableTests(List<TestIdentifier> tests) {
@@ -280,8 +314,10 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     Files.deleteIfExists(agentKeyFile)
   }
 
-  def assertSpansData(String testcaseName, int expectedTracesCount, Map<String, String> replacements = [:]) {
-    TEST_WRITER.waitForTraces(expectedTracesCount)
+  def assertSpansData(String testcaseName, Map<String, String> replacements = [:]) {
+    Predicate<DDSpan> sessionSpan = span -> span.spanType == "test_session_end"
+    spanFilter.waitForSpan(sessionSpan, TimeUnit.SECONDS.toMillis(20))
+
     def traces = TEST_WRITER.toList()
 
     def events = getEventsAsJson(traces)

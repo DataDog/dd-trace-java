@@ -42,32 +42,32 @@ class JUnit4Test extends CiVisibilityInstrumentationTest {
   def "test #testcaseName"() {
     runTests(tests)
 
-    assertSpansData(testcaseName, expectedTracesCount)
+    assertSpansData(testcaseName)
 
     where:
-    testcaseName                                         | tests                                | expectedTracesCount
-    "test-succeed"                                       | [TestSucceed]                        | 2
-    "test-inheritance"                                   | [TestInheritance]                    | 2
-    "test-failed"                                        | [TestFailed]                         | 2
-    "test-error"                                         | [TestError]                          | 2
-    "test-skipped"                                       | [TestSkipped]                        | 2
-    "test-class-skipped"                                 | [TestSkippedClass]                   | 3
-    "test-success-and-skipped"                           | [TestSucceedAndSkipped]              | 3
-    "test-success-and-failure"                           | [TestFailedAndSucceed]               | 4
-    "test-suite-teardown-failure"                        | [TestFailedSuiteTearDown]            | 1
-    "test-suite-setup-failure"                           | [TestFailedSuiteSetup]               | 1
-    "test-assumption-failure"                            | [TestAssumption]                     | 2
-    "test-categories-are-included-in-spans"              | [TestSucceedWithCategories]          | 2
-    "test-assumption-failure-during-suite-setup"         | [TestFailedSuiteSetUpAssumption]     | 2
-    "test-assumption-failure-in-a-multi-test-case-suite" | [TestAssumptionAndSucceed]           | 3
-    "test-multiple-successful-suites"                    | [TestSucceed, TestSucceedAndSkipped] | 4
-    "test-successful-suite-and-failing-suite"            | [TestSucceed, TestFailedAndSucceed]  | 5
-    "test-parameterized"                                 | [TestParameterized]                  | 3
-    "test-suite-runner"                                  | [TestSucceedSuite]                   | 3
-    "test-legacy"                                        | [TestSucceedLegacy]                  | 2
-    "test-parameterized-junit-params"                    | [TestParameterizedJUnitParams]       | 3
-    "test-succeed-kotlin"                                | [TestSucceedKotlin]                  | 2
-    "test-succeed-parameterized-kotlin"                  | [TestSucceedParameterizedKotlin]     | 3
+    testcaseName                                         | tests
+    "test-succeed"                                       | [TestSucceed]
+    "test-inheritance"                                   | [TestInheritance]
+    "test-failed"                                        | [TestFailed]
+    "test-error"                                         | [TestError]
+    "test-skipped"                                       | [TestSkipped]
+    "test-class-skipped"                                 | [TestSkippedClass]
+    "test-success-and-skipped"                           | [TestSucceedAndSkipped]
+    "test-success-and-failure"                           | [TestFailedAndSucceed]
+    "test-suite-teardown-failure"                        | [TestFailedSuiteTearDown]
+    "test-suite-setup-failure"                           | [TestFailedSuiteSetup]
+    "test-assumption-failure"                            | [TestAssumption]
+    "test-categories-are-included-in-spans"              | [TestSucceedWithCategories]
+    "test-assumption-failure-during-suite-setup"         | [TestFailedSuiteSetUpAssumption]
+    "test-assumption-failure-in-a-multi-test-case-suite" | [TestAssumptionAndSucceed]
+    "test-multiple-successful-suites"                    | [TestSucceed, TestSucceedAndSkipped]
+    "test-successful-suite-and-failing-suite"            | [TestSucceed, TestFailedAndSucceed]
+    "test-parameterized"                                 | [TestParameterized]
+    "test-suite-runner"                                  | [TestSucceedSuite]
+    "test-legacy"                                        | [TestSucceedLegacy]
+    "test-parameterized-junit-params"                    | [TestParameterizedJUnitParams]
+    "test-succeed-kotlin"                                | [TestSucceedKotlin]
+    "test-succeed-parameterized-kotlin"                  | [TestSucceedParameterizedKotlin]
   }
 
   def "test ITR #testcaseName"() {
@@ -75,20 +75,20 @@ class JUnit4Test extends CiVisibilityInstrumentationTest {
 
     runTests(tests)
 
-    assertSpansData(testcaseName, expectedTracesCount)
+    assertSpansData(testcaseName)
 
     where:
-    testcaseName                       | tests                         | expectedTracesCount | skippedTests
-    "test-itr-skipping"                | [TestFailedAndSucceed]        | 4                   | [
+    testcaseName                       | tests                         | skippedTests
+    "test-itr-skipping"                | [TestFailedAndSucceed]        | [
       new TestIdentifier("org.example.TestFailedAndSucceed", "test_another_succeed", null),
       new TestIdentifier("org.example.TestFailedAndSucceed", "test_failed", null)
     ]
-    "test-itr-skipping-parameterized"  | [TestParameterized]           | 3                   | [
+    "test-itr-skipping-parameterized"  | [TestParameterized]           | [
       new TestIdentifier("org.example.TestParameterized", "parameterized_test_succeed", '{"metadata":{"test_name":"parameterized_test_succeed[str1]"}}')
     ]
-    "test-itr-unskippable"             | [TestSucceedUnskippable]      | 2                   | [new TestIdentifier("org.example.TestSucceedUnskippable", "test_succeed", null)]
-    "test-itr-unskippable-suite"       | [TestSucceedUnskippableSuite] | 2                   | [new TestIdentifier("org.example.TestSucceedUnskippableSuite", "test_succeed", null)]
-    "test-itr-unskippable-not-skipped" | [TestSucceedUnskippable]      | 2                   | []
+    "test-itr-unskippable"             | [TestSucceedUnskippable]      | [new TestIdentifier("org.example.TestSucceedUnskippable", "test_succeed", null)]
+    "test-itr-unskippable-suite"       | [TestSucceedUnskippableSuite] | [new TestIdentifier("org.example.TestSucceedUnskippableSuite", "test_succeed", null)]
+    "test-itr-unskippable-not-skipped" | [TestSucceedUnskippable]      | []
   }
 
   def "test flaky retries #testcaseName"() {
@@ -97,19 +97,19 @@ class JUnit4Test extends CiVisibilityInstrumentationTest {
 
     runTests(tests)
 
-    assertSpansData(testcaseName, expectedTracesCount)
+    assertSpansData(testcaseName)
 
     where:
-    testcaseName                             | tests                          | expectedTracesCount | retriedTests
-    "test-failed"                            | [TestFailed]                   | 2                   | []
-    "test-retry-failed"                      | [TestFailed]                   | 6                   | [new TestIdentifier("org.example.TestFailed", "test_failed", null)]
-    "test-failed-then-succeed"               | [TestFailedThenSucceed]        | 5                   | [new TestIdentifier("org.example.TestFailedThenSucceed", "test_failed_then_succeed", null)]
-    "test-assumption-is-not-retried"         | [TestAssumption]               | 2                   | [new TestIdentifier("org.example.TestAssumption", "test_fail_assumption", null)]
-    "test-skipped-is-not-retried"            | [TestSkipped]                  | 2                   | [new TestIdentifier("org.example.TestSkipped", "test_skipped", null)]
-    "test-retry-parameterized"               | [TestFailedParameterized]      | 7                   | [
+    testcaseName                             | tests                          | retriedTests
+    "test-failed"                            | [TestFailed]                   | []
+    "test-retry-failed"                      | [TestFailed]                   | [new TestIdentifier("org.example.TestFailed", "test_failed", null)]
+    "test-failed-then-succeed"               | [TestFailedThenSucceed]        | [new TestIdentifier("org.example.TestFailedThenSucceed", "test_failed_then_succeed", null)]
+    "test-assumption-is-not-retried"         | [TestAssumption]               | [new TestIdentifier("org.example.TestAssumption", "test_fail_assumption", null)]
+    "test-skipped-is-not-retried"            | [TestSkipped]                  | [new TestIdentifier("org.example.TestSkipped", "test_skipped", null)]
+    "test-retry-parameterized"               | [TestFailedParameterized]      | [
       new TestIdentifier("org.example.TestFailedParameterized", "test_failed_parameterized", /* backend cannot provide parameters for flaky parameterized tests yet */ null)
     ]
-    "test-expected-exception-is-not-retried" | [TestSucceedExpectedException] | 2                   | [new TestIdentifier("org.example.TestSucceedExpectedException", "test_succeed", null)]
+    "test-expected-exception-is-not-retried" | [TestSucceedExpectedException] | [new TestIdentifier("org.example.TestSucceedExpectedException", "test_succeed", null)]
   }
 
   def "test early flakiness detection #testcaseName"() {
@@ -118,21 +118,21 @@ class JUnit4Test extends CiVisibilityInstrumentationTest {
 
     runTests(tests)
 
-    assertSpansData(testcaseName, expectedTracesCount)
+    assertSpansData(testcaseName)
 
     where:
-    testcaseName                        | tests                  | expectedTracesCount | knownTestsList
-    "test-efd-known-test"               | [TestSucceed]          | 2                   | [new TestIdentifier("org.example.TestSucceed", "test_succeed", null)]
-    "test-efd-known-parameterized-test" | [TestParameterized]    | 3                   | [new TestIdentifier("org.example.TestParameterized", "parameterized_test_succeed", null)]
-    "test-efd-new-test"                 | [TestSucceed]          | 4                   | []
-    "test-efd-new-parameterized-test"   | [TestParameterized]    | 7                   | []
-    "test-efd-known-tests-and-new-test" | [TestFailedAndSucceed] | 6                   | [
+    testcaseName                        | tests                  | knownTestsList
+    "test-efd-known-test"               | [TestSucceed]          | [new TestIdentifier("org.example.TestSucceed", "test_succeed", null)]
+    "test-efd-known-parameterized-test" | [TestParameterized]    | [new TestIdentifier("org.example.TestParameterized", "parameterized_test_succeed", null)]
+    "test-efd-new-test"                 | [TestSucceed]          | []
+    "test-efd-new-parameterized-test"   | [TestParameterized]    | []
+    "test-efd-known-tests-and-new-test" | [TestFailedAndSucceed] | [
       new TestIdentifier("org.example.TestFailedAndSucceed", "test_failed", null),
       new TestIdentifier("org.example.TestFailedAndSucceed", "test_succeed", null)
     ]
-    "test-efd-new-slow-test"            | [TestSucceedSlow]      | 3                   | [] // is executed only twice
-    "test-efd-new-very-slow-test"       | [TestSucceedVerySlow]  | 2                   | [] // is executed only once
-    "test-efd-faulty-session-threshold" | [TestFailedAndSucceed] | 8                   | []
+    "test-efd-new-slow-test"            | [TestSucceedSlow]      | [] // is executed only twice
+    "test-efd-new-very-slow-test"       | [TestSucceedVerySlow]  | [] // is executed only once
+    "test-efd-faulty-session-threshold" | [TestFailedAndSucceed] | []
   }
 
   def "test impacted tests detection #testcaseName"() {
@@ -141,15 +141,15 @@ class JUnit4Test extends CiVisibilityInstrumentationTest {
 
     runTests(tests)
 
-    assertSpansData(testcaseName, expectedTracesCount)
+    assertSpansData(testcaseName)
 
     where:
-    testcaseName            | tests         | expectedTracesCount | prDiff
-    "test-succeed"          | [TestSucceed] | 2                   | LineDiff.EMPTY
-    "test-succeed"          | [TestSucceed] | 2                   | new FileDiff(new HashSet())
-    "test-succeed-impacted" | [TestSucceed] | 2                   | new FileDiff(new HashSet([DUMMY_SOURCE_PATH]))
-    "test-succeed"          | [TestSucceed] | 2                   | new LineDiff([(DUMMY_SOURCE_PATH): lines()])
-    "test-succeed-impacted" | [TestSucceed] | 2                   | new LineDiff([(DUMMY_SOURCE_PATH): lines(DUMMY_TEST_METHOD_START)])
+    testcaseName            | tests         | prDiff
+    "test-succeed"          | [TestSucceed] | LineDiff.EMPTY
+    "test-succeed"          | [TestSucceed] | new FileDiff(new HashSet())
+    "test-succeed-impacted" | [TestSucceed] | new FileDiff(new HashSet([DUMMY_SOURCE_PATH]))
+    "test-succeed"          | [TestSucceed] | new LineDiff([(DUMMY_SOURCE_PATH): lines()])
+    "test-succeed-impacted" | [TestSucceed] | new LineDiff([(DUMMY_SOURCE_PATH): lines(DUMMY_TEST_METHOD_START)])
   }
 
   private void runTests(Collection<Class<?>> tests) {
