@@ -1,5 +1,4 @@
-# Building <!-- omit from toc -->
-<!-- the "omit from toc" comment above tells "Markdown All in One" vscode extension to exclude the "# Building" heading -->
+# Building
 
 This documentation provides information for developers to set up their environment and build their project from sources.
 
