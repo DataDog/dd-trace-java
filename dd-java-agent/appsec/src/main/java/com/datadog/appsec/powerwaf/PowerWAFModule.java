@@ -428,11 +428,13 @@ public class PowerWAFModule implements AppSecModule {
       try {
         resultWithData = doRunPowerwaf(reqCtx, newData, ctxAndAddr, gwCtx);
       } catch (TimeoutPowerwafException tpe) {
-        reqCtx.increaseTimeouts();
-        WafMetricCollector.get().wafRequestTimeout();
-        log.debug(LogCollector.EXCLUDE_TELEMETRY, "Timeout calling the WAF", tpe);
         if (gwCtx.isRasp) {
+          reqCtx.increaseRaspTimeouts();
           WafMetricCollector.get().raspTimeout(gwCtx.raspRuleType);
+        } else {
+          reqCtx.increaseWafTimeouts();
+          WafMetricCollector.get().wafRequestTimeout();
+          log.debug(LogCollector.EXCLUDE_TELEMETRY, "Timeout calling the WAF", tpe);
         }
         return;
       } catch (AbstractPowerwafException e) {

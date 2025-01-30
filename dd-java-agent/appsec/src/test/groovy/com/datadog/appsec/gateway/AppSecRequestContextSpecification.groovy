@@ -272,4 +272,22 @@ class AppSecRequestContextSpecification extends DDSpecification {
     where:
     postProcessing << [true, false]
   }
+
+  def "test increase and get WafTimeouts"() {
+    when:
+    ctx.increaseWafTimeouts()
+    ctx.increaseWafTimeouts()
+
+    then:
+    ctx.getWafTimeouts() == 2
+  }
+
+  def "test increase and get RaspTimeouts"() {
+    when:
+    ctx.increaseRaspTimeouts()
+    ctx.increaseRaspTimeouts()
+
+    then:
+    ctx.getRaspTimeouts() == 2
+  }
 }
