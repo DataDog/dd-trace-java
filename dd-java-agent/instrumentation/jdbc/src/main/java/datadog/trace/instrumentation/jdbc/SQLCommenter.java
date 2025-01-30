@@ -1,6 +1,10 @@
 package datadog.trace.instrumentation.jdbc;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -15,6 +19,7 @@ public class SQLCommenter {
   private static final String DATABASE_SERVICE = encode("dddbs");
   private static final String DD_HOSTNAME = encode("ddh");
   private static final String DD_DB_NAME = encode("dddb");
+  private static final String DD_PEER_SERVICE = "ddprs";
   private static final String DD_ENV = encode("dde");
   private static final String DD_VERSION = encode("ddpv");
   private static final String TRACEPARENT = encode("traceparent");
@@ -94,6 +99,12 @@ public class SQLCommenter {
       }
     }
 
+    AgentSpan currSpan = activeSpan();
+    Object peerServiceObj = null;
+    if (currSpan != null) {
+      peerServiceObj = currSpan.getTag(Tags.PEER_SERVICE);
+    }
+
     final Config config = Config.get();
     final String parentService = config.getServiceName();
     final String env = config.getEnv();
@@ -101,6 +112,8 @@ public class SQLCommenter {
     final int commentSize = capacity(traceParent, parentService, dbService, env, version);
     StringBuilder sb = new StringBuilder(sql.length() + commentSize);
     boolean commentAdded = false;
+    String peerService = peerServiceObj != null ? peerServiceObj.toString() : null;
+
     if (appendComment) {
       sb.append(sql);
       sb.append(SPACE);
@@ -113,6 +126,7 @@ public class SQLCommenter {
               dbService,
               hostname,
               dbName,
+              peerService,
               env,
               version,
               traceParent);
@@ -127,9 +141,11 @@ public class SQLCommenter {
               dbService,
               hostname,
               dbName,
+              peerService,
               env,
               version,
               traceParent);
+
       sb.append(CLOSE_COMMENT);
       sb.append(SPACE);
       sb.append(sql);
@@ -199,14 +215,19 @@ public class SQLCommenter {
       final String dbService,
       final String hostname,
       final String dbName,
+      final String peerService,
       final String env,
       final String version,
       final String traceparent) {
     int emptySize = sb.length();
+
     append(sb, PARENT_SERVICE, parentService, false);
     append(sb, DATABASE_SERVICE, dbService, sb.length() > emptySize);
     append(sb, DD_HOSTNAME, hostname, sb.length() > emptySize);
     append(sb, DD_DB_NAME, dbName, sb.length() > emptySize);
+    if (peerService != null) {
+      append(sb, DD_PEER_SERVICE, peerService, sb.length() > emptySize);
+    }
     append(sb, DD_ENV, env, sb.length() > emptySize);
     append(sb, DD_VERSION, version, sb.length() > emptySize);
     if (injectTrace) {
