@@ -109,35 +109,47 @@ Download and install Eclipse Temurin JDK versions 8, 11, 17 and 21, and GraalVM.
 
 #### Windows
 
-Use the `tooling/install-jdks-windows.ps1` script to download and install Eclipse Temurin JDK versions 8, 11, 17, and 21, and set the required environment variables.
+* Download and install JDK 8, 11, 17, and 21 [Eclipse Temurin releases](https://adoptium.net/temurin/releases/). Alternatively, if available, you can use `winget` or `scoop`:
 
-> [!NOTE]
-> This scripts currently does _not_ install GraalVM due to license changes in October 2024 for GraalVM 17.0.13 and later.
+  <details>
+  <summary>Install JDKs using `winget`</summary>
 
-<details>
-<summary>Manual installation</summary>
+    ```pwsh
+    winget install --id EclipseAdoptium.Temurin.8.JDK
+    winget install --id EclipseAdoptium.Temurin.11.JDK
+    winget install --id EclipseAdoptium.Temurin.17.JDK
+    winget install --id EclipseAdoptium.Temurin.21.JDK
+    ```
 
-* To install the JDKs manually, download the installers from [Eclipse Temurin releases](https://adoptium.net/temurin/releases/) and or use `winget`:
+  </details>
 
-```
-winget install --id EclipseAdoptium.Temurin.8.JDK
-winget install --id EclipseAdoptium.Temurin.11.JDK
-winget install --id EclipseAdoptium.Temurin.17.JDK
-winget install --id EclipseAdoptium.Temurin.21.JDK
-```
-* Install GraalVM from [Oracle downloads](https://www.graalvm.org/downloads/). Note that GraalVM for JDK 17.0.13 and later are released under a different license and may be unavailable.
-  * Install the GraalVM native image requirements for native builds by following [the GraalVM official documentation](https://www.graalvm.org/latest/docs/getting-started/windows/#prerequisites-for-native-image-on-windows).
+  <details>
+  <summary>Install JDKs using `scoop`</summary>
 
-* To add the required environment variables, run the following PowerShell commands for each SDK version, replacing `<full-version>` with the full version number. For example, `C:\Program Files\Eclipse Adoptium\jdk-8.0.432.6-hotspot`.
   ```pwsh
-  [Environment]::SetEnvironmentVariable("JAVA_HOME",    "C:\Program Files\Eclipse Adoptium\jdk-8.0.432.6-hotspot", [EnvironmentVariableTarget]::User)
+  scoop bucket add java
+
+  scoop install temurin8-jdk
+  scoop install temurin11-jdk
+  scoop install temurin17-jdk
+  scoop install temurin21-jdk
+  ```
+
+  </details>
+
+* To add the required environment variables, run the following PowerShell commands for each SDK version, replacing the path with the correct version installed:
+  ```pwsh
   [Environment]::SetEnvironmentVariable("JAVA_8_HOME",  "C:\Program Files\Eclipse Adoptium\jdk-8.0.432.6-hotspot", [EnvironmentVariableTarget]::User)
   [Environment]::SetEnvironmentVariable("JAVA_11_HOME", "C:\Program Files\Eclipse Adoptium\jdk-11.0.25.9-hotspot", [EnvironmentVariableTarget]::User)
   [Environment]::SetEnvironmentVariable("JAVA_17_HOME", "C:\Program Files\Eclipse Adoptium\jdk-17.0.12.7-hotspot", [EnvironmentVariableTarget]::User)
   [Environment]::SetEnvironmentVariable("JAVA_21_HOME", "C:\Program Files\Eclipse Adoptium\jdk-21.0.5.11-hotspot", [EnvironmentVariableTarget]::User)
+
+  # JAVA_HOME = JAVA_8_HOME
+  [Environment]::SetEnvironmentVariable("JAVA_HOME",    "C:\Program Files\Eclipse Adoptium\jdk-8.0.432.6-hotspot", [EnvironmentVariableTarget]::User)
   ```
 
-</details>
+> [!NOTE]
+> This scripts currently does _not_ install GraalVM due to license changes in October 2024 for GraalVM 17.0.13 and later.
 
 ### Install git
 
@@ -154,11 +166,27 @@ apt-get install git
 
 #### Windows
 
+Download and install the installer from [the official website](https://git-scm.com/download/win).
+
+Alternatively, you can use `winget` or `scoop`:
+
+<details>
+<summary>Install git using winget</summary>
+
 ```pwsh
 winget install --id git.git
 ```
 
-Alternatively, download and install the installer from [the official website](https://git-scm.com/download/win).
+</details>
+
+<details>
+<summary>Install git using scoop</summary>
+
+```pwsh
+scoop install git
+```
+
+</details>
 
 ### Install Docker Desktop
 
