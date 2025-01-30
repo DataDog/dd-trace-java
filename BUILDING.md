@@ -111,7 +111,7 @@ Download and install Eclipse Temurin JDK versions 8, 11, 17 and 21, and GraalVM.
 * Download and install JDK 8, 11, 17, and 21 [Eclipse Temurin releases](https://adoptium.net/temurin/releases/).
 
   <details>
-  <summary>Alternatively, click here to install JDKs using `winget` or `scoop`.</summary>
+  <summary>Alternatively, install JDKs using winget or scoop. (click here to expand)</summary>
 
     ```pwsh
     winget install --id EclipseAdoptium.Temurin.8.JDK
@@ -159,7 +159,7 @@ apt-get install git
 Download and install the installer from [the official website](https://git-scm.com/download/win).
 
 <details>
-<summary>Alternatively, click here to install git using `winget` or `scoop`.</summary>
+<summary>Alternatively, install git using winget or scoop. (click here to expand)</summary>
 
 ```pwsh
 winget install --id git.git
@@ -193,7 +193,7 @@ Download and install Docker Desktop from the offical website:<br/>
 https://docs.docker.com/desktop/setup/install/windows-install/
 
 <details>
-<summary>Alternatively, click here to install Docker Desktop using winget.</summary>
+<summary>Alternatively, install Docker Desktop using winget. (click here to expand)</summary>
 
 ```pwsh
 winget install --id Docker.DockerDesktop
