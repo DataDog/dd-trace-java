@@ -203,8 +203,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
   @Override
   public Propagator propagator() {
-    return new DataStreamPropagator(
-        this.traceConfigSupplier, this.timeSource, this.hashOfKnownTags, serviceNameOverride);
+    return new DataStreamsPropagator(
+        this, this.traceConfigSupplier, this.timeSource, this.hashOfKnownTags, serviceNameOverride);
   }
 
   @Override

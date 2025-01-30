@@ -1,32 +1,40 @@
 package datadog.trace.core.datastreams;
 
+import static datadog.trace.api.DDTags.PATHWAY_HASH;
+import static datadog.trace.bootstrap.instrumentation.api.PathwayContext.PROPAGATION_KEY_BASE64;
+
 import datadog.context.Context;
 import datadog.context.propagation.CarrierSetter;
 import datadog.context.propagation.CarrierVisitor;
 import datadog.context.propagation.Propagator;
 import datadog.trace.api.TraceConfig;
+import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
+import java.io.IOException;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 // TODO Javadoc
 @ParametersAreNonnullByDefault
-public class DataStreamPropagator implements Propagator {
+public class DataStreamsPropagator implements Propagator {
+  private final DataStreamsMonitoring dataStreamsMonitoring;
   private final Supplier<TraceConfig> traceConfigSupplier;
   private final TimeSource timeSource;
   private final long hashOfKnownTags;
   private final ThreadLocal<String> serviceNameOverride;
 
-  public DataStreamPropagator(
+  public DataStreamsPropagator(
+      DataStreamsMonitoring dataStreamsMonitoring,
       Supplier<TraceConfig> traceConfigSupplier,
       TimeSource timeSource,
       long hashOfKnownTags,
       ThreadLocal<String> serviceNameOverride) {
+    this.dataStreamsMonitoring = dataStreamsMonitoring;
     this.traceConfigSupplier = traceConfigSupplier;
     this.timeSource = timeSource;
     this.hashOfKnownTags = hashOfKnownTags;
@@ -35,12 +43,49 @@ public class DataStreamPropagator implements Propagator {
 
   @Override
   public <C> void inject(Context context, C carrier, CarrierSetter<C> setter) {
-    // TODO Still in CorePropagation, not migrated yet
+    // TODO Pathway context needs to be stored into its own context element instead of span context
+    AgentSpan span = AgentSpan.fromContext(context);
+    DataStreamsContext dsmContext = DataStreamsContext.fromContext(context);
+    PathwayContext pathwayContext;
+    if (span == null
+        || dsmContext == null
+        || (pathwayContext = span.context().getPathwayContext()) == null
+        || (span.traceConfig() != null && !span.traceConfig().isDataStreamsEnabled())) {
+      return;
+    }
+
+    // TODO Allow set checkpoint to use DsmContext as parameter?
+    pathwayContext.setCheckpoint(
+        dsmContext.sortedTags(),
+        dsmContext.sendCheckpoint() ? dataStreamsMonitoring::add : pathwayContext::saveStats,
+        dsmContext.defaultTimestamp(),
+        dsmContext.payloadSizeBytes());
+
+    boolean injected = injectPathwayContext(pathwayContext, carrier, setter);
+
+    if (injected && pathwayContext.getHash() != 0) {
+      span.setTag(PATHWAY_HASH, Long.toUnsignedString(pathwayContext.getHash()));
+    }
+  }
+
+  private <C> boolean injectPathwayContext(
+      PathwayContext pathwayContext, C carrier, CarrierSetter<C> setter) {
+    try {
+      String encodedContext = pathwayContext.encode();
+      if (encodedContext != null) {
+        //        LOGGER.debug("Injecting pathway context {}", pathwayContext);
+        setter.set(carrier, PROPAGATION_KEY_BASE64, encodedContext);
+        return true;
+      }
+    } catch (IOException e) {
+      //      LOGGER.debug("Unable to set encode pathway context", e);
+    }
+    return false;
   }
 
   @Override
   public <C> Context extract(Context context, C carrier, CarrierVisitor<C> visitor) {
-    // TODO Pathway context needs to be stored into its own context element
+    // TODO Pathway context needs to be stored into its own context element instead of span context
     // Get span context to store pathway context into
     TagContext spanContext = getSpanContextOrNull(context);
     PathwayContext pathwayContext;
