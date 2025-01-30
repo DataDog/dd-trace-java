@@ -57,4 +57,9 @@ final class SingletonContext implements Context {
     result = 31 * result + Objects.hashCode(this.value);
     return result;
   }
+
+  @Override
+  public String toString() {
+    return "SingletonContext{" + "index=" + this.index + ", value=" + this.value + '}';
+  }
 }

@@ -1,7 +1,5 @@
 package datadog.context.propagation;
 
-import javax.annotation.Nullable;
-
 @FunctionalInterface
 public interface CarrierSetter<C> {
   /**
@@ -11,5 +9,5 @@ public interface CarrierSetter<C> {
    * @param key the key to set.
    * @param value the value to set.
    */
-  void set(@Nullable C carrier, String key, String value);
+  void set(C carrier, String key, String value);
 }

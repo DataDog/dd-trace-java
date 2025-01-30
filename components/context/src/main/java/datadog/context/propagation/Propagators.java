@@ -6,11 +6,17 @@ import static java.util.Comparator.comparingInt;
 import java.util.IdentityHashMap;
 import java.util.Map;
 
+/**
+ * This class is the entrypoint of the context propagation API allowing to retrieve the {@link
+ * Propagator} to use.
+ */
 public final class Propagators {
-  private static final Map<Concern, Propagator> PROPAGATORS =
+  private static final Map<Concern, RegisteredPropagator> PROPAGATORS =
       synchronizedMap(new IdentityHashMap<>());
+  private static final RegisteredPropagator NOOP =
+      RegisteredPropagator.of(NoopPropagator.INSTANCE, false);
   private static volatile Propagator defaultPropagator = null;
-  private static volatile boolean defaultPropagatorSet = false;
+  private static volatile boolean rebuildDefaultPropagator = true;
 
   private Propagators() {}
 
@@ -20,14 +26,16 @@ public final class Propagators {
    * @return The default propagator.
    */
   public static Propagator defaultPropagator() {
-    if (!defaultPropagatorSet) {
+    if (rebuildDefaultPropagator) {
       Propagator[] propagatorsByPriority =
           PROPAGATORS.entrySet().stream()
+              .filter(entry -> entry.getValue().isUsedAsDefault())
               .sorted(comparingInt(entry -> entry.getKey().priority()))
               .map(Map.Entry::getValue)
+              .map(RegisteredPropagator::propagator)
               .toArray(Propagator[]::new);
       defaultPropagator = composite(propagatorsByPriority);
-      defaultPropagatorSet = true;
+      rebuildDefaultPropagator = false;
     }
     return defaultPropagator;
   }
@@ -39,7 +47,7 @@ public final class Propagators {
    * @return the related propagator if registered, a {@link #noop()} propagator otherwise.
    */
   public static Propagator forConcern(Concern concern) {
-    return PROPAGATORS.getOrDefault(concern, NoopPropagator.INSTANCE);
+    return PROPAGATORS.getOrDefault(concern, NOOP).propagator();
   }
 
   /**
@@ -89,13 +97,49 @@ public final class Propagators {
    * @param propagator The propagator to register.
    */
   public static void register(Concern concern, Propagator propagator) {
-    PROPAGATORS.put(concern, propagator);
-    defaultPropagatorSet = false;
+    register(concern, propagator, true);
+  }
+
+  /**
+   * Registers a propagator for concern.
+   *
+   * @param concern The concern to register a propagator for.
+   * @param propagator The propagator to register.
+   * @param usedAsDefault Whether the propagator should be used as default propagator.
+   * @see Propagators#defaultPropagator()
+   */
+  public static void register(Concern concern, Propagator propagator, boolean usedAsDefault) {
+    PROPAGATORS.put(concern, RegisteredPropagator.of(propagator, usedAsDefault));
+    if (usedAsDefault) {
+      rebuildDefaultPropagator = true;
+    }
   }
 
   /** Clear all registered propagators. For testing purpose only. */
   static void reset() {
     PROPAGATORS.clear();
-    defaultPropagatorSet = false;
+    rebuildDefaultPropagator = true;
+  }
+
+  static class RegisteredPropagator {
+    private final Propagator propagator;
+    private final boolean usedAsDefault;
+
+    private RegisteredPropagator(Propagator propagator, boolean usedAsDefault) {
+      this.propagator = propagator;
+      this.usedAsDefault = usedAsDefault;
+    }
+
+    static RegisteredPropagator of(Propagator propagator, boolean useAsDefault) {
+      return new RegisteredPropagator(propagator, useAsDefault);
+    }
+
+    Propagator propagator() {
+      return this.propagator;
+    }
+
+    boolean isUsedAsDefault() {
+      return this.usedAsDefault;
+    }
   }
 }
