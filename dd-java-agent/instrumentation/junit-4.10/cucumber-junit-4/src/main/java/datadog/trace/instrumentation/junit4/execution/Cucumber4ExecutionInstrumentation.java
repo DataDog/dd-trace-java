@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.junit4.retry;
+package datadog.trace.instrumentation.junit4.execution;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -10,7 +10,7 @@ import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
-import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.junit4.CucumberUtils;
 import datadog.trace.instrumentation.junit4.JUnit4Utils;
@@ -27,18 +27,19 @@ import org.junit.runner.notification.RunNotifier;
 import org.junit.runners.ParentRunner;
 
 @AutoService(InstrumenterModule.class)
-public class Cucumber4RetryInstrumentation extends InstrumenterModule.CiVisibility
+public class Cucumber4ExecutionInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   private final String parentPackageName = Strings.getPackageName(JUnit4Utils.class.getName());
 
-  public Cucumber4RetryInstrumentation() {
+  public Cucumber4ExecutionInstrumentation() {
     super("ci-visibility", "junit-4", "junit-4-cucumber", "test-retry");
   }
 
   @Override
   public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems) && Config.get().isCiVisibilityTestRetryEnabled();
+    return super.isApplicable(enabledSystems)
+        && Config.get().isCiVisibilityExecutionPoliciesEnabled();
   }
 
   @Override
@@ -54,14 +55,14 @@ public class Cucumber4RetryInstrumentation extends InstrumenterModule.CiVisibili
       parentPackageName + ".JUnit4Utils",
       parentPackageName + ".TracingListener",
       parentPackageName + ".TestEventsHandlerHolder",
-      packageName + ".RetryAwareNotifier",
+      packageName + ".FailureSuppressingNotifier",
     };
   }
 
   @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
-        "org.junit.runner.Description", TestRetryPolicy.class.getName());
+        "org.junit.runner.Description", TestExecutionPolicy.class.getName());
   }
 
   @Override
@@ -75,49 +76,50 @@ public class Cucumber4RetryInstrumentation extends InstrumenterModule.CiVisibili
         named("runChild")
             .and(takesArgument(0, named("io.cucumber.junit.PickleRunners$PickleRunner")))
             .and(takesArgument(1, named("org.junit.runner.notification.RunNotifier"))),
-        Cucumber4RetryInstrumentation.class.getName() + "$RetryAdvice");
+        Cucumber4ExecutionInstrumentation.class.getName() + "$ExecutionAdvice");
   }
 
-  public static class RetryAdvice {
+  public static class ExecutionAdvice {
     @SuppressWarnings("bytebuddy-exception-suppression")
     @SuppressFBWarnings("NP_BOOLEAN_RETURN_NULL")
     @Advice.OnMethodEnter(skipOn = Boolean.class)
-    public static Boolean retryIfNeeded(
+    public static Boolean execute(
         @Advice.SelfCallHandle(bound = false) MethodHandle runPickle,
         @Advice.This ParentRunner<?> /* io.cucumber.junit.FeatureRunner */ featureRunner,
         @Advice.Argument(0) Object /* io.cucumber.junit.PickleRunners.PickleRunner */ pickleRunner,
         @Advice.Argument(1) RunNotifier notifier) {
-      if (notifier instanceof RetryAwareNotifier) {
+      if (notifier instanceof FailureSuppressingNotifier) {
         // notifier already wrapped, run original method
         return null;
       }
 
       Description description = CucumberUtils.getPickleRunnerDescription(pickleRunner);
       TestIdentifier testIdentifier = CucumberUtils.toTestIdentifier(description);
-      TestRetryPolicy retryPolicy =
-          TestEventsHandlerHolder.TEST_EVENTS_HANDLER.retryPolicy(
+      TestExecutionPolicy executionPolicy =
+          TestEventsHandlerHolder.TEST_EVENTS_HANDLER.executionPolicy(
               testIdentifier, TestSourceData.UNKNOWN);
-      if (!retryPolicy.retriesLeft()) {
+      if (!executionPolicy.applicable()) {
         // retries not applicable, run original method
         return null;
       }
 
-      InstrumentationContext.get(Description.class, TestRetryPolicy.class)
-          .put(description, retryPolicy);
+      InstrumentationContext.get(Description.class, TestExecutionPolicy.class)
+          .put(description, executionPolicy);
 
-      RetryAwareNotifier retryAwareNotifier = new RetryAwareNotifier(retryPolicy, notifier);
+      FailureSuppressingNotifier failureSuppressingNotifier =
+          new FailureSuppressingNotifier(executionPolicy, notifier);
       long duration;
       boolean testFailed;
       do {
         long startTimestamp = System.currentTimeMillis();
         try {
-          runPickle.invokeWithArguments(featureRunner, pickleRunner, retryAwareNotifier);
-          testFailed = retryAwareNotifier.getAndResetFailedFlag();
+          runPickle.invokeWithArguments(featureRunner, pickleRunner, failureSuppressingNotifier);
+          testFailed = failureSuppressingNotifier.getAndResetFailedFlag();
         } catch (Throwable throwable) {
           testFailed = true;
         }
         duration = System.currentTimeMillis() - startTimestamp;
-      } while (retryPolicy.retry(!testFailed, duration));
+      } while (executionPolicy.retry(!testFailed, duration));
 
       // skip original method
       return Boolean.TRUE;

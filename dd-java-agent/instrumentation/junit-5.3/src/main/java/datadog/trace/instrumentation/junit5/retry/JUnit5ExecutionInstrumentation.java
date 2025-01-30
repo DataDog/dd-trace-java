@@ -13,7 +13,7 @@ import datadog.trace.agent.tooling.muzzle.ReferenceProvider;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
-import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.junit5.JUnitPlatformUtils;
@@ -34,19 +34,20 @@ import org.junit.platform.engine.support.hierarchical.Node;
 import org.junit.platform.engine.support.hierarchical.ThrowableCollector;
 
 @AutoService(InstrumenterModule.class)
-public class JUnit5RetryInstrumentation extends InstrumenterModule.CiVisibility
+public class JUnit5ExecutionInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   private final String parentPackageName =
       Strings.getPackageName(JUnitPlatformUtils.class.getName());
 
-  public JUnit5RetryInstrumentation() {
+  public JUnit5ExecutionInstrumentation() {
     super("ci-visibility", "junit-5", "test-retry");
   }
 
   @Override
   public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems) && Config.get().isCiVisibilityTestRetryEnabled();
+    return super.isApplicable(enabledSystems)
+        && Config.get().isCiVisibilityExecutionPoliciesEnabled();
   }
 
   @Override
@@ -70,7 +71,7 @@ public class JUnit5RetryInstrumentation extends InstrumenterModule.CiVisibility
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
         "org.junit.platform.engine.TestDescriptor",
-        "datadog.trace.api.civisibility.retry.TestRetryPolicy");
+        "datadog.trace.api.civisibility.execution.TestExecutionPolicy");
   }
 
   @Override
@@ -100,10 +101,10 @@ public class JUnit5RetryInstrumentation extends InstrumenterModule.CiVisibility
                     3,
                     named(
                         "org.junit.platform.engine.support.hierarchical.ThrowableCollector.Factory"))),
-        JUnit5RetryInstrumentation.class.getName() + "$BeforeTaskConstructor");
+        JUnit5ExecutionInstrumentation.class.getName() + "$BeforeTaskConstructor");
     transformer.applyAdvice(
         named("execute").and(takesNoArguments()),
-        JUnit5RetryInstrumentation.class.getName() + "$RetryIfNeeded");
+        JUnit5ExecutionInstrumentation.class.getName() + "$ExecutionAdvice");
   }
 
   public static class BeforeTaskConstructor {
@@ -115,7 +116,7 @@ public class JUnit5RetryInstrumentation extends InstrumenterModule.CiVisibility
     }
   }
 
-  public static class RetryIfNeeded {
+  public static class ExecutionAdvice {
     @SuppressFBWarnings("NP_BOOLEAN_RETURN_NULL")
     @Advice.OnMethodEnter(skipOn = Boolean.class)
     public static Boolean execute(@Advice.This HierarchicalTestExecutorService.TestTask testTask) {
@@ -144,9 +145,9 @@ public class JUnit5RetryInstrumentation extends InstrumenterModule.CiVisibility
 
       TestIdentifier testIdentifier = TestDataFactory.createTestIdentifier(testDescriptor);
       TestSourceData testSource = TestDataFactory.createTestSourceData(testDescriptor);
-      TestRetryPolicy retryPolicy =
-          TestEventsHandlerHolder.TEST_EVENTS_HANDLER.retryPolicy(testIdentifier, testSource);
-      if (!retryPolicy.retriesLeft()) {
+      TestExecutionPolicy executionPolicy =
+          TestEventsHandlerHolder.TEST_EVENTS_HANDLER.executionPolicy(testIdentifier, testSource);
+      if (!executionPolicy.applicable()) {
         return null;
       }
 
@@ -158,7 +159,7 @@ public class JUnit5RetryInstrumentation extends InstrumenterModule.CiVisibility
       int retryAttemptIdx = 0;
       boolean retry;
       while (true) {
-        factory.setSuppressFailures(retryPolicy.suppressFailures());
+        factory.setSuppressFailures(executionPolicy.suppressFailures());
 
         long startTimestamp = System.currentTimeMillis();
         CallDepthThreadLocalMap.incrementCallDepth(HierarchicalTestExecutorService.TestTask.class);
@@ -170,7 +171,7 @@ public class JUnit5RetryInstrumentation extends InstrumenterModule.CiVisibility
         factory.setSuppressFailures(false); // restore default behavior
 
         boolean success = error == null || JUnitPlatformUtils.isAssumptionFailure(error);
-        retry = retryPolicy.retry(success, duration);
+        retry = executionPolicy.retry(success, duration);
         if (!retry) {
           break;
         }
@@ -183,13 +184,13 @@ public class JUnit5RetryInstrumentation extends InstrumenterModule.CiVisibility
         TestDescriptor retryDescriptor =
             descriptorHandle.withIdSuffix(
                 JUnitPlatformUtils.RETRY_DESCRIPTOR_REASON_SUFFIX,
-                    retryPolicy.currentExecutionRetryReason(),
+                    executionPolicy.currentExecutionRetryReason(),
                 JUnitPlatformUtils.RETRY_DESCRIPTOR_ID_SUFFIX, String.valueOf(++retryAttemptIdx));
         taskHandle.setTestDescriptor(retryDescriptor);
         taskHandle.setNode((Node<?>) retryDescriptor);
         taskHandle.getListener().dynamicTestRegistered(retryDescriptor);
-        InstrumentationContext.get(TestDescriptor.class, TestRetryPolicy.class)
-            .put(retryDescriptor, retryPolicy);
+        InstrumentationContext.get(TestDescriptor.class, TestExecutionPolicy.class)
+            .put(retryDescriptor, executionPolicy);
 
         // restore parent context, since the reference is overwritten with null after execution
         taskHandle.setParentContext(parentContext);

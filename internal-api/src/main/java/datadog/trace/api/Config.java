@@ -2931,7 +2931,7 @@ public class Config {
     return ciVisibilityEarlyFlakeDetectionLowerLimit;
   }
 
-  public boolean isCiVisibilityTestRetryEnabled() {
+  public boolean isCiVisibilityExecutionPoliciesEnabled() {
     return ciVisibilityFlakyRetryEnabled || ciVisibilityEarlyFlakeDetectionEnabled;
   }
 

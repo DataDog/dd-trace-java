@@ -1,17 +1,18 @@
-package datadog.trace.civisibility.retry;
+package datadog.trace.civisibility.execution;
 
-import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
 import org.jetbrains.annotations.Nullable;
 
-public class NeverRetry implements TestRetryPolicy {
+/** Regular test case execution with no alterations. */
+public class Regular implements TestExecutionPolicy {
 
-  public static final TestRetryPolicy INSTANCE = new NeverRetry();
+  public static final TestExecutionPolicy INSTANCE = new Regular();
 
-  private NeverRetry() {}
+  private Regular() {}
 
   @Override
-  public boolean retriesLeft() {
+  public boolean applicable() {
     return false;
   }
 

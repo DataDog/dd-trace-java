@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.scalatest.retry;
+package datadog.trace.instrumentation.scalatest.execution;
 
 import org.scalatest.exceptions.TestCanceledException;
 

@@ -1,25 +1,27 @@
-package datadog.trace.civisibility.retry;
+package datadog.trace.civisibility.execution;
 
-import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
 import datadog.trace.civisibility.config.EarlyFlakeDetectionSettings;
 import org.jetbrains.annotations.Nullable;
 
-/** Retries a test case N times (N depends on test duration) regardless of success or failure. */
-public class RetryNTimes implements TestRetryPolicy {
+/** Runs a test case N times (N depends on test duration) regardless of success or failure. */
+public class RunNTimes implements TestExecutionPolicy {
 
   private final EarlyFlakeDetectionSettings earlyFlakeDetectionSettings;
   private int executions;
   private int maxExecutions;
 
-  public RetryNTimes(EarlyFlakeDetectionSettings earlyFlakeDetectionSettings) {
+  public RunNTimes(EarlyFlakeDetectionSettings earlyFlakeDetectionSettings) {
     this.earlyFlakeDetectionSettings = earlyFlakeDetectionSettings;
     this.executions = 0;
     this.maxExecutions = earlyFlakeDetectionSettings.getExecutions(0);
   }
 
   @Override
-  public boolean retriesLeft() {
+  public boolean applicable() {
+    // the last execution is not altered by the policy
+    // (no retries, no exceptions suppressing)
     return executions < maxExecutions - 1;
   }
 

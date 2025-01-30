@@ -21,19 +21,21 @@ import org.junit.platform.engine.TestDescriptor;
  * parameterized tests
  */
 @AutoService(InstrumenterModule.class)
-public class JUnit5SpockParameterizedRetryInstrumentation extends InstrumenterModule.CiVisibility
+public class JUnit5SpockParameterizedExecutionInstrumentation
+    extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   private final String parentPackageName =
       Strings.getPackageName(JUnitPlatformUtils.class.getName());
 
-  public JUnit5SpockParameterizedRetryInstrumentation() {
+  public JUnit5SpockParameterizedExecutionInstrumentation() {
     super("ci-visibility", "junit-5", "junit-5-spock", "test-retry");
   }
 
   @Override
   public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems) && Config.get().isCiVisibilityTestRetryEnabled();
+    return super.isApplicable(enabledSystems)
+        && Config.get().isCiVisibilityExecutionPoliciesEnabled();
   }
 
   @Override
@@ -53,11 +55,11 @@ public class JUnit5SpockParameterizedRetryInstrumentation extends InstrumenterMo
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor(),
-        JUnit5SpockParameterizedRetryInstrumentation.class.getName()
-            + "$SpockParameterizedRetryAdvice");
+        JUnit5SpockParameterizedExecutionInstrumentation.class.getName()
+            + "$SpockParameterizedExecutionAdvice");
   }
 
-  public static class SpockParameterizedRetryAdvice {
+  public static class SpockParameterizedExecutionAdvice {
 
     @SuppressWarnings("bytebuddy-exception-suppression")
     @SuppressFBWarnings(

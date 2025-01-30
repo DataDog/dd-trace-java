@@ -8,7 +8,7 @@ import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
-import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.EventType;
@@ -264,8 +264,8 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
 
   @Override
   @Nonnull
-  public TestRetryPolicy retryPolicy(TestIdentifier test, TestSourceData testSource) {
-    return testModule.retryPolicy(test, testSource);
+  public TestExecutionPolicy executionPolicy(TestIdentifier test, TestSourceData testSource) {
+    return testModule.executionPolicy(test, testSource);
   }
 
   @Override

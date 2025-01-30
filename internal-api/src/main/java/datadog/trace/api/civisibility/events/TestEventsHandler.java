@@ -4,7 +4,7 @@ import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.api.civisibility.DDTestSuite;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
-import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
@@ -86,7 +86,7 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
       @Nullable String reason);
 
   @Nonnull
-  TestRetryPolicy retryPolicy(TestIdentifier test, TestSourceData source);
+  TestExecutionPolicy executionPolicy(TestIdentifier test, TestSourceData source);
 
   /**
    * Returns the reason for skipping a test IF it can be skipped.

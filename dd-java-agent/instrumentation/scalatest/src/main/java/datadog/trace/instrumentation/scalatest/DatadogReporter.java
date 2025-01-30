@@ -6,10 +6,10 @@ import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
-import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
-import datadog.trace.instrumentation.scalatest.retry.SuppressedTestFailedException;
+import datadog.trace.instrumentation.scalatest.execution.SuppressedTestFailedException;
 import java.util.Collection;
 import java.util.Collections;
 import org.scalatest.events.Event;
@@ -145,7 +145,7 @@ public class DatadogReporter {
       categories = Collections.emptyList();
     }
     Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
-    TestRetryPolicy retryPolicy = context.popRetryPolicy(testIdentifier);
+    TestExecutionPolicy retryPolicy = context.popExecutionPolicy(testIdentifier);
 
     eventHandler.onTestStart(
         new TestSuiteDescriptor(testSuiteName, testClass),
