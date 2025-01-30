@@ -33,17 +33,17 @@ class KarateTest extends CiVisibilityInstrumentationTest {
 
     runTests(tests)
 
-    assertSpansData(testcaseName, expectedTracesCount)
+    assertSpansData(testcaseName)
 
     where:
-    testcaseName            | tests                          | expectedTracesCount | assumption
-    "test-succeed"          | [TestSucceedKarate]            | 3                   | true
-    "test-succeed-parallel" | [TestSucceedParallelKarate]    | 3                   | true
-    "test-with-setup"       | [TestWithSetupKarate]          | 3                   | isSetupTagSupported(FileUtils.KARATE_VERSION)
-    "test-parameterized"    | [TestParameterizedKarate]      | 3                   | true
-    "test-failed"           | [TestFailedKarate]             | 3                   | true
-    "test-skipped-feature"  | [TestSkippedFeatureKarate]     | 1                   | true
-    "test-built-in-retry"   | [TestFailedBuiltInRetryKarate] | 4                   | true
+    testcaseName            | tests                          | assumption
+    "test-succeed"          | [TestSucceedKarate]            | true
+    "test-succeed-parallel" | [TestSucceedParallelKarate]    | true
+    "test-with-setup"       | [TestWithSetupKarate]          | isSetupTagSupported(FileUtils.KARATE_VERSION)
+    "test-parameterized"    | [TestParameterizedKarate]      | true
+    "test-failed"           | [TestFailedKarate]             | true
+    "test-skipped-feature"  | [TestSkippedFeatureKarate]     | true
+    "test-built-in-retry"   | [TestFailedBuiltInRetryKarate] | true
   }
 
   def "test ITR #testcaseName"() {
@@ -53,15 +53,15 @@ class KarateTest extends CiVisibilityInstrumentationTest {
 
     runTests(tests)
 
-    assertSpansData(testcaseName, expectedTracesCount)
+    assertSpansData(testcaseName)
 
     where:
-    testcaseName                      | tests                     | expectedTracesCount | skippedTests
-    "test-itr-skipping"               | [TestSucceedKarate]       | 3                   | [new TestIdentifier("[org/example/test_succeed] test succeed", "first scenario", null)]
-    "test-itr-skipping-parameterized" | [TestParameterizedKarate] | 3                   | [
+    testcaseName                      | tests                     | skippedTests
+    "test-itr-skipping"               | [TestSucceedKarate]       | [new TestIdentifier("[org/example/test_succeed] test succeed", "first scenario", null)]
+    "test-itr-skipping-parameterized" | [TestParameterizedKarate] | [
       new TestIdentifier("[org/example/test_parameterized] test parameterized", "first scenario as an outline", '{"param":"\'a\'","value":"aa"}')
     ]
-    "test-itr-unskippable"            | [TestUnskippableKarate]   | 3                   | [new TestIdentifier("[org/example/test_unskippable] test unskippable", "first scenario", null)]
+    "test-itr-unskippable"            | [TestUnskippableKarate]   | [new TestIdentifier("[org/example/test_unskippable] test unskippable", "first scenario", null)]
   }
 
   def "test flaky retries #testcaseName"() {
@@ -70,16 +70,14 @@ class KarateTest extends CiVisibilityInstrumentationTest {
 
     runTests(tests)
 
-    assertSpansData(testcaseName, expectedTracesCount)
+    assertSpansData(testcaseName)
 
     where:
-    testcaseName               | tests                           | expectedTracesCount | retriedTests
-    "test-failed"              | [TestFailedKarate]              | 3                   | []
-    "test-retry-failed"        | [TestFailedKarate]              | 3                   | [new TestIdentifier("[org/example/test_failed] test failed", "second scenario", null)]
-    "test-failed-then-succeed" | [TestFailedThenSucceedKarate]   | 3                   | [
-      new TestIdentifier("[org/example/test_failed_then_succeed] test failed", "flaky scenario", null)
-    ]
-    "test-retry-parameterized" | [TestFailedParameterizedKarate] | 3                   | [
+    testcaseName               | tests                           | retriedTests
+    "test-failed"              | [TestFailedKarate]              | []
+    "test-retry-failed"        | [TestFailedKarate]              | [new TestIdentifier("[org/example/test_failed] test failed", "second scenario", null)]
+    "test-failed-then-succeed" | [TestFailedThenSucceedKarate]   | [new TestIdentifier("[org/example/test_failed_then_succeed] test failed", "flaky scenario", null)]
+    "test-retry-parameterized" | [TestFailedParameterizedKarate] | [
       new TestIdentifier("[org/example/test_failed_parameterized] test parameterized", "first scenario as an outline", null)
     ]
   }
@@ -90,20 +88,18 @@ class KarateTest extends CiVisibilityInstrumentationTest {
 
     runTests(tests)
 
-    assertSpansData(testcaseName, expectedTracesCount)
+    assertSpansData(testcaseName)
 
     where:
-    testcaseName                        | tests                              | expectedTracesCount | knownTestsList
-    "test-efd-known-test"               | [TestSucceedOneCaseKarate]         | 2                   | [
-      new TestIdentifier("[org/example/test_succeed_one_case] test succeed", "first scenario", null)
-    ]
-    "test-efd-known-parameterized-test" | [TestParameterizedKarate]          | 3                   | [
+    testcaseName                        | tests                              | knownTestsList
+    "test-efd-known-test"               | [TestSucceedOneCaseKarate]         | [new TestIdentifier("[org/example/test_succeed_one_case] test succeed", "first scenario", null)]
+    "test-efd-known-parameterized-test" | [TestParameterizedKarate]          | [
       new TestIdentifier("[org/example/test_parameterized] test parameterized", "first scenario as an outline", null)
     ]
-    "test-efd-new-test"                 | [TestSucceedOneCaseKarate]         | 4                   | []
-    "test-efd-new-parameterized-test"   | [TestParameterizedKarate]          | 7                   | []
-    "test-efd-new-slow-test"            | [TestSucceedKarateSlow]            | 3                   | [] // is executed only twice
-    "test-efd-faulty-session-threshold" | [TestParameterizedMoreCasesKarate] | 8                   | []
+    "test-efd-new-test"                 | [TestSucceedOneCaseKarate]         | []
+    "test-efd-new-parameterized-test"   | [TestParameterizedKarate]          | []
+    "test-efd-new-slow-test"            | [TestSucceedKarateSlow]            | [] // is executed only twice
+    "test-efd-faulty-session-threshold" | [TestParameterizedMoreCasesKarate] | []
   }
 
   private void runTests(List<Class<?>> tests) {

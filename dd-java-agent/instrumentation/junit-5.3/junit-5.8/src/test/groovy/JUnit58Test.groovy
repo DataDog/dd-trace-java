@@ -26,16 +26,16 @@ class JUnit58Test extends CiVisibilityInstrumentationTest {
   def "test #testcaseName"() {
     runTests(tests)
 
-    assertSpansData(testcaseName, expectedTracesCount)
+    assertSpansData(testcaseName)
 
     where:
-    testcaseName                  | tests                            | expectedTracesCount
-    "test-before-each-after-each" | [TestSucceedBeforeEachAfterEach] | 2
-    "test-before-all-after-all"   | [TestSucceedBeforeAllAfterAll]   | 2
-    "test-failed-before-all"      | [TestFailedBeforeAll]            | 2
-    "test-failed-after-all"       | [TestFailedAfterAll]             | 2
-    "test-failed-before-each"     | [TestFailedBeforeEach]           | 2
-    "test-failed-after-each"      | [TestFailedAfterEach]            | 2
+    testcaseName                  | tests
+    "test-before-each-after-each" | [TestSucceedBeforeEachAfterEach]
+    "test-before-all-after-all"   | [TestSucceedBeforeAllAfterAll]
+    "test-failed-before-all"      | [TestFailedBeforeAll]
+    "test-failed-after-all"       | [TestFailedAfterAll]
+    "test-failed-before-each"     | [TestFailedBeforeEach]
+    "test-failed-after-each"      | [TestFailedAfterEach]
   }
 
   def "test known tests ordering #testcaseName"() {

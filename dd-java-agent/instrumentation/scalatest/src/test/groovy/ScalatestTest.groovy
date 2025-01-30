@@ -23,33 +23,31 @@ class ScalatestTest extends CiVisibilityInstrumentationTest {
   def "test #testcaseName"() {
     runTests(tests)
 
-    assertSpansData(testcaseName, expectedTracesCount)
+    assertSpansData(testcaseName)
 
     where:
-    testcaseName                 | tests                      | expectedTracesCount
-    "test-succeed"               | [TestSucceed]              | 2
-    "test-succeed-flat-spec"     | [TestSucceedFlatSpec]      | 2
-    "test-succeed-parameterized" | [TestSucceedParameterized] | 2
-    "test-failed"                | [TestFailed]               | 2
-    "test-ignored"               | [TestIgnored]              | 2
-    "test-canceled"              | [TestIgnoredCanceled]      | 2
-    "test-pending"               | [TestIgnoredPending]       | 2
-    "test-failed-suite"          | [TestFailedSuite]          | 1
+    testcaseName                 | tests
+    "test-succeed"               | [TestSucceed]
+    "test-succeed-flat-spec"     | [TestSucceedFlatSpec]
+    "test-succeed-parameterized" | [TestSucceedParameterized]
+    "test-failed"                | [TestFailed]
+    "test-ignored"               | [TestIgnored]
+    "test-canceled"              | [TestIgnoredCanceled]
+    "test-pending"               | [TestIgnoredPending]
+    "test-failed-suite"          | [TestFailedSuite]
   }
 
   def "test ITR #testcaseName"() {
     givenSkippableTests(skippedTests)
     runTests(tests)
 
-    assertSpansData(testcaseName, expectedTracesCount)
+    assertSpansData(testcaseName)
 
     where:
-    testcaseName                       | tests                    | expectedTracesCount | skippedTests
-    "test-itr-skipping"                | [TestSucceed]            | 2                   | [new TestIdentifier("org.example.TestSucceed", "Example.add adds two numbers", null)]
-    "test-itr-unskippable"             | [TestSucceedUnskippable] | 2                   | [
-      new TestIdentifier("org.example.TestSucceedUnskippable", "test should assert something", null)
-    ]
-    "test-itr-unskippable-not-skipped" | [TestSucceedUnskippable] | 2                   | []
+    testcaseName                       | tests                    | skippedTests
+    "test-itr-skipping"                | [TestSucceed]            | [new TestIdentifier("org.example.TestSucceed", "Example.add adds two numbers", null)]
+    "test-itr-unskippable"             | [TestSucceedUnskippable] | [new TestIdentifier("org.example.TestSucceedUnskippable", "test should assert something", null)]
+    "test-itr-unskippable-not-skipped" | [TestSucceedUnskippable] | []
   }
 
   def "test flaky retries #testcaseName"() {
@@ -58,16 +56,16 @@ class ScalatestTest extends CiVisibilityInstrumentationTest {
 
     runTests(tests)
 
-    assertSpansData(testcaseName, expectedTracesCount)
+    assertSpansData(testcaseName)
 
     where:
-    testcaseName               | tests                     | expectedTracesCount | retriedTests
-    "test-failed"              | [TestFailed]              | 2                   | []
-    "test-retry-failed"        | [TestFailed]              | 6                   | [new TestIdentifier("org.example.TestFailed", "Example.add adds two numbers", null)]
-    "test-retry-parameterized" | [TestFailedParameterized] | 2                   | [
+    testcaseName               | tests                     | retriedTests
+    "test-failed"              | [TestFailed]              | []
+    "test-retry-failed"        | [TestFailed]              | [new TestIdentifier("org.example.TestFailed", "Example.add adds two numbers", null)]
+    "test-retry-parameterized" | [TestFailedParameterized] | [
       new TestIdentifier("org.example.TestFailedParameterized", "addition should correctly add two numbers", null)
     ]
-    "test-failed-then-succeed" | [TestFailedThenSucceed]   | 4                   | [new TestIdentifier("org.example.TestFailedThenSucceed", "Example.add adds two numbers", null)]
+    "test-failed-then-succeed" | [TestFailedThenSucceed]   | [new TestIdentifier("org.example.TestFailedThenSucceed", "Example.add adds two numbers", null)]
   }
 
   def "test early flakiness detection #testcaseName"() {
@@ -76,14 +74,14 @@ class ScalatestTest extends CiVisibilityInstrumentationTest {
 
     runTests(tests)
 
-    assertSpansData(testcaseName, expectedTracesCount)
+    assertSpansData(testcaseName)
 
     where:
-    testcaseName                        | tests                  | expectedTracesCount | knownTestsList
-    "test-efd-known-test"               | [TestSucceed]          | 2                   | [new TestIdentifier("org.example.TestSucceed", "Example.add adds two numbers", null)]
-    "test-efd-new-test"                 | [TestSucceed]          | 4                   | []
-    "test-efd-new-slow-test"            | [TestSucceedSlow]      | 3                   | [] // is executed only twice
-    "test-efd-faulty-session-threshold" | [TestSucceedMoreCases] | 8                   | []
+    testcaseName                        | tests                  | knownTestsList
+    "test-efd-known-test"               | [TestSucceed]          | [new TestIdentifier("org.example.TestSucceed", "Example.add adds two numbers", null)]
+    "test-efd-new-test"                 | [TestSucceed]          | []
+    "test-efd-new-slow-test"            | [TestSucceedSlow]      | [] // is executed only twice
+    "test-efd-faulty-session-threshold" | [TestSucceedMoreCases] | []
   }
 
   def "test impacted tests detection #testcaseName"() {
@@ -92,15 +90,15 @@ class ScalatestTest extends CiVisibilityInstrumentationTest {
 
     runTests(tests)
 
-    assertSpansData(testcaseName, expectedTracesCount)
+    assertSpansData(testcaseName)
 
     where:
-    testcaseName            | tests         | expectedTracesCount | prDiff
-    "test-succeed"          | [TestSucceed] | 2                   | LineDiff.EMPTY
-    "test-succeed"          | [TestSucceed] | 2                   | new FileDiff(new HashSet())
-    "test-succeed-impacted" | [TestSucceed] | 2                   | new FileDiff(new HashSet([DUMMY_SOURCE_PATH]))
-    "test-succeed"          | [TestSucceed] | 2                   | new LineDiff([(DUMMY_SOURCE_PATH): lines()])
-    "test-succeed-impacted" | [TestSucceed] | 2                   | new LineDiff([(DUMMY_SOURCE_PATH): lines(DUMMY_TEST_METHOD_START)])
+    testcaseName            | tests         | prDiff
+    "test-succeed"          | [TestSucceed] | LineDiff.EMPTY
+    "test-succeed"          | [TestSucceed] | new FileDiff(new HashSet())
+    "test-succeed-impacted" | [TestSucceed] | new FileDiff(new HashSet([DUMMY_SOURCE_PATH]))
+    "test-succeed"          | [TestSucceed] | new LineDiff([(DUMMY_SOURCE_PATH): lines()])
+    "test-succeed-impacted" | [TestSucceed] | new LineDiff([(DUMMY_SOURCE_PATH): lines(DUMMY_TEST_METHOD_START)])
   }
 
   @Override
