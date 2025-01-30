@@ -23,7 +23,6 @@ class DDSpanContextTest extends DDCoreSpecification {
   def profilingContextIntegration
 
   def setup() {
-    injectSysConfig("trace.128.bit.traceid.generation.enabled", "true")
     writer = new ListWriter()
     profilingContextIntegration = Mock(ProfilingContextIntegration)
     tracer = tracerBuilder().writer(writer)
