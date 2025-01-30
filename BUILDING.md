@@ -225,25 +225,25 @@ winget install --id Docker.DockerDesktop
     cp .githooks/pre-commit .git/hooks/
     ```
 
-  > [!TIP]
-  > You can alternatively use the `core.hooksPath` configuration to point to the `.githooks` folder using `git config --local core.hooksPath .githooks` if you don't already have a hooks path defined system-wide.
+> [!TIP]
+> You can alternatively use the `core.hooksPath` configuration to point to the `.githooks` folder using `git config --local core.hooksPath .githooks` if you don't already have a hooks path defined system-wide.
 
-  > [!NOTE]
-  > The git hooks will check that your code is properly formatted before commiting.
-  > This is done both to avoid future merge conflict and ensure uniformity inside the code base.
+> [!NOTE]
+> The git hooks will check that your code is properly formatted before commiting.
+> This is done both to avoid future merge conflict and ensure uniformity inside the code base.
 
 * Configure git to automatically update submodules.
   ```shell
   git config --local submodule.recurse true
   ```
 
-  > [!NOTE]
-  > Git does not automatically update submodules when switching branches.
-  > Without this configuration, you will need to remember to add `--recurse-submodules` to `git checkout` when switching to old branches.
+> [!NOTE]
+> Git does not automatically update submodules when switching branches.
+> Without this configuration, you will need to remember to add `--recurse-submodules` to `git checkout` when switching to old branches.
 
-  > [!TIP]
-  > This will keep the submodule in `dd-java-agent/agent-jmxfetch/integrations-core` up-to-date.
-  > There is also an automated check when opening a pull request if you are trying to submit a module version change (usually an outdated version).
+> [!TIP]
+> This will keep the submodule in `dd-java-agent/agent-jmxfetch/integrations-core` up-to-date.
+> There is also an automated check when opening a pull request if you are trying to submit a module version change (usually an outdated version).
 
 > [!NOTE]
 > Both git configurations (hooks and submodule) will only be applied to this project and won't apply globally in your setup.
