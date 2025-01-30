@@ -21,20 +21,20 @@ import org.scalatest.tools.Runner
 class ScalatestTest extends CiVisibilityInstrumentationTest {
 
   def "test #testcaseName"() {
-    runTests(tests)
+    runTests(tests, success)
 
     assertSpansData(testcaseName)
 
     where:
-    testcaseName                 | tests
-    "test-succeed"               | [TestSucceed]
-    "test-succeed-flat-spec"     | [TestSucceedFlatSpec]
-    "test-succeed-parameterized" | [TestSucceedParameterized]
-    "test-failed"                | [TestFailed]
-    "test-ignored"               | [TestIgnored]
-    "test-canceled"              | [TestIgnoredCanceled]
-    "test-pending"               | [TestIgnoredPending]
-    "test-failed-suite"          | [TestFailedSuite]
+    testcaseName                 | success | tests
+    "test-succeed"               | true    | [TestSucceed]
+    "test-succeed-flat-spec"     | true    | [TestSucceedFlatSpec]
+    "test-succeed-parameterized" | true    | [TestSucceedParameterized]
+    "test-failed"                | false   | [TestFailed]
+    "test-ignored"               | true    | [TestIgnored]
+    "test-canceled"              | true    | [TestIgnoredCanceled]
+    "test-pending"               | true    | [TestIgnoredPending]
+    "test-failed-suite"          | false   | [TestFailedSuite]
   }
 
   def "test ITR #testcaseName"() {
@@ -54,18 +54,18 @@ class ScalatestTest extends CiVisibilityInstrumentationTest {
     givenFlakyRetryEnabled(true)
     givenFlakyTests(retriedTests)
 
-    runTests(tests)
+    runTests(tests, success)
 
     assertSpansData(testcaseName)
 
     where:
-    testcaseName               | tests                     | retriedTests
-    "test-failed"              | [TestFailed]              | []
-    "test-retry-failed"        | [TestFailed]              | [new TestIdentifier("org.example.TestFailed", "Example.add adds two numbers", null)]
-    "test-retry-parameterized" | [TestFailedParameterized] | [
+    testcaseName               | success | tests                     | retriedTests
+    "test-failed"              | false   | [TestFailed]              | []
+    "test-retry-failed"        | false   | [TestFailed]              | [new TestIdentifier("org.example.TestFailed", "Example.add adds two numbers", null)]
+    "test-retry-parameterized" | false   | [TestFailedParameterized] | [
       new TestIdentifier("org.example.TestFailedParameterized", "addition should correctly add two numbers", null)
     ]
-    "test-failed-then-succeed" | [TestFailedThenSucceed]   | [new TestIdentifier("org.example.TestFailedThenSucceed", "Example.add adds two numbers", null)]
+    "test-failed-then-succeed" | true    | [TestFailedThenSucceed]   | [new TestIdentifier("org.example.TestFailedThenSucceed", "Example.add adds two numbers", null)]
   }
 
   def "test early flakiness detection #testcaseName"() {
@@ -111,13 +111,16 @@ class ScalatestTest extends CiVisibilityInstrumentationTest {
     return ScalatestUtils.scalatestVersion
   }
 
-  void runTests(List<Class<?>> tests) {
+  void runTests(List<Class<?>> tests, boolean expectSuccess = true) {
     def runnerArguments = ["-o"] // standard out reporting
     for (Class<?> test : tests) {
       runnerArguments += ["-s", test.name]
     }
 
-    Runner.run((String[]) runnerArguments.toArray(new String[0]))
+    def result = Runner.run((String[]) runnerArguments.toArray(new String[0]))
+    if (result != expectSuccess) {
+      throw new AssertionError("Expected $expectSuccess execution status, got $result")
+    }
   }
 
 }

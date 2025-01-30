@@ -15,21 +15,21 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
   def runner = new JUnitCore()
 
   def "test #testcaseName"() {
-    runFeatures(features)
+    runFeatures(features, success)
 
     assertSpansData(testcaseName)
 
     where:
-    testcaseName                          | features
-    "test-succeed"                        | ["org/example/cucumber/calculator/basic_arithmetic.feature"]
-    "test-scenario-outline-${version()}"  | ["org/example/cucumber/calculator/basic_arithmetic_with_examples.feature"]
-    "test-failure"                        | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"]
-    "test-multiple-features-${version()}" | [
+    testcaseName                          | success | features
+    "test-succeed"                        | true    | ["org/example/cucumber/calculator/basic_arithmetic.feature"]
+    "test-scenario-outline-${version()}"  | true    | ["org/example/cucumber/calculator/basic_arithmetic_with_examples.feature"]
+    "test-failure"                        | false   | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"]
+    "test-multiple-features-${version()}" | false   | [
       "org/example/cucumber/calculator/basic_arithmetic.feature",
       "org/example/cucumber/calculator/basic_arithmetic_failed.feature"
     ]
-    "test-name-with-brackets"             | ["org/example/cucumber/calculator/name_with_brackets.feature"]
-    "test-empty-name-${version()}"        | ["org/example/cucumber/calculator/empty_scenario_name.feature"]
+    "test-name-with-brackets"             | true    | ["org/example/cucumber/calculator/name_with_brackets.feature"]
+    "test-empty-name-${version()}"        | true    | ["org/example/cucumber/calculator/empty_scenario_name.feature"]
   }
 
   def "test ITR #testcaseName"() {
@@ -56,17 +56,17 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
     givenFlakyRetryEnabled(true)
     givenFlakyTests(retriedTests)
 
-    runFeatures(features)
+    runFeatures(features, success)
 
     assertSpansData(testcaseName)
 
     where:
-    testcaseName                               | features                                                                          | retriedTests
-    "test-failure"                             | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"]               | []
-    "test-retry-failure"                       | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"]               | [
+    testcaseName                               | success | features                                                                          | retriedTests
+    "test-failure"                             | false   | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"]               | []
+    "test-retry-failure"                       | false   | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"]               | [
       new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition", null)
     ]
-    "test-retry-scenario-outline-${version()}" | ["org/example/cucumber/calculator/basic_arithmetic_with_examples_failed.feature"] | [
+    "test-retry-scenario-outline-${version()}" | false   | ["org/example/cucumber/calculator/basic_arithmetic_with_examples_failed.feature"] | [
       new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic_with_examples_failed.feature:Basic Arithmetic With Examples", "Many additions", null)
     ]
   }
@@ -93,7 +93,7 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
     return CucumberTracingListener.FRAMEWORK_VERSION < "7" ? CucumberTracingListener.FRAMEWORK_VERSION : "latest"
   }
 
-  private void runFeatures(List<String> classpathFeatures) {
+  private void runFeatures(List<String> classpathFeatures, boolean expectSuccess = true) {
     System.setProperty(Constants.GLUE_PROPERTY_NAME, "org.example.cucumber.calculator")
     System.setProperty(Constants.FILTER_TAGS_PROPERTY_NAME, "not @Disabled")
     System.setProperty(Constants.FEATURES_PROPERTY_NAME, classpathFeatures.stream()
@@ -101,8 +101,20 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
     collect(Collectors.joining(",")))
 
     TestEventsHandlerHolder.start()
-    runner.run(TestSucceedCucumber)
-    TestEventsHandlerHolder.stop()
+    try {
+      def result = runner.run(TestSucceedCucumber)
+      if (expectSuccess) {
+        if (result.getFailureCount() > 0) {
+          throw new AssertionError("Expected successful execution, got following failures: " + result.getFailures())
+        }
+      } else {
+        if (result.getFailureCount() == 0) {
+          throw new AssertionError("Expected a failed execution, got no failures")
+        }
+      }
+    } finally {
+      TestEventsHandlerHolder.stop()
+    }
   }
 
   @Override

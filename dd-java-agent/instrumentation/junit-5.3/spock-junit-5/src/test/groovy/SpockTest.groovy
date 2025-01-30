@@ -19,11 +19,16 @@ import org.example.TestSucceedSpockUnskippable
 import org.example.TestSucceedSpockUnskippableSuite
 import org.example.TestSucceedSpockVerySlow
 import org.junit.platform.engine.DiscoverySelector
+import org.junit.platform.engine.TestExecutionResult
+import org.junit.platform.launcher.TestExecutionListener
 import org.junit.platform.launcher.core.LauncherConfig
 import org.junit.platform.launcher.core.LauncherDiscoveryRequestBuilder
 import org.junit.platform.launcher.core.LauncherFactory
 import org.spockframework.runtime.SpockEngine
 import org.spockframework.util.SpockReleaseInfo
+
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArrayList
 
 import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass
 
@@ -75,40 +80,40 @@ class SpockTest extends CiVisibilityInstrumentationTest {
     givenFlakyRetryEnabled(true)
     givenFlakyTests(retriedTests)
 
-    runTests(tests)
+    runTests(tests, success)
 
     assertSpansData(testcaseName)
 
     where:
-    testcaseName                             | tests                                     | retriedTests
-    "test-failed"                            | [TestFailedSpock]                         | []
-    "test-retry-failed"                      | [TestFailedSpock]                         | [new TestIdentifier("org.example.TestFailedSpock", "test failed", null)]
-    "test-failed-then-succeed"               | [TestFailedThenSucceedSpock]              | [new TestIdentifier("org.example.TestFailedThenSucceedSpock", "test failed then succeed", null)]
-    "test-retry-parameterized"               | [TestFailedParameterizedSpock]            | [new TestIdentifier("org.example.TestFailedParameterizedSpock", "test add 4 and 4", null)]
-    "test-parameterized-failed-then-succeed" | [TestFailedThenSucceedParameterizedSpock] | [new TestIdentifier("org.example.TestFailedThenSucceedParameterizedSpock", "test add 1 and 2", null)]
+    testcaseName                             | success | tests                                     | retriedTests
+    "test-failed"                            | false   | [TestFailedSpock]                         | []
+    "test-retry-failed"                      | false   | [TestFailedSpock]                         | [new TestIdentifier("org.example.TestFailedSpock", "test failed", null)]
+    "test-failed-then-succeed"               | true    | [TestFailedThenSucceedSpock]              | [new TestIdentifier("org.example.TestFailedThenSucceedSpock", "test failed then succeed", null)]
+    "test-retry-parameterized"               | false   | [TestFailedParameterizedSpock]            | [new TestIdentifier("org.example.TestFailedParameterizedSpock", "test add 4 and 4", null)]
+    "test-parameterized-failed-then-succeed" | true    | [TestFailedThenSucceedParameterizedSpock] | [new TestIdentifier("org.example.TestFailedThenSucceedParameterizedSpock", "test add 1 and 2", null)]
   }
 
   def "test early flakiness detection #testcaseName"() {
     givenEarlyFlakinessDetectionEnabled(true)
     givenKnownTests(knownTestsList)
 
-    runTests(tests)
+    runTests(tests, success)
 
     assertSpansData(testcaseName)
 
     where:
-    testcaseName                        | tests                       | knownTestsList
-    "test-efd-known-test"               | [TestSucceedSpock]          | [new TestIdentifier("org.example.TestSucceedSpock", "test success", null)]
-    "test-efd-known-parameterized-test" | [TestParameterizedSpock]    | [
+    testcaseName                        | success | tests                       | knownTestsList
+    "test-efd-known-test"               | true    | [TestSucceedSpock]          | [new TestIdentifier("org.example.TestSucceedSpock", "test success", null)]
+    "test-efd-known-parameterized-test" | true    | [TestParameterizedSpock]    | [
       new TestIdentifier("org.example.TestParameterizedSpock", "test add 1 and 2", null),
       new TestIdentifier("org.example.TestParameterizedSpock", "test add 4 and 4", null)
     ]
-    "test-efd-new-test"                 | [TestSucceedSpock]          | []
-    "test-efd-new-parameterized-test"   | [TestParameterizedSpock]    | []
-    "test-efd-known-tests-and-new-test" | [TestParameterizedSpock]    | [new TestIdentifier("org.example.TestParameterizedSpock", "test add 1 and 2", null)]
-    "test-efd-new-slow-test"            | [TestSucceedSpockSlow]      | [] // is executed only twice
-    "test-efd-new-very-slow-test"       | [TestSucceedSpockVerySlow]  | [] // is executed only once
-    "test-efd-faulty-session-threshold" | [TestSucceedAndFailedSpock] | []
+    "test-efd-new-test"                 | true    | [TestSucceedSpock]          | []
+    "test-efd-new-parameterized-test"   | true    | [TestParameterizedSpock]    | []
+    "test-efd-known-tests-and-new-test" | true    | [TestParameterizedSpock]    | [new TestIdentifier("org.example.TestParameterizedSpock", "test add 1 and 2", null)]
+    "test-efd-new-slow-test"            | true    | [TestSucceedSpockSlow]      | [] // is executed only twice
+    "test-efd-new-very-slow-test"       | true    | [TestSucceedSpockVerySlow]  | [] // is executed only once
+    "test-efd-faulty-session-threshold" | false   | [TestSucceedAndFailedSpock] | []
   }
 
   def "test impacted tests detection #testcaseName"() {
@@ -128,7 +133,7 @@ class SpockTest extends CiVisibilityInstrumentationTest {
     "test-succeed-impacted" | [TestSucceedSpock] | new LineDiff([(DUMMY_SOURCE_PATH): lines(DUMMY_TEST_METHOD_START)])
   }
 
-  private static void runTests(List<Class<?>> classes) {
+  private static void runTests(List<Class<?>> classes, boolean expectSuccess = true) {
     TestEventsHandlerHolder.startForcefully()
 
     DiscoverySelector[] selectors = new DiscoverySelector[classes.size()]
@@ -137,19 +142,34 @@ class SpockTest extends CiVisibilityInstrumentationTest {
     }
 
     def launcherReq = LauncherDiscoveryRequestBuilder.request()
-      .selectors(selectors)
-      .build()
+    .selectors(selectors)
+    .build()
 
     def launcherConfig = LauncherConfig
-      .builder()
-      .enableTestEngineAutoRegistration(false)
-      .addTestEngines(new SpockEngine())
-      .build()
+    .builder()
+    .enableTestEngineAutoRegistration(false)
+    .addTestEngines(new SpockEngine())
+    .build()
 
     def launcher = LauncherFactory.create(launcherConfig)
-    launcher.execute(launcherReq)
+    def listener = new TestResultListener()
+    launcher.registerTestExecutionListeners(listener)
+    try {
+      launcher.execute(launcherReq)
 
-    TestEventsHandlerHolder.stop()
+      def failedTests = listener.testsByStatus[TestExecutionResult.Status.FAILED]
+      if (expectSuccess) {
+        if (failedTests != null && !failedTests.isEmpty()) {
+          throw new AssertionError("Expected successful execution, the following tests were reported as failed: " + failedTests)
+        }
+      } else {
+        if (failedTests == null || failedTests.isEmpty()) {
+          throw new AssertionError("Expected a failed execution, got no failed tests")
+        }
+      }
+    } finally {
+      TestEventsHandlerHolder.stop()
+    }
   }
 
   @Override
@@ -160,5 +180,13 @@ class SpockTest extends CiVisibilityInstrumentationTest {
   @Override
   String instrumentedLibraryVersion() {
     return SpockReleaseInfo.version
+  }
+
+  private static final class TestResultListener implements TestExecutionListener {
+    private final Map<TestExecutionResult.Status, Collection<org.junit.platform.launcher.TestIdentifier>> testsByStatus = new ConcurrentHashMap<>()
+
+    void executionFinished(org.junit.platform.launcher.TestIdentifier testIdentifier, TestExecutionResult testExecutionResult) {
+      testsByStatus.computeIfAbsent(testExecutionResult.status, k -> new CopyOnWriteArrayList<>()).add(testIdentifier)
+    }
   }
 }
