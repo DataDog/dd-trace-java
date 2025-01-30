@@ -153,34 +153,30 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
       private static final Predicate<Element> NOT_PENDING_TRACE =
           element -> !(element instanceof PendingTrace);
 
-      private volatile List<Element> DATA = new ArrayList<>();
+      private volatile List<Element> data = new ArrayList<>();
       private int index = 0;
 
       @Override
       public void accept(Element pendingTrace) {
-        DATA.add(pendingTrace);
+        data.add(pendingTrace);
       }
 
       @Override
       public Element get() {
-        if (index < DATA.size()) {
-          return DATA.get(index++);
+        if (index < data.size()) {
+          return data.get(index++);
         }
         return null; // Should never reach here or else queue may break according to
         // MessagePassingQueue docs
       }
 
       public List<Element> collectTraces() {
-        DATA.removeIf(NOT_PENDING_TRACE);
+        List<Element> traces = data;
+        data = new ArrayList<>();
+        traces.removeIf(NOT_PENDING_TRACE);
         // Storing oldest traces first
-        DATA.sort(TRACE_BY_START_TIME.reversed());
-        List<Element> orderedTraces = DATA;
-        DATA = new ArrayList<>();
-        return orderedTraces;
-      }
-
-      public void clear() {
-        DATA.clear();
+        traces.sort(TRACE_BY_START_TIME);
+        return traces;
       }
     }
 

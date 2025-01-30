@@ -14,6 +14,7 @@ import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.scopemanager.ContinuableScopeManager
 import datadog.trace.test.util.DDSpecification
+import groovy.json.JsonSlurper
 import spock.lang.Subject
 import spock.lang.Timeout
 import spock.util.concurrent.PollingConditions
@@ -448,17 +449,21 @@ class PendingTraceBufferTest extends DDSpecification {
     }
   }
 
-  def "testing tracer flare dump"() {
+  def "testing tracer flare dump with multiple traces"() {
     setup:
     TracerFlare.addReporter {} // exercises default methods
     def dumpReporter = Mock(PendingTraceBuffer.TracerDump)
     TracerFlare.addReporter(dumpReporter)
-    def trace = factory.create(DDTraceId.ONE)
-    def parent = newSpanOf(trace, UNSET, System.currentTimeMillis() * 1000)
-    def child = newSpanOf(parent)
+    def trace1 = factory.create(DDTraceId.ONE)
+    def parent1 = newSpanOf(trace1, UNSET, System.currentTimeMillis() * 1000)
+    def child1 = newSpanOf(parent1)
+    def trace2 = factory.create(DDTraceId.from(2))
+    def parent2 = newSpanOf(trace2, UNSET, System.currentTimeMillis() * 2000)
+    def child2 = newSpanOf(parent2)
 
     when:
-    parent.finish()
+    parent1.finish()
+    parent2.finish()
     buffer.start()
     def entries = buildAndExtractZip()
 
@@ -467,14 +472,25 @@ class PendingTraceBufferTest extends DDSpecification {
     1 * dumpReporter.addReportToFlare(_)
     1 * dumpReporter.cleanupAfterFlare()
     entries.size() == 1
+    def pendingTraceText = entries["pending_traces.txt"] as String
     (entries["pending_traces.txt"] as String).startsWith('[{"service":"fakeService","name":"fakeOperation","resource":"fakeResource","trace_id":1,"span_id":1,"parent_id":0') // Rest of dump is timestamp specific
 
-    then:
-    child.finish()
+    def parsedTraces = pendingTraceText.split('\n').collect { new JsonSlurper().parseText(it) }.flatten()
+    parsedTraces.size() == 2
+    parsedTraces[0]["trace_id"] == 1 //Asserting both traces exist
+    parsedTraces[1]["trace_id"] == 2
+    parsedTraces[0]["start"] < parsedTraces[1]["start"] //Asserting the dump has the oldest trace first
+
 
     then:
-    trace.size() == 0
-    trace.pendingReferenceCount == 0
+    child1.finish()
+    child2.finish()
+
+    then:
+    trace1.size() == 0
+    trace1.pendingReferenceCount == 0
+    trace2.size() == 0
+    trace2.pendingReferenceCount == 0
   }
 
 
