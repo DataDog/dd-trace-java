@@ -12,6 +12,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.reflect.Method;
 import java.util.List;
@@ -26,10 +27,10 @@ import org.junit.runner.notification.RunNotifier;
 import org.junit.runners.ParentRunner;
 
 @AutoService(InstrumenterModule.class)
-public class JUnit4ItrInstrumentation extends InstrumenterModule.CiVisibility
+public class JUnit4SkipInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  public JUnit4ItrInstrumentation() {
+  public JUnit4SkipInstrumentation() {
     super("ci-visibility", "junit-4");
   }
 
@@ -54,7 +55,7 @@ public class JUnit4ItrInstrumentation extends InstrumenterModule.CiVisibility
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".TestEventsHandlerHolder",
-      packageName + ".SkippedByItr",
+      packageName + ".SkippedByDatadog",
       packageName + ".JUnit4Utils",
       packageName + ".TracingListener",
       packageName + ".JUnit4TracingListener",
@@ -67,10 +68,11 @@ public class JUnit4ItrInstrumentation extends InstrumenterModule.CiVisibility
         named("runChild")
             .and(takesArguments(2))
             .and(takesArgument(1, named("org.junit.runner.notification.RunNotifier"))),
-        JUnit4ItrInstrumentation.class.getName() + "$JUnit4ItrInstrumentationAdvice");
+        JUnit4SkipInstrumentation.class.getName() + "$JUnit4SkipInstrumentationAdvice");
   }
 
-  public static class JUnit4ItrInstrumentationAdvice {
+  public static class JUnit4SkipInstrumentationAdvice {
+    @SuppressWarnings("bytebuddy-exception-suppression")
     @SuppressFBWarnings("NP_BOOLEAN_RETURN_NULL")
     @Advice.OnMethodEnter(skipOn = Boolean.class)
     public static Boolean runChild(
@@ -79,33 +81,35 @@ public class JUnit4ItrInstrumentation extends InstrumenterModule.CiVisibility
         @Advice.Argument(1) RunNotifier notifier) {
       Description description = JUnit4Utils.getDescription(runner, child);
       if (description == null || !description.isTest()) {
-        // ITR only skips individual tests
         return null;
       }
 
       Ignore ignoreAnnotation = description.getAnnotation(Ignore.class);
       if (ignoreAnnotation != null) {
-        // class is ignored, ITR not applicable
+        // class is ignored
         return null;
-      }
-
-      Class<?> testClass = description.getTestClass();
-      Method testMethod = JUnit4Utils.getTestMethod(description);
-      List<String> categories = JUnit4Utils.getCategories(testClass, testMethod);
-      for (String category : categories) {
-        if (category.endsWith(InstrumentationBridge.ITR_UNSKIPPABLE_TAG)) {
-          return null;
-        }
       }
 
       TestIdentifier test = JUnit4Utils.toTestIdentifier(description);
-      if (TestEventsHandlerHolder.TEST_EVENTS_HANDLER.isSkippable(test)) {
-        Description skippedDescription = JUnit4Utils.getSkippedDescription(description);
-        notifier.fireTestIgnored(skippedDescription);
-        return Boolean.FALSE;
-      } else {
+      SkipReason skipReason = TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skipReason(test);
+      if (skipReason == null) {
         return null;
       }
+
+      if (skipReason == SkipReason.ITR) {
+        Class<?> testClass = description.getTestClass();
+        Method testMethod = JUnit4Utils.getTestMethod(description);
+        List<String> categories = JUnit4Utils.getCategories(testClass, testMethod);
+        for (String category : categories) {
+          if (category.endsWith(InstrumentationBridge.ITR_UNSKIPPABLE_TAG)) {
+            return null;
+          }
+        }
+      }
+
+      Description skippedDescription = JUnit4Utils.getSkippedDescription(description, skipReason);
+      notifier.fireTestIgnored(skippedDescription);
+      return Boolean.FALSE;
     }
 
     // JUnit 4.10 and above

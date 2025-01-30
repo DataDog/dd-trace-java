@@ -49,7 +49,7 @@ public class Cucumber4RetryInstrumentation extends InstrumenterModule.CiVisibili
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      parentPackageName + ".SkippedByItr",
+      parentPackageName + ".SkippedByDatadog",
       parentPackageName + ".CucumberUtils",
       parentPackageName + ".JUnit4Utils",
       parentPackageName + ".TracingListener",
@@ -79,6 +79,7 @@ public class Cucumber4RetryInstrumentation extends InstrumenterModule.CiVisibili
   }
 
   public static class RetryAdvice {
+    @SuppressWarnings("bytebuddy-exception-suppression")
     @SuppressFBWarnings("NP_BOOLEAN_RETURN_NULL")
     @Advice.OnMethodEnter(skipOn = Boolean.class)
     public static Boolean retryIfNeeded(

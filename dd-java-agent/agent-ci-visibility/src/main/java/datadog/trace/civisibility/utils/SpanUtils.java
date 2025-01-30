@@ -87,7 +87,9 @@ public class SpanUtils {
       TestFramework framework = frameworks.iterator().next();
       Map<String, String> tags = new HashMap<>();
       tags.put(Tags.TEST_FRAMEWORK, framework.getName());
-      tags.put(Tags.TEST_FRAMEWORK_VERSION, framework.getVersion());
+      if (framework.getVersion() != null) {
+        tags.put(Tags.TEST_FRAMEWORK_VERSION, framework.getVersion());
+      }
       span.setAllTags(tags);
       return;
     }

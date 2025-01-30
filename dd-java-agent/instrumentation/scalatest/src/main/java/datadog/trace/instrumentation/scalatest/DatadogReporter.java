@@ -7,6 +7,7 @@ import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.instrumentation.scalatest.retry.SuppressedTestFailedException;
 import java.util.Collection;
@@ -138,7 +139,7 @@ public class DatadogReporter {
     String testParameters = null;
     Collection<String> categories;
     TestIdentifier testIdentifier = new TestIdentifier(testSuiteName, testName, null);
-    if (context.unskippable(testIdentifier)) {
+    if (context.itrUnskippable(testIdentifier)) {
       categories = Collections.singletonList(InstrumentationBridge.ITR_UNSKIPPABLE_TAG);
     } else {
       categories = Collections.emptyList();
@@ -203,13 +204,8 @@ public class DatadogReporter {
     Collection<String> categories = Collections.emptyList();
     Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
 
-    String reason;
     TestIdentifier skippableTest = new TestIdentifier(testSuiteName, testName, null);
-    if (context.skipped(skippableTest)) {
-      reason = InstrumentationBridge.ITR_SKIP_REASON;
-    } else {
-      reason = null;
-    }
+    SkipReason reason = context.getSkipReason(skippableTest);
 
     eventHandler.onTestIgnore(
         new TestSuiteDescriptor(testSuiteName, testClass),
@@ -220,7 +216,7 @@ public class DatadogReporter {
         testParameters,
         categories,
         new TestSourceData(testClass, null, null),
-        reason);
+        reason != null ? reason.getDescription() : null);
   }
 
   private static void onTestCancel(TestCanceled event) {

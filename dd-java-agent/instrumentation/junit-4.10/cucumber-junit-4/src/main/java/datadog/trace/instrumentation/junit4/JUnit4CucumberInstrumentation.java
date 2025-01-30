@@ -36,7 +36,7 @@ public class JUnit4CucumberInstrumentation extends InstrumenterModule.CiVisibili
     return new String[] {
       packageName + ".CucumberUtils",
       packageName + ".TestEventsHandlerHolder",
-      packageName + ".SkippedByItr",
+      packageName + ".SkippedByDatadog",
       packageName + ".JUnit4Utils",
       packageName + ".TracingListener",
       packageName + ".CucumberTracingListener",

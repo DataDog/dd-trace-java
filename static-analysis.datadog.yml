@@ -46,4 +46,6 @@ ignore-paths:
   - "dd-java-agent/benchmark-integration/**"
   - "dd-smoke-tests/**"
   - "**/src/test/**"
+  - "**/src/*Test/**"
+  - "**/src/test*/**"
   - "**/src/jmh/**"

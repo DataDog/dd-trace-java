@@ -21,5 +21,11 @@ public interface Timing {
 
     @Override
     public void setScheduler(Class<?> scheduler) {}
+
+    @Override
+    public void setQueue(Class<?> queue) {}
+
+    @Override
+    public void setQueueLength(int queueLength) {}
   }
 }

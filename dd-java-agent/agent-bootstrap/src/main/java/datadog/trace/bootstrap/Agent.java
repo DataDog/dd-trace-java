@@ -531,6 +531,7 @@ public class Agent {
 
       installDatadogTracer(initTelemetry, scoClass, sco);
       maybeInstallLogsIntake(scoClass, sco);
+      maybeStartIast(instrumentation);
     }
 
     @Override
@@ -545,7 +546,6 @@ public class Agent {
       }
 
       maybeStartAppSec(scoClass, sco);
-      maybeStartIast(instrumentation, scoClass, sco);
       maybeStartCiVisibility(instrumentation, scoClass, sco);
       // start debugger before remote config to subscribe to it before starting to poll
       maybeStartDebugger(instrumentation, scoClass, sco);
@@ -847,14 +847,14 @@ public class Agent {
     return true;
   }
 
-  private static void maybeStartIast(Instrumentation instrumentation, Class<?> scoClass, Object o) {
+  private static void maybeStartIast(Instrumentation instrumentation) {
     if (iastEnabled || !iastFullyDisabled) {
 
       StaticEventLogger.begin("IAST");
 
       try {
         SubscriptionService ss = AgentTracer.get().getSubscriptionService(RequestContextSlot.IAST);
-        startIast(instrumentation, ss, scoClass, o);
+        startIast(instrumentation, ss);
       } catch (Exception e) {
         log.error("Error starting IAST subsystem", e);
       }
@@ -863,8 +863,7 @@ public class Agent {
     }
   }
 
-  private static void startIast(
-      Instrumentation instrumentation, SubscriptionService ss, Class<?> scoClass, Object sco) {
+  private static void startIast(Instrumentation instrumentation, SubscriptionService ss) {
     try {
       final Class<?> appSecSysClass = AGENT_CLASSLOADER.loadClass("com.datadog.iast.IastSystem");
       final Method iastInstallerMethod =
@@ -1349,8 +1348,8 @@ public class Agent {
   }
 
   private static boolean okHttpMayIndirectlyLoadJUL() {
-    if (isIBMSASLInstalled() || isACCPInstalled()) {
-      return true; // 'IBMSASL' and 'ACCP' crypto providers can load JUL when OkHttp accesses TLS
+    if (isCustomSecurityProviderInstalled() || isIBMSASLInstalled()) {
+      return true; // custom security providers may load JUL when OkHttp accesses TLS
     }
     if (isJavaVersionAtLeast(9)) {
       return false; // JDKs since 9 have reworked JFR to use a different logging facility, not JUL
@@ -1358,14 +1357,13 @@ public class Agent {
     return isJFRSupported(); // assume OkHttp will indirectly load JUL via its JFR events
   }
 
-  private static boolean isIBMSASLInstalled() {
-    return ClassLoader.getSystemResource("com/ibm/security/sasl/IBMSASL.class") != null;
+  private static boolean isCustomSecurityProviderInstalled() {
+    return ClassLoader.getSystemResource("META-INF/services/java.security.Provider") != null;
   }
 
-  private static boolean isACCPInstalled() {
-    return ClassLoader.getSystemResource(
-            "com/amazon/corretto/crypto/provider/AmazonCorrettoCryptoProvider.class")
-        != null;
+  private static boolean isIBMSASLInstalled() {
+    // need explicit check as this is installed without using the service-loader mechanism
+    return ClassLoader.getSystemResource("com/ibm/security/sasl/IBMSASL.class") != null;
   }
 
   private static boolean isJFRSupported() {

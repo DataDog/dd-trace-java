@@ -22,10 +22,10 @@ class JarScannerTest {
     URL jarUrl = new URL("jar:file:" + jarFileUrl.getFile() + "!/");
     URLClassLoader urlClassLoader = new URLClassLoader(new URL[] {jarUrl}, null);
     Class<?> testClass = urlClassLoader.loadClass(CLASS_NAME);
-    assertEquals(jarFileUrl.getFile(), JarScanner.extractJarPath(testClass).toString());
+    assertEquals(jarFileUrl.getFile(), JarScanner.extractJarPath(testClass, null).toString());
     assertEquals(
         jarFileUrl.getFile(),
-        JarScanner.extractJarPath(testClass.getProtectionDomain()).toString());
+        JarScanner.extractJarPath(testClass.getProtectionDomain(), null).toString());
   }
 
   @Test
@@ -34,7 +34,7 @@ class JarScannerTest {
     URL jarFileUrl = getClass().getResource("/debugger-symbol.jar");
     URLClassLoader urlClassLoader = new URLClassLoader(new URL[] {jarFileUrl}, null);
     Class<?> testClass = urlClassLoader.loadClass(CLASS_NAME);
-    assertEquals(jarFileUrl.getFile(), JarScanner.extractJarPath(testClass).toString());
+    assertEquals(jarFileUrl.getFile(), JarScanner.extractJarPath(testClass, null).toString());
   }
 
   @Test
@@ -45,6 +45,7 @@ class JarScannerTest {
         .thenReturn("jar:nested:" + jarFileUrl.getFile() + "/!BOOT-INF/classes/!");
     CodeSource codeSource = new CodeSource(mockLocation, (Certificate[]) null);
     ProtectionDomain protectionDomain = new ProtectionDomain(codeSource, null);
-    assertEquals(jarFileUrl.getFile(), JarScanner.extractJarPath(protectionDomain).toString());
+    assertEquals(
+        jarFileUrl.getFile(), JarScanner.extractJarPath(protectionDomain, null).toString());
   }
 }

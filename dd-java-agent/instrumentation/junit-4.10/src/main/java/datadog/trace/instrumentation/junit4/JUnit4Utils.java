@@ -6,6 +6,7 @@ import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
+import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.util.MethodHandles;
 import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodHandle;
@@ -276,14 +277,14 @@ public abstract class JUnit4Utils {
     return METHOD_HANDLES.invoke(PARENT_RUNNER_DESCRIBE_CHILD, runner, child);
   }
 
-  public static Description getSkippedDescription(Description description) {
+  public static Description getSkippedDescription(Description description, SkipReason skipReason) {
     Collection<Annotation> annotations = description.getAnnotations();
     Annotation[] updatedAnnotations = new Annotation[annotations.size() + 1];
     int idx = 0;
     for (Annotation annotation : annotations) {
       updatedAnnotations[idx++] = annotation;
     }
-    updatedAnnotations[idx] = new SkippedByItr();
+    updatedAnnotations[idx] = new SkippedByDatadog(skipReason.getDescription());
 
     String displayName = description.getDisplayName();
     Class<?> testClass = description.getTestClass();

@@ -7,6 +7,7 @@ import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -34,8 +35,9 @@ public class RunContext {
   private final int runStamp;
   private final TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler =
       InstrumentationBridge.createTestEventsHandler("scalatest", null, null);
-  private final java.util.Set<TestIdentifier> skippedTests = ConcurrentHashMap.newKeySet();
-  private final java.util.Set<TestIdentifier> unskippableTests = ConcurrentHashMap.newKeySet();
+  private final java.util.Map<TestIdentifier, SkipReason> skipReasonByTest =
+      new ConcurrentHashMap<>();
+  private final java.util.Set<TestIdentifier> itrUnskippableTests = ConcurrentHashMap.newKeySet();
   private final java.util.Map<TestIdentifier, TestRetryPolicy> retryPolicies =
       new ConcurrentHashMap<>();
 
@@ -51,12 +53,12 @@ public class RunContext {
     return eventHandler;
   }
 
-  public boolean skipped(TestIdentifier test) {
-    return skippedTests.remove(test);
+  public SkipReason getSkipReason(TestIdentifier test) {
+    return skipReasonByTest.remove(test);
   }
 
-  public boolean unskippable(TestIdentifier test) {
-    return unskippableTests.remove(test);
+  public boolean itrUnskippable(TestIdentifier test) {
+    return itrUnskippableTests.remove(test);
   }
 
   public scala.collection.immutable.List<Tuple2<String, Boolean>> skip(
@@ -83,32 +85,41 @@ public class RunContext {
 
     String testName = testNameAndSkipStatus._1();
     TestIdentifier test = new TestIdentifier(suiteId, testName, null);
-    if (isUnskippable(test, tags)) {
-      unskippableTests.add(test);
-      return testNameAndSkipStatus;
 
-    } else if (eventHandler.isSkippable(test)) {
-      skippedTests.add(test);
-      return new Tuple2<>(testName, true);
+    boolean itrUnskippable = isItrUnskippable(test, tags);
+    if (itrUnskippable) {
+      itrUnskippableTests.add(test);
+    }
 
-    } else {
+    SkipReason skipReason = eventHandler.skipReason(test);
+    if (skipReason == null || skipReason == SkipReason.ITR && itrUnskippable) {
       return testNameAndSkipStatus;
     }
+
+    skipReasonByTest.put(test, skipReason);
+    return new Tuple2<>(testName, true);
   }
 
   public boolean skip(TestIdentifier test, Map<String, Set<String>> tags) {
-    if (isUnskippable(test, tags)) {
-      unskippableTests.add(test);
-      return false;
-    } else if (eventHandler.isSkippable(test)) {
-      skippedTests.add(test);
-      return true;
-    } else {
+    boolean itrUnskippable = isItrUnskippable(test, tags);
+    if (itrUnskippable) {
+      itrUnskippableTests.add(test);
+    }
+
+    SkipReason skipReason = eventHandler.skipReason(test);
+    if (skipReason == null) {
       return false;
     }
+
+    if (skipReason == SkipReason.ITR && itrUnskippable) {
+      return false;
+    }
+
+    skipReasonByTest.put(test, skipReason);
+    return true;
   }
 
-  public boolean isUnskippable(TestIdentifier test, Map<String, Set<String>> tags) {
+  private boolean isItrUnskippable(TestIdentifier test, Map<String, Set<String>> tags) {
     Option<Set<String>> testTagsOption = tags.get(test.getName());
     if (testTagsOption.isEmpty()) {
       return false;
