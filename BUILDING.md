@@ -108,10 +108,10 @@ Download and install Eclipse Temurin JDK versions 8, 11, 17 and 21, and GraalVM.
 
 #### Windows
 
-* Download and install JDK 8, 11, 17, and 21 [Eclipse Temurin releases](https://adoptium.net/temurin/releases/). Alternatively, if available, you can use `winget` or `scoop`:
+* Download and install JDK 8, 11, 17, and 21 [Eclipse Temurin releases](https://adoptium.net/temurin/releases/). Alternatively, you can use `winget` or `scoop`:
 
   <details>
-  <summary>Install JDKs using `winget`</summary>
+  <summary>Install JDKs using winget</summary>
 
     ```pwsh
     winget install --id EclipseAdoptium.Temurin.8.JDK
@@ -123,11 +123,10 @@ Download and install Eclipse Temurin JDK versions 8, 11, 17 and 21, and GraalVM.
   </details>
 
   <details>
-  <summary>Install JDKs using `scoop`</summary>
+  <summary>Install JDKs using scoop</summary>
 
   ```pwsh
   scoop bucket add java
-
   scoop install temurin8-jdk
   scoop install temurin11-jdk
   scoop install temurin17-jdk
@@ -136,7 +135,7 @@ Download and install Eclipse Temurin JDK versions 8, 11, 17 and 21, and GraalVM.
 
   </details>
 
-* To add the required environment variables, run the following PowerShell commands for each SDK version, replacing the path with the correct version installed:
+* To add the required environment variables, run the following PowerShell commands for each SDK version, replacing the paths with the correct version installed:
   ```pwsh
   [Environment]::SetEnvironmentVariable("JAVA_8_HOME",  "C:\Program Files\Eclipse Adoptium\jdk-8.0.432.6-hotspot", [EnvironmentVariableTarget]::User)
   [Environment]::SetEnvironmentVariable("JAVA_11_HOME", "C:\Program Files\Eclipse Adoptium\jdk-11.0.25.9-hotspot", [EnvironmentVariableTarget]::User)
@@ -146,9 +145,6 @@ Download and install Eclipse Temurin JDK versions 8, 11, 17 and 21, and GraalVM.
   # JAVA_HOME = JAVA_8_HOME
   [Environment]::SetEnvironmentVariable("JAVA_HOME",    "C:\Program Files\Eclipse Adoptium\jdk-8.0.432.6-hotspot", [EnvironmentVariableTarget]::User)
   ```
-
-> [!NOTE]
-> This scripts currently does _not_ install GraalVM due to license changes in October 2024 for GraalVM 17.0.13 and later.
 
 ### Install git
 
@@ -165,9 +161,7 @@ apt-get install git
 
 #### Windows
 
-Download and install the installer from [the official website](https://git-scm.com/download/win).
-
-Alternatively, you can use `winget` or `scoop`:
+Download and install the installer from [the official website](https://git-scm.com/download/win). Alternatively, you can use `winget` or `scoop`:
 
 <details>
 <summary>Install git using winget</summary>
@@ -205,14 +199,19 @@ https://docs.docker.com/desktop/setup/install/linux/
 
 #### Windows
 
-Use `winget` to install Docker Desktop:
+Download and install Docker Desktop from the offical website:<br/>
+https://docs.docker.com/desktop/setup/install/windows-install/
+
+Alternatively, you can use `winget`:
+
+<details>
+<summary>Install Docker Desktop using winget</summary>
 
 ```pwsh
 winget install --id Docker.DockerDesktop
 ```
 
-Alternatively, download and install Docker Desktop from the offical website:<br/>
-https://docs.docker.com/desktop/setup/install/windows-install/
+</details>
 
 ## Clone the repository and set up git
 
