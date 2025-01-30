@@ -9,6 +9,10 @@ sourceSets {
   main_java17 {
     java.srcDirs "${project.projectDir}/src/main/java17"
   }
+
+  test_java17 {
+    java.srcDirs "${project.projectDir}/src/test/java17"
+  }
 }
 
 compileMain_java17Java.configure {
