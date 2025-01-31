@@ -3,107 +3,76 @@ package datadog.common.socket;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.StandardProtocolFamily;
 import java.net.UnixDomainSocketAddress;
+import java.nio.ByteBuffer;
 import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.SocketChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 public class TunnelingJdkSocketTest {
 
-  private final AtomicBoolean running = new AtomicBoolean(false);
+  private static final AtomicBoolean is_server_running = new AtomicBoolean(false);
 
   @Test
   public void testTimeout() throws Exception {
-    Assertions.assertEquals(1 + 1, 2);
-
-    // set test socket path
+    // set socket path and address
     Path socketPath = getSocketPath();
-    // start server
-    startServer(socketPath);
+    UnixDomainSocketAddress socketAddress = UnixDomainSocketAddress.of(socketPath);
 
-    // timeout after two seconds if server doesn't start
-    long startTime = System.currentTimeMillis();
-    long timeout = 2000;
-    while (!running.get()) {
-      Thread.sleep(100);
-      if (System.currentTimeMillis() - startTime > timeout) {
-        System.out.println("Timeout waiting for server to start.");
-        break;
-      }
-    }
+    // start server in a separate thread
+    startServer(socketAddress, false);
 
-    // create client socket
+    // create client
     TunnelingJdkSocket clientSocket = createClient(socketPath);
 
-    // attempt to read from empty socket (read should block indefinitely)
-    System.out.println("Test is starting...");
-    assertTimeoutPreemptively(Duration.ofSeconds(5), () -> clientSocket.getInputStream().read());
+    // expect a failure after three seconds because timeout is not supported yet
+    assertTimeoutPreemptively(Duration.ofMillis(3000), () -> clientSocket.getInputStream().read());
 
-    // clean up client, server, and path
+    // clean up
     clientSocket.close();
-    running.set(false);
-    Files.deleteIfExists(socketPath);
-    System.out.println("Client, server, and path cleaned.");
+    is_server_running.set(false);
   }
 
   private Path getSocketPath() throws IOException {
-    Path socketPath = Files.createTempFile("testSocket", ".sock");
+    Path socketPath = Files.createTempFile("testSocket", null);
     Files.delete(socketPath);
     socketPath.toFile().deleteOnExit();
     return socketPath;
   }
 
-  private void startServer(Path socketPath) {
+  private static void startServer(UnixDomainSocketAddress socketAddress, boolean sendMessage) {
     Thread serverThread =
         new Thread(
             () -> {
-              // open and bind server to socketPath
-              try (ServerSocketChannel serverChannel = ServerSocketChannel.open()) {
-                System.out.println("serverChannel is open.");
-                serverChannel.configureBlocking(false);
-                System.out.println("serverChannel is not blocking.");
-                serverChannel.socket().bind(UnixDomainSocketAddress.of(socketPath));
-                // accept connections made to the server
-                running.set(true);
-                System.out.println("Server is running and ready to accept connections.");
-                while (running.get()) {
-                  serverChannel.accept();
-                  System.out.println("Server is accepting connections.");
+              try (ServerSocketChannel serverChannel =
+                  ServerSocketChannel.open(StandardProtocolFamily.UNIX)) {
+                serverChannel.bind(socketAddress);
+                is_server_running.set(true);
+
+                // wait for client connection
+                while (is_server_running.get()) {
+                  SocketChannel clientChannel = serverChannel.accept();
+                  if (sendMessage) {
+                    clientChannel.write(ByteBuffer.wrap("Hello!".getBytes()));
+                  }
                 }
               } catch (IOException e) {
-                System.out.println("Server encountered error with accepting a connection.");
-                // clean up server and path
-                running.set(false);
-                try {
-                  Files.deleteIfExists(socketPath);
-                } catch (IOException ex) {
-                  throw new RuntimeException(ex);
-                }
                 throw new RuntimeException(e);
               }
             });
-
-    // start server in separate thread
     serverThread.start();
   }
 
   private TunnelingJdkSocket createClient(Path socketPath) throws IOException {
-    // create client socket
     TunnelingJdkSocket clientSocket = new TunnelingJdkSocket(socketPath);
-    // set timeout to one second
+    clientSocket.connect(new InetSocketAddress("localhost", 0));
     clientSocket.setSoTimeout(1000);
-    System.out.println("Client set timeout.");
-
-    if (clientSocket.isConnected()) {
-      System.out.println("Client connected successfully.");
-    } else {
-      System.out.println("Client failed to connect.");
-    }
-
     return clientSocket;
   }
 }
