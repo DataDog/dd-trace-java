@@ -71,6 +71,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
   private static Path agentKeyFile
 
   private static final List<TestIdentifier> skippableTests = new ArrayList<>()
+  private static final List<TestIdentifier> quarantinedTests = new ArrayList<>()
   private static final List<TestIdentifier> flakyTests = new ArrayList<>()
   private static final List<TestIdentifier> knownTests = new ArrayList<>()
   private static volatile Diff diff = LineDiff.EMPTY
@@ -79,6 +80,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
   private static volatile boolean flakyRetryEnabled = false
   private static volatile boolean earlyFlakinessDetectionEnabled = false
   private static volatile boolean impactedTestsDetectionEnabled = false
+  private static volatile boolean quarantineEnabled = false
 
   public static final int SLOW_TEST_THRESHOLD_MILLIS = 1000
   public static final int VERY_SLOW_TEST_THRESHOLD_MILLIS = 2000
@@ -130,6 +132,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
         itrEnabled ? "itrCorrelationId" : null,
         skippableTestsWithMetadata,
         [:],
+        quarantinedTests,
         flakyTests,
         earlyFlakinessDetectionEnabled || CIConstants.FAIL_FAST_TEST_ORDER.equalsIgnoreCase(Config.get().ciVisibilityTestOrder) ? knownTests : null,
         diff)
@@ -251,10 +254,12 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
   @Override
   void setup() {
     skippableTests.clear()
+    quarantinedTests.clear()
     flakyTests.clear()
     knownTests.clear()
     diff = LineDiff.EMPTY
     itrEnabled = false
+    quarantineEnabled = false
     flakyRetryEnabled = false
     earlyFlakinessDetectionEnabled = false
     impactedTestsDetectionEnabled = false
@@ -275,8 +280,16 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     knownTests.addAll(tests)
   }
 
+  def givenQuarantinedTests(List<TestIdentifier> tests) {
+    quarantinedTests.addAll(tests)
+  }
+
   def givenDiff(Diff diff) {
     this.diff = diff
+  }
+
+  def givenQuarantineEnabled(boolean quarantineEnabled) {
+    this.quarantineEnabled = quarantineEnabled
   }
 
   def givenFlakyRetryEnabled(boolean flakyRetryEnabled) {

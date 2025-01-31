@@ -3,19 +3,7 @@ import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.instrumentation.karate.TestEventsHandlerHolder
-import org.example.TestFailedBuiltInRetryKarate
-import org.example.TestFailedKarate
-import org.example.TestFailedParameterizedKarate
-import org.example.TestFailedThenSucceedKarate
-import org.example.TestParameterizedKarate
-import org.example.TestParameterizedMoreCasesKarate
-import org.example.TestSkippedFeatureKarate
-import org.example.TestSucceedKarate
-import org.example.TestSucceedKarateSlow
-import org.example.TestSucceedOneCaseKarate
-import org.example.TestSucceedParallelKarate
-import org.example.TestUnskippableKarate
-import org.example.TestWithSetupKarate
+import org.example.*
 import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.engine.JupiterTestEngine
 import org.junit.platform.engine.DiscoverySelector
@@ -105,6 +93,19 @@ class KarateTest extends CiVisibilityInstrumentationTest {
     "test-efd-new-parameterized-test"   | [TestParameterizedKarate]          | []
     "test-efd-new-slow-test"            | [TestSucceedKarateSlow]            | [] // is executed only twice
     "test-efd-faulty-session-threshold" | [TestParameterizedMoreCasesKarate] | []
+  }
+
+  def "test quarantined #testcaseName"() {
+    givenQuarantineEnabled(true)
+    givenQuarantinedTests(quarantined)
+
+    runTests(tests, true)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName             | tests              | quarantined
+    "test-failed-quarantine" | [TestFailedKarate] | [new TestIdentifier("[org/example/test_failed] test failed", "second scenario", null)]
   }
 
   private void runTests(List<Class<?>> tests, boolean expectSuccess = true) {

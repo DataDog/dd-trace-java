@@ -233,6 +233,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
                   .getIdentifiersByModule()
                   .getOrDefault(moduleName, Collections.emptyMap()),
               skippableTests.getCoveredLinesByRelativeSourcePath(),
+              Collections.emptyList(), // FIXME implement retrieving quarantined tests
               flakyTestsByModule != null
                   ? flakyTestsByModule.getOrDefault(moduleName, Collections.emptyList())
                   : null,
