@@ -59,6 +59,7 @@ public class NoOpTestEventsHandler<SuiteKey, TestKey>
       @Nullable Collection<String> categories,
       @Nonnull TestSourceData testSourceData,
       RetryReason retryReason,
+      boolean hasFailedAllRetries,
       @Nullable Long startTime) {
     // do nothing
   }

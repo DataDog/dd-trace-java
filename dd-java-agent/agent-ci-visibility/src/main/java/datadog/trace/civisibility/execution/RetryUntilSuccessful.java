@@ -11,6 +11,7 @@ public class RetryUntilSuccessful implements TestExecutionPolicy {
   private final int maxExecutions;
   private final boolean suppressFailures;
   private int executions;
+  private boolean successfulExecutionSeen;
 
   /** Total execution counter that is shared by all retry policies */
   private final AtomicInteger totalExecutions;
@@ -41,6 +42,7 @@ public class RetryUntilSuccessful implements TestExecutionPolicy {
 
   @Override
   public boolean retry(boolean successful, long durationMillis) {
+    successfulExecutionSeen |= successful;
     if (!successful && ++executions < maxExecutions) {
       totalExecutions.incrementAndGet();
       return true;
@@ -57,5 +59,10 @@ public class RetryUntilSuccessful implements TestExecutionPolicy {
 
   private boolean currentExecutionIsRetry() {
     return executions > 0;
+  }
+
+  @Override
+  public boolean hasFailedAllRetries() {
+    return executions == maxExecutions && !successfulExecutionSeen;
   }
 }

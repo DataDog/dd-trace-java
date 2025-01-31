@@ -142,9 +142,9 @@ class SpockTest extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName)
 
     where:
-    testcaseName                | tests                          | quarantined
-    "test-failed"               | [TestFailedSpock]              | [new TestIdentifier("org.example.TestFailedSpock", "test failed", null)]
-    "test-failed-parameterized" | [TestFailedParameterizedSpock] | [new TestIdentifier("org.example.TestFailedParameterizedSpock", "test add 4 and 4", null)]
+    testcaseName                            | tests                          | quarantined
+    "test-quarantined-failed"               | [TestFailedSpock]              | [new TestIdentifier("org.example.TestFailedSpock", "test failed", null)]
+    "test-quarantined-failed-parameterized" | [TestFailedParameterizedSpock] | [new TestIdentifier("org.example.TestFailedParameterizedSpock", "test add 4 and 4", null)]
   }
 
   def "test quarantined auto-retries #testcaseName"() {
@@ -160,8 +160,8 @@ class SpockTest extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName)
 
     where:
-    testcaseName        | tests             | quarantined                                                              | retried
-    "test-retry-failed" | [TestFailedSpock] | [new TestIdentifier("org.example.TestFailedSpock", "test failed", null)] | [new TestIdentifier("org.example.TestFailedSpock", "test failed", null)]
+    testcaseName                  | tests             | quarantined                                                              | retried
+    "test-quarantined-failed-atr" | [TestFailedSpock] | [new TestIdentifier("org.example.TestFailedSpock", "test failed", null)] | [new TestIdentifier("org.example.TestFailedSpock", "test failed", null)]
   }
 
   def "test quarantined early flakiness detection #testcaseName"() {
@@ -177,9 +177,9 @@ class SpockTest extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName)
 
     where:
-    testcaseName      | tests             | quarantined                                                              | known
-    "test-failed"     | [TestFailedSpock] | [new TestIdentifier("org.example.TestFailedSpock", "test failed", null)] | [new TestIdentifier("org.example.TestFailedSpock", "test failed", null)]
-    "test-failed-efd" | [TestFailedSpock] | [new TestIdentifier("org.example.TestFailedSpock", "test failed", null)] | []
+    testcaseName                  | tests             | quarantined                                                              | known
+    "test-quarantined-failed"     | [TestFailedSpock] | [new TestIdentifier("org.example.TestFailedSpock", "test failed", null)] | [new TestIdentifier("org.example.TestFailedSpock", "test failed", null)]
+    "test-quarantined-failed-efd" | [TestFailedSpock] | [new TestIdentifier("org.example.TestFailedSpock", "test failed", null)] | []
   }
 
   private static void runTests(List<Class<?>> classes, boolean expectSuccess = true) {

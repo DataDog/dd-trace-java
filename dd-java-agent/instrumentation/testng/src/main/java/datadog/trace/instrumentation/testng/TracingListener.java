@@ -2,10 +2,11 @@ package datadog.trace.instrumentation.testng;
 
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
-import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
+import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.instrumentation.testng.execution.RetryAnalyzer;
 import java.util.List;
+import javax.annotation.Nullable;
 import org.testng.IConfigurationListener;
 import org.testng.IRetryAnalyzer;
 import org.testng.ITestClass;
@@ -82,6 +83,7 @@ public class TracingListener extends TestNGClassListener
     List<String> groups = TestNGUtils.getGroups(result);
     TestSourceData testSourceData = TestNGUtils.toTestSourceData(result);
 
+    TestExecutionPolicy executionPolicy = executionPolicy(result);
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestStart(
         suiteDescriptor,
         result,
@@ -91,15 +93,17 @@ public class TracingListener extends TestNGClassListener
         testParameters,
         groups,
         testSourceData,
-        retryReason(result),
+        executionPolicy != null ? executionPolicy.currentExecutionRetryReason() : null,
+        executionPolicy != null && executionPolicy.hasFailedAllRetries(),
         null);
   }
 
-  private RetryReason retryReason(final ITestResult result) {
+  @Nullable
+  private TestExecutionPolicy executionPolicy(final ITestResult result) {
     IRetryAnalyzer retryAnalyzer = TestNGUtils.getRetryAnalyzer(result);
     if (retryAnalyzer instanceof RetryAnalyzer) {
       RetryAnalyzer datadogAnalyzer = (RetryAnalyzer) retryAnalyzer;
-      return datadogAnalyzer.currentExecutionRetryReason();
+      return datadogAnalyzer.getExecutionPolicy();
     }
     return null;
   }

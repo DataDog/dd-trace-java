@@ -88,6 +88,11 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
     return executionStrategy.isModified(testSourceData);
   }
 
+  @Override
+  public boolean isQuarantined(TestIdentifier test) {
+    return executionStrategy.isQuarantined(test);
+  }
+
   @Nullable
   @Override
   public SkipReason skipReason(TestIdentifier test) {

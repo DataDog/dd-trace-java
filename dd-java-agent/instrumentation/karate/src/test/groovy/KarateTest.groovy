@@ -104,8 +104,8 @@ class KarateTest extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName)
 
     where:
-    testcaseName             | tests              | quarantined
-    "test-failed-quarantine" | [TestFailedKarate] | [new TestIdentifier("[org/example/test_failed] test failed", "second scenario", null)]
+    testcaseName              | tests              | quarantined
+    "test-quarantined-failed" | [TestFailedKarate] | [new TestIdentifier("[org/example/test_failed] test failed", "second scenario", null)]
   }
 
   private void runTests(List<Class<?>> tests, boolean expectSuccess = true) {

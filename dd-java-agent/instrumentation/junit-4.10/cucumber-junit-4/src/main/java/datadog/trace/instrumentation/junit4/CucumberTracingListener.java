@@ -29,13 +29,13 @@ public class CucumberTracingListener extends TracingListener {
   public static final String FRAMEWORK_NAME = "cucumber";
   public static final String FRAMEWORK_VERSION = CucumberUtils.getVersion();
 
-  private final ContextStore<Description, TestExecutionPolicy> retryPolicies;
+  private final ContextStore<Description, TestExecutionPolicy> executionPolicies;
   private final Map<Object, Pickle> pickleById;
 
   public CucumberTracingListener(
-      ContextStore<Description, TestExecutionPolicy> retryPolicies,
+      ContextStore<Description, TestExecutionPolicy> executionPolicies,
       List<ParentRunner<?>> featureRunners) {
-    this.retryPolicies = retryPolicies;
+    this.executionPolicies = executionPolicies;
     pickleById = CucumberUtils.getPicklesById(featureRunners);
   }
 
@@ -71,7 +71,7 @@ public class CucumberTracingListener extends TracingListener {
     String testName = CucumberUtils.getTestNameForScenario(description);
     List<String> categories = getCategories(description);
 
-    TestExecutionPolicy retryPolicy = retryPolicies.get(description);
+    TestExecutionPolicy executionPolicy = executionPolicies.get(description);
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestStart(
         new TestSuiteDescriptor(testSuiteName, null),
         CucumberUtils.toTestDescriptor(description),
@@ -81,7 +81,8 @@ public class CucumberTracingListener extends TracingListener {
         null,
         categories,
         TestSourceData.UNKNOWN,
-        retryPolicy != null ? retryPolicy.currentExecutionRetryReason() : null,
+        executionPolicy != null ? executionPolicy.currentExecutionRetryReason() : null,
+        executionPolicy != null && executionPolicy.hasFailedAllRetries(),
         null);
 
     recordFeatureFileCodeCoverage(description);

@@ -18,10 +18,10 @@ public class JUnit4TracingListener extends TracingListener {
   private static final String FRAMEWORK_NAME = "junit4";
   private static final String FRAMEWORK_VERSION = Version.id();
 
-  private final ContextStore<Description, TestExecutionPolicy> retryPolicies;
+  private final ContextStore<Description, TestExecutionPolicy> executionPolicies;
 
-  public JUnit4TracingListener(ContextStore<Description, TestExecutionPolicy> retryPolicies) {
-    this.retryPolicies = retryPolicies;
+  public JUnit4TracingListener(ContextStore<Description, TestExecutionPolicy> executionPolicies) {
+    this.executionPolicies = executionPolicies;
   }
 
   public void testSuiteStarted(final Description description) {
@@ -74,7 +74,7 @@ public class JUnit4TracingListener extends TracingListener {
     String testParameters = JUnit4Utils.getParameters(description);
     List<String> categories =
         JUnit4Utils.getCategories(testSourceData.getTestClass(), testSourceData.getTestMethod());
-    TestExecutionPolicy retryPolicy = retryPolicies.get(description);
+    TestExecutionPolicy executionPolicy = executionPolicies.get(description);
 
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestStart(
         suiteDescriptor,
@@ -85,7 +85,8 @@ public class JUnit4TracingListener extends TracingListener {
         testParameters,
         categories,
         testSourceData,
-        retryPolicy != null ? retryPolicy.currentExecutionRetryReason() : null,
+        executionPolicy != null ? executionPolicy.currentExecutionRetryReason() : null,
+        executionPolicy != null && executionPolicy.hasFailedAllRetries(),
         null);
   }
 

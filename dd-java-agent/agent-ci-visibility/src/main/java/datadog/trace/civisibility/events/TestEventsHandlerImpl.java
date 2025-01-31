@@ -140,6 +140,7 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
       final @Nullable Collection<String> categories,
       final @Nonnull TestSourceData testSourceData,
       final @Nullable RetryReason retryReason,
+      final boolean hasFailedAllRetries,
       final @Nullable Long startTime) {
     if (skipTrace(testSourceData.getTestClass())) {
       return;
@@ -164,6 +165,14 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
 
     if (testModule.isModified(testSourceData)) {
       test.setTag(Tags.TEST_IS_MODIFIED, true);
+    }
+
+    if (testModule.isQuarantined(thisTest)) {
+      test.setTag(Tags.TEST_MANAGEMENT_IS_QUARANTINED, true);
+    }
+
+    if (hasFailedAllRetries) {
+      test.setTag(Tags.TEST_HAS_FAILED_ALL_RETRIES, true);
     }
 
     if (testFramework != null) {
@@ -257,6 +266,7 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
         categories,
         testSourceData,
         null,
+        false,
         null);
     onTestSkip(testDescriptor, reason);
     onTestFinish(testDescriptor, null);

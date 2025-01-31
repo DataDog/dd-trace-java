@@ -37,6 +37,7 @@ public abstract class JUnitPlatformUtils {
 
   public static final String RETRY_DESCRIPTOR_REASON_SUFFIX = "retry-reason";
   public static final String RETRY_DESCRIPTOR_ID_SUFFIX = "retry-attempt";
+  public static final String HAS_FAILED_ALL_RETRIES_SUFFIX = "failed-all-retries";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(JUnitPlatformUtils.class);
 
@@ -193,6 +194,10 @@ public abstract class JUnitPlatformUtils {
 
   public static boolean isRetry(TestDescriptor testDescriptor) {
     return getIDSegmentValue(testDescriptor, RETRY_DESCRIPTOR_ID_SUFFIX) != null;
+  }
+
+  public static boolean hasFailedAllRetries(TestDescriptor testDescriptor) {
+    return getIDSegmentValue(testDescriptor, HAS_FAILED_ALL_RETRIES_SUFFIX) != null;
   }
 
   private static String getIDSegmentValue(TestDescriptor testDescriptor, String segmentName) {

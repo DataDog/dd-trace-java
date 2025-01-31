@@ -145,6 +145,9 @@ public class KarateTracingHook implements RuntimeHook {
         categories,
         TestSourceData.UNKNOWN,
         (RetryReason) sr.magicVariables.get(KarateUtils.RETRY_MAGIC_VARIABLE),
+        (Boolean)
+            sr.magicVariables.getOrDefault(
+                KarateUtils.HAS_FAILED_ALL_RETRIES_MAGIC_VARIABLE, Boolean.FALSE),
         null);
     return true;
   }

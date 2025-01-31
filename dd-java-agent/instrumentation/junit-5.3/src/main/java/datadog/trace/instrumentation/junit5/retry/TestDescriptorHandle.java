@@ -6,6 +6,7 @@ import datadog.trace.util.UnsafeUtils;
 import java.lang.invoke.MethodHandle;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Map;
 import org.junit.platform.commons.util.ClassLoaderUtils;
 import org.junit.platform.engine.TestDescriptor;
 import org.junit.platform.engine.UniqueId;
@@ -42,13 +43,12 @@ public class TestDescriptorHandle {
     this.testDescriptor = UnsafeUtils.tryShallowClone(testDescriptor);
   }
 
-  public TestDescriptor withIdSuffix(
-      String segmentName, Object segmentValue, String otherSegmentName, Object otherSegmentValue) {
-    UniqueId uniqueId = testDescriptor.getUniqueId();
-    UniqueId updatedId =
-        uniqueId
-            .append(segmentName, String.valueOf(segmentValue))
-            .append(otherSegmentName, String.valueOf(otherSegmentValue));
+  public TestDescriptor withIdSuffix(Map<String, Object> suffices) {
+    UniqueId updatedId = testDescriptor.getUniqueId();
+    for (Map.Entry<String, Object> e : suffices.entrySet()) {
+      updatedId = updatedId.append(e.getKey(), String.valueOf(e.getValue()));
+    }
+
     TestDescriptor descriptorClone = UnsafeUtils.tryShallowClone(testDescriptor);
     METHOD_HANDLES.invoke(UNIQUE_ID_SETTER, descriptorClone, updatedId);
     return descriptorClone;

@@ -54,6 +54,8 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
    * @param testSourceData metadata for locating the source code for the test case
    * @param retryReason if this is a retry of the previously executed test case, the reason for
    *     retrying
+   * @param hasFailedAllRetries {@code true} if this test was executed multiple times, and all the
+   *     executions failed
    * @param startTime the timestamp of the test execution start ({@code null} for current timestamp)
    */
   void onTestStart(
@@ -66,6 +68,7 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
       @Nullable Collection<String> categories,
       @Nonnull TestSourceData testSourceData,
       @Nullable RetryReason retryReason,
+      boolean hasFailedAllRetries,
       @Nullable Long startTime);
 
   void onTestSkip(TestKey descriptor, @Nullable String reason);

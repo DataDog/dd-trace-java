@@ -18,8 +18,10 @@ import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.TagValue;
 import datadog.trace.api.civisibility.telemetry.tag.BrowserDriver;
 import datadog.trace.api.civisibility.telemetry.tag.EventType;
+import datadog.trace.api.civisibility.telemetry.tag.HasFailedAllRetries;
 import datadog.trace.api.civisibility.telemetry.tag.IsModified;
 import datadog.trace.api.civisibility.telemetry.tag.IsNew;
+import datadog.trace.api.civisibility.telemetry.tag.IsQuarantined;
 import datadog.trace.api.civisibility.telemetry.tag.IsRetry;
 import datadog.trace.api.civisibility.telemetry.tag.IsRum;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
@@ -265,13 +267,15 @@ public class TestImpl implements DDTest {
 
     Object retryReason = span.getTag(Tags.TEST_RETRY_REASON);
     metricCollector.add(
-        CiVisibilityCountMetric.EVENT_FINISHED,
+        CiVisibilityCountMetric.TEST_EVENT_FINISHED,
         1,
         instrumentation,
         EventType.TEST,
         span.getTag(Tags.TEST_IS_NEW) != null ? IsNew.TRUE : null,
         span.getTag(Tags.TEST_IS_MODIFIED) != null ? IsModified.TRUE : null,
+        span.getTag(Tags.TEST_MANAGEMENT_IS_QUARANTINED) != null ? IsQuarantined.TRUE : null,
         span.getTag(Tags.TEST_IS_RETRY) != null ? IsRetry.TRUE : null,
+        span.getTag(Tags.TEST_HAS_FAILED_ALL_RETRIES) != null ? HasFailedAllRetries.TRUE : null,
         retryReason instanceof TagValue ? (TagValue) retryReason : null,
         span.getTag(Tags.TEST_IS_RUM_ACTIVE) != null ? IsRum.TRUE : null,
         CIConstants.SELENIUM_BROWSER_DRIVER.equals(span.getTag(Tags.TEST_BROWSER_DRIVER))

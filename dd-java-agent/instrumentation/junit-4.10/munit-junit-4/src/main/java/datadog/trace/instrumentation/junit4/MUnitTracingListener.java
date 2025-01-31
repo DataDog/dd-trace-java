@@ -23,10 +23,10 @@ public class MUnitTracingListener extends TracingListener {
 
   public static final String FRAMEWORK_NAME = "munit";
   public static final String FRAMEWORK_VERSION = getVersion();
-  private final ContextStore<Description, TestExecutionPolicy> retryPolicies;
+  private final ContextStore<Description, TestExecutionPolicy> executionPolicies;
 
-  public MUnitTracingListener(ContextStore<Description, TestExecutionPolicy> retryPolicies) {
-    this.retryPolicies = retryPolicies;
+  public MUnitTracingListener(ContextStore<Description, TestExecutionPolicy> executionPolicies) {
+    this.executionPolicies = executionPolicies;
   }
 
   public static String getVersion() {
@@ -76,7 +76,7 @@ public class MUnitTracingListener extends TracingListener {
     TestDescriptor testDescriptor = MUnitUtils.toTestDescriptor(description);
     String testName = description.getMethodName();
     List<String> categories = getCategories(description);
-    TestExecutionPolicy retryPolicy = retryPolicies.get(description);
+    TestExecutionPolicy executionPolicy = executionPolicies.get(description);
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestStart(
         suiteDescriptor,
         testDescriptor,
@@ -86,7 +86,8 @@ public class MUnitTracingListener extends TracingListener {
         null,
         categories,
         JUnit4Utils.toTestSourceData(description),
-        retryPolicy != null ? retryPolicy.currentExecutionRetryReason() : null,
+        executionPolicy != null ? executionPolicy.currentExecutionRetryReason() : null,
+        executionPolicy != null && executionPolicy.hasFailedAllRetries(),
         null);
   }
 
@@ -161,6 +162,7 @@ public class MUnitTracingListener extends TracingListener {
             categories,
             JUnit4Utils.toTestSourceData(description),
             null,
+            false,
             null);
       }
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSkip(testDescriptor, null);

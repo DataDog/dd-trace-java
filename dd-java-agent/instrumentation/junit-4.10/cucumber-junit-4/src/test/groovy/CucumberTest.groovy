@@ -98,8 +98,8 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName)
 
     where:
-    testcaseName  | features                                                            | quarantined
-    "test-failed" | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"] | [
+    testcaseName              | features                                                            | quarantined
+    "test-quarantined-failed" | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"] | [
       new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition", null)
     ]
   }
@@ -117,10 +117,10 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName)
 
     where:
-    testcaseName        | features                                                            | quarantined                                                                                                                          | retried
-    "test-retry-failed" | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"] | [
+    testcaseName                  | features                                                            | quarantined                    | retried
+    "test-quarantined-failed-atr" | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"] | [
       new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition", null)
-    ] | [
+    ]                                                                                                                                    | [
       new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition", null)
     ]
   }
@@ -138,15 +138,15 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName)
 
     where:
-    testcaseName      | features                                                            | quarantined                                                                                                                          | known
-    "test-failed"     | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"] | [
+    testcaseName                  | features                                                            | quarantined                    | known
+    "test-quarantined-failed"     | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"] | [
       new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition", null)
-    ] | [
+    ]                                                                                                                                    | [
       new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition", null)
     ]
-    "test-failed-efd" | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"] | [
+    "test-quarantined-failed-efd" | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"] | [
       new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition", null)
-    ] | []
+    ]                                                                                                                                    | []
   }
 
   private String version() {

@@ -145,7 +145,7 @@ public class DatadogReporter {
       categories = Collections.emptyList();
     }
     Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
-    TestExecutionPolicy retryPolicy = context.popExecutionPolicy(testIdentifier);
+    TestExecutionPolicy executionPolicy = context.popExecutionPolicy(testIdentifier);
 
     eventHandler.onTestStart(
         new TestSuiteDescriptor(testSuiteName, testClass),
@@ -156,7 +156,8 @@ public class DatadogReporter {
         testParameters,
         categories,
         new TestSourceData(testClass, null, null),
-        retryPolicy != null ? retryPolicy.currentExecutionRetryReason() : null,
+        executionPolicy != null ? executionPolicy.currentExecutionRetryReason() : null,
+        executionPolicy != null && executionPolicy.hasFailedAllRetries(),
         null);
   }
 

@@ -32,4 +32,10 @@ public interface TestExecutionPolicy {
    */
   @Nullable
   RetryReason currentExecutionRetryReason();
+
+  /**
+   * @return {@code true} if the test has failed all retry attempts (only for policies that allow
+   *     multiple retries)
+   */
+  boolean hasFailedAllRetries();
 }

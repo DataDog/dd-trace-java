@@ -23,6 +23,7 @@ import datadog.trace.util.Strings;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -181,11 +182,18 @@ public class JUnit5ExecutionInstrumentation extends InstrumenterModule.CiVisibil
          * require every test execution to have a distinct unique ID.
          * Rerunning a test with the ID that was executed previously will cause errors.
          */
-        TestDescriptor retryDescriptor =
-            descriptorHandle.withIdSuffix(
-                JUnitPlatformUtils.RETRY_DESCRIPTOR_REASON_SUFFIX,
-                    executionPolicy.currentExecutionRetryReason(),
-                JUnitPlatformUtils.RETRY_DESCRIPTOR_ID_SUFFIX, String.valueOf(++retryAttemptIdx));
+        Map<String, Object> suffixes = new HashMap<>();
+        suffixes.put(
+            JUnitPlatformUtils.RETRY_DESCRIPTOR_REASON_SUFFIX,
+            executionPolicy.currentExecutionRetryReason());
+        suffixes.put(
+            JUnitPlatformUtils.RETRY_DESCRIPTOR_ID_SUFFIX, String.valueOf(++retryAttemptIdx));
+
+        if (executionPolicy.hasFailedAllRetries()) {
+          suffixes.put(JUnitPlatformUtils.HAS_FAILED_ALL_RETRIES_SUFFIX, "true");
+        }
+
+        TestDescriptor retryDescriptor = descriptorHandle.withIdSuffix(suffixes);
         taskHandle.setTestDescriptor(retryDescriptor);
         taskHandle.setNode((Node<?>) retryDescriptor);
         taskHandle.getListener().dynamicTestRegistered(retryDescriptor);
