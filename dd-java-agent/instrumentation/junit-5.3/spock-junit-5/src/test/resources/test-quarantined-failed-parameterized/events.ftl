@@ -104,6 +104,7 @@
       "test.framework" : "spock",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.is_new" : "true",
+      "test.management.is_quarantined" : "true",
       "test.module" : "spock-junit-5",
       "test.name" : "test add 4 and 4",
       "test.parameters" : "{\"metadata\":{\"test_name\":\"test add 4 and 4\"}}",

@@ -139,6 +139,7 @@
       "span.kind" : "test",
       "test.framework" : "karate",
       "test.framework_version" : ${content_meta_test_framework_version},
+      "test.management.is_quarantined" : "true",
       "test.module" : "karate",
       "test.name" : "second scenario",
       "test.status" : "fail",

@@ -49,6 +49,7 @@
       "span.kind" : "test",
       "test.framework" : "cucumber",
       "test.framework_version" : ${content_meta_test_framework_version},
+      "test.management.is_quarantined" : "true",
       "test.module" : "cucumber-junit-4",
       "test.name" : "Addition",
       "test.status" : "fail",

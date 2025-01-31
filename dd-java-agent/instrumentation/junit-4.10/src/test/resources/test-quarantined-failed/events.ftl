@@ -119,6 +119,7 @@
       "test.codeowners" : "[\"owner1\",\"owner2\"]",
       "test.framework" : "junit4",
       "test.framework_version" : ${content_meta_test_framework_version},
+      "test.management.is_quarantined" : "true",
       "test.module" : "junit-4.10",
       "test.name" : "test_failed",
       "test.source.file" : "dummy_source_path",

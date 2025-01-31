@@ -120,6 +120,7 @@
       "test.codeowners" : "[\"owner1\",\"owner2\"]",
       "test.framework" : "munit",
       "test.framework_version" : ${content_meta_test_framework_version},
+      "test.management.is_quarantined" : "true",
       "test.module" : "munit-junit-4",
       "test.name" : "Calculator.add",
       "test.source.file" : "dummy_source_path",
