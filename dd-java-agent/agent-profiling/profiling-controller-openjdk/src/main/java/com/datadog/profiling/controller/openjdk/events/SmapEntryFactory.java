@@ -176,20 +176,19 @@ public class SmapEntryFactory {
 
   private static long readLong(BufferedReader br, char delimiter, int base) throws IOException {
     long number = 0;
-    char ch = 0;
-    while (ch != delimiter) {
-      ch = (char) br.read();
+    char ch;
+    while ((ch = (char) br.read()) != delimiter) {
       number *= base;
       number += Character.digit(ch, base);
     }
+
     return number;
   }
 
   private static int readInt(BufferedReader br, char delimiter, int base) throws IOException {
     int number = 0;
-    char ch = 0;
-    while (ch != delimiter) {
-      ch = (char) br.read();
+    char ch;
+    while ((ch = (char) br.read()) != delimiter) {
       number *= base;
       number += Character.digit(ch, base);
     }
@@ -214,15 +213,13 @@ public class SmapEntryFactory {
   }
 
   private static SmapHeader parseLine(BufferedReader br) throws IOException {
-    StringBuilder buffer = new StringBuilder();
-    int i = 0;
-    long startAddress = 0;
-    long endAddress = 0;
+    long startAddress;
+    long endAddress;
     String perms;
-    long offset = 0;
+    long offset;
     String dev;
-    int inode = 0;
-    String pathname = "";
+    int inode;
+    String pathname;
 
     startAddress = readLong(br, '-', 16);
     if (startAddress == 0xffffffffff600000L) {
@@ -278,9 +275,13 @@ public class SmapEntryFactory {
     try (BufferedReader reader = new BufferedReader(new FileReader("/proc/self/smaps"))) {
       String line;
       StringBuilder buffer = new StringBuilder();
-      while ((line = reader.readLine()) != null) {
+      while (true) { // fix this for later
         boolean encounteredForeignKeys = false;
         SmapHeader sh = parseLine(reader);
+
+        if (sh.startAddress == 420) {
+          break;
+        }
 
         while (true) {
           buffer.setLength(0);
@@ -437,6 +438,7 @@ public class SmapEntryFactory {
     } catch (FileNotFoundException e) {
       return List.of(new SmapParseErrorEvent(ErrorReason.SMAP_FILE_NOT_FOUND));
     } catch (Exception e) {
+      e.printStackTrace();
       return List.of(new SmapParseErrorEvent(ErrorReason.SMAP_PARSING_ERROR));
     }
   }
