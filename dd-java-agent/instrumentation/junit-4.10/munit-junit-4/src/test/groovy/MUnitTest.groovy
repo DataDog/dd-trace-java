@@ -79,6 +79,54 @@ class MUnitTest extends CiVisibilityInstrumentationTest {
     "test-succeed-impacted" | [TestSucceedMUnit] | new LineDiff([(DUMMY_SOURCE_PATH): lines(DUMMY_TEST_METHOD_START)])
   }
 
+  def "test quarantined #testcaseName"() {
+    givenQuarantineEnabled(true)
+    givenQuarantinedTests(quarantined)
+
+    runTests(tests, true)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName  | tests             | quarantined
+    "test-failed" | [TestFailedMUnit] | [new TestIdentifier("org.example.TestFailedMUnit", "Calculator.add", null)]
+  }
+
+  def "test quarantined auto-retries #testcaseName"() {
+    givenQuarantineEnabled(true)
+    givenQuarantinedTests(quarantined)
+
+    givenFlakyRetryEnabled(true)
+    givenFlakyTests(retried)
+
+    // every test retry fails, but the build status is successful
+    runTests(tests, true)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName        | tests             | quarantined                                                              | retried
+    "test-retry-failed" | [TestFailedMUnit] | [new TestIdentifier("org.example.TestFailedMUnit", "Calculator.add", null)] | [new TestIdentifier("org.example.TestFailedMUnit", "Calculator.add", null)]
+  }
+
+  def "test quarantined early flakiness detection #testcaseName"() {
+    givenQuarantineEnabled(true)
+    givenQuarantinedTests(quarantined)
+
+    givenEarlyFlakinessDetectionEnabled(true)
+    givenKnownTests(known)
+
+    // every retry fails, but the build status is successful
+    runTests(tests, true)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName      | tests             | quarantined                                                              | known
+    "test-failed"     | [TestFailedMUnit] | [new TestIdentifier("org.example.TestFailedMUnit", "Calculator.add", null)] | [new TestIdentifier("org.example.TestFailedMUnit", "Calculator.add", null)]
+    "test-failed-efd" | [TestFailedMUnit] | [new TestIdentifier("org.example.TestFailedMUnit", "Calculator.add", null)] | []
+  }
+
   private void runTests(Collection<Class<?>> tests, boolean expectSuccess = true) {
     TestEventsHandlerHolder.start()
     try {

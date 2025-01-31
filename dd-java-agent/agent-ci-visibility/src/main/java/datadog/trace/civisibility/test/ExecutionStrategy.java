@@ -11,6 +11,7 @@ import datadog.trace.civisibility.config.ExecutionSettings;
 import datadog.trace.civisibility.execution.Regular;
 import datadog.trace.civisibility.execution.RetryUntilSuccessful;
 import datadog.trace.civisibility.execution.RunNTimes;
+import datadog.trace.civisibility.execution.RunOnceIgnoreOutcome;
 import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import java.lang.reflect.Method;
@@ -60,6 +61,11 @@ public class ExecutionStrategy {
     return flakyTests != null && flakyTests.contains(test.withoutParameters());
   }
 
+  public boolean isQuarantined(TestIdentifier test) {
+    Collection<TestIdentifier> quarantinedTests = executionSettings.getQuarantinedTests();
+    return quarantinedTests.contains(test.withoutParameters());
+  }
+
   @Nullable
   public SkipReason skipReason(TestIdentifier test) {
     if (test == null) {
@@ -85,27 +91,42 @@ public class ExecutionStrategy {
       return Regular.INSTANCE;
     }
 
-    EarlyFlakeDetectionSettings efdSettings = executionSettings.getEarlyFlakeDetectionSettings();
-    if (efdSettings.isEnabled() && !isEFDLimitReached()) {
-      if (isNew(test) || isModified(testSource)) {
-        // check-then-act with "earlyFlakeDetectionsUsed" is not atomic here,
-        // but we don't care if we go "a bit" over the limit, it does not have to be precise
-        earlyFlakeDetectionsUsed.incrementAndGet();
-        return new RunNTimes(efdSettings);
-      }
+    if (isEFDApplicable(test, testSource)) {
+      // check-then-act with "earlyFlakeDetectionsUsed" is not atomic here,
+      // but we don't care if we go "a bit" over the limit, it does not have to be precise
+      earlyFlakeDetectionsUsed.incrementAndGet();
+      return new RunNTimes(executionSettings.getEarlyFlakeDetectionSettings(), isQuarantined(test));
     }
 
-    if (executionSettings.isFlakyTestRetriesEnabled()) {
-      Collection<TestIdentifier> flakyTests = executionSettings.getFlakyTests();
-      if ((flakyTests == null || flakyTests.contains(test.withoutParameters()))
-          && autoRetriesUsed.get() < config.getCiVisibilityTotalFlakyRetryCount()) {
-        // check-then-act with "autoRetriesUsed" is not atomic here,
-        // but we don't care if we go "a bit" over the limit, it does not have to be precise
-        return new RetryUntilSuccessful(config.getCiVisibilityFlakyRetryCount(), autoRetriesUsed);
-      }
+    if (isAutoRetryApplicable(test)) {
+      // check-then-act with "autoRetriesUsed" is not atomic here,
+      // but we don't care if we go "a bit" over the limit, it does not have to be precise
+      return new RetryUntilSuccessful(
+          config.getCiVisibilityFlakyRetryCount(), isQuarantined(test), autoRetriesUsed);
+    }
+
+    if (isQuarantined(test)) {
+      return new RunOnceIgnoreOutcome();
     }
 
     return Regular.INSTANCE;
+  }
+
+  private boolean isAutoRetryApplicable(TestIdentifier test) {
+    if (!executionSettings.isFlakyTestRetriesEnabled()) {
+      return false;
+    }
+
+    Collection<TestIdentifier> flakyTests = executionSettings.getFlakyTests();
+    return (flakyTests == null || flakyTests.contains(test.withoutParameters()))
+        && autoRetriesUsed.get() < config.getCiVisibilityTotalFlakyRetryCount();
+  }
+
+  private boolean isEFDApplicable(TestIdentifier test, TestSourceData testSource) {
+    EarlyFlakeDetectionSettings efdSettings = executionSettings.getEarlyFlakeDetectionSettings();
+    return efdSettings.isEnabled()
+        && !isEFDLimitReached()
+        && (isNew(test) || isModified(testSource));
   }
 
   public boolean isEFDLimitReached() {

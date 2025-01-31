@@ -36,4 +36,8 @@ public class RetryAnalyzer implements IRetryAnalyzer {
   public RetryReason currentExecutionRetryReason() {
     return executionPolicy != null ? executionPolicy.currentExecutionRetryReason() : null;
   }
+
+  public boolean suppressFailures() {
+    return executionPolicy != null && executionPolicy.suppressFailures();
+  }
 }

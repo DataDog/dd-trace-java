@@ -154,6 +154,61 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
     "test-succeed-impacted" | [TestSucceed] | new LineDiff([(DUMMY_SOURCE_PATH): lines(DUMMY_TEST_METHOD_START)])
   }
 
+  def "test quarantined #testcaseName"() {
+    Assumptions.assumeTrue(isExceptionSuppressionSupported())
+
+    givenQuarantineEnabled(true)
+    givenQuarantinedTests(quarantined)
+
+    runTests(tests, null, true)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName                | tests                     | quarantined
+    "test-failed-${version()}"  | [TestFailed]              | [new TestIdentifier("org.example.TestFailed", "test_failed", null)]
+    "test-failed-parameterized" | [TestFailedParameterized] | [new TestIdentifier("org.example.TestFailedParameterized", "parameterized_test_succeed", null)]
+  }
+
+  def "test quarantined auto-retries #testcaseName"() {
+    Assumptions.assumeTrue(isExceptionSuppressionSupported())
+
+    givenQuarantineEnabled(true)
+    givenQuarantinedTests(quarantined)
+
+    givenFlakyRetryEnabled(true)
+    givenFlakyTests(retried)
+
+    // every test retry fails, but the build status is successful
+    runTests(tests, null, true)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName                     | tests        | quarantined                                                         | retried
+    "test-retry-failed-${version()}" | [TestFailed] | [new TestIdentifier("org.example.TestFailed", "test_failed", null)] | [new TestIdentifier("org.example.TestFailed", "test_failed", null)]
+  }
+
+  def "test quarantined early flakiness detection #testcaseName"() {
+    Assumptions.assumeTrue(isExceptionSuppressionSupported())
+
+    givenQuarantineEnabled(true)
+    givenQuarantinedTests(quarantined)
+
+    givenEarlyFlakinessDetectionEnabled(true)
+    givenKnownTests(known)
+
+    // every retry fails, but the build status is successful
+    runTests(tests, null, true)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName               | tests        | quarantined                                                         | known
+    "test-failed-${version()}" | [TestFailed] | [new TestIdentifier("org.example.TestFailed", "test_failed", null)] | [new TestIdentifier("org.example.TestFailed", "test_failed", null)]
+    "test-failed-efd"          | [TestFailed] | [new TestIdentifier("org.example.TestFailed", "test_failed", null)] | []
+  }
+
   private static boolean isEFDSupported() {
     currentTestNGVersion >= testNGv75
   }

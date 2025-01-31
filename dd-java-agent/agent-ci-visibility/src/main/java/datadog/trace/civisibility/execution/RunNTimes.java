@@ -9,25 +9,30 @@ import org.jetbrains.annotations.Nullable;
 public class RunNTimes implements TestExecutionPolicy {
 
   private final EarlyFlakeDetectionSettings earlyFlakeDetectionSettings;
+  private final boolean suppressFailures;
   private int executions;
   private int maxExecutions;
 
-  public RunNTimes(EarlyFlakeDetectionSettings earlyFlakeDetectionSettings) {
+  public RunNTimes(
+      EarlyFlakeDetectionSettings earlyFlakeDetectionSettings, boolean suppressFailures) {
     this.earlyFlakeDetectionSettings = earlyFlakeDetectionSettings;
+    this.suppressFailures = suppressFailures;
     this.executions = 0;
     this.maxExecutions = earlyFlakeDetectionSettings.getExecutions(0);
   }
 
   @Override
   public boolean applicable() {
-    // the last execution is not altered by the policy
-    // (no retries, no exceptions suppressing)
+    return currentExecutionIsNotLast() || suppressFailures();
+  }
+
+  private boolean currentExecutionIsNotLast() {
     return executions < maxExecutions - 1;
   }
 
   @Override
   public boolean suppressFailures() {
-    return false;
+    return suppressFailures;
   }
 
   @Override

@@ -14,7 +14,6 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import org.testng.IRetryAnalyzer;
-import org.testng.ITestNGMethod;
 import org.testng.ITestResult;
 
 @AutoService(InstrumenterModule.class)
@@ -43,6 +42,10 @@ public class TestNGExecutionInstrumentation extends InstrumenterModule.CiVisibil
     transformer.applyAdvice(
         named("shouldRetryTestMethod").and(takesArgument(1, named("org.testng.ITestResult"))),
         TestNGExecutionInstrumentation.class.getName() + "$ExecutionAdvice");
+
+    transformer.applyAdvice(
+        named("runTestResultListener").and(takesArgument(0, named("org.testng.ITestResult"))),
+        TestNGExecutionInstrumentation.class.getName() + "$SuppressFailuresAdvice");
   }
 
   @Override
@@ -63,11 +66,32 @@ public class TestNGExecutionInstrumentation extends InstrumenterModule.CiVisibil
         @Advice.Argument(1) final ITestResult result,
         @Advice.Return(readOnly = false) boolean retry) {
       if (!retry && result.isSuccess()) {
-        ITestNGMethod method = result.getMethod();
-        IRetryAnalyzer retryAnalyzer = method.getRetryAnalyzer(result);
+        IRetryAnalyzer retryAnalyzer = TestNGUtils.getRetryAnalyzer(result);
         if (retryAnalyzer instanceof RetryAnalyzer) {
           retry = retryAnalyzer.retry(result);
         }
+      }
+    }
+  }
+
+  public static class SuppressFailuresAdvice {
+    @SuppressWarnings("bytebuddy-exception-suppression")
+    @Advice.OnMethodEnter
+    public static void suppressFailures(@Advice.Argument(0) final ITestResult result) {
+      if (result.getStatus() != ITestResult.FAILURE) {
+        // nothing to suppress
+        return;
+      }
+
+      IRetryAnalyzer retryAnalyzer = TestNGUtils.getRetryAnalyzer(result);
+      if (!(retryAnalyzer instanceof RetryAnalyzer)) {
+        // test execution policies not injected
+        return;
+      }
+      RetryAnalyzer ddRetryAnalyzer = (RetryAnalyzer) retryAnalyzer;
+      if (ddRetryAnalyzer.suppressFailures()) {
+        // "failed but within success percentage"
+        result.setStatus(ITestResult.SUCCESS_PERCENTAGE_FAILURE);
       }
     }
   }

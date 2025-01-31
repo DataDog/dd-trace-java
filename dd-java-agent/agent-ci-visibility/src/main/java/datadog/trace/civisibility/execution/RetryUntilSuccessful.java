@@ -9,29 +9,34 @@ import org.jetbrains.annotations.Nullable;
 public class RetryUntilSuccessful implements TestExecutionPolicy {
 
   private final int maxExecutions;
+  private final boolean suppressFailures;
   private int executions;
 
   /** Total execution counter that is shared by all retry policies */
   private final AtomicInteger totalExecutions;
 
-  public RetryUntilSuccessful(int maxExecutions, AtomicInteger totalExecutions) {
+  public RetryUntilSuccessful(
+      int maxExecutions, boolean suppressFailures, AtomicInteger totalExecutions) {
     this.maxExecutions = maxExecutions;
+    this.suppressFailures = suppressFailures;
     this.totalExecutions = totalExecutions;
     this.executions = 0;
   }
 
   @Override
   public boolean applicable() {
-    // the last execution is not altered by the policy
-    // (no retries, no exceptions suppressing)
-    return executions < maxExecutions - 1;
+    return currentExecutionIsNotLast() || suppressFailures;
   }
 
   @Override
   public boolean suppressFailures() {
-    // if this isn't the last execution,
-    // possible failures should be suppressed
-    return applicable();
+    // do not suppress failures for last execution
+    // (unless flag to suppress all failures is set)
+    return currentExecutionIsNotLast() || suppressFailures;
+  }
+
+  private boolean currentExecutionIsNotLast() {
+    return executions < maxExecutions - 1;
   }
 
   @Override
