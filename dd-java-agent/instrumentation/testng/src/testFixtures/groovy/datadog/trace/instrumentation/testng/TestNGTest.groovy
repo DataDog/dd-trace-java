@@ -185,8 +185,8 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName)
 
     where:
-    testcaseName        | tests        | quarantined                                                         | retried
-    "test-retry-failed" | [TestFailed] | [new TestIdentifier("org.example.TestFailed", "test_failed", null)] | [new TestIdentifier("org.example.TestFailed", "test_failed", null)]
+    testcaseName                     | tests        | quarantined                                                         | retried
+    "test-retry-failed-${version()}" | [TestFailed] | [new TestIdentifier("org.example.TestFailed", "test_failed", null)] | [new TestIdentifier("org.example.TestFailed", "test_failed", null)]
   }
 
   def "test quarantined early flakiness detection #testcaseName"() {
@@ -204,9 +204,9 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName)
 
     where:
-    testcaseName      | tests        | quarantined                                                         | known
-    "test-failed"     | [TestFailed] | [new TestIdentifier("org.example.TestFailed", "test_failed", null)] | [new TestIdentifier("org.example.TestFailed", "test_failed", null)]
-    "test-failed-efd" | [TestFailed] | [new TestIdentifier("org.example.TestFailed", "test_failed", null)] | []
+    testcaseName               | tests        | quarantined                                                         | known
+    "test-failed-${version()}" | [TestFailed] | [new TestIdentifier("org.example.TestFailed", "test_failed", null)] | [new TestIdentifier("org.example.TestFailed", "test_failed", null)]
+    "test-failed-efd"          | [TestFailed] | [new TestIdentifier("org.example.TestFailed", "test_failed", null)] | []
   }
 
   private static boolean isEFDSupported() {
