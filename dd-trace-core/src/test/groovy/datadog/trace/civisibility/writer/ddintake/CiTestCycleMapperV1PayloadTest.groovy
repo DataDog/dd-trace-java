@@ -93,9 +93,9 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
   def "verify test_suite_id, test_module_id, and test_session_id are written as top level tags in test event"() {
     setup:
     def span = generateRandomSpan(InternalSpanTypes.TEST, [
-      (Tags.TEST_SESSION_ID)                : DDTraceId.from(123),
-      (Tags.TEST_MODULE_ID)                 : 456,
-      (Tags.TEST_SUITE_ID)                  : 789,
+      (Tags.TEST_SESSION_ID): DDTraceId.from(123),
+      (Tags.TEST_MODULE_ID) : 456,
+      (Tags.TEST_SUITE_ID)  : 789,
     ])
 
     when:
@@ -113,9 +113,9 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
   def "verify test_suite_end event is written correctly"() {
     setup:
     def span = generateRandomSpan(InternalSpanTypes.TEST_SUITE_END, [
-      (Tags.TEST_SESSION_ID)                : DDTraceId.from(123),
-      (Tags.TEST_MODULE_ID)                 : 456,
-      (Tags.TEST_SUITE_ID)                  : 789,
+      (Tags.TEST_SESSION_ID): DDTraceId.from(123),
+      (Tags.TEST_MODULE_ID) : 456,
+      (Tags.TEST_SUITE_ID)  : 789,
     ])
 
     when:
@@ -133,8 +133,8 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
   def "verify test_module_end event is written correctly"() {
     setup:
     def span = generateRandomSpan(InternalSpanTypes.TEST_MODULE_END, [
-      (Tags.TEST_SESSION_ID)                : DDTraceId.from(123),
-      (Tags.TEST_MODULE_ID)                 : 456,
+      (Tags.TEST_SESSION_ID): DDTraceId.from(123),
+      (Tags.TEST_MODULE_ID) : 456,
     ])
 
     when:
