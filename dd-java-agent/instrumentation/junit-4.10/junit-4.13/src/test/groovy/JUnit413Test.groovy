@@ -19,32 +19,40 @@ class JUnit413Test extends CiVisibilityInstrumentationTest {
   def runner = new JUnitCore()
 
   def "test #testcaseName"() {
-    runTests(tests)
+    runTests(tests, success)
 
-    assertSpansData(testcaseName, expectedTracesCount)
+    assertSpansData(testcaseName)
 
     where:
-    testcaseName                            | tests                              | expectedTracesCount
-    "test-succeed-before-after"             | [TestSucceedBeforeAfter]           | 3
-    "test-succeed-before-class-after-class" | [TestSucceedBeforeClassAfterClass] | 3
-    "test-succeed-before-param-after-param" | [TestSucceedBeforeParamAfterParam] | 2
-    "test-failed-before-class"              | [TestFailedBeforeClass]            | 1
-    "test-failed-after-class"               | [TestFailedAfterClass]             | 3
-    "test-failed-before"                    | [TestFailedBefore]                 | 3
-    "test-failed-after"                     | [TestFailedAfter]                  | 3
-    "test-failed-before-param"              | [TestFailedBeforeParam]            | 2
-    "test-failed-after-param"               | [TestFailedAfterParam]             | 2
+    testcaseName                            | success | tests
+    "test-succeed-before-after"             | true    | [TestSucceedBeforeAfter]
+    "test-succeed-before-class-after-class" | true    | [TestSucceedBeforeClassAfterClass]
+    "test-succeed-before-param-after-param" | true    | [TestSucceedBeforeParamAfterParam]
+    "test-failed-before-class"              | false   | [TestFailedBeforeClass]
+    "test-failed-after-class"               | false   | [TestFailedAfterClass]
+    "test-failed-before"                    | false   | [TestFailedBefore]
+    "test-failed-after"                     | false   | [TestFailedAfter]
+    "test-failed-before-param"              | false   | [TestFailedBeforeParam]
+    "test-failed-after-param"               | false   | [TestFailedAfterParam]
   }
 
-  private void runTests(Collection<Class<?>> tests) {
+  private void runTests(Collection<Class<?>> tests, boolean expectSuccess = true) {
     TestEventsHandlerHolder.start()
     try {
       Class[] array = tests.toArray(new Class[0])
-      runner.run(array)
-    } catch (Throwable ignored) {
-      // Ignored
+      def result = runner.run(array)
+      if (expectSuccess) {
+        if (result.getFailureCount() > 0) {
+          throw new AssertionError("Expected successful execution, got following failures: " + result.getFailures())
+        }
+      } else {
+        if (result.getFailureCount() == 0) {
+          throw new AssertionError("Expected a failed execution, got no failures")
+        }
+      }
+    } finally {
+      TestEventsHandlerHolder.stop()
     }
-    TestEventsHandlerHolder.stop()
   }
 
   @Override

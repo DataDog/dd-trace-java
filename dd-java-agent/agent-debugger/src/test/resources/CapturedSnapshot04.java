@@ -21,8 +21,8 @@ public class CapturedSnapshot04 {
     CapturedSnapshot04 cs4 = new CapturedSnapshot04();
     SimpleData sdata = cs4.createSimpleData();
     CompositeData cdata = cs4.createCompositeData();
-    SimpleData nullObject = null;
-    return sdata.intValue + cdata.s1.intValue;
+    SimpleData nullObject = null; // beae1817-f3b0-4ea8-a74f-000000000003, beae1817-f3b0-4ea8-a74f-000000000004
+    return sdata.intValue + cdata.s1.intValue; // beae1817-f3b0-4ea8-a74f-000000000001, beae1817-f3b0-4ea8-a74f-000000000002
   }
 
   public static class SimpleData {

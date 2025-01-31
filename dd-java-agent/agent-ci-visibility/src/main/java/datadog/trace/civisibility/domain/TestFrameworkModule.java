@@ -2,7 +2,8 @@ package datadog.trace.civisibility.domain;
 
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
-import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
+import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -31,24 +32,16 @@ public interface TestFrameworkModule {
   boolean isModified(TestSourceData testSourceData);
 
   /**
-   * Checks if a given test should be skipped with Intelligent Test Runner or not
+   * Returns the reason for skipping a test, IF it can be skipped.
    *
    * @param test Test to be checked
-   * @return {@code true} if the test can be skipped, {@code false} otherwise
+   * @return skip reason, or {@code null} if the test cannot be skipped
    */
-  boolean shouldBeSkipped(TestIdentifier test);
-
-  /**
-   * Checks if a given test can be skipped with Intelligent Test Runner or not. If the test is
-   * considered skippable, the count of skippable tests is incremented.
-   *
-   * @param test Test to be checked
-   * @return {@code true} if the test can be skipped, {@code false} otherwise
-   */
-  boolean skip(TestIdentifier test);
+  @Nullable
+  SkipReason skipReason(TestIdentifier test);
 
   @Nonnull
-  TestRetryPolicy retryPolicy(TestIdentifier test, TestSourceData testSource);
+  TestExecutionPolicy executionPolicy(TestIdentifier test, TestSourceData testSource);
 
   void end(Long startTime);
 }

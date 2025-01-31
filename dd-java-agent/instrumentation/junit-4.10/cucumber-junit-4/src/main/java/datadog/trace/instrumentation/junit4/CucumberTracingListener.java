@@ -4,7 +4,7 @@ import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.coverage.CoveragePerTestBridge;
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
-import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.ContextStore;
 import io.cucumber.core.gherkin.Pickle;
@@ -29,11 +29,11 @@ public class CucumberTracingListener extends TracingListener {
   public static final String FRAMEWORK_NAME = "cucumber";
   public static final String FRAMEWORK_VERSION = CucumberUtils.getVersion();
 
-  private final ContextStore<Description, TestRetryPolicy> retryPolicies;
+  private final ContextStore<Description, TestExecutionPolicy> retryPolicies;
   private final Map<Object, Pickle> pickleById;
 
   public CucumberTracingListener(
-      ContextStore<Description, TestRetryPolicy> retryPolicies,
+      ContextStore<Description, TestExecutionPolicy> retryPolicies,
       List<ParentRunner<?>> featureRunners) {
     this.retryPolicies = retryPolicies;
     pickleById = CucumberUtils.getPicklesById(featureRunners);
@@ -71,7 +71,7 @@ public class CucumberTracingListener extends TracingListener {
     String testName = CucumberUtils.getTestNameForScenario(description);
     List<String> categories = getCategories(description);
 
-    TestRetryPolicy retryPolicy = retryPolicies.get(description);
+    TestExecutionPolicy retryPolicy = retryPolicies.get(description);
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestStart(
         new TestSuiteDescriptor(testSuiteName, null),
         CucumberUtils.toTestDescriptor(description),

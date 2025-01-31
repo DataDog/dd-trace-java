@@ -7,6 +7,7 @@ import java.lang.reflect.Method;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +38,12 @@ public class DebuggerContext {
       @Override
       public String tag() {
         return "cause:debug session disabled";
+      }
+    },
+    BUDGET {
+      @Override
+      public String tag() {
+        return "cause:budget_exceeded";
       }
     };
 
@@ -334,6 +341,18 @@ public class DebuggerContext {
       }
     } catch (Exception ex) {
       LOGGER.debug("Error in evalContextAndCommit: ", ex);
+    }
+  }
+
+  public static void codeOrigin(String probeId) {
+    try {
+      ProbeImplementation probe = probeResolver.resolve(probeId);
+      if (probe != null) {
+        probe.commit(
+            CapturedContext.EMPTY_CONTEXT, CapturedContext.EMPTY_CONTEXT, Collections.emptyList());
+      }
+    } catch (Exception e) {
+      LOGGER.debug("Error in codeOrigin: ", e);
     }
   }
 

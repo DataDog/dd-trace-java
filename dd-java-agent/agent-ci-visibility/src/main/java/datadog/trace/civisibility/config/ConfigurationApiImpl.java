@@ -22,17 +22,18 @@ import datadog.trace.api.civisibility.telemetry.tag.ItrSkipEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.KnownTestsEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.RequireGit;
 import datadog.trace.civisibility.communication.TelemetryListener;
+import datadog.trace.util.RandomUtils;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
 import java.util.Base64;
 import java.util.BitSet;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import okhttp3.MediaType;
@@ -64,7 +65,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
   private final JsonAdapter<EnvelopeDto<ChangedFiles>> changedFilesResponseAdapter;
 
   public ConfigurationApiImpl(BackendApi backendApi, CiVisibilityMetricCollector metricCollector) {
-    this(backendApi, metricCollector, () -> UUID.randomUUID().toString());
+    this(backendApi, metricCollector, () -> RandomUtils.randomUUID().toString());
   }
 
   ConfigurationApiImpl(
@@ -191,7 +192,9 @@ public class ConfigurationApiImpl implements ConfigurationApi {
 
     String correlationId = response.meta != null ? response.meta.correlation_id : null;
     Map<String, BitSet> coveredLinesByRelativeSourcePath =
-        response.meta != null ? response.meta.coverage : null;
+        response.meta != null && response.meta.coverage != null
+            ? response.meta.coverage
+            : Collections.emptyMap();
     return new SkippableTests(
         correlationId, testIdentifiersByModule, coveredLinesByRelativeSourcePath);
   }

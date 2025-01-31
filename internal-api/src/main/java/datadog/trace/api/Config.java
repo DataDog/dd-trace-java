@@ -2,7 +2,6 @@ package datadog.trace.api;
 
 import static datadog.trace.api.ConfigDefaults.*;
 import static datadog.trace.api.DDTags.*;
-import static datadog.trace.api.DDTags.PROFILING_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.*;
 import static datadog.trace.api.config.CiVisibilityConfig.*;
 import static datadog.trace.api.config.CrashTrackingConfig.*;
@@ -39,6 +38,7 @@ import datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.context.TraceScope;
 import datadog.trace.util.PidHelper;
+import datadog.trace.util.RandomUtils;
 import datadog.trace.util.Strings;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -97,7 +97,7 @@ public class Config {
    * and every JMX metric that is sent out.
    */
   static class RuntimeIdHolder {
-    static final String runtimeId = UUID.randomUUID().toString();
+    static final String runtimeId = RandomUtils.randomUUID().toString();
   }
 
   static class HostNameHolder {
@@ -2931,7 +2931,7 @@ public class Config {
     return ciVisibilityEarlyFlakeDetectionLowerLimit;
   }
 
-  public boolean isCiVisibilityTestRetryEnabled() {
+  public boolean isCiVisibilityExecutionPoliciesEnabled() {
     return ciVisibilityFlakyRetryEnabled || ciVisibilityEarlyFlakeDetectionEnabled;
   }
 
@@ -3409,7 +3409,7 @@ public class Config {
     result.putAll(runtimeTags);
     result.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
     result.put(SCHEMA_VERSION_TAG_KEY, SpanNaming.instance().version());
-    result.put(PROFILING_ENABLED, isProfilingEnabled() ? 1 : 0);
+    result.put(DDTags.PROFILING_ENABLED, isProfilingEnabled() ? 1 : 0);
     if (isAppSecStandaloneEnabled()) {
       result.put(APM_ENABLED, 0);
     }

@@ -1,8 +1,11 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.TestProfilingContextIntegration
+import datadog.trace.api.Platform
 import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling
 
 import java.util.concurrent.Executors
+import java.util.concurrent.ForkJoinPool
+import java.util.concurrent.LinkedBlockingQueue
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
@@ -20,6 +23,7 @@ class QueueTimingForkedTest extends AgentTestRunner {
   def "test queue timing with submit"() {
     setup:
     def executor = Executors.newSingleThreadExecutor()
+    def fjp = new ForkJoinPool(1)
 
     when:
     runUnderTrace("parent", {
@@ -27,14 +31,26 @@ class QueueTimingForkedTest extends AgentTestRunner {
     })
 
     then:
-    verify()
+    verify(LinkedBlockingQueue.name)
+
+    when:
+    runUnderTrace("parent", {
+      fjp.submit(new TestRunnable()).get()
+    })
+
+    then:
+    // flaky before JDK21
+    if (Platform.isJavaVersionAtLeast(21)) {
+      verify("java.util.concurrent.ForkJoinPool\$WorkQueue")
+    }
 
     cleanup:
     executor.shutdown()
+    fjp.shutdown()
     TEST_PROFILING_CONTEXT_INTEGRATION.closedTimings.clear()
   }
 
-  void verify() {
+  void verify(expectedQueueType) {
     assert TEST_PROFILING_CONTEXT_INTEGRATION.isBalanced()
     assert !TEST_PROFILING_CONTEXT_INTEGRATION.closedTimings.isEmpty()
     int numAsserts = 0
@@ -45,6 +61,8 @@ class QueueTimingForkedTest extends AgentTestRunner {
         assert timing.task == TestRunnable
         assert timing.scheduler != null
         assert timing.origin == Thread.currentThread()
+        assert timing.queueLength >= 0
+        assert timing.queue.name == expectedQueueType
         numAsserts++
       }
     }

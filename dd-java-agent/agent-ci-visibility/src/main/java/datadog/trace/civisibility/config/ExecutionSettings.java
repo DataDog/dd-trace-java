@@ -40,7 +40,7 @@ public class ExecutionSettings {
   @Nonnull private final EarlyFlakeDetectionSettings earlyFlakeDetectionSettings;
   @Nullable private final String itrCorrelationId;
   @Nonnull private final Map<TestIdentifier, TestMetadata> skippableTests;
-  @Nullable private final Map<String, BitSet> skippableTestsCoverage;
+  @Nonnull private final Map<String, BitSet> skippableTestsCoverage;
   @Nullable private final Collection<TestIdentifier> flakyTests;
   @Nullable private final Collection<TestIdentifier> knownTests;
   @Nonnull private final Diff pullRequestDiff;
@@ -54,7 +54,7 @@ public class ExecutionSettings {
       @Nonnull EarlyFlakeDetectionSettings earlyFlakeDetectionSettings,
       @Nullable String itrCorrelationId,
       @Nonnull Map<TestIdentifier, TestMetadata> skippableTests,
-      @Nullable Map<String, BitSet> skippableTestsCoverage,
+      @Nonnull Map<String, BitSet> skippableTestsCoverage,
       @Nullable Collection<TestIdentifier> flakyTests,
       @Nullable Collection<TestIdentifier> knownTests,
       @Nonnull Diff pullRequestDiff) {
@@ -107,7 +107,7 @@ public class ExecutionSettings {
   }
 
   /** A bit vector of covered lines by relative source file path. */
-  @Nullable
+  @Nonnull
   public Map<String, BitSet> getSkippableTestsCoverage() {
     return skippableTestsCoverage;
   }
@@ -126,6 +126,10 @@ public class ExecutionSettings {
     return knownTests;
   }
 
+  /**
+   * @return the list of flaky tests for the given module (can be empty), or {@code null} if flaky
+   *     tests could not be obtained
+   */
   @Nullable
   public Collection<TestIdentifier> getFlakyTests() {
     return flakyTests;

@@ -22,6 +22,8 @@ import com.datadog.debugger.agent.DebuggerTransformer;
 import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import com.datadog.debugger.agent.MockSampler;
 import com.datadog.debugger.probe.ExceptionProbe;
+import com.datadog.debugger.probe.LogProbe;
+import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.sink.Snapshot;
@@ -33,14 +35,19 @@ import datadog.trace.api.Config;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.DebuggerContext.ClassNameFilter;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeLocation;
 import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
 import datadog.trace.core.CoreTracer;
+import java.io.IOException;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
+import java.net.URISyntaxException;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -54,6 +61,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIf;
 
 public class ExceptionProbeInstrumentationTest {
+  protected static final ProbeId PROBE_ID = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f5", 0);
+
   private final Instrumentation instr = ByteBuddyAgent.install();
   private final TestTraceInterceptor traceInterceptor = new TestTraceInterceptor();
   private ClassFileTransformer currentTransformer;
@@ -84,6 +93,7 @@ public class ExceptionProbeInstrumentationTest {
     ProbeRateLimiter.setGlobalSnapshotRate(1000);
     // to activate the call to DebuggerContext.handleException
     setFieldInConfig(Config.get(), "debuggerExceptionEnabled", true);
+    setFieldInConfig(Config.get(), "debuggerClassFileDumpEnabled", true);
   }
 
   @AfterEach
@@ -252,6 +262,34 @@ public class ExceptionProbeInstrumentationTest {
     assertEquals(1, listener.snapshots.size());
   }
 
+  @Test
+  public void mixedWithLogProbes() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
+    Config config = createConfig();
+    ExceptionProbeManager exceptionProbeManager = new ExceptionProbeManager(classNameFiltering);
+    LogProbe logProbe =
+        LogProbe.builder().probeId(PROBE_ID).where(CLASS_NAME, "processWithException").build();
+    Collection<ProbeDefinition> definitions = Arrays.asList(logProbe);
+    TestSnapshotListener listener =
+        setupExceptionDebugging(config, exceptionProbeManager, classNameFiltering, definitions);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    String fingerprint =
+        callMethodThrowingRuntimeException(testClass); // instrument exception stacktrace
+    assertWithTimeout(
+        () -> exceptionProbeManager.isAlreadyInstrumented(fingerprint), Duration.ofSeconds(30));
+    assertEquals(2, exceptionProbeManager.getProbes().size());
+    callMethodThrowingRuntimeException(testClass); // generate snapshots
+    Map<String, Set<String>> probeIdsByMethodName =
+        extractProbeIdsByMethodName(exceptionProbeManager);
+    assertEquals(3, listener.snapshots.size()); // 2 log snapshots + 1 exception snapshot
+    Snapshot snapshot0 = listener.snapshots.get(0);
+    assertEquals(PROBE_ID.getId(), snapshot0.getProbe().getId());
+    Snapshot snapshot1 = listener.snapshots.get(1);
+    assertEquals(PROBE_ID.getId(), snapshot1.getProbe().getId());
+    Snapshot snapshot2 = listener.snapshots.get(2);
+    assertProbeId(probeIdsByMethodName, "processWithException", snapshot2.getProbe().getId());
+  }
+
   private static void assertExceptionMsg(String expectedMsg, Snapshot snapshot) {
     assertEquals(
         expectedMsg, snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
@@ -314,6 +352,14 @@ public class ExceptionProbeInstrumentationTest {
       Config config,
       ExceptionProbeManager exceptionProbeManager,
       ClassNameFilter classNameFiltering) {
+    return setupExceptionDebugging(config, exceptionProbeManager, classNameFiltering, null);
+  }
+
+  private TestSnapshotListener setupExceptionDebugging(
+      Config config,
+      ExceptionProbeManager exceptionProbeManager,
+      ClassNameFilter classNameFiltering,
+      Collection<ProbeDefinition> definitions) {
     ProbeStatusSink probeStatusSink = mock(ProbeStatusSink.class);
     ConfigurationUpdater configurationUpdater =
         new ConfigurationUpdater(
@@ -330,7 +376,7 @@ public class ExceptionProbeInstrumentationTest {
         new DefaultExceptionDebugger(
             exceptionProbeManager, configurationUpdater, classNameFiltering, 100);
     DebuggerContext.initExceptionDebugger(exceptionDebugger);
-    configurationUpdater.accept(REMOTE_CONFIG, null);
+    configurationUpdater.accept(REMOTE_CONFIG, definitions);
     return listener;
   }
 

@@ -13,9 +13,9 @@ class SeleniumLatestTest extends AbstractSeleniumTest {
 
     runTests(tests)
 
-    def dynamicData = assertSpansData(testcaseName, testCasesCount + 1, [
+    def dynamicData = assertSpansData(testcaseName, [
       "content.meta.['test.browser.driver_version']": SeleniumUtils.SELENIUM_VERSION,
-      "content.meta.['test.browser.version']": Version.getProductVersion()
+      "content.meta.['test.browser.version']"       : Version.getProductVersion()
     ])
     assertRumData(testCasesCount, dynamicData)
 

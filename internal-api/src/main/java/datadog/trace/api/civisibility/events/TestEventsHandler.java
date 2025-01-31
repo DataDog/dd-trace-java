@@ -4,7 +4,9 @@ import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.api.civisibility.DDTestSuite;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
-import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
+import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
+import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.ContextStore;
 import java.io.Closeable;
@@ -63,7 +65,7 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
       @Nullable String testParameters,
       @Nullable Collection<String> categories,
       @Nonnull TestSourceData testSourceData,
-      @Nullable String retryReason,
+      @Nullable RetryReason retryReason,
       @Nullable Long startTime);
 
   void onTestSkip(TestKey descriptor, @Nullable String reason);
@@ -83,12 +85,17 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
       @Nonnull TestSourceData testSourceData,
       @Nullable String reason);
 
-  boolean skip(TestIdentifier test);
-
-  boolean shouldBeSkipped(TestIdentifier test);
-
   @Nonnull
-  TestRetryPolicy retryPolicy(TestIdentifier test, TestSourceData source);
+  TestExecutionPolicy executionPolicy(TestIdentifier test, TestSourceData source);
+
+  /**
+   * Returns the reason for skipping a test IF it can be skipped.
+   *
+   * @param test Test to be checked
+   * @return skip reason, or {@code null} if the test cannot be skipped
+   */
+  @Nullable
+  SkipReason skipReason(TestIdentifier test);
 
   boolean isNew(TestIdentifier test);
 

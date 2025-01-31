@@ -11,6 +11,7 @@ import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.DefaultConfigurationPoller;
 import datadog.trace.api.Config;
 import datadog.trace.util.AgentTaskScheduler;
+import java.security.Security;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -59,6 +60,7 @@ public class SharedCommunicationObjects {
     }
   }
 
+  /** Registers a callback to be called when remote communications resume. */
   public void whenReady(Runnable callback) {
     if (paused) {
       synchronized (pausedComponents) {
@@ -71,8 +73,15 @@ public class SharedCommunicationObjects {
     callback.run(); // not paused, run immediately
   }
 
+  /** Resumes remote communications including any paused callbacks. */
   public void resume() {
     paused = false;
+    // attempt discovery first to avoid potential race condition on IBM Java8
+    if (null != featuresDiscovery) {
+      featuresDiscovery.discoverIfOutdated();
+    } else {
+      Security.getProviders(); // fallback to preloading provider extensions
+    }
     synchronized (pausedComponents) {
       for (Runnable callback : pausedComponents) {
         try {

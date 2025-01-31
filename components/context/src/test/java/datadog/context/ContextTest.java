@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -152,6 +153,16 @@ class ContextTest {
     assertNotEquals(context2.hashCode(), context1.hashCode());
     assertFalse(context4.equals(context1));
     assertNotEquals(context4.hashCode(), context1.hashCode());
+  }
+
+  @ParameterizedTest
+  @MethodSource("contextImplementations")
+  void testToString(Context context) {
+    String debugString = context.toString();
+    assertNotNull(debugString, "Context string representation should not be null");
+    assertTrue(
+        debugString.contains(context.getClass().getSimpleName()),
+        "Context string representation should contain implementation name");
   }
 
   @SuppressWarnings({"SimplifiableAssertion"})

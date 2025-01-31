@@ -6,6 +6,7 @@ import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureRuntime;
 import com.intuit.karate.core.Result;
 import com.intuit.karate.core.Scenario;
+import com.intuit.karate.core.ScenarioResult;
 import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.core.Tag;
 import datadog.trace.api.civisibility.config.TestIdentifier;
@@ -41,6 +42,8 @@ public abstract class KarateUtils {
   // static method to create aborted result has a different signature starting with Karate 1.4.1
   private static final MethodHandle ABORTED_RESULT_STARTTIME_DURATION_NANOS =
       METHOD_HANDLES.method(Result.class, "aborted", long.class, long.class);
+  private static final MethodHandle SCENARIO_RUNTIME_RESULT_SETTER =
+      METHOD_HANDLES.privateFieldSetter(ScenarioRuntime.class, "result");
 
   public static Feature getFeature(FeatureRuntime featureRuntime) {
     if (FEATURE_RUNTIME_FEATURE_CALL_GETTER != null) {
@@ -123,5 +126,9 @@ public abstract class KarateUtils {
 
   public static void resetBeforeHook(FeatureRuntime featureRuntime) {
     METHOD_HANDLES.invoke(FEATURE_RUNTIME_BEFORE_HOOK_DONE_SETTER, featureRuntime, false);
+  }
+
+  public static void setResult(ScenarioRuntime runtime, ScenarioResult result) {
+    METHOD_HANDLES.invoke(SCENARIO_RUNTIME_RESULT_SETTER, runtime, result);
   }
 }

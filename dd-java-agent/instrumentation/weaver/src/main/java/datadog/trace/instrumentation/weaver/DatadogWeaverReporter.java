@@ -5,6 +5,7 @@ import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
+import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.util.AgentThreadFactory;
@@ -91,7 +92,7 @@ public class DatadogWeaverReporter {
         new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier);
     String testMethodName = null;
     Method testMethod = null;
-    String retryReason = null;
+    RetryReason retryReason = null;
 
     // Only test finish is reported, so fake test start timestamp
     long endMicros = SystemTimeSource.INSTANCE.getCurrentTimeMicros();
