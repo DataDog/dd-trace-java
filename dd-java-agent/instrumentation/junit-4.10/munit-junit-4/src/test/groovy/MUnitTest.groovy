@@ -36,15 +36,15 @@ class MUnitTest extends CiVisibilityInstrumentationTest {
     givenFlakyRetryEnabled(true)
     givenFlakyTests(retriedTests)
 
-    runTests(tests)
+    runTests(tests, success)
 
     assertSpansData(testcaseName)
 
     where:
-    testcaseName               | tests                        | retriedTests
-    "test-failed"              | [TestFailedMUnit]            | []
-    "test-retry-failed"        | [TestFailedMUnit]            | [new TestIdentifier("org.example.TestFailedMUnit", "Calculator.add", null)]
-    "test-failed-then-succeed" | [TestFailedThenSucceedMUnit] | [new TestIdentifier("org.example.TestFailedThenSucceedMUnit", "Calculator.add", null)]
+    testcaseName               | success | tests                        | retriedTests
+    "test-failed"              | false   | [TestFailedMUnit]            | []
+    "test-retry-failed"        | false   | [TestFailedMUnit]            | [new TestIdentifier("org.example.TestFailedMUnit", "Calculator.add", null)]
+    "test-failed-then-succeed" | true    | [TestFailedThenSucceedMUnit] | [new TestIdentifier("org.example.TestFailedThenSucceedMUnit", "Calculator.add", null)]
   }
 
   def "test early flakiness detection #testcaseName"() {
@@ -79,15 +79,23 @@ class MUnitTest extends CiVisibilityInstrumentationTest {
     "test-succeed-impacted" | [TestSucceedMUnit] | new LineDiff([(DUMMY_SOURCE_PATH): lines(DUMMY_TEST_METHOD_START)])
   }
 
-  private void runTests(Collection<Class<?>> tests) {
+  private void runTests(Collection<Class<?>> tests, boolean expectSuccess = true) {
     TestEventsHandlerHolder.start()
     try {
       Class[] array = tests.toArray(new Class[0])
-      runner.run(array)
-    } catch (Throwable ignored) {
-      // Ignored
+      def result = runner.run(array)
+      if (expectSuccess) {
+        if (result.getFailureCount() > 0) {
+          throw new AssertionError("Expected successful execution, got following failures: " + result.getFailures())
+        }
+      } else {
+        if (result.getFailureCount() == 0) {
+          throw new AssertionError("Expected a failed execution, got no failures")
+        }
+      }
+    } finally {
+      TestEventsHandlerHolder.stop()
     }
-    TestEventsHandlerHolder.stop()
   }
 
   String version() {

@@ -194,16 +194,13 @@
 }, {
   "content" : {
     "duration" : ${content_duration_5},
-    "error" : 1,
+    "error" : 0,
     "meta" : {
       "_dd.profiling.ctx" : "test",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "component" : "junit",
       "dummy_ci_tag" : "dummy_ci_tag_value",
       "env" : "none",
-      "error.message" : ${content_meta_error_message_3},
-      "error.stack" : ${content_meta_error_stack_3},
-      "error.type" : "org.spockframework.runtime.ConditionNotSatisfiedError",
       "language" : "jvm",
       "library_version" : ${content_meta_library_version},
       "runtime-id" : ${content_meta_runtime_id},
@@ -217,7 +214,7 @@
       "test.parameters" : "{\"metadata\":{\"test_name\":\"test add 4 and 4\"}}",
       "test.source.file" : "dummy_source_path",
       "test.source.method" : "test add #a and #b(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)V",
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.suite" : "org.example.TestFailedThenSucceedParameterizedSpock",
       "test.type" : "test",
       "test_session.name" : "session-name"
