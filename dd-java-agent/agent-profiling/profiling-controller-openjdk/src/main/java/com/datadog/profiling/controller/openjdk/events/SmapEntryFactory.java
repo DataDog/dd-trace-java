@@ -3,10 +3,10 @@ package com.datadog.profiling.controller.openjdk.events;
 import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.instrumentation.jfr.JfrHelper;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
-import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.PushbackReader;
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -174,10 +174,10 @@ public class SmapEntryFactory {
     }
   }
 
-  private static long readLong(BufferedReader br, char delimiter, int base) throws IOException {
+  private static long readLong(PushbackReader reader, char delimiter, int base) throws IOException {
     long number = 0;
     char ch;
-    while ((ch = (char) br.read()) != delimiter) {
+    while ((ch = (char) reader.read()) != delimiter) {
       number *= base;
       number += Character.digit(ch, base);
     }
@@ -185,34 +185,34 @@ public class SmapEntryFactory {
     return number;
   }
 
-  private static int readInt(BufferedReader br, char delimiter, int base) throws IOException {
+  private static int readInt(PushbackReader reader, char delimiter, int base) throws IOException {
     int number = 0;
     char ch;
-    while ((ch = (char) br.read()) != delimiter) {
+    while ((ch = (char) reader.read()) != delimiter) {
       number *= base;
       number += Character.digit(ch, base);
     }
     return number;
   }
 
-  private static void readUntil(BufferedReader br, char target) throws IOException {
+  private static void readUntil(PushbackReader reader, char target) throws IOException {
     char ch = '\n';
     while (ch != target) {
-      ch = (char) br.read();
+      ch = (char) reader.read();
     }
   }
 
-  private static String readStringUntil(BufferedReader br, char target) throws IOException {
+  private static String readStringUntil(PushbackReader reader, char target) throws IOException {
     StringBuilder sb = new StringBuilder();
     char ch = '\n';
     while (ch != target) {
-      ch = (char) br.read();
+      ch = (char) reader.read();
       sb.append(ch);
     }
     return sb.toString();
   }
 
-  private static SmapHeader parseLine(BufferedReader br) throws IOException {
+  private static SmapHeader parseLine(PushbackReader reader) throws IOException {
     long startAddress;
     long endAddress;
     String perms;
@@ -221,19 +221,19 @@ public class SmapEntryFactory {
     int inode;
     String pathname;
 
-    startAddress = readLong(br, '-', 16);
+    startAddress = readLong(reader, '-', 16);
     if (startAddress == 0xffffffffff600000L) {
       startAddress = -0x1000 - 1;
       endAddress = -1;
-      readUntil(br, ' ');
+      readUntil(reader, ' ');
     } else {
-      endAddress = readLong(br, ' ', 16);
+      endAddress = readLong(reader, ' ', 16);
     }
-    perms = readStringUntil(br, ' ');
-    offset = readLong(br, ' ', 16);
-    dev = readStringUntil(br, ' ');
-    inode = readInt(br, ' ', 10);
-    pathname = readStringUntil(br, '\n').trim();
+    perms = readStringUntil(reader, ' ');
+    offset = readLong(reader, ' ', 16);
+    dev = readStringUntil(reader, ' ');
+    inode = readInt(reader, ' ', 10);
+    pathname = readStringUntil(reader, '\n').trim();
 
     return new SmapHeader(endAddress, startAddress, perms, offset, dev, inode, pathname);
   }
@@ -272,117 +272,118 @@ public class SmapEntryFactory {
     String vmFlags;
 
     HashMap<Long, String> annotatedRegions = getAnnotatedRegions();
-    try (BufferedReader reader = new BufferedReader(new FileReader("/proc/self/smaps"))) {
-      String line;
-      StringBuilder buffer = new StringBuilder();
-      while (true) { // fix this for later
+    try (PushbackReader reader = new PushbackReader(new FileReader("/proc/self/smaps"))) {
+      int peek;
+      while ((peek = reader.read()) != -1) { // fix this for later
+        reader.unread(peek);
         boolean encounteredForeignKeys = false;
         SmapHeader sh = parseLine(reader);
 
-        if (sh.startAddress == 420) {
-          break;
-        }
-
         while (true) {
-          buffer.setLength(0);
-          char[] attributedChars = reader.readLine().toCharArray();
-          int j = 0;
-          while (attributedChars[j] != ':') {
-            buffer.append(attributedChars[j]);
-            j++;
+          String attributeName = readStringUntil(reader, ':');
+          while (reader.read() == ' '){
           }
-          String attributeName = buffer.toString();
-          j++;
-          buffer.setLength(0);
-
           if ("VmFlags".equals(attributeName)) {
-            while (j < attributedChars.length) {
-              buffer.append(attributedChars[j]);
-              j++;
-            }
-            vmFlags = buffer.toString();
+            // We expect VmFlags to be the final entry in the newline-delimited KV list, we break out of the loop here
+            vmFlags = readStringUntil(reader, '\n');
             break;
           } else {
-            while (attributedChars[j] == ' ') {
-              j++;
-            }
-            while (j < attributedChars.length && attributedChars[j] != ' ') {
-              buffer.append(attributedChars[j]);
-              j++;
-            }
-
             if ("ThpEligible".equals(attributeName)) {
-              thpEligible = buffer.toString().equals("1");
+              thpEligible = reader.read() == '1';
+              readUntil(reader, '\n');
             } else if ("ProtectionKey".equals(attributeName)) {
               // Original event did not include protection key attribute, so skipping for now
               encounteredForeignKeys = true;
+              readUntil(reader, '\n');
             } else {
               switch (attributeName) {
                 case "Size":
-                  size = Long.decode(buffer.toString()) * 1024;
+                  size = readLong(reader, ' ', 16) * 1024;
+                  readUntil(reader, '\n');
                   break;
                 case "KernelPageSize":
-                  kernelPageSize = Long.decode(buffer.toString()) * 1024;
+                  kernelPageSize = readLong(reader, ' ', 16) * 1024;
+                  readUntil(reader, '\n');
                   break;
                 case "MMUPageSize":
-                  mmuPageSize = Long.decode(buffer.toString()) * 1024;
+                  mmuPageSize = readLong(reader, ' ', 16) * 1024;
+                  readUntil(reader, '\n');
                   break;
                 case "Rss":
-                  rss = Long.decode(buffer.toString()) * 1024;
+                  rss = readLong(reader, ' ', 16) * 1024;
+                  readUntil(reader, '\n');
                   break;
                 case "Pss":
-                  pss = Long.decode(buffer.toString()) * 1024;
+                  pss = readLong(reader, ' ', 16) * 1024;
+                  readUntil(reader, '\n');
                   break;
                 case "Pss_Dirty":
-                  pssDirty = Long.decode(buffer.toString()) * 1024;
+                  pssDirty = readLong(reader, ' ', 16) * 1024;
+                  readUntil(reader, '\n');
                   break;
                 case "Shared_Clean":
-                  sharedClean = Long.decode(buffer.toString()) * 1024;
+                  sharedClean = readLong(reader, ' ', 16) * 1024;
+                  readUntil(reader, '\n');
                   break;
                 case "Shared_Dirty":
-                  sharedDirty = Long.decode(buffer.toString()) * 1024;
+                  sharedDirty = readLong(reader, ' ', 16) * 1024;
+                  readUntil(reader, '\n');
                   break;
                 case "Private_Clean":
-                  privateClean = Long.decode(buffer.toString()) * 1024;
+                  privateClean = readLong(reader, ' ', 16) * 1024;
+                  readUntil(reader, '\n');
                   break;
                 case "Private_Dirty":
-                  privateDirty = Long.decode(buffer.toString()) * 1024;
+                  privateDirty = readLong(reader, ' ', 16) * 1024;
+                  readUntil(reader, '\n');
                   break;
                 case "Referenced":
-                  referenced = Long.decode(buffer.toString()) * 1024;
+                  referenced = readLong(reader, ' ', 16) * 1024;
+                  readUntil(reader, '\n');
                   break;
                 case "Anonymous":
-                  anonymous = Long.decode(buffer.toString()) * 1024;
+                  anonymous = readLong(reader, ' ', 16) * 1024;
+                  readUntil(reader, '\n');
                   break;
                 case "KSM":
-                  ksm = Long.decode(buffer.toString()) * 1024;
+                  ksm = readLong(reader, ' ', 16) * 1024;
+                  readUntil(reader, '\n');
                   break;
                 case "LazyFree":
-                  lazyFree = Long.decode(buffer.toString()) * 1024;
+                  lazyFree = readLong(reader, ' ', 16) * 1024;
+                  readUntil(reader, '\n');
                   break;
                 case "AnonHugePages":
-                  anonHugePages = Long.decode(buffer.toString()) * 1024;
+                  anonHugePages = readLong(reader, ' ', 16) * 1024;
+                  readUntil(reader, '\n');
                   break;
                 case "ShmemPmdMapped":
-                  shmemPmdMapped = Long.decode(buffer.toString()) * 1024;
+                  shmemPmdMapped = readLong(reader, ' ', 16) * 1024;
+                  readUntil(reader, '\n');
                   break;
                 case "FilePmdMapped":
-                  filePmdMapped = Long.decode(buffer.toString()) * 1024;
+                  filePmdMapped = readLong(reader, ' ', 16) * 1024;
+                  readUntil(reader, '\n');
                   break;
                 case "Shared_Hugetlb":
-                  sharedHugetlb = Long.decode(buffer.toString()) * 1024;
+                  sharedHugetlb = readLong(reader, ' ', 16) * 1024;
+                  readUntil(reader, '\n');
                   break;
                 case "Private_Hugetlb":
-                  privateHugetlb = Long.decode(buffer.toString()) * 1024;
+                  privateHugetlb = readLong(reader, ' ', 16) * 1024;
+                  readUntil(reader, '\n');
                   break;
                 case "Swap":
-                  swap = Long.decode(buffer.toString()) * 1024;
+                  swap = readLong(reader, ' ', 16) * 1024;
+                  readUntil(reader, '\n');
                   break;
                 case "SwapPss":
-                  swapPss = Long.decode(buffer.toString()) * 1024;
+                  swapPss = readLong(reader, ' ', 16) * 1024;
+                  readUntil(reader, '\n');
                   break;
                 case "Locked":
-                  locked = Long.decode(buffer.toString()) * 1024;
+                  locked = readLong(reader, ' ', 16) * 1024;
+                  readUntil(reader, '\n');
                   break;
                 default:
                   encounteredForeignKeys = true;
@@ -391,6 +392,7 @@ public class SmapEntryFactory {
             }
           }
         }
+        System.out.println("sanity check 3");
 
         String nmtCategory;
         if (annotatedRegions != null && annotatedRegions.containsKey(sh.startAddress)) {
