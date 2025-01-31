@@ -1,9 +1,6 @@
 package datadog.trace.civisibility.domain.headless
 
-import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.api.Config
-import datadog.trace.api.DDSpanTypes
-import datadog.trace.api.DDTags
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.api.civisibility.config.TestSourceData
 import datadog.trace.api.civisibility.coverage.CoverageStore
@@ -19,26 +16,6 @@ import datadog.trace.civisibility.source.SourcePathResolver
 import datadog.trace.civisibility.test.ExecutionStrategy
 
 class HeadlessTestModuleTest extends SpanWriterTest {
-  def "test module span is created and tags populated"() {
-    setup:
-    def headlessTestModule = givenAHeadlessTestModule()
-
-    when:
-    headlessTestModule.end(null)
-
-    then:
-    ListWriterAssert.assertTraces(TEST_WRITER, 1, false, {
-      trace(1) {
-        span(0) {
-          spanType DDSpanTypes.TEST_MODULE_END
-          tags(false) {
-            "$DDTags.TEST_IS_USER_PROVIDED_SERVICE" true
-          }
-        }
-      }
-    })
-  }
-
   def "test total retries limit is applied across test cases"() {
     given:
     def headlessTestModule = givenAHeadlessTestModule()
@@ -75,7 +52,6 @@ class HeadlessTestModuleTest extends SpanWriterTest {
     // this counts all executions of a test case (first attempt is counted too)
     config.getCiVisibilityTotalFlakyRetryCount() >> 2
     // this counts retries across all tests (first attempt is not a retry, so it is not counted)
-    config.isServiceNameSetByUser() >> true
 
     def executionStrategy = new ExecutionStrategy(config, executionSettings, Stub(SourcePathResolver), Stub(LinesResolver))
 

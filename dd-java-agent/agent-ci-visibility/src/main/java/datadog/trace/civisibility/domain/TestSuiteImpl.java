@@ -5,7 +5,6 @@ import static datadog.trace.api.civisibility.CIConstants.CI_VISIBILITY_INSTRUMEN
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.DDTestSuite;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
@@ -113,8 +112,6 @@ public class TestSuiteImpl implements DDTestSuite {
     span.setTag(Tags.TEST_SUITE_ID, span.getSpanId());
     span.setTag(Tags.TEST_MODULE_ID, moduleSpanContext.getSpanId());
     span.setTag(Tags.TEST_SESSION_ID, moduleSpanContext.getTraceId());
-
-    span.setTag(DDTags.TEST_IS_USER_PROVIDED_SERVICE, config.isServiceNameSetByUser());
 
     // setting status to skip initially,
     // as we do not know in advance whether the suite will have any children

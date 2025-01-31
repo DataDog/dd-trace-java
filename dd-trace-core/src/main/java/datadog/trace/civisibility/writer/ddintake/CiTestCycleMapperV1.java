@@ -92,9 +92,6 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
       Number testSuiteId = span.getTag(Tags.TEST_SUITE_ID);
       span.removeTag(Tags.TEST_SUITE_ID);
 
-      Boolean testIsUserProvidedService = span.getTag(DDTags.TEST_IS_USER_PROVIDED_SERVICE);
-      span.removeTag(DDTags.TEST_IS_USER_PROVIDED_SERVICE);
-
       String itrCorrelationId = span.getTag(Tags.ITR_CORRELATION_ID);
       span.removeTag(Tags.ITR_CORRELATION_ID);
 
@@ -106,9 +103,6 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
         topLevelTagsCount++;
       }
       if (testSuiteId != null) {
-        topLevelTagsCount++;
-      }
-      if (testIsUserProvidedService != null) {
         topLevelTagsCount++;
       }
       if (itrCorrelationId != null) {
@@ -202,10 +196,6 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
         writable.writeUTF8(TEST_SUITE_ID);
         writable.writeObject(testSuiteId, null);
       }
-      if (testIsUserProvidedService != null) {
-        writable.writeUTF8(TEST_IS_USER_PROVIDED_SERVICE);
-        writable.writeObject(testIsUserProvidedService, null);
-      }
       if (itrCorrelationId != null) {
         writable.writeUTF8(ITR_CORRELATION_ID);
         writable.writeObjectString(itrCorrelationId, null);
@@ -253,7 +243,7 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
     headerWriter.startMap(1);
     /* 2,1 */
     headerWriter.writeUTF8(METADATA_ASTERISK);
-    headerWriter.startMap(9);
+    headerWriter.startMap(10);
     /* 2,1,1 */
     headerWriter.writeUTF8(ENV);
     headerWriter.writeUTF8(wellKnownTags.getEnv());
@@ -281,6 +271,9 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
     /* 2,1,9 */
     headerWriter.writeUTF8(OS_VERSION);
     headerWriter.writeUTF8(wellKnownTags.getOsVersion());
+    /* 2,1,10 */
+    headerWriter.writeUTF8(TEST_IS_USER_PROVIDED_SERVICE);
+    headerWriter.writeUTF8(wellKnownTags.getIsUserProvidedService());
     /* 3  */
     headerWriter.writeUTF8(EVENTS);
     headerWriter.startArray(eventCount);

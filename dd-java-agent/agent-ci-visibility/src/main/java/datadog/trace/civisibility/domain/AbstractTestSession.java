@@ -4,7 +4,6 @@ import static datadog.trace.api.TracePropagationStyle.NONE;
 import static datadog.trace.api.civisibility.CIConstants.CI_VISIBILITY_INSTRUMENTATION_NAME;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.IdGenerationStrategy;
 import datadog.trace.api.civisibility.CIConstants;
@@ -97,8 +96,6 @@ public abstract class AbstractTestSession {
     span.setSpanType(InternalSpanTypes.TEST_SESSION_END);
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_TEST_SESSION);
     span.setTag(Tags.TEST_SESSION_ID, span.getTraceId());
-
-    span.setTag(DDTags.TEST_IS_USER_PROVIDED_SERVICE, config.isServiceNameSetByUser());
 
     // setting status to skip initially,
     // as we do not know in advance whether the session will have any children

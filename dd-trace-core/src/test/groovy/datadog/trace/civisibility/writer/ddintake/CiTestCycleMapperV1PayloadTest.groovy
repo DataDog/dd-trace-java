@@ -48,7 +48,7 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
     CiVisibilityWellKnownTags wellKnownTags = new CiVisibilityWellKnownTags(
       "runtimeid", "my-env", "language",
       "my-runtime-name", "my-runtime-version", "my-runtime-vendor",
-      "my-os-arch", "my-os-platform", "my-os-version")
+      "my-os-arch", "my-os-platform", "my-os-version", "false")
     CiTestCycleMapperV1 mapper = new CiTestCycleMapperV1(wellKnownTags, false)
 
     List<List<TraceGenerator.PojoSpan>> traces = generateRandomTraces(traceCount, lowCardinality)
@@ -90,20 +90,19 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
     100 << 10  | 1000       | false
   }
 
-  def "verify test_suite_id, test_module_id, test_session_id, and _dd.test.is_user_provided_service are written as top level tags in test event"() {
+  def "verify test_suite_id, test_module_id, and test_session_id are written as top level tags in test event"() {
     setup:
     def span = generateRandomSpan(InternalSpanTypes.TEST, [
       (Tags.TEST_SESSION_ID)                : DDTraceId.from(123),
       (Tags.TEST_MODULE_ID)                 : 456,
       (Tags.TEST_SUITE_ID)                  : 789,
-      (DDTags.TEST_IS_USER_PROVIDED_SERVICE): true,
     ])
 
     when:
     Map<String, Object> deserializedSpan = whenASpanIsWritten(span)
 
     then:
-    verifyTopLevelTags(deserializedSpan, DDTraceId.from(123), 456, 789, true)
+    verifyTopLevelTags(deserializedSpan, DDTraceId.from(123), 456, 789)
 
     def spanContent = (Map<String, Object>) deserializedSpan.get("content")
     assert spanContent.containsKey("trace_id")
@@ -117,14 +116,13 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
       (Tags.TEST_SESSION_ID)                : DDTraceId.from(123),
       (Tags.TEST_MODULE_ID)                 : 456,
       (Tags.TEST_SUITE_ID)                  : 789,
-      (DDTags.TEST_IS_USER_PROVIDED_SERVICE): true,
     ])
 
     when:
     Map<String, Object> deserializedSpan = whenASpanIsWritten(span)
 
     then:
-    verifyTopLevelTags(deserializedSpan, DDTraceId.from(123), 456, 789, true)
+    verifyTopLevelTags(deserializedSpan, DDTraceId.from(123), 456, 789)
 
     def spanContent = (Map<String, Object>) deserializedSpan.get("content")
     assert !spanContent.containsKey("trace_id")
@@ -137,14 +135,13 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
     def span = generateRandomSpan(InternalSpanTypes.TEST_MODULE_END, [
       (Tags.TEST_SESSION_ID)                : DDTraceId.from(123),
       (Tags.TEST_MODULE_ID)                 : 456,
-      (DDTags.TEST_IS_USER_PROVIDED_SERVICE): true,
     ])
 
     when:
     Map<String, Object> deserializedSpan = whenASpanIsWritten(span)
 
     then:
-    verifyTopLevelTags(deserializedSpan, DDTraceId.from(123), 456, null, true)
+    verifyTopLevelTags(deserializedSpan, DDTraceId.from(123), 456, null)
 
     def spanContent = (Map<String, Object>) deserializedSpan.get("content")
     assert !spanContent.containsKey("trace_id")
@@ -152,7 +149,7 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
     assert !spanContent.containsKey("parent_id")
   }
 
-  private static void verifyTopLevelTags(Map<String, Object> deserializedSpan, DDTraceId testSessionId, Long testModuleId, Long testSuiteId, Boolean testIsUserProvidedService) {
+  private static void verifyTopLevelTags(Map<String, Object> deserializedSpan, DDTraceId testSessionId, Long testModuleId, Long testSuiteId) {
     Map<String, Object> deserializedSpanContent = (Map<String, Object>) deserializedSpan.get("content")
     Map<String, Object> deserializedMetrics = (Map<String, Object>) deserializedSpanContent.get("metrics")
     Map<String, Object> deserializedMeta = (Map<String, Object>) deserializedSpanContent.get("meta")
@@ -175,21 +172,13 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
       assert !deserializedSpanContent.containsKey(Tags.TEST_SUITE_ID)
     }
 
-    if (testIsUserProvidedService != null) {
-      assert deserializedSpanContent.get(DDTags.TEST_IS_USER_PROVIDED_SERVICE) == testIsUserProvidedService
-    } else {
-      assert !deserializedSpanContent.containsKey(DDTags.TEST_IS_USER_PROVIDED_SERVICE)
-    }
-
     assert !deserializedMetrics.containsKey(Tags.TEST_SESSION_ID)
     assert !deserializedMetrics.containsKey(Tags.TEST_MODULE_ID)
     assert !deserializedMetrics.containsKey(Tags.TEST_SUITE_ID)
-    assert !deserializedMetrics.containsKey(DDTags.TEST_IS_USER_PROVIDED_SERVICE)
 
     assert !deserializedMeta.containsKey(Tags.TEST_SESSION_ID)
     assert !deserializedMeta.containsKey(Tags.TEST_MODULE_ID)
     assert !deserializedMeta.containsKey(Tags.TEST_SUITE_ID)
-    assert !deserializedMeta.containsKey(DDTags.TEST_IS_USER_PROVIDED_SERVICE)
   }
 
   private static Map<String, Object> whenASpanIsWritten(TraceGenerator.PojoSpan span) {
@@ -198,7 +187,7 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
     CiVisibilityWellKnownTags wellKnownTags = new CiVisibilityWellKnownTags(
       "runtimeid", "my-env", "language",
       "my-runtime-name", "my-runtime-version", "my-runtime-vendor",
-      "my-os-arch", "my-os-platform", "my-os-version")
+      "my-os-arch", "my-os-platform", "my-os-version", "false")
     CiTestCycleMapperV1 mapper = new CiTestCycleMapperV1(wellKnownTags, false)
 
     ByteBufferConsumer consumer = new CaptureConsumer()
@@ -263,7 +252,7 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
         assertEquals(1, unpacker.unpackMapHeader())
         assertEquals("*", unpacker.unpackString())
 
-        assertEquals(9, unpacker.unpackMapHeader())
+        assertEquals(10, unpacker.unpackMapHeader())
         assertEquals("env", unpacker.unpackString())
         assertEquals(wellKnownTags.env as String, unpacker.unpackString())
         assertEquals("runtime-id", unpacker.unpackString())
@@ -282,6 +271,8 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
         assertEquals(wellKnownTags.osPlatform as String, unpacker.unpackString())
         assertEquals(Tags.OS_VERSION, unpacker.unpackString())
         assertEquals(wellKnownTags.osVersion as String, unpacker.unpackString())
+        assertEquals(DDTags.TEST_IS_USER_PROVIDED_SERVICE, unpacker.unpackString())
+        assertEquals(wellKnownTags.isUserProvidedService as String, unpacker.unpackString())
 
         assertEquals("events", unpacker.unpackString())
 

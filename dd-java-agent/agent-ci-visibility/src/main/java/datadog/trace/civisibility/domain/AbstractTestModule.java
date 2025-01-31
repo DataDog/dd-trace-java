@@ -3,7 +3,6 @@ package datadog.trace.civisibility.domain;
 import static datadog.trace.api.civisibility.CIConstants.CI_VISIBILITY_INSTRUMENTATION_NAME;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.EventType;
@@ -72,8 +71,6 @@ public abstract class AbstractTestModule {
 
     span.setTag(Tags.TEST_MODULE_ID, span.getSpanId());
     span.setTag(Tags.TEST_SESSION_ID, span.getTraceId());
-
-    span.setTag(DDTags.TEST_IS_USER_PROVIDED_SERVICE, config.isServiceNameSetByUser());
 
     // setting status to skip initially,
     // as we do not know in advance whether the module will have any children
