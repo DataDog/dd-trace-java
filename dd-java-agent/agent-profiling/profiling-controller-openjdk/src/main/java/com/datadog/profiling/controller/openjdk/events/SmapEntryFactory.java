@@ -6,6 +6,7 @@ import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -173,7 +174,46 @@ public class SmapEntryFactory {
     }
   }
 
-  private static SmapHeader parseLine(String line) throws IndexOutOfBoundsException {
+  private static long readLong(BufferedReader br, char delimiter, int base) throws IOException {
+    long number = 0;
+    char ch = 0;
+    while (ch != delimiter) {
+      ch = (char) br.read();
+      number *= base;
+      number += Character.digit(ch, base);
+    }
+    return number;
+  }
+
+  private static int readInt(BufferedReader br, char delimiter, int base) throws IOException {
+    int number = 0;
+    char ch = 0;
+    while (ch != delimiter) {
+      ch = (char) br.read();
+      number *= base;
+      number += Character.digit(ch, base);
+    }
+    return number;
+  }
+
+  private static void readUntil(BufferedReader br, char target) throws IOException {
+    char ch = '\n';
+    while (ch != target) {
+      ch = (char) br.read();
+    }
+  }
+
+  private static String readStringUntil(BufferedReader br, char target) throws IOException {
+    StringBuilder sb = new StringBuilder();
+    char ch = '\n';
+    while (ch != target) {
+      ch = (char) br.read();
+      sb.append(ch);
+    }
+    return sb.toString();
+  }
+
+  private static SmapHeader parseLine(BufferedReader br) throws IOException {
     StringBuilder buffer = new StringBuilder();
     int i = 0;
     long startAddress = 0;
@@ -184,67 +224,19 @@ public class SmapEntryFactory {
     int inode = 0;
     String pathname = "";
 
-    while (line.charAt(i) != '-') {
-      startAddress = startAddress << 4;
-      startAddress += Character.digit(line.charAt(i), 16);
-      i++;
-    }
-
-    i++;
-
+    startAddress = readLong(br, '-', 16);
     if (startAddress == 0xffffffffff600000L) {
       startAddress = -0x1000 - 1;
       endAddress = -1;
-      while (line.charAt(i) != ' ') {
-        i++;
-      }
+      readUntil(br, ' ');
     } else {
-      while (line.charAt(i) != ' ') {
-        endAddress = endAddress << 4;
-        endAddress += Character.digit(line.charAt(i), 16);
-        i++;
-      }
-
-      i++;
+      endAddress = readLong(br, ' ', 16);
     }
-
-    while (line.charAt(i) != ' ') {
-      buffer.append(line.charAt(i));
-      i++;
-    }
-
-    perms = buffer.toString();
-    buffer.setLength(0);
-    i++;
-
-    while (line.charAt(i) != ' ') {
-      offset = offset << 4;
-      offset += Character.digit(line.charAt(i), 16);
-      i++;
-    }
-
-    i++;
-
-    while (line.charAt(i) != ' ') {
-      buffer.append(line.charAt(i));
-      i++;
-    }
-
-    dev = buffer.toString();
-    buffer.setLength(0);
-    i++;
-
-    while (i < line.length() && line.charAt(i) != ' ') {
-      inode *= 10;
-      inode += Character.digit(line.charAt(i), 10);
-      i++;
-    }
-
-    while (i < line.length()) {
-      buffer.append(line.charAt(i));
-      i++;
-    }
-    pathname = buffer.toString().trim();
+    perms = readStringUntil(br, ' ');
+    offset = readLong(br, ' ', 16);
+    dev = readStringUntil(br, ' ');
+    inode = readInt(br, ' ', 10);
+    pathname = readStringUntil(br, '\n').trim();
 
     return new SmapHeader(endAddress, startAddress, perms, offset, dev, inode, pathname);
   }
@@ -283,14 +275,12 @@ public class SmapEntryFactory {
     String vmFlags;
 
     HashMap<Long, String> annotatedRegions = getAnnotatedRegions();
-    // Partially based on
-    // https://gist.github.com/vladimir-bukhtoyarov/314c4080368bb5ba0acdcc7e5cb88304
     try (BufferedReader reader = new BufferedReader(new FileReader("/proc/self/smaps"))) {
       String line;
       StringBuilder buffer = new StringBuilder();
       while ((line = reader.readLine()) != null) {
         boolean encounteredForeignKeys = false;
-        SmapHeader sh = parseLine(line);
+        SmapHeader sh = parseLine(reader);
 
         while (true) {
           buffer.setLength(0);
