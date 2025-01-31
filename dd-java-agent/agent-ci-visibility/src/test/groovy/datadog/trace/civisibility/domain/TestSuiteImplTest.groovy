@@ -3,6 +3,7 @@ package datadog.trace.civisibility.domain
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.civisibility.coverage.CoverageStore
 import datadog.trace.api.civisibility.coverage.NoOpCoverageStore
@@ -34,6 +35,7 @@ class TestSuiteImplTest extends SpanWriterTest {
             "$Tags.TEST_CODEOWNERS" "[\"@global-owner1\",\"@global-owner2\"]"
             "$Tags.TEST_SOURCE_START" 10
             "$Tags.TEST_SOURCE_END" 20
+            "$DDTags.TEST_IS_USER_PROVIDED_SERVICE" true
           }
         }
       }
@@ -42,8 +44,7 @@ class TestSuiteImplTest extends SpanWriterTest {
 
   private static final class MyClass {}
 
-  private TestSuiteImpl givenATestSuite(
-    CoverageStore.Factory coverageStoreFactory = new NoOpCoverageStore.Factory()) {
+  private TestSuiteImpl givenATestSuite(CoverageStore.Factory coverageStoreFactory = new NoOpCoverageStore.Factory()) {
     def traceId = Stub(DDTraceId)
     traceId.toLong() >> 123
 
@@ -51,8 +52,10 @@ class TestSuiteImplTest extends SpanWriterTest {
     moduleSpanContext.getSpanId() >> 456
     moduleSpanContext.getTraceId() >> traceId
 
+    def config = Spy(Config.get())
+    config.isServiceNameSetByUser() >> true
+
     def testFramework = TestFrameworkInstrumentation.OTHER
-    def config = Config.get()
     def metricCollector = Stub(CiVisibilityMetricCollectorImpl)
     def executionResults = Stub(ExecutionResults)
     def testDecorator = new TestDecoratorImpl("component", "session-name", "test-command", [:])

@@ -5,6 +5,7 @@ import static datadog.trace.api.civisibility.CIConstants.CI_VISIBILITY_INSTRUMEN
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.DDTest;
@@ -123,6 +124,8 @@ public class TestImpl implements DDTest {
     span.setTag(Tags.TEST_SUITE_ID, suiteId);
     span.setTag(Tags.TEST_MODULE_ID, moduleSpanContext.getSpanId());
     span.setTag(Tags.TEST_SESSION_ID, moduleSpanContext.getTraceId());
+
+    span.setTag(DDTags.TEST_IS_USER_PROVIDED_SERVICE, config.isServiceNameSetByUser());
 
     span.setTag(Tags.TEST_STATUS, TestStatus.pass);
 

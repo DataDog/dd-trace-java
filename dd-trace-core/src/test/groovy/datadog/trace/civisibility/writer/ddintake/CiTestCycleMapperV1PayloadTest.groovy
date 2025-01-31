@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
+import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.civisibility.CiVisibilityWellKnownTags
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes
@@ -89,19 +90,20 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
     100 << 10  | 1000       | false
   }
 
-  def "verify test_suite_id, test_module_id, and test_session_id are written as top level tags in test event"() {
+  def "verify test_suite_id, test_module_id, test_session_id, and _dd.test.is_user_provided_service are written as top level tags in test event"() {
     setup:
     def span = generateRandomSpan(InternalSpanTypes.TEST, [
-      (Tags.TEST_SESSION_ID): DDTraceId.from(123),
-      (Tags.TEST_MODULE_ID) : 456,
-      (Tags.TEST_SUITE_ID)  : 789
+      (Tags.TEST_SESSION_ID)                : DDTraceId.from(123),
+      (Tags.TEST_MODULE_ID)                 : 456,
+      (Tags.TEST_SUITE_ID)                  : 789,
+      (DDTags.TEST_IS_USER_PROVIDED_SERVICE): true,
     ])
 
     when:
     Map<String, Object> deserializedSpan = whenASpanIsWritten(span)
 
     then:
-    verifyTopLevelTags(deserializedSpan, DDTraceId.from(123), 456, 789)
+    verifyTopLevelTags(deserializedSpan, DDTraceId.from(123), 456, 789, true)
 
     def spanContent = (Map<String, Object>) deserializedSpan.get("content")
     assert spanContent.containsKey("trace_id")
@@ -112,16 +114,17 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
   def "verify test_suite_end event is written correctly"() {
     setup:
     def span = generateRandomSpan(InternalSpanTypes.TEST_SUITE_END, [
-      (Tags.TEST_SESSION_ID): DDTraceId.from(123),
-      (Tags.TEST_MODULE_ID) : 456,
-      (Tags.TEST_SUITE_ID)  : 789
+      (Tags.TEST_SESSION_ID)                : DDTraceId.from(123),
+      (Tags.TEST_MODULE_ID)                 : 456,
+      (Tags.TEST_SUITE_ID)                  : 789,
+      (DDTags.TEST_IS_USER_PROVIDED_SERVICE): true,
     ])
 
     when:
     Map<String, Object> deserializedSpan = whenASpanIsWritten(span)
 
     then:
-    verifyTopLevelTags(deserializedSpan, DDTraceId.from(123), 456, 789)
+    verifyTopLevelTags(deserializedSpan, DDTraceId.from(123), 456, 789, true)
 
     def spanContent = (Map<String, Object>) deserializedSpan.get("content")
     assert !spanContent.containsKey("trace_id")
@@ -132,15 +135,16 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
   def "verify test_module_end event is written correctly"() {
     setup:
     def span = generateRandomSpan(InternalSpanTypes.TEST_MODULE_END, [
-      (Tags.TEST_SESSION_ID): DDTraceId.from(123),
-      (Tags.TEST_MODULE_ID) : 456,
+      (Tags.TEST_SESSION_ID)                : DDTraceId.from(123),
+      (Tags.TEST_MODULE_ID)                 : 456,
+      (DDTags.TEST_IS_USER_PROVIDED_SERVICE): true,
     ])
 
     when:
     Map<String, Object> deserializedSpan = whenASpanIsWritten(span)
 
     then:
-    verifyTopLevelTags(deserializedSpan, DDTraceId.from(123), 456, null)
+    verifyTopLevelTags(deserializedSpan, DDTraceId.from(123), 456, null, true)
 
     def spanContent = (Map<String, Object>) deserializedSpan.get("content")
     assert !spanContent.containsKey("trace_id")
@@ -148,7 +152,7 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
     assert !spanContent.containsKey("parent_id")
   }
 
-  private static void verifyTopLevelTags(Map<String, Object> deserializedSpan, DDTraceId testSessionId, Long testModuleId, Long testSuiteId) {
+  private static void verifyTopLevelTags(Map<String, Object> deserializedSpan, DDTraceId testSessionId, Long testModuleId, Long testSuiteId, Boolean testIsUserProvidedService) {
     Map<String, Object> deserializedSpanContent = (Map<String, Object>) deserializedSpan.get("content")
     Map<String, Object> deserializedMetrics = (Map<String, Object>) deserializedSpanContent.get("metrics")
     Map<String, Object> deserializedMeta = (Map<String, Object>) deserializedSpanContent.get("meta")
@@ -171,13 +175,21 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
       assert !deserializedSpanContent.containsKey(Tags.TEST_SUITE_ID)
     }
 
+    if (testIsUserProvidedService != null) {
+      assert deserializedSpanContent.get(DDTags.TEST_IS_USER_PROVIDED_SERVICE) == testIsUserProvidedService
+    } else {
+      assert !deserializedSpanContent.containsKey(DDTags.TEST_IS_USER_PROVIDED_SERVICE)
+    }
+
     assert !deserializedMetrics.containsKey(Tags.TEST_SESSION_ID)
     assert !deserializedMetrics.containsKey(Tags.TEST_MODULE_ID)
     assert !deserializedMetrics.containsKey(Tags.TEST_SUITE_ID)
+    assert !deserializedMetrics.containsKey(DDTags.TEST_IS_USER_PROVIDED_SERVICE)
 
     assert !deserializedMeta.containsKey(Tags.TEST_SESSION_ID)
     assert !deserializedMeta.containsKey(Tags.TEST_MODULE_ID)
     assert !deserializedMeta.containsKey(Tags.TEST_SUITE_ID)
+    assert !deserializedMeta.containsKey(DDTags.TEST_IS_USER_PROVIDED_SERVICE)
   }
 
   private static Map<String, Object> whenASpanIsWritten(TraceGenerator.PojoSpan span) {

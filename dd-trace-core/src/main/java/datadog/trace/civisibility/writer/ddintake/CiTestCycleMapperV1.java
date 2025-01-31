@@ -7,6 +7,7 @@ import static datadog.json.JsonMapper.toJson;
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
+import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.civisibility.CiVisibilityWellKnownTags;
 import datadog.trace.api.civisibility.InstrumentationBridge;
@@ -41,6 +42,8 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
       Tags.TEST_SESSION_ID.getBytes(StandardCharsets.UTF_8);
   private static final byte[] TEST_MODULE_ID = Tags.TEST_MODULE_ID.getBytes(StandardCharsets.UTF_8);
   private static final byte[] TEST_SUITE_ID = Tags.TEST_SUITE_ID.getBytes(StandardCharsets.UTF_8);
+  private static final byte[] TEST_IS_USER_PROVIDED_SERVICE =
+      DDTags.TEST_IS_USER_PROVIDED_SERVICE.getBytes(StandardCharsets.UTF_8);
   private static final byte[] ITR_CORRELATION_ID =
       Tags.ITR_CORRELATION_ID.getBytes(StandardCharsets.UTF_8);
 
@@ -89,6 +92,9 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
       Number testSuiteId = span.getTag(Tags.TEST_SUITE_ID);
       span.removeTag(Tags.TEST_SUITE_ID);
 
+      Boolean testIsUserProvidedService = span.getTag(DDTags.TEST_IS_USER_PROVIDED_SERVICE);
+      span.removeTag(DDTags.TEST_IS_USER_PROVIDED_SERVICE);
+
       String itrCorrelationId = span.getTag(Tags.ITR_CORRELATION_ID);
       span.removeTag(Tags.ITR_CORRELATION_ID);
 
@@ -100,6 +106,9 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
         topLevelTagsCount++;
       }
       if (testSuiteId != null) {
+        topLevelTagsCount++;
+      }
+      if (testIsUserProvidedService != null) {
         topLevelTagsCount++;
       }
       if (itrCorrelationId != null) {
@@ -192,6 +201,10 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
       if (testSuiteId != null) {
         writable.writeUTF8(TEST_SUITE_ID);
         writable.writeObject(testSuiteId, null);
+      }
+      if (testIsUserProvidedService != null) {
+        writable.writeUTF8(TEST_IS_USER_PROVIDED_SERVICE);
+        writable.writeObject(testIsUserProvidedService, null);
       }
       if (itrCorrelationId != null) {
         writable.writeUTF8(ITR_CORRELATION_ID);

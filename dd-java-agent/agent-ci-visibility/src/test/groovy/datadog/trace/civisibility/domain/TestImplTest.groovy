@@ -3,6 +3,7 @@ package datadog.trace.civisibility.domain
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.api.civisibility.coverage.CoverageProbes
@@ -20,7 +21,7 @@ import datadog.trace.civisibility.test.ExecutionResults
 import datadog.trace.civisibility.utils.SpanUtils
 
 class TestImplTest extends SpanWriterTest {
-  def "test span is generated"() {
+  def "test span is generated and tags populated"() {
     setup:
     def test = givenATest()
 
@@ -33,6 +34,9 @@ class TestImplTest extends SpanWriterTest {
         span(0) {
           parent()
           spanType DDSpanTypes.TEST
+          tags(false) {
+            "$DDTags.TEST_IS_USER_PROVIDED_SERVICE" true
+          }
         }
       }
     })
@@ -84,8 +88,7 @@ class TestImplTest extends SpanWriterTest {
     0 * coverageStore.report(_, _, _)
   }
 
-  private TestImpl givenATest(
-    CoverageStore.Factory coverageStoreFactory = new NoOpCoverageStore.Factory()) {
+  private TestImpl givenATest(CoverageStore.Factory coverageStoreFactory = new NoOpCoverageStore.Factory()) {
 
     def traceId = Stub(DDTraceId)
     traceId.toLong() >> 123
@@ -95,8 +98,10 @@ class TestImplTest extends SpanWriterTest {
     moduleSpanContext.getTraceId() >> traceId
     def suiteId = 789
 
+    def config = Spy(Config.get())
+    config.isServiceNameSetByUser() >> true
+
     def testFramework = TestFrameworkInstrumentation.OTHER
-    def config = Config.get()
     def metricCollector = Stub(CiVisibilityMetricCollectorImpl)
     def executionResults = Stub(ExecutionResults)
     def testDecorator = new TestDecoratorImpl("component", "session-name", "test-command", [:])
