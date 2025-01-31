@@ -27,11 +27,7 @@ public class StringEscapeUtilsCallSite {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.taintStringIfTainted(
-            result,
-            input,
-            false,
-            VulnerabilityMarks.XSS_MARK | VulnerabilityMarks.EMAIL_HTML_INJECTION_MARK);
+        module.taintStringIfTainted(result, input, false, VulnerabilityMarks.HTML_ESCAPED_MARK);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterEscape threw", e);
       }

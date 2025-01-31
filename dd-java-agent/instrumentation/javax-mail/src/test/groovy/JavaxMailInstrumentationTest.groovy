@@ -19,7 +19,7 @@ class JavaxMailInstrumentationTest extends AgentTestRunner {
     injectSysConfig("dd.iast.enabled", "true")
   }
 
-  void 'test javax mail Message text'() {
+  void 'test javax mail Message HTML text'() {
     given:
     final module = Mock(EmailInjectionModule)
     InstrumentationBridge.registerIastModule(module)
@@ -39,6 +39,28 @@ class JavaxMailInstrumentationTest extends AgentTestRunner {
     where:
     mimetype  | content
     "html"    | "<html><body>Hello, Content!</body></html>"
+  }
+
+  void 'test javax mail Message Plain text'() {
+    given:
+    final module = Mock(EmailInjectionModule)
+    InstrumentationBridge.registerIastModule(module)
+    def session = Session.getDefaultInstance(new Properties())
+    def provider = new Provider(Provider.Type.TRANSPORT, "smtp", MockTransport.name, "MockTransport", "1.0")
+    session.setProvider(provider)
+    final message = new MimeMessage(session)
+    message.setRecipient(Message.RecipientType.TO, new InternetAddress("mock@datadoghq.com"))
+    message.setText(content, "utf-8", mimetype)
+
+    when:
+    Transport.send(message)
+
+    then:
+    0 * module.onSendEmail(message.getContent())
+
+    where:
+    mimetype  | content
+    "plain"    | "<html><body>Hello, Content!</body></html>"
   }
 
   void 'test javax mail Message Content'() {
