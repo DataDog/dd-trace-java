@@ -10,11 +10,41 @@ import datadog.trace.api.TraceConfig;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.interceptor.MutableSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopContext;
 import java.util.Map;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public interface AgentSpan
     extends MutableSpan, ImplicitContextKeyed, Context, IGSpanInfo, WithAgentSpan {
+
+  /**
+   * Extracts the span from context.
+   *
+   * @param context the context to extract the span from.
+   * @return the span if existing, {@code null} otherwise.
+   */
+  static AgentSpan fromContext(Context context) {
+    return context.get(SPAN_KEY);
+  }
+
+  /**
+   * Creates a span wrapper from a span context.
+   *
+   * <p>Creating a such span will not create a tracing span to complete a local root trace. It gives
+   * a span instance based on a span context for span-based API. It is usually used with an
+   * extracted span context as parameter to represent a remove span.
+   *
+   * @param spanContext the span context to get a full-fledged span.
+   * @return a span wrapped based on a span context.
+   */
+  static AgentSpan fromSpanContext(AgentSpanContext spanContext) {
+    if (spanContext == null || spanContext == NoopContext.INSTANCE) {
+      return NoopAgentSpan.INSTANCE;
+    }
+    return new AgentTracer.ExtractedSpan(spanContext);
+  }
 
   DDTraceId getTraceId();
 
@@ -163,13 +193,13 @@ public interface AgentSpan
 
   @Nullable
   @Override
-  default <T> T get(ContextKey<T> key) {
+  default <T> T get(@Nonnull ContextKey<T> key) {
     // noinspection unchecked
     return SPAN_KEY == key ? (T) this : Context.root().get(key);
   }
 
   @Override
-  default <T> Context with(ContextKey<T> key, @Nullable T value) {
+  default <T> Context with(@Nonnull ContextKey<T> key, @Nullable T value) {
     return Context.root().with(SPAN_KEY, this, key, value);
   }
 }
