@@ -42,6 +42,10 @@ public class HttpUrlState {
       if (responseCode > 0) {
         // safe to access response data as 'responseCode' is set
         DECORATE.onResponse(span, connection);
+        if (throwable != null && responseCode >= 400) {
+
+          DECORATE.onError(span, throwable);
+        }
       } else {
         // Ignoring the throwable if we have response code
         // to have consistent behavior with other http clients.
