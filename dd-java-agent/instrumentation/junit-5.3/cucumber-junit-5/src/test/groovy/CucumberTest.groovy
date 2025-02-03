@@ -69,7 +69,7 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
 
     where:
     testcaseName                                      | success | features                                                                          | retriedTests
-    "test-failed"                                     | false   | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"]               | []
+    "test-no-retry-failed"                            | false   | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"]               | []
     "test-retry-failed"                               | false   | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"]               | [
       new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition", null)
     ]
@@ -148,13 +148,13 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName)
 
     where:
-    testcaseName                     | features                                                            | quarantined                 | known
+    testcaseName                    | features                                                            | quarantined                  | known
     "test-quarantined-failed-known" | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"] | [
       new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition", null)
     ]                                                                                                                                    | [
       new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition", null)
     ]
-    "test-quarantined-failed-efd"    | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"] | [
+    "test-quarantined-failed-efd"   | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"] | [
       new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition", null)
     ]                                                                                                                                    | []
   }

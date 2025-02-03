@@ -4,6 +4,7 @@
     "error" : 0,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid},
+      "_dd.test.is_user_provided_service" : "true",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "ci.workspace_path" : ${content_meta_ci_workspace_path},
       "component" : "maven",
@@ -50,6 +51,7 @@
     "error" : 0,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_2},
+      "_dd.test.is_user_provided_service" : "true",
       "ci.workspace_path" : ${content_meta_ci_workspace_path},
       "component" : "maven",
       "env" : "integration-test",
@@ -94,6 +96,7 @@
     "error" : 0,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_3},
+      "_dd.test.is_user_provided_service" : "true",
       "env" : "integration-test",
       "execution" : "default-compile",
       "language" : "jvm",
@@ -125,6 +128,7 @@
     "error" : 0,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_4},
+      "_dd.test.is_user_provided_service" : "true",
       "env" : "integration-test",
       "execution" : "default-testCompile",
       "language" : "jvm",
@@ -156,6 +160,7 @@
     "error" : 0,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_5},
+      "_dd.test.is_user_provided_service" : "true",
       "env" : "integration-test",
       "execution" : "default-resources",
       "language" : "jvm",
@@ -187,6 +192,7 @@
     "error" : 0,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_6},
+      "_dd.test.is_user_provided_service" : "true",
       "env" : "integration-test",
       "execution" : "default-testResources",
       "language" : "jvm",
@@ -218,6 +224,7 @@
     "error" : 0,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_7},
+      "_dd.test.is_user_provided_service" : "true",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "ci.workspace_path" : ${content_meta_ci_workspace_path},
       "component" : "junit",
@@ -265,6 +272,7 @@
     "error" : 0,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_8},
+      "_dd.test.is_user_provided_service" : "true",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "ci.workspace_path" : ${content_meta_ci_workspace_path},
       "component" : "junit",
@@ -318,6 +326,7 @@
     "error" : 0,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_9},
+      "_dd.test.is_user_provided_service" : "true",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "ci.workspace_path" : ${content_meta_ci_workspace_path},
       "component" : "junit",
