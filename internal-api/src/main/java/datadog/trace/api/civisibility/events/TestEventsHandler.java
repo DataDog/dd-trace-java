@@ -4,8 +4,8 @@ import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.api.civisibility.DDTestSuite;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
+import datadog.trace.api.civisibility.execution.TestExecutionHistory;
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
-import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.ContextStore;
@@ -52,10 +52,6 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
    *     case
    * @param categories test categories (or test tags) if the test case is marked with any
    * @param testSourceData metadata for locating the source code for the test case
-   * @param retryReason if this is a retry of the previously executed test case, the reason for
-   *     retrying
-   * @param hasFailedAllRetries {@code true} if this test was executed multiple times, and all the
-   *     executions failed
    * @param startTime the timestamp of the test execution start ({@code null} for current timestamp)
    */
   void onTestStart(
@@ -67,15 +63,16 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
       @Nullable String testParameters,
       @Nullable Collection<String> categories,
       @Nonnull TestSourceData testSourceData,
-      @Nullable RetryReason retryReason,
-      boolean hasFailedAllRetries,
       @Nullable Long startTime);
 
   void onTestSkip(TestKey descriptor, @Nullable String reason);
 
   void onTestFailure(TestKey descriptor, @Nullable Throwable throwable);
 
-  void onTestFinish(TestKey descriptor, @Nullable Long endTime);
+  void onTestFinish(
+      TestKey descriptor,
+      @Nullable Long endTime,
+      @Nullable TestExecutionHistory testExecutionHistory);
 
   void onTestIgnore(
       SuiteKey suiteDescriptor,

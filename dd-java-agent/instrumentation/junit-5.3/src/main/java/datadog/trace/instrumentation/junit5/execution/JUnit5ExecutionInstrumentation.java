@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.junit5.retry;
+package datadog.trace.instrumentation.junit5.execution;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
@@ -15,7 +15,6 @@ import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
-import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.junit5.JUnitPlatformUtils;
 import datadog.trace.instrumentation.junit5.TestDataFactory;
 import datadog.trace.instrumentation.junit5.TestEventsHandlerHolder;
@@ -23,7 +22,6 @@ import datadog.trace.util.Strings;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -66,13 +64,6 @@ public class JUnit5ExecutionInstrumentation extends InstrumenterModule.CiVisibil
       parentPackageName + ".TestDataFactory",
       parentPackageName + ".TestEventsHandlerHolder",
     };
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap(
-        "org.junit.platform.engine.TestDescriptor",
-        "datadog.trace.api.civisibility.execution.TestExecutionPolicy");
   }
 
   @Override
@@ -152,6 +143,8 @@ public class JUnit5ExecutionInstrumentation extends InstrumenterModule.CiVisibil
         return null;
       }
 
+      TestEventsHandlerHolder.setExecutionHistory(testDescriptor, executionPolicy);
+
       ThrowableCollectorFactoryWrapper factory =
           (ThrowableCollectorFactoryWrapper) taskHandle.getThrowableCollectorFactory();
       EngineExecutionContext parentContext = taskHandle.getParentContext();
@@ -182,23 +175,15 @@ public class JUnit5ExecutionInstrumentation extends InstrumenterModule.CiVisibil
          * require every test execution to have a distinct unique ID.
          * Rerunning a test with the ID that was executed previously will cause errors.
          */
-        Map<String, Object> suffixes = new HashMap<>();
-        suffixes.put(
-            JUnitPlatformUtils.RETRY_DESCRIPTOR_REASON_SUFFIX,
-            executionPolicy.currentExecutionRetryReason());
-        suffixes.put(
-            JUnitPlatformUtils.RETRY_DESCRIPTOR_ID_SUFFIX, String.valueOf(++retryAttemptIdx));
+        Map<String, Object> suffix =
+            Collections.singletonMap(
+                JUnitPlatformUtils.RETRY_DESCRIPTOR_ID_SUFFIX, String.valueOf(++retryAttemptIdx));
 
-        if (executionPolicy.hasFailedAllRetries()) {
-          suffixes.put(JUnitPlatformUtils.HAS_FAILED_ALL_RETRIES_SUFFIX, "true");
-        }
-
-        TestDescriptor retryDescriptor = descriptorHandle.withIdSuffix(suffixes);
+        TestDescriptor retryDescriptor = descriptorHandle.withIdSuffix(suffix);
         taskHandle.setTestDescriptor(retryDescriptor);
         taskHandle.setNode((Node<?>) retryDescriptor);
         taskHandle.getListener().dynamicTestRegistered(retryDescriptor);
-        InstrumentationContext.get(TestDescriptor.class, TestExecutionPolicy.class)
-            .put(retryDescriptor, executionPolicy);
+        TestEventsHandlerHolder.setExecutionHistory(retryDescriptor, executionPolicy);
 
         // restore parent context, since the reference is overwritten with null after execution
         taskHandle.setParentContext(parentContext);

@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.junit5;
 
 import datadog.trace.api.civisibility.config.TestSourceData;
+import datadog.trace.api.civisibility.execution.TestExecutionHistory;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -124,8 +125,6 @@ public class TracingListener implements EngineExecutionListener {
         testParameters,
         tags,
         testSourceData,
-        JUnitPlatformUtils.retryReason(testDescriptor),
-        JUnitPlatformUtils.hasFailedAllRetries(testDescriptor),
         null);
   }
 
@@ -148,7 +147,10 @@ public class TracingListener implements EngineExecutionListener {
         TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFailure(testDescriptor, throwable);
       }
     }
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(testDescriptor, null);
+    TestExecutionHistory executionHistory =
+        TestEventsHandlerHolder.getExecutionHistory(testDescriptor);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(
+        testDescriptor, null, executionHistory);
   }
 
   @Override

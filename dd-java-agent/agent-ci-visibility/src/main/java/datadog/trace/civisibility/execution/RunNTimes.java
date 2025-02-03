@@ -24,11 +24,11 @@ public class RunNTimes implements TestExecutionPolicy {
 
   @Override
   public boolean applicable() {
-    return currentExecutionIsNotLast() || suppressFailures();
+    return !currentExecutionIsLast() || suppressFailures();
   }
 
-  private boolean currentExecutionIsNotLast() {
-    return executions < maxExecutions - 1;
+  private boolean currentExecutionIsLast() {
+    return executions == maxExecutions - 1;
   }
 
   @Override
@@ -57,6 +57,6 @@ public class RunNTimes implements TestExecutionPolicy {
 
   @Override
   public boolean hasFailedAllRetries() {
-    return executions == maxExecutions && !successfulExecutionSeen;
+    return currentExecutionIsLast() && !successfulExecutionSeen;
   }
 }

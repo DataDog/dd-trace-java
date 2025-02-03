@@ -4,7 +4,7 @@ import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.coverage.CoveragePerTestBridge;
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
-import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
+import datadog.trace.api.civisibility.execution.TestExecutionHistory;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.ContextStore;
 import io.cucumber.core.gherkin.Pickle;
@@ -29,13 +29,13 @@ public class CucumberTracingListener extends TracingListener {
   public static final String FRAMEWORK_NAME = "cucumber";
   public static final String FRAMEWORK_VERSION = CucumberUtils.getVersion();
 
-  private final ContextStore<Description, TestExecutionPolicy> executionPolicies;
+  private final ContextStore<Description, TestExecutionHistory> executionHistories;
   private final Map<Object, Pickle> pickleById;
 
   public CucumberTracingListener(
-      ContextStore<Description, TestExecutionPolicy> executionPolicies,
+      ContextStore<Description, TestExecutionHistory> executionHistories,
       List<ParentRunner<?>> featureRunners) {
-    this.executionPolicies = executionPolicies;
+    this.executionHistories = executionHistories;
     pickleById = CucumberUtils.getPicklesById(featureRunners);
   }
 
@@ -71,7 +71,6 @@ public class CucumberTracingListener extends TracingListener {
     String testName = CucumberUtils.getTestNameForScenario(description);
     List<String> categories = getCategories(description);
 
-    TestExecutionPolicy executionPolicy = executionPolicies.get(description);
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestStart(
         new TestSuiteDescriptor(testSuiteName, null),
         CucumberUtils.toTestDescriptor(description),
@@ -81,8 +80,6 @@ public class CucumberTracingListener extends TracingListener {
         null,
         categories,
         TestSourceData.UNKNOWN,
-        executionPolicy != null ? executionPolicy.currentExecutionRetryReason() : null,
-        executionPolicy != null && executionPolicy.hasFailedAllRetries(),
         null);
 
     recordFeatureFileCodeCoverage(description);
@@ -101,7 +98,9 @@ public class CucumberTracingListener extends TracingListener {
   @Override
   public void testFinished(final Description description) {
     TestDescriptor testDescriptor = CucumberUtils.toTestDescriptor(description);
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(testDescriptor, null);
+    TestExecutionHistory executionHistory = executionHistories.get(description);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(
+        testDescriptor, null, executionHistory);
   }
 
   // same callback is executed both for test cases and test suites (for setup/teardown errors)

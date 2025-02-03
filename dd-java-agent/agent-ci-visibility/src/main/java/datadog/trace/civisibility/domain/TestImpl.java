@@ -192,6 +192,10 @@ public class TestImpl implements DDTest {
     return identifier;
   }
 
+  public boolean hasFailed() {
+    return span.isError();
+  }
+
   @Override
   public void setTag(String key, Object value) {
     span.setTag(key, value);

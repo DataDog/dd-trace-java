@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.junit4;
 
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
-import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
+import datadog.trace.api.civisibility.execution.TestExecutionHistory;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -23,10 +23,10 @@ public class MUnitTracingListener extends TracingListener {
 
   public static final String FRAMEWORK_NAME = "munit";
   public static final String FRAMEWORK_VERSION = getVersion();
-  private final ContextStore<Description, TestExecutionPolicy> executionPolicies;
+  private final ContextStore<Description, TestExecutionHistory> executionHistories;
 
-  public MUnitTracingListener(ContextStore<Description, TestExecutionPolicy> executionPolicies) {
-    this.executionPolicies = executionPolicies;
+  public MUnitTracingListener(ContextStore<Description, TestExecutionHistory> executionHistories) {
+    this.executionHistories = executionHistories;
   }
 
   public static String getVersion() {
@@ -76,7 +76,6 @@ public class MUnitTracingListener extends TracingListener {
     TestDescriptor testDescriptor = MUnitUtils.toTestDescriptor(description);
     String testName = description.getMethodName();
     List<String> categories = getCategories(description);
-    TestExecutionPolicy executionPolicy = executionPolicies.get(description);
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestStart(
         suiteDescriptor,
         testDescriptor,
@@ -86,15 +85,15 @@ public class MUnitTracingListener extends TracingListener {
         null,
         categories,
         JUnit4Utils.toTestSourceData(description),
-        executionPolicy != null ? executionPolicy.currentExecutionRetryReason() : null,
-        executionPolicy != null && executionPolicy.hasFailedAllRetries(),
         null);
   }
 
   @Override
   public void testFinished(final Description description) {
     TestDescriptor testDescriptor = MUnitUtils.toTestDescriptor(description);
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(testDescriptor, null);
+    TestExecutionHistory executionHistory = executionHistories.get(description);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(
+        testDescriptor, null, executionHistory);
   }
 
   // same callback is executed both for test cases and test suites (for setup/teardown errors)
@@ -161,12 +160,10 @@ public class MUnitTracingListener extends TracingListener {
             null,
             categories,
             JUnit4Utils.toTestSourceData(description),
-            null,
-            false,
             null);
       }
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSkip(testDescriptor, null);
-      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(testDescriptor, null);
+      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(testDescriptor, null, null);
 
     } else if (testClass != null) {
       TestSuiteDescriptor suiteDescriptor = MUnitUtils.toSuiteDescriptor(description);

@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.junit5.retry;
+package datadog.trace.instrumentation.junit5.execution;
 
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 

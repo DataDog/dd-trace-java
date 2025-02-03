@@ -1,9 +1,6 @@
 package datadog.trace.api.civisibility.execution;
 
-import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
-import javax.annotation.Nullable;
-
-public interface TestExecutionPolicy {
+public interface TestExecutionPolicy extends TestExecutionHistory {
 
   /**
    * @return {@code true} if the next execution of the test will be altered in any way. This method
@@ -25,17 +22,4 @@ public interface TestExecutionPolicy {
    * @return {@code true} if another execution of the same test should be done
    */
   boolean retry(boolean successful, long durationMillis);
-
-  /**
-   * @return retry reason for current test execution ({@code null} if current execution is not a
-   *     retry)
-   */
-  @Nullable
-  RetryReason currentExecutionRetryReason();
-
-  /**
-   * @return {@code true} if the test has failed all retry attempts (only for policies that allow
-   *     multiple retries)
-   */
-  boolean hasFailedAllRetries();
 }

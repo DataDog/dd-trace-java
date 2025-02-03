@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.junit5.retry;
+package datadog.trace.instrumentation.junit5.execution;
 
 import datadog.trace.instrumentation.junit5.JUnitPlatformUtils;
 import java.util.Map;

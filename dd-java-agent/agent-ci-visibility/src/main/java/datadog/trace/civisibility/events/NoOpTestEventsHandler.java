@@ -5,8 +5,8 @@ import datadog.trace.api.civisibility.DDTestSuite;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
+import datadog.trace.api.civisibility.execution.TestExecutionHistory;
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
-import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.ContextStore;
@@ -58,8 +58,6 @@ public class NoOpTestEventsHandler<SuiteKey, TestKey>
       @Nullable String testParameters,
       @Nullable Collection<String> categories,
       @Nonnull TestSourceData testSourceData,
-      RetryReason retryReason,
-      boolean hasFailedAllRetries,
       @Nullable Long startTime) {
     // do nothing
   }
@@ -75,7 +73,8 @@ public class NoOpTestEventsHandler<SuiteKey, TestKey>
   }
 
   @Override
-  public void onTestFinish(TestKey descriptor, @Nullable Long endTime) {
+  public void onTestFinish(
+      TestKey descriptor, @Nullable Long endTime, @Nullable TestExecutionHistory executionHistory) {
     // do nothing
   }
 

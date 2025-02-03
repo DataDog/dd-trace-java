@@ -19,7 +19,7 @@ import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
-import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
+import datadog.trace.api.civisibility.execution.TestExecutionHistory;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.ContextStore;
@@ -144,10 +144,6 @@ public class KarateTracingHook implements RuntimeHook {
         parameters,
         categories,
         TestSourceData.UNKNOWN,
-        (RetryReason) sr.magicVariables.get(KarateUtils.RETRY_MAGIC_VARIABLE),
-        (Boolean)
-            sr.magicVariables.getOrDefault(
-                KarateUtils.HAS_FAILED_ALL_RETRIES_MAGIC_VARIABLE, Boolean.FALSE),
         null);
     return true;
   }
@@ -165,7 +161,11 @@ public class KarateTracingHook implements RuntimeHook {
     } else if (result.getStepResults().isEmpty()) {
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSkip(testDescriptor, null);
     }
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(testDescriptor, null);
+
+    TestExecutionHistory executionHistory =
+        (TestExecutionHistory) sr.magicVariables.get(KarateUtils.EXECUTION_HISTORY_MAGIC_VARIABLE);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(
+        testDescriptor, null, executionHistory);
 
     Boolean runHooksManually = manualFeatureHooks.remove(sr.featureRuntime);
     if (runHooksManually != null && runHooksManually) {
