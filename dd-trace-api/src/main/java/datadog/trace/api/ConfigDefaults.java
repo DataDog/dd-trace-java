@@ -163,6 +163,7 @@ public final class ConfigDefaults {
   static final int DEFAULT_CIVISIBILITY_SIGNAL_SERVER_PORT = 0;
   static final List<String> DEFAULT_CIVISIBILITY_RESOURCE_FOLDER_NAMES =
       asList("/resources/", "/java/", "/groovy/", "/kotlin/", "/scala/");
+  public static final int DEFAULT_TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES = -1;
 
   static final boolean DEFAULT_REMOTE_CONFIG_ENABLED = true;
   static final boolean DEFAULT_REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED = false;
