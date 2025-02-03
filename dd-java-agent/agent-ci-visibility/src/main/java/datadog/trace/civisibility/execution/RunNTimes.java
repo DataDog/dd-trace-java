@@ -12,6 +12,7 @@ public class RunNTimes implements TestExecutionPolicy {
   private final boolean suppressFailures;
   private int executions;
   private int maxExecutions;
+  private boolean successfulExecutionSeen;
 
   public RunNTimes(
       EarlyFlakeDetectionSettings earlyFlakeDetectionSettings, boolean suppressFailures) {
@@ -23,11 +24,11 @@ public class RunNTimes implements TestExecutionPolicy {
 
   @Override
   public boolean applicable() {
-    return currentExecutionIsNotLast() || suppressFailures();
+    return !currentExecutionIsLast() || suppressFailures();
   }
 
-  private boolean currentExecutionIsNotLast() {
-    return executions < maxExecutions - 1;
+  private boolean currentExecutionIsLast() {
+    return executions == maxExecutions - 1;
   }
 
   @Override
@@ -37,6 +38,7 @@ public class RunNTimes implements TestExecutionPolicy {
 
   @Override
   public boolean retry(boolean successful, long durationMillis) {
+    successfulExecutionSeen |= successful;
     // adjust maximum retries based on the now known test duration
     int maxExecutionsForGivenDuration = earlyFlakeDetectionSettings.getExecutions(durationMillis);
     maxExecutions = Math.min(maxExecutions, maxExecutionsForGivenDuration);
@@ -51,5 +53,10 @@ public class RunNTimes implements TestExecutionPolicy {
 
   private boolean currentExecutionIsRetry() {
     return executions > 0;
+  }
+
+  @Override
+  public boolean hasFailedAllRetries() {
+    return currentExecutionIsLast() && !successfulExecutionSeen;
   }
 }

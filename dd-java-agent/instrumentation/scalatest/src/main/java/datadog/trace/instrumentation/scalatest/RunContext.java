@@ -6,6 +6,7 @@ import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
+import datadog.trace.api.civisibility.execution.TestExecutionHistory;
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import java.util.ArrayList;
@@ -128,14 +129,19 @@ public class RunContext {
     return testTags != null && testTags.contains(InstrumentationBridge.ITR_UNSKIPPABLE_TAG);
   }
 
-  public TestExecutionPolicy executionPolicy(
+  public TestExecutionPolicy getOrCreateExecutionPolicy(
       TestIdentifier testIdentifier, TestSourceData testSourceData) {
     return executionPolicies.computeIfAbsent(
         testIdentifier, test -> eventHandler.executionPolicy(test, testSourceData));
   }
 
   @Nullable
-  public TestExecutionPolicy popExecutionPolicy(TestIdentifier testIdentifier) {
+  public TestExecutionHistory getExecutionHistory(TestIdentifier testIdentifier) {
+    return executionPolicies.get(testIdentifier);
+  }
+
+  @Nullable
+  public TestExecutionHistory popExecutionHistory(TestIdentifier testIdentifier) {
     TestExecutionPolicy[] holder = new TestExecutionPolicy[1];
     executionPolicies.computeIfPresent(
         testIdentifier,

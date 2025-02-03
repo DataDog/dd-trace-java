@@ -88,8 +88,8 @@ class MUnitTest extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName)
 
     where:
-    testcaseName  | tests             | quarantined
-    "test-failed" | [TestFailedMUnit] | [new TestIdentifier("org.example.TestFailedMUnit", "Calculator.add", null)]
+    testcaseName              | tests             | quarantined
+    "test-quarantined-failed" | [TestFailedMUnit] | [new TestIdentifier("org.example.TestFailedMUnit", "Calculator.add", null)]
   }
 
   def "test quarantined auto-retries #testcaseName"() {
@@ -105,8 +105,8 @@ class MUnitTest extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName)
 
     where:
-    testcaseName        | tests             | quarantined                                                              | retried
-    "test-retry-failed" | [TestFailedMUnit] | [new TestIdentifier("org.example.TestFailedMUnit", "Calculator.add", null)] | [new TestIdentifier("org.example.TestFailedMUnit", "Calculator.add", null)]
+    testcaseName                  | tests             | quarantined                                                                 | retried
+    "test-quarantined-failed-atr" | [TestFailedMUnit] | [new TestIdentifier("org.example.TestFailedMUnit", "Calculator.add", null)] | [new TestIdentifier("org.example.TestFailedMUnit", "Calculator.add", null)]
   }
 
   def "test quarantined early flakiness detection #testcaseName"() {
@@ -122,9 +122,9 @@ class MUnitTest extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName)
 
     where:
-    testcaseName      | tests             | quarantined                                                              | known
-    "test-failed"     | [TestFailedMUnit] | [new TestIdentifier("org.example.TestFailedMUnit", "Calculator.add", null)] | [new TestIdentifier("org.example.TestFailedMUnit", "Calculator.add", null)]
-    "test-failed-efd" | [TestFailedMUnit] | [new TestIdentifier("org.example.TestFailedMUnit", "Calculator.add", null)] | []
+    testcaseName                     | tests             | quarantined                                                                 | known
+    "test-quarantined-failed-known" | [TestFailedMUnit] | [new TestIdentifier("org.example.TestFailedMUnit", "Calculator.add", null)] | [new TestIdentifier("org.example.TestFailedMUnit", "Calculator.add", null)]
+    "test-quarantined-failed-efd"    | [TestFailedMUnit] | [new TestIdentifier("org.example.TestFailedMUnit", "Calculator.add", null)] | []
   }
 
   private void runTests(Collection<Class<?>> tests, boolean expectSuccess = true) {

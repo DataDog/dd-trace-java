@@ -8,6 +8,7 @@ import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
+import datadog.trace.api.civisibility.execution.TestExecutionHistory;
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
@@ -139,8 +140,8 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
       final @Nullable String testParameters,
       final @Nullable Collection<String> categories,
       final @Nonnull TestSourceData testSourceData,
-      final @Nullable RetryReason retryReason,
-      final @Nullable Long startTime) {
+      final @Nullable Long startTime,
+      final @Nullable TestExecutionHistory testExecutionHistory) {
     if (skipTrace(testSourceData.getTestClass())) {
       return;
     }
@@ -164,6 +165,18 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
 
     if (testModule.isModified(testSourceData)) {
       test.setTag(Tags.TEST_IS_MODIFIED, true);
+    }
+
+    if (testModule.isQuarantined(thisTest)) {
+      test.setTag(Tags.TEST_MANAGEMENT_IS_QUARANTINED, true);
+    }
+
+    if (testExecutionHistory != null) {
+      RetryReason retryReason = testExecutionHistory.currentExecutionRetryReason();
+      if (retryReason != null) {
+        test.setTag(Tags.TEST_IS_RETRY, true);
+        test.setTag(Tags.TEST_RETRY_REASON, retryReason);
+      }
     }
 
     if (testFramework != null) {
@@ -198,11 +211,6 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
       }
     }
 
-    if (retryReason != null) {
-      test.setTag(Tags.TEST_IS_RETRY, true);
-      test.setTag(Tags.TEST_RETRY_REASON, retryReason);
-    }
-
     inProgressTests.put(descriptor, test);
   }
 
@@ -227,12 +235,22 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
   }
 
   @Override
-  public void onTestFinish(TestKey descriptor, @Nullable Long endTime) {
+  public void onTestFinish(
+      TestKey descriptor,
+      @Nullable Long endTime,
+      @Nullable TestExecutionHistory testExecutionHistory) {
     TestImpl test = inProgressTests.remove(descriptor);
     if (test == null) {
       log.debug("Ignoring finish event, could not find test {}", descriptor);
       return;
     }
+
+    if (testExecutionHistory != null) {
+      if (test.hasFailed() && testExecutionHistory.hasFailedAllRetries()) {
+        test.setTag(Tags.TEST_HAS_FAILED_ALL_RETRIES, true);
+      }
+    }
+
     test.end(endTime);
   }
 
@@ -259,7 +277,7 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
         null,
         null);
     onTestSkip(testDescriptor, reason);
-    onTestFinish(testDescriptor, null);
+    onTestFinish(testDescriptor, null, null);
   }
 
   @Override

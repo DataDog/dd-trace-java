@@ -104,8 +104,7 @@ public class KarateExecutionInstrumentation extends InstrumenterModule.CiVisibil
       while (executionPolicy.retry(!context.getAndResetFailed(), duration)) {
         ScenarioRuntime retry =
             new ScenarioRuntime(scenarioRuntime.featureRuntime, scenarioRuntime.scenario);
-        retry.magicVariables.put(
-            KarateUtils.RETRY_MAGIC_VARIABLE, executionPolicy.currentExecutionRetryReason());
+        retry.magicVariables.put(KarateUtils.EXECUTION_HISTORY_MAGICVARIABLE, executionPolicy);
         retry.run();
         retry.featureRuntime.result.addResult(retry.result);
         finalResult = retry.result;

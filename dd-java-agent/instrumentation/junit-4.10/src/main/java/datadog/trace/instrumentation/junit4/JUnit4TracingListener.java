@@ -3,7 +3,7 @@ package datadog.trace.instrumentation.junit4;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
-import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
+import datadog.trace.api.civisibility.execution.TestExecutionHistory;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.ContextStore;
 import java.lang.reflect.Method;
@@ -18,10 +18,10 @@ public class JUnit4TracingListener extends TracingListener {
   private static final String FRAMEWORK_NAME = "junit4";
   private static final String FRAMEWORK_VERSION = Version.id();
 
-  private final ContextStore<Description, TestExecutionPolicy> retryPolicies;
+  private final ContextStore<Description, TestExecutionHistory> executionHistories;
 
-  public JUnit4TracingListener(ContextStore<Description, TestExecutionPolicy> retryPolicies) {
-    this.retryPolicies = retryPolicies;
+  public JUnit4TracingListener(ContextStore<Description, TestExecutionHistory> executionHistories) {
+    this.executionHistories = executionHistories;
   }
 
   public void testSuiteStarted(final Description description) {
@@ -74,7 +74,6 @@ public class JUnit4TracingListener extends TracingListener {
     String testParameters = JUnit4Utils.getParameters(description);
     List<String> categories =
         JUnit4Utils.getCategories(testSourceData.getTestClass(), testSourceData.getTestMethod());
-    TestExecutionPolicy retryPolicy = retryPolicies.get(description);
 
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestStart(
         suiteDescriptor,
@@ -85,8 +84,8 @@ public class JUnit4TracingListener extends TracingListener {
         testParameters,
         categories,
         testSourceData,
-        retryPolicy != null ? retryPolicy.currentExecutionRetryReason() : null,
-        null);
+        null,
+        executionHistories.get(description));
   }
 
   @Override
@@ -96,7 +95,9 @@ public class JUnit4TracingListener extends TracingListener {
     }
 
     TestDescriptor testDescriptor = JUnit4Utils.toTestDescriptor(description);
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(testDescriptor, null);
+    TestExecutionHistory executionHistory = executionHistories.get(description);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(
+        testDescriptor, null, executionHistory);
   }
 
   // same callback is executed both for test cases and test suites (for setup/teardown errors)

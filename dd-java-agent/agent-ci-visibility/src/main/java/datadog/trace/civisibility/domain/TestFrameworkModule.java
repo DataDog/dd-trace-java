@@ -31,6 +31,8 @@ public interface TestFrameworkModule {
 
   boolean isModified(TestSourceData testSourceData);
 
+  boolean isQuarantined(TestIdentifier test);
+
   /**
    * Returns the reason for skipping a test, IF it can be skipped.
    *
