@@ -21,6 +21,7 @@ import datadog.trace.api.civisibility.telemetry.tag.ItrEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.ItrSkipEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.KnownTestsEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.RequireGit;
+import datadog.trace.api.civisibility.telemetry.tag.TestManagementEnabled;
 import datadog.trace.civisibility.communication.TelemetryListener;
 import datadog.trace.util.RandomUtils;
 import java.io.File;
@@ -146,6 +147,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
         settings.isFlakyTestRetriesEnabled() ? FlakyTestRetriesEnabled.TRUE : null,
         settings.isKnownTestsEnabled() ? KnownTestsEnabled.TRUE : null,
         settings.isImpactedTestsDetectionEnabled() ? ImpactedTestsDetectionEnabled.TRUE : null,
+        settings.getTestManagementSettings().isEnabled() ? TestManagementEnabled.TRUE : null,
         settings.isGitUploadRequired() ? RequireGit.TRUE : null);
 
     return settings;
