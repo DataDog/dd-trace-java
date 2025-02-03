@@ -7,7 +7,7 @@ import datadog.trace.api.WellKnownTags
 import datadog.trace.api.experimental.DataStreamsContextCarrier
 import datadog.trace.api.time.ControllableTimeSource
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
-import datadog.trace.bootstrap.instrumentation.api.StatsPoint
+import datadog.trace.api.datastreams.StatsPoint
 import datadog.trace.common.metrics.EventListener
 import datadog.trace.common.metrics.Sink
 import datadog.trace.core.test.DDCoreSpecification

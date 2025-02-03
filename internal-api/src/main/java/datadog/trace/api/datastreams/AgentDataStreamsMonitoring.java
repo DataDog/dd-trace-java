@@ -1,6 +1,9 @@
-package datadog.trace.bootstrap.instrumentation.api;
+package datadog.trace.api.datastreams;
 
 import datadog.trace.api.experimental.DataStreamsCheckpointer;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.Schema;
+import datadog.trace.bootstrap.instrumentation.api.SchemaIterator;
 import java.util.LinkedHashMap;
 
 public interface AgentDataStreamsMonitoring extends DataStreamsCheckpointer {

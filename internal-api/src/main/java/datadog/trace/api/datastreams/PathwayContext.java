@@ -1,4 +1,4 @@
-package datadog.trace.bootstrap.instrumentation.api;
+package datadog.trace.api.datastreams;
 
 import java.io.IOException;
 import java.util.LinkedHashMap;

@@ -1,7 +1,7 @@
 package datadog.trace.core.datastreams;
 
-import datadog.trace.bootstrap.instrumentation.api.Backlog;
-import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
+import datadog.trace.api.datastreams.Backlog;
+import datadog.trace.api.datastreams.StatsPoint;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;

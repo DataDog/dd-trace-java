@@ -1,7 +1,7 @@
 package datadog.trace.core.datastreams;
 
 import static datadog.trace.api.DDTags.PATHWAY_HASH;
-import static datadog.trace.bootstrap.instrumentation.api.PathwayContext.PROPAGATION_KEY_BASE64;
+import static datadog.trace.api.datastreams.PathwayContext.PROPAGATION_KEY_BASE64;
 
 import datadog.context.Context;
 import datadog.context.propagation.CarrierSetter;
@@ -9,10 +9,10 @@ import datadog.context.propagation.CarrierVisitor;
 import datadog.context.propagation.Propagator;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.datastreams.DataStreamsContext;
+import datadog.trace.api.datastreams.PathwayContext;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
-import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import java.io.IOException;
 import java.util.function.Supplier;

@@ -9,9 +9,9 @@ import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.aws.v2.eventbridge.TextMapInjectAdapter.SETTER;
 
 import datadog.trace.api.datastreams.DataStreamsContext;
+import datadog.trace.api.datastreams.PathwayContext;
 import datadog.trace.bootstrap.InstanceStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
