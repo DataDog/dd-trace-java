@@ -224,6 +224,7 @@
       "test.codeowners" : "[\"owner1\",\"owner2\"]",
       "test.framework" : "munit",
       "test.framework_version" : ${content_meta_test_framework_version},
+      "test.has_failed_all_retries" : "true",
       "test.is_new" : "true",
       "test.is_retry" : "true",
       "test.management.is_quarantined" : "true",

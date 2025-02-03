@@ -156,7 +156,7 @@ public class DatadogReporter {
         categories,
         new TestSourceData(testClass, null, null),
         null,
-        context.popExecutionHistory(testIdentifier));
+        context.getExecutionHistory(testIdentifier));
   }
 
   private static void onTestSuccess(TestSucceeded event) {

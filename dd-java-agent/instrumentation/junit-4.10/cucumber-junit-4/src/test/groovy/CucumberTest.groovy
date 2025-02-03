@@ -138,13 +138,13 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName)
 
     where:
-    testcaseName                  | features                                                            | quarantined                    | known
-    "test-quarantined-failed"     | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"] | [
+    testcaseName                    | features                                                            | quarantined                  | known
+    "test-quarantined-failed-known" | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"] | [
       new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition", null)
     ]                                                                                                                                    | [
       new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition", null)
     ]
-    "test-quarantined-failed-efd" | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"] | [
+    "test-quarantined-failed-efd"   | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"] | [
       new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition", null)
     ]                                                                                                                                    | []
   }

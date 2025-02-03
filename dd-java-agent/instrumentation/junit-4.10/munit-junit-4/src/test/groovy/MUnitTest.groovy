@@ -122,9 +122,9 @@ class MUnitTest extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName)
 
     where:
-    testcaseName                  | tests             | quarantined                                                                 | known
-    "test-quarantined-failed"     | [TestFailedMUnit] | [new TestIdentifier("org.example.TestFailedMUnit", "Calculator.add", null)] | [new TestIdentifier("org.example.TestFailedMUnit", "Calculator.add", null)]
-    "test-quarantined-failed-efd" | [TestFailedMUnit] | [new TestIdentifier("org.example.TestFailedMUnit", "Calculator.add", null)] | []
+    testcaseName                     | tests             | quarantined                                                                 | known
+    "test-quarantined-failed-known" | [TestFailedMUnit] | [new TestIdentifier("org.example.TestFailedMUnit", "Calculator.add", null)] | [new TestIdentifier("org.example.TestFailedMUnit", "Calculator.add", null)]
+    "test-quarantined-failed-efd"    | [TestFailedMUnit] | [new TestIdentifier("org.example.TestFailedMUnit", "Calculator.add", null)] | []
   }
 
   private void runTests(Collection<Class<?>> tests, boolean expectSuccess = true) {

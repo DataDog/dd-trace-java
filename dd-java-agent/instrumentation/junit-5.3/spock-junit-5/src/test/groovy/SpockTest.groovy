@@ -38,7 +38,6 @@ class SpockTest extends CiVisibilityInstrumentationTest {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
-    givenTestsOrder(CIConstants.FAIL_FAST_TEST_ORDER)
   }
 
   def "test #testcaseName"() {
@@ -177,9 +176,9 @@ class SpockTest extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName)
 
     where:
-    testcaseName                  | tests             | quarantined                                                              | known
-    "test-quarantined-failed"     | [TestFailedSpock] | [new TestIdentifier("org.example.TestFailedSpock", "test failed", null)] | [new TestIdentifier("org.example.TestFailedSpock", "test failed", null)]
-    "test-quarantined-failed-efd" | [TestFailedSpock] | [new TestIdentifier("org.example.TestFailedSpock", "test failed", null)] | []
+    testcaseName                    | tests             | quarantined                                                              | known
+    "test-quarantined-failed-known" | [TestFailedSpock] | [new TestIdentifier("org.example.TestFailedSpock", "test failed", null)] | [new TestIdentifier("org.example.TestFailedSpock", "test failed", null)]
+    "test-quarantined-failed-efd"   | [TestFailedSpock] | [new TestIdentifier("org.example.TestFailedSpock", "test failed", null)] | []
   }
 
   private static void runTests(List<Class<?>> classes, boolean expectSuccess = true) {

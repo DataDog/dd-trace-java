@@ -208,9 +208,9 @@ class JUnit5Test extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName)
 
     where:
-    testcaseName                  | tests        | quarantined                                                         | known
-    "test-quarantined-failed"     | [TestFailed] | [new TestIdentifier("org.example.TestFailed", "test_failed", null)] | [new TestIdentifier("org.example.TestFailed", "test_failed", null)]
-    "test-quarantined-failed-efd" | [TestFailed] | [new TestIdentifier("org.example.TestFailed", "test_failed", null)] | []
+    testcaseName                    | tests        | quarantined                                                         | known
+    "test-quarantined-failed-known" | [TestFailed] | [new TestIdentifier("org.example.TestFailed", "test_failed", null)] | [new TestIdentifier("org.example.TestFailed", "test_failed", null)]
+    "test-quarantined-failed-efd"   | [TestFailed] | [new TestIdentifier("org.example.TestFailed", "test_failed", null)] | []
   }
 
   protected void runTests(List<Class<?>> tests, boolean expectSuccess = true) {

@@ -144,9 +144,9 @@ class ScalatestTest extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName)
 
     where:
-    testcaseName                  | tests        | quarantined                                                                          | known
-    "test-quarantined-failed"     | [TestFailed] | [new TestIdentifier("org.example.TestFailed", "Example.add adds two numbers", null)] | [new TestIdentifier("org.example.TestFailed", "Example.add adds two numbers", null)]
-    "test-quarantined-failed-efd" | [TestFailed] | [new TestIdentifier("org.example.TestFailed", "Example.add adds two numbers", null)] | []
+    testcaseName                    | tests        | quarantined                                                                          | known
+    "test-quarantined-failed-known" | [TestFailed] | [new TestIdentifier("org.example.TestFailed", "Example.add adds two numbers", null)] | [new TestIdentifier("org.example.TestFailed", "Example.add adds two numbers", null)]
+    "test-quarantined-failed-efd"   | [TestFailed] | [new TestIdentifier("org.example.TestFailed", "Example.add adds two numbers", null)] | []
   }
 
   @Override
