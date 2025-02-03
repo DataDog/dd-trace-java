@@ -195,6 +195,8 @@ public class BuildSystemSessionImpl<T extends CoverageCalculator> extends Abstra
       SpanUtils.propagateTag(span, moduleSpan, Tags.TEST_ITR_TESTS_SKIPPING_TYPE);
       SpanUtils.propagateTag(span, moduleSpan, Tags.TEST_ITR_TESTS_SKIPPING_COUNT, Long::sum);
       SpanUtils.propagateTag(span, moduleSpan, DDTags.CI_ITR_TESTS_SKIPPED, Boolean::logicalOr);
+
+      SpanUtils.propagateTag(span, moduleSpan, Tags.TEST_TEST_MANAGEMENT_ENABLED, Boolean::logicalOr);
     }
   }
 

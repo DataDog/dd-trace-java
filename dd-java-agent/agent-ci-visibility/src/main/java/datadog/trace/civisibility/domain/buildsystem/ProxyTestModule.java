@@ -15,6 +15,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.config.EarlyFlakeDetectionSettings;
 import datadog.trace.civisibility.config.ExecutionSettings;
+import datadog.trace.civisibility.config.TestManagementSettings;
 import datadog.trace.civisibility.coverage.percentage.child.ChildProcessCoverageReporter;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.InstrumentationType;
@@ -148,6 +149,8 @@ public class ProxyTestModule implements TestFrameworkModule {
       boolean earlyFlakeDetectionEnabled = earlyFlakeDetectionSettings.isEnabled();
       boolean earlyFlakeDetectionFaulty =
           earlyFlakeDetectionEnabled && executionStrategy.isEFDLimitReached();
+      TestManagementSettings testManagementSettings = executionSettings.getTestManagementSettings();
+      boolean testManagementEnabled = testManagementSettings.isEnabled();
       long testsSkippedTotal = executionResults.getTestsSkippedByItr();
 
       signalClient.send(
@@ -158,6 +161,7 @@ public class ProxyTestModule implements TestFrameworkModule {
               testSkippingEnabled,
               earlyFlakeDetectionEnabled,
               earlyFlakeDetectionFaulty,
+              testManagementEnabled,
               testsSkippedTotal,
               new TreeSet<>(testFrameworks)));
 

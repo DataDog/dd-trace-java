@@ -101,4 +101,13 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
     }
     return Collections.emptySet();
   }
+
+  @Override
+  public void end(@Nullable Long endTime) {
+    if (executionStrategy.getExecutionSettings().getTestManagementSettings().isEnabled()) {
+      span.setTag(Tags.TEST_TEST_MANAGEMENT_ENABLED, true);
+    }
+
+    super.end(endTime);
+  }
 }
