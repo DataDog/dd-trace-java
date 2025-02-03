@@ -53,6 +53,7 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
    * @param categories test categories (or test tags) if the test case is marked with any
    * @param testSourceData metadata for locating the source code for the test case
    * @param startTime the timestamp of the test execution start ({@code null} for current timestamp)
+   * @param testExecutionHistory the history of executions of this test case
    */
   void onTestStart(
       SuiteKey suiteDescriptor,
@@ -63,7 +64,8 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
       @Nullable String testParameters,
       @Nullable Collection<String> categories,
       @Nonnull TestSourceData testSourceData,
-      @Nullable Long startTime);
+      @Nullable Long startTime,
+      @Nullable TestExecutionHistory testExecutionHistory);
 
   void onTestSkip(TestKey descriptor, @Nullable String reason);
 

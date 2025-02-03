@@ -144,7 +144,8 @@ public class KarateTracingHook implements RuntimeHook {
         parameters,
         categories,
         TestSourceData.UNKNOWN,
-        null);
+        null,
+        (TestExecutionHistory) sr.magicVariables.get(KarateUtils.EXECUTION_HISTORY_MAGICVARIABLE));
     return true;
   }
 
@@ -163,7 +164,7 @@ public class KarateTracingHook implements RuntimeHook {
     }
 
     TestExecutionHistory executionHistory =
-        (TestExecutionHistory) sr.magicVariables.get(KarateUtils.EXECUTION_HISTORY_MAGIC_VARIABLE);
+        (TestExecutionHistory) sr.magicVariables.get(KarateUtils.EXECUTION_HISTORY_MAGICVARIABLE);
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(
         testDescriptor, null, executionHistory);
 
