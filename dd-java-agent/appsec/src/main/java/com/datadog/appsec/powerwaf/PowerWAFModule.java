@@ -245,12 +245,6 @@ public class PowerWAFModule implements AppSecModule {
         currentRulesVersion = initReport.rulesetVersion;
       }
 
-      if (prevContextAndAddresses == null) {
-        WafMetricCollector.get().wafInit(Powerwaf.LIB_VERSION, currentRulesVersion);
-      } else {
-        WafMetricCollector.get().wafUpdates(currentRulesVersion);
-      }
-
       if (initReport != null) {
         log.info(
             "Created {} WAF context with rules ({} OK, {} BAD), version {}",
@@ -273,11 +267,13 @@ public class PowerWAFModule implements AppSecModule {
       }
     } catch (InvalidRuleSetException irse) {
       initReport = irse.ruleSetInfo;
+      sendWafMetrics(prevContextAndAddresses, false);
       throw new AppSecModuleActivationException("Error creating WAF rules", irse);
     } catch (RuntimeException | AbstractPowerwafException e) {
       if (newPwafCtx != null) {
         newPwafCtx.close();
       }
+      sendWafMetrics(prevContextAndAddresses, false);
       throw new AppSecModuleActivationException("Error creating WAF rules", e);
     } finally {
       if (initReport != null) {
@@ -287,14 +283,25 @@ public class PowerWAFModule implements AppSecModule {
 
     if (!this.ctxAndAddresses.compareAndSet(prevContextAndAddresses, newContextAndAddresses)) {
       newPwafCtx.close();
+      sendWafMetrics(prevContextAndAddresses, false);
       throw new AppSecModuleActivationException("Concurrent update of WAF configuration");
     }
+
+    sendWafMetrics(prevContextAndAddresses, true);
 
     if (prevContextAndAddresses != null) {
       prevContextAndAddresses.ctx.close();
     }
 
     reconf.reloadSubscriptions();
+  }
+
+  private void sendWafMetrics(CtxAndAddresses prevContextAndAddresses, boolean success) {
+    if (prevContextAndAddresses == null) {
+      WafMetricCollector.get().wafInit(Powerwaf.LIB_VERSION, currentRulesVersion, success);
+    } else {
+      WafMetricCollector.get().wafUpdates(currentRulesVersion, success);
+    }
   }
 
   private Map<String, ActionInfo> calculateEffectiveActions(
