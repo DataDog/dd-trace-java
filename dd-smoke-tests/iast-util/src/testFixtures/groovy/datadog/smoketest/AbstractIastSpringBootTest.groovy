@@ -107,7 +107,9 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     String url = "http://localhost:${httpPort}/mailHtmlVulnerability"
     String messageText = "This is a test message"
     RequestBody requestBody = new MultipartBody.Builder().setType(MultipartBody.FORM)
-      .addFormDataPart("messageText", messageText).build()
+      .addFormDataPart("messageText", messageText)
+      .addFormDataPart("sanitize", "false")
+      .build()
     Request request = new Request.Builder()
       .url(url)
       .post(requestBody)
@@ -117,8 +119,8 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     client.newCall(request).execute().body().string()
 
     then:
-    hasTainted { tainted ->
-      tainted.value == messageText
+    hasVulnerability { vulnerability ->
+      vulnerability.type == 'EMAIL_HTML_INJECTION'
     }
   }
 
@@ -127,7 +129,9 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     String url = "http://localhost:${httpPort}/mailHtmlVulnerability"
     String messageContent = "<html><body><h1>This is a test message</h1></body></html>"
     RequestBody requestBody = new MultipartBody.Builder().setType(MultipartBody.FORM)
-      .addFormDataPart("messageContent", messageContent).build()
+      .addFormDataPart("messageContent", messageContent)
+      .addFormDataPart("sanitize", "false")
+      .build()
     Request request = new Request.Builder()
       .url(url)
       .post(requestBody)
@@ -137,8 +141,30 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     client.newCall(request).execute().body().string()
 
     then:
-    hasTainted { tainted ->
-      tainted.value == 'messageContent'
+    hasVulnerability { vulnerability ->
+      vulnerability.type == 'EMAIL_HTML_INJECTION'
+    }
+  }
+
+  void 'Untainted mail Content'() {
+    given:
+    String url = "http://localhost:${httpPort}/mailHtmlVulnerability"
+    String messageContent = "<html><body><h1>This is a test message</h1></body></html>"
+    RequestBody requestBody = new MultipartBody.Builder().setType(MultipartBody.FORM)
+      .addFormDataPart("messageContent", messageContent)
+      .addFormDataPart("sanitize", "true")
+      .build()
+    Request request = new Request.Builder()
+      .url(url)
+      .post(requestBody)
+      .build()
+
+    when:
+    client.newCall(request).execute().body().string()
+
+    then:
+    noVulnerability { vulnerability ->
+      vulnerability.type == 'EMAIL_HTML_INJECTION'
     }
   }
 
@@ -147,7 +173,9 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     String url = "http://localhost:${httpPort}/jakartaMailHtmlVulnerability"
     String messageText = "This is a test message"
     RequestBody requestBody = new MultipartBody.Builder().setType(MultipartBody.FORM)
-      .addFormDataPart("messageText", messageText).build()
+      .addFormDataPart("messageText", messageText)
+      .addFormDataPart("sanitize", "false")
+      .build()
     Request request = new Request.Builder()
       .url(url)
       .post(requestBody)
@@ -157,8 +185,8 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     client.newCall(request).execute().body().string()
 
     then:
-    hasTainted { tainted ->
-      tainted.value == messageText
+    hasVulnerability { vulnerability ->
+      vulnerability.type == 'EMAIL_HTML_INJECTION'
     }
   }
 
@@ -178,8 +206,30 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     client.newCall(request).execute().body().string()
 
     then:
-    hasTainted { tainted ->
-      tainted.value == 'messageContent'
+    hasVulnerability { vulnerability ->
+      vulnerability.type == 'EMAIL_HTML_INJECTION'
+    }
+  }
+
+  void 'Sanitized mail Content Jakarta'() {
+    given:
+    String url = "http://localhost:${httpPort}/jakartaMailHtmlVulnerability"
+    String messageContent = "<html><body><h1>This is a test message</h1></body></html>"
+    RequestBody requestBody = new MultipartBody.Builder().setType(MultipartBody.FORM)
+      .addFormDataPart("messageContent", messageContent)
+      .addFormDataPart("sanitize", "true")
+      .build()
+    Request request = new Request.Builder()
+      .url(url)
+      .post(requestBody)
+      .build()
+
+    when:
+    client.newCall(request).execute().body().string()
+
+    then:
+    noVulnerability { vulnerability ->
+      vulnerability.type == 'EMAIL_HTML_INJECTION'
     }
   }
 

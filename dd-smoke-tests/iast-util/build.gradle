@@ -22,4 +22,7 @@ dependencies {
   // mail
   implementation 'javax.mail:javax.mail-api:1.4.4'
   implementation 'jakarta.mail:jakarta.mail-api:2.0.1'
+  // text sanitization
+  compileOnly group: 'org.apache.commons', name: 'commons-text', version: '1.0'
+  testImplementation group: 'org.apache.commons', name: 'commons-text', version: '1.0'
 }
