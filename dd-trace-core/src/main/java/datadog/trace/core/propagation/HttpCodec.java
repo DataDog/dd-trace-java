@@ -164,6 +164,7 @@ public class HttpCodec {
           break;
         case BAGGAGE:
           extractors.add(BaggageHttpCodec.newExtractor(config, traceConfigSupplier));
+          break;
         default:
           log.debug("No implementation found to extract propagation style: {}", style);
           break;
