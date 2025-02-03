@@ -28,7 +28,7 @@ default:
   tags: [ "arch:amd64" ]
 
 .gradle_build: &gradle_build
-  image: ghcr.io/datadog/dd-trace-java-docker-build:v24.10-base
+  image: ghcr.io/datadog/dd-trace-java-docker-build:v25.01-base
   variables:
     GRADLE_OPTS: "-Dorg.gradle.jvmargs='-Xmx2560M -Xms2560M'"
     GRADLE_ARGS: " -PskipTests --build-cache --stacktrace --no-daemon --parallel --max-workers=2"
