@@ -91,8 +91,8 @@ public final class ContinuableScopeManager implements ScopeStateAware {
   }
 
   public AgentScope.Continuation captureSpan(final AgentSpan span) {
-    AbstractContinuation continuation =
-        new SingleContinuation(this, span, ScopeSource.INSTRUMENTATION.id());
+    ScopeContinuation continuation =
+        new ScopeContinuation(this, span, ScopeSource.INSTRUMENTATION.id());
     continuation.register();
     healthMetrics.onCaptureContinuation();
     return continuation;
@@ -136,12 +136,12 @@ public final class ContinuableScopeManager implements ScopeStateAware {
   }
 
   /**
-   * Activates a scope for the given {@link AbstractContinuation}.
+   * Activates a scope for the given {@link ScopeContinuation}.
    *
    * @param continuation {@code null} if a continuation is re-used
    */
   ContinuableScope continueSpan(
-      final AbstractContinuation continuation, final AgentSpan span, final byte source) {
+      final ScopeContinuation continuation, final AgentSpan span, final byte source) {
     ScopeStack scopeStack = scopeStack();
 
     // optimization: if the top scope is already keeping the same span alive

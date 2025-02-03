@@ -998,11 +998,6 @@ public class AgentTracer {
     }
 
     @Override
-    public AgentScope.Continuation captureConcurrent() {
-      return NoopContinuation.INSTANCE;
-    }
-
-    @Override
     public void close() {}
 
     @Override
@@ -1052,17 +1047,22 @@ public class AgentTracer {
     static final NoopContinuation INSTANCE = new NoopContinuation();
 
     @Override
+    public AgentScope.Continuation hold() {
+      return this;
+    }
+
+    @Override
     public AgentScope activate() {
       return NoopAgentScope.INSTANCE;
     }
 
     @Override
-    public void cancel() {}
-
-    @Override
     public AgentSpan getSpan() {
       return NoopAgentSpan.INSTANCE;
     }
+
+    @Override
+    public void cancel() {}
   }
 
   public static final class BlackholeContext extends NoopContext {

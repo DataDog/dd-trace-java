@@ -96,11 +96,6 @@ class OTScopeManager implements ScopeManager {
       return delegate.capture();
     }
 
-    @Override
-    public Continuation captureConcurrent() {
-      return delegate.captureConcurrent();
-    }
-
     boolean isFinishSpanOnClose() {
       return finishSpanOnClose;
     }
