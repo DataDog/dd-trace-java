@@ -943,18 +943,13 @@ public class LogProbe extends ProbeDefinition implements Sampled {
   public String toString() {
     return getClass().getSimpleName()
         + "{"
-        + "language='"
-        + language
-        + '\''
-        + ", id='"
+        + "id='"
         + id
         + '\''
         + ", version="
         + version
         + ", tags="
         + Arrays.toString(tags)
-        + ", tagMap="
-        + tagMap
         + ", where="
         + where
         + ", evaluateAt="
