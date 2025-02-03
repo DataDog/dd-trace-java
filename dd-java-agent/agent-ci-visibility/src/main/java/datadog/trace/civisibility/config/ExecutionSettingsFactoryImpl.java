@@ -1,6 +1,7 @@
 package datadog.trace.civisibility.config;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.CiVisibilityWellKnownTags;
 import datadog.trace.api.civisibility.config.TestIdentifier;
@@ -27,6 +28,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -177,6 +179,17 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
             settings,
             CiVisibilitySettings::isKnownTestsEnabled,
             Config::isCiVisibilityKnownTestsRequestEnabled);
+    boolean testManagementEnabled =
+        isFeatureEnabled(
+            settings,
+            s -> s.getTestManagementSettings().isEnabled(),
+            Config::isCiVisibilityTestManagementEnabled);
+    if (testManagementEnabled) {
+      overrideIntegerSetting(
+          Config::getCiVisibilityTestManagementAttemptToFixRetries,
+          value -> value != ConfigDefaults.DEFAULT_TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES,
+          value -> settings.getTestManagementSettings().setAttemptToFixRetries(value));
+    }
 
     LOGGER.info(
         "CI Visibility settings ({}, {}/{}/{}):\n"
@@ -186,7 +199,8 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
             + "Early flakiness detection - {},\n"
             + "Impacted tests detection - {},\n"
             + "Known tests marking - {},\n"
-            + "Auto test retries - {}",
+            + "Auto test retries - {},\n"
+            + "Test Management - {}",
         repositoryRoot,
         tracerEnvironment.getConfigurations().getRuntimeName(),
         tracerEnvironment.getConfigurations().getRuntimeVersion(),
@@ -197,7 +211,8 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
         earlyFlakeDetectionEnabled,
         impactedTestsEnabled,
         knownTestsRequest,
-        flakyTestRetriesEnabled);
+        flakyTestRetriesEnabled,
+        testManagementEnabled);
 
     Future<SkippableTests> skippableTestsFuture =
         executor.submit(() -> getSkippableTests(tracerEnvironment, itrEnabled));
@@ -228,6 +243,9 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
               earlyFlakeDetectionEnabled
                   ? settings.getEarlyFlakeDetectionSettings()
                   : EarlyFlakeDetectionSettings.DEFAULT,
+              testManagementEnabled
+                  ? settings.getTestManagementSettings()
+                  : TestManagementSettings.DEFAULT,
               skippableTests.getCorrelationId(),
               skippableTests
                   .getIdentifiersByModule()
@@ -268,6 +286,14 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
       Function<CiVisibilitySettings, Boolean> remoteSetting,
       Function<Config, Boolean> killSwitch) {
     return remoteSetting.apply(ciVisibilitySettings) && killSwitch.apply(config);
+  }
+
+  private void overrideIntegerSetting(
+      Function<Config, Integer> valueGetter, Function<Integer, Boolean> overrideCheck, Consumer<Integer> overrideAction) {
+    Integer value = valueGetter.apply(config);
+    if (value != null && overrideCheck.apply(value)) {
+      overrideAction.accept(value);
+    }
   }
 
   @Nonnull

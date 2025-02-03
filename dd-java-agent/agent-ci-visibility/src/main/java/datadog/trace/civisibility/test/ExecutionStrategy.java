@@ -105,7 +105,7 @@ public class ExecutionStrategy {
           config.getCiVisibilityFlakyRetryCount(), isQuarantined(test), autoRetriesUsed);
     }
 
-    if (isQuarantined(test)) {
+    if (executionSettings.getTestManagementSettings().isEnabled() && isQuarantined(test)) {
       return new RunOnceIgnoreOutcome();
     }
 
