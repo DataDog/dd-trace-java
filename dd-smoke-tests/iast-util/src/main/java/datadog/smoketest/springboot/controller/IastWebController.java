@@ -42,6 +42,7 @@ import javax.xml.xpath.XPath;
 import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.text.StringEscapeUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
@@ -346,7 +347,7 @@ public class IastWebController {
   public String mailHtmlVulnerability(
       @RequestParam("messageText") String messageText,
       @RequestParam("messageContent") String messageContent,
-      @RequestParam("sanitize") boolean sanitize)
+      @RequestParam("sanitize") String sanitize)
       throws MessagingException {
     Session session = Session.getDefaultInstance(new Properties());
     Provider provider =
@@ -356,14 +357,20 @@ public class IastWebController {
     MimeMessage message = new MimeMessage(session);
     if (messageText != null) {
       message.setText(
-          sanitize ? StringEscapeUtils.escapeHtml4(messageText) : messageText, "utf-8", "html");
+          StringUtils.isNotEmpty(sanitize) && sanitize.equalsIgnoreCase("true")
+              ? StringEscapeUtils.escapeHtml4(messageText)
+              : messageText,
+          "utf-8",
+          "html");
     } else {
       MimeMultipart content = new MimeMultipart();
       content.addBodyPart(new MimeBodyPart());
       content
           .getBodyPart(0)
           .setContent(
-              sanitize ? StringEscapeUtils.escapeHtml4(messageContent) : messageContent,
+              StringUtils.isNotEmpty(sanitize) && sanitize.equalsIgnoreCase("true")
+                  ? StringEscapeUtils.escapeHtml4(messageContent)
+                  : messageContent,
               "text/html");
       message.setContent(content, "multipart/*");
     }
@@ -375,7 +382,7 @@ public class IastWebController {
   public String jakartaMailHtmlVulnerability(
       @RequestParam("messageText") String messageText,
       @RequestParam("messageContent") String messageContent,
-      @RequestParam("sanitize") boolean sanitize)
+      @RequestParam("sanitize") String sanitize)
       throws jakarta.mail.MessagingException {
     jakarta.mail.Session session = jakarta.mail.Session.getDefaultInstance(new Properties());
     jakarta.mail.Provider provider =
@@ -389,14 +396,20 @@ public class IastWebController {
     jakarta.mail.internet.MimeMessage message = new jakarta.mail.internet.MimeMessage(session);
     if (messageText != null) {
       message.setText(
-          sanitize ? StringEscapeUtils.escapeHtml4(messageText) : messageText, "utf-8", "html");
+          StringUtils.isNotEmpty(sanitize) && sanitize.equalsIgnoreCase("true")
+              ? StringEscapeUtils.escapeHtml4(messageText)
+              : messageText,
+          "utf-8",
+          "html");
     } else {
       jakarta.mail.internet.MimeMultipart content = new jakarta.mail.internet.MimeMultipart();
       content.addBodyPart(new jakarta.mail.internet.MimeBodyPart());
       content
           .getBodyPart(0)
           .setContent(
-              sanitize ? StringEscapeUtils.escapeHtml4(messageContent) : messageContent,
+              StringUtils.isNotEmpty(sanitize) && sanitize.equalsIgnoreCase("true")
+                  ? StringEscapeUtils.escapeHtml4(messageContent)
+                  : messageContent,
               "text/html");
       message.setContent(content, "multipart/*");
     }
