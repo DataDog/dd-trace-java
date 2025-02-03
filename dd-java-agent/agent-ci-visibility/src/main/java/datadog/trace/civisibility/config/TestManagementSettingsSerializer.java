@@ -1,7 +1,6 @@
 package datadog.trace.civisibility.config;
 
 import datadog.trace.civisibility.ipc.serialization.Serializer;
-
 import java.nio.ByteBuffer;
 
 public class TestManagementSettingsSerializer {

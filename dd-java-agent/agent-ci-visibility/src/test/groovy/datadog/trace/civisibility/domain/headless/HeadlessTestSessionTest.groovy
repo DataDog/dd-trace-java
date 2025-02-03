@@ -18,45 +18,45 @@ import datadog.trace.civisibility.test.ExecutionStrategy
 
 class HeadlessTestSessionTest extends SpanWriterTest {
 
-    def "test tags are populated correctly in span"() {
-        setup:
-        def session = givenAHeadlessTestSession()
+  def "test tags are populated correctly in span"() {
+    setup:
+    def session = givenAHeadlessTestSession()
 
-        when:
-        session.end(null)
+    when:
+    session.end(null)
 
-        then:
-        ListWriterAssert.assertTraces(TEST_WRITER, 1, false, {
-            trace(1) {
-                span(0) {
-                    spanType DDSpanTypes.TEST_SESSION_END
-                    tags(false) {
-                        "$Tags.TEST_TEST_MANAGEMENT_ENABLED" true
-                    }
-                }
-            }
-        })
-    }
+    then:
+    ListWriterAssert.assertTraces(TEST_WRITER, 1, false, {
+      trace(1) {
+        span(0) {
+          spanType DDSpanTypes.TEST_SESSION_END
+          tags(false) {
+            "$Tags.TEST_TEST_MANAGEMENT_ENABLED" true
+          }
+        }
+      }
+    })
+  }
 
 
-    private HeadlessTestSession givenAHeadlessTestSession() {
-        def executionSettings = Stub(ExecutionSettings)
-        executionSettings.getTestManagementSettings() >> new TestManagementSettings(true, 10)
+  private HeadlessTestSession givenAHeadlessTestSession() {
+    def executionSettings = Stub(ExecutionSettings)
+    executionSettings.getTestManagementSettings() >> new TestManagementSettings(true, 10)
 
-        def executionStrategy = new ExecutionStrategy(Stub(Config), executionSettings, Stub(SourcePathResolver), Stub(LinesResolver))
+    def executionStrategy = new ExecutionStrategy(Stub(Config), executionSettings, Stub(SourcePathResolver), Stub(LinesResolver))
 
-        new HeadlessTestSession(
-                "project-name",
-                null,
-                Provider.UNSUPPORTED,
-                Stub(Config),
-                Stub(CiVisibilityMetricCollector),
-                Stub(TestDecorator),
-                Stub(SourcePathResolver),
-                Stub(Codeowners),
-                Stub(LinesResolver),
-                Stub(CoverageStore.Factory),
-                executionStrategy
-        )
-    }
+    new HeadlessTestSession(
+      "project-name",
+      null,
+      Provider.UNSUPPORTED,
+      Stub(Config),
+      Stub(CiVisibilityMetricCollector),
+      Stub(TestDecorator),
+      Stub(SourcePathResolver),
+      Stub(Codeowners),
+      Stub(LinesResolver),
+      Stub(CoverageStore.Factory),
+      executionStrategy
+      )
+  }
 }

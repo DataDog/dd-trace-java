@@ -80,7 +80,7 @@ class ExecutionSettingsTest extends Specification {
       true,
       true,
       new EarlyFlakeDetectionSettings(true, [new EarlyFlakeDetectionSettings.ExecutionsByDuration(10, 20), new EarlyFlakeDetectionSettings.ExecutionsByDuration(30, 40)], 10),
-        new TestManagementSettings(true, 20),
+      new TestManagementSettings(true, 20),
       "itrCorrelationId",
       [(new TestIdentifier("bc", "def", null)): new TestMetadata(true), (new TestIdentifier("de", "f", null)): new TestMetadata(true)],
       ["cov"    : BitSet.valueOf(new byte[]{

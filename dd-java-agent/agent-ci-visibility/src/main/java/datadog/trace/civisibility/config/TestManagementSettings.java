@@ -4,8 +4,7 @@ import java.util.Objects;
 
 public class TestManagementSettings {
 
-  public static final TestManagementSettings DEFAULT =
-      new TestManagementSettings(false, -1);
+  public static final TestManagementSettings DEFAULT = new TestManagementSettings(false, -1);
 
   private final boolean enabled;
   private int attemptToFixRetries;

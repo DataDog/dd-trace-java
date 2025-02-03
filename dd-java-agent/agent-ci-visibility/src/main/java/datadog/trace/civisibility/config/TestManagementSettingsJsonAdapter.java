@@ -1,11 +1,11 @@
 package datadog.trace.civisibility.config;
 
 import com.squareup.moshi.FromJson;
-
 import java.util.Map;
 
 public class TestManagementSettingsJsonAdapter {
-  public static final TestManagementSettingsJsonAdapter INSTANCE = new TestManagementSettingsJsonAdapter();
+  public static final TestManagementSettingsJsonAdapter INSTANCE =
+      new TestManagementSettingsJsonAdapter();
 
   @FromJson
   public TestManagementSettings fromJson(Map<String, Object> json) {
@@ -18,7 +18,6 @@ public class TestManagementSettingsJsonAdapter {
 
     return new TestManagementSettings(
         enabled != null ? enabled : false,
-        attemptToFixRetries != null ? attemptToFixRetries.intValue() : -1
-    );
+        attemptToFixRetries != null ? attemptToFixRetries.intValue() : -1);
   }
 }

@@ -1525,7 +1525,9 @@ public class Config {
         configProvider.getString(CIVISIBILITY_REMOTE_ENV_VARS_PROVIDER_KEY);
     ciVisibilityTestOrder = configProvider.getString(CIVISIBILITY_TEST_ORDER);
     ciVisibilityTestManagementEnabled = configProvider.getBoolean(TEST_MANAGEMENT_ENABLED, true);
-    ciVisibilityTestManagementAttemptToFixRetries = configProvider.getInteger(TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES, DEFAULT_TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES);
+    ciVisibilityTestManagementAttemptToFixRetries =
+        configProvider.getInteger(
+            TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES, DEFAULT_TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES);
 
     remoteConfigEnabled =
         configProvider.getBoolean(

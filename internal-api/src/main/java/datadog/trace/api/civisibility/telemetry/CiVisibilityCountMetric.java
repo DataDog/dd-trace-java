@@ -34,7 +34,6 @@ import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
 import datadog.trace.api.civisibility.telemetry.tag.StatusCode;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.api.civisibility.telemetry.tag.TestManagementEnabled;
-
 import java.util.Arrays;
 
 public enum CiVisibilityCountMetric {

@@ -16,9 +16,6 @@ class TestManagementSettingsSerializerTest extends Specification {
     deserialized == settings
 
     where:
-    settings << [
-      TestManagementSettings.DEFAULT,
-      new TestManagementSettings(true, 10),
-    ]
+    settings << [TestManagementSettings.DEFAULT, new TestManagementSettings(true, 10),]
   }
 }

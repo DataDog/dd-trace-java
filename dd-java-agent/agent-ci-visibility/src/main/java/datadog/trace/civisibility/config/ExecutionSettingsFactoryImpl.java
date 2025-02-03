@@ -289,7 +289,9 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
   }
 
   private void overrideIntegerSetting(
-      Function<Config, Integer> valueGetter, Function<Integer, Boolean> overrideCheck, Consumer<Integer> overrideAction) {
+      Function<Config, Integer> valueGetter,
+      Function<Integer, Boolean> overrideCheck,
+      Consumer<Integer> overrideAction) {
     Integer value = valueGetter.apply(config);
     if (value != null && overrideCheck.apply(value)) {
       overrideAction.accept(value);
