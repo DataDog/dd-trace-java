@@ -18,16 +18,16 @@ import datadog.context.propagation.Propagator;
 import datadog.trace.api.Config;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.WellKnownTags;
+import datadog.trace.api.datastreams.Backlog;
+import datadog.trace.api.datastreams.InboxItem;
+import datadog.trace.api.datastreams.NoopPathwayContext;
+import datadog.trace.api.datastreams.PathwayContext;
+import datadog.trace.api.datastreams.StatsPoint;
 import datadog.trace.api.experimental.DataStreamsContextCarrier;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.Backlog;
-import datadog.trace.bootstrap.instrumentation.api.InboxItem;
-import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.Schema;
 import datadog.trace.bootstrap.instrumentation.api.SchemaIterator;
-import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
 import datadog.trace.common.metrics.EventListener;
 import datadog.trace.common.metrics.OkHttpSink;
 import datadog.trace.common.metrics.Sink;
@@ -197,7 +197,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     if (configSupportsDataStreams) {
       return new DefaultPathwayContext(timeSource, hashOfKnownTags, getThreadServiceName());
     } else {
-      return AgentTracer.NoopPathwayContext.INSTANCE;
+      return NoopPathwayContext.INSTANCE;
     }
   }
 

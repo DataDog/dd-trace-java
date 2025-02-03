@@ -7,8 +7,8 @@ import datadog.trace.api.TraceConfig
 import datadog.trace.api.WellKnownTags
 import datadog.trace.api.time.ControllableTimeSource
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
-import datadog.trace.bootstrap.instrumentation.api.PathwayContext
-import datadog.trace.bootstrap.instrumentation.api.StatsPoint
+import datadog.trace.api.datastreams.PathwayContext
+import datadog.trace.api.datastreams.StatsPoint
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.common.metrics.Sink
 import datadog.trace.core.propagation.ExtractedContext

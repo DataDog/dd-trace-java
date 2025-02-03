@@ -1,11 +1,11 @@
 package datadog.trace.core.datastreams;
 
 import static datadog.trace.api.DDTags.PATHWAY_HASH;
-import static datadog.trace.bootstrap.instrumentation.api.PathwayContext.PROPAGATION_KEY_BASE64;
+import static datadog.trace.api.datastreams.PathwayContext.PROPAGATION_KEY_BASE64;
 
+import datadog.trace.api.datastreams.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import java.io.IOException;
 import java.util.LinkedHashMap;
 import org.slf4j.Logger;
