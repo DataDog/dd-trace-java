@@ -66,7 +66,7 @@ public class SpockUtils {
     }
   }
 
-  public static boolean isUnskippable(SpockNode<?> spockNode) {
+  public static boolean isItrUnskippable(SpockNode<?> spockNode) {
     Collection<TestTag> tags = getTags(spockNode);
     for (TestTag tag : tags) {
       if (InstrumentationBridge.ITR_UNSKIPPABLE_TAG.equals(tag.getName())) {

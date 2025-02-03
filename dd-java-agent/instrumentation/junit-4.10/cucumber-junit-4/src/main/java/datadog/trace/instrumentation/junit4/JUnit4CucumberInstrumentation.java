@@ -7,7 +7,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
-import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Collections;
 import java.util.List;
@@ -36,7 +36,7 @@ public class JUnit4CucumberInstrumentation extends InstrumenterModule.CiVisibili
     return new String[] {
       packageName + ".CucumberUtils",
       packageName + ".TestEventsHandlerHolder",
-      packageName + ".SkippedByItr",
+      packageName + ".SkippedByDatadog",
       packageName + ".JUnit4Utils",
       packageName + ".TracingListener",
       packageName + ".CucumberTracingListener",
@@ -46,7 +46,7 @@ public class JUnit4CucumberInstrumentation extends InstrumenterModule.CiVisibili
   @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
-        "org.junit.runner.Description", TestRetryPolicy.class.getName());
+        "org.junit.runner.Description", TestExecutionPolicy.class.getName());
   }
 
   @Override
@@ -84,7 +84,7 @@ public class JUnit4CucumberInstrumentation extends InstrumenterModule.CiVisibili
 
       replacedNotifier.addListener(
           new CucumberTracingListener(
-              InstrumentationContext.get(Description.class, TestRetryPolicy.class), children));
+              InstrumentationContext.get(Description.class, TestExecutionPolicy.class), children));
       runNotifier = replacedNotifier;
     }
   }

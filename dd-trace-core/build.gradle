@@ -20,7 +20,7 @@ excludedClassesCoverage += [
   'datadog.trace.common.writer.RemoteMapper.NoopRemoteMapper',
   'datadog.trace.core.monitor.DDAgentStatsDConnection',
   'datadog.trace.core.monitor.LoggingStatsDClient',
-  'datadog.trace.core.PendingTraceBuffer.DelayingPendingTraceBuffer.FlushElement',
+  'datadog.trace.core.PendingTraceBuffer.DelayingPendingTraceBuffer.CommandElement',
   'datadog.trace.core.StatusLogger',
   // covered with CI Visibility smoke tests
   'datadog.trace.core.StreamingTraceCollector',

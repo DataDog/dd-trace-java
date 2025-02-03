@@ -71,10 +71,10 @@ class TestImplTest extends SpanWriterTest {
     def coverageStore = Mock(CoverageStore)
     coverageStore.getProbes() >> coverageProbes
 
-    def coveageStoreFactory = Stub(CoverageStore.Factory)
-    coveageStoreFactory.create((TestIdentifier) _) >> coverageStore
+    def coverageStoreFactory = Stub(CoverageStore.Factory)
+    coverageStoreFactory.create((TestIdentifier) _) >> coverageStore
 
-    def test = givenATest(coveageStoreFactory)
+    def test = givenATest(coverageStoreFactory)
 
     when:
     test.setSkipReason("skipped")

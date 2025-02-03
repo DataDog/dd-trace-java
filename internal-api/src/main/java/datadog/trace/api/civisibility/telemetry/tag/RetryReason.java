@@ -3,13 +3,19 @@ package datadog.trace.api.civisibility.telemetry.tag;
 import datadog.trace.api.civisibility.telemetry.TagValue;
 
 public enum RetryReason implements TagValue {
-  ATR,
-  EFD;
+  atr("Auto Test Retries"),
+  efd("Early Flakiness Detection");
 
   private final String s;
+  private final String description;
 
-  RetryReason() {
-    s = "retry_reason:" + name().toLowerCase();
+  RetryReason(String description) {
+    this.description = description;
+    this.s = "retry_reason:" + name();
+  }
+
+  public String getDescription() {
+    return description;
   }
 
   @Override

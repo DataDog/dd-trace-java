@@ -3,7 +3,7 @@ package datadog.trace.instrumentation.junit4;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
-import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.ContextStore;
 import java.lang.reflect.Method;
@@ -18,9 +18,9 @@ public class JUnit4TracingListener extends TracingListener {
   private static final String FRAMEWORK_NAME = "junit4";
   private static final String FRAMEWORK_VERSION = Version.id();
 
-  private final ContextStore<Description, TestRetryPolicy> retryPolicies;
+  private final ContextStore<Description, TestExecutionPolicy> retryPolicies;
 
-  public JUnit4TracingListener(ContextStore<Description, TestRetryPolicy> retryPolicies) {
+  public JUnit4TracingListener(ContextStore<Description, TestExecutionPolicy> retryPolicies) {
     this.retryPolicies = retryPolicies;
   }
 
@@ -74,7 +74,7 @@ public class JUnit4TracingListener extends TracingListener {
     String testParameters = JUnit4Utils.getParameters(description);
     List<String> categories =
         JUnit4Utils.getCategories(testSourceData.getTestClass(), testSourceData.getTestMethod());
-    TestRetryPolicy retryPolicy = retryPolicies.get(description);
+    TestExecutionPolicy retryPolicy = retryPolicies.get(description);
 
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestStart(
         suiteDescriptor,

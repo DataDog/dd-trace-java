@@ -9,7 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Collections;
 import java.util.List;
@@ -65,7 +65,7 @@ public class JUnit4Instrumentation extends InstrumenterModule.CiVisibility
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".TestEventsHandlerHolder",
-      packageName + ".SkippedByItr",
+      packageName + ".SkippedByDatadog",
       packageName + ".JUnit4Utils",
       packageName + ".TracingListener",
       packageName + ".JUnit4TracingListener",
@@ -75,7 +75,7 @@ public class JUnit4Instrumentation extends InstrumenterModule.CiVisibility
   @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
-        "org.junit.runner.Description", TestRetryPolicy.class.getName());
+        "org.junit.runner.Description", TestExecutionPolicy.class.getName());
   }
 
   @Override
@@ -116,7 +116,7 @@ public class JUnit4Instrumentation extends InstrumenterModule.CiVisibility
 
       final TracingListener tracingListener =
           new JUnit4TracingListener(
-              InstrumentationContext.get(Description.class, TestRetryPolicy.class));
+              InstrumentationContext.get(Description.class, TestExecutionPolicy.class));
       runNotifier.addListener(tracingListener);
     }
 

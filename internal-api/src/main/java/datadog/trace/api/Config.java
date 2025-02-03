@@ -2931,7 +2931,7 @@ public class Config {
     return ciVisibilityEarlyFlakeDetectionLowerLimit;
   }
 
-  public boolean isCiVisibilityTestRetryEnabled() {
+  public boolean isCiVisibilityExecutionPoliciesEnabled() {
     return ciVisibilityFlakyRetryEnabled || ciVisibilityEarlyFlakeDetectionEnabled;
   }
 
@@ -3450,7 +3450,8 @@ public class Config {
         System.getProperty("java.vendor"),
         System.getProperty("os.arch"),
         System.getProperty("os.name"),
-        System.getProperty("os.version"));
+        System.getProperty("os.version"),
+        isServiceNameSetByUser() ? "true" : "false");
   }
 
   public String getPrimaryTag() {

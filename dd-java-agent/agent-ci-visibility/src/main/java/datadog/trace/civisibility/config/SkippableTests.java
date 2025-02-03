@@ -3,10 +3,15 @@ package datadog.trace.civisibility.config;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestMetadata;
 import java.util.BitSet;
+import java.util.Collections;
 import java.util.Map;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class SkippableTests {
+
+  public static final SkippableTests EMPTY =
+      new SkippableTests(null, Collections.emptyMap(), Collections.emptyMap());
 
   private final String correlationId;
   private final Map<String, Map<TestIdentifier, TestMetadata>> identifiersByModule;
@@ -14,8 +19,8 @@ public class SkippableTests {
 
   public SkippableTests(
       @Nullable String correlationId,
-      Map<String, Map<TestIdentifier, TestMetadata>> identifiersByModule,
-      @Nullable Map<String, BitSet> coveredLinesByRelativeSourcePath) {
+      @Nonnull Map<String, Map<TestIdentifier, TestMetadata>> identifiersByModule,
+      @Nonnull Map<String, BitSet> coveredLinesByRelativeSourcePath) {
     this.correlationId = correlationId;
     this.identifiersByModule = identifiersByModule;
     this.coveredLinesByRelativeSourcePath = coveredLinesByRelativeSourcePath;
@@ -26,11 +31,12 @@ public class SkippableTests {
     return correlationId;
   }
 
+  @Nonnull
   public Map<String, Map<TestIdentifier, TestMetadata>> getIdentifiersByModule() {
     return identifiersByModule;
   }
 
-  @Nullable
+  @Nonnull
   public Map<String, BitSet> getCoveredLinesByRelativeSourcePath() {
     return coveredLinesByRelativeSourcePath;
   }

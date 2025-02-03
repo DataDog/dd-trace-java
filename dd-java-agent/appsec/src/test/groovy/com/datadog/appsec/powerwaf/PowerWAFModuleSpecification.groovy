@@ -17,6 +17,7 @@ import com.datadog.appsec.event.data.MapDataBundle
 import com.datadog.appsec.gateway.AppSecRequestContext
 import com.datadog.appsec.gateway.GatewayContext
 import com.datadog.appsec.report.AppSecEvent
+import datadog.trace.api.telemetry.RuleType
 import datadog.trace.util.stacktrace.StackTraceEvent
 import com.datadog.appsec.test.StubAppSecConfigService
 import datadog.communication.monitor.Monitoring
@@ -959,7 +960,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     assert !flow.blocking
   }
 
-  void 'timeout is honored'() {
+  void 'timeout is honored (waf)'() {
     setup:
     injectSysConfig('appsec.waf.timeout', '1')
     PowerWAFModule.createLimitsObject()
@@ -981,8 +982,13 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ctx.getOrCreateAdditive(_, true) >> {
       pwafAdditive = it[0].openAdditive() }
     assert !flow.blocking
-    1 * ctx.increaseTimeouts()
+    1 * ctx.isAdditiveClosed()
+    1 * ctx.getOrCreateAdditive(_, true, false) >> {
+      pwafAdditive = it[0].openAdditive() }
+    1 * ctx.getWafMetrics()
+    1 * ctx.increaseWafTimeouts()
     1 * mockWafMetricCollector.get().wafRequestTimeout()
+    0 * _
 
     when:
     pp.processTraceSegment(segment, ctx, [])
@@ -994,6 +1000,53 @@ class PowerWAFModuleSpecification extends DDSpecification {
     cleanup:
     injectSysConfig('appsec.waf.timeout', ConfigDefaults.DEFAULT_APPSEC_WAF_TIMEOUT as String)
     PowerWAFModule.createLimitsObject()
+  }
+
+  void 'timeout is honored (rasp)'() {
+    setup:
+    injectSysConfig('appsec.waf.timeout', '1')
+    PowerWAFModule.createLimitsObject()
+    setupWithStubConfigService()
+    DataBundle db = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
+      new CaseInsensitiveMap<List<String>>(['user-agent': 'Arachni/v' + ('a' * 4000)]))
+    ChangeableFlow flow = new ChangeableFlow()
+
+    TraceSegment segment = Mock()
+    TraceSegmentPostProcessor pp = service.traceSegmentPostProcessors.last()
+
+    def mockWafMetricCollector = Mock(WafMetricCollector)
+    WafMetricCollector.INSTANCE = mockWafMetricCollector
+
+    gwCtx = new GatewayContext(false, RuleType.SQL_INJECTION)
+
+    when:
+    dataListener.onDataAvailable(flow, ctx, db, gwCtx)
+
+    then:
+    ctx.getOrCreateAdditive(_, true) >> {
+      pwafAdditive = it[0].openAdditive() }
+    assert !flow.blocking
+    1 * ctx.isAdditiveClosed()
+    1 * ctx.getOrCreateAdditive(_, true, true) >> {
+      pwafAdditive = it[0].openAdditive() }
+    1 * ctx.getRaspMetrics()
+    1 * ctx.getRaspMetricsCounter()
+    1 * ctx.increaseRaspTimeouts()
+    1 * mockWafMetricCollector.get().raspTimeout(gwCtx.raspRuleType)
+    1 * mockWafMetricCollector.raspRuleEval(RuleType.SQL_INJECTION)
+    0 * _
+
+    when:
+    pp.processTraceSegment(segment, ctx, [])
+
+    then:
+    1 * segment.setTagTop('_dd.appsec.rasp.timeout', 1L)
+    _ * segment.setTagTop(_, _)
+
+    cleanup:
+    injectSysConfig('appsec.waf.timeout', ConfigDefaults.DEFAULT_APPSEC_WAF_TIMEOUT as String)
+    PowerWAFModule.createLimitsObject()
+    gwCtx = new GatewayContext(false)
   }
 
   void 'configuration can be given later'() {
@@ -1112,7 +1165,8 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.getWafMetrics()
     1 * ctx.isAdditiveClosed() >> false
     1 * ctx.closeAdditive() >> { pwafAdditive.close() }
-    _ * ctx.increaseTimeouts()
+    _ * ctx.increaseWafTimeouts()
+    _ * ctx.increaseRaspTimeouts()
     0 * _
 
     when: 'removing data and override config'
@@ -1136,7 +1190,8 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.isAdditiveClosed() >> false
     1 * ctx.closeAdditive() >> {pwafAdditive.close()}
     1 * reconf.reloadSubscriptions()
-    _ * ctx.increaseTimeouts()
+    _ * ctx.increaseWafTimeouts()
+    _ * ctx.increaseRaspTimeouts()
     0 * _
 
     when: 'data is readded'
@@ -1162,7 +1217,8 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.closeAdditive() >> {pwafAdditive.close()}
     1 * flow.isBlocking()
     1 * ctx.isThrottled(null)
-    _ * ctx.increaseTimeouts()
+    _ * ctx.increaseWafTimeouts()
+    _ * ctx.increaseRaspTimeouts()
     0 * _
 
     when: 'toggling the rule off'
@@ -1184,7 +1240,8 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.getWafMetrics()
     1 * ctx.isAdditiveClosed() >> false
     1 * ctx.closeAdditive()
-    _ * ctx.increaseTimeouts()
+    _ * ctx.increaseWafTimeouts()
+    _ * ctx.increaseRaspTimeouts()
     0 * _
   }
 
@@ -1214,7 +1271,8 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.getWafMetrics()
     1 * ctx.isAdditiveClosed() >> false
     1 * ctx.closeAdditive() >> {pwafAdditive.close()}
-    _ * ctx.increaseTimeouts()
+    _ * ctx.increaseWafTimeouts()
+    _ * ctx.increaseRaspTimeouts()
     0 * _
 
     when: 'rule enabled in config a has no effect'
@@ -1238,7 +1296,8 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.getWafMetrics()
     1 * ctx.isAdditiveClosed() >> false
     1 * ctx.closeAdditive() >> {pwafAdditive.close()}
-    _ * ctx.increaseTimeouts()
+    _ * ctx.increaseWafTimeouts()
+    _ * ctx.increaseRaspTimeouts()
     0 * _
 
     when: 'rule enabled in config c overrides b'
@@ -1266,7 +1325,8 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
     1 * ctx.isAdditiveClosed() >> false
     1 * ctx.closeAdditive() >> {pwafAdditive.close()}
-    _ * ctx.increaseTimeouts()
+    _ * ctx.increaseWafTimeouts()
+    _ * ctx.increaseRaspTimeouts()
     1 * ctx.isThrottled(null)
     0 * _
 
@@ -1289,7 +1349,8 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.getWafMetrics()
     1 * ctx.isAdditiveClosed() >> false
     1 * ctx.closeAdditive()
-    _ * ctx.increaseTimeouts()
+    _ * ctx.increaseWafTimeouts()
+    _ * ctx.increaseRaspTimeouts()
     0 * _
   }
 

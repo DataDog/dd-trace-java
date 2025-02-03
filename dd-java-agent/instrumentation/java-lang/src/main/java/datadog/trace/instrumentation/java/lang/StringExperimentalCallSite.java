@@ -38,16 +38,20 @@ public class StringExperimentalCallSite {
         module.onUnexpectedException("afterReplaceCharSeq threw", e);
       }
     }
+
+    IastMetricCollector.add(IastMetric.EXPERIMENTAL_PROPAGATION, 1);
+
     if (!result.equals(newReplaced)) {
       LOGGER.debug(
           SEND_TELEMETRY,
           "afterReplaceCharSeq failed due to a different result between original replace and new replace, originalLength: {}, newLength: {}",
           result.length(),
           newReplaced != null ? newReplaced.length() : 0);
+
+      return result;
     }
 
-    IastMetricCollector.add(IastMetric.EXPERIMENTAL_PROPAGATION, 1);
-    return result;
+    return newReplaced;
   }
 
   @CallSite.After(
@@ -67,16 +71,20 @@ public class StringExperimentalCallSite {
         module.onUnexpectedException("afterReplaceAll threw", e);
       }
     }
+
+    IastMetricCollector.add(IastMetric.EXPERIMENTAL_PROPAGATION, 1);
+
     if (!result.equals(newReplaced)) {
       LOGGER.debug(
           SEND_TELEMETRY,
           "afterReplaceAll failed due to a different result between original replace and new replace, originalLength: {}, newLength: {}",
           result.length(),
           newReplaced != null ? newReplaced.length() : 0);
+
+      return result;
     }
 
-    IastMetricCollector.add(IastMetric.EXPERIMENTAL_PROPAGATION, 1);
-    return result;
+    return newReplaced;
   }
 
   @CallSite.After(
@@ -96,15 +104,19 @@ public class StringExperimentalCallSite {
         module.onUnexpectedException("afterReplaceFirst threw", e);
       }
     }
+
+    IastMetricCollector.add(IastMetric.EXPERIMENTAL_PROPAGATION, 1);
+
     if (!result.equals(newReplaced)) {
       LOGGER.debug(
           SEND_TELEMETRY,
           "afterReplaceFirst failed due to a different result between original replace and new replace, originalLength: {}, newLength: {}",
           result.length(),
           newReplaced != null ? newReplaced.length() : 0);
+
+      return result;
     }
 
-    IastMetricCollector.add(IastMetric.EXPERIMENTAL_PROPAGATION, 1);
-    return result;
+    return newReplaced;
   }
 }

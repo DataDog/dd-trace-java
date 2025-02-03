@@ -6,8 +6,9 @@ import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
-import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
+import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -87,15 +88,16 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
     return executionStrategy.isModified(testSourceData);
   }
 
+  @Nullable
   @Override
-  public boolean isSkippable(TestIdentifier test) {
-    return executionStrategy.isSkippable(test);
+  public SkipReason skipReason(TestIdentifier test) {
+    return executionStrategy.skipReason(test);
   }
 
   @Override
   @Nonnull
-  public TestRetryPolicy retryPolicy(TestIdentifier test, TestSourceData testSource) {
-    return executionStrategy.retryPolicy(test, testSource);
+  public TestExecutionPolicy executionPolicy(TestIdentifier test, TestSourceData testSource) {
+    return executionStrategy.executionPolicy(test, testSource);
   }
 
   @Override

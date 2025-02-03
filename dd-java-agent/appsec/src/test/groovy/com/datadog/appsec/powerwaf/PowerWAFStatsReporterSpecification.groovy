@@ -18,6 +18,10 @@ class PowerWAFStatsReporterSpecification extends DDSpecification {
     metrics.totalDdwafRunTimeNs = 1_000
     TraceSegment segment = Mock()
     reporter.rulesVersion = '1.2.3'
+    def wafTimeouts = 1
+
+    and:
+    ctx.getWafTimeouts() >> wafTimeouts
 
     when:
     reporter.processTraceSegment(segment, ctx, [])
@@ -27,6 +31,7 @@ class PowerWAFStatsReporterSpecification extends DDSpecification {
     1 * segment.setTagTop('_dd.appsec.waf.duration', 1)
     1 * segment.setTagTop('_dd.appsec.waf.duration_ext', 2)
     1 * segment.setTagTop('_dd.appsec.event_rules.version', '1.2.3')
+    1 * segment.setTagTop('_dd.appsec.waf.timeouts', wafTimeouts)
   }
 
   void 'reporter reports rasp timings and version'() {
@@ -40,6 +45,10 @@ class PowerWAFStatsReporterSpecification extends DDSpecification {
     raspMetrics.totalDdwafRunTimeNs = 3_000
     TraceSegment segment = Mock()
     reporter.rulesVersion = '1.2.3'
+    def raspTimeouts = 1
+
+    and:
+    ctx.getRaspTimeouts() >> raspTimeouts
 
     when:
     reporter.processTraceSegment(segment, ctx, [])
@@ -52,6 +61,7 @@ class PowerWAFStatsReporterSpecification extends DDSpecification {
     1 * segment.setTagTop('_dd.appsec.rasp.duration_ext', 4)
     1 * segment.setTagTop('_dd.appsec.rasp.rule.eval', 5)
     1 * segment.setTagTop('_dd.appsec.event_rules.version', '1.2.3')
+    1 * segment.setTagTop('_dd.appsec.rasp.timeout', raspTimeouts)
   }
 
   void 'reports nothing if metrics are null'() {

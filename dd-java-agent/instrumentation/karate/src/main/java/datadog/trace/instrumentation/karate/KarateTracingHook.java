@@ -19,6 +19,8 @@ import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
+import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
+import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -112,10 +114,13 @@ public class KarateTracingHook implements RuntimeHook {
     String parameters = KarateUtils.getParameters(scenario);
     Collection<String> categories = scenario.getTagsEffective().getTagKeys();
 
-    if (Config.get().isCiVisibilityTestSkippingEnabled()
-        && !categories.contains(InstrumentationBridge.ITR_UNSKIPPABLE_TAG)) {
+    if (Config.get().isCiVisibilityTestSkippingEnabled()) {
       TestIdentifier skippableTest = KarateUtils.toTestIdentifier(scenario);
-      if (TestEventsHandlerHolder.TEST_EVENTS_HANDLER.isSkippable(skippableTest)) {
+      SkipReason skipReason = TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skipReason(skippableTest);
+
+      if (skipReason != null
+          && !(skipReason == SkipReason.ITR
+              && categories.contains(InstrumentationBridge.ITR_UNSKIPPABLE_TAG))) {
         TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestIgnore(
             suiteDescriptor,
             testDescriptor,
@@ -125,7 +130,7 @@ public class KarateTracingHook implements RuntimeHook {
             parameters,
             categories,
             TestSourceData.UNKNOWN,
-            InstrumentationBridge.ITR_SKIP_REASON);
+            skipReason.getDescription());
         return false;
       }
     }
@@ -139,7 +144,7 @@ public class KarateTracingHook implements RuntimeHook {
         parameters,
         categories,
         TestSourceData.UNKNOWN,
-        (String) sr.magicVariables.get(KarateUtils.RETRY_MAGIC_VARIABLE),
+        (RetryReason) sr.magicVariables.get(KarateUtils.RETRY_MAGIC_VARIABLE),
         null);
     return true;
   }

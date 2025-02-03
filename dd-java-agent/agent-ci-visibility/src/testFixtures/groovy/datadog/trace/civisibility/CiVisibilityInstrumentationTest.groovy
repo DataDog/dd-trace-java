@@ -43,6 +43,7 @@ import datadog.trace.civisibility.test.ExecutionStrategy
 import datadog.trace.civisibility.utils.ConcurrentHashMapContextStore
 import datadog.trace.civisibility.writer.ddintake.CiTestCovMapperV2
 import datadog.trace.civisibility.writer.ddintake.CiTestCycleMapperV1
+import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.RemoteMapper
 import datadog.trace.core.DDSpan
 import org.msgpack.jackson.dataformat.MessagePackFactory
@@ -52,6 +53,8 @@ import java.nio.ByteBuffer
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.util.concurrent.TimeUnit
+import java.util.function.Predicate
 
 abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
 
@@ -68,6 +71,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
   private static Path agentKeyFile
 
   private static final List<TestIdentifier> skippableTests = new ArrayList<>()
+  private static final List<TestIdentifier> quarantinedTests = new ArrayList<>()
   private static final List<TestIdentifier> flakyTests = new ArrayList<>()
   private static final List<TestIdentifier> knownTests = new ArrayList<>()
   private static volatile Diff diff = LineDiff.EMPTY
@@ -76,6 +80,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
   private static volatile boolean flakyRetryEnabled = false
   private static volatile boolean earlyFlakinessDetectionEnabled = false
   private static volatile boolean impactedTestsDetectionEnabled = false
+  private static volatile boolean quarantineEnabled = false
 
   public static final int SLOW_TEST_THRESHOLD_MILLIS = 1000
   public static final int VERY_SLOW_TEST_THRESHOLD_MILLIS = 2000
@@ -127,6 +132,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
         itrEnabled ? "itrCorrelationId" : null,
         skippableTestsWithMetadata,
         [:],
+        quarantinedTests,
         flakyTests,
         earlyFlakinessDetectionEnabled || CIConstants.FAIL_FAST_TEST_ORDER.equalsIgnoreCase(Config.get().ciVisibilityTestOrder) ? knownTests : null,
         diff)
@@ -216,16 +222,49 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     "RANDOM"
   }
 
+  final ListWriter.Filter spanFilter = new ListWriter.Filter() {
+    private final Object lock = new Object()
+    private Collection<DDSpan> spans = new ArrayList<>()
+
+    @Override
+    boolean accept(List<DDSpan> trace) {
+      synchronized (lock) {
+        spans.addAll(trace)
+        lock.notifyAll()
+      }
+      return true
+    }
+
+    boolean waitForSpan(Predicate<DDSpan> predicate, long timeoutMillis) {
+      long deadline = System.currentTimeMillis() + timeoutMillis
+      synchronized (lock) {
+        while (!spans.stream().anyMatch(predicate)) {
+          def timeLeft = deadline - System.currentTimeMillis()
+          if (timeLeft > 0) {
+            lock.wait(timeLeft)
+          } else {
+            return false
+          }
+        }
+        return true
+      }
+    }
+  }
+
   @Override
   void setup() {
     skippableTests.clear()
+    quarantinedTests.clear()
     flakyTests.clear()
     knownTests.clear()
     diff = LineDiff.EMPTY
     itrEnabled = false
+    quarantineEnabled = false
     flakyRetryEnabled = false
     earlyFlakinessDetectionEnabled = false
     impactedTestsDetectionEnabled = false
+
+    TEST_WRITER.setFilter(spanFilter)
   }
 
   def givenSkippableTests(List<TestIdentifier> tests) {
@@ -241,8 +280,16 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     knownTests.addAll(tests)
   }
 
+  def givenQuarantinedTests(List<TestIdentifier> tests) {
+    quarantinedTests.addAll(tests)
+  }
+
   def givenDiff(Diff diff) {
     this.diff = diff
+  }
+
+  def givenQuarantineEnabled(boolean quarantineEnabled) {
+    this.quarantineEnabled = quarantineEnabled
   }
 
   def givenFlakyRetryEnabled(boolean flakyRetryEnabled) {
@@ -280,8 +327,10 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     Files.deleteIfExists(agentKeyFile)
   }
 
-  def assertSpansData(String testcaseName, int expectedTracesCount, Map<String, String> replacements = [:]) {
-    TEST_WRITER.waitForTraces(expectedTracesCount)
+  def assertSpansData(String testcaseName, Map<String, String> replacements = [:]) {
+    Predicate<DDSpan> sessionSpan = span -> span.spanType == "test_session_end"
+    spanFilter.waitForSpan(sessionSpan, TimeUnit.SECONDS.toMillis(20))
+
     def traces = TEST_WRITER.toList()
 
     def events = getEventsAsJson(traces)

@@ -8,7 +8,6 @@ import datadog.trace.bootstrap.ContextStore;
 
 public abstract class InstrumentationBridge {
 
-  public static final String ITR_SKIP_REASON = "Skipped by Datadog Intelligent Test Runner";
   public static final String ITR_UNSKIPPABLE_TAG = "datadog_itr_unskippable";
 
   private static volatile TestEventsHandler.Factory TEST_EVENTS_HANDLER_FACTORY;
