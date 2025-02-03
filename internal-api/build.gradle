@@ -218,6 +218,8 @@ dependencies {
   // it contains annotations that are also present in the instrumented application classes
   api "com.datadoghq:dd-javac-plugin-client:0.2.2"
 
+  implementation 'org.yaml:snakeyaml:2.0'
+
   testImplementation project(":utils:test-utils")
   testImplementation("org.assertj:assertj-core:3.20.2")
   testImplementation libs.bundles.junit5
