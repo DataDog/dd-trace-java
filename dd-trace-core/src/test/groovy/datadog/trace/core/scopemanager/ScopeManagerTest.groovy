@@ -8,7 +8,6 @@ import datadog.trace.api.interceptor.TraceInterceptor
 import datadog.trace.api.scopemanager.ExtendedScopeListener
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentSpan
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.common.writer.ListWriter
@@ -27,6 +26,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan
 import static datadog.trace.core.scopemanager.EVENT.ACTIVATE
 import static datadog.trace.core.scopemanager.EVENT.CLOSE
 import static datadog.trace.test.util.GCUtils.awaitGC
@@ -84,7 +84,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     scopeManager.active() == null
 
     when:
-    def span = tracer.buildSpan("test").start()
+    def span = tracer.buildSpan("test", "test").start()
     def scope = tracer.activateSpan(span)
 
     then:
@@ -121,7 +121,7 @@ class ScopeManagerTest extends DDCoreSpecification {
 
   def "scope state should be able to fetch and activate state when there is an active span"() {
     when:
-    def span = tracer.buildSpan("test").start()
+    def span = tracer.buildSpan("test", "test").start()
     def scope = tracer.activateSpan(span)
     def initialScopeState = scopeManager.newScopeState()
     initialScopeState.fetchFromActive()
@@ -155,7 +155,7 @@ class ScopeManagerTest extends DDCoreSpecification {
 
   def "non-ddspan activation results in a continuable scope"() {
     when:
-    def scope = scopeManager.activate(NoopAgentSpan.INSTANCE, ScopeSource.INSTRUMENTATION)
+    def scope = scopeManager.activate(noopSpan(), ScopeSource.INSTRUMENTATION)
 
     then:
     scopeManager.active() == scope
@@ -170,7 +170,7 @@ class ScopeManagerTest extends DDCoreSpecification {
 
   def "no scope is active before activation"() {
     setup:
-    def builder = tracer.buildSpan("test")
+    def builder = tracer.buildSpan("test", "test")
     builder.start()
 
     expect:
@@ -180,7 +180,7 @@ class ScopeManagerTest extends DDCoreSpecification {
 
   def "simple scope and span lifecycle"() {
     when:
-    def span = tracer.buildSpan("test").start()
+    def span = tracer.buildSpan("test", "test").start()
     def scope = tracer.activateSpan(span)
 
     then:
@@ -210,9 +210,9 @@ class ScopeManagerTest extends DDCoreSpecification {
 
   def "sets parent as current upon close"() {
     when:
-    def parentSpan = tracer.buildSpan("parent").start()
+    def parentSpan = tracer.buildSpan("test", "parent").start()
     def parentScope = tracer.activateSpan(parentSpan)
-    def childSpan = tracer.buildSpan("child").start()
+    def childSpan = tracer.buildSpan("test", "child").start()
     def childScope = tracer.activateSpan(childSpan)
 
     then:
@@ -232,9 +232,9 @@ class ScopeManagerTest extends DDCoreSpecification {
 
   def "sets parent as current upon close with noop child"() {
     when:
-    def parentSpan = tracer.buildSpan("parent").start()
+    def parentSpan = tracer.buildSpan("test", "parent").start()
     def parentScope = tracer.activateSpan(parentSpan)
-    def childSpan = NoopAgentSpan.INSTANCE
+    def childSpan = noopSpan()
     def childScope = tracer.activateSpan(childSpan)
 
     then:
@@ -1024,7 +1024,7 @@ class ScopeManagerTest extends DDCoreSpecification {
         def childScope = tracer.activateSpan(child)
         try {
           Thread.sleep(100)
-        } catch (InterruptedException e) {
+        } catch (InterruptedException ignored) {
           Thread.currentThread().interrupt()
         }
         childScope.close()

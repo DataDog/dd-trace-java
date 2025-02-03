@@ -1,8 +1,6 @@
 package datadog.trace.core;
 
 import static datadog.trace.api.DDTags.TRACE_START_TIME;
-import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
-import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_END_TO_END_DURATION_MS;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_STATUS;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
@@ -557,12 +555,6 @@ public class DDSpan
   public final DDSpan setResourceName(final CharSequence resourceName, byte priority) {
     context.setResourceName(resourceName, priority);
     return this;
-  }
-
-  @Override
-  public boolean eligibleForDropping() {
-    int samplingPriority = context.getSamplingPriority();
-    return samplingPriority == USER_DROP || samplingPriority == SAMPLER_DROP;
   }
 
   @Override

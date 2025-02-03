@@ -339,7 +339,7 @@ public class InstrumentationGatewayTest {
     BiFunction<RequestContext, IGSpanInfo, Flow<Void>> cb =
         (requestContext, igSpanInfo) -> {
           assertThat(requestContext).isSameAs(callback.ctxt);
-          assertThat(igSpanInfo).isSameAs(AgentTracer.NoopAgentSpan.INSTANCE);
+          assertThat(igSpanInfo).isSameAs(AgentTracer.noopSpan());
           count[0]++;
           return new Flow.ResultFlow<>(null);
         };
@@ -347,7 +347,7 @@ public class InstrumentationGatewayTest {
     ssIast.registerCallback(events.requestEnded(), cb);
     BiFunction<RequestContext, IGSpanInfo, Flow<Void>> uniCb =
         gateway.getUniversalCallbackProvider().getCallback(events.requestEnded());
-    Flow<Void> res = uniCb.apply(callback.ctxt, AgentTracer.NoopAgentSpan.INSTANCE);
+    Flow<Void> res = uniCb.apply(callback.ctxt, AgentTracer.noopSpan());
 
     assertThat(count[0]).isEqualTo(2);
     assertThat(res).isNotNull();
