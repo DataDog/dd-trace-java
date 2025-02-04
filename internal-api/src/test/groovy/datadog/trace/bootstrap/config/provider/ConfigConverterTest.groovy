@@ -102,7 +102,7 @@ class ConfigConverterTest extends DDSpecification {
   def "parsing map #mapString with List of arg separators for with key value separator #separator"() {
     //testing parsing for DD_TAGS
     setup:
-    def separatorList = [','.charAt(0), ' '.charAt(0)]
+    def separatorList = [',' as char, ' ' as char]
 
     when:
     def result = ConfigConverter.parseTraceTagsMap(mapString, "test", separator as char, separatorList as List<Character>)
@@ -125,6 +125,11 @@ class ConfigConverterTest extends DDSpecification {
     "a:b,c,d"                                       | ':'       | [a: "b", c: "", d: ""]
     "a,1"                                           | ':'       | [a: "", "1": ""]
     "a:b:c:d"                                       | ':'       | [a: "b:c:d"]
+    //edge cases
+    "noDelimiters"                                  | ':'       | [noDelimiters: ""]
+    "            "                                  | ':'       | [:]
+    ",,,,,,,,,,,,"                                  | ':'       | [:]
+    ", , , , , , "                                  | ':'       | [:]
     // spotless:on
   }
 

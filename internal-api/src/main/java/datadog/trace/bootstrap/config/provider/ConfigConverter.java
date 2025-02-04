@@ -68,12 +68,7 @@ final class ConfigConverter {
 
   @Nonnull
   static Map<String, String> parseMap(final String str, final String settingName) {
-    if (settingName.equals(
-        "trace.tags")) { // if we are parsing dd.tags, use the tags specific parser
-      return parseTraceTagsMap(str, settingName, ':', Arrays.asList(',', ' '));
-    } else {
-      return parseMap(str, settingName, ':');
-    }
+    return parseMap(str, settingName, ':');
   }
 
   @Nonnull
