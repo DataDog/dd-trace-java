@@ -5,7 +5,6 @@ import com.google.gson.JsonParser;
 import datadog.communication.util.IOUtils;
 import datadog.smoketest.springboot.TestBean;
 import datadog.smoketest.springboot.controller.mock.JakartaMockTransport;
-import datadog.smoketest.springboot.controller.mock.MockTransport;
 import ddtest.client.sources.Hasher;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
@@ -23,13 +22,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
-import javax.mail.MessagingException;
-import javax.mail.Provider;
-import javax.mail.Session;
-import javax.mail.Transport;
-import javax.mail.internet.MimeBodyPart;
-import javax.mail.internet.MimeMessage;
-import javax.mail.internet.MimeMultipart;
 import javax.servlet.ServletException;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
@@ -344,40 +336,6 @@ public class IastWebController {
     return "fileName: " + file.getName();
   }
 
-  @PostMapping("/mailHtmlVulnerability")
-  public String mailHtmlVulnerability(HttpServletRequest request) throws MessagingException {
-    Session session = Session.getDefaultInstance(new Properties());
-    Provider provider =
-        new Provider(
-            Provider.Type.TRANSPORT, "smtp", MockTransport.class.getName(), "MockTransport", "1.0");
-    session.setProvider(provider);
-    MimeMessage message = new MimeMessage(session);
-    boolean sanitize =
-        StringUtils.isNotEmpty(request.getParameter("sanitize"))
-            && request.getParameter("sanitize").equalsIgnoreCase("true");
-    if (request.getParameter("messageText") != null) {
-      message.setText(
-          sanitize
-              ? StringEscapeUtils.escapeHtml4(request.getParameter("messageText"))
-              : request.getParameter("messageText"),
-          "utf-8",
-          "html");
-    } else {
-      MimeMultipart content = new MimeMultipart();
-      content.addBodyPart(new MimeBodyPart());
-      content
-          .getBodyPart(0)
-          .setContent(
-              sanitize
-                  ? StringEscapeUtils.escapeHtml4(request.getParameter("messageContent"))
-                  : request.getParameter("messageContent"),
-              "text/html");
-      message.setContent(content, "multipart/*");
-    }
-    Transport.send(message);
-    return "ok";
-  }
-
   @PostMapping("/jakartaMailHtmlVulnerability")
   public String jakartaMailHtmlVulnerability(HttpServletRequest request)
       throws jakarta.mail.MessagingException {
@@ -402,7 +360,7 @@ public class IastWebController {
           "utf-8",
           "html");
     } else {
-      jakarta.mail.internet.MimeMultipart content = new jakarta.mail.internet.MimeMultipart();
+      jakarta.mail.Multipart content = new jakarta.mail.internet.MimeMultipart();
       content.addBodyPart(new jakarta.mail.internet.MimeBodyPart());
       content
           .getBodyPart(0)

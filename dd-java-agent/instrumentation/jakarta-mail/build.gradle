@@ -13,10 +13,10 @@ addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
-  compileOnly 'jakarta.activation:jakarta.activation-api:2.0.1'
-  testImplementation 'jakarta.activation:jakarta.activation-api:2.0.1'
   compileOnly 'jakarta.mail:jakarta.mail-api:2.0.1'
   testImplementation 'jakarta.mail:jakarta.mail-api:2.0.1'
   compileOnly 'com.sun.mail:jakarta.mail:2.0.1'
   testImplementation 'com.sun.mail:jakarta.mail:2.0.1'
+  compileOnly 'jakarta.activation:jakarta.activation-api:2.0.1'
+  testImplementation 'jakarta.activation:jakarta.activation-api:2.0.1'
 }

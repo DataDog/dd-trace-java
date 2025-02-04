@@ -22,6 +22,8 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
     List<String> command = []
     command.add(javaPath())
+    //command.add('-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005')
+
     command.addAll(defaultJavaProperties)
     command.addAll(iastJvmOpts())
     command.addAll((String[]) ['-jar', springBootShadowJar, "--server.port=${httpPort}"])
@@ -100,72 +102,6 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
         tainted.ranges[0].source.origin == 'http.request.multipart.parameter'
     }
 
-  }
-
-  void 'Tainted mail Text'() {
-    given:
-    String url = "http://localhost:${httpPort}/mailHtmlVulnerability"
-    String messageText = "This is a test message"
-    RequestBody requestBody = new MultipartBody.Builder().setType(MultipartBody.FORM)
-      .addFormDataPart("messageText", messageText)
-      .addFormDataPart("sanitize", "false")
-      .build()
-    Request request = new Request.Builder()
-      .url(url)
-      .post(requestBody)
-      .build()
-
-    when:
-    client.newCall(request).execute().body().string()
-
-    then:
-    hasVulnerability { vulnerability ->
-      vulnerability.type == 'EMAIL_HTML_INJECTION'
-    }
-  }
-
-  void 'Tainted mail Content'() {
-    given:
-    String url = "http://localhost:${httpPort}/mailHtmlVulnerability"
-    String messageContent = "<html><body><h1>This is a test message</h1></body></html>"
-    RequestBody requestBody = new MultipartBody.Builder().setType(MultipartBody.FORM)
-      .addFormDataPart("messageContent", messageContent)
-      .addFormDataPart("sanitize", "false")
-      .build()
-    Request request = new Request.Builder()
-      .url(url)
-      .post(requestBody)
-      .build()
-
-    when:
-    client.newCall(request).execute().body().string()
-
-    then:
-    hasVulnerability { vulnerability ->
-      vulnerability.type == 'EMAIL_HTML_INJECTION'
-    }
-  }
-
-  void 'Untainted mail Content'() {
-    given:
-    String url = "http://localhost:${httpPort}/mailHtmlVulnerability"
-    String messageContent = "<html><body><h1>This is a test message</h1></body></html>"
-    RequestBody requestBody = new MultipartBody.Builder().setType(MultipartBody.FORM)
-      .addFormDataPart("messageContent", messageContent)
-      .addFormDataPart("sanitize", "true")
-      .build()
-    Request request = new Request.Builder()
-      .url(url)
-      .post(requestBody)
-      .build()
-
-    when:
-    client.newCall(request).execute().body().string()
-
-    then:
-    noVulnerability { vulnerability ->
-      vulnerability.type == 'EMAIL_HTML_INJECTION'
-    }
   }
 
   void 'Tainted mail Text Jakarta'() {
