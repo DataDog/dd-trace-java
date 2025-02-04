@@ -23,7 +23,7 @@ public final class StableConfigSource extends ConfigProvider.Source {
   private static final Logger log = LoggerFactory.getLogger(StableConfigSource.class);
 
   final ConfigOrigin fileOrigin;
-  HashMap<String, Object> configuration;
+  Map<String, Object> configuration;
 
   StableConfigSource(String file, ConfigOrigin origin) {
     this.fileOrigin = origin;
@@ -34,7 +34,7 @@ public final class StableConfigSource extends ConfigProvider.Source {
     }
   }
 
-  private static HashMap<String, Object> parseStableConfig(String filePath) throws IOException {
+  private static Map<String, Object> parseStableConfig(String filePath) throws IOException {
     HashMap<String, Object> config = new HashMap<>();
 
     // Check if the file exists
@@ -81,16 +81,16 @@ public final class StableConfigSource extends ConfigProvider.Source {
     return this.configuration.keySet();
   }
 
-  private static class StableConfig {
-    private String config_id;
-    private HashMap<String, Object> apm_configuration_default;
-
-    private void setApmConfigurationDefault(HashMap<String, Object> m) {
-      apm_configuration_default = m;
-    }
-
-    private void setConfigId(String i) {
-      config_id = i;
-    }
-  }
+  //  private static class StableConfig {
+  //    private String config_id;
+  //    private Map<String, Object> apm_configuration_default;
+  //
+  //    private void setApmConfigurationDefault(HashMap<String, Object> m) {
+  //      apm_configuration_default = m;
+  //    }
+  //
+  //    private void setConfigId(String i) {
+  //      config_id = i;
+  //    }
+  //  }
 }
