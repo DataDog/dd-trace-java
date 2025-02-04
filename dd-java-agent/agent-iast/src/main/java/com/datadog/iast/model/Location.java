@@ -1,5 +1,6 @@
 package com.datadog.iast.model;
 
+import com.squareup.moshi.Json;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import javax.annotation.Nullable;
 
@@ -15,7 +16,9 @@ public final class Location {
 
   @Nullable private transient String serviceName;
 
-  @Nullable private String className;
+  @Nullable
+  @Json(name = "class")
+  private final String className;
 
   private Location(
       @Nullable final Long spanId,
