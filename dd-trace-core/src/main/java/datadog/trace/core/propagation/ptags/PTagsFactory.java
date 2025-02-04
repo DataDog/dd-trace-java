@@ -81,7 +81,7 @@ public class PTagsFactory implements PropagationTags.Factory {
     // extracted decision maker tag for easier updates
     private volatile TagValue decisionMakerTagValue;
 
-    private AtomicInteger productTs;
+    private final AtomicInteger productTraceSource;
     private volatile String debugPropagation;
 
     // xDatadogTagsSize of the tagPairs, does not include the decision maker tag
@@ -119,13 +119,13 @@ public class PTagsFactory implements PropagationTags.Factory {
         List<TagElement> tagPairs,
         TagValue decisionMakerTagValue,
         TagValue traceIdTagValue,
-        int productTs) {
+        int productTraceSource) {
       this(
           factory,
           tagPairs,
           decisionMakerTagValue,
           traceIdTagValue,
-          productTs,
+          productTraceSource,
           PrioritySampling.UNSET,
           null,
           null);
@@ -136,7 +136,7 @@ public class PTagsFactory implements PropagationTags.Factory {
         List<TagElement> tagPairs,
         TagValue decisionMakerTagValue,
         TagValue traceIdTagValue,
-        int productTs,
+        int productTraceSource,
         int samplingPriority,
         CharSequence origin,
         CharSequence lastParentId) {
@@ -145,7 +145,7 @@ public class PTagsFactory implements PropagationTags.Factory {
       this.tagPairs = tagPairs;
       this.canChangeDecisionMaker = decisionMakerTagValue == null;
       this.decisionMakerTagValue = decisionMakerTagValue;
-      this.productTs = new AtomicInteger(productTs);
+      this.productTraceSource = new AtomicInteger(productTraceSource);
       this.samplingPriority = samplingPriority;
       this.origin = origin;
       this.lastParentId = lastParentId;
@@ -206,11 +206,11 @@ public class PTagsFactory implements PropagationTags.Factory {
     @Override
     public void updatePropagatedTraceSource(final int product) {
       // if is nort marked for the product
-      if (!ProductTraceSource.isProductMarked(productTs.get(), product)) {
+      if (!ProductTraceSource.isProductMarked(productTraceSource.get(), product)) {
         // This should invalidate any cached w3c and datadog header
         clearCachedHeader(DATADOG);
         clearCachedHeader(W3C);
-        productTs.updateAndGet(
+        productTraceSource.updateAndGet(
             value ->
                 ProductTraceSource.updateProduct(
                     value, product)); // Set the bit for the given product
@@ -219,7 +219,7 @@ public class PTagsFactory implements PropagationTags.Factory {
 
     @Override
     public int getPropagatedTraceSource() {
-      return productTs.get();
+      return productTraceSource.get();
     }
 
     @Override
@@ -357,12 +357,12 @@ public class PTagsFactory implements PropagationTags.Factory {
         size = PTagsCodec.calcXDatadogTagsSize(getTagPairs());
         size = PTagsCodec.calcXDatadogTagsSize(size, DECISION_MAKER_TAG, decisionMakerTagValue);
         size = PTagsCodec.calcXDatadogTagsSize(size, TRACE_ID_TAG, traceIdHighOrderBitsHexTagValue);
-        if (productTs.get() != 0) {
+        if (productTraceSource.get() != 0) {
           size =
               PTagsCodec.calcXDatadogTagsSize(
                   size,
                   TRACE_SOURCE_TAG,
-                  TagValue.from(ProductTraceSource.getBitfieldHex(productTs.get())));
+                  TagValue.from(ProductTraceSource.getBitfieldHex(productTraceSource.get())));
         }
         xDatadogTagsSize = size;
       }
