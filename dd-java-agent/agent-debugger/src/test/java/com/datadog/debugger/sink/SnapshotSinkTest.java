@@ -52,7 +52,7 @@ public class SnapshotSinkTest {
     when(config.getServiceName()).thenReturn("service-name");
     when(config.getEnv()).thenReturn("test");
     when(config.getVersion()).thenReturn("foo");
-    when(config.getDebuggerUploadBatchSize()).thenReturn(1);
+    when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(1);
     when(config.getFinalDebuggerSnapshotUrl())
         .thenReturn("http://localhost:8126/debugger/v1/input");
 

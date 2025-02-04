@@ -100,7 +100,8 @@ public class Agent {
         propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED), false),
     USM(propertyNameToSystemPropertyName(UsmConfig.USM_ENABLED), false),
     TELEMETRY(propertyNameToSystemPropertyName(GeneralConfig.TELEMETRY_ENABLED), true),
-    DEBUGGER(propertyNameToSystemPropertyName(DebuggerConfig.DEBUGGER_ENABLED), false),
+    DEBUGGER(
+        propertyNameToSystemPropertyName(DebuggerConfig.DYNAMIC_INSTRUMENTATION_ENABLED), false),
     EXCEPTION_DEBUGGING(
         propertyNameToSystemPropertyName(DebuggerConfig.EXCEPTION_REPLAY_ENABLED), false),
     SPAN_ORIGIN(

@@ -474,7 +474,7 @@ class TelemetryServiceSpecification extends DDSpecification {
     setup:
     injectEnvConfig(Strings.toEnvVar(AppSecConfig.APPSEC_ENABLED), appsecConfig)
     injectEnvConfig(Strings.toEnvVar(ProfilingConfig.PROFILING_ENABLED), profilingConfig)
-    injectEnvConfig(Strings.toEnvVar(DebuggerConfig.DEBUGGER_ENABLED), dynInstrConfig)
+    injectEnvConfig(Strings.toEnvVar(DebuggerConfig.DYNAMIC_INSTRUMENTATION_ENABLED), dynInstrConfig)
 
     TestTelemetryRouter testHttpClient = new TestTelemetryRouter()
     TelemetryService telemetryService = new TelemetryService(testHttpClient, 10000, false)

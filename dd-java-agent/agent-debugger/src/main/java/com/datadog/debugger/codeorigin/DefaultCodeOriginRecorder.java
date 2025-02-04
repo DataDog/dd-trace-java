@@ -115,7 +115,7 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
 
     // i think this check is unnecessary at this point time but leaving for now to be safe
     if (installed == null) {
-      if (Config.get().isDebuggerEnabled()) {
+      if (Config.get().isDynamicInstrumentationEnabled()) {
         registerLogProbe(probe);
       }
       installProbes();

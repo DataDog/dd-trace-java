@@ -103,12 +103,12 @@ public class DebuggerAgent {
       LOGGER.info("Starting Code Origin for spans");
       DebuggerContext.initCodeOrigin(new DefaultCodeOriginRecorder(config, configurationUpdater));
     }
-    if (config.isDebuggerInstrumentTheWorld()) {
+    if (config.isDynamicInstrumentationInstrumentTheWorld()) {
       setupInstrumentTheWorldTransformer(
           config, instrumentation, debuggerSink, statsdMetricForwarder);
     }
     // Dynamic Instrumentation
-    if (config.isDebuggerEnabled()) {
+    if (config.isDynamicInstrumentationEnabled()) {
       startDynamicInstrumentation(
           instrumentation, sco, config, configurationUpdater, debuggerSink, classNameFilter);
     }
@@ -137,10 +137,11 @@ public class DebuggerAgent {
       DebuggerSink debuggerSink,
       ClassNameFilter classNameFilter) {
     LOGGER.info("Starting Dynamic Instrumentation");
-    String probeFileLocation = config.getDebuggerProbeFileLocation();
+    String probeFileLocation = config.getDynamicInstrumentationProbeFile();
     if (probeFileLocation != null) {
       Path probeFilePath = Paths.get(probeFileLocation);
-      loadFromFile(probeFilePath, configurationUpdater, config.getDebuggerMaxPayloadSize());
+      loadFromFile(
+          probeFilePath, configurationUpdater, config.getDynamicInstrumentationMaxPayloadSize());
       return;
     }
     configurationPoller = sco.configurationPoller(config);
