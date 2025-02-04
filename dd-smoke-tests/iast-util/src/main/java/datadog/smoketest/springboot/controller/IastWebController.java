@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonParser;
 import datadog.communication.util.IOUtils;
 import datadog.smoketest.springboot.TestBean;
+import datadog.smoketest.springboot.controller.mock.JakartaMockTransport;
 import datadog.smoketest.springboot.controller.mock.MockTransport;
 import ddtest.client.sources.Hasher;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -344,22 +345,21 @@ public class IastWebController {
   }
 
   @PostMapping("/mailHtmlVulnerability")
-  public String mailHtmlVulnerability(
-      @RequestParam("messageText") String messageText,
-      @RequestParam("messageContent") String messageContent,
-      @RequestParam("sanitize") String sanitize)
-      throws MessagingException {
+  public String mailHtmlVulnerability(HttpServletRequest request) throws MessagingException {
     Session session = Session.getDefaultInstance(new Properties());
     Provider provider =
         new Provider(
             Provider.Type.TRANSPORT, "smtp", MockTransport.class.getName(), "MockTransport", "1.0");
     session.setProvider(provider);
     MimeMessage message = new MimeMessage(session);
-    if (messageText != null) {
+    boolean sanitize =
+        StringUtils.isNotEmpty(request.getParameter("sanitize"))
+            && request.getParameter("sanitize").equalsIgnoreCase("true");
+    if (request.getParameter("messageText") != null) {
       message.setText(
-          StringUtils.isNotEmpty(sanitize) && sanitize.equalsIgnoreCase("true")
-              ? StringEscapeUtils.escapeHtml4(messageText)
-              : messageText,
+          sanitize
+              ? StringEscapeUtils.escapeHtml4(request.getParameter("messageText"))
+              : request.getParameter("messageText"),
           "utf-8",
           "html");
     } else {
@@ -368,9 +368,9 @@ public class IastWebController {
       content
           .getBodyPart(0)
           .setContent(
-              StringUtils.isNotEmpty(sanitize) && sanitize.equalsIgnoreCase("true")
-                  ? StringEscapeUtils.escapeHtml4(messageContent)
-                  : messageContent,
+              sanitize
+                  ? StringEscapeUtils.escapeHtml4(request.getParameter("messageContent"))
+                  : request.getParameter("messageContent"),
               "text/html");
       message.setContent(content, "multipart/*");
     }
@@ -379,26 +379,26 @@ public class IastWebController {
   }
 
   @PostMapping("/jakartaMailHtmlVulnerability")
-  public String jakartaMailHtmlVulnerability(
-      @RequestParam("messageText") String messageText,
-      @RequestParam("messageContent") String messageContent,
-      @RequestParam("sanitize") String sanitize)
+  public String jakartaMailHtmlVulnerability(HttpServletRequest request)
       throws jakarta.mail.MessagingException {
     jakarta.mail.Session session = jakarta.mail.Session.getDefaultInstance(new Properties());
     jakarta.mail.Provider provider =
         new jakarta.mail.Provider(
             jakarta.mail.Provider.Type.TRANSPORT,
             "smtp",
-            MockTransport.class.getName(),
+            JakartaMockTransport.class.getName(),
             "MockTransport",
             "1.0");
     session.setProvider(provider);
+    boolean sanitize =
+        StringUtils.isNotEmpty(request.getParameter("sanitize"))
+            && request.getParameter("sanitize").equalsIgnoreCase("true");
     jakarta.mail.internet.MimeMessage message = new jakarta.mail.internet.MimeMessage(session);
-    if (messageText != null) {
+    if (request.getParameter("messageText") != null) {
       message.setText(
-          StringUtils.isNotEmpty(sanitize) && sanitize.equalsIgnoreCase("true")
-              ? StringEscapeUtils.escapeHtml4(messageText)
-              : messageText,
+          sanitize
+              ? StringEscapeUtils.escapeHtml4(request.getParameter("messageText"))
+              : request.getParameter("messageText"),
           "utf-8",
           "html");
     } else {
@@ -407,9 +407,9 @@ public class IastWebController {
       content
           .getBodyPart(0)
           .setContent(
-              StringUtils.isNotEmpty(sanitize) && sanitize.equalsIgnoreCase("true")
-                  ? StringEscapeUtils.escapeHtml4(messageContent)
-                  : messageContent,
+              sanitize
+                  ? StringEscapeUtils.escapeHtml4(request.getParameter("messageContent"))
+                  : request.getParameter("messageContent"),
               "text/html");
       message.setContent(content, "multipart/*");
     }
