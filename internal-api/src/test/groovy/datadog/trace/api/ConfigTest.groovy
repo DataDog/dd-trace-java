@@ -340,7 +340,7 @@ class ConfigTest extends DDSpecification {
     config.dynamicInstrumentationUploadTimeout == 10
     config.dynamicInstrumentationUploadFlushInterval == 1000
     config.dynamicInstrumentationUploadBatchSize == 200
-    config.debuggerMetricsEnabled == false
+    config.dynamicInstrumentationMetricsEnabled == false
     config.dynamicInstrumentationClassFileDumpEnabled == true
     config.dynamicInstrumentationPollInterval == 10
     config.dynamicInstrumentationDiagnosticsInterval == 60
@@ -520,7 +520,7 @@ class ConfigTest extends DDSpecification {
     config.dynamicInstrumentationUploadTimeout == 10
     config.dynamicInstrumentationUploadFlushInterval == 1000
     config.dynamicInstrumentationUploadBatchSize == 200
-    config.debuggerMetricsEnabled == false
+    config.dynamicInstrumentationMetricsEnabled == false
     config.dynamicInstrumentationClassFileDumpEnabled == true
     config.dynamicInstrumentationPollInterval == 10
     config.dynamicInstrumentationDiagnosticsInterval == 60

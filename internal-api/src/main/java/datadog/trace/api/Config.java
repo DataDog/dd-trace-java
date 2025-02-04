@@ -3062,7 +3062,7 @@ public class Config {
     return dynamicInstrumentationDiagnosticsInterval;
   }
 
-  public boolean isDebuggerMetricsEnabled() {
+  public boolean isDynamicInstrumentationMetricsEnabled() {
     return dynamicInstrumentationMetricEnabled;
   }
 
