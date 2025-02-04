@@ -67,16 +67,18 @@ public final class StableConfigSource extends ConfigProvider.Source {
     return config;
   };
 
+  @Override
   public String get(String key) {
     return (String) configuration.get(propertyNameToEnvironmentVariableName(key));
   }
 
-  public Set<String> getKeys() {
-    return this.configuration.keySet();
-  }
-
+  @Override
   public ConfigOrigin origin() {
     return fileOrigin;
+  }
+
+  public Set<String> getKeys() {
+    return this.configuration.keySet();
   }
 
   private static class StableConfig {
