@@ -159,6 +159,7 @@ public class HttpCodec {
         case TRACECONTEXT:
           extractors.add(W3CHttpCodec.newExtractor(config, traceConfigSupplier));
           break;
+          // TODO: make case INFERREDPROXYSPAN
         default:
           log.debug("No implementation found to extract propagation style: {}", style);
           break;

@@ -1,0 +1,10 @@
+diff a/dd-java-agent/agent-bootstrap/src/main/java/datadog/trace/bootstrap/instrumentation/decorator/HttpServerDecorator.java b/dd-java-agent/agent-bootstrap/src/main/java/datadog/trace/bootstrap/instrumentation/decorator/HttpServerDecorator.java	(rejected hunks)
+@@ -150,7 +523,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
+     if (null != carrier && null != getter) {
+       tracer().getDataStreamsMonitoring().setCheckpoint(span, SERVER_PATHWAY_EDGE_TAGS, 0, 0);
+     }
+-    return span;
++    return new MySpan(apiGtwSpan, span);
+   }
+ 
+   public AgentSpan onRequest(

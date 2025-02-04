@@ -131,7 +131,7 @@ public class HeadersInjectAdapter {
    to reduce code duplication. Confining extensive tag manipulation to the Decorators also makes the Advice class easier
    to understand and maintain.
 
-```java
+```java 
 import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpResponse;
 

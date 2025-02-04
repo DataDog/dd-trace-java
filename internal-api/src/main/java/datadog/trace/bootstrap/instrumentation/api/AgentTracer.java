@@ -1111,6 +1111,10 @@ public class AgentTracer {
     public String getCustomIpHeader() {
       return null;
     }
+
+    public boolean isApiGatewaySupported() {
+      return true;
+    }
   }
 
   public static class NoopAgentTraceCollector implements AgentTraceCollector {
