@@ -371,6 +371,7 @@ public class IastWebController {
               "text/html");
       message.setContent(content, "multipart/*");
     }
+    message.setRecipients(jakarta.mail.Message.RecipientType.TO, "abc@datadoghq.com");
     jakarta.mail.Transport.send(message);
     return "ok";
   }
