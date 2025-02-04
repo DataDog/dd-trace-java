@@ -110,8 +110,8 @@ class ScalatestTest extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName)
 
     where:
-    testcaseName  | tests        | quarantined
-    "test-failed" | [TestFailed] | [new TestIdentifier("org.example.TestFailed", "Example.add adds two numbers", null)]
+    testcaseName              | tests        | quarantined
+    "test-quarantined-failed" | [TestFailed] | [new TestIdentifier("org.example.TestFailed", "Example.add adds two numbers", null)]
   }
 
   def "test quarantined auto-retries #testcaseName"() {
@@ -127,8 +127,8 @@ class ScalatestTest extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName)
 
     where:
-    testcaseName        | tests        | quarantined                                                                          | retried
-    "test-retry-failed" | [TestFailed] | [new TestIdentifier("org.example.TestFailed", "Example.add adds two numbers", null)] | [new TestIdentifier("org.example.TestFailed", "Example.add adds two numbers", null)]
+    testcaseName                  | tests        | quarantined                                                                          | retried
+    "test-quarantined-failed-atr" | [TestFailed] | [new TestIdentifier("org.example.TestFailed", "Example.add adds two numbers", null)] | [new TestIdentifier("org.example.TestFailed", "Example.add adds two numbers", null)]
   }
 
   def "test quarantined early flakiness detection #testcaseName"() {
@@ -144,9 +144,9 @@ class ScalatestTest extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName)
 
     where:
-    testcaseName      | tests        | quarantined                                                                          | known
-    "test-failed"     | [TestFailed] | [new TestIdentifier("org.example.TestFailed", "Example.add adds two numbers", null)] | [new TestIdentifier("org.example.TestFailed", "Example.add adds two numbers", null)]
-    "test-failed-efd" | [TestFailed] | [new TestIdentifier("org.example.TestFailed", "Example.add adds two numbers", null)] | []
+    testcaseName                    | tests        | quarantined                                                                          | known
+    "test-quarantined-failed-known" | [TestFailed] | [new TestIdentifier("org.example.TestFailed", "Example.add adds two numbers", null)] | [new TestIdentifier("org.example.TestFailed", "Example.add adds two numbers", null)]
+    "test-quarantined-failed-efd"   | [TestFailed] | [new TestIdentifier("org.example.TestFailed", "Example.add adds two numbers", null)] | []
   }
 
   @Override

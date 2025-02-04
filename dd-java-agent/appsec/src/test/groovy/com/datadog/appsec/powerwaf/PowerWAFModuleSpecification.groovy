@@ -70,7 +70,10 @@ class PowerWAFModuleSpecification extends DDSpecification {
   Additive pwafAdditive
   PowerwafMetrics metrics
 
+  WafMetricCollector wafMetricCollector = Mock(WafMetricCollector)
+
   void setup() {
+    WafMetricCollector.INSTANCE = wafMetricCollector
     AgentTracer.forceRegister(tracer)
   }
 
@@ -206,6 +209,8 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ctx.closeAdditive()
 
     then:
+    1 * wafMetricCollector.wafInit(Powerwaf.LIB_VERSION, _, true)
+    1 * wafMetricCollector.wafUpdates(_, true)
     1 * reconf.reloadSubscriptions()
     1 * flow.setAction({ Flow.Action.RequestBlockingAction rba ->
       rba.statusCode == 501 &&
@@ -241,6 +246,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ctx.closeAdditive()
 
     then:
+    1 * wafMetricCollector.wafInit(Powerwaf.LIB_VERSION, _, true)
     1 * flow.setAction({ Flow.Action.RequestBlockingAction rba ->
       rba.statusCode == 403 &&
         rba.blockingContentType == BlockingContentType.AUTO
@@ -282,6 +288,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ctx.closeAdditive()
 
     then:
+    1 * wafMetricCollector.wafUpdates(_, true)
     1 * reconf.reloadSubscriptions()
     1 * flow.setAction({ Flow.Action.RequestBlockingAction rba ->
       rba.statusCode == 403 &&
@@ -364,6 +371,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ctx.closeAdditive()
 
     then:
+    1 * wafMetricCollector.wafUpdates(_, true)
     1 * reconf.reloadSubscriptions()
     1 * flow.setAction({ Flow.Action.RequestBlockingAction rba ->
       rba.statusCode == 403 &&
@@ -440,7 +448,10 @@ class PowerWAFModuleSpecification extends DDSpecification {
     }
 
     then:
+    1 * wafMetricCollector.wafInit(Powerwaf.LIB_VERSION, _, true)
+    1 * wafMetricCollector.wafUpdates(_, true)
     1 * reconf.reloadSubscriptions()
+    0 * _
 
     when:
     dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, gwCtx)
@@ -522,7 +533,10 @@ class PowerWAFModuleSpecification extends DDSpecification {
     }
 
     then:
+    1 * wafMetricCollector.wafInit(Powerwaf.LIB_VERSION, _, true)
+    1 * wafMetricCollector.wafUpdates(_, true)
     1 * reconf.reloadSubscriptions()
+    0 * _
 
     when:
     dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, gwCtx)
@@ -597,7 +611,10 @@ class PowerWAFModuleSpecification extends DDSpecification {
     }
 
     then:
+    1 * wafMetricCollector.wafInit(Powerwaf.LIB_VERSION, _, true)
+    2 * wafMetricCollector.wafUpdates(_, true)
     2 * reconf.reloadSubscriptions()
+    0 * _
 
     when:
     dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, gwCtx)
@@ -972,9 +989,6 @@ class PowerWAFModuleSpecification extends DDSpecification {
     TraceSegment segment = Mock()
     TraceSegmentPostProcessor pp = service.traceSegmentPostProcessors.last()
 
-    def mockWafMetricCollector = Mock(WafMetricCollector)
-    WafMetricCollector.INSTANCE = mockWafMetricCollector
-
     when:
     dataListener.onDataAvailable(flow, ctx, db, gwCtx)
 
@@ -987,7 +1001,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
       pwafAdditive = it[0].openAdditive() }
     1 * ctx.getWafMetrics()
     1 * ctx.increaseWafTimeouts()
-    1 * mockWafMetricCollector.get().wafRequestTimeout()
+    1 * wafMetricCollector.get().wafRequestTimeout()
     0 * _
 
     when:
@@ -1014,9 +1028,6 @@ class PowerWAFModuleSpecification extends DDSpecification {
     TraceSegment segment = Mock()
     TraceSegmentPostProcessor pp = service.traceSegmentPostProcessors.last()
 
-    def mockWafMetricCollector = Mock(WafMetricCollector)
-    WafMetricCollector.INSTANCE = mockWafMetricCollector
-
     gwCtx = new GatewayContext(false, RuleType.SQL_INJECTION)
 
     when:
@@ -1032,8 +1043,8 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.getRaspMetrics()
     1 * ctx.getRaspMetricsCounter()
     1 * ctx.increaseRaspTimeouts()
-    1 * mockWafMetricCollector.get().raspTimeout(gwCtx.raspRuleType)
-    1 * mockWafMetricCollector.raspRuleEval(RuleType.SQL_INJECTION)
+    1 * wafMetricCollector.get().raspTimeout(gwCtx.raspRuleType)
+    1 * wafMetricCollector.raspRuleEval(RuleType.SQL_INJECTION)
     0 * _
 
     when:
@@ -1059,6 +1070,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
 
     then:
     thrown AppSecModule.AppSecModuleActivationException
+    0 * _
 
     when:
     cfgService.listeners['waf'].onNewSubconfig(defaultConfig['waf'], reconf)
@@ -1070,7 +1082,14 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.getOrCreateAdditive(_, true, false) >> {
       pwafAdditive = it[0].openAdditive() }
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
+    1 * ctx.isAdditiveClosed()
+    1 * ctx.getWafMetrics()
+    1 * ctx.isThrottled(null)
+    1 * ctx.closeAdditive()
+    2 * tracer.activeSpan()
+    1 * wafMetricCollector.wafInit(Powerwaf.LIB_VERSION, _, true)
     1 * reconf.reloadSubscriptions()
+    0 * _
   }
 
   void 'rule data given through configuration'() {
@@ -1102,6 +1121,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ctx.closeAdditive()
 
     then:
+    1 * wafMetricCollector.wafUpdates(_, true)
     1 * reconf.reloadSubscriptions()
     1 * ctx.getOrCreateAdditive(_, true, false) >> { pwafAdditive = it[0].openAdditive() }
     2 * tracer.activeSpan()
@@ -1159,6 +1179,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ctx.closeAdditive()
 
     then: 'no match; rule is disabled'
+    1 * wafMetricCollector.wafUpdates(_, true)
     1 * reconf.reloadSubscriptions()
     1 * ctx.getOrCreateAdditive(_, true, false) >> {
       pwafAdditive = it[0].openAdditive() }
@@ -1189,6 +1210,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.getWafMetrics()
     1 * ctx.isAdditiveClosed() >> false
     1 * ctx.closeAdditive() >> {pwafAdditive.close()}
+    1 * wafMetricCollector.wafUpdates(_, true)
     1 * reconf.reloadSubscriptions()
     _ * ctx.increaseWafTimeouts()
     _ * ctx.increaseRaspTimeouts()
@@ -1206,6 +1228,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ctx.closeAdditive()
 
     then: 'now we have match'
+    1 * wafMetricCollector.wafUpdates(_, true)
     1 * reconf.reloadSubscriptions()
     1 * ctx.getOrCreateAdditive(_, true, false) >> {
       pwafAdditive = it[0].openAdditive() }
@@ -1235,6 +1258,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ctx.closeAdditive()
 
     then: 'nothing again; we disabled the rule'
+    1 * wafMetricCollector.wafUpdates(_, true)
     1 * reconf.reloadSubscriptions()
     1 * ctx.getOrCreateAdditive(_, true, false) >> { pwafAdditive = it[0].openAdditive() }
     1 * ctx.getWafMetrics()
@@ -1265,6 +1289,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ctx.closeAdditive()
 
     then:
+    1 * wafMetricCollector.wafUpdates(_, true)
     1 * reconf.reloadSubscriptions()
     // no attack
     1 * ctx.getOrCreateAdditive(_, true, false) >> { pwafAdditive = it[0].openAdditive() }
@@ -1289,6 +1314,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ctx.closeAdditive()
 
     then:
+    1 * wafMetricCollector.wafUpdates(_, true)
     1 * reconf.reloadSubscriptions()
     // no attack
     1 * ctx.getOrCreateAdditive(_, true, false) >> {
@@ -1314,6 +1340,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ctx.closeAdditive()
 
     then:
+    1 * wafMetricCollector.wafUpdates(_, true)
     1 * reconf.reloadSubscriptions()
     // attack found
     1 * ctx.getOrCreateAdditive(_, true, false) >> {
@@ -1342,6 +1369,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ctx.closeAdditive()
 
     then:
+    1 * wafMetricCollector.wafUpdates(_, true)
     1 * reconf.reloadSubscriptions()
     // no attack
     1 * ctx.getOrCreateAdditive(_, true, false) >> {
@@ -1390,7 +1418,9 @@ class PowerWAFModuleSpecification extends DDSpecification {
     pwafModule.config(cfgService)
 
     then:
+    1 * wafMetricCollector.wafInit(Powerwaf.LIB_VERSION, _, true)
     !pwafModule.dataSubscriptions.first().subscribedAddresses.contains(doesNotExistAddress)
+    0 * _
   }
 
   void 'bad initial configuration is given results in no subscriptions'() {
@@ -1403,6 +1433,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     then:
     thrown AppSecModule.AppSecModuleActivationException
     pwafModule.dataSubscriptions.empty
+    0 * _
   }
 
   void 'rule data not a config'() {
@@ -1414,9 +1445,8 @@ class PowerWAFModuleSpecification extends DDSpecification {
 
     then:
     thrown AppSecModule.AppSecModuleActivationException
-
-    then:
     pwafModule.ctxAndAddresses.get() == null
+    0 * _
   }
 
   void 'bad ResultWithData - empty list'() {
@@ -1554,7 +1584,18 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ctx.closeAdditive()
 
     then:
+    1 * ctx.isAdditiveClosed()
+    1 * ctx.getOrCreateAdditive(_ as PowerwafContext, true, false) >> {
+      pwafAdditive = it[0].openAdditive()
+    }
+    1 * ctx.getWafMetrics()
+    1 * ctx.isThrottled(null)
+    1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
+    1 * ctx.closeAdditive()
+    2 * tracer.activeSpan()
+    1 * flow.isBlocking()
     0 * flow.setAction(_)
+    0 * _
 
     when:
     final ipData = new AppSecData(exclusion: [
@@ -1576,11 +1617,22 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ctx.closeAdditive()
 
     then:
+    1 * wafMetricCollector.wafUpdates(_, true)
     1 * reconf.reloadSubscriptions()
     1 * flow.setAction({ Flow.Action.RequestBlockingAction rba ->
       rba.statusCode == 402 && rba.blockingContentType == BlockingContentType.AUTO
     })
+    1 * flow.isBlocking()
     1 * ctx.isAdditiveClosed() >> false
+    1 * ctx.getOrCreateAdditive(_ as PowerwafContext, true, false) >> {
+      pwafAdditive = it[0].openAdditive()
+    }
+    1 * ctx.getWafMetrics()
+    1 * ctx.isThrottled(null)
+    1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
+    1 * ctx.closeAdditive()
+    2 * tracer.activeSpan()
+    0 * _
   }
 
   void 'http endpoint fingerprint support'() {
@@ -1668,6 +1720,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     then:
     1 * ctx.closeAdditive()
     1 * ctx.isAdditiveClosed() >> true
+    1 * wafMetricCollector.wafInit(Powerwaf.LIB_VERSION, _, true)
     0 * _
   }
 

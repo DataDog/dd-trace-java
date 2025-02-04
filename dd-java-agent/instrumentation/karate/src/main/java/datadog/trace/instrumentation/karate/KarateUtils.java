@@ -21,7 +21,7 @@ import java.util.List;
 
 public abstract class KarateUtils {
 
-  public static final String RETRY_MAGIC_VARIABLE = "__datadog_retry";
+  public static final String EXECUTION_HISTORY_MAGICVARIABLE = "__datadog_execution_history";
 
   private KarateUtils() {}
 

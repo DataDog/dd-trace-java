@@ -7,6 +7,12 @@ import com.jayway.jsonpath.JsonPath
 import com.jayway.jsonpath.Option
 import com.jayway.jsonpath.ReadContext
 import com.jayway.jsonpath.WriteContext
+import datadog.trace.api.Config
+import datadog.trace.civisibility.ci.CIProviderInfoFactory
+import datadog.trace.civisibility.ci.GitLabInfo
+import datadog.trace.civisibility.ci.GithubActionsInfo
+import datadog.trace.civisibility.ci.env.CiEnvironment
+import datadog.trace.civisibility.ci.env.CiEnvironmentImpl
 import freemarker.core.Environment
 import freemarker.core.InvalidReferenceException
 import freemarker.template.Template
@@ -87,10 +93,15 @@ abstract class CiVisibilityTestUtils {
       replacementMap.put(labelGenerator.forKey(e.key), "\"$e.value\"")
     }
 
+    def environment = System.getenv()
+    def ciRun = environment.get("GITHUB_ACTION") != null || environment.get("GITLAB_CI") != null
+    def comparisonMode = ciRun ? JSONCompareMode.LENIENT : JSONCompareMode.NON_EXTENSIBLE
+
     def expectedEvents = getFreemarkerTemplate(baseTemplatesPath + "/events.ftl", replacementMap, events)
     def actualEvents = JSON_MAPPER.writeValueAsString(events)
+
     try {
-      JSONAssert.assertEquals(expectedEvents, actualEvents, JSONCompareMode.LENIENT)
+      JSONAssert.assertEquals(expectedEvents, actualEvents, comparisonMode)
     } catch (AssertionError e) {
       throw new org.opentest4j.AssertionFailedError("Events mismatch", expectedEvents, actualEvents, e)
     }
@@ -98,7 +109,7 @@ abstract class CiVisibilityTestUtils {
     def expectedCoverages = getFreemarkerTemplate(baseTemplatesPath + "/coverages.ftl", replacementMap, coverages)
     def actualCoverages = JSON_MAPPER.writeValueAsString(coverages)
     try {
-      JSONAssert.assertEquals(expectedCoverages, actualCoverages, JSONCompareMode.LENIENT)
+      JSONAssert.assertEquals(expectedCoverages, actualCoverages, comparisonMode)
     } catch (AssertionError e) {
       throw new org.opentest4j.AssertionFailedError("Coverages mismatch", expectedCoverages, actualCoverages, e)
     }

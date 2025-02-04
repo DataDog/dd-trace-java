@@ -64,14 +64,12 @@ class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
 
   @Override
   boolean testRequestBody() {
-    //FIXME: it does not work with latestDep
-    false
+    true
   }
 
   @Override
   boolean testBodyUrlencoded() {
-    //FIXME: it does not work with latestDep
-    false
+    true
   }
 
   @Override
@@ -81,8 +79,7 @@ class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
 
   @Override
   boolean testBodyJson() {
-    //FIXME: it does not work with latestDep
-    false
+    true
   }
 
   @Override
@@ -133,6 +130,12 @@ class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
   }
 
   @Override
+  boolean testBlockingErrorTypeSet() {
+    //FIXME: error type is not set in netty
+    false
+  }
+
+  @Override
   Serializable expectedServerSpanRoute(ServerEndpoint endpoint) {
     switch (endpoint) {
       case LOGIN:
@@ -173,13 +176,5 @@ class VertxHttpServerWorkerForkedTest extends VertxHttpServerForkedTest {
   @Override
   HttpServer server() {
     return new VertxServer(verticle(), routerBasePath(), true)
-  }
-
-  @Override
-  boolean testBlocking() {
-    //FIXME: ASM
-    // on the worker the requests are dispatched through a queue.
-    // Despite the blocking works, we fails recording that blocking exception
-    false
   }
 }

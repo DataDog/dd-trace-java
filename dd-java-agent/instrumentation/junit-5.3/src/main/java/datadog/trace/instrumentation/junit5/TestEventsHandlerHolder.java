@@ -4,6 +4,7 @@ import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.api.civisibility.DDTestSuite;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
+import datadog.trace.api.civisibility.execution.TestExecutionHistory;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.util.AgentThreadFactory;
 import org.junit.platform.engine.TestDescriptor;
@@ -13,6 +14,8 @@ public abstract class TestEventsHandlerHolder {
   public static volatile TestEventsHandler<TestDescriptor, TestDescriptor> TEST_EVENTS_HANDLER;
   private static ContextStore<TestDescriptor, DDTestSuite> SUITE_STORE;
   private static ContextStore<TestDescriptor, DDTest> TEST_STORE;
+  private static volatile ContextStore<TestDescriptor, TestExecutionHistory>
+      EXECUTION_HISTORY_STORE;
 
   static {
     Runtime.getRuntime()
@@ -31,6 +34,28 @@ public abstract class TestEventsHandlerHolder {
     }
     if (TEST_STORE == null) {
       TEST_STORE = testStore;
+    }
+  }
+
+  public static synchronized void setExecutionHistoryStore(
+      ContextStore<TestDescriptor, TestExecutionHistory> executionHistoryStore) {
+    if (EXECUTION_HISTORY_STORE == null) {
+      EXECUTION_HISTORY_STORE = executionHistoryStore;
+    }
+  }
+
+  public static void setExecutionHistory(
+      TestDescriptor testDescriptor, TestExecutionHistory history) {
+    if (EXECUTION_HISTORY_STORE != null) {
+      EXECUTION_HISTORY_STORE.put(testDescriptor, history);
+    }
+  }
+
+  public static TestExecutionHistory getExecutionHistory(TestDescriptor testDescriptor) {
+    if (EXECUTION_HISTORY_STORE != null) {
+      return EXECUTION_HISTORY_STORE.get(testDescriptor);
+    } else {
+      return null;
     }
   }
 

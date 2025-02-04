@@ -33,4 +33,9 @@ public class RunOnceIgnoreOutcome implements TestExecutionPolicy {
   public RetryReason currentExecutionRetryReason() {
     return null;
   }
+
+  @Override
+  public boolean hasFailedAllRetries() {
+    return false;
+  }
 }

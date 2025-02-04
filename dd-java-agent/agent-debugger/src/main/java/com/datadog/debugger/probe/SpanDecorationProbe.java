@@ -291,18 +291,13 @@ public class SpanDecorationProbe extends ProbeDefinition {
   @Override
   public String toString() {
     return "SpanDecorationProbe{"
-        + "language='"
-        + language
-        + '\''
-        + ", id='"
+        + "id='"
         + id
         + '\''
         + ", version="
         + version
         + ", tags="
         + Arrays.toString(tags)
-        + ", tagMap="
-        + tagMap
         + ", where="
         + where
         + ", evaluateAt="

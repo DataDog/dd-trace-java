@@ -18,9 +18,9 @@ class WafMetricCollectorTest extends DDSpecification {
 
   def "put-get waf/rasp metrics"() {
     when:
-    WafMetricCollector.get().wafInit('waf_ver1', 'rules.1')
-    WafMetricCollector.get().wafUpdates('rules.2')
-    WafMetricCollector.get().wafUpdates('rules.3')
+    WafMetricCollector.get().wafInit('waf_ver1', 'rules.1', true)
+    WafMetricCollector.get().wafUpdates('rules.2', true)
+    WafMetricCollector.get().wafUpdates('rules.3', false)
     WafMetricCollector.get().wafRequest()
     WafMetricCollector.get().wafRequest()
     WafMetricCollector.get().wafRequest()
@@ -43,21 +43,21 @@ class WafMetricCollectorTest extends DDSpecification {
     initMetric.value == 1
     initMetric.namespace == 'appsec'
     initMetric.metricName == 'waf.init'
-    initMetric.tags.toSet() == ['waf_version:waf_ver1', 'event_rules_version:rules.1'].toSet()
+    initMetric.tags.toSet() == ['waf_version:waf_ver1', 'event_rules_version:rules.1', 'success:true'].toSet()
 
     def updateMetric1 = (WafMetricCollector.WafUpdatesRawMetric)metrics[1]
     updateMetric1.type == 'count'
     updateMetric1.value == 1
     updateMetric1.namespace == 'appsec'
     updateMetric1.metricName == 'waf.updates'
-    updateMetric1.tags.toSet() == ['waf_version:waf_ver1', 'event_rules_version:rules.2'].toSet()
+    updateMetric1.tags.toSet() == ['waf_version:waf_ver1', 'event_rules_version:rules.2', 'success:true'].toSet()
 
     def updateMetric2 = (WafMetricCollector.WafUpdatesRawMetric)metrics[2]
     updateMetric2.type == 'count'
     updateMetric2.value == 2
     updateMetric2.namespace == 'appsec'
     updateMetric2.metricName == 'waf.updates'
-    updateMetric2.tags.toSet() == ['waf_version:waf_ver1', 'event_rules_version:rules.3'].toSet()
+    updateMetric2.tags.toSet() == ['waf_version:waf_ver1', 'event_rules_version:rules.3', 'success:false'].toSet()
 
     def requestMetric = (WafMetricCollector.WafRequestsRawMetric)metrics[3]
     requestMetric.namespace == 'appsec'
@@ -140,7 +140,7 @@ class WafMetricCollectorTest extends DDSpecification {
 
     when:
     (0..limit*2).each {
-      collector.wafInit("foo", "bar")
+      collector.wafInit("foo", "bar", true)
     }
 
     then:
@@ -149,7 +149,7 @@ class WafMetricCollectorTest extends DDSpecification {
 
     when:
     (0..limit*2).each {
-      collector.wafUpdates("bar")
+      collector.wafUpdates("bar", true)
     }
 
     then:
@@ -298,7 +298,7 @@ class WafMetricCollectorTest extends DDSpecification {
 
   def "test Rasp #ruleType metrics"() {
     when:
-    WafMetricCollector.get().wafInit('waf_ver1', 'rules.1')
+    WafMetricCollector.get().wafInit('waf_ver1', 'rules.1', true)
     WafMetricCollector.get().raspRuleEval(ruleType)
     WafMetricCollector.get().raspRuleEval(ruleType)
     WafMetricCollector.get().raspRuleMatch(ruleType)

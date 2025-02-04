@@ -239,6 +239,7 @@
       "span.kind" : "test",
       "test.framework" : "cucumber",
       "test.framework_version" : ${content_meta_test_framework_version},
+      "test.has_failed_all_retries" : "true",
       "test.is_retry" : "true",
       "test.module" : "cucumber-junit-5",
       "test.name" : "Addition",

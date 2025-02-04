@@ -5,7 +5,7 @@ import io.vertx.core.AbstractVerticle
 import io.vertx.core.DeploymentOptions
 import io.vertx.core.ThreadingModel
 import io.vertx.core.Vertx
-import io.vertx.core.internal.VertxInternal
+import io.vertx.core.impl.VertxInternal
 import io.vertx.core.json.JsonObject
 
 import java.util.concurrent.CompletableFuture
@@ -42,8 +42,11 @@ class VertxServer implements HttpServer {
     if (useWorker) {
       deployOptions = deployOptions.setWorkerPoolSize(1).setThreadingModel(ThreadingModel.WORKER)
     }
-    server.deployVerticle(verticle.name, deployOptions).await()
-
+    server.deployVerticle(verticle.name, deployOptions) { res ->
+      if (!res.succeeded()) {
+        throw new RuntimeException("Cannot deploy server Verticle", res.cause())
+      }
+    }
     future.get()
   }
 
