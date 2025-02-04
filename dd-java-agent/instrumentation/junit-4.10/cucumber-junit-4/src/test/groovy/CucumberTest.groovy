@@ -90,7 +90,7 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test quarantined #testcaseName"() {
-    givenQuarantineEnabled(true)
+    givenTestManagementEnabled(true)
     givenQuarantinedTests(quarantined)
 
     runFeatures(features, true)
@@ -105,7 +105,7 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test quarantined auto-retries #testcaseName"() {
-    givenQuarantineEnabled(true)
+    givenTestManagementEnabled(true)
     givenQuarantinedTests(quarantined)
 
     givenFlakyRetryEnabled(true)
@@ -126,7 +126,7 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test quarantined early flakiness detection #testcaseName"() {
-    givenQuarantineEnabled(true)
+    givenTestManagementEnabled(true)
     givenQuarantinedTests(quarantined)
 
     givenEarlyFlakinessDetectionEnabled(true)
