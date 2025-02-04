@@ -114,12 +114,14 @@ public class Config {
   private final String runtimeVersion;
 
   private final String applicationKey;
+
   /**
    * Note: this has effect only on profiling site. Traces are sent to Datadog agent and are not
    * affected by this setting. If CI Visibility is used with agentless mode, api key is used when
    * sending data (including traces) to backend
    */
   private final String apiKey;
+
   /**
    * Note: this has effect only on profiling site. Traces are sent to Datadog agent and are not
    * affected by this setting.
@@ -374,7 +376,7 @@ public class Config {
   private final String ciVisibilityRemoteEnvVarsProviderKey;
   private final String ciVisibilityTestOrder;
   private final boolean ciVisibilityTestManagementEnabled;
-  private final int ciVisibilityTestManagementAttemptToFixRetries;
+  private final Integer ciVisibilityTestManagementAttemptToFixRetries;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -1526,8 +1528,7 @@ public class Config {
     ciVisibilityTestOrder = configProvider.getString(CIVISIBILITY_TEST_ORDER);
     ciVisibilityTestManagementEnabled = configProvider.getBoolean(TEST_MANAGEMENT_ENABLED, true);
     ciVisibilityTestManagementAttemptToFixRetries =
-        configProvider.getInteger(
-            TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES, DEFAULT_TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES);
+        configProvider.getInteger(TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES);
 
     remoteConfigEnabled =
         configProvider.getBoolean(

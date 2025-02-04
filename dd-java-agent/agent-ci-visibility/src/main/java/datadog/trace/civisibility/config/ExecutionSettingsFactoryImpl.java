@@ -1,7 +1,6 @@
 package datadog.trace.civisibility.config;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.CiVisibilityWellKnownTags;
 import datadog.trace.api.civisibility.config.TestIdentifier;
@@ -28,7 +27,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -179,16 +177,20 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
             settings,
             CiVisibilitySettings::isKnownTestsEnabled,
             Config::isCiVisibilityKnownTestsRequestEnabled);
+
     boolean testManagementEnabled =
         isFeatureEnabled(
             settings,
             s -> s.getTestManagementSettings().isEnabled(),
             Config::isCiVisibilityTestManagementEnabled);
+    TestManagementSettings testManagementSettings = TestManagementSettings.DEFAULT;
     if (testManagementEnabled) {
-      overrideIntegerSetting(
-          Config::getCiVisibilityTestManagementAttemptToFixRetries,
-          value -> value != ConfigDefaults.DEFAULT_TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES,
-          value -> settings.getTestManagementSettings().setAttemptToFixRetries(value));
+      testManagementSettings = settings.getTestManagementSettings();
+      if (isValueOverriden(Config::getCiVisibilityTestManagementAttemptToFixRetries, null)) {
+        testManagementSettings =
+            new TestManagementSettings(
+                true, config.getCiVisibilityTestManagementAttemptToFixRetries());
+      }
     }
 
     LOGGER.info(
@@ -243,9 +245,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
               earlyFlakeDetectionEnabled
                   ? settings.getEarlyFlakeDetectionSettings()
                   : EarlyFlakeDetectionSettings.DEFAULT,
-              testManagementEnabled
-                  ? settings.getTestManagementSettings()
-                  : TestManagementSettings.DEFAULT,
+              testManagementSettings,
               skippableTests.getCorrelationId(),
               skippableTests
                   .getIdentifiersByModule()
@@ -288,14 +288,9 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
     return remoteSetting.apply(ciVisibilitySettings) && killSwitch.apply(config);
   }
 
-  private void overrideIntegerSetting(
-      Function<Config, Integer> valueGetter,
-      Function<Integer, Boolean> overrideCheck,
-      Consumer<Integer> overrideAction) {
+  private boolean isValueOverriden(Function<Config, Integer> valueGetter, Integer defaultValue) {
     Integer value = valueGetter.apply(config);
-    if (value != null && overrideCheck.apply(value)) {
-      overrideAction.accept(value);
-    }
+    return !value.equals(defaultValue);
   }
 
   @Nonnull

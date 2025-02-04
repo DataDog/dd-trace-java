@@ -7,7 +7,7 @@ public class TestManagementSettings {
   public static final TestManagementSettings DEFAULT = new TestManagementSettings(false, -1);
 
   private final boolean enabled;
-  private int attemptToFixRetries;
+  private final int attemptToFixRetries;
 
   public TestManagementSettings(boolean enabled, int attemptToFixRetries) {
     this.enabled = enabled;
@@ -20,10 +20,6 @@ public class TestManagementSettings {
 
   public int getAttemptToFixRetries() {
     return attemptToFixRetries;
-  }
-
-  public void setAttemptToFixRetries(int value) {
-    attemptToFixRetries = value;
   }
 
   @Override
