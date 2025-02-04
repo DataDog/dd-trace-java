@@ -10,6 +10,7 @@ import com.datadoghq.sketch.ddsketch.encoding.VarEncodingHelper;
 import datadog.context.propagation.CarrierVisitor;
 import datadog.trace.api.Config;
 import datadog.trace.api.WellKnownTags;
+import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.PathwayContext;
 import datadog.trace.api.datastreams.StatsPoint;
 import datadog.trace.api.time.TimeSource;
@@ -105,37 +106,21 @@ public class DefaultPathwayContext implements PathwayContext {
   }
 
   @Override
-  public void setCheckpoint(
-      LinkedHashMap<String, String> sortedTags, Consumer<StatsPoint> pointConsumer) {
-    setCheckpoint(sortedTags, pointConsumer, 0, 0);
-  }
-
-  @Override
-  public void setCheckpoint(
-      LinkedHashMap<String, String> sortedTags,
-      Consumer<StatsPoint> pointConsumer,
-      long defaultTimestamp) {
-    setCheckpoint(sortedTags, pointConsumer, defaultTimestamp, 0);
-  }
-
-  @Override
-  public void setCheckpoint(
-      LinkedHashMap<String, String> sortedTags,
-      Consumer<StatsPoint> pointConsumer,
-      long defaultTimestamp,
-      long payloadSizeBytes) {
+  public void setCheckpoint(DataStreamsContext context, Consumer<StatsPoint> pointConsumer) {
     long startNanos = timeSource.getCurrentTimeNanos();
     long nanoTicks = timeSource.getNanoTicks();
     lock.lock();
     try {
       // So far, each tag key has only one tag value, so we're initializing the capacity to match
       // the number of tag keys for now. We should revisit this later if it's no longer the case.
+      LinkedHashMap<String, String> sortedTags = context.sortedTags();
       List<String> allTags = new ArrayList<>(sortedTags.size());
       PathwayHashBuilder pathwayHashBuilder =
           new PathwayHashBuilder(hashOfKnownTags, serviceNameOverride);
       DataSetHashBuilder aggregationHashBuilder = new DataSetHashBuilder();
 
       if (!started) {
+        long defaultTimestamp = context.defaultTimestamp();
         if (defaultTimestamp == 0) {
           pathwayStartNanos = startNanos;
           pathwayStartNanoTicks = nanoTicks;
@@ -196,7 +181,7 @@ public class DefaultPathwayContext implements PathwayContext {
               startNanos,
               pathwayLatencyNano,
               edgeLatencyNano,
-              payloadSizeBytes,
+              context.payloadSizeBytes(),
               serviceNameOverride);
       edgeStartNanoTicks = nanoTicks;
       hash = newHash;

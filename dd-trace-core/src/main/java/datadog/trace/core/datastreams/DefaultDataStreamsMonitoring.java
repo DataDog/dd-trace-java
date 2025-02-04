@@ -1,6 +1,7 @@
 package datadog.trace.core.datastreams;
 
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V01_DATASTREAMS_ENDPOINT;
+import static datadog.trace.api.datastreams.DataStreamsContext.fromTags;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
@@ -19,6 +20,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.datastreams.Backlog;
+import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.InboxItem;
 import datadog.trace.api.datastreams.NoopPathwayContext;
 import datadog.trace.api.datastreams.PathwayContext;
@@ -33,7 +35,6 @@ import datadog.trace.common.metrics.OkHttpSink;
 import datadog.trace.common.metrics.Sink;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDTraceCoreInfo;
-import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.util.AgentTaskScheduler;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -68,8 +69,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private final long hashOfKnownTags;
   private final Supplier<TraceConfig> traceConfigSupplier;
   private final long bucketDurationNanos;
-  private final DataStreamContextInjector injector;
   private final Thread thread;
+  private final DataStreamsPropagator propagator;
   private AgentTaskScheduler.Scheduled<DefaultDataStreamsMonitoring> cancellation;
   private volatile long nextFeatureCheck;
   private volatile boolean supportsDataStreams = false;
@@ -128,11 +129,18 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     this.hashOfKnownTags = DefaultPathwayContext.getBaseHash(wellKnownTags);
     this.payloadWriter = payloadWriter;
     this.bucketDurationNanos = bucketDurationNanos;
-    this.injector = new DataStreamContextInjector(this);
 
     thread = newAgentThread(DATA_STREAMS_MONITORING, new InboxProcessor());
     sink.register(this);
     schemaSamplers = new ConcurrentHashMap<>();
+
+    this.propagator =
+        new DataStreamsPropagator(
+            this,
+            this.traceConfigSupplier,
+            this.timeSource,
+            this.hashOfKnownTags,
+            serviceNameOverride);
   }
 
   @Override
@@ -203,19 +211,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
   @Override
   public Propagator propagator() {
-    return new DataStreamsPropagator(
-        this, this.traceConfigSupplier, this.timeSource, this.hashOfKnownTags, serviceNameOverride);
-  }
-
-  @Override
-  public HttpCodec.Extractor extractor(HttpCodec.Extractor delegate) {
-    return new DataStreamContextExtractor(
-        delegate, timeSource, traceConfigSupplier, hashOfKnownTags, serviceNameOverride);
-  }
-
-  @Override
-  public DataStreamContextInjector injector() {
-    return this.injector;
+    return this.propagator;
   }
 
   @Override
@@ -245,14 +241,10 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   }
 
   @Override
-  public void setCheckpoint(
-      AgentSpan span,
-      LinkedHashMap<String, String> sortedTags,
-      long defaultTimestamp,
-      long payloadSizeBytes) {
+  public void setCheckpoint(AgentSpan span, DataStreamsContext context) {
     PathwayContext pathwayContext = span.context().getPathwayContext();
     if (pathwayContext != null) {
-      pathwayContext.setCheckpoint(sortedTags, this::add, defaultTimestamp, payloadSizeBytes);
+      pathwayContext.setCheckpoint(context, this::add);
     }
   }
 
@@ -276,7 +268,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     sortedTags.put(TOPIC_TAG, source);
     sortedTags.put(TYPE_TAG, type);
 
-    setCheckpoint(span, sortedTags, 0, 0);
+    setCheckpoint(span, fromTags(sortedTags));
   }
 
   public void setProduceCheckpoint(
@@ -300,8 +292,9 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     sortedTags.put(TOPIC_TAG, target);
     sortedTags.put(TYPE_TAG, type);
 
-    this.injector.injectPathwayContext(
-        span, carrier, DataStreamsContextCarrierAdapter.INSTANCE, sortedTags);
+    DataStreamsContext dsmContext = fromTags(sortedTags);
+    this.propagator.inject(
+        span.with(dsmContext), carrier, DataStreamsContextCarrierAdapter.INSTANCE);
   }
 
   @Override

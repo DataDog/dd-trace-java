@@ -1,6 +1,5 @@
 package datadog.trace.api.datastreams;
 
-import java.util.LinkedHashMap;
 import java.util.function.Consumer;
 
 public class NoopPathwayContext implements PathwayContext {
@@ -17,21 +16,7 @@ public class NoopPathwayContext implements PathwayContext {
   }
 
   @Override
-  public void setCheckpoint(
-      LinkedHashMap<String, String> sortedTags,
-      Consumer<StatsPoint> pointConsumer,
-      long defaultTimestamp,
-      long payloadSizeBytes) {}
-
-  @Override
-  public void setCheckpoint(
-      LinkedHashMap<String, String> sortedTags,
-      Consumer<StatsPoint> pointConsumer,
-      long defaultTimestamp) {}
-
-  @Override
-  public void setCheckpoint(
-      LinkedHashMap<String, String> sortedTags, Consumer<StatsPoint> pointConsumer) {}
+  public void setCheckpoint(DataStreamsContext context, Consumer<StatsPoint> pointConsumer) {}
 
   @Override
   public void saveStats(StatsPoint point) {}

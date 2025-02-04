@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.kafka_clients38;
 
-import static datadog.trace.api.datastreams.DataStreamsContext.fromKafka;
+import static datadog.trace.api.datastreams.DataStreamsContext.create;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateNext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious;
@@ -113,7 +113,7 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
           if (StreamingContext.STREAMING_CONTEXT.isDisabledForTopic(val.topic())) {
             AgentTracer.get()
                 .getDataStreamsMonitoring()
-                .setCheckpoint(span, sortedTags, val.timestamp(), payloadSize);
+                .setCheckpoint(span, create(sortedTags, val.timestamp(), payloadSize));
           } else {
             // when we're in a streaming context we want to consume only from source topics
             if (StreamingContext.STREAMING_CONTEXT.isSourceTopic(val.topic())) {
@@ -122,7 +122,7 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
               // some other instance of the application, breaking the context propagation
               // for DSM users
               Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
-              DataStreamsContext dsmContext = fromKafka(sortedTags, val.timestamp(), payloadSize);
+              DataStreamsContext dsmContext = create(sortedTags, val.timestamp(), payloadSize);
               dsmPropagator.inject(span.with(dsmContext), val.headers(), SETTER);
             }
           }

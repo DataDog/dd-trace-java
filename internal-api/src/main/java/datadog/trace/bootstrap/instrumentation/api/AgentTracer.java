@@ -21,7 +21,6 @@ import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.context.TraceScope;
 import java.nio.ByteBuffer;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nonnull;
@@ -623,23 +622,6 @@ public class AgentTracer {
 
   static class NoopAgentPropagation implements AgentPropagation {
     static final NoopAgentPropagation INSTANCE = new NoopAgentPropagation();
-
-    @Override
-    public <C> void injectPathwayContext(
-        AgentSpan span, C carrier, Setter<C> setter, LinkedHashMap<String, String> sortedTags) {}
-
-    @Override
-    public <C> void injectPathwayContext(
-        AgentSpan span,
-        C carrier,
-        Setter<C> setter,
-        LinkedHashMap<String, String> sortedTags,
-        long defaultTimestamp,
-        long payloadSizeBytes) {}
-
-    @Override
-    public <C> void injectPathwayContextWithoutSendingStats(
-        AgentSpan span, C carrier, Setter<C> setter, LinkedHashMap<String, String> sortedTags) {}
   }
 
   public static class NoopAgentTraceCollector implements AgentTraceCollector {

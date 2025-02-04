@@ -13,11 +13,7 @@ public class NoopDataStreamsMonitoring implements AgentDataStreamsMonitoring {
   public void trackBacklog(LinkedHashMap<String, String> sortedTags, long value) {}
 
   @Override
-  public void setCheckpoint(
-      AgentSpan span,
-      LinkedHashMap<String, String> sortedTags,
-      long defaultTimestamp,
-      long payloadSizeBytes) {}
+  public void setCheckpoint(AgentSpan span, DataStreamsContext context) {}
 
   @Override
   public PathwayContext newPathwayContext() {

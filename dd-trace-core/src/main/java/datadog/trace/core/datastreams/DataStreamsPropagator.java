@@ -10,16 +10,17 @@ import datadog.context.propagation.Propagator;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.PathwayContext;
+import datadog.trace.api.datastreams.StatsPoint;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import java.io.IOException;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 
-// TODO Javadoc
 @ParametersAreNonnullByDefault
 public class DataStreamsPropagator implements Propagator {
   private final DataStreamsMonitoring dataStreamsMonitoring;
@@ -54,15 +55,10 @@ public class DataStreamsPropagator implements Propagator {
       return;
     }
 
-    // TODO Allow set checkpoint to use DsmContext as parameter?
-    pathwayContext.setCheckpoint(
-        dsmContext.sortedTags(),
-        dsmContext.sendCheckpoint() ? dataStreamsMonitoring::add : pathwayContext::saveStats,
-        dsmContext.defaultTimestamp(),
-        dsmContext.payloadSizeBytes());
-
+    Consumer<StatsPoint> pointConsumer =
+        dsmContext.sendCheckpoint() ? this.dataStreamsMonitoring::add : pathwayContext::saveStats;
+    pathwayContext.setCheckpoint(dsmContext, pointConsumer);
     boolean injected = injectPathwayContext(pathwayContext, carrier, setter);
-
     if (injected && pathwayContext.getHash() != 0) {
       span.setTag(PATHWAY_HASH, Long.toUnsignedString(pathwayContext.getHash()));
     }

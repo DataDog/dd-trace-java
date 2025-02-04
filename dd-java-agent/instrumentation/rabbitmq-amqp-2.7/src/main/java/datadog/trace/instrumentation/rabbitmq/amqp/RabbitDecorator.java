@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.rabbitmq.amqp;
 
+import static datadog.trace.api.datastreams.DataStreamsContext.create;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -253,7 +254,7 @@ public class RabbitDecorator extends MessagingClientDecorator {
       sortedTags.put(TYPE_TAG, "rabbitmq");
       AgentTracer.get()
           .getDataStreamsMonitoring()
-          .setCheckpoint(span, sortedTags, produceMillis, 0);
+          .setCheckpoint(span, create(sortedTags, produceMillis, 0));
     }
 
     CONSUMER_DECORATE.afterStart(span);

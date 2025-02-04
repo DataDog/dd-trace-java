@@ -87,7 +87,6 @@ import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.monitor.MonitoringImpl;
 import datadog.trace.core.monitor.TracerHealthMetrics;
 import datadog.trace.core.propagation.ApmTracingDisabledPropagator;
-import datadog.trace.core.propagation.CorePropagation;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.propagation.PropagationTags;
@@ -228,7 +227,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final SortedSet<TraceInterceptor> interceptors =
       new ConcurrentSkipListSet<>(Comparator.comparingInt(TraceInterceptor::priority));
 
-  private final CorePropagation propagation;
+  private final AgentPropagation propagation;
   private final boolean logs128bTraceIdEnabled;
 
   private final InstrumentationGateway instrumentationGateway;
@@ -714,8 +713,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     sharedCommunicationObjects.whenReady(this.dataStreamsMonitoring::start);
 
-    // Store all propagators to propagation -- only DSM injection left
-    this.propagation = new CorePropagation(this.dataStreamsMonitoring.injector());
+    // TODO Need to be removed
+    this.propagation = AgentTracer.NOOP_TRACER.propagate();
 
     // Register context propagators
     HttpCodec.Extractor tracingExtractor =
