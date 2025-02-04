@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.httpurlconnection.HttpUrlConnectionDecorator.DECORATE;
 
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -42,9 +43,13 @@ public class HttpUrlState {
       if (responseCode > 0) {
         // safe to access response data as 'responseCode' is set
         DECORATE.onResponse(span, connection);
-        if (throwable != null && responseCode >= 400) {
 
-          DECORATE.onError(span, throwable);
+        // attach throwables if response code is an error
+        // dd.trace.http-url-connection.errors.enabled must be set to true
+        if (Config.get().isHttpUrlConnectionErrorsEnabled()) {
+          if (throwable != null && responseCode >= 400) {
+            DECORATE.onError(span, throwable);
+          }
         }
       } else {
         // Ignoring the throwable if we have response code

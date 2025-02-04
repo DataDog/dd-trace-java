@@ -169,6 +169,7 @@ public class Config {
   private final boolean httpClientTagQueryString;
   private final boolean httpClientTagHeaders;
   private final boolean httpClientSplitByDomain;
+  private final boolean httpUrlConnectionErrorsEnabled;
   private final boolean dbClientSplitByInstance;
   private final boolean dbClientSplitByInstanceTypeSuffix;
   private final boolean dbClientSplitByHost;
@@ -853,7 +854,8 @@ public class Config {
     httpClientSplitByDomain =
         configProvider.getBoolean(
             HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, DEFAULT_HTTP_CLIENT_SPLIT_BY_DOMAIN);
-
+    httpUrlConnectionErrorsEnabled =
+        configProvider.getBoolean(HTTP_URL_CONNECTION_ERRORS_ENABLED, false);
     dbClientSplitByInstance =
         configProvider.getBoolean(
             DB_CLIENT_HOST_SPLIT_BY_INSTANCE, DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE);
@@ -2135,6 +2137,10 @@ public class Config {
 
   public boolean isHttpClientSplitByDomain() {
     return httpClientSplitByDomain;
+  }
+
+  public boolean isHttpUrlConnectionErrorsEnabled() {
+    return httpUrlConnectionErrorsEnabled;
   }
 
   public boolean isDbClientSplitByInstance() {
