@@ -56,18 +56,16 @@ class BaggageHttpCodec {
         if (processedBaggage >= maxItems) {
           break;
         }
-        StringBuilder currentText = new StringBuilder();
+        int additionalCharacters = 1; // accounting for potential comma and colon
         if (processedBaggage != 0) {
-          currentText.append(',');
+          additionalCharacters = 2; // allocating space for comma
         }
-
-        currentText.append(HttpCodec.encodeBaggage(entry.getKey()));
-        currentText.append('=');
-        currentText.append(HttpCodec.encodeBaggage(entry.getValue()));
+        int currentPairSize =
+            entry.getKey().length() + entry.getValue().length() + additionalCharacters;
 
         // worst case check
-        if (currentCharacters + currentText.length() <= maxSafeCharacters) {
-          currentCharacters += currentText.length();
+        if (currentCharacters + currentPairSize <= maxSafeCharacters) {
+          currentCharacters += currentPairSize;
         } else {
           if (currentBytes
               == 0) { // special case to calculate byte size after surpassing worst-case number of
@@ -75,17 +73,24 @@ class BaggageHttpCodec {
             currentBytes = baggageText.toString().getBytes(StandardCharsets.UTF_8).length;
           }
           int byteSize =
-              currentText
-                  .toString()
-                  .getBytes(StandardCharsets.UTF_8)
-                  .length; // find largest possible byte size for UTF encoded characters and only do
+              entry.getKey().getBytes(StandardCharsets.UTF_8).length
+                  + entry.getValue().getBytes(StandardCharsets.UTF_8).length
+                  + additionalCharacters; // find largest possible byte size for UTF encoded
+          // characters and only do
           // size checking after we hit this worst case scenario
           if (byteSize + currentBytes > maxBytes) {
             break;
           }
           currentBytes += byteSize;
         }
-        baggageText.append(currentText);
+
+        if (additionalCharacters == 2) {
+          baggageText.append(',');
+        }
+        baggageText
+            .append(HttpCodec.encodeBaggage(entry.getKey()))
+            .append('=')
+            .append(HttpCodec.encodeBaggage(entry.getValue()));
         processedBaggage++;
       }
 
