@@ -27,7 +27,7 @@ import com.datadog.appsec.event.data.SingletonDataBundle;
 import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.report.AppSecEventWrapper;
 import datadog.trace.api.Config;
-import datadog.trace.api.ProductTs;
+import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.UserIdCollectionMode;
 import datadog.trace.api.gateway.Events;
 import datadog.trace.api.gateway.Flow;
@@ -215,7 +215,7 @@ public class GatewayBridge {
 
     // span with ASM data
     segment.setTagTop(Tags.ASM_KEEP, true);
-    segment.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTs.ASM);
+    segment.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
 
     // skip event if we have an SDK one
     if (mode != SDK) {
@@ -276,7 +276,7 @@ public class GatewayBridge {
 
     // span with ASM data
     segment.setTagTop(Tags.ASM_KEEP, true);
-    segment.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTs.ASM);
+    segment.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
 
     // update span tags
     segment.setTagTop("appsec.events." + eventName + ".track", true, true);
@@ -790,7 +790,7 @@ public class GatewayBridge {
       if (!collectedEvents.isEmpty()) {
         // Set asm keep in case that root span was not available when events are detected
         traceSeg.setTagTop(Tags.ASM_KEEP, true);
-        traceSeg.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTs.ASM);
+        traceSeg.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
         traceSeg.setTagTop("appsec.event", true);
         traceSeg.setTagTop("network.client.ip", ctx.getPeerAddress());
 

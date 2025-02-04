@@ -3,7 +3,7 @@ package datadog.trace.core.taginterceptor
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME
 import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE
-import datadog.trace.api.ProductTs
+import datadog.trace.api.ProductTraceSource
 import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS
 
 import datadog.trace.api.DDSpanTypes
@@ -739,9 +739,9 @@ class TagInterceptorTest extends DDCoreSpecification {
     final context = Mock(DDSpanContext)
 
     when:
-    interceptor.interceptTag(context, Tags.PROPAGATED_TRACE_SOURCE, ProductTs.ASM)
+    interceptor.interceptTag(context, Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM)
 
     then:
-    1 * context.updatePropagatedTraceSource(ProductTs.ASM)
+    1 * context.updatePropagatedTraceSource(ProductTraceSource.ASM)
   }
 }

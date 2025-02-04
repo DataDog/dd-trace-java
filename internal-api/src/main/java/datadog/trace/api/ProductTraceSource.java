@@ -1,6 +1,6 @@
 package datadog.trace.api;
 
-public class ProductTs {
+public class ProductTraceSource {
 
   public static final int APM = 0x01;
   public static final int ASM = 0x02;

@@ -6,7 +6,7 @@ import static datadog.trace.core.propagation.ptags.PTagsCodec.DECISION_MAKER_TAG
 import static datadog.trace.core.propagation.ptags.PTagsCodec.TRACE_ID_TAG;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.TRACE_SOURCE_TAG;
 
-import datadog.trace.api.ProductTs;
+import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.internal.util.LongStringUtils;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
@@ -206,12 +206,14 @@ public class PTagsFactory implements PropagationTags.Factory {
     @Override
     public void updatePropagatedTraceSource(final int product) {
       // if is nort marked for the product
-      if (!ProductTs.isProductMarked(productTs.get(), product)) {
+      if (!ProductTraceSource.isProductMarked(productTs.get(), product)) {
         // This should invalidate any cached w3c and datadog header
         clearCachedHeader(DATADOG);
         clearCachedHeader(W3C);
         productTs.updateAndGet(
-            value -> ProductTs.updateProduct(value, product)); // Set the bit for the given product
+            value ->
+                ProductTraceSource.updateProduct(
+                    value, product)); // Set the bit for the given product
       }
     }
 
@@ -358,7 +360,9 @@ public class PTagsFactory implements PropagationTags.Factory {
         if (productTs.get() != 0) {
           size =
               PTagsCodec.calcXDatadogTagsSize(
-                  size, TRACE_SOURCE_TAG, TagValue.from(ProductTs.getBitfieldHex(productTs.get())));
+                  size,
+                  TRACE_SOURCE_TAG,
+                  TagValue.from(ProductTraceSource.getBitfieldHex(productTs.get())));
         }
         xDatadogTagsSize = size;
       }

@@ -2,7 +2,7 @@ package datadog.trace.core.propagation.ptags;
 
 import static datadog.trace.core.propagation.ptags.PTagsFactory.PROPAGATION_ERROR_TAG_KEY;
 
-import datadog.trace.api.ProductTs;
+import datadog.trace.api.ProductTraceSource;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.propagation.ptags.PTagsFactory.PTags;
 import datadog.trace.core.propagation.ptags.TagElement.Encoding;
@@ -43,7 +43,7 @@ abstract class PTagsCodec {
             codec.appendTag(
                 sb,
                 TRACE_SOURCE_TAG,
-                TagValue.from(ProductTs.getBitfieldHex(ptags.getPropagatedTraceSource())),
+                TagValue.from(ProductTraceSource.getBitfieldHex(ptags.getPropagatedTraceSource())),
                 size);
       }
       if (ptags.getDebugPropagation() != null) {
@@ -95,7 +95,8 @@ abstract class PTagsCodec {
     if (propagationTags.getPropagatedTraceSource() != 0) {
       tagMap.put(
           TRACE_SOURCE_TAG.forType(Encoding.DATADOG).toString(),
-          TagValue.from(ProductTs.getBitfieldHex(propagationTags.getPropagatedTraceSource()))
+          TagValue.from(
+                  ProductTraceSource.getBitfieldHex(propagationTags.getPropagatedTraceSource()))
               .forType(Encoding.DATADOG)
               .toString());
     }

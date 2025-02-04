@@ -2,7 +2,7 @@ package datadog.trace.core.propagation.ptags;
 
 import static datadog.trace.api.internal.util.LongStringUtils.toHexStringPadded;
 
-import datadog.trace.api.ProductTs;
+import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.propagation.ptags.PTagsFactory.PTags;
@@ -149,7 +149,7 @@ public class W3CPTagsCodec extends PTagsCodec {
           } else if (tagKey.equals(TRACE_ID_TAG)) {
             traceIdTagValue = tagValue;
           } else if (tagKey.equals(TRACE_SOURCE_TAG)) {
-            traceSource = ProductTs.parseBitfieldHex(tagValue.toString());
+            traceSource = ProductTraceSource.parseBitfieldHex(tagValue.toString());
           } else {
             if (tagPairs == null) {
               // This is roughly the size of a two element linked list but can hold six

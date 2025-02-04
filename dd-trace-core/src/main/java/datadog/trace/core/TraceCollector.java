@@ -2,7 +2,7 @@ package datadog.trace.core;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
-import datadog.trace.api.ProductTs;
+import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentTraceCollector;
@@ -67,9 +67,9 @@ public abstract class TraceCollector implements AgentTraceCollector {
       // Ignore the force-keep priority in the absence of propagated _dd.p.ts span tag marked for
       // ASM.
       if ((!Config.get().isApmTracingEnabled()
-              && !ProductTs.isProductMarked(
+              && !ProductTraceSource.isProductMarked(
                   rootSpan.context().getPropagationTags().getPropagatedTraceSource(),
-                  ProductTs.ASM))
+                  ProductTraceSource.ASM))
           || rootSpan.context().getSamplingPriority() == PrioritySampling.UNSET) {
         ((PrioritySampler) traceConfig.sampler).setSamplingPriority(rootSpan);
       }

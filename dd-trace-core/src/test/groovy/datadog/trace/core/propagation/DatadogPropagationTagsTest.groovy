@@ -1,7 +1,7 @@
 package datadog.trace.core.propagation
 
 import datadog.trace.api.Config
-import datadog.trace.api.ProductTs
+import datadog.trace.api.ProductTraceSource
 import datadog.trace.core.test.DDCoreSpecification
 
 import static datadog.trace.api.sampling.PrioritySampling.*
@@ -156,9 +156,9 @@ class DatadogPropagationTagsTest extends DDCoreSpecification {
     where:
     originalTagSet                       | product       | expectedHeaderValue | tags
     // keep the existing dm tag as is
-    ""                                   | ProductTs.ASM | "_dd.p.ts=02"       | ["_dd.p.ts": "02"]
-    "_dd.p.ts=00"                        | ProductTs.ASM | "_dd.p.ts=02"       | ["_dd.p.ts": "02"]
-    "_dd.p.ts=02"                        | ProductTs.DBM | "_dd.p.ts=12"       | ["_dd.p.ts": "12"]
+    ""                                   | ProductTraceSource.ASM | "_dd.p.ts=02" | ["_dd.p.ts": "02"]
+    "_dd.p.ts=00"                        | ProductTraceSource.ASM | "_dd.p.ts=02" | ["_dd.p.ts": "02"]
+    "_dd.p.ts=02"                        | ProductTraceSource.DBM | "_dd.p.ts=12" | ["_dd.p.ts": "12"]
     //Invalid input
     "_dd.p.ts="                          | 0             | null                | ["_dd.propagation_error": "decoding_error"]
     "_dd.p.ts=0"                         | 0             | null                | ["_dd.propagation_error": "decoding_error"]

@@ -6,7 +6,7 @@ import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityBatch
 import com.datadog.iast.model.VulnerabilityType
 import datadog.trace.api.Config
-import datadog.trace.api.ProductTs
+import datadog.trace.api.ProductTraceSource
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.internal.TraceSegment
@@ -86,7 +86,7 @@ class ReporterTest extends DDSpecification {
       ]
     }''', batch.toString(), true)
     1 * traceSegment.setTagTop('asm.keep', true)
-    1 * traceSegment.setTagTop('_dd.p.ts', ProductTs.ASM)
+    1 * traceSegment.setTagTop('_dd.p.ts', ProductTraceSource.ASM)
     1 * reqCtx.getOrCreateMetaStructTop('_dd.stack', _)  >> { stackTraceBatch }
     assertStackTrace(stackTraceBatch, v)
     0 * _
@@ -136,7 +136,7 @@ class ReporterTest extends DDSpecification {
       ]
     }''', batch.toString(), true)
     1 * traceSegment.setTagTop('asm.keep', true)
-    1 * traceSegment.setTagTop('_dd.p.ts', ProductTs.ASM)
+    1 * traceSegment.setTagTop('_dd.p.ts', ProductTraceSource.ASM)
     0 * _
   }
 
@@ -207,7 +207,7 @@ class ReporterTest extends DDSpecification {
       ]
     }''', batch.toString(), true)
     1 * traceSegment.setTagTop('asm.keep', true)
-    1 * traceSegment.setTagTop('_dd.p.ts', ProductTs.ASM)
+    1 * traceSegment.setTagTop('_dd.p.ts', ProductTraceSource.ASM)
     assertStackTrace(stackTraceBatch, [v1, v2] as Vulnerability[])
     0 * _
   }
@@ -332,7 +332,7 @@ class ReporterTest extends DDSpecification {
     1 * traceSegment.getDataTop('iast') >> null
     1 * traceSegment.setDataTop('iast', _ as VulnerabilityBatch)
     1 * traceSegment.setTagTop('asm.keep', true)
-    1 * traceSegment.setTagTop('_dd.p.ts', ProductTs.ASM)
+    1 * traceSegment.setTagTop('_dd.p.ts', ProductTraceSource.ASM)
     1 * traceSegment.setTagTop('_dd.iast.enabled', 1)
     1 * reqCtx.getOrCreateMetaStructTop('_dd.stack', _) >> new ConcurrentHashMap<>()
     0 * _

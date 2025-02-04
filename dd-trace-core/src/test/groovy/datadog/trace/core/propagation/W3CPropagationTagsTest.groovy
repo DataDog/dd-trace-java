@@ -1,7 +1,7 @@
 package datadog.trace.core.propagation
 
 import datadog.trace.api.Config
-import datadog.trace.api.ProductTs
+import datadog.trace.api.ProductTraceSource
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.core.test.DDCoreSpecification
@@ -340,8 +340,8 @@ class W3CPropagationTagsTest extends DDCoreSpecification {
 
     where:
     headerValue            | product       | expectedHeaderValue    | tags
-    'dd=x:unknown'         | ProductTs.ASM | 'dd=t.ts:02;x:unknown' | ['_dd.p.ts': '02']
-    'dd=t.ts:02;x:unknown' | ProductTs.DBM | 'dd=t.ts:12;x:unknown' | ['_dd.p.ts': '12']
+    'dd=x:unknown'         | ProductTraceSource.ASM | 'dd=t.ts:02;x:unknown' | ['_dd.p.ts': '02']
+    'dd=t.ts:02;x:unknown' | ProductTraceSource.DBM | 'dd=t.ts:12;x:unknown' | ['_dd.p.ts': '12']
   }
 
   static private String toLcAlpha(String cs) {
