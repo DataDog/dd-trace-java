@@ -15,45 +15,50 @@ public final class Location {
 
   @Nullable private transient String serviceName;
 
+  @Nullable private String className;
+
   private Location(
       @Nullable final Long spanId,
       @Nullable final String path,
       final int line,
       @Nullable final String method,
-      @Nullable final String serviceName) {
+      @Nullable final String serviceName,
+      @Nullable final String className) {
     this.spanId = spanId;
     this.path = path;
     this.line = line;
     this.method = method;
     this.serviceName = serviceName;
+    this.className = className;
   }
 
   public static Location forSpanAndStack(
       @Nullable final AgentSpan span, final StackTraceElement stack) {
     return new Location(
         spanId(span),
-        stack.getClassName(),
+        stack.getFileName(),
         stack.getLineNumber(),
         stack.getMethodName(),
-        serviceName(span));
+        serviceName(span),
+        stack.getClassName());
   }
 
   public static Location forSpanAndClassAndMethod(
       @Nullable final AgentSpan span, final String clazz, final String method) {
-    return new Location(spanId(span), clazz, -1, method, serviceName(span));
+    return new Location(spanId(span), null, -1, method, serviceName(span), clazz);
   }
 
   public static Location forSpanAndFileAndLine(
       @Nullable final AgentSpan span, final String file, final int line) {
-    return new Location(spanId(span), file, line, null, serviceName(span));
+    return new Location(spanId(span), file, line, null, serviceName(span), null);
   }
 
   public static Location forSpan(@Nullable final AgentSpan span) {
-    return new Location(spanId(span), null, -1, null, serviceName(span));
+    return new Location(spanId(span), null, -1, null, serviceName(span), null);
   }
 
   public static Location forClassAndMethodAndLine(String clazz, String method, int currentLine) {
-    return new Location(null, clazz, currentLine, method, null);
+    return new Location(null, null, currentLine, method, null, clazz);
   }
 
   public long getSpanId() {
@@ -77,6 +82,11 @@ public final class Location {
   @Nullable
   public String getServiceName() {
     return serviceName;
+  }
+
+  @Nullable
+  public String getClassName() {
+    return className;
   }
 
   public void updateSpan(@Nullable final AgentSpan span) {
