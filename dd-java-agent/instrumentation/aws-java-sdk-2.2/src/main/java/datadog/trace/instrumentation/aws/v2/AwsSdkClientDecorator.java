@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.aws.v2;
 
+import static datadog.trace.api.datastreams.DataStreamsContext.create;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
@@ -361,7 +362,8 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
                             AgentTracer.get().getDataStreamsMonitoring();
                         PathwayContext pathwayContext = dataStreamsMonitoring.newPathwayContext();
                         pathwayContext.setCheckpoint(
-                            sortedTags, dataStreamsMonitoring::add, arrivalTime.toEpochMilli());
+                            create(sortedTags, arrivalTime.toEpochMilli(), 0),
+                            dataStreamsMonitoring::add);
                         if (!span.context().getPathwayContext().isStarted()) {
                           span.context().mergePathwayContext(pathwayContext);
                         }
@@ -391,7 +393,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
 
             AgentTracer.get()
                 .getDataStreamsMonitoring()
-                .setCheckpoint(span, sortedTags, 0, responseSize);
+                .setCheckpoint(span, create(sortedTags, 0, responseSize));
           }
 
           if ("PutObject".equalsIgnoreCase(awsOperation)) {
@@ -411,7 +413,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
 
             AgentTracer.get()
                 .getDataStreamsMonitoring()
-                .setCheckpoint(span, sortedTags, 0, payloadSize);
+                .setCheckpoint(span, create(sortedTags, 0, payloadSize));
           }
         }
       }

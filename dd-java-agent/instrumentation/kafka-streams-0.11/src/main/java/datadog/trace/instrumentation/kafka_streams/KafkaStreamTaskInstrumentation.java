@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.kafka_streams;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.api.datastreams.DataStreamsContext.fromKafka;
+import static datadog.trace.api.datastreams.DataStreamsContext.create;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
@@ -265,11 +265,11 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
         if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())) {
           AgentTracer.get()
               .getDataStreamsMonitoring()
-              .setCheckpoint(span, sortedTags, record.timestamp, payloadSize);
+              .setCheckpoint(span, create(sortedTags, record.timestamp, payloadSize));
         } else {
           if (STREAMING_CONTEXT.isSourceTopic(record.topic())) {
             Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
-            DataStreamsContext dsmContext = fromKafka(sortedTags, record.timestamp, payloadSize);
+            DataStreamsContext dsmContext = create(sortedTags, record.timestamp, payloadSize);
             dsmPropagator.inject(span.with(dsmContext), record, SR_SETTER);
           }
         }
@@ -347,11 +347,11 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
         if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())) {
           AgentTracer.get()
               .getDataStreamsMonitoring()
-              .setCheckpoint(span, sortedTags, record.timestamp(), payloadSize);
+              .setCheckpoint(span, create(sortedTags, record.timestamp(), payloadSize));
         } else {
           if (STREAMING_CONTEXT.isSourceTopic(record.topic())) {
             Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
-            DataStreamsContext dsmContext = fromKafka(sortedTags, record.timestamp(), payloadSize);
+            DataStreamsContext dsmContext = create(sortedTags, record.timestamp(), payloadSize);
             dsmPropagator.inject(span.with(dsmContext), record, PR_SETTER);
           }
         }

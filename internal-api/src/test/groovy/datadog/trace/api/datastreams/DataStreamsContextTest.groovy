@@ -29,7 +29,7 @@ class DataStreamsContextTest extends Specification {
     when:
     def timestamp = 123L
     def payloadSize = 456L
-    dsmContext = DataStreamsContext.fromKafka(tags, timestamp, payloadSize)
+    dsmContext = DataStreamsContext.create(tags, timestamp, payloadSize)
 
     then:
     dsmContext.sortedTags() == tags

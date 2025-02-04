@@ -1,7 +1,6 @@
 package datadog.trace.api.datastreams;
 
 import java.io.IOException;
-import java.util.LinkedHashMap;
 import java.util.function.Consumer;
 
 public interface PathwayContext {
@@ -12,19 +11,7 @@ public interface PathwayContext {
 
   long getHash();
 
-  void setCheckpoint(
-      LinkedHashMap<String, String> sortedTags,
-      Consumer<StatsPoint> pointConsumer,
-      long defaultTimestamp,
-      long payloadSizeBytes);
-
-  void setCheckpoint(
-      LinkedHashMap<String, String> sortedTags,
-      Consumer<StatsPoint> pointConsumer,
-      long defaultTimestamp);
-
-  // The input tags should be sorted.
-  void setCheckpoint(LinkedHashMap<String, String> sortedTags, Consumer<StatsPoint> pointConsumer);
+  void setCheckpoint(DataStreamsContext context, Consumer<StatsPoint> pointConsumer);
 
   void saveStats(StatsPoint point);
 
