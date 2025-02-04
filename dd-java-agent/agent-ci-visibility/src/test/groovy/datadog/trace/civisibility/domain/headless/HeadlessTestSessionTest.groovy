@@ -21,23 +21,27 @@ class HeadlessTestSessionTest extends SpanWriterTest {
   def "test tags are populated correctly in span"() {
     setup:
     def session = givenAHeadlessTestSession()
+    def module = session.testModuleStart("module-name", null)
 
     when:
+    module.end(null)
     session.end(null)
 
     then:
     ListWriterAssert.assertTraces(TEST_WRITER, 1, false, {
-      trace(1) {
+      trace(2) {
         span(0) {
           spanType DDSpanTypes.TEST_SESSION_END
           tags(false) {
             "$Tags.TEST_TEST_MANAGEMENT_ENABLED" true
           }
         }
+        span (1) {
+          spanType DDSpanTypes.TEST_MODULE_END
+        }
       }
     })
   }
-
 
   private HeadlessTestSession givenAHeadlessTestSession() {
     def executionSettings = Stub(ExecutionSettings)

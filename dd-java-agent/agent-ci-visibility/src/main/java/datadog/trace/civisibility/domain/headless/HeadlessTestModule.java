@@ -16,6 +16,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.config.EarlyFlakeDetectionSettings;
 import datadog.trace.civisibility.config.ExecutionSettings;
+import datadog.trace.civisibility.config.TestManagementSettings;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.AbstractTestModule;
 import datadog.trace.civisibility.domain.InstrumentationType;
@@ -130,6 +131,11 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
       if (executionStrategy.isEFDLimitReached()) {
         setTag(Tags.TEST_EARLY_FLAKE_ABORT_REASON, CIConstants.EFD_ABORT_REASON_FAULTY);
       }
+    }
+
+    TestManagementSettings testManagementSettings = executionSettings.getTestManagementSettings();
+    if (testManagementSettings.isEnabled()) {
+      setTag(Tags.TEST_TEST_MANAGEMENT_ENABLED, true);
     }
 
     super.end(endTime);
