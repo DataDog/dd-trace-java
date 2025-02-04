@@ -52,11 +52,7 @@ abstract class IastVertxHttpServerTest extends IastSourcesTest<IastVertxServer> 
       final deployment = new DeploymentOptions()
         .setInstances(1)
         .setConfig(new JsonObject().put('https', isHttps()))
-      server.deployVerticle('server.IastSourcesVerticle', deployment) { res ->
-        if (!res.succeeded()) {
-          throw new RuntimeException("Cannot deploy server Verticle", res.cause())
-        }
-      }
+      server.deployVerticle('server.IastSourcesVerticle', deployment).await()
       future.get()
     }
 
