@@ -178,20 +178,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
             CiVisibilitySettings::isKnownTestsEnabled,
             Config::isCiVisibilityKnownTestsRequestEnabled);
 
-    boolean testManagementEnabled =
-        isFeatureEnabled(
-            settings,
-            s -> s.getTestManagementSettings().isEnabled(),
-            Config::isCiVisibilityTestManagementEnabled);
-    TestManagementSettings testManagementSettings = TestManagementSettings.DEFAULT;
-    if (testManagementEnabled) {
-      testManagementSettings = settings.getTestManagementSettings();
-      if (isValueOverriden(Config::getCiVisibilityTestManagementAttemptToFixRetries, null)) {
-        testManagementSettings =
-            new TestManagementSettings(
-                true, config.getCiVisibilityTestManagementAttemptToFixRetries());
-      }
-    }
+    TestManagementSettings testManagementSettings = getTestManagementSettings(settings);
 
     LOGGER.info(
         "CI Visibility settings ({}, {}/{}/{}):\n"
@@ -214,7 +201,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
         impactedTestsEnabled,
         knownTestsRequest,
         flakyTestRetriesEnabled,
-        testManagementEnabled);
+        testManagementSettings.isEnabled());
 
     Future<SkippableTests> skippableTestsFuture =
         executor.submit(() -> getSkippableTests(tracerEnvironment, itrEnabled));
@@ -288,9 +275,24 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
     return remoteSetting.apply(ciVisibilitySettings) && killSwitch.apply(config);
   }
 
-  private boolean isValueOverriden(Function<Config, Integer> valueGetter, Integer defaultValue) {
-    Integer value = valueGetter.apply(config);
-    return !value.equals(defaultValue);
+  @Nonnull
+  private TestManagementSettings getTestManagementSettings(CiVisibilitySettings settings) {
+    boolean testManagementEnabled =
+        isFeatureEnabled(
+            settings,
+            s -> s.getTestManagementSettings().isEnabled(),
+            Config::isCiVisibilityTestManagementEnabled);
+
+    if (!testManagementEnabled) {
+      return TestManagementSettings.DEFAULT;
+    }
+
+    Integer retries = config.getCiVisibilityTestManagementAttemptToFixRetries();
+    if (retries != null) {
+      return new TestManagementSettings(true, retries);
+    }
+
+    return settings.getTestManagementSettings();
   }
 
   @Nonnull
@@ -325,7 +327,6 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
       Thread.currentThread().interrupt();
       LOGGER.error("Interrupted while waiting for git data upload", e);
       return SkippableTests.EMPTY;
-
     } catch (Exception e) {
       LOGGER.error("Could not obtain list of skippable tests, will proceed without skipping", e);
       return SkippableTests.EMPTY;

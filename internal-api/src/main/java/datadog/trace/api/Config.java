@@ -2990,7 +2990,7 @@ public class Config {
     return ciVisibilityTestManagementEnabled;
   }
 
-  public int getCiVisibilityTestManagementAttemptToFixRetries() {
+  public Integer getCiVisibilityTestManagementAttemptToFixRetries() {
     return ciVisibilityTestManagementAttemptToFixRetries;
   }
 
