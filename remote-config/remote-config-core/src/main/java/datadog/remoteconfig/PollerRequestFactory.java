@@ -9,11 +9,11 @@ import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.api.remoteconfig.ServiceNameCollector;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.util.RandomUtils;
 import datadog.trace.util.TagsHelper;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
@@ -30,7 +30,7 @@ public class PollerRequestFactory {
 
   private static final Logger log = LoggerFactory.getLogger(PollerRequestFactory.class);
 
-  private final String clientId = UUID.randomUUID().toString();
+  private final String clientId = RandomUtils.randomUUID().toString();
   private final String runtimeId;
   private final String serviceName;
   private final String apiKey;
@@ -66,9 +66,9 @@ public class PollerRequestFactory {
 
   private static String getRuntimeId(Config config) {
     String runtimeId = config.getRuntimeId();
-    if (runtimeId == null || runtimeId.length() == 0) {
+    if (runtimeId == null || runtimeId.isEmpty()) {
       log.debug("runtimeId not configured, generating a new UUID");
-      runtimeId = UUID.randomUUID().toString();
+      runtimeId = RandomUtils.randomUUID().toString();
     }
     return runtimeId;
   }

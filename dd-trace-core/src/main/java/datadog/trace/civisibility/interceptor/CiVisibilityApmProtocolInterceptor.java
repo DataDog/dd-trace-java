@@ -2,6 +2,7 @@ package datadog.trace.civisibility.interceptor;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanTypes;
+import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.CiVisibilityWellKnownTags;
 import datadog.trace.api.interceptor.AbstractTraceInterceptor;
 import datadog.trace.api.interceptor.MutableSpan;
@@ -47,6 +48,9 @@ public class CiVisibilityApmProtocolInterceptor extends AbstractTraceInterceptor
         span.setTag(Tags.OS_ARCHITECTURE, wellKnownTags.getOsArch().toString());
         span.setTag(Tags.OS_PLATFORM, wellKnownTags.getOsPlatform().toString());
         span.setTag(Tags.OS_VERSION, wellKnownTags.getOsVersion().toString());
+        span.setTag(
+            DDTags.TEST_IS_USER_PROVIDED_SERVICE,
+            wellKnownTags.getIsUserProvidedService().toString());
       }
     }
     return filteredTrace;

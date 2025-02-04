@@ -28,7 +28,7 @@ class GithubActionsInfoTest extends CITagsProviderTest {
     return map
   }
 
-  def "test GitHub event parsing and additional tags"() {
+  def "test pull request info parsing"() {
     setup:
     def githubEvent = GithubActionsInfoTest.getResource("/ci/github-event.json")
     def githubEventPath = Paths.get(githubEvent.toURI())
@@ -37,13 +37,11 @@ class GithubActionsInfoTest extends CITagsProviderTest {
     environmentVariables.set(GithubActionsInfo.GITHUB_EVENT_PATH, githubEventPath.toString())
 
     when:
-    def cIInfo = new GithubActionsInfo(new CiEnvironmentImpl(System.getenv())).buildCIInfo()
+    def pullRequestInfo = new GithubActionsInfo(new CiEnvironmentImpl(System.getenv())).buildPullRequestInfo()
 
     then:
-    cIInfo.getAdditionalTags() == [
-      (GithubActionsInfo.GIT_PULL_REQUEST_BASE_BRANCH) : "base-ref",
-      (GithubActionsInfo.GIT_PULL_REQUEST_BASE_BRANCH_SHA) : "52e0974c74d41160a03d59ddc73bb9f5adab054b",
-      (GithubActionsInfo.GIT_COMMIT_HEAD_SHA) : "df289512a51123083a8e6931dd6f57bb3883d4c4",
-    ]
+    pullRequestInfo.pullRequestBaseBranch == "base-ref"
+    pullRequestInfo.pullRequestBaseBranchSha == "52e0974c74d41160a03d59ddc73bb9f5adab054b"
+    pullRequestInfo.gitCommitHeadSha == "df289512a51123083a8e6931dd6f57bb3883d4c4"
   }
 }

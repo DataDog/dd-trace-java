@@ -104,7 +104,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
     instrumentMethodEnter();
     instrumentTryCatchHandlers();
     processInstructions();
-    addFinallyHandler(returnHandlerLabel);
+    addFinallyHandler(contextInitLabel, returnHandlerLabel);
     installFinallyBlocks();
     return InstrumentationResult.Status.INSTALLED;
   }
@@ -317,7 +317,11 @@ public class CapturedContextInstrumentor extends Instrumentor {
   private InsnList commit() {
     InsnList insnList = new InsnList();
     // stack []
-    getContext(insnList, entryContextVar);
+    if (entryContextVar != -1) {
+      getContext(insnList, entryContextVar);
+    } else {
+      getStatic(insnList, CAPTURED_CONTEXT_TYPE, "EMPTY_CAPTURING_CONTEXT");
+    }
     // stack [capturedcontext]
     getContext(insnList, exitContextVar);
     // stack [capturedcontext, capturedcontext]
@@ -342,7 +346,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
     return insnList;
   }
 
-  private void addFinallyHandler(LabelNode endLabel) {
+  protected void addFinallyHandler(LabelNode startLabel, LabelNode endLabel) {
     // stack: [exception]
     if (methodNode.tryCatchBlocks == null) {
       methodNode.tryCatchBlocks = new ArrayList<>();
@@ -351,18 +355,28 @@ public class CapturedContextInstrumentor extends Instrumentor {
     InsnList handler = new InsnList();
     handler.add(handlerLabel);
     // stack [exception]
-    handler.add(new VarInsnNode(Opcodes.ALOAD, entryContextVar));
-    // stack [exception, capturedcontext]
-    LabelNode targetNode = new LabelNode();
-    invokeVirtual(handler, CAPTURED_CONTEXT_TYPE, "isCapturing", BOOLEAN_TYPE);
-    // stack [exception, boolean]
-    handler.add(new JumpInsnNode(Opcodes.IFEQ, targetNode));
+    LabelNode targetNode = null;
+    if (entryContextVar != -1) {
+      handler.add(new VarInsnNode(Opcodes.ALOAD, entryContextVar));
+      // stack [exception, capturedcontext]
+      targetNode = new LabelNode();
+      invokeVirtual(handler, CAPTURED_CONTEXT_TYPE, "isCapturing", BOOLEAN_TYPE);
+      // stack [exception, boolean]
+      handler.add(new JumpInsnNode(Opcodes.IFEQ, targetNode));
+    }
+    if (exitContextVar == -1) {
+      exitContextVar = newVar(CAPTURED_CONTEXT_TYPE);
+    }
     // stack [exception]
     handler.add(collectCapturedContext(Snapshot.Kind.UNHANDLED_EXCEPTION, endLabel));
     // stack: [exception, capturedcontext]
     ldc(handler, Type.getObjectType(classNode.name));
     // stack [exception, capturedcontext, class]
-    handler.add(new VarInsnNode(Opcodes.LLOAD, timestampStartVar));
+    if (timestampStartVar != -1) {
+      handler.add(new VarInsnNode(Opcodes.LLOAD, timestampStartVar));
+    } else {
+      ldc(handler, -1L);
+    }
     // stack [exception, capturedcontext, class, long]
     getStatic(handler, METHOD_LOCATION_TYPE, "EXIT");
     // stack [exception, capturedcontext, class, long, methodlocation]
@@ -382,12 +396,14 @@ public class CapturedContextInstrumentor extends Instrumentor {
     invokeStatic(handler, DEBUGGER_CONTEXT_TYPE, "disableInProbe", VOID_TYPE);
     // stack [exception]
     handler.add(commit());
-    handler.add(targetNode);
+    if (targetNode != null) {
+      handler.add(targetNode);
+    }
     // stack [exception]
     handler.add(new InsnNode(Opcodes.ATHROW));
     // stack: []
     methodNode.instructions.add(handler);
-    finallyBlocks.add(new FinallyBlock(contextInitLabel, endLabel, handlerLabel));
+    finallyBlocks.add(new FinallyBlock(startLabel, endLabel, handlerLabel));
   }
 
   private void instrumentMethodEnter() {
@@ -921,7 +937,10 @@ public class CapturedContextInstrumentor extends Instrumentor {
         }
       }
     }
-
+    if (applicableVars.isEmpty()) {
+      // no applicable local variables - bail out
+      return;
+    }
     insnList.add(new InsnNode(Opcodes.DUP));
     // stack: [capturedcontext, capturedcontext]
     ldc(insnList, applicableVars.size());

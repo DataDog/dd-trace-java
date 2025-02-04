@@ -18,6 +18,7 @@ import java.util.concurrent.TimeoutException
 abstract class AbstractIastServerSmokeTest extends AbstractServerSmokeTest {
 
   private static final String TAG_NAME = '_dd.iast.json'
+  private static final String IAST_STARTED_MSG = 'IAST started'
 
   @Shared
   private final JsonSlurper jsonSlurper = new JsonSlurper()
@@ -30,6 +31,14 @@ abstract class AbstractIastServerSmokeTest extends AbstractServerSmokeTest {
   @Override
   Closure decodedTracesCallback() {
     return {} // force traces decoding
+  }
+
+  def setupSpec() {
+    try {
+      processTestLogLines { it.contains(IAST_STARTED_MSG) }
+    } catch (TimeoutException toe) {
+      throw new AssertionError("'$IAST_STARTED_MSG' not found in logs", toe)
+    }
   }
 
   protected static String withSystemProperty(final String config, final Object value) {

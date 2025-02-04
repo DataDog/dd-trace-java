@@ -1,7 +1,7 @@
 package datadog.trace.civisibility.config
 
 import datadog.trace.api.civisibility.config.TestIdentifier
-import datadog.trace.civisibility.ipc.Serializer
+import datadog.trace.civisibility.ipc.serialization.Serializer
 import spock.lang.Specification
 
 class TestIdentifierSerializerTest extends Specification {

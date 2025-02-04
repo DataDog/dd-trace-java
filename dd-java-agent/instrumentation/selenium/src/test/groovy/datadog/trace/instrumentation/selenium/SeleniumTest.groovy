@@ -7,7 +7,7 @@ class SeleniumTest extends AbstractSeleniumTest {
   def "test Selenium #testcaseName"() {
     runTests(tests)
 
-    def dynamicData = assertSpansData(testcaseName, testCasesCount + 1)
+    def dynamicData = assertSpansData(testcaseName)
     assertRumData(testCasesCount, dynamicData)
 
     where:

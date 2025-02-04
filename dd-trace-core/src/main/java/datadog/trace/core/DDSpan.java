@@ -485,6 +485,12 @@ public class DDSpan
     return this;
   }
 
+  @Override
+  public AgentSpan setAllTags(Map<String, ?> map) {
+    context.setAllTags(map);
+    return this;
+  }
+
   // FIXME [API] this is not on AgentSpan or MutableSpan
   @Override
   public DDSpan removeTag(final String tag) {

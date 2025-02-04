@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.junit4;
 
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
-import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.execution.TestExecutionHistory;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -23,10 +23,10 @@ public class MUnitTracingListener extends TracingListener {
 
   public static final String FRAMEWORK_NAME = "munit";
   public static final String FRAMEWORK_VERSION = getVersion();
-  private final ContextStore<Description, TestRetryPolicy> retryPolicies;
+  private final ContextStore<Description, TestExecutionHistory> executionHistories;
 
-  public MUnitTracingListener(ContextStore<Description, TestRetryPolicy> retryPolicies) {
-    this.retryPolicies = retryPolicies;
+  public MUnitTracingListener(ContextStore<Description, TestExecutionHistory> executionHistories) {
+    this.executionHistories = executionHistories;
   }
 
   public static String getVersion() {
@@ -74,31 +74,27 @@ public class MUnitTracingListener extends TracingListener {
   public void testStarted(final Description description) {
     TestSuiteDescriptor suiteDescriptor = MUnitUtils.toSuiteDescriptor(description);
     TestDescriptor testDescriptor = MUnitUtils.toTestDescriptor(description);
-    String testSuiteName = description.getClassName();
-    Class<?> testClass = description.getTestClass();
     String testName = description.getMethodName();
     List<String> categories = getCategories(description);
-    TestRetryPolicy retryPolicy = retryPolicies.get(description);
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestStart(
         suiteDescriptor,
         testDescriptor,
-        testSuiteName,
         testName,
         FRAMEWORK_NAME,
         FRAMEWORK_VERSION,
         null,
         categories,
-        testClass,
+        JUnit4Utils.toTestSourceData(description),
         null,
-        null,
-        retryPolicy != null && retryPolicy.currentExecutionIsRetry(),
-        null);
+        executionHistories.get(description));
   }
 
   @Override
   public void testFinished(final Description description) {
     TestDescriptor testDescriptor = MUnitUtils.toTestDescriptor(description);
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(testDescriptor, null);
+    TestExecutionHistory executionHistory = executionHistories.get(description);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(
+        testDescriptor, null, executionHistory);
   }
 
   // same callback is executed both for test cases and test suites (for setup/teardown errors)
@@ -147,7 +143,6 @@ public class MUnitTracingListener extends TracingListener {
   @Override
   public void testIgnored(final Description description) {
     Class<?> testClass = description.getTestClass();
-    String testSuiteName = description.getClassName();
     String testName = description.getMethodName();
 
     if (Strings.isNotBlank(testName)) {
@@ -160,20 +155,17 @@ public class MUnitTracingListener extends TracingListener {
         TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestStart(
             suiteDescriptor,
             testDescriptor,
-            testSuiteName,
             testName,
             FRAMEWORK_NAME,
             FRAMEWORK_VERSION,
             null,
             categories,
-            testClass,
+            JUnit4Utils.toTestSourceData(description),
             null,
-            null,
-            false,
             null);
       }
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSkip(testDescriptor, null);
-      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(testDescriptor, null);
+      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(testDescriptor, null, null);
 
     } else if (testClass != null) {
       TestSuiteDescriptor suiteDescriptor = MUnitUtils.toSuiteDescriptor(description);
@@ -181,6 +173,7 @@ public class MUnitTracingListener extends TracingListener {
       boolean suiteStarted = isSpanInProgress(InternalSpanTypes.TEST_SUITE_END);
       if (!suiteStarted) {
         // there is a bug in MUnit 1.0.1+: start/finish events are not fired for skipped suites
+        String testSuiteName = description.getClassName();
         List<String> categories = getCategories(description);
         TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
             suiteDescriptor,
@@ -218,22 +211,17 @@ public class MUnitTracingListener extends TracingListener {
   private void testCaseIgnored(final Description description) {
     TestSuiteDescriptor suiteDescriptor = MUnitUtils.toSuiteDescriptor(description);
     TestDescriptor testDescriptor = MUnitUtils.toTestDescriptor(description);
-    String testSuiteName = description.getClassName();
     String testName = description.getMethodName();
-    Class<?> testClass = description.getTestClass();
     List<String> categories = getCategories(description);
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestIgnore(
         suiteDescriptor,
         testDescriptor,
-        testSuiteName,
         testName,
         FRAMEWORK_NAME,
         FRAMEWORK_VERSION,
         null,
         categories,
-        testClass,
-        null,
-        null,
+        JUnit4Utils.toTestSourceData(description),
         null);
   }
 

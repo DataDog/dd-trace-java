@@ -584,6 +584,75 @@ public class AgentTracer {
     }
   }
 
+  /**
+   * Represents a remote span from an extracted span context.
+   *
+   * <p>Tags and baggage access are inefficient and only supported as remediation for products
+   * storing propagated information into span context, until they migrate to the new context API.
+   */
+  static final class ExtractedSpan extends AgentTracer.NoopAgentSpan {
+    private final AgentSpanContext spanContext;
+
+    ExtractedSpan(AgentSpanContext spanContext) {
+      super();
+      this.spanContext = spanContext;
+    }
+
+    @Override
+    public DDTraceId getTraceId() {
+      return this.spanContext.getTraceId();
+    }
+
+    @Override
+    public long getSpanId() {
+      return this.spanContext.getSpanId();
+    }
+
+    @Override
+    public Object getTag(final String tag) {
+      if (this.spanContext instanceof TagContext) {
+        return ((TagContext) this.spanContext).getTags().get(tag);
+      }
+      return null;
+    }
+
+    @Override
+    public Map<String, Object> getTags() {
+      if (this.spanContext instanceof TagContext) {
+        Map<String, String> tags = ((TagContext) this.spanContext).getTags();
+        //noinspection unchecked
+        return (Map<String, Object>) (Map<?, ?>) tags;
+      }
+      return Collections.emptyMap();
+    }
+
+    @Override
+    public String getBaggageItem(final String key) {
+      Iterable<Map.Entry<String, String>> baggage = this.spanContext.baggageItems();
+      for (Map.Entry<String, String> stringStringEntry : baggage) {
+        if (stringStringEntry.getKey().equals(key)) {
+          return stringStringEntry.getValue();
+        }
+      }
+      return null;
+    }
+
+    @Override
+    public AgentSpanContext context() {
+      return this.spanContext;
+    }
+
+    @Override
+    public boolean isSameTrace(AgentSpan otherSpan) {
+      return null != otherSpan && getTraceId().equals(otherSpan.getTraceId());
+    }
+
+    @Override
+    public String toString() {
+      return "ExtractedSpan{spanContext=" + this.spanContext + '}';
+    }
+  }
+
   public static class NoopAgentSpan implements AgentSpan {
     public static final NoopAgentSpan INSTANCE = new NoopAgentSpan();
 
@@ -639,6 +708,11 @@ public class AgentTracer {
 
     @Override
     public AgentSpan setTag(final String key, final Object value) {
+      return this;
+    }
+
+    @Override
+    public AgentSpan setAllTags(Map<String, ?> map) {
       return this;
     }
 

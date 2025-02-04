@@ -6,11 +6,15 @@ import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.api.civisibility.DDTestSuite;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
-import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.execution.TestExecutionHistory;
+import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.EventType;
+import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
+import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -18,7 +22,6 @@ import datadog.trace.civisibility.domain.TestFrameworkModule;
 import datadog.trace.civisibility.domain.TestFrameworkSession;
 import datadog.trace.civisibility.domain.TestImpl;
 import datadog.trace.civisibility.domain.TestSuiteImpl;
-import java.lang.reflect.Method;
 import java.util.Collection;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -131,18 +134,15 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
   public void onTestStart(
       final SuiteKey suiteDescriptor,
       final TestKey descriptor,
-      final String testSuiteName,
       final String testName,
       final @Nullable String testFramework,
       final @Nullable String testFrameworkVersion,
       final @Nullable String testParameters,
       final @Nullable Collection<String> categories,
-      final @Nullable Class<?> testClass,
-      final @Nullable String testMethodName,
-      final @Nullable Method testMethod,
-      final boolean isRetry,
-      @Nullable Long startTime) {
-    if (skipTrace(testClass)) {
+      final @Nonnull TestSourceData testSourceData,
+      final @Nullable Long startTime,
+      final @Nullable TestExecutionHistory testExecutionHistory) {
+    if (skipTrace(testSourceData.getTestClass())) {
       return;
     }
 
@@ -155,11 +155,28 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
               + descriptor);
     }
 
-    TestImpl test = testSuite.testStart(testName, testParameters, testMethod, startTime);
+    TestImpl test =
+        testSuite.testStart(testName, testParameters, testSourceData.getTestMethod(), startTime);
 
-    TestIdentifier thisTest = new TestIdentifier(testSuiteName, testName, testParameters);
+    TestIdentifier thisTest = test.getIdentifier();
     if (testModule.isNew(thisTest)) {
       test.setTag(Tags.TEST_IS_NEW, true);
+    }
+
+    if (testModule.isModified(testSourceData)) {
+      test.setTag(Tags.TEST_IS_MODIFIED, true);
+    }
+
+    if (testModule.isQuarantined(thisTest)) {
+      test.setTag(Tags.TEST_MANAGEMENT_IS_QUARANTINED, true);
+    }
+
+    if (testExecutionHistory != null) {
+      RetryReason retryReason = testExecutionHistory.currentExecutionRetryReason();
+      if (retryReason != null) {
+        test.setTag(Tags.TEST_IS_RETRY, true);
+        test.setTag(Tags.TEST_RETRY_REASON, retryReason);
+      }
     }
 
     if (testFramework != null) {
@@ -171,8 +188,11 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
     if (testParameters != null) {
       test.setTag(Tags.TEST_PARAMETERS, testParameters);
     }
-    if (testMethodName != null && testMethod != null) {
-      test.setTag(Tags.TEST_SOURCE_METHOD, testMethodName + Type.getMethodDescriptor(testMethod));
+    if (testSourceData.getTestMethodName() != null && testSourceData.getTestMethod() != null) {
+      test.setTag(
+          Tags.TEST_SOURCE_METHOD,
+          testSourceData.getTestMethodName()
+              + Type.getMethodDescriptor(testSourceData.getTestMethod()));
     }
     if (categories != null && !categories.isEmpty()) {
       test.setTag(Tags.TEST_TRAITS, getTestTraits(categories));
@@ -182,17 +202,13 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
           test.setTag(Tags.TEST_ITR_UNSKIPPABLE, true);
           metricCollector.add(CiVisibilityCountMetric.ITR_UNSKIPPABLE, 1, EventType.TEST);
 
-          if (testModule.shouldBeSkipped(thisTest)) {
+          if (testModule.skipReason(thisTest) == SkipReason.ITR) {
             test.setTag(Tags.TEST_ITR_FORCED_RUN, true);
             metricCollector.add(CiVisibilityCountMetric.ITR_FORCED_RUN, 1, EventType.TEST);
           }
           break;
         }
       }
-    }
-
-    if (isRetry) {
-      test.setTag(Tags.TEST_IS_RETRY, true);
     }
 
     inProgressTests.put(descriptor, test);
@@ -219,12 +235,22 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
   }
 
   @Override
-  public void onTestFinish(TestKey descriptor, @Nullable Long endTime) {
+  public void onTestFinish(
+      TestKey descriptor,
+      @Nullable Long endTime,
+      @Nullable TestExecutionHistory testExecutionHistory) {
     TestImpl test = inProgressTests.remove(descriptor);
     if (test == null) {
       log.debug("Ignoring finish event, could not find test {}", descriptor);
       return;
     }
+
+    if (testExecutionHistory != null) {
+      if (test.hasFailed() && testExecutionHistory.hasFailedAllRetries()) {
+        test.setTag(Tags.TEST_HAS_FAILED_ALL_RETRIES, true);
+      }
+    }
+
     test.end(endTime);
   }
 
@@ -232,48 +258,32 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
   public void onTestIgnore(
       final SuiteKey suiteDescriptor,
       final TestKey testDescriptor,
-      final String testSuiteName,
       final String testName,
       final @Nullable String testFramework,
       final @Nullable String testFrameworkVersion,
       final @Nullable String testParameters,
       final @Nullable Collection<String> categories,
-      final @Nullable Class<?> testClass,
-      final @Nullable String testMethodName,
-      final @Nullable Method testMethod,
+      @Nonnull TestSourceData testSourceData,
       final @Nullable String reason) {
     onTestStart(
         suiteDescriptor,
         testDescriptor,
-        testSuiteName,
         testName,
         testFramework,
         testFrameworkVersion,
         testParameters,
         categories,
-        testClass,
-        testMethodName,
-        testMethod,
-        false,
+        testSourceData,
+        null,
         null);
     onTestSkip(testDescriptor, reason);
-    onTestFinish(testDescriptor, null);
-  }
-
-  @Override
-  public boolean skip(TestIdentifier test) {
-    return testModule.skip(test);
-  }
-
-  @Override
-  public boolean shouldBeSkipped(TestIdentifier test) {
-    return testModule.shouldBeSkipped(test);
+    onTestFinish(testDescriptor, null, null);
   }
 
   @Override
   @Nonnull
-  public TestRetryPolicy retryPolicy(TestIdentifier test) {
-    return testModule.retryPolicy(test);
+  public TestExecutionPolicy executionPolicy(TestIdentifier test, TestSourceData testSource) {
+    return testModule.executionPolicy(test, testSource);
   }
 
   @Override
@@ -284,6 +294,12 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
   @Override
   public boolean isFlaky(TestIdentifier test) {
     return testModule.isFlaky(test);
+  }
+
+  @Nullable
+  @Override
+  public SkipReason skipReason(TestIdentifier test) {
+    return testModule.skipReason(test);
   }
 
   @Override

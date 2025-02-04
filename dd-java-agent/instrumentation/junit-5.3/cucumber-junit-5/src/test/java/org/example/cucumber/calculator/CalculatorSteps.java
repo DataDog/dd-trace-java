@@ -23,7 +23,7 @@ public class CalculatorSteps {
 
   @Given("a flaky calculator I just turned on")
   public void a_flaky_calculator_I_just_turned_on() {
-    calc = ++flakyCounter >= 3 ? new Calculator() : null;
+    calc = new Calculator(++flakyCounter < 3);
   }
 
   @When("I add {int} and {int}")
@@ -94,6 +94,15 @@ public class CalculatorSteps {
   static class Calculator {
     private static final List<String> OPS = asList("-", "+", "*", "/");
     private final Deque<Number> stack = new LinkedList<>();
+    private final boolean broken;
+
+    public Calculator() {
+      this(false);
+    }
+
+    public Calculator(boolean broken) {
+      this.broken = broken;
+    }
 
     public void push(Object arg) {
       if (OPS.contains(arg)) {
@@ -116,6 +125,9 @@ public class CalculatorSteps {
     }
 
     public Number value() {
+      if (broken) {
+        throw new RuntimeException("This test is flaky");
+      }
       return stack.getLast();
     }
   }

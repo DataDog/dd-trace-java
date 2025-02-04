@@ -1,7 +1,7 @@
 public class CapturedSnapshot03 {
 
   int f1(int value) {
-    return value;
+    return value; // beae1817-f3b0-4ea8-a74f-000000000001
   }
 
   int f2(int value) {

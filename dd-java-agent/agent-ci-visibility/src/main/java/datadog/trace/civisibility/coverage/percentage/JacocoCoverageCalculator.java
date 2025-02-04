@@ -165,10 +165,7 @@ public class JacocoCoverageCalculator implements CoverageCalculator {
   }
 
   /** Handles skipped tests' coverage data received from the backend */
-  private void addBackendCoverageData(@Nullable Map<String, BitSet> skippableTestsCoverage) {
-    if (skippableTestsCoverage == null) {
-      return;
-    }
+  private void addBackendCoverageData(@Nonnull Map<String, BitSet> skippableTestsCoverage) {
     synchronized (coverageDataLock) {
       for (Map.Entry<String, BitSet> e : skippableTestsCoverage.entrySet()) {
         backendCoverageData.merge(e.getKey(), e.getValue(), JacocoCoverageCalculator::mergeBitSets);

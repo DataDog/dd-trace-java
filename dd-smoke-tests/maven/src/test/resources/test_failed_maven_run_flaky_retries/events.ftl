@@ -4,6 +4,7 @@
     "error" : 1,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid},
+      "_dd.test.is_user_provided_service" : "true",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "ci.workspace_path" : ${content_meta_ci_workspace_path},
       "component" : "maven",
@@ -51,6 +52,7 @@
     "error" : 1,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_2},
+      "_dd.test.is_user_provided_service" : "true",
       "ci.workspace_path" : ${content_meta_ci_workspace_path},
       "component" : "maven",
       "env" : "integration-test",
@@ -96,6 +98,7 @@
     "error" : 0,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_3},
+      "_dd.test.is_user_provided_service" : "true",
       "env" : "integration-test",
       "execution" : "default",
       "language" : "jvm",
@@ -127,6 +130,7 @@
     "error" : 0,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_4},
+      "_dd.test.is_user_provided_service" : "true",
       "env" : "integration-test",
       "execution" : "default-compile",
       "language" : "jvm",
@@ -158,6 +162,7 @@
     "error" : 0,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_5},
+      "_dd.test.is_user_provided_service" : "true",
       "env" : "integration-test",
       "execution" : "default-testCompile",
       "language" : "jvm",
@@ -189,6 +194,7 @@
     "error" : 0,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_6},
+      "_dd.test.is_user_provided_service" : "true",
       "env" : "integration-test",
       "execution" : "default-resources",
       "language" : "jvm",
@@ -220,6 +226,7 @@
     "error" : 0,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_7},
+      "_dd.test.is_user_provided_service" : "true",
       "env" : "integration-test",
       "execution" : "default-testResources",
       "language" : "jvm",
@@ -251,6 +258,7 @@
     "error" : 0,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_8},
+      "_dd.test.is_user_provided_service" : "true",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "ci.workspace_path" : ${content_meta_ci_workspace_path},
       "component" : "junit",
@@ -298,6 +306,7 @@
     "error" : 1,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_9},
+      "_dd.test.is_user_provided_service" : "true",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "ci.workspace_path" : ${content_meta_ci_workspace_path},
       "component" : "junit",
@@ -352,6 +361,7 @@
     "error" : 1,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_10},
+      "_dd.test.is_user_provided_service" : "true",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "ci.workspace_path" : ${content_meta_ci_workspace_path},
       "component" : "junit",
@@ -373,6 +383,7 @@
       "test.is_retry" : "true",
       "test.module" : "Maven Smoke Tests Project maven-surefire-plugin default-test",
       "test.name" : "test_failed",
+      "test.retry_reason" : "atr",
       "test.source.file" : "src/test/java/datadog/smoke/TestFailed.java",
       "test.source.method" : "test_failed()V",
       "test.status" : "fail",
@@ -407,6 +418,7 @@
     "error" : 1,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_11},
+      "_dd.test.is_user_provided_service" : "true",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "ci.workspace_path" : ${content_meta_ci_workspace_path},
       "component" : "junit",
@@ -428,6 +440,7 @@
       "test.is_retry" : "true",
       "test.module" : "Maven Smoke Tests Project maven-surefire-plugin default-test",
       "test.name" : "test_failed",
+      "test.retry_reason" : "atr",
       "test.source.file" : "src/test/java/datadog/smoke/TestFailed.java",
       "test.source.method" : "test_failed()V",
       "test.status" : "fail",
@@ -462,6 +475,7 @@
     "error" : 1,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_12},
+      "_dd.test.is_user_provided_service" : "true",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "ci.workspace_path" : ${content_meta_ci_workspace_path},
       "component" : "junit",
@@ -483,6 +497,7 @@
       "test.is_retry" : "true",
       "test.module" : "Maven Smoke Tests Project maven-surefire-plugin default-test",
       "test.name" : "test_failed",
+      "test.retry_reason" : "atr",
       "test.source.file" : "src/test/java/datadog/smoke/TestFailed.java",
       "test.source.method" : "test_failed()V",
       "test.status" : "fail",
@@ -517,6 +532,7 @@
     "error" : 1,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_13},
+      "_dd.test.is_user_provided_service" : "true",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "ci.workspace_path" : ${content_meta_ci_workspace_path},
       "component" : "junit",
@@ -535,9 +551,11 @@
       "span.kind" : "test",
       "test.framework" : "junit4",
       "test.framework_version" : "4.13.2",
+      "test.has_failed_all_retries" : "true",
       "test.is_retry" : "true",
       "test.module" : "Maven Smoke Tests Project maven-surefire-plugin default-test",
       "test.name" : "test_failed",
+      "test.retry_reason" : "atr",
       "test.source.file" : "src/test/java/datadog/smoke/TestFailed.java",
       "test.source.method" : "test_failed()V",
       "test.status" : "fail",

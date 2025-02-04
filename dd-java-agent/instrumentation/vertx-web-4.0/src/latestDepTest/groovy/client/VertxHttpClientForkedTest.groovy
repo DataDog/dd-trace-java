@@ -46,12 +46,12 @@ class VertxHttpClientForkedTest extends HttpClientTest implements TestingNettyHt
 
     def request = httpClient.request(HttpMethod.valueOf(method), uri.getPort(), uri.getHost(), uri.toString())
     headers.each { request.putHeader(it.key, it.value) }
-    request.sendBuffer(Buffer.buffer(body)).onSuccess { response ->
-      try {
+    request.sendBuffer(Buffer.buffer(body)) { asyncResult ->
+      if (asyncResult.succeeded()) {
         callback?.call()
-        future.complete(response)
-      } catch (Exception e) {
-        future.completeExceptionally(e)
+        future.complete(asyncResult.result())
+      } else {
+        future.completeExceptionally(asyncResult.cause())
       }
     }
 

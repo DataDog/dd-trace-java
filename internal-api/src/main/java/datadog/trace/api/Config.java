@@ -2,7 +2,6 @@ package datadog.trace.api;
 
 import static datadog.trace.api.ConfigDefaults.*;
 import static datadog.trace.api.DDTags.*;
-import static datadog.trace.api.DDTags.PROFILING_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.*;
 import static datadog.trace.api.config.CiVisibilityConfig.*;
 import static datadog.trace.api.config.CrashTrackingConfig.*;
@@ -39,6 +38,7 @@ import datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.context.TraceScope;
 import datadog.trace.util.PidHelper;
+import datadog.trace.util.RandomUtils;
 import datadog.trace.util.Strings;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -97,7 +97,7 @@ public class Config {
    * and every JMX metric that is sent out.
    */
   static class RuntimeIdHolder {
-    static final String runtimeId = UUID.randomUUID().toString();
+    static final String runtimeId = RandomUtils.randomUUID().toString();
   }
 
   static class HostNameHolder {
@@ -336,6 +336,7 @@ public class Config {
   private final String[] ciVisibilityCodeCoverageExcludedPackages;
   private final List<String> ciVisibilityJacocoGradleSourceSets;
   private final Integer ciVisibilityDebugPort;
+  private final boolean ciVisibilityGitClientEnabled;
   private final boolean ciVisibilityGitUploadEnabled;
   private final boolean ciVisibilityGitUnshallowEnabled;
   private final boolean ciVisibilityGitUnshallowDefer;
@@ -356,6 +357,8 @@ public class Config {
   private final String ciVisibilityInjectedTracerVersion;
   private final List<String> ciVisibilityResourceFolderNames;
   private final boolean ciVisibilityFlakyRetryEnabled;
+  private final boolean ciVisibilityImpactedTestsDetectionEnabled;
+  private final boolean ciVisibilityKnownTestsRequestEnabled;
   private final boolean ciVisibilityFlakyRetryOnlyKnownFlakes;
   private final int ciVisibilityFlakyRetryCount;
   private final int ciVisibilityTotalFlakyRetryCount;
@@ -1443,6 +1446,7 @@ public class Config {
     ciVisibilityJacocoGradleSourceSets =
         configProvider.getList(CIVISIBILITY_GRADLE_SOURCE_SETS, Arrays.asList("main", "test"));
     ciVisibilityDebugPort = configProvider.getInteger(CIVISIBILITY_DEBUG_PORT);
+    ciVisibilityGitClientEnabled = configProvider.getBoolean(CIVISIBILITY_GIT_CLIENT_ENABLED, true);
     ciVisibilityGitUploadEnabled =
         configProvider.getBoolean(
             CIVISIBILITY_GIT_UPLOAD_ENABLED, DEFAULT_CIVISIBILITY_GIT_UPLOAD_ENABLED);
@@ -1492,6 +1496,10 @@ public class Config {
             CIVISIBILITY_RESOURCE_FOLDER_NAMES, DEFAULT_CIVISIBILITY_RESOURCE_FOLDER_NAMES);
     ciVisibilityFlakyRetryEnabled =
         configProvider.getBoolean(CIVISIBILITY_FLAKY_RETRY_ENABLED, true);
+    ciVisibilityImpactedTestsDetectionEnabled =
+        configProvider.getBoolean(CIVISIBILITY_IMPACTED_TESTS_DETECTION_ENABLED, true);
+    ciVisibilityKnownTestsRequestEnabled =
+        configProvider.getBoolean(CIVISIBILITY_KNOWN_TESTS_REQUEST_ENABLED, true);
     ciVisibilityFlakyRetryOnlyKnownFlakes =
         configProvider.getBoolean(CIVISIBILITY_FLAKY_RETRY_ONLY_KNOWN_FLAKES, false);
     ciVisibilityEarlyFlakeDetectionEnabled =
@@ -2819,6 +2827,10 @@ public class Config {
     return ciVisibilityDebugPort;
   }
 
+  public boolean isCiVisibilityGitClientEnabled() {
+    return ciVisibilityGitClientEnabled;
+  }
+
   public boolean isCiVisibilityGitUploadEnabled() {
     return ciVisibilityGitUploadEnabled;
   }
@@ -2899,6 +2911,14 @@ public class Config {
     return ciVisibilityFlakyRetryEnabled;
   }
 
+  public boolean isCiVisibilityImpactedTestsDetectionEnabled() {
+    return ciVisibilityImpactedTestsDetectionEnabled;
+  }
+
+  public boolean isCiVisibilityKnownTestsRequestEnabled() {
+    return ciVisibilityKnownTestsRequestEnabled;
+  }
+
   public boolean isCiVisibilityFlakyRetryOnlyKnownFlakes() {
     return ciVisibilityFlakyRetryOnlyKnownFlakes;
   }
@@ -2911,7 +2931,7 @@ public class Config {
     return ciVisibilityEarlyFlakeDetectionLowerLimit;
   }
 
-  public boolean isCiVisibilityTestRetryEnabled() {
+  public boolean isCiVisibilityExecutionPoliciesEnabled() {
     return ciVisibilityFlakyRetryEnabled || ciVisibilityEarlyFlakeDetectionEnabled;
   }
 
@@ -3389,7 +3409,7 @@ public class Config {
     result.putAll(runtimeTags);
     result.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
     result.put(SCHEMA_VERSION_TAG_KEY, SpanNaming.instance().version());
-    result.put(PROFILING_ENABLED, isProfilingEnabled() ? 1 : 0);
+    result.put(DDTags.PROFILING_ENABLED, isProfilingEnabled() ? 1 : 0);
     if (isAppSecStandaloneEnabled()) {
       result.put(APM_ENABLED, 0);
     }
@@ -3430,7 +3450,8 @@ public class Config {
         System.getProperty("java.vendor"),
         System.getProperty("os.arch"),
         System.getProperty("os.name"),
-        System.getProperty("os.version"));
+        System.getProperty("os.version"),
+        isServiceNameSetByUser() ? "true" : "false");
   }
 
   public String getPrimaryTag() {

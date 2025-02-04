@@ -1,9 +1,11 @@
 package datadog.trace.instrumentation.weaver;
 
 import datadog.trace.api.civisibility.InstrumentationBridge;
+import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
+import datadog.trace.api.civisibility.execution.TestExecutionHistory;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.util.AgentThreadFactory;
@@ -90,7 +92,7 @@ public class DatadogWeaverReporter {
         new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier);
     String testMethodName = null;
     Method testMethod = null;
-    boolean isRetry = false;
+    TestExecutionHistory executionHistory = null;
 
     // Only test finish is reported, so fake test start timestamp
     long endMicros = SystemTimeSource.INSTANCE.getCurrentTimeMicros();
@@ -98,17 +100,14 @@ public class DatadogWeaverReporter {
     TEST_EVENTS_HANDLER.onTestStart(
         testSuiteDescriptor,
         testDescriptor,
-        testSuiteName,
         testName,
         TEST_FRAMEWORK,
         TEST_FRAMEWORK_VERSION,
         testParameters,
         categories,
-        testClass,
-        testMethodName,
-        testMethod,
-        isRetry,
-        startMicros);
+        new TestSourceData(testClass, testMethod, testMethodName),
+        startMicros,
+        executionHistory);
 
     if (testOutcome.result() instanceof Result.Ignored) {
       Result.Ignored result = (Result.Ignored) testOutcome.result();
@@ -132,6 +131,6 @@ public class DatadogWeaverReporter {
       TEST_EVENTS_HANDLER.onTestFailure(testDescriptor, throwable);
     }
 
-    TEST_EVENTS_HANDLER.onTestFinish(testDescriptor, endMicros);
+    TEST_EVENTS_HANDLER.onTestFinish(testDescriptor, endMicros, executionHistory);
   }
 }

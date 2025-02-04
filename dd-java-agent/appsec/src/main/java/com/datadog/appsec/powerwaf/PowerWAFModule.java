@@ -33,6 +33,7 @@ import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.util.RandomUtils;
 import datadog.trace.util.stacktrace.StackTraceEvent;
 import datadog.trace.util.stacktrace.StackTraceFrame;
 import datadog.trace.util.stacktrace.StackUtils;
@@ -64,7 +65,6 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
@@ -228,7 +228,7 @@ public class PowerWAFModule implements AppSecModule {
     AppSecConfig ruleConfig = config.getMergedUpdateConfig();
     PowerwafContext newPwafCtx = null;
     try {
-      String uniqueId = UUID.randomUUID().toString();
+      String uniqueId = RandomUtils.randomUUID().toString();
 
       if (prevContextAndAddresses == null) {
         PowerwafConfig pwConfig = createPowerwafConfig();
@@ -243,12 +243,6 @@ public class PowerWAFModule implements AppSecModule {
       // Update current rules' version if you need
       if (initReport != null && initReport.rulesetVersion != null) {
         currentRulesVersion = initReport.rulesetVersion;
-      }
-
-      if (prevContextAndAddresses == null) {
-        WafMetricCollector.get().wafInit(Powerwaf.LIB_VERSION, currentRulesVersion);
-      } else {
-        WafMetricCollector.get().wafUpdates(currentRulesVersion);
       }
 
       if (initReport != null) {
@@ -273,11 +267,13 @@ public class PowerWAFModule implements AppSecModule {
       }
     } catch (InvalidRuleSetException irse) {
       initReport = irse.ruleSetInfo;
+      sendWafMetrics(prevContextAndAddresses, false);
       throw new AppSecModuleActivationException("Error creating WAF rules", irse);
     } catch (RuntimeException | AbstractPowerwafException e) {
       if (newPwafCtx != null) {
         newPwafCtx.close();
       }
+      sendWafMetrics(prevContextAndAddresses, false);
       throw new AppSecModuleActivationException("Error creating WAF rules", e);
     } finally {
       if (initReport != null) {
@@ -287,14 +283,25 @@ public class PowerWAFModule implements AppSecModule {
 
     if (!this.ctxAndAddresses.compareAndSet(prevContextAndAddresses, newContextAndAddresses)) {
       newPwafCtx.close();
+      sendWafMetrics(prevContextAndAddresses, false);
       throw new AppSecModuleActivationException("Concurrent update of WAF configuration");
     }
+
+    sendWafMetrics(prevContextAndAddresses, true);
 
     if (prevContextAndAddresses != null) {
       prevContextAndAddresses.ctx.close();
     }
 
     reconf.reloadSubscriptions();
+  }
+
+  private void sendWafMetrics(CtxAndAddresses prevContextAndAddresses, boolean success) {
+    if (prevContextAndAddresses == null) {
+      WafMetricCollector.get().wafInit(Powerwaf.LIB_VERSION, currentRulesVersion, success);
+    } else {
+      WafMetricCollector.get().wafUpdates(currentRulesVersion, success);
+    }
   }
 
   private Map<String, ActionInfo> calculateEffectiveActions(
@@ -428,11 +435,13 @@ public class PowerWAFModule implements AppSecModule {
       try {
         resultWithData = doRunPowerwaf(reqCtx, newData, ctxAndAddr, gwCtx);
       } catch (TimeoutPowerwafException tpe) {
-        reqCtx.increaseTimeouts();
-        WafMetricCollector.get().wafRequestTimeout();
-        log.debug(LogCollector.EXCLUDE_TELEMETRY, "Timeout calling the WAF", tpe);
         if (gwCtx.isRasp) {
+          reqCtx.increaseRaspTimeouts();
           WafMetricCollector.get().raspTimeout(gwCtx.raspRuleType);
+        } else {
+          reqCtx.increaseWafTimeouts();
+          WafMetricCollector.get().wafRequestTimeout();
+          log.debug(LogCollector.EXCLUDE_TELEMETRY, "Timeout calling the WAF", tpe);
         }
         return;
       } catch (AbstractPowerwafException e) {
