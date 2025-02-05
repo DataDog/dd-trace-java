@@ -2,14 +2,17 @@ package datadog.trace.api.gateway;
 
 import datadog.trace.api.UserIdCollectionMode;
 import datadog.trace.api.appsec.LoginEventCallback;
+import datadog.trace.api.appsec.api.security.model.Endpoint;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -312,6 +315,16 @@ public final class Events<D> {
   @SuppressWarnings("unchecked")
   public EventType<BiFunction<RequestContext, String, Flow<Void>>> shellCmd() {
     return (EventType<BiFunction<RequestContext, String, Flow<Void>>>) SHELL_CMD;
+  }
+
+  static final int ENDPOINTS_ID = 26;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType ENDPOINTS = new ET<>("discovered.endpoints", ENDPOINTS_ID);
+
+  @SuppressWarnings("unchecked")
+  public EventType<Consumer<Iterator<Endpoint>>> endpoints() {
+    return (EventType<Consumer<Iterator<Endpoint>>>) ENDPOINTS;
   }
 
   static final int MAX_EVENTS = nextId.get();

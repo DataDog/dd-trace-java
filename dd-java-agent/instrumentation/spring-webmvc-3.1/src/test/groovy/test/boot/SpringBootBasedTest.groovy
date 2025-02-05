@@ -5,6 +5,8 @@ import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
+import datadog.trace.api.appsec.api.security.model.Endpoint
+import datadog.trace.api.appsec.api.security.model.Endpoint.Method
 import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
@@ -19,6 +21,7 @@ import okhttp3.Response
 import org.springframework.boot.SpringApplication
 import org.springframework.boot.context.embedded.EmbeddedWebApplicationContext
 import org.springframework.context.ConfigurableApplicationContext
+import org.springframework.http.MediaType
 import org.springframework.web.servlet.handler.HandlerInterceptorAdapter
 import org.springframework.web.servlet.view.RedirectView
 import test.SetupSpecHelper
@@ -126,6 +129,22 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   @Override
   boolean testUserBlocking() {
     true
+  }
+
+  @Override
+  boolean testEndpointDiscovery() {
+    true
+  }
+
+  @Override
+  void assertEndpointDiscovery(final List<?> endpoints) {
+    final discovered = endpoints.collectEntries { [(it.method): it] }  as Map<Method, Endpoint>
+    assert discovered.keySet().containsAll([Method.POST, Method.PATCH, Method.PUT])
+    discovered.values().each {
+      assert it.requestBodyType.containsAll([MediaType.APPLICATION_JSON_VALUE])
+      assert it.responseBodyType.containsAll([MediaType.TEXT_PLAIN_VALUE])
+      assert it.metadata['handler'] != null
+    }
   }
 
   @Override
