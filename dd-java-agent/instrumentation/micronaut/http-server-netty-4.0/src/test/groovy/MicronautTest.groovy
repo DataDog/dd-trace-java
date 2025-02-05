@@ -35,7 +35,7 @@ class MicronautTest extends HttpServerTest<Object> {
         }
 
         @Override
-        String captureCodeOrigin(Method method, boolean entry) {
+        String captureCodeOrigin(Method method, boolean entry, boolean instrument) {
           invoked = true
           return "done"
         }
