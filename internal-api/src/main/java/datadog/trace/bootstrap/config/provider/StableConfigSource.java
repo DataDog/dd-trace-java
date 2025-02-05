@@ -1,7 +1,5 @@
 package datadog.trace.bootstrap.config.provider;
 
-import static datadog.trace.util.Strings.propertyNameToEnvironmentVariableName;
-
 import datadog.trace.api.ConfigOrigin;
 import java.io.File;
 import java.io.IOException;
@@ -41,7 +39,7 @@ public final class StableConfigSource extends ConfigProvider.Source {
     File file = new File(filePath);
     if (!file.exists()) {
       log.error("Stable configuration file does not exist at the specified path: {}", filePath);
-      return config; // Exit early or take other action as necessary
+      return config;
     }
 
     Yaml yaml = new Yaml(new SafeConstructor(new LoaderOptions()));
@@ -69,7 +67,7 @@ public final class StableConfigSource extends ConfigProvider.Source {
 
   @Override
   public String get(String key) {
-    return (String) configuration.get(propertyNameToEnvironmentVariableName(key));
+    return (String) configuration.get(key);
   }
 
   @Override
