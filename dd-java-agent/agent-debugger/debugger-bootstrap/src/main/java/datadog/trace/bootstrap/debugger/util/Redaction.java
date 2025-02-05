@@ -117,11 +117,11 @@ public class Redaction {
      * based on sentry list: https://github.com/getsentry/sentry-python/blob/fefb454287b771ac31db4e30fa459d9be2f977b8/sentry_sdk/scrubber.py#L17-L58
      */
     KEYWORDS.addAll(PREDEFINED_KEYWORDS);
-    KEYWORDS.removeAll(Config.get().getDebuggerRedactionExcludedIdentifiers());
+    KEYWORDS.removeAll(Config.get().getDynamicInstrumentationRedactionExcludedIdentifiers());
   }
 
   public static void addUserDefinedKeywords(Config config) {
-    String redactedIdentifiers = config.getDebuggerRedactedIdentifiers();
+    String redactedIdentifiers = config.getDynamicInstrumentationRedactedIdentifiers();
     if (redactedIdentifiers == null) {
       return;
     }
@@ -132,7 +132,7 @@ public class Redaction {
   }
 
   public static void addUserDefinedTypes(Config config) {
-    String redactedTypes = config.getDebuggerRedactedTypes();
+    String redactedTypes = config.getDynamicInstrumentationRedactedTypes();
     if (redactedTypes == null) {
       return;
     }
