@@ -45,7 +45,7 @@ class HardcodedSecretModuleTest extends IastModuleImplTestBase {
     final evidence = vuln.evidence
     assert evidence != null
     assert evidence.value == expectedEvidence
-    assert vuln.location.path == className
+    assert vuln.location.class == className
     assert vuln.location.method == methodName
     assert vuln.location.line == line
   }
