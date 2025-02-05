@@ -61,7 +61,8 @@ class BaggageHttpInjectorTest extends DDCoreSpecification {
     [serverNode: "DF 28"]           | "serverNode=DF%2028"
     [userId: "Amélie"]              | "userId=Am%C3%A9lie"
     ['",;\\()/:<=>?@[]{}': '",;\\'] | "%22%2C%3B%5C%28%29%2F%3A%3C%3D%3E%3F%40%5B%5D%7B%7D=%22%2C%3B%5C"
-    ["user!d(me)": "false"]         | "user!d%28me%29=false" //failing
+    ["user!d(me)": "false"]         | "user!d%28me%29=false"
+    ["abcdefg": "hijklmnopq♥"]       | "abcdefg=hijklmnopq%E2%99%A5"
   }
 
   def "test baggage item limit"() {
@@ -152,5 +153,6 @@ class BaggageHttpInjectorTest extends DDCoreSpecification {
     baggage                                    | baggageHeaders
     [key1: "val1", key2: "val2"]               | "key1=val1,key2=val2"
     [key1: "val1", key2: "val2", key3: "val3"] | "key1=val1,key2=val2"
+    ["abcdefg": "hijklmnopq♥"]                 | ""
   }
 }
