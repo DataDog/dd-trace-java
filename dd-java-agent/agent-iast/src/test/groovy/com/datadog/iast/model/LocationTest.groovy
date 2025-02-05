@@ -17,7 +17,8 @@ class LocationTest extends DDSpecification {
 
     then:
     location.getSpanId() == spanId
-    location.getPath() == "declaringClass"
+    location.getPath() == "fileName"
+    location.getClassName() == "declaringClass"
     location.getLine() == 42
     location.getMethod() == stack.methodName
   }
@@ -35,7 +36,7 @@ class LocationTest extends DDSpecification {
 
     then:
     location.getSpanId() == spanId
-    location.getPath() == "declaringClass"
+    location.getClassName() == "declaringClass"
     location.getLine() == -1
     location.getMethod() == methodName
   }
@@ -50,7 +51,7 @@ class LocationTest extends DDSpecification {
     final location = Location.forClassAndMethodAndLine(declaringClass, methodName, line)
 
     then:
-    location.getPath() == "declaringClass"
+    location.getClassName() == "declaringClass"
     location.getLine() == line
     location.getMethod() == methodName
   }
