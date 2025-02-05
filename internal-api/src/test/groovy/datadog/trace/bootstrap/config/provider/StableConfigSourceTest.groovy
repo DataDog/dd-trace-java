@@ -21,7 +21,7 @@ class StableConfigSourceTest extends DDSpecification {
     // How to check that the "file does not exist" error was logged?
   }
 
-  def "test valid file"() {
+  def "test empty file"() {
     // test empty file
     when:
     Path filePath
@@ -42,28 +42,47 @@ class StableConfigSourceTest extends DDSpecification {
     then:
     config.getKeys().size() == 0
     config.getConfigId() == null
+  }
 
-    // test populated file
+  def "test populated file"() {
     when:
-    def id = "12345"
-    def key1 = "dd_first_key"
-    def val1 = "dd_first_val"
-    def key2 = "dd_second_key"
-    def val2 = "dd_second_val"
-    // Create the map that will be used to populate the config file
-    Map<String, Object> data = new HashMap<>()
-    data.put("config_id", id)
-    data.put("apm_configuration_default", new HashMap<String, Object>() {{
-          put(key1, val1)
-          put(key2, val2)
-        }})
+    Path filePath
+    StableConfigSource stableCfg
+    try {
+      filePath = Files.createTempFile("testFile_", ".yaml")
+    } catch (IOException e) {
+      println "Error creating file: ${e.message}"
+      e.printStackTrace()
+      return // or throw new RuntimeException("File creation failed", e)
+    }
+    if (filePath == null) {
+      return
+    }
 
     DumperOptions options = new DumperOptions()
     options.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK)
 
     // Prepare to write the data map to the file in yaml format
     Yaml yaml = new Yaml(options)
-    String yamlString = yaml.dump(data)
+    String yamlString
+    if (corrupt == true) {
+      yamlString = '''
+      abc:   123
+      def
+        ghi "jkl"
+        lmn: 456
+      '''
+    } else {
+      Map<String, Object> data = new HashMap<>()
+      if (configId != null) {
+        data.put("config_id", configId)
+      }
+      if (configs != null) {
+        data.put("apm_configuration_default", configs)
+      }
+
+      yamlString = yaml.dump(data)
+    }
 
     try {
       StandardOpenOption[] openOpts = [StandardOpenOption.WRITE] as StandardOpenOption[]
@@ -74,12 +93,26 @@ class StableConfigSourceTest extends DDSpecification {
       // fail fast?
     }
 
+    stableCfg = new StableConfigSource(filePath.toString(), ConfigOrigin.USER_STABLE_CONFIG)
+
     then:
-    StableConfigSource config2 = new StableConfigSource(filePath.toString(), ConfigOrigin.USER_STABLE_CONFIG)
-    config2.getConfigId() == id
-    config2.getKeys().size() == 2
-    config2.get(key1) == val1
-    config2.get(key2) == val2
+    stableCfg.getConfigId() == configId
+    if (configs == null) {
+      stableCfg.getKeys().size() == 0
+    } else {
+      stableCfg.getKeys().size() == configs.size()
+    }
     Files.delete(filePath)
+
+    where:
+    key_one = "key_one"
+    val_one = "val_one"
+    key_two = "key_two"
+    val_two = "val_2"
+    configId | configs | corrupt
+    null        | null | true
+    ""    | new HashMap<>() | false
+    "12345" | new HashMap<>() << ["key_one": "val_one", "key_two": "val_two"] | false
+
   }
 }

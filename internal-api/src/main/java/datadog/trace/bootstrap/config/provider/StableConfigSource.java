@@ -54,14 +54,20 @@ public final class StableConfigSource extends ConfigProvider.Source {
       log.error("Unable to read from stable config file {}, dropping input", filePath);
       return new HashMap<>();
     }
-
-    return yaml.load(input);
+    try {
+      return yaml.load(input);
+    } catch (Exception e) {
+      log.error("YAML parsing error in stable config file {}: {}", filePath, e.getMessage());
+      return new HashMap<>();
+    }
   }
 
-  private static Map<String, Object> parseStableConfig(HashMap<String, Object> data)
-      throws IOException {
+  private static Map<String, Object> parseStableConfig(HashMap<String, Object> data) {
     HashMap<String, Object> config = new HashMap<>();
     Object apmConfig = data.get("apm_configuration_default");
+    if (apmConfig == null) {
+      return config;
+    }
     if (apmConfig instanceof HashMap<?, ?>) {
       HashMap<?, ?> tempConfig = (HashMap<?, ?>) apmConfig;
       for (Map.Entry<?, ?> entry : tempConfig.entrySet()) {
