@@ -20,7 +20,6 @@ final class ScopeContinuation implements AgentScope.Continuation {
 
   // these boundaries were selected to allow for speculative counting and fuzzy checks
   private static final int CANCELLED = Integer.MIN_VALUE >> 1;
-  private static final int BARRIER = Integer.MIN_VALUE >> 2;
   private static final int HELD = (Integer.MAX_VALUE >> 1) + 1;
 
   final ContinuableScopeManager scopeManager;
@@ -28,6 +27,25 @@ final class ScopeContinuation implements AgentScope.Continuation {
   final byte source;
   final AgentTraceCollector traceCollector;
 
+  /**
+   * When positive this reflects the number of outstanding activations as well as whether there is
+   * an active hold on the continuation:
+   *
+   * <table>
+   * <tr><th>Value</th> <th>Meaning</th></tr>
+   * <tr><td>0</td><td>Not held or activated</td></tr>
+   * <tr><td>1..HELD-1</td><td>Activated, not held</td></tr>
+   * <tr><td>HELD</td><td>Held, not yet activated</td></tr>
+   * <tr><td>HELD..MAX_INT</td><td>Activated and held</td></tr>
+   * </table>
+   *
+   * where HELD is at the mid-point between 1 and MAX_INT.
+   *
+   * <p>A negative value of CANCELLED reflects that the continuation has either been activated and
+   * all associated scopes are now closed, or it has been explicitly cancelled. This value was
+   * chosen to be half the size of MIN_INT to avoid speculative additions in {@link #activate()}
+   * from overflowing to a positive count.
+   */
   private volatile int count = 0;
 
   ScopeContinuation(
@@ -73,7 +91,7 @@ final class ScopeContinuation implements AgentScope.Continuation {
       COUNT.compareAndSet(this, current, current - HELD);
       current = count;
     }
-    while (current <= 0 && current > BARRIER) {
+    while (current == 0) {
       // no outstanding activations and hold has been removed
       if (COUNT.compareAndSet(this, current, CANCELLED)) {
         traceCollector.cancelContinuation(this);
