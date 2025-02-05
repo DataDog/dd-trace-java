@@ -2,8 +2,10 @@ package datadog.trace.core.propagation
 
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
+import datadog.trace.api.DynamicConfig
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.common.writer.ListWriter
+import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.test.DDCoreSpecification
 
@@ -14,12 +16,19 @@ import static datadog.trace.core.propagation.BaggageHttpCodec.*
 
 class BaggageHttpInjectorTest extends DDCoreSpecification {
 
-  HttpCodec.Injector injector = newInjector(["some-baggage-key":"SOME_CUSTOM_HEADER"])
+  private HttpCodec.Injector injector = newInjector(["some-baggage-key":"SOME_CUSTOM_HEADER"])
+  private ListWriter writer
+  private CoreTracer tracer
+  private Map<String, String> carrier
+
+  void setup() {
+    writer = new ListWriter()
+    tracer = tracerBuilder().writer(writer).build()
+    carrier = Mock()
+  }
 
   def "test baggage injection and encoding"() {
     setup:
-    def writer = new ListWriter()
-    def tracer = tracerBuilder().writer(writer).build()
     final DDSpanContext mockedContext =
       new DDSpanContext(
       DDTraceId.from("1"),
@@ -41,9 +50,6 @@ class BaggageHttpInjectorTest extends DDCoreSpecification {
       NoopPathwayContext.INSTANCE,
       false,
       PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.dm=-4,_dd.p.anytag=value"))
-
-    final Map<String, String> carrier = Mock()
-
     when:
     injector.inject(mockedContext, carrier, MapSetter.INSTANCE)
 
@@ -68,8 +74,6 @@ class BaggageHttpInjectorTest extends DDCoreSpecification {
   def "test baggage item limit"() {
     setup:
     injectSysConfig("trace.baggage.max.items", '2')
-    def writer = new ListWriter()
-    def tracer = tracerBuilder().writer(writer).build()
     final DDSpanContext mockedContext =
       new DDSpanContext(
       DDTraceId.from("1"),
@@ -91,8 +95,6 @@ class BaggageHttpInjectorTest extends DDCoreSpecification {
       NoopPathwayContext.INSTANCE,
       false,
       PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.dm=-4,_dd.p.anytag=value"))
-
-    final Map<String, String> carrier = Mock()
 
     when:
     injector.inject(mockedContext, carrier, MapSetter.INSTANCE)
@@ -113,8 +115,6 @@ class BaggageHttpInjectorTest extends DDCoreSpecification {
   def "test baggage bytes limit"() {
     setup:
     injectSysConfig("trace.baggage.max.bytes", '20')
-    def writer = new ListWriter()
-    def tracer = tracerBuilder().writer(writer).build()
     final DDSpanContext mockedContext =
       new DDSpanContext(
       DDTraceId.from("1"),
@@ -136,8 +136,6 @@ class BaggageHttpInjectorTest extends DDCoreSpecification {
       NoopPathwayContext.INSTANCE,
       false,
       PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.dm=-4,_dd.p.anytag=value"))
-
-    final Map<String, String> carrier = Mock()
 
     when:
     injector.inject(mockedContext, carrier, MapSetter.INSTANCE)
