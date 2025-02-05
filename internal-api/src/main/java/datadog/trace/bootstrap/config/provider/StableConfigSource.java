@@ -22,30 +22,45 @@ public final class StableConfigSource extends ConfigProvider.Source {
 
   final ConfigOrigin fileOrigin;
   Map<String, Object> configuration;
+  String configId;
 
-  StableConfigSource(String file, ConfigOrigin origin) {
+  StableConfigSource(String file, ConfigOrigin origin) throws IOException {
     this.fileOrigin = origin;
-    try {
-      configuration = parseStableConfig(file);
-    } catch (Exception e) {
-      configuration = new HashMap<>();
+    HashMap<String, Object> data = readFile(file);
+    if (data == null) {
+      this.configuration = new HashMap<>();
+      this.configId = null;
+    } else {
+      this.configId = (String) data.get("config_id"); // could be ""
+      this.configuration = parseStableConfig(data);
     }
   }
 
-  private static Map<String, Object> parseStableConfig(String filePath) throws IOException {
-    HashMap<String, Object> config = new HashMap<>();
-
+  private static HashMap<String, Object> readFile(String filePath) {
     // Check if the file exists
     File file = new File(filePath);
     if (!file.exists()) {
-      log.error("Stable configuration file does not exist at the specified path: {}", filePath);
-      return config;
+      log.debug(
+          "Stable configuration file does not exist at the specified path: {}, ignoring", filePath);
+      return new HashMap<>();
     }
 
     Yaml yaml = new Yaml(new SafeConstructor(new LoaderOptions()));
-    InputStream input = Files.newInputStream(new File(filePath).toPath());
-    HashMap<String, Object> data = yaml.load(input);
+    InputStream input;
+    try {
+      input = Files.newInputStream(new File(filePath).toPath());
+    } catch (IOException e) {
+      //      throw new RuntimeException(e); // Do we want to do this? Or fail more gracefully?
+      log.error("Unable to read from stable config file {}, dropping input", filePath);
+      return new HashMap<>();
+    }
 
+    return yaml.load(input);
+  }
+
+  private static Map<String, Object> parseStableConfig(HashMap<String, Object> data)
+      throws IOException {
+    HashMap<String, Object> config = new HashMap<>();
     Object apmConfig = data.get("apm_configuration_default");
     if (apmConfig instanceof HashMap<?, ?>) {
       HashMap<?, ?> tempConfig = (HashMap<?, ?>) apmConfig;
@@ -60,7 +75,7 @@ public final class StableConfigSource extends ConfigProvider.Source {
       }
     } else {
       // do something
-      log.debug("File {} in unexpected format", filePath);
+      log.debug("File in unexpected format");
     }
     return config;
   };
@@ -77,6 +92,10 @@ public final class StableConfigSource extends ConfigProvider.Source {
 
   public Set<String> getKeys() {
     return this.configuration.keySet();
+  }
+
+  public String getConfigId() {
+    return this.configId;
   }
 
   //  private static class StableConfig {

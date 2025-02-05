@@ -17,14 +17,15 @@ class StableConfigSourceTest extends DDSpecification {
 
     expect:
     config.getKeys().size() == 0
+    config.getConfigId() == null
     // How to check that the "file does not exist" error was logged?
   }
 
   def "test valid file"() {
     // test empty file
     when:
-    Path filePath = null
-    StableConfigSource config = null
+    Path filePath
+    StableConfigSource config
     try {
       filePath = Files.createTempFile("testFile_", ".yaml")
     } catch (IOException e) {
@@ -40,15 +41,18 @@ class StableConfigSourceTest extends DDSpecification {
 
     then:
     config.getKeys().size() == 0
+    config.getConfigId() == null
 
     // test populated file
     when:
+    def id = "12345"
     def key1 = "dd_first_key"
     def val1 = "dd_first_val"
     def key2 = "dd_second_key"
     def val2 = "dd_second_val"
     // Create the map that will be used to populate the config file
     Map<String, Object> data = new HashMap<>()
+    data.put("config_id", id)
     data.put("apm_configuration_default", new HashMap<String, Object>() {{
           put(key1, val1)
           put(key2, val2)
@@ -72,6 +76,7 @@ class StableConfigSourceTest extends DDSpecification {
 
     then:
     StableConfigSource config2 = new StableConfigSource(filePath.toString(), ConfigOrigin.USER_STABLE_CONFIG)
+    config2.getConfigId() == id
     config2.getKeys().size() == 2
     config2.get(key1) == val1
     config2.get(key2) == val2
