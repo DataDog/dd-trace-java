@@ -69,23 +69,23 @@ public final class ConcurrentState {
     if (throwable != null) {
       // This might lead to the continuation being consumed early, but it's better to be safe if we
       // threw an Exception on entry
-      state.closeContinuation();
+      state.cancelContinuation();
     }
   }
 
-  public static <K> void closeAndClearContinuation(
+  public static <K> void cancelAndClearContinuation(
       ContextStore<K, ConcurrentState> contextStore, K key) {
     final ConcurrentState state = contextStore.get(key);
     if (state == null) {
       return;
     }
-    state.closeAndClearContinuation();
+    state.cancelAndClearContinuation();
   }
 
   private boolean captureAndSetContinuation(final AgentScope scope) {
     if (CONTINUATION.compareAndSet(this, null, CLAIMED)) {
       // lazy write is guaranteed to be seen by getAndSet
-      CONTINUATION.lazySet(this, scope.captureConcurrent());
+      CONTINUATION.lazySet(this, scope.capture().hold());
       return true;
     }
     return false;
@@ -99,14 +99,14 @@ public final class ConcurrentState {
     return null;
   }
 
-  private void closeContinuation() {
+  private void cancelContinuation() {
     final AgentScope.Continuation continuation = CONTINUATION.get(this);
     if (continuation != null && continuation != CLAIMED) {
       continuation.cancel();
     }
   }
 
-  private void closeAndClearContinuation() {
+  private void cancelAndClearContinuation() {
     final AgentScope.Continuation continuation = CONTINUATION.get(this);
     if (continuation != null && continuation != CLAIMED) {
       // We should never be able to reuse this state
