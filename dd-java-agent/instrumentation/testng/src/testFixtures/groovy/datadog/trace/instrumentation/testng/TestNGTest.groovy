@@ -157,7 +157,7 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
   def "test quarantined #testcaseName"() {
     Assumptions.assumeTrue(isExceptionSuppressionSupported())
 
-    givenQuarantineEnabled(true)
+    givenTestManagementEnabled(true)
     givenQuarantinedTests(quarantined)
 
     runTests(tests, null, true)
@@ -173,7 +173,7 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
   def "test quarantined auto-retries #testcaseName"() {
     Assumptions.assumeTrue(isExceptionSuppressionSupported())
 
-    givenQuarantineEnabled(true)
+    givenTestManagementEnabled(true)
     givenQuarantinedTests(quarantined)
 
     givenFlakyRetryEnabled(true)
@@ -192,7 +192,7 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
   def "test quarantined early flakiness detection #testcaseName"() {
     Assumptions.assumeTrue(isExceptionSuppressionSupported())
 
-    givenQuarantineEnabled(true)
+    givenTestManagementEnabled(true)
     givenQuarantinedTests(quarantined)
 
     givenEarlyFlakinessDetectionEnabled(true)

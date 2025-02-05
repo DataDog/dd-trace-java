@@ -8,6 +8,7 @@ import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.civisibility.config.EarlyFlakeDetectionSettings;
 import datadog.trace.civisibility.config.ExecutionSettings;
+import datadog.trace.civisibility.config.TestManagementSettings;
 import datadog.trace.civisibility.execution.Regular;
 import datadog.trace.civisibility.execution.RetryUntilSuccessful;
 import datadog.trace.civisibility.execution.RunNTimes;
@@ -62,6 +63,10 @@ public class ExecutionStrategy {
   }
 
   public boolean isQuarantined(TestIdentifier test) {
+    TestManagementSettings testManagementSettings = executionSettings.getTestManagementSettings();
+    if (!testManagementSettings.isEnabled()) {
+      return false;
+    }
     Collection<TestIdentifier> quarantinedTests = executionSettings.getQuarantinedTests();
     return quarantinedTests.contains(test.withoutParameters());
   }

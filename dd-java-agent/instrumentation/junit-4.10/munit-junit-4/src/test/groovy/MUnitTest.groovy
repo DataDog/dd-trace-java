@@ -80,7 +80,7 @@ class MUnitTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test quarantined #testcaseName"() {
-    givenQuarantineEnabled(true)
+    givenTestManagementEnabled(true)
     givenQuarantinedTests(quarantined)
 
     runTests(tests, true)
@@ -93,7 +93,7 @@ class MUnitTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test quarantined auto-retries #testcaseName"() {
-    givenQuarantineEnabled(true)
+    givenTestManagementEnabled(true)
     givenQuarantinedTests(quarantined)
 
     givenFlakyRetryEnabled(true)
@@ -110,7 +110,7 @@ class MUnitTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test quarantined early flakiness detection #testcaseName"() {
-    givenQuarantineEnabled(true)
+    givenTestManagementEnabled(true)
     givenQuarantinedTests(quarantined)
 
     givenEarlyFlakinessDetectionEnabled(true)
