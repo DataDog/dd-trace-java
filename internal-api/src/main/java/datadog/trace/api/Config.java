@@ -406,11 +406,10 @@ public class Config {
   private final Set<String> dynamicInstrumentationRedactionExcludedIdentifiers;
   private final String dynamicInstrumentationRedactedTypes;
   private final boolean dynamicInstrumentationHoistLocalVarsEnabled;
-  private final boolean debuggerSymbolEnabled;
-  private final boolean debuggerSymbolForceUpload;
-  private final String debuggerSymbolIncludes;
-  private final int debuggerSymbolFlushThreshold;
-  private final boolean debuggerSymbolCompressed;
+  private final boolean symbolDatabaseEnabled;
+  private final boolean symbolDatabaseForceUpload;
+  private final int symbolDatabaseFlushThreshold;
+  private final boolean symbolDatabaseCompressed;
   private final boolean debuggerExceptionEnabled;
   private final int debuggerMaxExceptionPerSecond;
   @Deprecated private final boolean debuggerExceptionOnlyLocalRoot;
@@ -1610,17 +1609,16 @@ public class Config {
         configProvider.getBoolean(
             DYNAMIC_INSTRUMENTATION_HOIST_LOCALVARS_ENABLED,
             DEFAULT_DYNAMIC_INSTRUMENTATION_HOIST_LOCALVARS_ENABLED);
-    debuggerSymbolEnabled =
-        configProvider.getBoolean(DEBUGGER_SYMBOL_ENABLED, DEFAULT_DEBUGGER_SYMBOL_ENABLED);
-    debuggerSymbolForceUpload =
+    symbolDatabaseEnabled =
+        configProvider.getBoolean(SYMBOL_DATABASE_ENABLED, DEFAULT_SYMBOL_DATABASE_ENABLED);
+    symbolDatabaseForceUpload =
         configProvider.getBoolean(
-            DEBUGGER_SYMBOL_FORCE_UPLOAD, DEFAULT_DEBUGGER_SYMBOL_FORCE_UPLOAD);
-    debuggerSymbolIncludes = configProvider.getString(DEBUGGER_SYMBOL_INCLUDES, null);
-    debuggerSymbolFlushThreshold =
+            SYMBOL_DATABASE_FORCE_UPLOAD, DEFAULT_SYMBOL_DATABASE_FORCE_UPLOAD);
+    symbolDatabaseFlushThreshold =
         configProvider.getInteger(
-            DEBUGGER_SYMBOL_FLUSH_THRESHOLD, DEFAULT_DEBUGGER_SYMBOL_FLUSH_THRESHOLD);
-    debuggerSymbolCompressed =
-        configProvider.getBoolean(DEBUGGER_SYMBOL_COMPRESSED, DEFAULT_DEBUGGER_SYMBOL_COMPRESSED);
+            SYMBOL_DATABASE_FLUSH_THRESHOLD, DEFAULT_SYMBOL_DATABASE_FLUSH_THRESHOLD);
+    symbolDatabaseCompressed =
+        configProvider.getBoolean(SYMBOL_DATABASE_COMPRESSED, DEFAULT_SYMBOL_DATABASE_COMPRESSED);
     debuggerExceptionEnabled =
         configProvider.getBoolean(
             DEBUGGER_EXCEPTION_ENABLED,
@@ -3094,20 +3092,20 @@ public class Config {
     return dynamicInstrumentationCaptureTimeout;
   }
 
-  public boolean isDebuggerSymbolEnabled() {
-    return debuggerSymbolEnabled;
+  public boolean isSymbolDatabaseEnabled() {
+    return symbolDatabaseEnabled;
   }
 
-  public boolean isDebuggerSymbolForceUpload() {
-    return debuggerSymbolForceUpload;
+  public boolean isSymbolDatabaseForceUpload() {
+    return symbolDatabaseForceUpload;
   }
 
-  public int getDebuggerSymbolFlushThreshold() {
-    return debuggerSymbolFlushThreshold;
+  public int getSymbolDatabaseFlushThreshold() {
+    return symbolDatabaseFlushThreshold;
   }
 
-  public boolean isDebuggerSymbolCompressed() {
-    return debuggerSymbolCompressed;
+  public boolean isSymbolDatabaseCompressed() {
+    return symbolDatabaseCompressed;
   }
 
   public boolean isDebuggerExceptionEnabled() {
@@ -4517,13 +4515,15 @@ public class Config {
         + ", debuggerRedactTypes="
         + dynamicInstrumentationRedactedTypes
         + ", debuggerSymbolEnabled="
-        + debuggerSymbolEnabled
+        + symbolDatabaseEnabled
         + ", debuggerSymbolForceUpload="
-        + debuggerSymbolForceUpload
+        + symbolDatabaseForceUpload
         + ", debuggerSymbolFlushThreshold="
-        + debuggerSymbolFlushThreshold
-        + ", debuggerSymbolIncludes="
-        + debuggerSymbolIncludes
+        + symbolDatabaseFlushThreshold
+        + ", thirdPartyIncludes="
+        + debuggerThirdPartyIncludes
+        + ", thirdPartyExcludes="
+        + debuggerThirdPartyExcludes
         + ", debuggerExceptionEnabled="
         + debuggerExceptionEnabled
         + ", debuggerCodeOriginEnabled="
