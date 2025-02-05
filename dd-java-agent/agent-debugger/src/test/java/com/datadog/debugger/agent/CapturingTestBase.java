@@ -88,7 +88,7 @@ public class CapturingTestBase {
 
   @BeforeEach
   public void before() {
-    setFieldInConfig(Config.get(), "debuggerCaptureTimeout", 200);
+    setFieldInConfig(Config.get(), "dynamicInstrumentationCaptureTimeout", 200);
     instr = ByteBuddyAgent.install();
   }
 
@@ -381,9 +381,9 @@ public class CapturingTestBase {
 
   public static Config getConfig() {
     Config config = Config.get();
-    setFieldInConfig(config, "debuggerEnabled", true);
-    setFieldInConfig(config, "debuggerClassFileDumpEnabled", true);
-    setFieldInConfig(config, "debuggerVerifyByteCode", false);
+    setFieldInConfig(config, "dynamicInstrumentationEnabled", true);
+    setFieldInConfig(config, "dynamicInstrumentationClassFileDumpEnabled", true);
+    setFieldInConfig(config, "dynamicInstrumentationVerifyByteCode", false);
     setFieldInConfig(config, "debuggerCodeOriginMaxUserFrames", 20);
 
     return config;

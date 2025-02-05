@@ -46,7 +46,6 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
 
   private final LongAdder testsSkipped = new LongAdder();
 
-  private volatile boolean codeCoverageEnabled;
   private volatile boolean testSkippingEnabled;
 
   public <T extends CoverageCalculator> BuildSystemModuleImpl(
@@ -168,6 +167,10 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
             CiVisibilityConfig.CIVISIBILITY_EARLY_FLAKE_DETECTION_ENABLED),
         Boolean.toString(executionSettings.getEarlyFlakeDetectionSettings().isEnabled()));
 
+    propagatedSystemProperties.put(
+        Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.TEST_MANAGEMENT_ENABLED),
+        Boolean.toString(executionSettings.getTestManagementSettings().isEnabled()));
+
     // explicitly disable build instrumentation in child processes,
     // because some projects run "embedded" Maven/Gradle builds as part of their integration tests,
     // and we don't want to show those as if they were regular build executions
@@ -252,7 +255,7 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
    */
   private SignalResponse onModuleExecutionResultReceived(ModuleExecutionResult result) {
     if (result.isCoverageEnabled()) {
-      codeCoverageEnabled = true;
+      setTag(Tags.TEST_CODE_COVERAGE_ENABLED, true);
     }
     if (result.isTestSkippingEnabled()) {
       testSkippingEnabled = true;
@@ -264,6 +267,10 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
       }
     }
 
+    if (result.isTestManagementEnabled()) {
+      setTag(Tags.TEST_TEST_MANAGEMENT_ENABLED, true);
+    }
+
     testsSkipped.add(result.getTestsSkippedTotal());
 
     SpanUtils.mergeTestFrameworks(span, result.getTestFrameworks());
@@ -273,10 +280,6 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
 
   @Override
   public void end(@Nullable Long endTime) {
-    if (codeCoverageEnabled) {
-      setTag(Tags.TEST_CODE_COVERAGE_ENABLED, true);
-    }
-
     if (testSkippingEnabled) {
       setTag(Tags.TEST_ITR_TESTS_SKIPPING_ENABLED, true);
       setTag(Tags.TEST_ITR_TESTS_SKIPPING_TYPE, "test");

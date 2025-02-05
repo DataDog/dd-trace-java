@@ -96,7 +96,7 @@ class KarateTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test quarantined #testcaseName"() {
-    givenQuarantineEnabled(true)
+    givenTestManagementEnabled(true)
     givenQuarantinedTests(quarantined)
 
     runTests(tests, true)
