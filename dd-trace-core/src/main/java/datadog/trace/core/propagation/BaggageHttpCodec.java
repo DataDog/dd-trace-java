@@ -9,9 +9,13 @@ import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.core.DDSpanContext;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,6 +26,10 @@ class BaggageHttpCodec {
 
   static final String BAGGAGE_KEY = "baggage";
   private static final int MAX_CHARACTER_SIZE = 4;
+  private static final List<Character> UNSAFE_CHARACTERS =
+      Arrays.asList(
+          '\"', ',', ';', '\\', '(', ')', '/', ':', '<', '=', '>', '?', '@', '[', ']', '{', '}');
+  private static final Set<Character> UNSAFE_CHARACTERS_SET = new HashSet<>(UNSAFE_CHARACTERS);
 
   private BaggageHttpCodec() {
     // This class should not be created. This also makes code coverage checks happy.
@@ -38,6 +46,22 @@ class BaggageHttpCodec {
     public Injector(Map<String, String> invertedBaggageMapping) {
       assert invertedBaggageMapping != null;
       this.invertedBaggageMapping = invertedBaggageMapping;
+    }
+
+    private void encodeKey(String key, StringBuilder buffer) {
+      for (int i = 0; i < key.length(); i++) {
+        char c = key.charAt(i);
+        if (UNSAFE_CHARACTERS_SET.contains(c) || c > 126 || c <= 20) { // encode character
+          byte[] bytes =
+              Character.toString(c)
+                  .getBytes(StandardCharsets.UTF_8); // not most efficient but what URLEncoder does
+          for (byte b : bytes) {
+            buffer.append(String.format("%%%02X", b & 0xFF));
+          }
+        } else {
+          buffer.append(c);
+        }
+      }
     }
 
     @Override
@@ -87,10 +111,9 @@ class BaggageHttpCodec {
         if (additionalCharacters == 2) {
           baggageText.append(',');
         }
-        baggageText
-            .append(HttpCodec.encodeBaggage(entry.getKey()))
-            .append('=')
-            .append(HttpCodec.encodeBaggage(entry.getValue()));
+
+        encodeKey(entry.getKey(), baggageText);
+        baggageText.append('=').append(HttpCodec.encodeBaggage(entry.getValue()));
         processedBaggage++;
       }
 
