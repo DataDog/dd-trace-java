@@ -17,12 +17,40 @@ stages:
   - ci-visibility-tests
   - generate-signing-key
 
+#TODO display memory usage
+#TODO test containers
+#TODO paralization (muzzle)
+#TODO publish tests to datadog
+#TODO agent_integration_tests
+#TODO no output timeout
+
 variables:
   REGISTRY: 486234852809.dkr.ecr.us-east-1.amazonaws.com
   BUILD_JOB_NAME: "build"
   DEPENDENCY_CACHE_POLICY: pull
   BUILD_CACHE_POLICY: pull
   GRADLE_VERSION: "8.4" # must match gradle-wrapper.properties
+  PROFILE_TESTS:
+    description: "Enable profiling of tests"
+    value: "false"
+  SYSTEM_TESTS_COMMIT:
+    description: "Commit hash of system tests to use"
+    value: "c706e333ef06800b866ac300e4b6cdb7566cc5e5"
+
+.test_matrix: &test_matrix
+    testJvm:
+      - "8"
+      - "semeru11"
+      - "oracle8"
+      - "21"
+      - "ubuntu17"
+      - "zulu8"
+      - "semeru8"
+      - "ibm8"
+      - "zulu11"
+      - "11"
+      - "17"
+      - "semeru17"
 
 default:
   tags: [ "arch:amd64" ]
@@ -31,7 +59,8 @@ default:
   image: ghcr.io/datadog/dd-trace-java-docker-build:v24.10-base
   stage: build
   variables:
-    GRADLE_OPTS: "-Dorg.gradle.jvmargs='-Xmx2560M -Xms2560M' -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp"
+    GRADLE_OPTS: "-Dorg.gradle.jvmargs='-Xmx2560M -Xms2560M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
+    MAVEN_OPTS: "-Xms64M -Xmx512M"
     GRADLE_ARGS: " --build-cache --stacktrace --no-daemon --parallel --max-workers=2"
     KUBERNETES_CPU_REQUEST: 8
     KUBERNETES_MEMORY_REQUEST: 6Gi
@@ -105,11 +134,16 @@ build_and_populate_dep_cache:
 spotless:
   extends: .gradle_build
   script:
-    - JAVA_HOME=$JAVA_11_HOME ./gradlew spotlessCheck $GRADLE_ARGS
+    - export JAVA_HOME=$JAVA_11_HOME
+    - ./gradlew spotlessCheck $GRADLE_ARGS
 
 .check_job:
   extends: .gradle_build
   needs: [ "build_tests" ]
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - when: always
   variables:
     BUILD_CACHE_TYPE: test
   script:
@@ -148,6 +182,10 @@ check_debugger:
 test_published_artifacts:
   extends: .gradle_build
   needs: [ build ]
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - when: always
   variables:
     BUILD_CACHE_TYPE: lib
   script:
@@ -157,12 +195,269 @@ test_published_artifacts:
     - ./gradlew publishToMavenLocal $GRADLE_ARGS
     - cd test-published-dependencies
     - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx512M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
-    - ./gradlew check --info --max-workers=3
+    - ./gradlew check --info $GRADLE_ARGS
   after_script:
     - .circleci/collect_reports.sh
   artifacts:
     paths:
       - ./check_reports
+
+muzzle:
+  extends: .gradle_build
+  needs: [ build_tests ]
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - when: always
+  variables:
+    BUILD_CACHE_TYPE: test
+  script:
+    - export SKIP_BUILDSCAN="true"
+    - ./gradlew muzzle $GRADLE_ARGS
+  after_script:
+    - .circleci/collect_reports.sh
+  artifacts:
+    paths:
+      - ./reports
+
+muzzle-dep-report:
+  extends: .gradle_build
+  needs: [ build_tests ]
+  variables:
+    BUILD_CACHE_TYPE: test
+  script:
+    - export SKIP_BUILDSCAN="true"
+    - ./gradlew generateMuzzleReport muzzleInstrumentationReport $GRADLE_ARGS
+  after_script:
+    - .circleci/collect_muzzle_deps.sh
+  artifacts:
+    paths:
+      - ./reports
+
+.test_job:
+  extends: .gradle_build
+  needs: [ build_tests ]
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - when: always
+  variables:
+    BUILD_CACHE_TYPE: test
+    GRADLE_PARAMS: ""
+    CONTINUE_ON_FAILURE: "false"
+  script:
+    - > 
+      if [ "$PROFILE_TESTS" == "true" ] && [ "$testJvm" != "ibm8" ] && [ "$testJvm" != "oracle8" ];
+      then
+      export PROFILER_COMMAND="-XX:StartFlightRecording=settings=profile,filename=/tmp/${CI_JOB_NAME_SLUG}.jfr,dumponexit=true";
+      fi
+    - export GRADLE_OPTS="GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms2G -Xmx2G $PROFILER_COMMAND -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=768M -Ddatadog.forkedMinHeapSize=128M"
+    - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PtestJvm=$testJvm $GRADLE_ARGS --continue || $CONTINUE_ON_FAILURE
+  after_script:
+    - .circleci/collect_reports.sh
+    - if [ "$PROFILE_TESTS" == "true" ]; then .circleci/collect_profiles.sh; fi
+    - .circleci/collect_results.sh
+# TODO upload test results
+# TODO Get APM Test Agent Trace Check Results
+  artifacts:
+    paths:
+      - ./reports.tar
+      - ./profiles.tar
+      - ./results
+
+test_base:
+  extends: .test_job
+  variables:
+    GRADLE_TARGET: ":baseTest"
+    GRADLE_PARAMS: "-PskipFlakyTests"
+  parallel:
+    matrix: *test_matrix
+  script:
+    - if [ "$testJvm" == "8" ]; then export GRADLE_PARAMS="-PskipFlakyTests -PcheckCoverage"; fi
+    - !reference [.test_job, script]
+
+test_inst:
+  extends: .test_job
+  variables:
+    GRADLE_TARGET: ":instrumentationTest"
+    GRADLE_PARAMS: "-PskipFlakyTests"
+  parallel:
+    matrix: *test_matrix
+
+test_inst_latest:
+  extends: .test_job
+  variables:
+    GRADLE_TARGET: ":instrumentationLatestDepTest"
+    GRADLE_PARAMS: "-PskipFlakyTests"
+  parallel:
+    matrix:
+      testJvm: ["8", "17", "21" ]
+
+test_flaky:
+  extends: .test_job
+  variables:
+    GRADLE_PARAMS: "-PrunFlakyTests"
+    testJvm: "8"
+    CONTINUE_ON_FAILURE: "true"
+  parallel:
+    matrix:
+      - GRADLE_TARGET: [":baseTest", ":instrumentationTest", ":smokeTest", ":debuggerTest"]
+
+test_profiling:
+  extends: .test_job
+  variables:
+    GRADLE_TARGET: ":profilingTest"
+    GRADLE_PARAMS: "-PskipFlakyTests"
+  parallel:
+    matrix: *test_matrix
+
+test_debugger:
+  extends: .test_job
+  variables:
+    GRADLE_TARGET: ":debuggerTest"
+    GRADLE_PARAMS: "-PskipFlakyTests"
+  parallel:
+    matrix: *test_matrix
+
+test_smoke:
+  extends: .test_job
+  variables:
+    GRADLE_TARGET: "stageMainDist :smokeTest"
+    GRADLE_PARAMS: "-PskipFlakyTests"
+  parallel:
+    matrix: *test_matrix
+
+test_ssi_smoke:
+  extends: .test_job
+  variables:
+    GRADLE_TARGET: "stageMainDist :smokeTest"
+    GRADLE_PARAMS: "-PskipFlakyTests"
+    DD_INJECT_FORCE: "true"
+    DD_INJECTION_ENABLED: "tracer"
+  parallel:
+    matrix: *test_matrix
+
+test_smoke_graalvm:
+  extends: .test_job
+  variables:
+    GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test"
+  parallel:
+    matrix:
+      - testJvm: ["graalvm17", "graalvm21"]
+
+test_smoke_semeru8_debugger:
+  extends: .test_job
+  variables:
+    GRADLE_TARGET: "stageMainDist dd-smoke-tests:debugger-integration-tests:test"
+    GRADLE_PARAMS: "-PskipFlakyTests"
+    testJvm: "semeru8"
+
+.system-tests-job:
+  image: $SYSTEM_TESTS_IMAGE
+  tags: [ "runner:docker" ]
+  stage: test
+  needs: [ build ]
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - when: always
+  variables:
+    BUILD_CACHE_TYPE: lib
+  before_script:
+    - cd /system-tests
+    - git fetch origin $SYSTEM_TESTS_COMMIT
+    - git reset --hard FETCH_HEAD
+    - mkdir -p /system-tests/binaries/
+    - cp workspace/dd-java-agent/build/libs/*.jar /system-tests/binaries/
+    - cp workspace/dd-trace-api/build/libs/*.jar /system-tests/binaries/
+    - cd /system-tests
+    - export SYSTEM_TESTS_IDM_AWS_ACCESS_KEY_ID="" #TODO fix variable fetch
+    - export SYSTEM_TESTS_IDM_AWS_SECRET_ACCESS_KEY=""
+    - export SYSTEM_TESTS_E2E_DD_API_KEY=""
+    - export SYSTEM_TESTS_E2E_DD_APP_KEY=""
+    - export SYSTEM_TESTS_DD_API_KEY=""
+
+system-tests:
+  extends: .system-tests-job
+  parallel:
+    matrix:
+      - WEBLOG_VARIANT: ['akka-http', 'jersey-grizzly2', 'play', 'resteasy-netty3', 'ratpack', 'spring-boot', 'spring-boot-jetty', 'spring-boot-openliberty', 'spring-boot-payara', 'spring-boot-undertow', 'spring-boot-wildfly', 'uds-spring-boot', 'vertx3', 'vertx4']
+        SCENARIO: [ DEFAULT, APM_TRACING_E2E, APM_TRACING_E2E_SINGLE_SPAN, APPSEC_BLOCKING, APPSEC_REQUEST_BLOCKING, APPSEC_RASP, APPSEC_RUNTIME_ACTIVATION, REMOTE_CONFIG_MOCKED_BACKEND_ASM_DD ]
+      - WEBLOG_VARIANT: ['spring-boot-3-native']
+        SCENARIO: [ DEFAULT, APM_TRACING_E2E, APM_TRACING_E2E_SINGLE_SPAN ]
+  script:
+    - ./build.sh java --weblog-variant $WEBLOG_VARIANT
+    - >
+      if [[ $SCENARIO =~ .*_E2E.* ]]; then
+        export DD_SITE=datadoghq.com;
+        export DD_API_KEY=$SYSTEM_TESTS_E2E_DD_API_KEY;
+        export DD_APPLICATION_KEY=$SYSTEM_TESTS_E2E_DD_APP_KEY;
+      else
+        export DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY;
+      fi
+    - echo "Running scenario $SCENARIO"
+    - ./run.sh $SCENARIO
+  after_script:
+    - |
+      mkdir -p artifacts
+      cd /system-tests
+      shopt -s nullglob
+      for log_dir in logs*; do
+        tar -cvzf ../artifacts/${log_dir}_${WEBLOG_VARIANT}.tar.gz $log_dir
+      done
+  artifacts:
+    when: always
+    paths:
+      - artifacts
+
+integration-system-tests:
+  extends: .system-tests-job
+  script:
+    - ./build.sh --library java --weblog-variant spring-boot
+    - export AWS_ACCESS_KEY_ID="$SYSTEM_TESTS_IDM_AWS_ACCESS_KEY_ID"
+    - export AWS_SECRET_ACCESS_KEY="$SYSTEM_TESTS_IDM_AWS_SECRET_ACCESS_KEY"
+    - export AWS_REGION="us-east-1"
+    - export AWS_DEFAULT_REGION="us-east-1"  # AWS services should use `AWS_REGION`, but some still use the older `AWS_DEFAULT_REGION`
+    - DD_SITE=datadoghq.com DD_API_KEY=$SYSTEM_TESTS_E2E_DD_API_KEY DD_APPLICATION_KEY=$SYSTEM_TESTS_E2E_DD_APP_KEY ./run.sh INTEGRATIONS
+    - DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh CROSSED_TRACING_LIBRARIES
+  artifacts:
+    when: always
+    reports:
+      junit: /system-tests/logs_integrations/*.xml
+    paths:
+      - /system-tests/logs_integrations
+
+debugger-system-tests:
+  extends: .system-tests-job
+  script:
+    - ./build.sh --library java --weblog-variant spring-boot
+    - DD_API_KEY=$SYSTEM_TESTS_E2E_DD_API_KEY ./run.sh DEBUGGER_SCENARIOS
+  after_script:
+    - |
+      mkdir -p logs_debugger
+      for dir in /system-tests/logs*/; do
+          cp -r "$dir" logs_debugger
+      done
+  artifacts:
+    when: always
+    reports:
+      junit: logs_debugger/*.xml
+    paths:
+      - logs_debugger
+
+parametric-tests:
+  extends: .system-tests-job
+  script:
+    - ./build.sh -i runner
+    - timeout 20m ./run.sh PARAMETRIC --library java --durations=30 -vv
+  after_script:
+    - tar -cvzf logs_java_parametric_dev.tar.gz -C /system-tests logs_parametric
+  artifacts:
+    when: always
+    reports:
+      junit: /system-tests/logs_parametric/*.xml
+    paths:
+      - logs_java_parametric_dev.tar.gz
 
 deploy_to_profiling_backend:
   stage: publish
