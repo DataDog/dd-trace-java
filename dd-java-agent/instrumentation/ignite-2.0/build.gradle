@@ -7,7 +7,7 @@ muzzle {
   pass {
     group = 'org.apache.ignite'
     module = 'ignite-core'
-    versions = "[2.0.0,)"
+    versions = "[2.0.0,3)"
   }
 }
 
