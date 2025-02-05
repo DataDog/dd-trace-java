@@ -93,7 +93,7 @@ Download and install Eclipse Temurin JDK versions 8, 11, 17 and 21, and GraalVM 
 
 #### Linux
 
-* Download and extract JDK 8, 11, 17, and 21 from [Eclipse Temurin releases](https://adoptium.net/temurin/releases/) and GraalVM from [Oracle downloads](https://www.graalvm.org/downloads/).
+* Download and extract JDK 8, 11, 17, and 21 from [Eclipse Temurin releases](https://adoptium.net/temurin/releases/) and GraalVM 17 from [Oracle downloads](https://www.graalvm.org/downloads/).
 * Install the GraalVM native image requirements for native builds by following [the GraalVM official documentation](https://www.graalvm.org/latest/reference-manual/native-image/#prerequisites).
 * Add the required environment variables to your shell using the `export` command. You can permanently install the environment variables by appending the `export` commands into your shell configuration file `~/.zshrc` or `~/.bashrc` or other.
   ```shell
