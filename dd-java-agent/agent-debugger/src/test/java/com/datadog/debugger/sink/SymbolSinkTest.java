@@ -23,7 +23,7 @@ class SymbolSinkTest {
     SymbolUploaderMock symbolUploaderMock = new SymbolUploaderMock();
     Config config = mock(Config.class);
     when(config.getServiceName()).thenReturn("service1");
-    when(config.isDebuggerSymbolCompressed()).thenReturn(false);
+    when(config.isSymbolDatabaseCompressed()).thenReturn(false);
     SymbolSink symbolSink = new SymbolSink(config, symbolUploaderMock, MAX_SYMDB_UPLOAD_SIZE);
     symbolSink.addScope(Scope.builder(ScopeType.JAR, null, 0, 0).build());
     symbolSink.flush();
@@ -47,7 +47,7 @@ class SymbolSinkTest {
     SymbolUploaderMock symbolUploaderMock = new SymbolUploaderMock();
     Config config = mock(Config.class);
     when(config.getServiceName()).thenReturn("service1");
-    when(config.isDebuggerSymbolCompressed()).thenReturn(false);
+    when(config.isSymbolDatabaseCompressed()).thenReturn(false);
     SymbolSink symbolSink = new SymbolSink(config, symbolUploaderMock, MAX_SYMDB_UPLOAD_SIZE);
     symbolSink.addScope(Scope.builder(ScopeType.JAR, "jar1.jar", 0, 0).build());
     symbolSink.addScope(Scope.builder(ScopeType.JAR, "jar2.jar", 0, 0).build());
@@ -64,7 +64,7 @@ class SymbolSinkTest {
     SymbolUploaderMock symbolUploaderMock = new SymbolUploaderMock();
     Config config = mock(Config.class);
     when(config.getServiceName()).thenReturn("service1");
-    when(config.isDebuggerSymbolCompressed()).thenReturn(false);
+    when(config.isSymbolDatabaseCompressed()).thenReturn(false);
     SymbolSink symbolSink = new SymbolSink(config, symbolUploaderMock, MAX_SYMDB_UPLOAD_SIZE);
     for (int i = 0; i < SymbolSink.CAPACITY; i++) {
       symbolSink.addScope(Scope.builder(ScopeType.JAR, "jar1.jar", 0, 0).build());
@@ -88,7 +88,7 @@ class SymbolSinkTest {
     SymbolUploaderMock symbolUploaderMock = new SymbolUploaderMock();
     Config config = mock(Config.class);
     when(config.getServiceName()).thenReturn("service1");
-    when(config.isDebuggerSymbolCompressed()).thenReturn(false);
+    when(config.isSymbolDatabaseCompressed()).thenReturn(false);
     SymbolSink symbolSink = new SymbolSink(config, symbolUploaderMock, 1024);
     final int NUM_JAR_SCOPES = 10;
     for (int i = 0; i < NUM_JAR_SCOPES; i++) {
@@ -111,7 +111,7 @@ class SymbolSinkTest {
     SymbolUploaderMock symbolUploaderMock = new SymbolUploaderMock();
     Config config = mock(Config.class);
     when(config.getServiceName()).thenReturn("service1");
-    when(config.isDebuggerSymbolCompressed()).thenReturn(false);
+    when(config.isSymbolDatabaseCompressed()).thenReturn(false);
     SymbolSink symbolSink = new SymbolSink(config, symbolUploaderMock, 2048);
     final int NUM_JAR_SCOPES = 21;
     for (int i = 0; i < NUM_JAR_SCOPES; i++) {
@@ -136,7 +136,7 @@ class SymbolSinkTest {
     SymbolUploaderMock symbolUploaderMock = new SymbolUploaderMock();
     Config config = mock(Config.class);
     when(config.getServiceName()).thenReturn("service1");
-    when(config.isDebuggerSymbolCompressed()).thenReturn(false);
+    when(config.isSymbolDatabaseCompressed()).thenReturn(false);
     SymbolSink symbolSink = new SymbolSink(config, symbolUploaderMock, 1024);
     final int NUM_CLASS_SCOPES = 10;
     List<Scope> classScopes = new ArrayList<>();
@@ -178,7 +178,7 @@ class SymbolSinkTest {
     SymbolUploaderMock symbolUploaderMock = new SymbolUploaderMock();
     Config config = mock(Config.class);
     when(config.getServiceName()).thenReturn("service1");
-    when(config.isDebuggerSymbolCompressed()).thenReturn(false);
+    when(config.isSymbolDatabaseCompressed()).thenReturn(false);
     SymbolSink symbolSink = new SymbolSink(config, symbolUploaderMock, 1);
     final int NUM_CLASS_SCOPES = 10;
     List<Scope> classScopes = new ArrayList<>();
