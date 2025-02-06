@@ -353,19 +353,29 @@ public final class ConfigProvider {
     Properties configProperties =
         loadConfigurationFile(
             new ConfigProvider(new SystemPropertiesConfigSource(), new EnvironmentConfigSource()));
+    // MIKAYLA: What is the significance of configProperties, of this isEmpty check?
     if (configProperties.isEmpty()) {
       return new ConfigProvider(
           new SystemPropertiesConfigSource(),
+          new StableConfigSource(
+              StableConfigSource.MANAGED_STABLE_CONFIG_PATH, ConfigOrigin.MANAGED_STABLE_CONFIG),
           new EnvironmentConfigSource(),
           new OtelEnvironmentConfigSource(),
-          new CapturedEnvironmentConfigSource());
+          new CapturedEnvironmentConfigSource(), // MIKAYLA: what is
+          // CapturedEnvironmentConfigSource?
+          new StableConfigSource(
+              StableConfigSource.USER_STABLE_CONFIG_PATH, ConfigOrigin.USER_STABLE_CONFIG));
     } else {
       return new ConfigProvider(
           new SystemPropertiesConfigSource(),
+          new StableConfigSource(
+              StableConfigSource.MANAGED_STABLE_CONFIG_PATH, ConfigOrigin.MANAGED_STABLE_CONFIG),
           new EnvironmentConfigSource(),
           new PropertiesConfigSource(configProperties, true),
           new OtelEnvironmentConfigSource(configProperties),
-          new CapturedEnvironmentConfigSource());
+          new CapturedEnvironmentConfigSource(),
+          new StableConfigSource(
+              StableConfigSource.USER_STABLE_CONFIG_PATH, ConfigOrigin.USER_STABLE_CONFIG));
     }
   }
 
@@ -378,20 +388,29 @@ public final class ConfigProvider {
       return new ConfigProvider(
           false,
           new SystemPropertiesConfigSource(),
+          new StableConfigSource(
+              StableConfigSource.MANAGED_STABLE_CONFIG_PATH, ConfigOrigin.MANAGED_STABLE_CONFIG),
           new EnvironmentConfigSource(),
           new OtelEnvironmentConfigSource(),
-          new CapturedEnvironmentConfigSource());
+          new CapturedEnvironmentConfigSource(),
+          new StableConfigSource(
+              StableConfigSource.USER_STABLE_CONFIG_PATH, ConfigOrigin.USER_STABLE_CONFIG));
     } else {
       return new ConfigProvider(
           false,
           new SystemPropertiesConfigSource(),
+          new StableConfigSource(
+              StableConfigSource.MANAGED_STABLE_CONFIG_PATH, ConfigOrigin.MANAGED_STABLE_CONFIG),
           new EnvironmentConfigSource(),
           new PropertiesConfigSource(configProperties, true),
           new OtelEnvironmentConfigSource(configProperties),
-          new CapturedEnvironmentConfigSource());
+          new CapturedEnvironmentConfigSource(),
+          new StableConfigSource(
+              StableConfigSource.USER_STABLE_CONFIG_PATH, ConfigOrigin.USER_STABLE_CONFIG));
     }
   }
 
+  // MIKAYLA: What is providedConfigSource, and how should it stand up against stableconfig?
   public static ConfigProvider withPropertiesOverride(Properties properties) {
     PropertiesConfigSource providedConfigSource = new PropertiesConfigSource(properties, false);
     Properties configProperties =

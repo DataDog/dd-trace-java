@@ -1,5 +1,7 @@
 package datadog.trace.bootstrap.config.provider;
 
+import static datadog.trace.util.Strings.propertyNameToEnvironmentVariableName;
+
 import datadog.trace.api.ConfigOrigin;
 import java.io.File;
 import java.io.IOException;
@@ -20,29 +22,40 @@ public final class StableConfigSource extends ConfigProvider.Source {
       "/etc/datadog-agent/managed/datadog-apm-libraries/stable/application_monitoring.yaml ";
   private static final Logger log = LoggerFactory.getLogger(StableConfigSource.class);
 
-  final ConfigOrigin fileOrigin;
-  Map<String, Object> configuration;
-  String configId;
+  private final ConfigOrigin fileOrigin;
+  private final Map<String, Object> configuration;
+  private final String configId;
 
-  StableConfigSource(String file, ConfigOrigin origin) throws IOException {
+  StableConfigSource(String file, ConfigOrigin origin) {
     this.fileOrigin = origin;
-    HashMap<String, Object> data = readFile(file);
+    HashMap<String, Object> data = readYamlFromFile(file);
     if (data == null) {
       this.configuration = new HashMap<>();
       this.configId = null;
     } else {
-      this.configId = (String) data.get("config_id"); // could be ""
+      this.configId = (String) data.get("config_id");
       this.configuration = parseStableConfig(data);
     }
   }
 
-  private static HashMap<String, Object> readFile(String filePath) {
-    // Check if the file exists
+  /**
+   * Reads configuration data from the YAML file located at the specified file path.
+   *
+   * <p>If the file is in a valid YAML format, this method returns a {@link HashMap} containing the
+   * configuration information.
+   *
+   * <p>If the file is in an invalid format, the method returns <code>null</code>.
+   *
+   * @param filePath The path to the YAML file to be read.
+   * @return A {@link HashMap} containing the configuration data if the file is valid, or <code>null
+   *     </code> if the file is in an invalid format.
+   */
+  private static HashMap<String, Object> readYamlFromFile(String filePath) {
     File file = new File(filePath);
     if (!file.exists()) {
       log.debug(
           "Stable configuration file does not exist at the specified path: {}, ignoring", filePath);
-      return new HashMap<>();
+      return null;
     }
 
     Yaml yaml = new Yaml(new SafeConstructor(new LoaderOptions()));
@@ -52,13 +65,13 @@ public final class StableConfigSource extends ConfigProvider.Source {
     } catch (IOException e) {
       //      throw new RuntimeException(e); // Do we want to do this? Or fail more gracefully?
       log.error("Unable to read from stable config file {}, dropping input", filePath);
-      return new HashMap<>();
+      return null;
     }
     try {
       return yaml.load(input);
     } catch (Exception e) {
       log.error("YAML parsing error in stable config file {}: {}", filePath, e.getMessage());
-      return new HashMap<>();
+      return null;
     }
   }
 
@@ -66,6 +79,7 @@ public final class StableConfigSource extends ConfigProvider.Source {
     HashMap<String, Object> config = new HashMap<>();
     Object apmConfig = data.get("apm_configuration_default");
     if (apmConfig == null) {
+
       return config;
     }
     if (apmConfig instanceof HashMap<?, ?>) {
@@ -76,7 +90,7 @@ public final class StableConfigSource extends ConfigProvider.Source {
           Object value = entry.getValue();
           config.put(key, value);
         } else {
-          log.debug("Configuration {} in unexpected format", entry.getKey());
+          log.debug("Config key {} in unexpected format", entry.getKey());
         }
       }
     } else {
@@ -88,7 +102,7 @@ public final class StableConfigSource extends ConfigProvider.Source {
 
   @Override
   public String get(String key) {
-    return (String) configuration.get(key);
+    return (String) this.configuration.get(propertyNameToEnvironmentVariableName(key));
   }
 
   @Override
@@ -103,17 +117,4 @@ public final class StableConfigSource extends ConfigProvider.Source {
   public String getConfigId() {
     return this.configId;
   }
-
-  //  private static class StableConfig {
-  //    private String config_id;
-  //    private Map<String, Object> apm_configuration_default;
-  //
-  //    private void setApmConfigurationDefault(HashMap<String, Object> m) {
-  //      apm_configuration_default = m;
-  //    }
-  //
-  //    private void setConfigId(String i) {
-  //      config_id = i;
-  //    }
-  //  }
 }
