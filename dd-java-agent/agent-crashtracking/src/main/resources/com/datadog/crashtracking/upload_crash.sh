@@ -2,9 +2,27 @@
 
 set +e # Disable exit on error
 
+function ensureJava() {
+  # Check if Java is available
+  if [ -z "$(which java)" ]; then
+    # Extract the JAVA_HOME from the provided hs_err file
+    JAVA_HOME=$(grep "JAVA_HOME" "$1")
+    if [ -n "$JAVA_HOME" ]; then
+      JAVA_HOME=$(cut -f2 -d '=' <<< "$JAVA_HOME")
+      export JAVA_HOME
+      export PATH=$JAVA_HOME/bin:$PATH
+    else
+      echo "Error: Java executable not found. Can not upload error file."
+      exit 1
+    fi
+  fi
+}
+
 # Check if PID is provided
 if [ -z "$1" ]; then
   echo "Warn: No PID provided. Running in legacy mode."
+  ensureJava "!JAVA_ERROR_FILE!"
+
   java -jar "!AGENT_JAR!" uploadCrash "!JAVA_ERROR_FILE!"
   if [ $? -eq 0 ]; then
     echo "Error file !JAVA_ERROR_FILE! was uploaded successfully"
@@ -35,7 +53,7 @@ while IFS="=" read -r key value; do
 done < "$configFile"
 
 # Exiting early if configuration is missing
-if [ -z "${config_agent}" ] || [ -z "${config_hs_err}" ]; then
+if [ -z "${config_agent}" ] || [ -z "${config_hs_err}" ] || [ -z "${config_java_home}" ]; then
     echo "Error: Missing configuration"
     exit 1
 fi
@@ -43,10 +61,11 @@ fi
 # Debug: Print the loaded values (Optional)
 echo "Agent Jar: ${config_agent}"
 echo "Error Log: ${config_hs_err}"
+echo "JAVA_HOME: ${config_java_home}"
 echo "PID: $PID"
 
 # Execute the Java command with the loaded values
-java -jar "${config_agent}" uploadCrash "${config_hs_err}"
+${config_java_home}/bin/java -jar "${config_agent}" uploadCrash "${config_hs_err}"
 RC=$?
 rm -f "${configFile}" # Remove the configuration file
 

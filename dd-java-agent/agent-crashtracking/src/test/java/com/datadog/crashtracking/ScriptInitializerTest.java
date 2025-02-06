@@ -65,6 +65,8 @@ public class ScriptInitializerTest {
     assertFalse(lines.isEmpty(), "File " + file + " is expected to be non-empty");
     // sanity to check the crash log file was properly replaced in the script
     assertTrue(lines.stream().anyMatch(l -> l.contains(hsErrFile)));
+    // sanity to check the java home was properly captured
+    assertTrue(lines.stream().anyMatch(l -> l.contains("java_home")));
   }
 
   @Test
@@ -96,6 +98,8 @@ public class ScriptInitializerTest {
     assertFalse(lines.isEmpty(), "File " + file + " is expected to be non-empty");
     // sanity to check the placeholder was properly replaced
     assertTrue(lines.stream().anyMatch(l -> !l.contains("!TAGS!")));
+    // sanity to check the java home was properly captured
+    assertTrue(lines.stream().anyMatch(l -> l.contains("java_home")));
   }
 
   @Test
