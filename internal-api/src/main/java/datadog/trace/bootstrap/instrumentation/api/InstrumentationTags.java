@@ -122,4 +122,12 @@ public class InstrumentationTags {
 
   public static final String MULE_CORRELATION_ID = "mule.correlation_id";
   public static final String MULE_LOCATION = "mule.location";
+
+  public static final String WEBSOCKET_SESSION_ID = "websocket.session.id";
+  public static final String WEBSOCKET_MESSAGE_TYPE = "websocket.message.type";
+  public static final String WEBSOCKET_MESSAGE_LENGTH = "websocket.message.length";
+  public static final String WEBSOCKET_MESSAGE_FRAMES = "websocket.message.frames";
+  public static final String WEBSOCKET_MESSAGE_RECEIVE_TIME = "websocket.message.receive_time";
+  public static final String WEBSOCKET_CLOSE_CODE = "websocket.close.code";
+  public static final String WEBSOCKET_CLOSE_REASON = "websocket.close.reason";
 }

@@ -5,15 +5,14 @@ import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.server.handler.AbstractHandler
-import org.eclipse.jetty.server.session.SessionHandler
+import test.JettyServer
+import test.TestHandler
 
 abstract class Jetty9Test extends HttpServerTest<Server> {
 
   @Override
   HttpServer server() {
-    final sessionHandler = new SessionHandler()
-    sessionHandler.handler = handler()
-    new JettyServer(sessionHandler)
+    new JettyServer(handler())
   }
 
   AbstractHandler handler() {
@@ -84,6 +83,11 @@ abstract class Jetty9Test extends HttpServerTest<Server> {
   @Override
   boolean testSessionId() {
     true
+  }
+
+  @Override
+  boolean testWebsockets() {
+    return super.testWebsockets() && (getServer() as JettyServer).websocketAvailable
   }
 }
 

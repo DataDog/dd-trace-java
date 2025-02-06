@@ -48,7 +48,28 @@ public class SpanLink implements AgentSpanLink {
    */
   public static SpanLink from(
       AgentSpanContext context, byte traceFlags, String traceState, SpanAttributes attributes) {
-    if (context.getSamplingPriority() > 0) {
+    return from(context, traceFlags, traceState, attributes, true);
+  }
+
+  /**
+   * Creates a span link from a span context with W3C trace state and custom attributes. Gathers the
+   * trace and span identifiers from the given instance.
+   *
+   * @param context The context of the span to get the link to.
+   * @param traceFlags The W3C formatted trace flags.
+   * @param traceState The W3C formatted trace state.
+   * @param attributes The link attributes.
+   * @param inheritSampling if true the sampling flag will be set based on the context's sampling
+   *     priority.
+   * @return A span link to the given context.
+   */
+  public static SpanLink from(
+      AgentSpanContext context,
+      byte traceFlags,
+      String traceState,
+      SpanAttributes attributes,
+      boolean inheritSampling) {
+    if (inheritSampling && context.getSamplingPriority() > 0) {
       traceFlags = (byte) (traceFlags | SAMPLED_FLAG);
     }
     return new SpanLink(
