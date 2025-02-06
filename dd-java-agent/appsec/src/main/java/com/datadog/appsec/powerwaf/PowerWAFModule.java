@@ -209,15 +209,22 @@ public class PowerWAFModule implements AppSecModule {
       config.dirtyStatus.markAllDirty();
     }
 
+    boolean success = false;
     try {
       // ddwaf_init/update
-      initializeNewWafCtx(reconf, config, curCtxAndAddresses);
+      success = initializeNewWafCtx(reconf, config, curCtxAndAddresses);
     } catch (Exception e) {
       throw new AppSecModuleActivationException("Could not initialize/update waf", e);
+    } finally {
+      if (curCtxAndAddresses == null) {
+        WafMetricCollector.get().wafInit(Powerwaf.LIB_VERSION, currentRulesVersion, success);
+      } else {
+        WafMetricCollector.get().wafUpdates(currentRulesVersion, success);
+      }
     }
   }
 
-  private void initializeNewWafCtx(
+  private boolean initializeNewWafCtx(
       AppSecModuleConfigurer.Reconfiguration reconf,
       CurrentAppSecConfig config,
       CtxAndAddresses prevContextAndAddresses)
@@ -267,13 +274,11 @@ public class PowerWAFModule implements AppSecModule {
       }
     } catch (InvalidRuleSetException irse) {
       initReport = irse.ruleSetInfo;
-      sendWafMetrics(prevContextAndAddresses, false);
       throw new AppSecModuleActivationException("Error creating WAF rules", irse);
     } catch (RuntimeException | AbstractPowerwafException e) {
       if (newPwafCtx != null) {
         newPwafCtx.close();
       }
-      sendWafMetrics(prevContextAndAddresses, false);
       throw new AppSecModuleActivationException("Error creating WAF rules", e);
     } finally {
       if (initReport != null) {
@@ -283,25 +288,15 @@ public class PowerWAFModule implements AppSecModule {
 
     if (!this.ctxAndAddresses.compareAndSet(prevContextAndAddresses, newContextAndAddresses)) {
       newPwafCtx.close();
-      sendWafMetrics(prevContextAndAddresses, false);
       throw new AppSecModuleActivationException("Concurrent update of WAF configuration");
     }
-
-    sendWafMetrics(prevContextAndAddresses, true);
 
     if (prevContextAndAddresses != null) {
       prevContextAndAddresses.ctx.close();
     }
 
     reconf.reloadSubscriptions();
-  }
-
-  private void sendWafMetrics(CtxAndAddresses prevContextAndAddresses, boolean success) {
-    if (prevContextAndAddresses == null) {
-      WafMetricCollector.get().wafInit(Powerwaf.LIB_VERSION, currentRulesVersion, success);
-    } else {
-      WafMetricCollector.get().wafUpdates(currentRulesVersion, success);
-    }
+    return true;
   }
 
   private Map<String, ActionInfo> calculateEffectiveActions(
