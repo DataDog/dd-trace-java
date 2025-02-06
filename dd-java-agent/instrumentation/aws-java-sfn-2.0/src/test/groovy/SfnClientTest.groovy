@@ -115,6 +115,32 @@ abstract class SfnClientTest extends VersionedNamingTestBase {
     input["_datadog"]["x-datadog-parent-id"] != null
     input["_datadog"]["x-datadog-tags"] != null
   }
+
+  def "Doesn't cause error for Step Functions input edge cases"() {
+    def inputs = [
+      '''{}''',
+      '''{  }''',
+      ''' { } ''',
+      '''{"foo": "bar"}''',
+      '''  {  "foo"  :  "bar"  }  ''',
+      '''{"key1": "val1", "key2": "val2"}''',
+      '''  {  "key1"  :  "val1"   ,   "key2" : "val2"  } '''
+    ]
+
+    when:
+    inputs.forEach { input ->
+      TraceUtils.runUnderTrace('parent', {
+        sfnClient.startExecution { builder ->
+          builder.stateMachineArn(testStateMachineARN)
+            .input(input)
+            .build()
+        }
+      })
+    }
+
+    then:
+    noExceptionThrown()
+  }
 }
 
 class SfnClientV0Test extends SfnClientTest {

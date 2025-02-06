@@ -22,7 +22,7 @@ public class InputAttributeInjector {
   }
 
   public static String getModifiedInput(String request, String ddTraceContextJSON) {
-    StringBuilder modifiedInput = new StringBuilder(request);
+    StringBuilder modifiedInput = new StringBuilder(request.trim());
     int startPos = modifiedInput.indexOf("{");
     int endPos = modifiedInput.lastIndexOf("}");
 
