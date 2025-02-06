@@ -321,8 +321,8 @@ public class ConfigurationApiImpl implements ConfigurationApi {
       TracerEnvironment tracerEnvironment) throws IOException {
     OkHttpUtils.CustomListener telemetryListener =
         new TelemetryListener.Builder(metricCollector)
-            .requestCount(CiVisibilityCountMetric.TEST_MANAGEMENT_TESTS_DETECTION_REQUEST)
-            .requestErrors(CiVisibilityCountMetric.TEST_MANAGEMENT_TESTS_DETECTION_REQUEST_ERRORS)
+            .requestCount(CiVisibilityCountMetric.TEST_MANAGEMENT_TESTS_REQUEST)
+            .requestErrors(CiVisibilityCountMetric.TEST_MANAGEMENT_TESTS_REQUEST_ERRORS)
             .requestDuration(CiVisibilityDistributionMetric.TEST_MANAGEMENT_TESTS_REQUEST_MS)
             .responseBytes(CiVisibilityDistributionMetric.TEST_MANAGEMENT_TESTS_RESPONSE_BYTES)
             .build();
