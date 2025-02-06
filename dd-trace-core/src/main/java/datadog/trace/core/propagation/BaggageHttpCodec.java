@@ -89,8 +89,6 @@ class BaggageHttpCodec {
       int currentBytes = 0;
       int maxItems = config.getTraceBaggageMaxItems();
       int maxBytes = config.getTraceBaggageMaxBytes();
-      int currentCharacters = 0;
-      int maxSafeCharacters = maxBytes / MAX_CHARACTER_SIZE;
       for (final Map.Entry<String, String> entry : context.baggageItems()) {
         if (processedBaggage >= maxItems) {
           break;
