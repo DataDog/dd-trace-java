@@ -2,6 +2,7 @@ muzzle {
   pass {
     group = "software.amazon.awssdk"
     module = "sfn"
+    // 2.15.35 is the minimum version with step functions
     versions = "[2.15.35,)"
     assertInverse = true
   }
