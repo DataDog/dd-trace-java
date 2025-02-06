@@ -125,7 +125,7 @@ final class TunnelingJdkSocket extends Socket {
     Selector selector = Selector.open();
     unixSocketChannel.configureBlocking(false);
     unixSocketChannel.register(selector, SelectionKey.OP_READ);
-    ByteBuffer buffer = ByteBuffer.allocate(256); // arbitrary buffer size for now
+    ByteBuffer buffer = ByteBuffer.allocate(256);
 
     try {
       if (selector.select(timeout) == 0) {
