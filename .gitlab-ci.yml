@@ -38,19 +38,19 @@ variables:
     value: "c706e333ef06800b866ac300e4b6cdb7566cc5e5"
 
 .test_matrix: &test_matrix
-    testJvm:
-      - "8"
-      - "semeru11"
-      - "oracle8"
-      - "21"
-      - "ubuntu17"
-      - "zulu8"
-      - "semeru8"
-      - "ibm8"
-      - "zulu11"
-      - "11"
-      - "17"
-      - "semeru17"
+    - testJvm:
+        - "8"
+        - "semeru11"
+        - "oracle8"
+        - "21"
+        - "ubuntu17"
+        - "zulu8"
+        - "semeru8"
+        - "ibm8"
+        - "zulu11"
+        - "11"
+        - "17"
+        - "semeru17"
 
 default:
   tags: [ "arch:amd64" ]
@@ -291,7 +291,7 @@ test_inst_latest:
     GRADLE_PARAMS: "-PskipFlakyTests"
   parallel:
     matrix:
-      testJvm: ["8", "17", "21" ]
+      - testJvm: ["8", "17", "21" ]
 
 test_flaky:
   extends: .test_job
@@ -355,7 +355,7 @@ test_smoke_semeru8_debugger:
 .system-tests-job:
   image: $SYSTEM_TESTS_IMAGE
   tags: [ "runner:docker" ]
-  stage: test
+  stage: tests
   needs: [ build ]
   rules:
     - if: '$POPULATE_CACHE'
