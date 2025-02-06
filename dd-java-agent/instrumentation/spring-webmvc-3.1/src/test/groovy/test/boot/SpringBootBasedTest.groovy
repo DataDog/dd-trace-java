@@ -46,7 +46,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   Map<String, String> extraServerTags = [:]
 
   SpringApplication application() {
-    new SpringApplication(AppConfig, SecurityConfig, AuthServerConfig, TestController)
+    new SpringApplication(AppConfig, SecurityConfig, AuthServerConfig, TestController, WebsocketConfig)
   }
 
   def setupSpec() {

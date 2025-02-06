@@ -254,6 +254,10 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_SPARK_APP_NAME_AS_SERVICE = false;
   static final boolean DEFAULT_JAX_RS_EXCEPTION_AS_ERROR_ENABLED = true;
   static final boolean DEFAULT_TELEMETRY_DEBUG_REQUESTS_ENABLED = false;
+  static final boolean DEFAULT_WEBSOCKET_MESSAGES_ENABLED = false;
+  static final boolean DEFAULT_WEBSOCKET_MESSAGES_INHERIT_SAMPLING = true;
+  static final boolean DEFAULT_WEBSOCKET_MESSAGES_SEPARATE_TRACES = true;
+  static final boolean DEFAULT_WEBSOCKET_TAG_SESSION_ID = false;
 
   static final Set<String> DEFAULT_TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES =
       new HashSet<>(

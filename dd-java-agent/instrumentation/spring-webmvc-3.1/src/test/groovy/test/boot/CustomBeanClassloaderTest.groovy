@@ -6,6 +6,6 @@ class CustomBeanClassloaderTest extends SpringBootBasedTest {
 
   @Override
   SpringApplication application() {
-    return new SpringApplication(AppConfig, SecurityConfig, AuthServerConfig, CustomClassloaderConfig, TestController)
+    return new SpringApplication(AppConfig, SecurityConfig, AuthServerConfig, CustomClassloaderConfig, TestController, WebsocketConfig)
   }
 }

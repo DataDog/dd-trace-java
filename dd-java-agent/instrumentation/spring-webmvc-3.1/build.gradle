@@ -62,6 +62,8 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat-5.5')
   testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat-appsec-6')
   testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat-appsec-7')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:javax-websocket-1.0')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:jakarta-websocket-2.0')
 
   testImplementation group: 'javax.validation', name: 'validation-api', version: '1.1.0.Final'
   testImplementation group: 'org.hibernate', name: 'hibernate-validator', version: '5.4.2.Final'
@@ -70,6 +72,7 @@ dependencies {
 
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '1.5.17.RELEASE'
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '1.5.17.RELEASE'
+  testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-websocket', version: '1.5.17.RELEASE'
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-security', version: '1.5.17.RELEASE'
   testImplementation group: 'org.springframework.security.oauth', name: 'spring-security-oauth2', version: '2.0.16.RELEASE'
 
