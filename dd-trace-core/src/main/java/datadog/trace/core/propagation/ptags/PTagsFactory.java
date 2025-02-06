@@ -205,16 +205,20 @@ public class PTagsFactory implements PropagationTags.Factory {
 
     @Override
     public void updatePropagatedTraceSource(final int product) {
-      // if is nort marked for the product
-      if (!ProductTraceSource.isProductMarked(productTraceSource.get(), product)) {
-        // This should invalidate any cached w3c and datadog header
-        clearCachedHeader(DATADOG);
-        clearCachedHeader(W3C);
-        productTraceSource.updateAndGet(
-            value ->
-                ProductTraceSource.updateProduct(
-                    value, product)); // Set the bit for the given product
-      }
+      productTraceSource.updateAndGet(
+          currentValue -> {
+            // If the product is already marked, return the same value (no change)
+            if (ProductTraceSource.isProductMarked(currentValue, product)) {
+              return currentValue;
+            }
+
+            // Invalidate cached headers (atomic context ensures correctness)
+            clearCachedHeader(DATADOG);
+            clearCachedHeader(W3C);
+
+            // Set the bit for the given product
+            return ProductTraceSource.updateProduct(currentValue, product);
+          });
     }
 
     @Override
@@ -357,12 +361,13 @@ public class PTagsFactory implements PropagationTags.Factory {
         size = PTagsCodec.calcXDatadogTagsSize(getTagPairs());
         size = PTagsCodec.calcXDatadogTagsSize(size, DECISION_MAKER_TAG, decisionMakerTagValue);
         size = PTagsCodec.calcXDatadogTagsSize(size, TRACE_ID_TAG, traceIdHighOrderBitsHexTagValue);
-        if (productTraceSource.get() != 0) {
+        int currentProductTraceSource = productTraceSource.get();
+        if (currentProductTraceSource != 0) {
           size =
               PTagsCodec.calcXDatadogTagsSize(
                   size,
                   TRACE_SOURCE_TAG,
-                  TagValue.from(ProductTraceSource.getBitfieldHex(productTraceSource.get())));
+                  TagValue.from(ProductTraceSource.getBitfieldHex(currentProductTraceSource)));
         }
         xDatadogTagsSize = size;
       }
