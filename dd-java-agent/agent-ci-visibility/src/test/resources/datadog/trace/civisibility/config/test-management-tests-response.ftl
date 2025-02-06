@@ -47,6 +47,17 @@
                                         "disabled": true,
                                         "attempt_to_fix": true
                                     }
+                                },
+                                "test-e": {
+                                    "properties": {
+                                        "quarantined": true,
+                                        "attempt_to_fix": true
+                                    }
+                                },
+                                "test-f": {
+                                    "properties": {
+                                        "disabled": true
+                                    }
                                 }
                             }
                         }

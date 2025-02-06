@@ -207,15 +207,22 @@ class ConfigurationApiImplTest extends Specification {
       "module-a": new HashSet<>([
         new TestIdentifier("suite-a", "test-a", null),
         new TestIdentifier("suite-b", "test-c", null)
-      ])
+      ]),
+      "module-b": new HashSet<>([new TestIdentifier("suite-c", "test-e", null)])
     ]
     disabledTests == [
       "module-a": new HashSet<>([new TestIdentifier("suite-a", "test-b", null)]),
-      "module-b": new HashSet<>([new TestIdentifier("suite-c", "test-d", null)])
+      "module-b": new HashSet<>([
+        new TestIdentifier("suite-c", "test-d", null),
+        new TestIdentifier("suite-c", "test-f", null)
+      ])
     ]
     attemptToFixTests == [
       "module-a": new HashSet<>([new TestIdentifier("suite-b", "test-c", null)]),
-      "module-b": new HashSet<>([new TestIdentifier("suite-c", "test-d", null)])
+      "module-b": new HashSet<>([
+        new TestIdentifier("suite-c", "test-d", null),
+        new TestIdentifier("suite-c", "test-e", null)
+      ])
     ]
 
     cleanup:
