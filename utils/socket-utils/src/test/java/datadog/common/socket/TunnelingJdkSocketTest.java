@@ -31,7 +31,7 @@ public class TunnelingJdkSocketTest {
     // create client
     TunnelingJdkSocket clientSocket = createClient(socketPath);
 
-    // expect a failure after three seconds because timeout is not supported yet
+    // will fail after three seconds if timeout (set to one second) is not supported
     assertTimeoutPreemptively(Duration.ofMillis(3000), () -> clientSocket.getInputStream().read());
 
     // clean up
