@@ -107,7 +107,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
    */
   private volatile int longRunningVersion = 0;
 
-  private final List<AgentSpanLink> links;
+  protected final List<AgentSpanLink> links;
 
   /**
    * Spans should be constructed using the builder, not by calling the constructor directly.
