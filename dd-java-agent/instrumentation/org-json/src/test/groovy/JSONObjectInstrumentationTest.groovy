@@ -25,64 +25,26 @@ class JSONObjectInstrumentationTest extends AgentTestRunner {
     }}"""
 
     when:
-    final jsonObject = new JSONObject(json)
-    final name = jsonObject.getJSONObject("menu").get("name")
+    new JSONObject(json)
 
     then:
-    name == "nameTest"
     1 * module.taintObjectIfTainted(_ as JSONObject, json)
-    2 * module.taintObjectIfTainted(_ as JSONObject, _ as JSONTokener)
-    2 * module.taintObjectIfTainted(_ as JSONObject, _ as JSONObject)
     1 * module.taintObjectIfTainted(_ as JSONTokener, json)
-    2 * module.taintStringIfTainted("nameTest", _ as JSONObject)
     0 * _
   }
-
-  void 'test JSONObject opt'() {
-    given:
-    final module = Mock(PropagationModule)
-    InstrumentationBridge.registerIastModule(module)
-    final json = """{"menu": {
-      "name": "nameTest",
-      "value": "File",
-      "popup": "Popup",
-          "labels": [
-          "File",
-          "Edit"
-        ]
-    }}"""
-
-    when:
-    final jsonObject = new JSONObject(json)
-    final name = jsonObject.getJSONObject("menu").optString("name")
-
-    then:
-    name == "nameTest"
-    1 * module.taintObjectIfTainted(_ as JSONObject, json)
-    2 * module.taintObjectIfTainted(_ as JSONObject, _ as JSONTokener)
-    2 * module.taintObjectIfTainted(_ as JSONObject, _ as JSONObject)
-    1 * module.taintObjectIfTainted(_ as JSONTokener, json)
-    1 * module.taintStringIfTainted("nameTest", _ as JSONObject)
-    0 * _
-  }
-
-
 
   void 'test JSONObject JSonTokenizer constructor'() {
     given:
     final module = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(module)
     final json = '{"name": "nameTest", "value" : "valueTest"}'
+    final jsonTokener = new JSONTokener(json)
 
     when:
-    final jsonObject = new JSONObject(new JSONTokener(json))
-    final name = jsonObject.get("name")
+    new JSONObject(jsonTokener)
 
     then:
-    name == "nameTest"
     1 * module.taintObjectIfTainted(_ as JSONObject, _ as JSONTokener)
-    1 * module.taintObjectIfTainted(_ as JSONTokener, json)
-    2 * module.taintStringIfTainted("nameTest", _ as JSONObject)
     0 * _
   }
 
@@ -96,12 +58,33 @@ class JSONObjectInstrumentationTest extends AgentTestRunner {
     InstrumentationBridge.registerIastModule(module)
 
     when:
-    final jsonObject = new JSONObject(map)
-    jsonObject.get("name")
+    new JSONObject(map)
 
     then:
     1 * module.taintObjectIfTainted(_ as JSONObject, map)
-    2 * module.taintStringIfTainted("nameTest", _ as JSONObject)
     0 * _
+  }
+
+
+  void 'test JSONObject #method'() {
+    given:
+    final module = Mock(PropagationModule)
+    InstrumentationBridge.registerIastModule(module)
+    final json = """{"menu": {
+      "name": "nameTest"
+    }}"""
+    final jsonObject = new JSONObject(json)
+    final getObject =jsonObject.getJSONObject("menu")
+
+    when:
+    final name = getObject."$method"('name')
+
+    then:
+    name == "nameTest"
+    1 * module.taintStringIfTainted("nameTest", _ as JSONObject)
+    0 * _
+
+    where:
+    method << ['get', 'getString', 'opt', 'optString']
   }
 }
