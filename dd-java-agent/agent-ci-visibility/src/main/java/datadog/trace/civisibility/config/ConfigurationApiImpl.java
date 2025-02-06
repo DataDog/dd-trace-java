@@ -54,6 +54,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
   private static final String CHANGED_FILES_URI = "ci/tests/diffs";
   private static final String FLAKY_TESTS_URI = "ci/libraries/tests/flaky";
   private static final String KNOWN_TESTS_URI = "ci/libraries/tests";
+  private static final String TEST_MANAGEMENT_TESTS_URI = "test/libraries/test-management/tests";
 
   private final BackendApi backendApi;
   private final CiVisibilityMetricCollector metricCollector;
@@ -63,6 +64,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
   private final JsonAdapter<EnvelopeDto<CiVisibilitySettings>> settingsResponseAdapter;
   private final JsonAdapter<MultiEnvelopeDto<TestIdentifierJson>> testIdentifiersResponseAdapter;
   private final JsonAdapter<EnvelopeDto<KnownTestsDto>> testFullNamesResponseAdapter;
+  private final JsonAdapter<EnvelopeDto<TestManagementTestsDto>> testManagementTestsResponseAdapter;
   private final JsonAdapter<EnvelopeDto<ChangedFiles>> changedFilesResponseAdapter;
 
   public ConfigurationApiImpl(BackendApi backendApi, CiVisibilityMetricCollector metricCollector) {
@@ -104,6 +106,11 @@ public class ConfigurationApiImpl implements ConfigurationApi {
         Types.newParameterizedTypeWithOwner(
             ConfigurationApiImpl.class, EnvelopeDto.class, KnownTestsDto.class);
     testFullNamesResponseAdapter = moshi.adapter(testFullNamesResponseType);
+
+    ParameterizedType testManagementTestsResponseType =
+        Types.newParameterizedTypeWithOwner(
+            ConfigurationApiImpl.class, EnvelopeDto.class, TestManagementTestsDto.class);
+    testManagementTestsResponseAdapter = moshi.adapter(testManagementTestsResponseType);
 
     ParameterizedType changedFilesResponseAdapterType =
         Types.newParameterizedTypeWithOwner(
@@ -310,6 +317,90 @@ public class ConfigurationApiImpl implements ConfigurationApi {
   }
 
   @Override
+  public Map<String, Map<String, Collection<TestIdentifier>>> getTestManagementTestsByModule(
+      TracerEnvironment tracerEnvironment) throws IOException {
+    OkHttpUtils.CustomListener telemetryListener =
+        new TelemetryListener.Builder(metricCollector)
+            .requestCount(CiVisibilityCountMetric.TEST_MANAGEMENT_TESTS_DETECTION_REQUEST)
+            .requestErrors(CiVisibilityCountMetric.TEST_MANAGEMENT_TESTS_DETECTION_REQUEST_ERRORS)
+            .requestDuration(CiVisibilityDistributionMetric.TEST_MANAGEMENT_TESTS_REQUEST_MS)
+            .responseBytes(CiVisibilityDistributionMetric.TEST_MANAGEMENT_TESTS_RESPONSE_BYTES)
+            .build();
+
+    String uuid = uuidGenerator.get();
+    EnvelopeDto<TracerEnvironment> request =
+        new EnvelopeDto<>(new DataDto<>(uuid, "ci_app_libraries_tests_request", tracerEnvironment));
+    String json = requestAdapter.toJson(request);
+    RequestBody requestBody = RequestBody.create(JSON, json);
+    TestManagementTestsDto testManagementTestsDto =
+        backendApi.post(
+            TEST_MANAGEMENT_TESTS_URI,
+            requestBody,
+            is ->
+                testManagementTestsResponseAdapter.fromJson(Okio.buffer(Okio.source(is)))
+                    .data
+                    .attributes,
+            telemetryListener,
+            false);
+
+    return parseTestManagementTests(testManagementTestsDto);
+  }
+
+  private Map<String, Map<String, Collection<TestIdentifier>>> parseTestManagementTests(
+      TestManagementTestsDto testsManagementTestsDto) {
+    int testManagementTestsCount = 0;
+
+    Map<String, Collection<TestIdentifier>> quarantinedTestsByModule = new HashMap<>();
+    Map<String, Collection<TestIdentifier>> disabledTestsByModule = new HashMap<>();
+    Map<String, Collection<TestIdentifier>> attemptToFixTestsByModule = new HashMap<>();
+
+    for (Map.Entry<String, TestManagementTestsDto.Suites> e :
+        testsManagementTestsDto.getModules().entrySet()) {
+      String moduleName = e.getKey();
+      Map<String, TestManagementTestsDto.Tests> testsBySuiteName = e.getValue().getSuites();
+
+      for (Map.Entry<String, TestManagementTestsDto.Tests> se : testsBySuiteName.entrySet()) {
+        String suiteName = se.getKey();
+        Map<String, TestManagementTestsDto.Properties> tests = se.getValue().getTests();
+
+        testManagementTestsCount += tests.size();
+
+        for (Map.Entry<String, TestManagementTestsDto.Properties> te : tests.entrySet()) {
+          String testName = te.getKey();
+          TestManagementTestsDto.Properties properties = te.getValue();
+          if (properties.isQuarantined()) {
+            quarantinedTestsByModule
+                .computeIfAbsent(moduleName, k -> new HashSet<>())
+                .add(new TestIdentifier(suiteName, testName, null));
+          }
+          if (properties.isDisabled()) {
+            disabledTestsByModule
+                .computeIfAbsent(moduleName, k -> new HashSet<>())
+                .add(new TestIdentifier(suiteName, testName, null));
+          }
+          if (properties.isAttemptToFix()) {
+            attemptToFixTestsByModule
+                .computeIfAbsent(moduleName, k -> new HashSet<>())
+                .add(new TestIdentifier(suiteName, testName, null));
+          }
+        }
+      }
+    }
+
+    Map<String, Map<String, Collection<TestIdentifier>>> testsByTypeByModule = new HashMap<>();
+    testsByTypeByModule.put("quarantined", quarantinedTestsByModule);
+    testsByTypeByModule.put("disabled", disabledTestsByModule);
+    testsByTypeByModule.put("attempt_to_fix", attemptToFixTestsByModule);
+
+    LOGGER.debug("Received {} test management tests in total", testManagementTestsCount);
+    metricCollector.add(
+        CiVisibilityDistributionMetric.TEST_MANAGEMENT_TESTS_RESPONSE_TESTS,
+        testManagementTestsCount);
+
+    return testsByTypeByModule;
+  }
+
+  @Override
   public ChangedFiles getChangedFiles(TracerEnvironment tracerEnvironment) throws IOException {
     OkHttpUtils.CustomListener telemetryListener =
         new TelemetryListener.Builder(metricCollector)
@@ -425,6 +516,62 @@ public class ConfigurationApiImpl implements ConfigurationApi {
 
     private KnownTestsDto(Map<String, Map<String, List<String>>> tests) {
       this.tests = tests;
+    }
+  }
+
+  private static final class TestManagementTestsDto {
+    private static final class Properties {
+      private final Map<String, Boolean> properties;
+
+      private Properties(Map<String, Boolean> properties) {
+        this.properties = properties;
+      }
+
+      public Boolean isQuarantined() {
+        return properties != null ? properties.getOrDefault("quarantined", false) : false;
+      }
+
+      public Boolean isDisabled() {
+        return properties != null ? properties.getOrDefault("disabled", false) : false;
+      }
+
+      public Boolean isAttemptToFix() {
+        return properties != null ? properties.getOrDefault("attempt_to_fix", false) : false;
+      }
+    }
+
+    private static final class Tests {
+      private final Map<String, Properties> tests;
+
+      private Tests(Map<String, Properties> tests) {
+        this.tests = tests;
+      }
+
+      public Map<String, Properties> getTests() {
+        return tests != null ? tests : Collections.emptyMap();
+      }
+    }
+
+    private static final class Suites {
+      private final Map<String, Tests> suites;
+
+      private Suites(Map<String, Tests> suites) {
+        this.suites = suites;
+      }
+
+      public Map<String, Tests> getSuites() {
+        return suites != null ? suites : Collections.emptyMap();
+      }
+    }
+
+    private final Map<String, Suites> modules;
+
+    private TestManagementTestsDto(Map<String, Suites> modules) {
+      this.modules = modules;
+    }
+
+    public Map<String, Suites> getModules() {
+      return modules != null ? modules : Collections.emptyMap();
     }
   }
 }

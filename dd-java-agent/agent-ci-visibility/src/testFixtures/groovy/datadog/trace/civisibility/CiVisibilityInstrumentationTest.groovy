@@ -71,9 +71,11 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
   private static Path agentKeyFile
 
   private static final List<TestIdentifier> skippableTests = new ArrayList<>()
-  private static final List<TestIdentifier> quarantinedTests = new ArrayList<>()
   private static final List<TestIdentifier> flakyTests = new ArrayList<>()
   private static final List<TestIdentifier> knownTests = new ArrayList<>()
+  private static final List<TestIdentifier> quarantinedTests = new ArrayList<>()
+  private static final List<TestIdentifier> disabledTests = new ArrayList<>()
+  private static final List<TestIdentifier> attemptToFixTests = new ArrayList<>()
   private static volatile Diff diff = LineDiff.EMPTY
 
   private static volatile boolean itrEnabled = false
@@ -137,9 +139,11 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
         itrEnabled ? "itrCorrelationId" : null,
         skippableTestsWithMetadata,
         [:],
-        quarantinedTests,
         flakyTests,
         earlyFlakinessDetectionEnabled || CIConstants.FAIL_FAST_TEST_ORDER.equalsIgnoreCase(Config.get().ciVisibilityTestOrder) ? knownTests : null,
+        quarantinedTests,
+        disabledTests,
+        attemptToFixTests,
         diff)
       }
     }
@@ -259,9 +263,11 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
   @Override
   void setup() {
     skippableTests.clear()
-    quarantinedTests.clear()
     flakyTests.clear()
     knownTests.clear()
+    quarantinedTests.clear()
+    disabledTests.clear()
+    attemptToFixTests.clear()
     diff = LineDiff.EMPTY
     itrEnabled = false
     flakyRetryEnabled = false
@@ -287,6 +293,14 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
 
   def givenQuarantinedTests(List<TestIdentifier> tests) {
     quarantinedTests.addAll(tests)
+  }
+
+  def givenDisabledTests(List<TestIdentifier> tests) {
+    disabledTests.addAll(tests)
+  }
+
+  def givenAttemptToFixTests(List<TestIdentifier> tests) {
+    attemptToFixTests.addAll(tests)
   }
 
   def givenDiff(Diff diff) {

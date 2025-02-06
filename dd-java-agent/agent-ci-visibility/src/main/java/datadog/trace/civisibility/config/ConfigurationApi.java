@@ -34,6 +34,12 @@ public interface ConfigurationApi {
         }
 
         @Override
+        public Map<String, Map<String, Collection<TestIdentifier>>> getTestManagementTestsByModule(
+            TracerEnvironment tracerEnvironment) {
+          return Collections.emptyMap();
+        }
+
+        @Override
         public ChangedFiles getChangedFiles(TracerEnvironment tracerEnvironment) {
           return ChangedFiles.EMPTY;
         }
@@ -49,6 +55,9 @@ public interface ConfigurationApi {
   @Nullable
   Map<String, Collection<TestIdentifier>> getKnownTestsByModule(TracerEnvironment tracerEnvironment)
       throws IOException;
+
+  Map<String, Map<String, Collection<TestIdentifier>>> getTestManagementTestsByModule(
+      TracerEnvironment tracerEnvironment) throws IOException;
 
   ChangedFiles getChangedFiles(TracerEnvironment tracerEnvironment) throws IOException;
 }

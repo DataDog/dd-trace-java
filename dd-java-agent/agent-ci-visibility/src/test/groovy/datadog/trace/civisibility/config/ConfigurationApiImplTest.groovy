@@ -182,6 +182,46 @@ class ConfigurationApiImplTest extends Specification {
     intakeServer.close()
   }
 
+  def "test test management tests request"() {
+    given:
+    def tracerEnvironment = givenTracerEnvironment()
+
+    def intakeServer = givenBackendEndpoint(
+    "/api/v2/test/libraries/test-management/tests",
+    "/datadog/trace/civisibility/config/test-management-tests-request.ftl",
+    [uid: REQUEST_UID, tracerEnvironment: tracerEnvironment],
+    "/datadog/trace/civisibility/config/test-management-tests-response.ftl",
+    [:]
+    )
+
+    def configurationApi = givenConfigurationApi(intakeServer)
+
+    when:
+    def testManagementTests = configurationApi.getTestManagementTestsByModule(tracerEnvironment)
+    def quarantinedTests = testManagementTests.get("quarantined")
+    def disabledTests = testManagementTests.get("disabled")
+    def attemptToFixTests = testManagementTests.get("attempt_to_fix")
+
+    then:
+    quarantinedTests == [
+      "module-a": new HashSet<>([
+        new TestIdentifier("suite-a", "test-a", null),
+        new TestIdentifier("suite-b", "test-c", null)
+      ])
+    ]
+    disabledTests == [
+      "module-a": new HashSet<>([new TestIdentifier("suite-a", "test-b", null)]),
+      "module-b": new HashSet<>([new TestIdentifier("suite-c", "test-d", null)])
+    ]
+    attemptToFixTests == [
+      "module-a": new HashSet<>([new TestIdentifier("suite-b", "test-c", null)]),
+      "module-b": new HashSet<>([new TestIdentifier("suite-c", "test-d", null)])
+    ]
+
+    cleanup:
+    intakeServer.close()
+  }
+
   def "test changed files request"() {
     given:
     def tracerEnvironment = givenTracerEnvironment()

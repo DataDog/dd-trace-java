@@ -30,8 +30,10 @@ class ExecutionSettingsTest extends Specification {
       null,
       [:],
       [:],
-      new HashSet<>([]),
       null,
+      new HashSet<>([]),
+      new HashSet<>([]),
+      new HashSet<>([]),
       new HashSet<>([]),
       LineDiff.EMPTY),
 
@@ -46,9 +48,11 @@ class ExecutionSettingsTest extends Specification {
       "",
       [(new TestIdentifier("bc", "def", "g")): new TestMetadata(true), (new TestIdentifier("de", "f", null)): new TestMetadata(false)],
       [:],
-      new HashSet<>([new TestIdentifier("suite", "quarantined", null)]),
       new HashSet<>([new TestIdentifier("name", null, null)]),
       new HashSet<>([new TestIdentifier("b", "c", "g")]),
+      new HashSet<>([new TestIdentifier("suite", "quarantined", null)]),
+      new HashSet<>([new TestIdentifier("suite", "disabled", null)]),
+      new HashSet<>([new TestIdentifier("suite", "attemptToFix", null)]),
       new LineDiff(["path": lines()])
       ),
 
@@ -67,9 +71,11 @@ class ExecutionSettingsTest extends Specification {
         }), "cov2": BitSet.valueOf(new byte[]{
           4, 5, 6
         })],
-      new HashSet<>([new TestIdentifier("suite", "quarantined", null), new TestIdentifier("another", "another-quarantined", null)]),
       new HashSet<>([new TestIdentifier("name", null, "g"), new TestIdentifier("b", "c", null)]),
       new HashSet<>([new TestIdentifier("b", "c", null), new TestIdentifier("bb", "cc", null)]),
+      new HashSet<>([new TestIdentifier("suite", "quarantined", null), new TestIdentifier("another", "another-quarantined", null)]),
+      new HashSet<>([new TestIdentifier("suite", "disabled", null), new TestIdentifier("another", "another-disabled", null)]),
+      new HashSet<>([new TestIdentifier("suite", "attemptToFix", null), new TestIdentifier("another", "another-attemptToFix", null)]),
       new LineDiff(["path": lines(1, 2, 3)]),
       ),
 
@@ -88,9 +94,11 @@ class ExecutionSettingsTest extends Specification {
         }), "cov2": BitSet.valueOf(new byte[]{
           4, 5, 6
         })],
-      new HashSet<>([new TestIdentifier("suite", "quarantined", null), new TestIdentifier("another", "another-quarantined", null)]),
       new HashSet<>([]),
       new HashSet<>([new TestIdentifier("b", "c", null), new TestIdentifier("bb", "cc", "g")]),
+      new HashSet<>([new TestIdentifier("suite", "quarantined", null), new TestIdentifier("another", "another-quarantined", null)]),
+      new HashSet<>([new TestIdentifier("suite", "disabled", null), new TestIdentifier("another", "another-disabled", null)]),
+      new HashSet<>([new TestIdentifier("suite", "attemptToFix", null), new TestIdentifier("another", "another-attemptToFix", null)]),
       new LineDiff(["path": lines(1, 2, 3), "path-b": lines(1, 2, 128, 257, 999)]),
       ),
     ]
