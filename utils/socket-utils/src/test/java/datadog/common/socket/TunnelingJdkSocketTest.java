@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.StandardProtocolFamily;
 import java.net.UnixDomainSocketAddress;
-import java.nio.ByteBuffer;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.file.Files;
@@ -18,23 +17,19 @@ import org.junit.jupiter.api.Test;
 public class TunnelingJdkSocketTest {
 
   private static final AtomicBoolean is_server_running = new AtomicBoolean(false);
+  private final int client_timeout = 1000;
+  private final int test_timeout = 3000;
 
   @Test
   public void testTimeout() throws Exception {
-    // set socket path and address
     Path socketPath = getSocketPath();
     UnixDomainSocketAddress socketAddress = UnixDomainSocketAddress.of(socketPath);
-
-    // start server in a separate thread
-    startServer(socketAddress, false);
-
-    // create client
+    startServer(socketAddress);
     TunnelingJdkSocket clientSocket = createClient(socketPath);
 
-    // will fail after three seconds if timeout (set to one second) is not supported
-    assertTimeoutPreemptively(Duration.ofMillis(3000), () -> clientSocket.getInputStream().read());
+    assertTimeoutPreemptively(
+        Duration.ofMillis(test_timeout), () -> clientSocket.getInputStream().read());
 
-    // clean up
     clientSocket.close();
     is_server_running.set(false);
   }
@@ -46,7 +41,7 @@ public class TunnelingJdkSocketTest {
     return socketPath;
   }
 
-  private static void startServer(UnixDomainSocketAddress socketAddress, boolean sendMessage) {
+  private static void startServer(UnixDomainSocketAddress socketAddress) {
     Thread serverThread =
         new Thread(
             () -> {
@@ -55,12 +50,8 @@ public class TunnelingJdkSocketTest {
                 serverChannel.bind(socketAddress);
                 is_server_running.set(true);
 
-                // wait for client connection
                 while (is_server_running.get()) {
                   SocketChannel clientChannel = serverChannel.accept();
-                  if (sendMessage) {
-                    clientChannel.write(ByteBuffer.wrap("Hello!".getBytes()));
-                  }
                 }
               } catch (IOException e) {
                 throw new RuntimeException(e);
@@ -72,7 +63,7 @@ public class TunnelingJdkSocketTest {
   private TunnelingJdkSocket createClient(Path socketPath) throws IOException {
     TunnelingJdkSocket clientSocket = new TunnelingJdkSocket(socketPath);
     clientSocket.connect(new InetSocketAddress("localhost", 0));
-    clientSocket.setSoTimeout(1000);
+    clientSocket.setSoTimeout(client_timeout);
     return clientSocket;
   }
 }
