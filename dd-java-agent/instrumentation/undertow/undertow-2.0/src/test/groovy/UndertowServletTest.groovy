@@ -1,6 +1,6 @@
 import datadog.trace.agent.test.asserts.TraceAssert
-import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.agent.test.base.WebsocketServer
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import io.undertow.Handlers
@@ -10,9 +10,11 @@ import io.undertow.servlet.api.DeploymentInfo
 import io.undertow.servlet.api.DeploymentManager
 import io.undertow.servlet.api.ServletContainer
 import io.undertow.servlet.api.ServletInfo
+import io.undertow.websockets.jsr.WebSocketDeploymentInfo
 import spock.lang.IgnoreIf
 
 import javax.servlet.MultipartConfigElement
+import java.nio.ByteBuffer
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
@@ -35,7 +37,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_B
 abstract class UndertowServletTest extends HttpServerTest<Undertow> {
   private static final CONTEXT = "ctx"
 
-  class UndertowServer implements HttpServer {
+  class UndertowServer implements WebsocketServer {
     def port = 0
     Undertow undertowServer
 
@@ -62,6 +64,7 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
         .addServlet(new ServletInfo("CreatedISServlet", CreatedISServlet).addMapping(CREATED_IS.path))
         .addServlet(new ServletInfo("BodyUrlEncodedServlet", BodyUrlEncodedServlet).addMapping(BODY_URLENCODED.path))
         .addServlet(new ServletInfo("BodyMultipartServlet", BodyMultipartServlet).addMapping(BODY_MULTIPART.path))
+        .addServletContextAttribute(WebSocketDeploymentInfo.ATTRIBUTE_NAME, new WebSocketDeploymentInfo().addEndpoint(TestEndpoint))
 
       DeploymentManager manager = container.addDeployment(builder)
       manager.deploy()
@@ -89,6 +92,56 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
     @Override
     URI address() {
       return new URI("http://localhost:$port/$CONTEXT/")
+    }
+
+    @Override
+    void awaitConnected() {
+      while (TestEndpoint.activeSession == null) {
+        synchronized (TestEndpoint) {
+          TestEndpoint.wait()
+        }
+      }
+    }
+
+    @Override
+    void serverSendText(String[] messages) {
+      if (messages.length == 1) {
+        TestEndpoint.activeSession.getBasicRemote().sendText(messages[0])
+      } else {
+        def remoteEndpoint = TestEndpoint.activeSession.getBasicRemote()
+        for (int i = 0; i < messages.length; i++) {
+          remoteEndpoint.sendText(messages[i], i == messages.length - 1)
+        }
+      }
+    }
+
+    @Override
+    boolean canSplitLargeWebsocketPayloads() {
+      false
+    }
+
+    @Override
+    void serverSendBinary(byte[][] binaries) {
+      if (binaries.length == 1) {
+        TestEndpoint.activeSession.getBasicRemote().sendBinary(ByteBuffer.wrap(binaries[0]))
+      } else {
+        try (def stream = TestEndpoint.activeSession.getBasicRemote().getSendStream()) {
+          binaries.each {
+            stream.write(it)
+          }
+        }
+      }
+    }
+
+    @Override
+    void serverClose() {
+      TestEndpoint.activeSession?.close()
+    }
+
+    @Override
+    void setMaxPayloadSize(int size) {
+      TestEndpoint.activeSession?.setMaxTextMessageBufferSize(size)
+      TestEndpoint.activeSession?.setMaxBinaryMessageBufferSize(size)
     }
   }
 
@@ -214,11 +267,11 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
     switch (endpoint) {
       case LOGIN:
       case NOT_FOUND:
-        return null
+      return null
       case PATH_PARAM:
-        return testPathParam()
+      return testPathParam()
       default:
-        return endpoint.path
+      return endpoint.path
     }
   }
 
@@ -271,6 +324,7 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
 
 class UndertowServletV0Test extends UndertowServletTest implements TestingGenericHttpNamingConventions.ServerV0 {
 }
+
 class UndertowServletNoHttpRouteForkedTest extends UndertowServletTest implements TestingGenericHttpNamingConventions.ServerV0 {
   @Override
   def generateHttpRoute() {

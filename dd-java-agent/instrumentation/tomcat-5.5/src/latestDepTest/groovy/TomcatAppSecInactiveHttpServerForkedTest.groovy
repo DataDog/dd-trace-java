@@ -8,7 +8,7 @@ import org.apache.catalina.Wrapper
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.UNKNOWN
 
-class TomcatAppSecInactiveHttpServerTest extends AppSecInactiveHttpServerTest {
+class TomcatAppSecInactiveHttpServerForkedTest extends AppSecInactiveHttpServerTest {
   HttpServer server() {
     new TomcatServer('tomcat-context', false, { Context ctx ->
       HttpServerTest.ServerEndpoint.values().findAll {
@@ -21,6 +21,6 @@ class TomcatAppSecInactiveHttpServerTest extends AppSecInactiveHttpServerTest {
         ctx.addChild(wrapper)
         ctx.addServletMappingDecoded(it.path, wrapper.name)
       }
-    })
+    }, {})
   }
 }
