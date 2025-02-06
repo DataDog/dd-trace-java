@@ -1,0 +1,30 @@
+name: Dependency Submission
+
+on:
+  push:
+    branches: ['master']
+
+permissions:
+  contents: write
+
+jobs:
+  dependency-submission:
+    runs-on: ubuntu-latest
+    name: Submit Gradle Dependencies
+    steps:
+    - name: Checkout sources
+      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      with:
+        submodules: 'recursive'
+    - name: Java environment setup
+      shell: bash
+      run: |
+        echo "JAVA_HOME=$JAVA_HOME_8_X64" >> $GITHUB_ENV
+        echo "JAVA_8_HOME=$JAVA_HOME_8_X64" >> $GITHUB_ENV
+        echo "JAVA_11_HOME=$JAVA_HOME_11_X64" >> $GITHUB_ENV
+        echo "JAVA_17_HOME=$JAVA_HOME_17_X64" >> $GITHUB_ENV
+        echo "JAVA_21_HOME=$JAVA_HOME_21_X64" >> $GITHUB_ENV
+    - name: Generate and submit dependency graph
+      uses: gradle/actions/dependency-submission@94baf225fe0a508e581a564467443d0e2379123b # v4.3.0
+      env:
+        DEPENDENCY_GRAPH_INCLUDE_PROJECTS: "^((?!dd-smoke-tests|buildSrc|test).)*$"
