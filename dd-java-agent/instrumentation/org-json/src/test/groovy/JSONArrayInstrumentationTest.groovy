@@ -3,7 +3,6 @@ import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.PropagationModule
 import org.json.JSONArray
 import org.json.JSONObject
-import org.json.JSONTokener
 
 class JSONArrayInstrumentationTest extends AgentTestRunner {
 
