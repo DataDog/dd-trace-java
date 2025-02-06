@@ -90,7 +90,8 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
         Tags.TEST_ITR_TESTS_SKIPPING_COUNT,
         Tags.TEST_EARLY_FLAKE_ENABLED,
         Tags.TEST_EARLY_FLAKE_ABORT_REASON,
-        DDTags.CI_ITR_TESTS_SKIPPED);
+        DDTags.CI_ITR_TESTS_SKIPPED,
+        Tags.TEST_TEST_MANAGEMENT_ENABLED);
   }
 
   @Override
@@ -100,5 +101,10 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
       return Collections.singleton(EarlyFlakeDetectionAbortReason.FAULTY);
     }
     return Collections.emptySet();
+  }
+
+  @Override
+  public void end(@Nullable Long endTime) {
+    super.end(endTime);
   }
 }

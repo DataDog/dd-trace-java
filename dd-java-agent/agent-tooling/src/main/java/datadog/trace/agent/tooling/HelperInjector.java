@@ -33,6 +33,7 @@ public class HelperInjector implements Instrumenter.TransformingAdvice {
       ClassFileLocator.ForClassLoader.of(Utils.getExtendedClassLoader());
 
   private final boolean useAgentCodeSource;
+  private final AdviceShader adviceShader;
   private final String requestingName;
 
   private final Set<String> helperClassNames;
@@ -58,8 +59,17 @@ public class HelperInjector implements Instrumenter.TransformingAdvice {
       final boolean useAgentCodeSource,
       final String requestingName,
       final String... helperClassNames) {
+    this(useAgentCodeSource, null, requestingName, helperClassNames);
+  }
+
+  public HelperInjector(
+      final boolean useAgentCodeSource,
+      final AdviceShader adviceShader,
+      final String requestingName,
+      final String... helperClassNames) {
     this.useAgentCodeSource = useAgentCodeSource;
     this.requestingName = requestingName;
+    this.adviceShader = adviceShader;
 
     this.helperClassNames = new LinkedHashSet<>(Arrays.asList(helperClassNames));
   }
@@ -70,6 +80,7 @@ public class HelperInjector implements Instrumenter.TransformingAdvice {
       final Map<String, byte[]> helperMap) {
     this.useAgentCodeSource = useAgentCodeSource;
     this.requestingName = requestingName;
+    this.adviceShader = null;
 
     helperClassNames = helperMap.keySet();
     dynamicTypeMap.putAll(helperMap);
@@ -78,10 +89,13 @@ public class HelperInjector implements Instrumenter.TransformingAdvice {
   private Map<String, byte[]> getHelperMap() throws IOException {
     if (dynamicTypeMap.isEmpty()) {
       final Map<String, byte[]> classnameToBytes = new LinkedHashMap<>();
-
-      for (final String helperClassName : helperClassNames) {
-        final byte[] classBytes = classFileLocator.locate(helperClassName).resolve();
-        classnameToBytes.put(helperClassName, classBytes);
+      for (String helperName : helperClassNames) {
+        byte[] classBytes = classFileLocator.locate(helperName).resolve();
+        if (adviceShader != null) {
+          classBytes = adviceShader.shadeClass(classBytes);
+          helperName = adviceShader.uniqueHelper(helperName);
+        }
+        classnameToBytes.put(helperName, classBytes);
       }
 
       return classnameToBytes;

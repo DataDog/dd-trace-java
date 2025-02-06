@@ -1,7 +1,12 @@
 // Set properties before any plugins get loaded
 ext {
-  // TODO Java 17: This version of vertx-web doesn't support Java 17
+  // vertx-web doesn't support Java 17 until v4.2
   maxJavaVersionForTests = JavaVersion.VERSION_15
+  // unbound it for latest
+  latestDepTestMinJavaVersionForTests = JavaVersion.VERSION_11
+  latestDepForkedTestMinJavaVersionForTests = JavaVersion.VERSION_11
+  latestDepTestMaxJavaVersionForTests = JavaVersion.VERSION_25
+  latestDepForkedTestMaxJavaVersionForTests = JavaVersion.VERSION_25
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -15,7 +20,8 @@ muzzle {
   }
 }
 
-addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteForDir('latestDepTest', 'latestDepTest')
+addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'latestDepTest')
 
 configurations {
   testArtifacts
@@ -29,7 +35,7 @@ artifacts {
 dependencies {
   api project(':dd-java-agent:instrumentation:netty-4.1-shared')
 
-  compileOnly group: 'io.vertx', name: 'vertx-web', version: '4.2.7'
+  compileOnly group: 'io.vertx', name: 'vertx-web', version: '4.0.0'
 
   testImplementation project(':dd-java-agent:instrumentation:netty-4.1')
   testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
@@ -44,6 +50,13 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core')
   testRuntimeOnly project(':dd-java-agent:instrumentation:netty-buffer-4')
 
-  latestDepTestImplementation group: 'io.vertx', name: 'vertx-web', version: '4.4.+'
-  latestDepTestImplementation group: 'io.vertx', name: 'vertx-web-client', version: '4.4.+'
+  latestDepTestImplementation group: 'io.vertx', name: 'vertx-web', version: '4.+'
+  latestDepTestImplementation group: 'io.vertx', name: 'vertx-web-client', version: '4.+'
+}
+
+[compileLatestDepTestJava, compileLatestDepForkedTestJava].each {
+  setJavaVersion(it, 11)
+}
+[compileLatestDepForkedTestGroovy, compileLatestDepTestGroovy].each {
+  it.javaLauncher = getJavaLauncherFor(11)
 }

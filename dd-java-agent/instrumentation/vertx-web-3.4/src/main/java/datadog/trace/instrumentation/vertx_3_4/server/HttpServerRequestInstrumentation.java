@@ -18,7 +18,7 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class HttpServerRequestInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public HttpServerRequestInstrumentation() {
     super("vertx", "vertx-3.4");
   }

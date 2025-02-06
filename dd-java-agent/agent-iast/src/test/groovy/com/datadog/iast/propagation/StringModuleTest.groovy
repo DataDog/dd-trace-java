@@ -12,6 +12,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import groovy.transform.CompileDynamic
 import org.junit.jupiter.api.Assertions
+import spock.lang.IgnoreIf
 
 import java.text.SimpleDateFormat
 
@@ -129,6 +130,80 @@ class StringModuleTest extends IastModuleImplTestBase {
     sb('==>123<==')             | '==>456<=='             | 1         | '==>123<====>456<=='
     sb('1==>234<==5==>678<==9') | 'a==>bcd<==e'           | 1         | '1==>234<==5==>678<==9a==>bcd<==e'
     sb('1==>234<==5==>678<==9') | 'a==>bcd<==e==>fgh<==i' | 1         | '1==>234<==5==>678<==9a==>bcd<==e==>fgh<==i'
+  }
+
+  void 'onStringBuilderAppend null or empty (#builder, #param, #start, #end)'() {
+    given:
+    final result = builder?.append(param, start, end)
+
+    when:
+    module.onStringBuilderAppend(result, param, start, end)
+
+    then:
+    0 * _
+
+    where:
+    builder | param | start | end
+    sb('')  | null  | 0     | 0
+    sb('')  | ''    | 0     | 0
+  }
+
+  void 'onStringBuilderAppend without span (#builder, #param, #start, #end)'() {
+    given:
+    final result = builder?.append(param, start, end)
+
+    when:
+    module.onStringBuilderAppend(result, param)
+
+    then:
+    mockCalls * tracer.activeSpan() >> null
+    0 * _
+
+    where:
+    builder | param | start | end | mockCalls
+    sb('1') | null  | 0     | 0   | 0
+    sb('3') | '4'   | 0     | 0   | 1
+  }
+
+  void 'onStringBuilderAppend (#builder, #param, #start, #end)'() {
+    given:
+    final taintedObjects = ctx.getTaintedObjects()
+    def builderTainted = addFromTaintFormat(taintedObjects, builder)
+    objectHolder.add(builderTainted)
+    def paramTainted = addFromTaintFormat(taintedObjects, param)
+    objectHolder.add(paramTainted)
+    builderTainted?.append(paramTainted, start, end)
+
+    and:
+    final result = getStringFromTaintFormat(expected)
+    objectHolder.add(result)
+    final shouldBeTainted = fromTaintFormat(expected) != null
+
+    when:
+    module.onStringBuilderAppend(builderTainted, paramTainted, start, end)
+    def taintedObject = taintedObjects.get(builderTainted)
+
+    then:
+    if (shouldBeTainted) {
+      assert taintedObject != null
+      assert taintedObject.get() as String == result
+      assert taintFormat(taintedObject.get() as String, taintedObject.getRanges()) == expected
+    } else {
+      assert taintedObject == null
+    }
+
+    where:
+    builder                     | param                   | start | end | expected
+    sb('123')                   | '456'                   | 0     | 3   | '123456'
+    sb('==>123<==')             | '456'                   | 0     | 3   | '==>123<==456'
+    sb('==>123<==')             | '456'                   | 1     | 3   | '==>123<==56'
+    sb('123')                   | '==>456<=='             | 0     | 3   | '123==>456<=='
+    sb('123')                   | '==>456<=='             | 1     | 2   | '123==>5<=='
+    sb('==>123<==')             | '==>456<=='             | 0     | 3   | '==>123<====>456<=='
+    sb('1==>234<==5==>678<==9') | 'a==>bcd<==e'           | 0     | 5   | '1==>234<==5==>678<==9a==>bcd<==e'
+    sb('1==>234<==5==>678<==9') | 'a==>bcd<==e==>fgh<==i' | 0     | 9   | '1==>234<==5==>678<==9a==>bcd<==e==>fgh<==i'
+    sb('1==>234<==5==>678<==9') | 'a==>bcd<==e==>fgh<==i' | 5     | 9   | '1==>234<==5==>678<==9==>fgh<==i'
+    sb('1==>234<==5==>678<==9') | 'a==>bcd<==e==>fgh<==i' | 5     | 8   | '1==>234<==5==>678<==9==>fgh<=='
   }
 
   void 'onStringBuilderInit null or empty (#builder, #param)'() {
@@ -1177,6 +1252,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     given:
     final taintedObjects = ctx.getTaintedObjects()
     def self = addFromTaintFormat(taintedObjects, testString)
+    def originalReplace = self.replace(oldCharSeq, newCharSeq)
 
     when:
     def result = module.onStringReplace(self, oldCharSeq, newCharSeq)
@@ -1184,6 +1260,7 @@ class StringModuleTest extends IastModuleImplTestBase {
 
     then:
     1 * tracer.activeSpan() >> span
+    originalReplace == result
     taintFormat(result, taintedObject.getRanges()) == expected
 
     where:
@@ -1202,6 +1279,9 @@ class StringModuleTest extends IastModuleImplTestBase {
     "==>my_o<==u==>tput<=="                      | 'out'      | 'in'       | "==>my_<==in==>put<=="
     "==>my_o<==u==>tput<====>my_o<==u==>tput<==" | 'out'      | 'in'       | "==>my_<==in==>put<====>my_<==in==>put<=="
     "==>my_o<==u==>tp<==ut"                      | 'output'   | 'input'    | "==>my_<==input"
+    "==>my_input<=="                             | '_'        | '/\\,.*+'  | "==>my<==/\\,.*+==>input<=="
+    "==>my_input<=="                             | '_'        | '!?^&$#'   | "==>my<==!?^&\$#==>input<=="
+    "==>my_input<=="                             | '_'        | ')(][}{'   | "==>my<==)(][}{==>input<=="
   }
 
   void 'test replace with a char sequence (tainted) and make sure IastRequestContext is called'() {
@@ -1209,6 +1289,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     final taintedObjects = ctx.getTaintedObjects()
     def self = addFromTaintFormat(taintedObjects, testString)
     def inputTainted = addFromTaintFormat(taintedObjects, newCharSeq)
+    def originalReplace = self.replace(oldCharSeq, inputTainted)
 
     when:
     def result = module.onStringReplace(self, oldCharSeq, inputTainted)
@@ -1216,31 +1297,41 @@ class StringModuleTest extends IastModuleImplTestBase {
 
     then:
     1 * tracer.activeSpan() >> span
+    originalReplace == result
     taintFormat(result, taintedObject.getRanges()) == expected
 
     where:
-    testString                                   | oldCharSeq | newCharSeq    | expected
-    "==>masquita<=="                             | 'as'       | '==>os<=='    | "==>m<====>os<====>quita<=="
-    "==>masquita<=="                             | 'os'       | '==>as<=='    | "==>masquita<=="
-    "masquita"                                   | 'as'       | '==>os<=='    | "m==>os<==quita"
-    "==>m<==as==>qu<==i==>ta<=="                 | 'as'       | '==>os<=='    | "==>m<====>os<====>qu<==i==>ta<=="
-    "==>my_input<=="                             | 'in'       | '==>out<=='   | "==>my_<====>out<====>put<=="
-    "==>my_output<=="                            | 'out'      | '==>in<=='    | "==>my_<====>in<====>put<=="
-    "==>my_input<=="                             | '_'        | '==>-<=='     | "==>my<====>-<====>input<=="
-    "==>my<==_==>input<=="                       | 'in'       | '==>out<=='   | "==>my<==_==>out<====>put<=="
-    "==>my_in<==p==>ut<=="                       | 'in'       | '==>out<=='   | "==>my_<====>out<==p==>ut<=="
-    "==>my_<==in==>put<=="                       | 'in'       | '==>out<=='   | "==>my_<====>out<====>put<=="
-    "==>my_i<==n==>put<=="                       | 'in'       | '==>out<=='   | "==>my_<====>out<====>put<=="
-    "==>my_<==i==>nput<=="                       | 'in'       | '==>out<=='   | "==>my_<====>out<====>put<=="
-    "==>my_o<==u==>tput<=="                      | 'out'      | '==>in<=='    | "==>my_<====>in<====>put<=="
-    "==>my_o<==u==>tput<====>my_o<==u==>tput<==" | 'out'      | '==>in<=='    | "==>my_<====>in<====>put<====>my_<====>in<====>put<=="
-    "==>my_o<==u==>tp<==ut"                      | 'output'   | '==>input<==' | "==>my_<====>input<=="
+    testString                                   | oldCharSeq | newCharSeq      | expected
+    "==>masquita<=="                             | 'as'       | '==>os<=='      | "==>m<====>os<====>quita<=="
+    "==>masquita<=="                             | 'os'       | '==>as<=='      | "==>masquita<=="
+    "masquita"                                   | 'as'       | '==>os<=='      | "m==>os<==quita"
+    "==>m<==as==>qu<==i==>ta<=="                 | 'as'       | '==>os<=='      | "==>m<====>os<====>qu<==i==>ta<=="
+    "==>my_input<=="                             | 'in'       | '==>out<=='     | "==>my_<====>out<====>put<=="
+    "==>my_output<=="                            | 'out'      | '==>in<=='      | "==>my_<====>in<====>put<=="
+    "==>my_input<=="                             | '_'        | '==>-<=='       | "==>my<====>-<====>input<=="
+    "==>my<==_==>input<=="                       | 'in'       | '==>out<=='     | "==>my<==_==>out<====>put<=="
+    "==>my_in<==p==>ut<=="                       | 'in'       | '==>out<=='     | "==>my_<====>out<==p==>ut<=="
+    "==>my_<==in==>put<=="                       | 'in'       | '==>out<=='     | "==>my_<====>out<====>put<=="
+    "==>my_i<==n==>put<=="                       | 'in'       | '==>out<=='     | "==>my_<====>out<====>put<=="
+    "==>my_<==i==>nput<=="                       | 'in'       | '==>out<=='     | "==>my_<====>out<====>put<=="
+    "==>my_o<==u==>tput<=="                      | 'out'      | '==>in<=='      | "==>my_<====>in<====>put<=="
+    "==>my_o<==u==>tput<====>my_o<==u==>tput<==" | 'out'      | '==>in<=='      | "==>my_<====>in<====>put<====>my_<====>in<====>put<=="
+    "==>my_o<==u==>tp<==ut"                      | 'output'   | '==>input<=='   | "==>my_<====>input<=="
+    "==>my_input<=="                             | '_'        | '==>/\\,.*+<==' | "==>my<====>/\\,.*+<====>input<=="
+    "==>my_input<=="                             | '_'        | '==>!?^&$#<=='  | "==>my<====>!?^&\$#<====>input<=="
+    "==>my_input<=="                             | '_'        | '==>)(][}{<=='  | "==>my<====>)(][}{<====>input<=="
   }
 
   void 'test replace with a regex and replacement (not tainted) and make sure IastRequestContext is called'() {
     given:
     final taintedObjects = ctx.getTaintedObjects()
     def self = addFromTaintFormat(taintedObjects, testString)
+    def originalReplace
+    if (numReplacements > 1) {
+      originalReplace = self.replaceAll(regex, replacement)
+    } else {
+      originalReplace = self.replaceFirst(regex, replacement)
+    }
 
     when:
     def result = module.onStringReplace(self, regex, replacement, numReplacements)
@@ -1248,6 +1339,9 @@ class StringModuleTest extends IastModuleImplTestBase {
 
     then:
     1 * tracer.activeSpan() >> span
+    if (numReplacements > 0) {
+      originalReplace == result
+    }
     taintFormat(result, taintedObject.getRanges()) == expected
 
     where:
@@ -1266,6 +1360,9 @@ class StringModuleTest extends IastModuleImplTestBase {
     "==>my_o<==u==>tput<=="                      | 'out'    | 'in'        | Integer.MAX_VALUE | "==>my_<==in==>put<=="
     "==>my_o<==u==>tput<====>my_o<==u==>tput<==" | 'out'    | 'in'        | Integer.MAX_VALUE | "==>my_<==in==>put<====>my_<==in==>put<=="
     "==>my_o<==u==>tp<==ut"                      | 'output' | 'input'     | Integer.MAX_VALUE | "==>my_<==input"
+    "==>my_input<=="                             | '_'      | '/\\,.*+'   | Integer.MAX_VALUE | "==>my<==/\\,.*+==>input<=="
+    "==>my_input<=="                             | '_'      | '!?^&#'     | Integer.MAX_VALUE | "==>my<==!?^&#==>input<=="
+    "==>my_input<=="                             | '_'      | ')(][}{'    | Integer.MAX_VALUE | "==>my<==)(][}{==>input<=="
   }
 
   void 'test replace with a regex and replacement (tainted) and make sure IastRequestContext is called'() {
@@ -1273,6 +1370,12 @@ class StringModuleTest extends IastModuleImplTestBase {
     final taintedObjects = ctx.getTaintedObjects()
     def self = addFromTaintFormat(taintedObjects, testString)
     def inputTainted = addFromTaintFormat(taintedObjects, replacement)
+    def originalReplace
+    if (numReplacements > 1) {
+      originalReplace = self.replaceAll(regex, inputTainted)
+    } else {
+      originalReplace = self.replaceFirst(regex, inputTainted)
+    }
 
     when:
     def result = module.onStringReplace(self, regex, inputTainted, numReplacements)
@@ -1280,27 +1383,33 @@ class StringModuleTest extends IastModuleImplTestBase {
 
     then:
     1 * tracer.activeSpan() >> span
+    if (numReplacements > 0) {
+      originalReplace == result
+    }
     taintFormat(result, taintedObject.getRanges()) == expected
 
     where:
-    testString                                   | regex    | replacement   | numReplacements   | expected
-    "==>masquita<=="                             | 'as'     | '==>os<=='    | Integer.MAX_VALUE | "==>m<====>os<====>quita<=="
-    "==>masquita<=="                             | 'os'     | '==>as<=='    | Integer.MAX_VALUE | "==>masquita<=="
-    "masquita"                                   | 'as'     | '==>os<=='    | Integer.MAX_VALUE | "m==>os<==quita"
-    "==>m<==as==>qu<==i==>ta<=="                 | 'as'     | '==>os<=='    | Integer.MAX_VALUE | "==>m<====>os<====>qu<==i==>ta<=="
-    "==>my_input<=="                             | 'in'     | '==>out<=='   | Integer.MAX_VALUE | "==>my_<====>out<====>put<=="
-    "==>my_output<=="                            | 'out'    | '==>in<=='    | Integer.MAX_VALUE | "==>my_<====>in<====>put<=="
-    "==>my_input<=="                             | '_'      | '==>-<=='     | Integer.MAX_VALUE | "==>my<====>-<====>input<=="
-    "==>my<==_==>input<=="                       | 'in'     | '==>out<=='   | Integer.MAX_VALUE | "==>my<==_==>out<====>put<=="
-    "==>my_in<==p==>ut<=="                       | 'in'     | '==>out<=='   | Integer.MAX_VALUE | "==>my_<====>out<==p==>ut<=="
-    "==>my_<==in==>put<=="                       | 'in'     | '==>out<=='   | Integer.MAX_VALUE | "==>my_<====>out<====>put<=="
-    "==>my_i<==n==>put<=="                       | 'in'     | '==>out<=='   | Integer.MAX_VALUE | "==>my_<====>out<====>put<=="
-    "==>my_<==i==>nput<=="                       | 'in'     | '==>out<=='   | Integer.MAX_VALUE | "==>my_<====>out<====>put<=="
-    "==>my_o<==u==>tput<=="                      | 'out'    | '==>in<=='    | Integer.MAX_VALUE | "==>my_<====>in<====>put<=="
-    "==>my_o<==u==>tput<====>my_o<==u==>tput<==" | 'out'    | '==>in<=='    | Integer.MAX_VALUE | "==>my_<====>in<====>put<====>my_<====>in<====>put<=="
-    "==>my_o<==u==>tp<==ut"                      | 'output' | '==>input<==' | Integer.MAX_VALUE | "==>my_<====>input<=="
-    "==>my_o<==u==>tput<====>my_o<==u==>tput<==" | 'out'    | '==>in<=='    | 1                 | "==>my_<====>in<====>put<====>my_o<==u==>tput<=="
-    "==>my_o<==u==>tput<====>my_o<==u==>tput<==" | 'out'    | '==>in<=='    | 0                 | "==>my_o<==u==>tput<====>my_o<==u==>tput<=="
+    testString                                   | regex    | replacement     | numReplacements   | expected
+    "==>masquita<=="                             | 'as'     | '==>os<=='      | Integer.MAX_VALUE | "==>m<====>os<====>quita<=="
+    "==>masquita<=="                             | 'os'     | '==>as<=='      | Integer.MAX_VALUE | "==>masquita<=="
+    "masquita"                                   | 'as'     | '==>os<=='      | Integer.MAX_VALUE | "m==>os<==quita"
+    "==>m<==as==>qu<==i==>ta<=="                 | 'as'     | '==>os<=='      | Integer.MAX_VALUE | "==>m<====>os<====>qu<==i==>ta<=="
+    "==>my_input<=="                             | 'in'     | '==>out<=='     | Integer.MAX_VALUE | "==>my_<====>out<====>put<=="
+    "==>my_output<=="                            | 'out'    | '==>in<=='      | Integer.MAX_VALUE | "==>my_<====>in<====>put<=="
+    "==>my_input<=="                             | '_'      | '==>-<=='       | Integer.MAX_VALUE | "==>my<====>-<====>input<=="
+    "==>my<==_==>input<=="                       | 'in'     | '==>out<=='     | Integer.MAX_VALUE | "==>my<==_==>out<====>put<=="
+    "==>my_in<==p==>ut<=="                       | 'in'     | '==>out<=='     | Integer.MAX_VALUE | "==>my_<====>out<==p==>ut<=="
+    "==>my_<==in==>put<=="                       | 'in'     | '==>out<=='     | Integer.MAX_VALUE | "==>my_<====>out<====>put<=="
+    "==>my_i<==n==>put<=="                       | 'in'     | '==>out<=='     | Integer.MAX_VALUE | "==>my_<====>out<====>put<=="
+    "==>my_<==i==>nput<=="                       | 'in'     | '==>out<=='     | Integer.MAX_VALUE | "==>my_<====>out<====>put<=="
+    "==>my_o<==u==>tput<=="                      | 'out'    | '==>in<=='      | Integer.MAX_VALUE | "==>my_<====>in<====>put<=="
+    "==>my_o<==u==>tput<====>my_o<==u==>tput<==" | 'out'    | '==>in<=='      | Integer.MAX_VALUE | "==>my_<====>in<====>put<====>my_<====>in<====>put<=="
+    "==>my_o<==u==>tp<==ut"                      | 'output' | '==>input<=='   | Integer.MAX_VALUE | "==>my_<====>input<=="
+    "==>my_o<==u==>tput<====>my_o<==u==>tput<==" | 'out'    | '==>in<=='      | 1                 | "==>my_<====>in<====>put<====>my_o<==u==>tput<=="
+    "==>my_o<==u==>tput<====>my_o<==u==>tput<==" | 'out'    | '==>in<=='      | 0                 | "==>my_o<==u==>tput<====>my_o<==u==>tput<=="
+    "==>my_input<=="                             | '_'      | '==>/\\,.*+<==' | Integer.MAX_VALUE | "==>my<====>/\\,.*+<====>input<=="
+    "==>my_input<=="                             | '_'      | '==>!?^&#<=='   | Integer.MAX_VALUE | "==>my<====>!?^&#<====>input<=="
+    "==>my_input<=="                             | '_'      | '==>)(][}{<=='  | Integer.MAX_VALUE | "==>my<====>)(][}{<====>input<=="
   }
 
   void 'test valueOf with (#param) and make sure IastRequestContext is called'() {
@@ -1340,6 +1449,27 @@ class StringModuleTest extends IastModuleImplTestBase {
     taintFormat(result, taintedObject.getRanges()) == "==>my_input<=="
   }
 
+  @IgnoreIf({ System.getProperty('java.specification.version').toBigDecimal() < 15 })
+  void 'test translate escapes'() {
+    given:
+    final taintedObjects = ctx.getTaintedObjects()
+    def self = addFromTaintFormat(taintedObjects, testString)
+    def result = self.translateEscapes()
+
+    when:
+    module.onStringTranslateEscapes(self, result)
+    def taintedObject = taintedObjects.get(result)
+
+    then:
+    taintFormat(result, taintedObject.getRanges()) == expected
+
+    where:
+    testString            | expected
+    "==>hello world\t<==" | "==>hello world\t<=="
+    "==>hello world\n<==" | "==>hello world\n<=="
+    "==>hello worldn<=="  | "==>hello worldn<=="
+  }
+
   void 'test valueOf with special objects and make sure IastRequestContext is called'() {
     given:
     final taintedObjects = ctx.getTaintedObjects()
@@ -1360,6 +1490,78 @@ class StringModuleTest extends IastModuleImplTestBase {
     then:
     1 * tracer.activeSpan() >> span
     taintFormat(result, taintedObject.getRanges()) == "==>my_input<=="
+  }
+
+  void 'onStringBuilderSetLength is empty or different lengths (#self, #length)'() {
+    given:
+    self?.setLength(self.length())
+
+    when:
+    module.onStringBuilderSetLength(self, length)
+
+    then:
+    mockCalls * tracer.activeSpan() >> null
+    0 * _
+
+    where:
+    self       | length | mockCalls
+    sb("123")  | 2      | 0
+    sb()       | 0      | 1
+    sbf("123") | 2      | 0
+    sbf()      | 0      | 1
+  }
+
+  void 'onStringBuilderSetLength (#input, #length)'() {
+    final taintedObjects = ctx.getTaintedObjects()
+    def self = addFromTaintFormat(taintedObjects, input)
+    if (self instanceof StringBuilder) {
+      ((StringBuilder) self).setLength(length)
+    } else if (self instanceof StringBuffer) {
+      ((StringBuffer) self).setLength(length)
+    }
+    final result = self.toString()
+
+    when:
+    module.onStringBuilderSetLength(self, length)
+    def taintedObject = taintedObjects.get(self)
+
+    then:
+    1 * tracer.activeSpan() >> span
+    taintFormat(result, taintedObject.getRanges()) == expected
+
+    where:
+    input                          | length | expected
+    sb("==>0123<==")               | 3      | "==>012<=="
+    sb("0123==>456<==78")          | 5      | "0123==>4<=="
+    sb("01==>234<==5==>678<==90")  | 8      | "01==>234<==5==>67<=="
+    sbf("==>0123<==")              | 3      | "==>012<=="
+    sbf("0123==>456<==78")         | 5      | "0123==>4<=="
+    sbf("01==>234<==5==>678<==90") | 8      | "01==>234<==5==>67<=="
+  }
+
+  void 'onStringBuilderSetLength untainting after setLength (#input, #length)'() {
+    final taintedObjects = ctx.getTaintedObjects()
+    def self = addFromTaintFormat(taintedObjects, input)
+    if (self instanceof StringBuilder) {
+      ((StringBuilder) self).setLength(length)
+    } else if (self instanceof StringBuffer) {
+      ((StringBuffer) self).setLength(length)
+    }
+
+    when:
+    module.onStringBuilderSetLength(self, length)
+    def taintedObject = taintedObjects.get(self)
+
+    then:
+    1 * tracer.activeSpan() >> span
+    taintedObject == null
+
+    where:
+    input                  | length
+    sb("==>0123<==")       | 0
+    sb("0123==>456<==78")  | 3
+    sbf("==>0123<==")      | 0
+    sbf("0123==>456<==78") | 3
   }
 
   private static Date date(final String pattern, final String value) {

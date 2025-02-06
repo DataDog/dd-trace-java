@@ -13,7 +13,12 @@ public interface StringModule extends IastModule {
 
   void onStringBuilderAppend(@Nonnull CharSequence builder, @Nullable CharSequence param);
 
+  void onStringBuilderAppend(
+      @Nonnull CharSequence builder, @Nullable CharSequence param, int start, int end);
+
   void onStringBuilderToString(@Nonnull CharSequence builder, @Nonnull String result);
+
+  void onStringBuilderSetLength(@Nonnull CharSequence self, int length);
 
   void onStringConcatFactory(
       @Nullable String result,
@@ -29,6 +34,8 @@ public interface StringModule extends IastModule {
       @Nullable String result, @Nonnull CharSequence delimiter, @Nonnull CharSequence[] elements);
 
   void onStringToUpperCase(@Nonnull String self, @Nullable String result);
+
+  void onStringTranslateEscapes(@Nonnull String self, @Nullable String result);
 
   void onStringToLowerCase(@Nonnull String self, @Nullable String result);
 

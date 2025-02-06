@@ -1,7 +1,7 @@
 package datadog.trace.civisibility.config;
 
 import datadog.trace.api.civisibility.config.TestIdentifier;
-import datadog.trace.civisibility.ipc.Serializer;
+import datadog.trace.civisibility.ipc.serialization.Serializer;
 import java.nio.ByteBuffer;
 
 public abstract class TestIdentifierSerializer {
@@ -13,8 +13,10 @@ public abstract class TestIdentifierSerializer {
   }
 
   public static TestIdentifier deserialize(ByteBuffer buffer) {
+    String suiteName = Serializer.readString(buffer);
     return new TestIdentifier(
-        Serializer.readString(buffer),
+        // suite name repeats a lot; interning it to save memory
+        suiteName != null ? suiteName.intern() : null,
         Serializer.readString(buffer),
         Serializer.readString(buffer));
   }

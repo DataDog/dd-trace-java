@@ -40,7 +40,9 @@ import org.eclipse.jetty.server.Request;
 
 @AutoService(InstrumenterModule.class)
 public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice {
+    implements Instrumenter.ForSingleType,
+        Instrumenter.HasTypeAdvice,
+        Instrumenter.HasMethodAdvice {
   public RequestGetPartsInstrumentation() {
     super("jetty");
   }

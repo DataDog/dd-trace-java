@@ -31,6 +31,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Queue;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.ThreadPoolExecutor;
 import net.bytebuddy.asm.Advice;
@@ -63,7 +64,10 @@ import net.bytebuddy.matcher.ElementMatcher;
  */
 @AutoService(InstrumenterModule.class)
 public final class ThreadPoolExecutorInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy, ExcludeFilterProvider {
+    implements Instrumenter.ForBootstrap,
+        Instrumenter.ForTypeHierarchy,
+        Instrumenter.HasMethodAdvice,
+        ExcludeFilterProvider {
 
   private static final String TPE = "java.util.concurrent.ThreadPoolExecutor";
 
@@ -159,12 +163,20 @@ public final class ThreadPoolExecutorInstrumentation extends InstrumenterModule.
           // excluded as
           // Runnables but it is not until now that they will be put on the executor's queue
           if (!exclude(RUNNABLE, task)) {
+            Queue<?> queue = tpe.getQueue();
             QueueTimerHelper.startQueuingTimer(
-                InstrumentationContext.get(Runnable.class, State.class), tpe.getClass(), task);
+                InstrumentationContext.get(Runnable.class, State.class),
+                tpe.getClass(),
+                queue.getClass(),
+                queue.size(),
+                task);
           } else if (!exclude(RUNNABLE_FUTURE, task) && task instanceof RunnableFuture) {
+            Queue<?> queue = tpe.getQueue();
             QueueTimerHelper.startQueuingTimer(
                 InstrumentationContext.get(RunnableFuture.class, State.class),
                 tpe.getClass(),
+                queue.getClass(),
+                queue.size(),
                 (RunnableFuture<?>) task);
           }
         }

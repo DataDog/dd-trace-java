@@ -15,7 +15,7 @@ import org.apache.logging.log4j.core.config.LoggerConfig;
 
 @AutoService(InstrumenterModule.class)
 public class LoggerConfigInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public LoggerConfigInstrumentation() {
     super("log4j", "log4j-2", "logs-intake", "logs-intake-log4j-2");

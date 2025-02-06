@@ -100,14 +100,15 @@ public class DebuggerAgent {
       DebuggerContext.initExceptionDebugger(defaultExceptionDebugger);
     }
     if (config.isDebuggerCodeOriginEnabled()) {
+      LOGGER.info("Starting Code Origin for spans");
       DebuggerContext.initCodeOrigin(new DefaultCodeOriginRecorder(config, configurationUpdater));
     }
-    if (config.isDebuggerInstrumentTheWorld()) {
+    if (config.isDynamicInstrumentationInstrumentTheWorld()) {
       setupInstrumentTheWorldTransformer(
           config, instrumentation, debuggerSink, statsdMetricForwarder);
     }
     // Dynamic Instrumentation
-    if (config.isDebuggerEnabled()) {
+    if (config.isDynamicInstrumentationEnabled()) {
       startDynamicInstrumentation(
           instrumentation, sco, config, configurationUpdater, debuggerSink, classNameFilter);
     }
@@ -136,23 +137,24 @@ public class DebuggerAgent {
       DebuggerSink debuggerSink,
       ClassNameFilter classNameFilter) {
     LOGGER.info("Starting Dynamic Instrumentation");
-    String probeFileLocation = config.getDebuggerProbeFileLocation();
+    String probeFileLocation = config.getDynamicInstrumentationProbeFile();
     if (probeFileLocation != null) {
       Path probeFilePath = Paths.get(probeFileLocation);
-      loadFromFile(probeFilePath, configurationUpdater, config.getDebuggerMaxPayloadSize());
+      loadFromFile(
+          probeFilePath, configurationUpdater, config.getDynamicInstrumentationMaxPayloadSize());
       return;
     }
     configurationPoller = sco.configurationPoller(config);
     if (configurationPoller != null) {
-      if (config.isDebuggerSymbolEnabled()) {
+      if (config.isSymbolDatabaseEnabled()) {
         symDBEnablement =
             new SymDBEnablement(
                 instrumentation,
                 config,
                 new SymbolAggregator(
-                    debuggerSink.getSymbolSink(), config.getDebuggerSymbolFlushThreshold()),
+                    debuggerSink.getSymbolSink(), config.getSymbolDatabaseFlushThreshold()),
                 classNameFilter);
-        if (config.isDebuggerSymbolForceUpload()) {
+        if (config.isSymbolDatabaseForceUpload()) {
           symDBEnablement.startSymbolExtraction();
         }
       }
@@ -247,7 +249,7 @@ public class DebuggerAgent {
     LOGGER.debug("Subscribing to Live Debugging...");
     configurationPoller.addListener(
         Product.LIVE_DEBUGGING, new DebuggerProductChangesListener(config, configurationUpdater));
-    if (symDBEnablement != null && !config.isDebuggerSymbolForceUpload()) {
+    if (symDBEnablement != null && !config.isSymbolDatabaseForceUpload()) {
       LOGGER.debug("Subscribing to Symbol DB...");
       configurationPoller.addListener(Product.LIVE_DEBUGGING_SYMBOL_DB, symDBEnablement);
     }

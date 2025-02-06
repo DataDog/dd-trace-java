@@ -8,6 +8,7 @@ import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.util.StandardizedLogging;
 import datadog.trace.api.Config;
+import datadog.trace.api.UserIdCollectionMode;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -121,15 +122,22 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private volatile PowerwafMetrics raspMetrics;
   private final AtomicInteger raspMetricsCounter = new AtomicInteger(0);
   private volatile boolean blocked;
-  private volatile int timeouts;
+  private volatile int wafTimeouts;
+  private volatile int raspTimeouts;
 
   // keep a reference to the last published usr.id
   private volatile String userId;
+  private volatile UserIdCollectionMode userIdSource;
+  // keep a reference to the last published usr.login
+  private volatile String userLogin;
+  private volatile UserIdCollectionMode userLoginSource;
   // keep a reference to the last published usr.session_id
   private volatile String sessionId;
 
-  private static final AtomicIntegerFieldUpdater<AppSecRequestContext> TIMEOUTS_UPDATER =
-      AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "timeouts");
+  private static final AtomicIntegerFieldUpdater<AppSecRequestContext> WAF_TIMEOUTS_UPDATER =
+      AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "wafTimeouts");
+  private static final AtomicIntegerFieldUpdater<AppSecRequestContext> RASP_TIMEOUTS_UPDATER =
+      AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "raspTimeouts");
 
   // to be called by the Event Dispatcher
   public void addAll(DataBundle newData) {
@@ -172,12 +180,20 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return blocked;
   }
 
-  public void increaseTimeouts() {
-    TIMEOUTS_UPDATER.incrementAndGet(this);
+  public void increaseWafTimeouts() {
+    WAF_TIMEOUTS_UPDATER.incrementAndGet(this);
   }
 
-  public int getTimeouts() {
-    return timeouts;
+  public void increaseRaspTimeouts() {
+    RASP_TIMEOUTS_UPDATER.incrementAndGet(this);
+  }
+
+  public int getWafTimeouts() {
+    return wafTimeouts;
+  }
+
+  public int getRaspTimeouts() {
+    return raspTimeouts;
   }
 
   public Additive getOrCreateAdditive(PowerwafContext ctx, boolean createMetrics, boolean isRasp) {
@@ -433,6 +449,30 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public void setUserId(String userId) {
     this.userId = userId;
+  }
+
+  public UserIdCollectionMode getUserIdSource() {
+    return userIdSource;
+  }
+
+  public void setUserIdSource(UserIdCollectionMode userIdSource) {
+    this.userIdSource = userIdSource;
+  }
+
+  public String getUserLogin() {
+    return userLogin;
+  }
+
+  public void setUserLogin(String userLogin) {
+    this.userLogin = userLogin;
+  }
+
+  public UserIdCollectionMode getUserLoginSource() {
+    return userLoginSource;
+  }
+
+  public void setUserLoginSource(UserIdCollectionMode userLoginSource) {
+    this.userLoginSource = userLoginSource;
   }
 
   public void setSessionId(String sessionId) {

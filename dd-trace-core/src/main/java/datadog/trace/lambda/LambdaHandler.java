@@ -7,8 +7,10 @@ import com.squareup.moshi.Moshi;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.core.CoreTracer;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import okhttp3.ConnectionPool;
@@ -62,13 +64,14 @@ public class LambdaHandler {
   private static final JsonAdapter<Object> adapter =
       new Moshi.Builder()
           .add(ByteArrayInputStream.class, new ReadFromInputStreamJsonAdapter())
+          .add(ByteArrayOutputStream.class, new ReadFromOutputStreamJsonAdapter())
           .add(SkipUnsupportedTypeJsonAdapter.newFactory())
           .build()
           .adapter(Object.class);
 
   private static String EXTENSION_BASE_URL = "http://127.0.0.1:8124";
 
-  public static AgentSpan.Context notifyStartInvocation(CoreTracer tracer, Object event) {
+  public static AgentSpanContext notifyStartInvocation(CoreTracer tracer, Object event) {
     RequestBody body = RequestBody.create(jsonMediaType, writeValueAsString(event));
     try (Response response =
         HTTP_CLIENT

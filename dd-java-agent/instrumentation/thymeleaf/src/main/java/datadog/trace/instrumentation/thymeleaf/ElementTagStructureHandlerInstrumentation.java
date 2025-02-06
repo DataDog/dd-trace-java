@@ -12,7 +12,7 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class ElementTagStructureHandlerInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public ElementTagStructureHandlerInstrumentation() {
     super("thymeleaf");
   }

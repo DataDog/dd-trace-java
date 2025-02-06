@@ -18,6 +18,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
+import static utils.InstrumentationTestHelper.getLineForLineProbe;
 import static utils.InstrumentationTestHelper.loadClass;
 
 import com.datadog.debugger.el.DSL;
@@ -35,13 +36,13 @@ import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import net.bytebuddy.agent.ByteBuddyAgent;
 import org.joor.Reflect;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -51,6 +52,14 @@ public class MetricProbesInstrumentationTest {
   private static final ProbeId METRIC_ID1 = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f6", 0);
   private static final ProbeId METRIC_ID2 = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f7", 0);
   private static final ProbeId METRIC_ID3 = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f9", 0);
+  private static final ProbeId LINE_METRIC_ID1 =
+      new ProbeId("beae1817-f3b0-4ea8-a74f-000000000001", 0);
+  private static final ProbeId LINE_METRIC_ID2 =
+      new ProbeId("beae1817-f3b0-4ea8-a74f-000000000002", 0);
+  private static final ProbeId LINE_METRIC_ID3 =
+      new ProbeId("beae1817-f3b0-4ea8-a74f-000000000003", 0);
+  private static final ProbeId LINE_METRIC_ID4 =
+      new ProbeId("beae1817-f3b0-4ea8-a74f-000000000004", 0);
   private static final String SERVICE_NAME = "service-name";
   private static final String METRIC_PROBEID_TAG =
       "debugger.probeid:beae1807-f3b0-4ea8-a74f-826790c5e6f8";
@@ -72,7 +81,7 @@ public class MetricProbesInstrumentationTest {
     final String CLASS_NAME = "CapturedSnapshot01";
     String METRIC_NAME = "call_count";
     MetricForwarderListener listener =
-        installSingleMetric(METRIC_NAME, COUNT, CLASS_NAME, "main", "int (java.lang.String)", null);
+        installMethodMetric(METRIC_NAME, COUNT, CLASS_NAME, "main", "int (java.lang.String)", null);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     assertEquals(3, result);
@@ -86,7 +95,7 @@ public class MetricProbesInstrumentationTest {
     final String CLASS_NAME = "CapturedSnapshot01";
     String METRIC_NAME = "call_count";
     MetricForwarderListener listener =
-        installSingleMetric(
+        installMethodMetric(
             METRIC_NAME,
             COUNT,
             CLASS_NAME,
@@ -108,7 +117,7 @@ public class MetricProbesInstrumentationTest {
     final String CLASS_NAME = "CapturedSnapshot01";
     final String METRIC_NAME = "call_count";
     MetricForwarderListener listener =
-        installSingleMetric(
+        installMethodMetric(
             METRIC_NAME,
             COUNT,
             CLASS_NAME,
@@ -127,7 +136,7 @@ public class MetricProbesInstrumentationTest {
     final String CLASS_NAME = "CapturedSnapshot01";
     String METRIC_NAME = "call_count";
     MetricForwarderListener listener =
-        installSingleMetric(
+        installMethodMetric(
             METRIC_NAME,
             COUNT,
             CLASS_NAME,
@@ -147,7 +156,7 @@ public class MetricProbesInstrumentationTest {
     final String CLASS_NAME = "CapturedSnapshot01";
     String METRIC_NAME = "call_count";
     MetricForwarderListener listener =
-        installSingleMetric(
+        installMethodMetric(
             METRIC_NAME,
             COUNT,
             CLASS_NAME,
@@ -197,7 +206,7 @@ public class MetricProbesInstrumentationTest {
     final String CLASS_NAME = "CapturedSnapshot03";
     String METRIC_NAME = "argument_count";
     MetricForwarderListener listener =
-        installSingleMetric(
+        installMethodMetric(
             METRIC_NAME,
             COUNT,
             CLASS_NAME,
@@ -216,7 +225,7 @@ public class MetricProbesInstrumentationTest {
     final String CLASS_NAME = "CapturedSnapshot03";
     String METRIC_NAME = "argument_gauge";
     MetricForwarderListener listener =
-        installSingleMetric(
+        installMethodMetric(
             METRIC_NAME,
             GAUGE,
             CLASS_NAME,
@@ -236,7 +245,7 @@ public class MetricProbesInstrumentationTest {
     final String CLASS_NAME = "CapturedSnapshot06";
     String METRIC_NAME = "field_double_gauge";
     MetricForwarderListener listener =
-        installSingleMetric(
+        installMethodMetric(
             METRIC_NAME,
             GAUGE,
             CLASS_NAME,
@@ -256,7 +265,7 @@ public class MetricProbesInstrumentationTest {
     final String CLASS_NAME = "CapturedSnapshot03";
     String METRIC_NAME = "argument_gauge";
     MetricForwarderListener listener =
-        installSingleMetric(
+        installMethodMetric(
             METRIC_NAME,
             GAUGE,
             CLASS_NAME,
@@ -274,7 +283,7 @@ public class MetricProbesInstrumentationTest {
     final String CLASS_NAME = "CapturedSnapshot03";
     String METRIC_NAME = "argument_histogram";
     MetricForwarderListener listener =
-        installSingleMetric(
+        installMethodMetric(
             METRIC_NAME,
             HISTOGRAM,
             CLASS_NAME,
@@ -294,7 +303,7 @@ public class MetricProbesInstrumentationTest {
     final String CLASS_NAME = "CapturedSnapshot06";
     String METRIC_NAME = "field_double_histogram";
     MetricForwarderListener listener =
-        installSingleMetric(
+        installMethodMetric(
             METRIC_NAME,
             HISTOGRAM,
             CLASS_NAME,
@@ -315,7 +324,7 @@ public class MetricProbesInstrumentationTest {
     final String CLASS_NAME = "CapturedSnapshot03";
     String METRIC_NAME = "argument_histogram";
     MetricForwarderListener listener =
-        installSingleMetric(
+        installMethodMetric(
             METRIC_NAME,
             HISTOGRAM,
             CLASS_NAME,
@@ -336,7 +345,7 @@ public class MetricProbesInstrumentationTest {
     final String CLASS_NAME = "CapturedSnapshot03";
     String METRIC_NAME = "argument_distribution";
     MetricForwarderListener listener =
-        installSingleMetric(
+        installMethodMetric(
             METRIC_NAME,
             DISTRIBUTION,
             CLASS_NAME,
@@ -356,7 +365,7 @@ public class MetricProbesInstrumentationTest {
     final String CLASS_NAME = "CapturedSnapshot06";
     String METRIC_NAME = "field_double_distribution";
     MetricForwarderListener listener =
-        installSingleMetric(
+        installMethodMetric(
             METRIC_NAME,
             DISTRIBUTION,
             CLASS_NAME,
@@ -455,14 +464,15 @@ public class MetricProbesInstrumentationTest {
   public void lineArgumentRefValueCountMetric() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot03";
     String METRIC_NAME = "argument_count";
+    int line = getLineForLineProbe(CLASS_NAME, LINE_METRIC_ID1);
     MetricProbe metricProbe =
-        createMetric(
-            METRIC_ID,
+        createLineMetric(
+            LINE_METRIC_ID1,
             METRIC_NAME,
             COUNT,
             CLASS_NAME,
             new ValueScript(DSL.ref("value"), "value"),
-            4);
+            line);
     MetricForwarderListener listener = installMetricProbes(metricProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
@@ -476,7 +486,7 @@ public class MetricProbesInstrumentationTest {
     final String CLASS_NAME = "CapturedSnapshot03";
     String METRIC_NAME = "argument_count";
     MetricForwarderListener listener =
-        installSingleMetric(
+        installMethodMetric(
             METRIC_NAME,
             COUNT,
             CLASS_NAME,
@@ -495,7 +505,7 @@ public class MetricProbesInstrumentationTest {
     final String CLASS_NAME = "CapturedSnapshot03";
     String METRIC_NAME = "argument_count";
     MetricForwarderListener listener =
-        installSingleMetric(
+        installMethodMetric(
             METRIC_NAME,
             COUNT,
             CLASS_NAME,
@@ -516,9 +526,15 @@ public class MetricProbesInstrumentationTest {
   public void lineLocalRefValueCountMetric() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
     String METRIC_NAME = "localvar_count";
+    int line = getLineForLineProbe(CLASS_NAME, LINE_METRIC_ID2);
     MetricProbe metricProbe =
-        createMetric(
-            METRIC_ID, METRIC_NAME, COUNT, CLASS_NAME, new ValueScript(DSL.ref("var1"), "var1"), 9);
+        createLineMetric(
+            LINE_METRIC_ID2,
+            METRIC_NAME,
+            COUNT,
+            CLASS_NAME,
+            new ValueScript(DSL.ref("var1"), "var1"),
+            line);
     MetricForwarderListener listener = installMetricProbes(metricProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
@@ -531,24 +547,36 @@ public class MetricProbesInstrumentationTest {
   public void invalidNameLocalRefValueCountMetric() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
     String METRIC_NAME = "localvar_count";
+    int line = getLineForLineProbe(CLASS_NAME, LINE_METRIC_ID2);
     MetricProbe metricProbe =
-        createMetric(
-            METRIC_ID, METRIC_NAME, COUNT, CLASS_NAME, new ValueScript(DSL.ref("foo"), "foo"), 9);
+        createLineMetric(
+            LINE_METRIC_ID2,
+            METRIC_NAME,
+            COUNT,
+            CLASS_NAME,
+            new ValueScript(DSL.ref("foo"), "foo"),
+            line);
     MetricForwarderListener listener = installMetricProbes(metricProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     assertEquals(3, result);
     assertFalse(listener.counters.containsKey(METRIC_NAME));
-    verify(probeStatusSink).addError(eq(METRIC_ID), eq("Cannot resolve symbol foo"));
+    verify(probeStatusSink).addError(eq(LINE_METRIC_ID2), eq("Cannot resolve symbol foo"));
   }
 
   @Test
   public void invalidTypeLocalRefValueCountMetric() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
     String METRIC_NAME = "localvar_count";
+    int line = getLineForLineProbe(CLASS_NAME, LINE_METRIC_ID2);
     MetricProbe metricProbe =
-        createMetric(
-            METRIC_ID, METRIC_NAME, COUNT, CLASS_NAME, new ValueScript(DSL.ref("arg"), "arg"), 9);
+        createLineMetric(
+            LINE_METRIC_ID2,
+            METRIC_NAME,
+            COUNT,
+            CLASS_NAME,
+            new ValueScript(DSL.ref("arg"), "arg"),
+            line);
     MetricForwarderListener listener = installMetricProbes(metricProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
@@ -556,7 +584,7 @@ public class MetricProbesInstrumentationTest {
     assertFalse(listener.counters.containsKey(METRIC_NAME));
     verify(probeStatusSink)
         .addError(
-            eq(METRIC_ID),
+            eq(LINE_METRIC_ID2),
             eq("Incompatible type for expression: java.lang.String with expected types: [long]"));
   }
 
@@ -565,7 +593,7 @@ public class MetricProbesInstrumentationTest {
     final String CLASS_NAME = "CapturedSnapshot06";
     String METRIC_NAME = "field_count";
     MetricForwarderListener listener =
-        installSingleMetric(
+        installMethodMetric(
             METRIC_NAME,
             COUNT,
             CLASS_NAME,
@@ -585,7 +613,7 @@ public class MetricProbesInstrumentationTest {
     final String CLASS_NAME = "CapturedSnapshot06";
     String METRIC_NAME = "field_count";
     MetricForwarderListener listener =
-        installSingleMetric(
+        installMethodMetric(
             METRIC_NAME,
             COUNT,
             CLASS_NAME,
@@ -604,14 +632,15 @@ public class MetricProbesInstrumentationTest {
   public void lineFieldRefValueCountMetric() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot06";
     String METRIC_NAME = "field_count";
+    int line = getLineForLineProbe(CLASS_NAME, LINE_METRIC_ID1);
     MetricProbe metricProbe =
-        createMetric(
-            METRIC_ID,
+        createLineMetric(
+            LINE_METRIC_ID1,
             METRIC_NAME,
             COUNT,
             CLASS_NAME,
             new ValueScript(DSL.getMember(DSL.ref("this"), "intValue"), "intValue"),
-            24);
+            line);
     MetricForwarderListener listener = installMetricProbes(metricProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "f").get();
@@ -625,24 +654,26 @@ public class MetricProbesInstrumentationTest {
     final String CLASS_NAME = "CapturedSnapshot04";
     String METRIC_NAME1 = "field1_count";
     String METRIC_NAME2 = "field2_count";
+    int line3 = getLineForLineProbe(CLASS_NAME, LINE_METRIC_ID3);
+    int line4 = getLineForLineProbe(CLASS_NAME, LINE_METRIC_ID4);
     MetricProbe metricProbe1 =
-        createMetric(
-            METRIC_ID1,
+        createLineMetric(
+            LINE_METRIC_ID3,
             METRIC_NAME1,
             COUNT,
             CLASS_NAME,
             new ValueScript(DSL.getMember(DSL.ref("sdata"), "intValue"), "sdata.intValue"),
-            24);
+            line3);
     MetricProbe metricProbe2 =
-        createMetric(
-            METRIC_ID2,
+        createLineMetric(
+            LINE_METRIC_ID4,
             METRIC_NAME2,
             COUNT,
             CLASS_NAME,
             new ValueScript(
                 DSL.getMember(DSL.getMember(DSL.ref("cdata"), "s1"), "intValue"),
                 "cdata.s1.intValue"),
-            24);
+            line4);
     MetricForwarderListener listener = installMetricProbes(metricProbe1, metricProbe2);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "").get();
@@ -658,25 +689,27 @@ public class MetricProbesInstrumentationTest {
     final String CLASS_NAME = "CapturedSnapshot04";
     String METRIC_NAME1 = "field1_count";
     String METRIC_NAME2 = "field2_count";
+    int line1 = getLineForLineProbe(CLASS_NAME, LINE_METRIC_ID1);
+    int line2 = getLineForLineProbe(CLASS_NAME, LINE_METRIC_ID2);
     MetricProbe metricProbe1 =
-        createMetric(
-            METRIC_ID1,
+        createLineMetric(
+            LINE_METRIC_ID1,
             METRIC_NAME1,
             COUNT,
             CLASS_NAME,
             new ValueScript(
                 DSL.getMember(DSL.ref("nullObject"), "intValue"), "nullObject.intValue"),
-            25);
+            line1);
     MetricProbe metricProbe2 =
-        createMetric(
-            METRIC_ID2,
+        createLineMetric(
+            LINE_METRIC_ID2,
             METRIC_NAME2,
             COUNT,
             CLASS_NAME,
             new ValueScript(
                 DSL.getMember(DSL.getMember(DSL.ref("cdata"), "nullsd"), "intValue"),
                 "cdata.nullsd.intValue"),
-            25);
+            line2);
     MetricForwarderListener listener = installMetricProbes(metricProbe1, metricProbe2);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "").get();
@@ -691,24 +724,26 @@ public class MetricProbesInstrumentationTest {
     final String CLASS_NAME = "CapturedSnapshot04";
     String METRIC_NAME1 = "field1_count";
     String METRIC_NAME2 = "field2_count";
+    int line3 = getLineForLineProbe(CLASS_NAME, LINE_METRIC_ID3);
+    int line4 = getLineForLineProbe(CLASS_NAME, LINE_METRIC_ID4);
     MetricProbe metricProbe1 =
-        createMetric(
-            METRIC_ID1,
+        createLineMetric(
+            LINE_METRIC_ID3,
             METRIC_NAME1,
             COUNT,
             CLASS_NAME,
             new ValueScript(DSL.getMember(DSL.ref("sdata"), "foovalue"), "sdata.foovalue"),
-            24);
+            line3);
     MetricProbe metricProbe2 =
-        createMetric(
-            METRIC_ID2,
+        createLineMetric(
+            LINE_METRIC_ID4,
             METRIC_NAME2,
             COUNT,
             CLASS_NAME,
             new ValueScript(
                 DSL.getMember(DSL.getMember(DSL.ref("cdata"), "s1"), "foovalue"),
                 "cdata.s1.foovalue"),
-            24);
+            line4);
     MetricForwarderListener listener = installMetricProbes(metricProbe1, metricProbe2);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "").get();
@@ -726,24 +761,26 @@ public class MetricProbesInstrumentationTest {
     final String CLASS_NAME = "CapturedSnapshot04";
     String METRIC_NAME1 = "field1_count";
     String METRIC_NAME2 = "field2_count";
+    int line3 = getLineForLineProbe(CLASS_NAME, LINE_METRIC_ID3);
+    int line4 = getLineForLineProbe(CLASS_NAME, LINE_METRIC_ID4);
     MetricProbe metricProbe1 =
-        createMetric(
-            METRIC_ID1,
+        createLineMetric(
+            LINE_METRIC_ID3,
             METRIC_NAME1,
             COUNT,
             CLASS_NAME,
             new ValueScript(DSL.getMember(DSL.ref("sdata"), "strValue"), "sdata.strValue"),
-            24);
+            line3);
     MetricProbe metricProbe2 =
-        createMetric(
-            METRIC_ID2,
+        createLineMetric(
+            LINE_METRIC_ID4,
             METRIC_NAME2,
             COUNT,
             CLASS_NAME,
             new ValueScript(
                 DSL.getMember(DSL.getMember(DSL.ref("cdata"), "s1"), "strValue"),
                 "cdata.s1.strValue"),
-            24);
+            line4);
     MetricForwarderListener listener = installMetricProbes(metricProbe1, metricProbe2);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "").get();
@@ -765,7 +802,7 @@ public class MetricProbesInstrumentationTest {
     final String CLASS_NAME = "CapturedSnapshot06";
     String METRIC_NAME = "field_count";
     MetricForwarderListener listener =
-        installSingleMetric(
+        installMethodMetric(
             METRIC_NAME,
             COUNT,
             CLASS_NAME,
@@ -785,7 +822,7 @@ public class MetricProbesInstrumentationTest {
     final String CLASS_NAME = "CapturedSnapshot06";
     String METRIC_NAME = "field_count";
     MetricForwarderListener listener =
-        installSingleMetric(
+        installMethodMetric(
             METRIC_NAME,
             COUNT,
             CLASS_NAME,
@@ -808,11 +845,13 @@ public class MetricProbesInstrumentationTest {
     ValueScript valueScript =
         new ValueScript(DSL.getMember(DSL.ref("this"), "intValue"), "intValue");
     MetricProbe countProbe =
-        createMetric(METRIC_ID1, "field_count", COUNT, CLASS_NAME, "f", "()", valueScript, null);
+        createMethodMetric(
+            METRIC_ID1, "field_count", COUNT, CLASS_NAME, "f", "()", valueScript, null);
     MetricProbe gaugeProbe =
-        createMetric(METRIC_ID2, "field_gauge", GAUGE, CLASS_NAME, "f", "()", valueScript, null);
+        createMethodMetric(
+            METRIC_ID2, "field_gauge", GAUGE, CLASS_NAME, "f", "()", valueScript, null);
     MetricProbe histogramProbe =
-        createMetric(
+        createMethodMetric(
             METRIC_ID3, "field_histo", HISTOGRAM, CLASS_NAME, "f", "()", valueScript, null);
     MetricForwarderListener listener = installMetricProbes(countProbe, gaugeProbe, histogramProbe);
     listener.setThrowing(true);
@@ -825,9 +864,10 @@ public class MetricProbesInstrumentationTest {
   public void singleLineIncCountMetric() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
     String METRIC_NAME = "call_count";
+    int line = getLineForLineProbe(CLASS_NAME, LINE_METRIC_ID1);
     MetricForwarderListener listener =
-        installSingleMetric(
-            METRIC_NAME, COUNT, CLASS_NAME, "main", "int (java.lang.String)", null, null, "8");
+        installMetricProbes(
+            createLineMetric(LINE_METRIC_ID1, METRIC_NAME, COUNT, CLASS_NAME, null, line));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     assertEquals(3, result);
@@ -836,12 +876,15 @@ public class MetricProbesInstrumentationTest {
   }
 
   @Test
+  @Disabled("no more support of line range")
   public void multiLineIncCountMetric() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
     String METRIC_NAME = "call_count";
     MetricForwarderListener listener =
-        installSingleMetric(
-            METRIC_NAME, COUNT, CLASS_NAME, "main", "int (java.lang.String)", null, null, "4-8");
+        installMetricProbes(
+            createMetricBuilder(METRIC_ID, METRIC_NAME, COUNT)
+                .where("main", "int (java.lang.String)", null, null, "4-8")
+                .build());
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     assertEquals(3, result);
@@ -1217,7 +1260,7 @@ public class MetricProbesInstrumentationTest {
     assertFalse(listener.gauges.containsKey(METRIC_NAME));
   }
 
-  private MetricForwarderListener installSingleMetric(
+  private MetricForwarderListener installMethodMetric(
       String metricName,
       MetricProbe.MetricKind metricKind,
       String typeName,
@@ -1225,35 +1268,26 @@ public class MetricProbesInstrumentationTest {
       String signature,
       ValueScript valueScript) {
     MetricProbe metricProbe =
-        createMetric(
+        createMethodMetric(
             METRIC_ID, metricName, metricKind, typeName, methodName, signature, valueScript, null);
     return installMetricProbes(metricProbe);
   }
 
-  private MetricForwarderListener installSingleMetric(
+  private MetricForwarderListener installMethodMetric(
       String metricName,
       MetricProbe.MetricKind metricKind,
       String typeName,
       String methodName,
       String signature,
       ValueScript valueScript,
-      String[] tags,
-      String... lines) {
+      String[] tags) {
     MetricProbe metricProbe =
-        createMetric(
-            METRIC_ID,
-            metricName,
-            metricKind,
-            typeName,
-            methodName,
-            signature,
-            valueScript,
-            tags,
-            lines);
+        createMethodMetric(
+            METRIC_ID, metricName, metricKind, typeName, methodName, signature, valueScript, tags);
     return installMetricProbes(metricProbe);
   }
 
-  private static MetricProbe createMetric(
+  private static MetricProbe createMethodMetric(
       ProbeId id,
       String metricName,
       MetricProbe.MetricKind metricKind,
@@ -1261,16 +1295,15 @@ public class MetricProbesInstrumentationTest {
       String methodName,
       String signature,
       ValueScript valueScript,
-      String[] tags,
-      String... lines) {
+      String[] tags) {
     return createMetricBuilder(id, metricName, metricKind)
-        .where(typeName, methodName, signature, lines)
+        .where(typeName, methodName, signature)
         .valueScript(valueScript)
         .tags(tags)
         .build();
   }
 
-  private static MetricProbe createMetric(
+  private static MetricProbe createLineMetric(
       ProbeId id,
       String metricName,
       MetricProbe.MetricKind metricKind,
@@ -1294,9 +1327,9 @@ public class MetricProbesInstrumentationTest {
 
   private MetricForwarderListener installMetricProbes(Configuration configuration) {
     Config config = mock(Config.class);
-    when(config.isDebuggerEnabled()).thenReturn(true);
-    when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
-    when(config.isDebuggerVerifyByteCode()).thenReturn(true);
+    when(config.isDynamicInstrumentationEnabled()).thenReturn(true);
+    when(config.isDynamicInstrumentationClassFileDumpEnabled()).thenReturn(true);
+    when(config.isDynamicInstrumentationVerifyByteCode()).thenReturn(true);
     when(config.getFinalDebuggerSnapshotUrl())
         .thenReturn("http://localhost:8126/debugger/v1/input");
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
@@ -1313,10 +1346,7 @@ public class MetricProbesInstrumentationTest {
 
   private MetricForwarderListener installMetricProbes(MetricProbe... metricProbes) {
     return installMetricProbes(
-        Configuration.builder()
-            .setService(SERVICE_NAME)
-            .addMetricProbes(Arrays.asList(metricProbes))
-            .build());
+        Configuration.builder().setService(SERVICE_NAME).add(metricProbes).build());
   }
 
   static class MetricForwarderListener implements DebuggerContext.MetricForwarder {

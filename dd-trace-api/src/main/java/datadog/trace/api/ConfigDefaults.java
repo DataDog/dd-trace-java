@@ -58,6 +58,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION = true;
   static final boolean DEFAULT_SERIALVERSIONUID_FIELD_INJECTION = true;
 
+  static final boolean DEFAULT_EXPERIMENTATAL_JEE_SPLIT_BY_DEPLOYMENT = false;
   static final boolean DEFAULT_PRIORITY_SAMPLING_ENABLED = true;
   static final String DEFAULT_PRIORITY_SAMPLING_FORCE = null;
   static final boolean DEFAULT_TRACE_RESOLVER_ENABLED = true;
@@ -69,6 +70,9 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX = false;
   static final boolean DEFAULT_DB_CLIENT_HOST_SPLIT_BY_HOST = false;
   static final String DEFAULT_DB_DBM_PROPAGATION_MODE_MODE = "disabled";
+  static final boolean DEFAULT_DB_DBM_TRACE_PREPARED_STATEMENTS = false;
+  // Default value is set to 0, it disables the latency trace interceptor
+  static final int DEFAULT_TRACE_KEEP_LATENCY_THRESHOLD_MS = 0;
   static final int DEFAULT_SCOPE_DEPTH_LIMIT = 100;
   static final int DEFAULT_SCOPE_ITERATION_KEEP_ALIVE = 30; // in seconds
   static final int DEFAULT_PARTIAL_FLUSH_MIN_SPANS = 1000;
@@ -132,6 +136,10 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_IAST_ANONYMOUS_CLASSES_ENABLED = true;
 
   static final boolean DEFAULT_IAST_STACK_TRACE_ENABLED = true;
+  static final int DEFAULT_IAST_DB_ROWS_TO_TAINT = 1;
+
+  static final boolean DEFAULT_LLM_OBS_ENABLED = false;
+  static final boolean DEFAULT_LLM_OBS_AGENTLESS_ENABLED = false;
 
   static final boolean DEFAULT_USM_ENABLED = false;
 
@@ -165,22 +173,23 @@ public final class ConfigDefaults {
   static final String DEFAULT_REMOTE_CONFIG_TARGETS_KEY =
       "e3f1f98c9da02a93bb547f448b472d727e14b22455235796fe49863856252508";
   static final int DEFAULT_REMOTE_CONFIG_MAX_EXTRA_SERVICES = 64;
-  static final boolean DEFAULT_DEBUGGER_ENABLED = false;
-  static final int DEFAULT_DEBUGGER_UPLOAD_TIMEOUT = 30; // seconds
-  static final int DEFAULT_DEBUGGER_UPLOAD_FLUSH_INTERVAL = 0; // ms, 0 = dynamic
-  static final boolean DEFAULT_DEBUGGER_CLASSFILE_DUMP_ENABLED = false;
-  static final int DEFAULT_DEBUGGER_POLL_INTERVAL = 1; // seconds
-  static final int DEFAULT_DEBUGGER_DIAGNOSTICS_INTERVAL = 60 * 60; // seconds
-  static final boolean DEFAULT_DEBUGGER_METRICS_ENABLED = true;
-  static final int DEFAULT_DEBUGGER_UPLOAD_BATCH_SIZE = 100;
-  static final int DEFAULT_DEBUGGER_MAX_PAYLOAD_SIZE = 1024; // KiB
-  static final boolean DEFAULT_DEBUGGER_VERIFY_BYTECODE = true;
-  static final boolean DEFAULT_DEBUGGER_INSTRUMENT_THE_WORLD = false;
-  static final int DEFAULT_DEBUGGER_CAPTURE_TIMEOUT = 100; // milliseconds
-  static final boolean DEFAULT_DEBUGGER_SYMBOL_ENABLED = true;
-  static final boolean DEFAULT_DEBUGGER_SYMBOL_FORCE_UPLOAD = false;
-  static final int DEFAULT_DEBUGGER_SYMBOL_FLUSH_THRESHOLD = 100; // nb of classes
-  static final boolean DEFAULT_DEBUGGER_SYMBOL_COMPRESSED = true;
+  static final boolean DEFAULT_DYNAMIC_INSTRUMENTATION_ENABLED = false;
+  static final int DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_TIMEOUT = 30; // seconds
+  static final int DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL = 0; // ms, 0 = dynamic
+  static final boolean DEFAULT_DYNAMIC_INSTRUMENTATION_CLASSFILE_DUMP_ENABLED = false;
+  static final int DEFAULT_DYNAMIC_INSTRUMENTATION_POLL_INTERVAL = 1; // seconds
+  static final int DEFAULT_DYNAMIC_INSTRUMENTATION_DIAGNOSTICS_INTERVAL = 60 * 60; // seconds
+  static final boolean DEFAULT_DYNAMIC_INSTRUMENTATION_METRICS_ENABLED = true;
+  static final int DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_BATCH_SIZE = 100;
+  static final int DEFAULT_DYNAMIC_INSTRUMENTATION_MAX_PAYLOAD_SIZE = 1024; // KiB
+  static final boolean DEFAULT_DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE = true;
+  static final boolean DEFAULT_DYNAMIC_INSTRUMENTATION_INSTRUMENT_THE_WORLD = false;
+  static final int DEFAULT_DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT = 100; // milliseconds
+  static final boolean DEFAULT_DYNAMIC_INSTRUMENTATION_HOIST_LOCALVARS_ENABLED = false;
+  static final boolean DEFAULT_SYMBOL_DATABASE_ENABLED = true;
+  static final boolean DEFAULT_SYMBOL_DATABASE_FORCE_UPLOAD = false;
+  static final int DEFAULT_SYMBOL_DATABASE_FLUSH_THRESHOLD = 100; // nb of classes
+  static final boolean DEFAULT_SYMBOL_DATABASE_COMPRESSED = true;
   static final boolean DEFAULT_DEBUGGER_EXCEPTION_ENABLED = false;
   static final int DEFAULT_DEBUGGER_MAX_EXCEPTION_PER_SECOND = 100;
   static final boolean DEFAULT_DEBUGGER_EXCEPTION_ONLY_LOCAL_ROOT = false;
@@ -234,10 +243,12 @@ public final class ConfigDefaults {
 
   static final long DEFAULT_TRACE_POST_PROCESSING_TIMEOUT = 1000; // 1 second
 
+  static final boolean DEFAULT_CASSANDRA_KEYSPACE_STATEMENT_EXTRACTION_ENABLED = false;
   static final boolean DEFAULT_COUCHBASE_INTERNAL_SPANS_ENABLED = true;
   static final boolean DEFAULT_ELASTICSEARCH_BODY_ENABLED = false;
   static final boolean DEFAULT_ELASTICSEARCH_PARAMS_ENABLED = true;
   static final boolean DEFAULT_ELASTICSEARCH_BODY_AND_PARAMS_ENABLED = false;
+  static final boolean DEFAULT_ADD_SPAN_POINTERS = true;
 
   static final boolean DEFAULT_SPARK_TASK_HISTOGRAM_ENABLED = true;
   static final boolean DEFAULT_SPARK_APP_NAME_AS_SERVICE = false;

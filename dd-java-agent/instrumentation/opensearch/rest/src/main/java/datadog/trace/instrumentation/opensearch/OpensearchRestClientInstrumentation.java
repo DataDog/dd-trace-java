@@ -22,7 +22,7 @@ import org.opensearch.client.ResponseListener;
 
 @AutoService(InstrumenterModule.class)
 public class OpensearchRestClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public OpensearchRestClientInstrumentation() {
     super("opensearch", "opensearch-rest");

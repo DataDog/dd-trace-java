@@ -7,23 +7,18 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.InstrumentationContext;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import java.util.Collections;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.junit.platform.engine.EngineExecutionListener;
 import org.junit.platform.engine.ExecutionRequest;
-import org.junit.platform.engine.TestDescriptor;
 import org.junit.platform.engine.TestEngine;
 import org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService;
 import org.spockframework.runtime.SpockEngine;
 
 @AutoService(InstrumenterModule.class)
 public class JUnit5SpockInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public JUnit5SpockInstrumentation() {
     super("ci-visibility", "junit-5", "junit-5-spock");
@@ -43,17 +38,12 @@ public class JUnit5SpockInstrumentation extends InstrumenterModule.CiVisibility
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".JUnitPlatformUtils",
-      packageName + ".TestIdentifierFactory",
+      packageName + ".TestDataFactory",
       packageName + ".SpockUtils",
       packageName + ".TestEventsHandlerHolder",
       packageName + ".SpockTracingListener",
       packageName + ".CompositeEngineListener",
     };
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap("org.junit.platform.engine.TestDescriptor", "java.lang.Object");
   }
 
   @Override
@@ -86,12 +76,6 @@ public class JUnit5SpockInstrumentation extends InstrumenterModule.CiVisibility
         // as a separate module
         return;
       }
-
-      ContextStore<TestDescriptor, Object> contextStore =
-          InstrumentationContext.get(TestDescriptor.class, Object.class);
-      TestEventsHandlerHolder.setContextStores(
-          (ContextStore) contextStore, (ContextStore) contextStore);
-      TestEventsHandlerHolder.start();
 
       SpockTracingListener tracingListener = new SpockTracingListener(testEngine);
       EngineExecutionListener originalListener = executionRequest.getEngineExecutionListener();

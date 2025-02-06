@@ -16,7 +16,7 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public final class SpringSchedulingInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, ExcludeFilterProvider {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice, ExcludeFilterProvider {
 
   public SpringSchedulingInstrumentation() {
     super("spring-scheduling");
@@ -30,7 +30,10 @@ public final class SpringSchedulingInstrumentation extends InstrumenterModule.Tr
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".SpringSchedulingDecorator", packageName + ".SpringSchedulingRunnableWrapper",
+      packageName + ".SpringSchedulingDecorator",
+      packageName + ".SpringSchedulingRunnableWrapper",
+      packageName + ".SpringSchedulingRunnableWrapper$SchedulingAware",
+      packageName + ".SpringSchedulingRunnableWrapper$1",
     };
   }
 

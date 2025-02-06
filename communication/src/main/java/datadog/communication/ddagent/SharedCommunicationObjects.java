@@ -1,6 +1,7 @@
 package datadog.communication.ddagent;
 
 import static datadog.communication.ddagent.TracerVersion.TRACER_VERSION;
+import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
 import datadog.common.container.ContainerInfo;
 import datadog.common.socket.SocketUtils;
@@ -9,6 +10,10 @@ import datadog.communication.monitor.Monitoring;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.DefaultConfigurationPoller;
 import datadog.trace.api.Config;
+import datadog.trace.util.AgentTaskScheduler;
+import java.security.Security;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import okhttp3.HttpUrl;
@@ -19,11 +24,22 @@ import org.slf4j.LoggerFactory;
 public class SharedCommunicationObjects {
   private static final Logger log = LoggerFactory.getLogger(SharedCommunicationObjects.class);
 
+  private final List<Runnable> pausedComponents = new ArrayList<>();
+  private volatile boolean paused;
+
   public OkHttpClient okHttpClient;
   public HttpUrl agentUrl;
   public Monitoring monitoring;
   private DDAgentFeaturesDiscovery featuresDiscovery;
   private ConfigurationPoller configurationPoller;
+
+  public SharedCommunicationObjects() {
+    this(false);
+  }
+
+  public SharedCommunicationObjects(boolean paused) {
+    this.paused = paused;
+  }
 
   public void createRemaining(Config config) {
     if (monitoring == null) {
@@ -41,6 +57,40 @@ public class SharedCommunicationObjects {
       okHttpClient =
           OkHttpUtils.buildHttpClient(
               agentUrl, unixDomainSocket, namedPipe, getHttpClientTimeout(config));
+    }
+  }
+
+  /** Registers a callback to be called when remote communications resume. */
+  public void whenReady(Runnable callback) {
+    if (paused) {
+      synchronized (pausedComponents) {
+        if (paused) {
+          pausedComponents.add(callback);
+          return;
+        }
+      }
+    }
+    callback.run(); // not paused, run immediately
+  }
+
+  /** Resumes remote communications including any paused callbacks. */
+  public void resume() {
+    paused = false;
+    // attempt discovery first to avoid potential race condition on IBM Java8
+    if (null != featuresDiscovery) {
+      featuresDiscovery.discoverIfOutdated();
+    } else {
+      Security.getProviders(); // fallback to preloading provider extensions
+    }
+    synchronized (pausedComponents) {
+      for (Runnable callback : pausedComponents) {
+        try {
+          callback.run();
+        } catch (Throwable e) {
+          log.warn("Problem resuming remote component {}", callback, e);
+        }
+      }
+      pausedComponents.clear();
     }
   }
 
@@ -98,8 +148,16 @@ public class SharedCommunicationObjects {
               agentUrl,
               config.isTraceAgentV05Enabled(),
               config.isTracerMetricsEnabled());
-      if (!"true".equalsIgnoreCase(System.getProperty("dd.test.no.early.discovery"))) {
-        featuresDiscovery.discover();
+
+      if (paused) {
+        // defer remote discovery until remote I/O is allowed
+      } else {
+        if (AGENT_THREAD_GROUP.equals(Thread.currentThread().getThreadGroup())) {
+          featuresDiscovery.discover(); // safe to run on same thread
+        } else {
+          // avoid performing blocking I/O operation on application thread
+          AgentTaskScheduler.INSTANCE.execute(featuresDiscovery::discover);
+        }
       }
     }
     return featuresDiscovery;

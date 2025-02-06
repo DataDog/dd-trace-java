@@ -49,7 +49,7 @@ import org.apache.pekko.stream.scaladsl.Flow;
  */
 @AutoService(InstrumenterModule.class)
 public final class PekkoHttpServerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public PekkoHttpServerInstrumentation() {
     super("pekko-http", "pekko-http-server");
   }

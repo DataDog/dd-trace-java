@@ -19,7 +19,6 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.metrics.SpanMetricRegistry;
 import datadog.trace.api.metrics.SpanMetrics;
-import datadog.trace.api.profiling.TransientProfilingContextHolder;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
@@ -48,11 +47,8 @@ import org.slf4j.LoggerFactory;
  * <p>Spans are created by the {@link CoreTracer#buildSpan}. This implementation adds some features
  * according to the DD agent.
  */
-public class DDSpan
-    implements AgentSpan, CoreSpan<DDSpan>, TransientProfilingContextHolder, AttachableWrapper {
+public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   private static final Logger log = LoggerFactory.getLogger(DDSpan.class);
-
-  public static final String CHECKPOINTED_TAG = "checkpointed";
 
   static DDSpan create(
       final String instrumentationName,
@@ -330,12 +326,7 @@ public class DDSpan
 
   @Override
   public boolean isSameTrace(final AgentSpan otherSpan) {
-    // FIXME [API] AgentSpan or AgentSpan.Context should have a "getTraceId()" type method
-    if (otherSpan instanceof DDSpan) {
-      return getTraceId().equals(otherSpan.getTraceId());
-    }
-
-    return false;
+    return null != otherSpan && getTraceId().equals(otherSpan.getTraceId());
   }
 
   @Override
@@ -487,6 +478,12 @@ public class DDSpan
   @Override
   public DDSpan setTag(final String tag, final Object value) {
     context.setTag(tag, value);
+    return this;
+  }
+
+  @Override
+  public AgentSpan setAllTags(Map<String, ?> map) {
+    context.setAllTags(map);
     return this;
   }
 
@@ -839,6 +836,11 @@ public class DDSpan
   @Override
   public boolean isRequiresPostProcessing() {
     return context.isRequiresPostProcessing();
+  }
+
+  @Override
+  public void setRequiresPostProcessing(boolean requiresPostProcessing) {
+    context.setRequiresPostProcessing(requiresPostProcessing);
   }
 
   // to be accessible in Spock spies, which the field wouldn't otherwise be

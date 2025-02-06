@@ -1,10 +1,10 @@
 package datadog.trace.civisibility.ci;
 
+import static datadog.json.JsonMapper.toJson;
 import static datadog.trace.api.git.GitUtils.filterSensitiveInfo;
 import static datadog.trace.api.git.GitUtils.normalizeBranch;
 import static datadog.trace.api.git.GitUtils.normalizeTag;
 import static datadog.trace.civisibility.utils.FileUtils.expandTilde;
-import static datadog.trace.util.Strings.toJson;
 
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.CommitInfo;
@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import javax.annotation.Nonnull;
 
 class BuildkiteInfo implements CIProviderInfo {
 
@@ -72,6 +73,12 @@ class BuildkiteInfo implements CIProviderInfo {
         .ciNodeLabels(buildCiNodeLabels())
         .ciEnvVars(BUILDKITE_PIPELINE_ID, BUILDKITE_JOB_ID)
         .build();
+  }
+
+  @Nonnull
+  @Override
+  public PullRequestInfo buildPullRequestInfo() {
+    return PullRequestInfo.EMPTY;
   }
 
   private String buildCiNodeLabels() {

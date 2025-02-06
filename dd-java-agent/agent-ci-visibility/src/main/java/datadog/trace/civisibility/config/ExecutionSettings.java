@@ -2,7 +2,9 @@ package datadog.trace.civisibility.config;
 
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestMetadata;
-import datadog.trace.civisibility.ipc.Serializer;
+import datadog.trace.civisibility.diff.Diff;
+import datadog.trace.civisibility.diff.LineDiff;
+import datadog.trace.civisibility.ipc.serialization.Serializer;
 import java.nio.ByteBuffer;
 import java.util.BitSet;
 import java.util.Collection;
@@ -21,45 +23,61 @@ public class ExecutionSettings {
           false,
           false,
           false,
+          false,
           EarlyFlakeDetectionSettings.DEFAULT,
+          TestManagementSettings.DEFAULT,
           null,
           Collections.emptyMap(),
           Collections.emptyMap(),
           Collections.emptyList(),
-          null);
+          null,
+          null,
+          LineDiff.EMPTY);
 
   private final boolean itrEnabled;
   private final boolean codeCoverageEnabled;
   private final boolean testSkippingEnabled;
   private final boolean flakyTestRetriesEnabled;
+  private final boolean impactedTestsDetectionEnabled;
   @Nonnull private final EarlyFlakeDetectionSettings earlyFlakeDetectionSettings;
+  @Nonnull private final TestManagementSettings testManagementSettings;
   @Nullable private final String itrCorrelationId;
   @Nonnull private final Map<TestIdentifier, TestMetadata> skippableTests;
-  @Nullable private final Map<String, BitSet> skippableTestsCoverage;
+  @Nonnull private final Map<String, BitSet> skippableTestsCoverage;
+  @Nonnull private final Collection<TestIdentifier> quarantinedTests;
   @Nullable private final Collection<TestIdentifier> flakyTests;
   @Nullable private final Collection<TestIdentifier> knownTests;
+  @Nonnull private final Diff pullRequestDiff;
 
   public ExecutionSettings(
       boolean itrEnabled,
       boolean codeCoverageEnabled,
       boolean testSkippingEnabled,
       boolean flakyTestRetriesEnabled,
+      boolean impactedTestsDetectionEnabled,
       @Nonnull EarlyFlakeDetectionSettings earlyFlakeDetectionSettings,
+      @Nonnull TestManagementSettings testManagementSettings,
       @Nullable String itrCorrelationId,
       @Nonnull Map<TestIdentifier, TestMetadata> skippableTests,
-      @Nullable Map<String, BitSet> skippableTestsCoverage,
+      @Nonnull Map<String, BitSet> skippableTestsCoverage,
+      @Nonnull Collection<TestIdentifier> quarantinedTests,
       @Nullable Collection<TestIdentifier> flakyTests,
-      @Nullable Collection<TestIdentifier> knownTests) {
+      @Nullable Collection<TestIdentifier> knownTests,
+      @Nonnull Diff pullRequestDiff) {
     this.itrEnabled = itrEnabled;
     this.codeCoverageEnabled = codeCoverageEnabled;
     this.testSkippingEnabled = testSkippingEnabled;
     this.flakyTestRetriesEnabled = flakyTestRetriesEnabled;
+    this.impactedTestsDetectionEnabled = impactedTestsDetectionEnabled;
     this.earlyFlakeDetectionSettings = earlyFlakeDetectionSettings;
+    this.testManagementSettings = testManagementSettings;
     this.itrCorrelationId = itrCorrelationId;
     this.skippableTests = skippableTests;
     this.skippableTestsCoverage = skippableTestsCoverage;
+    this.quarantinedTests = quarantinedTests;
     this.flakyTests = flakyTests;
     this.knownTests = knownTests;
+    this.pullRequestDiff = pullRequestDiff;
   }
 
   /**
@@ -82,9 +100,18 @@ public class ExecutionSettings {
     return flakyTestRetriesEnabled;
   }
 
+  public boolean isImpactedTestsDetectionEnabled() {
+    return impactedTestsDetectionEnabled;
+  }
+
   @Nonnull
   public EarlyFlakeDetectionSettings getEarlyFlakeDetectionSettings() {
     return earlyFlakeDetectionSettings;
+  }
+
+  @Nonnull
+  public TestManagementSettings getTestManagementSettings() {
+    return testManagementSettings;
   }
 
   @Nullable
@@ -93,7 +120,7 @@ public class ExecutionSettings {
   }
 
   /** A bit vector of covered lines by relative source file path. */
-  @Nullable
+  @Nonnull
   public Map<String, BitSet> getSkippableTestsCoverage() {
     return skippableTestsCoverage;
   }
@@ -101,6 +128,11 @@ public class ExecutionSettings {
   @Nonnull
   public Map<TestIdentifier, TestMetadata> getSkippableTests() {
     return skippableTests;
+  }
+
+  @Nonnull
+  public Collection<TestIdentifier> getQuarantinedTests() {
+    return quarantinedTests;
   }
 
   /**
@@ -112,10 +144,18 @@ public class ExecutionSettings {
     return knownTests;
   }
 
+  /**
+   * @return the list of flaky tests for the given module (can be empty), or {@code null} if flaky
+   *     tests could not be obtained
+   */
   @Nullable
   public Collection<TestIdentifier> getFlakyTests() {
-    // backend does not store module info for flaky tests yet
     return flakyTests;
+  }
+
+  @Nonnull
+  public Diff getPullRequestDiff() {
+    return pullRequestDiff;
   }
 
   @Override
@@ -131,11 +171,14 @@ public class ExecutionSettings {
         && codeCoverageEnabled == that.codeCoverageEnabled
         && testSkippingEnabled == that.testSkippingEnabled
         && Objects.equals(earlyFlakeDetectionSettings, that.earlyFlakeDetectionSettings)
+        && Objects.equals(testManagementSettings, that.testManagementSettings)
         && Objects.equals(itrCorrelationId, that.itrCorrelationId)
         && Objects.equals(skippableTests, that.skippableTests)
         && Objects.equals(skippableTestsCoverage, that.skippableTestsCoverage)
+        && Objects.equals(quarantinedTests, that.quarantinedTests)
         && Objects.equals(flakyTests, that.flakyTests)
-        && Objects.equals(knownTests, that.knownTests);
+        && Objects.equals(knownTests, that.knownTests)
+        && Objects.equals(pullRequestDiff, that.pullRequestDiff);
   }
 
   @Override
@@ -145,11 +188,14 @@ public class ExecutionSettings {
         codeCoverageEnabled,
         testSkippingEnabled,
         earlyFlakeDetectionSettings,
+        testManagementSettings,
         itrCorrelationId,
         skippableTests,
         skippableTestsCoverage,
+        quarantinedTests,
         flakyTests,
-        knownTests);
+        knownTests,
+        pullRequestDiff);
   }
 
   public static class ExecutionSettingsSerializer {
@@ -158,6 +204,7 @@ public class ExecutionSettings {
     private static final int CODE_COVERAGE_ENABLED_FLAG = 2;
     private static final int TEST_SKIPPING_ENABLED_FLAG = 4;
     private static final int FLAKY_TEST_RETRIES_ENABLED_FLAG = 8;
+    private static final int IMPACTED_TESTS_DETECTION_ENABLED_FLAG = 16;
 
     public static ByteBuffer serialize(ExecutionSettings settings) {
       Serializer s = new Serializer();
@@ -167,10 +214,15 @@ public class ExecutionSettings {
               ((settings.itrEnabled ? ITR_ENABLED_FLAG : 0)
                   | (settings.codeCoverageEnabled ? CODE_COVERAGE_ENABLED_FLAG : 0)
                   | (settings.testSkippingEnabled ? TEST_SKIPPING_ENABLED_FLAG : 0)
-                  | (settings.flakyTestRetriesEnabled ? FLAKY_TEST_RETRIES_ENABLED_FLAG : 0));
+                  | (settings.flakyTestRetriesEnabled ? FLAKY_TEST_RETRIES_ENABLED_FLAG : 0)
+                  | (settings.impactedTestsDetectionEnabled
+                      ? IMPACTED_TESTS_DETECTION_ENABLED_FLAG
+                      : 0));
       s.write(flags);
 
       EarlyFlakeDetectionSettingsSerializer.serialize(s, settings.earlyFlakeDetectionSettings);
+
+      TestManagementSettingsSerializer.serialize(s, settings.testManagementSettings);
 
       s.write(settings.itrCorrelationId);
       s.write(
@@ -178,12 +230,12 @@ public class ExecutionSettings {
           TestIdentifierSerializer::serialize,
           TestMetadataSerializer::serialize);
 
-      s.write(
-          settings.skippableTestsCoverage,
-          Serializer::write,
-          ExecutionSettingsSerializer::writeBitSet);
+      s.write(settings.skippableTestsCoverage, Serializer::write, Serializer::write);
+      s.write(settings.quarantinedTests, TestIdentifierSerializer::serialize);
       s.write(settings.flakyTests, TestIdentifierSerializer::serialize);
       s.write(settings.knownTests, TestIdentifierSerializer::serialize);
+
+      Diff.SERIALIZER.serialize(settings.pullRequestDiff, s);
 
       return s.flush();
     }
@@ -194,9 +246,13 @@ public class ExecutionSettings {
       boolean codeCoverageEnabled = (flags & CODE_COVERAGE_ENABLED_FLAG) != 0;
       boolean testSkippingEnabled = (flags & TEST_SKIPPING_ENABLED_FLAG) != 0;
       boolean flakyTestRetriesEnabled = (flags & FLAKY_TEST_RETRIES_ENABLED_FLAG) != 0;
+      boolean impactedTestsDetectionEnabled = (flags & IMPACTED_TESTS_DETECTION_ENABLED_FLAG) != 0;
 
       EarlyFlakeDetectionSettings earlyFlakeDetectionSettings =
           EarlyFlakeDetectionSettingsSerializer.deserialize(buffer);
+
+      TestManagementSettings testManagementSettings =
+          TestManagementSettingsSerializer.deserialize(buffer);
 
       String itrCorrelationId = Serializer.readString(buffer);
 
@@ -205,37 +261,31 @@ public class ExecutionSettings {
               buffer, TestIdentifierSerializer::deserialize, TestMetadataSerializer::deserialize);
 
       Map<String, BitSet> skippableTestsCoverage =
-          Serializer.readMap(
-              buffer, Serializer::readString, ExecutionSettingsSerializer::readBitSet);
+          Serializer.readMap(buffer, Serializer::readString, Serializer::readBitSet);
+      Collection<TestIdentifier> quarantinedTests =
+          Serializer.readSet(buffer, TestIdentifierSerializer::deserialize);
       Collection<TestIdentifier> flakyTests =
           Serializer.readSet(buffer, TestIdentifierSerializer::deserialize);
       Collection<TestIdentifier> knownTests =
           Serializer.readSet(buffer, TestIdentifierSerializer::deserialize);
+
+      Diff diff = Diff.SERIALIZER.deserialize(buffer);
 
       return new ExecutionSettings(
           itrEnabled,
           codeCoverageEnabled,
           testSkippingEnabled,
           flakyTestRetriesEnabled,
+          impactedTestsDetectionEnabled,
           earlyFlakeDetectionSettings,
+          testManagementSettings,
           itrCorrelationId,
           skippableTests,
           skippableTestsCoverage,
+          quarantinedTests,
           flakyTests,
-          knownTests);
-    }
-
-    private static void writeBitSet(Serializer serializer, BitSet bitSet) {
-      if (bitSet != null) {
-        serializer.write(bitSet.toByteArray());
-      } else {
-        serializer.write((byte[]) null);
-      }
-    }
-
-    private static BitSet readBitSet(ByteBuffer byteBuffer) {
-      byte[] bytes = Serializer.readByteArray(byteBuffer);
-      return bytes != null ? BitSet.valueOf(bytes) : null;
+          knownTests,
+          diff);
     }
   }
 }

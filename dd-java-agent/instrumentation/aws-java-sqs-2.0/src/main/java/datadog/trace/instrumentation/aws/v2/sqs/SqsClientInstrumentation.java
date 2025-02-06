@@ -14,7 +14,7 @@ import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
 /** AWS SDK v2 instrumentation */
 @AutoService(InstrumenterModule.class)
 public final class SqsClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   private static final String INSTRUMENTATION_NAME = "aws-sdk";
 
   public SqsClientInstrumentation() {

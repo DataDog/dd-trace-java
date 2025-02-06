@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtil
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.capture;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
-import static datadog.trace.bootstrap.instrumentation.java.concurrent.QueueTimerHelper.startQueuingTimer;
 import static datadog.trace.instrumentation.java.concurrent.ConcurrentInstrumentationNames.EXECUTOR_INSTRUMENTATION_NAME;
 import static datadog.trace.instrumentation.java.concurrent.ConcurrentInstrumentationNames.RUNNABLE_INSTRUMENTATION_NAME;
 import static java.util.Collections.singletonMap;
@@ -21,13 +20,12 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Map;
-import java.util.Timer;
 import java.util.TimerTask;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class JavaTimerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType {
+    implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public JavaTimerInstrumentation() {
     super("java_timer", EXECUTOR_INSTRUMENTATION_NAME, RUNNABLE_INSTRUMENTATION_NAME);
   }
@@ -67,7 +65,6 @@ public class JavaTimerInstrumentation extends InstrumenterModule.Tracing
         ContextStore<Runnable, State> contextStore =
             InstrumentationContext.get(Runnable.class, State.class);
         capture(contextStore, task);
-        startQueuingTimer(contextStore, Timer.class, task);
       }
     }
 

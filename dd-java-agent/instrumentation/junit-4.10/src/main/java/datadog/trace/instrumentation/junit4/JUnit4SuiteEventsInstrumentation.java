@@ -20,7 +20,7 @@ import org.junit.runners.ParentRunner;
 
 @AutoService(InstrumenterModule.class)
 public class JUnit4SuiteEventsInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public JUnit4SuiteEventsInstrumentation() {
     super("ci-visibility", "junit-4");
@@ -40,7 +40,7 @@ public class JUnit4SuiteEventsInstrumentation extends InstrumenterModule.CiVisib
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".TestEventsHandlerHolder",
-      packageName + ".SkippedByItr",
+      packageName + ".SkippedByDatadog",
       packageName + ".JUnit4Utils",
       packageName + ".TracingListener",
       packageName + ".JUnit4TracingListener",

@@ -1,22 +1,29 @@
 package datadog.trace.civisibility.domain;
 
+import static datadog.trace.api.TracePropagationStyle.NONE;
 import static datadog.trace.api.civisibility.CIConstants.CI_VISIBILITY_INSTRUMENTATION_NAME;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.IdGenerationStrategy;
+import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.TagValue;
+import datadog.trace.api.civisibility.telemetry.tag.AgentlessLogSubmissionEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.AutoInjected;
 import datadog.trace.api.civisibility.telemetry.tag.EventType;
+import datadog.trace.api.civisibility.telemetry.tag.FailFastTestOrderEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.HasCodeowner;
 import datadog.trace.api.civisibility.telemetry.tag.IsHeadless;
 import datadog.trace.api.civisibility.telemetry.tag.IsUnsupportedCI;
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
+import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.decorator.TestDecorator;
@@ -62,7 +69,16 @@ public abstract class AbstractTestSession {
     // CI Test Cycle protocol requires session's trace ID and span ID to be the same
     IdGenerationStrategy idGenerationStrategy = config.getIdGenerationStrategy();
     DDTraceId traceId = idGenerationStrategy.generateTraceId();
-    AgentSpan.Context traceContext = new TraceContext(traceId);
+    AgentSpanContext traceContext =
+        new TagContext(
+            CIConstants.CIAPP_TEST_ORIGIN,
+            Collections.emptyMap(),
+            null,
+            null,
+            PrioritySampling.UNSET,
+            null,
+            NONE,
+            traceId);
 
     AgentTracer.SpanBuilder spanBuilder =
         AgentTracer.get()
@@ -109,7 +125,11 @@ public abstract class AbstractTestSession {
         CiVisibilityCountMetric.TEST_SESSION,
         1,
         ciProvider,
-        config.isCiVisibilityAutoInjected() ? AutoInjected.TRUE : null);
+        config.isCiVisibilityAutoInjected() ? AutoInjected.TRUE : null,
+        config.isAgentlessLogSubmissionEnabled() ? AgentlessLogSubmissionEnabled.TRUE : null,
+        CIConstants.FAIL_FAST_TEST_ORDER.equalsIgnoreCase(config.getCiVisibilityTestOrder())
+            ? FailFastTestOrderEnabled.TRUE
+            : null);
 
     if (instrumentationType == InstrumentationType.MANUAL_API) {
       metricCollector.add(CiVisibilityCountMetric.MANUAL_API_EVENTS, 1, EventType.SESSION);

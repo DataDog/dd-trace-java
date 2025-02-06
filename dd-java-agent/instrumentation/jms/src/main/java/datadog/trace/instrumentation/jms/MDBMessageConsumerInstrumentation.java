@@ -16,46 +16,38 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import javax.jms.Destination;
 import javax.jms.JMSException;
 import javax.jms.Message;
+import javax.jms.MessageListener;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-@AutoService(InstrumenterModule.class)
-public final class MDBMessageConsumerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+public final class MDBMessageConsumerInstrumentation
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+  private final String namespace;
 
-  public MDBMessageConsumerInstrumentation() {
-    super("jms", "javax-mdb");
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JMSDecorator",
-      packageName + ".MessageExtractAdapter",
-      packageName + ".MessageExtractAdapter$1"
-    };
+  public MDBMessageConsumerInstrumentation(String namespace) {
+    this.namespace = namespace;
   }
 
   @Override
   public String hierarchyMarkerType() {
-    return "javax.jms.MessageListener";
+    return namespace + ".jms.MessageListener";
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(hierarchyMarkerType()))
         .and(
-            hasSuperType(declaresAnnotation(named("javax.ejb.MessageDriven")))
-                .or(implementsInterface(named("javax.ejb.MessageDrivenBean"))));
+            hasSuperType(declaresAnnotation(named(namespace + ".ejb.MessageDriven")))
+                .or(implementsInterface(named(namespace + ".ejb.MessageDrivenBean"))));
   }
 
   @Override
@@ -65,14 +57,17 @@ public final class MDBMessageConsumerInstrumentation extends InstrumenterModule.
             .and(isPublic())
             .and(named("onMessage"))
             .and(takesArguments(1))
-            .and(takesArgument(0, (named("javax.jms.Message")))),
+            .and(takesArgument(0, (named(namespace + ".jms.Message")))),
         getClass().getName() + "$MDBAdvice");
   }
 
   public static class MDBAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope methodEnter(@Advice.Argument(0) final Message message) {
-      AgentSpan.Context propagatedContext = propagate().extract(message, GETTER);
+      if (CallDepthThreadLocalMap.incrementCallDepth(MessageListener.class) > 0) {
+        return null;
+      }
+      AgentSpanContext propagatedContext = propagate().extract(message, GETTER);
       AgentSpan span = startSpan(JMS_CONSUME, propagatedContext);
       CONSUMER_DECORATE.afterStart(span);
       CharSequence consumerResourceName;
@@ -93,6 +88,7 @@ public final class MDBMessageConsumerInstrumentation extends InstrumenterModule.
     public static void methodExit(
         @Advice.Enter AgentScope scope, @Advice.Thrown final Throwable throwable) {
       if (null != scope) {
+        CallDepthThreadLocalMap.reset(MessageListener.class);
         CONSUMER_DECORATE.onError(scope, throwable);
         scope.close();
         scope.span().finish();

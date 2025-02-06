@@ -1,12 +1,19 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import datadog.context.propagation.CarrierSetter;
+import datadog.context.propagation.CarrierVisitor;
+import datadog.context.propagation.Concern;
 import datadog.trace.api.TracePropagationStyle;
 import java.util.LinkedHashMap;
+import java.util.function.BiConsumer;
+import javax.annotation.ParametersAreNonnullByDefault;
 
 public interface AgentPropagation {
+  Concern TRACING_CONCERN = Concern.named("tracing");
+
   <C> void inject(AgentSpan span, C carrier, Setter<C> setter);
 
-  <C> void inject(AgentSpan.Context context, C carrier, Setter<C> setter);
+  <C> void inject(AgentSpanContext context, C carrier, Setter<C> setter);
 
   <C> void inject(AgentSpan span, C carrier, Setter<C> setter, TracePropagationStyle style);
 
@@ -25,30 +32,28 @@ public interface AgentPropagation {
   <C> void injectPathwayContextWithoutSendingStats(
       AgentSpan span, C carrier, Setter<C> setter, LinkedHashMap<String, String> sortedTags);
 
-  interface Setter<C> {
+  interface Setter<C> extends CarrierSetter<C> {
     void set(C carrier, String key, String value);
   }
 
-  interface BinarySetter<C> extends Setter<C> {
-    void set(C carrier, String key, byte[] value);
-  }
-
-  <C> AgentSpan.Context.Extracted extract(C carrier, ContextVisitor<C> getter);
+  <C> AgentSpanContext.Extracted extract(C carrier, ContextVisitor<C> getter);
 
   interface KeyClassifier {
-
     boolean accept(String key, String value);
   }
 
-  interface BinaryKeyClassifier {
-    boolean accept(String key, byte[] value);
-  }
-
-  interface ContextVisitor<C> {
+  interface ContextVisitor<C> extends CarrierVisitor<C> {
     void forEachKey(C carrier, KeyClassifier classifier);
-  }
 
-  interface BinaryContextVisitor<C> extends ContextVisitor<C> {
-    void forEachKey(C carrier, BinaryKeyClassifier classifier);
+    @ParametersAreNonnullByDefault
+    @Override
+    default void forEachKeyValue(C carrier, BiConsumer<String, String> visitor) {
+      forEachKey(
+          carrier,
+          (key, value) -> {
+            visitor.accept(key, value);
+            return true;
+          });
+    }
   }
 }

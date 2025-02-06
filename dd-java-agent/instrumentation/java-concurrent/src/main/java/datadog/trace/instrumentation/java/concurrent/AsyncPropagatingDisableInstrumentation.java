@@ -5,7 +5,8 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameEnd
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled;
 import static datadog.trace.instrumentation.java.concurrent.ConcurrentInstrumentationNames.EXECUTOR_INSTRUMENTATION_NAME;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isTypeInitializer;
@@ -13,7 +14,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isTypeInitializer;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -25,7 +25,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  */
 @AutoService(InstrumenterModule.class)
 public final class AsyncPropagatingDisableInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.CanShortcutTypeMatching {
+    implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
 
   public AsyncPropagatingDisableInstrumentation() {
     super(EXECUTOR_INSTRUMENTATION_NAME);
@@ -177,19 +177,18 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
   public static class DisableAsyncAdvice {
 
     @Advice.OnMethodEnter
-    public static AgentScope before() {
-      AgentScope scope = activeScope();
-      if (null != scope && scope.isAsyncPropagating()) {
-        scope.setAsyncPropagation(false);
-        return scope;
+    public static boolean before() {
+      if (isAsyncPropagationEnabled()) {
+        setAsyncPropagationEnabled(false);
+        return true;
       }
-      return null;
+      return false;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void after(@Advice.Enter AgentScope scope) {
-      if (null != scope) {
-        scope.setAsyncPropagation(true);
+    public static void after(@Advice.Enter boolean wasDisabled) {
+      if (wasDisabled) {
+        setAsyncPropagationEnabled(true);
       }
     }
   }

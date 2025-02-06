@@ -10,6 +10,7 @@ import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.civisibility.ci.env.CiEnvironment;
 import datadog.trace.util.Strings;
+import javax.annotation.Nonnull;
 
 class BitBucketInfo implements CIProviderInfo {
 
@@ -68,6 +69,12 @@ class BitBucketInfo implements CIProviderInfo {
         .ciJobUrl(url)
         .ciWorkspace(expandTilde(environment.get(BITBUCKET_WORKSPACE_PATH)))
         .build();
+  }
+
+  @Nonnull
+  @Override
+  public PullRequestInfo buildPullRequestInfo() {
+    return PullRequestInfo.EMPTY;
   }
 
   private String buildPipelineUrl(final String repo, final String number) {

@@ -7,23 +7,18 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.InstrumentationContext;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.cucumber.junit.platform.engine.CucumberTestEngine;
-import java.util.Collections;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.junit.platform.engine.EngineExecutionListener;
 import org.junit.platform.engine.ExecutionRequest;
-import org.junit.platform.engine.TestDescriptor;
 import org.junit.platform.engine.TestEngine;
 import org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService;
 
 @AutoService(InstrumenterModule.class)
 public class JUnit5CucumberInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public JUnit5CucumberInstrumentation() {
     super("ci-visibility", "junit-5", "junit-5-cucumber");
@@ -42,18 +37,13 @@ public class JUnit5CucumberInstrumentation extends InstrumenterModule.CiVisibili
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".TestIdentifierFactory",
+      packageName + ".TestDataFactory",
       packageName + ".JUnitPlatformUtils",
       packageName + ".CucumberUtils",
       packageName + ".TestEventsHandlerHolder",
       packageName + ".CucumberTracingListener",
       packageName + ".CompositeEngineListener",
     };
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap("org.junit.platform.engine.TestDescriptor", "java.lang.Object");
   }
 
   @Override
@@ -86,12 +76,6 @@ public class JUnit5CucumberInstrumentation extends InstrumenterModule.CiVisibili
         // as a separate module
         return;
       }
-
-      ContextStore<TestDescriptor, Object> contextStore =
-          InstrumentationContext.get(TestDescriptor.class, Object.class);
-      TestEventsHandlerHolder.setContextStores(
-          (ContextStore) contextStore, (ContextStore) contextStore);
-      TestEventsHandlerHolder.start();
 
       CucumberTracingListener tracingListener = new CucumberTracingListener(testEngine);
       EngineExecutionListener originalListener = executionRequest.getEngineExecutionListener();

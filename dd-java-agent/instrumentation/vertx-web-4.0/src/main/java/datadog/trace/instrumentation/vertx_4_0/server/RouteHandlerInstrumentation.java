@@ -13,7 +13,7 @@ import datadog.trace.agent.tooling.muzzle.Reference;
 
 @AutoService(InstrumenterModule.class)
 public class RouteHandlerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public RouteHandlerInstrumentation() {
     super("vertx", "vertx-4.0");
   }
@@ -29,7 +29,6 @@ public class RouteHandlerInstrumentation extends InstrumenterModule.Tracing
       packageName + ".EndHandlerWrapper",
       packageName + ".RouteHandlerWrapper",
       packageName + ".VertxDecorator",
-      packageName + ".VertxDecorator$VertxURIDataAdapter",
     };
   }
 

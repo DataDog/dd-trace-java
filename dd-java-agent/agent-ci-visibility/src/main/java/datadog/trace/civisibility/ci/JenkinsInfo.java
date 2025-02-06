@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.ci;
 
+import static datadog.json.JsonMapper.toJson;
 import static datadog.trace.api.git.GitUtils.filterSensitiveInfo;
 import static datadog.trace.api.git.GitUtils.isTagReference;
 import static datadog.trace.api.git.GitUtils.normalizeBranch;
@@ -10,13 +11,11 @@ import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.civisibility.ci.env.CiEnvironment;
-import datadog.trace.util.Strings;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import javax.annotation.Nonnull;
 
 @SuppressForbidden
 class JenkinsInfo implements CIProviderInfo {
@@ -70,13 +69,18 @@ class JenkinsInfo implements CIProviderInfo {
         .build();
   }
 
+  @Nonnull
+  @Override
+  public PullRequestInfo buildPullRequestInfo() {
+    return PullRequestInfo.EMPTY;
+  }
+
   private String buildCiNodeLabels() {
     String labels = environment.get(JENKINS_NODE_LABELS);
     if (labels == null || labels.isEmpty()) {
       return labels;
     }
-    List<String> labelsList = Arrays.asList(labels.split(" "));
-    return Strings.toJson(labelsList);
+    return toJson(labels.split(" "));
   }
 
   private String buildGitRepositoryUrl() {

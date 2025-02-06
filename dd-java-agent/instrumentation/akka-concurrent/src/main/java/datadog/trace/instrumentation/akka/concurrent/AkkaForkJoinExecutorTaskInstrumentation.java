@@ -25,7 +25,7 @@ import net.bytebuddy.asm.Advice;
  */
 @AutoService(InstrumenterModule.class)
 public final class AkkaForkJoinExecutorTaskInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public AkkaForkJoinExecutorTaskInstrumentation() {
     super("java_concurrent", "akka_concurrent");
   }

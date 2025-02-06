@@ -70,14 +70,7 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
   public AgentSpan onConnection(final AgentSpan span, final CONNECTION connection) {
     if (connection != null) {
       span.setTag(Tags.DB_USER, dbUser(connection));
-      final String instanceName = dbInstance(connection);
-      span.setTag(Tags.DB_INSTANCE, instanceName);
-
-      String serviceName = dbClientService(instanceName);
-      if (null != serviceName) {
-        span.setServiceName(serviceName);
-      }
-
+      onInstance(span, dbInstance(connection));
       CharSequence hostName = dbHostname(connection);
       if (hostName != null) {
         span.setTag(Tags.PEER_HOSTNAME, hostName);
@@ -85,6 +78,17 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
         if (Config.get().isDbClientSplitByHost()) {
           span.setServiceName(hostName.toString());
         }
+      }
+    }
+    return span;
+  }
+
+  protected AgentSpan onInstance(final AgentSpan span, final String dbInstance) {
+    if (dbInstance != null) {
+      span.setTag(Tags.DB_INSTANCE, dbInstance);
+      String serviceName = dbClientService(dbInstance);
+      if (null != serviceName) {
+        span.setServiceName(serviceName);
       }
     }
     return span;

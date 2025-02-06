@@ -11,7 +11,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class DB2PreparedStatementInstrumentation extends AbstractPreparedStatementInstrumentation
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
   public DB2PreparedStatementInstrumentation() {
     super("jdbc", "db2");
   }

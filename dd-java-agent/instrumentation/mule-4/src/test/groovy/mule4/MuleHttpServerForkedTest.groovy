@@ -1,9 +1,10 @@
 package mule4
 
+import static org.mule.runtime.api.util.MuleTestUtil.muleSpan
+
+import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServerTest
 import spock.lang.Shared
-
-import static mule4.MuleTestApplicationConstants.*
 
 class MuleHttpServerForkedTest extends HttpServerTest<MuleTestContainer> {
 
@@ -27,10 +28,34 @@ class MuleHttpServerForkedTest extends HttpServerTest<MuleTestContainer> {
   }
 
   @Override
+  boolean testNotFound() {
+    false
+  }
+
+  @Override
+  void controllerSpan(TraceAssert trace, ServerEndpoint endpoint = null) {
+    def expectsError = endpoint == ServerEndpoint.EXCEPTION
+    def flowSpan = muleSpan(trace, "mule:flow", "MuleHttpServerTestFlow", null, expectsError)
+    muleSpan(trace, "java:new", "Create Handler", flowSpan)
+    muleSpan(trace, "java:invoke", "Handle Message", flowSpan, expectsError)
+    super.controllerSpan(trace, endpoint)
+    if (!expectsError) {
+      muleSpan(trace, "mule:set-variable", "Set Response Code", flowSpan)
+      muleSpan(trace, "mule:set-payload", "Set Response Body",flowSpan)
+    } else {
+      muleSpan(trace, "mule:on-error-propagate", "unknown",flowSpan)
+    }
+  }
+
+
+  @Override
+  int spanCount(ServerEndpoint endpoint) {
+    return super.spanCount(endpoint) + (endpoint == ServerEndpoint.EXCEPTION ? 4 : 5)
+  }
+
+  @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
-
-    injectSysConfig("integration.grizzly-filterchain.enabled", "true")
     injectSysConfig("integration.mule.enabled", "true")
   }
 
@@ -63,14 +88,26 @@ class MuleHttpServerForkedTest extends HttpServerTest<MuleTestContainer> {
       // Force cast GStringImpl to String since Mule code does String casts of some properties
       appProperties.put((String) it.key, (String) it.value)
     }
-    def app = new URI("file:" + new File(String.valueOf(buildProperties.get(TEST_APPLICATION_JAR))).canonicalPath)
+    def app = new URI("file:" + new File(String.valueOf(buildProperties.get(MuleTestApplicationConstants.TEST_APPLICATION_JAR))).canonicalPath)
     container.deploy(app, appProperties)
     return container
   }
 
   @Override
   void stopServer(MuleTestContainer container) {
-    container.undeploy(String.valueOf(buildProperties.get(TEST_APPLICATION_NAME)))
+    container.undeploy(String.valueOf(buildProperties.get(MuleTestApplicationConstants.TEST_APPLICATION_NAME)))
     container.stop()
+  }
+}
+
+/**
+ * This test wants to check that we built otel tracing (based on the sdk) does not interfere with our
+ */
+class MuleHttpServerOTELEnabledForkedTest extends MuleHttpServerForkedTest {
+
+  @Override
+  MuleTestContainer startServer(int port) {
+    System.setProperty("mule.openTelemetry.tracer.exporter.enabled", "true")
+    return super.startServer(port)
   }
 }

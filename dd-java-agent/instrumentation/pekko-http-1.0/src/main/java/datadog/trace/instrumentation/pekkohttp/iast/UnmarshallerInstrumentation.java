@@ -34,7 +34,7 @@ import scala.concurrent.Future;
  */
 @AutoService(InstrumenterModule.class)
 public class UnmarshallerInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
   public UnmarshallerInstrumentation() {
     super("pekko-http");
   }

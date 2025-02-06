@@ -70,7 +70,12 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     mockBackend.givenTestsSkipping(testsSkipping)
     mockBackend.givenSkippableTest("Maven Smoke Tests Project maven-surefire-plugin default-test", "datadog.smoke.TestSucceed", "test_to_skip_with_itr", ["src/main/java/datadog/smoke/Calculator.java": bits(9)])
 
-    def exitCode = whenRunningMavenBuild(jacocoCoverage, commandLineParams)
+    mockBackend.givenImpactedTestsDetection(true)
+
+    def agentArgs = jacocoCoverage ? [
+      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION)}=${JACOCO_PLUGIN_VERSION}" as String
+    ] : []
+    def exitCode = whenRunningMavenBuild(agentArgs, commandLineParams)
 
     if (expectSuccess) {
       assert exitCode == 0
@@ -83,7 +88,6 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
 
     where:
     projectName                                         | mavenVersion         | expectedEvents | expectedCoverages | expectSuccess | testsSkipping | flakyRetries | jacocoCoverage | commandLineParams                                              | minSupportedJavaVersion
-    "test_successful_maven_run"                         | "3.2.1"              | 5              | 1                 | true          | true          | false        | true           | []                                                             | 8
     "test_successful_maven_run"                         | "3.5.4"              | 5              | 1                 | true          | true          | false        | true           | []                                                             | 8
     "test_successful_maven_run"                         | "3.6.3"              | 5              | 1                 | true          | true          | false        | true           | []                                                             | 8
     "test_successful_maven_run"                         | "3.8.8"              | 5              | 1                 | true          | true          | false        | true           | []                                                             | 8
@@ -99,6 +103,28 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     "test_failed_maven_run_flaky_retries"               | "3.9.9"              | 8              | 5                 | false         | false         | true         | true           | []                                                             | 8
     "test_successful_maven_run_junit_platform_runner"   | "3.9.9"              | 4              | 0                 | true          | false         | false        | false          | []                                                             | 8
     "test_successful_maven_run_with_arg_line_property"  | "3.9.9"              | 4              | 0                 | true          | false         | false        | false          | ["-DargLine='-Dmy-custom-property=provided-via-command-line'"] | 8
+    "test_successful_maven_run_multiple_forks"          | "3.9.9"              | 5              | 1                 | true          | true          | false        | true           | []                                                             | 8
+    "test_successful_maven_run_multiple_forks"          | LATEST_MAVEN_VERSION | 5              | 1                 | true          | true          | false        | true           | []                                                             | 17
+  }
+
+  def "test impacted tests detection"() {
+    givenWrapperPropertiesFile(mavenVersion)
+    givenMavenProjectFiles(projectName)
+    givenMavenDependenciesAreLoaded(projectName, mavenVersion)
+
+    mockBackend.givenImpactedTestsDetection(true)
+    mockBackend.givenChangedFile("src/test/java/datadog/smoke/TestSucceed.java")
+
+    def exitCode = whenRunningMavenBuild([
+      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_GIT_CLIENT_ENABLED)}=false" as String
+    ], [])
+    assert exitCode == 0
+
+    verifyEventsAndCoverages(projectName, "maven", mavenVersion, mockBackend.waitForEvents(5), mockBackend.waitForCoverages(1))
+
+    where:
+    projectName                                | mavenVersion
+    "test_successful_maven_run_impacted_tests" | "3.9.9"
   }
 
   private void givenWrapperPropertiesFile(String mavenVersion) {
@@ -164,7 +190,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
   private static final Collection<String> LOADED_DEPENDENCIES = new HashSet<>()
 
   private void retryUntilSuccessfulOrNoAttemptsLeft(List<String> mvnCommand) {
-    def processBuilder = createProcessBuilder(mvnCommand, false, false)
+    def processBuilder = createProcessBuilder(mvnCommand, false, [])
     for (int attempt = 0; attempt < DEPENDENCIES_DOWNLOAD_RETRIES; attempt++) {
       def exitCode = runProcess(processBuilder.start())
       if (exitCode == 0) {
@@ -174,8 +200,8 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     throw new AssertionError((Object) "Tried $DEPENDENCIES_DOWNLOAD_RETRIES times to execute $mvnCommand and failed")
   }
 
-  private int whenRunningMavenBuild(boolean injectJacoco, List<String> additionalCommandLineParams) {
-    def processBuilder = createProcessBuilder(["-B", "test"] + additionalCommandLineParams, true, injectJacoco)
+  private int whenRunningMavenBuild(List<String> additionalAgentArgs, List<String> additionalCommandLineParams) {
+    def processBuilder = createProcessBuilder(["-B", "test"] + additionalCommandLineParams, true, additionalAgentArgs)
 
     processBuilder.environment().put("DD_API_KEY", "01234567890abcdef123456789ABCDEF")
 
@@ -196,13 +222,13 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     return p.exitValue()
   }
 
-  ProcessBuilder createProcessBuilder(List<String> mvnCommand, boolean runWithAgent, boolean injectJacoco) {
+  ProcessBuilder createProcessBuilder(List<String> mvnCommand, boolean runWithAgent, List<String> additionalAgentArgs) {
     String mavenRunnerShadowJar = System.getProperty("datadog.smoketest.maven.jar.path")
     assert new File(mavenRunnerShadowJar).isFile()
 
     List<String> command = new ArrayList<>()
     command.add(javaPath())
-    command.addAll(jvmArguments(runWithAgent, injectJacoco))
+    command.addAll(jvmArguments(runWithAgent, additionalAgentArgs))
     command.addAll((String[]) ["-jar", mavenRunnerShadowJar])
     command.addAll(programArguments())
     command.addAll(mvnCommand)
@@ -220,7 +246,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     return System.getProperty("java.home") + separator + "bin" + separator + "java"
   }
 
-  List<String> jvmArguments(boolean runWithAgent, boolean injectJacoco) {
+  List<String> jvmArguments(boolean runWithAgent, List<String> additionalAgentArgs) {
     def arguments = [
       "-D${MavenWrapperMain.MVNW_VERBOSE}=true".toString(),
       "-Duser.dir=${projectHome.toAbsolutePath()}".toString(),
@@ -247,9 +273,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL)}=${mockBackend.intakeUrl}," +
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ONLY_KNOWN_FLAKES)}=true,"
 
-      if (injectJacoco) {
-        agentArgument += "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION)}=${JACOCO_PLUGIN_VERSION},"
-      }
+      agentArgument += additionalAgentArgs.join(",")
 
       arguments += agentArgument.toString()
     }

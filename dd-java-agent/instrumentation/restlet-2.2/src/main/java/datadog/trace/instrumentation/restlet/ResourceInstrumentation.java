@@ -21,7 +21,7 @@ import org.restlet.resource.ServerResource;
 
 @AutoService(InstrumenterModule.class)
 public final class ResourceInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   private static final String RESTLET_HTTP_OPERATION_NAME = "restlet.request";
 

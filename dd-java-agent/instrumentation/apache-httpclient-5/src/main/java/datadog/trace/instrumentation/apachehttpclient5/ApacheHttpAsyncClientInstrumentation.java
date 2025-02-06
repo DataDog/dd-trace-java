@@ -21,11 +21,12 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.hc.core5.concurrent.FutureCallback;
 import org.apache.hc.core5.http.nio.AsyncRequestProducer;
+import org.apache.hc.core5.http.protocol.BasicHttpContext;
 import org.apache.hc.core5.http.protocol.HttpContext;
 
 @AutoService(InstrumenterModule.class)
 public class ApacheHttpAsyncClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.CanShortcutTypeMatching {
+    implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
 
   public ApacheHttpAsyncClientInstrumentation() {
     super(
@@ -91,13 +92,17 @@ public class ApacheHttpAsyncClientInstrumentation extends InstrumenterModule.Tra
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope methodEnter(
         @Advice.Argument(value = 0, readOnly = false) AsyncRequestProducer requestProducer,
-        @Advice.Argument(3) HttpContext context,
+        @Advice.Argument(value = 3, readOnly = false) HttpContext context,
         @Advice.Argument(value = 4, readOnly = false) FutureCallback<?> futureCallback) {
 
       final AgentScope parentScope = activeScope();
       final AgentSpan clientSpan = startSpan(HTTP_REQUEST);
       final AgentScope clientScope = activateSpan(clientSpan);
       DECORATE.afterStart(clientSpan);
+
+      if (context == null) {
+        context = new BasicHttpContext();
+      }
 
       requestProducer = new DelegatingRequestProducer(clientSpan, requestProducer);
       futureCallback =

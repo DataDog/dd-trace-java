@@ -1,8 +1,3 @@
-import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
-import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan
-
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
@@ -21,6 +16,12 @@ import reactor.util.context.Context
 import spock.lang.Shared
 
 import java.time.Duration
+import java.util.concurrent.CompletableFuture
+
+import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan
 
 class ReactorCoreTest extends AgentTestRunner {
 
@@ -440,16 +441,52 @@ class ReactorCoreTest extends AgentTestRunner {
     })
   }
 
+  def "test currentContext() calls on inner operator is not throwing a NPE on the advice"() {
+    when:
+    def mono = Flux.range(1, 100).windowUntil { it % 10 == 0 }.count()
+    then:
+    // we are not interested into asserting a trace structure but only that the instrumentation error count is 0
+    assert mono.block() == 11
+  }
+
+
+  def "span in the context has to be activated when the publisher subscribes"() {
+    when:
+    // the mono is subscribed (block) when first is active.
+    // However we expect that the span third will have second as parent and not first
+    // because we set the parent explicitly in the reactor context (dd.span key)
+    def result = runUnderTrace("first", {
+      runUnderTrace("second", {
+        def mono = Mono.defer {
+          Mono.fromCompletionStage(CompletableFuture.supplyAsync {
+            runUnderTrace("third", {
+              "hello world"
+            })
+          })
+        }.subscriberContext(Context.of("dd.span", TEST_TRACER.activeSpan()))
+        mono
+      })
+      .block()
+    })
+    then:
+    assert result == "hello world"
+    assertTraces(1, {
+      trace(3, true) {
+        basicSpan(it, "first")
+        basicSpan(it, "second", span(0))
+        basicSpan(it, "third", span(1))
+      }
+    })
+  }
+
   @Trace(operationName = "trace-parent", resourceName = "trace-parent")
   def assemblePublisherUnderTrace(def publisherSupplier) {
     def span = startSpan("publisher-parent")
     // After this activation, the "add two" operations below should be children of this span
-    def scope = activateSpan(span)
+    def scope = activateSpan(span, true)
 
     Publisher<Integer> publisher = publisherSupplier()
     try {
-      scope.setAsyncPropagation(true)
-
       // Read all data from publisher
       if (publisher instanceof Mono) {
         return publisher.block()
@@ -467,8 +504,7 @@ class ReactorCoreTest extends AgentTestRunner {
   @Trace(operationName = "trace-parent", resourceName = "trace-parent")
   def cancelUnderTrace(def publisherSupplier) {
     final AgentSpan span = startSpan("publisher-parent")
-    AgentScope scope = activateSpan(span)
-    scope.setAsyncPropagation(true)
+    AgentScope scope = activateSpan(span, true)
 
     def publisher = publisherSupplier()
     publisher.subscribe(new Subscriber<Integer>() {
@@ -488,14 +524,6 @@ class ReactorCoreTest extends AgentTestRunner {
 
     scope.close()
     span.finish()
-  }
-
-  def "test currentContext() calls on inner operator is not throwing a NPE on the advice"() {
-    when:
-    def mono = Flux.range(1, 100).windowUntil {it % 10 == 0}.count()
-    then:
-    // we are not interested into asserting a trace structure but only that the instrumentation error count is 0
-    assert mono.block() == 11
   }
 
   @Trace(operationName = "addOne", resourceName = "addOne")

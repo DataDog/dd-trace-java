@@ -68,7 +68,12 @@ public final class TraceInstrumentationConfig {
 
   public static final String DB_DBM_PROPAGATION_MODE_MODE = "dbm.propagation.mode";
 
+  public static final String DB_DBM_TRACE_PREPARED_STATEMENTS = "dbm.trace_prepared_statements";
+
   public static final String JDBC_CONNECTION_CLASS_NAME = "trace.jdbc.connection.class.name";
+
+  public static final String EXPERIMENTATAL_JEE_SPLIT_BY_DEPLOYMENT =
+      "trace.experimental.jee.split-by-deployment";
 
   public static final String HTTP_URL_CONNECTION_CLASS_NAME =
       "trace.http.url.connection.class.name";
@@ -143,6 +148,8 @@ public final class TraceInstrumentationConfig {
   public static final String RESOLVER_USE_URL_CACHES = "resolver.use.url.caches";
   public static final String RESOLVER_RESET_INTERVAL = "resolver.reset.interval";
   public static final String RESOLVER_NAMES_ARE_UNIQUE = "resolver.names.are.unique";
+  public static final String CASSANDRA_KEYSPACE_STATEMENT_EXTRACTION_ENABLED =
+      "trace.cassandra.keyspace.statement.extraction.enabled";
   public static final String COUCHBASE_INTERNAL_SPANS_ENABLED =
       "trace.couchbase.internal-spans.enabled";
   public static final String ELASTICSEARCH_BODY_ENABLED = "trace.elasticsearch.body.enabled";
@@ -158,6 +165,9 @@ public final class TraceInstrumentationConfig {
   public static final String JAX_RS_ADDITIONAL_ANNOTATIONS = "trace.jax-rs.additional.annotations";
   /** If set, the instrumentation will set its resource name on the local root too. */
   public static final String AXIS_PROMOTE_RESOURCE_NAME = "trace.axis.promote.resource-name";
+
+  public static final String SQS_BODY_PROPAGATION_ENABLED = "trace.sqs.body.propagation.enabled";
+  public static final String ADD_SPAN_POINTERS = "add.span.pointers";
 
   private TraceInstrumentationConfig() {}
 }

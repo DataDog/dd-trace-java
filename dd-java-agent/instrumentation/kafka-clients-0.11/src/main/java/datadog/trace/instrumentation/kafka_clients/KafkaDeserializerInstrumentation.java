@@ -24,7 +24,7 @@ import org.apache.kafka.common.serialization.Deserializer;
 
 @AutoService(InstrumenterModule.class)
 public class KafkaDeserializerInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   private static final String DESERIALIZER_CLASS =
       "org.apache.kafka.common.serialization.Deserializer";

@@ -2,6 +2,10 @@ plugins {
   id 'java-test-fixtures'
 }
 
+ext {
+  latestDepTestMinJavaVersionForTests = JavaVersion.VERSION_11
+}
+
 apply from: "$rootDir/gradle/java.gradle"
 
 muzzle {
@@ -38,9 +42,8 @@ configurations.matching({ it.name.startsWith('test') || it.name.startsWith('late
   }
 })
 
-tasks.matching { it.name.startsWith('latestDepTest') || it.name.contains('LatestDepTest') }.each {
-  it.onlyIf {
-    // Only run latest dep tests tasks (including compilation) if the current JVM is compatible with the latest Selenium version
-    JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_11)
-  }
+tasks.named("compileLatestDepTestJava").configure {
+  setJavaVersion(it, 11)
+  sourceCompatibility = JavaVersion.VERSION_1_8
+  targetCompatibility = JavaVersion.VERSION_1_8
 }

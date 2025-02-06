@@ -24,6 +24,7 @@ public abstract class SourceTypes {
   public static final byte GRPC_BODY = 13;
   public static final byte KAFKA_MESSAGE_KEY = 14;
   public static final byte KAFKA_MESSAGE_VALUE = 15;
+  public static final byte SQL_TABLE = 16;
 
   /** Array indexed with all source types, the index should match the source types values */
   public static final String[] STRINGS = {
@@ -42,7 +43,8 @@ public abstract class SourceTypes {
     "http.request.path",
     "grpc.request.body",
     "kafka.message.key",
-    "kafka.message.value"
+    "kafka.message.value",
+    "sql.row.value"
   };
 
   public static String toString(final byte source) {

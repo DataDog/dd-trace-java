@@ -1,5 +1,7 @@
 package datadog.smoketest.springboot.controller;
 
+import ddtest.securitycontrols.InputValidator;
+import ddtest.securitycontrols.Sanitizer;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.util.Locale;
@@ -189,5 +191,53 @@ public class XssController {
   @ResponseBody
   public String responseBody(final HttpServletRequest request, final HttpServletResponse response) {
     return request.getParameter("string");
+  }
+
+  @GetMapping("/sanitize")
+  @SuppressFBWarnings
+  public void sanitize(final HttpServletRequest request, final HttpServletResponse response) {
+    try {
+      response.getWriter().write(Sanitizer.sanitize(request.getParameter("string")));
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  @GetMapping("/validateAll")
+  @SuppressFBWarnings
+  public void validateAll(final HttpServletRequest request, final HttpServletResponse response) {
+    try {
+      String s = request.getParameter("string");
+      InputValidator.validateAll(s);
+      response.getWriter().write(s);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  @GetMapping("/validateAll2")
+  @SuppressFBWarnings
+  public void validate2(final HttpServletRequest request, final HttpServletResponse response) {
+    try {
+      String string1 = request.getParameter("string");
+      String string2 = request.getParameter("string2");
+      InputValidator.validateAll(string1, string2);
+      response.getWriter().write(string1 + string2);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  @GetMapping("/validate")
+  @SuppressFBWarnings
+  public void validate(final HttpServletRequest request, final HttpServletResponse response) {
+    try {
+      String string1 = request.getParameter("string");
+      String string2 = request.getParameter("string2");
+      InputValidator.validate(null, string1, string2);
+      response.getWriter().write(string1 + string2);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 }

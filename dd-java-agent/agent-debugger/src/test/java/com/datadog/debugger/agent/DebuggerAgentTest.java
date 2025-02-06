@@ -82,7 +82,7 @@ public class DebuggerAgentTest {
   @Test
   @EnabledOnJre({JAVA_8, JAVA_11})
   public void runDisabled() {
-    setFieldInConfig(Config.get(), "debuggerEnabled", false);
+    setFieldInConfig(Config.get(), "dynamicInstrumentationEnabled", false);
     URL probeDefinitionUrl = DebuggerAgentTest.class.getResource("/test_probe.json");
     System.setProperty("dd.dynamic.instrumentation.config-file", probeDefinitionUrl.getFile());
     DebuggerAgent.run(inst, new SharedCommunicationObjects());
@@ -95,13 +95,13 @@ public class DebuggerAgentTest {
   public void runEnabledWithDatadogAgent() throws InterruptedException, IOException {
     MockWebServer datadogAgentServer = new MockWebServer();
     HttpUrl datadogAgentUrl = datadogAgentServer.url(URL_PATH);
-    setFieldInConfig(Config.get(), "debuggerEnabled", true);
+    setFieldInConfig(Config.get(), "dynamicInstrumentationEnabled", true);
     setFieldInConfig(Config.get(), "remoteConfigEnabled", true);
-    setFieldInConfig(Config.get(), "debuggerSnapshotUrl", datadogAgentUrl.toString());
+    setFieldInConfig(Config.get(), "dynamicInstrumentationSnapshotUrl", datadogAgentUrl.toString());
     setFieldInConfig(Config.get(), "agentUrl", datadogAgentUrl.toString());
     setFieldInConfig(Config.get(), "agentHost", "localhost");
     setFieldInConfig(Config.get(), "agentPort", datadogAgentServer.getPort());
-    setFieldInConfig(Config.get(), "debuggerMaxPayloadSize", 4096L);
+    setFieldInConfig(Config.get(), "dynamicInstrumentationMaxPayloadSize", 4096L);
     setFieldInContainerInfo(ContainerInfo.get(), "containerId", "");
     String infoContent =
         "{\"endpoints\": [\"v0.4/traces\", \"debugger/v1/input\", \"v0.7/config\"] }";
@@ -122,11 +122,11 @@ public class DebuggerAgentTest {
     ConfigurationPoller configurationPoller =
         (ConfigurationPoller) sharedCommunicationObjects.configurationPoller(Config.get());
     configurationPoller.start();
-    RecordedRequest request = datadogAgentServer.takeRequest(5, TimeUnit.SECONDS);
-    assertNotNull(request);
-    assertEquals("/info", request.getPath());
-    request = datadogAgentServer.takeRequest(5, TimeUnit.SECONDS);
-    assertNotNull(request);
+    RecordedRequest request;
+    do {
+      request = datadogAgentServer.takeRequest(5, TimeUnit.SECONDS);
+      assertNotNull(request);
+    } while ("/info".equals(request.getPath()));
     assertEquals("/v0.7/config", request.getPath());
     DebuggerAgent.stop();
     datadogAgentServer.shutdown();
@@ -135,10 +135,10 @@ public class DebuggerAgentTest {
   @Test
   @EnabledOnJre({JAVA_8, JAVA_11})
   public void runEnabledWithUnsupportedDatadogAgent() throws InterruptedException {
-    setFieldInConfig(Config.get(), "debuggerEnabled", true);
-    setFieldInConfig(Config.get(), "debuggerSnapshotUrl", url.toString());
+    setFieldInConfig(Config.get(), "dynamicInstrumentationEnabled", true);
+    setFieldInConfig(Config.get(), "dynamicInstrumentationSnapshotUrl", url.toString());
     setFieldInConfig(Config.get(), "agentUrl", url.toString());
-    setFieldInConfig(Config.get(), "debuggerMaxPayloadSize", 1024L);
+    setFieldInConfig(Config.get(), "dynamicInstrumentationMaxPayloadSize", 1024L);
     String infoContent = "{\"endpoints\": [\"v0.4/traces\"]}";
     server.enqueue(new MockResponse().setResponseCode(200).setBody(infoContent));
     DebuggerAgent.run(inst, new SharedCommunicationObjects());
@@ -151,11 +151,11 @@ public class DebuggerAgentTest {
     URL res = getClass().getClassLoader().getResource("test_probe2.json");
     String probeDefinitionPath = Paths.get(res.toURI()).toFile().getAbsolutePath();
     setFieldInConfig(Config.get(), "serviceName", "petclinic");
-    setFieldInConfig(Config.get(), "debuggerEnabled", true);
-    setFieldInConfig(Config.get(), "debuggerSnapshotUrl", url.toString());
+    setFieldInConfig(Config.get(), "dynamicInstrumentationEnabled", true);
+    setFieldInConfig(Config.get(), "dynamicInstrumentationSnapshotUrl", url.toString());
     setFieldInConfig(Config.get(), "agentUrl", url.toString());
-    setFieldInConfig(Config.get(), "debuggerMaxPayloadSize", 4096L);
-    setFieldInConfig(Config.get(), "debuggerProbeFileLocation", probeDefinitionPath);
+    setFieldInConfig(Config.get(), "dynamicInstrumentationMaxPayloadSize", 4096L);
+    setFieldInConfig(Config.get(), "dynamicInstrumentationProbeFileLocation", probeDefinitionPath);
     String infoContent =
         "{\"endpoints\": [\"v0.4/traces\", \"debugger/v1/input\", \"v0.7/config\"] }";
     server.enqueue(new MockResponse().setResponseCode(200).setBody(infoContent));

@@ -1,9 +1,10 @@
 package datadog.trace.instrumentation.junit4;
 
+import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.coverage.CoveragePerTestBridge;
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
-import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.execution.TestExecutionHistory;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.ContextStore;
 import io.cucumber.core.gherkin.Pickle;
@@ -28,13 +29,13 @@ public class CucumberTracingListener extends TracingListener {
   public static final String FRAMEWORK_NAME = "cucumber";
   public static final String FRAMEWORK_VERSION = CucumberUtils.getVersion();
 
-  private final ContextStore<Description, TestRetryPolicy> retryPolicies;
+  private final ContextStore<Description, TestExecutionHistory> executionHistories;
   private final Map<Object, Pickle> pickleById;
 
   public CucumberTracingListener(
-      ContextStore<Description, TestRetryPolicy> retryPolicies,
+      ContextStore<Description, TestExecutionHistory> executionHistories,
       List<ParentRunner<?>> featureRunners) {
-    this.retryPolicies = retryPolicies;
+    this.executionHistories = executionHistories;
     pickleById = CucumberUtils.getPicklesById(featureRunners);
   }
 
@@ -51,7 +52,8 @@ public class CucumberTracingListener extends TracingListener {
           null,
           Collections.emptyList(),
           false,
-          TestFrameworkInstrumentation.CUCUMBER);
+          TestFrameworkInstrumentation.CUCUMBER,
+          null);
     }
   }
 
@@ -59,7 +61,7 @@ public class CucumberTracingListener extends TracingListener {
   public void testSuiteFinished(final Description description) {
     if (isFeature(description)) {
       TestSuiteDescriptor suiteDescriptor = CucumberUtils.toSuiteDescriptor(description);
-      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor);
+      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor, null);
     }
   }
 
@@ -69,20 +71,17 @@ public class CucumberTracingListener extends TracingListener {
     String testName = CucumberUtils.getTestNameForScenario(description);
     List<String> categories = getCategories(description);
 
-    TestRetryPolicy retryPolicy = retryPolicies.get(description);
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestStart(
         new TestSuiteDescriptor(testSuiteName, null),
         CucumberUtils.toTestDescriptor(description),
-        testSuiteName,
         testName,
         FRAMEWORK_NAME,
         FRAMEWORK_VERSION,
         null,
         categories,
+        TestSourceData.UNKNOWN,
         null,
-        null,
-        null,
-        retryPolicy != null && retryPolicy.currentExecutionIsRetry());
+        executionHistories.get(description));
 
     recordFeatureFileCodeCoverage(description);
   }
@@ -100,7 +99,9 @@ public class CucumberTracingListener extends TracingListener {
   @Override
   public void testFinished(final Description description) {
     TestDescriptor testDescriptor = CucumberUtils.toTestDescriptor(description);
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(testDescriptor);
+    TestExecutionHistory executionHistory = executionHistories.get(description);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(
+        testDescriptor, null, executionHistory);
   }
 
   // same callback is executed both for test cases and test suites (for setup/teardown errors)
@@ -154,9 +155,10 @@ public class CucumberTracingListener extends TracingListener {
           null,
           Collections.emptyList(),
           false,
-          TestFrameworkInstrumentation.CUCUMBER);
+          TestFrameworkInstrumentation.CUCUMBER,
+          null);
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteSkip(suiteDescriptor, reason);
-      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor);
+      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor, null);
     } else {
       String testSuiteName = CucumberUtils.getTestSuiteNameForScenario(description);
       String testName = CucumberUtils.getTestNameForScenario(description);
@@ -164,15 +166,12 @@ public class CucumberTracingListener extends TracingListener {
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestIgnore(
           new TestSuiteDescriptor(testSuiteName, null),
           CucumberUtils.toTestDescriptor(description),
-          testSuiteName,
           testName,
           FRAMEWORK_NAME,
           FRAMEWORK_VERSION,
           null,
           categories,
-          null,
-          null,
-          null,
+          TestSourceData.UNKNOWN,
           reason);
     }
   }

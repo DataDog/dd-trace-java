@@ -11,6 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
+import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.gateway.RequestContext;
@@ -25,7 +26,8 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-public abstract class AbstractHttpServerRequestInstrumentation extends InstrumenterModule.Iast {
+public abstract class AbstractHttpServerRequestInstrumentation extends InstrumenterModule.Iast
+    implements Instrumenter.HasMethodAdvice {
 
   private final String className = AbstractHttpServerRequestInstrumentation.class.getName();
 
@@ -46,7 +48,10 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
         isPublic().and(isMethod()).and(named("headers")).and(takesNoArguments()),
         className + "$HeadersAdvice");
     transformer.applyAdvice(
-        isPublic().and(isMethod()).and(named("params")).and(takesNoArguments()),
+        isPublic()
+            .and(isMethod())
+            .and(named("params"))
+            .and(takesNoArguments().or(takesArguments(boolean.class))),
         className + "$ParamsAdvice");
     transformer.applyAdvice(
         isMethod().and(takesNoArguments()).and(attributesFilter()),

@@ -30,16 +30,22 @@ public class QueueTimerHelper {
   }
 
   public static <T> void startQueuingTimer(
-      ContextStore<T, State> taskContextStore, Class<?> schedulerClass, T task) {
+      ContextStore<T, State> taskContextStore,
+      Class<?> schedulerClass,
+      Class<?> queueClass,
+      int queueLength,
+      T task) {
     State state = taskContextStore.get(task);
-    startQueuingTimer(state, schedulerClass, task);
+    startQueuingTimer(state, schedulerClass, queueClass, queueLength, task);
   }
 
-  public static void startQueuingTimer(State state, Class<?> schedulerClass, Object task) {
+  public static void startQueuingTimer(
+      State state, Class<?> schedulerClass, Class<?> queueClass, int queueLength, Object task) {
     if (Platform.isNativeImage()) {
       // explicitly not supported for Graal native image
       return;
     }
+    // TODO consider queue length based sampling here to reduce overhead
     // avoid calling this before JFR is initialised because it will lead to reading the wrong
     // TSC frequency before JFR has set it up properly
     if (task != null && state != null && InstrumentationBasedProfiling.isJFRReady()) {
@@ -47,6 +53,8 @@ public class QueueTimerHelper {
           (QueueTiming) AgentTracer.get().getProfilingContext().start(Timer.TimerType.QUEUEING);
       timing.setTask(task);
       timing.setScheduler(schedulerClass);
+      timing.setQueue(queueClass);
+      timing.setQueueLength(queueLength);
       state.setTiming(timing);
     }
   }

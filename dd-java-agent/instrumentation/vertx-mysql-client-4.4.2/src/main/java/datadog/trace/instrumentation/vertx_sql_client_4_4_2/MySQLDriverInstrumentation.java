@@ -14,7 +14,7 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class MySQLDriverInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public MySQLDriverInstrumentation() {
     super("vertx", "vertx-sql-client");

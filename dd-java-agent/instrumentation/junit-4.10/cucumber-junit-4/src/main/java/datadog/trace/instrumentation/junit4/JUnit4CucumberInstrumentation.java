@@ -7,7 +7,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
-import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.execution.TestExecutionHistory;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Collections;
 import java.util.List;
@@ -20,7 +20,7 @@ import org.junit.runners.ParentRunner;
 
 @AutoService(InstrumenterModule.class)
 public class JUnit4CucumberInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public JUnit4CucumberInstrumentation() {
     super("ci-visibility", "junit-4", "junit-4-cucumber");
@@ -36,7 +36,7 @@ public class JUnit4CucumberInstrumentation extends InstrumenterModule.CiVisibili
     return new String[] {
       packageName + ".CucumberUtils",
       packageName + ".TestEventsHandlerHolder",
-      packageName + ".SkippedByItr",
+      packageName + ".SkippedByDatadog",
       packageName + ".JUnit4Utils",
       packageName + ".TracingListener",
       packageName + ".CucumberTracingListener",
@@ -46,7 +46,7 @@ public class JUnit4CucumberInstrumentation extends InstrumenterModule.CiVisibili
   @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
-        "org.junit.runner.Description", TestRetryPolicy.class.getName());
+        "org.junit.runner.Description", TestExecutionHistory.class.getName());
   }
 
   @Override
@@ -84,7 +84,7 @@ public class JUnit4CucumberInstrumentation extends InstrumenterModule.CiVisibili
 
       replacedNotifier.addListener(
           new CucumberTracingListener(
-              InstrumentationContext.get(Description.class, TestRetryPolicy.class), children));
+              InstrumentationContext.get(Description.class, TestExecutionHistory.class), children));
       runNotifier = replacedNotifier;
     }
   }

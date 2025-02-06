@@ -71,6 +71,14 @@ public class EarlyFlakeDetectionSettings {
       this.executions = executions;
     }
 
+    public long getDurationMillis() {
+      return durationMillis;
+    }
+
+    public int getExecutions() {
+      return executions;
+    }
+
     @Override
     public boolean equals(Object o) {
       if (this == o) {

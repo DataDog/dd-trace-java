@@ -20,11 +20,12 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.nio.channels.Channel;
 import java.util.Collections;
 import java.util.Map;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public final class QueuedCommandInstrumentation extends InstrumenterModule.Profiling
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   private static final String QUEUED_COMMAND = "io.grpc.netty.WriteQueue$QueuedCommand";
   private static final String STATE =
@@ -66,7 +67,14 @@ public final class QueuedCommandInstrumentation extends InstrumenterModule.Profi
     public static void after(@Advice.This Object command) {
       ContextStore<Object, State> contextStore = InstrumentationContext.get(QUEUED_COMMAND, STATE);
       capture(contextStore, command);
-      QueueTimerHelper.startQueuingTimer(contextStore, Channel.class, command);
+      // FIXME hard to handle both the lifecyle and get access to the queue instance in the same
+      // frame within the WriteQueue class.
+      //  This means we can't get the queue length. A (bad) alternative would be to instrument
+      // ConcurrentLinkedQueue broadly,
+      //  or we could write more brittle instrumentation targeting code patterns in different gRPC
+      // versions.
+      QueueTimerHelper.startQueuingTimer(
+          contextStore, Channel.class, ConcurrentLinkedQueue.class, 0, command);
     }
   }
 

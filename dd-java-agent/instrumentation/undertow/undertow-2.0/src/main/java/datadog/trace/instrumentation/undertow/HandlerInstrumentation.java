@@ -18,6 +18,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.gateway.Flow.Action.RequestBlockingAction;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.undertow.server.HttpHandler;
 import io.undertow.server.HttpServerExchange;
@@ -25,7 +26,7 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public final class HandlerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public HandlerInstrumentation() {
     super("undertow", "undertow-2.0");
@@ -91,7 +92,7 @@ public final class HandlerInstrumentation extends InstrumenterModule.Tracing
         return;
       }
 
-      final AgentSpan.Context.Extracted extractedContext = DECORATE.extract(exchange);
+      final AgentSpanContext.Extracted extractedContext = DECORATE.extract(exchange);
       final AgentSpan span = DECORATE.startSpan(exchange, extractedContext).setMeasured(true);
       scope = activateSpan(span, true);
       DECORATE.afterStart(span);

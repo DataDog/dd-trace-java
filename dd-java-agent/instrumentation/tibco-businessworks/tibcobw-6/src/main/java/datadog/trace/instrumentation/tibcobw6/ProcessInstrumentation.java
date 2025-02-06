@@ -23,7 +23,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class ProcessInstrumentation extends AbstractTibcoInstrumentation
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   @Override
   public String hierarchyMarkerType() {

@@ -1,10 +1,13 @@
 name: Check pull requests
 on:
   pull_request:
-    types: [opened, edited, labeled, unlabeled]
+    types: [opened, edited, ready_for_review, labeled, unlabeled, synchronize]
     branches:
     - master
     - release/v*
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   check_pull_requests:
     name: Check pull requests
@@ -38,14 +41,22 @@ jobs:
             if (titleCheckFailed) {
               core.setFailed('Please remove the tag from the pull request title.')
             }
+            // Check body does 
+            const linkingKeywords = ['closes', 'closed', 'fix', 'fixes', 'fixed', 'resolve', 'resolves', 'resolved']
+            const body = context.payload.pull_request.body
+            const bodyCheckFailed = linkingKeywords.some(keyword => body.search(new RegExp(`${keyword}\\s\\d+`, "im")) !== -1)
+            if (bodyCheckFailed) {
+              core.setFailed('Please remove the issue linking keyword from the pull request body.')
+            }
             // Add comment to the pull request
-            if (labelsCheckFailed || titleCheckFailed) {
+            if (labelsCheckFailed || titleCheckFailed || bodyCheckFailed) {
               // Define comment body
               const commentMarker = '<!-- dd-trace-java-check-pull-requests-workflow -->'
               const commentBody = 'Hi! 👋 Thanks for your pull request! 🎉\n\n' +
                   'To help us review it, please make sure to:\n\n' +
                   (labelsCheckFailed ? '* Add at least one type, and one component or instrumentation label to the pull request\n' : '') +
                   (titleCheckFailed ? '* Remove the tag from the pull request title\n' : '') +
+                  (bodyCheckFailed ? '* Remove the issue linking keyword\n' : '') +
                   '\nIf you need help, please check our [contributing guidelines](https://github.com/DataDog/dd-trace-java/blob/master/CONTRIBUTING.md).' +
                   '\n\n' + commentMarker
               // Look for previous comment

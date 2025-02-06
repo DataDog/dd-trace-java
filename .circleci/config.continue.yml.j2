@@ -36,7 +36,7 @@ instrumentation_modules: &instrumentation_modules "dd-java-agent/instrumentation
 debugger_modules: &debugger_modules "dd-java-agent/agent-debugger|dd-java-agent/agent-bootstrap|dd-java-agent/agent-builder|internal-api|communication|dd-trace-core"
 profiling_modules: &profiling_modules "dd-java-agent/agent-profiling"
 
-default_system_tests_commit: &default_system_tests_commit 67fe30ac7504997685859d31feae1782f3527f39
+default_system_tests_commit: &default_system_tests_commit 8384a3947b9881d0fcdb5ac937b80aad9a70d4d4
 
 parameters:
   nightly:
@@ -273,6 +273,12 @@ commands:
             git fetch origin << parameters.systemTestsCommit >>
             git reset --hard FETCH_HEAD
 
+      - run:
+          name: Install dependencies
+          command: |
+            sudo apt-get update
+            sudo apt-get install -y python3.12-venv
+
 jobs:
   build:
     <<: *defaults
@@ -416,6 +422,7 @@ jobs:
             -PgitBaseRef=origin/{{ pr_base_ref }}
 {% endif %}
             -PrunBuildSrcTests
+            -PskipSpotless
             -PtaskPartitionCount=${CIRCLE_NODE_TOTAL} -PtaskPartition=${CIRCLE_NODE_INDEX}
             << pipeline.parameters.gradle_flags >>
             --max-workers=8
@@ -850,6 +857,7 @@ jobs:
               APPSEC_REQUEST_BLOCKING
               APPSEC_RASP
               APPSEC_RUNTIME_ACTIVATION
+              APPSEC_WAF_TELEMETRY
               REMOTE_CONFIG_MOCKED_BACKEND_ASM_DD
               "
             fi
@@ -953,13 +961,23 @@ jobs:
           no_output_timeout: 5m
           command: |
             cd system-tests
-            DD_SITE=datadoghq.com DD_API_KEY=$SYSTEM_TESTS_E2E_DD_API_KEY DD_APPLICATION_KEY=$SYSTEM_TESTS_E2E_DD_APP_KEY ./run.sh DEBUGGER_SCENARIOS
+            export DD_API_KEY=$SYSTEM_TESTS_E2E_DD_API_KEY 
+            ./run.sh DEBUGGER_SCENARIOS
+
+      - run:
+          name: Collect log files
+          no_output_timeout: 5m
+          command: |
+            mkdir -p logs_debugger
+            for dir in system-tests/logs*/; do
+                cp -r "$dir" logs_debugger
+            done
 
       - store_test_results:
-          path: system-tests/logs_debugger*
+          path: logs_debugger
 
       - store_artifacts:
-          path: system-tests/logs_debugger*
+          path: logs_debugger
 
   parametric-tests:
     machine:
@@ -1091,12 +1109,20 @@ build_test_jobs: &build_test_jobs
       gradleTarget: ":profilingCheck"
       cacheType: profiling
 
+  - check:
+      requires:
+        - ok_to_test
+      name: check_debugger
+      gradleTarget: ":debuggerCheck"
+      cacheType: base
+
   - fan_in:
       requires:
         - check_base
         - check_inst
         - check_smoke
         - check_profiling
+        - check_debugger
       name: check
       stage: check
 

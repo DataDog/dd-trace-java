@@ -28,7 +28,4 @@ public class BlockScopePropagationInstrumentation extends InstrumenterModule.Tra
             "reactor.core.publisher.WorkQueueProcessor$WorkQueueInner",
             "reactor.core.publisher.WorkQueueProcessor$WorkQueueInner$1"));
   }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {}
 }

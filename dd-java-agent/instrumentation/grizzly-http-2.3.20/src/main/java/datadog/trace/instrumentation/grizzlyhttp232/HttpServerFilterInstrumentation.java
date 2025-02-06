@@ -7,10 +7,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.InstrumenterConfig;
+import java.util.Collections;
 
 @AutoService(InstrumenterModule.class)
 public class HttpServerFilterInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public HttpServerFilterInstrumentation() {
     super("grizzly-filterchain");
@@ -23,7 +25,7 @@ public class HttpServerFilterInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   protected boolean defaultEnabled() {
-    return false;
+    return InstrumenterConfig.get().isIntegrationEnabled(Collections.singleton("mule"), false);
   }
 
   @Override

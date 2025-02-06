@@ -2,10 +2,12 @@ package datadog.trace.civisibility.writer.ddintake;
 
 import static datadog.communication.http.OkHttpUtils.gzippedMsgpackRequestBodyOf;
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
+import static datadog.json.JsonMapper.toJson;
 
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
+import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.civisibility.CiVisibilityWellKnownTags;
 import datadog.trace.api.civisibility.InstrumentationBridge;
@@ -20,7 +22,6 @@ import datadog.trace.common.writer.RemoteMapper;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.Metadata;
 import datadog.trace.core.MetadataConsumer;
-import datadog.trace.util.Strings;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
@@ -41,6 +42,8 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
       Tags.TEST_SESSION_ID.getBytes(StandardCharsets.UTF_8);
   private static final byte[] TEST_MODULE_ID = Tags.TEST_MODULE_ID.getBytes(StandardCharsets.UTF_8);
   private static final byte[] TEST_SUITE_ID = Tags.TEST_SUITE_ID.getBytes(StandardCharsets.UTF_8);
+  private static final byte[] TEST_IS_USER_PROVIDED_SERVICE =
+      DDTags.TEST_IS_USER_PROVIDED_SERVICE.getBytes(StandardCharsets.UTF_8);
   private static final byte[] ITR_CORRELATION_ID =
       Tags.ITR_CORRELATION_ID.getBytes(StandardCharsets.UTF_8);
 
@@ -240,7 +243,7 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
     headerWriter.startMap(1);
     /* 2,1 */
     headerWriter.writeUTF8(METADATA_ASTERISK);
-    headerWriter.startMap(9);
+    headerWriter.startMap(10);
     /* 2,1,1 */
     headerWriter.writeUTF8(ENV);
     headerWriter.writeUTF8(wellKnownTags.getEnv());
@@ -268,6 +271,9 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
     /* 2,1,9 */
     headerWriter.writeUTF8(OS_VERSION);
     headerWriter.writeUTF8(wellKnownTags.getOsVersion());
+    /* 2,1,10 */
+    headerWriter.writeUTF8(TEST_IS_USER_PROVIDED_SERVICE);
+    headerWriter.writeUTF8(wellKnownTags.getIsUserProvidedService());
     /* 3  */
     headerWriter.writeUTF8(EVENTS);
     headerWriter.startArray(eventCount);
@@ -357,7 +363,7 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
           if (!(value instanceof Iterable)) {
             writable.writeObjectString(value, null);
           } else {
-            String serializedValue = Strings.toJson((Iterable<String>) value);
+            String serializedValue = toJson((Collection<String>) value);
             writable.writeString(serializedValue, null);
           }
         }

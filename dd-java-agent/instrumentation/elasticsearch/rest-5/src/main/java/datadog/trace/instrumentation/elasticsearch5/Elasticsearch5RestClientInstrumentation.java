@@ -20,7 +20,7 @@ import org.elasticsearch.client.ResponseListener;
 
 @AutoService(InstrumenterModule.class)
 public class Elasticsearch5RestClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public Elasticsearch5RestClientInstrumentation() {
     super("elasticsearch", "elasticsearch-rest", "elasticsearch-rest-5");

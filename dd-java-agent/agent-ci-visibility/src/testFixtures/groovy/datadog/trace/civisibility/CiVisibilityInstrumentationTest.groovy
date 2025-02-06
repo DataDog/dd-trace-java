@@ -5,6 +5,7 @@ import datadog.communication.serialization.GrowableBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.Config
+import datadog.trace.api.civisibility.CIConstants
 import datadog.trace.api.civisibility.DDTest
 import datadog.trace.api.civisibility.DDTestSuite
 import datadog.trace.api.civisibility.InstrumentationBridge
@@ -18,15 +19,13 @@ import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.bootstrap.ContextStore
 import datadog.trace.civisibility.codeowners.Codeowners
-import datadog.trace.civisibility.config.EarlyFlakeDetectionSettings
-import datadog.trace.civisibility.config.ExecutionSettings
-import datadog.trace.civisibility.config.ExecutionSettingsFactory
-import datadog.trace.civisibility.config.JvmInfo
-import datadog.trace.civisibility.config.JvmInfoFactoryImpl
+import datadog.trace.civisibility.config.*
 import datadog.trace.civisibility.coverage.file.FileCoverageStore
 import datadog.trace.civisibility.coverage.percentage.NoOpCoverageCalculator
 import datadog.trace.civisibility.decorator.TestDecorator
 import datadog.trace.civisibility.decorator.TestDecoratorImpl
+import datadog.trace.civisibility.diff.Diff
+import datadog.trace.civisibility.diff.LineDiff
 import datadog.trace.civisibility.domain.BuildSystemSession
 import datadog.trace.civisibility.domain.TestFrameworkModule
 import datadog.trace.civisibility.domain.TestFrameworkSession
@@ -44,6 +43,7 @@ import datadog.trace.civisibility.test.ExecutionStrategy
 import datadog.trace.civisibility.utils.ConcurrentHashMapContextStore
 import datadog.trace.civisibility.writer.ddintake.CiTestCovMapperV2
 import datadog.trace.civisibility.writer.ddintake.CiTestCycleMapperV1
+import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.RemoteMapper
 import datadog.trace.core.DDSpan
 import org.msgpack.jackson.dataformat.MessagePackFactory
@@ -53,6 +53,8 @@ import java.nio.ByteBuffer
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.util.concurrent.TimeUnit
+import java.util.function.Predicate
 
 abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
 
@@ -69,11 +71,17 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
   private static Path agentKeyFile
 
   private static final List<TestIdentifier> skippableTests = new ArrayList<>()
+  private static final List<TestIdentifier> quarantinedTests = new ArrayList<>()
   private static final List<TestIdentifier> flakyTests = new ArrayList<>()
   private static final List<TestIdentifier> knownTests = new ArrayList<>()
+  private static volatile Diff diff = LineDiff.EMPTY
+
   private static volatile boolean itrEnabled = false
   private static volatile boolean flakyRetryEnabled = false
   private static volatile boolean earlyFlakinessDetectionEnabled = false
+  private static volatile boolean impactedTestsDetectionEnabled = false
+  private static volatile boolean testManagementEnabled = false
+
   public static final int SLOW_TEST_THRESHOLD_MILLIS = 1000
   public static final int VERY_SLOW_TEST_THRESHOLD_MILLIS = 2000
 
@@ -109,6 +117,10 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
         ], 0)
         : EarlyFlakeDetectionSettings.DEFAULT
 
+        def testManagementSettings = testManagementEnabled
+        ? new TestManagementSettings(true, 20)
+        : TestManagementSettings.DEFAULT
+
         Map<TestIdentifier, TestMetadata> skippableTestsWithMetadata = new HashMap<>()
         for (TestIdentifier skippableTest : skippableTests) {
           skippableTestsWithMetadata.put(skippableTest, new TestMetadata(false))
@@ -119,12 +131,16 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
         false,
         itrEnabled,
         flakyRetryEnabled,
+        impactedTestsDetectionEnabled,
         earlyFlakinessDetectionSettings,
+        testManagementSettings,
         itrEnabled ? "itrCorrelationId" : null,
         skippableTestsWithMetadata,
         [:],
+        quarantinedTests,
         flakyTests,
-        earlyFlakinessDetectionEnabled ? knownTests : null)
+        earlyFlakinessDetectionEnabled || CIConstants.FAIL_FAST_TEST_ORDER.equalsIgnoreCase(Config.get().ciVisibilityTestOrder) ? knownTests : null,
+        diff)
       }
     }
 
@@ -144,7 +160,11 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       codeowners,
       linesResolver,
       coverageStoreFactory,
-      new ExecutionStrategy(config, executionSettingsFactory.create(JvmInfo.CURRENT_JVM, ""))
+      new ExecutionStrategy(
+      config,
+      executionSettingsFactory.create(JvmInfo.CURRENT_JVM, ""),
+      sourcePathResolver,
+      linesResolver)
       )
     }
 
@@ -207,14 +227,49 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     "RANDOM"
   }
 
+  final ListWriter.Filter spanFilter = new ListWriter.Filter() {
+    private final Object lock = new Object()
+    private Collection<DDSpan> spans = new ArrayList<>()
+
+    @Override
+    boolean accept(List<DDSpan> trace) {
+      synchronized (lock) {
+        spans.addAll(trace)
+        lock.notifyAll()
+      }
+      return true
+    }
+
+    boolean waitForSpan(Predicate<DDSpan> predicate, long timeoutMillis) {
+      long deadline = System.currentTimeMillis() + timeoutMillis
+      synchronized (lock) {
+        while (!spans.stream().anyMatch(predicate)) {
+          def timeLeft = deadline - System.currentTimeMillis()
+          if (timeLeft > 0) {
+            lock.wait(timeLeft)
+          } else {
+            return false
+          }
+        }
+        return true
+      }
+    }
+  }
+
   @Override
   void setup() {
     skippableTests.clear()
+    quarantinedTests.clear()
     flakyTests.clear()
     knownTests.clear()
+    diff = LineDiff.EMPTY
     itrEnabled = false
     flakyRetryEnabled = false
     earlyFlakinessDetectionEnabled = false
+    impactedTestsDetectionEnabled = false
+    testManagementEnabled = false
+
+    TEST_WRITER.setFilter(spanFilter)
   }
 
   def givenSkippableTests(List<TestIdentifier> tests) {
@@ -224,12 +279,38 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
 
   def givenFlakyTests(List<TestIdentifier> tests) {
     flakyTests.addAll(tests)
-    flakyRetryEnabled = true
   }
 
   def givenKnownTests(List<TestIdentifier> tests) {
     knownTests.addAll(tests)
-    earlyFlakinessDetectionEnabled = true
+  }
+
+  def givenQuarantinedTests(List<TestIdentifier> tests) {
+    quarantinedTests.addAll(tests)
+  }
+
+  def givenDiff(Diff diff) {
+    this.diff = diff
+  }
+
+  def givenFlakyRetryEnabled(boolean flakyRetryEnabled) {
+    this.flakyRetryEnabled = flakyRetryEnabled
+  }
+
+  def givenEarlyFlakinessDetectionEnabled(boolean earlyFlakinessDetectionEnabled) {
+    this.earlyFlakinessDetectionEnabled = earlyFlakinessDetectionEnabled
+  }
+
+  def givenImpactedTestsDetectionEnabled(boolean impactedTestsDetectionEnabled) {
+    this.impactedTestsDetectionEnabled = impactedTestsDetectionEnabled
+  }
+
+  def givenTestManagementEnabled(boolean testManagementEnabled) {
+    this.testManagementEnabled = testManagementEnabled
+  }
+
+  def givenTestsOrder(String testsOrder) {
+    injectSysConfig(CiVisibilityConfig.CIVISIBILITY_TEST_ORDER, testsOrder)
   }
 
   @Override
@@ -245,14 +326,18 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     injectSysConfig(CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED, "true")
     injectSysConfig(CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ENABLED, "true")
     injectSysConfig(CiVisibilityConfig.CIVISIBILITY_EARLY_FLAKE_DETECTION_LOWER_LIMIT, "1")
+    injectSysConfig(CiVisibilityConfig.TEST_MANAGEMENT_ENABLED, "true")
+    injectSysConfig(CiVisibilityConfig.TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES, "20")
   }
 
   def cleanupSpec() {
     Files.deleteIfExists(agentKeyFile)
   }
 
-  def assertSpansData(String testcaseName, int expectedTracesCount, Map<String, String> replacements = [:]) {
-    TEST_WRITER.waitForTraces(expectedTracesCount)
+  def assertSpansData(String testcaseName, Map<String, String> replacements = [:]) {
+    Predicate<DDSpan> sessionSpan = span -> span.spanType == "test_session_end"
+    spanFilter.waitForSpan(sessionSpan, TimeUnit.SECONDS.toMillis(20))
+
     def traces = TEST_WRITER.toList()
 
     def events = getEventsAsJson(traces)
@@ -263,15 +348,42 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     ] + replacements
 
     // uncomment to generate expected data templates
-    //      def clazz = this.getClass()
-    //      def resourceName = clazz.name.replace('.', '/') + ".class"
-    //      def classfilePath = clazz.getResource(resourceName).toURI().schemeSpecificPart
-    //      def modulePath = classfilePath.substring(0, classfilePath.indexOf("/build/classes"))
-    //      def baseTemplatesPath = modulePath + "/src/test/resources/" + testcaseName
-    //      CiVisibilityTestUtils.generateTemplates(baseTemplatesPath, events, coverages, additionalReplacements)
-    //      return [:]
+    //          def clazz = this.getClass()
+    //          def resourceName = "/" + clazz.name.replace('.', '/') + ".class"
+    //          def classfilePath = clazz.getResource(resourceName).toURI().schemeSpecificPart
+    //          def modulePath = classfilePath.substring(0, classfilePath.indexOf("/build/classes"))
+    //          def baseTemplatesPath = modulePath + "/src/test/resources/" + testcaseName
+    //          CiVisibilityTestUtils.generateTemplates(baseTemplatesPath, events, coverages, additionalReplacements)
+    //          return [:]
 
     return CiVisibilityTestUtils.assertData(testcaseName, events, coverages, additionalReplacements)
+  }
+
+  def assertTestsOrder(List<TestIdentifier> expectedOrder) {
+    TEST_WRITER.waitForTraces(expectedOrder.size() + 1)
+    def traces = TEST_WRITER.toList()
+    def events = getEventsAsJson(traces)
+    def identifiers = getTestIdentifiers(events)
+    if (identifiers != expectedOrder) {
+      throw new AssertionError("Expected order: $expectedOrder, but got: $identifiers")
+    }
+    return true
+  }
+
+  def getTestIdentifiers(List<Map> events) {
+    events.sort(Comparator.comparing { it['content']['start'] as Long })
+    def testIdentifiers = []
+    for (Map event : events) {
+      if (event['content']['meta']['test.name']) {
+        testIdentifiers.add(test(event['content']['meta']['test.suite'] as String, event['content']['meta']['test.name'] as String))
+      }
+    }
+    return testIdentifiers
+  }
+
+  def test(String suite, String name, String parameters = null) {
+
+    return new TestIdentifier(suite, name, parameters)
   }
 
   def getEventsAsJson(List<List<DDSpan>> traces) {
@@ -309,4 +421,12 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
   abstract String instrumentedLibraryName()
 
   abstract String instrumentedLibraryVersion()
+
+  BitSet lines(int ... setBits) {
+    BitSet bitSet = new BitSet()
+    for (int bit : setBits) {
+      bitSet.set(bit)
+    }
+    return bitSet
+  }
 }

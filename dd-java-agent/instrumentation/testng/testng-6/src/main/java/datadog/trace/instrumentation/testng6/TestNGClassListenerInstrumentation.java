@@ -20,7 +20,7 @@ import org.testng.annotations.DataProvider;
 
 @AutoService(InstrumenterModule.class)
 public class TestNGClassListenerInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   private final String commonPackageName = Strings.getPackageName(TestNGUtils.class.getName());
 
@@ -65,6 +65,7 @@ public class TestNGClassListenerInstrumentation extends InstrumenterModule.CiVis
   }
 
   public static class InvokeBeforeClassAdvice {
+    @SuppressWarnings("bytebuddy-exception-suppression")
     @Advice.OnMethodEnter
     public static void invokeBeforeClass(
         @Advice.FieldValue("m_testContext") final ITestContext testContext,
@@ -82,6 +83,7 @@ public class TestNGClassListenerInstrumentation extends InstrumenterModule.CiVis
   }
 
   public static class InvokeAfterClassAdvice {
+    @SuppressWarnings("bytebuddy-exception-suppression")
     @Advice.OnMethodExit
     public static void invokeAfterClass(
         @Advice.FieldValue("m_testContext") final ITestContext testContext,

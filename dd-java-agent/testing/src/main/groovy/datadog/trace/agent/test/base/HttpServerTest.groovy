@@ -28,6 +28,7 @@ import datadog.trace.api.iast.IastContext
 import datadog.trace.api.normalize.SimpleHttpPathNormalizer
 import datadog.trace.bootstrap.blocking.BlockingActionHelper
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.URIUtils
@@ -46,6 +47,8 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
 import javax.annotation.Nonnull
+import java.util.concurrent.ExecutorCompletionService
+import java.util.concurrent.Executors
 import java.util.function.BiFunction
 import java.util.function.Function
 import java.util.function.Supplier
@@ -97,7 +100,11 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     return key + ":" + value
   }
   static {
-    ((ch.qos.logback.classic.Logger) SERVER_LOGGER).setLevel(Level.DEBUG)
+    try {
+      ((ch.qos.logback.classic.Logger) SERVER_LOGGER).setLevel(Level.DEBUG)
+    } catch (Throwable t) {
+      SERVER_LOGGER.warn("Unable to set debug level for server logger", t)
+    }
   }
 
   @Override
@@ -347,6 +354,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     false
   }
 
+  boolean testBlockingErrorTypeSet() {
+    true
+  }
+
   /** Tomcat 5.5 can't seem to handle the encoded URIs */
   boolean testEncodedPath() {
     true
@@ -375,6 +386,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   boolean testSessionId() {
     false // not all servers support session ids
+  }
+
+  boolean testParallelRequest() {
+    true
   }
 
   @Override
@@ -523,10 +538,21 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/4690", suites = ["MuleHttpServerForkedTest"])
   def "test success with #count requests"() {
     setup:
+    def responses
     def request = request(SUCCESS, method, body).build()
-    List<Response> responses = (1..count).collect {
-      return client.newCall(request).execute()
+    if (testParallelRequest()) {
+      def executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())
+      def completionService = new ExecutorCompletionService(executor)
+      (1..count).each {
+        completionService.submit {
+          client.newCall(request).execute()
+        }
+      }
+      responses = (1..count).collect { completionService.take().get() }
+    } else {
+      responses = (1..count).collect {client.newCall(request).execute()}
     }
+
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
@@ -1686,9 +1712,11 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     List<DDSpan> spans = TEST_WRITER.flatten()
     spans.find { it.tags['http.status_code'] == 413 } != null
     spans.find { it.tags['appsec.blocked'] == 'true' } != null
-    spans.find {
-      it.error &&
-      it.tags['error.type'] == BlockingException.name } != null
+    if (testBlockingErrorTypeSet()) {
+      spans.find {
+        it.error &&
+        it.tags['error.type'] == BlockingException.name } != null
+    }
 
     and:
     if (isDataStreamsEnabled()) {
@@ -1961,6 +1989,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         }
         if (null != expectedServerSpanRoute) {
           "$Tags.HTTP_ROUTE" expectedServerSpanRoute
+        }
+        if (span.getTag(InstrumentationTags.SERVLET_PATH) != null) {
+          assert span.getTag(InstrumentationTags.SERVLET_PATH).toString().startsWith("/")
         }
         if (null != expectedExtraErrorInformation) {
           addTags(expectedExtraErrorInformation)

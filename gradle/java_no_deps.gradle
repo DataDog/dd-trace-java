@@ -291,17 +291,26 @@ ext.getJavaLauncherFor = (javaVersionInteger) -> {
 def isJavaVersionAllowedForProperty(JavaVersion version, String propertyPrefix = "") {
   def minProp = propertyPrefix.isEmpty() ? 'minJavaVersionForTests' : "${propertyPrefix}MinJavaVersionForTests"
   def maxProp = propertyPrefix.isEmpty() ? 'maxJavaVersionForTests' : "${propertyPrefix}MaxJavaVersionForTests"
-  if (project.hasProperty(minProp) && project.getProperty(minProp).compareTo(version) > 0) {
+  def definedMin = project.hasProperty(minProp)
+  def definedMax = project.hasProperty(maxProp)
+  if (definedMin && project.getProperty(minProp).compareTo(version) > 0) {
     return false
   }
-  if (project.hasProperty(maxProp) && project.getProperty(maxProp).compareTo(version) < 0) {
+  //default to the general min if defined and specific one is was not defined
+  if (!propertyPrefix.isEmpty() && !definedMin && project.hasProperty('minJavaVersionForTests') && project.getProperty('minJavaVersionForTests').compareTo(version) > 0) {
+    return false
+  }
+  if (definedMax && project.getProperty(maxProp).compareTo(version) < 0) {
+    return false
+  }
+  if (!propertyPrefix.isEmpty() && !definedMax && project.hasProperty('maxJavaVersionForTests') && project.getProperty('maxJavaVersionForTests').compareTo(version) < 0) {
     return false
   }
   return true
 }
 
 def isJavaVersionAllowed(JavaVersion version, String testTaskName) {
-  return isJavaVersionAllowedForProperty(version) && isJavaVersionAllowedForProperty(version, testTaskName)
+  return isJavaVersionAllowedForProperty(version, testTaskName)
 }
 
 def isJavaLanguageVersionAllowed(JavaLanguageVersion languageVersion, String testTaskName) {

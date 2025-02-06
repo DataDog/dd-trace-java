@@ -28,6 +28,7 @@ import datadog.trace.civisibility.domain.buildsystem.ProxyTestSession;
 import datadog.trace.civisibility.domain.headless.HeadlessTestSession;
 import datadog.trace.civisibility.domain.manualapi.ManualApiTestSession;
 import datadog.trace.civisibility.events.BuildEventsHandlerImpl;
+import datadog.trace.civisibility.events.NoOpTestEventsHandler;
 import datadog.trace.civisibility.events.TestEventsHandlerImpl;
 import datadog.trace.civisibility.ipc.SignalServer;
 import datadog.trace.civisibility.source.index.RepoIndex;
@@ -102,6 +103,8 @@ public class CiVisibilitySystem {
           new TestEventsHandlerFactory(
               services, repoServices, coverageServices, executionSettings));
       CoveragePerTestBridge.registerCoverageStoreRegistry(coverageServices.coverageStoreFactory);
+    } else {
+      InstrumentationBridge.registerTestEventsHandlerFactory(new NoOpTestEventsHandler.Factory());
     }
   }
 
@@ -155,7 +158,7 @@ public class CiVisibilitySystem {
                 services, repoServices, coverageServices, executionSettings);
       } else {
         sessionFactory =
-            headlessTestFrameworkEssionFactory(
+            headlessTestFrameworkSessionFactory(
                 services, repoServices, coverageServices, executionSettings);
       }
     }
@@ -235,7 +238,11 @@ public class CiVisibilitySystem {
           new TestDecoratorImpl(component, sessionName, testCommand, repoServices.ciTags);
 
       ExecutionStrategy executionStrategy =
-          new ExecutionStrategy(services.config, executionSettings);
+          new ExecutionStrategy(
+              services.config,
+              executionSettings,
+              repoServices.sourcePathResolver,
+              services.linesResolver);
 
       return new ProxyTestSession(
           services.processHierarchy.parentProcessModuleContext,
@@ -252,7 +259,7 @@ public class CiVisibilitySystem {
     };
   }
 
-  private static TestFrameworkSession.Factory headlessTestFrameworkEssionFactory(
+  private static TestFrameworkSession.Factory headlessTestFrameworkSessionFactory(
       CiVisibilityServices services,
       CiVisibilityRepoServices repoServices,
       CiVisibilityCoverageServices.Child coverageServices,
@@ -265,7 +272,11 @@ public class CiVisibilitySystem {
           new TestDecoratorImpl(component, sessionName, projectName, repoServices.ciTags);
 
       ExecutionStrategy executionStrategy =
-          new ExecutionStrategy(services.config, executionSettings);
+          new ExecutionStrategy(
+              services.config,
+              executionSettings,
+              repoServices.sourcePathResolver,
+              services.linesResolver);
       return new HeadlessTestSession(
           projectName,
           startTime,

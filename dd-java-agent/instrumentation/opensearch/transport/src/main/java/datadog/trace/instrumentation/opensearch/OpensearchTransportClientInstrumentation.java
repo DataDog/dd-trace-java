@@ -24,7 +24,7 @@ import org.opensearch.action.ActionType;
 
 @AutoService(InstrumenterModule.class)
 public class OpensearchTransportClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public OpensearchTransportClientInstrumentation() {
     super("opensearch", "opensearch-transport");

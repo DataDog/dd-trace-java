@@ -12,7 +12,7 @@ import org.springframework.core.io.buffer.DataBuffer;
 /** @see DataBuffer#asInputStream() */
 @AutoService(InstrumenterModule.class)
 public class DataBufferInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
   public DataBufferInstrumentation() {
     super("spring-webflux");
   }

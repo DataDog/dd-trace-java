@@ -1,7 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.decorator.http
 
 import datadog.trace.api.interceptor.MutableSpan
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
 import spock.lang.Specification
 
 class ClientIpAddressResolverSpecification extends Specification {
@@ -9,7 +9,7 @@ class ClientIpAddressResolverSpecification extends Specification {
   void 'test with custom header value=#headerValue'() {
     setup:
     MutableSpan span = Stub()
-    def context = Mock(AgentSpan.Context.Extracted)
+    def context = Mock(AgentSpanContext.Extracted)
     1 * context.getCustomIpHeader() >> headerValue
 
     expect:
@@ -34,7 +34,7 @@ class ClientIpAddressResolverSpecification extends Specification {
     setup:
     MutableSpan span = Stub()
     def method = "get${headerToCamelCase(header)}"
-    def context = Mock(AgentSpan.Context.Extracted)
+    def context = Mock(AgentSpanContext.Extracted)
     1 * context."$method"() >> headerValue
 
     expect:
@@ -75,7 +75,7 @@ class ClientIpAddressResolverSpecification extends Specification {
   void 'test recognition strategy with custom header'() {
     setup:
     MutableSpan span = Stub()
-    def context = Mock(AgentSpan.Context.Extracted)
+    def context = Mock(AgentSpanContext.Extracted)
 
     when:
     def ip = ClientIpAddressResolver.resolve(context, span)
@@ -90,7 +90,7 @@ class ClientIpAddressResolverSpecification extends Specification {
   void 'test recognition strategy without custom header'() {
     setup:
     MutableSpan span = Mock()
-    def context = Mock(AgentSpan.Context.Extracted)
+    def context = Mock(AgentSpanContext.Extracted)
 
     when:
     def ip = ClientIpAddressResolver.resolve(context, span)
@@ -132,7 +132,7 @@ class ClientIpAddressResolverSpecification extends Specification {
   void 'no custom header public IP address is preferred'() {
     setup:
     MutableSpan span = Mock()
-    def context = Mock(AgentSpan.Context.Extracted)
+    def context = Mock(AgentSpanContext.Extracted)
 
     when:
     def ip = ClientIpAddressResolver.resolve(context, span)
@@ -150,7 +150,7 @@ class ClientIpAddressResolverSpecification extends Specification {
   void 'no custom header all headers are reported'() {
     setup:
     MutableSpan span = Mock()
-    def context = Mock(AgentSpan.Context.Extracted)
+    def context = Mock(AgentSpanContext.Extracted)
 
     when:
     def ip = ClientIpAddressResolver.resolve(context, span)

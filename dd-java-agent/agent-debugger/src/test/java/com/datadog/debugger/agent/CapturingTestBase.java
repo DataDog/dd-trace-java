@@ -3,18 +3,14 @@ package com.datadog.debugger.agent;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.NOT_CAPTURED_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotTestHelper.VALUE_ADAPTER;
 import static com.datadog.debugger.util.TestHelper.setFieldInConfig;
-import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
-import com.datadog.debugger.probe.SpanDecorationProbe;
-import com.datadog.debugger.probe.TriggerProbe;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.util.MoshiHelper;
@@ -80,16 +76,6 @@ public class CapturingTestBase {
 
   protected ProbeStatusSink probeStatusSink;
 
-  protected static LogProbe createSourceFileProbe(ProbeId id, String sourceFile, int line) {
-    return new LogProbe.Builder()
-        .language(LANGUAGE)
-        .probeId(id)
-        .captureSnapshot(true)
-        .where(null, null, null, line, sourceFile)
-        .evaluateAt(MethodLocation.EXIT)
-        .build();
-  }
-
   @AfterEach
   public void after() {
     if (currentTransformer != null) {
@@ -102,7 +88,7 @@ public class CapturingTestBase {
 
   @BeforeEach
   public void before() {
-    setFieldInConfig(Config.get(), "debuggerCaptureTimeout", 200);
+    setFieldInConfig(Config.get(), "dynamicInstrumentationCaptureTimeout", 200);
     instr = ByteBuddyAgent.install();
   }
 
@@ -313,58 +299,58 @@ public class CapturingTestBase {
     assertEquals(value, MoshiSnapshotTestHelper.getValue(watch));
   }
 
-  protected TestSnapshotListener installSingleProbe(
-      String typeName, String methodName, String signature, String... lines) {
-    LogProbe logProbes =
-        createProbe(CapturedSnapshotTest.PROBE_ID, typeName, methodName, signature, lines);
-    return installProbes(logProbes);
+  protected TestSnapshotListener installMethodProbe(
+      String typeName, String methodName, String signature) {
+    LogProbe logProbe =
+        createMethodProbe(CapturedSnapshotTest.PROBE_ID, typeName, methodName, signature);
+    return installProbes(logProbe);
   }
 
-  protected static LogProbe createProbe(
-      ProbeId id, String typeName, String methodName, String signature, String... lines) {
-    return createProbeBuilder(id, typeName, methodName, signature, lines).build();
+  protected TestSnapshotListener installLineProbe(ProbeId id, String typeName, int line) {
+    LogProbe logProbe = createLineProbe(id, typeName, line);
+    return installProbes(logProbe);
   }
 
-  protected TestSnapshotListener installProbes(LogProbe... logProbes) {
+  protected static LogProbe createMethodProbe(
+      ProbeId id, String typeName, String methodName, String signature) {
+    return createProbeBuilder(id, typeName, methodName, signature).build();
+  }
+
+  protected static LogProbe createLineProbe(ProbeId id, String sourceFile, int line) {
+    return createProbeBuilder(id, sourceFile, line).build();
+  }
+
+  protected TestSnapshotListener installProbes(ProbeDefinition... probes) {
     return installProbes(
-        Configuration.builder()
-            .setService(CapturedSnapshotTest.SERVICE_NAME)
-            .addLogProbes(asList(logProbes))
-            .build() /*, logProbes*/);
+        Configuration.builder().setService(CapturedSnapshotTest.SERVICE_NAME).add(probes).build());
   }
 
   public static LogProbe.Builder createProbeBuilder(
       ProbeId id, String typeName, String methodName, String signature) {
-    return createProbeBuilder(id, typeName, methodName, signature, (String[]) null);
-  }
-
-  public static LogProbe.Builder createProbeBuilder(
-      ProbeId id, String typeName, String methodName, String signature, String... lines) {
-    return LogProbe.builder()
-        .language(LANGUAGE)
-        .probeId(id)
+    return createProbeBuilder(id)
         .captureSnapshot(true)
-        .where(typeName, methodName, signature, lines)
+        .where(typeName, methodName, signature, (String[]) null)
         // Increase sampling limit to avoid being sampled during tests
         .sampling(new LogProbe.Sampling(100));
   }
 
-  protected TestSnapshotListener installProbes(
-      Configuration configuration, ProbeDefinition... probes) {
+  public static LogProbe.Builder createProbeBuilder(ProbeId id, String sourceFile, int line) {
+    return createProbeBuilder(id)
+        .captureSnapshot(true)
+        .where(sourceFile, line)
+        // Increase sampling limit to avoid being sampled during tests
+        .sampling(new LogProbe.Sampling(100));
+  }
 
-    config = mock(Config.class);
-    when(config.isDebuggerEnabled()).thenReturn(true);
-    when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
-    when(config.isDebuggerVerifyByteCode()).thenReturn(false);
-    when(config.getFinalDebuggerSnapshotUrl())
-        .thenReturn("http://localhost:8126/debugger/v1/input");
-    when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
-    when(config.getDebuggerCodeOriginMaxUserFrames()).thenReturn(20);
+  public static LogProbe.Builder createProbeBuilder(ProbeId id) {
+    return LogProbe.builder().language(LANGUAGE).probeId(id);
+  }
+
+  protected TestSnapshotListener installProbes(Configuration configuration) {
+    config = getConfig();
     instrumentationListener = new MockInstrumentationListener();
     probeStatusSink = mock(ProbeStatusSink.class);
-
     TestSnapshotListener listener = new TestSnapshotListener(config, probeStatusSink);
-
     configurationUpdater =
         new ConfigurationUpdater(
             instr,
@@ -372,78 +358,57 @@ public class CapturingTestBase {
             config,
             new DebuggerSink(config, probeStatusSink),
             new ClassesToRetransformFinder());
-
     currentTransformer =
         new DebuggerTransformer(config, configuration, instrumentationListener, listener);
     instr.addTransformer(currentTransformer);
     DebuggerAgentHelper.injectSink(listener);
-
     DebuggerContext.initProbeResolver(
-        (encodedId) ->
-            resolver(
-                encodedId,
-                configuration.getLogProbes(),
-                configuration.getSpanDecorationProbes(),
-                configuration.getTriggerProbes()));
+        (encodedId) -> resolver(encodedId, configuration.getDefinitions()));
     DebuggerContext.initClassFilter(new DenyListHelper(null));
     DebuggerContext.initValueSerializer(new JsonSnapshotSerializer());
 
-    Collection<LogProbe> logProbes = configuration.getLogProbes();
-    if (logProbes != null) {
-      for (LogProbe probe : logProbes) {
-        if (probe.getSampling() != null) {
-          ProbeRateLimiter.setRate(
-              probe.getId(), probe.getSampling().getEventsPerSecond(), probe.isCaptureSnapshot());
-        }
+    for (LogProbe probe : configuration.getLogProbes()) {
+      if (probe.getSampling() != null) {
+        ProbeRateLimiter.setRate(
+            probe.getId(), probe.getSampling().getEventsPerSecond(), probe.isCaptureSnapshot());
       }
     }
     if (configuration.getSampling() != null) {
       ProbeRateLimiter.setGlobalSnapshotRate(configuration.getSampling().getEventsPerSecond());
     }
-
     return listener;
   }
 
-  public static ProbeImplementation resolver(
-      String encodedId,
-      Collection<LogProbe> logProbes,
-      Collection<SpanDecorationProbe> spanDecorationProbes,
-      Collection<TriggerProbe> triggerProbes) {
-    if (logProbes != null) {
-      for (LogProbe probe : logProbes) {
-        if (probe.getProbeId().getEncodedId().equals(encodedId)) {
-          return probe;
-        }
-      }
-    }
-    if (spanDecorationProbes != null) {
-      for (SpanDecorationProbe probe : spanDecorationProbes) {
-        if (probe.getProbeId().getEncodedId().equals(encodedId)) {
-          return probe;
-        }
-      }
-    }
-    if (triggerProbes != null) {
-      for (TriggerProbe probe : triggerProbes) {
-        if (probe.getProbeId().getEncodedId().equals(encodedId)) {
-          return probe;
-        }
-      }
-    }
+  public static Config getConfig() {
+    Config config = Config.get();
+    setFieldInConfig(config, "dynamicInstrumentationEnabled", true);
+    setFieldInConfig(config, "dynamicInstrumentationClassFileDumpEnabled", true);
+    setFieldInConfig(config, "dynamicInstrumentationVerifyByteCode", false);
+    setFieldInConfig(config, "debuggerCodeOriginMaxUserFrames", 20);
 
-    return null;
+    return config;
   }
 
-  protected TestSnapshotListener installSingleProbeAtExit(
-      String typeName, String methodName, String signature, String... lines) {
+  public ProbeImplementation resolver(String encodedId, List<ProbeDefinition> probes) {
+    for (ProbeDefinition probe : probes) {
+      if (probe.getProbeId().getEncodedId().equals(encodedId)) {
+        return probe;
+      }
+    }
+
+    return configurationUpdater.resolve(encodedId);
+  }
+
+  protected TestSnapshotListener installMethodProbeAtExit(
+      String typeName, String methodName, String signature) {
     LogProbe logProbes =
-        createProbeAtExit(CapturedSnapshotTest.PROBE_ID, typeName, methodName, signature, lines);
+        createMethodProbeAtExit(CapturedSnapshotTest.PROBE_ID, typeName, methodName, signature);
     return installProbes(logProbes);
   }
 
-  protected static LogProbe createProbeAtExit(
-      ProbeId id, String typeName, String methodName, String signature, String... lines) {
-    return createProbeBuilder(id, typeName, methodName, signature, lines)
+  protected static LogProbe createMethodProbeAtExit(
+      ProbeId id, String typeName, String methodName, String signature) {
+    return createProbeBuilder(id, typeName, methodName, signature)
         .evaluateAt(MethodLocation.EXIT)
         .build();
   }

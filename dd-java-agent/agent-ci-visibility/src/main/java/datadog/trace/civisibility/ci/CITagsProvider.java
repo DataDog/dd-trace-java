@@ -1,6 +1,6 @@
 package datadog.trace.civisibility.ci;
 
-import static datadog.trace.util.Strings.toJson;
+import static datadog.json.JsonMapper.toJson;
 
 import datadog.trace.api.DDTags;
 import datadog.trace.api.git.GitInfo;
@@ -21,7 +21,7 @@ public class CITagsProvider {
     this.gitInfoProvider = gitInfoProvider;
   }
 
-  public Map<String, String> getCiTags(CIInfo ciInfo) {
+  public Map<String, String> getCiTags(CIInfo ciInfo, PullRequestInfo pullRequestInfo) {
     String repoRoot = ciInfo.getNormalizedCiWorkspace();
     GitInfo gitInfo = gitInfoProvider.getGitInfo(repoRoot);
 
@@ -39,6 +39,9 @@ public class CITagsProvider {
         .withCiNodeLabels(ciInfo.getCiNodeLabels())
         .withCiEnvVars(ciInfo.getCiEnvVars())
         .withAdditionalTags(ciInfo.getAdditionalTags())
+        .withPullRequestBaseBranch(pullRequestInfo)
+        .withPullRequestBaseBranchSha(pullRequestInfo)
+        .withGitCommitHeadSha(pullRequestInfo)
         .withGitRepositoryUrl(gitInfo)
         .withGitCommit(gitInfo)
         .withGitBranch(gitInfo)
@@ -116,6 +119,20 @@ public class CITagsProvider {
         putTagValue(e.getKey(), e.getValue());
       }
       return this;
+    }
+
+    public CITagsBuilder withPullRequestBaseBranch(final PullRequestInfo pullRequestInfo) {
+      return putTagValue(
+          Tags.GIT_PULL_REQUEST_BASE_BRANCH, pullRequestInfo.getPullRequestBaseBranch());
+    }
+
+    public CITagsBuilder withPullRequestBaseBranchSha(final PullRequestInfo pullRequestInfo) {
+      return putTagValue(
+          Tags.GIT_PULL_REQUEST_BASE_BRANCH_SHA, pullRequestInfo.getPullRequestBaseBranchSha());
+    }
+
+    public CITagsBuilder withGitCommitHeadSha(final PullRequestInfo pullRequestInfo) {
+      return putTagValue(Tags.GIT_COMMIT_HEAD_SHA, pullRequestInfo.getGitCommitHeadSha());
     }
 
     public CITagsBuilder withGitRepositoryUrl(final GitInfo gitInfo) {

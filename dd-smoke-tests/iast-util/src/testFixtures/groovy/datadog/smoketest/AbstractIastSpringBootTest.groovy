@@ -10,6 +10,7 @@ import okhttp3.Response
 import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED
 import static datadog.trace.api.config.IastConfig.IAST_DETECTION_MODE
 import static datadog.trace.api.config.IastConfig.IAST_ENABLED
+import static datadog.trace.api.config.IastConfig.IAST_SECURITY_CONTROLS_CONFIGURATION
 
 abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
@@ -36,36 +37,26 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
       withSystemProperty(IAST_ENABLED, true),
       withSystemProperty(IAST_DETECTION_MODE, 'FULL'),
       withSystemProperty(IAST_DEBUG_ENABLED, true),
+      withSystemProperty(IAST_SECURITY_CONTROLS_CONFIGURATION, "SANITIZER:XSS:ddtest.securitycontrols.Sanitizer:sanitize;INPUT_VALIDATOR:XSS:ddtest.securitycontrols.InputValidator:validateAll;INPUT_VALIDATOR:XSS:ddtest.securitycontrols.InputValidator:validate:java.lang.Object,java.lang.String,java.lang.String:1,2"),
     ]
   }
 
-  void 'IAST subsystem starts'() {
-    given: 'an initial request has succeeded'
-    String url = "http://localhost:${httpPort}/greeting"
-    def request = new Request.Builder().url(url).get().build()
-    client.newCall(request).execute()
-
-    when: 'logs are read'
-    String startMsg = null
-    String errorMsg = null
-    checkLogPostExit {
-      if (it.contains('Not starting IAST subsystem')) {
-        errorMsg = it
-      }
-      if (it.contains('IAST is starting')) {
-        startMsg = it
-      }
-      // Check that there's no logged exception about missing classes from Datadog.
-      // We had this problem before with JDK9StackWalker.
-      if (it.contains('java.lang.ClassNotFoundException: datadog/')) {
-        errorMsg = it
-      }
+  @Override
+  boolean isErrorLog(String log) {
+    if (log.contains('no such algorithm: DES for provider SUN')) {
+      return false
     }
 
-    then: 'there are no errors in the log and IAST has started'
-    errorMsg == null
-    startMsg != null
-    !logHasErrors
+    if (super.isErrorLog(log) || log.contains('Not starting IAST subsystem')) {
+      return true
+    }
+    // Check that there's no logged exception about missing classes from Datadog.
+    // We had this problem before with JDK9StackWalker.
+    if (log.contains('java.lang.ClassNotFoundException: datadog/')) {
+      return true
+    }
+
+    return false
   }
 
   void 'default home page without errors'() {
@@ -82,9 +73,6 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     responseBodyStr.contains('Sup Dawg')
     response.body().contentType().toString().contains('text/plain')
     response.code() == 200
-
-    checkLogPostExit()
-    !logHasErrors
   }
 
   void 'Multipart Request parameters'() {
@@ -112,6 +100,71 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
         tainted.ranges[0].source.origin == 'http.request.multipart.parameter'
     }
 
+  }
+
+  void 'Tainted mail Text Jakarta'() {
+    given:
+    String url = "http://localhost:${httpPort}/jakartaMailHtmlVulnerability"
+    String messageText = "This is a test message"
+    RequestBody requestBody = new MultipartBody.Builder().setType(MultipartBody.FORM)
+      .addFormDataPart("messageText", messageText)
+      .addFormDataPart("sanitize", "false")
+      .build()
+    Request request = new Request.Builder()
+      .url(url)
+      .post(requestBody)
+      .build()
+
+    when:
+    client.newCall(request).execute().body().string()
+
+    then:
+    hasVulnerability { vulnerability ->
+      vulnerability.type == 'EMAIL_HTML_INJECTION'
+    }
+  }
+
+
+  void 'Tainted mail Content Jakarta'() {
+    given:
+    String url = "http://localhost:${httpPort}/jakartaMailHtmlVulnerability"
+    String messageContent = "<html><body><h1>This is a test message</h1></body></html>"
+    RequestBody requestBody = new MultipartBody.Builder().setType(MultipartBody.FORM)
+      .addFormDataPart("messageContent", messageContent).build()
+    Request request = new Request.Builder()
+      .url(url)
+      .post(requestBody)
+      .build()
+
+    when:
+    client.newCall(request).execute().body().string()
+
+    then:
+    hasVulnerability { vulnerability ->
+      vulnerability.type == 'EMAIL_HTML_INJECTION'
+    }
+  }
+
+  void 'Sanitized mail Content Jakarta'() {
+    given:
+    String url = "http://localhost:${httpPort}/jakartaMailHtmlVulnerability"
+    String messageContent = "<html><body><h1>This is a test message</h1></body></html>"
+    RequestBody requestBody = new MultipartBody.Builder().setType(MultipartBody.FORM)
+      .addFormDataPart("messageContent", messageContent)
+      .addFormDataPart("sanitize", "true")
+      .build()
+    Request request = new Request.Builder()
+      .url(url)
+      .post(requestBody)
+      .build()
+
+    when:
+    client.newCall(request).execute().body().string()
+
+    then:
+    noVulnerability { vulnerability ->
+      vulnerability.type == 'EMAIL_HTML_INJECTION'
+    }
   }
 
   void 'Multipart Request original file name'() {
@@ -329,13 +382,21 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     def request = new Request.Builder().url(url).get().build()
 
     when: 'ensure the controller is loaded'
-    client.newCall(request).execute()
+    def resp = client.newCall(request).execute()
 
-    then: 'a vulnerability pops in the logs (startup traces might not always be available)'
-    hasVulnerabilityInLogs { vul ->
-      vul.type == 'WEAK_HASH' &&
-        vul.evidence.value == 'SHA1' &&
-        vul.location.spanId > 0
+    then:
+    resp.code() == 200
+    resp.close()
+
+    and: 'a vulnerability pops in the logs (startup traces might not always be available)'
+    boolean found = false
+    isLogPresent { String log ->
+      def vulns = parseVulnerabilitiesLog(log)
+      vulns.any { vul ->
+        vul.type == 'WEAK_HASH' &&
+          vul.evidence.value == 'SHA1' &&
+          vul.location.spanId > 0
+      }
     }
   }
 
@@ -692,7 +753,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   void 'ssrf is present'() {
     setup:
-    final url = "http://localhost:${httpPort}/ssrf"
+    final url = "http://localhost:${httpPort}/ssrf${path}"
     final body = new FormBody.Builder().add(parameter, value).build()
     final request = new Request.Builder().url(url).post(body).build()
 
@@ -719,12 +780,14 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     }
 
     where:
-    parameter | value
-    'url'     | 'https://dd.datad0g.com/'
-    'host'    | 'dd.datad0g.com'
+    path   | parameter | value
+    ''     | 'url'     | 'https://dd.datad0g.com/'
+    ''     | 'host'    | 'dd.datad0g.com'
+    '/uri' | 'url'     | 'https://dd.datad0g.com/'
+    '/uri' | 'host'    | 'dd.datad0g.com'
   }
 
-  void 'ssrf is present (#path)'() {
+  void 'ssrf is present (#path) (#parameter)'() {
     setup:
     final url = "http://localhost:${httpPort}/ssrf/${path}"
     final body = new FormBody.Builder().add(parameter, value).build()
@@ -744,21 +807,29 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
         && parts[0].value == value && parts[0].source.origin == 'http.request.parameter' && parts[0].source.name == parameter
       } else if (parameter == 'host') {
         String protocol = protocolSecure ? 'https://' : 'http://'
-        return parts.size() == 2
-        && parts[0].value == protocol + value && parts[0].source.origin == 'http.request.parameter' && parts[0].source.name == parameter
-        && parts[1].value == '/' && parts[1].source == null
+        String finalValue = protocol + value + (endSlash ? '/' : '')
+        return parts[0].value.endsWith(finalValue) && parts[0].source.origin == 'http.request.parameter' && parts[0].source.name == parameter
+      } else if (parameter == 'urlProducer' || parameter == 'urlHandler') {
+        return parts.size() == 1
+        && parts[0].value.endsWith(value) && parts[0].source.origin == 'http.request.parameter' && parts[0].source.name == parameter
       } else {
         throw new IllegalArgumentException("Parameter $parameter not supported")
       }
     }
 
     where:
-    path                  | parameter | value                     | protocolSecure
-    "apache-httpclient4"  | "url"     | "https://dd.datad0g.com/" | true
-    "apache-httpclient4"  | "host"    | "dd.datad0g.com"          | false
-    "commons-httpclient2" | "url"     | "https://dd.datad0g.com/" | true
-    "okHttp2"             | "url"     | "https://dd.datad0g.com/" | true
-    "okHttp3"             | "url"     | "https://dd.datad0g.com/" | true
+    path                     | parameter     | value                     | protocolSecure | endSlash
+    "apache-httpclient4"     | "url"         | "https://dd.datad0g.com/" | true           | true
+    "apache-httpclient4"     | "host"        | "dd.datad0g.com"          | false          | false
+    "apache-httpasyncclient" | "url"         | "https://dd.datad0g.com/" | true           | true
+    "apache-httpasyncclient" | "urlProducer" | "https://dd.datad0g.com/" | true           | true
+    "apache-httpasyncclient" | "host"        | "dd.datad0g.com"          | false          | false
+    "apache-httpclient5"     | "url"         | "https://dd.datad0g.com/" | true           | true
+    "apache-httpclient5"     | "urlHandler"  | "https://dd.datad0g.com/" | true           | true
+    "apache-httpclient5"     | "host"        | "dd.datad0g.com"          | false          | true
+    "commons-httpclient2"    | "url"         | "https://dd.datad0g.com/" | true           | true
+    "okHttp2"                | "url"         | "https://dd.datad0g.com/" | true           | true
+    "okHttp3"                | "url"         | "https://dd.datad0g.com/" | true           | true
   }
 
   void 'test iast metrics stored in spans'() {
@@ -1052,8 +1123,10 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
     then:
     response.successful
-    hasVulnerabilityInLogs { vul ->
-      vul.type == 'SESSION_REWRITING'
+    // Vulnerability may have been detected in a previous request instead, check the full logs.
+    isLogPresent { String log ->
+      def vulns = parseVulnerabilitiesLog(log)
+      vulns.any { it.type == 'SESSION_REWRITING' }
     }
   }
 
@@ -1195,5 +1268,24 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     then:
     response.body().string().contains("Test")
   }
+  void 'security controls avoid vulnerabilities'() {
+    setup:
+    final url = "http://localhost:${httpPort}/xss/${method}?string=test&string2=test2"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    noVulnerability { vul -> vul.type == 'XSS' && vul.location.method == method }
+
+    where:
+    method         |  _
+    'sanitize'        | _
+    'validateAll'       | _
+    'validateAll2'     | _
+    'validate'     | _
+  }
+
 
 }

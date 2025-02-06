@@ -24,7 +24,7 @@ import scala.concurrent.Future;
 
 @AutoService(InstrumenterModule.class)
 public final class AkkaHttpSingleRequestInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public AkkaHttpSingleRequestInstrumentation() {
     super("akka-http", "akka-http-client");
   }

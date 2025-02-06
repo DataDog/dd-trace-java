@@ -15,7 +15,7 @@ import org.glassfish.jersey.client.ClientRequest;
 
 @AutoService(InstrumenterModule.class)
 public class ClientRuntimeInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public ClientRuntimeInstrumentation() {
     super("jax-rs", "jaxrs", "jax-rs-client");
   }

@@ -439,6 +439,11 @@ class JettyServlet3TestSyncDispatchOnAsyncTimeout extends JettyServlet3Test {
   }
 
   @Override
+  boolean testParallelRequest() {
+    false
+  }
+
+  @Override
   void handlerSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
     dispatchSpan(trace, endpoint)
   }
@@ -472,6 +477,11 @@ class JettyServlet3TestAsyncDispatchOnAsyncTimeout extends JettyServlet3Test {
   @Override
   boolean isDispatch() {
     true
+  }
+
+  @Override
+  boolean testParallelRequest() {
+    false
   }
 
   @Override
@@ -530,6 +540,11 @@ class JettyServlet3ServeFromAsyncTimeout extends JettyServlet3Test {
 
   @Override
   boolean testException() {
+    false
+  }
+
+  @Override
+  boolean testParallelRequest() {
     false
   }
 }

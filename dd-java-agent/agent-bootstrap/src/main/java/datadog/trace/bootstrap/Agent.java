@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_STARTUP_LOGS_ENABLED;
-import static datadog.trace.api.Platform.getRuntimeVendor;
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 import static datadog.trace.api.Platform.isOracleJDK8;
 import static datadog.trace.bootstrap.Library.WILDFLY;
@@ -10,7 +9,6 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.JMX_STARTUP;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_STARTUP;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACE_STARTUP;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
-import static datadog.trace.util.Strings.getResourceName;
 import static datadog.trace.util.Strings.propertyNameToSystemPropertyName;
 import static datadog.trace.util.Strings.toEnvVar;
 
@@ -102,9 +100,13 @@ public class Agent {
         propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED), false),
     USM(propertyNameToSystemPropertyName(UsmConfig.USM_ENABLED), false),
     TELEMETRY(propertyNameToSystemPropertyName(GeneralConfig.TELEMETRY_ENABLED), true),
-    DEBUGGER(propertyNameToSystemPropertyName(DebuggerConfig.DEBUGGER_ENABLED), false),
+    DEBUGGER(
+        propertyNameToSystemPropertyName(DebuggerConfig.DYNAMIC_INSTRUMENTATION_ENABLED), false),
     EXCEPTION_DEBUGGING(
         propertyNameToSystemPropertyName(DebuggerConfig.EXCEPTION_REPLAY_ENABLED), false),
+    SPAN_ORIGIN(
+        propertyNameToSystemPropertyName(TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED),
+        false),
     DATA_JOBS(propertyNameToSystemPropertyName(GeneralConfig.DATA_JOBS_ENABLED), false),
     AGENTLESS_LOG_SUBMISSION(
         propertyNameToSystemPropertyName(GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED), false);
@@ -152,6 +154,7 @@ public class Agent {
   private static boolean telemetryEnabled = true;
   private static boolean debuggerEnabled = false;
   private static boolean exceptionDebuggingEnabled = false;
+  private static boolean spanOriginEnabled = false;
   private static boolean agentlessLogSubmissionEnabled = false;
 
   /**
@@ -263,6 +266,7 @@ public class Agent {
     telemetryEnabled = isFeatureEnabled(AgentFeature.TELEMETRY);
     debuggerEnabled = isFeatureEnabled(AgentFeature.DEBUGGER);
     exceptionDebuggingEnabled = isFeatureEnabled(AgentFeature.EXCEPTION_DEBUGGING);
+    spanOriginEnabled = isFeatureEnabled(AgentFeature.SPAN_ORIGIN);
     agentlessLogSubmissionEnabled = isFeatureEnabled(AgentFeature.AGENTLESS_LOG_SUBMISSION);
 
     if (profilingEnabled) {
@@ -325,7 +329,7 @@ public class Agent {
       if (appUsingCustomJMXBuilder) {
         log.debug("Custom JMX builder detected. Delaying JMXFetch initialization.");
         registerMBeanServerBuilderCallback(new StartJmxCallback(jmxStartDelay));
-        // one minute fail-safe in case nothing touches JMX and and callback isn't triggered
+        // one minute fail-safe in case nothing touches JMX and callback isn't triggered
         scheduleJmxStart(60 + jmxStartDelay);
       } else if (appUsingCustomLogManager) {
         log.debug("Custom logger detected. Delaying JMXFetch initialization.");
@@ -335,20 +339,31 @@ public class Agent {
       }
     }
 
-    boolean delayOkHttp = appUsingCustomLogManager && okHttpMayIndirectlyLoadJUL();
-
     /*
      * Similar thing happens with DatadogTracer on (at least) zulu-8 because it uses OkHttp which indirectly loads JFR
      * events which in turn loads LogManager. This is not a problem on newer JDKs because there JFR uses different
      * logging facility. Likewise on IBM JDKs OkHttp may indirectly load 'IBMSASL' which in turn loads LogManager.
      */
+    boolean delayOkHttp = !ciVisibilityEnabled && okHttpMayIndirectlyLoadJUL();
+    boolean waitForJUL = appUsingCustomLogManager && delayOkHttp;
+    int okHttpDelayMillis;
+    if (waitForJUL) {
+      okHttpDelayMillis = 1_000;
+    } else if (delayOkHttp) {
+      okHttpDelayMillis = 100;
+    } else {
+      okHttpDelayMillis = 0;
+    }
+
     InstallDatadogTracerCallback installDatadogTracerCallback =
-        new InstallDatadogTracerCallback(initTelemetry, inst);
-    if (delayOkHttp) {
+        new InstallDatadogTracerCallback(initTelemetry, inst, okHttpDelayMillis);
+    if (waitForJUL) {
       log.debug("Custom logger detected. Delaying Datadog Tracer initialization.");
       registerLogManagerCallback(installDatadogTracerCallback);
+    } else if (okHttpDelayMillis > 0) {
+      installDatadogTracerCallback.run(); // complete on different thread (after premain)
     } else {
-      installDatadogTracerCallback.execute();
+      installDatadogTracerCallback.execute(); // complete on primordial thread in premain
     }
 
     /*
@@ -358,7 +373,7 @@ public class Agent {
     if (profilingEnabled && !isOracleJDK8()) {
       StaticEventLogger.begin("Profiling");
 
-      if (delayOkHttp) {
+      if (waitForJUL) {
         log.debug("Custom logger detected. Delaying Profiling initialization.");
         registerLogManagerCallback(new StartProfilingAgentCallback(inst));
       } else {
@@ -492,28 +507,21 @@ public class Agent {
   }
 
   protected static class InstallDatadogTracerCallback extends ClassLoadCallBack {
-    private final InitializationTelemetry initTelemetry;
     private final Instrumentation instrumentation;
+    private final Object sco;
+    private final Class<?> scoClass;
+    private final int okHttpDelayMillis;
 
     public InstallDatadogTracerCallback(
-        InitializationTelemetry initTelemetry, Instrumentation instrumentation) {
-      this.initTelemetry = initTelemetry;
+        InitializationTelemetry initTelemetry,
+        Instrumentation instrumentation,
+        int okHttpDelayMillis) {
+      this.okHttpDelayMillis = okHttpDelayMillis;
       this.instrumentation = instrumentation;
-    }
-
-    @Override
-    public AgentThread agentThread() {
-      return TRACE_STARTUP;
-    }
-
-    @Override
-    public void execute() {
-      Object sco;
-      Class<?> scoClass;
       try {
         scoClass =
             AGENT_CLASSLOADER.loadClass("datadog.communication.ddagent.SharedCommunicationObjects");
-        sco = scoClass.getConstructor().newInstance();
+        sco = scoClass.getConstructor(boolean.class).newInstance(okHttpDelayMillis > 0);
       } catch (ClassNotFoundException
           | NoSuchMethodException
           | InstantiationException
@@ -523,16 +531,41 @@ public class Agent {
       }
 
       installDatadogTracer(initTelemetry, scoClass, sco);
+      maybeInstallLogsIntake(scoClass, sco);
+      maybeStartIast(instrumentation);
+    }
+
+    @Override
+    public AgentThread agentThread() {
+      return TRACE_STARTUP;
+    }
+
+    @Override
+    public void execute() {
+      if (okHttpDelayMillis > 0) {
+        resumeRemoteComponents();
+      }
+
       maybeStartAppSec(scoClass, sco);
-      maybeStartIast(scoClass, sco);
       maybeStartCiVisibility(instrumentation, scoClass, sco);
-      maybeStartLogsIntake(scoClass, sco);
       // start debugger before remote config to subscribe to it before starting to poll
       maybeStartDebugger(instrumentation, scoClass, sco);
       maybeStartRemoteConfig(scoClass, sco);
 
       if (telemetryEnabled) {
         startTelemetry(instrumentation, scoClass, sco);
+      }
+    }
+
+    private void resumeRemoteComponents() {
+      try {
+        // remote components were paused for custom log-manager/jmx-builder
+        // add small delay before resuming remote I/O to help stabilization
+        Thread.sleep(okHttpDelayMillis);
+        scoClass.getMethod("resume").invoke(sco);
+      } catch (InterruptedException ignore) {
+      } catch (Throwable e) {
+        log.error("Error resuming remote components", e);
       }
     }
   }
@@ -722,12 +755,13 @@ public class Agent {
               "com.datadog.profiling.controller.openjdk.events.SmapEntryFactory");
       final Method registerMethod = smapFactoryClass.getMethod("registerEvents");
       registerMethod.invoke(null);
-    } catch (final NoClassDefFoundError
+    } catch (final NoSuchMethodException
+        | NoClassDefFoundError
         | ClassNotFoundException
-        | UnsupportedClassVersionError ignored) {
+        | UnsupportedClassVersionError
+        | IllegalAccessException
+        | InvocationTargetException ignored) {
       log.debug("Smap entry scraping not supported");
-    } catch (final Throwable ex) {
-      log.error("Unable to initialize smap entry scraping", ex);
     }
   }
 
@@ -815,14 +849,14 @@ public class Agent {
     return true;
   }
 
-  private static void maybeStartIast(Class<?> scoClass, Object o) {
+  private static void maybeStartIast(Instrumentation instrumentation) {
     if (iastEnabled || !iastFullyDisabled) {
 
       StaticEventLogger.begin("IAST");
 
       try {
         SubscriptionService ss = AgentTracer.get().getSubscriptionService(RequestContextSlot.IAST);
-        startIast(ss, scoClass, o);
+        startIast(instrumentation, ss);
       } catch (Exception e) {
         log.error("Error starting IAST subsystem", e);
       }
@@ -831,12 +865,12 @@ public class Agent {
     }
   }
 
-  private static void startIast(SubscriptionService ss, Class<?> scoClass, Object sco) {
+  private static void startIast(Instrumentation instrumentation, SubscriptionService ss) {
     try {
       final Class<?> appSecSysClass = AGENT_CLASSLOADER.loadClass("com.datadog.iast.IastSystem");
       final Method iastInstallerMethod =
-          appSecSysClass.getMethod("start", SubscriptionService.class);
-      iastInstallerMethod.invoke(null, ss);
+          appSecSysClass.getMethod("start", Instrumentation.class, SubscriptionService.class);
+      iastInstallerMethod.invoke(null, instrumentation, ss);
     } catch (final Throwable e) {
       log.warn("Not starting IAST subsystem", e);
     }
@@ -860,17 +894,18 @@ public class Agent {
     }
   }
 
-  private static void maybeStartLogsIntake(Class<?> scoClass, Object sco) {
+  private static void maybeInstallLogsIntake(Class<?> scoClass, Object sco) {
     if (agentlessLogSubmissionEnabled) {
       StaticEventLogger.begin("Logs Intake");
 
       try {
         final Class<?> logsIntakeSystemClass =
             AGENT_CLASSLOADER.loadClass("datadog.trace.logging.intake.LogsIntakeSystem");
-        final Method logsIntakeInstallerMethod = logsIntakeSystemClass.getMethod("start", scoClass);
+        final Method logsIntakeInstallerMethod =
+            logsIntakeSystemClass.getMethod("install", scoClass);
         logsIntakeInstallerMethod.invoke(null, sco);
       } catch (final Throwable e) {
-        log.warn("Not starting Logs Intake subsystem", e);
+        log.warn("Not installing Logs Intake subsystem", e);
       }
 
       StaticEventLogger.end("Logs Intake");
@@ -1073,7 +1108,7 @@ public class Agent {
   }
 
   private static void maybeStartDebugger(Instrumentation inst, Class<?> scoClass, Object sco) {
-    if (!debuggerEnabled && !exceptionDebuggingEnabled) {
+    if (!debuggerEnabled && !exceptionDebuggingEnabled && !spanOriginEnabled) {
       return;
     }
     if (!remoteConfigEnabled) {
@@ -1261,14 +1296,8 @@ public class Agent {
 
     final String logManagerProp = System.getProperty("java.util.logging.manager");
     if (logManagerProp != null) {
-      final boolean onSysClasspath =
-          ClassLoader.getSystemResource(getResourceName(logManagerProp)) != null;
       log.debug("Prop - logging.manager: {}", logManagerProp);
-      log.debug("logging.manager on system classpath: {}", onSysClasspath);
-      // Some applications set java.util.logging.manager but never actually initialize the logger.
-      // Check to see if the configured manager is on the system classpath.
-      // If so, it should be safe to initialize jmxfetch which will setup the log manager.
-      return !onSysClasspath;
+      return true;
     }
 
     return false;
@@ -1299,14 +1328,8 @@ public class Agent {
 
     final String jmxBuilderProp = System.getProperty("javax.management.builder.initial");
     if (jmxBuilderProp != null) {
-      final boolean onSysClasspath =
-          ClassLoader.getSystemResource(getResourceName(jmxBuilderProp)) != null;
       log.debug("Prop - javax.management.builder.initial: {}", jmxBuilderProp);
-      log.debug("javax.management.builder.initial on system classpath: {}", onSysClasspath);
-      // Some applications set javax.management.builder.initial but never actually initialize JMX.
-      // Check to see if the configured JMX builder is on the system classpath.
-      // If so, it should be safe to initialize jmxfetch which will setup JMX.
-      return !onSysClasspath;
+      return true;
     }
 
     return false;
@@ -1327,13 +1350,22 @@ public class Agent {
   }
 
   private static boolean okHttpMayIndirectlyLoadJUL() {
-    if ("IBM Corporation".equals(getRuntimeVendor())) {
-      return true; // IBM JDKs ship with 'IBMSASL' which will load JUL when OkHttp accesses TLS
+    if (isCustomSecurityProviderInstalled() || isIBMSASLInstalled()) {
+      return true; // custom security providers may load JUL when OkHttp accesses TLS
     }
     if (isJavaVersionAtLeast(9)) {
       return false; // JDKs since 9 have reworked JFR to use a different logging facility, not JUL
     }
     return isJFRSupported(); // assume OkHttp will indirectly load JUL via its JFR events
+  }
+
+  private static boolean isCustomSecurityProviderInstalled() {
+    return ClassLoader.getSystemResource("META-INF/services/java.security.Provider") != null;
+  }
+
+  private static boolean isIBMSASLInstalled() {
+    // need explicit check as this is installed without using the service-loader mechanism
+    return ClassLoader.getSystemResource("com/ibm/security/sasl/IBMSASL.class") != null;
   }
 
   private static boolean isJFRSupported() {
