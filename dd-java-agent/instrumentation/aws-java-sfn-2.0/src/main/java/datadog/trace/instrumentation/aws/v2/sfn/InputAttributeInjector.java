@@ -5,25 +5,17 @@ import datadog.json.JsonWriter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 
 public class InputAttributeInjector {
+  private static final String DATADOG_KEY = "_datadog";
+
   public static String buildTraceContext(AgentSpan span) {
     String tagsJson = JsonMapper.toJson(span.getTags());
-
-    try {
-      JsonWriter ddTraceContextJSON = new JsonWriter();
-      ddTraceContextJSON
-          .beginObject()
-          .name("_datadog")
-          .beginObject()
-          .name("x-datadog-trace-id")
-          .value(span.getTraceId().toString())
-          .name("x-datadog-parent-id")
-          .value(String.valueOf(span.getSpanId()))
-          .name("x-datadog-tags")
-          .jsonValue(tagsJson)
-          .endObject()
-          .endObject();
-
-      return ddTraceContextJSON.toString();
+    try (JsonWriter writer = new JsonWriter()) {
+      writer.beginObject();
+      writer.name("x-datadog-trace-id").value(span.getTraceId().toString());
+      writer.name("x-datadog-parent-id").value(String.valueOf(span.getSpanId()));
+      writer.name("x-datadog-tags").jsonValue(tagsJson);
+      writer.endObject();
+      return writer.toString();
     } catch (Exception e) {
       return "{}";
     }
@@ -33,12 +25,13 @@ public class InputAttributeInjector {
     StringBuilder modifiedInput = new StringBuilder(request);
     int startPos = modifiedInput.indexOf("{");
     int endPos = modifiedInput.lastIndexOf("}");
-    String inputContent = modifiedInput.substring(startPos + 1, endPos);
+
+    String inputContent = modifiedInput.substring(startPos + 1, endPos).trim();
     if (inputContent.isEmpty()) {
-      modifiedInput.insert(endPos, ddTraceContextJSON);
+      modifiedInput.insert(endPos, String.format("\"%s\":%s", DATADOG_KEY, ddTraceContextJSON));
     } else {
       // Prepend comma to separate from existing content
-      modifiedInput.insert(endPos, "," + ddTraceContextJSON);
+      modifiedInput.insert(endPos, String.format(",\"%s\":%s", DATADOG_KEY, ddTraceContextJSON));
     }
     return modifiedInput.toString();
   }
