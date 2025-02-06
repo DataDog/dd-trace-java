@@ -13,7 +13,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
@@ -26,10 +25,14 @@ class BaggageHttpCodec {
 
   static final String BAGGAGE_KEY = "baggage";
   private static final int MAX_CHARACTER_SIZE = 4;
-  private static final List<Character> UNSAFE_CHARACTERS =
-      Arrays.asList(
-          '\"', ',', ';', '\\', '(', ')', '/', ':', '<', '=', '>', '?', '@', '[', ']', '{', '}');
-  private static final Set<Character> UNSAFE_CHARACTERS_SET = new HashSet<>(UNSAFE_CHARACTERS);
+
+  private static final Set<Character> UNSAFE_CHARACTERS_KEY =
+      new HashSet<>(
+          Arrays.asList(
+              '\"', ',', ';', '\\', '(', ')', '/', ':', '<', '=', '>', '?', '@', '[', ']', '{',
+              '}'));
+  private static final Set<Character> UNSAFE_CHARACTERS_VALUE =
+      new HashSet<>(Arrays.asList('\"', ',', ';', '\\'));
 
   private BaggageHttpCodec() {
     // This class should not be created. This also makes code coverage checks happy.
@@ -48,20 +51,32 @@ class BaggageHttpCodec {
       this.invertedBaggageMapping = invertedBaggageMapping;
     }
 
-    private void encodeKey(String key, StringBuilder buffer) {
-      for (int i = 0; i < key.length(); i++) {
-        char c = key.charAt(i);
-        if (UNSAFE_CHARACTERS_SET.contains(c) || c > 126 || c <= 20) { // encode character
+    private int encodeKey(String key, StringBuilder builder) {
+      return encode(key, builder, UNSAFE_CHARACTERS_KEY);
+    }
+
+    private int encodeValue(String key, StringBuilder builder) {
+      return encode(key, builder, UNSAFE_CHARACTERS_VALUE);
+    }
+
+    private int encode(String input, StringBuilder builder, Set<Character> UNSAFE_CHARACTERS) {
+      int size = 0;
+      for (int i = 0; i < input.length(); i++) {
+        char c = input.charAt(i);
+        if (UNSAFE_CHARACTERS.contains(c) || c > 126 || c <= 32) { // encode character
           byte[] bytes =
               Character.toString(c)
                   .getBytes(StandardCharsets.UTF_8); // not most efficient but what URLEncoder does
           for (byte b : bytes) {
-            buffer.append(String.format("%%%02X", b & 0xFF));
+            builder.append(String.format("%%%02X", b & 0xFF));
+            size += 1;
           }
         } else {
-          buffer.append(c);
+          builder.append(c);
+          size += 1;
         }
       }
+      return size;
     }
 
     @Override
@@ -84,36 +99,22 @@ class BaggageHttpCodec {
         if (processedBaggage != 0) {
           additionalCharacters = 2; // allocating space for comma
         }
-        int currentPairSize =
-            entry.getKey().length() + entry.getValue().length() + additionalCharacters;
 
-        // worst case check
-        if (currentCharacters + currentPairSize <= maxSafeCharacters) {
-          currentCharacters += currentPairSize;
-        } else {
-          if (currentBytes
-              == 0) { // special case to calculate byte size after surpassing worst-case number of
-            // characters
-            currentBytes = baggageText.toString().getBytes(StandardCharsets.UTF_8).length;
-          }
-          int byteSize =
-              entry.getKey().getBytes(StandardCharsets.UTF_8).length
-                  + entry.getValue().getBytes(StandardCharsets.UTF_8).length
-                  + additionalCharacters; // find largest possible byte size for UTF encoded
-          // characters and only do
-          // size checking after we hit this worst case scenario
-          if (byteSize + currentBytes > maxBytes) {
-            break;
-          }
-          currentBytes += byteSize;
-        }
-
+        int byteSize = 1; // default include size of '='
         if (additionalCharacters == 2) {
           baggageText.append(',');
+          byteSize += 1;
         }
 
-        encodeKey(entry.getKey(), baggageText);
-        baggageText.append('=').append(HttpCodec.encodeBaggage(entry.getValue()));
+        byteSize += encodeKey(entry.getKey(), baggageText);
+        baggageText.append('=');
+        byteSize += encodeValue(entry.getValue(), baggageText);
+
+        if (currentBytes + byteSize > maxBytes) {
+          baggageText.setLength(currentBytes);
+          break;
+        }
+        currentBytes += byteSize;
         processedBaggage++;
       }
 
