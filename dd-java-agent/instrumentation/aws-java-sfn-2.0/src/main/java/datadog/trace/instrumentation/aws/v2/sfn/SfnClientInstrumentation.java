@@ -13,7 +13,7 @@ import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
 /** AWS SDK v2 Step Function instrumentation */
 @AutoService(InstrumenterModule.class)
 public final class SfnClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public SfnClientInstrumentation() {
     super("sfn", "aws-sdk");
