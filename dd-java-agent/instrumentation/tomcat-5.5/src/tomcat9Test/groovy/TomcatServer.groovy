@@ -1,10 +1,5 @@
 import com.google.common.io.Files
-import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.WebsocketServer
-import jakarta.servlet.ServletContextEvent
-import jakarta.servlet.ServletContextListener
-import jakarta.websocket.Session
-import jakarta.websocket.server.ServerContainer
 import org.apache.catalina.Context
 import org.apache.catalina.core.StandardHost
 import org.apache.catalina.startup.Tomcat
@@ -12,19 +7,20 @@ import org.apache.tomcat.JarScanFilter
 import org.apache.tomcat.JarScanType
 import org.apache.tomcat.websocket.server.WsSci
 
+import javax.servlet.ServletContextEvent
+import javax.servlet.ServletContextListener
+import javax.websocket.server.ServerContainer
 import java.nio.ByteBuffer
 
 class TomcatServer implements WebsocketServer {
+
   def port = 0
   final Tomcat server
   final String context
-  final boolean dispatch
-  volatile Session activeSession
   final boolean wsAsyncSend
 
-  TomcatServer(String context, boolean dispatch, Closure setupServlets, Closure setupWebsockets, boolean wsAsyncSend = false) {
+  TomcatServer(String context, Closure setupServlets, Closure setupWebsockets, boolean wsAsyncSend = false) {
     this.context = context
-    this.dispatch = dispatch
     this.wsAsyncSend = wsAsyncSend
     server = new Tomcat()
 
@@ -53,8 +49,10 @@ class TomcatServer implements WebsocketServer {
     servletContext.addServletContainerInitializer(new WsSci(), null)
     def listeners = new ArrayList(Arrays.asList(servletContext.getApplicationLifecycleListeners()))
     listeners.add(new EndpointDeployer(setupWebsockets))
+    servletContext.setApplicationLifecycleListeners(EndpointDeployer.class.getName())
     servletContext.setApplicationLifecycleListeners(listeners.toArray())
-    (server.host as StandardHost).errorReportValveClass = TomcatServletTest.ErrorHandlerValve.name
+
+    (server.host as StandardHost).errorReportValveClass = TomcatWebsocketTest.ErrorHandlerValve.name
   }
 
   @Override
@@ -79,9 +77,6 @@ class TomcatServer implements WebsocketServer {
 
   @Override
   URI address() {
-    if (dispatch) {
-      return new URI("http://localhost:$port/$context/dispatch/")
-    }
     return new URI("http://localhost:$port/$context/")
   }
 

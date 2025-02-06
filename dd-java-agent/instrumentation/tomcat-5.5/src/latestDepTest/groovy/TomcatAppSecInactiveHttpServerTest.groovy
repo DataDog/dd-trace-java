@@ -21,6 +21,6 @@ class TomcatAppSecInactiveHttpServerTest extends AppSecInactiveHttpServerTest {
         ctx.addChild(wrapper)
         ctx.addServletMappingDecoded(it.path, wrapper.name)
       }
-    })
+    }, {})
   }
 }

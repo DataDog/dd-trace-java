@@ -53,12 +53,12 @@ public class SpockRunner extends JUnitPlatform {
   static {
     ByteBuddyAgent.install();
     final String[] testBS = {
-      "org.slf4j",
-      "ch.qos.logback",
+      "org.slf4j", "ch.qos.logback",
       // Tomcat's servlet classes must be on boostrap
       // when running tomcat test
-      "javax.servlet.ServletContainerInitializer",
-      "javax.servlet.ServletContext"
+      // "javax.servlet.ServletContainerInitializer",
+      // "javax.servlet.ServletContext",
+      //        "javax.servlet.RequestDispatcher",
     };
     TEST_BOOTSTRAP_PREFIXES =
         Arrays.copyOf(
@@ -114,7 +114,7 @@ public class SpockRunner extends JUnitPlatform {
   private static boolean isBootstrapClass(final String className) {
     for (int i = 0; i < TEST_BOOTSTRAP_PREFIXES.length; ++i) {
       if (className.startsWith(TEST_BOOTSTRAP_PREFIXES[i])) {
-        return true;
+        return !className.startsWith("ch.qos.logback.classic.servlet");
       }
     }
     return false;

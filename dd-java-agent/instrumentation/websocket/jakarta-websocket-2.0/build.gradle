@@ -1,0 +1,17 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+muzzle {
+  pass {
+    name = "jakarta-websocket"
+    group = "jakarta.websocket"
+    module = "jakarta.websocket-api"
+    versions = "[2.0.0,)"
+    javaVersion = "11"
+  }
+}
+
+
+dependencies {
+  compileOnly group: 'jakarta.websocket', name: 'jakarta.websocket-api', version: '2.0.0'
+  implementation project(":dd-java-agent:instrumentation:websocket:javax-websocket-1.0")
+}
