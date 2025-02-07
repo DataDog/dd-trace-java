@@ -29,7 +29,7 @@ public final class StableConfigSource extends ConfigProvider.Source {
   private final Map<String, Object> configuration;
   private final String configId;
 
-  // MIKAYLA: improvement - if we see that some cached map is already not null by the name the
+  // MIKAYLA: improvement - if we see that some cached map is already not null by the time the
   // StableConfigurationSource constructor is called, we can skip calling it again.
   StableConfigSource(String file, ConfigOrigin origin) {
     this.fileOrigin = origin;
