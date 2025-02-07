@@ -68,6 +68,11 @@ dependencies {
   implementation project(':components:json')
   implementation project(':utils:container-utils')
   implementation project(':utils:socket-utils')
+
+  implementation group: 'org.msgpack', name: 'msgpack-core', version: '0.8.10'
+  implementation group: 'org.msgpack', name: 'jackson-dataformat-msgpack', version: '0.8.10'
+  implementation group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.10.0'
+
   // for span exception debugging
   compileOnly project(':dd-java-agent:agent-debugger:debugger-bootstrap')
 

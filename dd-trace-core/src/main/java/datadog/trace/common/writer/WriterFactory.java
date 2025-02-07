@@ -82,7 +82,7 @@ public class WriterFactory {
 
     // The AgentWriter doesn't support the CI Visibility protocol. If CI Visibility is
     // enabled, check if we can use the IntakeWriter instead.
-    if (DD_AGENT_WRITER_TYPE.equals(configuredType) && config.isCiVisibilityEnabled()) {
+    if (DD_AGENT_WRITER_TYPE.equals(configuredType) && (config.isCiVisibilityEnabled())) {
       if (featuresDiscovery.supportsEvpProxy() || config.isCiVisibilityAgentlessEnabled()) {
         configuredType = DD_INTAKE_WRITER_TYPE;
       } else {
@@ -115,6 +115,10 @@ public class WriterFactory {
             createDDIntakeRemoteApi(config, commObjects, featuresDiscovery, TrackType.CITESTCOV);
         builder.addTrack(TrackType.CITESTCOV, coverageApi);
       }
+
+      final RemoteApi llmobsApi =
+          createDDIntakeRemoteApi(config, commObjects, featuresDiscovery, TrackType.LLMOBS);
+      builder.addTrack(TrackType.LLMOBS, llmobsApi);
 
       remoteWriter = builder.build();
 
@@ -171,7 +175,11 @@ public class WriterFactory {
       SharedCommunicationObjects commObjects,
       DDAgentFeaturesDiscovery featuresDiscovery,
       TrackType trackType) {
-    if (featuresDiscovery.supportsEvpProxy() && !config.isCiVisibilityAgentlessEnabled()) {
+    boolean evpProxySupported = featuresDiscovery.supportsEvpProxy();
+    boolean useProxyApi = (evpProxySupported && TrackType.LLMOBS == trackType && !config.isLlmObsAgentlessEnabled())
+        || (evpProxySupported && (TrackType.CITESTCOV == trackType || TrackType.CITESTCYCLE == trackType) && !config.isCiVisibilityAgentlessEnabled());
+
+    if (useProxyApi) {
       return DDEvpProxyApi.builder()
           .httpClient(commObjects.okHttpClient)
           .agentUrl(commObjects.agentUrl)
@@ -179,18 +187,25 @@ public class WriterFactory {
           .trackType(trackType)
           .compressionEnabled(featuresDiscovery.supportsContentEncodingHeadersWithEvpProxy())
           .build();
-
     } else {
       HttpUrl hostUrl = null;
+      String llmObsAgentlessUrl = config.getLlMObsAgentlessUrl();
+
       if (config.getCiVisibilityAgentlessUrl() != null) {
         hostUrl = HttpUrl.get(config.getCiVisibilityAgentlessUrl());
         log.info("Using host URL '{}' to report CI Visibility traces in Agentless mode.", hostUrl);
+      } else if (config.isLlmObsEnabled()
+          && config.isLlmObsAgentlessEnabled()
+          && llmObsAgentlessUrl != null
+          && !llmObsAgentlessUrl.isEmpty()) {
+        hostUrl = HttpUrl.get(llmObsAgentlessUrl);
+        log.info("Using host URL '{}' to report LLM Obs traces in Agentless mode.", hostUrl);
       }
       return DDIntakeApi.builder()
-          .hostUrl(hostUrl)
-          .apiKey(config.getApiKey())
-          .trackType(trackType)
-          .build();
+              .hostUrl(hostUrl)
+              .apiKey(config.getApiKey())
+              .trackType(trackType)
+              .build();
     }
   }
 

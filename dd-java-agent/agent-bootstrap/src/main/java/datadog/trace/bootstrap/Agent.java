@@ -37,6 +37,7 @@ import datadog.trace.bootstrap.benchmark.StaticEventLogger;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
+import datadog.trace.bootstrap.instrumentation.api.WriterConstants;
 import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
@@ -111,7 +112,8 @@ public class Agent {
     DATA_JOBS(propertyNameToSystemPropertyName(GeneralConfig.DATA_JOBS_ENABLED), false),
     AGENTLESS_LOG_SUBMISSION(
         propertyNameToSystemPropertyName(GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED), false),
-    LLMOBS(propertyNameToSystemPropertyName(LlmObsConfig.LLMOBS_ENABLED), false);
+    LLMOBS(propertyNameToSystemPropertyName(LlmObsConfig.LLMOBS_ENABLED), false),
+    LLMOBS_AGENTLESS(propertyNameToSystemPropertyName(LlmObsConfig.LLMOBS_AGENTLESS_ENABLED), false);
 
     private final String systemProp;
     private final boolean enabledByDefault;
@@ -153,6 +155,7 @@ public class Agent {
   private static boolean cwsEnabled = false;
   private static boolean ciVisibilityEnabled = false;
   private static boolean llmObsEnabled = false;
+  private static boolean llmObsAgentlessEnabled = false;
   private static boolean usmEnabled = false;
   private static boolean telemetryEnabled = true;
   private static boolean debuggerEnabled = false;
@@ -272,6 +275,15 @@ public class Agent {
     spanOriginEnabled = isFeatureEnabled(AgentFeature.SPAN_ORIGIN);
     agentlessLogSubmissionEnabled = isFeatureEnabled(AgentFeature.AGENTLESS_LOG_SUBMISSION);
     llmObsEnabled = isFeatureEnabled(AgentFeature.LLMOBS);
+
+    if (llmObsEnabled) {
+      // for llm obs spans, use agent proxy by default, apm spans will use agent writer
+      setSystemPropertyDefault(propertyNameToSystemPropertyName(TracerConfig.WRITER_TYPE), WriterConstants.MULTI_WRITER_TYPE + ":" + WriterConstants.DD_INTAKE_WRITER_TYPE + "," + WriterConstants.DD_AGENT_WRITER_TYPE);
+      if (llmObsAgentlessEnabled) {
+        // use API writer only
+        setSystemPropertyDefault(propertyNameToSystemPropertyName(TracerConfig.WRITER_TYPE), WriterConstants.DD_INTAKE_WRITER_TYPE);
+      }
+    }
 
     if (profilingEnabled) {
       if (!isOracleJDK8()) {
