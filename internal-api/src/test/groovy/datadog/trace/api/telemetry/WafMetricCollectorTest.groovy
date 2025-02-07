@@ -314,21 +314,36 @@ class WafMetricCollectorTest extends DDSpecification {
     raspRuleEval.value == 3
     raspRuleEval.namespace == 'appsec'
     raspRuleEval.metricName == 'rasp.rule.eval'
-    raspRuleEval.tags.toSet() == ['rule_type:command_injection', 'rule_variant:'+ruleType.variant, 'waf_version:waf_ver1'].toSet()
+    raspRuleEval.tags.toSet() == [
+      'rule_type:command_injection',
+      'rule_variant:'+ruleType.variant,
+      'waf_version:waf_ver1',
+      'event_rules_versionrules.1'
+    ].toSet()
 
     def raspRuleMatch = (WafMetricCollector.RaspRuleMatch)metrics[2]
     raspRuleMatch.type == 'count'
     raspRuleMatch.value == 1
     raspRuleMatch.namespace == 'appsec'
     raspRuleMatch.metricName == 'rasp.rule.match'
-    raspRuleMatch.tags.toSet() == ['rule_type:command_injection', 'rule_variant:'+ruleType.variant, 'waf_version:waf_ver1'].toSet()
+    raspRuleMatch.tags.toSet() == [
+      'rule_type:command_injection',
+      'rule_variant:'+ruleType.variant,
+      'waf_version:waf_ver1',
+      'event_rules_versionrules.1'
+    ].toSet()
 
     def raspTimeout = (WafMetricCollector.RaspTimeout)metrics[3]
     raspTimeout.type == 'count'
     raspTimeout.value == 1
     raspTimeout.namespace == 'appsec'
     raspTimeout.metricName == 'rasp.timeout'
-    raspTimeout.tags.toSet() == ['rule_type:command_injection', 'rule_variant:'+ruleType.variant, 'waf_version:waf_ver1'].toSet()
+    raspTimeout.tags.toSet() == [
+      'rule_type:command_injection',
+      'rule_variant:'+ruleType.variant,
+      'waf_version:waf_ver1',
+      'event_rules_versionrules.1'
+    ].toSet()
 
     where:
     ruleType << [RuleType.COMMAND_INJECTION, RuleType.SHELL_INJECTION]
