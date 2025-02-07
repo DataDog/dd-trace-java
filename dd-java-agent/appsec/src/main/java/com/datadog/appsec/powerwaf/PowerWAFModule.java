@@ -445,6 +445,7 @@ public class PowerWAFModule implements AppSecModule {
         if (!reqCtx.isAdditiveClosed()) {
           log.error("Error calling WAF", e);
         }
+        WafMetricCollector.get().wafRequestError();
         return;
       } catch (AbstractPowerwafException e) {
         if (gwCtx.isRasp) {

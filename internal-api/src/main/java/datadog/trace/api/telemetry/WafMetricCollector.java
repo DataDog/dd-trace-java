@@ -38,6 +38,7 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
   private static final AtomicRequestCounter wafTriggeredRequestCounter = new AtomicRequestCounter();
   private static final AtomicRequestCounter wafBlockedRequestCounter = new AtomicRequestCounter();
   private static final AtomicRequestCounter wafTimeoutRequestCounter = new AtomicRequestCounter();
+  private static final AtomicRequestCounter wafErrorRequestCounter = new AtomicRequestCounter();
   private static final AtomicLongArray raspRuleEvalCounter =
       new AtomicLongArray(RuleType.getNumValues());
   private static final AtomicLongArray raspRuleMatchCounter =
@@ -108,6 +109,10 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
     wafTimeoutRequestCounter.increment();
   }
 
+  public void wafRequestError() {
+    wafErrorRequestCounter.increment();
+  }
+
   public void raspRuleEval(final RuleType ruleType) {
     raspRuleEvalCounter.incrementAndGet(ruleType.ordinal());
   }
@@ -160,6 +165,7 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
               WafMetricCollector.rulesVersion,
               false,
               false,
+              false,
               false))) {
         return;
       }
@@ -173,6 +179,7 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
               WafMetricCollector.wafVersion,
               WafMetricCollector.rulesVersion,
               true,
+              false,
               false,
               false))) {
         return;
@@ -188,6 +195,7 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
               WafMetricCollector.rulesVersion,
               true,
               true,
+              false,
               false))) {
         return;
       }
@@ -202,7 +210,23 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
               WafMetricCollector.rulesVersion,
               false,
               false,
+              false,
               true))) {
+        return;
+      }
+    }
+
+    // WAF error requests
+    if (wafErrorRequestCounter.get() > 0) {
+      if (!rawMetricsQueue.offer(
+          new WafRequestsRawMetric(
+              wafErrorRequestCounter.getAndReset(),
+              WafMetricCollector.wafVersion,
+              WafMetricCollector.rulesVersion,
+              false,
+              false,
+              true,
+              false))) {
         return;
       }
     }
@@ -348,6 +372,7 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
         final String rulesVersion,
         final boolean triggered,
         final boolean blocked,
+        final boolean wafError,
         final boolean wafTimeout) {
       super(
           "waf.requests",
@@ -356,6 +381,7 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
           "event_rules_version:" + rulesVersion,
           "rule_triggered:" + triggered,
           "request_blocked:" + blocked,
+          "waf_error:" + wafError,
           "waf_timeout:" + wafTimeout);
     }
   }
