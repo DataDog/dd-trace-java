@@ -172,12 +172,9 @@ public final class TraceInstrumentationConfig {
   /** If set, the instrumentation will set its resource name on the local root too. */
   public static final String AXIS_PROMOTE_RESOURCE_NAME = "trace.axis.promote.resource-name";
 
-<<<<<<< HEAD
   public static final String SQS_BODY_PROPAGATION_ENABLED = "trace.sqs.body.propagation.enabled";
   public static final String ADD_SPAN_POINTERS = "add.span.pointers";
-=======
   public static final String EXPERIMENTAL_KAFKA_ENABLED = "trace.experimental.kafka.enabled";
->>>>>>> guance
 
   private TraceInstrumentationConfig() {}
 }

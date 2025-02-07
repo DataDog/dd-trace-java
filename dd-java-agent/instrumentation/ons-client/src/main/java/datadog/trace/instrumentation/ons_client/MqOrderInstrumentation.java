@@ -16,7 +16,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class MqOrderInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy{
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice{
 
   public static final String CLASS_NAME = "com.aliyun.openservices.ons.api.order.MessageOrderListener";
 

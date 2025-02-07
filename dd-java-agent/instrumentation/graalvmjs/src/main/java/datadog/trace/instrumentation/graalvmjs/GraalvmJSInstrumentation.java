@@ -1,5 +1,11 @@
 package datadog.trace.instrumentation.graalvmjs;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.instrumentation.graalvmjs.GraalvmjsDecorator.DECORATOR;
+import static net.bytebuddy.matcher.ElementMatchers.*;
+import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
+
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -10,15 +16,9 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.graalvm.polyglot.Source;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.instrumentation.graalvmjs.GraalvmjsDecorator.DECORATOR;
-import static net.bytebuddy.matcher.ElementMatchers.*;
-import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 @AutoService(InstrumenterModule.class)
 public class GraalvmJSInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public GraalvmJSInstrumentation() {
     super("graalvm-js");

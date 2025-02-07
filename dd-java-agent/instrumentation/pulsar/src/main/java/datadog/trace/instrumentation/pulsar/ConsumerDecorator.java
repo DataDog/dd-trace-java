@@ -6,6 +6,7 @@ import static datadog.trace.instrumentation.pulsar.PulsarRequest.*;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 import java.util.concurrent.CompletableFuture;
@@ -48,7 +49,7 @@ public class ConsumerDecorator extends BaseDecorator {
     if (extractScope != null) {
       return;
     }
-    AgentSpan.Context parentContext = propagate().extract(pr, GETTER);
+    AgentSpanContext parentContext = propagate().extract(pr, GETTER);
     String topic = pr.getMessage().getTopicName();
     UTF8BytesString spanName = UTF8BytesString.create(topic + " receive");
     final AgentSpan span = startSpan(spanName, parentContext);

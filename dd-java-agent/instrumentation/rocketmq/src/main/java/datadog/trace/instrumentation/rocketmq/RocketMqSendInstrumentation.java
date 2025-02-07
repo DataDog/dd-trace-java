@@ -13,7 +13,7 @@ import org.apache.rocketmq.client.producer.DefaultMQProducer;
 
 @AutoService(InstrumenterModule.class)
 public class RocketMqSendInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy , Instrumenter.HasMethodAdvice{
 
   public static final String CLASS_NAME = "org.apache.rocketmq.client.producer.DefaultMQProducer";
 

@@ -21,7 +21,7 @@ import org.apache.thrift.server.AbstractNonblockingServer;
 
 @AutoService(InstrumenterModule.class)
 public class TBaseAsyncProcessorInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy , Instrumenter.HasMethodAdvice{
 
   public TBaseAsyncProcessorInstrumentation() {
     super(INSTRUMENTATION_NAME, INSTRUMENTATION_NAME_SERVER);

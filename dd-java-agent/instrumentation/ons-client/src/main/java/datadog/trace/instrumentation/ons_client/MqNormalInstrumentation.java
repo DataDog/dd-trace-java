@@ -18,7 +18,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class MqNormalInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
   // 普通消息
   public static final String CLASS_NAME = "com.aliyun.openservices.ons.api.MessageListener";
 

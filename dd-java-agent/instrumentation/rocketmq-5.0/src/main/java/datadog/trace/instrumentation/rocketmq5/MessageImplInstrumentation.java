@@ -19,7 +19,7 @@ import org.apache.rocketmq.client.java.message.MessageBuilderImpl;
 
 @AutoService(InstrumenterModule.class)
 public class MessageImplInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy{
+    implements Instrumenter.ForTypeHierarchy,Instrumenter.HasMethodAdvice{
   public static String CLASS_NAME = "";
 
   public MessageImplInstrumentation() {

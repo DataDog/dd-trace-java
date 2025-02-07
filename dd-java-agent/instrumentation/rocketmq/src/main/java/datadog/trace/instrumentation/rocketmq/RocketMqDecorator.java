@@ -1,9 +1,15 @@
 package datadog.trace.instrumentation.rocketmq;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.*;
+import static datadog.trace.instrumentation.rocketmq.TextMapExtractAdapter.GETTER;
+import static datadog.trace.instrumentation.rocketmq.TextMapInjectAdapter.SETTER;
+
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
+import java.net.SocketAddress;
 import org.apache.rocketmq.client.hook.ConsumeMessageContext;
 import org.apache.rocketmq.client.hook.SendMessageContext;
 import org.apache.rocketmq.client.producer.SendResult;
@@ -11,12 +17,6 @@ import org.apache.rocketmq.common.message.Message;
 import org.apache.rocketmq.common.message.MessageExt;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import java.net.SocketAddress;
-
-
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.*;
-import static datadog.trace.instrumentation.rocketmq.TextMapExtractAdapter.GETTER;
-import static datadog.trace.instrumentation.rocketmq.TextMapInjectAdapter.SETTER;
 
 public class RocketMqDecorator extends BaseDecorator {
   private static final Logger log = LoggerFactory.getLogger(RocketMqDecorator.class);
@@ -55,7 +55,7 @@ public class RocketMqDecorator extends BaseDecorator {
 
   public AgentScope start(ConsumeMessageContext context) {
     MessageExt ext = context.getMsgList().get(0);
-    AgentSpan.Context parentContext = propagate().extract(ext, GETTER);
+    AgentSpanContext parentContext = propagate().extract(ext, GETTER);
     UTF8BytesString name = UTF8BytesString.create(ext.getTopic() + " receive");
     final AgentSpan span = startSpan(name, parentContext);
     span.setResourceName(name);

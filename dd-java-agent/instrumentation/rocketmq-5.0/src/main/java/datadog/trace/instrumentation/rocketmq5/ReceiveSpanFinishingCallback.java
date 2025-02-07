@@ -1,16 +1,16 @@
 package datadog.trace.instrumentation.rocketmq5;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.*;
+import static datadog.trace.instrumentation.rocketmq5.MessageViewGetter.GetterView;
+
 import apache.rocketmq.v2.ReceiveMessageRequest;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
+import java.util.List;
 import org.apache.rocketmq.client.java.impl.consumer.ReceiveMessageResult;
 import org.apache.rocketmq.client.java.message.MessageViewImpl;
 import org.apache.rocketmq.shaded.com.google.common.util.concurrent.FutureCallback;
-
-import java.util.List;
-
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.*;
-import static datadog.trace.instrumentation.rocketmq5.MessageViewGetter.GetterView;
 
 public class ReceiveSpanFinishingCallback implements FutureCallback<ReceiveMessageResult> {
 
@@ -34,7 +34,7 @@ public class ReceiveSpanFinishingCallback implements FutureCallback<ReceiveMessa
 
     for (MessageViewImpl messageView : messageViews) {
     //  propagate().inject(span.context(),messageView,setterView);
-      AgentSpan.Context parentContext = propagate().extract(messageView,GetterView);
+      AgentSpanContext parentContext = propagate().extract(messageView,GetterView);
       AgentSpan childSpan ;
       if (null != parentContext){
         childSpan = startSpan("receive_message",parentContext);

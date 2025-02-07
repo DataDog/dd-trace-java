@@ -12,7 +12,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class TServerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
   public TServerInstrumentation() {
     super(INSTRUMENTATION_NAME, INSTRUMENTATION_NAME_SERVER);
   }

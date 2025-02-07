@@ -1,18 +1,18 @@
 package datadog.trace.instrumentation.hsf;
 
-import com.taobao.hsf.context.RPCContext;
-import com.taobao.hsf.invocation.Invocation;
-import com.taobao.hsf.util.PojoUtils;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
-
-import java.util.Arrays;
-import java.util.stream.Collectors;
-
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.hsf.HSFExtractAdapter.GETTER;
 import static datadog.trace.instrumentation.hsf.HSFInjectAdapter.SETTER;
+
+import com.taobao.hsf.context.RPCContext;
+import com.taobao.hsf.invocation.Invocation;
+import com.taobao.hsf.util.PojoUtils;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
+import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
+import java.util.Arrays;
+import java.util.stream.Collectors;
 
 /**
  * @Description
@@ -51,7 +51,7 @@ public class HSFDecorator extends BaseDecorator {
   }
 
   public AgentSpan buildServerSpan(Invocation invocation){
-    AgentSpan.Context parentContext = propagate().extract(RPCContext.getServerContext(), GETTER);
+    AgentSpanContext parentContext = propagate().extract(RPCContext.getServerContext(), GETTER);
     AgentSpan span = startSpan(component(),parentContext);
 
     span.setResourceName(invocation.getServerInvocationContext().getMetadata().getUniqueName());

@@ -15,7 +15,7 @@ import org.apache.rocketmq.client.impl.consumer.DefaultMQPushConsumerImpl;
 
 @AutoService(InstrumenterModule.class)
 public class RocketMqInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public static final String CLASS_NAME = "org.apache.rocketmq.client.consumer.DefaultMQPushConsumer";
 

@@ -19,7 +19,7 @@ import org.apache.thrift.TServiceClient;
 
 @AutoService(InstrumenterModule.class)
 public class TServiceClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
   public TServiceClientInstrumentation() {
     super(INSTRUMENTATION_NAME, INSTRUMENTATION_NAME_CLIENT);
   }

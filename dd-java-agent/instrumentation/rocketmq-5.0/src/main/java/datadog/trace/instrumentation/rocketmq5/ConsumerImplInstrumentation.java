@@ -17,7 +17,7 @@ import org.apache.rocketmq.shaded.com.google.common.util.concurrent.MoreExecutor
 
 @AutoService(InstrumenterModule.class)
 public  class ConsumerImplInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy{
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice{
 
   public static final String CLASS_NAME = "org.apache.rocketmq.client.java.impl.consumer.ConsumerImpl";
 

@@ -23,7 +23,7 @@ import tech.powerjob.worker.core.processor.sdk.MapReduceProcessor;
 
 @AutoService(InstrumenterModule.class)
 public class BasicProcessorInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy , Instrumenter.HasMethodAdvice{
   public BasicProcessorInstrumentation() {
     super("powerjob");
   }

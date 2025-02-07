@@ -20,7 +20,7 @@ import org.apache.axis.MessageContext;
 
 @AutoService(InstrumenterModule.class)
 public final class AxisClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public AxisClientInstrumentation() {super("axis1");}
 

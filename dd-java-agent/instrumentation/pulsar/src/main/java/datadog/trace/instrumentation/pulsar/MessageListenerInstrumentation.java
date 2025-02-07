@@ -16,7 +16,7 @@ import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 
 @AutoService(InstrumenterModule.class)
 public class MessageListenerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy , Instrumenter.HasMethodAdvice{
 
   public MessageListenerInstrumentation() {
     super("pulsar");

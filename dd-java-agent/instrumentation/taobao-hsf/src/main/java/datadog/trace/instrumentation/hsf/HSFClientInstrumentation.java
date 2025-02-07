@@ -14,26 +14,24 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 
 /**
- * @Description
- * @Author liurui
- * @Date 2022/12/26 9:11
+ * @Description @Author liurui @Date 2022/12/26 9:11
  */
 @AutoService(InstrumenterModule.class)
 public class HSFClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public HSFClientInstrumentation() {
     super("hsf-client");
   }
 
   @Override
   public String instrumentedType() {
-//    CommonClientFilter
+    //    CommonClientFilter
     return "com.taobao.hsf.common.filter.CommonClientFilter";
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformation) {
-//    RPCFilter
+    //    RPCFilter
     transformation.applyAdvice(
         isMethod()
             .and(isPublic())
@@ -44,19 +42,18 @@ public class HSFClientInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String[] helperClassNames() {
-    return new String[]{
-        packageName + ".HSFDecorator",
-        packageName + ".HSFExtractAdapter",
-        packageName + ".HSFInjectAdapter",
+    return new String[] {
+      packageName + ".HSFDecorator",
+      packageName + ".HSFExtractAdapter",
+      packageName + ".HSFInjectAdapter",
     };
   }
 
   //  RPCFilter
   public static class ClientInvokeAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope before(@Advice.This Object filter,
-                                    @Advice.Argument(1) final Invocation invocation
-    ) {
+    public static AgentScope before(
+        @Advice.This Object filter, @Advice.Argument(1) final Invocation invocation) {
       AgentSpan span = DECORATE.buildClientSpan(invocation);
       AgentScope agentScope = activateSpan(span);
       return agentScope;
@@ -75,6 +72,4 @@ public class HSFClientInstrumentation extends InstrumenterModule.Tracing
       scope.span().finish();
     }
   }
-
-
 }

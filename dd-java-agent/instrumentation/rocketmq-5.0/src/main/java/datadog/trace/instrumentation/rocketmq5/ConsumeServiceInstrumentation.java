@@ -13,7 +13,7 @@ import org.apache.rocketmq.client.apis.consumer.MessageListener;
 
 @AutoService(InstrumenterModule.class)
 public class ConsumeServiceInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy{
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice{
   public ConsumeServiceInstrumentation() {
     super("rocketmq-5.0");
   }

@@ -9,7 +9,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 
 @AutoService(InstrumenterModule.class)
 public class LettuceDefaultEndpointInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public LettuceDefaultEndpointInstrumentation() {
     super("lettuce");
   }
@@ -22,9 +22,6 @@ public class LettuceDefaultEndpointInstrumentation extends InstrumenterModule.Tr
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isMethod()
-            .and(named("write")),
-        packageName + ".LettuceDefaultEndpointAdvice");
-
+        isMethod().and(named("write")), packageName + ".LettuceDefaultEndpointAdvice");
   }
 }

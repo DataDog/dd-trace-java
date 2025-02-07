@@ -1,16 +1,16 @@
 package datadog.trace.instrumentation.ons_client;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.*;
+import static datadog.trace.instrumentation.ons_client.ExtractAdapter.GETTER;
+
 import com.aliyun.openservices.ons.api.Message;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
-
 import java.util.List;
-
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.*;
-import static datadog.trace.instrumentation.ons_client.ExtractAdapter.GETTER;
 
 public class MqDecorator extends BaseDecorator {
   public static final CharSequence ROCKETMQ_NAME = UTF8BytesString.create("rocketmq");
@@ -38,7 +38,7 @@ public class MqDecorator extends BaseDecorator {
   }
 
   public AgentScope OnStart(Message message) {
-    AgentSpan.Context parentContext = propagate().extract(message,GETTER);
+    AgentSpanContext parentContext = propagate().extract(message,GETTER);
     String topic = message.getTopic();
     UTF8BytesString spanName = UTF8BytesString.create("producer send");
     AgentSpan span;

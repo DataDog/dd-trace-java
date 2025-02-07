@@ -1,15 +1,14 @@
 package datadog.trace.instrumentation.thrift;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import org.apache.commons.codec.binary.StringUtils;
-
-import java.util.Map;
-import java.util.Optional;
-
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.thrift.ExtractAdepter.GETTER;
 import static datadog.trace.instrumentation.thrift.ThriftConstants.*;
+
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
+import java.util.Map;
+import java.util.Optional;
 
 public class ThriftServerDecorator extends ThriftBaseDecorator {
   public static final ThriftServerDecorator SERVER_DECORATOR = new ThriftServerDecorator();
@@ -35,7 +34,7 @@ public class ThriftServerDecorator extends ThriftBaseDecorator {
   }
 
   public AgentSpan createSpan(Map<String, String> header,AbstractContext context) {
-    AgentSpan.Context parentContext = propagate().extract(header, GETTER);
+    AgentSpanContext parentContext = propagate().extract(header, GETTER);
 //    AgentSpan span = startSpan(spanName(),parentContext,context.startTime);
     AgentSpan span = startSpan(spanName(),parentContext);
     withMethod(span, context.methodName);

@@ -30,7 +30,7 @@ import org.slf4j.LoggerFactory;
 
 @AutoService(InstrumenterModule.class)
 public final class ConsumerImplInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes,Instrumenter.HasMethodAdvice {
 
   private static final Logger log = LoggerFactory.getLogger(ConsumerImplInstrumentation.class);
 

@@ -13,7 +13,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class DubboProviderInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy , Instrumenter.HasMethodAdvice{
 
   public DubboProviderInstrumentation() {
     super("apache-dubbo");
@@ -44,15 +44,14 @@ public class DubboProviderInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String[] helperClassNames() {
-    return new String[]{
-        packageName + ".DubboDecorator",
-        packageName + ".DubboTraceInfo",
-        packageName + ".HostAndPort",
-        packageName + ".DubboConstants",
-        packageName + ".DubboProviderAdvice",
-        packageName + ".DubboHeadersExtractAdapter",
-        packageName + ".DubboHeadersInjectAdapter"
+    return new String[] {
+      packageName + ".DubboDecorator",
+      packageName + ".DubboTraceInfo",
+      packageName + ".HostAndPort",
+      packageName + ".DubboConstants",
+      packageName + ".DubboProviderAdvice",
+      packageName + ".DubboHeadersExtractAdapter",
+      packageName + ".DubboHeadersInjectAdapter"
     };
   }
-
 }

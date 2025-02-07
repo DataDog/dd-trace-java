@@ -26,7 +26,7 @@ import org.apache.pulsar.client.impl.SendCallback;
 
 @AutoService(InstrumenterModule.class)
 public final class ProducerImplInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy , Instrumenter.HasMethodAdvice{
 
   public static final String CLASS_NAME = "org.apache.pulsar.client.impl.ProducerImpl";
 

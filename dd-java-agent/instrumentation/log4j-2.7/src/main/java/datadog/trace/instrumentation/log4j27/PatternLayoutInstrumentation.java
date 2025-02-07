@@ -15,7 +15,7 @@ import datadog.trace.api.Config;
 
 @AutoService(InstrumenterModule.class)
 public class PatternLayoutInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType,Instrumenter.HasMethodAdvice {
   public PatternLayoutInstrumentation() {
     super("log4j", "log4j-2");
   }

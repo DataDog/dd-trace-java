@@ -1,21 +1,22 @@
 package datadog.trace.instrumentation.alibaba.dubbo;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.*;
+import static datadog.trace.instrumentation.alibaba.dubbo.DubboConstants.*;
+import static datadog.trace.instrumentation.alibaba.dubbo.DubboHeadersExtractAdapter.GETTER;
+import static datadog.trace.instrumentation.alibaba.dubbo.DubboHeadersInjectAdapter.SETTER;
+
 import com.alibaba.dubbo.common.URL;
 import com.alibaba.dubbo.common.utils.StringUtils;
 import com.alibaba.dubbo.rpc.Invocation;
 import com.alibaba.dubbo.rpc.Invoker;
 import com.alibaba.dubbo.rpc.RpcContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.*;
-import static datadog.trace.instrumentation.alibaba.dubbo.DubboConstants.*;
-import static datadog.trace.instrumentation.alibaba.dubbo.DubboHeadersExtractAdapter.GETTER;
-import static datadog.trace.instrumentation.alibaba.dubbo.DubboHeadersInjectAdapter.SETTER;
 
 public class DubboDecorator extends BaseDecorator {
   private static final Logger log = LoggerFactory.getLogger(DubboDecorator.class);
@@ -64,7 +65,7 @@ public class DubboDecorator extends BaseDecorator {
       span = startSpan(DUBBO_REQUEST);
     }else{
       // this is provider
-      AgentSpan.Context parentContext = propagate().extract(rpcContext, GETTER);
+      AgentSpanContext parentContext = propagate().extract(rpcContext, GETTER);
       span = startSpan(DUBBO_REQUEST,parentContext);
     }
     span.setTag(TAG_URL, url.toString());

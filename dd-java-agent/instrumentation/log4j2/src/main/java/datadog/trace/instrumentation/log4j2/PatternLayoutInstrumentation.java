@@ -15,7 +15,7 @@ import datadog.trace.api.Config;
 
 @AutoService(InstrumenterModule.class)
 public class PatternLayoutInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public PatternLayoutInstrumentation() {
     super("log4j", "log4j-2");
   }
@@ -33,18 +33,12 @@ public class PatternLayoutInstrumentation extends InstrumenterModule.Tracing
   @Override
   public void methodAdvice(MethodTransformer transformation) {
     transformation.applyAdvice(
-        isMethod()
-            .and(isPublic())
-            .and(named("build"))
-            .and(takesArguments(0))
-            ,
+        isMethod().and(isPublic()).and(named("build")).and(takesArguments(0)),
         packageName + ".PatternLayoutBuildAdvice");
   }
 
   @Override
   public String[] helperClassNames() {
-    return new String[]{
-        packageName + ".PatternLayoutBuildAdvice"
-    };
+    return new String[] {packageName + ".PatternLayoutBuildAdvice"};
   }
 }

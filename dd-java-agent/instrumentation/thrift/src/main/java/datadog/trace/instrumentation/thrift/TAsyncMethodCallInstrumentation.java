@@ -14,7 +14,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class TAsyncMethodCallInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public TAsyncMethodCallInstrumentation() {
     super(INSTRUMENTATION_NAME);
@@ -32,30 +32,28 @@ public class TAsyncMethodCallInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String[] helperClassNames() {
-    return new String[]{
-        packageName + ".ThriftConstants",
-        packageName + ".ThriftBaseDecorator",
-        packageName + ".ThriftClientDecorator",
-        packageName + ".ThriftConstants$Tags",
-        packageName + ".AbstractContext",
-        packageName + ".AsyncContext",
-        packageName + ".Context",
-        packageName + ".ClientOutProtocolWrapper",
-        packageName + ".AsyncMethodCallConstructorAdvice",
-        packageName + ".AsyncMethodCallMethodAdvice",
-        packageName + ".DataDogAsyncMethodCallback",
-        packageName + ".InjectAdepter",
-        packageName + ".CTProtocolFactory"
+    return new String[] {
+      packageName + ".ThriftConstants",
+      packageName + ".ThriftBaseDecorator",
+      packageName + ".ThriftClientDecorator",
+      packageName + ".ThriftConstants$Tags",
+      packageName + ".AbstractContext",
+      packageName + ".AsyncContext",
+      packageName + ".Context",
+      packageName + ".ClientOutProtocolWrapper",
+      packageName + ".AsyncMethodCallConstructorAdvice",
+      packageName + ".AsyncMethodCallMethodAdvice",
+      packageName + ".DataDogAsyncMethodCallback",
+      packageName + ".InjectAdepter",
+      packageName + ".CTProtocolFactory"
     };
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformation) {
-    transformation.applyAdvice(isConstructor()
-        ,packageName+ ".AsyncMethodCallConstructorAdvice");
-    transformation.applyAdvice(isMethod()
-            .and(isProtected())
-            .and(named("prepareMethodCall"))
-        ,packageName + ".AsyncMethodCallMethodAdvice");
+    transformation.applyAdvice(isConstructor(), packageName + ".AsyncMethodCallConstructorAdvice");
+    transformation.applyAdvice(
+        isMethod().and(isProtected()).and(named("prepareMethodCall")),
+        packageName + ".AsyncMethodCallMethodAdvice");
   }
 }

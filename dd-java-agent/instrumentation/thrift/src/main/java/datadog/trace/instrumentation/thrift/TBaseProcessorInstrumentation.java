@@ -19,7 +19,7 @@ import org.apache.thrift.TBaseProcessor;
 
 @AutoService(InstrumenterModule.class)
 public class TBaseProcessorInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForTypeHierarchy , Instrumenter.HasMethodAdvice{
 
   public TBaseProcessorInstrumentation() {
     super(INSTRUMENTATION_NAME, INSTRUMENTATION_NAME_SERVER);

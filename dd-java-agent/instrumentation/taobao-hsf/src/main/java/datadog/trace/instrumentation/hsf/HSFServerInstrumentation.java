@@ -14,13 +14,11 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 
 /**
- * @Description
- * @Author liurui
- * @Date 2022/12/26 9:11
+ * @Description @Author liurui @Date 2022/12/26 9:11
  */
 @AutoService(InstrumenterModule.class)
 public class HSFServerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public HSFServerInstrumentation() {
     super("hsf-server");
   }
@@ -32,7 +30,7 @@ public class HSFServerInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public void methodAdvice(MethodTransformer transformation) {
-//    RPCFilter
+    //    RPCFilter
     transformation.applyAdvice(
         isMethod()
             .and(isPublic())
@@ -43,19 +41,18 @@ public class HSFServerInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String[] helperClassNames() {
-    return new String[]{
-        packageName + ".HSFDecorator",
-        packageName + ".HSFExtractAdapter",
-        packageName + ".HSFInjectAdapter",
+    return new String[] {
+      packageName + ".HSFDecorator",
+      packageName + ".HSFExtractAdapter",
+      packageName + ".HSFInjectAdapter",
     };
   }
 
   //  RPCFilter
   public static class ServerInvokeAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope before(@Advice.This Object filter,
-                             @Advice.Argument(1) final Invocation invocation
-    ) {
+    public static AgentScope before(
+        @Advice.This Object filter, @Advice.Argument(1) final Invocation invocation) {
       AgentSpan span = DECORATE.buildServerSpan(invocation);
       AgentScope agentScope = activateSpan(span);
       return agentScope;
