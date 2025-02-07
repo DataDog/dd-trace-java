@@ -29,8 +29,6 @@ jobs:
           dd_app_key: ${{ secrets.DATADOG_APP_KEY_STAGING }}
           dd_api_key: ${{ secrets.DATADOG_API_KEY_STAGING }}
           dd_site: "datad0g.com"
-          dd_service: "dd-trace-java"
-          dd_env: "ci"
           cpu_count: 2
           enable_performance_statistics: false
 
