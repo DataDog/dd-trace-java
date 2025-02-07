@@ -50,6 +50,7 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
     WafMetricCollector.get().wafRequest()
     WafMetricCollector.get().wafRequestTimeout()
     WafMetricCollector.get().wafRequestError()
+    WafMetricCollector.get().wafRequestRateLimited()
     WafMetricCollector.get().prepareMetrics()
     periodicAction.doIteration(telemetryService)
 
@@ -68,7 +69,8 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
           'rule_triggered:false',
           'request_blocked:false',
           'waf_error:false',
-          'waf_timeout:false'
+          'waf_timeout:false',
+          'rate_limited:true'
         ]
     } )
     1 * telemetryService.addMetric( { Metric metric ->
@@ -81,7 +83,8 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
           'rule_triggered:true',
           'request_blocked:false',
           'waf_error:false',
-          'waf_timeout:false'
+          'waf_timeout:false',
+          'rate_limited:true'
         ]
     } )
     1 * telemetryService.addMetric( { Metric metric ->
@@ -94,7 +97,8 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
           'rule_triggered:true',
           'request_blocked:true',
           'waf_error:false',
-          'waf_timeout:false'
+          'waf_timeout:false',
+          'rate_limited:true'
         ]
     } )
     1 * telemetryService.addMetric( { Metric metric ->
@@ -107,7 +111,8 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
           'rule_triggered:false',
           'request_blocked:false',
           'waf_error:false',
-          'waf_timeout:true'
+          'waf_timeout:true',
+          'rate_limited:true'
         ]
     } )
     1 * telemetryService.addMetric( { Metric metric ->
@@ -120,7 +125,8 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
           'rule_triggered:false',
           'request_blocked:false',
           'waf_error:true',
-          'waf_timeout:false'
+          'waf_timeout:false',
+          'rate_limited:true'
         ]
     } )
     0 * _._
@@ -132,6 +138,7 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
     WafMetricCollector.get().wafRequestBlocked()
     WafMetricCollector.get().wafRequestTimeout()
     WafMetricCollector.get().wafRequestError()
+    WafMetricCollector.get().wafRequestRateLimited()
     WafMetricCollector.get().prepareMetrics()
     periodicAction.doIteration(telemetryService)
 
@@ -150,7 +157,8 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
           'rule_triggered:false',
           'request_blocked:false',
           'waf_error:false',
-          'waf_timeout:false'
+          'waf_timeout:false',
+          'rate_limited:true'
         ]
     } )
     1 * telemetryService.addMetric( { Metric metric ->
@@ -163,7 +171,8 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
           'rule_triggered:true',
           'request_blocked:false',
           'waf_error:false',
-          'waf_timeout:false'
+          'waf_timeout:false',
+          'rate_limited:true'
         ]
     } )
     1 * telemetryService.addMetric( { Metric metric ->
@@ -176,7 +185,8 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
           'rule_triggered:true',
           'request_blocked:true',
           'waf_error:false',
-          'waf_timeout:false'
+          'waf_timeout:false',
+          'rate_limited:true'
         ]
     } )
     1 * telemetryService.addMetric( { Metric metric ->
@@ -189,7 +199,8 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
           'rule_triggered:false',
           'request_blocked:false',
           'waf_error:false',
-          'waf_timeout:true'
+          'waf_timeout:true',
+          'rate_limited:true'
         ]
     } )
     1 * telemetryService.addMetric( { Metric metric ->
@@ -202,7 +213,8 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
           'rule_triggered:false',
           'request_blocked:false',
           'waf_error:true',
-          'waf_timeout:false'
+          'waf_timeout:false',
+          'rate_limited:true'
         ]
     } )
     0 * _._

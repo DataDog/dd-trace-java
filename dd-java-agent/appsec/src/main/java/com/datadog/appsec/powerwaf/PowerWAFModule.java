@@ -500,25 +500,30 @@ public class PowerWAFModule implements AppSecModule {
         }
         Collection<AppSecEvent> events = buildEvents(resultWithData);
 
-        if (!events.isEmpty() && !reqCtx.isThrottled(rateLimiter)) {
-          AgentSpan activeSpan = AgentTracer.get().activeSpan();
-          if (activeSpan != null) {
-            log.debug("Setting force-keep tag on the current span");
-            // Keep event related span, because it could be ignored in case of
-            // reduced datadog sampling rate.
-            activeSpan.getLocalRootSpan().setTag(Tags.ASM_KEEP, true);
-            // If APM is disabled, inform downstream services that the current
-            // distributed trace contains at least one ASM event and must inherit
-            // the given force-keep priority
-            activeSpan
-                .getLocalRootSpan()
-                .setTag(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
-          } else {
-            // If active span is not available the ASK_KEEP tag will be set in the GatewayBridge
-            // when the request ends
-            log.debug("There is no active span available");
-          }
+        if (!events.isEmpty()) {
+          if (!reqCtx.isThrottled(rateLimiter)) {
+            AgentSpan activeSpan = AgentTracer.get().activeSpan();
+            if (activeSpan != null) {
+              log.debug("Setting force-keep tag on the current span");
+              // Keep event related span, because it could be ignored in case of
+              // reduced datadog sampling rate.
+              activeSpan.getLocalRootSpan().setTag(Tags.ASM_KEEP, true);
+              // If APM is disabled, inform downstream services that the current
+              // distributed trace contains at least one ASM event and must inherit
+              // the given force-keep priority
+              activeSpan
+                  .getLocalRootSpan()
+                  .setTag(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
+            } else {
+              // If active span is not available the ASK_KEEP tag will be set in the GatewayBridge
+              // when the request ends
+              log.debug("There is no active span available");
+            }
           reqCtx.reportEvents(events);
+          } else {
+            log.debug("Rate limited WAF events");
+            WafMetricCollector.get().wafRequestRateLimited();
+          }
         }
 
         if (flow.isBlocking()) {
