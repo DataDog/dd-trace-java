@@ -51,6 +51,7 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
     WafMetricCollector.get().wafRequestTimeout()
     WafMetricCollector.get().wafRequestError()
     WafMetricCollector.get().wafRequestRateLimited()
+    WafMetricCollector.get().wafRequestBlockFailure()
     WafMetricCollector.get().prepareMetrics()
     periodicAction.doIteration(telemetryService)
 
@@ -70,6 +71,7 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
           'request_blocked:false',
           'waf_error:false',
           'waf_timeout:false',
+          'block_failure:true',
           'rate_limited:true'
         ]
     } )
@@ -84,6 +86,7 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
           'request_blocked:false',
           'waf_error:false',
           'waf_timeout:false',
+          'block_failure:true',
           'rate_limited:true'
         ]
     } )
@@ -98,6 +101,7 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
           'request_blocked:true',
           'waf_error:false',
           'waf_timeout:false',
+          'block_failure:true',
           'rate_limited:true'
         ]
     } )
@@ -112,6 +116,7 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
           'request_blocked:false',
           'waf_error:false',
           'waf_timeout:true',
+          'block_failure:true',
           'rate_limited:true'
         ]
     } )
@@ -126,6 +131,7 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
           'request_blocked:false',
           'waf_error:true',
           'waf_timeout:false',
+          'block_failure:true',
           'rate_limited:true'
         ]
     } )
@@ -139,6 +145,7 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
     WafMetricCollector.get().wafRequestTimeout()
     WafMetricCollector.get().wafRequestError()
     WafMetricCollector.get().wafRequestRateLimited()
+    WafMetricCollector.get().wafRequestBlockFailure()
     WafMetricCollector.get().prepareMetrics()
     periodicAction.doIteration(telemetryService)
 
@@ -158,6 +165,7 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
           'request_blocked:false',
           'waf_error:false',
           'waf_timeout:false',
+          'block_failure:true',
           'rate_limited:true'
         ]
     } )
@@ -172,6 +180,7 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
           'request_blocked:false',
           'waf_error:false',
           'waf_timeout:false',
+          'block_failure:true',
           'rate_limited:true'
         ]
     } )
@@ -186,6 +195,7 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
           'request_blocked:true',
           'waf_error:false',
           'waf_timeout:false',
+          'block_failure:true',
           'rate_limited:true'
         ]
     } )
@@ -200,6 +210,7 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
           'request_blocked:false',
           'waf_error:false',
           'waf_timeout:true',
+          'block_failure:true',
           'rate_limited:true'
         ]
     } )
@@ -214,6 +225,7 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
           'request_blocked:false',
           'waf_error:true',
           'waf_timeout:false',
+          'block_failure:true',
           'rate_limited:true'
         ]
     } )
