@@ -128,6 +128,7 @@ public class DDEvpProxyApi extends RemoteApi {
   public Response sendSerializedTraces(Payload payload) {
     final int sizeInBytes = payload.sizeInBytes();
 
+    log.debug("SENDING PL {} TO TRACK {}", payload, trackType);
     Request.Builder builder =
         new Request.Builder()
             .url(proxiedApiUrl)
