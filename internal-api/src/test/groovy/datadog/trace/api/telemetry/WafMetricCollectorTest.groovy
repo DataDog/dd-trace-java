@@ -29,6 +29,7 @@ class WafMetricCollectorTest extends DDSpecification {
     WafMetricCollector.get().wafRequestTimeout()
     WafMetricCollector.get().wafRequestError()
     WafMetricCollector.get().wafRequestRateLimited()
+    WafMetricCollector.get().wafRequestBlockFailure()
     WafMetricCollector.get().raspRuleEval(RuleType.SQL_INJECTION)
     WafMetricCollector.get().raspRuleEval(RuleType.SQL_INJECTION)
     WafMetricCollector.get().raspRuleMatch(RuleType.SQL_INJECTION)
@@ -73,6 +74,7 @@ class WafMetricCollectorTest extends DDSpecification {
       'request_blocked:false',
       'waf_error:false',
       'waf_timeout:false',
+      'block_failure:true',
       'rate_limited:true'
     ].toSet()
 
@@ -87,6 +89,7 @@ class WafMetricCollectorTest extends DDSpecification {
       'request_blocked:false',
       'waf_error:false',
       'waf_timeout:false',
+      'block_failure:true',
       'rate_limited:true'
     ].toSet()
 
@@ -103,6 +106,7 @@ class WafMetricCollectorTest extends DDSpecification {
       'request_blocked:true',
       'waf_error:false',
       'waf_timeout:false',
+      'block_failure:true',
       'rate_limited:true'
     ].toSet()
 
@@ -118,6 +122,7 @@ class WafMetricCollectorTest extends DDSpecification {
       'request_blocked:false',
       'waf_error:false',
       'waf_timeout:true',
+      'block_failure:true',
       'rate_limited:true'
     ].toSet()
 
@@ -133,6 +138,7 @@ class WafMetricCollectorTest extends DDSpecification {
       'request_blocked:false',
       'waf_error:true',
       'waf_timeout:false',
+      'block_failure:true',
       'rate_limited:true'
     ].toSet()
 

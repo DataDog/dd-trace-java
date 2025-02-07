@@ -490,6 +490,7 @@ public class PowerWAFModule implements AppSecModule {
             }
           } else {
             log.info("Ignoring action with type {}", actionInfo.type);
+            WafMetricCollector.get().wafRequestBlockFailure();
           }
         }
         Collection<AppSecEvent> events = buildEvents(resultWithData);
@@ -549,6 +550,7 @@ public class PowerWAFModule implements AppSecModule {
         return new Flow.Action.RequestBlockingAction(statusCode, blockingContentType);
       } catch (RuntimeException cce) {
         log.warn("Invalid blocking action data", cce);
+        WafMetricCollector.get().wafRequestBlockFailure();
         return null;
       }
     }
@@ -574,6 +576,7 @@ public class PowerWAFModule implements AppSecModule {
         return Flow.Action.RequestBlockingAction.forRedirect(statusCode, location);
       } catch (RuntimeException cce) {
         log.warn("Invalid blocking action data", cce);
+        WafMetricCollector.get().wafRequestBlockFailure();
         return null;
       }
     }
