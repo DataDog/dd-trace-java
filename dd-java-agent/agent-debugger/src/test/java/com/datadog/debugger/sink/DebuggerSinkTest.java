@@ -72,7 +72,7 @@ public class DebuggerSinkTest {
     when(config.getServiceName()).thenReturn("service-name");
     when(config.getEnv()).thenReturn("test");
     when(config.getVersion()).thenReturn("foo");
-    when(config.getDebuggerUploadBatchSize()).thenReturn(1);
+    when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(1);
     when(config.getFinalDebuggerSnapshotUrl())
         .thenReturn("http://localhost:8126/debugger/v1/input");
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
@@ -111,7 +111,7 @@ public class DebuggerSinkTest {
 
   @Test
   public void addMultipleSnapshots() throws IOException {
-    when(config.getDebuggerUploadBatchSize()).thenReturn(2);
+    when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(2);
     DebuggerSink sink = createDefaultDebuggerSink();
     DebuggerAgentHelper.injectSerializer(new JsonSnapshotSerializer());
     Snapshot snapshot = createSnapshot();
@@ -130,7 +130,7 @@ public class DebuggerSinkTest {
 
   @Test
   public void splitSnapshotBatch() {
-    when(config.getDebuggerUploadBatchSize()).thenReturn(10);
+    when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(10);
     DebuggerSink sink = createDefaultDebuggerSink();
     DebuggerAgentHelper.injectSerializer(new JsonSnapshotSerializer());
     Snapshot largeSnapshot = createSnapshot();
@@ -278,7 +278,7 @@ public class DebuggerSinkTest {
 
   @Test
   public void addMultipleDiagnostics() throws IOException {
-    when(config.getDebuggerUploadBatchSize()).thenReturn(100);
+    when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
     BatchUploader diagnosticUploader = mock(BatchUploader.class);
     DebuggerSink sink = createDebuggerSink(diagnosticUploader, false);
     for (String probeId : Arrays.asList("1", "2")) {
@@ -296,7 +296,7 @@ public class DebuggerSinkTest {
 
   @Test
   public void addMultipleDiagnosticsDebuggerTrack() throws IOException {
-    when(config.getDebuggerUploadBatchSize()).thenReturn(100);
+    when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
     BatchUploader diagnosticUploader = mock(BatchUploader.class);
     DebuggerSink sink = createDebuggerSink(diagnosticUploader, true);
     for (String probeId : Arrays.asList("1", "2")) {
@@ -317,7 +317,7 @@ public class DebuggerSinkTest {
 
   @Test
   public void splitDiagnosticsBatch() {
-    when(config.getDebuggerUploadBatchSize()).thenReturn(100);
+    when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
     BatchUploader diagnosticUploader = mock(BatchUploader.class);
     DebuggerSink sink = createDebuggerSink(diagnosticUploader, false);
     StringBuilder largeMessageBuilder = new StringBuilder(100_001);
@@ -337,7 +337,7 @@ public class DebuggerSinkTest {
 
   @Test
   public void splitDiagnosticsBatchDebuggerTrack() {
-    when(config.getDebuggerUploadBatchSize()).thenReturn(100);
+    when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
     BatchUploader diagnosticUploader = mock(BatchUploader.class);
     DebuggerSink sink = createDebuggerSink(diagnosticUploader, true);
     StringBuilder largeMessageBuilder = new StringBuilder(100_001);
@@ -358,7 +358,7 @@ public class DebuggerSinkTest {
 
   @Test
   public void tooLargeDiagnostic() {
-    when(config.getDebuggerUploadBatchSize()).thenReturn(100);
+    when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
     DebuggerSink sink = createDefaultDebuggerSink();
     StringBuilder tooLargeMessageBuilder = new StringBuilder(MAX_PAYLOAD + 1);
     for (int i = 0; i < MAX_PAYLOAD; i++) {
@@ -372,7 +372,7 @@ public class DebuggerSinkTest {
 
   @Test
   public void tooLargeUTF8Diagnostic() {
-    when(config.getDebuggerUploadBatchSize()).thenReturn(100);
+    when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
     DebuggerSink sink = createDefaultDebuggerSink();
     StringBuilder tooLargeMessageBuilder = new StringBuilder(MAX_PAYLOAD + 4);
     for (int i = 0; i < MAX_PAYLOAD; i += 4) {

@@ -25,6 +25,7 @@ public class ExecutionSettings {
           false,
           false,
           EarlyFlakeDetectionSettings.DEFAULT,
+          TestManagementSettings.DEFAULT,
           null,
           Collections.emptyMap(),
           Collections.emptyMap(),
@@ -39,6 +40,7 @@ public class ExecutionSettings {
   private final boolean flakyTestRetriesEnabled;
   private final boolean impactedTestsDetectionEnabled;
   @Nonnull private final EarlyFlakeDetectionSettings earlyFlakeDetectionSettings;
+  @Nonnull private final TestManagementSettings testManagementSettings;
   @Nullable private final String itrCorrelationId;
   @Nonnull private final Map<TestIdentifier, TestMetadata> skippableTests;
   @Nonnull private final Map<String, BitSet> skippableTestsCoverage;
@@ -54,6 +56,7 @@ public class ExecutionSettings {
       boolean flakyTestRetriesEnabled,
       boolean impactedTestsDetectionEnabled,
       @Nonnull EarlyFlakeDetectionSettings earlyFlakeDetectionSettings,
+      @Nonnull TestManagementSettings testManagementSettings,
       @Nullable String itrCorrelationId,
       @Nonnull Map<TestIdentifier, TestMetadata> skippableTests,
       @Nonnull Map<String, BitSet> skippableTestsCoverage,
@@ -67,6 +70,7 @@ public class ExecutionSettings {
     this.flakyTestRetriesEnabled = flakyTestRetriesEnabled;
     this.impactedTestsDetectionEnabled = impactedTestsDetectionEnabled;
     this.earlyFlakeDetectionSettings = earlyFlakeDetectionSettings;
+    this.testManagementSettings = testManagementSettings;
     this.itrCorrelationId = itrCorrelationId;
     this.skippableTests = skippableTests;
     this.skippableTestsCoverage = skippableTestsCoverage;
@@ -103,6 +107,11 @@ public class ExecutionSettings {
   @Nonnull
   public EarlyFlakeDetectionSettings getEarlyFlakeDetectionSettings() {
     return earlyFlakeDetectionSettings;
+  }
+
+  @Nonnull
+  public TestManagementSettings getTestManagementSettings() {
+    return testManagementSettings;
   }
 
   @Nullable
@@ -162,6 +171,7 @@ public class ExecutionSettings {
         && codeCoverageEnabled == that.codeCoverageEnabled
         && testSkippingEnabled == that.testSkippingEnabled
         && Objects.equals(earlyFlakeDetectionSettings, that.earlyFlakeDetectionSettings)
+        && Objects.equals(testManagementSettings, that.testManagementSettings)
         && Objects.equals(itrCorrelationId, that.itrCorrelationId)
         && Objects.equals(skippableTests, that.skippableTests)
         && Objects.equals(skippableTestsCoverage, that.skippableTestsCoverage)
@@ -178,6 +188,7 @@ public class ExecutionSettings {
         codeCoverageEnabled,
         testSkippingEnabled,
         earlyFlakeDetectionSettings,
+        testManagementSettings,
         itrCorrelationId,
         skippableTests,
         skippableTestsCoverage,
@@ -211,6 +222,8 @@ public class ExecutionSettings {
 
       EarlyFlakeDetectionSettingsSerializer.serialize(s, settings.earlyFlakeDetectionSettings);
 
+      TestManagementSettingsSerializer.serialize(s, settings.testManagementSettings);
+
       s.write(settings.itrCorrelationId);
       s.write(
           settings.skippableTests,
@@ -238,6 +251,9 @@ public class ExecutionSettings {
       EarlyFlakeDetectionSettings earlyFlakeDetectionSettings =
           EarlyFlakeDetectionSettingsSerializer.deserialize(buffer);
 
+      TestManagementSettings testManagementSettings =
+          TestManagementSettingsSerializer.deserialize(buffer);
+
       String itrCorrelationId = Serializer.readString(buffer);
 
       Map<TestIdentifier, TestMetadata> skippableTests =
@@ -262,6 +278,7 @@ public class ExecutionSettings {
           flakyTestRetriesEnabled,
           impactedTestsDetectionEnabled,
           earlyFlakeDetectionSettings,
+          testManagementSettings,
           itrCorrelationId,
           skippableTests,
           skippableTestsCoverage,

@@ -72,7 +72,7 @@ public final class CompletableFutureAdvice {
       boolean claimed = !wasClaimed && !hadExecutor && zis.getForkJoinTaskTag() == 1;
       if (mode == ASYNC || (mode < ASYNC && claimed) || !zis.isLive()) {
         contextStore = InstrumentationContext.get(UniCompletion.class, ConcurrentState.class);
-        ConcurrentState.closeAndClearContinuation(contextStore, zis);
+        ConcurrentState.cancelAndClearContinuation(contextStore, zis);
       }
       if (scope != null || throwable != null) {
         if (contextStore == null) {

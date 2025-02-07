@@ -114,12 +114,14 @@ public class Config {
   private final String runtimeVersion;
 
   private final String applicationKey;
+
   /**
    * Note: this has effect only on profiling site. Traces are sent to Datadog agent and are not
    * affected by this setting. If CI Visibility is used with agentless mode, api key is used when
    * sending data (including traces) to backend
    */
   private final String apiKey;
+
   /**
    * Note: this has effect only on profiling site. Traces are sent to Datadog agent and are not
    * affected by this setting.
@@ -373,6 +375,8 @@ public class Config {
   private final String ciVisibilityRemoteEnvVarsProviderUrl;
   private final String ciVisibilityRemoteEnvVarsProviderKey;
   private final String ciVisibilityTestOrder;
+  private final boolean ciVisibilityTestManagementEnabled;
+  private final Integer ciVisibilityTestManagementAttemptToFixRetries;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -387,30 +391,29 @@ public class Config {
   private final String DBMPropagationMode;
   private final boolean DBMTracePreparedStatements;
 
-  private final boolean debuggerEnabled;
-  private final int debuggerUploadTimeout;
-  private final int debuggerUploadFlushInterval;
-  private final boolean debuggerClassFileDumpEnabled;
-  private final int debuggerPollInterval;
-  private final int debuggerDiagnosticsInterval;
-  private final boolean debuggerMetricEnabled;
-  private final String debuggerProbeFileLocation;
-  private final int debuggerUploadBatchSize;
-  private final long debuggerMaxPayloadSize;
-  private final boolean debuggerVerifyByteCode;
-  private final boolean debuggerInstrumentTheWorld;
-  private final String debuggerExcludeFiles;
-  private final String debuggerIncludeFiles;
-  private final int debuggerCaptureTimeout;
-  private final String debuggerRedactedIdentifiers;
-  private final Set<String> debuggerRedactionExcludedIdentifiers;
-  private final String debuggerRedactedTypes;
-  private final boolean debuggerHoistLocalVarsEnabled;
-  private final boolean debuggerSymbolEnabled;
-  private final boolean debuggerSymbolForceUpload;
-  private final String debuggerSymbolIncludes;
-  private final int debuggerSymbolFlushThreshold;
-  private final boolean debuggerSymbolCompressed;
+  private final boolean dynamicInstrumentationEnabled;
+  private final int dynamicInstrumentationUploadTimeout;
+  private final int dynamicInstrumentationUploadFlushInterval;
+  private final boolean dynamicInstrumentationClassFileDumpEnabled;
+  private final int dynamicInstrumentationPollInterval;
+  private final int dynamicInstrumentationDiagnosticsInterval;
+  private final boolean dynamicInstrumentationMetricEnabled;
+  private final String dynamicInstrumentationProbeFile;
+  private final int dynamicInstrumentationUploadBatchSize;
+  private final long dynamicInstrumentationMaxPayloadSize;
+  private final boolean dynamicInstrumentationVerifyByteCode;
+  private final boolean dynamicInstrumentationInstrumentTheWorld;
+  private final String dynamicInstrumentationExcludeFiles;
+  private final String dynamicInstrumentationIncludeFiles;
+  private final int dynamicInstrumentationCaptureTimeout;
+  private final String dynamicInstrumentationRedactedIdentifiers;
+  private final Set<String> dynamicInstrumentationRedactionExcludedIdentifiers;
+  private final String dynamicInstrumentationRedactedTypes;
+  private final boolean dynamicInstrumentationHoistLocalVarsEnabled;
+  private final boolean symbolDatabaseEnabled;
+  private final boolean symbolDatabaseForceUpload;
+  private final int symbolDatabaseFlushThreshold;
+  private final boolean symbolDatabaseCompressed;
   private final boolean debuggerExceptionEnabled;
   private final int debuggerMaxExceptionPerSecond;
   @Deprecated private final boolean debuggerExceptionOnlyLocalRoot;
@@ -1522,6 +1525,9 @@ public class Config {
     ciVisibilityRemoteEnvVarsProviderKey =
         configProvider.getString(CIVISIBILITY_REMOTE_ENV_VARS_PROVIDER_KEY);
     ciVisibilityTestOrder = configProvider.getString(CIVISIBILITY_TEST_ORDER);
+    ciVisibilityTestManagementEnabled = configProvider.getBoolean(TEST_MANAGEMENT_ENABLED, true);
+    ciVisibilityTestManagementAttemptToFixRetries =
+        configProvider.getInteger(TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES);
 
     remoteConfigEnabled =
         configProvider.getBoolean(
@@ -1547,57 +1553,79 @@ public class Config {
         configProvider.getInteger(
             REMOTE_CONFIG_MAX_EXTRA_SERVICES, DEFAULT_REMOTE_CONFIG_MAX_EXTRA_SERVICES);
 
-    debuggerEnabled = configProvider.getBoolean(DEBUGGER_ENABLED, DEFAULT_DEBUGGER_ENABLED);
-    debuggerUploadTimeout =
-        configProvider.getInteger(DEBUGGER_UPLOAD_TIMEOUT, DEFAULT_DEBUGGER_UPLOAD_TIMEOUT);
-    debuggerUploadFlushInterval =
-        configProvider.getInteger(
-            DEBUGGER_UPLOAD_FLUSH_INTERVAL, DEFAULT_DEBUGGER_UPLOAD_FLUSH_INTERVAL);
-    debuggerClassFileDumpEnabled =
+    dynamicInstrumentationEnabled =
         configProvider.getBoolean(
-            DEBUGGER_CLASSFILE_DUMP_ENABLED, DEFAULT_DEBUGGER_CLASSFILE_DUMP_ENABLED);
-    debuggerPollInterval =
-        configProvider.getInteger(DEBUGGER_POLL_INTERVAL, DEFAULT_DEBUGGER_POLL_INTERVAL);
-    debuggerDiagnosticsInterval =
+            DYNAMIC_INSTRUMENTATION_ENABLED, DEFAULT_DYNAMIC_INSTRUMENTATION_ENABLED);
+    dynamicInstrumentationUploadTimeout =
         configProvider.getInteger(
-            DEBUGGER_DIAGNOSTICS_INTERVAL, DEFAULT_DEBUGGER_DIAGNOSTICS_INTERVAL);
-    debuggerMetricEnabled =
+            DYNAMIC_INSTRUMENTATION_UPLOAD_TIMEOUT, DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_TIMEOUT);
+    dynamicInstrumentationUploadFlushInterval =
+        configProvider.getInteger(
+            DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL,
+            DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL);
+    dynamicInstrumentationClassFileDumpEnabled =
+        configProvider.getBoolean(
+            DYNAMIC_INSTRUMENTATION_CLASSFILE_DUMP_ENABLED,
+            DEFAULT_DYNAMIC_INSTRUMENTATION_CLASSFILE_DUMP_ENABLED);
+    dynamicInstrumentationPollInterval =
+        configProvider.getInteger(
+            DYNAMIC_INSTRUMENTATION_POLL_INTERVAL, DEFAULT_DYNAMIC_INSTRUMENTATION_POLL_INTERVAL);
+    dynamicInstrumentationDiagnosticsInterval =
+        configProvider.getInteger(
+            DYNAMIC_INSTRUMENTATION_DIAGNOSTICS_INTERVAL,
+            DEFAULT_DYNAMIC_INSTRUMENTATION_DIAGNOSTICS_INTERVAL);
+    dynamicInstrumentationMetricEnabled =
         runtimeMetricsEnabled
             && configProvider.getBoolean(
-                DEBUGGER_METRICS_ENABLED, DEFAULT_DEBUGGER_METRICS_ENABLED);
-    debuggerProbeFileLocation = configProvider.getString(DEBUGGER_PROBE_FILE_LOCATION);
-    debuggerUploadBatchSize =
-        configProvider.getInteger(DEBUGGER_UPLOAD_BATCH_SIZE, DEFAULT_DEBUGGER_UPLOAD_BATCH_SIZE);
-    debuggerMaxPayloadSize =
-        configProvider.getInteger(DEBUGGER_MAX_PAYLOAD_SIZE, DEFAULT_DEBUGGER_MAX_PAYLOAD_SIZE)
-            * 1024;
-    debuggerVerifyByteCode =
-        configProvider.getBoolean(DEBUGGER_VERIFY_BYTECODE, DEFAULT_DEBUGGER_VERIFY_BYTECODE);
-    debuggerInstrumentTheWorld =
-        configProvider.getBoolean(
-            DEBUGGER_INSTRUMENT_THE_WORLD, DEFAULT_DEBUGGER_INSTRUMENT_THE_WORLD);
-    debuggerExcludeFiles = configProvider.getString(DEBUGGER_EXCLUDE_FILES);
-    debuggerIncludeFiles = configProvider.getString(DEBUGGER_INCLUDE_FILES);
-    debuggerCaptureTimeout =
-        configProvider.getInteger(DEBUGGER_CAPTURE_TIMEOUT, DEFAULT_DEBUGGER_CAPTURE_TIMEOUT);
-    debuggerRedactedIdentifiers = configProvider.getString(DEBUGGER_REDACTED_IDENTIFIERS, null);
-    debuggerRedactionExcludedIdentifiers =
-        tryMakeImmutableSet(configProvider.getList(DEBUGGER_REDACTION_EXCLUDED_IDENTIFIERS));
-    debuggerRedactedTypes = configProvider.getString(DEBUGGER_REDACTED_TYPES, null);
-    debuggerHoistLocalVarsEnabled =
-        configProvider.getBoolean(
-            DEBUGGER_HOIST_LOCALVARS_ENABLED, DEFAULT_DEBUGGER_HOIST_LOCALVARS_ENABLED);
-    debuggerSymbolEnabled =
-        configProvider.getBoolean(DEBUGGER_SYMBOL_ENABLED, DEFAULT_DEBUGGER_SYMBOL_ENABLED);
-    debuggerSymbolForceUpload =
-        configProvider.getBoolean(
-            DEBUGGER_SYMBOL_FORCE_UPLOAD, DEFAULT_DEBUGGER_SYMBOL_FORCE_UPLOAD);
-    debuggerSymbolIncludes = configProvider.getString(DEBUGGER_SYMBOL_INCLUDES, null);
-    debuggerSymbolFlushThreshold =
+                DYNAMIC_INSTRUMENTATION_METRICS_ENABLED,
+                DEFAULT_DYNAMIC_INSTRUMENTATION_METRICS_ENABLED);
+    dynamicInstrumentationProbeFile = configProvider.getString(DYNAMIC_INSTRUMENTATION_PROBE_FILE);
+    dynamicInstrumentationUploadBatchSize =
         configProvider.getInteger(
-            DEBUGGER_SYMBOL_FLUSH_THRESHOLD, DEFAULT_DEBUGGER_SYMBOL_FLUSH_THRESHOLD);
-    debuggerSymbolCompressed =
-        configProvider.getBoolean(DEBUGGER_SYMBOL_COMPRESSED, DEFAULT_DEBUGGER_SYMBOL_COMPRESSED);
+            DYNAMIC_INSTRUMENTATION_UPLOAD_BATCH_SIZE,
+            DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_BATCH_SIZE);
+    dynamicInstrumentationMaxPayloadSize =
+        configProvider.getInteger(
+                DYNAMIC_INSTRUMENTATION_MAX_PAYLOAD_SIZE,
+                DEFAULT_DYNAMIC_INSTRUMENTATION_MAX_PAYLOAD_SIZE)
+            * 1024;
+    dynamicInstrumentationVerifyByteCode =
+        configProvider.getBoolean(
+            DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE,
+            DEFAULT_DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE);
+    dynamicInstrumentationInstrumentTheWorld =
+        configProvider.getBoolean(
+            DYNAMIC_INSTRUMENTATION_INSTRUMENT_THE_WORLD,
+            DEFAULT_DYNAMIC_INSTRUMENTATION_INSTRUMENT_THE_WORLD);
+    dynamicInstrumentationExcludeFiles =
+        configProvider.getString(DYNAMIC_INSTRUMENTATION_EXCLUDE_FILES);
+    dynamicInstrumentationIncludeFiles =
+        configProvider.getString(DYNAMIC_INSTRUMENTATION_INCLUDE_FILES);
+    dynamicInstrumentationCaptureTimeout =
+        configProvider.getInteger(
+            DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT,
+            DEFAULT_DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT);
+    dynamicInstrumentationRedactedIdentifiers =
+        configProvider.getString(DYNAMIC_INSTRUMENTATION_REDACTED_IDENTIFIERS, null);
+    dynamicInstrumentationRedactionExcludedIdentifiers =
+        tryMakeImmutableSet(
+            configProvider.getList(DYNAMIC_INSTRUMENTATION_REDACTION_EXCLUDED_IDENTIFIERS));
+    dynamicInstrumentationRedactedTypes =
+        configProvider.getString(DYNAMIC_INSTRUMENTATION_REDACTED_TYPES, null);
+    dynamicInstrumentationHoistLocalVarsEnabled =
+        configProvider.getBoolean(
+            DYNAMIC_INSTRUMENTATION_HOIST_LOCALVARS_ENABLED,
+            DEFAULT_DYNAMIC_INSTRUMENTATION_HOIST_LOCALVARS_ENABLED);
+    symbolDatabaseEnabled =
+        configProvider.getBoolean(SYMBOL_DATABASE_ENABLED, DEFAULT_SYMBOL_DATABASE_ENABLED);
+    symbolDatabaseForceUpload =
+        configProvider.getBoolean(
+            SYMBOL_DATABASE_FORCE_UPLOAD, DEFAULT_SYMBOL_DATABASE_FORCE_UPLOAD);
+    symbolDatabaseFlushThreshold =
+        configProvider.getInteger(
+            SYMBOL_DATABASE_FLUSH_THRESHOLD, DEFAULT_SYMBOL_DATABASE_FLUSH_THRESHOLD);
+    symbolDatabaseCompressed =
+        configProvider.getBoolean(SYMBOL_DATABASE_COMPRESSED, DEFAULT_SYMBOL_DATABASE_COMPRESSED);
     debuggerExceptionEnabled =
         configProvider.getBoolean(
             DEBUGGER_EXCEPTION_ENABLED,
@@ -2979,6 +3007,14 @@ public class Config {
     return ciVisibilityTestOrder;
   }
 
+  public boolean isCiVisibilityTestManagementEnabled() {
+    return ciVisibilityTestManagementEnabled;
+  }
+
+  public Integer getCiVisibilityTestManagementAttemptToFixRetries() {
+    return ciVisibilityTestManagementAttemptToFixRetries;
+  }
+
   public String getAppSecRulesFile() {
     return appSecRulesFile;
   }
@@ -3015,76 +3051,76 @@ public class Config {
     return remoteConfigMaxExtraServices;
   }
 
-  public boolean isDebuggerEnabled() {
-    return debuggerEnabled;
+  public boolean isDynamicInstrumentationEnabled() {
+    return dynamicInstrumentationEnabled;
   }
 
-  public int getDebuggerUploadTimeout() {
-    return debuggerUploadTimeout;
+  public int getDynamicInstrumentationUploadTimeout() {
+    return dynamicInstrumentationUploadTimeout;
   }
 
-  public int getDebuggerUploadFlushInterval() {
-    return debuggerUploadFlushInterval;
+  public int getDynamicInstrumentationUploadFlushInterval() {
+    return dynamicInstrumentationUploadFlushInterval;
   }
 
-  public boolean isDebuggerClassFileDumpEnabled() {
-    return debuggerClassFileDumpEnabled;
+  public boolean isDynamicInstrumentationClassFileDumpEnabled() {
+    return dynamicInstrumentationClassFileDumpEnabled;
   }
 
-  public int getDebuggerPollInterval() {
-    return debuggerPollInterval;
+  public int getDynamicInstrumentationPollInterval() {
+    return dynamicInstrumentationPollInterval;
   }
 
-  public int getDebuggerDiagnosticsInterval() {
-    return debuggerDiagnosticsInterval;
+  public int getDynamicInstrumentationDiagnosticsInterval() {
+    return dynamicInstrumentationDiagnosticsInterval;
   }
 
-  public boolean isDebuggerMetricsEnabled() {
-    return debuggerMetricEnabled;
+  public boolean isDynamicInstrumentationMetricsEnabled() {
+    return dynamicInstrumentationMetricEnabled;
   }
 
-  public int getDebuggerUploadBatchSize() {
-    return debuggerUploadBatchSize;
+  public int getDynamicInstrumentationUploadBatchSize() {
+    return dynamicInstrumentationUploadBatchSize;
   }
 
-  public long getDebuggerMaxPayloadSize() {
-    return debuggerMaxPayloadSize;
+  public long getDynamicInstrumentationMaxPayloadSize() {
+    return dynamicInstrumentationMaxPayloadSize;
   }
 
-  public boolean isDebuggerVerifyByteCode() {
-    return debuggerVerifyByteCode;
+  public boolean isDynamicInstrumentationVerifyByteCode() {
+    return dynamicInstrumentationVerifyByteCode;
   }
 
-  public boolean isDebuggerInstrumentTheWorld() {
-    return debuggerInstrumentTheWorld;
+  public boolean isDynamicInstrumentationInstrumentTheWorld() {
+    return dynamicInstrumentationInstrumentTheWorld;
   }
 
-  public String getDebuggerExcludeFiles() {
-    return debuggerExcludeFiles;
+  public String getDynamicInstrumentationExcludeFiles() {
+    return dynamicInstrumentationExcludeFiles;
   }
 
-  public String getDebuggerIncludeFiles() {
-    return debuggerIncludeFiles;
+  public String getDynamicInstrumentationIncludeFiles() {
+    return dynamicInstrumentationIncludeFiles;
   }
 
-  public int getDebuggerCaptureTimeout() {
-    return debuggerCaptureTimeout;
+  public int getDynamicInstrumentationCaptureTimeout() {
+    return dynamicInstrumentationCaptureTimeout;
   }
 
-  public boolean isDebuggerSymbolEnabled() {
-    return debuggerSymbolEnabled;
+  public boolean isSymbolDatabaseEnabled() {
+    return symbolDatabaseEnabled;
   }
 
-  public boolean isDebuggerSymbolForceUpload() {
-    return debuggerSymbolForceUpload;
+  public boolean isSymbolDatabaseForceUpload() {
+    return symbolDatabaseForceUpload;
   }
 
-  public int getDebuggerSymbolFlushThreshold() {
-    return debuggerSymbolFlushThreshold;
+  public int getSymbolDatabaseFlushThreshold() {
+    return symbolDatabaseFlushThreshold;
   }
 
-  public boolean isDebuggerSymbolCompressed() {
-    return debuggerSymbolCompressed;
+  public boolean isSymbolDatabaseCompressed() {
+    return symbolDatabaseCompressed;
   }
 
   public boolean isDebuggerExceptionEnabled() {
@@ -3144,24 +3180,24 @@ public class Config {
     return getFinalDebuggerBaseUrl() + "/symdb/v1/input";
   }
 
-  public String getDebuggerProbeFileLocation() {
-    return debuggerProbeFileLocation;
+  public String getDynamicInstrumentationProbeFile() {
+    return dynamicInstrumentationProbeFile;
   }
 
-  public String getDebuggerRedactedIdentifiers() {
-    return debuggerRedactedIdentifiers;
+  public String getDynamicInstrumentationRedactedIdentifiers() {
+    return dynamicInstrumentationRedactedIdentifiers;
   }
 
-  public Set<String> getDebuggerRedactionExcludedIdentifiers() {
-    return debuggerRedactionExcludedIdentifiers;
+  public Set<String> getDynamicInstrumentationRedactionExcludedIdentifiers() {
+    return dynamicInstrumentationRedactionExcludedIdentifiers;
   }
 
-  public String getDebuggerRedactedTypes() {
-    return debuggerRedactedTypes;
+  public String getDynamicInstrumentationRedactedTypes() {
+    return dynamicInstrumentationRedactedTypes;
   }
 
-  public boolean isDebuggerHoistLocalVarsEnabled() {
-    return debuggerHoistLocalVarsEnabled;
+  public boolean isDynamicInstrumentationHoistLocalVarsEnabled() {
+    return dynamicInstrumentationHoistLocalVarsEnabled;
   }
 
   public boolean isAwsPropagationEnabled() {
@@ -4460,47 +4496,49 @@ public class Config {
         + ", remoteConfigIntegrityCheckEnabled="
         + remoteConfigIntegrityCheckEnabled
         + ", debuggerEnabled="
-        + debuggerEnabled
+        + dynamicInstrumentationEnabled
         + ", debuggerUploadTimeout="
-        + debuggerUploadTimeout
+        + dynamicInstrumentationUploadTimeout
         + ", debuggerUploadFlushInterval="
-        + debuggerUploadFlushInterval
+        + dynamicInstrumentationUploadFlushInterval
         + ", debuggerClassFileDumpEnabled="
-        + debuggerClassFileDumpEnabled
+        + dynamicInstrumentationClassFileDumpEnabled
         + ", debuggerPollInterval="
-        + debuggerPollInterval
+        + dynamicInstrumentationPollInterval
         + ", debuggerDiagnosticsInterval="
-        + debuggerDiagnosticsInterval
+        + dynamicInstrumentationDiagnosticsInterval
         + ", debuggerMetricEnabled="
-        + debuggerMetricEnabled
+        + dynamicInstrumentationMetricEnabled
         + ", debuggerProbeFileLocation="
-        + debuggerProbeFileLocation
+        + dynamicInstrumentationProbeFile
         + ", debuggerUploadBatchSize="
-        + debuggerUploadBatchSize
+        + dynamicInstrumentationUploadBatchSize
         + ", debuggerMaxPayloadSize="
-        + debuggerMaxPayloadSize
+        + dynamicInstrumentationMaxPayloadSize
         + ", debuggerVerifyByteCode="
-        + debuggerVerifyByteCode
+        + dynamicInstrumentationVerifyByteCode
         + ", debuggerInstrumentTheWorld="
-        + debuggerInstrumentTheWorld
+        + dynamicInstrumentationInstrumentTheWorld
         + ", debuggerExcludeFiles="
-        + debuggerExcludeFiles
+        + dynamicInstrumentationExcludeFiles
         + ", debuggerIncludeFiles="
-        + debuggerIncludeFiles
+        + dynamicInstrumentationIncludeFiles
         + ", debuggerCaptureTimeout="
-        + debuggerCaptureTimeout
+        + dynamicInstrumentationCaptureTimeout
         + ", debuggerRedactIdentifiers="
-        + debuggerRedactedIdentifiers
+        + dynamicInstrumentationRedactedIdentifiers
         + ", debuggerRedactTypes="
-        + debuggerRedactedTypes
+        + dynamicInstrumentationRedactedTypes
         + ", debuggerSymbolEnabled="
-        + debuggerSymbolEnabled
+        + symbolDatabaseEnabled
         + ", debuggerSymbolForceUpload="
-        + debuggerSymbolForceUpload
+        + symbolDatabaseForceUpload
         + ", debuggerSymbolFlushThreshold="
-        + debuggerSymbolFlushThreshold
-        + ", debuggerSymbolIncludes="
-        + debuggerSymbolIncludes
+        + symbolDatabaseFlushThreshold
+        + ", thirdPartyIncludes="
+        + debuggerThirdPartyIncludes
+        + ", thirdPartyExcludes="
+        + debuggerThirdPartyExcludes
         + ", debuggerExceptionEnabled="
         + debuggerExceptionEnabled
         + ", debuggerCodeOriginEnabled="

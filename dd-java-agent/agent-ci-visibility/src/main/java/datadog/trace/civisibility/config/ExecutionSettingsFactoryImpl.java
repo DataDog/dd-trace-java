@@ -178,6 +178,8 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
             CiVisibilitySettings::isKnownTestsEnabled,
             Config::isCiVisibilityKnownTestsRequestEnabled);
 
+    TestManagementSettings testManagementSettings = getTestManagementSettings(settings);
+
     LOGGER.info(
         "CI Visibility settings ({}, {}/{}/{}):\n"
             + "Intelligent Test Runner - {},\n"
@@ -186,7 +188,8 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
             + "Early flakiness detection - {},\n"
             + "Impacted tests detection - {},\n"
             + "Known tests marking - {},\n"
-            + "Auto test retries - {}",
+            + "Auto test retries - {},\n"
+            + "Test Management - {}",
         repositoryRoot,
         tracerEnvironment.getConfigurations().getRuntimeName(),
         tracerEnvironment.getConfigurations().getRuntimeVersion(),
@@ -197,7 +200,8 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
         earlyFlakeDetectionEnabled,
         impactedTestsEnabled,
         knownTestsRequest,
-        flakyTestRetriesEnabled);
+        flakyTestRetriesEnabled,
+        testManagementSettings.isEnabled());
 
     Future<SkippableTests> skippableTestsFuture =
         executor.submit(() -> getSkippableTests(tracerEnvironment, itrEnabled));
@@ -228,6 +232,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
               earlyFlakeDetectionEnabled
                   ? settings.getEarlyFlakeDetectionSettings()
                   : EarlyFlakeDetectionSettings.DEFAULT,
+              testManagementSettings,
               skippableTests.getCorrelationId(),
               skippableTests
                   .getIdentifiersByModule()
@@ -271,6 +276,26 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
   }
 
   @Nonnull
+  private TestManagementSettings getTestManagementSettings(CiVisibilitySettings settings) {
+    boolean testManagementEnabled =
+        isFeatureEnabled(
+            settings,
+            s -> s.getTestManagementSettings().isEnabled(),
+            Config::isCiVisibilityTestManagementEnabled);
+
+    if (!testManagementEnabled) {
+      return TestManagementSettings.DEFAULT;
+    }
+
+    Integer retries = config.getCiVisibilityTestManagementAttemptToFixRetries();
+    if (retries != null) {
+      return new TestManagementSettings(true, retries);
+    }
+
+    return settings.getTestManagementSettings();
+  }
+
+  @Nonnull
   private SkippableTests getSkippableTests(
       TracerEnvironment tracerEnvironment, boolean itrEnabled) {
     if (!itrEnabled || repositoryRoot == null) {
@@ -302,7 +327,6 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
       Thread.currentThread().interrupt();
       LOGGER.error("Interrupted while waiting for git data upload", e);
       return SkippableTests.EMPTY;
-
     } catch (Exception e) {
       LOGGER.error("Could not obtain list of skippable tests, will proceed without skipping", e);
       return SkippableTests.EMPTY;
