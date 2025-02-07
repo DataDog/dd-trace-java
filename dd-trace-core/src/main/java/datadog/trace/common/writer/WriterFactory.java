@@ -39,8 +39,10 @@ public class WriterFactory {
       final Sampler sampler,
       final SingleSpanSampler singleSpanSampler,
       final HealthMetrics healthMetrics) {
-    return createWriter(
-        config, commObjects, sampler, singleSpanSampler, healthMetrics, config.getWriterType());
+    Writer w =
+        createWriter(
+            config, commObjects, sampler, singleSpanSampler, healthMetrics, config.getWriterType());
+    return w;
   }
 
   public static Writer createWriter(
@@ -51,14 +53,20 @@ public class WriterFactory {
       final HealthMetrics healthMetrics,
       String configuredType) {
 
+    log.debug("START CREATE WRITER {}", configuredType);
+
     if (LOGGING_WRITER_TYPE.equals(configuredType)) {
+      log.debug("STARTED WRITER LOGGING");
       return new LoggingWriter();
     } else if (PRINTING_WRITER_TYPE.equals(configuredType)) {
+      log.debug("STARTED WRITER PRINTING");
       return new PrintingWriter(System.out, true);
     } else if (configuredType.startsWith(TRACE_STRUCTURE_WRITER_TYPE)) {
+      log.debug("STARTED WRITER TRACE STRCT");
       return new TraceStructureWriter(
           Strings.replace(configuredType, TRACE_STRUCTURE_WRITER_TYPE, ""));
     } else if (configuredType.startsWith(MULTI_WRITER_TYPE)) {
+      log.debug("STARTED WRITER MULTI");
       return new MultiWriter(
           config, commObjects, sampler, singleSpanSampler, healthMetrics, configuredType);
     }
@@ -82,7 +90,8 @@ public class WriterFactory {
 
     // The AgentWriter doesn't support the CI Visibility protocol. If CI Visibility is
     // enabled, check if we can use the IntakeWriter instead.
-    if (DD_AGENT_WRITER_TYPE.equals(configuredType) && config.isCiVisibilityEnabled()) {
+    if (DD_AGENT_WRITER_TYPE.equals(configuredType) && (config.isCiVisibilityEnabled())) {
+      log.info("SUPPORTS EVP PROXY {}", featuresDiscovery.supportsEvpProxy());
       if (featuresDiscovery.supportsEvpProxy() || config.isCiVisibilityAgentlessEnabled()) {
         configuredType = DD_INTAKE_WRITER_TYPE;
       } else {
@@ -115,6 +124,10 @@ public class WriterFactory {
             createDDIntakeRemoteApi(config, commObjects, featuresDiscovery, TrackType.CITESTCOV);
         builder.addTrack(TrackType.CITESTCOV, coverageApi);
       }
+      
+      final RemoteApi llmobsApi =
+          createDDIntakeRemoteApi(config, commObjects, featuresDiscovery, TrackType.LLMOBS);
+      builder.addTrack(TrackType.LLMOBS, llmobsApi);
 
       remoteWriter = builder.build();
 
@@ -171,7 +184,10 @@ public class WriterFactory {
       SharedCommunicationObjects commObjects,
       DDAgentFeaturesDiscovery featuresDiscovery,
       TrackType trackType) {
-    if (featuresDiscovery.supportsEvpProxy() && !config.isCiVisibilityAgentlessEnabled()) {
+    // TODO make it so that it is agentless for the requested product and not both
+    if (featuresDiscovery.supportsEvpProxy()
+        && !config.isCiVisibilityAgentlessEnabled()
+        && !config.isLlmObsAgentlessEnabled()) {
       return DDEvpProxyApi.builder()
           .httpClient(commObjects.okHttpClient)
           .agentUrl(commObjects.agentUrl)
@@ -179,18 +195,29 @@ public class WriterFactory {
           .trackType(trackType)
           .compressionEnabled(featuresDiscovery.supportsContentEncodingHeadersWithEvpProxy())
           .build();
-
     } else {
       HttpUrl hostUrl = null;
+      String llmObsAgentlessUrl = config.getLlMObsAgentlessUrl();
+      log.debug("LLMOBS URL {}", llmObsAgentlessUrl);
+
       if (config.getCiVisibilityAgentlessUrl() != null) {
         hostUrl = HttpUrl.get(config.getCiVisibilityAgentlessUrl());
         log.info("Using host URL '{}' to report CI Visibility traces in Agentless mode.", hostUrl);
+      } else if (config.isLlmObsEnabled()
+          && config.isLlmObsAgentlessEnabled()
+          && llmObsAgentlessUrl != null
+          && !llmObsAgentlessUrl.isEmpty()) {
+        hostUrl = HttpUrl.get(llmObsAgentlessUrl);
+        log.info("Using host URL '{}' to report LLM Obs traces in Agentless mode.", hostUrl);
       }
-      return DDIntakeApi.builder()
-          .hostUrl(hostUrl)
-          .apiKey(config.getApiKey())
-          .trackType(trackType)
-          .build();
+      RemoteApi ddintake =
+          DDIntakeApi.builder()
+              .hostUrl(hostUrl)
+              .apiKey(config.getApiKey())
+              .trackType(trackType)
+              .build();
+      log.debug("CREATED DD INTAKE for track {} {}", trackType.name(), ddintake);
+      return ddintake;
     }
   }
 

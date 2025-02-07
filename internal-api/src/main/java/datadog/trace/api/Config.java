@@ -1345,7 +1345,7 @@ public class Config {
         configProvider.getBoolean(LLMOBS_AGENTLESS_ENABLED, DEFAULT_LLM_OBS_AGENTLESS_ENABLED);
     llmObsMlApp = configProvider.getString(LLMOBS_ML_APP);
 
-    final String llmObsAgentlessUrlStr = getFinalLLNObsUrl();
+    final String llmObsAgentlessUrlStr = generateLLMObsAgentlessUrl();
     URI parsedLLMObsUri = null;
     if (llmObsAgentlessUrlStr != null && !llmObsAgentlessUrlStr.isEmpty()) {
       try {
@@ -3692,12 +3692,11 @@ public class Config {
     }
   }
 
-  public String getFinalLLNObsUrl() {
+  public String generateLLMObsAgentlessUrl() {
     if (llmObsAgentlessEnabled) {
       return "https://llmobs-intake." + site + "/api/v2/llmobs";
     }
-    // TODO this may not be correct, agent support to come later
-    return "http:" + agentHost + ":" + agentPort + "/evp_proxy/v2/api/v2/llmobs";
+    return null;
   }
 
   public String getFinalCrashTrackingTelemetryUrl() {
