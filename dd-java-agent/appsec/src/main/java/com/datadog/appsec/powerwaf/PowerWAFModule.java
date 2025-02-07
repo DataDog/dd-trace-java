@@ -448,6 +448,7 @@ public class PowerWAFModule implements AppSecModule {
         if (!reqCtx.isAdditiveClosed()) {
           log.error("Error calling WAF", e);
         }
+        WafMetricCollector.get().wafRequestError();
         return;
       } finally {
         if (log.isDebugEnabled()) {

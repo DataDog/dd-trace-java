@@ -27,6 +27,7 @@ class WafMetricCollectorTest extends DDSpecification {
     WafMetricCollector.get().wafRequestTriggered()
     WafMetricCollector.get().wafRequestBlocked()
     WafMetricCollector.get().wafRequestTimeout()
+    WafMetricCollector.get().wafRequestError()
     WafMetricCollector.get().raspRuleEval(RuleType.SQL_INJECTION)
     WafMetricCollector.get().raspRuleEval(RuleType.SQL_INJECTION)
     WafMetricCollector.get().raspRuleMatch(RuleType.SQL_INJECTION)
@@ -69,6 +70,7 @@ class WafMetricCollectorTest extends DDSpecification {
       'event_rules_version:rules.3',
       'rule_triggered:false',
       'request_blocked:false',
+      'waf_error:false',
       'waf_timeout:false'
     ].toSet()
 
@@ -81,6 +83,7 @@ class WafMetricCollectorTest extends DDSpecification {
       'event_rules_version:rules.3',
       'rule_triggered:true',
       'request_blocked:false',
+      'waf_error:false',
       'waf_timeout:false'
     ].toSet()
 
@@ -95,6 +98,7 @@ class WafMetricCollectorTest extends DDSpecification {
       'event_rules_version:rules.3',
       'rule_triggered:true',
       'request_blocked:true',
+      'waf_error:false',
       'waf_timeout:false'
     ].toSet()
 
@@ -108,24 +112,39 @@ class WafMetricCollectorTest extends DDSpecification {
       'event_rules_version:rules.3',
       'rule_triggered:false',
       'request_blocked:false',
+      'waf_error:false',
       'waf_timeout:true'
     ].toSet()
 
-    def raspRuleEvalSqli = (WafMetricCollector.RaspRuleEval)metrics[7]
+    def requestWafErrorMetric = (WafMetricCollector.WafRequestsRawMetric)metrics[7]
+    requestWafErrorMetric.namespace == 'appsec'
+    requestWafErrorMetric.metricName == 'waf.requests'
+    requestWafErrorMetric.type == 'count'
+    requestWafErrorMetric.value == 1
+    requestWafErrorMetric.tags.toSet() == [
+      'waf_version:waf_ver1',
+      'event_rules_version:rules.3',
+      'rule_triggered:false',
+      'request_blocked:false',
+      'waf_error:true',
+      'waf_timeout:false'
+    ].toSet()
+
+    def raspRuleEvalSqli = (WafMetricCollector.RaspRuleEval)metrics[8]
     raspRuleEvalSqli.type == 'count'
     raspRuleEvalSqli.value == 3
     raspRuleEvalSqli.namespace == 'appsec'
     raspRuleEvalSqli.metricName == 'rasp.rule.eval'
     raspRuleEvalSqli.tags.toSet() == ['rule_type:sql_injection', 'waf_version:waf_ver1'].toSet()
 
-    def raspRuleMatch = (WafMetricCollector.RaspRuleMatch)metrics[8]
+    def raspRuleMatch = (WafMetricCollector.RaspRuleMatch)metrics[9]
     raspRuleMatch.type == 'count'
     raspRuleMatch.value == 1
     raspRuleMatch.namespace == 'appsec'
     raspRuleMatch.metricName == 'rasp.rule.match'
     raspRuleMatch.tags.toSet() == ['rule_type:sql_injection', 'waf_version:waf_ver1'].toSet()
 
-    def raspTimeout = (WafMetricCollector.RaspTimeout)metrics[9]
+    def raspTimeout = (WafMetricCollector.RaspTimeout)metrics[10]
     raspTimeout.type == 'count'
     raspTimeout.value == 1
     raspTimeout.namespace == 'appsec'
