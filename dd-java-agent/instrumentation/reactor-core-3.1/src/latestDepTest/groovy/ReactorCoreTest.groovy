@@ -443,12 +443,17 @@ class ReactorCoreTest extends AgentTestRunner {
 
   def "test currentContext() calls on inner operator is not throwing a NPE on the advice"() {
     when:
+<<<<<<< HEAD
     def mono = Flux.range(1, 100).windowUntil { it % 10 == 0 }.count()
+=======
+    def mono = Flux.range(1, 100).windowUntil {it % 10 == 0}.count()
+>>>>>>> guance
     then:
     // we are not interested into asserting a trace structure but only that the instrumentation error count is 0
     assert mono.block() == 10
   }
 
+<<<<<<< HEAD
   def "span in the context has to be activated when the publisher subscribes"() {
     when:
     // the mono is subscribed (block) when first is active.
@@ -478,6 +483,8 @@ class ReactorCoreTest extends AgentTestRunner {
     })
   }
 
+=======
+>>>>>>> guance
 
   @Trace(operationName = "trace-parent", resourceName = "trace-parent")
   def assemblePublisherUnderTrace(def publisherSupplier) {

@@ -66,6 +66,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     super.configurePreAgent()
 
     injectSysConfig("dd.kafka.e2e.duration.enabled", "true")
+    injectSysConfig("dd.trace.experimental.kafka.enabled","true")
   }
 
   public static final LinkedHashMap<String, String> PRODUCER_PATHWAY_EDGE_TAGS

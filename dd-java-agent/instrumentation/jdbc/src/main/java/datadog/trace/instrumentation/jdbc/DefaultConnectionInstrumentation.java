@@ -46,7 +46,10 @@ public class DefaultConnectionInstrumentation extends AbstractConnectionInstrume
     // Intersystems IRIS
     "com.intersystems.jdbc.IRISConnection",
     // for testing purposes
-    "test.TestConnection"
+    "test.TestConnection",
+      // 达梦db
+      "dm.jdbc.driver.DmdbConnection"
+
   };
 
   @Override
