@@ -90,6 +90,8 @@ public class DDAgentApi extends RemoteApi {
   public Response sendSerializedTraces(final Payload payload) {
     final int sizeInBytes = payload.sizeInBytes();
     String tracesEndpoint = featuresDiscovery.getTraceEndpoint();
+    log.warn("SENDING AGENT PL {} {}", payload, tracesEndpoint);
+
     if (null == tracesEndpoint) {
       featuresDiscovery.discoverIfOutdated();
       tracesEndpoint = featuresDiscovery.getTraceEndpoint();
@@ -124,9 +126,11 @@ public class DDAgentApi extends RemoteApi {
         handleAgentChange(response.header(DATADOG_AGENT_STATE));
         if (response.code() != 200) {
           agentErrorCounter.incrementErrorCount(response.message(), payload.traceCount());
+          log.error("FAILED TO SEND AGENT PL {}", response.message());
           countAndLogFailedSend(payload.traceCount(), sizeInBytes, response, null);
           return Response.failed(response.code());
         }
+        log.info("SUCCESS SEND AGENT PL {}", response);
         countAndLogSuccessfulSend(payload.traceCount(), sizeInBytes);
         String responseString = null;
         try {
@@ -146,6 +150,7 @@ public class DDAgentApi extends RemoteApi {
         }
       }
     } catch (final IOException e) {
+      log.error("FAILED TO SEND AGENT PL", e);
       countAndLogFailedSend(payload.traceCount(), sizeInBytes, null, e);
       return Response.failed(e);
     }
