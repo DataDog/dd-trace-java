@@ -51,6 +51,8 @@ public class DDLLMObsSpan implements LLMObsSpan {
 
   private boolean finished = false;
 
+  private static final Logger LOGGER = LoggerFactory.getLogger(DDLLMObsSpan.class);
+
   public DDLLMObsSpan(
       @Nonnull String kind,
       String spanName,
@@ -109,6 +111,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
     if (finished) {
       return;
     }
+    LOGGER.warn("ANNOTATE IN {} OUT {}", inputData, outputData);
     if (inputData != null && !inputData.isEmpty()) {
       State inputState = validateIOMessages(inputData);
       if (validateIOMessages(inputData) != State.VALID) {
