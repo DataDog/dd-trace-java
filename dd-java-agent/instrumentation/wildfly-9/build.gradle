@@ -33,7 +33,7 @@ muzzle {
   pass {
     group = 'org.wildfly'
     module = 'wildfly-ee'
-    versions = '[9.0.0.Final,)'
+    versions = '[9.0.0.Final,35.0.0.Final]'
     excludeDependency 'org.jboss.xnio:*' // not related and causes issues with missing jar in maven repo
   }
 }
@@ -75,9 +75,10 @@ dependencies {
   wildflyLatestPoll group: 'org.wildfly', name: 'wildfly-dist', version: '+'
 
   configurations.wildflyLatestPoll.resolve()
-  def latestWildflyVersion = configurations.wildflyLatestPoll.resolvedConfiguration.getResolvedArtifacts().find {
-    it.name == "wildfly-dist"
-  }.moduleVersion.id.version
+//  def latestWildflyVersion = configurations.wildflyLatestPoll.resolvedConfiguration.getResolvedArtifacts().find {
+//    it.name == "wildfly-dist"
+//  }.moduleVersion.id.version
+  def latestWildflyVersion = "35.0.0.Final"
   wildflyLatestDepTest "wildfly:wildfly:$latestWildflyVersion@zip"
   latestDepForkedTest {
     configure {
