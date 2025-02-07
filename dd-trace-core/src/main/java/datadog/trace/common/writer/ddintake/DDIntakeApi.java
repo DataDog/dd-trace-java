@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.net.ConnectException;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
+import okhttp3.Headers;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -121,16 +122,32 @@ public class DDIntakeApi extends RemoteApi {
 
   @Override
   public Response sendSerializedTraces(Payload payload) {
+    log.debug("DDINTAKE SENDING {} for track {}", payload, trackType);
     final int sizeInBytes = payload.sizeInBytes();
 
-    final Request request =
-        new Request.Builder()
-            .url(intakeUrl)
-            .addHeader(DD_API_KEY_HEADER, apiKey)
-            .addHeader(CONTENT_ENCODING_HEADER, GZIP_CONTENT_TYPE)
-            .post(payload.toRequest())
-            .tag(OkHttpUtils.CustomListener.class, telemetryListener)
-            .build();
+    Request.Builder builder = new Request.Builder()
+        .url(intakeUrl)
+        .addHeader(DD_API_KEY_HEADER, apiKey)
+        .post(payload.toRequest())
+        .tag(OkHttpUtils.CustomListener.class, telemetryListener);
+
+//    if (!trackType.equals(TrackType.LLMOBS)) {
+//      builder.addHeader(CONTENT_ENCODING_HEADER, GZIP_CONTENT_TYPE);
+//    }
+    builder.addHeader(CONTENT_ENCODING_HEADER, GZIP_CONTENT_TYPE);
+    builder.addHeader("content-type", payload.toRequest().contentType().toString());
+
+    final Request request = builder.build();
+    Headers headers = request.headers();
+    log.warn("HEADER SIZE {}", headers.size());
+    for (int i = 0; i < headers.size(); i++) {
+      String name = headers.name(i);
+      String value = headers.value(i);
+      if (name != null && !name.equals(DD_API_KEY_HEADER)) {
+        log.warn("HEADER {} KEY {} VAL {}", i, name, value);
+      }
+    }
+
     totalTraces += payload.traceCount();
     receivedTraces += payload.traceCount();
 
@@ -143,6 +160,7 @@ public class DDIntakeApi extends RemoteApi {
         InstrumentationBridge.getMetricCollector()
             .add(CiVisibilityCountMetric.ENDPOINT_PAYLOAD_DROPPED, 1, trackType.endpoint);
         countAndLogFailedSend(payload.traceCount(), sizeInBytes, response, null);
+        log.error("FAILED TO SEND FOR TRACK {}", trackType);
         return Response.failed(response.code());
       }
 
