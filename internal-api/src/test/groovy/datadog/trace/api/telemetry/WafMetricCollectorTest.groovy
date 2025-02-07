@@ -318,7 +318,7 @@ class WafMetricCollectorTest extends DDSpecification {
       'rule_type:command_injection',
       'rule_variant:'+ruleType.variant,
       'waf_version:waf_ver1',
-      'event_rules_versionrules.1'
+      'event_rules_version:rules.1'
     ].toSet()
 
     def raspRuleMatch = (WafMetricCollector.RaspRuleMatch)metrics[2]
@@ -330,7 +330,7 @@ class WafMetricCollectorTest extends DDSpecification {
       'rule_type:command_injection',
       'rule_variant:'+ruleType.variant,
       'waf_version:waf_ver1',
-      'event_rules_versionrules.1'
+      'event_rules_version:rules.1'
     ].toSet()
 
     def raspTimeout = (WafMetricCollector.RaspTimeout)metrics[3]
@@ -342,7 +342,7 @@ class WafMetricCollectorTest extends DDSpecification {
       'rule_type:command_injection',
       'rule_variant:'+ruleType.variant,
       'waf_version:waf_ver1',
-      'event_rules_versionrules.1'
+      'event_rules_version:rules.1'
     ].toSet()
 
     where:
