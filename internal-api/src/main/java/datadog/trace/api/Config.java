@@ -2048,6 +2048,7 @@ public class Config {
   }
 
   public String getWriterType() {
+    log.warn("WRITER TYPE {}", writerType);
     return writerType;
   }
 
