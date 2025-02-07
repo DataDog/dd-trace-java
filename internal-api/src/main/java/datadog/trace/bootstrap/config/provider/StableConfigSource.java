@@ -59,7 +59,7 @@ public final class StableConfigSource extends ConfigProvider.Source {
   // that way we don't need to call readFromYaml twice;
   // if we see that said cached map is already not null by the name the StableConfigurationSource
   // constructor is called, we can skip calling it again.
-  public static HashMap<String, Object> readYamlFromFile(String filePath) {
+  public static Map<String, Object> readYamlFromFile(String filePath) {
     File file = new File(filePath);
     if (!file.exists()) {
       log.debug(
