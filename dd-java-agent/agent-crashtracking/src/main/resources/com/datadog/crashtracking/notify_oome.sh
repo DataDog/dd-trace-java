@@ -39,7 +39,7 @@ echo "JAVA_HOME: ${config_java_home}"
 echo "PID: $PID"
 
 # Execute the Java command with the loaded values
-${config_java_home}/bin/java -Ddd.dogstatsd.start-delay=0 -jar "${config_agent}" sendOomeEvent "${config_tags}"
+"${config_java_home}/bin/java" -Ddd.dogstatsd.start-delay=0 -jar "${config_agent}" sendOomeEvent "${config_tags}"
 RC=$?
 rm -f "${configFile}" # Remove the configuration file
 

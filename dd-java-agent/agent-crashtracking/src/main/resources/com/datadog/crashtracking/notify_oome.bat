@@ -35,7 +35,7 @@ echo JAVA_HOME: %java_home%
 echo PID: %PID%
 
 :: Execute the Java command with the loaded values
-%java_home%\bin\java -Ddd.dogstatsd.start-delay=0 -jar "%agent%" sendOomeEvent "%tags%"
+"%java_home%\bin\java" -Ddd.dogstatsd.start-delay=0 -jar "%agent%" sendOomeEvent "%tags%"
 set RC=%ERRORLEVEL%
 del "%configFile%" :: Clean up the configuration file
 if %RC% EQU 0 (

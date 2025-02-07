@@ -1,51 +1,11 @@
 @echo off
 setlocal enabledelayedexpansion
 
-REM ========================================================
-REM Function: ensureJava
-REM Usage: call :ensureJava path\to\hs_err_file.txt
-REM If 'java' is not found in PATH, extract JAVA_HOME from the
-REM hs_err file and update PATH accordingly.
-REM ========================================================
-:ensureJava
-    REM Check if java is available
-    where java >nul 2>&1
-    if %ERRORLEVEL%==0 (
-        REM Java found; nothing to do.
-        goto :EOF
-    )
-
-    REM Java not found; try to extract JAVA_HOME from the hs_err file passed as parameter.
-    if "%~1"=="" (
-        echo Error: No hs_err file provided.
-        exit /b 1
-    )
-
-    REM Use findstr to locate the line with JAVA_HOME.
-    for /f "tokens=2 delims==" %%A in ('findstr "JAVA_HOME" "%~1"') do (
-        set "JAVA_HOME=%%A"
-    )
-
-    REM Check if JAVA_HOME was found
-    if not defined JAVA_HOME (
-        echo Error: Java executable not found. Cannot upload error file.
-        exit /b 1
-    )
-
-    REM Optionally, remove any surrounding quotes or spaces:
-    set "JAVA_HOME=%JAVA_HOME:"=%"
-    for /f "tokens=* delims= " %%A in ("%JAVA_HOME%") do set "JAVA_HOME=%%A"
-
-    REM Prepend JAVA_HOME\bin to PATH
-    set "PATH=%JAVA_HOME%\bin;%PATH%"
-    goto :EOF
-
-
 :: Check if PID is provided
 if "%1"=="" (
     echo "Error: No PID provided. Running in legacy mode."
     call :ensureJava "!JAVA_ERROR_FILE!"
-    java -jar "!AGENT_JAR!" uploadCrash "!JAVA_ERROR_FILE!"
+    "!JAVA_HOME!\bin\java" -jar "!AGENT_JAR!" uploadCrash "!JAVA_ERROR_FILE!"
     if %ERRORLEVEL% EQU 0 (
         echo "Uploaded error file \"!JAVA_ERROR_FILE!\""
     ) else (
@@ -83,7 +43,7 @@ echo JAVA_HOME: %java_home%
 echo PID: %PID%
 
 :: Execute the Java command with the loaded values
-%java_home%\bin\java -jar "%agent%" uploadCrash "%hs_err%"
+"%java_home%\bin\java" -jar "%agent%" uploadCrash "%hs_err%"
 set RC=%ERRORLEVEL%
 del "%configFile%" :: Clean up the configuration file
 if %RC% EQU 0 (

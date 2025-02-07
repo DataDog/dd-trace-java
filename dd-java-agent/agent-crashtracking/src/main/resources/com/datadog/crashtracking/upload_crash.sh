@@ -2,28 +2,11 @@
 
 set +e # Disable exit on error
 
-function ensureJava() {
-  # Check if Java is available
-  if [ -z "$(which java)" ]; then
-    # Extract the JAVA_HOME from the provided hs_err file
-    JAVA_HOME=$(grep "JAVA_HOME" "$1")
-    if [ -n "$JAVA_HOME" ]; then
-      JAVA_HOME=$(cut -f2 -d '=' <<< "$JAVA_HOME")
-      export JAVA_HOME
-      export PATH=$JAVA_HOME/bin:$PATH
-    else
-      echo "Error: Java executable not found. Can not upload error file."
-      exit 1
-    fi
-  fi
-}
-
 # Check if PID is provided
 if [ -z "$1" ]; then
   echo "Warn: No PID provided. Running in legacy mode."
-  ensureJava "!JAVA_ERROR_FILE!"
 
-  java -jar "!AGENT_JAR!" uploadCrash "!JAVA_ERROR_FILE!"
+  "!JAVA_HOME!/bin/java" -jar "!AGENT_JAR!" uploadCrash "!JAVA_ERROR_FILE!"
   if [ $? -eq 0 ]; then
     echo "Error file !JAVA_ERROR_FILE! was uploaded successfully"
   else
@@ -65,7 +48,7 @@ echo "JAVA_HOME: ${config_java_home}"
 echo "PID: $PID"
 
 # Execute the Java command with the loaded values
-${config_java_home}/bin/java -jar "${config_agent}" uploadCrash "${config_hs_err}"
+"${config_java_home}/bin/java" -jar "${config_agent}" uploadCrash "${config_hs_err}"
 RC=$?
 rm -f "${configFile}" # Remove the configuration file
 
