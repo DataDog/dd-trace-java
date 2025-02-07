@@ -199,7 +199,7 @@ public abstract class BootstrapInitializationTelemetry {
       }
 
       try {
-        process.waitFor(1, TimeUnit.SECONDS);
+        process.waitFor();
       } catch (InterruptedException e) {
         // just for hygiene, reset the interrupt status
         Thread.currentThread().interrupt();
