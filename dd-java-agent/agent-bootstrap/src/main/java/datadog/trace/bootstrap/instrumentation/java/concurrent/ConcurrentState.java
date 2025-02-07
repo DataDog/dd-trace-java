@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.Continuati
 
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,7 +31,7 @@ public final class ConcurrentState {
   public static <K> ConcurrentState captureScope(
       ContextStore<K, ConcurrentState> contextStore, K key, AgentScope scope) {
     if (scope != null && scope.isAsyncPropagating()) {
-      if (scope.span() instanceof AgentTracer.NoopAgentSpan) {
+      if (!scope.span().isValid()) {
         return null;
       }
       final ConcurrentState state = contextStore.putIfAbsent(key, FACTORY);
