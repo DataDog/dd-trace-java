@@ -329,7 +329,7 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
                 "rule_type:" + ruleType.type,
                 "rule_variant:" + ruleType.variant,
                 "waf_version:" + wafVersion,
-                "event_rules_version" + rulesVersion
+                "event_rules_version:" + rulesVersion
               }
               : new String[] {"rule_type:" + ruleType.type, "waf_version:" + wafVersion});
     }
@@ -345,7 +345,7 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
                 "rule_type:" + ruleType.type,
                 "rule_variant:" + ruleType.variant,
                 "waf_version:" + wafVersion,
-                "event_rules_version" + rulesVersion
+                "event_rules_version:" + rulesVersion
               }
               : new String[] {"rule_type:" + ruleType.type, "waf_version:" + wafVersion});
     }
@@ -361,7 +361,7 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
                 "rule_type:" + ruleType.type,
                 "rule_variant:" + ruleType.variant,
                 "waf_version:" + wafVersion,
-                "event_rules_version" + rulesVersion
+                "event_rules_version:" + rulesVersion
               }
               : new String[] {"rule_type:" + ruleType.type, "waf_version:" + wafVersion});
     }
