@@ -6,6 +6,7 @@ import javax.annotation.Nullable;
 public enum TrackType {
   CITESTCYCLE(Endpoint.TEST_CYCLE),
   CITESTCOV(Endpoint.CODE_COVERAGE),
+  LLMOBS(Endpoint.LLMOBS),
   NOOP(null);
 
   @Nullable public final Endpoint endpoint;
