@@ -17,15 +17,20 @@ import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
 
 public final class StableConfigSource extends ConfigProvider.Source {
-  static final String USER_STABLE_CONFIG_PATH = "/etc/datadog-agent/application_monitoring.yaml";
-  static final String MANAGED_STABLE_CONFIG_PATH =
-      "/etc/datadog-agent/managed/datadog-apm-libraries/stable/application_monitoring.yaml ";
+  public static String USER_STABLE_CONFIG_PATH =
+      "/etc/datadog-agent/application_monitoring.yaml"; // MIKAYLA: this should be final, but I need
+  // to modify it in my tests because I can't
+  // write to /etc/ without sudo persmission.
+  public static String MANAGED_STABLE_CONFIG_PATH =
+      "/etc/datadog-agent/managed/datadog-apm-libraries/stable/application_monitoring.yaml "; // MIKAYLA: Same for this var.
   private static final Logger log = LoggerFactory.getLogger(StableConfigSource.class);
 
   private final ConfigOrigin fileOrigin;
   private final Map<String, Object> configuration;
   private final String configId;
 
+  // MIKAYLA: improvement - if we see that some cached map is already not null by the name the
+  // StableConfigurationSource constructor is called, we can skip calling it again.
   StableConfigSource(String file, ConfigOrigin origin) {
     this.fileOrigin = origin;
     HashMap<String, Object> data = readYamlFromFile(file);
@@ -50,14 +55,18 @@ public final class StableConfigSource extends ConfigProvider.Source {
    * @return A {@link HashMap} containing the configuration data if the file is valid, or <code>null
    *     </code> if the file is in an invalid format.
    */
-  private static HashMap<String, Object> readYamlFromFile(String filePath) {
+  // MIKAYLA: Should improve this so that it caches the resulting map the first time it's called,
+  // that way we don't need to call readFromYaml twice;
+  // if we see that said cached map is already not null by the name the StableConfigurationSource
+  // constructor is called, we can skip calling it again.
+  public static HashMap<String, Object> readYamlFromFile(String filePath) {
     File file = new File(filePath);
     if (!file.exists()) {
       log.debug(
           "Stable configuration file does not exist at the specified path: {}, ignoring", filePath);
       return null;
     }
-
+    System.out.println("file exists");
     Yaml yaml = new Yaml(new SafeConstructor(new LoaderOptions()));
     InputStream input;
     try {

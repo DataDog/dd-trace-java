@@ -33,6 +33,7 @@ import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.profiling.ProfilingEnablement;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.benchmark.StaticEventLogger;
+import datadog.trace.bootstrap.config.provider.StableConfigSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
@@ -49,6 +50,7 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.security.CodeSource;
 import java.util.EnumSet;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.PatternSyntaxException;
@@ -1203,8 +1205,17 @@ public class Agent {
     // must be kept in sync with logic from Config!
     final String featureEnabledSysprop = feature.getSystemProp();
     String featureEnabled = System.getProperty(featureEnabledSysprop);
+    // MIKAYLA: Where to write tests for this?
+    if (featureEnabled == null) {
+      featureEnabled =
+          getStableConfig(featureEnabledSysprop, StableConfigSource.MANAGED_STABLE_CONFIG_PATH);
+    }
     if (featureEnabled == null) {
       featureEnabled = ddGetEnv(featureEnabledSysprop);
+    }
+    if (featureEnabled == null) {
+      featureEnabled =
+          getStableConfig(featureEnabledSysprop, StableConfigSource.USER_STABLE_CONFIG_PATH);
     }
 
     if (feature.isEnabledByDefault()) {
@@ -1215,6 +1226,7 @@ public class Agent {
         // We need this hack because profiling in SSI can receive 'auto' value in
         // the enablement config
         return ProfilingEnablement.of(featureEnabled).isActive();
+        // MIKAYLA: How does this order of precedence compete with stable config?
       }
       // false unless it's explicitly set to "true"
       return Boolean.parseBoolean(featureEnabled) || "1".equals(featureEnabled);
@@ -1340,6 +1352,15 @@ public class Agent {
       value = ddGetEnv(sysProp);
     }
     return value;
+  }
+
+  private static String getStableConfig(final String sysProp, String filepath) {
+    String key = toEnvVar(sysProp);
+    Map<String, Object> data = StableConfigSource.readYamlFromFile(filepath);
+    if (data != null) {
+      return (String) data.get(key);
+    }
+    return null;
   }
 
   /** Looks for the "DD_" environment variable equivalent of the given "dd." system property. */

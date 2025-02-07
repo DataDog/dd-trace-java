@@ -4,9 +4,13 @@ import datadog.trace.api.env.FixedCapturedEnvironment
 import datadog.trace.bootstrap.config.provider.AgentArgsInjector
 import datadog.trace.bootstrap.config.provider.ConfigConverter
 import datadog.trace.bootstrap.config.provider.ConfigProvider
+import datadog.trace.bootstrap.config.provider.StableConfigSource
+import datadog.trace.bootstrap.config.provider.StableConfigSourceTest
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError
 import org.junit.Rule
+
+import java.nio.file.Path
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_ERROR_STATUSES
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSES
@@ -26,6 +30,8 @@ import static datadog.trace.api.TracePropagationStyle.B3SINGLE
 import static datadog.trace.api.TracePropagationStyle.DATADOG
 import static datadog.trace.api.TracePropagationStyle.HAYSTACK
 import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT
+import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED
+import static datadog.trace.api.config.AppSecConfig.APPSEC_SCA_ENABLED
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CLASSFILE_DUMP_ENABLED
@@ -56,6 +62,9 @@ import static datadog.trace.api.config.GeneralConfig.SITE
 import static datadog.trace.api.config.GeneralConfig.TAGS
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_IGNORED_RESOURCES
 import static datadog.trace.api.config.GeneralConfig.VERSION
+import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_ENABLED
+import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_ENABLED
+import static datadog.trace.api.config.IastConfig.IAST_ENABLED
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_CHECK_PERIOD
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_ENABLED
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_METRICS_CONFIGS
@@ -97,6 +106,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN
 import static datadog.trace.api.config.TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED
+import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION
 import static datadog.trace.api.config.TracerConfig.AGENT_HOST
 import static datadog.trace.api.config.TracerConfig.AGENT_PORT_LEGACY
 import static datadog.trace.api.config.TracerConfig.AGENT_UNIX_DOMAIN_SOCKET
@@ -565,6 +575,68 @@ class ConfigTest extends DDSpecification {
     config.xDatadogTagsMaxLength == 42
     config.isLongRunningTraceEnabled()
     config.getLongRunningTraceFlushInterval() == 81
+  }
+
+  def "specify overrides stable config"() {
+    setup:
+    Path filePath = StableConfigSourceTest.tempFile()
+    if (filePath == null) {
+      // fail fast?
+      return
+    }
+    // Override for testing
+    String originalPath
+    if (user == true) {
+      originalPath = StableConfigSource.USER_STABLE_CONFIG_PATH
+      StableConfigSource.USER_STABLE_CONFIG_PATH = filePath.toAbsolutePath().toString()
+    } else if (managed == true) {
+      originalPath = StableConfigSource.MANAGED_STABLE_CONFIG_PATH
+      StableConfigSource.MANAGED_STABLE_CONFIG_PATH = filePath.toAbsolutePath().toString()
+    }
+    def configs = new HashMap<>()
+    configs.put(TRACE_ENABLED, "false")
+    //    configs.put(DD_RUNTIME_METRICS_ENABLED_ENV, "false")
+    //    configs.put(LOGS_INJECTION, "false")
+    //    configs.put(PROFILING_ENABLED, "true")
+    //    configs.put(DATA_STREAMS_ENABLED, "true")
+    //    configs.put(APPSEC_ENABLED, "true")
+    //    configs.put(IAST_ENABLED, "true")
+    //    configs.put(DEBUGGER_ENABLED, "true")
+    //    configs.put(DATA_JOBS_ENABLED, "true")
+    //    configs.put(APPSEC_SCA_ENABLED, "true")
+
+    try {
+      StableConfigSourceTest.writeFileYaml(filePath, "12345", configs)
+    } catch (IOException e) {
+      println "Error writing to file: ${e.message}"
+      return // fail?
+    }
+
+    when:
+    def config = new Config()
+
+    then:
+    !config.traceEnabled
+    //    !config.runtimeMetricsEnabled
+    //    !config.logsInjectionEnabled
+    //    config.profilingEnabled
+    //    config.dataStreamsEnabled
+    //    //config.appSecEnabled?
+    //    config.iastDebugEnabled
+    //    config.debuggerEnabled
+    //    config.dataJobsEnabled
+    //    config.appSecScaEnabled
+    if (user == true) {
+      StableConfigSource.USER_STABLE_CONFIG_PATH = originalPath
+    } else if (managed == true) {
+      StableConfigSource.MANAGED_STABLE_CONFIG_PATH = originalPath
+    }
+
+    where:
+    user | managed
+    true | false
+    //    false | true
+
   }
 
   def "sys props override env vars"() {

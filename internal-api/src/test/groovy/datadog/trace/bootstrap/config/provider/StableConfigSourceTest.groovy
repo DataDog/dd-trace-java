@@ -136,7 +136,7 @@ class StableConfigSourceTest extends DDSpecification {
           lmn: 456
     '''
 
-  Path tempFile() {
+  static Path tempFile() {
     try {
       return Files.createTempFile("testFile_", ".yaml")
     } catch (IOException e) {
@@ -146,7 +146,7 @@ class StableConfigSourceTest extends DDSpecification {
     }
   }
 
-  def writeFileYaml(Path filePath, String configId, Map configs) {
+  static writeFileYaml(Path filePath, String configId, Map configs) {
     DumperOptions options = new DumperOptions()
     options.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK)
 
