@@ -12,6 +12,8 @@ import datadog.trace.core.monitor.HealthMetrics;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class DDIntakeWriter extends RemoteWriter {
 
@@ -39,6 +41,8 @@ public class DDIntakeWriter extends RemoteWriter {
     private final Map<TrackType, RemoteApi> tracks = new EnumMap<>(TrackType.class);
 
     private SingleSpanSampler singleSpanSampler;
+
+    private static final Logger log = LoggerFactory.getLogger(DDIntakeWriterBuilder.class);
 
     public DDIntakeWriterBuilder addTrack(final TrackType trackType, final RemoteApi intakeApi) {
       tracks.put(trackType, intakeApi);
@@ -98,6 +102,7 @@ public class DDIntakeWriter extends RemoteWriter {
     }
 
     public DDIntakeWriter build() {
+      log.debug("DDINTAKEWRITER TRACKS {}", tracks);
       if (tracks.isEmpty()) {
         throw new IllegalArgumentException("At least one track needs to be configured");
       }
@@ -111,7 +116,11 @@ public class DDIntakeWriter extends RemoteWriter {
                 .map(this::createDispatcher)
                 .toArray(PayloadDispatcher[]::new);
         dispatcher = new CompositePayloadDispatcher(dispatchers);
+        for (PayloadDispatcher dispatcher2 : dispatchers) {
+          log.debug("COMP DISPATCHER {}", dispatcher2);
+        }
       }
+      log.debug("DISPATCHER {}", dispatcher);
 
       final TraceProcessingWorker traceProcessingWorker =
           new TraceProcessingWorker(
