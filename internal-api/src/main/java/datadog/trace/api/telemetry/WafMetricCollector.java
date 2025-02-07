@@ -35,6 +35,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
   private static final AtomicRequestCounter wafBlockedRequestCounter = new AtomicRequestCounter();
   private static final AtomicRequestCounter wafTimeoutRequestCounter = new AtomicRequestCounter();
   private static final AtomicRequestCounter wafErrorRequestCounter = new AtomicRequestCounter();
+  private static final AtomicRequestCounter wafRateLimitedRequestCounter =
+      new AtomicRequestCounter();
   private static final AtomicLongArray raspRuleEvalCounter =
       new AtomicLongArray(RuleType.getNumValues());
   private static final AtomicLongArray raspRuleMatchCounter =
@@ -97,6 +99,10 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
     wafErrorRequestCounter.increment();
   }
 
+  public void wafRequestRateLimited() {
+    wafRateLimitedRequestCounter.increment();
+  }
+
   public void raspRuleEval(final RuleType ruleType) {
     raspRuleEvalCounter.incrementAndGet(ruleType.ordinal());
   }
@@ -132,6 +138,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
 
   @Override
   public void prepareMetrics() {
+    final boolean isRateLimited = wafRateLimitedRequestCounter.getAndReset() > 0;
+
     // Requests
     if (wafRequestCounter.get() > 0) {
       if (!rawMetricsQueue.offer(
@@ -142,7 +150,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
               false,
               false,
               false,
-              false))) {
+              false,
+              isRateLimited))) {
         return;
       }
     }
@@ -157,7 +166,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
               true,
               false,
               false,
-              false))) {
+              false,
+              isRateLimited))) {
         return;
       }
     }
@@ -172,7 +182,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
               true,
               true,
               false,
-              false))) {
+              false,
+              isRateLimited))) {
         return;
       }
     }
@@ -187,7 +198,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
               false,
               false,
               false,
-              true))) {
+              true,
+              isRateLimited))) {
         return;
       }
     }
@@ -202,7 +214,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
               false,
               false,
               true,
-              false))) {
+              false,
+              isRateLimited))) {
         return;
       }
     }
@@ -332,7 +345,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
         final boolean triggered,
         final boolean blocked,
         final boolean wafError,
-        final boolean wafTimeout) {
+        final boolean wafTimeout,
+        final boolean rateLimited) {
       super(
           "waf.requests",
           counter,
@@ -341,7 +355,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
           "rule_triggered:" + triggered,
           "request_blocked:" + blocked,
           "waf_error:" + wafError,
-          "waf_timeout:" + wafTimeout);
+          "waf_timeout:" + wafTimeout,
+          "rate_limited:" + rateLimited);
     }
   }
 

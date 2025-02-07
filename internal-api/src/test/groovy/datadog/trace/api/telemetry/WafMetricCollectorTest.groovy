@@ -28,6 +28,7 @@ class WafMetricCollectorTest extends DDSpecification {
     WafMetricCollector.get().wafRequestBlocked()
     WafMetricCollector.get().wafRequestTimeout()
     WafMetricCollector.get().wafRequestError()
+    WafMetricCollector.get().wafRequestRateLimited()
     WafMetricCollector.get().raspRuleEval(RuleType.SQL_INJECTION)
     WafMetricCollector.get().raspRuleEval(RuleType.SQL_INJECTION)
     WafMetricCollector.get().raspRuleMatch(RuleType.SQL_INJECTION)
@@ -71,7 +72,8 @@ class WafMetricCollectorTest extends DDSpecification {
       'rule_triggered:false',
       'request_blocked:false',
       'waf_error:false',
-      'waf_timeout:false'
+      'waf_timeout:false',
+      'rate_limited:true'
     ].toSet()
 
     def requestTriggeredMetric = (WafMetricCollector.WafRequestsRawMetric)metrics[4]
@@ -84,7 +86,8 @@ class WafMetricCollectorTest extends DDSpecification {
       'rule_triggered:true',
       'request_blocked:false',
       'waf_error:false',
-      'waf_timeout:false'
+      'waf_timeout:false',
+      'rate_limited:true'
     ].toSet()
 
 
@@ -99,7 +102,8 @@ class WafMetricCollectorTest extends DDSpecification {
       'rule_triggered:true',
       'request_blocked:true',
       'waf_error:false',
-      'waf_timeout:false'
+      'waf_timeout:false',
+      'rate_limited:true'
     ].toSet()
 
     def requestTimeoutMetric = (WafMetricCollector.WafRequestsRawMetric)metrics[6]
@@ -113,7 +117,8 @@ class WafMetricCollectorTest extends DDSpecification {
       'rule_triggered:false',
       'request_blocked:false',
       'waf_error:false',
-      'waf_timeout:true'
+      'waf_timeout:true',
+      'rate_limited:true'
     ].toSet()
 
     def requestWafErrorMetric = (WafMetricCollector.WafRequestsRawMetric)metrics[7]
@@ -127,7 +132,8 @@ class WafMetricCollectorTest extends DDSpecification {
       'rule_triggered:false',
       'request_blocked:false',
       'waf_error:true',
-      'waf_timeout:false'
+      'waf_timeout:false',
+      'rate_limited:true'
     ].toSet()
 
     def raspRuleEvalSqli = (WafMetricCollector.RaspRuleEval)metrics[8]
