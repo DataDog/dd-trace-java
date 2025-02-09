@@ -10,6 +10,7 @@ import static datadog.trace.api.UserIdCollectionMode.ANONYMIZATION;
 import static datadog.trace.api.UserIdCollectionMode.DISABLED;
 import static datadog.trace.api.UserIdCollectionMode.SDK;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.util.Strings.toHexString;
 
 import com.datadog.appsec.AppSecSystem;
@@ -164,6 +165,7 @@ public class GatewayBridge {
     subscriptionService.registerCallback(EVENTS.shellCmd(), this::onShellCmd);
     subscriptionService.registerCallback(EVENTS.user(), this::onUser);
     subscriptionService.registerCallback(EVENTS.loginEvent(), this::onLoginEvent);
+    subscriptionService.registerCallback(EVENTS.postProcessing(), this::onPostProcessing);
 
     if (additionalIGEvents.contains(EVENTS.requestPathParams())) {
       subscriptionService.registerCallback(EVENTS.requestPathParams(), this::onRequestPathParams);
@@ -895,6 +897,10 @@ public class GatewayBridge {
     }
   }
 
+  private void onPostProcessing(RequestContext ctx_) {
+    // Do AppSec post-processing
+  }
+
   public void stop() {
     subscriptionService.reset();
   }
@@ -1020,6 +1026,7 @@ public class GatewayBridge {
 
       try {
         GatewayContext gwCtx = new GatewayContext(false);
+        activeSpan().getLocalRootSpan().setRequiresPostProcessing(true);
         return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
       } catch (ExpiredSubscriberInfoException e) {
         this.initialReqDataSubInfo = null;
