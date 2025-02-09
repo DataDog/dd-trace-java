@@ -9,6 +9,8 @@ import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.writer.ddagent.Prioritization;
 import datadog.trace.common.writer.ddintake.DDIntakeMapperDiscovery;
 import datadog.trace.core.monitor.HealthMetrics;
+import datadog.trace.core.postprocessor.AppSecSpanPostProcessor;
+import datadog.trace.core.postprocessor.SpanPostProcessor;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -113,6 +115,8 @@ public class DDIntakeWriter extends RemoteWriter {
         dispatcher = new CompositePayloadDispatcher(dispatchers);
       }
 
+      SpanPostProcessor spanPostProcessor = new AppSecSpanPostProcessor();
+
       final TraceProcessingWorker traceProcessingWorker =
           new TraceProcessingWorker(
               traceBufferSize,
@@ -123,7 +127,7 @@ public class DDIntakeWriter extends RemoteWriter {
               flushIntervalMilliseconds,
               TimeUnit.MILLISECONDS,
               singleSpanSampler,
-              null);
+              spanPostProcessor);
 
       return new DDIntakeWriter(
           traceProcessingWorker,

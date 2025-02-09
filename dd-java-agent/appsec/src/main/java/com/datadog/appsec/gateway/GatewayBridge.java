@@ -5,6 +5,7 @@ import static com.datadog.appsec.event.data.MapDataBundle.Builder.CAPACITY_6_10;
 import static com.datadog.appsec.gateway.AppSecRequestContext.DEFAULT_REQUEST_HEADERS_ALLOW_LIST;
 import static com.datadog.appsec.gateway.AppSecRequestContext.REQUEST_HEADERS_ALLOW_LIST;
 import static com.datadog.appsec.gateway.AppSecRequestContext.RESPONSE_HEADERS_ALLOW_LIST;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 
 import com.datadog.appsec.AppSecSystem;
 import com.datadog.appsec.api.security.ApiSecurityRequestSampler;
@@ -151,6 +152,7 @@ public class GatewayBridge {
     subscriptionService.registerCallback(EVENTS.shellCmd(), this::onShellCmd);
     subscriptionService.registerCallback(EVENTS.user(), this::onUser);
     subscriptionService.registerCallback(EVENTS.loginEvent(), this::onLoginEvent);
+    subscriptionService.registerCallback(EVENTS.postProcessing(), this::onPostProcessing);
 
     if (additionalIGEvents.contains(EVENTS.requestPathParams())) {
       subscriptionService.registerCallback(EVENTS.requestPathParams(), this::onRequestPathParams);
@@ -787,6 +789,10 @@ public class GatewayBridge {
     }
   }
 
+  private void onPostProcessing(RequestContext ctx_) {
+    // Do AppSec post-processing
+  }
+
   public void stop() {
     subscriptionService.reset();
   }
@@ -912,6 +918,7 @@ public class GatewayBridge {
 
       try {
         GatewayContext gwCtx = new GatewayContext(false);
+        activeSpan().getLocalRootSpan().setRequiresPostProcessing(true);
         return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
       } catch (ExpiredSubscriberInfoException e) {
         this.initialReqDataSubInfo = null;

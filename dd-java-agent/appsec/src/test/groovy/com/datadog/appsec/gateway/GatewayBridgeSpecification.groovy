@@ -26,6 +26,7 @@ import datadog.trace.test.util.DDSpecification
 
 import java.util.function.BiConsumer
 import java.util.function.BiFunction
+import java.util.function.Consumer
 import java.util.function.Function
 import java.util.function.Supplier
 
@@ -103,6 +104,7 @@ class GatewayBridgeSpecification extends DDSpecification {
   BiFunction<RequestContext, String, Flow<Void>> shellCmdCB
   BiFunction<RequestContext, String, Flow<Void>> userCB
   TriFunction<RequestContext, LoginEvent, String, Flow<Void>> loginEventCB
+  Consumer<RequestContext> postProcessingCB
 
   void setup() {
     callInitAndCaptureCBs()
@@ -443,6 +445,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * ig.registerCallback(EVENTS.shellCmd(), _) >> { shellCmdCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.user(), _) >> { userCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.loginEvent(), _) >> { loginEventCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.postProcessing(), _) >> { postProcessingCB = it[1]; null }
     0 * ig.registerCallback(_, _)
 
     bridge.init()
