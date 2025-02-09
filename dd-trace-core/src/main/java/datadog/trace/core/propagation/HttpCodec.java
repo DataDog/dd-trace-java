@@ -125,9 +125,6 @@ public class HttpCodec {
         case TRACECONTEXT:
           result.put(style, W3CHttpCodec.newInjector(reverseBaggageMapping));
           break;
-        case BAGGAGE:
-          result.put(style, BaggageHttpCodec.newInjector(reverseBaggageMapping));
-          break;
         default:
           log.debug("No implementation found to inject propagation style: {}", style);
           break;
@@ -161,9 +158,6 @@ public class HttpCodec {
           break;
         case TRACECONTEXT:
           extractors.add(W3CHttpCodec.newExtractor(config, traceConfigSupplier));
-          break;
-        case BAGGAGE:
-          extractors.add(BaggageHttpCodec.newExtractor(config, traceConfigSupplier));
           break;
         default:
           log.debug("No implementation found to extract propagation style: {}", style);

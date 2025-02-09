@@ -4,8 +4,9 @@ import datadog.trace.api.Config
 import datadog.trace.api.DynamicConfig
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors
+//import datadog.trace.core.baggage.BaggageHttpCodec
 import datadog.trace.test.util.DDSpecification
-import static datadog.trace.core.propagation.BaggageHttpCodec.BAGGAGE_KEY
+//import static datadog.trace.core.baggage.BaggageHttpCodec.BAGGAGE_KEY
 
 class BaggageHttpExtractorTest extends DDSpecification {
 

@@ -14,12 +14,12 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 public interface AgentPropagation {
   Concern TRACING_CONCERN = named("tracing");
+  Concern BAGGAGE_CONCERN = Concern.named("baggage");
   Concern XRAY_TRACING_CONCERN = named("tracing-xray");
   Concern STANDALONE_ASM_CONCERN = named("asm-standalone");
   // TODO DSM propagator should run after the other propagators as it stores the pathway context
   // TODO into the span context for now. Remove priority after the migration is complete.
   Concern DSM_CONCERN = withPriority("data-stream-monitoring", 110);
-
   // The input tags should be sorted.
   <C> void injectPathwayContext(
       AgentSpan span, C carrier, Setter<C> setter, LinkedHashMap<String, String> sortedTags);
