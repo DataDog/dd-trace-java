@@ -10,6 +10,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 public interface AgentPropagation {
   Concern TRACING_CONCERN = Concern.named("tracing");
+  Concern BAGGAGE_CONCERN = Concern.named("baggage");
 
   <C> void inject(AgentSpan span, C carrier, Setter<C> setter);
 
@@ -48,6 +49,7 @@ public interface AgentPropagation {
     @ParametersAreNonnullByDefault
     @Override
     default void forEachKeyValue(C carrier, BiConsumer<String, String> visitor) {
+      System.out.println("inside foreachkeyvalue");
       forEachKey(
           carrier,
           (key, value) -> {
