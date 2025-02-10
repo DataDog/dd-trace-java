@@ -80,7 +80,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
   private static volatile boolean flakyRetryEnabled = false
   private static volatile boolean earlyFlakinessDetectionEnabled = false
   private static volatile boolean impactedTestsDetectionEnabled = false
-  private static volatile boolean quarantineEnabled = false
+  private static volatile boolean testManagementEnabled = false
 
   public static final int SLOW_TEST_THRESHOLD_MILLIS = 1000
   public static final int VERY_SLOW_TEST_THRESHOLD_MILLIS = 2000
@@ -117,6 +117,10 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
         ], 0)
         : EarlyFlakeDetectionSettings.DEFAULT
 
+        def testManagementSettings = testManagementEnabled
+        ? new TestManagementSettings(true, 20)
+        : TestManagementSettings.DEFAULT
+
         Map<TestIdentifier, TestMetadata> skippableTestsWithMetadata = new HashMap<>()
         for (TestIdentifier skippableTest : skippableTests) {
           skippableTestsWithMetadata.put(skippableTest, new TestMetadata(false))
@@ -129,6 +133,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
         flakyRetryEnabled,
         impactedTestsDetectionEnabled,
         earlyFlakinessDetectionSettings,
+        testManagementSettings,
         itrEnabled ? "itrCorrelationId" : null,
         skippableTestsWithMetadata,
         [:],
@@ -259,10 +264,10 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     knownTests.clear()
     diff = LineDiff.EMPTY
     itrEnabled = false
-    quarantineEnabled = false
     flakyRetryEnabled = false
     earlyFlakinessDetectionEnabled = false
     impactedTestsDetectionEnabled = false
+    testManagementEnabled = false
 
     TEST_WRITER.setFilter(spanFilter)
   }
@@ -288,10 +293,6 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     this.diff = diff
   }
 
-  def givenQuarantineEnabled(boolean quarantineEnabled) {
-    this.quarantineEnabled = quarantineEnabled
-  }
-
   def givenFlakyRetryEnabled(boolean flakyRetryEnabled) {
     this.flakyRetryEnabled = flakyRetryEnabled
   }
@@ -302,6 +303,10 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
 
   def givenImpactedTestsDetectionEnabled(boolean impactedTestsDetectionEnabled) {
     this.impactedTestsDetectionEnabled = impactedTestsDetectionEnabled
+  }
+
+  def givenTestManagementEnabled(boolean testManagementEnabled) {
+    this.testManagementEnabled = testManagementEnabled
   }
 
   def givenTestsOrder(String testsOrder) {
@@ -321,6 +326,8 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     injectSysConfig(CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED, "true")
     injectSysConfig(CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ENABLED, "true")
     injectSysConfig(CiVisibilityConfig.CIVISIBILITY_EARLY_FLAKE_DETECTION_LOWER_LIMIT, "1")
+    injectSysConfig(CiVisibilityConfig.TEST_MANAGEMENT_ENABLED, "true")
+    injectSysConfig(CiVisibilityConfig.TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES, "20")
   }
 
   def cleanupSpec() {

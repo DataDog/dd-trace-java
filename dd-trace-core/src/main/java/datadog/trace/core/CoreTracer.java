@@ -5,7 +5,9 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 import static datadog.trace.api.DDTags.DJM_ENABLED;
 import static datadog.trace.api.DDTags.DSM_ENABLED;
 import static datadog.trace.api.DDTags.PROFILING_CONTEXT_ENGINE;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.STANDALONE_ASM_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.TRACING_CONCERN;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.XRAY_TRACING_CONCERN;
 import static datadog.trace.common.metrics.MetricsAggregatorFactory.createMetricsAggregator;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap;
@@ -57,6 +59,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.BlackHoleSpan;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
@@ -88,7 +91,9 @@ import datadog.trace.core.propagation.CorePropagation;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.propagation.PropagationTags;
+import datadog.trace.core.propagation.StandaloneAsmPropagator;
 import datadog.trace.core.propagation.TracingPropagator;
+import datadog.trace.core.propagation.XRayPropagator;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
 import datadog.trace.core.taginterceptor.RuleFlags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
@@ -722,7 +727,15 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     this.propagation =
         new CorePropagation(builtExtractor, injector, injectors, dataStreamContextInjector);
 
-    Propagators.register(TRACING_CONCERN, new TracingPropagator(injector, extractor));
+    // Check if standalone AppSec is enabled:
+    // If enabled, use the standalone AppSec propagator by default that will limit tracing concern
+    // injection and delegate to the tracing propagator if needed,
+    // If disabled, the most common case, use the usual tracing propagator by default.
+    boolean standaloneAppSec = config.isAppSecStandaloneEnabled();
+    Propagators.register(STANDALONE_ASM_CONCERN, new StandaloneAsmPropagator(), standaloneAppSec);
+    Propagators.register(
+        TRACING_CONCERN, new TracingPropagator(injector, extractor), !standaloneAppSec);
+    Propagators.register(XRAY_TRACING_CONCERN, new XRayPropagator(config), false);
 
     this.tagInterceptor =
         null == tagInterceptor ? new TagInterceptor(new RuleFlags(config)) : tagInterceptor;
@@ -969,18 +982,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public AgentPropagation propagate() {
     return this.propagation;
-  }
-
-  @Override
-  public AgentSpan noopSpan() {
-    return AgentTracer.NoopAgentSpan.INSTANCE;
-  }
-
-  @Override
-  public AgentSpan blackholeSpan() {
-    final AgentSpan active = activeSpan();
-    return new AgentTracer.BlackholeAgentSpan(
-        active != null ? active.getTraceId() : DDTraceId.ZERO);
   }
 
   @Override
@@ -1353,8 +1354,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         }
       }
 
-      if (pc == AgentTracer.BlackholeContext.INSTANCE) {
-        return new AgentTracer.BlackholeAgentSpan(pc.getTraceId());
+      if (pc == BlackHoleSpan.Context.INSTANCE) {
+        return new BlackHoleSpan(pc.getTraceId());
       }
       return buildSpan();
     }

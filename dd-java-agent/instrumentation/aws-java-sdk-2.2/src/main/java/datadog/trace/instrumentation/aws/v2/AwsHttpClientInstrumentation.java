@@ -15,7 +15,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -76,7 +75,7 @@ public final class AwsHttpClientInstrumentation extends AbstractAwsClientInstrum
       final AgentScope scope = activeScope();
       // check name in case TracingExecutionInterceptor failed to activate the span
       if (scope != null
-          && (scope.span() instanceof AgentTracer.NoopAgentSpan
+          && ((!scope.span().isValid())
               || AwsSdkClientDecorator.DECORATE
                   .spanName(requestExecutionContext.executionAttributes())
                   .equals(scope.span().getSpanName()))) {

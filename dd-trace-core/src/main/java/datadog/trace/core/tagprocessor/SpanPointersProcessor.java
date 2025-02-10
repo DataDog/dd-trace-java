@@ -1,11 +1,12 @@
 package datadog.trace.core.tagprocessor;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpanLink.DEFAULT_FLAGS;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AWS_BUCKET_NAME;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AWS_OBJECT_KEY;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.S3_ETAG;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import datadog.trace.bootstrap.instrumentation.api.SpanLink;
 import datadog.trace.core.DDSpanContext;
@@ -57,8 +58,7 @@ public class SpanPointersProcessor implements TagsPostProcessor {
               .put("link.kind", LINK_KIND)
               .build();
 
-      AgentTracer.NoopContext zeroContext = AgentTracer.NoopContext.INSTANCE;
-      AgentSpanLink link = SpanLink.from(zeroContext, AgentSpanLink.DEFAULT_FLAGS, "", attributes);
+      AgentSpanLink link = SpanLink.from(noopSpanContext(), DEFAULT_FLAGS, "", attributes);
       spanLinks.add(link);
     } catch (Exception e) {
       LOG.debug("Failed to add span pointer: {}", e.getMessage());

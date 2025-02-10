@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
@@ -12,7 +13,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Map;
@@ -72,11 +72,11 @@ public class PekkoActorCellInstrumentation extends InstrumenterModule.Tracing
         return null;
       }
       // If there is a noop span in the active scope, we can clean all the way to this scope
-      if (activeSpan() instanceof AgentTracer.NoopAgentSpan) {
+      if (activeSpan() == noopSpan()) {
         return activeScope;
       }
       // Create an active scope with a noop span, and clean all the way to the previous scope
-      localScope = activateSpan(AgentTracer.NoopAgentSpan.INSTANCE, false);
+      localScope = activateSpan(noopSpan(), false);
       return activeScope;
     }
 

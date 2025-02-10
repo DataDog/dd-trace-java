@@ -5,13 +5,12 @@ import static datadog.trace.bootstrap.instrumentation.api.InternalContextKeys.SP
 import datadog.context.Context;
 import datadog.context.ContextKey;
 import datadog.context.ImplicitContextKeyed;
+import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.interceptor.MutableSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopContext;
 import java.util.Map;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -26,29 +25,38 @@ public interface AgentSpan
    * @return the span if existing, {@code null} otherwise.
    */
   static AgentSpan fromContext(Context context) {
-    return context.get(SPAN_KEY);
+    return context == null ? null : context.get(SPAN_KEY);
   }
 
   /**
    * Creates a span wrapper from a span context.
    *
-   * <p>Creating a such span will not create a tracing span to complete a local root trace. It gives
-   * a span instance based on a span context for span-based API. It is usually used with an
-   * extracted span context as parameter to represent a remove span.
+   * <p>Creating such span will not create a tracing span to complete a local root trace. It gives a
+   * span instance based on a span context for span-based API. It is usually used with an extracted
+   * span context as parameter to represent a remote span.
    *
    * @param spanContext the span context to get a full-fledged span.
-   * @return a span wrapped based on a span context.
+   * @return a span wrapper based on a span context.
    */
   static AgentSpan fromSpanContext(AgentSpanContext spanContext) {
-    if (spanContext == null || spanContext == NoopContext.INSTANCE) {
-      return NoopAgentSpan.INSTANCE;
+    if (spanContext == null || spanContext == NoopSpanContext.INSTANCE) {
+      return NoopSpan.INSTANCE;
     }
-    return new AgentTracer.ExtractedSpan(spanContext);
+    return new ExtractedSpan(spanContext);
   }
 
   DDTraceId getTraceId();
 
   long getSpanId();
+
+  /**
+   * Checks whether a span is considered valid by having valid trace and span identifiers.
+   *
+   * @return {@code true} if the span is considered valid, {@code false} otherwise.
+   */
+  default boolean isValid() {
+    return getTraceId() != DDTraceId.ZERO && getSpanId() != DDSpanId.ZERO;
+  }
 
   @Override
   AgentSpan setTag(String key, boolean value);
@@ -164,8 +172,6 @@ public interface AgentSpan
    * being used
    */
   AgentSpan setResourceName(final CharSequence resourceName, byte priority);
-
-  boolean eligibleForDropping();
 
   /** RequestContext for the Instrumentation Gateway */
   RequestContext getRequestContext();

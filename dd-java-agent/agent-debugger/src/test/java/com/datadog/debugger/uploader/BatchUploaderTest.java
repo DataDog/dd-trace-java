@@ -61,7 +61,8 @@ public class BatchUploaderTest {
     server.start();
     url = server.url(URL_PATH);
 
-    when(config.getDebuggerUploadTimeout()).thenReturn((int) REQUEST_TIMEOUT.getSeconds());
+    when(config.getDynamicInstrumentationUploadTimeout())
+        .thenReturn((int) REQUEST_TIMEOUT.getSeconds());
 
     uploader = new BatchUploader(config, url.toString(), ratelimitedLogger, retryPolicy);
   }
@@ -172,7 +173,8 @@ public class BatchUploaderTest {
   public void testTooManyRequests() throws IOException, InterruptedException {
     // We need to make sure that initial requests that fill up the queue hang to the duration of the
     // test. So we specify insanely large timeout here.
-    when(config.getDebuggerUploadTimeout()).thenReturn((int) FOREVER_REQUEST_TIMEOUT.getSeconds());
+    when(config.getDynamicInstrumentationUploadTimeout())
+        .thenReturn((int) FOREVER_REQUEST_TIMEOUT.getSeconds());
     uploader = new BatchUploader(config, url.toString(), retryPolicy);
 
     // We have to block all parallel requests to make sure queue is kept full

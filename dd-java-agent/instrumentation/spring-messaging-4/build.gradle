@@ -35,7 +35,8 @@ dependencies {
   }
   testImplementation group: 'org.elasticmq', name: 'elasticmq-rest-sqs_2.13', version: '1.2.3'
 
-  latestDepTestImplementation group: 'org.springframework', name: 'spring-messaging', version: '+', {
+  latestDepTestImplementation group: 'org.springframework', name: 'spring-messaging', version: '6.+', {
     exclude group: 'org.slf4j', module: 'slf4j-api'
   }
+
 }

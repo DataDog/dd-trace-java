@@ -289,7 +289,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
 
   @Test
   public void oldJavacBug() throws Exception {
-    setFieldInConfig(Config.get(), "debuggerHoistLocalVarsEnabled", true);
+    setFieldInConfig(Config.get(), "dynamicInstrumentationHoistLocalVarsEnabled", true);
     try {
       final String CLASS_NAME = "com.datadog.debugger.classfiles.JavacBug"; // compiled with jdk 1.6
       TestSnapshotListener listener = installMethodProbe(CLASS_NAME, "main", null);
@@ -301,7 +301,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
       // resolved
       assertEquals(1, listener.snapshots.size());
     } finally {
-      setFieldInConfig(Config.get(), "debuggerHoistLocalVarsEnabled", false);
+      setFieldInConfig(Config.get(), "dynamicInstrumentationHoistLocalVarsEnabled", false);
     }
   }
 
@@ -1889,7 +1889,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
       value = "datadog.trace.api.Platform#isJ9",
       disabledReason = "we cannot get local variable debug info")
   public void uncaughtExceptionConditionLocalVar() throws IOException, URISyntaxException {
-    setFieldInConfig(Config.get(), "debuggerHoistLocalVarsEnabled", true);
+    setFieldInConfig(Config.get(), "dynamicInstrumentationHoistLocalVarsEnabled", true);
     try {
       final String CLASS_NAME = "CapturedSnapshot05";
       LogProbe probe =
@@ -1919,7 +1919,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
       // at the beginning of the method by instrumentation
       assertCaptureLocals(snapshot.getCaptures().getReturn(), "after", "long", "0");
     } finally {
-      setFieldInConfig(Config.get(), "debuggerHoistLocalVarsEnabled", false);
+      setFieldInConfig(Config.get(), "dynamicInstrumentationHoistLocalVarsEnabled", false);
     }
   }
 
@@ -1952,7 +1952,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
       value = "datadog.trace.api.Platform#isJ9",
       disabledReason = "we cannot get local variable debug info")
   public void methodProbeLocalVarsLocalScopes() throws IOException, URISyntaxException {
-    setFieldInConfig(Config.get(), "debuggerHoistLocalVarsEnabled", true);
+    setFieldInConfig(Config.get(), "dynamicInstrumentationHoistLocalVarsEnabled", true);
     try {
       final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot31";
       LogProbe probe = createMethodProbeAtExit(PROBE_ID, CLASS_NAME, "localScopes", "(String)");
@@ -1964,7 +1964,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
       assertEquals(1, snapshot.getCaptures().getReturn().getLocals().size());
       assertCaptureLocals(snapshot.getCaptures().getReturn(), "@return", "int", "42");
     } finally {
-      setFieldInConfig(Config.get(), "debuggerHoistLocalVarsEnabled", false);
+      setFieldInConfig(Config.get(), "dynamicInstrumentationHoistLocalVarsEnabled", false);
     }
   }
 
@@ -2056,7 +2056,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
       value = "datadog.trace.api.Platform#isJ9",
       disabledReason = "we cannot get local variable debug info")
   public void duplicateLocalDifferentScope() throws IOException, URISyntaxException {
-    setFieldInConfig(Config.get(), "debuggerHoistLocalVarsEnabled", true);
+    setFieldInConfig(Config.get(), "dynamicInstrumentationHoistLocalVarsEnabled", true);
     try {
       final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot31";
       LogProbe probe =
@@ -2069,7 +2069,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
       assertCaptureLocals(
           snapshot.getCaptures().getReturn(), "ch", Character.TYPE.getTypeName(), "e");
     } finally {
-      setFieldInConfig(Config.get(), "debuggerHoistLocalVarsEnabled", false);
+      setFieldInConfig(Config.get(), "dynamicInstrumentationHoistLocalVarsEnabled", false);
     }
   }
 
@@ -2328,7 +2328,8 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   public void typeRedactionBlockedProbe() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot27";
     Config config = mock(Config.class);
-    when(config.getDebuggerRedactedTypes()).thenReturn("com.datadog.debugger.CapturedSnapshot27");
+    when(config.getDynamicInstrumentationRedactedTypes())
+        .thenReturn("com.datadog.debugger.CapturedSnapshot27");
     Redaction.addUserDefinedTypes(config);
     LogProbe probe1 =
         createProbeBuilder(PROBE_ID, CLASS_NAME, "doit", null)
@@ -2351,7 +2352,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     final String LOG_TEMPLATE =
         "arg={arg} credentials={creds} user={this.creds.user} code={creds.secretCode} dave={credMap['dave'].user}";
     Config config = mock(Config.class);
-    when(config.getDebuggerRedactedTypes())
+    when(config.getDynamicInstrumentationRedactedTypes())
         .thenReturn("com.datadog.debugger.CapturedSnapshot27$Creds");
     Redaction.addUserDefinedTypes(config);
     LogProbe probe1 =
@@ -2388,7 +2389,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   public void typeRedactionCondition() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot27";
     Config config = mock(Config.class);
-    when(config.getDebuggerRedactedTypes())
+    when(config.getDynamicInstrumentationRedactedTypes())
         .thenReturn("com.datadog.debugger.CapturedSnapshot27$Creds");
     Redaction.addUserDefinedTypes(config);
     LogProbe probe1 =
@@ -2637,15 +2638,15 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   private TestSnapshotListener setupInstrumentTheWorldTransformer(
       String excludeFileName, String includeFileName) {
     Config config = mock(Config.class);
-    when(config.isDebuggerEnabled()).thenReturn(true);
-    when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
-    when(config.isDebuggerInstrumentTheWorld()).thenReturn(true);
-    when(config.getDebuggerExcludeFiles()).thenReturn(excludeFileName);
-    when(config.getDebuggerIncludeFiles()).thenReturn(includeFileName);
+    when(config.isDynamicInstrumentationEnabled()).thenReturn(true);
+    when(config.isDynamicInstrumentationClassFileDumpEnabled()).thenReturn(true);
+    when(config.isDynamicInstrumentationInstrumentTheWorld()).thenReturn(true);
+    when(config.getDynamicInstrumentationExcludeFiles()).thenReturn(excludeFileName);
+    when(config.getDynamicInstrumentationIncludeFiles()).thenReturn(includeFileName);
     when(config.getFinalDebuggerSnapshotUrl())
         .thenReturn("http://localhost:8126/debugger/v1/input");
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
-    when(config.getDebuggerUploadBatchSize()).thenReturn(100);
+    when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
     TestSnapshotListener listener = new TestSnapshotListener(config, mock(ProbeStatusSink.class));
     DebuggerAgentHelper.injectSink(listener);
     currentTransformer =

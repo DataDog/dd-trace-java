@@ -110,7 +110,7 @@ abstract class GrpcTest extends VersionedNamingTestBase {
     ig.reset()
   }
 
-  def "test request-response"() {
+  def "test request-response #name #executor.class.simpleName"() {
     setup:
 
     ExecutorService responseExecutor = Executors.newSingleThreadExecutor()

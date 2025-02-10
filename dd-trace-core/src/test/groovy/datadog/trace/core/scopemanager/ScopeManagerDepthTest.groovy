@@ -3,11 +3,12 @@ package datadog.trace.core.scopemanager
 import datadog.trace.api.config.TracerConfig
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentScope
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentSpan
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.test.DDCoreSpecification
+
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopScope
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan
 
 class ScopeManagerDepthTest extends DDCoreSpecification {
   def "scopemanager returns noop scope if depth exceeded"() {
@@ -16,9 +17,9 @@ class ScopeManagerDepthTest extends DDCoreSpecification {
     def scopeManager = tracer.scopeManager
 
     when: "fill up the scope stack"
-    AgentScope scope = null
+    AgentScope scope
     for (int i = 0; i < depth; i++) {
-      def testSpan = tracer.buildSpan("test").start()
+      def testSpan = tracer.buildSpan("test", "test").start()
       scope = tracer.activateSpan(testSpan)
       assert scope instanceof ContinuableScope
     }
@@ -27,17 +28,17 @@ class ScopeManagerDepthTest extends DDCoreSpecification {
     scopeManager.scopeStack().depth() == depth
 
     when: "activate span over limit"
-    def span = tracer.buildSpan("test").start()
+    def span = tracer.buildSpan("test", "test").start()
     scope = tracer.activateSpan(span)
 
     then: "a noop instance is returned"
-    scope instanceof NoopAgentScope
+    scope == noopScope()
 
     when: "activate a noop scope over the limit"
-    scope = scopeManager.activate(NoopAgentSpan.INSTANCE, ScopeSource.MANUAL)
+    scope = scopeManager.activate(noopSpan(), ScopeSource.MANUAL)
 
     then: "still have a noop instance"
-    scope instanceof NoopAgentScope
+    scope == noopScope()
 
     and: "scope stack not effected."
     scopeManager.scopeStack().depth() == depth
@@ -57,9 +58,9 @@ class ScopeManagerDepthTest extends DDCoreSpecification {
     def scopeManager = tracer.scopeManager
 
     when: "fill up the scope stack"
-    AgentScope scope = null
+    AgentScope scope
     for (int i = 0; i < defaultLimit; i++) {
-      def testSpan = tracer.buildSpan("test").start()
+      def testSpan = tracer.buildSpan("test", "test").start()
       scope = tracer.activateSpan(testSpan)
       assert scope instanceof ContinuableScope
     }
@@ -68,18 +69,18 @@ class ScopeManagerDepthTest extends DDCoreSpecification {
     scopeManager.scopeStack().depth() == defaultLimit
 
     when: "activate a scope"
-    def span = tracer.buildSpan("test").start()
+    def span = tracer.buildSpan("test", "test").start()
     scope = tracer.activateSpan(span)
 
     then: "a real scope is returned"
-    !(scope instanceof NoopAgentScope)
+    scope != noopScope()
     scopeManager.scopeStack().depth() == defaultLimit + 1
 
     when: "activate a noop span"
-    scope = scopeManager.activate(NoopAgentSpan.INSTANCE, ScopeSource.MANUAL)
+    scope = scopeManager.activate(noopSpan(), ScopeSource.MANUAL)
 
     then: "a real instance is still returned"
-    !(scope instanceof NoopAgentScope)
+    scope != noopScope()
 
     and: "scope stack not effected."
     scopeManager.scopeStack().depth() == defaultLimit + 2
@@ -101,10 +102,10 @@ class ScopeManagerDepthTest extends DDCoreSpecification {
     def scopeManager = tracer.scopeManager
 
     when:
-    AgentSpan firstSpan = tracer.buildSpan("foo").start()
+    AgentSpan firstSpan = tracer.buildSpan("test", "foo").start()
     AgentScope firstScope = tracer.activateSpan(firstSpan)
 
-    AgentSpan secondSpan = tracer.buildSpan("foo").start()
+    AgentSpan secondSpan = tracer.buildSpan("test", "foo").start()
     AgentScope secondScope = tracer.activateSpan(secondSpan)
 
     then:

@@ -102,7 +102,8 @@ public class Agent {
         propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED), false),
     USM(propertyNameToSystemPropertyName(UsmConfig.USM_ENABLED), false),
     TELEMETRY(propertyNameToSystemPropertyName(GeneralConfig.TELEMETRY_ENABLED), true),
-    DEBUGGER(propertyNameToSystemPropertyName(DebuggerConfig.DEBUGGER_ENABLED), false),
+    DEBUGGER(
+        propertyNameToSystemPropertyName(DebuggerConfig.DYNAMIC_INSTRUMENTATION_ENABLED), false),
     EXCEPTION_DEBUGGING(
         propertyNameToSystemPropertyName(DebuggerConfig.EXCEPTION_REPLAY_ENABLED), false),
     SPAN_ORIGIN(
@@ -756,12 +757,13 @@ public class Agent {
               "com.datadog.profiling.controller.openjdk.events.SmapEntryFactory");
       final Method registerMethod = smapFactoryClass.getMethod("registerEvents");
       registerMethod.invoke(null);
-    } catch (final NoClassDefFoundError
+    } catch (final NoSuchMethodException
+        | NoClassDefFoundError
         | ClassNotFoundException
-        | UnsupportedClassVersionError ignored) {
+        | UnsupportedClassVersionError
+        | IllegalAccessException
+        | InvocationTargetException ignored) {
       log.debug("Smap entry scraping not supported");
-    } catch (final Throwable ex) {
-      log.error("Unable to initialize smap entry scraping", ex);
     }
   }
 

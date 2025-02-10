@@ -26,6 +26,7 @@ class ExecutionSettingsTest extends Specification {
       false,
       false,
       EarlyFlakeDetectionSettings.DEFAULT,
+      TestManagementSettings.DEFAULT,
       null,
       [:],
       [:],
@@ -41,6 +42,7 @@ class ExecutionSettingsTest extends Specification {
       true,
       true,
       new EarlyFlakeDetectionSettings(true, [], 10),
+      new TestManagementSettings(true, 20),
       "",
       [(new TestIdentifier("bc", "def", "g")): new TestMetadata(true), (new TestIdentifier("de", "f", null)): new TestMetadata(false)],
       [:],
@@ -57,6 +59,7 @@ class ExecutionSettingsTest extends Specification {
       false,
       true,
       new EarlyFlakeDetectionSettings(true, [new EarlyFlakeDetectionSettings.ExecutionsByDuration(10, 20)], 10),
+      new TestManagementSettings(true, 20),
       "itrCorrelationId",
       [:],
       ["cov"    : BitSet.valueOf(new byte[]{
@@ -77,6 +80,7 @@ class ExecutionSettingsTest extends Specification {
       true,
       true,
       new EarlyFlakeDetectionSettings(true, [new EarlyFlakeDetectionSettings.ExecutionsByDuration(10, 20), new EarlyFlakeDetectionSettings.ExecutionsByDuration(30, 40)], 10),
+      new TestManagementSettings(true, 20),
       "itrCorrelationId",
       [(new TestIdentifier("bc", "def", null)): new TestMetadata(true), (new TestIdentifier("de", "f", null)): new TestMetadata(true)],
       ["cov"    : BitSet.valueOf(new byte[]{

@@ -215,6 +215,7 @@
       "test.framework" : "spock",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.status" : "fail",
+      "test.test_management.enabled" : "true",
       "test.type" : "test",
       "test_session.name" : "session-name"
     },
@@ -248,6 +249,7 @@
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.module" : "spock-junit-5",
       "test.status" : "fail",
+      "test.test_management.enabled" : "true",
       "test.type" : "test",
       "test_session.name" : "session-name"
     },

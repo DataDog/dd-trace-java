@@ -33,6 +33,7 @@ import datadog.trace.api.civisibility.telemetry.tag.RequireGit;
 import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
 import datadog.trace.api.civisibility.telemetry.tag.StatusCode;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
+import datadog.trace.api.civisibility.telemetry.tag.TestManagementEnabled;
 import java.util.Arrays;
 
 public enum CiVisibilityCountMetric {
@@ -120,6 +121,7 @@ public enum CiVisibilityCountMetric {
       FlakyTestRetriesEnabled.class,
       ImpactedTestsDetectionEnabled.class,
       KnownTestsEnabled.class,
+      TestManagementEnabled.class,
       RequireGit.class),
   /** The number of requests sent to the itr skippable tests endpoint */
   ITR_SKIPPABLE_TESTS_REQUEST("itr_skippable_tests.request", RequestCompressed.class),

@@ -158,7 +158,7 @@ public class CiVisibilitySystem {
                 services, repoServices, coverageServices, executionSettings);
       } else {
         sessionFactory =
-            headlessTestFrameworkEssionFactory(
+            headlessTestFrameworkSessionFactory(
                 services, repoServices, coverageServices, executionSettings);
       }
     }
@@ -259,7 +259,7 @@ public class CiVisibilitySystem {
     };
   }
 
-  private static TestFrameworkSession.Factory headlessTestFrameworkEssionFactory(
+  private static TestFrameworkSession.Factory headlessTestFrameworkSessionFactory(
       CiVisibilityServices services,
       CiVisibilityRepoServices repoServices,
       CiVisibilityCoverageServices.Child coverageServices,
