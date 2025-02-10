@@ -13,7 +13,7 @@ class ProductTraceSourceTest extends DDSpecification {
 
     where:
     init                   | newProduct             | expected
-    0                      | ProductTraceSource.ASM | ProductTraceSource.ASM
+    ProductTraceSource.UNSET                      | ProductTraceSource.ASM | ProductTraceSource.ASM
     ProductTraceSource.ASM | ProductTraceSource.DSM | 6
   }
 
@@ -39,7 +39,7 @@ class ProductTraceSourceTest extends DDSpecification {
 
     where:
     value         | expected
-    0             | "00"
+    ProductTraceSource.UNSET               | "00"
     ProductTraceSource.ASM | "02"
   }
 
@@ -52,9 +52,9 @@ class ProductTraceSourceTest extends DDSpecification {
 
     where:
     hex  | expected
-    "00" | 0
-    null | 0
-    ""   | 0
+    "00" | ProductTraceSource.UNSET
+    null | ProductTraceSource.UNSET
+    ""   | ProductTraceSource.UNSET
     "02" | ProductTraceSource.ASM
   }
 }

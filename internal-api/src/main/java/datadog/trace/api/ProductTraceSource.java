@@ -2,6 +2,8 @@ package datadog.trace.api;
 
 public class ProductTraceSource {
 
+  public static final int UNSET = 0;
+
   public static final int APM = 0x01;
   public static final int ASM = 0x02;
   public static final int DSM = 0x04;

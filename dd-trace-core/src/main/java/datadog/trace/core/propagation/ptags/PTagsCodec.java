@@ -38,7 +38,7 @@ abstract class PTagsCodec {
       if (ptags.getTraceIdHighOrderBitsHexTagValue() != null) {
         size = codec.appendTag(sb, TRACE_ID_TAG, ptags.getTraceIdHighOrderBitsHexTagValue(), size);
       }
-      if (ptags.getPropagatedTraceSource() != 0) {
+      if (ptags.getPropagatedTraceSource() != ProductTraceSource.UNSET) {
         size =
             codec.appendTag(
                 sb,
@@ -92,7 +92,7 @@ abstract class PTagsCodec {
           DECISION_MAKER_TAG.forType(Encoding.DATADOG).toString(),
           propagationTags.getDecisionMakerTagValue().forType(Encoding.DATADOG).toString());
     }
-    if (propagationTags.getPropagatedTraceSource() != 0) {
+    if (propagationTags.getPropagatedTraceSource() != ProductTraceSource.UNSET) {
       tagMap.put(
           TRACE_SOURCE_TAG.forType(Encoding.DATADOG).toString(),
           TagValue.from(
