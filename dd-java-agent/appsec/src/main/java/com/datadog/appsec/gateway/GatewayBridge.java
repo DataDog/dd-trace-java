@@ -663,11 +663,6 @@ public class GatewayBridge {
     }
     ctx.setRequestEndCalled();
 
-    maybeExtractSchemas(ctx);
-
-    // WAF call
-    ctx.closeAdditive();
-
     TraceSegment traceSeg = ctx_.getTraceSegment();
 
     // AppSec report metric and events for web span only
@@ -730,7 +725,9 @@ public class GatewayBridge {
       }
     }
 
-    ctx.close(spanInfo.isRequiresPostProcessing());
+    if (!spanInfo.isRequiresPostProcessing()) {
+      ctx.close();
+    }
     return NoopFlow.INSTANCE;
   }
 
@@ -790,7 +787,13 @@ public class GatewayBridge {
   }
 
   private void onPostProcessing(RequestContext ctx_) {
-    // Do AppSec post-processing
+    AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx == null) {
+      return;
+    }
+
+    maybeExtractSchemas(ctx);
+    ctx.close();
   }
 
   public void stop() {
