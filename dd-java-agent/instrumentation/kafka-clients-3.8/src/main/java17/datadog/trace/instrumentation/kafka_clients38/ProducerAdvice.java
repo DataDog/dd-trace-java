@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.kafka_clients38;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
@@ -72,7 +73,7 @@ public class ProducerAdvice {
     sortedTags.put(TOPIC_TAG, record.topic());
     sortedTags.put(TYPE_TAG, "kafka");
     try {
-      propagate().inject(span, record.headers(), setter);
+      defaultPropagator().inject(span, record.headers(), setter);
       if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())
           || STREAMING_CONTEXT.isSinkTopic(record.topic())) {
         // inject the context in the headers, but delay sending the stats until we know the
@@ -93,7 +94,7 @@ public class ProducerAdvice {
               record.value(),
               record.headers());
 
-      propagate().inject(span, record.headers(), setter);
+      defaultPropagator().inject(span, record.headers(), setter);
       if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())
           || STREAMING_CONTEXT.isSinkTopic(record.topic())) {
         propagate()

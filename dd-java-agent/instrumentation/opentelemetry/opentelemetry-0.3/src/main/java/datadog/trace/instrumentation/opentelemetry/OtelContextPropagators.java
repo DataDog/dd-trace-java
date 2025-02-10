@@ -1,6 +1,9 @@
 package datadog.trace.instrumentation.opentelemetry;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
+
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.grpc.Context;
@@ -39,7 +42,10 @@ public class OtelContextPropagators implements ContextPropagators {
       if (span == null || !span.getContext().isValid()) {
         return;
       }
-      tracer.propagate().inject(converter.toAgentSpan(span), carrier, new OtelSetter<>(setter));
+      AgentSpan agentSpan = converter.toAgentSpan(span);
+      if (agentSpan != null) {
+        defaultPropagator().inject(agentSpan, carrier, setter::set);
+      }
     }
 
     @Override
@@ -48,19 +54,6 @@ public class OtelContextPropagators implements ContextPropagators {
           tracer.propagate().extract(carrier, new OtelGetter<>(getter));
       return TracingContextUtils.withSpan(
           DefaultSpan.create(converter.toSpanContext(agentContext)), context);
-    }
-  }
-
-  private static class OtelSetter<C> implements AgentPropagation.Setter<C> {
-    private final HttpTextFormat.Setter<C> setter;
-
-    private OtelSetter(final HttpTextFormat.Setter<C> setter) {
-      this.setter = setter;
-    }
-
-    @Override
-    public void set(final C carrier, final String key, final String value) {
-      setter.set(carrier, key, value);
     }
   }
 
