@@ -154,14 +154,25 @@ class EntryBuilderTest extends Specification {
     return result.toString()
   }
 
-  def "test invalid range parsing"() {
+  def "test invalid entry parsing: #entry"() {
     setup:
     def matcherFactory = new CharacterMatcher.Factory()
 
     when:
-    def entry = new EntryBuilder(matcherFactory, "token[z-a] owner").parse()
+    def parsedEntry = new EntryBuilder(matcherFactory, entry).parse()
 
     then:
-    entry == null
+    parsedEntry == null
+
+    where:
+    entry << [
+      "token[z-a] owner",
+      "# comment",
+      " # comment with a leading space",
+      "[section header]",
+      " [section header with a leading space]",
+      "",
+      " ",
+    ]
   }
 }
