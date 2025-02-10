@@ -167,11 +167,13 @@ public class BaggagePropagator implements Propagator {
         return;
       }
       if (key.equalsIgnoreCase(BAGGAGE_KEY)) { // Only process tags that are relevant to baggage
-        extractedContext =
-            BaggageContext.create(
-                parseBaggageHeaders(
-                    value)); // is this correct to assume that one instance will be created for each
-        // propagator?
+        Map<String, String> baggage = parseBaggageHeaders(value);
+        if (!baggage.isEmpty()) {
+          extractedContext =
+              BaggageContext.create(
+                  baggage); // is this correct to assume that one instance will be created for each
+          // propagator?
+        }
       }
     }
   }
