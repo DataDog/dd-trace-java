@@ -114,7 +114,7 @@ public class BaggagePropagator implements Propagator {
     if (extractedContext == null) {
       return context;
     }
-    return extractedContext.storeInto(context); // does this make sense?
+    return extractedContext.storeInto(context);
   }
 
   public static class BaggageContextExtractor implements BiConsumer<String, String> {
