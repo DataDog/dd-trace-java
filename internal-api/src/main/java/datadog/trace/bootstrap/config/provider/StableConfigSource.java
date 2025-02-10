@@ -82,7 +82,7 @@ public final class StableConfigSource extends ConfigProvider.Source {
    * @return A StableConfig object constructed with the "config_id" if available and, if applicable,
    *     the parsed configuration data.
    */
-  private static StableConfig buildStableConfig(HashMap<String, Object> data) {
+  private static StableConfig buildStableConfig(Map<String, Object> data) {
     if (data == null) {
       return new StableConfig();
     }
