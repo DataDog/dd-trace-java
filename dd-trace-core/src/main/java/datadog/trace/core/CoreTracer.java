@@ -57,6 +57,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.BlackHoleSpan;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
@@ -972,18 +973,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public AgentSpan noopSpan() {
-    return AgentTracer.NoopAgentSpan.INSTANCE;
-  }
-
-  @Override
-  public AgentSpan blackholeSpan() {
-    final AgentSpan active = activeSpan();
-    return new AgentTracer.BlackholeAgentSpan(
-        active != null ? active.getTraceId() : DDTraceId.ZERO);
-  }
-
-  @Override
   public AgentSpanContext notifyExtensionStart(Object event) {
     return LambdaHandler.notifyStartInvocation(this, event);
   }
@@ -1353,8 +1342,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         }
       }
 
-      if (pc == AgentTracer.BlackholeContext.INSTANCE) {
-        return new AgentTracer.BlackholeAgentSpan(pc.getTraceId());
+      if (pc == BlackHoleSpan.Context.INSTANCE) {
+        return new BlackHoleSpan(pc.getTraceId());
       }
       return buildSpan();
     }

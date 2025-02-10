@@ -2,7 +2,6 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.sampling.PrioritySampling
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.core.DDSpan
@@ -13,11 +12,15 @@ import datadog.trace.core.scopemanager.ContinuableScopeManager
 import datadog.trace.instrumentation.opentracing.DefaultLogHandler
 import datadog.trace.instrumentation.opentracing32.TypeConverter
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopScope
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpanContext
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan
+
 class TypeConverterTest extends AgentTestRunner {
   TypeConverter typeConverter = new TypeConverter(new DefaultLogHandler())
 
   def "should avoid the noop span wrapper allocation"() {
-    def noopAgentSpan = AgentTracer.NoopAgentSpan.INSTANCE
+    def noopAgentSpan = noopSpan()
     expect:
     typeConverter.toSpan(noopAgentSpan) is typeConverter.toSpan(noopAgentSpan)
   }
@@ -34,13 +37,13 @@ class TypeConverterTest extends AgentTestRunner {
   }
 
   def "should avoid the noop context wrapper allocation"() {
-    def noopContext = AgentTracer.NoopContext.INSTANCE
+    def noopContext = noopSpanContext()
     expect:
     typeConverter.toSpanContext(noopContext) is typeConverter.toSpanContext(noopContext)
   }
 
   def "should avoid the noop scope wrapper allocation"() {
-    def noopScope = AgentTracer.NoopAgentScope.INSTANCE
+    def noopScope = noopScope()
     expect:
     typeConverter.toScope(noopScope, true) is typeConverter.toScope(noopScope, true)
     typeConverter.toScope(noopScope, false) is typeConverter.toScope(noopScope, false)

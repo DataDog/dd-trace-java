@@ -8,24 +8,6 @@ repositories {
   maven {
     url 'https://maven.repository.redhat.com/ga/'
   }
-  ivy {
-    url 'https://download.jboss.org/'
-    patternLayout {
-      artifact '/[organisation]/[revision]/[module]/[organisation]-[module]-[revision].[ext]'
-      metadataSources {
-        artifact()
-      }
-    }
-  }
-  ivy {
-    url 'https://github.com/wildfly'
-    patternLayout {
-      artifact '/[organisation]/releases/download/[revision]/[organisation]-[revision].[ext]'
-      metadataSources {
-        artifact()
-      }
-    }
-  }
 }
 
 muzzle {
@@ -46,9 +28,6 @@ addTestSuiteExtendingForDir("latestDepForkedTest", "latestDepTest", "test")
 configurations {
   wildflyTest
   wildflyLatestDepTest
-  wildflyLatestPoll {
-    canBeResolved = true
-  }
 }
 
 dependencies {
@@ -68,17 +47,17 @@ dependencies {
   testRuntimeOnly group: 'org.jboss.shrinkwrap', name: 'shrinkwrap-spi', version: '1.2.6'
   testRuntimeOnly group: 'org.jboss.shrinkwrap', name: 'shrinkwrap-impl-base', version: '1.2.6'
 
-  wildflyTest "wildfly:servlet:21.0.0.Final@zip"
+  wildflyTest "org.wildfly:wildfly-dist:21.0.0.Final@zip"
 
   latestDepTestImplementation group: 'org.wildfly.core', name: 'wildfly-embedded', version: '+'
   latestDepTestImplementation group: 'org.wildfly.core', name: 'wildfly-server', version: '+'
-  wildflyLatestPoll group: 'org.wildfly', name: 'wildfly-dist', version: '+'
+  wildflyLatestDepTest "org.wildfly:wildfly-dist:+@zip"
 
-  configurations.wildflyLatestPoll.resolve()
-  def latestWildflyVersion = configurations.wildflyLatestPoll.resolvedConfiguration.getResolvedArtifacts().find {
+  configurations.wildflyLatestDepTest.resolve()
+  def latestWildflyVersion = configurations.wildflyLatestDepTest.resolvedConfiguration.getResolvedArtifacts().find {
     it.name == "wildfly-dist"
   }.moduleVersion.id.version
-  wildflyLatestDepTest "wildfly:wildfly:$latestWildflyVersion@zip"
+
   latestDepForkedTest {
     configure {
       jvmArgs += ["-Dtest.jboss.home=$buildDir/wildfly-${latestWildflyVersion}"]
@@ -110,14 +89,13 @@ def extractWildfly(config, zipFileNamePrefix, sync) {
 tasks.register("extractWildfly", Copy) {
   dependsOn configurations.wildflyTest
   mustRunAfter tasks.compileTestGroovy
-  extractWildfly(configurations.wildflyTest, "servlet", it)
+  extractWildfly(configurations.wildflyTest, "wildfly-dist", it)
 
   // When tests are disabled this would still be run, so disable this manually
   onlyIf { !project.rootProject.hasProperty("skipTests") }
 }
 
 tasks.register("extractLatestWildfly", Copy) {
-  dependsOn configurations.wildflyLatestDepTest
   mustRunAfter tasks.compileLatestDepTestGroovy
   mustRunAfter tasks.compileLatestDepForkedTestGroovy
   mustRunAfter tasks.compileLatestDepTestJava
@@ -186,7 +164,7 @@ processTestResources {
 
 forkedTest {
   configure {
-    jvmArgs += ["-Dtest.jboss.home=$buildDir/wildfly-servlet-21.0.0.Final"]
+    jvmArgs += ["-Dtest.jboss.home=$buildDir/wildfly-21.0.0.Final"]
   }
 }
 
