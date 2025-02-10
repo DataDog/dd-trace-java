@@ -59,7 +59,6 @@ class StableConfigSourceTest extends DDSpecification {
       println "Error writing to file: ${e.message}"
       return // fail?
     }
-
     StableConfigSource cfg = new StableConfigSource(filePath.toString(), ConfigOrigin.USER_STABLE_CONFIG)
 
     then:

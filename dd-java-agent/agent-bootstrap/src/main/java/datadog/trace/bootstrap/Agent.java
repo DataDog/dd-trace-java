@@ -41,6 +41,7 @@ import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
+import java.io.IOException;
 import java.lang.instrument.Instrumentation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -50,7 +51,6 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.security.CodeSource;
 import java.util.EnumSet;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.PatternSyntaxException;
@@ -1206,17 +1206,18 @@ public class Agent {
     final String featureEnabledSysprop = feature.getSystemProp();
     String featureEnabled = System.getProperty(featureEnabledSysprop);
     // MIKAYLA: Where to write tests for this?
-    if (featureEnabled == null) {
-      featureEnabled =
-          getStableConfig(featureEnabledSysprop, StableConfigSource.MANAGED_STABLE_CONFIG_PATH);
-    }
+    //    if (featureEnabled == null) {
+    //      featureEnabled =
+    //          getStableConfig(featureEnabledSysprop,
+    // StableConfigSource.MANAGED_STABLE_CONFIG_PATH);
+    //    }
     if (featureEnabled == null) {
       featureEnabled = ddGetEnv(featureEnabledSysprop);
     }
-    if (featureEnabled == null) {
-      featureEnabled =
-          getStableConfig(featureEnabledSysprop, StableConfigSource.USER_STABLE_CONFIG_PATH);
-    }
+    //    if (featureEnabled == null) {
+    //      featureEnabled =
+    //          getStableConfig(featureEnabledSysprop, StableConfigSource.USER_STABLE_CONFIG_PATH);
+    //    }
 
     if (feature.isEnabledByDefault()) {
       // true unless it's explicitly set to "false"
@@ -1355,10 +1356,13 @@ public class Agent {
   }
 
   private static String getStableConfig(final String sysProp, String filepath) {
-    String key = toEnvVar(sysProp);
-    Map<String, Object> data = StableConfigSource.readYamlFromFile(filepath);
-    if (data != null) {
-      return (String) data.get(key);
+    try {
+      return StableConfigSource.findAndReturnEarly(
+          StableConfigSource.readYamlFromFile(filepath), toEnvVar(sysProp));
+    } catch (IOException e) {
+      log.error("Error reading from file: {}", e.getMessage());
+    } catch (Exception e) {
+      log.error("Error processing file: {}", e.getMessage());
     }
     return null;
   }
