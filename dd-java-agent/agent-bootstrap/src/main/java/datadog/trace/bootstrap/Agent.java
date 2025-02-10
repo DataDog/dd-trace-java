@@ -1205,7 +1205,6 @@ public class Agent {
     // must be kept in sync with logic from Config!
     final String featureEnabledSysprop = feature.getSystemProp();
     String featureEnabled = System.getProperty(featureEnabledSysprop);
-    // MIKAYLA: Where to write tests for this?
     if (featureEnabled == null) {
       featureEnabled =
           getStableConfig(featureEnabledSysprop, StableConfigSource.MANAGED_STABLE_CONFIG_PATH);
@@ -1354,6 +1353,10 @@ public class Agent {
     return value;
   }
 
+  /**
+   * Looks for the "DD_" environment variable equivalent of the given "dd." system property in the
+   * Stable Configuration input
+   */
   private static String getStableConfig(final String sysProp, String filepath) {
     try {
       return StableConfigSource.findAndReturnEarly(
