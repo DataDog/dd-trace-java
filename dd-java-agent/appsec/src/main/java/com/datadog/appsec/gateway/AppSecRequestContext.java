@@ -11,8 +11,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.UserIdCollectionMode;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.util.stacktrace.StackTraceEvent;
 import io.sqreen.powerwaf.Additive;
 import io.sqreen.powerwaf.PowerwafContext;
@@ -578,15 +576,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   @Override
   public void close() {
-    final AgentSpan span = AgentTracer.activeSpan();
-    close(span != null && span.isRequiresPostProcessing());
-  }
-
-  /* end interface for GatewayBridge */
-
-  /* Should be accessible from the modules */
-
-  public void close(boolean requiresPostProcessing) {
     if (!requestEndCalled) {
       log.debug(SEND_TELEMETRY, "Request end event was not called before close");
     }
@@ -595,18 +584,14 @@ public class AppSecRequestContext implements DataBundle, Closeable {
           SEND_TELEMETRY, "WAF object had not been closed (probably missed request-end event)");
       closeAdditive();
     }
-    derivatives = null;
-
-    // check if we might need to further post process data related to the span in order to not free
-    // related data
-    if (requiresPostProcessing) {
-      return;
-    }
-
     collectedCookies = null;
     requestHeaders.clear();
     responseHeaders.clear();
     persistentData.clear();
+    if (derivatives != null) {
+      derivatives.clear();
+      derivatives = null;
+    }
   }
 
   /** @return the portion of the body read so far, if any */
