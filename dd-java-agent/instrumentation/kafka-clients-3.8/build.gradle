@@ -39,7 +39,6 @@ dependencies {
   main_java17Implementation project(':dd-java-agent:instrumentation:kafka-common')
 
   implementation project(':dd-java-agent:instrumentation:span-origin')
-  main_java17Implementation project(':dd-java-agent:instrumentation:span-origin')
 
   testImplementation group: 'org.apache.kafka', name: 'kafka-clients', version: '3.8.0'
   testImplementation group: 'org.springframework.kafka', name: 'spring-kafka', version: '3.1.0'

@@ -84,8 +84,8 @@ import static datadog.communication.http.OkHttpUtils.buildHttpClient
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_HOST
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_TIMEOUT
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_ENABLED
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_VERIFY_BYTECODE
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_ENABLED
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE
 import static datadog.trace.api.config.TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TASK_SCHEDULER
@@ -307,8 +307,8 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
   def codeOriginSetup() {
     injectSysConfig(CODE_ORIGIN_FOR_SPANS_ENABLED, "true", true)
-    injectSysConfig(DEBUGGER_ENABLED, "false", true)
-    injectSysConfig(DEBUGGER_VERIFY_BYTECODE, "false", true)
+    injectSysConfig(DYNAMIC_INSTRUMENTATION_ENABLED, "false", true)
+    injectSysConfig(DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE, "false", true)
 
     def configuration = Configuration.builder()
     .setService("code origin test")
