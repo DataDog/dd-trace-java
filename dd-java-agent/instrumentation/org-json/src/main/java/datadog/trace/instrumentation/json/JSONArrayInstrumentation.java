@@ -25,6 +25,11 @@ public class JSONArrayInstrumentation extends InstrumenterModule.Iast
   }
 
   @Override
+  public String muzzleDirective() {
+    return "all";
+  }
+
+  @Override
   public String instrumentedType() {
     return "org.json.JSONArray";
   }
