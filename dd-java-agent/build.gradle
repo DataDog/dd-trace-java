@@ -203,6 +203,7 @@ tasks.withType(GenerateMavenPom).configureEach { task ->
 
 dependencies {
   implementation project(path: ':components:json')
+  implementation project(':utils:socket-utils')
   modules {
     module("com.squareup.okio:okio") {
       replacedBy("com.datadoghq.okio:okio") // embed our patched fork
@@ -250,9 +251,6 @@ dependencies {
   sharedShadowInclude project(':utils:container-utils'), {
     transitive = false
   }
-  sharedShadowInclude project(':utils:socket-utils'), {
-    transitive = false
-  }
   sharedShadowInclude project(':utils:version-utils'), {
     transitive = false
   }
@@ -289,7 +287,7 @@ tasks.register('checkAgentJarSize').configure {
   doLast {
     // Arbitrary limit to prevent unintentional increases to the agent jar size
     // Raise or lower as required
-    assert shadowJar.archiveFile.get().getAsFile().length() <= 30 * 1024 * 1024
+    assert shadowJar.archiveFile.get().getAsFile().length() <= 31 * 1024 * 1024
   }
 
   dependsOn "shadowJar"
