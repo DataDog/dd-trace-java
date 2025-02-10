@@ -32,6 +32,8 @@ class WafMetricCollectorTest extends DDSpecification {
     WafMetricCollector.get().raspRuleMatch(RuleType.SQL_INJECTION)
     WafMetricCollector.get().raspRuleEval(RuleType.SQL_INJECTION)
     WafMetricCollector.get().raspTimeout(RuleType.SQL_INJECTION)
+    WafMetricCollector.get().raspErrorCode(RuleType.SHELL_INJECTION, -3)
+    WafMetricCollector.get().raspErrorCode(RuleType.SQL_INJECTION, -2)
 
     WafMetricCollector.get().prepareMetrics()
 
@@ -131,6 +133,26 @@ class WafMetricCollectorTest extends DDSpecification {
     raspTimeout.namespace == 'appsec'
     raspTimeout.metricName == 'rasp.timeout'
     raspTimeout.tags.toSet() == ['rule_type:sql_injection', 'waf_version:waf_ver1'].toSet()
+
+    def raspInvalidCode = (WafMetricCollector.RaspError)metrics[10]
+    raspInvalidCode.type == 'count'
+    raspInvalidCode.value == 1
+    raspInvalidCode.namespace == 'appsec'
+    raspInvalidCode.metricName == 'rasp.error'
+    raspInvalidCode.tags.toSet() == [
+      'waf_version:waf_ver1',
+      'rule_type:command_injection',
+      'rule_variant:shell',
+      'event_rules_version:rules.3',
+      'waf_error:-3'
+    ].toSet()
+
+    def raspInvalidObjectCode = (WafMetricCollector.RaspError)metrics[11]
+    raspInvalidObjectCode.type == 'count'
+    raspInvalidObjectCode.value == 1
+    raspInvalidObjectCode.namespace == 'appsec'
+    raspInvalidObjectCode.metricName == 'rasp.error'
+    raspInvalidObjectCode.tags.toSet() == ['rule_type:sql_injection', 'waf_version:waf_ver1', 'waf_error:-2'].toSet()
   }
 
   def "overflowing WafMetricCollector does not crash"() {
@@ -304,6 +326,7 @@ class WafMetricCollectorTest extends DDSpecification {
     WafMetricCollector.get().raspRuleMatch(ruleType)
     WafMetricCollector.get().raspRuleEval(ruleType)
     WafMetricCollector.get().raspTimeout(ruleType)
+    WafMetricCollector.get().raspErrorCode(ruleType, -3)
     WafMetricCollector.get().prepareMetrics()
 
     then:
@@ -343,6 +366,19 @@ class WafMetricCollectorTest extends DDSpecification {
       'rule_variant:'+ruleType.variant,
       'waf_version:waf_ver1',
       'event_rules_version:rules.1'
+    ].toSet()
+
+    def raspInvalidCode = (WafMetricCollector.RaspError)metrics[4]
+    raspInvalidCode.type == 'count'
+    raspInvalidCode.value == 1
+    raspInvalidCode.namespace == 'appsec'
+    raspInvalidCode.metricName == 'rasp.error'
+    raspInvalidCode.tags.toSet() == [
+      'waf_version:waf_ver1',
+      'rule_type:command_injection',
+      'rule_variant:' + ruleType.variant,
+      'event_rules_version:rules.1',
+      'waf_error:-3'
     ].toSet()
 
     where:
