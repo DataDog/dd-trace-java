@@ -44,8 +44,17 @@ public final class StableConfigSource extends ConfigProvider.Source {
     return new StableConfig();
   }
 
-  public static HashMap<String, Object> readYamlFromFile(String filePath)
-      throws IOException, Exception {
+  /**
+   * Reads a YAML file from the specified file path and returns its contents as a HashMap.
+   *
+   * @param filePath The path to the YAML file to be read. It must be a valid path to an existing
+   *     file.
+   * @return A HashMap<String, Object> containing the parsed data from the YAML file.
+   * @throws IOException If the specified file does not exist or cannot be accessed.
+   * @throws Exception If there is an error during YAML parsing, including invalid formatting or
+   *     structure.
+   */
+  public static HashMap<String, Object> readYamlFromFile(String filePath) throws Exception {
     File file = new File(filePath);
     if (!file.exists()) {
       throw new IOException(
@@ -61,10 +70,23 @@ public final class StableConfigSource extends ConfigProvider.Source {
     }
   }
 
+  /**
+   * Creates a StableConfig object based on the provided data map.
+   *
+   * <p>This method extracts the "config_id" and "apm_configuration_default" values from the input
+   * data map. If "apm_configuration_default" is a valid HashMap, it processes the entries and
+   * constructs a new configuration map.
+   *
+   * @param data A HashMap<String, Object> containing the configuration data. It should contain keys
+   *     such as "config_id" and "apm_configuration_default".
+   * @return A StableConfig object constructed with the "config_id" if available and, if applicable,
+   *     the parsed configuration data.
+   */
   private static StableConfig buildStableConfig(HashMap<String, Object> data) {
     if (data == null) {
       return new StableConfig();
     }
+
     String configId = (String) data.get("config_id");
     Object apmConfig = data.get("apm_configuration_default");
 
@@ -73,9 +95,7 @@ public final class StableConfigSource extends ConfigProvider.Source {
       HashMap<?, ?> tempConfig = (HashMap<?, ?>) apmConfig;
       for (Map.Entry<?, ?> entry : tempConfig.entrySet()) {
         if (entry.getKey() instanceof String && entry.getValue() != null) {
-          String key = String.valueOf(entry.getKey());
-          Object value = entry.getValue();
-          config.put(key, value);
+          config.put(String.valueOf(entry.getKey()), entry.getValue());
         } else {
           log.debug("Config key {} in unexpected format", entry.getKey());
         }
@@ -88,6 +108,18 @@ public final class StableConfigSource extends ConfigProvider.Source {
     }
   };
 
+  /**
+   * Searches for a specific key in the provided map and returns its associated value if found.
+   *
+   * <p>This method is designed to quickly check if a specific key exists within the
+   * "apm_configuration_default" section of the provided data map and returns its associated value
+   * as a string if found.
+   *
+   * @param data A HashMap<String, Object> containing the configuration data. The key
+   *     "apm_configuration_default" should be present, containing a nested map.
+   * @param key The key to search for within the "apm_configuration_default" section.
+   * @return The value associated with the specified key as a String if found; otherwise, null.
+   */
   public static String findAndReturnEarly(HashMap<String, Object> data, String key) {
     if (data == null) {
       return null;

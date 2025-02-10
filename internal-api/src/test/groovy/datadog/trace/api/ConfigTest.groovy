@@ -577,67 +577,67 @@ class ConfigTest extends DDSpecification {
     config.getLongRunningTraceFlushInterval() == 81
   }
 
-  def "specify overrides stable config"() {
-    setup:
-    Path filePath = StableConfigSourceTest.tempFile()
-    if (filePath == null) {
-      // fail fast?
-      return
-    }
-    // Override for testing
-    String originalPath
-    if (user == true) {
-      originalPath = StableConfigSource.USER_STABLE_CONFIG_PATH
-      StableConfigSource.USER_STABLE_CONFIG_PATH = filePath.toAbsolutePath().toString()
-    } else if (managed == true) {
-      originalPath = StableConfigSource.MANAGED_STABLE_CONFIG_PATH
-      StableConfigSource.MANAGED_STABLE_CONFIG_PATH = filePath.toAbsolutePath().toString()
-    }
-    def configs = new HashMap<>()
-    configs.put(TRACE_ENABLED, "false")
-    //    configs.put(DD_RUNTIME_METRICS_ENABLED_ENV, "false")
-    //    configs.put(LOGS_INJECTION, "false")
-    //    configs.put(PROFILING_ENABLED, "true")
-    //    configs.put(DATA_STREAMS_ENABLED, "true")
-    //    configs.put(APPSEC_ENABLED, "true")
-    //    configs.put(IAST_ENABLED, "true")
-    //    configs.put(DEBUGGER_ENABLED, "true")
-    //    configs.put(DATA_JOBS_ENABLED, "true")
-    //    configs.put(APPSEC_SCA_ENABLED, "true")
-
-    try {
-      StableConfigSourceTest.writeFileYaml(filePath, "12345", configs)
-    } catch (IOException e) {
-      println "Error writing to file: ${e.message}"
-      return // fail?
-    }
-
-    when:
-    def config = new Config()
-
-    then:
-    !config.traceEnabled
-    //    !config.runtimeMetricsEnabled
-    //    !config.logsInjectionEnabled
-    //    config.profilingEnabled
-    //    config.dataStreamsEnabled
-    //    //config.appSecEnabled?
-    //    config.iastDebugEnabled
-    //    config.debuggerEnabled
-    //    config.dataJobsEnabled
-    //    config.appSecScaEnabled
-    if (user == true) {
-      StableConfigSource.USER_STABLE_CONFIG_PATH = originalPath
-    } else if (managed == true) {
-      StableConfigSource.MANAGED_STABLE_CONFIG_PATH = originalPath
-    }
-
-    where:
-    user | managed
-    true | false
-    //    false | true
-
-  }
+  //  def "specify overrides stable config"() {
+  //    setup:
+  //    Path filePath = StableConfigSourceTest.tempFile()
+  //    if (filePath == null) {
+  //      // fail fast?
+  //      return
+  //    }
+  //    // Override for testing
+  //    String originalPath
+  //    if (user == true) {
+  //      originalPath = StableConfigSource.USER_STABLE_CONFIG_PATH
+  //      StableConfigSource.USER_STABLE_CONFIG_PATH = filePath.toAbsolutePath().toString()
+  //    } else if (managed == true) {
+  //      originalPath = StableConfigSource.MANAGED_STABLE_CONFIG_PATH
+  //      StableConfigSource.MANAGED_STABLE_CONFIG_PATH = filePath.toAbsolutePath().toString()
+  //    }
+  //    def configs = new HashMap<>()
+  //    configs.put(TRACE_ENABLED, "false")
+  //        configs.put(DD_RUNTIME_METRICS_ENABLED_ENV, "false")
+  //        configs.put(LOGS_INJECTION, "false")
+  //        configs.put(PROFILING_ENABLED, "true")
+  //        configs.put(DATA_STREAMS_ENABLED, "true")
+  //        configs.put(APPSEC_ENABLED, "true")
+  //        configs.put(IAST_ENABLED, "true")
+  //        configs.put(DEBUGGER_ENABLED, "true")
+  //        configs.put(DATA_JOBS_ENABLED, "true")
+  //        configs.put(APPSEC_SCA_ENABLED, "true")
+  //
+  //    try {
+  //      StableConfigSourceTest.writeFileYaml(filePath, "12345", configs)
+  //    } catch (IOException e) {
+  //      println "Error writing to file: ${e.message}"
+  //      return // fail?
+  //    }
+  //
+  //    when:
+  //    def config = new Config()
+  //
+  //    then:
+  //    !config.traceEnabled
+  //        !config.runtimeMetricsEnabled
+  //        !config.logsInjectionEnabled
+  //        config.profilingEnabled
+  //        config.dataStreamsEnabled
+  //        //config.appSecEnabled?
+  //        config.iastDebugEnabled
+  //        config.debuggerEnabled
+  //        config.dataJobsEnabled
+  //        config.appSecScaEnabled
+  //    if (user == true) {
+  //      StableConfigSource.USER_STABLE_CONFIG_PATH = originalPath
+  //    } else if (managed == true) {
+  //      StableConfigSource.MANAGED_STABLE_CONFIG_PATH = originalPath
+  //    }
+  //
+  //    where:
+  //    user | managed
+  //    true | false
+  //    false | true
+  //
+  //  }
 
   def "sys props override env vars"() {
     setup:

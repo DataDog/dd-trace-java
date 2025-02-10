@@ -1206,18 +1206,17 @@ public class Agent {
     final String featureEnabledSysprop = feature.getSystemProp();
     String featureEnabled = System.getProperty(featureEnabledSysprop);
     // MIKAYLA: Where to write tests for this?
-    //    if (featureEnabled == null) {
-    //      featureEnabled =
-    //          getStableConfig(featureEnabledSysprop,
-    // StableConfigSource.MANAGED_STABLE_CONFIG_PATH);
-    //    }
+    if (featureEnabled == null) {
+      featureEnabled =
+          getStableConfig(featureEnabledSysprop, StableConfigSource.MANAGED_STABLE_CONFIG_PATH);
+    }
     if (featureEnabled == null) {
       featureEnabled = ddGetEnv(featureEnabledSysprop);
     }
-    //    if (featureEnabled == null) {
-    //      featureEnabled =
-    //          getStableConfig(featureEnabledSysprop, StableConfigSource.USER_STABLE_CONFIG_PATH);
-    //    }
+    if (featureEnabled == null) {
+      featureEnabled =
+          getStableConfig(featureEnabledSysprop, StableConfigSource.USER_STABLE_CONFIG_PATH);
+    }
 
     if (feature.isEnabledByDefault()) {
       // true unless it's explicitly set to "false"
