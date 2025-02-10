@@ -9,7 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.ClassloaderConfigurationOverrides;
+import datadog.trace.api.naming.ClassloaderServiceNames;
 import datadog.trace.bootstrap.AgentClassLoading;
 import java.io.IOException;
 import java.io.InputStream;
@@ -164,7 +164,7 @@ public final class ModuleInstrumentation extends InstrumenterModule.Tracing
     public static void afterConstruct(@Advice.This final Module module) {
       final String name = ModuleNameHelper.extractDeploymentName(module.getClassLoader());
       if (name != null && !name.isEmpty()) {
-        ClassloaderConfigurationOverrides.withPinnedServiceName(module.getClassLoader(), name);
+        ClassloaderServiceNames.addServiceName(module.getClassLoader(), name);
       }
     }
   }

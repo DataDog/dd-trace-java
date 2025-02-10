@@ -38,6 +38,7 @@ class TomcatServer implements HttpServer {
           return false
         }
       }
+
     setupServlets(servletContext)
 
     (server.host as StandardHost).errorReportValveClass = TomcatServletTest.ErrorHandlerValve.name

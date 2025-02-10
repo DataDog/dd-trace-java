@@ -16,11 +16,11 @@ import com.ibm.ws.webcontainer.webapp.WebApp;
 import com.ibm.wsspi.webcontainer.webapp.IWebAppDispatcherContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.ClassloaderConfigurationOverrides;
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.naming.ClassloaderServiceNames;
 import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -116,7 +116,7 @@ public final class LibertyServerInstrumentation extends InstrumenterModule.Traci
           if (webapp != null) {
             final ClassLoader cl = webapp.getClassLoader();
             if (cl != null) {
-              ClassloaderConfigurationOverrides.maybeEnrichSpan(span, cl);
+              ClassloaderServiceNames.maybeSetToSpan(span, cl);
             }
           }
         }
