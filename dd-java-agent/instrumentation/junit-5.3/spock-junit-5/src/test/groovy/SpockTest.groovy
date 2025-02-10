@@ -1,4 +1,5 @@
 import datadog.trace.api.DisableTestTrace
+import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.civisibility.diff.FileDiff
@@ -85,10 +86,10 @@ class SpockTest extends CiVisibilityInstrumentationTest {
     where:
     testcaseName                             | success | tests                                     | retriedTests
     "test-failed"                            | false   | [TestFailedSpock]                         | []
-    "test-retry-failed"                      | false   | [TestFailedSpock]                         | [new TestIdentifier("org.example.TestFailedSpock", "test failed", null)]
-    "test-failed-then-succeed"               | true    | [TestFailedThenSucceedSpock]              | [new TestIdentifier("org.example.TestFailedThenSucceedSpock", "test failed then succeed", null)]
-    "test-retry-parameterized"               | false   | [TestFailedParameterizedSpock]            | [new TestIdentifier("org.example.TestFailedParameterizedSpock", "test add 4 and 4", null)]
-    "test-parameterized-failed-then-succeed" | true    | [TestFailedThenSucceedParameterizedSpock] | [new TestIdentifier("org.example.TestFailedThenSucceedParameterizedSpock", "test add 1 and 2", null)]
+    "test-retry-failed"                      | false   | [TestFailedSpock]                         | [new TestFQN("org.example.TestFailedSpock", "test failed")]
+    "test-failed-then-succeed"               | true    | [TestFailedThenSucceedSpock]              | [new TestFQN("org.example.TestFailedThenSucceedSpock", "test failed then succeed")]
+    "test-retry-parameterized"               | false   | [TestFailedParameterizedSpock]            | [new TestFQN("org.example.TestFailedParameterizedSpock", "test add 4 and 4")]
+    "test-parameterized-failed-then-succeed" | true    | [TestFailedThenSucceedParameterizedSpock] | [new TestFQN("org.example.TestFailedThenSucceedParameterizedSpock", "test add 1 and 2")]
   }
 
   def "test early flakiness detection #testcaseName"() {
@@ -101,14 +102,14 @@ class SpockTest extends CiVisibilityInstrumentationTest {
 
     where:
     testcaseName                        | success | tests                       | knownTestsList
-    "test-efd-known-test"               | true    | [TestSucceedSpock]          | [new TestIdentifier("org.example.TestSucceedSpock", "test success", null)]
+    "test-efd-known-test"               | true    | [TestSucceedSpock]          | [new TestFQN("org.example.TestSucceedSpock", "test success")]
     "test-efd-known-parameterized-test" | true    | [TestParameterizedSpock]    | [
-      new TestIdentifier("org.example.TestParameterizedSpock", "test add 1 and 2", null),
-      new TestIdentifier("org.example.TestParameterizedSpock", "test add 4 and 4", null)
+      new TestFQN("org.example.TestParameterizedSpock", "test add 1 and 2"),
+      new TestFQN("org.example.TestParameterizedSpock", "test add 4 and 4")
     ]
     "test-efd-new-test"                 | true    | [TestSucceedSpock]          | []
     "test-efd-new-parameterized-test"   | true    | [TestParameterizedSpock]    | []
-    "test-efd-known-tests-and-new-test" | true    | [TestParameterizedSpock]    | [new TestIdentifier("org.example.TestParameterizedSpock", "test add 1 and 2", null)]
+    "test-efd-known-tests-and-new-test" | true    | [TestParameterizedSpock]    | [new TestFQN("org.example.TestParameterizedSpock", "test add 1 and 2")]
     "test-efd-new-slow-test"            | true    | [TestSucceedSpockSlow]      | [] // is executed only twice
     "test-efd-new-very-slow-test"       | true    | [TestSucceedSpockVerySlow]  | [] // is executed only once
     "test-efd-faulty-session-threshold" | false   | [TestSucceedAndFailedSpock] | []
@@ -141,8 +142,8 @@ class SpockTest extends CiVisibilityInstrumentationTest {
 
     where:
     testcaseName                            | tests                          | quarantined
-    "test-quarantined-failed"               | [TestFailedSpock]              | [new TestIdentifier("org.example.TestFailedSpock", "test failed", null)]
-    "test-quarantined-failed-parameterized" | [TestFailedParameterizedSpock] | [new TestIdentifier("org.example.TestFailedParameterizedSpock", "test add 4 and 4", null)]
+    "test-quarantined-failed"               | [TestFailedSpock]              | [new TestFQN("org.example.TestFailedSpock", "test failed")]
+    "test-quarantined-failed-parameterized" | [TestFailedParameterizedSpock] | [new TestFQN("org.example.TestFailedParameterizedSpock", "test add 4 and 4")]
   }
 
   def "test quarantined auto-retries #testcaseName"() {
@@ -159,7 +160,7 @@ class SpockTest extends CiVisibilityInstrumentationTest {
 
     where:
     testcaseName                  | tests             | quarantined                                                              | retried
-    "test-quarantined-failed-atr" | [TestFailedSpock] | [new TestIdentifier("org.example.TestFailedSpock", "test failed", null)] | [new TestIdentifier("org.example.TestFailedSpock", "test failed", null)]
+    "test-quarantined-failed-atr" | [TestFailedSpock] | [new TestFQN("org.example.TestFailedSpock", "test failed")] | [new TestFQN("org.example.TestFailedSpock", "test failed")]
   }
 
   def "test quarantined early flakiness detection #testcaseName"() {
@@ -176,8 +177,8 @@ class SpockTest extends CiVisibilityInstrumentationTest {
 
     where:
     testcaseName                    | tests             | quarantined                                                              | known
-    "test-quarantined-failed-known" | [TestFailedSpock] | [new TestIdentifier("org.example.TestFailedSpock", "test failed", null)] | [new TestIdentifier("org.example.TestFailedSpock", "test failed", null)]
-    "test-quarantined-failed-efd"   | [TestFailedSpock] | [new TestIdentifier("org.example.TestFailedSpock", "test failed", null)] | []
+    "test-quarantined-failed-known" | [TestFailedSpock] | [new TestFQN("org.example.TestFailedSpock", "test failed")] | [new TestFQN("org.example.TestFailedSpock", "test failed")]
+    "test-quarantined-failed-efd"   | [TestFailedSpock] | [new TestFQN("org.example.TestFailedSpock", "test failed")] | []
   }
 
   private static void runTests(List<Class<?>> classes, boolean expectSuccess = true) {

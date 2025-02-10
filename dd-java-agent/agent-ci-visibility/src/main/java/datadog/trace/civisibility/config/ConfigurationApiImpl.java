@@ -8,6 +8,7 @@ import com.squareup.moshi.Types;
 import datadog.communication.BackendApi;
 import datadog.communication.http.OkHttpUtils;
 import datadog.trace.api.civisibility.config.Configurations;
+import datadog.trace.api.civisibility.config.TestFQN;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestMetadata;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
@@ -209,8 +210,8 @@ public class ConfigurationApiImpl implements ConfigurationApi {
   }
 
   @Override
-  public Map<String, Collection<TestIdentifier>> getFlakyTestsByModule(
-      TracerEnvironment tracerEnvironment) throws IOException {
+  public Map<String, Collection<TestFQN>> getFlakyTestsByModule(TracerEnvironment tracerEnvironment)
+      throws IOException {
     OkHttpUtils.CustomListener telemetryListener =
         new TelemetryListener.Builder(metricCollector)
             .requestCount(CiVisibilityCountMetric.FLAKY_TESTS_REQUEST)
@@ -238,7 +239,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
     Configurations requestConf = tracerEnvironment.getConfigurations();
 
     int flakyTestsCount = 0;
-    Map<String, Collection<TestIdentifier>> testIdentifiers = new HashMap<>();
+    Map<String, Collection<TestFQN>> testIdentifiers = new HashMap<>();
     for (DataDto<TestIdentifierJson> dataDto : response) {
       TestIdentifierJson testIdentifierJson = dataDto.getAttributes();
       Configurations conf = testIdentifierJson.getConfigurations();
@@ -246,7 +247,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
           (conf != null && conf.getTestBundle() != null ? conf : requestConf).getTestBundle();
       testIdentifiers
           .computeIfAbsent(moduleName, k -> new HashSet<>())
-          .add(testIdentifierJson.toTestIdentifier());
+          .add(testIdentifierJson.toTestIdentifier().toFQN());
       flakyTestsCount++;
     }
 
@@ -256,8 +257,8 @@ public class ConfigurationApiImpl implements ConfigurationApi {
 
   @Nullable
   @Override
-  public Map<String, Collection<TestIdentifier>> getKnownTestsByModule(
-      TracerEnvironment tracerEnvironment) throws IOException {
+  public Map<String, Collection<TestFQN>> getKnownTestsByModule(TracerEnvironment tracerEnvironment)
+      throws IOException {
     OkHttpUtils.CustomListener telemetryListener =
         new TelemetryListener.Builder(metricCollector)
             .requestCount(CiVisibilityCountMetric.KNOWN_TESTS_REQUEST)
@@ -283,10 +284,10 @@ public class ConfigurationApiImpl implements ConfigurationApi {
     return parseTestIdentifiers(knownTests);
   }
 
-  private Map<String, Collection<TestIdentifier>> parseTestIdentifiers(KnownTestsDto knownTests) {
+  private Map<String, Collection<TestFQN>> parseTestIdentifiers(KnownTestsDto knownTests) {
     int knownTestsCount = 0;
 
-    Map<String, Collection<TestIdentifier>> testIdentifiers = new HashMap<>();
+    Map<String, Collection<TestFQN>> testIdentifiers = new HashMap<>();
     for (Map.Entry<String, Map<String, List<String>>> e : knownTests.tests.entrySet()) {
       String moduleName = e.getKey();
       Map<String, List<String>> testsBySuiteName = e.getValue();
@@ -299,7 +300,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
         for (String testName : testNames) {
           testIdentifiers
               .computeIfAbsent(moduleName, k -> new HashSet<>())
-              .add(new TestIdentifier(suiteName, testName, null));
+              .add(new TestFQN(suiteName, testName));
         }
       }
     }
@@ -317,7 +318,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
   }
 
   @Override
-  public Map<String, Map<String, Collection<TestIdentifier>>> getTestManagementTestsByModule(
+  public Map<TestSettings, Map<String, Collection<TestFQN>>> getTestManagementTestsByModule(
       TracerEnvironment tracerEnvironment) throws IOException {
     OkHttpUtils.CustomListener telemetryListener =
         new TelemetryListener.Builder(metricCollector)
@@ -346,13 +347,13 @@ public class ConfigurationApiImpl implements ConfigurationApi {
     return parseTestManagementTests(testManagementTestsDto);
   }
 
-  private Map<String, Map<String, Collection<TestIdentifier>>> parseTestManagementTests(
+  private Map<TestSettings, Map<String, Collection<TestFQN>>> parseTestManagementTests(
       TestManagementTestsDto testsManagementTestsDto) {
     int testManagementTestsCount = 0;
 
-    Map<String, Collection<TestIdentifier>> quarantinedTestsByModule = new HashMap<>();
-    Map<String, Collection<TestIdentifier>> disabledTestsByModule = new HashMap<>();
-    Map<String, Collection<TestIdentifier>> attemptToFixTestsByModule = new HashMap<>();
+    Map<String, Collection<TestFQN>> quarantinedTestsByModule = new HashMap<>();
+    Map<String, Collection<TestFQN>> disabledTestsByModule = new HashMap<>();
+    Map<String, Collection<TestFQN>> attemptToFixTestsByModule = new HashMap<>();
 
     for (Map.Entry<String, TestManagementTestsDto.Suites> e :
         testsManagementTestsDto.getModules().entrySet()) {
@@ -371,26 +372,26 @@ public class ConfigurationApiImpl implements ConfigurationApi {
           if (properties.isQuarantined()) {
             quarantinedTestsByModule
                 .computeIfAbsent(moduleName, k -> new HashSet<>())
-                .add(new TestIdentifier(suiteName, testName, null));
+                .add(new TestFQN(suiteName, testName));
           }
           if (properties.isDisabled()) {
             disabledTestsByModule
                 .computeIfAbsent(moduleName, k -> new HashSet<>())
-                .add(new TestIdentifier(suiteName, testName, null));
+                .add(new TestFQN(suiteName, testName));
           }
           if (properties.isAttemptToFix()) {
             attemptToFixTestsByModule
                 .computeIfAbsent(moduleName, k -> new HashSet<>())
-                .add(new TestIdentifier(suiteName, testName, null));
+                .add(new TestFQN(suiteName, testName));
           }
         }
       }
     }
 
-    Map<String, Map<String, Collection<TestIdentifier>>> testsByTypeByModule = new HashMap<>();
-    testsByTypeByModule.put("quarantined", quarantinedTestsByModule);
-    testsByTypeByModule.put("disabled", disabledTestsByModule);
-    testsByTypeByModule.put("attempt_to_fix", attemptToFixTestsByModule);
+    Map<TestSettings, Map<String, Collection<TestFQN>>> testsByTypeByModule = new HashMap<>();
+    testsByTypeByModule.put(TestSettings.QUARANTINED, quarantinedTestsByModule);
+    testsByTypeByModule.put(TestSettings.DISABLED, disabledTestsByModule);
+    testsByTypeByModule.put(TestSettings.ATTEMPT_TO_FIX, attemptToFixTestsByModule);
 
     LOGGER.debug("Received {} test management tests in total", testManagementTestsCount);
     metricCollector.add(
@@ -528,15 +529,21 @@ public class ConfigurationApiImpl implements ConfigurationApi {
       }
 
       public Boolean isQuarantined() {
-        return properties != null ? properties.getOrDefault("quarantined", false) : false;
+        return properties != null
+            ? properties.getOrDefault(TestSettings.QUARANTINED.asString(), false)
+            : false;
       }
 
       public Boolean isDisabled() {
-        return properties != null ? properties.getOrDefault("disabled", false) : false;
+        return properties != null
+            ? properties.getOrDefault(TestSettings.DISABLED.asString(), false)
+            : false;
       }
 
       public Boolean isAttemptToFix() {
-        return properties != null ? properties.getOrDefault("attempt_to_fix", false) : false;
+        return properties != null
+            ? properties.getOrDefault(TestSettings.ATTEMPT_TO_FIX.asString(), false)
+            : false;
       }
     }
 
