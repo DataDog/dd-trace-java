@@ -26,6 +26,14 @@ public enum TestSetting {
     return name;
   }
 
+  public static int set(int mask, TestSetting setting) {
+    return mask | setting.flag;
+  }
+
+  public static boolean isSet(int mask, TestSetting setting) {
+    return (mask & setting.flag) != 0;
+  }
+
   public static class TestSettingsSerializer {
     public static void serialize(Serializer serializer, TestSetting setting) {
       serializer.write(setting.flag);

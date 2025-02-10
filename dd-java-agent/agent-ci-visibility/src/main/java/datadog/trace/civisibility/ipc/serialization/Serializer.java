@@ -189,18 +189,6 @@ public class Serializer {
 
   public static <K, V> Map<K, V> readMap(
       ByteBuffer byteBuffer,
-      Map<K, V> m,
-      Function<ByteBuffer, K> keyDeserializer,
-      Function<ByteBuffer, V> valueDeserializer) {
-    int size = byteBuffer.getInt();
-    if (size == -1) {
-      return null;
-    }
-    return fillMap(byteBuffer, m, keyDeserializer, valueDeserializer, size);
-  }
-
-  public static <K, V> Map<K, V> readMap(
-      ByteBuffer byteBuffer,
       Supplier<Map<K, V>> mapSupplier,
       Function<ByteBuffer, K> keyDeserializer,
       Function<ByteBuffer, V> valueDeserializer) {

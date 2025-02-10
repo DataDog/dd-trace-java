@@ -50,7 +50,7 @@ public class ExecutionSettings {
   @Nonnull private final Map<TestIdentifier, TestMetadata> skippableTests;
   @Nonnull private final Map<String, BitSet> skippableTestsCoverage;
   @Nonnull private final Map<TestFQN, Integer> testSettings;
-  @Nonnull private final EnumMap<TestSetting, Integer> settingsCount;
+  @Nonnull private final Map<TestSetting, Integer> settingsCount;
   @Nonnull private final Diff pullRequestDiff;
 
   public ExecutionSettings(
@@ -194,7 +194,7 @@ public class ExecutionSettings {
 
   private boolean isSetting(TestFQN test, TestSetting setting) {
     int mask = testSettings.getOrDefault(test, 0);
-    return (setting.getFlag() & mask) != 0;
+    return TestSetting.isSet(mask, setting);
   }
 
   public boolean isFlaky(TestFQN test) {
@@ -279,8 +279,6 @@ public class ExecutionSettings {
     private static final int TEST_SKIPPING_ENABLED_FLAG = 4;
     private static final int FLAKY_TEST_RETRIES_ENABLED_FLAG = 8;
     private static final int IMPACTED_TESTS_DETECTION_ENABLED_FLAG = 16;
-    private static final int FLAKY_TESTS_RECEIVED = 32;
-    private static final int KNOWN_TESTS_RECEIVED = 64;
 
     public static ByteBuffer serialize(ExecutionSettings settings) {
       Serializer s = new Serializer();
@@ -346,7 +344,7 @@ public class ExecutionSettings {
           (EnumMap<TestSetting, Integer>)
               Serializer.readMap(
                   buffer,
-                  new EnumMap<>(TestSetting.class),
+                  () -> new EnumMap<>(TestSetting.class),
                   TestSetting.TestSettingsSerializer::deserialize,
                   Serializer::readInt);
 

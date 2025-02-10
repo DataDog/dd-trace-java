@@ -124,45 +124,24 @@ class SerializerTest extends Specification {
     def serializer = new Serializer()
 
     when:
-    serializer.write((Map) m)
-    def buf = serializer.flush()
-
-    then:
-    def deserializedMap = Serializer.readMap(buf, provider, Serializer::readString, Serializer::readString)
-    deserializedMap == m
-    deserializedMap.getClass() == clazz
-
-    where:
-    m                    | clazz         | provider
-    [:]                  | HashMap       | HashMap::new
-    ["a": "1", "b": "2"] | HashMap       | HashMap::new
-    [:]                  | LinkedHashMap | LinkedHashMap::new
-    ["a": "1", "b": "2"] | LinkedHashMap | LinkedHashMap::new
-    [:]                  | TreeMap       | TreeMap::new
-    ["a": "1", "b": "2"] | TreeMap       | TreeMap::new
-  }
-
-  def "test map deserialization with provided map: #m #mapProvided"() {
-    given:
-    def serializer = new Serializer()
-
-    when:
     serializer.write((Map) m, keySerializer, Serializer::write)
     def buf = serializer.flush()
 
     then:
-    def deserializedMap = Serializer.readMap(buf, mapProvided, keyDeserializer, Serializer::readString)
+    def deserializedMap = Serializer.readMap(buf, provider, keyDeserializer, Serializer::readString)
     deserializedMap == m
-    deserializedMap == mapProvided
+    deserializedMap.getClass() == clazz
 
     where:
-    m                                  | mapProvided                 | keySerializer     | keyDeserializer
-    [:]                                | new HashMap<>()             | Serializer::write | Serializer::readString
-    ["a": "1", "b": "2"]               | new HashMap<>()             | Serializer::write | Serializer::readString
-    [:]                                | new HashMap<>()             | Serializer::write | Serializer::readInt
-    [1: "a", 2: "c"]                   | new HashMap<>()             | Serializer::write | Serializer::readInt
-    [:]                                | new EnumMap<>(MyEnum.class) | MyEnum::serialize | MyEnum::deserialize
-    [(MyEnum.A): "1", (MyEnum.B): "2"] | new EnumMap<>(MyEnum.class) | MyEnum::serialize | MyEnum::deserialize
+    m                                  | clazz         | provider                            | keySerializer     | keyDeserializer
+    [:]                                | HashMap       | HashMap::new                        | Serializer::write | Serializer::readString
+    ["a": "1", "b": "2"]               | HashMap       | HashMap::new                        | Serializer::write | Serializer::readString
+    [:]                                | LinkedHashMap | LinkedHashMap::new                  | Serializer::write | Serializer::readString
+    ["a": "1", "b": "2"]               | LinkedHashMap | LinkedHashMap::new                  | Serializer::write | Serializer::readString
+    [:]                                | TreeMap       | TreeMap::new                        | Serializer::write | Serializer::readString
+    ["a": "1", "b": "2"]               | TreeMap       | TreeMap::new                        | Serializer::write | Serializer::readString
+    [:]                                | EnumMap       | (() -> new EnumMap<>(MyEnum.class)) | MyEnum::serialize | MyEnum::deserialize
+    [(MyEnum.A): "1", (MyEnum.B): "2"] | EnumMap       | (() -> new EnumMap<>(MyEnum.class)) | MyEnum::serialize | MyEnum::deserialize
   }
 
   def "test mixed serialization"() {
