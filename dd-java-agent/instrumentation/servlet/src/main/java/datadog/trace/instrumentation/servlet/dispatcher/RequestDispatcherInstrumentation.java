@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.servlet.dispatcher;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
@@ -121,7 +122,7 @@ public final class RequestDispatcherInstrumentation extends InstrumenterModule.T
       span.setSpanType(InternalSpanTypes.HTTP_SERVER);
 
       // In case we lose context, inject trace into to the request.
-      propagate().inject(span, request, SETTER);
+      defaultPropagator().inject(span, request, SETTER);
       propagate()
           .injectPathwayContext(
               span, request, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);

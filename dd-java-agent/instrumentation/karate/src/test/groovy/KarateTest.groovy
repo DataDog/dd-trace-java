@@ -3,25 +3,18 @@ import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.instrumentation.karate.TestEventsHandlerHolder
-import org.example.TestFailedBuiltInRetryKarate
-import org.example.TestFailedKarate
-import org.example.TestFailedParameterizedKarate
-import org.example.TestFailedThenSucceedKarate
-import org.example.TestParameterizedKarate
-import org.example.TestParameterizedMoreCasesKarate
-import org.example.TestSkippedFeatureKarate
-import org.example.TestSucceedKarate
-import org.example.TestSucceedKarateSlow
-import org.example.TestSucceedOneCaseKarate
-import org.example.TestSucceedParallelKarate
-import org.example.TestUnskippableKarate
-import org.example.TestWithSetupKarate
+import org.example.*
 import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.engine.JupiterTestEngine
 import org.junit.platform.engine.DiscoverySelector
+import org.junit.platform.engine.TestExecutionResult
+import org.junit.platform.launcher.TestExecutionListener
 import org.junit.platform.launcher.core.LauncherConfig
 import org.junit.platform.launcher.core.LauncherDiscoveryRequestBuilder
 import org.junit.platform.launcher.core.LauncherFactory
+
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArrayList
 
 import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass
 
@@ -31,19 +24,19 @@ class KarateTest extends CiVisibilityInstrumentationTest {
   def "test #testcaseName"() {
     Assumptions.assumeTrue(assumption)
 
-    runTests(tests)
+    runTests(tests, success)
 
-    assertSpansData(testcaseName, expectedTracesCount)
+    assertSpansData(testcaseName)
 
     where:
-    testcaseName            | tests                          | expectedTracesCount | assumption
-    "test-succeed"          | [TestSucceedKarate]            | 3                   | true
-    "test-succeed-parallel" | [TestSucceedParallelKarate]    | 3                   | true
-    "test-with-setup"       | [TestWithSetupKarate]          | 3                   | isSetupTagSupported(FileUtils.KARATE_VERSION)
-    "test-parameterized"    | [TestParameterizedKarate]      | 3                   | true
-    "test-failed"           | [TestFailedKarate]             | 3                   | true
-    "test-skipped-feature"  | [TestSkippedFeatureKarate]     | 1                   | true
-    "test-built-in-retry"   | [TestFailedBuiltInRetryKarate] | 4                   | true
+    testcaseName            | success | tests                          | assumption
+    "test-succeed"          | true    | [TestSucceedKarate]            | true
+    "test-succeed-parallel" | true    | [TestSucceedParallelKarate]    | true
+    "test-with-setup"       | true    | [TestWithSetupKarate]          | isSetupTagSupported(FileUtils.KARATE_VERSION)
+    "test-parameterized"    | true    | [TestParameterizedKarate]      | true
+    "test-failed"           | false   | [TestFailedKarate]             | true
+    "test-skipped-feature"  | true    | [TestSkippedFeatureKarate]     | true
+    "test-built-in-retry"   | true    | [TestFailedBuiltInRetryKarate] | true
   }
 
   def "test ITR #testcaseName"() {
@@ -53,33 +46,31 @@ class KarateTest extends CiVisibilityInstrumentationTest {
 
     runTests(tests)
 
-    assertSpansData(testcaseName, expectedTracesCount)
+    assertSpansData(testcaseName)
 
     where:
-    testcaseName                      | tests                     | expectedTracesCount | skippedTests
-    "test-itr-skipping"               | [TestSucceedKarate]       | 3                   | [new TestIdentifier("[org/example/test_succeed] test succeed", "first scenario", null)]
-    "test-itr-skipping-parameterized" | [TestParameterizedKarate] | 3                   | [
+    testcaseName                      | tests                     | skippedTests
+    "test-itr-skipping"               | [TestSucceedKarate]       | [new TestIdentifier("[org/example/test_succeed] test succeed", "first scenario", null)]
+    "test-itr-skipping-parameterized" | [TestParameterizedKarate] | [
       new TestIdentifier("[org/example/test_parameterized] test parameterized", "first scenario as an outline", '{"param":"\'a\'","value":"aa"}')
     ]
-    "test-itr-unskippable"            | [TestUnskippableKarate]   | 3                   | [new TestIdentifier("[org/example/test_unskippable] test unskippable", "first scenario", null)]
+    "test-itr-unskippable"            | [TestUnskippableKarate]   | [new TestIdentifier("[org/example/test_unskippable] test unskippable", "first scenario", null)]
   }
 
   def "test flaky retries #testcaseName"() {
     givenFlakyRetryEnabled(true)
     givenFlakyTests(retriedTests)
 
-    runTests(tests)
+    runTests(tests, success)
 
-    assertSpansData(testcaseName, expectedTracesCount)
+    assertSpansData(testcaseName)
 
     where:
-    testcaseName               | tests                           | expectedTracesCount | retriedTests
-    "test-failed"              | [TestFailedKarate]              | 3                   | []
-    "test-retry-failed"        | [TestFailedKarate]              | 3                   | [new TestIdentifier("[org/example/test_failed] test failed", "second scenario", null)]
-    "test-failed-then-succeed" | [TestFailedThenSucceedKarate]   | 3                   | [
-      new TestIdentifier("[org/example/test_failed_then_succeed] test failed", "flaky scenario", null)
-    ]
-    "test-retry-parameterized" | [TestFailedParameterizedKarate] | 3                   | [
+    testcaseName               | success | tests                           | retriedTests
+    "test-failed"              | false   | [TestFailedKarate]              | []
+    "test-retry-failed"        | false   | [TestFailedKarate]              | [new TestIdentifier("[org/example/test_failed] test failed", "second scenario", null)]
+    "test-failed-then-succeed" | true    | [TestFailedThenSucceedKarate]   | [new TestIdentifier("[org/example/test_failed_then_succeed] test failed", "flaky scenario", null)]
+    "test-retry-parameterized" | false   | [TestFailedParameterizedKarate] | [
       new TestIdentifier("[org/example/test_failed_parameterized] test parameterized", "first scenario as an outline", null)
     ]
   }
@@ -90,23 +81,34 @@ class KarateTest extends CiVisibilityInstrumentationTest {
 
     runTests(tests)
 
-    assertSpansData(testcaseName, expectedTracesCount)
+    assertSpansData(testcaseName)
 
     where:
-    testcaseName                        | tests                              | expectedTracesCount | knownTestsList
-    "test-efd-known-test"               | [TestSucceedOneCaseKarate]         | 2                   | [
-      new TestIdentifier("[org/example/test_succeed_one_case] test succeed", "first scenario", null)
-    ]
-    "test-efd-known-parameterized-test" | [TestParameterizedKarate]          | 3                   | [
+    testcaseName                        | tests                              | knownTestsList
+    "test-efd-known-test"               | [TestSucceedOneCaseKarate]         | [new TestIdentifier("[org/example/test_succeed_one_case] test succeed", "first scenario", null)]
+    "test-efd-known-parameterized-test" | [TestParameterizedKarate]          | [
       new TestIdentifier("[org/example/test_parameterized] test parameterized", "first scenario as an outline", null)
     ]
-    "test-efd-new-test"                 | [TestSucceedOneCaseKarate]         | 4                   | []
-    "test-efd-new-parameterized-test"   | [TestParameterizedKarate]          | 7                   | []
-    "test-efd-new-slow-test"            | [TestSucceedKarateSlow]            | 3                   | [] // is executed only twice
-    "test-efd-faulty-session-threshold" | [TestParameterizedMoreCasesKarate] | 8                   | []
+    "test-efd-new-test"                 | [TestSucceedOneCaseKarate]         | []
+    "test-efd-new-parameterized-test"   | [TestParameterizedKarate]          | []
+    "test-efd-new-slow-test"            | [TestSucceedKarateSlow]            | [] // is executed only twice
+    "test-efd-faulty-session-threshold" | [TestParameterizedMoreCasesKarate] | []
   }
 
-  private void runTests(List<Class<?>> tests) {
+  def "test quarantined #testcaseName"() {
+    givenTestManagementEnabled(true)
+    givenQuarantinedTests(quarantined)
+
+    runTests(tests, true)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName              | tests              | quarantined
+    "test-quarantined-failed" | [TestFailedKarate] | [new TestIdentifier("[org/example/test_failed] test failed", "second scenario", null)]
+  }
+
+  private void runTests(List<Class<?>> tests, boolean expectSuccess = true) {
     TestEventsHandlerHolder.start()
 
     DiscoverySelector[] selectors = new DiscoverySelector[tests.size()]
@@ -115,19 +117,34 @@ class KarateTest extends CiVisibilityInstrumentationTest {
     }
 
     def launcherReq = LauncherDiscoveryRequestBuilder.request()
-      .selectors(selectors)
-      .build()
+    .selectors(selectors)
+    .build()
 
     def launcherConfig = LauncherConfig
-      .builder()
-      .enableTestEngineAutoRegistration(false)
-      .addTestEngines(new JupiterTestEngine())
-      .build()
+    .builder()
+    .enableTestEngineAutoRegistration(false)
+    .addTestEngines(new JupiterTestEngine())
+    .build()
 
     def launcher = LauncherFactory.create(launcherConfig)
-    launcher.execute(launcherReq)
+    def listener = new TestResultListener()
+    launcher.registerTestExecutionListeners(listener)
+    try {
+      launcher.execute(launcherReq)
 
-    TestEventsHandlerHolder.stop()
+      def failedTests = listener.testsByStatus[TestExecutionResult.Status.FAILED]
+      if (expectSuccess) {
+        if (failedTests != null && !failedTests.isEmpty()) {
+          throw new AssertionError("Expected successful execution, the following tests were reported as failed: " + failedTests)
+        }
+      } else {
+        if (failedTests == null || failedTests.isEmpty()) {
+          throw new AssertionError("Expected a failed execution, got no failed tests")
+        }
+      }
+    } finally {
+      TestEventsHandlerHolder.stop()
+    }
   }
 
   @Override
@@ -147,5 +164,13 @@ class KarateTest extends CiVisibilityInstrumentationTest {
 
   boolean isSetupTagSupported(String frameworkVersion) {
     frameworkVersion >= "1.3.0"
+  }
+
+  private static final class TestResultListener implements TestExecutionListener {
+    private final Map<TestExecutionResult.Status, Collection<org.junit.platform.launcher.TestIdentifier>> testsByStatus = new ConcurrentHashMap<>()
+
+    void executionFinished(org.junit.platform.launcher.TestIdentifier testIdentifier, TestExecutionResult testExecutionResult) {
+      testsByStatus.computeIfAbsent(testExecutionResult.status, k -> new CopyOnWriteArrayList<>()).add(testIdentifier)
+    }
   }
 }

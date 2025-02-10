@@ -15,11 +15,12 @@ import datadog.trace.api.civisibility.telemetry.tag.ExitCode;
 import datadog.trace.api.civisibility.telemetry.tag.FailFastTestOrderEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.FlakyTestRetriesEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.HasCodeowner;
+import datadog.trace.api.civisibility.telemetry.tag.HasFailedAllRetries;
 import datadog.trace.api.civisibility.telemetry.tag.ImpactedTestsDetectionEnabled;
-import datadog.trace.api.civisibility.telemetry.tag.IsBenchmark;
 import datadog.trace.api.civisibility.telemetry.tag.IsHeadless;
 import datadog.trace.api.civisibility.telemetry.tag.IsModified;
 import datadog.trace.api.civisibility.telemetry.tag.IsNew;
+import datadog.trace.api.civisibility.telemetry.tag.IsQuarantined;
 import datadog.trace.api.civisibility.telemetry.tag.IsRetry;
 import datadog.trace.api.civisibility.telemetry.tag.IsRum;
 import datadog.trace.api.civisibility.telemetry.tag.IsUnsupportedCI;
@@ -32,6 +33,7 @@ import datadog.trace.api.civisibility.telemetry.tag.RequireGit;
 import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
 import datadog.trace.api.civisibility.telemetry.tag.StatusCode;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
+import datadog.trace.api.civisibility.telemetry.tag.TestManagementEnabled;
 import java.util.Arrays;
 
 public enum CiVisibilityCountMetric {
@@ -53,8 +55,7 @@ public enum CiVisibilityCountMetric {
       EventType.class,
       IsHeadless.class,
       HasCodeowner.class,
-      IsUnsupportedCI.class,
-      IsBenchmark.class),
+      IsUnsupportedCI.class),
   /** The number of events finished */
   EVENT_FINISHED(
       "event_finished",
@@ -63,11 +64,17 @@ public enum CiVisibilityCountMetric {
       IsHeadless.class,
       HasCodeowner.class,
       IsUnsupportedCI.class,
-      IsBenchmark.class,
-      EarlyFlakeDetectionAbortReason.class,
+      EarlyFlakeDetectionAbortReason.class),
+  /** The number of test events finished */
+  TEST_EVENT_FINISHED(
+      "event_finished",
+      TestFrameworkInstrumentation.class,
+      EventType.class,
       IsNew.class,
       IsModified.class,
+      IsQuarantined.class,
       IsRetry.class,
+      HasFailedAllRetries.class,
       RetryReason.class,
       IsRum.class,
       BrowserDriver.class),
@@ -114,6 +121,7 @@ public enum CiVisibilityCountMetric {
       FlakyTestRetriesEnabled.class,
       ImpactedTestsDetectionEnabled.class,
       KnownTestsEnabled.class,
+      TestManagementEnabled.class,
       RequireGit.class),
   /** The number of requests sent to the itr skippable tests endpoint */
   ITR_SKIPPABLE_TESTS_REQUEST("itr_skippable_tests.request", RequestCompressed.class),

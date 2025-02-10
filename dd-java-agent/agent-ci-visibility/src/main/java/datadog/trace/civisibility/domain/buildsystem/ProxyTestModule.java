@@ -5,7 +5,7 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
-import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
@@ -15,6 +15,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.config.EarlyFlakeDetectionSettings;
 import datadog.trace.civisibility.config.ExecutionSettings;
+import datadog.trace.civisibility.config.TestManagementSettings;
 import datadog.trace.civisibility.coverage.percentage.child.ChildProcessCoverageReporter;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.InstrumentationType;
@@ -103,6 +104,11 @@ public class ProxyTestModule implements TestFrameworkModule {
     return executionStrategy.isModified(testSourceData);
   }
 
+  @Override
+  public boolean isQuarantined(TestIdentifier test) {
+    return executionStrategy.isQuarantined(test);
+  }
+
   @Nullable
   @Override
   public SkipReason skipReason(TestIdentifier test) {
@@ -111,8 +117,8 @@ public class ProxyTestModule implements TestFrameworkModule {
 
   @Override
   @Nonnull
-  public TestRetryPolicy retryPolicy(TestIdentifier test, TestSourceData testSource) {
-    return executionStrategy.retryPolicy(test, testSource);
+  public TestExecutionPolicy executionPolicy(TestIdentifier test, TestSourceData testSource) {
+    return executionStrategy.executionPolicy(test, testSource);
   }
 
   @Override
@@ -143,6 +149,8 @@ public class ProxyTestModule implements TestFrameworkModule {
       boolean earlyFlakeDetectionEnabled = earlyFlakeDetectionSettings.isEnabled();
       boolean earlyFlakeDetectionFaulty =
           earlyFlakeDetectionEnabled && executionStrategy.isEFDLimitReached();
+      TestManagementSettings testManagementSettings = executionSettings.getTestManagementSettings();
+      boolean testManagementEnabled = testManagementSettings.isEnabled();
       long testsSkippedTotal = executionResults.getTestsSkippedByItr();
 
       signalClient.send(
@@ -153,6 +161,7 @@ public class ProxyTestModule implements TestFrameworkModule {
               testSkippingEnabled,
               earlyFlakeDetectionEnabled,
               earlyFlakeDetectionFaulty,
+              testManagementEnabled,
               testsSkippedTotal,
               new TreeSet<>(testFrameworks)));
 

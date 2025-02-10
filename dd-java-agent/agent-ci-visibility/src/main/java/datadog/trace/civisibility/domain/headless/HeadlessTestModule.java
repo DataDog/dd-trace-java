@@ -6,7 +6,7 @@ import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
-import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
@@ -16,6 +16,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.config.EarlyFlakeDetectionSettings;
 import datadog.trace.civisibility.config.ExecutionSettings;
+import datadog.trace.civisibility.config.TestManagementSettings;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.AbstractTestModule;
 import datadog.trace.civisibility.domain.InstrumentationType;
@@ -88,6 +89,11 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
     return executionStrategy.isModified(testSourceData);
   }
 
+  @Override
+  public boolean isQuarantined(TestIdentifier test) {
+    return executionStrategy.isQuarantined(test);
+  }
+
   @Nullable
   @Override
   public SkipReason skipReason(TestIdentifier test) {
@@ -96,8 +102,8 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
 
   @Override
   @Nonnull
-  public TestRetryPolicy retryPolicy(TestIdentifier test, TestSourceData testSource) {
-    return executionStrategy.retryPolicy(test, testSource);
+  public TestExecutionPolicy executionPolicy(TestIdentifier test, TestSourceData testSource) {
+    return executionStrategy.executionPolicy(test, testSource);
   }
 
   @Override
@@ -125,6 +131,11 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
       if (executionStrategy.isEFDLimitReached()) {
         setTag(Tags.TEST_EARLY_FLAKE_ABORT_REASON, CIConstants.EFD_ABORT_REASON_FAULTY);
       }
+    }
+
+    TestManagementSettings testManagementSettings = executionSettings.getTestManagementSettings();
+    if (testManagementSettings.isEnabled()) {
+      setTag(Tags.TEST_TEST_MANAGEMENT_ENABLED, true);
     }
 
     super.end(endTime);

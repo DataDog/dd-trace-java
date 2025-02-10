@@ -56,7 +56,7 @@ default:
   tags: [ "arch:amd64" ]
 
 .gradle_build: &gradle_build
-  image: ghcr.io/datadog/dd-trace-java-docker-build:v24.10-base
+  image: ghcr.io/datadog/dd-trace-java-docker-build:v25.01-base
   stage: build
   variables:
     GRADLE_OPTS: "-Dorg.gradle.jvmargs='-Xmx2560M -Xms2560M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"

@@ -1,7 +1,8 @@
 package datadog.trace.core.scopemanager;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopScope;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -12,7 +13,6 @@ import datadog.trace.api.scopemanager.ExtendedScopeListener;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
@@ -91,8 +91,8 @@ public final class ContinuableScopeManager implements ScopeStateAware {
   }
 
   public AgentScope.Continuation captureSpan(final AgentSpan span) {
-    AbstractContinuation continuation =
-        new SingleContinuation(this, span, ScopeSource.INSTRUMENTATION.id());
+    ScopeContinuation continuation =
+        new ScopeContinuation(this, span, ScopeSource.INSTRUMENTATION.id());
     continuation.register();
     healthMetrics.onCaptureContinuation();
     return continuation;
@@ -116,7 +116,7 @@ public final class ContinuableScopeManager implements ScopeStateAware {
     if (depthLimit <= currentDepth) {
       healthMetrics.onScopeStackOverflow();
       log.debug("Scope depth limit exceeded ({}).  Returning NoopScope.", currentDepth);
-      return AgentTracer.NoopAgentScope.INSTANCE;
+      return noopScope();
     }
 
     assert span != null;
@@ -136,12 +136,12 @@ public final class ContinuableScopeManager implements ScopeStateAware {
   }
 
   /**
-   * Activates a scope for the given {@link AbstractContinuation}.
+   * Activates a scope for the given {@link ScopeContinuation}.
    *
    * @param continuation {@code null} if a continuation is re-used
    */
   ContinuableScope continueSpan(
-      final AbstractContinuation continuation, final AgentSpan span, final byte source) {
+      final ScopeContinuation continuation, final AgentSpan span, final byte source) {
     ScopeStack scopeStack = scopeStack();
 
     // optimization: if the top scope is already keeping the same span alive
@@ -192,7 +192,7 @@ public final class ContinuableScopeManager implements ScopeStateAware {
     if (depthLimit <= currentDepth) {
       healthMetrics.onScopeStackOverflow();
       log.debug("Scope depth limit exceeded ({}).  Returning NoopScope.", currentDepth);
-      return AgentTracer.NoopAgentScope.INSTANCE;
+      return noopScope();
     }
 
     assert span != null;
@@ -243,7 +243,7 @@ public final class ContinuableScopeManager implements ScopeStateAware {
     extendedScopeListeners.add(listener);
     log.debug("Added scope listener {}", listener);
     AgentSpan activeSpan = activeSpan();
-    if (activeSpan != null && activeSpan != NoopAgentSpan.INSTANCE) {
+    if (activeSpan != null && activeSpan != noopSpan()) {
       // Notify the listener about the currently active scope
       listener.afterScopeActivated(activeSpan.getTraceId(), activeSpan.getSpanId());
     }

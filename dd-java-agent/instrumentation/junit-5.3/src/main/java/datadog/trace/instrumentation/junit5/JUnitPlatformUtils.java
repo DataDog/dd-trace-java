@@ -4,7 +4,6 @@ import static datadog.json.JsonMapper.toJson;
 
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
-import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -35,7 +34,6 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class JUnitPlatformUtils {
 
-  public static final String RETRY_DESCRIPTOR_REASON_SUFFIX = "retry-reason";
   public static final String RETRY_DESCRIPTOR_ID_SUFFIX = "retry-attempt";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(JUnitPlatformUtils.class);
@@ -184,11 +182,6 @@ public abstract class JUnitPlatformUtils {
     List<UniqueId.Segment> segments = uniqueId.getSegments();
     UniqueId.Segment lastSegment = segments.get(segments.size() - 1);
     return "test-template".equals(lastSegment.getType());
-  }
-
-  public static RetryReason retryReason(TestDescriptor testDescriptor) {
-    String retryReasonSegment = getIDSegmentValue(testDescriptor, RETRY_DESCRIPTOR_REASON_SUFFIX);
-    return retryReasonSegment != null ? RetryReason.valueOf(retryReasonSegment) : null;
   }
 
   public static boolean isRetry(TestDescriptor testDescriptor) {

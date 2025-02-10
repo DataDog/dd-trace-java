@@ -28,7 +28,7 @@ MASTER_ONLY_JDKS = {
 }
 # Version to use for all the base Docker images, see
 # https://github.com/DataDog/dd-trace-java-docker-build/pkgs/container/dd-trace-java-docker-build
-DOCKER_IMAGE_VERSION="v24.10"
+DOCKER_IMAGE_VERSION="v25.01"
 
 # Get labels from pull requests to override some defaults for jobs to run.
 # `run-tests: all` will run all tests.

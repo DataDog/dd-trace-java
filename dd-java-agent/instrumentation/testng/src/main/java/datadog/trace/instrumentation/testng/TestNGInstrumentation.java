@@ -7,7 +7,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.instrumentation.testng.retry.RetryAnnotationTransformer;
+import datadog.trace.instrumentation.testng.execution.RetryAnnotationTransformer;
 import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -44,8 +44,8 @@ public class TestNGInstrumentation extends InstrumenterModule.CiVisibility
       packageName + ".TestNGClassListener",
       packageName + ".TestEventsHandlerHolder",
       packageName + ".TracingListener",
-      packageName + ".retry.RetryAnalyzer",
-      packageName + ".retry.RetryAnnotationTransformer",
+      packageName + ".execution.RetryAnalyzer",
+      packageName + ".execution.RetryAnnotationTransformer",
     };
   }
 
@@ -75,7 +75,7 @@ public class TestNGInstrumentation extends InstrumenterModule.CiVisibility
       TestNGSuiteListener suiteListener = new TestNGSuiteListener(tracingListener);
       testNG.addListener((ITestNGListener) suiteListener);
 
-      if (Config.get().isCiVisibilityFlakyRetryEnabled()) {
+      if (Config.get().isCiVisibilityExecutionPoliciesEnabled()) {
         final RetryAnnotationTransformer transformer =
             new RetryAnnotationTransformer(testNG.getAnnotationTransformer());
         testNG.addListener(transformer);

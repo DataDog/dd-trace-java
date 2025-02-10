@@ -555,7 +555,6 @@ public class LogProbe extends ProbeDefinition implements Sampled {
     if (probeCondition == null) {
       return true;
     }
-    long startTs = System.nanoTime();
     try {
       if (!probeCondition.execute(capture)) {
         return false;
@@ -564,9 +563,6 @@ public class LogProbe extends ProbeDefinition implements Sampled {
       status.addError(new EvaluationError(ex.getExpr(), ex.getMessage()));
       status.setConditionErrors(true);
       return false;
-    } finally {
-      LOGGER.debug(
-          "ProbeCondition for probe[{}] evaluated in {}ns", id, (System.nanoTime() - startTs));
     }
     return true;
   }
@@ -707,7 +703,8 @@ public class LogProbe extends ProbeDefinition implements Sampled {
     if (shouldCommit) {
       if (isCaptureSnapshot()) {
         // freeze context just before commit because line probes have only one context
-        Duration timeout = Duration.of(Config.get().getDebuggerCaptureTimeout(), ChronoUnit.MILLIS);
+        Duration timeout =
+            Duration.of(Config.get().getDynamicInstrumentationCaptureTimeout(), ChronoUnit.MILLIS);
         lineContext.freeze(new TimeoutChecker(timeout));
         snapshot.addLine(lineContext, line);
       }
@@ -943,18 +940,13 @@ public class LogProbe extends ProbeDefinition implements Sampled {
   public String toString() {
     return getClass().getSimpleName()
         + "{"
-        + "language='"
-        + language
-        + '\''
-        + ", id='"
+        + "id='"
         + id
         + '\''
         + ", version="
         + version
         + ", tags="
         + Arrays.toString(tags)
-        + ", tagMap="
-        + tagMap
         + ", where="
         + where
         + ", evaluateAt="

@@ -415,7 +415,8 @@ public class CapturedContextInstrumentor extends Instrumentor {
       throwableListVar = declareThrowableList(insnList);
     }
     unscopedLocalVars = Collections.emptyList();
-    if (Config.get().isDebuggerHoistLocalVarsEnabled() && language == JvmLanguage.JAVA) {
+    if (Config.get().isDynamicInstrumentationHoistLocalVarsEnabled()
+        && language == JvmLanguage.JAVA) {
       // for now, only hoist local vars for Java
       unscopedLocalVars = initAndHoistLocalVars(insnList);
     }
@@ -909,14 +910,15 @@ public class CapturedContextInstrumentor extends Instrumentor {
     }
 
     if (methodNode.localVariables == null || methodNode.localVariables.isEmpty()) {
-      if (!Config.get().isDebuggerInstrumentTheWorld()) {
+      if (!Config.get().isDynamicInstrumentationInstrumentTheWorld()) {
         reportWarning("Missing local variable debug info");
       }
       // no local variables info - bail out
       return;
     }
     Collection<LocalVariableNode> localVarNodes;
-    boolean isLocalVarHoistingEnabled = Config.get().isDebuggerHoistLocalVarsEnabled();
+    boolean isLocalVarHoistingEnabled =
+        Config.get().isDynamicInstrumentationHoistLocalVarsEnabled();
     if (definition.isLineProbe() || !isLocalVarHoistingEnabled) {
       localVarNodes = methodNode.localVariables;
     } else {
@@ -1134,7 +1136,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
         }
       }
     }
-    if (!Config.get().isDebuggerInstrumentTheWorld()) {
+    if (!Config.get().isDynamicInstrumentationInstrumentTheWorld()) {
       // Collects inherited static fields only if the ITW mode is not enabled
       // because it can lead to LinkageError: attempted duplicate class definition
       // for example, when a probe is located in method overridden in enum element

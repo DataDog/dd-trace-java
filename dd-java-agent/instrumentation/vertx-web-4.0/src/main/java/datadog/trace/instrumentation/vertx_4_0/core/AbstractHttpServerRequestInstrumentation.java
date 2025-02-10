@@ -48,7 +48,10 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
         isPublic().and(isMethod()).and(named("headers")).and(takesNoArguments()),
         className + "$HeadersAdvice");
     transformer.applyAdvice(
-        isPublic().and(isMethod()).and(named("params")).and(takesNoArguments()),
+        isPublic()
+            .and(isMethod())
+            .and(named("params"))
+            .and(takesNoArguments().or(takesArguments(boolean.class))),
         className + "$ParamsAdvice");
     transformer.applyAdvice(
         isMethod().and(takesNoArguments()).and(attributesFilter()),

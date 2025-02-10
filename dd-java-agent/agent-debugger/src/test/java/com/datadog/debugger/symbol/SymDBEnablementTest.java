@@ -4,7 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -48,7 +50,7 @@ class SymDBEnablementTest {
     when(instr.isModifiableClass(any())).thenReturn(true);
     config = mock(Config.class);
     when(config.getThirdPartyIncludes()).thenReturn(Collections.singleton("com.datadog.debugger"));
-    when(config.isDebuggerSymbolEnabled()).thenReturn(true);
+    when(config.isSymbolDatabaseEnabled()).thenReturn(true);
     symbolSink = mock(SymbolSink.class);
   }
 
@@ -117,6 +119,28 @@ class SymDBEnablementTest {
     assertEquals(
         "BOOT-INF/classes/org/springframework/samples/petclinic/vet/VetController.class",
         captor.getAllValues().get(1));
+  }
+
+  @Test
+  public void parseLoadedClassFromDirectory()
+      throws ClassNotFoundException, IOException, URISyntaxException {
+    URL classFilesUrl = getClass().getResource("/");
+    URLClassLoader urlClassLoader = new URLClassLoader(new URL[] {classFilesUrl}, null);
+    Class<?> testClass = urlClassLoader.loadClass(getClass().getTypeName());
+    when(instr.getAllLoadedClasses()).thenReturn(new Class[] {testClass});
+    when(config.getThirdPartyIncludes())
+        .thenReturn(
+            Stream.of("com.datadog.debugger.", "org.springframework.samples.")
+                .collect(Collectors.toSet()));
+    SymbolAggregator symbolAggregator = mock(SymbolAggregator.class);
+    SymDBEnablement symDBEnablement =
+        new SymDBEnablement(instr, config, symbolAggregator, ClassNameFiltering.allowAll());
+    symDBEnablement.startSymbolExtraction();
+    verify(instr).addTransformer(any(SymbolExtractionTransformer.class));
+    ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
+    verify(symbolAggregator, atLeastOnce()).parseClass(captor.capture(), any(), anyString());
+    // verify that we called parseClass on this test class
+    assertTrue(captor.getAllValues().contains(getClass().getSimpleName() + ".class"));
   }
 
   @Test

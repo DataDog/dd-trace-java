@@ -749,8 +749,8 @@ public class StringModuleImpl implements StringModule {
     return StringUtils.replaceAndTaint(
         taintedObjects,
         self,
-        Pattern.compile((String) oldCharSeq),
-        (String) newCharSeq,
+        Pattern.compile(oldCharSeq.toString(), Pattern.LITERAL),
+        newCharSeq.toString(),
         rangesSelf,
         rangesInput,
         Integer.MAX_VALUE);

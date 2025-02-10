@@ -8,9 +8,14 @@ import org.junit.jupiter.api.MethodOrderer
 import org.junit.jupiter.engine.Constants
 import org.junit.jupiter.engine.JupiterTestEngine
 import org.junit.platform.engine.DiscoverySelector
+import org.junit.platform.engine.TestExecutionResult
+import org.junit.platform.launcher.TestExecutionListener
 import org.junit.platform.launcher.core.LauncherConfig
 import org.junit.platform.launcher.core.LauncherDiscoveryRequestBuilder
 import org.junit.platform.launcher.core.LauncherFactory
+
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArrayList
 
 import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass
 
@@ -24,18 +29,18 @@ class JUnit58Test extends CiVisibilityInstrumentationTest {
   }
 
   def "test #testcaseName"() {
-    runTests(tests)
+    runTests(tests, success)
 
-    assertSpansData(testcaseName, expectedTracesCount)
+    assertSpansData(testcaseName)
 
     where:
-    testcaseName                  | tests                            | expectedTracesCount
-    "test-before-each-after-each" | [TestSucceedBeforeEachAfterEach] | 2
-    "test-before-all-after-all"   | [TestSucceedBeforeAllAfterAll]   | 2
-    "test-failed-before-all"      | [TestFailedBeforeAll]            | 2
-    "test-failed-after-all"       | [TestFailedAfterAll]             | 2
-    "test-failed-before-each"     | [TestFailedBeforeEach]           | 2
-    "test-failed-after-each"      | [TestFailedAfterEach]            | 2
+    testcaseName                  | success | tests
+    "test-before-each-after-each" | true    | [TestSucceedBeforeEachAfterEach]
+    "test-before-all-after-all"   | true    | [TestSucceedBeforeAllAfterAll]
+    "test-failed-before-all"      | false   | [TestFailedBeforeAll]
+    "test-failed-after-all"       | false   | [TestFailedAfterAll]
+    "test-failed-before-each"     | false   | [TestFailedBeforeEach]
+    "test-failed-after-each"      | false   | [TestFailedAfterEach]
   }
 
   def "test known tests ordering #testcaseName"() {
@@ -83,7 +88,7 @@ class JUnit58Test extends CiVisibilityInstrumentationTest {
     ]
   }
 
-  private static void runTests(List<Class<?>> tests) {
+  private static void runTests(List<Class<?>> tests, boolean expectSuccess = true) {
     TestEventsHandlerHolder.startForcefully()
 
     DiscoverySelector[] selectors = new DiscoverySelector[tests.size()]
@@ -92,24 +97,36 @@ class JUnit58Test extends CiVisibilityInstrumentationTest {
     }
 
     def launcherReq = LauncherDiscoveryRequestBuilder.request()
-      .configurationParameter(Constants.DEFAULT_TEST_CLASS_ORDER_PROPERTY_NAME, ClassOrderer.ClassName.name)
-      .configurationParameter(Constants.DEFAULT_TEST_METHOD_ORDER_PROPERTY_NAME, MethodOrderer.MethodName.name)
-      .selectors(selectors)
-      .build()
+    .configurationParameter(Constants.DEFAULT_TEST_CLASS_ORDER_PROPERTY_NAME, ClassOrderer.ClassName.name)
+    .configurationParameter(Constants.DEFAULT_TEST_METHOD_ORDER_PROPERTY_NAME, MethodOrderer.MethodName.name)
+    .selectors(selectors)
+    .build()
 
     def launcherConfig = LauncherConfig
-      .builder()
-      .enableTestEngineAutoRegistration(false)
-      .addTestEngines(new JupiterTestEngine())
-      .build()
+    .builder()
+    .enableTestEngineAutoRegistration(false)
+    .addTestEngines(new JupiterTestEngine())
+    .build()
 
     def launcher = LauncherFactory.create(launcherConfig)
+    def listener = new TestResultListener()
+    launcher.registerTestExecutionListeners(listener)
     try {
       launcher.execute(launcherReq)
-    } catch (Throwable ignored) {
-    }
 
-    TestEventsHandlerHolder.stop()
+      def failedTests = listener.testsByStatus[TestExecutionResult.Status.FAILED]
+      if (expectSuccess) {
+        if (failedTests != null && !failedTests.isEmpty()) {
+          throw new AssertionError("Expected successful execution, the following tests were reported as failed: " + failedTests)
+        }
+      } else {
+        if (failedTests == null || failedTests.isEmpty()) {
+          throw new AssertionError("Expected a failed execution, got no failed tests")
+        }
+      }
+    } finally {
+      TestEventsHandlerHolder.stop()
+    }
   }
 
   @Override
@@ -120,5 +137,13 @@ class JUnit58Test extends CiVisibilityInstrumentationTest {
   @Override
   String instrumentedLibraryVersion() {
     return JupiterTestEngine.getPackage().getImplementationVersion()
+  }
+
+  private static final class TestResultListener implements TestExecutionListener {
+    private final Map<TestExecutionResult.Status, Collection<org.junit.platform.launcher.TestIdentifier>> testsByStatus = new ConcurrentHashMap<>()
+
+    void executionFinished(org.junit.platform.launcher.TestIdentifier testIdentifier, TestExecutionResult testExecutionResult) {
+      testsByStatus.computeIfAbsent(testExecutionResult.status, k -> new CopyOnWriteArrayList<>()).add(testIdentifier)
+    }
   }
 }

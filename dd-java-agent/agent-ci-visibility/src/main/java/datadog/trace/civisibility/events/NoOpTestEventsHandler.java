@@ -5,12 +5,12 @@ import datadog.trace.api.civisibility.DDTestSuite;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
-import datadog.trace.api.civisibility.retry.TestRetryPolicy;
-import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
+import datadog.trace.api.civisibility.execution.TestExecutionHistory;
+import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.civisibility.retry.NeverRetry;
+import datadog.trace.civisibility.execution.Regular;
 import java.util.Collection;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -58,8 +58,8 @@ public class NoOpTestEventsHandler<SuiteKey, TestKey>
       @Nullable String testParameters,
       @Nullable Collection<String> categories,
       @Nonnull TestSourceData testSourceData,
-      RetryReason retryReason,
-      @Nullable Long startTime) {
+      @Nullable Long startTime,
+      @Nullable TestExecutionHistory testExecutionHistory) {
     // do nothing
   }
 
@@ -74,7 +74,8 @@ public class NoOpTestEventsHandler<SuiteKey, TestKey>
   }
 
   @Override
-  public void onTestFinish(TestKey descriptor, @Nullable Long endTime) {
+  public void onTestFinish(
+      TestKey descriptor, @Nullable Long endTime, @Nullable TestExecutionHistory executionHistory) {
     // do nothing
   }
 
@@ -99,8 +100,8 @@ public class NoOpTestEventsHandler<SuiteKey, TestKey>
 
   @NotNull
   @Override
-  public TestRetryPolicy retryPolicy(TestIdentifier test, TestSourceData source) {
-    return NeverRetry.INSTANCE;
+  public TestExecutionPolicy executionPolicy(TestIdentifier test, TestSourceData source) {
+    return Regular.INSTANCE;
   }
 
   @Override

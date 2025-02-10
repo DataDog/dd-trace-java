@@ -6,7 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.execution.TestExecutionHistory;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Collections;
 import java.util.List;
@@ -44,7 +44,7 @@ public class MUnitInstrumentation extends InstrumenterModule.CiVisibility
   @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
-        "org.junit.runner.Description", TestRetryPolicy.class.getName());
+        "org.junit.runner.Description", TestExecutionHistory.class.getName());
   }
 
   @Override
@@ -75,7 +75,7 @@ public class MUnitInstrumentation extends InstrumenterModule.CiVisibility
 
       replacedNotifier.addListener(
           new MUnitTracingListener(
-              InstrumentationContext.get(Description.class, TestRetryPolicy.class)));
+              InstrumentationContext.get(Description.class, TestExecutionHistory.class)));
       runNotifier = replacedNotifier;
     }
   }

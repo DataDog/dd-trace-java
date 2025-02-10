@@ -52,7 +52,6 @@
       "test.codeowners" : "[\"owner1\",\"owner2\"]",
       "test.framework" : "spock",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.is_new" : "true",
       "test.itr.forced_run" : "true",
       "test.itr.unskippable" : "true",
       "test.module" : "spock-junit-5",

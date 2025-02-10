@@ -142,7 +142,7 @@ public class DebuggerTransformerTest {
     Path initialTmpDir = DebuggerTransformer.DUMP_PATH;
     DebuggerTransformer.DUMP_PATH = Paths.get("/tmp/debugger");
     try {
-      when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
+      when(config.isDynamicInstrumentationClassFileDumpEnabled()).thenReturn(true);
       File instrumentedClassFile = new File("/tmp/debugger/java.util.ArrayList.class");
       File origClassFile = new File("/tmp/debugger/java.util.ArrayList_orig.class");
       if (instrumentedClassFile.exists()) {
@@ -400,7 +400,7 @@ public class DebuggerTransformerTest {
     when(config.getFinalDebuggerSnapshotUrl())
         .thenReturn("http://localhost:8126/debugger/v1/input");
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
-    when(config.getDebuggerUploadBatchSize()).thenReturn(100);
+    when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
     return config;
   }
 

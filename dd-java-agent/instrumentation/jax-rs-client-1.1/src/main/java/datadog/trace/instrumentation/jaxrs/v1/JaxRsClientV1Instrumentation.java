@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.jaxrs.v1;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
@@ -75,7 +76,7 @@ public final class JaxRsClientV1Instrumentation extends InstrumenterModule.Traci
         DECORATE.onRequest(span, request);
         request.getProperties().put(DD_SPAN_ATTRIBUTE, span);
 
-        propagate().inject(span, request.getHeaders(), SETTER);
+        defaultPropagator().inject(span, request.getHeaders(), SETTER);
         propagate()
             .injectPathwayContext(
                 span, request.getHeaders(), SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);

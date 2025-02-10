@@ -55,16 +55,17 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
    */
   private static String rulesVersion = "";
 
-  public void wafInit(final String wafVersion, final String rulesVersion) {
+  public void wafInit(final String wafVersion, final String rulesVersion, final boolean success) {
     WafMetricCollector.wafVersion = wafVersion;
     WafMetricCollector.rulesVersion = rulesVersion;
     rawMetricsQueue.offer(
-        new WafInitRawMetric(wafInitCounter.incrementAndGet(), wafVersion, rulesVersion));
+        new WafInitRawMetric(wafInitCounter.incrementAndGet(), wafVersion, rulesVersion, success));
   }
 
-  public void wafUpdates(final String rulesVersion) {
+  public void wafUpdates(final String rulesVersion, final boolean success) {
     rawMetricsQueue.offer(
-        new WafUpdatesRawMetric(wafUpdatesCounter.incrementAndGet(), wafVersion, rulesVersion));
+        new WafUpdatesRawMetric(
+            wafUpdatesCounter.incrementAndGet(), wafVersion, rulesVersion, success));
 
     // Flush request metrics to get the new version.
     if (rulesVersion != null
@@ -249,20 +250,31 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
 
   public static class WafInitRawMetric extends WafMetric {
     public WafInitRawMetric(
-        final long counter, final String wafVersion, final String rulesVersion) {
+        final long counter,
+        final String wafVersion,
+        final String rulesVersion,
+        final boolean success) {
       super(
-          "waf.init", counter, "waf_version:" + wafVersion, "event_rules_version:" + rulesVersion);
+          "waf.init",
+          counter,
+          "waf_version:" + wafVersion,
+          "event_rules_version:" + rulesVersion,
+          "success:" + success);
     }
   }
 
   public static class WafUpdatesRawMetric extends WafMetric {
     public WafUpdatesRawMetric(
-        final long counter, final String wafVersion, final String rulesVersion) {
+        final long counter,
+        final String wafVersion,
+        final String rulesVersion,
+        final boolean success) {
       super(
           "waf.updates",
           counter,
           "waf_version:" + wafVersion,
-          "event_rules_version:" + rulesVersion);
+          "event_rules_version:" + rulesVersion,
+          "success:" + success);
     }
   }
 
@@ -316,7 +328,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
               ? new String[] {
                 "rule_type:" + ruleType.type,
                 "rule_variant:" + ruleType.variant,
-                "waf_version:" + wafVersion
+                "waf_version:" + wafVersion,
+                "event_rules_version:" + rulesVersion
               }
               : new String[] {"rule_type:" + ruleType.type, "waf_version:" + wafVersion});
     }
@@ -331,7 +344,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
               ? new String[] {
                 "rule_type:" + ruleType.type,
                 "rule_variant:" + ruleType.variant,
-                "waf_version:" + wafVersion
+                "waf_version:" + wafVersion,
+                "event_rules_version:" + rulesVersion
               }
               : new String[] {"rule_type:" + ruleType.type, "waf_version:" + wafVersion});
     }
@@ -346,7 +360,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
               ? new String[] {
                 "rule_type:" + ruleType.type,
                 "rule_variant:" + ruleType.variant,
-                "waf_version:" + wafVersion
+                "waf_version:" + wafVersion,
+                "event_rules_version:" + rulesVersion
               }
               : new String[] {"rule_type:" + ruleType.type, "waf_version:" + wafVersion});
     }

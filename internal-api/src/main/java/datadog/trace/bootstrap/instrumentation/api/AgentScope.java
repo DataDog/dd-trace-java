@@ -12,12 +12,11 @@ public interface AgentScope extends TraceScope, Closeable {
   Continuation capture();
 
   @Override
-  Continuation captureConcurrent();
-
-  @Override
   void close();
 
   interface Continuation extends TraceScope.Continuation {
+    @Override
+    Continuation hold();
 
     @Override
     AgentScope activate();

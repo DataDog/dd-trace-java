@@ -36,7 +36,7 @@ instrumentation_modules: &instrumentation_modules "dd-java-agent/instrumentation
 debugger_modules: &debugger_modules "dd-java-agent/agent-debugger|dd-java-agent/agent-bootstrap|dd-java-agent/agent-builder|internal-api|communication|dd-trace-core"
 profiling_modules: &profiling_modules "dd-java-agent/agent-profiling"
 
-default_system_tests_commit: &default_system_tests_commit c706e333ef06800b866ac300e4b6cdb7566cc5e5
+default_system_tests_commit: &default_system_tests_commit 8384a3947b9881d0fcdb5ac937b80aad9a70d4d4
 
 parameters:
   nightly:
@@ -767,7 +767,7 @@ jobs:
 
   muzzle:
     <<: *defaults
-    resource_class: medium
+    resource_class: medium+
     parallelism: 4
     steps:
       - setup_code
@@ -798,7 +798,7 @@ jobs:
           name: Verify Muzzle
           command: >-
             SKIP_BUILDSCAN="true"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx3G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
             ./gradlew `circleci tests split --split-by=timings workspace/build/muzzleTasks | xargs`
             << pipeline.parameters.gradle_flags >>
             --max-workers=4
@@ -857,6 +857,7 @@ jobs:
               APPSEC_REQUEST_BLOCKING
               APPSEC_RASP
               APPSEC_RUNTIME_ACTIVATION
+              APPSEC_WAF_TELEMETRY
               REMOTE_CONFIG_MOCKED_BACKEND_ASM_DD
               "
             fi

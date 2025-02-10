@@ -209,15 +209,22 @@ public class PowerWAFModule implements AppSecModule {
       config.dirtyStatus.markAllDirty();
     }
 
+    boolean success = false;
     try {
       // ddwaf_init/update
-      initializeNewWafCtx(reconf, config, curCtxAndAddresses);
+      success = initializeNewWafCtx(reconf, config, curCtxAndAddresses);
     } catch (Exception e) {
       throw new AppSecModuleActivationException("Could not initialize/update waf", e);
+    } finally {
+      if (curCtxAndAddresses == null) {
+        WafMetricCollector.get().wafInit(Powerwaf.LIB_VERSION, currentRulesVersion, success);
+      } else {
+        WafMetricCollector.get().wafUpdates(currentRulesVersion, success);
+      }
     }
   }
 
-  private void initializeNewWafCtx(
+  private boolean initializeNewWafCtx(
       AppSecModuleConfigurer.Reconfiguration reconf,
       CurrentAppSecConfig config,
       CtxAndAddresses prevContextAndAddresses)
@@ -243,12 +250,6 @@ public class PowerWAFModule implements AppSecModule {
       // Update current rules' version if you need
       if (initReport != null && initReport.rulesetVersion != null) {
         currentRulesVersion = initReport.rulesetVersion;
-      }
-
-      if (prevContextAndAddresses == null) {
-        WafMetricCollector.get().wafInit(Powerwaf.LIB_VERSION, currentRulesVersion);
-      } else {
-        WafMetricCollector.get().wafUpdates(currentRulesVersion);
       }
 
       if (initReport != null) {
@@ -295,6 +296,7 @@ public class PowerWAFModule implements AppSecModule {
     }
 
     reconf.reloadSubscriptions();
+    return true;
   }
 
   private Map<String, ActionInfo> calculateEffectiveActions(
@@ -428,11 +430,13 @@ public class PowerWAFModule implements AppSecModule {
       try {
         resultWithData = doRunPowerwaf(reqCtx, newData, ctxAndAddr, gwCtx);
       } catch (TimeoutPowerwafException tpe) {
-        reqCtx.increaseTimeouts();
-        WafMetricCollector.get().wafRequestTimeout();
-        log.debug(LogCollector.EXCLUDE_TELEMETRY, "Timeout calling the WAF", tpe);
         if (gwCtx.isRasp) {
+          reqCtx.increaseRaspTimeouts();
           WafMetricCollector.get().raspTimeout(gwCtx.raspRuleType);
+        } else {
+          reqCtx.increaseWafTimeouts();
+          WafMetricCollector.get().wafRequestTimeout();
+          log.debug(LogCollector.EXCLUDE_TELEMETRY, "Timeout calling the WAF", tpe);
         }
         return;
       } catch (AbstractPowerwafException e) {
