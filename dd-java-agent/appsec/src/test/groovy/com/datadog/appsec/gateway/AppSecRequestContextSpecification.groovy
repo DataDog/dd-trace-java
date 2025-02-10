@@ -290,4 +290,17 @@ class AppSecRequestContextSpecification extends DDSpecification {
     then:
     ctx.getRaspTimeouts() == 2
   }
+
+  def "test increase and get RaspErrors"() {
+    when:
+    ctx.increaseRaspErrorCode(-3)
+    ctx.increaseRaspErrorCode(-3)
+    ctx.increaseRaspErrorCode(-2)
+
+    then:
+    ctx.getRaspError(-3) == 2
+    ctx.getRaspError(-2) == 1
+    ctx.getRaspError(-1) == 0
+    ctx.getRaspError(0) == 0
+  }
 }

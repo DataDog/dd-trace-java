@@ -46,6 +46,7 @@ import io.sqreen.powerwaf.RuleSetInfo;
 import io.sqreen.powerwaf.exception.AbstractPowerwafException;
 import io.sqreen.powerwaf.exception.InvalidRuleSetException;
 import io.sqreen.powerwaf.exception.TimeoutPowerwafException;
+import io.sqreen.powerwaf.exception.UnclassifiedPowerwafException;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationHandler;
@@ -439,9 +440,19 @@ public class PowerWAFModule implements AppSecModule {
           log.debug(LogCollector.EXCLUDE_TELEMETRY, "Timeout calling the WAF", tpe);
         }
         return;
-      } catch (AbstractPowerwafException e) {
+      } catch (UnclassifiedPowerwafException e) {
         if (!reqCtx.isAdditiveClosed()) {
           log.error("Error calling WAF", e);
+        }
+        return;
+      } catch (AbstractPowerwafException e) {
+        if (gwCtx.isRasp) {
+          reqCtx.increaseRaspErrorCode(e.code);
+          WafMetricCollector.get().raspErrorCode(gwCtx.raspRuleType, e.code);
+        } else {
+          // TODO APPSEC-56703
+          // reqCtx.increaseWafErrorCode(e.code);
+          // WafMetricCollector.get().wafErrorCode(e.code);
         }
         return;
       } finally {
