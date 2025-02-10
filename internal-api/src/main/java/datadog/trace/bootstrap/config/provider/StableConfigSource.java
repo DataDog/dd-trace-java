@@ -120,7 +120,7 @@ public final class StableConfigSource extends ConfigProvider.Source {
    * @param key The key to search for within the "apm_configuration_default" section.
    * @return The value associated with the specified key as a String if found; otherwise, null.
    */
-  public static String findAndReturnEarly(HashMap<String, Object> data, String key) {
+  public static String findAndReturnEarly(Map<String, Object> data, String key) {
     if (data == null) {
       return null;
     }
