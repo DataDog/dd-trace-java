@@ -203,6 +203,7 @@ tasks.withType(GenerateMavenPom).configureEach { task ->
 
 dependencies {
   implementation project(path: ':components:json')
+  implementation project(':utils:socket-utils')
   modules {
     module("com.squareup.okio:okio") {
       replacedBy("com.datadoghq.okio:okio") // embed our patched fork
@@ -248,9 +249,6 @@ dependencies {
     transitive = false
   }
   sharedShadowInclude project(':utils:container-utils'), {
-    transitive = false
-  }
-  sharedShadowInclude project(':utils:socket-utils'), {
     transitive = false
   }
   sharedShadowInclude project(':utils:version-utils'), {
