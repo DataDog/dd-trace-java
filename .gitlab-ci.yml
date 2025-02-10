@@ -107,6 +107,7 @@ build:
       - 'workspace/dd-trace-api/build/libs/*.jar'
       - 'workspace/dd-trace-ot/build/libs/*.jar'
       - 'upstream.env'
+      - '.gradle/daemon/*/*.out.log'
     reports:
       dotenv: build.env
 
@@ -153,6 +154,7 @@ spotless:
   artifacts:
     paths:
       - ./check_reports
+      - '.gradle/daemon/*/*.out.log'
 
 check_base:
   extends: .check_job
@@ -219,6 +221,7 @@ muzzle:
   artifacts:
     paths:
       - ./reports
+      - '.gradle/daemon/*/*.out.log'
 
 muzzle-dep-report:
   extends: .gradle_build
@@ -233,6 +236,7 @@ muzzle-dep-report:
   artifacts:
     paths:
       - ./reports
+      - '.gradle/daemon/*/*.out.log'
 
 .test_job:
   extends: .gradle_build
@@ -264,6 +268,7 @@ muzzle-dep-report:
       - ./reports.tar
       - ./profiles.tar
       - ./results
+      - '.gradle/daemon/*/*.out.log'
 
 test_base:
   extends: .test_job
@@ -409,6 +414,7 @@ system-tests:
     when: always
     paths:
       - artifacts
+      - '.gradle/daemon/*/*.out.log'
 
 integration-system-tests:
   extends: .system-tests-job
@@ -426,6 +432,7 @@ integration-system-tests:
       junit: /system-tests/logs_integrations/*.xml
     paths:
       - /system-tests/logs_integrations
+      - '.gradle/daemon/*/*.out.log'
 
 debugger-system-tests:
   extends: .system-tests-job
@@ -444,6 +451,7 @@ debugger-system-tests:
       junit: logs_debugger/*.xml
     paths:
       - logs_debugger
+      - '.gradle/daemon/*/*.out.log'
 
 parametric-tests:
   extends: .system-tests-job
@@ -458,6 +466,7 @@ parametric-tests:
       junit: /system-tests/logs_parametric/*.xml
     paths:
       - logs_java_parametric_dev.tar.gz
+      - '.gradle/daemon/*/*.out.log'
 
 deploy_to_profiling_backend:
   stage: publish
