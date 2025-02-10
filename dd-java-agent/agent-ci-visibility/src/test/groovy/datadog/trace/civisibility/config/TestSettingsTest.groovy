@@ -1,6 +1,6 @@
 package datadog.trace.civisibility.config
 
-import datadog.trace.api.civisibility.config.TestFQN
+
 import datadog.trace.civisibility.ipc.serialization.Serializer
 import spock.lang.Specification
 
@@ -10,9 +10,9 @@ class TestSettingsTest extends Specification {
     given:
     when:
     Serializer s = new Serializer()
-    s.write(tests, TestSettings.TestSettingsSerializer::serialize)
+    s.write(tests, TestSetting.TestSettingsSerializer::serialize)
     def serializedTests = s.flush()
-    def deserializedTests = Serializer.readList(serializedTests, TestSettings.TestSettingsSerializer::deserialize)
+    def deserializedTests = Serializer.readList(serializedTests, TestSetting.TestSettingsSerializer::deserialize)
 
     then:
     deserializedTests == tests
@@ -21,12 +21,12 @@ class TestSettingsTest extends Specification {
     tests << [
       // empty
       [],
-      [TestSettings.FLAKY],
-      [TestSettings.KNOWN],
-      [TestSettings.QUARANTINED],
-      [TestSettings.DISABLED],
-      [TestSettings.ATTEMPT_TO_FIX],
-      [TestSettings.ATTEMPT_TO_FIX, TestSettings.QUARANTINED],
+      [TestSetting.FLAKY],
+      [TestSetting.KNOWN],
+      [TestSetting.QUARANTINED],
+      [TestSetting.DISABLED],
+      [TestSetting.ATTEMPT_TO_FIX],
+      [TestSetting.ATTEMPT_TO_FIX, TestSetting.QUARANTINED],
     ]
   }
 }

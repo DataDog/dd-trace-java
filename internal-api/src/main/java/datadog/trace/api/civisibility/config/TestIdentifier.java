@@ -41,10 +41,6 @@ public class TestIdentifier {
     return fqn;
   }
 
-  public TestIdentifier withoutParameters() {
-    return parameters == null ? this : new TestIdentifier(fqn, null);
-  }
-
   @Override
   public boolean equals(Object o) {
     if (this == o) {

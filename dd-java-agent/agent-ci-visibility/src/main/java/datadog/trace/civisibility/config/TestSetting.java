@@ -3,7 +3,7 @@ package datadog.trace.civisibility.config;
 import datadog.trace.civisibility.ipc.serialization.Serializer;
 import java.nio.ByteBuffer;
 
-public enum TestSettings {
+public enum TestSetting {
   FLAKY(1, "flaky"),
   KNOWN(2, "known"),
   QUARANTINED(4, "quarantined"),
@@ -13,31 +13,27 @@ public enum TestSettings {
   private final int flag;
   private final String name;
 
-  TestSettings(int flag, String name) {
+  TestSetting(int flag, String name) {
     this.flag = flag;
     this.name = name;
+  }
+
+  public int getFlag() {
+    return flag;
   }
 
   public String asString() {
     return name;
   }
 
-  public static int addSetting(int flag, TestSettings setting) {
-    return flag | setting.flag;
-  }
-
-  public static boolean isSetting(int flag, TestSettings setting) {
-    return (flag & setting.flag) != 0;
-  }
-
   public static class TestSettingsSerializer {
-    public static void serialize(Serializer serializer, TestSettings setting) {
+    public static void serialize(Serializer serializer, TestSetting setting) {
       serializer.write(setting.flag);
     }
 
-    public static TestSettings deserialize(ByteBuffer buf) {
+    public static TestSetting deserialize(ByteBuffer buf) {
       int flag = Serializer.readInt(buf);
-      for (TestSettings setting : TestSettings.values()) {
+      for (TestSetting setting : TestSetting.values()) {
         if (setting.flag == flag) {
           return setting;
         }

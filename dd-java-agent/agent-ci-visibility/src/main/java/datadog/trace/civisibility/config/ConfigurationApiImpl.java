@@ -318,7 +318,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
   }
 
   @Override
-  public Map<TestSettings, Map<String, Collection<TestFQN>>> getTestManagementTestsByModule(
+  public Map<TestSetting, Map<String, Collection<TestFQN>>> getTestManagementTestsByModule(
       TracerEnvironment tracerEnvironment) throws IOException {
     OkHttpUtils.CustomListener telemetryListener =
         new TelemetryListener.Builder(metricCollector)
@@ -347,7 +347,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
     return parseTestManagementTests(testManagementTestsDto);
   }
 
-  private Map<TestSettings, Map<String, Collection<TestFQN>>> parseTestManagementTests(
+  private Map<TestSetting, Map<String, Collection<TestFQN>>> parseTestManagementTests(
       TestManagementTestsDto testsManagementTestsDto) {
     int testManagementTestsCount = 0;
 
@@ -388,10 +388,10 @@ public class ConfigurationApiImpl implements ConfigurationApi {
       }
     }
 
-    Map<TestSettings, Map<String, Collection<TestFQN>>> testsByTypeByModule = new HashMap<>();
-    testsByTypeByModule.put(TestSettings.QUARANTINED, quarantinedTestsByModule);
-    testsByTypeByModule.put(TestSettings.DISABLED, disabledTestsByModule);
-    testsByTypeByModule.put(TestSettings.ATTEMPT_TO_FIX, attemptToFixTestsByModule);
+    Map<TestSetting, Map<String, Collection<TestFQN>>> testsByTypeByModule = new HashMap<>();
+    testsByTypeByModule.put(TestSetting.QUARANTINED, quarantinedTestsByModule);
+    testsByTypeByModule.put(TestSetting.DISABLED, disabledTestsByModule);
+    testsByTypeByModule.put(TestSetting.ATTEMPT_TO_FIX, attemptToFixTestsByModule);
 
     LOGGER.debug("Received {} test management tests in total", testManagementTestsCount);
     metricCollector.add(
@@ -530,19 +530,19 @@ public class ConfigurationApiImpl implements ConfigurationApi {
 
       public Boolean isQuarantined() {
         return properties != null
-            ? properties.getOrDefault(TestSettings.QUARANTINED.asString(), false)
+            ? properties.getOrDefault(TestSetting.QUARANTINED.asString(), false)
             : false;
       }
 
       public Boolean isDisabled() {
         return properties != null
-            ? properties.getOrDefault(TestSettings.DISABLED.asString(), false)
+            ? properties.getOrDefault(TestSetting.DISABLED.asString(), false)
             : false;
       }
 
       public Boolean isAttemptToFix() {
         return properties != null
-            ? properties.getOrDefault(TestSettings.ATTEMPT_TO_FIX.asString(), false)
+            ? properties.getOrDefault(TestSetting.ATTEMPT_TO_FIX.asString(), false)
             : false;
       }
     }

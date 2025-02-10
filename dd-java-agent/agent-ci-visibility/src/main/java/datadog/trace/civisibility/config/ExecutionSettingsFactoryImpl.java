@@ -209,7 +209,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
         executor.submit(() -> getFlakyTestsByModule(tracerEnvironment, flakyTestRetriesEnabled));
     Future<Map<String, Collection<TestFQN>>> knownTestsFuture =
         executor.submit(() -> getKnownTestsByModule(tracerEnvironment, knownTestsRequest));
-    Future<Map<TestSettings, Map<String, Collection<TestFQN>>>> testManagementTestsFuture =
+    Future<Map<TestSetting, Map<String, Collection<TestFQN>>>> testManagementTestsFuture =
         executor.submit(
             () ->
                 getTestManagementTestsByModule(
@@ -221,15 +221,15 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
     Map<String, Collection<TestFQN>> flakyTestsByModule = flakyTestsFuture.get();
     Map<String, Collection<TestFQN>> knownTestsByModule = knownTestsFuture.get();
 
-    Map<TestSettings, Map<String, Collection<TestFQN>>> testManagementTestsByModule =
+    Map<TestSetting, Map<String, Collection<TestFQN>>> testManagementTestsByModule =
         testManagementTestsFuture.get();
     Map<String, Collection<TestFQN>> quarantinedTestsByModule =
-        testManagementTestsByModule.getOrDefault(TestSettings.QUARANTINED, Collections.emptyMap());
+        testManagementTestsByModule.getOrDefault(TestSetting.QUARANTINED, Collections.emptyMap());
     Map<String, Collection<TestFQN>> disabledTestsByModule =
-        testManagementTestsByModule.getOrDefault(TestSettings.DISABLED, Collections.emptyMap());
+        testManagementTestsByModule.getOrDefault(TestSetting.DISABLED, Collections.emptyMap());
     Map<String, Collection<TestFQN>> attemptToFixTestsByModule =
         testManagementTestsByModule.getOrDefault(
-            TestSettings.ATTEMPT_TO_FIX, Collections.emptyMap());
+            TestSetting.ATTEMPT_TO_FIX, Collections.emptyMap());
 
     Diff pullRequestDiff = pullRequestDiffFuture.get();
 
@@ -389,7 +389,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
   }
 
   @Nullable
-  private Map<TestSettings, Map<String, Collection<TestFQN>>> getTestManagementTestsByModule(
+  private Map<TestSetting, Map<String, Collection<TestFQN>>> getTestManagementTestsByModule(
       TracerEnvironment tracerEnvironment, boolean testManagementTestsRequest) {
     if (!testManagementTestsRequest) {
       return Collections.emptyMap();

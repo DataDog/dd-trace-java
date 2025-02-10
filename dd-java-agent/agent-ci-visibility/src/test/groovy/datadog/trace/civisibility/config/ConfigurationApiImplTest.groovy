@@ -199,9 +199,9 @@ class ConfigurationApiImplTest extends Specification {
 
     when:
     def testManagementTests = configurationApi.getTestManagementTestsByModule(tracerEnvironment)
-    def quarantinedTests = testManagementTests.get(TestSettings.QUARANTINED)
-    def disabledTests = testManagementTests.get(TestSettings.DISABLED)
-    def attemptToFixTests = testManagementTests.get(TestSettings.ATTEMPT_TO_FIX)
+    def quarantinedTests = testManagementTests.get(TestSetting.QUARANTINED)
+    def disabledTests = testManagementTests.get(TestSetting.DISABLED)
+    def attemptToFixTests = testManagementTests.get(TestSetting.ATTEMPT_TO_FIX)
 
     then:
     quarantinedTests == [

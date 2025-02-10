@@ -9,7 +9,7 @@ import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.civisibility.config.EarlyFlakeDetectionSettings;
 import datadog.trace.civisibility.config.ExecutionSettings;
 import datadog.trace.civisibility.config.TestManagementSettings;
-import datadog.trace.civisibility.config.TestSettings;
+import datadog.trace.civisibility.config.TestSetting;
 import datadog.trace.civisibility.execution.Regular;
 import datadog.trace.civisibility.execution.RetryUntilSuccessful;
 import datadog.trace.civisibility.execution.RunNTimes;
@@ -53,7 +53,8 @@ public class ExecutionStrategy {
   }
 
   public boolean isNew(TestIdentifier test) {
-    return executionSettings.wereKnownTestsReceived() && !executionSettings.isKnown(test.toFQN());
+    return executionSettings.isKnownTestsDataAvailable()
+        && !executionSettings.isKnown(test.toFQN());
   }
 
   public boolean isFlaky(TestIdentifier test) {
@@ -135,7 +136,8 @@ public class ExecutionStrategy {
       return false;
     }
 
-    return (!executionSettings.wereFlakyTestsReceived() || executionSettings.isFlaky(test.toFQN()))
+    return (!executionSettings.isFlakyTestsDataAvailable()
+            || executionSettings.isFlaky(test.toFQN()))
         && autoRetriesUsed.get() < config.getCiVisibilityTotalFlakyRetryCount();
   }
 
@@ -147,12 +149,12 @@ public class ExecutionStrategy {
   }
 
   public boolean isEFDLimitReached() {
-    if (!executionSettings.wereKnownTestsReceived()) {
+    if (!executionSettings.isKnownTestsDataAvailable()) {
       return false;
     }
 
     int detectionsUsed = earlyFlakeDetectionsUsed.get();
-    int totalTests = executionSettings.getSettingCount(TestSettings.KNOWN) + detectionsUsed;
+    int totalTests = executionSettings.getSettingCount(TestSetting.KNOWN) + detectionsUsed;
     EarlyFlakeDetectionSettings earlyFlakeDetectionSettings =
         executionSettings.getEarlyFlakeDetectionSettings();
     int threshold =
