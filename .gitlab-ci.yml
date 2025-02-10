@@ -35,7 +35,7 @@ variables:
     value: "false"
   SYSTEM_TESTS_COMMIT:
     description: "Commit hash of system tests to use"
-    value: "c706e333ef06800b866ac300e4b6cdb7566cc5e5"
+    value: "8384a3947b9881d0fcdb5ac937b80aad9a70d4d4"
 
 .test_matrix: &test_matrix
     - testJvm:
@@ -373,8 +373,8 @@ test_smoke_semeru8_debugger:
     - git fetch origin $SYSTEM_TESTS_COMMIT
     - git reset --hard FETCH_HEAD
     - mkdir -p /system-tests/binaries/
-    - cp workspace/dd-java-agent/build/libs/*.jar /system-tests/binaries/
-    - cp workspace/dd-trace-api/build/libs/*.jar /system-tests/binaries/
+    - cp $CI_PROJECT_DIR/dd-java-agent/build/libs/*.jar /system-tests/binaries/
+    - cp $CI_PROJECT_DIR/dd-trace-api/build/libs/*.jar /system-tests/binaries/
     - cd /system-tests
     - export SYSTEM_TESTS_IDM_AWS_ACCESS_KEY_ID="" #TODO fix variable fetch
     - export SYSTEM_TESTS_IDM_AWS_SECRET_ACCESS_KEY=""
