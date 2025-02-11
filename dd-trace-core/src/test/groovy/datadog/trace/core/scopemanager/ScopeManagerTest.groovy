@@ -26,6 +26,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContinuation
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan
 import static datadog.trace.core.scopemanager.EVENT.ACTIVATE
 import static datadog.trace.core.scopemanager.EVENT.CLOSE
@@ -249,7 +250,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     writer == []
   }
 
-  def "DDScope only creates continuations when propagation is set"() {
+  def "DDScope creates no-op continuations when propagation is not set"() {
     when:
     def span = tracer.buildSpan("test", "test").start()
     def scope = tracer.activateSpan(span)
@@ -257,14 +258,14 @@ class ScopeManagerTest extends DDCoreSpecification {
     def continuation = scope.capture()
 
     then:
-    continuation == null
+    continuation == noopContinuation()
 
     when:
     tracer.setAsyncPropagationEnabled(true)
     continuation = scope.capture()
 
     then:
-    continuation != null
+    continuation != noopContinuation() && continuation != null
 
     cleanup:
     continuation.cancel()
