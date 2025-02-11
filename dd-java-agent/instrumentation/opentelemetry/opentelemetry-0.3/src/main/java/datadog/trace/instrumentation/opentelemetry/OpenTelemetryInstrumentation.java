@@ -44,7 +44,6 @@ public class OpenTelemetryInstrumentation extends InstrumenterModule.Tracing
       packageName + ".OtelContextPropagators",
       packageName + ".OtelContextPropagators$1", // switch statement
       packageName + ".OtelContextPropagators$OtelHttpTextFormat",
-      packageName + ".OtelContextPropagators$OtelSetter",
       packageName + ".OtelContextPropagators$OtelGetter",
       packageName + ".TypeConverter",
     };

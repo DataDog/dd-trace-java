@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Comparator;
 import java.util.List;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -63,8 +64,13 @@ public class ScriptInitializerTest {
     assertTrue(Files.exists(file), "File " + file + " should have been created");
     List<String> lines = Files.readAllLines(file);
     assertFalse(lines.isEmpty(), "File " + file + " is expected to be non-empty");
+    // sanity check to see if no placeholders are left
+    Pattern placeholder = Pattern.compile("![A-Z_]+!");
+    assertFalse(lines.stream().anyMatch(l -> placeholder.matcher(l).find()));
     // sanity to check the crash log file was properly replaced in the script
     assertTrue(lines.stream().anyMatch(l -> l.contains(hsErrFile)));
+    // sanity to check the java home was properly captured
+    assertTrue(lines.stream().anyMatch(l -> l.contains("java_home")));
   }
 
   @Test
@@ -96,6 +102,8 @@ public class ScriptInitializerTest {
     assertFalse(lines.isEmpty(), "File " + file + " is expected to be non-empty");
     // sanity to check the placeholder was properly replaced
     assertTrue(lines.stream().anyMatch(l -> !l.contains("!TAGS!")));
+    // sanity to check the java home was properly captured
+    assertTrue(lines.stream().anyMatch(l -> l.contains("java_home")));
   }
 
   @Test

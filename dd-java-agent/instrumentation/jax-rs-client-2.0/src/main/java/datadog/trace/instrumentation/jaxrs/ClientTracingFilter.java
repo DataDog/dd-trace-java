@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.jaxrs;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -28,7 +29,7 @@ public class ClientTracingFilter implements ClientRequestFilter, ClientResponseF
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, requestContext);
 
-      propagate().inject(span, requestContext.getHeaders(), SETTER);
+      defaultPropagator().inject(span, requestContext.getHeaders(), SETTER);
       propagate()
           .injectPathwayContext(
               span,
