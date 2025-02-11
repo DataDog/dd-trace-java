@@ -22,17 +22,28 @@ public class InputAttributeInjector {
   }
 
   public static String getModifiedInput(String request, String ddTraceContextJSON) {
-    StringBuilder modifiedInput = new StringBuilder(request.trim());
-    int startPos = modifiedInput.indexOf("{");
-    int endPos = modifiedInput.lastIndexOf("}");
-
-    String inputContent = modifiedInput.substring(startPos + 1, endPos).trim();
-    if (inputContent.isEmpty()) {
-      modifiedInput.insert(endPos, String.format("\"%s\":%s", DATADOG_KEY, ddTraceContextJSON));
-    } else {
-      // Prepend comma to separate from existing content
-      modifiedInput.insert(endPos, String.format(",\"%s\":%s", DATADOG_KEY, ddTraceContextJSON));
+    if (request == null || ddTraceContextJSON == null) {
+      throw new IllegalArgumentException(); // leave request unmodified
     }
-    return modifiedInput.toString();
+
+    final String traceContextProperty = "\"" + DATADOG_KEY + "\":" + ddTraceContextJSON;
+    int startPos = request.indexOf('{');
+    int endPos = request.lastIndexOf('}');
+
+    if (startPos < 0 || endPos < startPos) {
+      throw new IllegalArgumentException(); // leave request unmodified
+    }
+
+    // If input is an empty {}
+    if (endPos == startPos + 1) {
+      return "{" + traceContextProperty + "}";
+    }
+
+    String existingJSON = request.substring(startPos + 1, endPos).trim();
+    if (existingJSON.isEmpty()) {
+      return "{" + traceContextProperty + "}";
+    } else {
+      return "{" + existingJSON + "," + traceContextProperty + "}";
+    }
   }
 }
