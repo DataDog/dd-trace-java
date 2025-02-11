@@ -90,6 +90,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private String scheme;
   private String method;
   private String savedRawURI;
+  private String route;
   private final Map<String, List<String>> requestHeaders = new LinkedHashMap<>();
   private final Map<String, List<String>> responseHeaders = new LinkedHashMap<>();
   private volatile Map<String, List<String>> collectedCookies;
@@ -360,7 +361,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     this.scheme = scheme;
   }
 
-  String getMethod() {
+  public String getMethod() {
     return method;
   }
 
@@ -368,7 +369,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     this.method = method;
   }
 
-  String getSavedRawURI() {
+  public String getSavedRawURI() {
     return savedRawURI;
   }
 
@@ -378,6 +379,18 @@ public class AppSecRequestContext implements DataBundle, Closeable {
           "Forbidden attempt to set different raw URI for given request context");
     }
     this.savedRawURI = savedRawURI;
+  }
+
+  public String getRoute() {
+    return route;
+  }
+
+  void setRoute(String route) {
+    if (this.route != null && this.route.compareToIgnoreCase(route) != 0) {
+      throw new IllegalStateException(
+          "Forbidden attempt to set different route for given request context");
+    }
+    this.route = route;
   }
 
   void addRequestHeader(String name, String value) {
