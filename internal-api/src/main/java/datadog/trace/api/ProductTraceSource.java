@@ -22,7 +22,7 @@ public class ProductTraceSource {
 
   // Get the current bitfield as a hexadecimal string
   public static String getBitfieldHex(final int bitfield) {
-    return String.format("%02X", bitfield); // Convert to 2-character hex
+    return String.format("%02x", bitfield); // Convert to 2-character hex
   }
 
   // Parse a hexadecimal string back to an integer

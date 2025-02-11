@@ -232,7 +232,10 @@ abstract class PTagsCodec {
 
   private static boolean validateTraceSourceTagValue(TagValue value) {
     // Ensure the string is not null, has a length of 2, and matches the hex pattern
-    return value != null && value.length() == 2 && value.toString().matches("^[0-9A-Fa-f]{2}$");
+    return value != null
+        && value.length() == 2
+        && isHexDigit(value.charAt(0))
+        && isHexDigit(value.charAt(1));
   }
 
   protected static boolean isDigit(char c) {
