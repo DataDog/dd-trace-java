@@ -85,6 +85,10 @@ public class BaggagePropagator implements Propagator {
     int currentBytes = 0;
     StringBuilder baggageText = new StringBuilder();
     BaggageContext baggageContext = BaggageContext.fromContext(context);
+    if (baggageContext == null) {
+      log.debug("BaggageContext instance is null in the following context {}", context);
+      return;
+    }
     for (final Map.Entry<String, String> entry : baggageContext.getBaggage().entrySet()) {
       int byteSize = 1; // default include size of '='
       if (processedBaggage
