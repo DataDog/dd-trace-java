@@ -1,4 +1,5 @@
 import datadog.trace.api.DisableTestTrace
+import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.civisibility.diff.FileDiff
@@ -114,14 +115,14 @@ class JUnit5Test extends CiVisibilityInstrumentationTest {
     where:
     testcaseName                             | success | tests                          | retriedTests
     "test-failed"                            | false   | [TestFailed]                   | []
-    "test-retry-failed"                      | false   | [TestFailed]                   | [new TestIdentifier("org.example.TestFailed", "test_failed", null)]
-    "test-failed-then-succeed"               | true    | [TestFailedThenSucceed]        | [new TestIdentifier("org.example.TestFailedThenSucceed", "test_failed_then_succeed", null)]
-    "test-retry-template"                    | false   | [TestFailedTemplate]           | [new TestIdentifier("org.example.TestFailedTemplate", "test_template", null)]
-    "test-retry-factory"                     | false   | [TestFailedFactory]            | [new TestIdentifier("org.example.TestFailedFactory", "test_factory", null)]
-    "test-assumption-is-not-retried"         | true    | [TestAssumption]               | [new TestIdentifier("org.example.TestAssumption", "test_fail_assumption", null)]
-    "test-skipped-is-not-retried"            | true    | [TestSkipped]                  | [new TestIdentifier("org.example.TestSkipped", "test_skipped", null)]
-    "test-retry-parameterized"               | false   | [TestFailedParameterized]      | [new TestIdentifier("org.example.TestFailedParameterized", "test_failed_parameterized", null)]
-    "test-expected-exception-is-not-retried" | true    | [TestSucceedExpectedException] | [new TestIdentifier("org.example.TestSucceedExpectedException", "test_succeed", null)]
+    "test-retry-failed"                      | false   | [TestFailed]                   | [new TestFQN("org.example.TestFailed", "test_failed")]
+    "test-failed-then-succeed"               | true    | [TestFailedThenSucceed]        | [new TestFQN("org.example.TestFailedThenSucceed", "test_failed_then_succeed")]
+    "test-retry-template"                    | false   | [TestFailedTemplate]           | [new TestFQN("org.example.TestFailedTemplate", "test_template")]
+    "test-retry-factory"                     | false   | [TestFailedFactory]            | [new TestFQN("org.example.TestFailedFactory", "test_factory")]
+    "test-assumption-is-not-retried"         | true    | [TestAssumption]               | [new TestFQN("org.example.TestAssumption", "test_fail_assumption")]
+    "test-skipped-is-not-retried"            | true    | [TestSkipped]                  | [new TestFQN("org.example.TestSkipped", "test_skipped")]
+    "test-retry-parameterized"               | false   | [TestFailedParameterized]      | [new TestFQN("org.example.TestFailedParameterized", "test_failed_parameterized")]
+    "test-expected-exception-is-not-retried" | true    | [TestSucceedExpectedException] | [new TestFQN("org.example.TestSucceedExpectedException", "test_succeed")]
   }
 
   def "test early flakiness detection #testcaseName"() {
@@ -134,13 +135,13 @@ class JUnit5Test extends CiVisibilityInstrumentationTest {
 
     where:
     testcaseName                        | success | tests                  | knownTestsList
-    "test-efd-known-test"               | true    | [TestSucceed]          | [new TestIdentifier("org.example.TestSucceed", "test_succeed", null)]
-    "test-efd-known-parameterized-test" | true    | [TestParameterized]    | [new TestIdentifier("org.example.TestParameterized", "test_parameterized", null)]
+    "test-efd-known-test"               | true    | [TestSucceed]          | [new TestFQN("org.example.TestSucceed", "test_succeed")]
+    "test-efd-known-parameterized-test" | true    | [TestParameterized]    | [new TestFQN("org.example.TestParameterized", "test_parameterized")]
     "test-efd-new-test"                 | true    | [TestSucceed]          | []
     "test-efd-new-parameterized-test"   | true    | [TestParameterized]    | []
     "test-efd-known-tests-and-new-test" | false   | [TestFailedAndSucceed] | [
-      new TestIdentifier("org.example.TestFailedAndSucceed", "test_failed", null),
-      new TestIdentifier("org.example.TestFailedAndSucceed", "test_succeed", null)
+      new TestFQN("org.example.TestFailedAndSucceed", "test_failed"),
+      new TestFQN("org.example.TestFailedAndSucceed", "test_succeed")
     ]
     "test-efd-new-slow-test"            | true    | [TestSucceedSlow]      | [] // is executed only twice
     "test-efd-new-very-slow-test"       | true    | [TestSucceedVerySlow]  | [] // is executed only once
@@ -174,8 +175,8 @@ class JUnit5Test extends CiVisibilityInstrumentationTest {
 
     where:
     testcaseName                            | tests                     | quarantined
-    "test-quarantined-failed"               | [TestFailed]              | [new TestIdentifier("org.example.TestFailed", "test_failed", null)]
-    "test-quarantined-failed-parameterized" | [TestFailedParameterized] | [new TestIdentifier("org.example.TestFailedParameterized", "test_failed_parameterized", null)]
+    "test-quarantined-failed"               | [TestFailed]              | [new TestFQN("org.example.TestFailed", "test_failed")]
+    "test-quarantined-failed-parameterized" | [TestFailedParameterized] | [new TestFQN("org.example.TestFailedParameterized", "test_failed_parameterized")]
   }
 
   def "test quarantined auto-retries #testcaseName"() {
@@ -192,7 +193,7 @@ class JUnit5Test extends CiVisibilityInstrumentationTest {
 
     where:
     testcaseName                  | tests        | quarantined                                                         | retried
-    "test-quarantined-failed-atr" | [TestFailed] | [new TestIdentifier("org.example.TestFailed", "test_failed", null)] | [new TestIdentifier("org.example.TestFailed", "test_failed", null)]
+    "test-quarantined-failed-atr" | [TestFailed] | [new TestFQN("org.example.TestFailed", "test_failed")] | [new TestFQN("org.example.TestFailed", "test_failed")]
   }
 
   def "test quarantined early flakiness detection #testcaseName"() {
@@ -209,8 +210,8 @@ class JUnit5Test extends CiVisibilityInstrumentationTest {
 
     where:
     testcaseName                    | tests        | quarantined                                                         | known
-    "test-quarantined-failed-known" | [TestFailed] | [new TestIdentifier("org.example.TestFailed", "test_failed", null)] | [new TestIdentifier("org.example.TestFailed", "test_failed", null)]
-    "test-quarantined-failed-efd"   | [TestFailed] | [new TestIdentifier("org.example.TestFailed", "test_failed", null)] | []
+    "test-quarantined-failed-known" | [TestFailed] | [new TestFQN("org.example.TestFailed", "test_failed")] | [new TestFQN("org.example.TestFailed", "test_failed")]
+    "test-quarantined-failed-efd"   | [TestFailed] | [new TestFQN("org.example.TestFailed", "test_failed")] | []
   }
 
   protected void runTests(List<Class<?>> tests, boolean expectSuccess = true) {

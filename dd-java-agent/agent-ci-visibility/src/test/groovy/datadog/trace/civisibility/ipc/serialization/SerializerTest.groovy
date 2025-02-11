@@ -119,6 +119,31 @@ class SerializerTest extends Specification {
     m << [null, [:], ["a": "b"], ["a": "b", "1": "2"], [null: "b", "1": null]]
   }
 
+  def "test map deserialization with provider: #m #clazz #provider"() {
+    given:
+    def serializer = new Serializer()
+
+    when:
+    serializer.write((Map) m, keySerializer, Serializer::write)
+    def buf = serializer.flush()
+
+    then:
+    def deserializedMap = Serializer.readMap(buf, provider, keyDeserializer, Serializer::readString)
+    deserializedMap == m
+    deserializedMap.getClass() == clazz
+
+    where:
+    m                                  | clazz         | provider                            | keySerializer     | keyDeserializer
+    [:]                                | HashMap       | HashMap::new                        | Serializer::write | Serializer::readString
+    ["a": "1", "b": "2"]               | HashMap       | HashMap::new                        | Serializer::write | Serializer::readString
+    [:]                                | LinkedHashMap | LinkedHashMap::new                  | Serializer::write | Serializer::readString
+    ["a": "1", "b": "2"]               | LinkedHashMap | LinkedHashMap::new                  | Serializer::write | Serializer::readString
+    [:]                                | TreeMap       | TreeMap::new                        | Serializer::write | Serializer::readString
+    ["a": "1", "b": "2"]               | TreeMap       | TreeMap::new                        | Serializer::write | Serializer::readString
+    [:]                                | EnumMap       | (() -> new EnumMap<>(MyEnum.class)) | MyEnum::serialize | MyEnum::deserialize
+    [(MyEnum.A): "1", (MyEnum.B): "2"] | EnumMap       | (() -> new EnumMap<>(MyEnum.class)) | MyEnum::serialize | MyEnum::deserialize
+  }
+
   def "test mixed serialization"() {
     given:
     def serializer = new Serializer()
@@ -203,6 +228,32 @@ class SerializerTest extends Specification {
 
     private static MyPojo deserialize(ByteBuffer buf) {
       return new MyPojo(Serializer.readInt(buf), Serializer.readString(buf))
+    }
+  }
+
+  private enum MyEnum {
+    A(1),
+    B(2),
+    C(3)
+
+    public final int val
+
+    MyEnum(int val) {
+      this.val = val
+    }
+
+    private static void serialize(Serializer serializer, MyEnum en) {
+      serializer.write(en.val)
+    }
+
+    private static MyEnum deserialize(ByteBuffer buf) {
+      int val = Serializer.readInt(buf)
+      for (MyEnum en : values()) {
+        if (en.val == val) {
+          return en
+        }
+      }
+      return null
     }
   }
 }
