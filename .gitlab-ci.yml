@@ -137,6 +137,7 @@ build_and_populate_dep_cache:
 spotless:
   extends: .gradle_build
   stage: tests
+  needs: []
   script:
     - export JAVA_HOME=$JAVA_11_HOME
     - ./gradlew spotlessCheck $GRADLE_ARGS
