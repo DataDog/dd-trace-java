@@ -15,7 +15,7 @@ import datadog.trace.core.DDSpanContext;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
-public class ApmTracionDisabledPropagator implements Propagator {
+public class ApmTracingDisabledPropagator implements Propagator {
   @Override
   public <C> void inject(Context context, C carrier, CarrierSetter<C> setter) {
     // Stop propagation if  no product events, stop propagation
