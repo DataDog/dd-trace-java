@@ -135,6 +135,7 @@ build_and_populate_dep_cache:
 
 spotless:
   extends: .gradle_build
+  stage: tests
   script:
     - export JAVA_HOME=$JAVA_11_HOME
     - ./gradlew spotlessCheck $GRADLE_ARGS
@@ -142,6 +143,7 @@ spotless:
 .check_job:
   extends: .gradle_build
   needs: [ "build_tests" ]
+  stage: tests
   rules:
     - if: '$POPULATE_CACHE'
       when: never
@@ -210,6 +212,7 @@ test_published_artifacts:
 muzzle:
   extends: .gradle_build
   needs: [ build ]
+  stage: tests
   rules:
     - if: '$POPULATE_CACHE'
       when: never
@@ -230,6 +233,7 @@ muzzle:
 muzzle-dep-report:
   extends: .gradle_build
   needs: [ build ]
+  stage: tests
   variables:
     BUILD_CACHE_TYPE: test
   script:
@@ -246,6 +250,7 @@ muzzle-dep-report:
 .test_job:
   extends: .gradle_build
   needs: [ build_tests ]
+  stage: tests
   rules:
     - if: '$POPULATE_CACHE'
       when: never
