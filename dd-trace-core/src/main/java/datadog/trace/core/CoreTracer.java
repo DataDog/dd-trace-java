@@ -737,10 +737,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     if (dsm) {
       Propagators.register(DSM_CONCERN, this.dataStreamsMonitoring.propagator());
     }
-    if (config.getTracePropagationStylesToExtract().contains(TracePropagationStyle.BAGGAGE)
-        && config.getTracePropagationStylesToInject().contains(TracePropagationStyle.BAGGAGE)) {
-      Propagators.register(BAGGAGE_CONCERN, new BaggagePropagator());
-    }
+    Propagators.register(
+        BAGGAGE_CONCERN,
+        new BaggagePropagator(
+            config.getTracePropagationStylesToInject().contains(TracePropagationStyle.BAGGAGE),
+            config.getTracePropagationStylesToExtract().contains(TracePropagationStyle.BAGGAGE)));
 
     this.tagInterceptor =
         null == tagInterceptor ? new TagInterceptor(new RuleFlags(config)) : tagInterceptor;

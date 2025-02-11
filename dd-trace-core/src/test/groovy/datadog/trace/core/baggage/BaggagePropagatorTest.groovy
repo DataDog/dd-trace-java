@@ -12,7 +12,7 @@ class BaggagePropagatorTest extends DDCoreSpecification {
   BaggagePropagator propagator
 
   def setup() {
-    this.propagator = new BaggagePropagator()
+    this.propagator = new BaggagePropagator(true, true)
   }
 
   def 'test tracing propagator context injection'() {
