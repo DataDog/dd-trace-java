@@ -68,8 +68,7 @@ public abstract class TraceCollector implements AgentTraceCollector {
       // ASM.
       if ((!Config.get().isApmTracingEnabled()
               && !ProductTraceSource.isProductMarked(
-                  rootSpan.context().getPropagationTags().getPropagatedTraceSource(),
-                  ProductTraceSource.ASM))
+                  rootSpan.context().getPropagationTags().getTraceSource(), ProductTraceSource.ASM))
           || rootSpan.context().getSamplingPriority() == PrioritySampling.UNSET) {
         ((PrioritySampler) traceConfig.sampler).setSamplingPriority(rootSpan);
       }

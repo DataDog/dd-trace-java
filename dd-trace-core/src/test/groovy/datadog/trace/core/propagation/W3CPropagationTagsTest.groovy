@@ -332,7 +332,7 @@ class W3CPropagationTagsTest extends DDCoreSpecification {
     propagationTags.headerValue(HeaderType.W3C) != expectedHeaderValue
 
     when:
-    propagationTags.updatePropagatedTraceSource(product)
+    propagationTags.addTraceSource(product)
 
     then:
     propagationTags.headerValue(HeaderType.W3C) == expectedHeaderValue

@@ -81,7 +81,7 @@ public class PTagsFactory implements PropagationTags.Factory {
     // extracted decision maker tag for easier updates
     private volatile TagValue decisionMakerTagValue;
 
-    private final AtomicInteger productTraceSource;
+    private final AtomicInteger traceSource;
     private volatile String debugPropagation;
 
     // xDatadogTagsSize of the tagPairs, does not include the decision maker tag
@@ -119,13 +119,13 @@ public class PTagsFactory implements PropagationTags.Factory {
         List<TagElement> tagPairs,
         TagValue decisionMakerTagValue,
         TagValue traceIdTagValue,
-        int productTraceSource) {
+        int traceSource) {
       this(
           factory,
           tagPairs,
           decisionMakerTagValue,
           traceIdTagValue,
-          productTraceSource,
+          traceSource,
           PrioritySampling.UNSET,
           null,
           null);
@@ -136,7 +136,7 @@ public class PTagsFactory implements PropagationTags.Factory {
         List<TagElement> tagPairs,
         TagValue decisionMakerTagValue,
         TagValue traceIdTagValue,
-        int productTraceSource,
+        int traceSource,
         int samplingPriority,
         CharSequence origin,
         CharSequence lastParentId) {
@@ -145,7 +145,7 @@ public class PTagsFactory implements PropagationTags.Factory {
       this.tagPairs = tagPairs;
       this.canChangeDecisionMaker = decisionMakerTagValue == null;
       this.decisionMakerTagValue = decisionMakerTagValue;
-      this.productTraceSource = new AtomicInteger(productTraceSource);
+      this.traceSource = new AtomicInteger(traceSource);
       this.samplingPriority = samplingPriority;
       this.origin = origin;
       this.lastParentId = lastParentId;
@@ -204,8 +204,8 @@ public class PTagsFactory implements PropagationTags.Factory {
     }
 
     @Override
-    public void updatePropagatedTraceSource(final int product) {
-      productTraceSource.updateAndGet(
+    public void addTraceSource(final int product) {
+      traceSource.updateAndGet(
           currentValue -> {
             // If the product is already marked, return the same value (no change)
             if (ProductTraceSource.isProductMarked(currentValue, product)) {
@@ -222,8 +222,8 @@ public class PTagsFactory implements PropagationTags.Factory {
     }
 
     @Override
-    public int getPropagatedTraceSource() {
-      return productTraceSource.get();
+    public int getTraceSource() {
+      return traceSource.get();
     }
 
     @Override
@@ -361,7 +361,7 @@ public class PTagsFactory implements PropagationTags.Factory {
         size = PTagsCodec.calcXDatadogTagsSize(getTagPairs());
         size = PTagsCodec.calcXDatadogTagsSize(size, DECISION_MAKER_TAG, decisionMakerTagValue);
         size = PTagsCodec.calcXDatadogTagsSize(size, TRACE_ID_TAG, traceIdHighOrderBitsHexTagValue);
-        int currentProductTraceSource = productTraceSource.get();
+        int currentProductTraceSource = traceSource.get();
         if (currentProductTraceSource != 0) {
           size =
               PTagsCodec.calcXDatadogTagsSize(

@@ -102,27 +102,27 @@ public abstract class PropagationTags {
   public abstract void fillTagMap(Map<String, String> tagMap);
 
   /**
-   * Updates the propagated trace source propagation tag to include the specified product.
+   * Updates the trace source to include the specified product.
    *
    * <p>The product value is parsed and interpreted according to the logic in {@link
-   * ProductTraceSource}. This method ensures that the given product is marked in the propagated
-   * trace source.
+   * ProductTraceSource}. This method ensures that the given product is marked as part of the trace
+   * source.
    *
-   * @param product the product identifier to be added to the propagated trace source. Refer to
-   *     {@link ProductTraceSource} for details on how the value is interpreted.
+   * @param product the product identifier to be added to the trace source. Refer to {@link
+   *     ProductTraceSource} for details on how the value is interpreted.
    */
-  public abstract void updatePropagatedTraceSource(int product);
+  public abstract void addTraceSource(int product);
 
   /**
-   * Retrieves the current propagated trace source propagation tag.
+   * Retrieves the current trace source.
    *
    * <p>The returned value is an encoded bitfield that represents the included products. To
    * understand how this value is parsed and interpreted, refer to {@link ProductTraceSource}.
    *
-   * @return the propagated trace source as an integer bitfield. See {@link ProductTraceSource} for
-   *     details on its structure and usage.
+   * @return the trace source as an integer bitfield. See {@link ProductTraceSource} for details on
+   *     its structure and usage.
    */
-  public abstract int getPropagatedTraceSource();
+  public abstract int getTraceSource();
 
   public abstract void updateDebugPropagation(String value);
 

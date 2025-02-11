@@ -38,12 +38,12 @@ abstract class PTagsCodec {
       if (ptags.getTraceIdHighOrderBitsHexTagValue() != null) {
         size = codec.appendTag(sb, TRACE_ID_TAG, ptags.getTraceIdHighOrderBitsHexTagValue(), size);
       }
-      if (ptags.getPropagatedTraceSource() != ProductTraceSource.UNSET) {
+      if (ptags.getTraceSource() != ProductTraceSource.UNSET) {
         size =
             codec.appendTag(
                 sb,
                 TRACE_SOURCE_TAG,
-                TagValue.from(ProductTraceSource.getBitfieldHex(ptags.getPropagatedTraceSource())),
+                TagValue.from(ProductTraceSource.getBitfieldHex(ptags.getTraceSource())),
                 size);
       }
       if (ptags.getDebugPropagation() != null) {
@@ -92,11 +92,10 @@ abstract class PTagsCodec {
           DECISION_MAKER_TAG.forType(Encoding.DATADOG).toString(),
           propagationTags.getDecisionMakerTagValue().forType(Encoding.DATADOG).toString());
     }
-    if (propagationTags.getPropagatedTraceSource() != ProductTraceSource.UNSET) {
+    if (propagationTags.getTraceSource() != ProductTraceSource.UNSET) {
       tagMap.put(
           TRACE_SOURCE_TAG.forType(Encoding.DATADOG).toString(),
-          TagValue.from(
-                  ProductTraceSource.getBitfieldHex(propagationTags.getPropagatedTraceSource()))
+          TagValue.from(ProductTraceSource.getBitfieldHex(propagationTags.getTraceSource()))
               .forType(Encoding.DATADOG)
               .toString());
     }
