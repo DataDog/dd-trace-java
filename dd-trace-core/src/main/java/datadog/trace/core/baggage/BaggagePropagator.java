@@ -22,7 +22,8 @@ import javax.annotation.ParametersAreNonnullByDefault;
 @ParametersAreNonnullByDefault
 public class BaggagePropagator implements Propagator {
   static final String BAGGAGE_KEY = "baggage";
-
+  private final boolean injectBaggage;
+  private final boolean extractBaggage;
   private static final Set<Character> UNSAFE_CHARACTERS_KEY =
       new HashSet<>(
           Arrays.asList(
@@ -31,7 +32,10 @@ public class BaggagePropagator implements Propagator {
   private static final Set<Character> UNSAFE_CHARACTERS_VALUE =
       new HashSet<>(Arrays.asList('\"', ',', ';', '\\'));
 
-  public BaggagePropagator() {}
+  public BaggagePropagator(boolean injectBaggage, boolean extractBaggage) {
+    this.injectBaggage = injectBaggage;
+    this.extractBaggage = extractBaggage;
+  }
 
   private int encodeKey(String key, StringBuilder builder) {
     return encode(key, builder, UNSAFE_CHARACTERS_KEY);
@@ -63,6 +67,10 @@ public class BaggagePropagator implements Propagator {
 
   @Override
   public <C> void inject(Context context, C carrier, CarrierSetter<C> setter) {
+    if (!this.injectBaggage) {
+      return;
+    }
+
     Config config = Config.get();
 
     StringBuilder baggageText = new StringBuilder();
@@ -104,7 +112,7 @@ public class BaggagePropagator implements Propagator {
   @Override
   public <C> Context extract(Context context, C carrier, CarrierVisitor<C> visitor) {
     //noinspection ConstantValue
-    if (context == null || carrier == null || visitor == null) {
+    if (!this.extractBaggage || context == null || carrier == null || visitor == null) {
       return context;
     }
     BaggageContextExtractor baggageContextExtractor = new BaggageContextExtractor();
