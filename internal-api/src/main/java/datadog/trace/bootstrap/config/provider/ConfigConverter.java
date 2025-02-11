@@ -96,7 +96,7 @@ final class ConfigConverter {
       return Collections.emptyMap();
     }
     Map<String, String> map = new HashMap<>();
-    loadTraceTagsMap(map, trimmed, settingName, keyValueSeparator, argSeparators);
+    loadTraceTagsMap(map, trimmed, keyValueSeparator, argSeparators);
     return map;
   }
 
@@ -220,14 +220,16 @@ final class ConfigConverter {
   private static void loadTraceTagsMap(
       Map<String, String> map,
       String str,
-      String settingName,
       char keyValueSeparator,
       final List<Character> argSeparators) {
     int start = 0;
     int splitter = str.indexOf(keyValueSeparator, start);
     char argSeparator = '\0';
     int argSeparatorInd = -1;
-    for (Character sep : argSeparators) { // find the first instance of the first possible separator
+
+    // Given a list of separators ordered by priority, find the first (highest priority) separator
+    // that appears in the string and store its value and first occurrence in the string
+    for (Character sep : argSeparators) {
       argSeparatorInd = str.indexOf(sep);
       if (argSeparatorInd != -1) {
         argSeparator = sep;
