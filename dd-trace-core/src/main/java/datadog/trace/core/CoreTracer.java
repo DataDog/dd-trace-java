@@ -86,6 +86,7 @@ import datadog.trace.core.histogram.Histograms;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.monitor.MonitoringImpl;
 import datadog.trace.core.monitor.TracerHealthMetrics;
+import datadog.trace.core.propagation.ApmTracionDisabledPropagator;
 import datadog.trace.core.propagation.CorePropagation;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
@@ -722,7 +723,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         extractor == null ? HttpCodec.createExtractor(config, this::captureTraceConfig) : extractor;
     TracingPropagator tracingPropagator = new TracingPropagator(injector, tracingExtractor);
     // Check if apm tracing is disabled:
-    // If disabled, use the APM tracing disabled propagator by default that will limit tracing concern
+    // If disabled, use the APM tracing disabled propagator by default that will limit tracing
+    // concern
     // injection and delegate to the tracing propagator if needed,
     // If disabled, the most common case, use the usual tracing propagator by default.
     boolean apmTracingDisabled = !config.isApmTracingEnabled();
