@@ -18,5 +18,5 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
 
   //FIXME: ASM
-  latestDepTestImplementation group: 'org.json', name: 'json', version: '+'
+  latestDepTestImplementation group: 'org.json', name: 'json', version: '20240303'
 }

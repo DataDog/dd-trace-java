@@ -37,6 +37,13 @@ public class JSONObjectInstrumentation extends InstrumenterModule.Iast
         isMethod()
             .and(isPublic())
             .and(returns(Object.class))
+            .and(named("get"))
+            .and(takesArguments(String.class)),
+        getClass().getName() + "$GetAdvice");
+    transformer.applyAdvice(
+        isMethod()
+            .and(isPublic())
+            .and(returns(Object.class))
             .and(named("opt"))
             .and(takesArguments(String.class)),
         getClass().getName() + "$OptAdvice");
@@ -49,6 +56,26 @@ public class JSONObjectInstrumentation extends InstrumenterModule.Iast
       final PropagationModule iastModule = InstrumentationBridge.PROPAGATION;
       if (iastModule != null && input != null) {
         iastModule.taintObjectIfTainted(self, input);
+      }
+    }
+  }
+
+  public static class GetAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    @Propagation
+    public static void afterMethod(@Advice.This Object self, @Advice.Return final Object result) {
+      boolean isString = result instanceof String;
+      boolean isJson = !isString && (result instanceof JSONObject || result instanceof JSONArray);
+      if (!isString && !isJson) {
+        return;
+      }
+      final PropagationModule iastModule = InstrumentationBridge.PROPAGATION;
+      if (iastModule != null) {
+        if (isString) {
+          iastModule.taintStringIfTainted((String) result, self);
+        } else {
+          iastModule.taintObjectIfTainted(result, self);
+        }
       }
     }
   }
