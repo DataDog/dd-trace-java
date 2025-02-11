@@ -1,23 +1,8 @@
 muzzle {
   pass {
-    name = 'all'
     group = 'org.json'
     module = 'json'
     versions = '[20070829, ]'
-    assertInverse = true
-  }
-  pass {
-    name = 'before_20241224'
-    group = 'org.json'
-    module = 'json'
-    versions = '[20070829, 20241224)'
-    assertInverse = true
-  }
-  pass {
-    name = 'after_20241224'
-    group = 'org.json'
-    module = 'json'
-    versions = '[20241224, ]'
     assertInverse = true
   }
 }
@@ -33,5 +18,6 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
   testRuntimeOnly project(':dd-java-agent:instrumentation:java-io') //Needed for Reader
 
+  //FIXME: ASM
   latestDepTestImplementation group: 'org.json', name: 'json', version: '+'
 }

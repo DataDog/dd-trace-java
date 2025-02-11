@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
-import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -21,23 +20,19 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
-public class JSONObjectInstrumentation extends InstrumenterModule.Iast
+public class JSONObjectAfter20250107Instrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public JSONObjectInstrumentation() {
+  public JSONObjectAfter20250107Instrumentation() {
     super("org-json");
   }
 
-  static final ElementMatcher.Junction<ClassLoader> BEFORE_20241224 =
-      not(hasClassNamed("org.json.StringBuilderWriter"));
+  // Avoid matching servlet 3 which has its own instrumentation
+  static final ElementMatcher.Junction<ClassLoader> AFTER_20250107 =
+      hasClassNamed("org.json.StringBuilderWriter");
 
   @Override
   public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    return BEFORE_20241224;
-  }
-
-  @Override
-  public String muzzleDirective() {
-    return "before_20241224";
+    return AFTER_20250107;
   }
 
   @Override
@@ -47,13 +42,21 @@ public class JSONObjectInstrumentation extends InstrumenterModule.Iast
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    // public JSONObject(JSONTokener x)
+    // public JSONObject(JSONTokener x, JSONParserConfiguration jsonParserConfiguration)
     transformer.applyAdvice(
-        isConstructor().and(takesArguments(1)).and(takesArgument(0, named("org.json.JSONTokener"))),
+        isConstructor()
+            .and(takesArguments(2))
+            .and(takesArgument(0, named("org.json.JSONTokener")))
+            .and(takesArgument(1, named("org.json.JSONParserConfiguration"))),
         getClass().getName() + "$ConstructorAdvice");
-    // private JSONObject(Map<?, ?> m)
+    // private JSONObject(Map<?, ?> m, int recursionDepth, JSONParserConfiguration
+    // jsonParserConfiguration)
     transformer.applyAdvice(
-        isConstructor().and(takesArguments(1)).and(takesArgument(0, Map.class)),
+        isConstructor()
+            .and(takesArguments(3))
+            .and(takesArgument(0, Map.class))
+            .and(takesArgument(1, int.class))
+            .and(takesArgument(2, named("org.json.JSONParserConfiguration"))),
         getClass().getName() + "$ConstructorAdvice");
     transformer.applyAdvice(
         isMethod()

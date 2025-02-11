@@ -26,11 +26,6 @@ public class JSONTokenerInstrumentation extends InstrumenterModule.Iast
   }
 
   @Override
-  public String muzzleDirective() {
-    return "all";
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor().and(takesArguments(Reader.class)),

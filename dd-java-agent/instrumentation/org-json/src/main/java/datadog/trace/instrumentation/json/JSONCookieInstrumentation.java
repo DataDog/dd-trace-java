@@ -20,11 +20,6 @@ public class JSONCookieInstrumentation extends InstrumenterModule.Iast
   }
 
   @Override
-  public String muzzleDirective() {
-    return "all";
-  }
-
-  @Override
   public String instrumentedType() {
     return "org.json.Cookie";
   }
