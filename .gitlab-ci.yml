@@ -226,9 +226,10 @@ muzzle:
     - echo CI_NODE_INDEX=$CI_NODE_INDEX
     - echo CI_NODE_TOTAL=CI_NODE_TOTAL
     - ./gradlew writeMuzzleTasksToFile $GRADLE_ARGS
-    - sort build/muzzleTasks > sortedMuzzleTasks
+    - sort workspace/build/muzzleTasks > sortedMuzzleTasks
     - split --number=l/$CI_NODE_TOTAL --suffix-length=1 --numeric-suffixes sortedMuzzleTasks muzzleSplit
-    - ./gradlew `cat muzzleSplit | xargs` $GRADLE_ARGS
+    - export NODE_ZERO_INDEX=$((CI_NODE_INDEX - 1))
+    - ./gradlew `cat muzzleSplit${NODE_ZERO_INDEX} | xargs` $GRADLE_ARGS
   after_script:
     - .circleci/collect_reports.sh
   artifacts:
