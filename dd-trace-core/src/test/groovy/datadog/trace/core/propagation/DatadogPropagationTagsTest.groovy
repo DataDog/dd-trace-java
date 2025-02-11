@@ -139,7 +139,7 @@ class DatadogPropagationTagsTest extends DDCoreSpecification {
     ",_dd.p.dm=Value"                                           | SAMPLER_KEEP | AGENT_RATE | "_dd.p.dm=-1"                                               | ["_dd.propagation_error": "decoding_error", "_dd.p.dm": "-1"]
   }
 
-  def "update propagation tags ts propagation #originalTagSet"() {
+  def "update propagation tags trace source propagation #originalTagSet"() {
     setup:
     def config = Mock(Config)
     config.getxDatadogTagsMaxLength() >> 512
