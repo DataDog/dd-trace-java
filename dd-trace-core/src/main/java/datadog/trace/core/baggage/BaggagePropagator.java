@@ -17,10 +17,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import javax.annotation.ParametersAreNonnullByDefault;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/** Propagator for tracing concern. */
 @ParametersAreNonnullByDefault
 public class BaggagePropagator implements Propagator {
+  private static final Logger log = LoggerFactory.getLogger(BaggagePropagator.class);
   static final String BAGGAGE_KEY = "baggage";
   private final boolean injectBaggage;
   private final boolean extractBaggage;
@@ -50,9 +52,7 @@ public class BaggagePropagator implements Propagator {
     for (int i = 0; i < input.length(); i++) {
       char c = input.charAt(i);
       if (UNSAFE_CHARACTERS.contains(c) || c > 126 || c <= 32) { // encode character
-        byte[] bytes =
-            Character.toString(c)
-                .getBytes(StandardCharsets.UTF_8); // not most efficient but what URLEncoder does
+        byte[] bytes = Character.toString(c).getBytes(StandardCharsets.UTF_8);
         for (byte b : bytes) {
           builder.append('%');
           builder.append(encodeChar((b >> 4) & 0xF));
@@ -75,7 +75,6 @@ public class BaggagePropagator implements Propagator {
   public <C> void inject(Context context, C carrier, CarrierSetter<C> setter) {
     Config config = Config.get();
 
-    StringBuilder baggageText = new StringBuilder();
     int maxItems = config.getTraceBaggageMaxItems();
     int maxBytes = config.getTraceBaggageMaxBytes();
     if (!this.injectBaggage || maxItems == 0 || maxBytes == 0) {
@@ -84,6 +83,7 @@ public class BaggagePropagator implements Propagator {
 
     int processedBaggage = 0;
     int currentBytes = 0;
+    StringBuilder baggageText = new StringBuilder();
     BaggageContext baggageContext = BaggageContext.fromContext(context);
     for (final Map.Entry<String, String> entry : baggageContext.getBaggage().entrySet()) {
       int byteSize = 1; // default include size of '='
@@ -98,7 +98,8 @@ public class BaggagePropagator implements Propagator {
       baggageText.append('=');
       byteSize += encodeValue(entry.getValue(), baggageText);
 
-      if (processedBaggage >= maxItems) { // reached the max number of baggage items allowed
+      processedBaggage++;
+      if (processedBaggage == maxItems) { // reached the max number of baggage items allowed
         break;
       }
       if (currentBytes + byteSize > maxBytes) {
@@ -106,7 +107,6 @@ public class BaggagePropagator implements Propagator {
         break;
       }
       currentBytes += byteSize;
-      processedBaggage++;
     }
 
     setter.set(carrier, BAGGAGE_KEY, baggageText.toString());
@@ -119,8 +119,7 @@ public class BaggagePropagator implements Propagator {
       return context;
     }
     BaggageContextExtractor baggageContextExtractor = new BaggageContextExtractor();
-    visitor.forEachKeyValue(
-        carrier, baggageContextExtractor); // If the extraction fails, return the original context
+    visitor.forEachKeyValue(carrier, baggageContextExtractor);
     BaggageContext extractedContext = baggageContextExtractor.extractedContext;
     if (extractedContext == null) {
       return context;
@@ -139,6 +138,7 @@ public class BaggagePropagator implements Propagator {
       try {
         decoded = URLDecoder.decode(value, "UTF-8");
       } catch (final UnsupportedEncodingException | IllegalArgumentException e) {
+        log.debug("Failed to decode {}", value);
       }
       return decoded;
     }
@@ -180,10 +180,7 @@ public class BaggagePropagator implements Propagator {
       if (key.equalsIgnoreCase(BAGGAGE_KEY)) { // Only process tags that are relevant to baggage
         Map<String, String> baggage = parseBaggageHeaders(value);
         if (!baggage.isEmpty()) {
-          extractedContext =
-              BaggageContext.create(
-                  baggage); // is this correct to assume that one instance will be created for each
-          // propagator?
+          extractedContext = BaggageContext.create(baggage);
         }
       }
     }

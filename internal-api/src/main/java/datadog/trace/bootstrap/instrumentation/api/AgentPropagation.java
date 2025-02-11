@@ -53,7 +53,6 @@ public interface AgentPropagation {
     @ParametersAreNonnullByDefault
     @Override
     default void forEachKeyValue(C carrier, BiConsumer<String, String> visitor) {
-      System.out.println("inside foreachkeyvalue");
       forEachKey(
           carrier,
           (key, value) -> {

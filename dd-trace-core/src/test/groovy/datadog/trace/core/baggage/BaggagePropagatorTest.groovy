@@ -10,16 +10,19 @@ import static datadog.trace.core.baggage.BaggagePropagator.BAGGAGE_KEY
 
 class BaggagePropagatorTest extends DDCoreSpecification {
   BaggagePropagator propagator
+  CarrierSetter setter
+  Object carrier
+  Context context
 
   def setup() {
     this.propagator = new BaggagePropagator(true, true)
+    setter = Mock(CarrierSetter)
+    carrier = new Object()
+    context = Context.root()
   }
 
   def 'test tracing propagator context injection'() {
     setup:
-    def setter = Mock(CarrierSetter)
-    def carrier = new Object()
-    def context = Context.root()
     context = BaggageContext.create(baggageMap).storeInto(context)
 
     when:
@@ -43,9 +46,6 @@ class BaggagePropagatorTest extends DDCoreSpecification {
   def "test baggage item limit"() {
     setup:
     injectSysConfig("trace.baggage.max.items", '2')
-    def setter = Mock(CarrierSetter)
-    def carrier = new Object()
-    def context = Context.root()
     context = BaggageContext.create(baggage).storeInto(context)
 
     when:
@@ -63,9 +63,6 @@ class BaggagePropagatorTest extends DDCoreSpecification {
   def "test baggage bytes limit"() {
     setup:
     injectSysConfig("trace.baggage.max.bytes", '20')
-    def setter = Mock(CarrierSetter)
-    def carrier = new Object()
-    def context = Context.root()
     context = BaggageContext.create(baggage).storeInto(context)
 
     when:
@@ -83,8 +80,6 @@ class BaggagePropagatorTest extends DDCoreSpecification {
 
   def 'test tracing propagator context extractor'() {
     setup:
-    def context = Context.root()
-    // TODO Use ContextVisitor mock as getter once extractor API is refactored
     def headers = [
       (BAGGAGE_KEY) : baggageHeader,
     ]
@@ -103,7 +98,6 @@ class BaggagePropagatorTest extends DDCoreSpecification {
 
   def "extract invalid baggage headers"() {
     setup:
-    def context = Context.root()
     def headers = [
       (BAGGAGE_KEY) : baggageHeader,
     ]
