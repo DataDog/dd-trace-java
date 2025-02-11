@@ -14,17 +14,10 @@ class InputStreamReaderCallSiteTest extends  BaseIoCallSiteTest{
     InstrumentationBridge.registerIastModule(iastModule)
 
     when:
-    TestInputStreamReaderSuite.init(*args)
+    TestInputStreamReaderSuite.init(new ByteArrayInputStream("test".getBytes()), Charset.defaultCharset())
 
     then:
     1 * iastModule.taintObjectIfTainted(_ as InputStreamReader, _ as InputStream)
     0 * _
-
-    where:
-    args << [
-      [new ByteArrayInputStream("test".getBytes()), Charset.defaultCharset()],
-      // InputStream input
-      [new ByteArrayInputStream("test".getBytes())]// Reader input
-    ]
   }
 }

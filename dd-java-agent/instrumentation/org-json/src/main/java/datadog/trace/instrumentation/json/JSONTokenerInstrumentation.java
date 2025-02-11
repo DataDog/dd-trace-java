@@ -9,7 +9,6 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
-import java.io.Reader;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
@@ -28,7 +27,7 @@ public class JSONTokenerInstrumentation extends InstrumenterModule.Iast
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isConstructor().and(takesArguments(Reader.class)),
+        isConstructor().and(takesArguments(String.class)),
         getClass().getName() + "$ConstructorAdvice");
   }
 

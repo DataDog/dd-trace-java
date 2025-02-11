@@ -5,38 +5,21 @@ import org.json.JSONTokener
 
 class JSONTokenerInstrumentationTest extends AgentTestRunner {
 
-  private static final String JSON_STRING = '{"name": "nameTest", "value" : "valueTest"}' // Reused JSON String
-
-  @Override
-  void configurePreAgent() {
+  @Override void configurePreAgent() {
     injectSysConfig("dd.iast.enabled", "true")
   }
 
-  void 'test JSONTokener constructor with different argument types'() {
+  void 'test JSONTokener string constructor'() {
     given:
     final module = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(module)
+    final json = '{"name": "nameTest", "value" : "valueTest"}'
 
     when:
-    new JSONTokener(args)
+    new JSONTokener(json)
 
     then:
-    1 * module.taintObjectIfTainted(_ as JSONTokener, _)
-    if(args instanceof String) {
-      1 * module.taintObjectIfTainted(_ as Reader, _ as String)
-    } else if (args instanceof InputStream) {
-      1 * module.taintObjectIfTainted(_ as Reader, _ as InputStream)
-    }
+    1 * module.taintObjectIfTainted(_ as JSONTokener, json)
     0 * _
-
-    where:
-    args << [
-      JSON_STRING,
-      // String input
-      new ByteArrayInputStream(JSON_STRING.bytes),
-      // InputStream input
-      new StringReader(JSON_STRING) // Reader input
-    ]
   }
-
 }

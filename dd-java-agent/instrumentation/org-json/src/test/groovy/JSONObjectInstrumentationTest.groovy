@@ -3,22 +3,12 @@ import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.PropagationModule
 import org.json.JSONObject
 import org.json.JSONTokener
-import spock.lang.Shared
 
 class JSONObjectInstrumentationTest extends AgentTestRunner {
 
   @Override void configurePreAgent() {
     injectSysConfig("dd.iast.enabled", "true")
   }
-
-  @Shared
-  Map<?, ?> tainteds = new IdentityHashMap<>()
-
-
-  void setup() {
-    tainteds.clear()
-  }
-
 
   void 'test JSONObject string constructor'() {
     given:
@@ -38,10 +28,8 @@ class JSONObjectInstrumentationTest extends AgentTestRunner {
     new JSONObject(json)
 
     then:
-    1 * module.taintObjectIfTainted(_ as Reader, json)
-    1 * module.taintObjectIfTainted(_ as JSONTokener, _ as Reader)
-    // Two calls are necessary, once for the whole object and other for the menu object
-    2 * module.taintObjectIfTainted(_ as JSONObject, _ as JSONTokener)
+    1 * module.taintObjectIfTainted(_ as JSONObject, json)
+    1 * module.taintObjectIfTainted(_ as JSONTokener, json)
     0 * _
   }
 
@@ -77,18 +65,13 @@ class JSONObjectInstrumentationTest extends AgentTestRunner {
     0 * _
   }
 
+
   void 'test JSONObject #method'() {
     given:
     final module = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(module)
     final json = """{"menu": {
-      "name": "nameTest",
-      "value": "File",
-      "popup": "Popup",
-          "labels": [
-          "File",
-          "Edit"
-        ]
+      "name": "nameTest"
     }}"""
     final jsonObject = new JSONObject(json)
     final getObject =jsonObject.getJSONObject("menu")
@@ -103,47 +86,5 @@ class JSONObjectInstrumentationTest extends AgentTestRunner {
 
     where:
     method << ['get', 'getString', 'opt', 'optString']
-  }
-
-  void 'test JSONObject elements are  tainted'() {
-    given:
-    final module = Mock(PropagationModule) {
-      taintObjectIfTainted(_, _) >> {
-        if (tainteds.containsKey(it[1])) {
-          tainteds.put(it[0], null)
-        }
-      }
-      taintStringIfTainted(_, _) >> {
-        if (tainteds.containsKey(it[1])) {
-          tainteds.put(it[0], null)
-        }
-      }
-    }
-    InstrumentationBridge.registerIastModule(module)
-    final json = """{"menu": {
-      "name": "nameTest",
-      "value": "File",
-      "popup": "Popup",
-          "labels": [
-          "File",
-          "Edit"
-        ]
-    }}"""
-    tainteds.put(json, null)
-    final jsonObject = new JSONObject(json)
-    final getObject =jsonObject.getJSONObject("menu")
-
-    when:
-    final name = getObject.get('name')
-    final file = getObject.get('labels').get(0)
-    final edit = getObject.get('labels').get(1)
-
-    then:
-    name == "nameTest"
-    tainteds.containsKey(name)
-    file == "File"
-    tainteds.containsKey(file)
-    edit == "Edit"
-    tainteds.containsKey(edit)
   }
 }

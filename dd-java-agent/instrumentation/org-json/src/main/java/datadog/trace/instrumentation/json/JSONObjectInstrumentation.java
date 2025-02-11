@@ -1,11 +1,9 @@
 package datadog.trace.instrumentation.json;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
-import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
@@ -16,22 +14,14 @@ import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.matcher.ElementMatcher;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 @AutoService(InstrumenterModule.class)
-public class JSONObjectBefore20250107Instrumentation extends InstrumenterModule.Iast
+public class JSONObjectInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public JSONObjectBefore20250107Instrumentation() {
+  public JSONObjectInstrumentation() {
     super("org-json");
-  }
-
-  // Avoid matching servlet 3 which has its own instrumentation
-  static final ElementMatcher.Junction<ClassLoader> BEFORE_20250107 =
-      not(hasClassNamed("org.json.StringBuilderWriter"));
-
-  @Override
-  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    return BEFORE_20250107;
   }
 
   @Override
@@ -49,7 +39,7 @@ public class JSONObjectBefore20250107Instrumentation extends InstrumenterModule.
             .and(returns(Object.class))
             .and(named("opt"))
             .and(takesArguments(String.class)),
-        packageName + ".OptAdvice");
+        getClass().getName() + "$OptAdvice");
   }
 
   public static class ConstructorAdvice {
@@ -59,6 +49,26 @@ public class JSONObjectBefore20250107Instrumentation extends InstrumenterModule.
       final PropagationModule iastModule = InstrumentationBridge.PROPAGATION;
       if (iastModule != null && input != null) {
         iastModule.taintObjectIfTainted(self, input);
+      }
+    }
+  }
+
+  public static class OptAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    @Propagation
+    public static void afterMethod(@Advice.This Object self, @Advice.Return final Object result) {
+      boolean isString = result instanceof String;
+      boolean isJson = !isString && (result instanceof JSONObject || result instanceof JSONArray);
+      if (!isString && !isJson) {
+        return;
+      }
+      final PropagationModule iastModule = InstrumentationBridge.PROPAGATION;
+      if (iastModule != null) {
+        if (isString) {
+          iastModule.taintStringIfTainted((String) result, self);
+        } else {
+          iastModule.taintObjectIfTainted(result, self);
+        }
       }
     }
   }
