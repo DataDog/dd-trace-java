@@ -61,7 +61,7 @@ default:
   variables:
     GRADLE_OPTS: "-Dorg.gradle.jvmargs='-Xmx2560M -Xms2560M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
     MAVEN_OPTS: "-Xms64M -Xmx512M"
-    GRADLE_ARGS: " --build-cache --stacktrace --no-daemon --parallel --max-workers=2"
+    GRADLE_WORKERS: 2
     KUBERNETES_CPU_REQUEST: 8
     KUBERNETES_MEMORY_REQUEST: 6Gi
   cache:
@@ -80,6 +80,7 @@ default:
       policy: $BUILD_CACHE_POLICY
   before_script:
     - export GRADLE_USER_HOME=`pwd`/.gradle
+    - export GRADLE_ARGS=" --build-cache --stacktrace --no-daemon --parallel --max-workers=$GRADLE_WORKERS"
     # for weird reasons, gradle will always "chmod 700" the .gradle folder
     # with Gitlab caching, .gradle is always owned by root and thus gradle's chmod invocation fails
     # This dance is a hack to have .gradle owned by the Gitlab runner user
@@ -213,6 +214,7 @@ muzzle:
   extends: .gradle_build
   needs: [ build ]
   stage: tests
+  parallel: 6
   rules:
     - if: '$POPULATE_CACHE'
       when: never
@@ -221,7 +223,12 @@ muzzle:
     BUILD_CACHE_TYPE: test
   script:
     - export SKIP_BUILDSCAN="true"
-    - ./gradlew muzzle $GRADLE_ARGS
+    - echo CI_NODE_INDEX=$CI_NODE_INDEX
+    - echo CI_NODE_TOTAL=CI_NODE_TOTAL
+    - ./gradlew writeMuzzleTasksToFile $GRADLE_ARGS
+    - sort build/muzzleTasks > sortedMuzzleTasks
+    - split --number=l/$CI_NODE_TOTAL --suffix-length=1 --numeric-suffixes sortedMuzzleTasks muzzleSplit
+    - ./gradlew `cat muzzleSplit | xargs` $GRADLE_ARGS
   after_script:
     - .circleci/collect_reports.sh
   artifacts:
