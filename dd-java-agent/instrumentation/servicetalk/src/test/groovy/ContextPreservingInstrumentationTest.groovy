@@ -113,7 +113,7 @@ class ContextPreservingInstrumentationTest extends AgentTestRunner {
    */
   private class ParentContext {
     final ContextMap contextMap = AsyncContext.context().copy()
-    final AgentScope.Continuation spanContinuation = AgentTracer.capture()
+    final AgentScope.Continuation spanContinuation = AgentTracer.captureSpan(AgentTracer.activeSpan())
 
     def releaseParentSpan() {
       spanContinuation.cancel()

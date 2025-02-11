@@ -130,11 +130,6 @@ public class AgentTracer {
     return get().activeScope();
   }
 
-  public static AgentScope.Continuation capture() {
-    final AgentScope activeScope = activeScope();
-    return activeScope == null ? null : activeScope.capture();
-  }
-
   /**
    * Checks whether asynchronous propagation is enabled, meaning this context will propagate across
    * asynchronous boundaries.
