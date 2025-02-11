@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.InstrumenterConfig;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -17,6 +18,11 @@ public class MessageListenerInstrumentation extends InstrumenterModule.Tracing
 
   public MessageListenerInstrumentation() {
     super("kafka", "kafka-3.8");
+  }
+
+  @Override
+  public boolean isEnabled() {
+    return InstrumenterConfig.get().isCodeOriginEnabled() && super.isEnabled();
   }
 
   @Override
