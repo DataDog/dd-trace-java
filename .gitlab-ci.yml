@@ -216,7 +216,7 @@ muzzle:
   extends: .gradle_build
   needs: [ build ]
   stage: tests
-  parallel: 6
+  parallel: 8
   rules:
     - if: '$POPULATE_CACHE'
       when: never
