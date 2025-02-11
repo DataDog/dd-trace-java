@@ -245,7 +245,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
 
   private boolean skipInstrumentation(ClassLoader loader, String classFilePath) {
     if (definitionMatcher.isEmpty()) {
-      log.warn("No debugger definitions present.");
+      log.debug("No debugger definitions present.");
       return true;
     }
     if (classFilePath == null) {
