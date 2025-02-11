@@ -230,11 +230,17 @@ abstract class PTagsCodec {
   }
 
   private static boolean validateTraceSourceTagValue(TagValue value) {
-    // Ensure the string is not null, has a length of 2, and matches the hex pattern
-    return value != null
-        && value.length() == 2
-        && isHexDigit(value.charAt(0))
-        && isHexDigit(value.charAt(1));
+    // Ensure the string is not null and has a length between 2 and 8
+    if (value == null || value.length() < 2 || value.length() > 8) {
+      return false;
+    }
+    for (int i = 0; i < value.length(); i++) {
+      // Ensure each character is a valid hex digit
+      if (!isHexDigitCaseInsensitive(value.charAt(i))) {
+        return false;
+      }
+    }
+    return true;
   }
 
   protected static boolean isDigit(char c) {
@@ -243,5 +249,9 @@ abstract class PTagsCodec {
 
   protected static boolean isHexDigit(char c) {
     return c >= 'a' && c <= 'f' || isDigit(c);
+  }
+
+  protected static boolean isHexDigitCaseInsensitive(char c) {
+    return isHexDigit(c) || c >= 'A' && c <= 'F';
   }
 }

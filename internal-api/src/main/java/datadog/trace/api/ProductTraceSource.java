@@ -1,5 +1,18 @@
 package datadog.trace.api;
 
+/**
+ * Represents a bitfield-based trace source for tracking product propagation tags.
+ *
+ * <p>The bitfield is encoded as an **8-bit hexadecimal mask** (ranging from `00` to `FF`), where
+ * each bit corresponds to a specific product. This class provides utility methods for updating,
+ * checking, and parsing these product bitfields.
+ *
+ * <ul>
+ *   <li>MUST use a two-character, case-insensitive hexadecimal string (e.g., "00" to "FF").
+ *   <li>MUST support parsing masks of at least 32 bits to ensure forward compatibility.
+ *   <li>Each bit corresponds to a specific product:
+ * </ul>
+ */
 public class ProductTraceSource {
 
   public static final int UNSET = 0;
@@ -10,26 +23,38 @@ public class ProductTraceSource {
   public static final int DJM = 0x08;
   public static final int DBM = 0x10;
 
-  // Update (set) the bitfield for a specific product
+  /** Updates the bitfield by setting the bit corresponding to a specific product. */
   public static int updateProduct(int bitfield, int product) {
     return bitfield |= product; // Set the bit for the given product
   }
 
-  // Check if the bitfield is marked for a specific product
+  /** Checks if the bitfield is marked for a specific product. */
   public static boolean isProductMarked(final int bitfield, int product) {
     return (bitfield & product) != 0; // Check if the bit is set
   }
 
-  // Get the current bitfield as a hexadecimal string
+  /**
+   * Converts the current bitfield to a two-character hexadecimal string.
+   *
+   * <p>This method ensures the output follows the **00 to FF** format, padding with leading zeros
+   * if necessary.
+   */
   public static String getBitfieldHex(final int bitfield) {
-    return String.format("%02x", bitfield); // Convert to 2-character hex
+    String hex = Integer.toHexString(bitfield & 0xFF);
+    return hex.length() == 1 ? "0" + hex : hex; // Ensure two characters
   }
 
-  // Parse a hexadecimal string back to an integer
+  /**
+   * Parses a hexadecimal string back into an integer bitfield.
+   *
+   * <p>This method allows for **at least 32-bit parsing**, ensuring forward compatibility with
+   * potential future expansions.
+   */
   public static int parseBitfieldHex(final String hexString) {
     if (hexString == null || hexString.isEmpty()) {
       return 0; // Return 0 if the string is empty
     }
-    return Integer.parseInt(hexString, 16); // Parse the string as a base-16 number
+    // Need to support unsigned parsing
+    return (int) Long.parseUnsignedLong(hexString, 16); // Parse the string as a base-16 number
   }
 }

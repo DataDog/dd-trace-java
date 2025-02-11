@@ -311,7 +311,7 @@ class W3CPropagationTagsTest extends DDCoreSpecification {
     propagationTags.createTagMap() == tags
 
     where:
-    headerValue                       | priority                      | mechanism                           | origin  | expectedHeaderValue                                   | tags
+    headerValue                       | priority                      | mechanism                           | origin  | expectedHeaderValue                | tags
     'dd=s:0;o:some;t.dm:934086a686-4' | PrioritySampling.SAMPLER_KEEP | SamplingMechanism.DEFAULT           | "other" | 'dd=s:0;o:other;t.dm:934086a686-4' | ['_dd.p.dm': '934086a686-4']
     'dd=s:0;o:some;x:unknown'         | PrioritySampling.USER_KEEP    | SamplingMechanism.LOCAL_USER_RULE   | "same"  | 'dd=s:2;o:same;t.dm:-3;x:unknown'  | ['_dd.p.dm': '-3']
     'dd=s:0;o:some;x:unknown'         | PrioritySampling.USER_DROP    | SamplingMechanism.MANUAL            | null    | 'dd=s:-1;x:unknown'                | [:]
@@ -339,9 +339,11 @@ class W3CPropagationTagsTest extends DDCoreSpecification {
     propagationTags.createTagMap() == tags
 
     where:
-    headerValue            | product       | expectedHeaderValue    | tags
+    headerValue            | product                | expectedHeaderValue    | tags
     'dd=x:unknown'         | ProductTraceSource.ASM | 'dd=t.ts:02;x:unknown' | ['_dd.p.ts': '02']
     'dd=t.ts:02;x:unknown' | ProductTraceSource.DBM | 'dd=t.ts:12;x:unknown' | ['_dd.p.ts': '12']
+    "dd=t.ts:00"           | ProductTraceSource.ASM | 'dd=t.ts:02'           | ["_dd.p.ts": "02"]
+    "dd=t.ts:FFC00000"     | ProductTraceSource.ASM | 'dd=t.ts:02'           | ["_dd.p.ts": "02"]
   }
 
   static private String toLcAlpha(String cs) {
