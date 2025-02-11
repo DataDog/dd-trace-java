@@ -833,8 +833,10 @@ public class GatewayBridge {
       }
     }
 
-    if (!spanInfo.isRequiresPostProcessing()) {
-      ctx.close();
+    // Route used in post-processing
+    Object route = spanInfo.getTags().get(Tags.HTTP_ROUTE);
+    if (route instanceof String) {
+      ctx.setRoute((String) route);
     }
     return NoopFlow.INSTANCE;
   }
@@ -894,6 +896,7 @@ public class GatewayBridge {
     }
   }
 
+  // This handler is executed in a separate thread due the computation possible overhead
   private void onPostProcessing(RequestContext ctx_) {
     AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
     if (ctx == null) {
@@ -1073,7 +1076,7 @@ public class GatewayBridge {
   private void maybeExtractSchemas(AppSecRequestContext ctx) {
     boolean extractSchema = false;
     if (Config.get().isApiSecurityEnabled() && requestSampler != null) {
-      extractSchema = requestSampler.sampleRequest();
+      extractSchema = requestSampler.sampleRequest(ctx);
     }
 
     if (!extractSchema) {
