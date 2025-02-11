@@ -41,10 +41,10 @@ public class ApmTracingDisabledSampler implements Sampler, PrioritySampler {
 
     if (shouldSample()) {
       log.debug("Set SAMPLER_KEEP for span {}", span.getSpanId());
-      span.setSamplingPriority(SAMPLER_KEEP, SamplingMechanism.APPSEC);
+      span.setSamplingPriority(SAMPLER_KEEP, SamplingMechanism.DEFAULT);
     } else {
       log.debug("Set SAMPLER_DROP for span {}", span.getSpanId());
-      span.setSamplingPriority(SAMPLER_DROP, SamplingMechanism.APPSEC);
+      span.setSamplingPriority(SAMPLER_DROP, SamplingMechanism.DEFAULT);
     }
   }
 
