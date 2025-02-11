@@ -54,50 +54,53 @@ public class BaggagePropagator implements Propagator {
             Character.toString(c)
                 .getBytes(StandardCharsets.UTF_8); // not most efficient but what URLEncoder does
         for (byte b : bytes) {
-          builder.append(String.format("%%%02X", b & 0xFF));
-          size += 1;
+          builder.append('%');
+          builder.append(encodeChar((b >> 4) & 0xF));
+          builder.append(encodeChar(b & 0xF));
+          size++;
         }
       } else {
         builder.append(c);
-        size += 1;
+        size++;
       }
     }
     return size;
   }
 
+  private char encodeChar(int ascii) {
+    return (char) (ascii < 10 ? '0' + ascii : 'A' + (ascii - 10));
+  }
+
   @Override
   public <C> void inject(Context context, C carrier, CarrierSetter<C> setter) {
-    if (!this.injectBaggage) {
-      return;
-    }
-
     Config config = Config.get();
 
     StringBuilder baggageText = new StringBuilder();
-    int processedBaggage = 0;
-    int currentBytes = 0;
     int maxItems = config.getTraceBaggageMaxItems();
     int maxBytes = config.getTraceBaggageMaxBytes();
+    if (!this.injectBaggage || maxItems == 0 || maxBytes == 0) {
+      return;
+    }
+
+    int processedBaggage = 0;
+    int currentBytes = 0;
     BaggageContext baggageContext = BaggageContext.fromContext(context);
     for (final Map.Entry<String, String> entry : baggageContext.getBaggage().entrySet()) {
-      if (processedBaggage >= maxItems) {
-        break;
-      }
-      int additionalCharacters = 1; // accounting for potential comma and colon
-      if (processedBaggage != 0) {
-        additionalCharacters = 2; // allocating space for comma
-      }
-
       int byteSize = 1; // default include size of '='
-      if (additionalCharacters == 2) {
+      if (processedBaggage
+          != 0) { // if there are already baggage items processed, add and allocate bytes for a
+        // comma
         baggageText.append(',');
-        byteSize += 1;
+        byteSize++;
       }
 
       byteSize += encodeKey(entry.getKey(), baggageText);
       baggageText.append('=');
       byteSize += encodeValue(entry.getValue(), baggageText);
 
+      if (processedBaggage >= maxItems) { // reached the max number of baggage items allowed
+        break;
+      }
       if (currentBytes + byteSize > maxBytes) {
         baggageText.setLength(currentBytes);
         break;
