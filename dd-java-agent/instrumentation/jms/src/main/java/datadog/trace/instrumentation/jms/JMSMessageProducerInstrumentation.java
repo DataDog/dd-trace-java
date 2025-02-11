@@ -1,10 +1,10 @@
 package datadog.trace.instrumentation.jms;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_PRODUCE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.PRODUCER_DECORATE;
@@ -94,7 +94,7 @@ public final class JMSMessageProducerInstrumentation
       if (JMSDecorator.canInject(message)) {
         if (Config.get().isJmsPropagationEnabled()
             && (null == producerState || !producerState.isPropagationDisabled())) {
-          propagate().inject(span, message, SETTER);
+          defaultPropagator().inject(span, message, SETTER);
         }
         if (TIME_IN_QUEUE_ENABLED) {
           if (null != producerState) {
@@ -140,9 +140,8 @@ public final class JMSMessageProducerInstrumentation
       PRODUCER_DECORATE.onProduce(span, resourceName);
       if (JMSDecorator.canInject(message)) {
         if (Config.get().isJmsPropagationEnabled()
-            && !Config.get().isJmsPropagationDisabledForDestination(destinationName)) {
-          propagate().inject(span, message, SETTER);
-        }
+            && !Config.get().isJmsPropagationDisabledForDestination(destinationName))
+          defaultPropagator().inject(span, message, SETTER);
         if (TIME_IN_QUEUE_ENABLED) {
           MessageProducerState producerState =
               InstrumentationContext.get(MessageProducer.class, MessageProducerState.class)

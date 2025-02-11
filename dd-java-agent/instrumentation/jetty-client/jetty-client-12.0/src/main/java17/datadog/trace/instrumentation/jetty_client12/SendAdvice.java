@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.jetty_client12;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -20,7 +21,7 @@ public class SendAdvice {
     InstrumentationContext.get(Request.class, AgentSpan.class).put(request, span);
     JettyClientDecorator.DECORATE.afterStart(span);
     JettyClientDecorator.DECORATE.onRequest(span, request);
-    propagate().inject(span, request, SETTER);
+    defaultPropagator().inject(span, request, SETTER);
     propagate()
         .injectPathwayContext(span, request, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
     return activateSpan(span);

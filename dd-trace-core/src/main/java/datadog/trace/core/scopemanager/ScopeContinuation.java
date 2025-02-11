@@ -1,9 +1,10 @@
 package datadog.trace.core.scopemanager;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopScope;
+
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTraceCollector;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentScope;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 /**
@@ -79,7 +80,7 @@ final class ScopeContinuation implements AgentScope.Continuation {
     } else {
       // continuation cancelled or too many activations; rollback count
       COUNT.decrementAndGet(this);
-      return NoopAgentScope.INSTANCE;
+      return noopScope();
     }
   }
 

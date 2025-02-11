@@ -1,5 +1,6 @@
 import com.intuit.karate.FileUtils
 import datadog.trace.api.DisableTestTrace
+import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.instrumentation.karate.TestEventsHandlerHolder
@@ -68,10 +69,10 @@ class KarateTest extends CiVisibilityInstrumentationTest {
     where:
     testcaseName               | success | tests                           | retriedTests
     "test-failed"              | false   | [TestFailedKarate]              | []
-    "test-retry-failed"        | false   | [TestFailedKarate]              | [new TestIdentifier("[org/example/test_failed] test failed", "second scenario", null)]
-    "test-failed-then-succeed" | true    | [TestFailedThenSucceedKarate]   | [new TestIdentifier("[org/example/test_failed_then_succeed] test failed", "flaky scenario", null)]
+    "test-retry-failed"        | false   | [TestFailedKarate]              | [new TestFQN("[org/example/test_failed] test failed", "second scenario")]
+    "test-failed-then-succeed" | true    | [TestFailedThenSucceedKarate]   | [new TestFQN("[org/example/test_failed_then_succeed] test failed", "flaky scenario")]
     "test-retry-parameterized" | false   | [TestFailedParameterizedKarate] | [
-      new TestIdentifier("[org/example/test_failed_parameterized] test parameterized", "first scenario as an outline", null)
+      new TestFQN("[org/example/test_failed_parameterized] test parameterized", "first scenario as an outline")
     ]
   }
 
@@ -85,9 +86,9 @@ class KarateTest extends CiVisibilityInstrumentationTest {
 
     where:
     testcaseName                        | tests                              | knownTestsList
-    "test-efd-known-test"               | [TestSucceedOneCaseKarate]         | [new TestIdentifier("[org/example/test_succeed_one_case] test succeed", "first scenario", null)]
+    "test-efd-known-test"               | [TestSucceedOneCaseKarate]         | [new TestFQN("[org/example/test_succeed_one_case] test succeed", "first scenario")]
     "test-efd-known-parameterized-test" | [TestParameterizedKarate]          | [
-      new TestIdentifier("[org/example/test_parameterized] test parameterized", "first scenario as an outline", null)
+      new TestFQN("[org/example/test_parameterized] test parameterized", "first scenario as an outline")
     ]
     "test-efd-new-test"                 | [TestSucceedOneCaseKarate]         | []
     "test-efd-new-parameterized-test"   | [TestParameterizedKarate]          | []
@@ -105,7 +106,7 @@ class KarateTest extends CiVisibilityInstrumentationTest {
 
     where:
     testcaseName              | tests              | quarantined
-    "test-quarantined-failed" | [TestFailedKarate] | [new TestIdentifier("[org/example/test_failed] test failed", "second scenario", null)]
+    "test-quarantined-failed" | [TestFailedKarate] | [new TestFQN("[org/example/test_failed] test failed", "second scenario")]
   }
 
   private void runTests(List<Class<?>> tests, boolean expectSuccess = true) {

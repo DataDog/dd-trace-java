@@ -47,9 +47,14 @@ public class EntryBuilder {
 
   public @Nullable Entry parse() {
     try {
-      if (c.length == 0 // empty line
-          || c[0] == '#' // comment
-          || c[0] == '[') { // section header
+      // skip trailing whitespace
+      while (offset < c.length && Character.isWhitespace(c[offset])) {
+        offset++;
+      }
+
+      if (offset == c.length // empty line
+          || c[offset] == '#' // comment
+          || c[offset] == '[') { // section header
         return null;
       }
 

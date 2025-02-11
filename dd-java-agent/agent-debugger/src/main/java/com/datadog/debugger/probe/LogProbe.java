@@ -555,7 +555,6 @@ public class LogProbe extends ProbeDefinition implements Sampled {
     if (probeCondition == null) {
       return true;
     }
-    long startTs = System.nanoTime();
     try {
       if (!probeCondition.execute(capture)) {
         return false;
@@ -564,9 +563,6 @@ public class LogProbe extends ProbeDefinition implements Sampled {
       status.addError(new EvaluationError(ex.getExpr(), ex.getMessage()));
       status.setConditionErrors(true);
       return false;
-    } finally {
-      LOGGER.debug(
-          "ProbeCondition for probe[{}] evaluated in {}ns", id, (System.nanoTime() - startTs));
     }
     return true;
   }

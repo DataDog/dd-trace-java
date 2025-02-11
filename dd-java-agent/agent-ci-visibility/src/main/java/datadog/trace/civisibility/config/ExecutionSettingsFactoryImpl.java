@@ -3,7 +3,7 @@ package datadog.trace.civisibility.config;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.CiVisibilityWellKnownTags;
-import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.config.TestFQN;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.civisibility.ci.PullRequestInfo;
@@ -205,21 +205,44 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
 
     Future<SkippableTests> skippableTestsFuture =
         executor.submit(() -> getSkippableTests(tracerEnvironment, itrEnabled));
-    Future<Map<String, Collection<TestIdentifier>>> flakyTestsFuture =
+    Future<Map<String, Collection<TestFQN>>> flakyTestsFuture =
         executor.submit(() -> getFlakyTestsByModule(tracerEnvironment, flakyTestRetriesEnabled));
-    Future<Map<String, Collection<TestIdentifier>>> knownTestsFuture =
+    Future<Map<String, Collection<TestFQN>>> knownTestsFuture =
         executor.submit(() -> getKnownTestsByModule(tracerEnvironment, knownTestsRequest));
+    Future<Map<TestSetting, Map<String, Collection<TestFQN>>>> testManagementTestsFuture =
+        executor.submit(
+            () ->
+                getTestManagementTestsByModule(
+                    tracerEnvironment, testManagementSettings.isEnabled()));
     Future<Diff> pullRequestDiffFuture =
         executor.submit(() -> getPullRequestDiff(tracerEnvironment, impactedTestsEnabled));
 
     SkippableTests skippableTests = skippableTestsFuture.get();
-    Map<String, Collection<TestIdentifier>> flakyTestsByModule = flakyTestsFuture.get();
-    Map<String, Collection<TestIdentifier>> knownTestsByModule = knownTestsFuture.get();
+    Map<String, Collection<TestFQN>> flakyTestsByModule = flakyTestsFuture.get();
+    Map<String, Collection<TestFQN>> knownTestsByModule = knownTestsFuture.get();
+
+    Map<TestSetting, Map<String, Collection<TestFQN>>> testManagementTestsByModule =
+        testManagementTestsFuture.get();
+    Map<String, Collection<TestFQN>> quarantinedTestsByModule =
+        testManagementTestsByModule.getOrDefault(TestSetting.QUARANTINED, Collections.emptyMap());
+    Map<String, Collection<TestFQN>> disabledTestsByModule =
+        testManagementTestsByModule.getOrDefault(TestSetting.DISABLED, Collections.emptyMap());
+    Map<String, Collection<TestFQN>> attemptToFixTestsByModule =
+        testManagementTestsByModule.getOrDefault(
+            TestSetting.ATTEMPT_TO_FIX, Collections.emptyMap());
+
     Diff pullRequestDiff = pullRequestDiffFuture.get();
 
     Map<String, ExecutionSettings> settingsByModule = new HashMap<>();
     Set<String> moduleNames =
-        getModuleNames(skippableTests, flakyTestsByModule, knownTestsByModule);
+        getModuleNames(
+            skippableTests,
+            flakyTestsByModule,
+            knownTestsByModule,
+            quarantinedTestsByModule,
+            disabledTestsByModule,
+            attemptToFixTestsByModule);
+
     for (String moduleName : moduleNames) {
       settingsByModule.put(
           moduleName,
@@ -238,11 +261,13 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
                   .getIdentifiersByModule()
                   .getOrDefault(moduleName, Collections.emptyMap()),
               skippableTests.getCoveredLinesByRelativeSourcePath(),
-              Collections.emptyList(), // FIXME implement retrieving quarantined tests
               flakyTestsByModule != null
                   ? flakyTestsByModule.getOrDefault(moduleName, Collections.emptyList())
                   : null,
               knownTestsByModule != null ? knownTestsByModule.get(moduleName) : null,
+              quarantinedTestsByModule.getOrDefault(moduleName, Collections.emptyList()),
+              disabledTestsByModule.getOrDefault(moduleName, Collections.emptyList()),
+              attemptToFixTestsByModule.getOrDefault(moduleName, Collections.emptyList()),
               pullRequestDiff));
     }
     return settingsByModule;
@@ -334,7 +359,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
   }
 
   @Nullable
-  private Map<String, Collection<TestIdentifier>> getFlakyTestsByModule(
+  private Map<String, Collection<TestFQN>> getFlakyTestsByModule(
       TracerEnvironment tracerEnvironment, boolean flakyTestRetriesEnabled) {
     if (!(flakyTestRetriesEnabled && config.isCiVisibilityFlakyRetryOnlyKnownFlakes())
         && !CIConstants.FAIL_FAST_TEST_ORDER.equalsIgnoreCase(config.getCiVisibilityTestOrder())) {
@@ -349,7 +374,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
   }
 
   @Nullable
-  private Map<String, Collection<TestIdentifier>> getKnownTestsByModule(
+  private Map<String, Collection<TestFQN>> getKnownTestsByModule(
       TracerEnvironment tracerEnvironment, boolean knownTestsRequest) {
     if (!knownTestsRequest) {
       return null;
@@ -360,6 +385,21 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
     } catch (Exception e) {
       LOGGER.error("Could not obtain list of known tests", e);
       return null;
+    }
+  }
+
+  @Nullable
+  private Map<TestSetting, Map<String, Collection<TestFQN>>> getTestManagementTestsByModule(
+      TracerEnvironment tracerEnvironment, boolean testManagementTestsRequest) {
+    if (!testManagementTestsRequest) {
+      return Collections.emptyMap();
+    }
+    try {
+      return configurationApi.getTestManagementTestsByModule(tracerEnvironment);
+
+    } catch (Exception e) {
+      LOGGER.error("Could not obtain list of test management tests", e);
+      return Collections.emptyMap();
     }
   }
 
@@ -420,9 +460,12 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
 
   @Nonnull
   private static Set<String> getModuleNames(
-      SkippableTests skippableTests,
-      Map<String, Collection<TestIdentifier>> flakyTestsByModule,
-      Map<String, Collection<TestIdentifier>> knownTestsByModule) {
+      @Nonnull SkippableTests skippableTests,
+      @Nullable Map<String, Collection<TestFQN>> flakyTestsByModule,
+      @Nullable Map<String, Collection<TestFQN>> knownTestsByModule,
+      @Nonnull Map<String, Collection<TestFQN>> quarantinedTestsByModule,
+      @Nonnull Map<String, Collection<TestFQN>> disabledTestsByModule,
+      @Nonnull Map<String, Collection<TestFQN>> attemptToFixTestsByModule) {
     Set<String> moduleNames = new HashSet<>(Collections.singleton(DEFAULT_SETTINGS));
     moduleNames.addAll(skippableTests.getIdentifiersByModule().keySet());
     if (flakyTestsByModule != null) {
@@ -431,6 +474,9 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
     if (knownTestsByModule != null) {
       moduleNames.addAll(knownTestsByModule.keySet());
     }
+    moduleNames.addAll(quarantinedTestsByModule.keySet());
+    moduleNames.addAll(disabledTestsByModule.keySet());
+    moduleNames.addAll(attemptToFixTestsByModule.keySet());
     return moduleNames;
   }
 }

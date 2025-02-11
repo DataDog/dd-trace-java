@@ -1,5 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import static datadog.context.propagation.Concern.named;
+
 import datadog.context.propagation.CarrierSetter;
 import datadog.context.propagation.CarrierVisitor;
 import datadog.context.propagation.Concern;
@@ -11,6 +13,8 @@ import javax.annotation.ParametersAreNonnullByDefault;
 public interface AgentPropagation {
   Concern TRACING_CONCERN = Concern.named("tracing");
   Concern BAGGAGE_CONCERN = Concern.named("baggage");
+  Concern XRAY_TRACING_CONCERN = named("tracing-xray");
+  Concern STANDALONE_ASM_CONCERN = named("asm-standalone");
 
   <C> void inject(AgentSpan span, C carrier, Setter<C> setter);
 

@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.googlepubsub;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
@@ -80,7 +81,7 @@ public final class PublisherInstrumentation extends InstrumenterModule.Tracing
       sortedTags.put(TYPE_TAG, "google-pubsub");
 
       PubsubMessage.Builder builder = msg.toBuilder();
-      propagate().inject(span, builder, SETTER);
+      defaultPropagator().inject(span, builder, SETTER);
       propagate().injectPathwayContext(span, builder, SETTER, sortedTags);
       msg = builder.build();
       return activateSpan(span);

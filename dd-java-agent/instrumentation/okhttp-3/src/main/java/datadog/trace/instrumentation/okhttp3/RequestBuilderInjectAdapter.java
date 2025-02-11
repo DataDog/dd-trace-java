@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.okhttp3;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import javax.annotation.ParametersAreNonnullByDefault;
 import okhttp3.Request;
 
 /**
@@ -8,6 +9,7 @@ import okhttp3.Request;
  *
  * @author Pavol Loffay
  */
+@ParametersAreNonnullByDefault
 public class RequestBuilderInjectAdapter implements AgentPropagation.Setter<Request.Builder> {
 
   public static final RequestBuilderInjectAdapter SETTER = new RequestBuilderInjectAdapter();

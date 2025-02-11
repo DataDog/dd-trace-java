@@ -90,6 +90,9 @@ public final class ScriptInitializer {
         bw.write(entries[i + 1]);
         bw.newLine();
       }
+      bw.write("java_home=" + System.getProperty("java.home"));
+      bw.newLine();
+
       Runtime.getRuntime()
           .addShutdownHook(
               new Thread(

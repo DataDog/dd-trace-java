@@ -40,7 +40,7 @@ public interface TraceScope extends Closeable {
    * @deprecated Replaced by {@link Tracer#setAsyncPropagationEnabled(boolean)}}.
    *     <p>Calling this method will enable or disable asynchronous propagation <strong>for the
    *     active scope</strong>, not this scope instance.
-   * @param value @{@code true} to enable asynchronous propagation, {@code false} to disable it.
+   * @param value {@code true} to enable asynchronous propagation, {@code false} to disable it.
    */
   @Deprecated
   default void setAsyncPropagation(boolean value) {

@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.config
 
+import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.api.civisibility.config.TestMetadata
 import datadog.trace.civisibility.diff.LineDiff
@@ -30,8 +31,10 @@ class ExecutionSettingsTest extends Specification {
       null,
       [:],
       [:],
-      new HashSet<>([]),
       null,
+      new HashSet<>([]),
+      new HashSet<>([]),
+      new HashSet<>([]),
       new HashSet<>([]),
       LineDiff.EMPTY),
 
@@ -46,9 +49,11 @@ class ExecutionSettingsTest extends Specification {
       "",
       [(new TestIdentifier("bc", "def", "g")): new TestMetadata(true), (new TestIdentifier("de", "f", null)): new TestMetadata(false)],
       [:],
-      new HashSet<>([new TestIdentifier("suite", "quarantined", null)]),
-      new HashSet<>([new TestIdentifier("name", null, null)]),
-      new HashSet<>([new TestIdentifier("b", "c", "g")]),
+      new HashSet<>([new TestFQN("name", null)]),
+      new HashSet<>([new TestFQN("b", "c")]),
+      new HashSet<>([new TestFQN("suite", "quarantined")]),
+      new HashSet<>([new TestFQN("suite", "disabled")]),
+      new HashSet<>([new TestFQN("suite", "attemptToFix")]),
       new LineDiff(["path": lines()])
       ),
 
@@ -67,9 +72,11 @@ class ExecutionSettingsTest extends Specification {
         }), "cov2": BitSet.valueOf(new byte[]{
           4, 5, 6
         })],
-      new HashSet<>([new TestIdentifier("suite", "quarantined", null), new TestIdentifier("another", "another-quarantined", null)]),
-      new HashSet<>([new TestIdentifier("name", null, "g"), new TestIdentifier("b", "c", null)]),
-      new HashSet<>([new TestIdentifier("b", "c", null), new TestIdentifier("bb", "cc", null)]),
+      new HashSet<>([new TestFQN("name", null), new TestFQN("b", "c")]),
+      new HashSet<>([new TestFQN("b", "c"), new TestFQN("bb", "cc")]),
+      new HashSet<>([new TestFQN("suite", "quarantined"), new TestFQN("another", "another-quarantined")]),
+      new HashSet<>([new TestFQN("suite", "disabled"), new TestFQN("another", "another-disabled")]),
+      new HashSet<>([new TestFQN("suite", "attemptToFix"), new TestFQN("another", "another-attemptToFix")]),
       new LineDiff(["path": lines(1, 2, 3)]),
       ),
 
@@ -88,9 +95,11 @@ class ExecutionSettingsTest extends Specification {
         }), "cov2": BitSet.valueOf(new byte[]{
           4, 5, 6
         })],
-      new HashSet<>([new TestIdentifier("suite", "quarantined", null), new TestIdentifier("another", "another-quarantined", null)]),
       new HashSet<>([]),
-      new HashSet<>([new TestIdentifier("b", "c", null), new TestIdentifier("bb", "cc", "g")]),
+      new HashSet<>([new TestFQN("b", "c"), new TestFQN("bb", "cc")]),
+      new HashSet<>([new TestFQN("suite", "quarantined"), new TestFQN("another", "another-quarantined")]),
+      new HashSet<>([new TestFQN("suite", "disabled"), new TestFQN("another", "another-disabled")]),
+      new HashSet<>([new TestFQN("suite", "attemptToFix"), new TestFQN("another", "another-attemptToFix")]),
       new LineDiff(["path": lines(1, 2, 3), "path-b": lines(1, 2, 128, 257, 999)]),
       ),
     ]

@@ -1,5 +1,8 @@
 package datadog.opentracing;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromSpanContext;
+
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.GlobalTracer;
@@ -475,8 +478,8 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
   public <C> void inject(final SpanContext spanContext, final Format<C> format, final C carrier) {
     if (carrier instanceof TextMap) {
       final AgentSpanContext context = converter.toContext(spanContext);
-
-      tracer.propagate().inject(context, (TextMap) carrier, TextMapSetter.INSTANCE);
+      AgentSpan span = fromSpanContext(context);
+      defaultPropagator().inject(span, (TextMap) carrier, TextMapSetter.INSTANCE);
     } else {
       log.debug("Unsupported format for propagation - {}", format.getClass().getName());
     }

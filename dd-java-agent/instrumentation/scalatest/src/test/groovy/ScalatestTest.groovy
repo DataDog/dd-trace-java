@@ -1,3 +1,4 @@
+import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.civisibility.diff.FileDiff
@@ -61,11 +62,11 @@ class ScalatestTest extends CiVisibilityInstrumentationTest {
     where:
     testcaseName               | success | tests                     | retriedTests
     "test-failed"              | false   | [TestFailed]              | []
-    "test-retry-failed"        | false   | [TestFailed]              | [new TestIdentifier("org.example.TestFailed", "Example.add adds two numbers", null)]
+    "test-retry-failed"        | false   | [TestFailed]              | [new TestFQN("org.example.TestFailed", "Example.add adds two numbers")]
     "test-retry-parameterized" | false   | [TestFailedParameterized] | [
-      new TestIdentifier("org.example.TestFailedParameterized", "addition should correctly add two numbers", null)
+      new TestFQN("org.example.TestFailedParameterized", "addition should correctly add two numbers")
     ]
-    "test-failed-then-succeed" | true    | [TestFailedThenSucceed]   | [new TestIdentifier("org.example.TestFailedThenSucceed", "Example.add adds two numbers", null)]
+    "test-failed-then-succeed" | true    | [TestFailedThenSucceed]   | [new TestFQN("org.example.TestFailedThenSucceed", "Example.add adds two numbers")]
   }
 
   def "test early flakiness detection #testcaseName"() {
@@ -78,7 +79,7 @@ class ScalatestTest extends CiVisibilityInstrumentationTest {
 
     where:
     testcaseName                        | tests                  | knownTestsList
-    "test-efd-known-test"               | [TestSucceed]          | [new TestIdentifier("org.example.TestSucceed", "Example.add adds two numbers", null)]
+    "test-efd-known-test"               | [TestSucceed]          | [new TestFQN("org.example.TestSucceed", "Example.add adds two numbers")]
     "test-efd-new-test"                 | [TestSucceed]          | []
     "test-efd-new-slow-test"            | [TestSucceedSlow]      | [] // is executed only twice
     "test-efd-faulty-session-threshold" | [TestSucceedMoreCases] | []
@@ -111,7 +112,7 @@ class ScalatestTest extends CiVisibilityInstrumentationTest {
 
     where:
     testcaseName              | tests        | quarantined
-    "test-quarantined-failed" | [TestFailed] | [new TestIdentifier("org.example.TestFailed", "Example.add adds two numbers", null)]
+    "test-quarantined-failed" | [TestFailed] | [new TestFQN("org.example.TestFailed", "Example.add adds two numbers")]
   }
 
   def "test quarantined auto-retries #testcaseName"() {
@@ -128,7 +129,7 @@ class ScalatestTest extends CiVisibilityInstrumentationTest {
 
     where:
     testcaseName                  | tests        | quarantined                                                                          | retried
-    "test-quarantined-failed-atr" | [TestFailed] | [new TestIdentifier("org.example.TestFailed", "Example.add adds two numbers", null)] | [new TestIdentifier("org.example.TestFailed", "Example.add adds two numbers", null)]
+    "test-quarantined-failed-atr" | [TestFailed] | [new TestFQN("org.example.TestFailed", "Example.add adds two numbers")] | [new TestFQN("org.example.TestFailed", "Example.add adds two numbers")]
   }
 
   def "test quarantined early flakiness detection #testcaseName"() {
@@ -145,8 +146,8 @@ class ScalatestTest extends CiVisibilityInstrumentationTest {
 
     where:
     testcaseName                    | tests        | quarantined                                                                          | known
-    "test-quarantined-failed-known" | [TestFailed] | [new TestIdentifier("org.example.TestFailed", "Example.add adds two numbers", null)] | [new TestIdentifier("org.example.TestFailed", "Example.add adds two numbers", null)]
-    "test-quarantined-failed-efd"   | [TestFailed] | [new TestIdentifier("org.example.TestFailed", "Example.add adds two numbers", null)] | []
+    "test-quarantined-failed-known" | [TestFailed] | [new TestFQN("org.example.TestFailed", "Example.add adds two numbers")] | [new TestFQN("org.example.TestFailed", "Example.add adds two numbers")]
+    "test-quarantined-failed-efd"   | [TestFailed] | [new TestFQN("org.example.TestFailed", "Example.add adds two numbers")] | []
   }
 
   @Override

@@ -31,7 +31,7 @@ public interface Tracer {
    * ConfigDefaults#DEFAULT_ASYNC_PROPAGATING}.
    *
    * @deprecated Unstable API. Might be removed at any time.
-   * @param asyncPropagationEnabled @{@code true} to enable asynchronous propagation, {@code false}
+   * @param asyncPropagationEnabled {@code true} to enable asynchronous propagation, {@code false}
    *     to disable it.
    */
   @Deprecated

@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.rabbitmq.amqp;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameEndsWith;
@@ -189,7 +190,7 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
         if (TIME_IN_QUEUE_ENABLED) {
           RabbitDecorator.injectTimeInQueueStart(headers);
         }
-        propagate().inject(span, headers, SETTER);
+        defaultPropagator().inject(span, headers, SETTER);
         LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
         sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
         sortedTags.put(EXCHANGE_TAG, exchange);

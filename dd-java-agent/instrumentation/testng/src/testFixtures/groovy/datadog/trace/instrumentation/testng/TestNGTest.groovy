@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.testng
 
+import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.civisibility.diff.FileDiff
@@ -105,11 +106,11 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
     where:
     testcaseName                            | success | tests                     | retriedTests
     "test-failed-${version()}"              | false   | [TestFailed]              | []
-    "test-skipped"                          | true    | [TestSkipped]             | [new TestIdentifier("org.example.TestSkipped", "test_skipped", null)]
-    "test-retry-failed-${version()}"        | false   | [TestFailed]              | [new TestIdentifier("org.example.TestFailed", "test_failed", null)]
-    "test-retry-error"                      | false   | [TestError]               | [new TestIdentifier("org.example.TestError", "test_error", null)]
-    "test-retry-parameterized"              | false   | [TestFailedParameterized] | [new TestIdentifier("org.example.TestFailedParameterized", "parameterized_test_succeed", null)]
-    "test-failed-then-succeed-${version()}" | true    | [TestFailedThenSucceed]   | [new TestIdentifier("org.example.TestFailedThenSucceed", "test_failed", null)]
+    "test-skipped"                          | true    | [TestSkipped]             | [new TestFQN("org.example.TestSkipped", "test_skipped")]
+    "test-retry-failed-${version()}"        | false   | [TestFailed]              | [new TestFQN("org.example.TestFailed", "test_failed")]
+    "test-retry-error"                      | false   | [TestError]               | [new TestFQN("org.example.TestError", "test_error")]
+    "test-retry-parameterized"              | false   | [TestFailedParameterized] | [new TestFQN("org.example.TestFailedParameterized", "parameterized_test_succeed")]
+    "test-failed-then-succeed-${version()}" | true    | [TestFailedThenSucceed]   | [new TestFQN("org.example.TestFailedThenSucceed", "test_failed")]
   }
 
   def "test early flakiness detection #testcaseName"() {
@@ -124,13 +125,13 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
 
     where:
     testcaseName                        | success | tests                  | knownTestsList
-    "test-efd-known-test"               | true    | [TestSucceed]          | [new TestIdentifier("org.example.TestSucceed", "test_succeed", null)]
-    "test-efd-known-parameterized-test" | true    | [TestParameterized]    | [new TestIdentifier("org.example.TestParameterized", "parameterized_test_succeed", null)]
+    "test-efd-known-test"               | true    | [TestSucceed]          | [new TestFQN("org.example.TestSucceed", "test_succeed")]
+    "test-efd-known-parameterized-test" | true    | [TestParameterized]    | [new TestFQN("org.example.TestParameterized", "parameterized_test_succeed")]
     "test-efd-new-test"                 | true    | [TestSucceed]          | []
     "test-efd-new-parameterized-test"   | true    | [TestParameterized]    | []
     "test-efd-known-tests-and-new-test" | false   | [TestFailedAndSucceed] | [
-      new TestIdentifier("org.example.TestFailedAndSucceed", "test_failed", null),
-      new TestIdentifier("org.example.TestFailedAndSucceed", "test_succeed", null)
+      new TestFQN("org.example.TestFailedAndSucceed", "test_failed"),
+      new TestFQN("org.example.TestFailedAndSucceed", "test_succeed")
     ]
     "test-efd-new-slow-test"            | true    | [TestSucceedSlow]      | [] // is executed only twice
     "test-efd-new-very-slow-test"       | true    | [TestSucceedVerySlow]  | [] // is executed only once
@@ -166,8 +167,8 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
 
     where:
     testcaseName                            | tests                     | quarantined
-    "test-quarantined-failed-${version()}"  | [TestFailed]              | [new TestIdentifier("org.example.TestFailed", "test_failed", null)]
-    "test-quarantined-failed-parameterized" | [TestFailedParameterized] | [new TestIdentifier("org.example.TestFailedParameterized", "parameterized_test_succeed", null)]
+    "test-quarantined-failed-${version()}"  | [TestFailed]              | [new TestFQN("org.example.TestFailed", "test_failed")]
+    "test-quarantined-failed-parameterized" | [TestFailedParameterized] | [new TestFQN("org.example.TestFailedParameterized", "parameterized_test_succeed")]
   }
 
   def "test quarantined auto-retries #testcaseName"() {
@@ -186,7 +187,7 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
 
     where:
     testcaseName                               | tests        | quarantined                                                         | retried
-    "test-quarantined-failed-atr-${version()}" | [TestFailed] | [new TestIdentifier("org.example.TestFailed", "test_failed", null)] | [new TestIdentifier("org.example.TestFailed", "test_failed", null)]
+    "test-quarantined-failed-atr-${version()}" | [TestFailed] | [new TestFQN("org.example.TestFailed", "test_failed")] | [new TestFQN("org.example.TestFailed", "test_failed")]
   }
 
   def "test quarantined early flakiness detection #testcaseName"() {
@@ -205,8 +206,8 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
 
     where:
     testcaseName                    | tests        | quarantined                                                         | known
-    "test-quarantined-failed-known" | [TestFailed] | [new TestIdentifier("org.example.TestFailed", "test_failed", null)] | [new TestIdentifier("org.example.TestFailed", "test_failed", null)]
-    "test-quarantined-failed-efd"   | [TestFailed] | [new TestIdentifier("org.example.TestFailed", "test_failed", null)] | []
+    "test-quarantined-failed-known" | [TestFailed] | [new TestFQN("org.example.TestFailed", "test_failed")] | [new TestFQN("org.example.TestFailed", "test_failed")]
+    "test-quarantined-failed-efd"   | [TestFailed] | [new TestFQN("org.example.TestFailed", "test_failed")] | []
   }
 
   private static boolean isEFDSupported() {

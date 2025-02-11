@@ -5,6 +5,7 @@ import datadog.trace.api.scopemanager.ExtendedScopeListener;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
@@ -132,13 +133,14 @@ class ContinuableScope implements AgentScope, AttachableWrapper {
   /**
    * The continuation returned must be closed or activated or the trace will not finish.
    *
-   * @return The new continuation, or null if this scope is not async propagating.
+   * @return The new continuation, or {@link AgentTracer#noopContinuation()} if this scope is not
+   *     async propagating.
    */
   @Override
-  public final ScopeContinuation capture() {
+  public final Continuation capture() {
     return isAsyncPropagating
         ? new ScopeContinuation(scopeManager, span, source()).register()
-        : null;
+        : AgentTracer.noopContinuation();
   }
 
   @Override

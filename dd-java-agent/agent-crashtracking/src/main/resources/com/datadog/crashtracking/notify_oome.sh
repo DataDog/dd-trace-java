@@ -27,7 +27,7 @@ while IFS="=" read -r key value; do
 done < "$configFile"
 
 # Exiting early if configuration is missing
-if [ -z "${config_agent}" ] || [ -z "${config_tags}" ]; then
+if [ -z "${config_agent}" ] || [ -z "${config_tags}" ] || [ -z "${config_java_home}" ]; then
     echo "Error: Missing configuration"
     exit 1
 fi
@@ -35,10 +35,11 @@ fi
 # Debug: Print the loaded values (Optional)
 echo "Agent Jar: ${config_agent}"
 echo "Tags: ${config_tags}"
+echo "JAVA_HOME: ${config_java_home}"
 echo "PID: $PID"
 
 # Execute the Java command with the loaded values
-java -Ddd.dogstatsd.start-delay=0 -jar "${config_agent}" sendOomeEvent "${config_tags}"
+"${config_java_home}/bin/java" -Ddd.dogstatsd.start-delay=0 -jar "${config_agent}" sendOomeEvent "${config_tags}"
 RC=$?
 rm -f "${configFile}" # Remove the configuration file
 

@@ -1,4 +1,5 @@
 import datadog.trace.api.DisableTestTrace
+import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.instrumentation.junit4.CucumberTracingListener
@@ -64,10 +65,10 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
     testcaseName                               | success | features                                                                          | retriedTests
     "test-failure"                             | false   | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"]               | []
     "test-retry-failure"                       | false   | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"]               | [
-      new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition", null)
+      new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition")
     ]
     "test-retry-scenario-outline-${version()}" | false   | ["org/example/cucumber/calculator/basic_arithmetic_with_examples_failed.feature"] | [
-      new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic_with_examples_failed.feature:Basic Arithmetic With Examples", "Many additions", null)
+      new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_with_examples_failed.feature:Basic Arithmetic With Examples", "Many additions")
     ]
   }
 
@@ -82,7 +83,7 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
     where:
     testcaseName                                 | features                                                                   | knownTestsList
     "test-efd-known-test"                        | ["org/example/cucumber/calculator/basic_arithmetic.feature"]               | [
-      new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic.feature:Basic Arithmetic", "Addition", null)
+      new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic.feature:Basic Arithmetic", "Addition")
     ]
     "test-efd-new-test"                          | ["org/example/cucumber/calculator/basic_arithmetic.feature"]               | []
     "test-efd-new-scenario-outline-${version()}" | ["org/example/cucumber/calculator/basic_arithmetic_with_examples.feature"] | []
@@ -100,7 +101,7 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
     where:
     testcaseName              | features                                                            | quarantined
     "test-quarantined-failed" | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"] | [
-      new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition", null)
+      new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition")
     ]
   }
 
@@ -119,9 +120,9 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
     where:
     testcaseName                  | features                                                            | quarantined                    | retried
     "test-quarantined-failed-atr" | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"] | [
-      new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition", null)
+      new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition")
     ]                                                                                                                                    | [
-      new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition", null)
+      new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition")
     ]
   }
 
@@ -140,12 +141,12 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
     where:
     testcaseName                    | features                                                            | quarantined                  | known
     "test-quarantined-failed-known" | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"] | [
-      new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition", null)
+      new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition")
     ]                                                                                                                                    | [
-      new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition", null)
+      new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition")
     ]
     "test-quarantined-failed-efd"   | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"] | [
-      new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition", null)
+      new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition")
     ]                                                                                                                                    | []
   }
 

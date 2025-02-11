@@ -10,7 +10,6 @@ import com.amazonaws.Request;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import net.bytebuddy.asm.Advice;
 
 /**
@@ -47,7 +46,7 @@ public final class RequestExecutorInstrumentation
       // check name in case TracingRequestHandler failed to activate the span
       if (scope != null
           && (AwsNameCache.spanName(request).equals(scope.span().getSpanName())
-              || scope.span() instanceof AgentTracer.NoopAgentSpan)) {
+              || !scope.span().isValid())) {
         scope.close();
       }
 

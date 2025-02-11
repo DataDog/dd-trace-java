@@ -151,7 +151,12 @@ public enum CiVisibilityCountMetric {
   IMPACTED_TESTS_DETECTION_REQUEST("impacted_tests_detection.request", RequestCompressed.class),
   /** The number of tests requests sent to the changed files endpoint that errored */
   IMPACTED_TESTS_DETECTION_REQUEST_ERRORS(
-      "impacted_tests_detection.request_errors", ErrorType.class, StatusCode.class);
+      "impacted_tests_detection.request_errors", ErrorType.class, StatusCode.class),
+  /** The number of requests sent to the test management tests endpoint */
+  TEST_MANAGEMENT_TESTS_REQUEST("test_management.request", RequestCompressed.class),
+  /** The number of tests requests sent to the test management tests endpoint that errored */
+  TEST_MANAGEMENT_TESTS_REQUEST_ERRORS(
+      "test_management.request_errors", ErrorType.class, StatusCode.class);
 
   // need a "holder" class, as accessing static fields from enum constructors is illegal
   static class IndexHolder {

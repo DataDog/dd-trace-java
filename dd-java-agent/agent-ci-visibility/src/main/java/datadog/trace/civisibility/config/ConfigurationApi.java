@@ -1,6 +1,6 @@
 package datadog.trace.civisibility.config;
 
-import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.config.TestFQN;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
@@ -22,13 +22,19 @@ public interface ConfigurationApi {
         }
 
         @Override
-        public Map<String, Collection<TestIdentifier>> getFlakyTestsByModule(
+        public Map<String, Collection<TestFQN>> getFlakyTestsByModule(
             TracerEnvironment tracerEnvironment) {
           return Collections.emptyMap();
         }
 
         @Override
-        public Map<String, Collection<TestIdentifier>> getKnownTestsByModule(
+        public Map<String, Collection<TestFQN>> getKnownTestsByModule(
+            TracerEnvironment tracerEnvironment) {
+          return Collections.emptyMap();
+        }
+
+        @Override
+        public Map<TestSetting, Map<String, Collection<TestFQN>>> getTestManagementTestsByModule(
             TracerEnvironment tracerEnvironment) {
           return Collections.emptyMap();
         }
@@ -43,12 +49,15 @@ public interface ConfigurationApi {
 
   SkippableTests getSkippableTests(TracerEnvironment tracerEnvironment) throws IOException;
 
-  Map<String, Collection<TestIdentifier>> getFlakyTestsByModule(TracerEnvironment tracerEnvironment)
+  Map<String, Collection<TestFQN>> getFlakyTestsByModule(TracerEnvironment tracerEnvironment)
       throws IOException;
 
   @Nullable
-  Map<String, Collection<TestIdentifier>> getKnownTestsByModule(TracerEnvironment tracerEnvironment)
+  Map<String, Collection<TestFQN>> getKnownTestsByModule(TracerEnvironment tracerEnvironment)
       throws IOException;
+
+  Map<TestSetting, Map<String, Collection<TestFQN>>> getTestManagementTestsByModule(
+      TracerEnvironment tracerEnvironment) throws IOException;
 
   ChangedFiles getChangedFiles(TracerEnvironment tracerEnvironment) throws IOException;
 }

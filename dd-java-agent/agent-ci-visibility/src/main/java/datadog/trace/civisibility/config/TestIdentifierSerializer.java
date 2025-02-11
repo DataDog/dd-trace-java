@@ -7,17 +7,11 @@ import java.nio.ByteBuffer;
 public abstract class TestIdentifierSerializer {
 
   public static void serialize(Serializer serializer, TestIdentifier testIdentifier) {
-    serializer.write(testIdentifier.getSuite());
-    serializer.write(testIdentifier.getName());
+    TestFQNSerializer.serialize(serializer, testIdentifier.toFQN());
     serializer.write(testIdentifier.getParameters());
   }
 
   public static TestIdentifier deserialize(ByteBuffer buffer) {
-    String suiteName = Serializer.readString(buffer);
-    return new TestIdentifier(
-        // suite name repeats a lot; interning it to save memory
-        suiteName != null ? suiteName.intern() : null,
-        Serializer.readString(buffer),
-        Serializer.readString(buffer));
+    return new TestIdentifier(TestFQNSerializer.deserialize(buffer), Serializer.readString(buffer));
   }
 }

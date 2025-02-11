@@ -31,10 +31,11 @@ for /f "tokens=1,2 delims=: " %%a in (%configFile%.cfg) do (
 :: Debug: Print the loaded values (Optional)
 echo Agent Jar: %agent%
 echo Tags: %tags%
+echo JAVA_HOME: %java_home%
 echo PID: %PID%
 
 :: Execute the Java command with the loaded values
-java -Ddd.dogstatsd.start-delay=0 -jar "%agent%" sendOomeEvent "%tags%"
+"%java_home%\bin\java" -Ddd.dogstatsd.start-delay=0 -jar "%agent%" sendOomeEvent "%tags%"
 set RC=%ERRORLEVEL%
 del "%configFile%" :: Clean up the configuration file
 if %RC% EQU 0 (

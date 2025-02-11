@@ -1,8 +1,10 @@
 package datadog.trace.instrumentation.apachehttpasyncclient;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import javax.annotation.ParametersAreNonnullByDefault;
 import org.apache.http.HttpRequest;
 
+@ParametersAreNonnullByDefault
 public class HttpHeadersInjectAdapter implements AgentPropagation.Setter<HttpRequest> {
 
   public static final HttpHeadersInjectAdapter SETTER = new HttpHeadersInjectAdapter();

@@ -31,16 +31,15 @@ class MockBackend implements AutoCloseable {
 
   private final Collection<Map<String, Object>> skippableTests = new CopyOnWriteArrayList<>()
   private final Collection<Map<String, Object>> flakyTests = new CopyOnWriteArrayList<>()
+  private final Collection<Map<String, Object>> testManagement = new CopyOnWriteArrayList<>()
   private final Collection<String> changedFiles = new CopyOnWriteArrayList<>()
 
   private boolean itrEnabled = true
   private boolean codeCoverageEnabled = true
-
   private boolean testsSkippingEnabled = true
-
   private boolean flakyRetriesEnabled = false
-
   private boolean impactedTestsDetectionEnabled = false
+  private boolean testManagementEnabled = false
 
   void reset() {
     receivedTraces.clear()
@@ -81,6 +80,19 @@ class MockBackend implements AutoCloseable {
 
   void givenChangedFile(String relativePath) {
     changedFiles.add(relativePath)
+  }
+
+  void givenTestManagement(boolean testManagementEnabled) {
+    this.testManagementEnabled = testManagementEnabled
+  }
+
+  void givenQuarantinedTests(String module, String suite, String name) {
+    testManagement.add([
+      "module": module,
+      "suite": suite,
+      "name": name,
+      "properties": ["quarantined": true]
+    ])
   }
 
   String getIntakeUrl() {
@@ -127,7 +139,10 @@ class MockBackend implements AutoCloseable {
               "code_coverage": $codeCoverageEnabled,
               "tests_skipping": $testsSkippingEnabled,
               "flaky_test_retries_enabled": $flakyRetriesEnabled,
-              "impacted_tests_enabled": $impactedTestsDetectionEnabled
+              "impacted_tests_enabled": $impactedTestsDetectionEnabled,
+              "test_management": {
+                "enabled": $testManagementEnabled
+              }
             }
           }
         }""").bytes)
@@ -223,6 +238,20 @@ class MockBackend implements AutoCloseable {
         response.status(200)
         .addHeader("Content-Encoding", "gzip")
         .send(MockBackend.compress((""" { "data": $flakyTestsResponse } """).bytes))
+      }
+
+      prefix("/api/v2/test/libraries/test-management/tests") {
+        Map<String, Map> modules = [:]
+        for (Map<String, Object> test : testManagement) {
+          Map<String, Map> suites = modules.computeIfAbsent("${test.module}", k -> [:]).computeIfAbsent("suites", k -> [:])
+          Map<String, Map> tests = suites.computeIfAbsent("${test.suite}", k -> [:]).computeIfAbsent("tests", k -> [:])
+          tests.computeIfAbsent("${test.name}", k -> [:]).put("properties", test.properties)
+        }
+
+        String testManagementResponse = """{ "modules": ${JSON_MAPPER.writeValueAsString(modules)} }"""
+        response.status(200)
+        .addHeader("Content-Encoding", "gzip")
+        .send(MockBackend.compress(("""{ "data": { "attributes": $testManagementResponse } } """).bytes))
       }
 
       prefix("/api/v2/apmtelemetry") {
