@@ -121,6 +121,7 @@ public class KafkaDecorator extends MessagingClientDecorator {
       span.setResourceName(CONSUMER_RESOURCE_NAME_CACHE.computeIfAbsent(topic, CONSUMER_PREFIX));
       span.setTag(PARTITION, record.partition());
       span.setTag(OFFSET, record.offset());
+      span.setTag(MESSAGING_DESTINATION_NAME, topic);
       if (consumerGroup != null) {
         span.setTag(CONSUMER_GROUP, consumerGroup);
       }
@@ -162,6 +163,7 @@ public class KafkaDecorator extends MessagingClientDecorator {
       }
       final String topic = record.topic() == null ? "kafka" : record.topic();
       span.setResourceName(PRODUCER_RESOURCE_NAME_CACHE.computeIfAbsent(topic, PRODUCER_PREFIX));
+      span.setTag(MESSAGING_DESTINATION_NAME, topic);
     }
   }
 }
