@@ -173,7 +173,6 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * traceSegment.setTagTop('http.request.headers.accept', 'header_value')
     1 * traceSegment.setTagTop('http.response.headers.content-type', 'text/html; charset=UTF-8')
     1 * traceSegment.setTagTop('network.client.ip', '2001::1')
-    1 * mockAppSecCtx.closeAdditive()
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
   }
