@@ -142,7 +142,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     verifyEventsAndCoverages(projectName, "maven", mavenVersion, mockBackend.waitForEvents(8), mockBackend.waitForCoverages(1))
 
     where:
-    projectName                                | mavenVersion
+    projectName                                   | mavenVersion
     "test_successful_maven_run_quarantined_tests" | "3.9.9"
   }
 
