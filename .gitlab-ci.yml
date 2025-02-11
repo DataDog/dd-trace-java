@@ -391,9 +391,6 @@ test_smoke_semeru8_debugger:
     - git fetch origin $SYSTEM_TESTS_COMMIT
     - git reset --hard FETCH_HEAD
     - mkdir -p /system-tests/binaries/
-    - ls $CI_PROJECT_DIR/
-    - ls $CI_PROJECT_DIR/workspace
-    - ls $CI_PROJECT_DIR/dd-java-agent/build/libs/
     - cp $CI_PROJECT_DIR/workspace/dd-java-agent/build/libs/*.jar /system-tests/binaries/
     - cp $CI_PROJECT_DIR/workspace/dd-trace-api/build/libs/*.jar /system-tests/binaries/
     - cd /system-tests
