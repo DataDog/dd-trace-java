@@ -94,7 +94,7 @@ public class W3CPTagsCodec extends PTagsCodec {
     CharSequence origin = null;
     TagValue decisionMakerTagValue = null;
     TagValue traceIdTagValue = null;
-    int traceSource = 0;
+    int traceSource = ProductTraceSource.UNSET;
     int maxUnknownSize = 0;
     CharSequence lastParentId = null;
     while (tagPos < ddMemberValueEnd) {
@@ -708,7 +708,7 @@ public class W3CPTagsCodec extends PTagsCodec {
         null,
         null,
         null,
-        0,
+        ProductTraceSource.UNSET,
         PrioritySampling.UNSET,
         null,
         original,

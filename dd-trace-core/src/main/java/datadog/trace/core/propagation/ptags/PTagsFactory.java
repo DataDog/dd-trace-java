@@ -48,7 +48,7 @@ public class PTagsFactory implements PropagationTags.Factory {
 
   @Override
   public final PropagationTags empty() {
-    return createValid(null, null, null, 0);
+    return createValid(null, null, null, ProductTraceSource.UNSET);
   }
 
   @Override
@@ -60,8 +60,8 @@ public class PTagsFactory implements PropagationTags.Factory {
       List<TagElement> tagPairs,
       TagValue decisionMakerTagValue,
       TagValue traceIdTagValue,
-      int productTs) {
-    return new PTags(this, tagPairs, decisionMakerTagValue, traceIdTagValue, productTs);
+      int productTraceSource) {
+    return new PTags(this, tagPairs, decisionMakerTagValue, traceIdTagValue, productTraceSource);
   }
 
   PropagationTags createInvalid(String error) {
@@ -160,7 +160,16 @@ public class PTagsFactory implements PropagationTags.Factory {
     }
 
     static PTags withError(PTagsFactory factory, String error) {
-      PTags pTags = new PTags(factory, null, null, null, 0, PrioritySampling.UNSET, null, null);
+      PTags pTags =
+          new PTags(
+              factory,
+              null,
+              null,
+              null,
+              ProductTraceSource.UNSET,
+              PrioritySampling.UNSET,
+              null,
+              null);
       pTags.error = error;
       return pTags;
     }
@@ -362,7 +371,7 @@ public class PTagsFactory implements PropagationTags.Factory {
         size = PTagsCodec.calcXDatadogTagsSize(size, DECISION_MAKER_TAG, decisionMakerTagValue);
         size = PTagsCodec.calcXDatadogTagsSize(size, TRACE_ID_TAG, traceIdHighOrderBitsHexTagValue);
         int currentProductTraceSource = traceSource.get();
-        if (currentProductTraceSource != 0) {
+        if (currentProductTraceSource != ProductTraceSource.UNSET) {
           size =
               PTagsCodec.calcXDatadogTagsSize(
                   size,
