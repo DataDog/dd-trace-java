@@ -6,6 +6,7 @@ import groovy.json.JsonSlurper
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.utility.DockerImageName
 import software.amazon.awssdk.services.sfn.SfnClient
+import software.amazon.awssdk.services.sfn.model.SfnException
 import software.amazon.awssdk.services.sfn.model.StartExecutionResponse
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
@@ -114,6 +115,18 @@ abstract class SfnClientTest extends VersionedNamingTestBase {
     input["_datadog"]["x-datadog-trace-id"] != null
     input["_datadog"]["x-datadog-parent-id"] != null
     input["_datadog"]["x-datadog-tags"] != null
+  }
+
+  def "AWS rejects invalid JSON but instrumentation does not error"() {
+    when:
+    sfnClient.startExecution { b ->
+      b.stateMachineArn(testStateMachineARN)
+        .input("hello") // invalid JSON
+        .build()
+    }
+
+    then:
+    thrown(SfnException)
   }
 
   def "Doesn't cause error for Step Functions input edge cases"() {
