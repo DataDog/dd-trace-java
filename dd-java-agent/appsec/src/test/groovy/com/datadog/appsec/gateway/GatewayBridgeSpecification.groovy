@@ -1320,6 +1320,21 @@ class GatewayBridgeSpecification extends DDSpecification {
     0 * eventDispatcher.publishDataEvent
   }
 
+  void 'test onUserNotFound'() {
+    setup:
+    eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
+
+    when:
+    loginEventCB.apply(ctx, IDENTIFICATION, 'users.login.failure', exists, null, null)
+
+    then:
+    1 * traceSegment.setTagTop('appsec.events.users.login.failure.usr.exists', exists, true)
+    0 * eventDispatcher.publishDataEvent
+
+    where:
+    exists << [true, false]
+  }
+
   void 'test configuration updates should reset cached subscriptions'() {
     when:
     requestSessionCB.apply(ctx, UUID.randomUUID().toString())
