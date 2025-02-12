@@ -38,10 +38,11 @@ public class ApiAccessTracker {
   }
 
   /**
-   * Updates the API access log with the given route, method, and status code. If the record exists
-   * and is outdated, it is updated by moving to the end of the list. If the record does not exist,
-   * a new record is added. If the capacity limit is reached, the oldest record is removed. Returns
-   * true if the record was updated or added, false otherwise.
+   * Updates the API access log with the given route, method, and status code. If the record already
+   * exists and is outdated, it is updated by moving to the end of the list. If the record does not
+   * exist, a new record is added. If the capacity limit is reached, the oldest record is removed.
+   * This method should not be called concurrently by multiple threads, due absence of additional
+   * synchronization for updating data structures is not required.
    *
    * @param route The route of the API endpoint request
    * @param method The method of the API request
@@ -66,7 +67,7 @@ public class ApiAccessTracker {
       isNewOrUpdated = true;
 
       // Remove the oldest hash if capacity is reached
-      while (apiAccessQueue.size() > this.capacity) {
+      while (apiAccessMap.size() > this.capacity) {
         Long oldestHash = apiAccessQueue.pollFirst();
         if (oldestHash != null) {
           apiAccessMap.remove(oldestHash);
