@@ -1,4 +1,4 @@
-package com.datadog.iast.util;
+package datadog.trace.util;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
