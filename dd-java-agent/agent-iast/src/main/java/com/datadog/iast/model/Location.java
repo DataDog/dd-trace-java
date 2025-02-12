@@ -24,9 +24,9 @@ public final class Location {
       @Nullable final Long spanId,
       @Nullable final String path,
       final int line,
+      @Nullable final String className,
       @Nullable final String method,
-      @Nullable final String serviceName,
-      @Nullable final String className) {
+      @Nullable final String serviceName) {
     this.spanId = spanId;
     this.path = path;
     this.line = line;
@@ -41,27 +41,27 @@ public final class Location {
         spanId(span),
         stack.getFileName(),
         stack.getLineNumber(),
+        stack.getClassName(),
         stack.getMethodName(),
-        serviceName(span),
-        stack.getClassName());
+        serviceName(span));
   }
 
   public static Location forSpanAndClassAndMethod(
       @Nullable final AgentSpan span, final String clazz, final String method) {
-    return new Location(spanId(span), null, -1, method, serviceName(span), clazz);
+    return new Location(spanId(span), null, -1, clazz, method, serviceName(span));
   }
 
   public static Location forSpanAndFileAndLine(
       @Nullable final AgentSpan span, final String file, final int line) {
-    return new Location(spanId(span), file, line, null, serviceName(span), null);
+    return new Location(spanId(span), file, line, null, null, serviceName(span));
   }
 
   public static Location forSpan(@Nullable final AgentSpan span) {
-    return new Location(spanId(span), null, -1, null, serviceName(span), null);
+    return new Location(spanId(span), null, -1, null, null, serviceName(span));
   }
 
   public static Location forClassAndMethodAndLine(String clazz, String method, int currentLine) {
-    return new Location(null, null, currentLine, method, null, clazz);
+    return new Location(null, null, currentLine, clazz, method, null);
   }
 
   public long getSpanId() {
