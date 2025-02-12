@@ -62,11 +62,13 @@ class StableConfigSourceTest extends DDSpecification {
     StableConfigSource cfg = new StableConfigSource(filePath.toString(), ConfigOrigin.USER_STABLE_CONFIG)
 
     then:
-    cfg.getKeys().size() == 3
     cfg.get("service") == "svc"
     cfg.get("env") == "env"
     cfg.get("config_no_dd") == null
     cfg.get("config_nonexistent") == null
+    cfg.getKeys().size() == 3
+    cfg.getConfigId() == "12345"
+
   }
 
   def "test file invalid format"() {
@@ -126,6 +128,7 @@ class StableConfigSourceTest extends DDSpecification {
     ""       | new HashMap<>()
     "12345"  | new HashMap<>() << ["DD_KEY_ONE": "one", "DD_KEY_TWO": "two"]
   }
+
   // Corrupt YAML string variable used for testing, defined outside the 'where' block for readability
   @Shared
   def corruptYaml = ''' 

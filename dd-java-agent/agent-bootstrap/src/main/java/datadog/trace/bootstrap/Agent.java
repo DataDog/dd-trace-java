@@ -34,6 +34,7 @@ import datadog.trace.api.profiling.ProfilingEnablement;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.benchmark.StaticEventLogger;
 import datadog.trace.bootstrap.config.provider.StableConfigSource;
+import datadog.trace.bootstrap.config.provider.StableConfigSourceSingleton;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
@@ -41,7 +42,6 @@ import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
-import java.io.IOException;
 import java.lang.instrument.Instrumentation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -1209,14 +1209,14 @@ public class Agent {
     String featureEnabled = System.getProperty(featureEnabledSysprop);
     if (featureEnabled == null) {
       featureEnabled =
-          getStableConfig(featureEnabledSysprop, StableConfigSource.MANAGED_STABLE_CONFIG_PATH);
+          getStableConfig(StableConfigSourceSingleton.getManaged(), featureEnabledSysprop);
     }
     if (featureEnabled == null) {
       featureEnabled = ddGetEnv(featureEnabledSysprop);
     }
     if (featureEnabled == null) {
       featureEnabled =
-          getStableConfig(featureEnabledSysprop, StableConfigSource.USER_STABLE_CONFIG_PATH);
+          getStableConfig(StableConfigSourceSingleton.getUser(), featureEnabledSysprop);
     }
 
     if (feature.isEnabledByDefault()) {
@@ -1359,16 +1359,8 @@ public class Agent {
    * Looks for the "DD_" environment variable equivalent of the given "dd." system property in the
    * Stable Configuration input
    */
-  private static String getStableConfig(final String sysProp, String filepath) {
-    try {
-      return StableConfigSource.findAndReturnEarly(
-          StableConfigSource.readYamlFromFile(filepath), toEnvVar(sysProp));
-    } catch (IOException e) {
-      log.error("Error reading from file: {}", e.getMessage());
-    } catch (Exception e) {
-      log.error("Error processing file: {}", e.getMessage());
-    }
-    return null;
+  private static String getStableConfig(StableConfigSource source, final String sysProp) {
+    return source.get(toEnvVar(sysProp));
   }
 
   /** Looks for the "DD_" environment variable equivalent of the given "dd." system property. */

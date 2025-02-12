@@ -356,23 +356,19 @@ public final class ConfigProvider {
     if (configProperties.isEmpty()) {
       return new ConfigProvider(
           new SystemPropertiesConfigSource(),
-          new StableConfigSource(
-              StableConfigSource.MANAGED_STABLE_CONFIG_PATH, ConfigOrigin.MANAGED_STABLE_CONFIG),
+          StableConfigSourceSingleton.getManaged(),
           new EnvironmentConfigSource(),
           new OtelEnvironmentConfigSource(),
-          new StableConfigSource(
-              StableConfigSource.USER_STABLE_CONFIG_PATH, ConfigOrigin.USER_STABLE_CONFIG),
+          StableConfigSourceSingleton.getUser(),
           new CapturedEnvironmentConfigSource());
     } else {
       return new ConfigProvider(
           new SystemPropertiesConfigSource(),
-          new StableConfigSource(
-              StableConfigSource.MANAGED_STABLE_CONFIG_PATH, ConfigOrigin.MANAGED_STABLE_CONFIG),
+          StableConfigSourceSingleton.getManaged(),
           new EnvironmentConfigSource(),
           new PropertiesConfigSource(configProperties, true),
           new OtelEnvironmentConfigSource(configProperties),
-          new StableConfigSource(
-              StableConfigSource.USER_STABLE_CONFIG_PATH, ConfigOrigin.USER_STABLE_CONFIG),
+          StableConfigSourceSingleton.getUser(),
           new CapturedEnvironmentConfigSource());
     }
   }
@@ -386,24 +382,20 @@ public final class ConfigProvider {
       return new ConfigProvider(
           false,
           new SystemPropertiesConfigSource(),
-          new StableConfigSource(
-              StableConfigSource.MANAGED_STABLE_CONFIG_PATH, ConfigOrigin.MANAGED_STABLE_CONFIG),
+          StableConfigSourceSingleton.getManaged(),
           new EnvironmentConfigSource(),
           new OtelEnvironmentConfigSource(),
-          new StableConfigSource(
-              StableConfigSource.USER_STABLE_CONFIG_PATH, ConfigOrigin.USER_STABLE_CONFIG),
+          StableConfigSourceSingleton.getUser(),
           new CapturedEnvironmentConfigSource());
     } else {
       return new ConfigProvider(
           false,
           new SystemPropertiesConfigSource(),
-          new StableConfigSource(
-              StableConfigSource.MANAGED_STABLE_CONFIG_PATH, ConfigOrigin.MANAGED_STABLE_CONFIG),
+          StableConfigSourceSingleton.getManaged(),
           new EnvironmentConfigSource(),
           new PropertiesConfigSource(configProperties, true),
           new OtelEnvironmentConfigSource(configProperties),
-          new StableConfigSource(
-              StableConfigSource.USER_STABLE_CONFIG_PATH, ConfigOrigin.USER_STABLE_CONFIG),
+          StableConfigSourceSingleton.getUser(),
           new CapturedEnvironmentConfigSource());
     }
   }
@@ -420,25 +412,21 @@ public final class ConfigProvider {
     if (configProperties.isEmpty()) {
       return new ConfigProvider(
           new SystemPropertiesConfigSource(),
-          new StableConfigSource(
-              StableConfigSource.MANAGED_STABLE_CONFIG_PATH, ConfigOrigin.MANAGED_STABLE_CONFIG),
+          StableConfigSourceSingleton.getManaged(),
           new EnvironmentConfigSource(),
           providedConfigSource,
           new OtelEnvironmentConfigSource(),
-          new StableConfigSource(
-              StableConfigSource.USER_STABLE_CONFIG_PATH, ConfigOrigin.USER_STABLE_CONFIG),
+          StableConfigSourceSingleton.getUser(),
           new CapturedEnvironmentConfigSource());
     } else {
       return new ConfigProvider(
           providedConfigSource,
           new SystemPropertiesConfigSource(),
-          new StableConfigSource(
-              StableConfigSource.MANAGED_STABLE_CONFIG_PATH, ConfigOrigin.MANAGED_STABLE_CONFIG),
+          StableConfigSourceSingleton.getManaged(),
           new EnvironmentConfigSource(),
           new PropertiesConfigSource(configProperties, true),
           new OtelEnvironmentConfigSource(configProperties),
-          new StableConfigSource(
-              StableConfigSource.USER_STABLE_CONFIG_PATH, ConfigOrigin.USER_STABLE_CONFIG),
+          StableConfigSourceSingleton.getUser(),
           new CapturedEnvironmentConfigSource());
     }
   }
