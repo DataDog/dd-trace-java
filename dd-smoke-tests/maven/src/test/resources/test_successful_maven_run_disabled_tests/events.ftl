@@ -245,7 +245,7 @@
       "test.framework_version" : "4.13.2",
       "test.module" : "Maven Smoke Tests Project maven-surefire-plugin default-test",
       "test.source.file" : "src/test/java/datadog/smoke/TestFailed.java",
-      "test.status" : "fail",
+      "test.status" : "skip",
       "test.suite" : "datadog.smoke.TestFailed",
       "test.type" : "test",
       "test_session.name" : "mvn -B test"
@@ -271,7 +271,7 @@
 }, {
   "content" : {
     "duration" : ${content_duration_8},
-    "error" : 1,
+    "error" : 0,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_8},
       "_dd.test.is_user_provided_service" : "true",
@@ -279,8 +279,6 @@
       "ci.workspace_path" : ${content_meta_ci_workspace_path},
       "component" : "junit",
       "env" : "integration-test",
-      "error.stack" : ${content_meta_error_stack},
-      "error.type" : "java.lang.AssertionError",
       "language" : "jvm",
       "library_version" : ${content_meta_library_version},
       "os.architecture" : ${content_meta_os_architecture},
@@ -295,11 +293,12 @@
       "test.framework_version" : "4.13.2",
       "test.module" : "Maven Smoke Tests Project maven-surefire-plugin default-test",
       "test.name" : "test_failed",
+      "test.skip_reason" : "Flaky test is disabled by Datadog",
       "test.source.file" : "src/test/java/datadog/smoke/TestFailed.java",
       "test.source.method" : "test_failed()V",
-      "test.status" : "fail",
+      "test.status" : "skip",
       "test.suite" : "datadog.smoke.TestFailed",
-      "test.test_management.is_quarantined" : "true",
+      "test.test_management.is_test_disabled" : "true",
       "test.type" : "test",
       "test_session.name" : "mvn -B test"
     },
