@@ -23,6 +23,7 @@ stages:
 #TODO publish tests to datadog
 #TODO agent_integration_tests
 #TODO no output timeout
+#TODO xlarge_tests
 
 variables:
   REGISTRY: 486234852809.dkr.ecr.us-east-1.amazonaws.com
@@ -263,6 +264,7 @@ muzzle-dep-report:
 
 .test_job:
   extends: .gradle_build
+  image: ghcr.io/datadog/dd-trace-java-docker-build:$testJvm
   needs: [ build_tests ]
   stage: tests
   rules:
