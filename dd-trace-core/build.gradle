@@ -48,6 +48,10 @@ excludedClassesCoverage += [
   'datadog.trace.core.TracingConfigPoller.Updater',
   // covered with dd-trace-core/src/test/groovy/datadog/trace/core/datastreams/CheckpointerTest.groovy
   'datadog.trace.core.datastreams.DefaultDataStreamsMonitoring',
+  // TODO CorePropagation will be removed during context refactoring
+  'datadog.trace.core.propagation.CorePropagation',
+  // TODO DSM propagator will be tested once fully migrated
+  'datadog.trace.core.datastreams.DataStreamPropagator'
 ]
 
 addTestSuite('traceAgentTest')
