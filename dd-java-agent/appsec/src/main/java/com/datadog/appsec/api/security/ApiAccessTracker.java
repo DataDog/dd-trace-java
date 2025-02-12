@@ -77,6 +77,13 @@ public class ApiAccessTracker {
     return isNewOrUpdated;
   }
 
+  public boolean isApiAccessExpired(String route, String method, int statusCode) {
+    long currentTime = System.currentTimeMillis();
+    long hash = computeApiHash(route, method, statusCode);
+    return !apiAccessMap.containsKey(hash)
+        || currentTime - apiAccessMap.get(hash) > expirationTimeInMs;
+  }
+
   private void cleanupExpiredEntries(long currentTime) {
     while (!apiAccessQueue.isEmpty()) {
       Long oldestHash = apiAccessQueue.peekFirst();

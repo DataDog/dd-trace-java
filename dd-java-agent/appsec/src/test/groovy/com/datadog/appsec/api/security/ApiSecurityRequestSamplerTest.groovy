@@ -15,7 +15,7 @@ class ApiSecurityRequestSamplerTest extends DDSpecification {
   void 'Api Security Sample Request'() {
     when:
     def span = Mock(AppSecRequestContext) {
-      getSavedRawURI() >> route
+      getRoute() >> route
       getMethod() >> method
       getResponseStatus() >> statusCode
     }
