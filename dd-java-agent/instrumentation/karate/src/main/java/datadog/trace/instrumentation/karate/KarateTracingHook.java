@@ -114,7 +114,8 @@ public class KarateTracingHook implements RuntimeHook {
     String parameters = KarateUtils.getParameters(scenario);
     Collection<String> categories = scenario.getTagsEffective().getTagKeys();
 
-    if (Config.get().isCiVisibilityTestSkippingEnabled()) {
+    if (Config.get().isCiVisibilityTestSkippingEnabled()
+        || Config.get().isCiVisibilityTestManagementEnabled()) {
       TestIdentifier skippableTest = KarateUtils.toTestIdentifier(scenario);
       SkipReason skipReason = TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skipReason(skippableTest);
 
