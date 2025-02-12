@@ -102,7 +102,34 @@ public class LogProbeTest {
     assertEquals(runs * LogProbe.NON_CAPTURING_PROBE_BUDGET, sink.highRate);
   }
 
+  @Test
+  public void budgetsOnLineProbes() {
+    BudgetSink sink = new BudgetSink(getConfig(), mock(ProbeStatusSink.class));
+    DebuggerAgentHelper.injectSink(sink);
+
+    TracerAPI tracer =
+        CoreTracer.builder().idGenerationStrategy(IdGenerationStrategy.fromName("random")).build();
+    AgentTracer.registerIfAbsent(tracer);
+    int runs = 100;
+    for (int i = 0; i < runs; i++) {
+      runTrace(tracer, true, 100);
+    }
+    assertEquals(runs * LogProbe.CAPTURING_PROBE_BUDGET, sink.captures);
+
+    sink = new BudgetSink(getConfig(), mock(ProbeStatusSink.class));
+    DebuggerAgentHelper.injectSink(sink);
+    runs = 1010;
+    for (int i = 0; i < runs; i++) {
+      runTrace(tracer, false, 100);
+    }
+    assertEquals(runs * LogProbe.NON_CAPTURING_PROBE_BUDGET, sink.highRate);
+  }
+
   private void runTrace(TracerAPI tracer, boolean captureSnapshot) {
+    runTrace(tracer, captureSnapshot, null);
+  }
+
+  private void runTrace(TracerAPI tracer, boolean captureSnapshot, Integer line) {
     AgentSpan span = tracer.startSpan("budget testing", "test span");
     span.setTag(Tags.PROPAGATED_DEBUG, "12345:1");
     try (AgentScope scope = tracer.activateSpan(span, ScopeSource.MANUAL)) {
@@ -125,7 +152,11 @@ public class LogProbeTest {
       int runs = budget + 20;
 
       for (int i = 0; i < runs; i++) {
-        logProbe.commit(entryContext, exitContext, emptyList());
+        if (line == null) {
+          logProbe.commit(entryContext, exitContext, emptyList());
+        } else {
+          logProbe.commit(entryContext, line);
+        }
       }
       assertEquals(runs, span.getLocalRootSpan().getTag(format("_dd.ld.probe_id.%s", logProbe.id)));
     }
@@ -170,6 +201,29 @@ public class LogProbeTest {
         System.currentTimeMillis(),
         MethodLocation.DEFAULT);
     return context;
+  }
+
+  @Test
+  public void testDebugLineProbes() {
+    BudgetSink sink = new BudgetSink(getConfig(), mock(ProbeStatusSink.class));
+    DebuggerAgentHelper.injectSink(sink);
+
+    TracerAPI tracer =
+        CoreTracer.builder().idGenerationStrategy(IdGenerationStrategy.fromName("random")).build();
+    AgentTracer.registerIfAbsent(tracer);
+    int runs = 100;
+    for (int i = 0; i < runs; i++) {
+      runTrace(tracer, true);
+    }
+    assertEquals(runs * LogProbe.CAPTURING_PROBE_BUDGET, sink.captures);
+
+    sink = new BudgetSink(getConfig(), mock(ProbeStatusSink.class));
+    DebuggerAgentHelper.injectSink(sink);
+    runs = 1010;
+    for (int i = 0; i < runs; i++) {
+      runTrace(tracer, false);
+    }
+    assertEquals(runs * LogProbe.NON_CAPTURING_PROBE_BUDGET, sink.highRate);
   }
 
   @Test
