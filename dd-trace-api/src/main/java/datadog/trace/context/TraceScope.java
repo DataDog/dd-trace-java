@@ -13,9 +13,9 @@ public interface TraceScope extends Closeable {
 
   /**
    * @deprecated Replaced by {@link Tracer#captureActiveSpan()}.
-   *     <p>Prevent the currently active trace from reporting until the returned Continuation is
-   *     either activated (and the returned scope is closed), or canceled. Should be called on the
-   *     parent thread.
+   *     <p>Prevent the <strong>currently active trace</strong>, which may differ from this scope
+   *     instance, from reporting until the returned Continuation is either activated (and the
+   *     returned scope is closed), or canceled. Should be called on the parent thread.
    * @return Continuation of the active span, no-op continuation if there's no active span.
    */
   @Deprecated
