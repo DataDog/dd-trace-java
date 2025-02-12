@@ -4,7 +4,6 @@ import static datadog.trace.api.iast.IastDetectionMode.UNLIMITED;
 
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.IastSystem;
-import com.datadog.iast.util.NonBlockingSemaphore;
 import datadog.trace.api.Config;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
@@ -13,6 +12,7 @@ import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.util.AgentTaskScheduler;
+import datadog.trace.util.NonBlockingSemaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nullable;
