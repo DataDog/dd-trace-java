@@ -25,10 +25,5 @@ public class NoopTraceScope implements TraceScope {
   private NoopTraceScope() {}
 
   @Override
-  public Continuation capture() {
-    return NoopContinuation.INSTANCE;
-  }
-
-  @Override
   public void close() {}
 }
