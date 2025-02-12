@@ -127,40 +127,23 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     "test_successful_maven_run_impacted_tests" | "3.9.9"
   }
 
-  def "test quarantine"() {
+  def "test test management"() {
     givenWrapperPropertiesFile(mavenVersion)
     givenMavenProjectFiles(projectName)
     givenMavenDependenciesAreLoaded(projectName, mavenVersion)
 
     mockBackend.givenTestManagement(true)
     mockBackend.givenQuarantinedTests("Maven Smoke Tests Project maven-surefire-plugin default-test", "datadog.smoke.TestFailed", "test_failed")
+    mockBackend.givenDisabledTests("Maven Smoke Tests Project maven-surefire-plugin default-test", "datadog.smoke.TestFailed", "test_another_failed")
 
     def exitCode = whenRunningMavenBuild([], [])
     assert exitCode == 0
 
-    verifyEventsAndCoverages(projectName, "maven", mavenVersion, mockBackend.waitForEvents(8), mockBackend.waitForCoverages(1))
+    verifyEventsAndCoverages(projectName, "maven", mavenVersion, mockBackend.waitForEvents(9), mockBackend.waitForCoverages(1))
 
     where:
     projectName                                   | mavenVersion
-    "test_successful_maven_run_quarantined_tests" | "3.9.9"
-  }
-
-  def "test disabled"() {
-    givenWrapperPropertiesFile(mavenVersion)
-    givenMavenProjectFiles(projectName)
-    givenMavenDependenciesAreLoaded(projectName, mavenVersion)
-
-    mockBackend.givenTestManagement(true)
-    mockBackend.givenDisabledTests("Maven Smoke Tests Project maven-surefire-plugin default-test", "datadog.smoke.TestFailed", "test_failed")
-
-    def exitCode = whenRunningMavenBuild([], [])
-    assert exitCode == 0
-
-    verifyEventsAndCoverages(projectName, "maven", mavenVersion, mockBackend.waitForEvents(8), mockBackend.waitForCoverages(0))
-
-    where:
-    projectName                                | mavenVersion
-    "test_successful_maven_run_disabled_tests" | "3.9.9"
+    "test_successful_maven_run_test_management" | "3.9.9"
   }
 
   private void givenWrapperPropertiesFile(String mavenVersion) {
