@@ -9,12 +9,12 @@ import com.amazonaws.AmazonWebServiceResponse;
 import com.amazonaws.Request;
 import com.amazonaws.Response;
 import com.amazonaws.http.HttpMethodName;
+import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.naming.SpanNaming;
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -32,7 +32,7 @@ import java.util.regex.Pattern;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response>
-    implements AgentPropagation.Setter<Request<?>> {
+    implements CarrierSetter<Request<?>> {
 
   private static final String AWS = "aws";
 

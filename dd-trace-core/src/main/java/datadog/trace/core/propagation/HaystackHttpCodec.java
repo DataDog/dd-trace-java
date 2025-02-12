@@ -3,6 +3,7 @@ package datadog.trace.core.propagation;
 import static datadog.trace.api.TracePropagationStyle.HAYSTACK;
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
 
+import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.Config;
 import datadog.trace.api.DD64bTraceId;
 import datadog.trace.api.DDSpanId;
@@ -10,7 +11,6 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.sampling.PrioritySampling;
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Map;
@@ -63,7 +63,7 @@ class HaystackHttpCodec {
 
     @Override
     public <C> void inject(
-        final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
+        final DDSpanContext context, final C carrier, final CarrierSetter<C> setter) {
       try {
         // Given that Haystack uses a 128-bit UUID/GUID for all ID representations, need to convert
         // from 64-bit BigInteger

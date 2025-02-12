@@ -157,10 +157,6 @@ public class AgentTracer {
     get().setAsyncPropagationEnabled(asyncPropagationEnabled);
   }
 
-  public static AgentPropagation propagate() {
-    return get().propagate();
-  }
-
   /**
    * Returns the noop span instance.
    *
@@ -298,8 +294,6 @@ public class AgentTracer {
     AgentSpan activeSpan();
 
     AgentScope activeScope();
-
-    AgentPropagation propagate();
 
     default AgentSpan blackholeSpan() {
       final AgentSpan active = activeSpan();
@@ -460,11 +454,6 @@ public class AgentTracer {
     }
 
     @Override
-    public AgentPropagation propagate() {
-      return NoopAgentPropagation.INSTANCE;
-    }
-
-    @Override
     public AgentSpan blackholeSpan() {
       return NoopSpan.INSTANCE; // no-op tracer stays no-op
     }
@@ -590,10 +579,6 @@ public class AgentTracer {
     public void updatePreferredServiceName(String serviceName) {
       // no ops
     }
-  }
-
-  static class NoopAgentPropagation implements AgentPropagation {
-    static final NoopAgentPropagation INSTANCE = new NoopAgentPropagation();
   }
 
   public static class NoopAgentTraceCollector implements AgentTraceCollector {

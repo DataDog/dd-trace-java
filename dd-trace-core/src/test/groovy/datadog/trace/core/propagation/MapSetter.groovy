@@ -1,8 +1,11 @@
 package datadog.trace.core.propagation
 
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
+import datadog.context.propagation.CarrierSetter
 
-class MapSetter implements AgentPropagation.Setter<Map<String, String>> {
+import javax.annotation.ParametersAreNonnullByDefault
+
+@ParametersAreNonnullByDefault
+class MapSetter implements CarrierSetter<Map<String, String>> {
   static final INSTANCE = new MapSetter()
 
   @Override

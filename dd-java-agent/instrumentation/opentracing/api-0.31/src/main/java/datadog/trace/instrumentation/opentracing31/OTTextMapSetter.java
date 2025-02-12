@@ -1,9 +1,11 @@
 package datadog.trace.instrumentation.opentracing31;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.context.propagation.CarrierSetter;
 import io.opentracing.propagation.TextMap;
+import javax.annotation.ParametersAreNonnullByDefault;
 
-class OTTextMapSetter implements AgentPropagation.Setter<TextMap> {
+@ParametersAreNonnullByDefault
+class OTTextMapSetter implements CarrierSetter<TextMap> {
   static final OTTextMapSetter INSTANCE = new OTTextMapSetter();
 
   @Override

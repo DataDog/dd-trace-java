@@ -1,11 +1,11 @@
 package datadog.trace.instrumentation.apachehttpclient5;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.context.propagation.CarrierSetter;
 import javax.annotation.ParametersAreNonnullByDefault;
 import org.apache.hc.core5.http.HttpRequest;
 
 @ParametersAreNonnullByDefault
-public class HttpHeadersInjectAdapter implements AgentPropagation.Setter<HttpRequest> {
+public class HttpHeadersInjectAdapter implements CarrierSetter<HttpRequest> {
 
   public static final HttpHeadersInjectAdapter SETTER = new HttpHeadersInjectAdapter();
 

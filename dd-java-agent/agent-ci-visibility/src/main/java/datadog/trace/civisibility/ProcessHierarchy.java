@@ -1,6 +1,6 @@
 package datadog.trace.civisibility;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 
 import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
@@ -33,7 +33,8 @@ public class ProcessHierarchy {
 
   ProcessHierarchy() {
     parentProcessModuleContext =
-        propagate().extract(System.getProperties(), SystemPropertiesPropagationGetter.INSTANCE);
+        extractContextAndGetSpanContext(
+            System.getProperties(), SystemPropertiesPropagationGetter.INSTANCE);
   }
 
   /**

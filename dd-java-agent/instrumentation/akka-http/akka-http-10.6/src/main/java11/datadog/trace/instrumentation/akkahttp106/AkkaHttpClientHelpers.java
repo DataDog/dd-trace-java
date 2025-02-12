@@ -4,7 +4,7 @@ import akka.http.javadsl.model.headers.RawHeader;
 import akka.http.scaladsl.model.HttpRequest;
 import akka.http.scaladsl.model.HttpResponse;
 import akka.http.scaladsl.model.headers.CustomHeader;
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.context.propagation.CarrierSetter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import scala.runtime.AbstractFunction1;
 import scala.util.Try;
@@ -30,7 +30,7 @@ public final class AkkaHttpClientHelpers {
     }
   }
 
-  public static class AkkaHttpHeaders implements AgentPropagation.Setter<HttpRequest> {
+  public static class AkkaHttpHeaders implements CarrierSetter<HttpRequest> {
     private HttpRequest request;
     // Did this request have a span when the AkkaHttpHeaders object was created?
     private boolean hadSpan;

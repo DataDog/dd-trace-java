@@ -3,6 +3,7 @@ package datadog.trace.civisibility.domain.buildsystem;
 import static datadog.context.propagation.Propagators.defaultPropagator;
 
 import datadog.communication.ddagent.TracerVersion;
+import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.CIConstants;
@@ -12,7 +13,6 @@ import datadog.trace.api.civisibility.domain.BuildSessionSettings;
 import datadog.trace.api.civisibility.domain.JavaAgent;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.config.CiVisibilityConfig;
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -112,8 +112,8 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
 
   @ParametersAreNonnullByDefault
   private static final class ChildProcessPropertiesPropagationSetter
-      implements AgentPropagation.Setter<Map<String, String>> {
-    static final AgentPropagation.Setter<Map<String, String>> INSTANCE =
+      implements CarrierSetter<Map<String, String>> {
+    static final CarrierSetter<Map<String, String>> INSTANCE =
         new ChildProcessPropertiesPropagationSetter();
 
     private ChildProcessPropertiesPropagationSetter() {}

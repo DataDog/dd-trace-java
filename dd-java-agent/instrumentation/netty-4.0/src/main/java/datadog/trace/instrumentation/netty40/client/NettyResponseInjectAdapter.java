@@ -1,11 +1,11 @@
 package datadog.trace.instrumentation.netty40.client;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.context.propagation.CarrierSetter;
 import io.netty.handler.codec.http.HttpHeaders;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
-public class NettyResponseInjectAdapter implements AgentPropagation.Setter<HttpHeaders> {
+public class NettyResponseInjectAdapter implements CarrierSetter<HttpHeaders> {
 
   public static final NettyResponseInjectAdapter SETTER = new NettyResponseInjectAdapter();
 
