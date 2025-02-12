@@ -18,7 +18,7 @@ final class ContinuationClaim implements AgentScope.Continuation {
   }
 
   @Override
-  public AgentSpan getSpan() {
+  public AgentSpan span() {
     throw new IllegalStateException();
   }
 

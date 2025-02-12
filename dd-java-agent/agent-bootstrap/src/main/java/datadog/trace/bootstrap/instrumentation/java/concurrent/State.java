@@ -60,7 +60,7 @@ public final class State {
   public AgentSpan getSpan() {
     AgentScope.Continuation continuation = CONTINUATION.get(this);
     if (null != continuation) {
-      return continuation.getSpan();
+      return continuation.span();
     }
     return null;
   }

@@ -22,6 +22,6 @@ public interface AgentScope extends TraceScope, Closeable {
     AgentScope activate();
 
     /** Provide access to the captured span */
-    AgentSpan getSpan();
+    AgentSpan span();
   }
 }
