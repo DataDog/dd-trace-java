@@ -171,6 +171,10 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
       test.setTag(Tags.TEST_TEST_MANAGEMENT_IS_QUARANTINED, true);
     }
 
+    if (testModule.isDisabled(thisTest)) {
+      test.setTag(Tags.TEST_TEST_MANAGEMENT_IS_TEST_DISABLED, true);
+    }
+
     if (testExecutionHistory != null) {
       RetryReason retryReason = testExecutionHistory.currentExecutionRetryReason();
       if (retryReason != null) {

@@ -19,6 +19,7 @@ import datadog.trace.api.civisibility.telemetry.TagValue;
 import datadog.trace.api.civisibility.telemetry.tag.BrowserDriver;
 import datadog.trace.api.civisibility.telemetry.tag.EventType;
 import datadog.trace.api.civisibility.telemetry.tag.HasFailedAllRetries;
+import datadog.trace.api.civisibility.telemetry.tag.IsDisabled;
 import datadog.trace.api.civisibility.telemetry.tag.IsModified;
 import datadog.trace.api.civisibility.telemetry.tag.IsNew;
 import datadog.trace.api.civisibility.telemetry.tag.IsQuarantined;
@@ -278,6 +279,7 @@ public class TestImpl implements DDTest {
         span.getTag(Tags.TEST_IS_NEW) != null ? IsNew.TRUE : null,
         span.getTag(Tags.TEST_IS_MODIFIED) != null ? IsModified.TRUE : null,
         span.getTag(Tags.TEST_TEST_MANAGEMENT_IS_QUARANTINED) != null ? IsQuarantined.TRUE : null,
+        span.getTag(Tags.TEST_TEST_MANAGEMENT_IS_TEST_DISABLED) != null ? IsDisabled.TRUE : null,
         span.getTag(Tags.TEST_IS_RETRY) != null ? IsRetry.TRUE : null,
         span.getTag(Tags.TEST_HAS_FAILED_ALL_RETRIES) != null ? HasFailedAllRetries.TRUE : null,
         retryReason instanceof TagValue ? (TagValue) retryReason : null,
