@@ -27,6 +27,7 @@ class WafMetricCollectorTest extends DDSpecification {
     WafMetricCollector.get().wafRequestTriggered()
     WafMetricCollector.get().wafRequestBlocked()
     WafMetricCollector.get().wafRequestTimeout()
+    WafMetricCollector.get().wafInputTruncated(TruncatedType.STRING_TOO_LONG, 5)
     WafMetricCollector.get().raspRuleEval(RuleType.SQL_INJECTION)
     WafMetricCollector.get().raspRuleEval(RuleType.SQL_INJECTION)
     WafMetricCollector.get().raspRuleMatch(RuleType.SQL_INJECTION)
@@ -111,21 +112,28 @@ class WafMetricCollectorTest extends DDSpecification {
       'waf_timeout:true'
     ].toSet()
 
-    def raspRuleEvalSqli = (WafMetricCollector.RaspRuleEval)metrics[7]
+    def inputTruncatedStringTooLong = (WafMetricCollector.WafInputTruncatedRawMetric)metrics[7]
+    inputTruncatedStringTooLong.type == 'count'
+    inputTruncatedStringTooLong.value == 5
+    inputTruncatedStringTooLong.namespace == 'appsec'
+    inputTruncatedStringTooLong.metricName == 'waf.input_truncated'
+    inputTruncatedStringTooLong.tags.toSet() == ['truncation_reason:1'].toSet()
+
+    def raspRuleEvalSqli = (WafMetricCollector.RaspRuleEval)metrics[8]
     raspRuleEvalSqli.type == 'count'
     raspRuleEvalSqli.value == 3
     raspRuleEvalSqli.namespace == 'appsec'
     raspRuleEvalSqli.metricName == 'rasp.rule.eval'
     raspRuleEvalSqli.tags.toSet() == ['rule_type:sql_injection', 'waf_version:waf_ver1'].toSet()
 
-    def raspRuleMatch = (WafMetricCollector.RaspRuleMatch)metrics[8]
+    def raspRuleMatch = (WafMetricCollector.RaspRuleMatch)metrics[9]
     raspRuleMatch.type == 'count'
     raspRuleMatch.value == 1
     raspRuleMatch.namespace == 'appsec'
     raspRuleMatch.metricName == 'rasp.rule.match'
     raspRuleMatch.tags.toSet() == ['rule_type:sql_injection', 'waf_version:waf_ver1'].toSet()
 
-    def raspTimeout = (WafMetricCollector.RaspTimeout)metrics[9]
+    def raspTimeout = (WafMetricCollector.RaspTimeout)metrics[10]
     raspTimeout.type == 'count'
     raspTimeout.value == 1
     raspTimeout.namespace == 'appsec'
@@ -294,6 +302,26 @@ class WafMetricCollectorTest extends DDSpecification {
       assert tags["framework"] == LoginFramework.SPRING_SECURITY.getTag()
       assert tags["event_type"] == "authenticated_request"
     }
+  }
+
+  def "test WAF #inputTruncated metrics"() {
+    when:
+    WafMetricCollector.get().wafInit('waf_ver1', 'rules.1', true)
+    WafMetricCollector.get().wafInputTruncated(truncatedType, 5)
+    WafMetricCollector.get().prepareMetrics()
+
+    then:
+    def metrics = WafMetricCollector.get().drain()
+
+    def inputTruncated = (WafMetricCollector.WafInputTruncatedRawMetric)metrics[1]
+    inputTruncated.type == 'count'
+    inputTruncated.value == 5
+    inputTruncated.namespace == 'appsec'
+    inputTruncated.metricName == 'waf.input_truncated'
+    inputTruncated.tags.toSet() == ['truncation_reason:' + truncatedType.value].toSet()
+
+    where:
+    truncatedType << [TruncatedType.STRING_TOO_LONG, TruncatedType.LIST_MAP_TOO_LARGE, TruncatedType.OBJECT_TOO_DEEP]
   }
 
   def "test Rasp #ruleType metrics"() {

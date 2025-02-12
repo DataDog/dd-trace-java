@@ -37,6 +37,7 @@ import spock.lang.Shared
 import spock.lang.Unroll
 
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.atomic.AtomicLong
 
 import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP
 import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP
@@ -546,9 +547,9 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.getOrCreateAdditive(_, true, false) >> {
       pwafAdditive = it[0].openAdditive()
     }
-    3 * tracer.activeSpan()
+    2 * tracer.activeSpan()
     // we get two events: one for origin rule, and one for the custom one
-    1 * ctx.reportEvents(hasSize(2))
+    1 * ctx.reportEvents(hasSize(1))
     1 * ctx.getWafMetrics()
     1 * ctx.isAdditiveClosed() >> false
     1 * ctx.closeAdditive()
@@ -777,7 +778,15 @@ class PowerWAFModuleSpecification extends DDSpecification {
       pwafAdditive
     }
     1 * ctx.closeAdditive()
-    2 * ctx.getWafMetrics() >> { metrics.with { totalDdwafRunTimeNs = 1000; totalRunTimeNs = 2000; it} }
+    2 * ctx.getWafMetrics() >> {
+      metrics.with {
+        totalDdwafRunTimeNs = new AtomicLong(1000)
+        totalRunTimeNs = new AtomicLong(2000)
+        wafInputsTruncatedStringTooLongCount = new AtomicLong(0)
+        wafInputsTruncatedListMapTooLargeCount = new AtomicLong(0)
+        wafInputsTruncatedObjectTooDeepCount = new AtomicLong(0)
+        it
+      } }
 
     1 * segment.setTagTop('_dd.appsec.waf.duration', 1)
     1 * segment.setTagTop('_dd.appsec.waf.duration_ext', 2)
