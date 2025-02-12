@@ -1,4 +1,4 @@
-package com.datadog.iast.util
+package datadog.trace.util
 
 import datadog.trace.test.util.DDSpecification
 import groovy.transform.CompileDynamic
