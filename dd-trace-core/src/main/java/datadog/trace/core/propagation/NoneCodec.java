@@ -1,9 +1,9 @@
 package datadog.trace.core.propagation;
 
+import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.Config;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
@@ -64,8 +64,7 @@ public class NoneCodec {
   public static final HttpCodec.Injector INJECTOR =
       new HttpCodec.Injector() {
         @Override
-        public <C> void inject(
-            DDSpanContext context, C carrier, AgentPropagation.Setter<C> setter) {}
+        public <C> void inject(DDSpanContext context, C carrier, CarrierSetter<C> setter) {}
       };
 
   public static HttpCodec.Extractor newExtractor(

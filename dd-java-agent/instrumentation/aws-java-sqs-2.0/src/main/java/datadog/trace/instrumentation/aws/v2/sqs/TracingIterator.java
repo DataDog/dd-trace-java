@@ -1,9 +1,9 @@
 package datadog.trace.instrumentation.aws.v2.sqs;
 
 import static datadog.trace.api.datastreams.DataStreamsContext.create;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateNext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.URIUtils.urlFileName;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
@@ -67,7 +67,9 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
         if (batchContext == null) {
           // first grab any incoming distributed context
           AgentSpanContext spanContext =
-              Config.get().isSqsPropagationEnabled() ? propagate().extract(message, GETTER) : null;
+              Config.get().isSqsPropagationEnabled()
+                  ? extractContextAndGetSpanContext(message, GETTER)
+                  : null;
           // next add a time-in-queue span for non-legacy SQS traces
           if (TIME_IN_QUEUE_ENABLED) {
             long timeInQueueStart = GETTER.extractTimeInQueueStart(message);

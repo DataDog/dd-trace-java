@@ -78,7 +78,6 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.api.AgentSpanContext",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentHistogram",
-  "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentPropagation",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentTraceCollector",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopTraceConfig",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopTracerAPI",
