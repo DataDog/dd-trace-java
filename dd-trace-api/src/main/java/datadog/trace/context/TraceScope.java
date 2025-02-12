@@ -12,6 +12,36 @@ public interface TraceScope extends Closeable {
   void close();
 
   /**
+   * Used to pass async context between workers. A trace will not be reported until all spans and
+   * continuations are resolved. You must call activate (and close on the returned scope) or cancel
+   * on each continuation to avoid discarding traces.
+   */
+  interface Continuation {
+
+    /**
+     * Prevent the trace attached to this scope from reporting until the continuation is explicitly
+     * cancelled. You must call {@link #cancel()} at some point to avoid discarding traces.
+     *
+     * <p>Use this when you want to let multiple threads activate the continuation concurrently and
+     * close their scopes without fear of prematurely closing the related span.
+     */
+    Continuation hold();
+
+    /**
+     * Activate the continuation.
+     *
+     * <p>Should be called on the child thread.
+     *
+     * <p>Consider calling this in a try-with-resources initialization block to ensure the returned
+     * scope is closed properly.
+     */
+    TraceScope activate();
+
+    /** Allow trace to stop waiting on this continuation for reporting. */
+    void cancel();
+  }
+
+  /**
    * @deprecated Replaced by {@link Tracer#captureActiveSpan()}.
    *     <p>Prevent the <strong>currently active trace</strong>, which may differ from this scope
    *     instance, from reporting until the returned Continuation is either activated (and the
@@ -50,35 +80,5 @@ public interface TraceScope extends Closeable {
   @Deprecated
   default void setAsyncPropagation(boolean value) {
     GlobalTracer.get().setAsyncPropagationEnabled(value);
-  }
-
-  /**
-   * Used to pass async context between workers. A trace will not be reported until all spans and
-   * continuations are resolved. You must call activate (and close on the returned scope) or cancel
-   * on each continuation to avoid discarding traces.
-   */
-  interface Continuation {
-
-    /**
-     * Prevent the trace attached to this scope from reporting until the continuation is explicitly
-     * cancelled. You must call {@link #cancel()} at some point to avoid discarding traces.
-     *
-     * <p>Use this when you want to let multiple threads activate the continuation concurrently and
-     * close their scopes without fear of prematurely closing the related span.
-     */
-    Continuation hold();
-
-    /**
-     * Activate the continuation.
-     *
-     * <p>Should be called on the child thread.
-     *
-     * <p>Consider calling this in a try-with-resources initialization block to ensure the returned
-     * scope is closed properly.
-     */
-    TraceScope activate();
-
-    /** Allow trace to stop waiting on this continuation for reporting. */
-    void cancel();
   }
 }
