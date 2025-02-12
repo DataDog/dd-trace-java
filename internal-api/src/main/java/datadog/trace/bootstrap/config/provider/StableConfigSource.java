@@ -28,11 +28,11 @@ public final class StableConfigSource extends ConfigProvider.Source {
   private final ConfigOrigin fileOrigin;
   private final String filePath;
 
-  private Map<?, ?>
-      loadedConfig; // Holds the configuration entries lazily loaded from the configuration file
-  private Iterator<? extends Map.Entry<?, ?>>
-      iterator; // used to traverse through the entries of the loadedConfig map as processing
+  // loadedConfig holds the configuration entries lazily loaded from the configuration file
+  private Map<?, ?> loadedConfig;
+  // iterator is used to traverse through the entries of the loadedConfig map as processing
   // progresses
+  private Iterator<? extends Map.Entry<?, ?>> iterator;
   private Boolean fileReadComplete;
 
   private final StableConfig config;
