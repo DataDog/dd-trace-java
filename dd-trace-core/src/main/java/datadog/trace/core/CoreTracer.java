@@ -86,12 +86,11 @@ import datadog.trace.core.histogram.Histograms;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.monitor.MonitoringImpl;
 import datadog.trace.core.monitor.TracerHealthMetrics;
-import datadog.trace.core.propagation.ApmTracionDisabledPropagator;
+import datadog.trace.core.propagation.ApmTracingDisabledPropagator;
 import datadog.trace.core.propagation.CorePropagation;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.propagation.PropagationTags;
-import datadog.trace.core.propagation.ApmTracionDisabledPropagator;
 import datadog.trace.core.propagation.TracingPropagator;
 import datadog.trace.core.propagation.XRayPropagator;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
@@ -729,7 +728,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     // If disabled, the most common case, use the usual tracing propagator by default.
     boolean apmTracingDisabled = !config.isApmTracingEnabled();
     boolean dsm = config.isDataStreamsEnabled();
-    Propagators.register(STANDALONE_ASM_CONCERN, new ApmTracionDisabledPropagator(), apmTracingDisabled);
+    Propagators.register(
+        STANDALONE_ASM_CONCERN, new ApmTracingDisabledPropagator(), apmTracingDisabled);
     Propagators.register(TRACING_CONCERN, tracingPropagator, !apmTracingDisabled);
     Propagators.register(XRAY_TRACING_CONCERN, new XRayPropagator(config), false);
     if (dsm) {
