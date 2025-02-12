@@ -279,9 +279,6 @@ public class GatewayBridge {
 
     // update span tags
     segment.setTagTop("appsec.events." + eventName + ".track", true, true);
-    if (exists != null) {
-      segment.setTagTop("appsec.events." + eventName + ".usr.exists", exists, true);
-    }
     if (metadata != null && !metadata.isEmpty()) {
       segment.setTagTop("appsec.events." + eventName, metadata, true);
     }
@@ -313,6 +310,10 @@ public class GatewayBridge {
         segment.setTagTop("appsec.events." + eventName + ".usr.id", user, true);
       }
       segment.setTagTop("_dd.appsec.user.collection_mode", mode.fullName());
+    }
+
+    if (exists != null) {
+      segment.setTagTop("appsec.events." + eventName + ".usr.exists", exists, true);
     }
 
     // update user span tags
