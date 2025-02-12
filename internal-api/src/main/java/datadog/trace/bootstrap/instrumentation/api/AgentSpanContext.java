@@ -88,5 +88,7 @@ public interface AgentSpanContext {
     String getTrueClientIp();
 
     String getCustomIpHeader();
+
+    boolean isApiGatewaySupported();
   }
 }

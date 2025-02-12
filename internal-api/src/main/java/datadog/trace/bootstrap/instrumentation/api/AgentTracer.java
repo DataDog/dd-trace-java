@@ -629,6 +629,10 @@ public class AgentTracer {
     public <C> AgentSpanContext.Extracted extract(final C carrier, final ContextVisitor<C> getter) {
       return NoopSpanContext.INSTANCE;
     }
+
+    public boolean isApiGatewaySupported() {
+      return true;
+    }
   }
 
   public static class NoopAgentTraceCollector implements AgentTraceCollector {
