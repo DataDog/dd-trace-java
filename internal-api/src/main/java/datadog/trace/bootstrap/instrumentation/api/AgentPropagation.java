@@ -11,7 +11,8 @@ import java.util.function.BiConsumer;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 public interface AgentPropagation {
-  Concern TRACING_CONCERN = named("tracing");
+  Concern TRACING_CONCERN = Concern.named("tracing");
+  Concern BAGGAGE_CONCERN = Concern.named("baggage");
   Concern XRAY_TRACING_CONCERN = named("tracing-xray");
   Concern STANDALONE_ASM_CONCERN = named("asm-standalone");
 

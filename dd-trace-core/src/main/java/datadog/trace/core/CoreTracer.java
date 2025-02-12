@@ -5,6 +5,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 import static datadog.trace.api.DDTags.DJM_ENABLED;
 import static datadog.trace.api.DDTags.DSM_ENABLED;
 import static datadog.trace.api.DDTags.PROFILING_CONTEXT_ENGINE;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.BAGGAGE_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.STANDALONE_ASM_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.TRACING_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.XRAY_TRACING_CONCERN;
@@ -79,6 +80,7 @@ import datadog.trace.common.writer.Writer;
 import datadog.trace.common.writer.WriterFactory;
 import datadog.trace.common.writer.ddintake.DDIntakeTraceInterceptor;
 import datadog.trace.context.TraceScope;
+import datadog.trace.core.baggage.BaggagePropagator;
 import datadog.trace.core.datastreams.DataStreamContextInjector;
 import datadog.trace.core.datastreams.DataStreamsMonitoring;
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring;
@@ -736,6 +738,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     Propagators.register(
         TRACING_CONCERN, new TracingPropagator(injector, extractor), !standaloneAppSec);
     Propagators.register(XRAY_TRACING_CONCERN, new XRayPropagator(config), false);
+
+    Propagators.register(
+        BAGGAGE_CONCERN,
+        new BaggagePropagator(
+            config.getTracePropagationStylesToInject().contains(TracePropagationStyle.BAGGAGE),
+            config.getTracePropagationStylesToExtract().contains(TracePropagationStyle.BAGGAGE)));
 
     this.tagInterceptor =
         null == tagInterceptor ? new TagInterceptor(new RuleFlags(config)) : tagInterceptor;
