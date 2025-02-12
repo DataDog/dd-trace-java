@@ -35,6 +35,7 @@ import datadog.trace.api.telemetry.RuleType;
 import datadog.trace.api.telemetry.WafMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
+import datadog.trace.util.NonBlockingSemaphore;
 import datadog.trace.util.stacktrace.StackTraceEvent;
 import datadog.trace.util.stacktrace.StackUtils;
 import java.net.URI;
@@ -81,6 +82,10 @@ public class GatewayBridge {
   }
 
   private static final String METASTRUCT_EXPLOIT = "exploit";
+
+  private final int MAX_POST_PROCESSING_TASKS = 16;
+  private final NonBlockingSemaphore postProcessingCounter =
+      NonBlockingSemaphore.withPermitCount(MAX_POST_PROCESSING_TASKS);
 
   private final SubscriptionService subscriptionService;
   private final EventProducerService producerService;
@@ -730,7 +735,7 @@ public class GatewayBridge {
     if (route instanceof String) {
       ctx.setRoute((String) route);
     }
-    if (requestSampler.preSampleRequest(ctx)) {
+    if (requestSampler.preSampleRequest(ctx) && postProcessingCounter.acquire()) {
       // The request is pre-sampled - we need to post-process it
       spanInfo.setRequiresPostProcessing(true);
     }
@@ -802,6 +807,8 @@ public class GatewayBridge {
 
     maybeExtractSchemas(ctx);
     ctx.close();
+    // Decrease the counter to allow the next request to be post-processed
+    postProcessingCounter.release();
   }
 
   public void stop() {
