@@ -17,13 +17,13 @@ public class InputAttributeInjector {
       writer.endObject();
       return writer.toString();
     } catch (Exception e) {
-      return "{}";
+      return null;
     }
   }
 
   public static String getModifiedInput(String request, String ddTraceContextJSON) {
     if (request == null || ddTraceContextJSON == null) {
-      throw new IllegalArgumentException(); // leave request unmodified
+      return request; // leave request unmodified
     }
 
     final String traceContextProperty = "\"" + DATADOG_KEY + "\":" + ddTraceContextJSON;
@@ -31,7 +31,7 @@ public class InputAttributeInjector {
     int endPos = request.lastIndexOf('}');
 
     if (startPos < 0 || endPos < startPos) {
-      throw new IllegalArgumentException(); // leave request unmodified
+      return request; // leave request unmodified
     }
 
     // If input is an empty {}
