@@ -6,23 +6,28 @@ import java.io.Closeable;
 
 /** An object which can propagate a datadog trace across multiple threads. */
 public interface TraceScope extends Closeable {
+
+  /** Close the activated context and allow any underlying spans to finish. */
+  @Override
+  void close();
+
   /**
-   * Prevent the trace attached to this TraceScope from reporting until the returned Continuation is
-   * either activated (and the returned scope is closed), or canceled.
-   *
-   * <p>Should be called on the parent thread.
+   * @deprecated Replaced by {@link Tracer#captureActiveSpan()}.
+   *     <p>Prevent the currently active trace from reporting until the returned Continuation is
+   *     either activated (and the returned scope is closed), or canceled. Should be called on the
+   *     parent thread.
+   * @return Continuation of the active span, no-op continuation if there's no active span.
    */
-  Continuation capture();
+  @Deprecated
+  default Continuation capture() {
+    return GlobalTracer.get().captureActiveSpan();
+  }
 
   /** @deprecated Replaced by {@code capture().hold()}. */
   @Deprecated
   default Continuation captureConcurrent() {
     return capture().hold();
   }
-
-  /** Close the activated context and allow any underlying spans to finish. */
-  @Override
-  void close();
 
   /**
    * @deprecated Replaced by {@link Tracer#isAsyncPropagationEnabled()}.

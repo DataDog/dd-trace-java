@@ -430,16 +430,6 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
   }
 
   @Override
-  public boolean isAsyncPropagationEnabled() {
-    return tracer.isAsyncPropagationEnabled();
-  }
-
-  @Override
-  public void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {
-    tracer.setAsyncPropagationEnabled(asyncPropagationEnabled);
-  }
-
-  @Override
   public boolean addTraceInterceptor(final TraceInterceptor traceInterceptor) {
     return tracer.addTraceInterceptor(traceInterceptor);
   }
@@ -447,6 +437,21 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
   @Override
   public TraceScope muteTracing() {
     return tracer.muteTracing();
+  }
+
+  @Override
+  public TraceScope.Continuation captureActiveSpan() {
+    return tracer.captureActiveSpan();
+  }
+
+  @Override
+  public boolean isAsyncPropagationEnabled() {
+    return tracer.isAsyncPropagationEnabled();
+  }
+
+  @Override
+  public void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {
+    tracer.setAsyncPropagationEnabled(asyncPropagationEnabled);
   }
 
   @Override
