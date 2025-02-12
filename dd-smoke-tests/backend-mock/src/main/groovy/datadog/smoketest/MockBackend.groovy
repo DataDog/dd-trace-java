@@ -50,6 +50,7 @@ class MockBackend implements AutoCloseable {
 
     skippableTests.clear()
     flakyTests.clear()
+    testManagement.clear()
     changedFiles.clear()
   }
 
