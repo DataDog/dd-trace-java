@@ -274,7 +274,7 @@ public final class ConfigProvider {
     for (int i = sources.length - 1; 0 <= i; i--) {
       String value = sources[i].get(key, aliases);
       Map<String, String> parsedMap =
-          ConfigConverter.parseTraceTagsMap(value, key, ':', Arrays.asList(',', ' '));
+          ConfigConverter.parseTraceTagsMap(value, ':', Arrays.asList(',', ' '));
       if (!parsedMap.isEmpty()) {
         origin = sources[i].origin();
       }

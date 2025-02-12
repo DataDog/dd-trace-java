@@ -105,7 +105,7 @@ class ConfigConverterTest extends DDSpecification {
     def separatorList = [',' as char, ' ' as char]
 
     when:
-    def result = ConfigConverter.parseTraceTagsMap(mapString, "test", separator as char, separatorList as List<Character>)
+    def result = ConfigConverter.parseTraceTagsMap(mapString, separator as char, separatorList as List<Character>)
 
     then:
     result == expected

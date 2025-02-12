@@ -86,10 +86,7 @@ final class ConfigConverter {
 
   @Nonnull
   static Map<String, String> parseTraceTagsMap(
-      final String str,
-      final String settingName,
-      final char keyValueSeparator,
-      final List<Character> argSeparators) {
+      final String str, final char keyValueSeparator, final List<Character> argSeparators) {
     // If we ever want to have default values besides an empty map, this will need to change.
     String trimmed = Strings.trim(str);
     if (trimmed.isEmpty()) {
