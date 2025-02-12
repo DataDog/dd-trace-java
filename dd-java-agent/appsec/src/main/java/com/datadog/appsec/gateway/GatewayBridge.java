@@ -38,11 +38,14 @@ import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.telemetry.LoginEvent;
 import datadog.trace.api.telemetry.RuleType;
+import datadog.trace.api.telemetry.TruncatedType;
 import datadog.trace.api.telemetry.WafMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.util.stacktrace.StackTraceEvent;
 import datadog.trace.util.stacktrace.StackUtils;
+import io.sqreen.powerwaf.PowerwafMetrics;
+import io.sqreen.powerwaf.metrics.InputTruncatedType;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
@@ -820,6 +823,21 @@ public class GatewayBridge {
       // If extracted any derivatives - commit them
       if (!ctx.commitDerivatives(traceSeg)) {
         log.debug("Unable to commit, derivatives will be skipped {}", ctx.getDerivativeKeys());
+      }
+
+      PowerwafMetrics wafMetrics = ctx.getWafMetrics();
+      if (wafMetrics != null) {
+        final long stringTooLong =
+            wafMetrics.getWafInputsTruncatedCount(InputTruncatedType.STRING_TOO_LONG);
+        final long listMapTooLarge =
+            wafMetrics.getWafInputsTruncatedCount(InputTruncatedType.LIST_MAP_TOO_LARGE);
+        final long objectTooDeep =
+            wafMetrics.getWafInputsTruncatedCount(InputTruncatedType.OBJECT_TOO_DEEP);
+
+        WafMetricCollector.get().wafInputTruncated(TruncatedType.STRING_TOO_LONG, stringTooLong);
+        WafMetricCollector.get()
+            .wafInputTruncated(TruncatedType.LIST_MAP_TOO_LARGE, listMapTooLarge);
+        WafMetricCollector.get().wafInputTruncated(TruncatedType.OBJECT_TOO_DEEP, objectTooDeep);
       }
 
       if (ctx.isBlocked()) {
