@@ -30,6 +30,7 @@ variables:
   DEPENDENCY_CACHE_POLICY: pull
   BUILD_CACHE_POLICY: pull
   GRADLE_VERSION: "8.4" # must match gradle-wrapper.properties
+  JAVA_BUILD_IMAGE_VERSION: "v25.01"
   PROFILE_TESTS:
     description: "Enable profiling of tests"
     value: "false"
@@ -56,7 +57,7 @@ default:
   tags: [ "arch:amd64" ]
 
 .gradle_build: &gradle_build
-  image: ghcr.io/datadog/dd-trace-java-docker-build:v25.01-base
+  image: ghcr.io/datadog/dd-trace-java-docker-build:${JAVA_BUILD_IMAGE_VERSION}-base
   stage: build
   variables:
     GRADLE_OPTS: "-Dorg.gradle.jvmargs='-Xmx2560M -Xms2560M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
@@ -189,6 +190,8 @@ check_debugger:
 
 test_published_artifacts:
   extends: .gradle_build
+  image: ghcr.io/datadog/dd-trace-java-docker-build:${JAVA_BUILD_IMAGE_VERSION}-7 # Needs Java7 for some tests
+  stage: tests
   needs: [ build ]
   rules:
     - if: '$POPULATE_CACHE'
