@@ -38,6 +38,7 @@ profiling_modules: &profiling_modules "dd-java-agent/agent-profiling"
 
 default_system_tests_commit: &default_system_tests_commit d2064ebdcf7c6bd1ace2a6efb8fca6fa1a4e7c34
 
+
 parameters:
   nightly:
     type: boolean
@@ -767,7 +768,7 @@ jobs:
 
   muzzle:
     <<: *defaults
-    resource_class: medium
+    resource_class: medium+
     parallelism: 4
     steps:
       - setup_code
@@ -798,7 +799,7 @@ jobs:
           name: Verify Muzzle
           command: >-
             SKIP_BUILDSCAN="true"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx3G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
             ./gradlew `circleci tests split --split-by=timings workspace/build/muzzleTasks | xargs`
             << pipeline.parameters.gradle_flags >>
             --max-workers=4

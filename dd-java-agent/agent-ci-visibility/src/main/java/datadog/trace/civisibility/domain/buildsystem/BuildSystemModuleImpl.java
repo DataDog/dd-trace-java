@@ -1,6 +1,6 @@
 package datadog.trace.civisibility.domain.buildsystem;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
+import static datadog.context.propagation.Propagators.defaultPropagator;
 
 import datadog.communication.ddagent.TracerVersion;
 import datadog.trace.api.Config;
@@ -33,10 +33,15 @@ import datadog.trace.civisibility.utils.SpanUtils;
 import datadog.trace.util.Strings;
 import java.net.InetSocketAddress;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
+import javax.annotation.ParametersAreNonnullByDefault;
 
 public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSystemModule {
 
@@ -105,6 +110,7 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
     setTag(Tags.TEST_COMMAND, startCommand);
   }
 
+  @ParametersAreNonnullByDefault
   private static final class ChildProcessPropertiesPropagationSetter
       implements AgentPropagation.Setter<Map<String, String>> {
     static final AgentPropagation.Setter<Map<String, String>> INSTANCE =
@@ -221,7 +227,7 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
     }
 
     // propagate module span context to child processes
-    propagate()
+    defaultPropagator()
         .inject(span, propagatedSystemProperties, ChildProcessPropertiesPropagationSetter.INSTANCE);
 
     return propagatedSystemProperties;

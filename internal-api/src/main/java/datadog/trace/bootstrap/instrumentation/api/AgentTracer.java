@@ -7,7 +7,6 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.EndpointCheckpointer;
 import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.TraceConfig;
-import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.experimental.DataStreamsCheckpointer;
 import datadog.trace.api.experimental.DataStreamsContextCarrier;
 import datadog.trace.api.gateway.CallbackProvider;
@@ -201,6 +200,18 @@ public class AgentTracer {
    */
   public static AgentScope noopScope() {
     return NoopScope.INSTANCE;
+  }
+
+  /**
+   * Returns the noop continuation instance.
+   *
+   * <p>This instance will always be the same, and can be safely tested using object identity (ie
+   * {@code ==}).
+   *
+   * @return the noop continuation instance.
+   */
+  public static AgentScope.Continuation noopContinuation() {
+    return NoopContinuation.INSTANCE;
   }
 
   public static final TracerAPI NOOP_TRACER = new NoopTracerAPI();
@@ -586,17 +597,6 @@ public class AgentTracer {
     static final NoopAgentPropagation INSTANCE = new NoopAgentPropagation();
 
     @Override
-    public <C> void inject(final AgentSpan span, final C carrier, final Setter<C> setter) {}
-
-    @Override
-    public <C> void inject(
-        final AgentSpanContext context, final C carrier, final Setter<C> setter) {}
-
-    @Override
-    public <C> void inject(
-        AgentSpan span, C carrier, Setter<C> setter, TracePropagationStyle style) {}
-
-    @Override
     public <C> void injectPathwayContext(
         AgentSpan span, C carrier, Setter<C> setter, LinkedHashMap<String, String> sortedTags) {}
 
@@ -612,33 +612,6 @@ public class AgentTracer {
     @Override
     public <C> void injectPathwayContextWithoutSendingStats(
         AgentSpan span, C carrier, Setter<C> setter, LinkedHashMap<String, String> sortedTags) {}
-
-    @Override
-    public <C> AgentSpanContext.Extracted extract(final C carrier, final ContextVisitor<C> getter) {
-      return NoopSpanContext.INSTANCE;
-    }
-  }
-
-  static class NoopContinuation implements AgentScope.Continuation {
-    static final NoopContinuation INSTANCE = new NoopContinuation();
-
-    @Override
-    public AgentScope.Continuation hold() {
-      return this;
-    }
-
-    @Override
-    public AgentScope activate() {
-      return NoopScope.INSTANCE;
-    }
-
-    @Override
-    public AgentSpan getSpan() {
-      return NoopSpan.INSTANCE;
-    }
-
-    @Override
-    public void cancel() {}
   }
 
   public static class NoopAgentTraceCollector implements AgentTraceCollector {

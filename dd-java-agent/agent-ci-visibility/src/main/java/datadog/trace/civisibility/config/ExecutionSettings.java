@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.config;
 
+import datadog.trace.api.civisibility.config.TestFQN;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestMetadata;
 import datadog.trace.civisibility.diff.Diff;
@@ -9,6 +10,8 @@ import java.nio.ByteBuffer;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import javax.annotation.Nonnull;
@@ -29,9 +32,11 @@ public class ExecutionSettings {
           null,
           Collections.emptyMap(),
           Collections.emptyMap(),
+          null,
+          null,
           Collections.emptyList(),
-          null,
-          null,
+          Collections.emptyList(),
+          Collections.emptyList(),
           LineDiff.EMPTY);
 
   private final boolean itrEnabled;
@@ -44,9 +49,8 @@ public class ExecutionSettings {
   @Nullable private final String itrCorrelationId;
   @Nonnull private final Map<TestIdentifier, TestMetadata> skippableTests;
   @Nonnull private final Map<String, BitSet> skippableTestsCoverage;
-  @Nonnull private final Collection<TestIdentifier> quarantinedTests;
-  @Nullable private final Collection<TestIdentifier> flakyTests;
-  @Nullable private final Collection<TestIdentifier> knownTests;
+  @Nonnull private final Map<TestFQN, Integer> testSettings;
+  @Nonnull private final Map<TestSetting, Integer> settingsCount;
   @Nonnull private final Diff pullRequestDiff;
 
   public ExecutionSettings(
@@ -60,9 +64,11 @@ public class ExecutionSettings {
       @Nullable String itrCorrelationId,
       @Nonnull Map<TestIdentifier, TestMetadata> skippableTests,
       @Nonnull Map<String, BitSet> skippableTestsCoverage,
-      @Nonnull Collection<TestIdentifier> quarantinedTests,
-      @Nullable Collection<TestIdentifier> flakyTests,
-      @Nullable Collection<TestIdentifier> knownTests,
+      @Nullable Collection<TestFQN> flakyTests,
+      @Nullable Collection<TestFQN> knownTests,
+      @Nonnull Collection<TestFQN> quarantinedTests,
+      @Nonnull Collection<TestFQN> disabledTests,
+      @Nonnull Collection<TestFQN> attemptToFixTests,
       @Nonnull Diff pullRequestDiff) {
     this.itrEnabled = itrEnabled;
     this.codeCoverageEnabled = codeCoverageEnabled;
@@ -74,9 +80,57 @@ public class ExecutionSettings {
     this.itrCorrelationId = itrCorrelationId;
     this.skippableTests = skippableTests;
     this.skippableTestsCoverage = skippableTestsCoverage;
-    this.quarantinedTests = quarantinedTests;
-    this.flakyTests = flakyTests;
-    this.knownTests = knownTests;
+    this.pullRequestDiff = pullRequestDiff;
+
+    testSettings = new HashMap<>();
+    if (flakyTests != null) {
+      flakyTests.forEach(fqn -> addTest(fqn, TestSetting.FLAKY));
+    }
+    if (knownTests != null) {
+      knownTests.forEach(fqn -> addTest(fqn, TestSetting.KNOWN));
+    }
+    quarantinedTests.forEach(fqn -> addTest(fqn, TestSetting.QUARANTINED));
+    disabledTests.forEach(fqn -> addTest(fqn, TestSetting.DISABLED));
+    attemptToFixTests.forEach(fqn -> addTest(fqn, TestSetting.ATTEMPT_TO_FIX));
+
+    settingsCount = new EnumMap<>(TestSetting.class);
+    settingsCount.put(TestSetting.FLAKY, flakyTests != null ? flakyTests.size() : -1);
+    settingsCount.put(TestSetting.KNOWN, knownTests != null ? knownTests.size() : -1);
+    settingsCount.put(TestSetting.QUARANTINED, quarantinedTests.size());
+    settingsCount.put(TestSetting.DISABLED, disabledTests.size());
+    settingsCount.put(TestSetting.ATTEMPT_TO_FIX, attemptToFixTests.size());
+  }
+
+  private void addTest(TestFQN test, TestSetting setting) {
+    testSettings.merge(test, setting.getFlag(), (a, b) -> a | b);
+  }
+
+  private ExecutionSettings(
+      boolean itrEnabled,
+      boolean codeCoverageEnabled,
+      boolean testSkippingEnabled,
+      boolean flakyTestRetriesEnabled,
+      boolean impactedTestsDetectionEnabled,
+      @Nonnull EarlyFlakeDetectionSettings earlyFlakeDetectionSettings,
+      @Nonnull TestManagementSettings testManagementSettings,
+      @Nullable String itrCorrelationId,
+      @Nonnull Map<TestIdentifier, TestMetadata> skippableTests,
+      @Nonnull Map<String, BitSet> skippableTestsCoverage,
+      @Nonnull Map<TestFQN, Integer> testSettings,
+      @Nonnull EnumMap<TestSetting, Integer> settingsCount,
+      @Nonnull Diff pullRequestDiff) {
+    this.itrEnabled = itrEnabled;
+    this.codeCoverageEnabled = codeCoverageEnabled;
+    this.testSkippingEnabled = testSkippingEnabled;
+    this.flakyTestRetriesEnabled = flakyTestRetriesEnabled;
+    this.impactedTestsDetectionEnabled = impactedTestsDetectionEnabled;
+    this.earlyFlakeDetectionSettings = earlyFlakeDetectionSettings;
+    this.testManagementSettings = testManagementSettings;
+    this.itrCorrelationId = itrCorrelationId;
+    this.skippableTests = skippableTests;
+    this.skippableTestsCoverage = skippableTestsCoverage;
+    this.testSettings = testSettings;
+    this.settingsCount = settingsCount;
     this.pullRequestDiff = pullRequestDiff;
   }
 
@@ -119,38 +173,56 @@ public class ExecutionSettings {
     return itrCorrelationId;
   }
 
+  @Nonnull
+  public Map<TestIdentifier, TestMetadata> getSkippableTests() {
+    return skippableTests;
+  }
+
   /** A bit vector of covered lines by relative source file path. */
   @Nonnull
   public Map<String, BitSet> getSkippableTestsCoverage() {
     return skippableTestsCoverage;
   }
 
-  @Nonnull
-  public Map<TestIdentifier, TestMetadata> getSkippableTests() {
-    return skippableTests;
+  public boolean isFlakyTestsDataAvailable() {
+    return getSettingCount(TestSetting.FLAKY) != -1;
   }
 
-  @Nonnull
-  public Collection<TestIdentifier> getQuarantinedTests() {
-    return quarantinedTests;
+  public boolean isKnownTestsDataAvailable() {
+    return getSettingCount(TestSetting.KNOWN) != -1;
+  }
+
+  private boolean isSetting(TestFQN test, TestSetting setting) {
+    int mask = testSettings.getOrDefault(test, 0);
+    return TestSetting.isSet(mask, setting);
+  }
+
+  public boolean isFlaky(TestFQN test) {
+    return isSetting(test, TestSetting.FLAKY);
+  }
+
+  public boolean isKnown(TestFQN test) {
+    return isSetting(test, TestSetting.KNOWN);
+  }
+
+  public boolean isQuarantined(TestFQN test) {
+    return isSetting(test, TestSetting.QUARANTINED);
+  }
+
+  public boolean isDisabled(TestFQN test) {
+    return isSetting(test, TestSetting.DISABLED);
+  }
+
+  public boolean isAttemptToFix(TestFQN test) {
+    return isSetting(test, TestSetting.ATTEMPT_TO_FIX);
   }
 
   /**
-   * @return the list of known tests for the given module (can be empty), or {@code null} if known
-   *     tests could not be obtained
+   * @return number of tests with a certain setting "activated". For flaky and known test, it will
+   *     return -1 if a null value was provided to the constructor.
    */
-  @Nullable
-  public Collection<TestIdentifier> getKnownTests() {
-    return knownTests;
-  }
-
-  /**
-   * @return the list of flaky tests for the given module (can be empty), or {@code null} if flaky
-   *     tests could not be obtained
-   */
-  @Nullable
-  public Collection<TestIdentifier> getFlakyTests() {
-    return flakyTests;
+  public int getSettingCount(TestSetting setting) {
+    return settingsCount.getOrDefault(setting, 0);
   }
 
   @Nonnull
@@ -170,14 +242,15 @@ public class ExecutionSettings {
     return itrEnabled == that.itrEnabled
         && codeCoverageEnabled == that.codeCoverageEnabled
         && testSkippingEnabled == that.testSkippingEnabled
+        && flakyTestRetriesEnabled == that.flakyTestRetriesEnabled
+        && impactedTestsDetectionEnabled == that.impactedTestsDetectionEnabled
         && Objects.equals(earlyFlakeDetectionSettings, that.earlyFlakeDetectionSettings)
         && Objects.equals(testManagementSettings, that.testManagementSettings)
         && Objects.equals(itrCorrelationId, that.itrCorrelationId)
         && Objects.equals(skippableTests, that.skippableTests)
         && Objects.equals(skippableTestsCoverage, that.skippableTestsCoverage)
-        && Objects.equals(quarantinedTests, that.quarantinedTests)
-        && Objects.equals(flakyTests, that.flakyTests)
-        && Objects.equals(knownTests, that.knownTests)
+        && Objects.equals(testSettings, that.testSettings)
+        && Objects.equals(settingsCount, that.settingsCount)
         && Objects.equals(pullRequestDiff, that.pullRequestDiff);
   }
 
@@ -187,14 +260,15 @@ public class ExecutionSettings {
         itrEnabled,
         codeCoverageEnabled,
         testSkippingEnabled,
+        flakyTestRetriesEnabled,
+        impactedTestsDetectionEnabled,
         earlyFlakeDetectionSettings,
         testManagementSettings,
         itrCorrelationId,
         skippableTests,
         skippableTestsCoverage,
-        quarantinedTests,
-        flakyTests,
-        knownTests,
+        testSettings,
+        settingsCount,
         pullRequestDiff);
   }
 
@@ -231,9 +305,10 @@ public class ExecutionSettings {
           TestMetadataSerializer::serialize);
 
       s.write(settings.skippableTestsCoverage, Serializer::write, Serializer::write);
-      s.write(settings.quarantinedTests, TestIdentifierSerializer::serialize);
-      s.write(settings.flakyTests, TestIdentifierSerializer::serialize);
-      s.write(settings.knownTests, TestIdentifierSerializer::serialize);
+
+      s.write(settings.testSettings, TestFQNSerializer::serialize, Serializer::write);
+      s.write(
+          settings.settingsCount, TestSetting.TestSettingsSerializer::serialize, Serializer::write);
 
       Diff.SERIALIZER.serialize(settings.pullRequestDiff, s);
 
@@ -262,12 +337,16 @@ public class ExecutionSettings {
 
       Map<String, BitSet> skippableTestsCoverage =
           Serializer.readMap(buffer, Serializer::readString, Serializer::readBitSet);
-      Collection<TestIdentifier> quarantinedTests =
-          Serializer.readSet(buffer, TestIdentifierSerializer::deserialize);
-      Collection<TestIdentifier> flakyTests =
-          Serializer.readSet(buffer, TestIdentifierSerializer::deserialize);
-      Collection<TestIdentifier> knownTests =
-          Serializer.readSet(buffer, TestIdentifierSerializer::deserialize);
+
+      Map<TestFQN, Integer> testSettings =
+          Serializer.readMap(buffer, TestFQNSerializer::deserialize, Serializer::readInt);
+      EnumMap<TestSetting, Integer> settingsCount =
+          (EnumMap<TestSetting, Integer>)
+              Serializer.readMap(
+                  buffer,
+                  () -> new EnumMap<>(TestSetting.class),
+                  TestSetting.TestSettingsSerializer::deserialize,
+                  Serializer::readInt);
 
       Diff diff = Diff.SERIALIZER.deserialize(buffer);
 
@@ -282,9 +361,8 @@ public class ExecutionSettings {
           itrCorrelationId,
           skippableTests,
           skippableTestsCoverage,
-          quarantinedTests,
-          flakyTests,
-          knownTests,
+          testSettings,
+          settingsCount,
           diff);
     }
   }

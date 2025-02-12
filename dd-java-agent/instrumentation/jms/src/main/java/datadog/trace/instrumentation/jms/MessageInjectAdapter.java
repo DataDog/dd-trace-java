@@ -7,6 +7,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.jms.MessageBatchState;
 import datadog.trace.bootstrap.instrumentation.jms.MessageProducerState;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
+import javax.annotation.ParametersAreNonnullByDefault;
 import javax.jms.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,6 +17,7 @@ public class MessageInjectAdapter implements AgentPropagation.Setter<Message> {
 
   public static final MessageInjectAdapter SETTER = new MessageInjectAdapter();
 
+  @ParametersAreNonnullByDefault
   @SuppressForbidden
   @Override
   public void set(final Message carrier, final String key, final String value) {

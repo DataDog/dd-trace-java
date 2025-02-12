@@ -2,7 +2,9 @@ package datadog.trace.instrumentation.okhttp2;
 
 import com.squareup.okhttp.Request;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import javax.annotation.ParametersAreNonnullByDefault;
 
+@ParametersAreNonnullByDefault
 public class RequestBuilderInjectAdapter implements AgentPropagation.Setter<Request.Builder> {
   public static final RequestBuilderInjectAdapter SETTER = new RequestBuilderInjectAdapter();
 
