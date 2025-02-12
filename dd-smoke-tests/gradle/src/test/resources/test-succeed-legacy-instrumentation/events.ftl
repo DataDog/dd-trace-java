@@ -258,7 +258,7 @@
       "test.framework_version" : "4.10",
       "test.module" : ":test",
       "test.name" : "test_to_skip_with_itr",
-      "test.skip_reason" : "Skipped by Datadog Intelligent Test Runner",
+      "test.skip_reason" : "Skipped by Datadog Test Impact Analysis",
       "test.skipped_by_itr" : "true",
       "test.source.file" : "src/test/java/datadog/smoke/TestSucceed.java",
       "test.source.method" : "test_to_skip_with_itr()V",
