@@ -14,8 +14,8 @@ class CompositePropagator implements Propagator {
 
   @Override
   public <C> void inject(Context context, C carrier, CarrierSetter<C> setter) {
-    for (Propagator propagator : this.propagators) {
-      propagator.inject(context, carrier, setter);
+    for (int i = this.propagators.length - 1; i >= 0; i--) {
+      this.propagators[i].inject(context, carrier, setter);
     }
   }
 

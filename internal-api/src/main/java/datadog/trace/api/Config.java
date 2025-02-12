@@ -2959,8 +2959,15 @@ public class Config {
     return ciVisibilityEarlyFlakeDetectionLowerLimit;
   }
 
+  /**
+   * @return {@code true} if any of the features that require CI Visibility execution policies are
+   *     enabled. This is used to enable corresponding instrumentations only when they're needed,
+   *     avoiding unnecessary overhead.
+   */
   public boolean isCiVisibilityExecutionPoliciesEnabled() {
-    return ciVisibilityFlakyRetryEnabled || ciVisibilityEarlyFlakeDetectionEnabled;
+    return ciVisibilityFlakyRetryEnabled
+        || ciVisibilityEarlyFlakeDetectionEnabled
+        || ciVisibilityTestManagementEnabled;
   }
 
   public int getCiVisibilityFlakyRetryCount() {
