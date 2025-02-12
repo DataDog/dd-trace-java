@@ -25,24 +25,23 @@ public final class StableConfigSource extends ConfigProvider.Source {
 
   private static final Logger log = LoggerFactory.getLogger(StableConfigSource.class);
 
-  private final StableConfig config;
   private final ConfigOrigin fileOrigin;
-  private final String file;
-  private Map<?, ?> configEntries;
-  private Iterator<? extends Map.Entry<?, ?>> iterator;
+  private final String filePath;
+
+  private Map<?, ?>
+      loadedConfig; // Holds the configuration entries lazily loaded from the configuration file
+  private Iterator<? extends Map.Entry<?, ?>>
+      iterator; // used to traverse through the entries of the loadedConfig map as processing
+  // progresses
   private Boolean fileReadComplete;
 
-  StableConfigSource() {
-    this.fileOrigin = null;
-    this.file = null;
-    this.config = new StableConfig();
-  }
+  private final StableConfig config;
 
   StableConfigSource(String file, ConfigOrigin origin) {
     this.fileOrigin = origin;
-    this.file = file;
+    this.filePath = file;
     this.config = new StableConfig();
-    // The below are explicitly initialized for clarity
+    // The below are initialized explicitly for clarity
     this.fileReadComplete = false;
     this.iterator = null;
   }
@@ -79,7 +78,7 @@ public final class StableConfigSource extends ConfigProvider.Source {
    *     error occurs.
    */
   private String findAndReturnEarly(String key) {
-    if (this.configEntries != null) {
+    if (this.loadedConfig != null) {
       return iterateAndReturnEarly(key);
     }
 
@@ -100,7 +99,7 @@ public final class StableConfigSource extends ConfigProvider.Source {
       return null;
     }
 
-    this.configEntries = (HashMap<?, ?>) apmConfig;
+    this.loadedConfig = (HashMap<?, ?>) apmConfig;
     return iterateAndReturnEarly(key);
   }
 
@@ -113,7 +112,7 @@ public final class StableConfigSource extends ConfigProvider.Source {
    */
   private HashMap<String, Object> loadConfigDataFromFile() {
     try {
-      return readYamlFromFile(this.file);
+      return readYamlFromFile(this.filePath);
     } catch (Exception e) {
       this.fileReadComplete = true;
       log.error("Error processing file: {}", e.getMessage());
@@ -162,7 +161,7 @@ public final class StableConfigSource extends ConfigProvider.Source {
    */
   private String iterateAndReturnEarly(String key) {
     if (this.iterator == null) {
-      this.iterator = this.configEntries.entrySet().iterator();
+      this.iterator = this.loadedConfig.entrySet().iterator();
     }
     while (this.iterator.hasNext()) {
       Map.Entry<?, ?> entry = iterator.next();
