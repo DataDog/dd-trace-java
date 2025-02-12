@@ -35,7 +35,7 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
   private static final AtomicRequestCounter wafBlockedRequestCounter = new AtomicRequestCounter();
   private static final AtomicRequestCounter wafTimeoutRequestCounter = new AtomicRequestCounter();
   private static final AtomicLongArray wafInputTruncatedCounter =
-      new AtomicLongArray(TruncatedType.getNumValues());
+      new AtomicLongArray(TruncatedType.values().length);
   private static final AtomicLongArray raspRuleEvalCounter =
       new AtomicLongArray(RuleType.getNumValues());
   private static final AtomicLongArray raspRuleMatchCounter =

@@ -6,7 +6,6 @@ public enum TruncatedType {
   OBJECT_TOO_DEEP(4);
 
   private final int value;
-  private static final int numValues = RuleType.values().length;
 
   TruncatedType(int value) {
     this.value = value;
@@ -14,9 +13,5 @@ public enum TruncatedType {
 
   public int getValue() {
     return this.value;
-  }
-
-  public static int getNumValues() {
-    return numValues;
   }
 }

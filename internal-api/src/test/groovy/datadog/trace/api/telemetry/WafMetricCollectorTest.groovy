@@ -304,7 +304,7 @@ class WafMetricCollectorTest extends DDSpecification {
     }
   }
 
-  def "test WAF #inputTruncated metrics"() {
+  def "test WAF #truncatedType metrics"() {
     when:
     WafMetricCollector.get().wafInit('waf_ver1', 'rules.1', true)
     WafMetricCollector.get().wafInputTruncated(truncatedType, 5)
