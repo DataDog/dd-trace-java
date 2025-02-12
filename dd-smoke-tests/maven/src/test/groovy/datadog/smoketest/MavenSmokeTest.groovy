@@ -1,6 +1,7 @@
 package datadog.smoketest
 
 import datadog.trace.api.Config
+import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.civisibility.CiVisibilitySmokeTest
@@ -125,6 +126,24 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     where:
     projectName                                | mavenVersion
     "test_successful_maven_run_impacted_tests" | "3.9.9"
+  }
+
+  def "test quarantine"() {
+    givenWrapperPropertiesFile(mavenVersion)
+    givenMavenProjectFiles(projectName)
+    givenMavenDependenciesAreLoaded(projectName, mavenVersion)
+
+    mockBackend.givenTestManagement(true)
+    mockBackend.givenQuarantinedTests("Maven Smoke Tests Project maven-surefire-plugin default-test", "datadog.smoke.TestFailed", "test_failed")
+
+    def exitCode = whenRunningMavenBuild([], [])
+    assert exitCode == 0
+
+    verifyEventsAndCoverages(projectName, "maven", mavenVersion, mockBackend.waitForEvents(8), mockBackend.waitForCoverages(1))
+
+    where:
+    projectName                                   | mavenVersion
+    "test_successful_maven_run_quarantined_tests" | "3.9.9"
   }
 
   private void givenWrapperPropertiesFile(String mavenVersion) {
