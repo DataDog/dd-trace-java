@@ -14,25 +14,28 @@ public class ApiSecurityRequestSampler {
   }
 
   public boolean sampleRequest(AppSecRequestContext ctx) {
-    if (!config.isApiSecurityEnabled() || ctx == null) {
+    if (!isValid(ctx)) {
       return false;
     }
 
-    String route = ctx.getRoute();
-    if (route == null) {
+    return apiAccessTracker.updateApiAccessIfExpired(
+        ctx.getRoute(), ctx.getMethod(), ctx.getResponseStatus());
+  }
+
+  public boolean preSampleRequest(AppSecRequestContext ctx) {
+    if (!isValid(ctx)) {
       return false;
     }
 
-    String method = ctx.getMethod();
-    if (method == null) {
-      return false;
-    }
+    return apiAccessTracker.isApiAccessExpired(
+        ctx.getRoute(), ctx.getMethod(), ctx.getResponseStatus());
+  }
 
-    int statusCode = ctx.getResponseStatus();
-    if (statusCode == 0) {
-      return false;
-    }
-
-    return apiAccessTracker.updateApiAccessIfExpired(route, method, statusCode);
+  private boolean isValid(AppSecRequestContext ctx) {
+    return config.isApiSecurityEnabled()
+        && ctx != null
+        && ctx.getRoute() != null
+        && ctx.getMethod() != null
+        && ctx.getResponseStatus() != 0;
   }
 }
