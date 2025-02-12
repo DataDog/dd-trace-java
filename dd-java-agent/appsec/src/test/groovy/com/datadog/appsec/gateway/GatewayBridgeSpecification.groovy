@@ -1,6 +1,7 @@
 package com.datadog.appsec.gateway
 
 import com.datadog.appsec.AppSecSystem
+import com.datadog.appsec.api.security.ApiSecurityRequestSampler
 import com.datadog.appsec.config.TraceSegmentPostProcessor
 import com.datadog.appsec.event.EventDispatcher
 import com.datadog.appsec.event.EventProducerService
@@ -76,7 +77,10 @@ class GatewayBridgeSpecification extends DDSpecification {
   }
 
   TraceSegmentPostProcessor pp = Mock()
-  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, null, [pp])
+  ApiSecurityRequestSampler requestSampler = Mock(ApiSecurityRequestSampler) {
+    preSampleRequest(_ as AppSecRequestContext) >> false
+  }
+  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, requestSampler, [pp])
 
   Supplier<Flow<AppSecRequestContext>> requestStartedCB
   BiFunction<RequestContext, AgentSpan, Flow<Void>> requestEndedCB
@@ -161,7 +165,6 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * spanInfo.getTags() >> ['http.client_ip': '1.1.1.1']
     1 * mockAppSecCtx.transferCollectedEvents() >> [event]
     1 * mockAppSecCtx.peerAddress >> '2001::1'
-    1 * mockAppSecCtx.close()
     1 * traceSegment.setTagTop("_dd.appsec.enabled", 1)
     1 * traceSegment.setTagTop("_dd.runtime_family", "jvm")
     1 * traceSegment.setTagTop('appsec.event', true)
@@ -971,7 +974,9 @@ class GatewayBridgeSpecification extends DDSpecification {
       getData(RequestContextSlot.APPSEC) >> mockAppSecCtx
       getTraceSegment() >> traceSegment
     }
-    final spanInfo = Mock(AgentSpan)
+    final spanInfo = Mock(AgentSpan) {
+      getTags() >> ['http.route':'/']
+    }
 
     when:
     requestEndedCB.apply(mockCtx, spanInfo)

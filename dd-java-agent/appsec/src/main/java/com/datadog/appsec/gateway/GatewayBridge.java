@@ -5,7 +5,6 @@ import static com.datadog.appsec.event.data.MapDataBundle.Builder.CAPACITY_6_10;
 import static com.datadog.appsec.gateway.AppSecRequestContext.DEFAULT_REQUEST_HEADERS_ALLOW_LIST;
 import static com.datadog.appsec.gateway.AppSecRequestContext.REQUEST_HEADERS_ALLOW_LIST;
 import static com.datadog.appsec.gateway.AppSecRequestContext.RESPONSE_HEADERS_ALLOW_LIST;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 
 import com.datadog.appsec.AppSecSystem;
 import com.datadog.appsec.api.security.ApiSecurityRequestSampler;
@@ -664,6 +663,7 @@ public class GatewayBridge {
     ctx.setRequestEndCalled();
 
     TraceSegment traceSeg = ctx_.getTraceSegment();
+    Map<String, Object> tags = spanInfo.getTags();
 
     // AppSec report metric and events for web span only
     if (traceSeg != null) {
@@ -685,7 +685,7 @@ public class GatewayBridge {
         traceSeg.setTagTop("network.client.ip", ctx.getPeerAddress());
 
         // Reflect client_ip as actor.ip for backward compatibility
-        Object clientIp = spanInfo.getTags().get(Tags.HTTP_CLIENT_IP);
+        Object clientIp = tags.get(Tags.HTTP_CLIENT_IP);
         if (clientIp != null) {
           traceSeg.setTagTop("actor.ip", clientIp);
         }
@@ -726,10 +726,15 @@ public class GatewayBridge {
     }
 
     // Route used in post-processing
-    Object route = spanInfo.getTags().get(Tags.HTTP_ROUTE);
+    Object route = tags.get(Tags.HTTP_ROUTE);
     if (route instanceof String) {
       ctx.setRoute((String) route);
     }
+    if (requestSampler.preSampleRequest(ctx)) {
+      // The request is pre-sampled - we need to post-process it
+      spanInfo.setRequiresPostProcessing(true);
+    }
+
     return NoopFlow.INSTANCE;
   }
 
@@ -924,7 +929,6 @@ public class GatewayBridge {
 
       try {
         GatewayContext gwCtx = new GatewayContext(false);
-        activeSpan().getLocalRootSpan().setRequiresPostProcessing(true);
         return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
       } catch (ExpiredSubscriberInfoException e) {
         this.initialReqDataSubInfo = null;
