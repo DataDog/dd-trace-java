@@ -26,13 +26,15 @@ public interface Tracer {
   TraceScope muteTracing();
 
   /**
-   * Prevent the currently active trace from reporting until the returned Continuation is either
-   * activated (and the returned scope is closed), or canceled.
+   * When asynchronous propagation is enabled, prevent the currently active trace from reporting
+   * until the returned Continuation is either activated (and the returned scope is closed) or the
+   * continuation is canceled.
    *
    * <p>Should be called on the parent thread.
    *
    * @deprecated Unstable API. Might be removed at any time.
-   * @return Continuation of the active span, no-op continuation if there's no active span.
+   * @return Continuation of the active span, no-op continuation if there's no active span or
+   *     asynchronous propagation is disabled.
    */
   @Deprecated
   TraceScope.Continuation captureActiveSpan();

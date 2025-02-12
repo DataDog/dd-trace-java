@@ -43,10 +43,12 @@ public interface TraceScope extends Closeable {
 
   /**
    * @deprecated Replaced by {@link Tracer#captureActiveSpan()}.
-   *     <p>Prevent the <strong>currently active trace</strong>, which may differ from this scope
-   *     instance, from reporting until the returned Continuation is either activated (and the
-   *     returned scope is closed), or canceled. Should be called on the parent thread.
-   * @return Continuation of the active span, no-op continuation if there's no active span.
+   *     <p>When asynchronous propagation is enabled, prevent the <strong>currently active
+   *     trace</strong>, which may differ from this scope instance, from reporting until the
+   *     returned Continuation is either activated (and the returned scope is closed) or the
+   *     continuation is canceled. Should be called on the parent thread.
+   * @return Continuation of the active span, no-op continuation if there's no active span or
+   *     asynchronous propagation is disabled.
    */
   @Deprecated
   default Continuation capture() {
@@ -61,7 +63,7 @@ public interface TraceScope extends Closeable {
 
   /**
    * @deprecated Replaced by {@link Tracer#isAsyncPropagationEnabled()}.
-   *     <p>Calling this method will check whether asynchronous propagation is active <strong>for
+   *     <p>Calling this method will check whether asynchronous propagation is enabled <strong>for
    *     the active scope</strong>, not this scope instance.
    * @return {@code true} if asynchronous propagation is enabled <strong>for the active
    *     scope</strong>, {@code false} otherwise.
