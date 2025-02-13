@@ -4,16 +4,16 @@ import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.api.Config
 import datadog.trace.api.TraceConfig
 import datadog.trace.api.WellKnownTags
+import datadog.trace.api.datastreams.StatsPoint
 import datadog.trace.api.experimental.DataStreamsContextCarrier
 import datadog.trace.api.time.ControllableTimeSource
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
-import datadog.trace.bootstrap.instrumentation.api.StatsPoint
 import datadog.trace.common.metrics.EventListener
 import datadog.trace.common.metrics.Sink
 import datadog.trace.core.test.DDCoreSpecification
 import spock.util.concurrent.PollingConditions
 
 import java.util.concurrent.TimeUnit
+import java.util.function.BiConsumer
 
 import static DefaultDataStreamsMonitoring.FEATURE_CHECK_INTERVAL_NANOS
 import static java.util.concurrent.TimeUnit.SECONDS
@@ -101,12 +101,11 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
 
     when:
     DataStreamsContextCarrierAdapter.INSTANCE.set(carrier, keyName, keyValue)
-    DataStreamsContextCarrierAdapter.INSTANCE.forEachKey(carrier, new AgentPropagation.KeyClassifier() {
+    DataStreamsContextCarrierAdapter.INSTANCE.forEachKeyValue(carrier, new BiConsumer<String, String>() {
         @Override
-        boolean accept(String key, String value) {
+        void accept(String key, String value) {
           if (key == keyName) {
             extracted = value
-            return true
           }
         }
       })

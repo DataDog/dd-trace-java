@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.aws.v2.sqs;
 
-import static datadog.trace.bootstrap.instrumentation.api.PathwayContext.DATADOG_KEY;
+import static datadog.trace.api.datastreams.PathwayContext.DATADOG_KEY;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import java.util.Map;

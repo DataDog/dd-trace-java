@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.aws.v2;
 
+import static datadog.trace.api.datastreams.DataStreamsContext.create;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
@@ -11,14 +12,14 @@ import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.datastreams.AgentDataStreamsMonitoring;
+import datadog.trace.api.datastreams.PathwayContext;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.InstanceStore;
-import datadog.trace.bootstrap.instrumentation.api.AgentDataStreamsMonitoring;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
-import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -361,7 +362,8 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
                             AgentTracer.get().getDataStreamsMonitoring();
                         PathwayContext pathwayContext = dataStreamsMonitoring.newPathwayContext();
                         pathwayContext.setCheckpoint(
-                            sortedTags, dataStreamsMonitoring::add, arrivalTime.toEpochMilli());
+                            create(sortedTags, arrivalTime.toEpochMilli(), 0),
+                            dataStreamsMonitoring::add);
                         if (!span.context().getPathwayContext().isStarted()) {
                           span.context().mergePathwayContext(pathwayContext);
                         }
@@ -391,7 +393,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
 
             AgentTracer.get()
                 .getDataStreamsMonitoring()
-                .setCheckpoint(span, sortedTags, 0, responseSize);
+                .setCheckpoint(span, create(sortedTags, 0, responseSize));
           }
 
           if ("PutObject".equalsIgnoreCase(awsOperation)) {
@@ -411,7 +413,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
 
             AgentTracer.get()
                 .getDataStreamsMonitoring()
-                .setCheckpoint(span, sortedTags, 0, payloadSize);
+                .setCheckpoint(span, create(sortedTags, 0, payloadSize));
           }
         }
       }

@@ -10,7 +10,7 @@ import datadog.trace.api.StatsDClient
 import datadog.trace.api.civisibility.CiVisibilityWellKnownTags
 import datadog.trace.api.intake.TrackType
 import datadog.trace.api.sampling.PrioritySampling
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.api.datastreams.NoopPathwayContext
 import datadog.trace.common.writer.ddintake.DDIntakeApi
 import datadog.trace.common.writer.ddintake.DDIntakeMapperDiscovery
 import datadog.trace.core.CoreTracer
@@ -736,7 +736,7 @@ class DDIntakeWriterCombinedTest extends DDCoreSpecification {
       trace,
       null,
       null,
-      AgentTracer.NoopPathwayContext.INSTANCE,
+      NoopPathwayContext.INSTANCE,
       false,
       PropagationTags.factory().empty())
   }

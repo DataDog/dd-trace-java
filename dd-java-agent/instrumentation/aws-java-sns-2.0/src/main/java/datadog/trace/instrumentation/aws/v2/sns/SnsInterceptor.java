@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.aws.v2.sns;
 
 import static datadog.context.propagation.Propagators.defaultPropagator;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
@@ -9,6 +8,7 @@ import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.aws.v2.sns.TextMapInjectAdapter.SETTER;
 
+import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.bootstrap.InstanceStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.nio.charset.StandardCharsets;
@@ -38,10 +38,12 @@ public class SnsInterceptor implements ExecutionInterceptor {
     final AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
     StringBuilder jsonBuilder = new StringBuilder();
     jsonBuilder.append('{');
-    defaultPropagator().inject(span, jsonBuilder, SETTER);
+    datadog.context.Context context = span;
     if (traceConfig().isDataStreamsEnabled()) {
-      propagate().injectPathwayContext(span, jsonBuilder, SETTER, getTags(snsTopicName));
+      DataStreamsContext dsmContext = DataStreamsContext.fromTags(getTags(snsTopicName));
+      context = context.with(dsmContext);
     }
+    defaultPropagator().inject(context, jsonBuilder, SETTER);
     jsonBuilder.setLength(jsonBuilder.length() - 1); // Remove the last comma
     jsonBuilder.append('}');
     return SdkBytes.fromString(jsonBuilder.toString(), StandardCharsets.UTF_8);
