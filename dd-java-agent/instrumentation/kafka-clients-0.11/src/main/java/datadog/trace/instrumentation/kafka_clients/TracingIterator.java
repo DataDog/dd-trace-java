@@ -1,8 +1,10 @@
 package datadog.trace.instrumentation.kafka_clients;
 
+import static datadog.trace.api.datastreams.DataStreamsContext.create;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateNext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
@@ -19,7 +21,10 @@ import static datadog.trace.instrumentation.kafka_common.StreamingContext.STREAM
 import static datadog.trace.instrumentation.kafka_common.Utils.computePayloadSizeBytes;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
+import datadog.context.propagation.Propagator;
+import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
+import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -79,7 +84,8 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
       AgentSpan span, queueSpan = null;
       if (val != null) {
         if (!Config.get().isKafkaClientPropagationDisabledForTopic(val.topic())) {
-          final AgentSpanContext spanContext = propagate().extract(val.headers(), GETTER);
+          final AgentSpanContext spanContext =
+              extractContextAndGetSpanContext(val.headers(), GETTER);
           long timeInQueueStart = GETTER.extractTimeInQueueStart(val.headers());
           if (timeInQueueStart == 0 || !TIME_IN_QUEUE_ENABLED) {
             span = startSpan(operationName, spanContext);
@@ -108,7 +114,7 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
           if (STREAMING_CONTEXT.isDisabledForTopic(val.topic())) {
             AgentTracer.get()
                 .getDataStreamsMonitoring()
-                .setCheckpoint(span, sortedTags, val.timestamp(), payloadSize);
+                .setCheckpoint(span, create(sortedTags, val.timestamp(), payloadSize));
           } else {
             // when we're in a streaming context we want to consume only from source topics
             if (STREAMING_CONTEXT.isSourceTopic(val.topic())) {
@@ -116,9 +122,9 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
               // since the data received from the source may leave the topology on
               // some other instance of the application, breaking the context propagation
               // for DSM users
-              propagate()
-                  .injectPathwayContext(
-                      span, val.headers(), SETTER, sortedTags, val.timestamp(), payloadSize);
+              Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
+              DataStreamsContext dsmContext = create(sortedTags, val.timestamp(), payloadSize);
+              dsmPropagator.inject(span.with(dsmContext), val.headers(), SETTER);
             }
           }
         } else {

@@ -1,13 +1,12 @@
 package datadog.trace.instrumentation.aws.v1.sqs;
 
-import static datadog.trace.bootstrap.instrumentation.api.PathwayContext.DATADOG_KEY;
+import static datadog.trace.api.datastreams.PathwayContext.DATADOG_KEY;
 
 import com.amazonaws.services.sqs.model.MessageAttributeValue;
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.context.propagation.CarrierSetter;
 import java.util.Map;
 
-public class MessageAttributeInjector
-    implements AgentPropagation.Setter<Map<String, MessageAttributeValue>> {
+public class MessageAttributeInjector implements CarrierSetter<Map<String, MessageAttributeValue>> {
 
   public static final MessageAttributeInjector SETTER = new MessageAttributeInjector();
 

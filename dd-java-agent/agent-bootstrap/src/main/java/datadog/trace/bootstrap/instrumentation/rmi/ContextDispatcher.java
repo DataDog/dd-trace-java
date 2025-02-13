@@ -1,6 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.rmi;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.rmi.ContextPropagator.DD_CONTEXT_CALL_ID;
 import static datadog.trace.bootstrap.instrumentation.rmi.ContextPropagator.PROPAGATOR;
 import static datadog.trace.bootstrap.instrumentation.rmi.ThreadLocalContext.THREAD_LOCAL_CONTEXT;
@@ -43,7 +43,8 @@ public class ContextDispatcher implements Dispatcher {
       final ContextPayload payload = ContextPayload.read(in);
       if (payload != null) {
         final AgentSpanContext context =
-            propagate().extract(payload.getContext(), ContextVisitors.stringValuesMap());
+            extractContextAndGetSpanContext(
+                payload.getContext(), ContextVisitors.stringValuesMap());
         THREAD_LOCAL_CONTEXT.set(context);
       }
     }

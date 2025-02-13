@@ -1,8 +1,10 @@
 package datadog.opentracing;
 
 import static datadog.context.propagation.Propagators.defaultPropagator;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromSpanContext;
 
+import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.GlobalTracer;
@@ -494,7 +496,7 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
   public <C> SpanContext extract(final Format<C> format, final C carrier) {
     if (carrier instanceof TextMap) {
       final AgentSpanContext tagContext =
-          tracer.propagate().extract((TextMap) carrier, new TextMapGetter((TextMap) carrier));
+          extractContextAndGetSpanContext((TextMap) carrier, new TextMapGetter((TextMap) carrier));
 
       return converter.toSpanContext(tagContext);
     } else {
@@ -538,7 +540,7 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
     tracer.close();
   }
 
-  private static class TextMapSetter implements AgentPropagation.Setter<TextMap> {
+  private static class TextMapSetter implements CarrierSetter<TextMap> {
     static final TextMapSetter INSTANCE = new TextMapSetter();
 
     @Override

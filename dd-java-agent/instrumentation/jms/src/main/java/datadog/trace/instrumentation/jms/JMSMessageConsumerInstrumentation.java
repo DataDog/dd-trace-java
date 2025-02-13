@@ -3,9 +3,9 @@ package datadog.trace.instrumentation.jms;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateNext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jms.JMSDecorator.BROKER_DECORATE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.CONSUMER_DECORATE;
@@ -120,7 +120,7 @@ public final class JMSMessageConsumerInstrumentation
       AgentSpan span;
       AgentSpanContext propagatedContext = null;
       if (!consumerState.isPropagationDisabled()) {
-        propagatedContext = propagate().extract(message, GETTER);
+        propagatedContext = extractContextAndGetSpanContext(message, GETTER);
       }
       long startMillis = GETTER.extractTimeInQueueStart(message);
       if (startMillis == 0 || !TIME_IN_QUEUE_ENABLED) {

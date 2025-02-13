@@ -34,6 +34,8 @@ import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.config.GeneralConfig;
+import datadog.trace.api.datastreams.AgentDataStreamsMonitoring;
+import datadog.trace.api.datastreams.PathwayContext;
 import datadog.trace.api.experimental.DataStreamsCheckpointer;
 import datadog.trace.api.flare.TracerFlare;
 import datadog.trace.api.gateway.CallbackProvider;
@@ -51,16 +53,13 @@ import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.api.time.TimeSource;
-import datadog.trace.bootstrap.instrumentation.api.AgentDataStreamsMonitoring;
 import datadog.trace.bootstrap.instrumentation.api.AgentHistogram;
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.BlackHoleSpan;
-import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.bootstrap.instrumentation.api.ScopeState;
@@ -86,7 +85,6 @@ import datadog.trace.core.histogram.Histograms;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.monitor.MonitoringImpl;
 import datadog.trace.core.monitor.TracerHealthMetrics;
-import datadog.trace.core.propagation.CorePropagation;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.propagation.PropagationTags;
@@ -228,7 +226,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final SortedSet<TraceInterceptor> interceptors =
       new ConcurrentSkipListSet<>(Comparator.comparingInt(TraceInterceptor::priority));
 
-  private final CorePropagation propagation;
   private final boolean logs128bTraceIdEnabled;
 
   private final InstrumentationGateway instrumentationGateway;
@@ -714,9 +711,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     sharedCommunicationObjects.whenReady(this.dataStreamsMonitoring::start);
 
-    // Store all propagators to propagation -- only DSM injection left
-    this.propagation = new CorePropagation(this.dataStreamsMonitoring.injector());
-
     // Register context propagators
     HttpCodec.Extractor tracingExtractor =
         extractor == null ? HttpCodec.createExtractor(config, this::captureTraceConfig) : extractor;
@@ -984,11 +978,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public AgentScope activeScope() {
     return scopeManager.active();
-  }
-
-  @Override
-  public AgentPropagation propagate() {
-    return this.propagation;
   }
 
   @Override

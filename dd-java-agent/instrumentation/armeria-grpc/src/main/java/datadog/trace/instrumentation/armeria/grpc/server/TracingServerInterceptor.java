@@ -1,8 +1,9 @@
 package datadog.trace.instrumentation.armeria.grpc.server;
 
+import static datadog.trace.api.datastreams.DataStreamsContext.fromTags;
 import static datadog.trace.api.gateway.Events.EVENTS;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.armeria.grpc.server.GrpcExtractAdapter.GETTER;
 import static datadog.trace.instrumentation.armeria.grpc.server.GrpcServerDecorator.DECORATE;
@@ -61,7 +62,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
       return next.startCall(call, headers);
     }
 
-    AgentSpanContext spanContext = propagate().extract(headers, GETTER);
+    AgentSpanContext spanContext = extractContextAndGetSpanContext(headers, GETTER);
     AgentTracer.TracerAPI tracer = tracer();
     spanContext = callIGCallbackRequestStarted(tracer, spanContext);
 
@@ -71,7 +72,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
 
     AgentTracer.get()
         .getDataStreamsMonitoring()
-        .setCheckpoint(span, SERVER_PATHWAY_EDGE_TAGS, 0, 0);
+        .setCheckpoint(span, fromTags(SERVER_PATHWAY_EDGE_TAGS));
 
     RequestContext reqContext = span.getRequestContext();
     if (reqContext != null) {

@@ -83,7 +83,7 @@ class TracingPropagatorTest extends DDCoreSpecification {
     given:
     def sampler = new ControllableSampler()
     def tracer = tracerBuilder().writer(new LoggingWriter()).sampler(sampler).build()
-    def setter = Mock(AgentPropagation.Setter)
+    def setter = Mock(CarrierSetter)
     def carrier = new Object()
 
     when:
@@ -118,7 +118,7 @@ class TracingPropagatorTest extends DDCoreSpecification {
     given:
     def sampler = new ControllableSampler()
     def tracer = tracerBuilder().writer(new LoggingWriter()).sampler(sampler).build()
-    def setter = Mock(AgentPropagation.Setter)
+    def setter = Mock(CarrierSetter)
     def carrier = new Object()
 
     when:
