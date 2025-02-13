@@ -97,7 +97,6 @@ class KarateTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test quarantined #testcaseName"() {
-    givenTestManagementEnabled(true)
     givenQuarantinedTests(quarantined)
 
     runTests(tests, true)
@@ -107,6 +106,20 @@ class KarateTest extends CiVisibilityInstrumentationTest {
     where:
     testcaseName              | tests              | quarantined
     "test-quarantined-failed" | [TestFailedKarate] | [new TestFQN("[org/example/test_failed] test failed", "second scenario")]
+  }
+
+  def "test disabled #testcaseName"() {
+    Assumptions.assumeTrue(isSkippingSupported(FileUtils.KARATE_VERSION))
+
+    givenDisabledTests(disabled)
+
+    runTests(tests, true)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName           | tests              | disabled
+    "test-disabled-failed" | [TestFailedKarate] | [new TestFQN("[org/example/test_failed] test failed", "second scenario")]
   }
 
   private void runTests(List<Class<?>> tests, boolean expectSuccess = true) {

@@ -91,7 +91,6 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test quarantined #testcaseName"() {
-    givenTestManagementEnabled(true)
     givenQuarantinedTests(quarantined)
 
     runFeatures(features, true)
@@ -106,7 +105,6 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test quarantined auto-retries #testcaseName"() {
-    givenTestManagementEnabled(true)
     givenQuarantinedTests(quarantined)
 
     givenFlakyRetryEnabled(true)
@@ -118,16 +116,15 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName)
 
     where:
-    testcaseName                  | features                                                            | quarantined                    | retried
+    testcaseName                  | features                                                            | quarantined       | retried
     "test-quarantined-failed-atr" | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"] | [
       new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition")
-    ]                                                                                                                                    | [
+    ]                                                                                                                       | [
       new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition")
     ]
   }
 
   def "test quarantined early flakiness detection #testcaseName"() {
-    givenTestManagementEnabled(true)
     givenQuarantinedTests(quarantined)
 
     givenEarlyFlakinessDetectionEnabled(true)
@@ -139,15 +136,29 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName)
 
     where:
-    testcaseName                    | features                                                            | quarantined                  | known
+    testcaseName                    | features                                                            | quarantined     | known
     "test-quarantined-failed-known" | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"] | [
       new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition")
-    ]                                                                                                                                    | [
+    ]                                                                                                                       | [
       new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition")
     ]
     "test-quarantined-failed-efd"   | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"] | [
       new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition")
-    ]                                                                                                                                    | []
+    ]                                                                                                                       | []
+  }
+
+  def "test disabled #testcaseName"() {
+    givenDisabledTests(disabled)
+
+    runFeatures(features, true)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName           | features                                                            | disabled
+    "test-disabled-failed" | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"] | [
+      new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition")
+    ]
   }
 
   private String version() {

@@ -90,9 +90,15 @@ public class ExecutionStrategy {
     if (test == null) {
       return null;
     }
+
+    if (isDisabled(test)) {
+      return SkipReason.DISABLED;
+    }
+
     if (!executionSettings.isTestSkippingEnabled()) {
       return null;
     }
+
     Map<TestIdentifier, TestMetadata> skippableTests = executionSettings.getSkippableTests();
     TestMetadata testMetadata = skippableTests.get(test);
     if (testMetadata == null) {

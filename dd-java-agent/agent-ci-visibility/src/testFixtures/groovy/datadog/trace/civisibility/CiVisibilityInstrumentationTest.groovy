@@ -294,14 +294,17 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
 
   def givenQuarantinedTests(List<TestFQN> tests) {
     quarantinedTests.addAll(tests)
+    testManagementEnabled = true
   }
 
   def givenDisabledTests(List<TestFQN> tests) {
     disabledTests.addAll(tests)
+    testManagementEnabled = true
   }
 
   def givenAttemptToFixTests(List<TestFQN> tests) {
     attemptToFixTests.addAll(tests)
+    testManagementEnabled = true
   }
 
   def givenDiff(Diff diff) {
@@ -318,10 +321,6 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
 
   def givenImpactedTestsDetectionEnabled(boolean impactedTestsDetectionEnabled) {
     this.impactedTestsDetectionEnabled = impactedTestsDetectionEnabled
-  }
-
-  def givenTestManagementEnabled(boolean testManagementEnabled) {
-    this.testManagementEnabled = testManagementEnabled
   }
 
   def givenTestsOrder(String testsOrder) {

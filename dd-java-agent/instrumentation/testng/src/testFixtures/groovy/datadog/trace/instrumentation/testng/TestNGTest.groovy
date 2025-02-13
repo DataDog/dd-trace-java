@@ -158,7 +158,6 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
   def "test quarantined #testcaseName"() {
     Assumptions.assumeTrue(isExceptionSuppressionSupported())
 
-    givenTestManagementEnabled(true)
     givenQuarantinedTests(quarantined)
 
     runTests(tests, null, true)
@@ -174,7 +173,6 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
   def "test quarantined auto-retries #testcaseName"() {
     Assumptions.assumeTrue(isExceptionSuppressionSupported())
 
-    givenTestManagementEnabled(true)
     givenQuarantinedTests(quarantined)
 
     givenFlakyRetryEnabled(true)
@@ -186,14 +184,13 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName)
 
     where:
-    testcaseName                               | tests        | quarantined                                                         | retried
+    testcaseName                               | tests        | quarantined                                            | retried
     "test-quarantined-failed-atr-${version()}" | [TestFailed] | [new TestFQN("org.example.TestFailed", "test_failed")] | [new TestFQN("org.example.TestFailed", "test_failed")]
   }
 
   def "test quarantined early flakiness detection #testcaseName"() {
     Assumptions.assumeTrue(isExceptionSuppressionSupported())
 
-    givenTestManagementEnabled(true)
     givenQuarantinedTests(quarantined)
 
     givenEarlyFlakinessDetectionEnabled(true)
@@ -205,9 +202,22 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName)
 
     where:
-    testcaseName                    | tests        | quarantined                                                         | known
+    testcaseName                    | tests        | quarantined                                            | known
     "test-quarantined-failed-known" | [TestFailed] | [new TestFQN("org.example.TestFailed", "test_failed")] | [new TestFQN("org.example.TestFailed", "test_failed")]
     "test-quarantined-failed-efd"   | [TestFailed] | [new TestFQN("org.example.TestFailed", "test_failed")] | []
+  }
+
+  def "test disabled #testcaseName"() {
+    givenDisabledTests(disabled)
+
+    runTests(tests, null, true)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName                         | tests                     | disabled
+    "test-disabled-failed-${version()}"  | [TestFailed]              | [new TestFQN("org.example.TestFailed", "test_failed")]
+    "test-disabled-failed-parameterized" | [TestFailedParameterized] | [new TestFQN("org.example.TestFailedParameterized", "parameterized_test_succeed")]
   }
 
   private static boolean isEFDSupported() {

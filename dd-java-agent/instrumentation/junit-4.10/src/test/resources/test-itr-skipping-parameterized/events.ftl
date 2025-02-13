@@ -129,7 +129,7 @@
       "test.module" : "junit-4.10",
       "test.name" : "parameterized_test_succeed",
       "test.parameters" : "{\"metadata\":{\"test_name\":\"parameterized_test_succeed[str1]\"}}",
-      "test.skip_reason" : "Skipped by Datadog Intelligent Test Runner",
+      "test.skip_reason" : "Skipped by Datadog Test Impact Analysis",
       "test.skipped_by_itr" : "true",
       "test.source.file" : "dummy_source_path",
       "test.source.method" : "parameterized_test_succeed()V",

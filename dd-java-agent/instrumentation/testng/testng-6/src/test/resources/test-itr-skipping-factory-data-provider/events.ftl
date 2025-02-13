@@ -54,7 +54,7 @@
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.module" : "testng-6",
       "test.name" : "testMethod",
-      "test.skip_reason" : "Skipped by Datadog Intelligent Test Runner",
+      "test.skip_reason" : "Skipped by Datadog Test Impact Analysis",
       "test.skipped_by_itr" : "true",
       "test.source.file" : "dummy_source_path",
       "test.source.method" : "testMethod()V",

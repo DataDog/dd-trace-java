@@ -50,6 +50,7 @@ class MockBackend implements AutoCloseable {
 
     skippableTests.clear()
     flakyTests.clear()
+    testManagement.clear()
     changedFiles.clear()
   }
 
@@ -92,6 +93,15 @@ class MockBackend implements AutoCloseable {
       "suite": suite,
       "name": name,
       "properties": ["quarantined": true]
+    ])
+  }
+
+  void givenDisabledTests(String module, String suite, String name) {
+    testManagement.add([
+      "module": module,
+      "suite": suite,
+      "name": name,
+      "properties": ["disabled": true]
     ])
   }
 
@@ -245,7 +255,8 @@ class MockBackend implements AutoCloseable {
         for (Map<String, Object> test : testManagement) {
           Map<String, Map> suites = modules.computeIfAbsent("${test.module}", k -> [:]).computeIfAbsent("suites", k -> [:])
           Map<String, Map> tests = suites.computeIfAbsent("${test.suite}", k -> [:]).computeIfAbsent("tests", k -> [:])
-          tests.computeIfAbsent("${test.name}", k -> [:]).put("properties", test.properties)
+          Map<String, Boolean> properties = tests.computeIfAbsent("${test.name}", k -> [:]).computeIfAbsent("properties", k -> [:])
+          properties.putAll(test.properties)
         }
 
         String testManagementResponse = """{ "modules": ${JSON_MAPPER.writeValueAsString(modules)} }"""

@@ -9,9 +9,9 @@ import org.example.TestFailedAssumptionMUnit
 import org.example.TestFailedMUnit
 import org.example.TestFailedThenSucceedMUnit
 import org.example.TestSkippedMUnit
-import org.example.TestSucceedMUnitSlow
 import org.example.TestSkippedSuiteMUnit
 import org.example.TestSucceedMUnit
+import org.example.TestSucceedMUnitSlow
 import org.junit.runner.JUnitCore
 
 @DisableTestTrace(reason = "avoid self-tracing")
@@ -80,7 +80,6 @@ class MUnitTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test quarantined #testcaseName"() {
-    givenTestManagementEnabled(true)
     givenQuarantinedTests(quarantined)
 
     runTests(tests, true)
@@ -93,7 +92,6 @@ class MUnitTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test quarantined auto-retries #testcaseName"() {
-    givenTestManagementEnabled(true)
     givenQuarantinedTests(quarantined)
 
     givenFlakyRetryEnabled(true)
@@ -105,12 +103,11 @@ class MUnitTest extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName)
 
     where:
-    testcaseName                  | tests             | quarantined                                                                 | retried
+    testcaseName                  | tests             | quarantined                                                    | retried
     "test-quarantined-failed-atr" | [TestFailedMUnit] | [new TestFQN("org.example.TestFailedMUnit", "Calculator.add")] | [new TestFQN("org.example.TestFailedMUnit", "Calculator.add")]
   }
 
   def "test quarantined early flakiness detection #testcaseName"() {
-    givenTestManagementEnabled(true)
     givenQuarantinedTests(quarantined)
 
     givenEarlyFlakinessDetectionEnabled(true)
@@ -122,9 +119,9 @@ class MUnitTest extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName)
 
     where:
-    testcaseName                     | tests             | quarantined                                                                 | known
+    testcaseName                    | tests             | quarantined                                                    | known
     "test-quarantined-failed-known" | [TestFailedMUnit] | [new TestFQN("org.example.TestFailedMUnit", "Calculator.add")] | [new TestFQN("org.example.TestFailedMUnit", "Calculator.add")]
-    "test-quarantined-failed-efd"    | [TestFailedMUnit] | [new TestFQN("org.example.TestFailedMUnit", "Calculator.add")] | []
+    "test-quarantined-failed-efd"   | [TestFailedMUnit] | [new TestFQN("org.example.TestFailedMUnit", "Calculator.add")] | []
   }
 
   private void runTests(Collection<Class<?>> tests, boolean expectSuccess = true) {

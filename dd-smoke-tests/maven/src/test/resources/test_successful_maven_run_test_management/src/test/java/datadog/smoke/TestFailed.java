@@ -11,4 +11,8 @@ public class TestFailed {
     assertTrue(Calculator.add(2, 2) == 5);
   }
 
+  @Test
+  public void test_another_failed() {
+    assertTrue(Calculator.add(2, 2) == 5);
+  }
 }
