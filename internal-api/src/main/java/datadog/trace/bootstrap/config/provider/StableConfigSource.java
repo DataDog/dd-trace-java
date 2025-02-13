@@ -179,7 +179,7 @@ public final class StableConfigSource extends ConfigProvider.Source {
     return null;
   }
 
-  private static class StableConfig {
+  /*public?*/ static class StableConfig {
     private Map<String, Object> apmConfiguration;
     private String configId;
 
@@ -188,25 +188,25 @@ public final class StableConfigSource extends ConfigProvider.Source {
       this.configId = null;
     }
 
-    private void put(String key, Object value) {
+    void put(String key, Object value) {
       this.apmConfiguration.put(key, value);
     }
 
-    private void setConfigId(String configId) {
+    void setConfigId(String configId) {
       this.configId = configId;
     }
 
     // TODO: Make this.apmConfiguration a Map<String,String> instead
-    private String get(String key) {
+    public String get(String key) {
       return (String) this.apmConfiguration.get(propertyNameToEnvironmentVariableName(key));
     }
 
-    private Set<String> getKeys() {
+    public Set<String> getKeys() {
       return this.apmConfiguration.keySet();
     }
 
     // Might be null
-    private String getConfigId() {
+    public String getConfigId() {
       return this.configId;
     }
   }
