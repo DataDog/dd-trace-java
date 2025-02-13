@@ -11,17 +11,17 @@ import static datadog.trace.core.baggage.BaggagePropagator.BAGGAGE_KEY
 class BaggagePropagatorTest extends DDCoreSpecification {
   BaggagePropagator propagator
   CarrierSetter setter
-  Object carrier
+  Map<String, String> carrier
   Context context
 
   def setup() {
     this.propagator = new BaggagePropagator(true, true)
     setter = Mock(CarrierSetter)
-    carrier = new Object()
+    carrier = new HashMap<>()
     context = Context.root()
   }
 
-  def 'test tracing propagator context injection'() {
+  def 'test baggage propagator context injection'() {
     setup:
     context = BaggageContext.create(baggageMap).storeInto(context)
 
@@ -46,6 +46,7 @@ class BaggagePropagatorTest extends DDCoreSpecification {
   def "test baggage item limit"() {
     setup:
     injectSysConfig("trace.baggage.max.items", '2')
+    propagator = new BaggagePropagator(true, true) //creating a new instance after injecting config
     context = BaggageContext.create(baggage).storeInto(context)
 
     when:
@@ -63,6 +64,7 @@ class BaggagePropagatorTest extends DDCoreSpecification {
   def "test baggage bytes limit"() {
     setup:
     injectSysConfig("trace.baggage.max.bytes", '20')
+    propagator = new BaggagePropagator(true, true) //creating a new instance after injecting config
     context = BaggageContext.create(baggage).storeInto(context)
 
     when:
@@ -114,5 +116,8 @@ class BaggagePropagatorTest extends DDCoreSpecification {
     "foo=gets-dropped-because-subsequent-pair-is-malformed,="           | []
     "=no-key"                                                           | []
     "no-value="                                                         | []
+    ""                                                                  | []
+    ",,"                                                                | []
+    "="                                                                 | []
   }
 }

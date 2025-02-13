@@ -2256,6 +2256,18 @@ public class Config {
     return tracePropagationExtractFirst;
   }
 
+  public boolean isBaggageExtract() {
+    return tracePropagationStylesToExtract.contains(TracePropagationStyle.BAGGAGE);
+  }
+
+  public boolean isBaggageInject() {
+    return tracePropagationStylesToInject.contains(TracePropagationStyle.BAGGAGE);
+  }
+
+  public boolean isBaggagePropagationEnabled() {
+    return isBaggageInject() || isBaggageExtract();
+  }
+
   public int getTraceBaggageMaxItems() {
     return traceBaggageMaxItems;
   }

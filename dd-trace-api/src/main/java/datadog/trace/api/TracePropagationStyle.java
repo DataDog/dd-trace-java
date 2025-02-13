@@ -21,7 +21,7 @@ public enum TracePropagationStyle {
   // W3C trace context propagation style
   // https://www.w3.org/TR/trace-context-1/
   TRACECONTEXT,
-  // OTEL baggage support
+  // W3C baggage support
   // https://www.w3.org/TR/baggage/
   BAGGAGE,
   // None does not extract or inject
