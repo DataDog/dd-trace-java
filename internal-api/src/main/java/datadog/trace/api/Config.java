@@ -192,6 +192,7 @@ public class Config {
   private final boolean tracePropagationExtractFirst;
   private final int clockSyncPeriod;
   private final boolean logsInjectionEnabled;
+  private final boolean breakingChangesEnabled;
 
   private final String dogStatsDNamedPipe;
   private final int dogStatsDStartDelay;
@@ -1006,6 +1007,9 @@ public class Config {
     logsInjectionEnabled =
         configProvider.getBoolean(
             LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED, LOGS_INJECTION);
+
+    breakingChangesEnabled =
+        configProvider.getBoolean(BREAKING_CHANGES_ENABLED, DEFAULT_BREAKING_CHANGES_ENABLED);
 
     dogStatsDNamedPipe = configProvider.getString(DOGSTATSD_NAMED_PIPE);
 
@@ -2350,6 +2354,10 @@ public class Config {
 
   public boolean isLogsInjectionEnabled() {
     return logsInjectionEnabled;
+  }
+
+  public boolean isBreakingChangesEnabled() {
+    return breakingChangesEnabled;
   }
 
   public boolean isReportHostName() {
@@ -4656,6 +4664,8 @@ public class Config {
         + injectBaggageAsTagsEnabled
         + ", logsInjectionEnabled="
         + logsInjectionEnabled
+        + ", breakingChangesEnabled="
+        + breakingChangesEnabled
         + ", sparkTaskHistogramEnabled="
         + sparkTaskHistogramEnabled
         + ", sparkAppNameAsService="
