@@ -287,7 +287,7 @@ muzzle-dep-report:
     - .circleci/collect_reports.sh
     - if [ "$PROFILE_TESTS" == "true" ]; then .circleci/collect_profiles.sh; fi
     - .circleci/collect_results.sh
-# TODO upload test results
+    - .circleci/upload_ciapp.sh tests $testJvm
 # TODO Get APM Test Agent Trace Check Results
   artifacts:
     when: always
