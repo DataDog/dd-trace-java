@@ -3,9 +3,13 @@ package datadog.trace.core.baggage
 import datadog.context.Context
 import datadog.context.EmptyContext
 import datadog.context.propagation.CarrierSetter
+import datadog.context.propagation.CarrierVisitor
 import datadog.trace.bootstrap.instrumentation.api.BaggageContext
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors
 import datadog.trace.core.test.DDCoreSpecification
+
+import java.util.function.BiConsumer
+
 import static datadog.trace.core.baggage.BaggagePropagator.BAGGAGE_KEY
 
 class BaggagePropagatorTest extends DDCoreSpecification {
@@ -14,10 +18,26 @@ class BaggagePropagatorTest extends DDCoreSpecification {
   Map<String, String> carrier
   Context context
 
+
+  static class MapCarrierAccessor
+    implements CarrierSetter<Map<String, String>>, CarrierVisitor<Map<String, String>> {
+    @Override
+    void set(Map<String, String> carrier, String key, String value) {
+      if (carrier != null && key != null && value != null) {
+        carrier.put(key, value);
+      }
+    }
+
+    @Override
+    void forEachKeyValue(Map<String, String> carrier, BiConsumer<String, String> visitor) {
+      carrier.forEach(visitor);
+    }
+  }
+
   def setup() {
     this.propagator = new BaggagePropagator(true, true)
-    setter = Mock(CarrierSetter)
-    carrier = new HashMap<>()
+    setter = new MapCarrierAccessor()
+    carrier = [:]
     context = Context.root()
   }
 
@@ -29,7 +49,8 @@ class BaggagePropagatorTest extends DDCoreSpecification {
     this.propagator.inject(context, carrier, setter)
 
     then:
-    1 * setter.set(carrier, BAGGAGE_KEY, baggageHeader)
+//    1 * setter.set(carrier, BAGGAGE_KEY, baggageHeader)
+    assert carrier[BAGGAGE_KEY] == baggageHeader
 
     where:
     baggageMap                                               | baggageHeader
@@ -53,7 +74,8 @@ class BaggagePropagatorTest extends DDCoreSpecification {
     this.propagator.inject(context, carrier, setter)
 
     then:
-    1 * setter.set(carrier, BAGGAGE_KEY, baggageHeader)
+//    1 * setter.set(carrier, BAGGAGE_KEY, baggageHeader)
+    assert carrier[BAGGAGE_KEY] == baggageHeader
 
     where:
     baggage                                    | baggageHeader
@@ -71,7 +93,8 @@ class BaggagePropagatorTest extends DDCoreSpecification {
     this.propagator.inject(context, carrier, setter)
 
     then:
-    1 * setter.set(carrier, BAGGAGE_KEY, baggageHeader)
+//    1 * setter.set(carrier, BAGGAGE_KEY, baggageHeader)
+    assert carrier[BAGGAGE_KEY] == baggageHeader
 
     where:
     baggage                                    | baggageHeader
@@ -108,16 +131,16 @@ class BaggagePropagatorTest extends DDCoreSpecification {
     context = this.propagator.extract(context, headers, ContextVisitors.stringValuesMap())
 
     then:
-    context instanceof EmptyContext
+    BaggageContext.fromContext(context) == null
 
     where:
-    baggageHeader                                                       | baggageMap
-    "no-equal-sign,foo=gets-dropped-because-previous-pair-is-malformed" | []
-    "foo=gets-dropped-because-subsequent-pair-is-malformed,="           | []
-    "=no-key"                                                           | []
-    "no-value="                                                         | []
-    ""                                                                  | []
-    ",,"                                                                | []
-    "="                                                                 | []
+    baggageHeader                                                       | _
+    "no-equal-sign,foo=gets-dropped-because-previous-pair-is-malformed" | _
+    "foo=gets-dropped-because-subsequent-pair-is-malformed,="           | _
+    "=no-key"                                                           | _
+    "no-value="                                                         | _
+    ""                                                                  | _
+    ",,"                                                                | _
+    "="                                                                 | _
   }
 }

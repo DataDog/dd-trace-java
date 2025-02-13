@@ -167,12 +167,15 @@ public class BaggagePropagator implements Propagator {
       int kvSeparatorInd = input.indexOf(keyValueSeparator);
       while (kvSeparatorInd != -1) {
         int end = pairSeparatorInd;
-        if (kvSeparatorInd > end) { // value is missing
+        if (kvSeparatorInd > end) {
+          log.debug(
+              "Dropping baggage headers due to key with no value {}", input.substring(start, end));
           return Collections.emptyMap();
         }
         String key = decode(input.substring(start, kvSeparatorInd).trim());
         String value = decode(input.substring(kvSeparatorInd + 1, end).trim());
         if (key.isEmpty() || value.isEmpty()) {
+          log.debug("Dropping baggage headers due to empty k/v {}:{}", key, value);
           return Collections.emptyMap();
         }
         baggage.put(key, value);
