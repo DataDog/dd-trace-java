@@ -23,19 +23,12 @@ import java.io.StringWriter;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.lang.reflect.InvocationTargetException;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Properties;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
+import org.apache.commons.lang3.reflect.MethodUtils;
 import org.apache.spark.ExceptionFailure;
 import org.apache.spark.SparkConf;
 import org.apache.spark.TaskFailedReason;
@@ -56,6 +49,8 @@ import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 import scala.collection.JavaConverters;
 
+// import io.openlineage.spark.agent.OpenLineageSparkListener;
+
 /**
  * Implementation of the SparkListener {@link SparkListener} to generate spans from the execution of
  * a spark application.
@@ -65,7 +60,7 @@ import scala.collection.JavaConverters;
  * still needed
  */
 public abstract class AbstractDatadogSparkListener extends SparkListener {
-  private static final Logger log = LoggerFactory.getLogger(AbstractDatadogSparkListener.class);
+  protected static final Logger log = LoggerFactory.getLogger(AbstractDatadogSparkListener.class);
   private static final ObjectMapper objectMapper = new ObjectMapper();
   public static volatile AbstractDatadogSparkListener listener = null;
   public static volatile boolean finishTraceOnApplicationEnd = true;
@@ -123,6 +118,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   private long availableExecutorTime = 0;
 
   private volatile boolean applicationEnded = false;
+  private SparkListener openLineageSparkListener = null;
 
   public AbstractDatadogSparkListener(SparkConf sparkConf, String appId, String sparkVersion) {
     tracer = AgentTracer.get();
@@ -151,8 +147,78 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
                     finishApplication(System.currentTimeMillis(), null, 0, null);
                   }
                 }));
+    log.error("Created datadog spark listener: {}", this.getClass().getSimpleName());
+    loadOlSparkListener();
+  }
 
-    log.info("Created datadog spark listener: {}", this.getClass().getSimpleName());
+  void loadOlSparkListener() {
+    List<ClassLoader> availableClassloaders =
+        Thread.getAllStackTraces().keySet().stream()
+            .map(Thread::getContextClassLoader)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toList());
+    String className = "io.openlineage.spark.agent.OpenLineageSparkListener";
+    Class clazz = null;
+    try {
+      clazz = Class.forName(className);
+    } catch (Exception e) {
+      log.error("Failed to load OL Spark Listener via Class.forName: {}", e.toString());
+      for (ClassLoader classLoader : availableClassloaders) {
+        try {
+          clazz = classLoader.loadClass(className);
+          log.error("Loaded Spark Listener via classLoader: {}", classLoader);
+          break;
+        } catch (Exception ex) {
+          log.error(
+              "Failed to load OL Spark Listener via loadClass via ClassLoader {} - {}",
+              classLoader,
+              ex.toString());
+        }
+        try {
+          clazz = classLoader.getParent().loadClass(className);
+          log.error(
+              "Loaded Spark Listener via parent classLoader: {} for CL {}",
+              classLoader.getParent(),
+              classLoader);
+          break;
+        } catch (Exception ex) {
+          log.error(
+              "Failed to load OL Spark Listener via loadClass via parent ClassLoader {} - {}",
+              classLoader.getParent(),
+              ex.toString());
+        }
+      }
+    }
+    if (clazz == null) {
+      try {
+        clazz = ClassLoader.getSystemClassLoader().loadClass(className);
+        log.error(
+            "Loaded Spark Listener via system classLoader: {}", ClassLoader.getSystemClassLoader());
+      } catch (Exception ex) {
+        log.error(
+            "Failed to load OL Spark Listener via loadClass via SystemClassLoader {}",
+            ex.toString());
+      }
+    }
+    if (clazz == null) {
+      return;
+    }
+    try {
+      sparkConf.set("spark.openlineage.transport.type", "composite");
+      sparkConf.set("spark.openlineage.transport.continueOnFailure", "true");
+      sparkConf.set("spark.openlineage.transport.transports.datadog.type", "http");
+      sparkConf.set("spark.openlineage.transport.transports.datadog.url", "<fake>");
+      sparkConf.set("spark.openlineage.transport.transports.datadog.auth.type", "api_key");
+      sparkConf.set("spark.openlineage.transport.transports.datadog.auth.apiKey", "<fake>");
+      sparkConf.set("spark.openlineage.transport.transports.datadog.compression", "gzip");
+      sparkConf.set("spark.openlineage.transport.transports.local.type", "console");
+      openLineageSparkListener =
+          (SparkListener) clazz.getDeclaredConstructor(SparkConf.class).newInstance(sparkConf);
+      log.error(
+          "Created OL spark listener: {}", openLineageSparkListener.getClass().getSimpleName());
+    } catch (Exception e) {
+      log.error("Failed to instantiate OL Spark Listener: {}", e.toString());
+    }
   }
 
   /** Resource name of the spark job. Provide an implementation based on a specific scala version */
@@ -176,6 +242,10 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   @Override
   public synchronized void onApplicationStart(SparkListenerApplicationStart applicationStart) {
     this.applicationStart = applicationStart;
+    initApplicationSpanIfNotInitialized();
+    notifyOl(
+        applicationSpan.context(),
+        () -> this.openLineageSparkListener.onApplicationStart(applicationStart));
   }
 
   private void initApplicationSpanIfNotInitialized() {
@@ -233,7 +303,9 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     log.info(
         "Received spark application end event, finish trace on this event: {}",
         finishTraceOnApplicationEnd);
-
+    notifyOl(
+        applicationSpan.context(),
+        () -> this.openLineageSparkListener.onApplicationEnd(applicationEnd));
     if (finishTraceOnApplicationEnd) {
       finishApplication(applicationEnd.time(), null, 0, null);
     }
@@ -426,6 +498,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       stageToJob.put(stageId, jobStart.jobId());
     }
     jobSpans.put(jobStart.jobId(), jobSpan);
+    notifyOl(jobSpan.context(), () -> this.openLineageSparkListener.onJobStart(jobStart));
   }
 
   @Override
@@ -456,6 +529,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     if (metrics != null) {
       metrics.setSpanMetrics(jobSpan);
     }
+    notifyOl(jobSpan.context(), () -> this.openLineageSparkListener.onJobEnd(jobEnd));
 
     jobSpan.finish(jobEnd.time() * 1000);
   }
@@ -624,6 +698,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
     Properties props = stageProperties.get(stageSpanKey);
     sendTaskSpan(stageSpan, taskEnd, props);
+
+    notifyOl(stageSpan.context(), () -> this.openLineageSparkListener.onTaskEnd(taskEnd));
   }
 
   private void sendTaskSpan(
@@ -705,6 +781,28 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     updateAdaptiveSQLPlan(event);
   }
 
+  private void notifyOl(AgentSpanContext context, Runnable runnable) {
+    log.error("Notifying OL.");
+    if (this.openLineageSparkListener != null) {
+      try {
+        MethodUtils.invokeMethod(
+            this.openLineageSparkListener,
+            "passContext",
+            context.getTraceId().toString(),
+            Long.toString(context.getSpanId()));
+      } catch (NoSuchMethodException e) {
+        throw new RuntimeException(e);
+      } catch (IllegalAccessException e) {
+        throw new RuntimeException(e);
+      } catch (InvocationTargetException e) {
+        throw new RuntimeException(e);
+      }
+      runnable.run();
+    } else {
+      log.error("ERROR: OLSparkListener is NULL");
+    }
+  }
+
   private static final Class<?> adaptiveExecutionUpdateClass;
   private static final MethodHandle adaptiveExecutionIdMethod;
   private static final MethodHandle adaptiveSparkPlanMethod;
@@ -765,6 +863,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       if (metrics != null) {
         metrics.setSpanMetrics(span);
       }
+      notifyOl(span.context(), () -> this.openLineageSparkListener.onOtherEvent(sqlEnd));
 
       span.finish(sqlEnd.time() * 1000);
     }
@@ -923,7 +1022,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   private AgentTracer.SpanBuilder buildSparkSpan(String spanName, Properties properties) {
     AgentTracer.SpanBuilder builder =
-        tracer.buildSpan(spanName).withSpanType("spark").withTag("app_id", appId);
+        tracer.buildSpan("spark", spanName).withSpanType("spark").withTag("app_id", appId);
 
     if (databricksServiceName != null) {
       builder.withServiceName(databricksServiceName);
