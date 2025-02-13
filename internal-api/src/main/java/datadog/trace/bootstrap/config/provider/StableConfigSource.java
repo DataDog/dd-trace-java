@@ -21,7 +21,7 @@ public final class StableConfigSource extends ConfigProvider.Source {
   public static final String USER_STABLE_CONFIG_PATH =
       "/etc/datadog-agent/application_monitoring.yaml";
   public static final String MANAGED_STABLE_CONFIG_PATH =
-      "/etc/datadog-agent/managed/datadog-apm-libraries/stable/application_monitoring.yaml ";
+      "/etc/datadog-agent/managed/datadog-apm-libraries/stable/application_monitoring.yaml";
 
   private static final Logger log = LoggerFactory.getLogger(StableConfigSource.class);
 
