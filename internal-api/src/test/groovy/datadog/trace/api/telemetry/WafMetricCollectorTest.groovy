@@ -33,7 +33,9 @@ class WafMetricCollectorTest extends DDSpecification {
     WafMetricCollector.get().raspRuleEval(RuleType.SQL_INJECTION)
     WafMetricCollector.get().raspTimeout(RuleType.SQL_INJECTION)
     WafMetricCollector.get().raspErrorCode(RuleType.SHELL_INJECTION, -3)
+    WafMetricCollector.get().wafErrorCode(RuleType.SHELL_INJECTION, -3)
     WafMetricCollector.get().raspErrorCode(RuleType.SQL_INJECTION, -2)
+    WafMetricCollector.get().wafErrorCode(RuleType.SQL_INJECTION, -2)
 
     WafMetricCollector.get().prepareMetrics()
 
@@ -147,12 +149,34 @@ class WafMetricCollectorTest extends DDSpecification {
       'waf_error:-3'
     ].toSet()
 
-    def raspInvalidObjectCode = (WafMetricCollector.RaspError)metrics[11]
+    def wafInvalidCode = (WafMetricCollector.WafError)metrics[11]
+    wafInvalidCode.type == 'count'
+    wafInvalidCode.value == 1
+    wafInvalidCode.namespace == 'appsec'
+    wafInvalidCode.metricName == 'waf.error'
+    wafInvalidCode.tags.toSet() == [
+      'waf_version:waf_ver1',
+      'rule_type:command_injection',
+      'rule_variant:shell',
+      'event_rules_version:rules.3',
+      'waf_error:-3'
+    ].toSet()
+
+    def raspInvalidObjectCode = (WafMetricCollector.RaspError)metrics[12]
     raspInvalidObjectCode.type == 'count'
     raspInvalidObjectCode.value == 1
     raspInvalidObjectCode.namespace == 'appsec'
     raspInvalidObjectCode.metricName == 'rasp.error'
     raspInvalidObjectCode.tags.toSet() == ['rule_type:sql_injection', 'waf_version:waf_ver1', 'waf_error:-2'].toSet()
+
+
+
+    def wafInvalidObjectCode = (WafMetricCollector.WafError)metrics[13]
+    wafInvalidObjectCode.type == 'count'
+    wafInvalidObjectCode.value == 1
+    wafInvalidObjectCode.namespace == 'appsec'
+    wafInvalidObjectCode.metricName == 'waf.error'
+    wafInvalidObjectCode.tags.toSet() == ['rule_type:sql_injection', 'waf_version:waf_ver1', 'waf_error:-2'].toSet()
   }
 
   def "overflowing WafMetricCollector does not crash"() {
@@ -327,6 +351,7 @@ class WafMetricCollectorTest extends DDSpecification {
     WafMetricCollector.get().raspRuleEval(ruleType)
     WafMetricCollector.get().raspTimeout(ruleType)
     WafMetricCollector.get().raspErrorCode(ruleType, -3)
+    WafMetricCollector.get().wafErrorCode(ruleType, -3)
     WafMetricCollector.get().prepareMetrics()
 
     then:
@@ -374,6 +399,19 @@ class WafMetricCollectorTest extends DDSpecification {
     raspInvalidCode.namespace == 'appsec'
     raspInvalidCode.metricName == 'rasp.error'
     raspInvalidCode.tags.toSet() == [
+      'waf_version:waf_ver1',
+      'rule_type:command_injection',
+      'rule_variant:' + ruleType.variant,
+      'event_rules_version:rules.1',
+      'waf_error:-3'
+    ].toSet()
+
+    def wafInvalidCode = (WafMetricCollector.WafError)metrics[5]
+    wafInvalidCode.type == 'count'
+    wafInvalidCode.value == 1
+    wafInvalidCode.namespace == 'appsec'
+    wafInvalidCode.metricName == 'waf.error'
+    wafInvalidCode.tags.toSet() == [
       'waf_version:waf_ver1',
       'rule_type:command_injection',
       'rule_variant:' + ruleType.variant,

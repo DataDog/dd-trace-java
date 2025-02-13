@@ -303,4 +303,17 @@ class AppSecRequestContextSpecification extends DDSpecification {
     ctx.getRaspError(-1) == 0
     ctx.getRaspError(0) == 0
   }
+
+  def "test increase and get WafErrors"() {
+    when:
+    ctx.increaseWafErrorCode(-3)
+    ctx.increaseWafErrorCode(-3)
+    ctx.increaseWafErrorCode(-2)
+
+    then:
+    ctx.getWafError(-3) == 2
+    ctx.getWafError(-2) == 1
+    ctx.getWafError(-1) == 0
+    ctx.getWafError(0) == 0
+  }
 }
