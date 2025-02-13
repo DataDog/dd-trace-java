@@ -33,9 +33,12 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.UUID;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
 import org.apache.spark.ExceptionFailure;
 import org.apache.spark.SparkConf;
 import org.apache.spark.TaskFailedReason;
@@ -74,6 +77,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   private final int MAX_COLLECTION_SIZE = 5000;
   private final int MAX_ACCUMULATOR_SIZE = 50000;
   private final String RUNTIME_TAGS_PREFIX = "spark.datadog.tags.";
+  private static final String AGENT_OL_ENDPOINT = "openlineage/api/v1/lineage";
 
   private final SparkConf sparkConf;
   private final String sparkVersion;
@@ -123,6 +127,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   private long availableExecutorTime = 0;
 
   private volatile boolean applicationEnded = false;
+  private SparkListener openLineageSparkListener = null;
 
   public AbstractDatadogSparkListener(SparkConf sparkConf, String appId, String sparkVersion) {
     tracer = AgentTracer.get();
@@ -151,8 +156,50 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
                     finishApplication(System.currentTimeMillis(), null, 0, null);
                   }
                 }));
+    initApplicationSpanIfNotInitialized();
+    loadOlSparkListener();
+  }
 
-    log.info("Created datadog spark listener: {}", this.getClass().getSimpleName());
+  static void setupSparkConf(SparkConf sparkConf) {
+    sparkConf.set("spark.openlineage.transport.type", "composite");
+    sparkConf.set("spark.openlineage.transport.continueOnFailure", "true");
+    sparkConf.set("spark.openlineage.transport.transports.agent.type", "http");
+    sparkConf.set("spark.openlineage.transport.transports.agent.url", getAgentHttpUrl());
+    sparkConf.set("spark.openlineage.transport.transports.agent.endpoint", AGENT_OL_ENDPOINT);
+    sparkConf.set("spark.openlineage.transport.transports.agent.compression", "gzip");
+  }
+
+  void setupTrace(SparkConf sc) {
+    sc.set(
+        "spark.openlineage.run.tags",
+        "_dd.trace_id:"
+            + applicationSpan.context().getTraceId().toString()
+            + ";_dd.intake.emit_spans:false");
+  }
+
+  void loadOlSparkListener() {
+    String className = "io.openlineage.spark.agent.OpenLineageSparkListener";
+    Optional<Class> clazz = loadClass(className);
+    if (!clazz.isPresent()) {
+      log.info("OpenLineage integration is not present on the classpath");
+      return;
+    }
+    try {
+      setupSparkConf(sparkConf);
+      sparkConf.set(
+          "spark.openlineage.run.tags",
+          "_dd.trace_id:"
+              + applicationSpan.context().getTraceId().toString()
+              + ";_dd.ol_intake.emit_spans:false");
+
+      openLineageSparkListener =
+          (SparkListener)
+              clazz.get().getDeclaredConstructor(SparkConf.class).newInstance(sparkConf);
+      log.info(
+          "Created OL spark listener: {}", openLineageSparkListener.getClass().getSimpleName());
+    } catch (Exception e) {
+      log.warn("Failed to instantiate OL Spark Listener: {}", e.toString());
+    }
   }
 
   /** Resource name of the spark job. Provide an implementation based on a specific scala version */
@@ -176,6 +223,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   @Override
   public synchronized void onApplicationStart(SparkListenerApplicationStart applicationStart) {
     this.applicationStart = applicationStart;
+    initApplicationSpanIfNotInitialized();
+    notifyOl(this.openLineageSparkListener::onApplicationStart, applicationStart);
   }
 
   private void initApplicationSpanIfNotInitialized() {
@@ -233,6 +282,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     log.info(
         "Received spark application end event, finish trace on this event: {}",
         finishTraceOnApplicationEnd);
+    notifyOl(x -> openLineageSparkListener.onApplicationEnd(x), applicationEnd);
 
     if (finishTraceOnApplicationEnd) {
       finishApplication(applicationEnd.time(), null, 0, null);
@@ -426,6 +476,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       stageToJob.put(stageId, jobStart.jobId());
     }
     jobSpans.put(jobStart.jobId(), jobSpan);
+    notifyOl(x -> openLineageSparkListener.onJobStart(x), jobStart);
   }
 
   @Override
@@ -456,6 +507,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     if (metrics != null) {
       metrics.setSpanMetrics(jobSpan);
     }
+    notifyOl(x -> openLineageSparkListener.onJobEnd(x), jobEnd);
 
     jobSpan.finish(jobEnd.time() * 1000);
   }
@@ -624,6 +676,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
     Properties props = stageProperties.get(stageSpanKey);
     sendTaskSpan(stageSpan, taskEnd, props);
+
+    notifyOl(x -> openLineageSparkListener.onTaskEnd(x), taskEnd);
   }
 
   private void sendTaskSpan(
@@ -705,6 +759,15 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     updateAdaptiveSQLPlan(event);
   }
 
+  private <T extends SparkListenerEvent> void notifyOl(Consumer<T> ol, T event) {
+    if (this.openLineageSparkListener != null) {
+      log.debug("Notifying with event `{}`", event.getClass().getCanonicalName());
+      ol.accept(event);
+    } else {
+      log.debug("OpenLineageSparkListener is null");
+    }
+  }
+
   private static final Class<?> adaptiveExecutionUpdateClass;
   private static final MethodHandle adaptiveExecutionIdMethod;
   private static final MethodHandle adaptiveSparkPlanMethod;
@@ -765,6 +828,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       if (metrics != null) {
         metrics.setSpanMetrics(span);
       }
+      notifyOl(x -> openLineageSparkListener.onOtherEvent(x), sqlEnd);
 
       span.finish(sqlEnd.time() * 1000);
     }
@@ -1260,9 +1324,71 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     return null;
   }
 
+  private static String getAgentHttpUrl() {
+    StringBuilder sb =
+        new StringBuilder("http://")
+            .append(Config.get().getAgentHost())
+            .append(":")
+            .append(Config.get().getAgentPort());
+    return sb.toString();
+  }
+
   @SuppressForbidden // called at most once per spark application
   private static String removeUuidFromEndOfString(String input) {
     return input.replaceAll(
         "_[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$", "");
+  }
+
+  private Optional<Class> loadClass(String className) {
+    Class clazz = null;
+    List<ClassLoader> availableClassloaders =
+        Thread.getAllStackTraces().keySet().stream()
+            .map(Thread::getContextClassLoader)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toList());
+    try {
+      clazz = Class.forName(className);
+    } catch (Exception e) {
+      log.debug("Failed to load {} via Class.forName: {}", className, e.toString());
+      for (ClassLoader classLoader : availableClassloaders) {
+        try {
+          clazz = classLoader.loadClass(className);
+          log.debug("Loaded {} via classLoader: {}", className, classLoader);
+          break;
+        } catch (Exception ex) {
+          log.debug(
+              "Failed to load {} via loadClass via ClassLoader {} - {}",
+              className,
+              classLoader,
+              ex.toString());
+        }
+        try {
+          clazz = classLoader.getParent().loadClass(className);
+          log.debug(
+              "Loaded {} via parent classLoader: {} for CL {}",
+              className,
+              classLoader.getParent(),
+              classLoader);
+          break;
+        } catch (Exception ex) {
+          log.debug(
+              "Failed to load {} via loadClass via parent ClassLoader {} - {}",
+              className,
+              classLoader.getParent(),
+              ex.toString());
+        }
+      }
+    }
+    if (clazz == null) {
+      try {
+        clazz = ClassLoader.getSystemClassLoader().loadClass(className);
+        log.debug(
+            "Loaded {} via system classLoader: {}", className, ClassLoader.getSystemClassLoader());
+      } catch (Exception ex) {
+        log.debug(
+            "Failed to load {} via loadClass via SystemClassLoader {}", className, ex.toString());
+      }
+    }
+    return Optional.ofNullable(clazz);
   }
 }

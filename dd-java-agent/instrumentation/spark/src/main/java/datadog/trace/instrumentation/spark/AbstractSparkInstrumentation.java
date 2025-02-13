@@ -10,6 +10,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.asm.Advice;
 import org.apache.spark.deploy.SparkSubmitArguments;
+import org.apache.spark.scheduler.SparkListenerInterface;
 
 public abstract class AbstractSparkInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
@@ -28,7 +29,8 @@ public abstract class AbstractSparkInstrumentation extends InstrumenterModule.Tr
     return new String[] {
       "org.apache.spark.SparkContext",
       "org.apache.spark.deploy.SparkSubmit",
-      "org.apache.spark.deploy.yarn.ApplicationMaster"
+      "org.apache.spark.deploy.yarn.ApplicationMaster",
+      "org.apache.spark.scheduler.LiveListenerBus",
     };
   }
 
@@ -55,6 +57,14 @@ public abstract class AbstractSparkInstrumentation extends InstrumenterModule.Tr
             .and(named("finish"))
             .and(isDeclaredBy(named("org.apache.spark.deploy.yarn.ApplicationMaster"))),
         AbstractSparkInstrumentation.class.getName() + "$YarnFinishAdvice");
+
+    // LiveListenerBus class is used when running in a YARN cluster
+    transformer.applyAdvice(
+        isMethod()
+            .and(named("addToSharedQueue"))
+            .and(takesArgument(0, named("org.apache.spark.scheduler.SparkListenerInterface")))
+            .and(isDeclaredBy(named("org.apache.spark.scheduler.LiveListenerBus"))),
+        AbstractSparkInstrumentation.class.getName() + "$LiveListenerBusAdvice");
   }
 
   public static class PrepareSubmitEnvAdvice {
@@ -98,6 +108,20 @@ public abstract class AbstractSparkInstrumentation extends InstrumenterModule.Tr
         AbstractDatadogSparkListener.listener.finishApplication(
             System.currentTimeMillis(), null, exitCode, msg);
       }
+    }
+  }
+
+  public static class LiveListenerBusAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class, skipOn = Advice.OnNonDefaultValue.class)
+    public static boolean enter(@Advice.Argument(0) SparkListenerInterface listener) {
+      // Skip instantiating OpenLineage listener - we will inject it later with custom config
+      if (listener == null || listener.getClass().getCanonicalName() == null) {
+        return false;
+      }
+      return listener
+          .getClass()
+          .getCanonicalName()
+          .equals("io.openlineage.spark.agent.OpenLineageSparkListener");
     }
   }
 }
