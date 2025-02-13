@@ -24,19 +24,28 @@ import org.slf4j.LoggerFactory;
 public class BaggagePropagator implements Propagator {
   private static final Logger log = LoggerFactory.getLogger(BaggagePropagator.class);
   static final String BAGGAGE_KEY = "baggage";
+  private Config config;
   private final boolean injectBaggage;
   private final boolean extractBaggage;
   private static final Set<Character> UNSAFE_CHARACTERS_KEY =
       new HashSet<>(
           Arrays.asList(
-              '\"', ',', ';', '\\', '(', ')', '/', ':', '<', '=', '>', '?', '@', '[', ']', '{',
+              '"', ',', ';', '\\', '(', ')', '/', ':', '<', '=', '>', '?', '@', '[', ']', '{',
               '}'));
   private static final Set<Character> UNSAFE_CHARACTERS_VALUE =
       new HashSet<>(Arrays.asList('\"', ',', ';', '\\'));
 
+  public BaggagePropagator(Config config) {
+    this.injectBaggage = config.isBaggageInject();
+    this.extractBaggage = config.isBaggageExtract();
+    this.config = config;
+  }
+
+  // use primarily for testing purposes
   public BaggagePropagator(boolean injectBaggage, boolean extractBaggage) {
     this.injectBaggage = injectBaggage;
     this.extractBaggage = extractBaggage;
+    config = Config.get();
   }
 
   private int encodeKey(String key, StringBuilder builder) {
@@ -51,7 +60,7 @@ public class BaggagePropagator implements Propagator {
     int size = 0;
     for (int i = 0; i < input.length(); i++) {
       char c = input.charAt(i);
-      if (UNSAFE_CHARACTERS.contains(c) || c > 126 || c <= 32) { // encode character
+      if (UNSAFE_CHARACTERS.contains(c) || c > '~' || c <= ' ') { // encode character
         byte[] bytes = Character.toString(c).getBytes(StandardCharsets.UTF_8);
         for (byte b : bytes) {
           builder.append('%');
@@ -73,7 +82,11 @@ public class BaggagePropagator implements Propagator {
 
   @Override
   public <C> void inject(Context context, C carrier, CarrierSetter<C> setter) {
-    Config config = Config.get();
+    BaggageContext baggageContext = BaggageContext.fromContext(context);
+    if (baggageContext == null) {
+      log.debug("BaggageContext instance is missing from the following context {}", context);
+      return;
+    }
 
     int maxItems = config.getTraceBaggageMaxItems();
     int maxBytes = config.getTraceBaggageMaxBytes();
@@ -84,11 +97,6 @@ public class BaggagePropagator implements Propagator {
     int processedBaggage = 0;
     int currentBytes = 0;
     StringBuilder baggageText = new StringBuilder();
-    BaggageContext baggageContext = BaggageContext.fromContext(context);
-    if (baggageContext == null) {
-      log.debug("BaggageContext instance is null in the following context {}", context);
-      return;
-    }
     for (final Map.Entry<String, String> entry : baggageContext.getBaggage().entrySet()) {
       int byteSize = 1; // default include size of '='
       if (processedBaggage
@@ -106,7 +114,8 @@ public class BaggagePropagator implements Propagator {
       if (processedBaggage == maxItems) { // reached the max number of baggage items allowed
         break;
       }
-      if (currentBytes + byteSize > maxBytes) {
+      if (currentBytes + byteSize
+          > maxBytes) { // Drop newest k/v pair if adding it leads to exceeding the limit
         baggageText.setLength(currentBytes);
         break;
       }
@@ -178,10 +187,8 @@ public class BaggagePropagator implements Propagator {
 
     @Override
     public void accept(String key, String value) {
-      if (null == key || key.isEmpty()) {
-        return;
-      }
-      if (key.equalsIgnoreCase(BAGGAGE_KEY)) { // Only process tags that are relevant to baggage
+      if (key != null
+          && key.equalsIgnoreCase(BAGGAGE_KEY)) { // Only process tags that are relevant to baggage
         Map<String, String> baggage = parseBaggageHeaders(value);
         if (!baggage.isEmpty()) {
           extractedContext = BaggageContext.create(baggage);

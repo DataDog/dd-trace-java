@@ -739,11 +739,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         TRACING_CONCERN, new TracingPropagator(injector, extractor), !standaloneAppSec);
     Propagators.register(XRAY_TRACING_CONCERN, new XRayPropagator(config), false);
 
-    Propagators.register(
-        BAGGAGE_CONCERN,
-        new BaggagePropagator(
-            config.getTracePropagationStylesToInject().contains(TracePropagationStyle.BAGGAGE),
-            config.getTracePropagationStylesToExtract().contains(TracePropagationStyle.BAGGAGE)));
+    if (config.isBaggagePropagationEnabled()) {
+      Propagators.register(BAGGAGE_CONCERN, new BaggagePropagator(config));
+    }
 
     this.tagInterceptor =
         null == tagInterceptor ? new TagInterceptor(new RuleFlags(config)) : tagInterceptor;
