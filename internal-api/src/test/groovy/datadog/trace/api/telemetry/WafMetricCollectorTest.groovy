@@ -30,6 +30,7 @@ class WafMetricCollectorTest extends DDSpecification {
     WafMetricCollector.get().wafRequestError()
     WafMetricCollector.get().wafRequestRateLimited()
     WafMetricCollector.get().wafRequestBlockFailure()
+    WafMetricCollector.get().wafInputTruncated(TruncatedType.STRING_TOO_LONG, 5)
     WafMetricCollector.get().raspRuleEval(RuleType.SQL_INJECTION)
     WafMetricCollector.get().raspRuleEval(RuleType.SQL_INJECTION)
     WafMetricCollector.get().raspRuleMatch(RuleType.SQL_INJECTION)
@@ -75,7 +76,8 @@ class WafMetricCollectorTest extends DDSpecification {
       'waf_error:false',
       'waf_timeout:false',
       'block_failure:true',
-      'rate_limited:true'
+      'rate_limited:true',
+      'input_truncated:true',
     ].toSet()
 
     def requestTriggeredMetric = (WafMetricCollector.WafRequestsRawMetric)metrics[4]
@@ -90,7 +92,8 @@ class WafMetricCollectorTest extends DDSpecification {
       'waf_error:false',
       'waf_timeout:false',
       'block_failure:true',
-      'rate_limited:true'
+      'rate_limited:true',
+      'input_truncated:true',
     ].toSet()
 
 
@@ -107,7 +110,8 @@ class WafMetricCollectorTest extends DDSpecification {
       'waf_error:false',
       'waf_timeout:false',
       'block_failure:true',
-      'rate_limited:true'
+      'rate_limited:true',
+      'input_truncated:true',
     ].toSet()
 
     def requestTimeoutMetric = (WafMetricCollector.WafRequestsRawMetric)metrics[6]
@@ -123,7 +127,8 @@ class WafMetricCollectorTest extends DDSpecification {
       'waf_error:false',
       'waf_timeout:true',
       'block_failure:true',
-      'rate_limited:true'
+      'rate_limited:true',
+      'input_truncated:true',
     ].toSet()
 
     def requestWafErrorMetric = (WafMetricCollector.WafRequestsRawMetric)metrics[7]
@@ -139,7 +144,8 @@ class WafMetricCollectorTest extends DDSpecification {
       'waf_error:true',
       'waf_timeout:false',
       'block_failure:true',
-      'rate_limited:true'
+      'rate_limited:true',
+      'input_truncated:true',
     ].toSet()
 
     def raspRuleEvalSqli = (WafMetricCollector.RaspRuleEval)metrics[8]

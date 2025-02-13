@@ -39,6 +39,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
       new AtomicRequestCounter();
   private static final AtomicRequestCounter wafBlockFailureRequestCounter =
       new AtomicRequestCounter();
+  private static final AtomicLongArray wafInputTruncatedCounter =
+      new AtomicLongArray(TruncatedType.values().length);
   private static final AtomicLongArray raspRuleEvalCounter =
       new AtomicLongArray(RuleType.getNumValues());
   private static final AtomicLongArray raspRuleMatchCounter =
@@ -109,6 +111,10 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
     wafBlockFailureRequestCounter.increment();
   }
 
+  public void wafInputTruncated(final TruncatedType truncatedType, long increment) {
+    wafInputTruncatedCounter.addAndGet(truncatedType.ordinal(), increment);
+  }
+
   public void raspRuleEval(final RuleType ruleType) {
     raspRuleEvalCounter.incrementAndGet(ruleType.ordinal());
   }
@@ -146,6 +152,13 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
   public void prepareMetrics() {
     final boolean isRateLimited = wafRateLimitedRequestCounter.getAndReset() > 0;
     final boolean isBlockFailure = wafBlockFailureRequestCounter.getAndReset() > 0;
+    boolean isWafInputTruncated = false;
+    for (TruncatedType truncatedType : TruncatedType.values()) {
+      isWafInputTruncated = wafInputTruncatedCounter.getAndSet(truncatedType.ordinal(), 0) > 0;
+      if (isWafInputTruncated) {
+        break;
+      }
+    }
 
     // Requests
     if (wafRequestCounter.get() > 0) {
@@ -159,7 +172,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
               false,
               false,
               isBlockFailure,
-              isRateLimited))) {
+              isRateLimited,
+              isWafInputTruncated))) {
         return;
       }
     }
@@ -176,7 +190,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
               false,
               false,
               isBlockFailure,
-              isRateLimited))) {
+              isRateLimited,
+              isWafInputTruncated))) {
         return;
       }
     }
@@ -193,7 +208,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
               false,
               false,
               isBlockFailure,
-              isRateLimited))) {
+              isRateLimited,
+              isWafInputTruncated))) {
         return;
       }
     }
@@ -210,7 +226,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
               false,
               true,
               isBlockFailure,
-              isRateLimited))) {
+              isRateLimited,
+              isWafInputTruncated))) {
         return;
       }
     }
@@ -227,7 +244,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
               true,
               false,
               isBlockFailure,
-              isRateLimited))) {
+              isRateLimited,
+              isWafInputTruncated))) {
         return;
       }
     }
@@ -359,7 +377,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
         final boolean wafError,
         final boolean wafTimeout,
         final boolean blockFailure,
-        final boolean rateLimited) {
+        final boolean rateLimited,
+        final boolean inputTruncated) {
       super(
           "waf.requests",
           counter,
@@ -370,7 +389,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
           "waf_error:" + wafError,
           "waf_timeout:" + wafTimeout,
           "block_failure:" + blockFailure,
-          "rate_limited:" + rateLimited);
+          "rate_limited:" + rateLimited,
+          "input_truncated:" + inputTruncated);
     }
   }
 

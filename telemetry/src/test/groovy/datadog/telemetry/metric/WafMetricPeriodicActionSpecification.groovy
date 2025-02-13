@@ -2,6 +2,7 @@ package datadog.telemetry.metric
 
 import datadog.telemetry.TelemetryService
 import datadog.telemetry.api.Metric
+import datadog.trace.api.telemetry.TruncatedType
 import datadog.trace.api.telemetry.WafMetricCollector
 import datadog.trace.test.util.DDSpecification
 
@@ -52,6 +53,7 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
     WafMetricCollector.get().wafRequestError()
     WafMetricCollector.get().wafRequestRateLimited()
     WafMetricCollector.get().wafRequestBlockFailure()
+    WafMetricCollector.get().wafInputTruncated(TruncatedType.STRING_TOO_LONG, 5)
     WafMetricCollector.get().prepareMetrics()
     periodicAction.doIteration(telemetryService)
 
@@ -72,7 +74,8 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
           'waf_error:false',
           'waf_timeout:false',
           'block_failure:true',
-          'rate_limited:true'
+          'rate_limited:true',
+          'input_truncated:true',
         ]
     } )
     1 * telemetryService.addMetric( { Metric metric ->
@@ -87,7 +90,8 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
           'waf_error:false',
           'waf_timeout:false',
           'block_failure:true',
-          'rate_limited:true'
+          'rate_limited:true',
+          'input_truncated:true',
         ]
     } )
     1 * telemetryService.addMetric( { Metric metric ->
@@ -102,7 +106,8 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
           'waf_error:false',
           'waf_timeout:false',
           'block_failure:true',
-          'rate_limited:true'
+          'rate_limited:true',
+          'input_truncated:true',
         ]
     } )
     1 * telemetryService.addMetric( { Metric metric ->
@@ -117,7 +122,8 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
           'waf_error:false',
           'waf_timeout:true',
           'block_failure:true',
-          'rate_limited:true'
+          'rate_limited:true',
+          'input_truncated:true',
         ]
     } )
     1 * telemetryService.addMetric( { Metric metric ->
@@ -132,7 +138,8 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
           'waf_error:true',
           'waf_timeout:false',
           'block_failure:true',
-          'rate_limited:true'
+          'rate_limited:true',
+          'input_truncated:true',
         ]
     } )
     0 * _._
@@ -146,6 +153,7 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
     WafMetricCollector.get().wafRequestError()
     WafMetricCollector.get().wafRequestRateLimited()
     WafMetricCollector.get().wafRequestBlockFailure()
+    WafMetricCollector.get().wafInputTruncated(TruncatedType.STRING_TOO_LONG, 5)
     WafMetricCollector.get().prepareMetrics()
     periodicAction.doIteration(telemetryService)
 
@@ -166,7 +174,8 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
           'waf_error:false',
           'waf_timeout:false',
           'block_failure:true',
-          'rate_limited:true'
+          'rate_limited:true',
+          'input_truncated:true',
         ]
     } )
     1 * telemetryService.addMetric( { Metric metric ->
@@ -181,7 +190,8 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
           'waf_error:false',
           'waf_timeout:false',
           'block_failure:true',
-          'rate_limited:true'
+          'rate_limited:true',
+          'input_truncated:true',
         ]
     } )
     1 * telemetryService.addMetric( { Metric metric ->
@@ -196,7 +206,8 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
           'waf_error:false',
           'waf_timeout:false',
           'block_failure:true',
-          'rate_limited:true'
+          'rate_limited:true',
+          'input_truncated:true',
         ]
     } )
     1 * telemetryService.addMetric( { Metric metric ->
@@ -211,7 +222,8 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
           'waf_error:false',
           'waf_timeout:true',
           'block_failure:true',
-          'rate_limited:true'
+          'rate_limited:true',
+          'input_truncated:true',
         ]
     } )
     1 * telemetryService.addMetric( { Metric metric ->
@@ -226,7 +238,8 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
           'waf_error:true',
           'waf_timeout:false',
           'block_failure:true',
-          'rate_limited:true'
+          'rate_limited:true',
+          'input_truncated:true',
         ]
     } )
     0 * _._
