@@ -30,11 +30,7 @@ default:
 
 .fan_in:
   stage: tests
-  image: registry.ddbuild.io/images/base/gbi-distroless:release
-  variables:
-    GRADLE_WORKERS: 2
-    KUBERNETES_CPU_REQUEST: 1
-    KUBERNETES_MEMORY_REQUEST: 1Gi
+  image: registry.ddbuild.io/images/base/gbi-ubuntu_2204-slim:release
   script:
     - echo "done"
 
