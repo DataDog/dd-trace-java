@@ -365,21 +365,6 @@ jobs:
 
       - display_memory_usage
 
-  spotless:
-    <<: *defaults
-    resource_class: medium+
-
-    steps:
-      - setup_code
-
-      - run:
-          name: Run spotless
-          command: >-
-            JAVA_HOME=$JAVA_11_HOME
-            ./gradlew spotlessCheck
-            << pipeline.parameters.gradle_flags >>
-            --max-workers=8
-
   check:
     <<: *defaults
 
@@ -955,7 +940,6 @@ build_test_jobs: &build_test_jobs
       name: build_profiling
       gradleTarget: :profilingTest
       cacheType: profiling
-  - spotless
 
   - fan_in:
       requires:
@@ -964,7 +948,6 @@ build_test_jobs: &build_test_jobs
         - build_inst
         - build_smoke
         - build_profiling
-        - spotless
       name: ok_to_test
       stage: ok_to_test
 
