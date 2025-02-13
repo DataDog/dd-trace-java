@@ -71,6 +71,16 @@ public abstract class AbstractSparkInstrumentation extends InstrumenterModule.Tr
         // prepareSubmitEnvironment might be called before/after runMain depending on spark version
         AbstractDatadogSparkListener.finishTraceOnApplicationEnd = true;
       }
+
+      //      if (!submitArgs.packages().contains("io.openlineage:openlineage-spark")) {
+      //        if (submitArgs.packages().isEmpty()) {
+      //          submitArgs.handle("--packages", "io.openlineage:openlineage-spark_2.12:1.28.0");
+      //        } else {
+      //          submitArgs.handle(
+      //              "--packages",
+      //              submitArgs.packages() + ",io.openlineage:openlineage-spark_2.12:1.28.0");
+      //        }
+      //      }
     }
   }
 

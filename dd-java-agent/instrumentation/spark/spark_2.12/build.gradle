@@ -1,5 +1,6 @@
 plugins {
   id 'java-test-fixtures'
+  id 'com.github.johnrengelman.shadow'
 }
 
 def sparkVersion = '2.4.0'
@@ -35,15 +36,18 @@ dependencies {
 
   compileOnly group: 'org.apache.spark', name: "spark-core_$scalaVersion", version: "$sparkVersion"
   compileOnly group: 'org.apache.spark', name: "spark-sql_$scalaVersion", version: "$sparkVersion"
+  compileOnly group: 'io.openlineage', name: "openlineage-java", version: '1.29.0-SNAPSHOT'
 
   testImplementation(testFixtures(project(":dd-java-agent:instrumentation:spark")))
   testImplementation group: 'org.apache.spark', name: "spark-core_$scalaVersion", version: "$sparkVersion"
   testImplementation group: 'org.apache.spark', name: "spark-sql_$scalaVersion", version: "$sparkVersion"
   testImplementation group: 'org.apache.spark', name: "spark-yarn_$scalaVersion", version: "$sparkVersion"
+  testImplementation group: 'io.openlineage', name: "openlineage-java", version: '1.29.0-SNAPSHOT'
 
   test_spark24Implementation group: 'org.apache.spark', name: "spark-core_$scalaVersion", version: "2.4.8"
   test_spark24Implementation group: 'org.apache.spark', name: "spark-sql_$scalaVersion", version: "2.4.8"
   test_spark24Implementation group: 'org.apache.spark', name: "spark-yarn_$scalaVersion", version: "2.4.8"
+  test_spark24Implementation group: 'io.openlineage', name: "openlineage-java", version: '1.29.0-SNAPSHOT'
 
   test_spark32Implementation group: 'org.apache.spark', name: "spark-core_$scalaVersion", version: "3.2.4"
   test_spark32Implementation group: 'org.apache.spark', name: "spark-sql_$scalaVersion", version: "3.2.4"
@@ -52,13 +56,19 @@ dependencies {
   // PooledByteBufAllocator constructor. See this PR where the new constructor (the only one we support) was introduced:
   // https://github.com/netty/netty/pull/10267
   test_spark32Implementation group: 'io.netty', name: 'netty-buffer', version: '4.1.52.Final'
+  test_spark32Implementation group: 'io.openlineage', name: "openlineage-java", version: '1.29.0-SNAPSHOT'
 
   latestDepTestImplementation group: 'org.apache.spark', name: "spark-core_$scalaVersion", version: '+'
   latestDepTestImplementation group: 'org.apache.spark', name: "spark-sql_$scalaVersion", version: '+'
   latestDepTestImplementation group: 'org.apache.spark', name: "spark-yarn_$scalaVersion", version: '+'
+  latestDepTestImplementation group: 'io.openlineage', name: "openlineage-java", version: '1.29.0-SNAPSHOT'
 }
 
 tasks.named("test").configure {
   dependsOn "test_spark24"
   dependsOn "test_spark32"
+}
+
+shadowJar {
+  relocate "io.openlineage.spark", "shared.io.openlineage.spark_${scalaVersion}"
 }

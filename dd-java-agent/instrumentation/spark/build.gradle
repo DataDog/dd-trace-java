@@ -9,6 +9,7 @@ configurations.all {
 dependencies {
   compileOnly group: 'org.apache.spark', name: 'spark-core_2.12', version: '2.4.0'
   compileOnly group: 'org.apache.spark', name: 'spark-sql_2.12', version: '2.4.0'
+  compileOnly group: 'io.openlineage', name: "openlineage-java", version: '1.29.0-SNAPSHOT'
 
   testFixturesImplementation group: 'com.datadoghq', name: 'sketches-java', version: '0.8.2'
   testFixturesImplementation group: 'com.google.protobuf', name: 'protobuf-java', version: '3.14.0'
@@ -20,4 +21,5 @@ dependencies {
   testFixturesCompileOnly group: 'org.apache.spark', name: 'spark-core_2.12', version: '2.4.0'
   testFixturesCompileOnly group: 'org.apache.spark', name: 'spark-sql_2.12', version: '2.4.0'
   testFixturesCompileOnly group: 'org.apache.spark', name: 'spark-yarn_2.12', version: '2.4.0'
+  testFixturesCompileOnly group: 'io.openlineage', name: "openlineage-java", version: '1.29.0-SNAPSHOT'
 }

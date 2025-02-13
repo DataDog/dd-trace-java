@@ -1,5 +1,6 @@
 plugins {
   id 'java-test-fixtures'
+  id 'com.github.johnrengelman.shadow'
 }
 
 // Support for 2.13 added in 3.2.0 https://issues.apache.org/jira/browse/SPARK-25075
@@ -36,22 +37,30 @@ dependencies {
 
   compileOnly group: 'org.apache.spark', name: "spark-core_$scalaVersion", version: "$sparkVersion"
   compileOnly group: 'org.apache.spark', name: "spark-sql_$scalaVersion", version: "$sparkVersion"
+  compileOnly group: 'io.openlineage', name: "openlineage-java", version: '1.29.0-SNAPSHOT'
 
   testImplementation(testFixtures(project(":dd-java-agent:instrumentation:spark")))
   testImplementation group: 'org.apache.spark', name: "spark-core_$scalaVersion", version: "$sparkVersion"
   testImplementation group: 'org.apache.spark', name: "spark-sql_$scalaVersion", version: "$sparkVersion"
   testImplementation group: 'org.apache.spark', name: "spark-yarn_$scalaVersion", version: "$sparkVersion"
+  testImplementation group: 'io.openlineage', name: "openlineage-java", version: '1.29.0-SNAPSHOT'
 
   test_spark32Implementation group: 'org.apache.spark', name: "spark-core_$scalaVersion", version: "3.2.4"
   test_spark32Implementation group: 'org.apache.spark', name: "spark-sql_$scalaVersion", version: "3.2.4"
   test_spark32Implementation group: 'org.apache.spark', name: "spark-yarn_$scalaVersion", version: "3.2.4"
+  test_spark32Implementation group: 'io.openlineage', name: "openlineage-java", version: '1.29.0-SNAPSHOT'
 
   // FIXME: Currently not working on Spark 4.0.0 preview releases.
   latestDepTestImplementation group: 'org.apache.spark', name: "spark-core_$scalaVersion", version: '3.+'
   latestDepTestImplementation group: 'org.apache.spark', name: "spark-sql_$scalaVersion", version: '3.+'
   latestDepTestImplementation group: 'org.apache.spark', name: "spark-yarn_$scalaVersion", version: '3.+'
+  latestDepTestImplementation group: 'io.openlineage', name: "openlineage-java", version: '1.29.0-SNAPSHOT'
 }
 
 tasks.named("test").configure {
   dependsOn "test_spark32"
 }
+
+//shadowJar {
+//  relocate "io.openlineage.spark", "shared.io.openlineage.spark_${scalaVersion}"
+//}
