@@ -288,6 +288,12 @@ public class GatewayBridge {
       segment.setTagTop("_dd.appsec.events." + eventName + ".auto.mode", mode.fullName(), true);
     }
 
+    if (exists != null) {
+      if (mode == SDK || ctx.getUserLoginSource() != SDK) {
+        segment.setTagTop("appsec.events." + eventName + ".usr.exists", exists, true);
+      }
+    }
+
     final String user = anonymizeUser(mode, originalUser);
     if (user == null) {
       // can happen in custom events
@@ -310,10 +316,6 @@ public class GatewayBridge {
         segment.setTagTop("appsec.events." + eventName + ".usr.id", user, true);
       }
       segment.setTagTop("_dd.appsec.user.collection_mode", mode.fullName());
-    }
-
-    if (exists != null) {
-      segment.setTagTop("appsec.events." + eventName + ".usr.exists", exists, true);
     }
 
     // update user span tags
