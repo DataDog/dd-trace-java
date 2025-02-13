@@ -279,9 +279,6 @@ public class GatewayBridge {
 
     // update span tags
     segment.setTagTop("appsec.events." + eventName + ".track", true, true);
-    if (exists != null) {
-      segment.setTagTop("appsec.events." + eventName + ".usr.exists", exists, true);
-    }
     if (metadata != null && !metadata.isEmpty()) {
       segment.setTagTop("appsec.events." + eventName, metadata, true);
     }
@@ -289,6 +286,12 @@ public class GatewayBridge {
       segment.setTagTop("_dd.appsec.events." + eventName + ".sdk", true, true);
     } else {
       segment.setTagTop("_dd.appsec.events." + eventName + ".auto.mode", mode.fullName(), true);
+    }
+
+    if (exists != null) {
+      if (mode == SDK || ctx.getUserLoginSource() != SDK) {
+        segment.setTagTop("appsec.events." + eventName + ".usr.exists", exists, true);
+      }
     }
 
     final String user = anonymizeUser(mode, originalUser);

@@ -1285,6 +1285,56 @@ class GatewayBridgeSpecification extends DDSpecification {
     0 * eventDispatcher.publishDataEvent
   }
 
+  void "test onLoginFailure (automated login events should not overwrite SDK)"() {
+    setup:
+    final firstUser = 'user1'
+    final secondUser = 'user2'
+    eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
+
+    when:
+    loginEventCB.apply(ctx, SDK, 'users.login.failure', true, firstUser, null)
+
+    then:
+    1 * traceSegment.setTagTop('appsec.events.users.login.failure.usr.login', firstUser, true)
+    1 * traceSegment.setTagTop('_dd.appsec.events.users.login.failure.sdk', true, true)
+    1 * traceSegment.setTagTop('_dd.appsec.user.collection_mode', 'sdk')
+    1 * traceSegment.setTagTop('appsec.events.users.login.failure.usr.exists', true, true)
+
+    0 * traceSegment.setTagTop('_dd.appsec.usr.login', _)
+    0 * traceSegment.setTagTop('_dd.appsec.events.users.login.failure.auto.mode', _, _)
+
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> NoopFlow.INSTANCE
+
+    when:
+    loginEventCB.apply(ctx, IDENTIFICATION, 'users.login.failure', false, secondUser, null)
+
+    then:
+    0 * traceSegment.setTagTop('appsec.events.users.login.failure.usr.login', _, _)
+    0 * traceSegment.setTagTop('_dd.appsec.events.users.login.failure.sdk', _, _)
+    0 * traceSegment.setTagTop('_dd.appsec.user.collection_mode', _)
+    0 * traceSegment.setTagTop('appsec.events.users.login.failure.usr.exists', _, _)
+
+    1 * traceSegment.setTagTop('_dd.appsec.usr.login', secondUser)
+    1 * traceSegment.setTagTop('_dd.appsec.events.users.login.failure.auto.mode', IDENTIFICATION.fullName(), true)
+
+    0 * eventDispatcher.publishDataEvent
+  }
+
+  void 'test onUserNotFound'() {
+    setup:
+    eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
+
+    when:
+    loginEventCB.apply(ctx, IDENTIFICATION, 'users.login.failure', exists, null, null)
+
+    then:
+    1 * traceSegment.setTagTop('appsec.events.users.login.failure.usr.exists', exists, true)
+    0 * eventDispatcher.publishDataEvent
+
+    where:
+    exists << [true, false]
+  }
+
   void 'test configuration updates should reset cached subscriptions'() {
     when:
     requestSessionCB.apply(ctx, UUID.randomUUID().toString())
