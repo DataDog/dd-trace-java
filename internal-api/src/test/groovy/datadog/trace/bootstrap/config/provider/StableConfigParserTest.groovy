@@ -10,7 +10,7 @@ class StableConfigParserTest extends DDSpecification {
     when:
     Path filePath = StableConfigSourceTest.tempFile()
     if (filePath == null) {
-      return // fail?
+      throw new AssertionError("Failed to create test file: ${e.message}")
     }
     HashMap<String, Object> configs = new HashMap<>()
     configs.put("KEY_ONE", "VALUE_ONE")
@@ -27,15 +27,14 @@ class StableConfigParserTest extends DDSpecification {
       StableConfigSourceTest.writeFileYaml(filePath, fileContent)
     } catch (IOException e) {
       println "Error writing to file: ${e.message}"
-      return // fail?
+      throw new AssertionError("Failed to write to file: ${e.message}")
     }
 
     StableConfigSource.StableConfig cfg
     try {
       cfg = StableConfigParser.parse(filePath.toString())
     } catch (Exception e) {
-      println "Error parsing file: ${e.message}"
-      return // fail?
+      throw new AssertionError("Failed to parse the file: ${e.message}")
     }
 
     then:
@@ -43,7 +42,7 @@ class StableConfigParserTest extends DDSpecification {
     keys.size() == 3
     !keys.contains("something-irrelevant-to-apm")
     !keys.contains("something-else-irrelevant")
-    cfg.getConfigId() == "12345"
+    cfg.getConfigId().trim() == ("12345")
     cfg.get("KEY_ONE") == "VALUE_ONE"
     cfg.get("KEY_TWO") == "VALUE_TWO"
     cfg.get("KEY_THREE") == "VALUE_THREE"

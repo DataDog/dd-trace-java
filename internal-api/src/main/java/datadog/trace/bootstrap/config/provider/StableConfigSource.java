@@ -1,7 +1,5 @@
 package datadog.trace.bootstrap.config.provider;
 
-import static datadog.trace.util.Strings.propertyNameToEnvironmentVariableName;
-
 import datadog.trace.api.ConfigOrigin;
 import java.io.File;
 import java.io.IOException;
@@ -198,7 +196,8 @@ public final class StableConfigSource extends ConfigProvider.Source {
 
     // TODO: Make this.apmConfiguration a Map<String,String> instead
     public String get(String key) {
-      return (String) this.apmConfiguration.get(propertyNameToEnvironmentVariableName(key));
+      //      return (String) this.apmConfiguration.get(propertyNameToEnvironmentVariableName(key));
+      return (String) this.apmConfiguration.get(key);
     }
 
     public Set<String> getKeys() {

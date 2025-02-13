@@ -21,7 +21,7 @@ public class StableConfigParser {
   // without
 
   public static StableConfigSource.StableConfig parse(String filePath) throws IOException {
-    try (Stream<String> lines = Files.lines(Paths.get("file.txt"))) {
+    try (Stream<String> lines = Files.lines(Paths.get(filePath))) {
       StableConfigSource.StableConfig cfg = new StableConfigSource.StableConfig();
       // Use AtomicBoolean because it's mutable within a lambda expression to
       AtomicBoolean apmConfigFound =
@@ -30,7 +30,7 @@ public class StableConfigParser {
           line -> {
             Matcher matcher = idPattern.matcher(line);
             if (matcher.find()) {
-              cfg.setConfigId(matcher.group(2).trim());
+              cfg.setConfigId(trimQuotes(matcher.group(1).trim()));
               return; // go to next line
             }
 
@@ -42,13 +42,10 @@ public class StableConfigParser {
             if (apmConfigFound.get()) {
               Matcher keyValueMatcher = keyValPattern.matcher(line);
               if (keyValueMatcher.matches()) {
-                String key = keyValueMatcher.group(1).trim();
-                String value = keyValueMatcher.group(2).trim();
                 // If value has quotes, remove them
-                if (value.startsWith("\"") && value.endsWith("\"")) {
-                  value = value.substring(1, value.length() - 1);
-                }
-                cfg.put(key, value); // Store key-value pair in map
+                cfg.put(
+                    keyValueMatcher.group(1).trim(),
+                    trimQuotes(keyValueMatcher.group(2).trim())); // Store key-value pair in map
               } else {
                 // If we encounter a non-indented or non-key-value line, stop processing
                 apmConfigFound.set(false);
@@ -57,5 +54,13 @@ public class StableConfigParser {
           });
       return cfg;
     }
+  }
+
+  private static String trimQuotes(String value) {
+    if ((value.startsWith("'") && value.endsWith("'"))
+        || (value.startsWith("\"") && value.endsWith("\""))) {
+      return value.substring(1, value.length() - 1);
+    }
+    return value;
   }
 }
