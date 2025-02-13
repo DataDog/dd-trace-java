@@ -7,6 +7,8 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class StableConfigSource extends ConfigProvider.Source {
   public static final String USER_STABLE_CONFIG_PATH =
@@ -19,6 +21,8 @@ public final class StableConfigSource extends ConfigProvider.Source {
       new StableConfigSource(
           StableConfigSource.MANAGED_STABLE_CONFIG_PATH, ConfigOrigin.MANAGED_STABLE_CONFIG);
 
+  private static final Logger log = LoggerFactory.getLogger(StableConfigSource.class);
+
   private final ConfigOrigin fileOrigin;
 
   private final StableConfig config;
@@ -29,6 +33,7 @@ public final class StableConfigSource extends ConfigProvider.Source {
     try {
       cfg = StableConfigParser.parse(file);
     } catch (IOException e) {
+      log.debug("Stable configuration file not available at specified path: {}", file);
       cfg = new StableConfig();
     }
     this.config = cfg;

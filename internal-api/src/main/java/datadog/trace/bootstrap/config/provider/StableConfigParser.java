@@ -20,6 +20,8 @@ public class StableConfigParser {
   // pairs, either with double quotes or
   // without
 
+  // TODO: Determine whether parse should be re-tried by StableConfigSource some number of times to
+  // account for cases where the file might not be available, or complete, by application startup
   public static StableConfigSource.StableConfig parse(String filePath) throws IOException {
     try (Stream<String> lines = Files.lines(Paths.get(filePath))) {
       StableConfigSource.StableConfig cfg = new StableConfigSource.StableConfig();
