@@ -29,6 +29,7 @@ import datadog.trace.api.ProductActivation;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.telemetry.LogCollector;
+import datadog.trace.api.telemetry.TruncatedType;
 import datadog.trace.api.telemetry.WafMetricCollector;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -460,6 +461,27 @@ public class PowerWAFModule implements AppSecModule {
         if (log.isDebugEnabled()) {
           long elapsed = System.currentTimeMillis() - start;
           StandardizedLogging.finishedExecutionWAF(log, elapsed);
+        }
+        if (!gwCtx.isRasp) {
+          PowerwafMetrics wafMetrics = reqCtx.getWafMetrics();
+          if (wafMetrics != null) {
+            final long stringTooLong = wafMetrics.getWafInputsTruncatedStringTooLongCount();
+            final long listMapTooLarge = wafMetrics.getWafInputsTruncatedListMapTooLargeCount();
+            final long objectTooDeep = wafMetrics.getWafInputsTruncatedObjectTooDeepCount();
+
+            if (stringTooLong > 0) {
+              WafMetricCollector.get()
+                  .wafInputTruncated(TruncatedType.STRING_TOO_LONG, stringTooLong);
+            }
+            if (listMapTooLarge > 0) {
+              WafMetricCollector.get()
+                  .wafInputTruncated(TruncatedType.LIST_MAP_TOO_LARGE, listMapTooLarge);
+            }
+            if (objectTooDeep > 0) {
+              WafMetricCollector.get()
+                  .wafInputTruncated(TruncatedType.OBJECT_TOO_DEEP, objectTooDeep);
+            }
+          }
         }
       }
 
