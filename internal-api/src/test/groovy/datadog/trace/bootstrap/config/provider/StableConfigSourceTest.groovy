@@ -22,22 +22,12 @@ class StableConfigSourceTest extends DDSpecification {
   }
 
   def "test empty file"() {
-    // test empty file
     when:
-    Path filePath
-    StableConfigSource config
-    try {
-      filePath = Files.createTempFile("testFile_", ".yaml")
-    } catch (IOException e) {
-      println "Error creating file: ${e.message}"
-      e.printStackTrace()
-      return // or throw new RuntimeException("File creation failed", e)
+    Path filePath = tempFile()
+    if (filePath == null) {
+      throw new AssertionError("Failed to create test file")
     }
-    if (filePath != null) {
-      config = new StableConfigSource(filePath.toString(), ConfigOrigin.USER_STABLE_CONFIG)
-    } else {
-      return
-    }
+    StableConfigSource config = new StableConfigSource(filePath.toString(), ConfigOrigin.USER_STABLE_CONFIG)
 
     then:
     config.getKeys().size() == 0
@@ -48,7 +38,7 @@ class StableConfigSourceTest extends DDSpecification {
     when:
     Path filePath = tempFile()
     if (filePath == null) {
-      return // fail?
+      throw new AssertionError("Failed to create test file")
     }
 
     def configs = new HashMap<>() << ["DD_SERVICE": "svc", "DD_ENV": "env", "CONFIG_NO_DD": "value123"]
@@ -56,9 +46,9 @@ class StableConfigSourceTest extends DDSpecification {
     try {
       writeFileYaml(filePath, "12345", configs)
     } catch (IOException e) {
-      println "Error writing to file: ${e.message}"
-      return // fail?
+      throw new AssertionError("Failed to write to file: ${e.message}")
     }
+
     StableConfigSource cfg = new StableConfigSource(filePath.toString(), ConfigOrigin.USER_STABLE_CONFIG)
 
     then:
@@ -68,21 +58,20 @@ class StableConfigSourceTest extends DDSpecification {
     cfg.get("config_nonexistent") == null
     cfg.getKeys().size() == 3
     cfg.getConfigId() == "12345"
-
+    Files.delete(filePath)
   }
 
   def "test file invalid format"() {
     when:
     Path filePath = tempFile()
     if (filePath == null) {
-      return // fail?
+      throw new AssertionError("Failed to create test file")
     }
 
     try {
       writeFileRaw(filePath, configId, configs)
     } catch (IOException e) {
-      println "Error writing to file: ${e.message}"
-      return // fail?
+      throw new AssertionError("Failed to write to file: ${e.message}")
     }
 
     StableConfigSource stableCfg = new StableConfigSource(filePath.toString(), ConfigOrigin.USER_STABLE_CONFIG)
@@ -102,21 +91,18 @@ class StableConfigSourceTest extends DDSpecification {
     when:
     Path filePath = tempFile()
     if (filePath == null) {
-      return // fail?
+      throw new AssertionError("Failed to create test file")
     }
 
     try {
       writeFileYaml(filePath, configId, configs)
     } catch (IOException e) {
-      println "Error writing to file: ${e.message}"
-      return // fail?
+      throw new AssertionError("Failed to write to file: ${e.message}")
     }
 
     StableConfigSource stableCfg = new StableConfigSource(filePath.toString(), ConfigOrigin.USER_STABLE_CONFIG)
 
     then:
-    // FIXME: This is failing because configId is not loaded until stableCfg.get is invoked
-    //    stableCfg.getConfigId() == configId
     for (key in configs.keySet()) {
       String keyString = (String) key
       keyString = keyString.substring(4) // Cut `DD_`

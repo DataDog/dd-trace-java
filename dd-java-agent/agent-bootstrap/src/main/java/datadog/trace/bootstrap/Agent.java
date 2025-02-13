@@ -34,7 +34,6 @@ import datadog.trace.api.profiling.ProfilingEnablement;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.benchmark.StaticEventLogger;
 import datadog.trace.bootstrap.config.provider.StableConfigSource;
-import datadog.trace.bootstrap.config.provider.StableConfigSourceSingleton;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
@@ -1208,15 +1207,13 @@ public class Agent {
     final String featureEnabledSysprop = feature.getSystemProp();
     String featureEnabled = System.getProperty(featureEnabledSysprop);
     if (featureEnabled == null) {
-      featureEnabled =
-          getStableConfig(StableConfigSourceSingleton.getManaged(), featureEnabledSysprop);
+      featureEnabled = getStableConfig(StableConfigSource.MANAGED, featureEnabledSysprop);
     }
     if (featureEnabled == null) {
       featureEnabled = ddGetEnv(featureEnabledSysprop);
     }
     if (featureEnabled == null) {
-      featureEnabled =
-          getStableConfig(StableConfigSourceSingleton.getUser(), featureEnabledSysprop);
+      featureEnabled = getStableConfig(StableConfigSource.USER, featureEnabledSysprop);
     }
 
     if (feature.isEnabledByDefault()) {

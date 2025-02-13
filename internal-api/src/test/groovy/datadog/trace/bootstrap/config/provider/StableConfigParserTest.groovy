@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.config.provider
 
 import datadog.trace.test.util.DDSpecification
 
+import java.nio.file.Files
 import java.nio.file.Path
 
 class StableConfigParserTest extends DDSpecification {
@@ -10,7 +11,7 @@ class StableConfigParserTest extends DDSpecification {
     when:
     Path filePath = StableConfigSourceTest.tempFile()
     if (filePath == null) {
-      throw new AssertionError("Failed to create test file: ${e.message}")
+      throw new AssertionError("Failed to create test file")
     }
     HashMap<String, Object> configs = new HashMap<>()
     configs.put("KEY_ONE", "VALUE_ONE")
@@ -26,7 +27,6 @@ class StableConfigParserTest extends DDSpecification {
     try {
       StableConfigSourceTest.writeFileYaml(filePath, fileContent)
     } catch (IOException e) {
-      println "Error writing to file: ${e.message}"
       throw new AssertionError("Failed to write to file: ${e.message}")
     }
 
@@ -46,5 +46,6 @@ class StableConfigParserTest extends DDSpecification {
     cfg.get("KEY_ONE") == "VALUE_ONE"
     cfg.get("KEY_TWO") == "VALUE_TWO"
     cfg.get("KEY_THREE") == "VALUE_THREE"
+    Files.delete(filePath)
   }
 }

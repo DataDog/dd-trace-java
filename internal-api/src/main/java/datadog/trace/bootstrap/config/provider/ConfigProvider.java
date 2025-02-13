@@ -356,19 +356,19 @@ public final class ConfigProvider {
     if (configProperties.isEmpty()) {
       return new ConfigProvider(
           new SystemPropertiesConfigSource(),
-          StableConfigSourceSingleton.getManaged(),
+          StableConfigSource.MANAGED,
           new EnvironmentConfigSource(),
           new OtelEnvironmentConfigSource(),
-          StableConfigSourceSingleton.getUser(),
+          StableConfigSource.USER,
           new CapturedEnvironmentConfigSource());
     } else {
       return new ConfigProvider(
           new SystemPropertiesConfigSource(),
-          StableConfigSourceSingleton.getManaged(),
+          StableConfigSource.MANAGED,
           new EnvironmentConfigSource(),
           new PropertiesConfigSource(configProperties, true),
           new OtelEnvironmentConfigSource(configProperties),
-          StableConfigSourceSingleton.getUser(),
+          StableConfigSource.USER,
           new CapturedEnvironmentConfigSource());
     }
   }
@@ -382,20 +382,20 @@ public final class ConfigProvider {
       return new ConfigProvider(
           false,
           new SystemPropertiesConfigSource(),
-          StableConfigSourceSingleton.getManaged(),
+          StableConfigSource.MANAGED,
           new EnvironmentConfigSource(),
           new OtelEnvironmentConfigSource(),
-          StableConfigSourceSingleton.getUser(),
+          StableConfigSource.USER,
           new CapturedEnvironmentConfigSource());
     } else {
       return new ConfigProvider(
           false,
           new SystemPropertiesConfigSource(),
-          StableConfigSourceSingleton.getManaged(),
+          StableConfigSource.MANAGED,
           new EnvironmentConfigSource(),
           new PropertiesConfigSource(configProperties, true),
           new OtelEnvironmentConfigSource(configProperties),
-          StableConfigSourceSingleton.getUser(),
+          StableConfigSource.USER,
           new CapturedEnvironmentConfigSource());
     }
   }
@@ -412,21 +412,21 @@ public final class ConfigProvider {
     if (configProperties.isEmpty()) {
       return new ConfigProvider(
           new SystemPropertiesConfigSource(),
-          StableConfigSourceSingleton.getManaged(),
+          StableConfigSource.MANAGED,
           new EnvironmentConfigSource(),
           providedConfigSource,
           new OtelEnvironmentConfigSource(),
-          StableConfigSourceSingleton.getUser(),
+          StableConfigSource.USER,
           new CapturedEnvironmentConfigSource());
     } else {
       return new ConfigProvider(
           providedConfigSource,
           new SystemPropertiesConfigSource(),
-          StableConfigSourceSingleton.getManaged(),
+          StableConfigSource.MANAGED,
           new EnvironmentConfigSource(),
           new PropertiesConfigSource(configProperties, true),
           new OtelEnvironmentConfigSource(configProperties),
-          StableConfigSourceSingleton.getUser(),
+          StableConfigSource.USER,
           new CapturedEnvironmentConfigSource());
     }
   }
