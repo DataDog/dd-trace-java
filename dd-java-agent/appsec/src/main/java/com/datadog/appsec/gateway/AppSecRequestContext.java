@@ -232,11 +232,11 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public int getRaspError(int code) {
     switch (code) {
-      case -3:
+      case DD_WAF_RUN_INTERNAL_ERROR:
         return raspInternalErrors;
-      case -2:
+      case DD_WAF_RUN_INVALID_OBJECT_ERROR:
         return raspInvalidObjectErrors;
-      case -1:
+      case DD_WAF_RUN_INVALID_ARGUMENT_ERROR:
         return raspInvalidArgumentErrors;
       default:
         return 0;
