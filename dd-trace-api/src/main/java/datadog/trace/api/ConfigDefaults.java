@@ -224,6 +224,7 @@ public final class ConfigDefaults {
   static final int DEFAULT_CWS_TLS_REFRESH = 5000;
 
   static final boolean DEFAULT_DATA_JOBS_ENABLED = false;
+  static final boolean DEFAULT_DATA_JOBS_OPENLINEAGE_ENABLED = false;
 
   static final boolean DEFAULT_DATA_STREAMS_ENABLED = false;
   static final int DEFAULT_DATA_STREAMS_BUCKET_DURATION = 10; // seconds

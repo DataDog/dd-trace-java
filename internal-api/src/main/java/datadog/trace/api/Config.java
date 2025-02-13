@@ -501,6 +501,7 @@ public class Config {
 
   private final boolean dataJobsEnabled;
   private final String dataJobsCommandPattern;
+  private final boolean dataJobsOpenLineageEnabled;
 
   private final boolean dataStreamsEnabled;
   private final float dataStreamsBucketDurationSeconds;
@@ -1833,6 +1834,9 @@ public class Config {
     cwsTlsRefresh = configProvider.getInteger(CWS_TLS_REFRESH, DEFAULT_CWS_TLS_REFRESH);
 
     dataJobsEnabled = configProvider.getBoolean(DATA_JOBS_ENABLED, DEFAULT_DATA_JOBS_ENABLED);
+    dataJobsOpenLineageEnabled =
+        configProvider.getBoolean(
+            DATA_JOBS_OPENLINEAGE_ENABLED, DEFAULT_DATA_JOBS_OPENLINEAGE_ENABLED);
     dataJobsCommandPattern = configProvider.getString(DATA_JOBS_COMMAND_PATTERN);
 
     dataStreamsEnabled =
@@ -3603,6 +3607,10 @@ public class Config {
 
   public boolean isDataJobsEnabled() {
     return dataJobsEnabled;
+  }
+
+  public boolean isDataJobsOpenLineageEnabled() {
+    return dataJobsOpenLineageEnabled;
   }
 
   public String getDataJobsCommandPattern() {
