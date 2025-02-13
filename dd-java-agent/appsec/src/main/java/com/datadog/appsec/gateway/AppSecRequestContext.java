@@ -273,6 +273,19 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     }
   }
 
+  public int getWafError(int code) {
+    switch (code) {
+      case DD_WAF_RUN_INTERNAL_ERROR:
+        return wafInternalErrors;
+      case DD_WAF_RUN_INVALID_OBJECT_ERROR:
+        return wafInvalidObjectErrors;
+      case DD_WAF_RUN_INVALID_ARGUMENT_ERROR:
+        return wafInvalidArgumentErrors;
+      default:
+        return 0;
+    }
+  }
+
   public Additive getOrCreateAdditive(PowerwafContext ctx, boolean createMetrics, boolean isRasp) {
 
     if (createMetrics) {
