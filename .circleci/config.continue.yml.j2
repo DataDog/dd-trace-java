@@ -705,117 +705,6 @@ jobs:
           - DD_BIND_HOST=0.0.0.0
           - DD_API_KEY=invalid_key_but_this_is_fine
 
-  test_published_artifacts:
-    <<: *defaults
-    resource_class: medium
-    docker:
-      - image: << pipeline.parameters.docker_image >>:{{ docker_image_prefix }}7
-
-    steps:
-      - setup_code
-      - restore_dependency_cache:
-          cacheType: lib
-      - restore_build_cache:
-          cacheType: lib
-
-      - run:
-          name: Publish Artifacts Locally
-          command: |
-            mvn_local_repo=$(./mvnw help:evaluate -Dexpression=settings.localRepository -q -DforceStdout)
-            rm -rf "${mvn_local_repo}/com/datadoghq"
-            export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
-            ./gradlew publishToMavenLocal << pipeline.parameters.gradle_flags >> --max-workers=3
-
-      - run:
-          name: Test Published Artifacts
-          command: |
-            cd test-published-dependencies
-            export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx512M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
-            ./gradlew check --info --max-workers=3
-
-      - run:
-          name: Collect Reports
-          when: on_fail
-          command: .circleci/collect_reports.sh
-
-      - store_artifacts:
-          path: ./reports
-
-      - display_memory_usage
-  muzzle-dep-report:
-    <<: *defaults
-    resource_class: medium
-    steps:
-      - setup_code
-      - skip_unless_matching_files_changed:
-          pattern: "dd-java-agent/instrumentation"
-      - restore_dependency_cache:
-          cacheType: inst
-      - restore_build_cache:
-          cacheType: inst
-      - run:
-          name: Generate muzzle dep report
-          command: >-
-            SKIP_BUILDSCAN="true"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
-            ./gradlew generateMuzzleReport muzzleInstrumentationReport
-      - run:
-          name: Collect Reports
-          command: .circleci/collect_muzzle_deps.sh
-      - store_artifacts:
-          path: ./reports
-
-  muzzle:
-    <<: *defaults
-    resource_class: medium+
-    parallelism: 4
-    steps:
-      - setup_code
-
-      - skip_unless_matching_files_changed:
-          pattern: "dd-java-agent/instrumentation"
-
-      # We are not running with a separate cache of all muzzle artifacts here because it gets very big and
-      # ends up taking more time restoring/saving than the actual increase in time it takes just
-      # downloading the artifacts each time.
-      #
-      # Let's at least restore the build cache to have something to start from.
-      - restore_dependency_cache:
-          cacheType: inst
-      - restore_build_cache:
-          cacheType: inst
-
-      - run:
-          name: Gather muzzle tasks
-          command: >-
-            SKIP_BUILDSCAN="true"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
-            ./gradlew writeMuzzleTasksToFile
-            << pipeline.parameters.gradle_flags >>
-            --max-workers=3
-
-      - run:
-          name: Verify Muzzle
-          command: >-
-            SKIP_BUILDSCAN="true"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx3G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
-            ./gradlew `circleci tests split --split-by=timings workspace/build/muzzleTasks | xargs`
-            << pipeline.parameters.gradle_flags >>
-            --max-workers=4
-
-      - run:
-          name: Collect Reports
-          when: on_fail
-          command: .circleci/collect_reports.sh
-
-      - store_artifacts:
-          path: ./reports
-
-      - store_test_results:
-          path: workspace/build/muzzle-test-results
-
-      - display_memory_usage
-
   system-tests:
     machine:
       image: ubuntu-2404:current
@@ -1424,24 +1313,6 @@ build_test_jobs: &build_test_jobs
       cacheType: base
       testJvm: "8"
 
-  - test_published_artifacts:
-      requires:
-        - ok_to_test
-
-  - muzzle:
-      requires:
-        - ok_to_test
-      filters:
-        branches:
-          ignore:
-            - master
-            - project/*
-            - release/*
-
-  - muzzle-dep-report:
-      requires:
-        - ok_to_test
-
   - system-tests:
       requires:
         - ok_to_test
@@ -1462,7 +1333,6 @@ build_test_jobs: &build_test_jobs
 
   - fan_in:
       requires:
-        - test_published_artifacts
 {% for jdk in all_jdks %}
         - "test_{{ jdk }}_profiling"
 {% endfor %}
@@ -1471,7 +1341,6 @@ build_test_jobs: &build_test_jobs
 
   - fan_in:
       requires:
-        - test_published_artifacts
 {% for jdk in all_jdks %}
         - "test_{{ jdk }}_debugger"
 {% endfor %}
@@ -1483,13 +1352,11 @@ build_test_jobs: &build_test_jobs
   - fan_in:
       requires:
         - check
-        - test_published_artifacts
         - agent_integration_tests
 {% for jdk in all_jdks %}
         - "test_{{ jdk }}"
 {% endfor %}
         - test_inst_latest
-        - muzzle
         - profiling
         - debugger
         - system-tests
