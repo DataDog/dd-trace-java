@@ -93,6 +93,10 @@ public class AgentTracer {
     return get().activateSpan(span, ScopeSource.INSTRUMENTATION, isAsyncPropagating);
   }
 
+  public static AgentScope.Continuation captureActiveSpan() {
+    return get().captureActiveSpan();
+  }
+
   public static AgentScope.Continuation captureSpan(final AgentSpan span) {
     return get().captureSpan(span);
   }
@@ -128,11 +132,6 @@ public class AgentTracer {
 
   public static AgentScope activeScope() {
     return get().activeScope();
-  }
-
-  public static AgentScope.Continuation capture() {
-    final AgentScope activeScope = activeScope();
-    return activeScope == null ? null : activeScope.capture();
   }
 
   /**
@@ -290,6 +289,9 @@ public class AgentTracer {
 
     AgentScope activateSpan(AgentSpan span, ScopeSource source, boolean isAsyncPropagating);
 
+    @Override
+    AgentScope.Continuation captureActiveSpan();
+
     AgentScope.Continuation captureSpan(AgentSpan span);
 
     void closePrevious(boolean finishSpan);
@@ -427,6 +429,11 @@ public class AgentTracer {
     public AgentScope activateSpan(
         final AgentSpan span, final ScopeSource source, final boolean isAsyncPropagating) {
       return NoopScope.INSTANCE;
+    }
+
+    @Override
+    public AgentScope.Continuation captureActiveSpan() {
+      return NoopContinuation.INSTANCE;
     }
 
     @Override

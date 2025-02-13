@@ -930,6 +930,16 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
+  public AgentScope.Continuation captureActiveSpan() {
+    AgentScope activeScope = this.scopeManager.active();
+    if (null != activeScope) {
+      return activeScope.capture();
+    } else {
+      return AgentTracer.noopContinuation();
+    }
+  }
+
+  @Override
   public AgentScope.Continuation captureSpan(final AgentSpan span) {
     return scopeManager.captureSpan(span);
   }
