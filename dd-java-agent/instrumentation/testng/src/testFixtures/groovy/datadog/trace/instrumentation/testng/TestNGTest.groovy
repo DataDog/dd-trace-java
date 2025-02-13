@@ -208,8 +208,6 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test disabled #testcaseName"() {
-    Assumptions.assumeTrue(isExceptionSuppressionSupported())
-
     givenDisabledTests(disabled)
 
     runTests(tests, null, true)

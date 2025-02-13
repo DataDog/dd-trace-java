@@ -143,7 +143,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
 
     where:
     projectName                                   | mavenVersion
-    "test_successful_maven_run_test_management" | "3.9.9"
+    "test_successful_maven_run_test_management"   | "3.9.9"
   }
 
   private void givenWrapperPropertiesFile(String mavenVersion) {
