@@ -30,7 +30,7 @@ default:
 
 .fan_in:
   stage: tests
-  image: registry.ddbuild.io/images/base/gbi-distroless
+  image: registry.ddbuild.io/images/base/gbi-distroless:release
   variables:
     GRADLE_WORKERS: 2
     KUBERNETES_CPU_REQUEST: 1
