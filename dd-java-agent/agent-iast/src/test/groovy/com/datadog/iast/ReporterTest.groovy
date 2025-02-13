@@ -78,9 +78,9 @@ class ReporterTest extends DDSpecification {
             "spanId":123456,
             "line":1,
             "path": "foo",
-            "method": "foo"
+            "method": "foo",
+            "stackId":"1"
           },
-          "stackId":"1",
           "type":"WEAK_HASH"
         }
       ]
@@ -187,9 +187,9 @@ class ReporterTest extends DDSpecification {
             "spanId":123456,
             "line":1,
             "path":"foo",
-            "method": "foo"
+            "method": "foo",
+            "stackId":"1"
           },
-          "stackId":"1",
           "type":"WEAK_HASH"
         },
         {
@@ -199,9 +199,9 @@ class ReporterTest extends DDSpecification {
             "spanId":123456,
             "line":2,
             "path":"foo",
-            "method": "foo"
+            "method": "foo",
+            "stackId":"2"
           },
-          "stackId":"2",
           "type":"WEAK_HASH"
         }
       ]
@@ -578,7 +578,7 @@ class ReporterTest extends DDSpecification {
     StackTraceEvent currentStackTrace = null
     for (int i = 0; i < vulnerabilities.size(); i++) {
       for (StackTraceEvent event : batch.get("vulnerability")) {
-        if(event.getId() == vulnerabilities[i].getStackId()) {
+        if(event.getId() == vulnerabilities[i].getLocation().getStackId()) {
           currentStackTrace = event
           break
         }
