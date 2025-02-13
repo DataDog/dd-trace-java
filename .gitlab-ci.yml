@@ -28,6 +28,16 @@ variables:
 default:
   tags: [ "arch:amd64" ]
 
+.fan_in:
+  stage: tests
+  image: registry.ddbuild.io/images/base/gbi-distroless
+  variables:
+    GRADLE_WORKERS: 2
+    KUBERNETES_CPU_REQUEST: 1
+    KUBERNETES_MEMORY_REQUEST: 1Gi
+  script:
+    - echo "done"
+
 .gradle_build: &gradle_build
   image: ghcr.io/datadog/dd-trace-java-docker-build:${JAVA_BUILD_IMAGE_VERSION}-base
   stage: build
@@ -177,6 +187,13 @@ muzzle-dep-report:
     paths:
       - ./reports
       - '.gradle/daemon/*/*.out.log'
+
+required:
+  extends: .fan_in
+  needs:
+    - spotless
+    - muzzle
+    - test_published_artifacts
 
 deploy_to_profiling_backend:
   stage: publish
