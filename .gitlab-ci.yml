@@ -151,7 +151,7 @@ spotless:
   rules:
     - if: '$POPULATE_CACHE'
       when: never
-    - when: always
+    - when: always # TODO change to on_success once build_tests is stable
   variables:
     BUILD_CACHE_TYPE: test
   script:
@@ -197,7 +197,7 @@ test_published_artifacts:
   rules:
     - if: '$POPULATE_CACHE'
       when: never
-    - when: always
+    - when: on_success
   variables:
     BUILD_CACHE_TYPE: lib
   script:
@@ -225,7 +225,7 @@ muzzle:
   rules:
     - if: '$POPULATE_CACHE'
       when: never
-    - when: always
+    - when: on_success
   variables:
     BUILD_CACHE_TYPE: test
   script:
@@ -270,7 +270,7 @@ muzzle-dep-report:
   rules:
     - if: '$POPULATE_CACHE'
       when: never
-    - when: always
+    - when: always # TODO change to on_success once build_tests is stable
   variables:
     BUILD_CACHE_TYPE: test
     GRADLE_PARAMS: ""
@@ -392,7 +392,7 @@ test_smoke_semeru8_debugger:
   rules:
     - if: '$POPULATE_CACHE'
       when: never
-    - when: always
+    - when: on_success
   variables:
     BUILD_CACHE_TYPE: lib
   before_script:
