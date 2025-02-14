@@ -884,10 +884,11 @@ class SymbolExtractionTransformerTest {
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
     final String CLASS_NAME = EXCLUDED_PACKAGE + "SymbolExtraction16";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
+    ClassNameFiltering classNameFiltering =
+        new ClassNameFiltering(Collections.singleton(EXCLUDED_PACKAGE));
     SymbolExtractionTransformer transformer =
         new SymbolExtractionTransformer(
-            new SymbolAggregator(symbolSinkMock, 1),
-            new ClassNameFiltering(Collections.singleton(EXCLUDED_PACKAGE)));
+            new SymbolAggregator(classNameFiltering, symbolSinkMock, 1), classNameFiltering);
     instr.addTransformer(transformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
@@ -898,6 +899,7 @@ class SymbolExtractionTransformerTest {
   }
 
   @Test
+  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
   public void duplicateClassThroughDifferentClassLoader() throws IOException, URISyntaxException {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction01";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
@@ -986,7 +988,8 @@ class SymbolExtractionTransformerTest {
   private SymbolExtractionTransformer createTransformer(
       SymbolSink symbolSink, int symbolFlushThreshold, ClassNameFiltering classNameFiltering) {
     return new SymbolExtractionTransformer(
-        new SymbolAggregator(symbolSink, symbolFlushThreshold), classNameFiltering);
+        new SymbolAggregator(classNameFiltering, symbolSink, symbolFlushThreshold),
+        classNameFiltering);
   }
 
   static class SymbolSinkMock extends SymbolSink {

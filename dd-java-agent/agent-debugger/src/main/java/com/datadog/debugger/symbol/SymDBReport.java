@@ -1,42 +1,39 @@
 package com.datadog.debugger.symbol;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-public class SymDBReport {
-  private static final Logger LOGGER = LoggerFactory.getLogger(SymDBReport.class);
+public interface SymDBReport {
 
-  private final Set<String> missingJars = new HashSet<>();
-  private final Map<String, String> ioExceptions = new HashMap<>();
-  private final List<String> locationErrors = new ArrayList<>();
+  void addMissingJar(String jarPath);
 
-  public void addMissingJar(String jarPath) {
-    missingJars.add(jarPath);
-  }
+  void addIOException(String jarPath, IOException e);
 
-  public void addIOException(String jarPath, IOException e) {
-    ioExceptions.put(jarPath, e.toString());
-  }
+  void addLocationError(String locationStr);
 
-  public void addLocationError(String locationStr) {
-    locationErrors.add(locationStr);
-  }
+  void incClassCount(String jarPath);
 
-  public void report() {
-    String content =
-        "== SymDB Report == Location errors:"
-            + locationErrors
-            + " Missing jars: "
-            + missingJars
-            + " IOExceptions: "
-            + ioExceptions;
-    LOGGER.info(content);
-  }
+  void addScannedJar(String jarPath);
+
+  void report();
+
+  SymDBReport NO_OP =
+      new SymDBReport() {
+        @Override
+        public void addMissingJar(String jarPath) {}
+
+        @Override
+        public void addIOException(String jarPath, IOException e) {}
+
+        @Override
+        public void addLocationError(String locationStr) {}
+
+        @Override
+        public void incClassCount(String jarPath) {}
+
+        @Override
+        public void addScannedJar(String jarPath) {}
+
+        @Override
+        public void report() {}
+      };
 }
