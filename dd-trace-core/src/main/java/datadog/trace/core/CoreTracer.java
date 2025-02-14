@@ -669,6 +669,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     } else {
       this.writer = writer;
     }
+    log.debug("STARTED WRITER {}", this.writer);
 
     if (config.isCiVisibilityEnabled()
         && (config.isCiVisibilityAgentlessEnabled()
