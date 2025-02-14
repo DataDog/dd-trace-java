@@ -121,7 +121,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
         : EarlyFlakeDetectionSettings.DEFAULT
 
         def testManagementSettings = testManagementEnabled
-        ? new TestManagementSettings(true, 20)
+        ? new TestManagementSettings(true, 5)
         : TestManagementSettings.DEFAULT
 
         Map<TestIdentifier, TestMetadata> skippableTestsWithMetadata = new HashMap<>()
@@ -341,7 +341,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     injectSysConfig(CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ENABLED, "true")
     injectSysConfig(CiVisibilityConfig.CIVISIBILITY_EARLY_FLAKE_DETECTION_LOWER_LIMIT, "1")
     injectSysConfig(CiVisibilityConfig.TEST_MANAGEMENT_ENABLED, "true")
-    injectSysConfig(CiVisibilityConfig.TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES, "20")
+    injectSysConfig(CiVisibilityConfig.TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES, "5")
   }
 
   def cleanupSpec() {

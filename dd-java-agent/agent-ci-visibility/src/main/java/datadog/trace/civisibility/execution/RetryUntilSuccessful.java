@@ -65,4 +65,9 @@ public class RetryUntilSuccessful implements TestExecutionPolicy {
   public boolean hasFailedAllRetries() {
     return currentExecutionIsLast() && !successfulExecutionSeen;
   }
+
+  @Override
+  public boolean hasSucceededAllRetries() {
+    return false;
+  }
 }

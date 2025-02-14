@@ -12,6 +12,7 @@ import datadog.trace.civisibility.config.TestManagementSettings;
 import datadog.trace.civisibility.config.TestSetting;
 import datadog.trace.civisibility.execution.Regular;
 import datadog.trace.civisibility.execution.RetryUntilSuccessful;
+import datadog.trace.civisibility.execution.RunNFixedTimes;
 import datadog.trace.civisibility.execution.RunNTimes;
 import datadog.trace.civisibility.execution.RunOnceIgnoreOutcome;
 import datadog.trace.civisibility.source.LinesResolver;
@@ -91,6 +92,11 @@ public class ExecutionStrategy {
       return null;
     }
 
+    // test should not be skipped if it is an attempt to fix, independent of TIA or Disabled
+    if (isAttemptToFix(test)) {
+      return null;
+    }
+
     if (isDisabled(test)) {
       return SkipReason.DISABLED;
     }
@@ -114,6 +120,12 @@ public class ExecutionStrategy {
   public TestExecutionPolicy executionPolicy(TestIdentifier test, TestSourceData testSource) {
     if (test == null) {
       return Regular.INSTANCE;
+    }
+
+    if (isAttemptToFix(test)) {
+      return new RunNFixedTimes(
+          executionSettings.getTestManagementSettings().getAttemptToFixRetries(),
+          isQuarantined(test) || isDisabled(test));
     }
 
     if (isEFDApplicable(test, testSource)) {

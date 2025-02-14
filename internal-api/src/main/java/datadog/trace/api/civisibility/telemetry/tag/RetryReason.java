@@ -4,7 +4,8 @@ import datadog.trace.api.civisibility.telemetry.TagValue;
 
 public enum RetryReason implements TagValue {
   atr("Auto Test Retries"),
-  efd("Early Flakiness Detection");
+  efd("Early Flakiness Detection"),
+  attemptToFix("Attempt to Fix");
 
   private final String s;
   private final String description;
