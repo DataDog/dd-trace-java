@@ -11,6 +11,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public final class StableConfigSource extends ConfigProvider.Source {
+  private static final Logger log = LoggerFactory.getLogger(StableConfigSource.class);
+
   public static final String USER_STABLE_CONFIG_PATH =
       "/etc/datadog-agent/application_monitoring.yaml";
   public static final String MANAGED_STABLE_CONFIG_PATH =
@@ -20,8 +22,6 @@ public final class StableConfigSource extends ConfigProvider.Source {
   public static final StableConfigSource MANAGED =
       new StableConfigSource(
           StableConfigSource.MANAGED_STABLE_CONFIG_PATH, ConfigOrigin.MANAGED_STABLE_CONFIG);
-
-  private static final Logger log = LoggerFactory.getLogger(StableConfigSource.class);
 
   private final ConfigOrigin fileOrigin;
 
