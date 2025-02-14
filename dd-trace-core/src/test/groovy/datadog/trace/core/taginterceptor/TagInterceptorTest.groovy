@@ -742,6 +742,6 @@ class TagInterceptorTest extends DDCoreSpecification {
     interceptor.interceptTag(context, Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM)
 
     then:
-    1 * context.updatePropagatedTraceSource(ProductTraceSource.ASM)
+    1 * context.addTraceSource(ProductTraceSource.ASM)
   }
 }
