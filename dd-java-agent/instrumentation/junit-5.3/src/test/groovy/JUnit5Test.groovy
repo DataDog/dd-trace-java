@@ -224,6 +224,70 @@ class JUnit5Test extends CiVisibilityInstrumentationTest {
     "test-disabled-failed-parameterized" | [TestFailedParameterized] | [new TestFQN("org.example.TestFailedParameterized", "test_failed_parameterized")]
   }
 
+  def "test attempt to fix #testcaseName"() {
+    givenQuarantinedTests(quarantined)
+    givenDisabledTests(disabled)
+    givenAttemptToFixTests(attemptToFix)
+
+    runTests(tests, success)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName                                | success | tests         | attemptToFix                                             | quarantined                                              | disabled
+    "test-attempt-to-fix-failed"                | false   | [TestFailed]  | [new TestFQN("org.example.TestFailed", "test_failed")]   | []                                                       | []
+    "test-attempt-to-fix-succeeded"             | true    | [TestSucceed] | [new TestFQN("org.example.TestSucceed", "test_succeed")] | []                                                       | []
+    "test-attempt-to-fix-quarantined-failed"    | true    | [TestFailed]  | [new TestFQN("org.example.TestFailed", "test_failed")]   | [new TestFQN("org.example.TestFailed", "test_failed")]   | []
+    "test-attempt-to-fix-quarantined-succeeded" | true    | [TestSucceed] | [new TestFQN("org.example.TestSucceed", "test_succeed")] | [new TestFQN("org.example.TestSucceed", "test_succeed")] | []
+    "test-attempt-to-fix-disabled-failed"       | true    | [TestFailed]  | [new TestFQN("org.example.TestFailed", "test_failed")]   | []                                                       | [new TestFQN("org.example.TestFailed", "test_failed")]
+    "test-attempt-to-fix-disabled-succeeded"    | true    | [TestSucceed] | [new TestFQN("org.example.TestSucceed", "test_succeed")] | []                                                       | [new TestFQN("org.example.TestSucceed", "test_succeed")]
+  }
+
+  def "test attempt to fix itr #testcaseName"() {
+    givenSkippableTests(skippable)
+    givenAttemptToFixTests(attemptToFix)
+
+    runTests(tests, true)
+
+    assertSpansData(testcaseName)
+    where:
+    testcaseName              | tests         | attemptToFix                                             | skippable
+    "test-attempt-to-fix-itr" | [TestSucceed] | [new TestFQN("org.example.TestSucceed", "test_succeed")] | [new TestIdentifier("org.example.TestSucceed", "test_succeed", null)]
+  }
+
+  def "test attempt to fix early flakiness detection #testcaseName"() {
+    givenAttemptToFixTests(attemptToFix)
+
+    givenEarlyFlakinessDetectionEnabled(true)
+    givenKnownTests(known)
+
+    runTests(tests, true)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName                | tests         | attemptToFix                                             | known
+    "test-attempt-to-fix-known" | [TestSucceed] | [new TestFQN("org.example.TestSucceed", "test_succeed")] | [new TestFQN("org.example.TestSucceed", "test_succeed")]
+    "test-attempt-to-fix-efd"   | [TestSucceed] | [new TestFQN("org.example.TestSucceed", "test_succeed")] | []
+  }
+
+  def "test attempt to fix auto-retries #testcaseName"() {
+    givenAttemptToFixTests(attemptToFix)
+    givenQuarantinedTests(attemptToFix)
+
+    givenFlakyRetryEnabled(true)
+    givenFlakyTests(retried)
+
+    // every test retry fails, but the build status is successful
+    runTests(tests, true)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName                     | tests        | attemptToFix                                           | retried
+    "test-attempt-to-fix-failed-atr" | [TestFailed] | [new TestFQN("org.example.TestFailed", "test_failed")] | [new TestFQN("org.example.TestFailed", "test_failed")]
+  }
+
   protected void runTests(List<Class<?>> tests, boolean expectSuccess = true) {
     TestEventsHandlerHolder.startForcefully()
 

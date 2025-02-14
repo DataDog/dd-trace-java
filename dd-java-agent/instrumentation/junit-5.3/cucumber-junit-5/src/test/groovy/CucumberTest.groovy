@@ -171,6 +171,104 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
     ]
   }
 
+  def "test attempt to fix #testcaseName"() {
+    givenQuarantinedTests(quarantined)
+    givenDisabledTests(disabled)
+    givenAttemptToFixTests(attemptToFix)
+
+    runFeatures(features, false, success)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName                                | success | features                                                            | attemptToFix                                                                                                            | quarantined                                                                                                             | disabled
+    "test-attempt-to-fix-failed"                | false   | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"] | [
+      new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition")
+    ] | []                                                                                                                      | []
+    "test-attempt-to-fix-succeeded"             | true    | ["org/example/cucumber/calculator/basic_arithmetic.feature"]        | [
+      new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic.feature:Basic Arithmetic", "Addition")
+    ]        | []                                                                                                                      | []
+    "test-attempt-to-fix-quarantined-failed"    | true    | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"] | [
+      new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition")
+    ] | [
+      new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition")
+    ] | []
+    "test-attempt-to-fix-quarantined-succeeded" | true    | ["org/example/cucumber/calculator/basic_arithmetic.feature"]        | [
+      new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic.feature:Basic Arithmetic", "Addition")
+    ]        | [
+      new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic.feature:Basic Arithmetic", "Addition")
+    ]        | []
+    "test-attempt-to-fix-disabled-failed"       | true    | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"] | [
+      new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition")
+    ] | []                                                                                                                      | [
+      new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition")
+    ]
+    "test-attempt-to-fix-disabled-succeeded"    | true    | ["org/example/cucumber/calculator/basic_arithmetic.feature"]        | [
+      new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic.feature:Basic Arithmetic", "Addition")
+    ]        | []                                                                                                                      | [
+      new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic.feature:Basic Arithmetic", "Addition")
+    ]
+  }
+
+  def "test attempt to fix itr #testcaseName"() {
+    givenSkippableTests(skippable)
+    givenAttemptToFixTests(attemptToFix)
+
+    runFeatures(features, false, true)
+
+    assertSpansData(testcaseName)
+    where:
+    testcaseName              | features                                                     | attemptToFix                                                                                                     | skippable
+    "test-attempt-to-fix-itr" | ["org/example/cucumber/calculator/basic_arithmetic.feature"] | [
+      new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic.feature:Basic Arithmetic", "Addition")
+    ] | [
+      new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic.feature:Basic Arithmetic", "Addition", null)
+    ]
+  }
+
+  def "test attempt to fix early flakiness detection #testcaseName"() {
+    givenAttemptToFixTests(attemptToFix)
+
+    givenEarlyFlakinessDetectionEnabled(true)
+    givenKnownTests(known)
+
+    runFeatures(features, false,true)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName                | features                                                     | attemptToFix                                                                                                     | known
+    "test-attempt-to-fix-known" | ["org/example/cucumber/calculator/basic_arithmetic.feature"] | [
+      new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic.feature:Basic Arithmetic", "Addition")
+    ] | [
+      new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic.feature:Basic Arithmetic", "Addition")
+    ]
+    "test-attempt-to-fix-efd"   | ["org/example/cucumber/calculator/basic_arithmetic.feature"] | [
+      new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic.feature:Basic Arithmetic", "Addition")
+    ] | []
+  }
+
+  def "test attempt to fix auto-retries #testcaseName"() {
+    givenAttemptToFixTests(attemptToFix)
+    givenQuarantinedTests(attemptToFix)
+
+    givenFlakyRetryEnabled(true)
+    givenFlakyTests(retried)
+
+    // every test retry fails, but the build status is successful
+    runFeatures(features, false,true)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName                     | features                                                            | attemptToFix                                                                                                            | retried
+    "test-attempt-to-fix-failed-atr" | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"] | [
+      new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition")
+    ] | [
+      new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition")
+    ]
+  }
+
   private String parameterizedTestNameSuffix() {
     // older releases report different example names
     version() == "5.4.0" ? "Example #1" : "Example #1.1"
