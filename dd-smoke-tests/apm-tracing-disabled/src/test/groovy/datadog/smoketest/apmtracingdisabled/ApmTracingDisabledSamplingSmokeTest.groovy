@@ -1,4 +1,4 @@
-package datadog.smoketest.asmstandalonebilling
+package datadog.smoketest.apmtracingdisabled
 
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.test.util.Flaky
@@ -6,17 +6,17 @@ import groovy.json.JsonSlurper
 import okhttp3.Request
 
 @Flaky
-class AsmStandaloneBillingSamplingSmokeTest extends AbstractAsmStandaloneBillingSmokeTest {
+class ApmTracingDisabledSamplingSmokeTest extends AbstractApmTracingDisabledSmokeTest {
 
   @Override
   ProcessBuilder createProcessBuilder(){
     final String[] processProperties = [
-      "-Ddd.experimental.appsec.standalone.enabled=true",
+      "-Ddd.apm.tracing.enabled=false",
       "-Ddd.iast.enabled=true",
       "-Ddd.appsec.enabled=true",
       "-Ddd.iast.detection.mode=FULL",
       "-Ddd.iast.debug.enabled=true",
-      "-Ddd.service.name=asm-standalone-billing-sampling-spring-smoketest-app",
+      "-Ddd.service.name=apm-tracing-disabled-sampling-spring-smoketest-app",
     ]
     return createProcess(processProperties)
   }
