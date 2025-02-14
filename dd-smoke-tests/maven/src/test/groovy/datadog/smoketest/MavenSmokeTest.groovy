@@ -116,7 +116,8 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     mockBackend.givenChangedFile("src/test/java/datadog/smoke/TestSucceed.java")
 
     def exitCode = whenRunningMavenBuild([
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_GIT_CLIENT_ENABLED)}=false" as String
+      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_GIT_CLIENT_ENABLED)}=false" as String,
+      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_IMPACTED_TESTS_BACKEND_REQUEST_ENABLED)}=true" as String
     ], [])
     assert exitCode == 0
 
