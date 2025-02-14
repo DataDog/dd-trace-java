@@ -1070,6 +1070,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
 
     then:
     thrown AppSecModule.AppSecModuleActivationException
+    1 * wafMetricCollector.wafConfigError()
     0 * _
 
     when:
@@ -1090,6 +1091,19 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * wafMetricCollector.wafInit(Powerwaf.LIB_VERSION, _, true)
     1 * reconf.reloadSubscriptions()
     0 * _
+  }
+
+  void 'configuration is in error'() {
+    def cfgService = new StubAppSecConfigService([waf: null])
+
+    when:
+    pwafModule.config(cfgService)
+
+    then:
+    thrown AppSecModule.AppSecModuleActivationException
+    1 * wafMetricCollector.wafConfigError()
+    0 * _
+
   }
 
   void 'rule data given through configuration'() {
@@ -1432,6 +1446,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
 
     then:
     thrown AppSecModule.AppSecModuleActivationException
+    1 * wafMetricCollector.wafConfigError()
     pwafModule.dataSubscriptions.empty
     0 * _
   }
@@ -1445,6 +1460,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
 
     then:
     thrown AppSecModule.AppSecModuleActivationException
+    1 * wafMetricCollector.wafConfigError()
     pwafModule.ctxAndAddresses.get() == null
     0 * _
   }

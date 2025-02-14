@@ -175,12 +175,14 @@ public class PowerWAFModule implements AppSecModule {
     ProductActivation appSecEnabledConfig = Config.get().getAppSecActivation();
     if (appSecEnabledConfig == ProductActivation.FULLY_ENABLED) {
       if (!initialConfig.isPresent()) {
+        WafMetricCollector.get().wafConfigError();
         throw new AppSecModuleActivationException("No initial config for WAF");
       }
 
       try {
         applyConfig(initialConfig.get(), AppSecModuleConfigurer.Reconfiguration.NOOP);
       } catch (ClassCastException e) {
+        WafMetricCollector.get().wafConfigError();
         throw new AppSecModuleActivationException("Config expected to be CurrentAppSecConfig", e);
       }
     }
