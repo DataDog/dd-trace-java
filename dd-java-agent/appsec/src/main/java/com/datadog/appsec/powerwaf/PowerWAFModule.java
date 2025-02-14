@@ -55,6 +55,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.lang.reflect.UndeclaredThrowableException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -176,12 +177,14 @@ public class PowerWAFModule implements AppSecModule {
     ProductActivation appSecEnabledConfig = Config.get().getAppSecActivation();
     if (appSecEnabledConfig == ProductActivation.FULLY_ENABLED) {
       if (!initialConfig.isPresent()) {
+        WafMetricCollector.get().wafConfigError();
         throw new AppSecModuleActivationException("No initial config for WAF");
       }
 
       try {
         applyConfig(initialConfig.get(), AppSecModuleConfigurer.Reconfiguration.NOOP);
       } catch (ClassCastException e) {
+        WafMetricCollector.get().wafConfigError();
         throw new AppSecModuleActivationException("Config expected to be CurrentAppSecConfig", e);
       }
     }
@@ -212,9 +215,10 @@ public class PowerWAFModule implements AppSecModule {
     }
 
     boolean success = false;
+    List<String> errors = new ArrayList<>();
     try {
       // ddwaf_init/update
-      success = initializeNewWafCtx(reconf, config, curCtxAndAddresses);
+      success = initializeNewWafCtx(reconf, config, curCtxAndAddresses, errors);
     } catch (Exception e) {
       throw new AppSecModuleActivationException("Could not initialize/update waf", e);
     } finally {
@@ -223,13 +227,18 @@ public class PowerWAFModule implements AppSecModule {
       } else {
         WafMetricCollector.get().wafUpdates(currentRulesVersion, success);
       }
+      if (!errors.isEmpty()) {
+        log.error("Errors during WAF initialization: {}", errors);
+        WafMetricCollector.get().addWafConfigError(errors.size());
+      }
     }
   }
 
   private boolean initializeNewWafCtx(
       AppSecModuleConfigurer.Reconfiguration reconf,
       CurrentAppSecConfig config,
-      CtxAndAddresses prevContextAndAddresses)
+      CtxAndAddresses prevContextAndAddresses,
+      List<String> errors)
       throws AppSecModuleActivationException, IOException {
     CtxAndAddresses newContextAndAddresses;
     RuleSetInfo initReport = null;
@@ -273,6 +282,14 @@ public class PowerWAFModule implements AppSecModule {
       newContextAndAddresses = new CtxAndAddresses(addresses, newPwafCtx, actionInfoMap);
       if (initReport != null) {
         this.statsReporter.rulesVersion = initReport.rulesetVersion;
+      }
+      if (initReport != null
+          && initReport.getErrors() != null
+          && !initReport.getErrors().isEmpty()) {
+        errors.addAll(
+            initReport.getErrors().values().stream()
+                .flatMap(List::stream)
+                .collect(Collectors.toList()));
       }
     } catch (InvalidRuleSetException irse) {
       initReport = irse.ruleSetInfo;
