@@ -11,6 +11,10 @@ public class InferredProxyContext implements ImplicitContextKeyed {
     return inferredProxy;
   }
 
+  public InferredProxyContext(Map<String, String> contextInfo) {
+    this.inferredProxy = contextInfo;
+  }
+
   /**
    * Creates a new context with this value under its chosen key.
    *

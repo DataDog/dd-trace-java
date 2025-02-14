@@ -1,6 +1,9 @@
 package datadog.context.propagation;
 
 import datadog.context.Context;
+import datadog.context.InferredProxyContext;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.BiConsumer;
 
 public class InferredProxyPropagator implements Propagator {
@@ -39,21 +42,42 @@ public class InferredProxyPropagator implements Propagator {
     InferredProxyContextExtractor extractor = new InferredProxyContextExtractor();
     visitor.forEachKeyValue(carrier, extractor);
 
-    // Extracted extracted =
-    return null;
+    InferredProxyContext extractedContext = extractor.extractedContext;
+    if (extractedContext == null) {
+      return context;
+    }
+
+    return extractedContext.storeInto(context);
   }
 
   // TODO implement HTTP header parser rules
   public static class InferredProxyContextExtractor implements BiConsumer<String, String> {
-    // private InferredProxyContext extracted context
+    private InferredProxyContext extractedContext;
+
+    InferredProxyContextExtractor() {}
+
+    private Map<String, String> parseInferredProxyHeaders(String input) {
+      Map<String, String> parsedHeaders = new HashMap<>();
+      System.out.println(input);
+      return parsedHeaders;
+    }
 
     /**
      * Performs this operation on the given arguments.
      *
-     * @param s the first input argument
-     * @param s2 the second input argument
+     * @param key the first input argument from an http header
+     * @param value the second input argument from an http header
      */
     @Override
-    public void accept(String s, String s2) {}
+    public void accept(String key, String value) {
+      System.out.println("hello: " + key);
+      System.out.println(value);
+      if (key == null || key.isEmpty()) {
+        return;
+      }
+      if (key.equalsIgnoreCase(INFERRED_PROXY_KEY)) {
+        extractedContext = new InferredProxyContext(parseInferredProxyHeaders(value));
+      }
+    }
   }
 }
