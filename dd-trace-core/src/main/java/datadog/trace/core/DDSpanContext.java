@@ -512,7 +512,7 @@ public class DDSpanContext
     }
   }
 
-  public void updatePropagatedTraceSource(final int value) {
+  public void addPropagatedTraceSource(final int value) {
     propagationTags.addTraceSource(value);
   }
 
