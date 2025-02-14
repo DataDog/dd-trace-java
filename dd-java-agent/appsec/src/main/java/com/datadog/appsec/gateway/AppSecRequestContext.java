@@ -77,9 +77,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   public static final Set<String> RESPONSE_HEADERS_ALLOW_LIST =
       new TreeSet<>(
           Arrays.asList("content-length", "content-type", "content-encoding", "content-language"));
-  private static final int DD_WAF_RUN_INTERNAL_ERROR = -3;
-  private static final int DD_WAF_RUN_INVALID_OBJECT_ERROR = -2;
-  private static final int DD_WAF_RUN_INVALID_ARGUMENT_ERROR = -1;
+  public static final int DD_WAF_RUN_INTERNAL_ERROR = -3;
+  public static final int DD_WAF_RUN_INVALID_OBJECT_ERROR = -2;
+  public static final int DD_WAF_RUN_INVALID_ARGUMENT_ERROR = -1;
 
   static {
     REQUEST_HEADERS_ALLOW_LIST.addAll(DEFAULT_REQUEST_HEADERS_ALLOW_LIST);
