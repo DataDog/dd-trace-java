@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContinuation;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
 
@@ -17,12 +18,12 @@ public class Wrapper<T extends Runnable> implements Runnable, AutoCloseable {
         || exclude(RUNNABLE, task)) {
       return task;
     }
-    AgentScope scope = activeScope();
-    if (null != scope) {
+    AgentScope.Continuation continuation = captureActiveSpan();
+    if (continuation != noopContinuation()) {
       if (task instanceof Comparable) {
-        return new ComparableRunnable(task, scope.capture());
+        return new ComparableRunnable(task, continuation);
       }
-      return new Wrapper<>(task, scope.capture());
+      return new Wrapper<>(task, continuation);
     }
     // don't wrap unless there is scope to propagate
     return task;

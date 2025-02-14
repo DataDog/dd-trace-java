@@ -9,9 +9,6 @@ public interface AgentScope extends TraceScope, Closeable {
   byte source();
 
   @Override
-  Continuation capture();
-
-  @Override
   void close();
 
   interface Continuation extends TraceScope.Continuation {
