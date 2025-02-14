@@ -57,7 +57,7 @@ class ReporterTest extends DDSpecification {
 
     final v = new Vulnerability(
       VulnerabilityType.WEAK_HASH,
-      Location.forSpanAndStack(span, new StackTraceElement("foo", "foo", "foo", 1)),
+      Location.forSpanAndStack(span, new StackTraceElement("foo", "foo", "fooPath", 1)),
       new Evidence("MD5")
       )
 
@@ -77,8 +77,9 @@ class ReporterTest extends DDSpecification {
           "location": {
             "spanId":123456,
             "line":1,
-            "path": "foo",
-            "method": "foo"
+            "path": "fooPath",
+            "method": "foo",
+            "class": "foo"
           },
           "stackId":"1",
           "type":"WEAK_HASH"
@@ -110,7 +111,7 @@ class ReporterTest extends DDSpecification {
 
     final v = new Vulnerability(
       VulnerabilityType.WEAK_HASH,
-      Location.forSpanAndStack(span, new StackTraceElement("foo", "foo", "foo", 1)),
+      Location.forSpanAndStack(span, new StackTraceElement("foo", "foo", "fooPath", 1)),
       new Evidence("MD5")
       )
 
@@ -128,8 +129,9 @@ class ReporterTest extends DDSpecification {
           "location": {
             "spanId":123456,
             "line":1,
-            "path": "foo",
-            "method": "foo"
+            "path": "fooPath",
+            "method": "foo",
+            "class": "foo"
           },
           "type":"WEAK_HASH"
         }
@@ -156,12 +158,12 @@ class ReporterTest extends DDSpecification {
 
     final v1 = new Vulnerability(
       VulnerabilityType.WEAK_HASH,
-      Location.forSpanAndStack(span, new StackTraceElement("foo", "foo", "foo", 1)),
+      Location.forSpanAndStack(span, new StackTraceElement("foo", "foo", "fooPath1", 1)),
       new Evidence("MD5")
       )
     final v2 = new Vulnerability(
       VulnerabilityType.WEAK_HASH,
-      Location.forSpanAndStack(span, new StackTraceElement("foo", "foo", "foo", 2)),
+      Location.forSpanAndStack(span, new StackTraceElement("foo", "foo", "fooPath2", 2)),
       new Evidence("MD4")
       )
 
@@ -186,8 +188,9 @@ class ReporterTest extends DDSpecification {
           "location": {
             "spanId":123456,
             "line":1,
-            "path":"foo",
-            "method": "foo"
+            "path": "fooPath1",
+            "method": "foo",
+            "class": "foo"
           },
           "stackId":"1",
           "type":"WEAK_HASH"
@@ -198,8 +201,9 @@ class ReporterTest extends DDSpecification {
           "location": {
             "spanId":123456,
             "line":2,
-            "path":"foo",
-            "method": "foo"
+            "path": "fooPath2",
+            "method": "foo",
+            "class": "foo"
           },
           "stackId":"2",
           "type":"WEAK_HASH"
