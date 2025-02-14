@@ -55,6 +55,11 @@ excludedClassesCoverage += [
   // These are almost fully abstract classes so nothing to test
   'datadog.trace.api.profiling.RecordingData',
   'datadog.trace.api.appsec.AppSecEventTracker',
+  // POJO
+  'datadog.trace.api.appsec.api.security.model.Endpoint',
+  'datadog.trace.api.appsec.api.security.model.Endpoint.Method',
+  'datadog.trace.api.appsec.api.security.model.Endpoint.Operation',
+  'datadog.trace.api.appsec.api.security.model.Endpoint.Type',
   // A plain enum
   'datadog.trace.api.profiling.RecordingType',
   "datadog.trace.bootstrap.ActiveSubsystems",

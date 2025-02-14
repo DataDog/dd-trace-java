@@ -12,6 +12,7 @@ import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.api.ProductActivation
+import datadog.trace.api.appsec.api.security.model.Endpoint
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.env.CapturedEnvironment
@@ -45,11 +46,13 @@ import okhttp3.RequestBody
 import okhttp3.Response
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import spock.lang.Shared
 
 import javax.annotation.Nonnull
 import java.util.concurrent.ExecutorCompletionService
 import java.util.concurrent.Executors
 import java.util.function.BiFunction
+import java.util.function.Consumer
 import java.util.function.Function
 import java.util.function.Supplier
 
@@ -132,6 +135,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     ss.registerCallback(events.responseHeaderDone(), callbacks.responseHeaderDoneCb)
     ss.registerCallback(events.requestPathParams(), callbacks.requestParamsCb)
     ss.registerCallback(events.requestSession(), callbacks.requestSessionCb)
+    ss.registerCallback(events.endpoints(), callbacks.endpointsCb)
 
     if (Config.get().getIastActivation() == ProductActivation.FULLY_ENABLED) {
       def iastSubService = get().getSubscriptionService(RequestContextSlot.IAST)
@@ -392,6 +396,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     true
   }
 
+  boolean testEndpointDiscovery() {
+    false
+  }
+
   @Override
   int version() {
     return 0
@@ -406,6 +414,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   String operation() {
     return expectedOperationName()
   }
+
+  @Shared
+  final List<Endpoint> ENDPOINTS = []
 
   enum ServerEndpoint {
     SUCCESS("success", 200, "success"),
@@ -444,6 +455,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     SECURE_SUCCESS("secure/success", 200, null),
 
     SESSION_ID("session", 200, null),
+
+    ENDPOINT_DISCOVERY('discovery', 200, 'OK')
 
     private final String path
     private final String rawPath
@@ -1903,6 +1916,26 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     secondResponse.body().string().contains(sessionId as String)
   }
 
+  void 'test endpoint discovery'() {
+    setup:
+    assumeTrue(testEndpointDiscovery())
+
+    when:
+    final endpoints = ENDPOINTS.findAll { it.path == ServerEndpoint.ENDPOINT_DISCOVERY.path }
+
+    then:
+    !endpoints.isEmpty()
+    endpoints.each {
+      assert it.path == ServerEndpoint.ENDPOINT_DISCOVERY.path
+      assert it.type == Endpoint.Type.REST
+      assert it.operation == Endpoint.Operation.HTTP_REQUEST
+    }
+    assertEndpointDiscovery(endpoints)
+  }
+
+  // to be overridden for more specific asserts
+  void assertEndpointDiscovery(final List<?> endpoints) { }
+
   void controllerSpan(TraceAssert trace, ServerEndpoint endpoint = null) {
     def exception = endpoint == CUSTOM_EXCEPTION ? expectedCustomExceptionType() : expectedExceptionType()
     def errorMessage = endpoint?.body
@@ -2258,6 +2291,12 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       }
       Flow.ResultFlow.empty()
     } as BiFunction<RequestContext, String, Flow<Void>>
+
+    final Consumer<Iterator<Endpoint>> endpointsCb = {
+      Iterator<Endpoint> endpoints ->
+      ENDPOINTS.clear()
+      endpoints.each { ENDPOINTS.add(it) }
+    }
   }
 
   class IastIGCallbacks {

@@ -29,6 +29,7 @@ import com.datadog.appsec.report.AppSecEventWrapper;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.UserIdCollectionMode;
+import datadog.trace.api.appsec.api.security.model.Endpoint;
 import datadog.trace.api.gateway.Events;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
@@ -56,13 +57,17 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Spliterator;
+import java.util.Spliterators;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -172,6 +177,10 @@ public class GatewayBridge {
       subscriptionService.registerCallback(
           EVENTS.requestBodyProcessed(), this::onRequestBodyProcessed);
     }
+
+    if (Config.get().isApiSecurityEndpointCollectionEnabled()) {
+      subscriptionService.registerCallback(EVENTS.endpoints(), this::onEndpoints);
+    }
   }
 
   /**
@@ -196,6 +205,13 @@ public class GatewayBridge {
     loginEventSubInfo.clear();
     execCmdSubInfo = null;
     shellCmdSubInfo = null;
+  }
+
+  private void onEndpoints(final Iterator<Endpoint> endpoints) {
+    // TODO: do something with the endpoints
+    StreamSupport.stream(Spliterators.spliteratorUnknownSize(endpoints, Spliterator.ORDERED), false)
+        .limit(Config.get().getApiSecurityEndpointCollectionMessageLimit())
+        .forEach(System.out::println);
   }
 
   private Flow<Void> onUser(
