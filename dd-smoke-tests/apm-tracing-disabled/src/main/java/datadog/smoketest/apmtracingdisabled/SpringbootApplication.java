@@ -1,4 +1,4 @@
-package datadog.smoketest.asmstandalonebilling;
+package datadog.smoketest.apmtracingdisabled;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

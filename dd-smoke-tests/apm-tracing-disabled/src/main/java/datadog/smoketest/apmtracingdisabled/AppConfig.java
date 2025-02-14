@@ -1,4 +1,4 @@
-package datadog.smoketest.asmstandalonebilling;
+package datadog.smoketest.apmtracingdisabled;
 
 import java.util.EnumSet;
 import javax.servlet.ServletContext;

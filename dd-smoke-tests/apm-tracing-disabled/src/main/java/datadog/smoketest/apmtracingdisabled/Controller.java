@@ -1,4 +1,4 @@
-package datadog.smoketest.asmstandalonebilling;
+package datadog.smoketest.apmtracingdisabled;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.opentracing.Span;

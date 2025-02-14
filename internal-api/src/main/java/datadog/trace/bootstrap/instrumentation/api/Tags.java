@@ -146,6 +146,6 @@ public class Tags {
   /** ASM force tracer to keep the trace */
   public static final String ASM_KEEP = "asm.keep";
 
-  public static final String PROPAGATED_APPSEC = "_dd.p.appsec";
+  public static final String PROPAGATED_TRACE_SOURCE = "_dd.p.ts";
   public static final String PROPAGATED_DEBUG = "_dd.p.debug";
 }
