@@ -133,13 +133,21 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     givenMavenDependenciesAreLoaded(projectName, mavenVersion)
 
     mockBackend.givenTestManagement(true)
+    mockBackend.givenAttemptToFixRetries(5)
+
     mockBackend.givenQuarantinedTests("Maven Smoke Tests Project maven-surefire-plugin default-test", "datadog.smoke.TestFailed", "test_failed")
+    mockBackend.givenQuarantinedTests("Maven Smoke Tests Project maven-surefire-plugin default-test", "datadog.smoke.TestSucceeded", "test_succeeded")
+
     mockBackend.givenDisabledTests("Maven Smoke Tests Project maven-surefire-plugin default-test", "datadog.smoke.TestFailed", "test_another_failed")
+    mockBackend.givenDisabledTests("Maven Smoke Tests Project maven-surefire-plugin default-test", "datadog.smoke.TestSucceeded", "test_another_succeeded")
+
+    mockBackend.givenAttemptToFixTests("Maven Smoke Tests Project maven-surefire-plugin default-test", "datadog.smoke.TestSucceeded", "test_succeeded")
+    mockBackend.givenAttemptToFixTests("Maven Smoke Tests Project maven-surefire-plugin default-test", "datadog.smoke.TestFailed", "test_another_failed")
 
     def exitCode = whenRunningMavenBuild([], [])
     assert exitCode == 0
 
-    verifyEventsAndCoverages(projectName, "maven", mavenVersion, mockBackend.waitForEvents(9), mockBackend.waitForCoverages(1))
+    verifyEventsAndCoverages(projectName, "maven", mavenVersion, mockBackend.waitForEvents(20), mockBackend.waitForCoverages(11))
 
     where:
     projectName                                   | mavenVersion
