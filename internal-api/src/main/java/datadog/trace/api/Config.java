@@ -359,6 +359,7 @@ public class Config {
   private final List<String> ciVisibilityResourceFolderNames;
   private final boolean ciVisibilityFlakyRetryEnabled;
   private final boolean ciVisibilityImpactedTestsDetectionEnabled;
+  private final boolean ciVisibilityImpactedTestsBackendRequestEnabled;
   private final boolean ciVisibilityKnownTestsRequestEnabled;
   private final boolean ciVisibilityFlakyRetryOnlyKnownFlakes;
   private final int ciVisibilityFlakyRetryCount;
@@ -1501,6 +1502,8 @@ public class Config {
         configProvider.getBoolean(CIVISIBILITY_FLAKY_RETRY_ENABLED, true);
     ciVisibilityImpactedTestsDetectionEnabled =
         configProvider.getBoolean(CIVISIBILITY_IMPACTED_TESTS_DETECTION_ENABLED, true);
+    ciVisibilityImpactedTestsBackendRequestEnabled =
+        configProvider.getBoolean(CIVISIBILITY_IMPACTED_TESTS_BACKEND_REQUEST_ENABLED, false);
     ciVisibilityKnownTestsRequestEnabled =
         configProvider.getBoolean(CIVISIBILITY_KNOWN_TESTS_REQUEST_ENABLED, true);
     ciVisibilityFlakyRetryOnlyKnownFlakes =
@@ -2943,6 +2946,10 @@ public class Config {
 
   public boolean isCiVisibilityImpactedTestsDetectionEnabled() {
     return ciVisibilityImpactedTestsDetectionEnabled;
+  }
+
+  public boolean isCiVisibilityImpactedTestsBackendRequestEnabled() {
+    return ciVisibilityImpactedTestsBackendRequestEnabled;
   }
 
   public boolean isCiVisibilityKnownTestsRequestEnabled() {
