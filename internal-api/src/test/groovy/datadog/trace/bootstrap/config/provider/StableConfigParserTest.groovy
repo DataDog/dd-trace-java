@@ -7,25 +7,25 @@ import java.nio.file.Path
 
 class StableConfigParserTest extends DDSpecification {
 
-  def "test parser"() {
+  def "test valid file format"() {
     when:
     Path filePath = StableConfigSourceTest.tempFile()
     if (filePath == null) {
       throw new AssertionError("Failed to create test file")
     }
-    HashMap<String, Object> configs = new HashMap<>()
-    configs.put("KEY_ONE", "VALUE_ONE")
-    configs.put("KEY_TWO", "VALUE_TWO")
-    configs.put("KEY_THREE", "VALUE_THREE")
-
-    HashMap<String, Object> fileContent = new HashMap<>()
-    fileContent.put("something-irrelevant-to-apm", "")
-    fileContent.put("config_id", "12345")
-    fileContent.put("something-else-irrelevant", "value-irrelevant")
-    fileContent.put("apm_configuration_default", configs)
-
+    String yaml = """
+something-irrelevant: ""
+config_id: 12345
+apm_configuration_default:
+  KEY_ONE: value_one
+  KEY_TWO: "value_two"
+  KEY_THREE: 100
+  KEY_FOUR: true
+  KEY_FIVE: [a,b,c,d]
+something-else-irrelevant: value-irrelevant
+"""
     try {
-      StableConfigSourceTest.writeFileYaml(filePath, fileContent)
+      StableConfigSourceTest.writeFileRaw(filePath, yaml)
     } catch (IOException e) {
       throw new AssertionError("Failed to write to file: ${e.message}")
     }
@@ -39,13 +39,16 @@ class StableConfigParserTest extends DDSpecification {
 
     then:
     def keys = cfg.getKeys()
-    keys.size() == 3
-    !keys.contains("something-irrelevant-to-apm")
+    keys.size() == 5
+    !keys.contains("something-irrelevant")
     !keys.contains("something-else-irrelevant")
     cfg.getConfigId().trim() == ("12345")
-    cfg.get("KEY_ONE") == "VALUE_ONE"
-    cfg.get("KEY_TWO") == "VALUE_TWO"
-    cfg.get("KEY_THREE") == "VALUE_THREE"
+    cfg.get("KEY_ONE") == "value_one"
+    cfg.get("KEY_TWO") == "value_two"
+    cfg.get("KEY_THREE") == "100"
+    cfg.get("KEY_FOUR") == "true"
+    cfg.get("KEY_FIVE") == "[a,b,c,d]"
     Files.delete(filePath)
   }
+//  def "test parser invalid file format"() {}
 }

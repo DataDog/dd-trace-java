@@ -135,7 +135,6 @@ class StableConfigSourceTest extends DDSpecification {
     }
   }
 
-  // Use this if you want to explicitly write/test configId
   static writeFileYaml(Path filePath, String configId, Map configs) {
     DumperOptions options = new DumperOptions()
     options.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK)
@@ -157,22 +156,14 @@ class StableConfigSourceTest extends DDSpecification {
     Files.write(filePath, yamlString.getBytes(), openOpts)
   }
 
-  static writeFileYaml(Path filePath, Map fileContent) {
-    DumperOptions options = new DumperOptions()
-    options.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK)
-
-    // Prepare to write the data map to the file in yaml format
-    Yaml yaml = new Yaml(options)
-    String yamlString
-
-    yamlString = yaml.dump(fileContent)
-
-    StandardOpenOption[] openOpts = [StandardOpenOption.WRITE] as StandardOpenOption[]
-    Files.write(filePath, yamlString.getBytes(), openOpts)
-  }
-
+  // Use this if you want to explicitly write/test configId
   def writeFileRaw(Path filePath, String configId, String configs) {
     String data = configId + "\n" + configs
+    StandardOpenOption[] openOpts = [StandardOpenOption.WRITE] as StandardOpenOption[]
+    Files.write(filePath, data.getBytes(), openOpts)
+  }
+
+  static writeFileRaw(Path filePath, String data) {
     StandardOpenOption[] openOpts = [StandardOpenOption.WRITE] as StandardOpenOption[]
     Files.write(filePath, data.getBytes(), openOpts)
   }

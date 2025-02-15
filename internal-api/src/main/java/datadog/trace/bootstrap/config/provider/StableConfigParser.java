@@ -44,7 +44,6 @@ public class StableConfigParser {
             if (apmConfigFound.get()) {
               Matcher keyValueMatcher = keyValPattern.matcher(line);
               if (keyValueMatcher.matches()) {
-                // If value has quotes, remove them
                 cfg.put(
                     keyValueMatcher.group(1).trim(),
                     trimQuotes(keyValueMatcher.group(2).trim())); // Store key-value pair in map
