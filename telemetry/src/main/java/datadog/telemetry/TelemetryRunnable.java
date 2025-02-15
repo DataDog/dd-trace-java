@@ -84,7 +84,6 @@ public class TelemetryRunnable implements Runnable {
 
     if (startupEventSent) {
       flushPendingTelemetryData();
-      telemetryService.sendAppClosingEvent();
     }
     log.debug("Telemetry thread finished");
   }
@@ -124,7 +123,7 @@ public class TelemetryRunnable implements Runnable {
         action.doIteration(this.telemetryService);
       }
       for (int i = 0; i < MAX_CONSECUTIVE_REQUESTS; i++) {
-        if (!telemetryService.sendTelemetryEvents()) {
+        if (!telemetryService.sendTelemetryEvents(false)) {
           // stop if there is no more data to be sent, or it failed to send a request
           break;
         }
@@ -157,7 +156,7 @@ public class TelemetryRunnable implements Runnable {
     for (final TelemetryPeriodicAction action : actions) {
       action.doIteration(telemetryService);
     }
-    telemetryService.sendTelemetryEvents();
+    telemetryService.sendTelemetryEvents(true);
   }
 
   interface ThreadSleeper {
