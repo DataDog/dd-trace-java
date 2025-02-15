@@ -42,6 +42,7 @@ import datadog.trace.api.telemetry.RuleType;
 import datadog.trace.api.telemetry.WafMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
+import datadog.trace.util.NonBlockingSemaphore;
 import datadog.trace.util.stacktrace.StackTraceEvent;
 import datadog.trace.util.stacktrace.StackUtils;
 import java.net.URI;
@@ -94,6 +95,10 @@ public class GatewayBridge {
   }
 
   private static final String METASTRUCT_EXPLOIT = "exploit";
+
+  private final int MAX_POST_PROCESSING_TASKS = 16;
+  private final NonBlockingSemaphore postProcessingCounter =
+      NonBlockingSemaphore.withPermitCount(MAX_POST_PROCESSING_TASKS);
 
   private final SubscriptionService subscriptionService;
   private final EventProducerService producerService;
@@ -164,6 +169,7 @@ public class GatewayBridge {
     subscriptionService.registerCallback(EVENTS.shellCmd(), this::onShellCmd);
     subscriptionService.registerCallback(EVENTS.user(), this::onUser);
     subscriptionService.registerCallback(EVENTS.loginEvent(), this::onLoginEvent);
+    subscriptionService.registerCallback(EVENTS.postProcessing(), this::onPostProcessing);
 
     if (additionalIGEvents.contains(EVENTS.requestPathParams())) {
       subscriptionService.registerCallback(EVENTS.requestPathParams(), this::onRequestPathParams);
@@ -768,12 +774,8 @@ public class GatewayBridge {
       return NoopFlow.INSTANCE;
     }
 
-    maybeExtractSchemas(ctx);
-
-    // WAF call
-    ctx.closeAdditive();
-
     TraceSegment traceSeg = ctx_.getTraceSegment();
+    Map<String, Object> tags = spanInfo.getTags();
 
     // AppSec report metric and events for web span only
     if (traceSeg != null) {
@@ -795,7 +797,7 @@ public class GatewayBridge {
         traceSeg.setTagTop("network.client.ip", ctx.getPeerAddress());
 
         // Reflect client_ip as actor.ip for backward compatibility
-        Object clientIp = spanInfo.getTags().get(Tags.HTTP_CLIENT_IP);
+        Object clientIp = tags.get(Tags.HTTP_CLIENT_IP);
         if (clientIp != null) {
           traceSeg.setTagTop("actor.ip", clientIp);
         }
@@ -835,7 +837,16 @@ public class GatewayBridge {
       }
     }
 
-    ctx.close(spanInfo.isRequiresPostProcessing());
+    // Route used in post-processing
+    Object route = tags.get(Tags.HTTP_ROUTE);
+    if (route instanceof String) {
+      ctx.setRoute((String) route);
+    }
+    if (requestSampler.preSampleRequest(ctx) && postProcessingCounter.acquire()) {
+      // The request is pre-sampled - we need to post-process it
+      spanInfo.setRequiresPostProcessing(true);
+    }
+
     return NoopFlow.INSTANCE;
   }
 
@@ -892,6 +903,19 @@ public class GatewayBridge {
     } else {
       ctx.addRequestHeader(name, value);
     }
+  }
+
+  // This handler is executed in a separate thread due the computation possible overhead
+  private void onPostProcessing(RequestContext ctx_) {
+    AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx == null) {
+      return;
+    }
+
+    maybeExtractSchemas(ctx);
+    ctx.close();
+    // Decrease the counter to allow the next request to be post-processed
+    postProcessingCounter.release();
   }
 
   public void stop() {
@@ -1062,7 +1086,7 @@ public class GatewayBridge {
   private void maybeExtractSchemas(AppSecRequestContext ctx) {
     boolean extractSchema = false;
     if (Config.get().isApiSecurityEnabled() && requestSampler != null) {
-      extractSchema = requestSampler.sampleRequest();
+      extractSchema = requestSampler.sampleRequest(ctx);
     }
 
     if (!extractSchema) {
