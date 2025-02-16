@@ -380,7 +380,7 @@ class ScopeManagerTest extends DDCoreSpecification {
 
     then: "the continued scope becomes active and span state doesnt change"
     newScope instanceof ContinuableScope
-    newScope.isAsyncPropagating()
+    tracer.isAsyncPropagationEnabled()
     scopeManager.active() == newScope
     newScope != childScope
     newScope != parentScope
