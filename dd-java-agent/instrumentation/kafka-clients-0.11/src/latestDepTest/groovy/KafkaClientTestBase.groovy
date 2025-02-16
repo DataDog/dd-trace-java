@@ -1,6 +1,6 @@
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled
 
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
@@ -177,7 +177,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     String greeting = "Hello Spring Kafka Sender!"
     runUnderTrace("parent") {
       producer.send(new ProducerRecord(SHARED_TOPIC, greeting)) { meta, ex ->
-        assert activeScope().isAsyncPropagating()
+        assert isAsyncPropagationEnabled()
         if (ex == null) {
           runUnderTrace("producer callback") {}
         } else {
