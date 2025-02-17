@@ -34,7 +34,7 @@ public enum TestSetting {
     return (mask & setting.flag) != 0;
   }
 
-  public static class TestSettingsSerializer {
+  public static class TestSettingSerializer {
     public static void serialize(Serializer serializer, TestSetting setting) {
       serializer.write(setting.flag);
     }
