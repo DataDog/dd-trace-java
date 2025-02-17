@@ -2,7 +2,7 @@ package datadog.trace.civisibility.execution;
 
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 /**
  * Runs a test case once. If it fails - suppresses the failure so that the build status is not

@@ -4,15 +4,16 @@ import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
 import datadog.trace.civisibility.config.ExecutionsByDuration;
 import java.util.List;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 /** Runs a test case N times (N depends on test duration) regardless of success or failure. */
 public class RunNTimes implements TestExecutionPolicy {
 
   private final boolean suppressFailures;
-  private int executions;
   private final List<ExecutionsByDuration> executionsByDuration;
+  private int executions;
   private int maxExecutions;
+  private int totalExecutionsSeen;
   private int successfulExecutionsSeen;
   private final RetryReason retryReason;
 
@@ -21,9 +22,11 @@ public class RunNTimes implements TestExecutionPolicy {
       boolean suppressFailures,
       RetryReason retryReason) {
     this.suppressFailures = suppressFailures;
-    this.executions = 0;
     this.executionsByDuration = executionsByDuration;
+    this.executions = 0;
     this.maxExecutions = getExecutions(0);
+    this.totalExecutionsSeen = 0;
+    this.successfulExecutionsSeen = 0;
     this.retryReason = retryReason;
   }
 
@@ -52,6 +55,7 @@ public class RunNTimes implements TestExecutionPolicy {
 
   @Override
   public boolean retry(boolean successful, long durationMillis) {
+    ++totalExecutionsSeen;
     if (successful) {
       ++successfulExecutionsSeen;
     }
@@ -77,6 +81,6 @@ public class RunNTimes implements TestExecutionPolicy {
 
   @Override
   public boolean hasSucceededAllRetries() {
-    return currentExecutionIsLast() && successfulExecutionsSeen == maxExecutions - 1;
+    return currentExecutionIsLast() && successfulExecutionsSeen == totalExecutionsSeen;
   }
 }
