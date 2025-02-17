@@ -129,7 +129,7 @@
       "test.module" : "junit-5.3",
       "test.name" : "test_parameterized",
       "test.parameters" : "{\"metadata\":{\"test_name\":\"[1] 0, 0, 0, some:\\\"parameter\\\"\"}}",
-      "test.skip_reason" : "Skipped by Datadog Intelligent Test Runner",
+      "test.skip_reason" : "Skipped by Datadog Test Impact Analysis",
       "test.skipped_by_itr" : "true",
       "test.source.file" : "dummy_source_path",
       "test.source.method" : "test_parameterized(IIILjava/lang/String;)V",

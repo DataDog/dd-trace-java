@@ -102,7 +102,6 @@
       "test.codeowners" : "[\"owner1\",\"owner2\"]",
       "test.framework" : "spock",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.management.is_quarantined" : "true",
       "test.module" : "spock-junit-5",
       "test.name" : "test add 4 and 4",
       "test.parameters" : "{\"metadata\":{\"test_name\":\"test add 4 and 4\"}}",
@@ -110,6 +109,7 @@
       "test.source.method" : "test add #a and #b(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)V",
       "test.status" : "fail",
       "test.suite" : "org.example.TestFailedParameterizedSpock",
+      "test.test_management.is_quarantined" : "true",
       "test.type" : "test",
       "test_session.name" : "session-name"
     },

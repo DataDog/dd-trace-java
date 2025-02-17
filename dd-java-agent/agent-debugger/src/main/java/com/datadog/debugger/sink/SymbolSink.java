@@ -63,7 +63,7 @@ public class SymbolSink {
     this.version = TagsHelper.sanitize(config.getVersion());
     this.symbolUploader = symbolUploader;
     this.maxPayloadSize = maxPayloadSize;
-    this.isCompressed = config.isDebuggerSymbolCompressed();
+    this.isCompressed = config.isSymbolDatabaseCompressed();
     byte[] eventContent =
         String.format(
                 EVENT_FORMAT, TagsHelper.sanitize(config.getServiceName()), config.getRuntimeId())

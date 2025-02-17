@@ -168,7 +168,11 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
     }
 
     if (testModule.isQuarantined(thisTest)) {
-      test.setTag(Tags.TEST_MANAGEMENT_IS_QUARANTINED, true);
+      test.setTag(Tags.TEST_TEST_MANAGEMENT_IS_QUARANTINED, true);
+    }
+
+    if (testModule.isDisabled(thisTest)) {
+      test.setTag(Tags.TEST_TEST_MANAGEMENT_IS_TEST_DISABLED, true);
     }
 
     if (testExecutionHistory != null) {

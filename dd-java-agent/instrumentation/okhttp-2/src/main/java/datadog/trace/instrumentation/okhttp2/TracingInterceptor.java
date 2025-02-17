@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.okhttp2;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -26,7 +27,7 @@ public class TracingInterceptor implements Interceptor {
       DECORATE.onRequest(span, chain.request());
 
       final Request.Builder requestBuilder = chain.request().newBuilder();
-      propagate().inject(span, requestBuilder, SETTER);
+      defaultPropagator().inject(span, requestBuilder, SETTER);
       propagate()
           .injectPathwayContext(
               span, requestBuilder, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);

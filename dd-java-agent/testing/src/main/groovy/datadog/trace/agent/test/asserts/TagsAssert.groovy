@@ -13,6 +13,9 @@ import groovy.transform.stc.SimpleType
 
 import java.util.regex.Pattern
 
+import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_FRAME
+import static java.lang.String.format
+
 class TagsAssert {
   private final long spanParentId
   private final Map<String, Object> tags
@@ -109,6 +112,15 @@ class TagsAssert {
       assert tags[Tags.PEER_SERVICE] == null
       assert tags[DDTags.PEER_SERVICE_SOURCE] == null
     }
+  }
+
+  def codeOriginTags() {
+    assert tags[DDTags.DD_CODE_ORIGIN_TYPE] != null
+    assert tags[format(DD_CODE_ORIGIN_FRAME, 0, "file")] != null
+    assert tags[format(DD_CODE_ORIGIN_FRAME, 0, "method")] != null
+    assert tags[format(DD_CODE_ORIGIN_FRAME, 0, "line")] != null
+    assert tags[format(DD_CODE_ORIGIN_FRAME, 0, "type")] != null
+    assert tags[format(DD_CODE_ORIGIN_FRAME, 0, "signature")] != null
   }
 
   def errorTags(Throwable error) {

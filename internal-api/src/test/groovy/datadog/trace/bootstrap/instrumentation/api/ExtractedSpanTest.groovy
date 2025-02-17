@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.api
 
 import datadog.trace.api.DDTraceId
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.ExtractedSpan
 import spock.lang.Specification
 
 class ExtractedSpanTest extends Specification {

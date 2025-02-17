@@ -181,6 +181,7 @@ class KafkaReactorForkedTest extends AgentTestRunner {
         "$Tags.COMPONENT" "java-kafka"
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
         "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" config.get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG)
+        "$InstrumentationTags.MESSAGING_DESTINATION_NAME" "$KafkaClientTestBase.SHARED_TOPIC"
         peerServiceFrom(InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS)
         defaultTags()
       }
@@ -211,6 +212,7 @@ class KafkaReactorForkedTest extends AgentTestRunner {
         "$InstrumentationTags.CONSUMER_GROUP" "sender"
         "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" config.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG)
         "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
+        "$InstrumentationTags.MESSAGING_DESTINATION_NAME" "$KafkaClientTestBase.SHARED_TOPIC"
         defaultTags(true)
       }
     }

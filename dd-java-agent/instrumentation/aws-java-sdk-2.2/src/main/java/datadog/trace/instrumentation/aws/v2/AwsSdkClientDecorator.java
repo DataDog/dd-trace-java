@@ -37,6 +37,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import javax.annotation.Nonnull;
+import javax.annotation.ParametersAreNonnullByDefault;
 import software.amazon.awssdk.awscore.AwsResponse;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.core.SdkField;
@@ -443,6 +444,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     return response.statusCode();
   }
 
+  @ParametersAreNonnullByDefault
   @Override
   public void set(SdkHttpRequest.Builder carrier, String key, String value) {
     carrier.putHeader(key, value);

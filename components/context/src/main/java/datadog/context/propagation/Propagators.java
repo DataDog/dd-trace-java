@@ -78,7 +78,8 @@ public final class Propagators {
    * Creates a composite propagator.
    *
    * @param propagators the elements that composes the returned propagator.
-   * @return the composite propagator that will apply the propagators in their given order.
+   * @return the composite propagator that will apply the propagators in their given order for
+   *     context extraction, and reverse given order for context injection.
    */
   public static Propagator composite(Propagator... propagators) {
     if (propagators.length == 0) {

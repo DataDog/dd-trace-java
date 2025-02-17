@@ -4,6 +4,7 @@ import static datadog.trace.instrumentation.pekkohttp.PekkoHttpClientDecorator.D
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import javax.annotation.ParametersAreNonnullByDefault;
 import org.apache.pekko.http.javadsl.model.headers.RawHeader;
 import org.apache.pekko.http.scaladsl.model.HttpRequest;
 import org.apache.pekko.http.scaladsl.model.HttpResponse;
@@ -35,7 +36,7 @@ public final class PekkoHttpClientHelpers {
   public static class PekkoHttpHeaders implements AgentPropagation.Setter<HttpRequest> {
     private HttpRequest request;
     // Did this request have a span when the PekkoHttpHeaders object was created?
-    private boolean hadSpan;
+    private final boolean hadSpan;
 
     public PekkoHttpHeaders(final HttpRequest request) {
       hadSpan = request != null && request.getHeader(HasSpanHeader.class).isPresent();
@@ -51,6 +52,7 @@ public final class PekkoHttpClientHelpers {
       return hadSpan;
     }
 
+    @ParametersAreNonnullByDefault
     @Override
     public void set(final HttpRequest carrier, final String key, final String value) {
       // Coerce a Scala trait Self type into the correct type

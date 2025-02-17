@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.akkahttp;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
@@ -78,7 +79,7 @@ public final class AkkaHttpSingleRequestInstrumentation extends InstrumenterModu
       DECORATE.onRequest(span, request);
 
       if (request != null) {
-        propagate().inject(span, request, headers);
+        defaultPropagator().inject(span, request, headers);
         propagate()
             .injectPathwayContext(
                 span, request, headers, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);

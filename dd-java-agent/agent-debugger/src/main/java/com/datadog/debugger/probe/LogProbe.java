@@ -444,8 +444,8 @@ public class LogProbe extends ProbeDefinition implements Sampled {
   @Override
   public InstrumentationResult.Status instrument(
       MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<ProbeId> probeIds) {
-    // if evaluation is at exit and with condition, skip collecting data at entry
-    boolean captureEntry = !(getEvaluateAt() == MethodLocation.EXIT && hasCondition());
+    // only capture entry values if explicitly not at Exit. By default, we are using evaluateAt=EXIT
+    boolean captureEntry = getEvaluateAt() != MethodLocation.EXIT;
     return new CapturedContextInstrumentor(
             this,
             methodInfo,
@@ -555,7 +555,6 @@ public class LogProbe extends ProbeDefinition implements Sampled {
     if (probeCondition == null) {
       return true;
     }
-    long startTs = System.nanoTime();
     try {
       if (!probeCondition.execute(capture)) {
         return false;
@@ -564,9 +563,6 @@ public class LogProbe extends ProbeDefinition implements Sampled {
       status.addError(new EvaluationError(ex.getExpr(), ex.getMessage()));
       status.setConditionErrors(true);
       return false;
-    } finally {
-      LOGGER.debug(
-          "ProbeCondition for probe[{}] evaluated in {}ns", id, (System.nanoTime() - startTs));
     }
     return true;
   }

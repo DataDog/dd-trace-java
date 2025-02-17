@@ -1,8 +1,6 @@
 package datadog.trace.core;
 
 import static datadog.trace.api.DDTags.TRACE_START_TIME;
-import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
-import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_END_TO_END_DURATION_MS;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_STATUS;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
@@ -19,7 +17,6 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.metrics.SpanMetricRegistry;
 import datadog.trace.api.metrics.SpanMetrics;
-import datadog.trace.api.profiling.TransientProfilingContextHolder;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
@@ -48,11 +45,8 @@ import org.slf4j.LoggerFactory;
  * <p>Spans are created by the {@link CoreTracer#buildSpan}. This implementation adds some features
  * according to the DD agent.
  */
-public class DDSpan
-    implements AgentSpan, CoreSpan<DDSpan>, TransientProfilingContextHolder, AttachableWrapper {
+public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   private static final Logger log = LoggerFactory.getLogger(DDSpan.class);
-
-  public static final String CHECKPOINTED_TAG = "checkpointed";
 
   static DDSpan create(
       final String instrumentationName,
@@ -557,12 +551,6 @@ public class DDSpan
   public final DDSpan setResourceName(final CharSequence resourceName, byte priority) {
     context.setResourceName(resourceName, priority);
     return this;
-  }
-
-  @Override
-  public boolean eligibleForDropping() {
-    int samplingPriority = context.getSamplingPriority();
-    return samplingPriority == USER_DROP || samplingPriority == SAMPLER_DROP;
   }
 
   @Override

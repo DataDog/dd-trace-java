@@ -54,12 +54,12 @@
       "test.codeowners" : "[\"owner1\",\"owner2\"]",
       "test.framework" : "scalatest",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.management.is_quarantined" : "true",
       "test.module" : "scalatest",
       "test.name" : "Example.add adds two numbers",
       "test.source.file" : "dummy_source_path",
       "test.status" : "fail",
       "test.suite" : "org.example.TestFailed",
+      "test.test_management.is_quarantined" : "true",
       "test.type" : "test",
       "test_session.name" : "session-name"
     },

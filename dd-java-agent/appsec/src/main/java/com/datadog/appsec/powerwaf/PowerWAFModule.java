@@ -26,6 +26,7 @@ import datadog.communication.monitor.Counter;
 import datadog.communication.monitor.Monitoring;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductActivation;
+import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.api.telemetry.TruncatedType;
@@ -512,7 +513,6 @@ public class PowerWAFModule implements AppSecModule {
             }
           } else {
             log.info("Ignoring action with type {}", actionInfo.type);
-            WafMetricCollector.get().wafRequestBlockFailure();
           }
         }
         Collection<AppSecEvent> events = buildEvents(resultWithData);
@@ -528,7 +528,9 @@ public class PowerWAFModule implements AppSecModule {
               // If APM is disabled, inform downstream services that the current
               // distributed trace contains at least one ASM event and must inherit
               // the given force-keep priority
-              activeSpan.getLocalRootSpan().setTag(Tags.PROPAGATED_APPSEC, true);
+              activeSpan
+                  .getLocalRootSpan()
+                  .setTag(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
             } else {
               // If active span is not available the ASK_KEEP tag will be set in the GatewayBridge
               // when the request ends
@@ -572,7 +574,6 @@ public class PowerWAFModule implements AppSecModule {
         return new Flow.Action.RequestBlockingAction(statusCode, blockingContentType);
       } catch (RuntimeException cce) {
         log.warn("Invalid blocking action data", cce);
-        WafMetricCollector.get().wafRequestBlockFailure();
         return null;
       }
     }
@@ -598,7 +599,6 @@ public class PowerWAFModule implements AppSecModule {
         return Flow.Action.RequestBlockingAction.forRedirect(statusCode, location);
       } catch (RuntimeException cce) {
         log.warn("Invalid blocking action data", cce);
-        WafMetricCollector.get().wafRequestBlockFailure();
         return null;
       }
     }

@@ -14,6 +14,7 @@ import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
+import datadog.context.propagation.Propagator;
 import datadog.trace.api.Config;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.WellKnownTags;
@@ -198,6 +199,12 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     } else {
       return AgentTracer.NoopPathwayContext.INSTANCE;
     }
+  }
+
+  @Override
+  public Propagator propagator() {
+    return new DataStreamPropagator(
+        this.traceConfigSupplier, this.timeSource, this.hashOfKnownTags, getThreadServiceName());
   }
 
   @Override

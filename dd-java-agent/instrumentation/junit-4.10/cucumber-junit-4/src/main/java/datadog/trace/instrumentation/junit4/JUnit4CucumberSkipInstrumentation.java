@@ -34,7 +34,9 @@ public class JUnit4CucumberSkipInstrumentation extends InstrumenterModule.CiVisi
 
   @Override
   public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems) && Config.get().isCiVisibilityTestSkippingEnabled();
+    return super.isApplicable(enabledSystems)
+        && (Config.get().isCiVisibilityTestSkippingEnabled()
+            || Config.get().isCiVisibilityTestManagementEnabled());
   }
 
   @Override

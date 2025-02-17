@@ -3,12 +3,12 @@ package datadog.trace.bootstrap.instrumentation.api
 
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
-import datadog.trace.test.util.DDSpecification
+import spock.lang.Specification
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpanLink.DEFAULT_FLAGS
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpanLink.SAMPLED_FLAG
 
-class SpanLinkTest extends DDSpecification {
+class SpanLinkTest extends Specification {
   def "test span link from context"() {
     setup:
     def traceId = DDTraceId.fromHex("11223344556677889900aabbccddeeff")

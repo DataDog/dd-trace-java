@@ -19,8 +19,6 @@ import datadog.trace.common.sampling.Sampler
 import datadog.trace.common.writer.DDAgentWriter
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.LoggingWriter
-import datadog.trace.core.datastreams.DataStreamContextExtractor
-import datadog.trace.core.propagation.HttpCodec
 import datadog.trace.core.tagprocessor.TagsPostProcessorFactory
 import datadog.trace.core.test.DDCoreSpecification
 import okhttp3.HttpUrl
@@ -54,9 +52,6 @@ class CoreTracerTest extends DDCoreSpecification {
     tracer.initialSampler instanceof RateByServiceTraceSampler
     tracer.writer instanceof DDAgentWriter
     tracer.statsDClient != null && tracer.statsDClient != StatsDClient.NO_OP
-
-    tracer.propagate().injector instanceof HttpCodec.CompoundInjector
-    tracer.propagate().extractor instanceof DataStreamContextExtractor
 
     cleanup:
     tracer.close()

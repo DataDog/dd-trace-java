@@ -1,7 +1,9 @@
 package datadog.trace.instrumentation.aws.v2.eventbridge;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import javax.annotation.ParametersAreNonnullByDefault;
 
+@ParametersAreNonnullByDefault
 public class TextMapInjectAdapter implements AgentPropagation.Setter<StringBuilder> {
 
   public static final TextMapInjectAdapter SETTER = new TextMapInjectAdapter();

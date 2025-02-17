@@ -16,6 +16,10 @@ public class TestAdviceClasses {
       a.b.aMethodWithArrays(new String[0]);
       B.aStaticMethod();
       A.staticB.aMethod("bar");
+      Object barr = new byte[0];
+      if (barr instanceof byte[]) {
+        barr = null;
+      }
     }
 
     public static class A {

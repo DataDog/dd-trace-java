@@ -98,7 +98,7 @@ class SamplingMechanismTest extends DDSpecification {
 
   void 'Test canAvoidSamplingPriorityLock'(){
     setup:
-    injectSysConfig("dd.experimental.appsec.standalone.enabled", "true")
+    injectSysConfig("dd.apm.tracing.enabled", "false")
 
     expect:
     canAvoidSamplingPriorityLock(priority, mechanism) == valid

@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.apachehttpasyncclient;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.instrumentation.apachehttpasyncclient.ApacheHttpAsyncClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.apachehttpasyncclient.HttpHeadersInjectAdapter.SETTER;
@@ -34,7 +35,7 @@ public class DelegatingRequestProducer implements HttpAsyncRequestProducer {
     final HttpRequest request = delegate.generateRequest();
     DECORATE.onRequest(span, new HostAndRequestAsHttpUriRequest(delegate.getTarget(), request));
 
-    propagate().inject(span, request, SETTER);
+    defaultPropagator().inject(span, request, SETTER);
     propagate()
         .injectPathwayContext(span, request, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
 

@@ -512,8 +512,8 @@ public class DDSpanContext
     }
   }
 
-  public void updateAppsecPropagation(boolean value) {
-    propagationTags.updateAppsecPropagation(value);
+  public void addPropagatedTraceSource(final int value) {
+    propagationTags.addTraceSource(value);
   }
 
   public void updateDebugPropagation(String value) {

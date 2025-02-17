@@ -8,6 +8,11 @@ final class ContinuationClaim implements AgentScope.Continuation {
   public static final ContinuationClaim CLAIMED = new ContinuationClaim();
 
   @Override
+  public AgentScope.Continuation hold() {
+    throw new IllegalStateException();
+  }
+
+  @Override
   public AgentScope activate() {
     throw new IllegalStateException();
   }

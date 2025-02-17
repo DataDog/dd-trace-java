@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.aws.v2.sns;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
@@ -37,7 +38,7 @@ public class SnsInterceptor implements ExecutionInterceptor {
     final AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
     StringBuilder jsonBuilder = new StringBuilder();
     jsonBuilder.append('{');
-    propagate().inject(span, jsonBuilder, SETTER);
+    defaultPropagator().inject(span, jsonBuilder, SETTER);
     if (traceConfig().isDataStreamsEnabled()) {
       propagate().injectPathwayContext(span, jsonBuilder, SETTER, getTags(snsTopicName));
     }

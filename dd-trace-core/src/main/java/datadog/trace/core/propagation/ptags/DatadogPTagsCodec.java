@@ -1,5 +1,6 @@
 package datadog.trace.core.propagation.ptags;
 
+import datadog.trace.api.ProductTraceSource;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.propagation.ptags.PTagsFactory.PTags;
 import datadog.trace.core.propagation.ptags.TagElement.Encoding;
@@ -61,7 +62,7 @@ final class DatadogPTagsCodec extends PTagsCodec {
     int tagPos = 0;
     TagValue decisionMakerTagValue = null;
     TagValue traceIdTagValue = null;
-    boolean appsecPropagationEnabled = false;
+    int traceSource = 0;
     while (tagPos < len) {
       int tagKeyEndsAt =
           validateCharsUntilSeparatorOrEnd(
@@ -96,8 +97,8 @@ final class DatadogPTagsCodec extends PTagsCodec {
             decisionMakerTagValue = tagValue;
           } else if (tagKey.equals(TRACE_ID_TAG)) {
             traceIdTagValue = tagValue;
-          } else if (tagKey.equals(APPSEC_TAG)) {
-            appsecPropagationEnabled = tagValue.charAt(0) == '1';
+          } else if (tagKey.equals(TRACE_SOURCE_TAG)) {
+            traceSource = ProductTraceSource.parseBitfieldHex(tagValue.toString());
           } else {
             if (tagPairs == null) {
               // This is roughly the size of a two element linked list but can hold six
@@ -110,8 +111,7 @@ final class DatadogPTagsCodec extends PTagsCodec {
       }
       tagPos = tagValueEndsAt + 1;
     }
-    return tagsFactory.createValid(
-        tagPairs, decisionMakerTagValue, traceIdTagValue, appsecPropagationEnabled);
+    return tagsFactory.createValid(tagPairs, decisionMakerTagValue, traceIdTagValue, traceSource);
   }
 
   @Override

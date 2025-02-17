@@ -58,4 +58,10 @@ public class MethodInfo {
   public String getTypeName() {
     return Strings.getClassName(classNode.name);
   }
+
+  @Override
+  public String toString() {
+    return String.format(
+        "MethodInfo{classNode=%s, methodNode=%s}", classNode.name, methodNode.desc);
+  }
 }

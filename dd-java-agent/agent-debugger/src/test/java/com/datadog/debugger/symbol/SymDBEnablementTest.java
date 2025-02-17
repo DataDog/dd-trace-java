@@ -50,7 +50,7 @@ class SymDBEnablementTest {
     when(instr.isModifiableClass(any())).thenReturn(true);
     config = mock(Config.class);
     when(config.getThirdPartyIncludes()).thenReturn(Collections.singleton("com.datadog.debugger"));
-    when(config.isDebuggerSymbolEnabled()).thenReturn(true);
+    when(config.isSymbolDatabaseEnabled()).thenReturn(true);
     symbolSink = mock(SymbolSink.class);
   }
 

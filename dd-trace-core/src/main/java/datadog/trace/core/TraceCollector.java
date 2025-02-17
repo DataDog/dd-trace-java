@@ -2,6 +2,7 @@ package datadog.trace.core;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentTraceCollector;
@@ -63,9 +64,11 @@ public abstract class TraceCollector implements AgentTraceCollector {
     // Locks inside DDSpanContext ensure the correct behavior in the race case
     DDSpan rootSpan = getRootSpan();
     if (traceConfig.sampler instanceof PrioritySampler && rootSpan != null) {
-      // Ignore the force-keep priority in the absence of propagated _dd.p.appsec span tag.
-      if ((Config.get().isAppSecStandaloneEnabled()
-              && !rootSpan.context().getPropagationTags().isAppsecPropagationEnabled())
+      // Ignore the force-keep priority in the absence of propagated _dd.p.ts span tag marked for
+      // ASM.
+      if ((!Config.get().isApmTracingEnabled()
+              && !ProductTraceSource.isProductMarked(
+                  rootSpan.context().getPropagationTags().getTraceSource(), ProductTraceSource.ASM))
           || rootSpan.context().getSamplingPriority() == PrioritySampling.UNSET) {
         ((PrioritySampler) traceConfig.sampler).setSamplingPriority(rootSpan);
       }

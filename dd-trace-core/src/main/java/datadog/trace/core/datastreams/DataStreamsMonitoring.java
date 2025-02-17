@@ -1,5 +1,6 @@
 package datadog.trace.core.datastreams;
 
+import datadog.context.propagation.Propagator;
 import datadog.trace.api.experimental.DataStreamsContextCarrier;
 import datadog.trace.bootstrap.instrumentation.api.AgentDataStreamsMonitoring;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -9,6 +10,13 @@ import datadog.trace.core.propagation.HttpCodec;
 
 public interface DataStreamsMonitoring extends AgentDataStreamsMonitoring, AutoCloseable {
   void start();
+
+  /**
+   * Gets the propagator for DSM concern.
+   *
+   * @return The propagator for DSM concern.
+   */
+  Propagator propagator();
 
   /**
    * Get a context extractor that support {@link PathwayContext} extraction.

@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.apachehttpclient5;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -45,7 +46,7 @@ public class HelperMethods {
     final boolean awsClientCall = request.containsHeader("amz-sdk-invocation-id");
     // AWS calls are often signed, so we can't add headers without breaking the signature.
     if (!awsClientCall) {
-      propagate().inject(span, request, SETTER);
+      defaultPropagator().inject(span, request, SETTER);
       propagate()
           .injectPathwayContext(
               span, request, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);

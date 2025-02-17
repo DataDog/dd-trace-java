@@ -2,6 +2,7 @@ package datadog.trace.core.propagation.ptags;
 
 import static datadog.trace.core.propagation.ptags.PTagsFactory.PROPAGATION_ERROR_TAG_KEY;
 
+import datadog.trace.api.ProductTraceSource;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.propagation.ptags.PTagsFactory.PTags;
 import datadog.trace.core.propagation.ptags.TagElement.Encoding;
@@ -15,12 +16,11 @@ abstract class PTagsCodec {
 
   protected static final TagKey DECISION_MAKER_TAG = TagKey.from("dm");
   protected static final TagKey TRACE_ID_TAG = TagKey.from("tid");
-  protected static final TagKey APPSEC_TAG = TagKey.from("appsec");
+  protected static final TagKey TRACE_SOURCE_TAG = TagKey.from("ts");
   protected static final TagKey DEBUG_TAG = TagKey.from("debug");
   protected static final String PROPAGATION_ERROR_MALFORMED_TID = "malformed_tid ";
   protected static final String PROPAGATION_ERROR_INCONSISTENT_TID = "inconsistent_tid ";
   protected static final TagKey UPSTREAM_SERVICES_DEPRECATED_TAG = TagKey.from("upstream_services");
-  protected static final TagValue APPSEC_ENABLED_TAG_VALUE = TagValue.from("1");
 
   static String headerValue(PTagsCodec codec, PTags ptags) {
     int estimate = codec.estimateHeaderSize(ptags);
@@ -38,8 +38,13 @@ abstract class PTagsCodec {
       if (ptags.getTraceIdHighOrderBitsHexTagValue() != null) {
         size = codec.appendTag(sb, TRACE_ID_TAG, ptags.getTraceIdHighOrderBitsHexTagValue(), size);
       }
-      if (ptags.isAppsecPropagationEnabled()) {
-        size = codec.appendTag(sb, APPSEC_TAG, APPSEC_ENABLED_TAG_VALUE, size);
+      if (ptags.getTraceSource() != ProductTraceSource.UNSET) {
+        size =
+            codec.appendTag(
+                sb,
+                TRACE_SOURCE_TAG,
+                TagValue.from(ProductTraceSource.getBitfieldHex(ptags.getTraceSource())),
+                size);
       }
       if (ptags.getDebugPropagation() != null) {
         size = codec.appendTag(sb, DEBUG_TAG, TagValue.from(ptags.getDebugPropagation()), size);
@@ -87,10 +92,12 @@ abstract class PTagsCodec {
           DECISION_MAKER_TAG.forType(Encoding.DATADOG).toString(),
           propagationTags.getDecisionMakerTagValue().forType(Encoding.DATADOG).toString());
     }
-    if (propagationTags.isAppsecPropagationEnabled()) {
+    if (propagationTags.getTraceSource() != ProductTraceSource.UNSET) {
       tagMap.put(
-          APPSEC_TAG.forType(Encoding.DATADOG).toString(),
-          APPSEC_ENABLED_TAG_VALUE.forType(Encoding.DATADOG).toString());
+          TRACE_SOURCE_TAG.forType(Encoding.DATADOG).toString(),
+          TagValue.from(ProductTraceSource.getBitfieldHex(propagationTags.getTraceSource()))
+              .forType(Encoding.DATADOG)
+              .toString());
     }
     if (propagationTags.getDebugPropagation() != null) {
       tagMap.put(
@@ -158,7 +165,7 @@ abstract class PTagsCodec {
       return false;
     } else if (tagKey.equals(TRACE_ID_TAG) && !validateTraceId(tagValue)) {
       return false;
-    } else if (tagKey.equals(APPSEC_TAG) && !validateAppsecTagValue(tagValue)) {
+    } else if (tagKey.equals(TRACE_SOURCE_TAG) && !validateTraceSourceTagValue(tagValue)) {
       return false;
     }
     return true;
@@ -222,8 +229,18 @@ abstract class PTagsCodec {
     return true;
   }
 
-  private static boolean validateAppsecTagValue(TagValue value) {
-    return value.length() == 1 && (value.charAt(0) == '1' || value.charAt(0) == '0');
+  private static boolean validateTraceSourceTagValue(TagValue value) {
+    // Ensure the string is not null and has a length between 2 and 8
+    if (value == null || value.length() < 2 || value.length() > 8) {
+      return false;
+    }
+    for (int i = 0; i < value.length(); i++) {
+      // Ensure each character is a valid hex digit
+      if (!isHexDigitCaseInsensitive(value.charAt(i))) {
+        return false;
+      }
+    }
+    return true;
   }
 
   protected static boolean isDigit(char c) {
@@ -232,5 +249,9 @@ abstract class PTagsCodec {
 
   protected static boolean isHexDigit(char c) {
     return c >= 'a' && c <= 'f' || isDigit(c);
+  }
+
+  protected static boolean isHexDigitCaseInsensitive(char c) {
+    return isHexDigit(c) || c >= 'A' && c <= 'F';
   }
 }

@@ -5,6 +5,7 @@ import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.api.iast.propagation.StringModule;
 import datadog.trace.api.iast.sink.ApplicationModule;
 import datadog.trace.api.iast.sink.CommandInjectionModule;
+import datadog.trace.api.iast.sink.EmailInjectionModule;
 import datadog.trace.api.iast.sink.HardcodedSecretModule;
 import datadog.trace.api.iast.sink.HeaderInjectionModule;
 import datadog.trace.api.iast.sink.HstsMissingHeaderModule;
@@ -67,6 +68,7 @@ public abstract class InstrumentationBridge {
   public static InsecureAuthProtocolModule INSECURE_AUTH_PROTOCOL;
   public static ReflectionInjectionModule REFLECTION_INJECTION;
   public static UntrustedDeserializationModule UNTRUSTED_DESERIALIZATION;
+  public static EmailInjectionModule EMAIL_INJECTION;
 
   private static final Map<Class<? extends IastModule>, Field> MODULE_MAP = buildModuleMap();
 

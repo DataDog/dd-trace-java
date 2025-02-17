@@ -14,7 +14,6 @@ import datadog.trace.api.gateway.EventType;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
-import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -63,15 +62,9 @@ public class AppSecEventTracker extends EventTracker {
     if (!isEnabled(mode)) {
       return;
     }
-    final AgentTracer.TracerAPI tracer = tracer();
-    if (tracer == null) {
-      return;
-    }
-    final TraceSegment segment = tracer.getTraceSegment();
-    if (segment == null) {
-      return;
-    }
-    segment.setTagTop("appsec.events.users.login.failure.usr.exists", false);
+    dispatch(
+        EVENTS.loginEvent(),
+        (ctx, callback) -> callback.apply(ctx, mode, "users.login.failure", false, null, null));
   }
 
   public void onUserEvent(final UserIdCollectionMode mode, final String userId) {

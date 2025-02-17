@@ -1,5 +1,8 @@
 package datadog.trace.instrumentation.opentracing31;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromSpanContext;
+
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -49,8 +52,8 @@ public class OTTracer implements Tracer {
   public <C> void inject(final SpanContext spanContext, final Format<C> format, final C carrier) {
     if (carrier instanceof TextMap) {
       final AgentSpanContext context = converter.toContext(spanContext);
-
-      tracer.propagate().inject(context, (TextMap) carrier, OTTextMapSetter.INSTANCE);
+      AgentSpan span = fromSpanContext(context);
+      defaultPropagator().inject(span, (TextMap) carrier, OTTextMapSetter.INSTANCE);
     } else {
       log.debug("Unsupported format for propagation - {}", format.getClass().getName());
     }

@@ -112,7 +112,7 @@ public class DDAgentApi extends RemoteApi {
                   (metricsEnabled && featuresDiscovery.supportsMetrics())
                           // Disabling the computation agent-side of the APM trace metrics by
                           // pretending it was already done by the library
-                          || Config.get().isAppSecStandaloneEnabled()
+                          || !Config.get().isApmTracingEnabled()
                       ? "true"
                       : "")
               .put(payload.toRequest())

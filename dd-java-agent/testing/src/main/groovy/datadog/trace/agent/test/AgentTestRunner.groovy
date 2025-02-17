@@ -3,6 +3,17 @@ package datadog.trace.agent.test
 import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.Logger
 import ch.qos.logback.classic.util.ContextInitializer
+import com.datadog.debugger.agent.ClassesToRetransformFinder
+import com.datadog.debugger.agent.Configuration
+import com.datadog.debugger.agent.ConfigurationUpdater
+import com.datadog.debugger.agent.DebuggerTransformer
+import com.datadog.debugger.agent.DenyListHelper
+import com.datadog.debugger.agent.JsonSnapshotSerializer
+import com.datadog.debugger.codeorigin.DefaultCodeOriginRecorder
+import com.datadog.debugger.instrumentation.InstrumentationResult
+import com.datadog.debugger.probe.ProbeDefinition
+import com.datadog.debugger.sink.DebuggerSink
+import com.datadog.debugger.sink.ProbeStatusSink
 import com.google.common.collect.Sets
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.monitor.Monitoring
@@ -28,6 +39,7 @@ import datadog.trace.api.time.SystemTimeSource
 import datadog.trace.bootstrap.ActiveSubsystems
 import datadog.trace.bootstrap.CallDepthThreadLocalMap
 import datadog.trace.bootstrap.InstrumentationErrors
+import datadog.trace.bootstrap.debugger.DebuggerContext
 import datadog.trace.bootstrap.instrumentation.api.AgentDataStreamsMonitoring
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI
@@ -41,6 +53,7 @@ import datadog.trace.core.DDSpan
 import datadog.trace.core.PendingTrace
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring
 import datadog.trace.test.util.DDSpecification
+import datadog.trace.util.AgentTaskScheduler
 import datadog.trace.util.Strings
 import de.thetaphi.forbiddenapis.SuppressForbidden
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
@@ -71,7 +84,11 @@ import static datadog.communication.http.OkHttpUtils.buildHttpClient
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_HOST
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_TIMEOUT
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_ENABLED
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE
+import static datadog.trace.api.config.TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious
+import static datadog.trace.util.AgentThreadFactory.AgentThread.TASK_SCHEDULER
 
 /**
  * A spock test runner which automatically applies instrumentation and exposes a global trace
@@ -286,6 +303,40 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     rootLogger.setLevel(Level.WARN)
     ((Logger) LoggerFactory.getLogger("datadog")).setLevel(Level.DEBUG)
     ((Logger) LoggerFactory.getLogger("org.testcontainers")).setLevel(Level.DEBUG)
+  }
+
+  def codeOriginSetup() {
+    injectSysConfig(CODE_ORIGIN_FOR_SPANS_ENABLED, "true", true)
+    injectSysConfig(DYNAMIC_INSTRUMENTATION_ENABLED, "false", true)
+    injectSysConfig(DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE, "false", true)
+
+    def configuration = Configuration.builder()
+    .setService("code origin test")
+    .build()
+
+    rebuildConfig()
+
+    def config = Config.get()
+
+    def probeStatusSink = new ProbeStatusSink(config, "http://datadoghq.com", false)
+
+    def sink = new DebuggerSink(config, probeStatusSink)
+    ConfigurationUpdater configurationUpdater = new ConfigurationUpdater(INSTRUMENTATION, DebuggerTransformer::new, config, sink,
+    new ClassesToRetransformFinder())
+
+    INSTRUMENTATION.addTransformer(new DebuggerTransformer(config, configuration, {
+      ProbeDefinition definition, InstrumentationResult result ->
+    }, sink))
+    DebuggerContext.initProbeResolver(configurationUpdater)
+    DebuggerContext.initClassFilter(new DenyListHelper(null))
+    DebuggerContext.initValueSerializer(new JsonSnapshotSerializer())
+
+    DebuggerContext.initCodeOrigin(new DefaultCodeOriginRecorder(config, configurationUpdater, new AgentTaskScheduler(TASK_SCHEDULER) {
+      @Override
+      void execute(Runnable target) {
+        target.run()
+      }
+    }))
   }
 
   @SuppressForbidden
