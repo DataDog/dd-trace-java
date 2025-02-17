@@ -113,7 +113,7 @@ final class ScopeContinuation implements AgentScope.Continuation {
   }
 
   @Override
-  public AgentSpan getSpan() {
+  public AgentSpan span() {
     return spanUnderScope;
   }
 
