@@ -66,7 +66,7 @@ public class RunNTimes implements TestExecutionPolicy {
     return currentExecutionIsRetry() ? retryReason : null;
   }
 
-  public boolean currentExecutionIsRetry() {
+  private boolean currentExecutionIsRetry() {
     return executions > 0;
   }
 
