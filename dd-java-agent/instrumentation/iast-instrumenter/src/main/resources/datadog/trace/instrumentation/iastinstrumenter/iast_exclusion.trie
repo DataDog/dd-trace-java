@@ -131,6 +131,8 @@
 1 gnu.*
 1 graphql.*
 1 ibm.security.*
+# APPSEC-56801
+1 io.confluent.kafka.schemaregistry.client.rest.utils.UrlList
 1 io.dropwizard.*
 2 io.ebean.*
 2 io.ebeaninternal.*
