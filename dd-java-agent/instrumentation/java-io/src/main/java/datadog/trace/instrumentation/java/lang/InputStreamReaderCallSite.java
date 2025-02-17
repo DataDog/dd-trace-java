@@ -12,6 +12,7 @@ import javax.annotation.Nonnull;
 @CallSite(spi = IastCallSites.class)
 public class InputStreamReaderCallSite {
 
+  @CallSite.After("void java.io.InputStreamReader.<init>(java.io.InputStream)")
   @CallSite.After(
       "void java.io.InputStreamReader.<init>(java.io.InputStream, java.nio.charset.Charset)")
   public static InputStreamReader afterInit(

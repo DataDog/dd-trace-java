@@ -1,10 +1,13 @@
 package datadog.trace.instrumentation.json;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
+import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
+import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
@@ -13,15 +16,28 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import org.json.JSONArray;
-import org.json.JSONObject;
+import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class JSONObjectInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public JSONObjectInstrumentation() {
     super("org-json");
+  }
+
+  static final ElementMatcher.Junction<ClassLoader> BEFORE_20241224 =
+      not(hasClassNamed("org.json.StringBuilderWriter"));
+
+  @Override
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+    return BEFORE_20241224;
+  }
+
+  @Override
+  public String muzzleDirective() {
+    return "before_20241224";
   }
 
   @Override
@@ -31,22 +47,21 @@ public class JSONObjectInstrumentation extends InstrumenterModule.Iast
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
+    // public JSONObject(JSONTokener x)
     transformer.applyAdvice(
-        isConstructor().and(takesArguments(1)), getClass().getName() + "$ConstructorAdvice");
+        isConstructor().and(takesArguments(1)).and(takesArgument(0, named("org.json.JSONTokener"))),
+        getClass().getName() + "$ConstructorAdvice");
+    // private JSONObject(Map<?, ?> m)
     transformer.applyAdvice(
-        isMethod()
-            .and(isPublic())
-            .and(returns(Object.class))
-            .and(named("get"))
-            .and(takesArguments(String.class)),
-        getClass().getName() + "$GetAdvice");
+        isConstructor().and(takesArguments(1)).and(takesArgument(0, Map.class)),
+        getClass().getName() + "$ConstructorAdvice");
     transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(returns(Object.class))
             .and(named("opt"))
             .and(takesArguments(String.class)),
-        getClass().getName() + "$OptAdvice");
+        packageName + ".OptAdvice");
   }
 
   public static class ConstructorAdvice {
@@ -56,46 +71,6 @@ public class JSONObjectInstrumentation extends InstrumenterModule.Iast
       final PropagationModule iastModule = InstrumentationBridge.PROPAGATION;
       if (iastModule != null && input != null) {
         iastModule.taintObjectIfTainted(self, input);
-      }
-    }
-  }
-
-  public static class GetAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    @Propagation
-    public static void afterMethod(@Advice.This Object self, @Advice.Return final Object result) {
-      boolean isString = result instanceof String;
-      boolean isJson = !isString && (result instanceof JSONObject || result instanceof JSONArray);
-      if (!isString && !isJson) {
-        return;
-      }
-      final PropagationModule iastModule = InstrumentationBridge.PROPAGATION;
-      if (iastModule != null) {
-        if (isString) {
-          iastModule.taintStringIfTainted((String) result, self);
-        } else {
-          iastModule.taintObjectIfTainted(result, self);
-        }
-      }
-    }
-  }
-
-  public static class OptAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    @Propagation
-    public static void afterMethod(@Advice.This Object self, @Advice.Return final Object result) {
-      boolean isString = result instanceof String;
-      boolean isJson = !isString && (result instanceof JSONObject || result instanceof JSONArray);
-      if (!isString && !isJson) {
-        return;
-      }
-      final PropagationModule iastModule = InstrumentationBridge.PROPAGATION;
-      if (iastModule != null) {
-        if (isString) {
-          iastModule.taintStringIfTainted((String) result, self);
-        } else {
-          iastModule.taintObjectIfTainted(result, self);
-        }
       }
     }
   }
