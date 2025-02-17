@@ -4,7 +4,7 @@ package datadog.trace.civisibility.config
 import datadog.trace.civisibility.ipc.serialization.Serializer
 import spock.lang.Specification
 
-class TestSettingsTest extends Specification {
+class TestSettingTest extends Specification {
 
   def "test serialization: #tests"() {
     given:
