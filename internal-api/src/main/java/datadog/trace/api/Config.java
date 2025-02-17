@@ -551,6 +551,8 @@ public class Config {
   private final long tracePostProcessingTimeout;
 
   private final boolean dubboProviderPropagateEnabled;
+  private final boolean dubboRequestEnabled;
+  private final boolean dubboResponseEnabled;
 
   private final boolean telemetryDebugRequestsEnabled;
 
@@ -1765,6 +1767,11 @@ public class Config {
     dubboProviderPropagateEnabled =
         configProvider.getBoolean(
             TRACE_DUBBO_PROVIDER_PROPAGATE_ENABLED, DEFAULT_TRACE_DUBBO_PROVIDER_PROPAGATE_ENABLED);
+    dubboRequestEnabled =
+        configProvider.getBoolean(TRACE_DUBBO_REQUEST_ENABLED, DEFAULT_TRACE_DUBBO_REQUEST_ENABLED);
+
+    dubboResponseEnabled =
+        configProvider.getBoolean(TRACE_DUBBO_RESPONSE_ENABLED, DEFAULT_TRACE_DUBBO_RESPONSE_ENABLED);
 
     tracerResponseBodyEnabled =
         configProvider.getBoolean(TRACE_RESPONSE_BODY_ENABLED, DEFAULT_TRACE_RESPONSE_BODY_ENABLED);
@@ -3487,6 +3494,14 @@ public class Config {
 
   public boolean isDubboProviderPropagateEnabled() {
     return dubboProviderPropagateEnabled;
+  }
+
+  public boolean isDubboRequestEnabled() {
+    return dubboRequestEnabled;
+  }
+
+  public boolean isDubboResponseEnabled() {
+    return dubboResponseEnabled;
   }
 
   public boolean isTracerResponseBodyEnabled() {
