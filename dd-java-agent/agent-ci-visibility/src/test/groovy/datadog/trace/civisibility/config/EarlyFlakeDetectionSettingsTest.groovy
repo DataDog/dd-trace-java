@@ -4,15 +4,15 @@ package datadog.trace.civisibility.config
 import datadog.trace.civisibility.ipc.serialization.Serializer
 import spock.lang.Specification
 
-class EarlyFlakeDetectionSettingsSerializerTest extends Specification {
+class EarlyFlakeDetectionSettingsTest extends Specification {
 
   def "test serialization: #iterationIndex"() {
     when:
     Serializer s = new Serializer()
-    EarlyFlakeDetectionSettingsSerializer.serialize(s, settings)
+    EarlyFlakeDetectionSettings.Serializer.serialize(s, settings)
 
     def buffer = s.flush()
-    def deserialized = EarlyFlakeDetectionSettingsSerializer.deserialize(buffer)
+    def deserialized = EarlyFlakeDetectionSettings.Serializer.deserialize(buffer)
 
     then:
     deserialized == settings

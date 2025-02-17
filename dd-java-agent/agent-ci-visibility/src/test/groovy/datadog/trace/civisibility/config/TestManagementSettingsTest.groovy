@@ -3,14 +3,14 @@ package datadog.trace.civisibility.config
 import datadog.trace.civisibility.ipc.serialization.Serializer
 import spock.lang.Specification
 
-class TestManagementSettingsSerializerTest extends Specification {
-  def "test TestManagementSettings serialization: #iterationIndex"() {
+class TestManagementSettingsTest extends Specification {
+  def "test serialization: #iterationIndex"() {
     when:
     Serializer s = new Serializer()
-    TestManagementSettingsSerializer.serialize(s, settings)
+    TestManagementSettings.Serializer.serialize(s, settings)
 
     def buffer = s.flush()
-    def deserialized = TestManagementSettingsSerializer.deserialize(buffer)
+    def deserialized = TestManagementSettings.Serializer.deserialize(buffer)
 
     then:
     deserialized == settings

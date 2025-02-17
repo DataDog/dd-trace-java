@@ -85,7 +85,7 @@ class ExecutionStrategyTest extends Specification {
 
     def testManagementSettings = Stub(TestManagementSettings)
     testManagementSettings.isEnabled() >> true
-    testManagementSettings.getExecutionsByDuration() >> Collections.singletonList(new ExecutionsByDuration(Long.MAX_VALUE, 20))
+    testManagementSettings.getAttemptToFixExecutions() >> Collections.singletonList(new ExecutionsByDuration(Long.MAX_VALUE, 20))
 
     def earlyFlakeDetectionSettings = Stub(EarlyFlakeDetectionSettings)
     earlyFlakeDetectionSettings.isEnabled() >> true

@@ -1,6 +1,5 @@
 package datadog.trace.civisibility.config;
 
-import datadog.trace.civisibility.ipc.serialization.Serializer;
 import java.nio.ByteBuffer;
 import java.util.Objects;
 
@@ -38,14 +37,18 @@ public final class ExecutionsByDuration {
     return Objects.hash(durationMillis, executions);
   }
 
-  public static class ExecutionsByDurationSerializer {
-    public static void serialize(Serializer serializer, ExecutionsByDuration executionsByDuration) {
+  public static class Serializer {
+    public static void serialize(
+        datadog.trace.civisibility.ipc.serialization.Serializer serializer,
+        ExecutionsByDuration executionsByDuration) {
       serializer.write(executionsByDuration.durationMillis);
       serializer.write(executionsByDuration.executions);
     }
 
     public static ExecutionsByDuration deserialize(ByteBuffer buf) {
-      return new ExecutionsByDuration(Serializer.readLong(buf), Serializer.readInt(buf));
+      return new ExecutionsByDuration(
+          datadog.trace.civisibility.ipc.serialization.Serializer.readLong(buf),
+          datadog.trace.civisibility.ipc.serialization.Serializer.readInt(buf));
     }
   }
 }

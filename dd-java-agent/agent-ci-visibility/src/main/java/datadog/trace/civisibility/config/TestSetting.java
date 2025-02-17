@@ -1,6 +1,5 @@
 package datadog.trace.civisibility.config;
 
-import datadog.trace.civisibility.ipc.serialization.Serializer;
 import java.nio.ByteBuffer;
 
 public enum TestSetting {
@@ -34,13 +33,14 @@ public enum TestSetting {
     return (mask & setting.flag) != 0;
   }
 
-  public static class TestSettingSerializer {
-    public static void serialize(Serializer serializer, TestSetting setting) {
+  public static class Serializer {
+    public static void serialize(
+        datadog.trace.civisibility.ipc.serialization.Serializer serializer, TestSetting setting) {
       serializer.write(setting.flag);
     }
 
     public static TestSetting deserialize(ByteBuffer buf) {
-      int flag = Serializer.readInt(buf);
+      int flag = datadog.trace.civisibility.ipc.serialization.Serializer.readInt(buf);
       for (TestSetting setting : TestSetting.values()) {
         if (setting.flag == flag) {
           return setting;

@@ -12,8 +12,8 @@ class ExecutionSettingsTest extends Specification {
 
   def "test serialization: #settings"() {
     when:
-    def serialized = ExecutionSettings.ExecutionSettingsSerializer.serialize(settings)
-    def deserialized = ExecutionSettings.ExecutionSettingsSerializer.deserialize(serialized)
+    def serialized = ExecutionSettings.Serializer.serialize(settings)
+    def deserialized = ExecutionSettings.Serializer.deserialize(serialized)
 
     then:
     deserialized == settings

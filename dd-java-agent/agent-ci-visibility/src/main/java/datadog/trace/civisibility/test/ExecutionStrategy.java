@@ -124,7 +124,7 @@ public class ExecutionStrategy {
 
     if (isAttemptToFix(test)) {
       return new RunNTimes(
-          executionSettings.getTestManagementSettings().getExecutionsByDuration(),
+          executionSettings.getTestManagementSettings().getAttemptToFixExecutions(),
           isQuarantined(test) || isDisabled(test),
           RetryReason.attemptToFix);
     }

@@ -10,9 +10,9 @@ class TestSettingTest extends Specification {
     given:
     when:
     Serializer s = new Serializer()
-    s.write(tests, TestSetting.TestSettingSerializer::serialize)
+    s.write(tests, TestSetting.Serializer::serialize)
     def serializedTests = s.flush()
-    def deserializedTests = Serializer.readList(serializedTests, TestSetting.TestSettingSerializer::deserialize)
+    def deserializedTests = Serializer.readList(serializedTests, TestSetting.Serializer::deserialize)
 
     then:
     deserializedTests == tests
