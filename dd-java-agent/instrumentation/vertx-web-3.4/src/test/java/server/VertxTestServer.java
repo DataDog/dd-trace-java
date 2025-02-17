@@ -18,8 +18,8 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCES
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.UNKNOWN;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_BLOCK;
 import static datadog.trace.agent.test.utils.TraceUtils.runnableUnderTraceAsync;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled;
 
 import datadog.appsec.api.blocking.Blocking;
 import datadog.trace.agent.test.base.HttpServerTest;
@@ -254,7 +254,7 @@ public class VertxTestServer extends AbstractVerticle {
   private static void controller(
       RoutingContext ctx, final ServerEndpoint endpoint, final Runnable runnable) {
     assert activeSpan() != null : "Controller should have a parent span.";
-    assert activeScope().isAsyncPropagating() : "Scope should be propagating async.";
+    assert isAsyncPropagationEnabled() : "Span should be propagating async.";
     ctx.response()
         .putHeader(
             HttpServerTest.getIG_RESPONSE_HEADER(), HttpServerTest.getIG_RESPONSE_HEADER_VALUE());
