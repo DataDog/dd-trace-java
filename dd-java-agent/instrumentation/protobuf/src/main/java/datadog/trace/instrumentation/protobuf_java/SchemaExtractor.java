@@ -44,9 +44,7 @@ public class SchemaExtractor implements SchemaIterator {
     this.descriptor = descriptor;
   }
 
-  /**
-   * @return false if no more properties should be extracted
-   */
+  /** @return false if no more properties should be extracted */
   public static boolean extractProperty(
       FieldDescriptor field,
       String schemaName,

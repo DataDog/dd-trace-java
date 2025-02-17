@@ -81,10 +81,10 @@ class AbstractMessageInstrumentationTest extends AgentTestRunner {
 
     setup:
     MyMessage message = MyMessage.newBuilder()
-    .setId("1")
-    .setValue("Hello from Protobuf!")
-    .setNested(OtherMessage.newBuilder().setName("hello").setAge(10).build())
-    .build()
+      .setId("1")
+      .setValue("Hello from Protobuf!")
+      .setNested(OtherMessage.newBuilder().setName("hello").setAge(10).build())
+      .build()
     when:
     var bytes
     runUnderTrace("parent_serialize") {
@@ -230,9 +230,9 @@ class AbstractMessageInstrumentationTest extends AgentTestRunner {
   void 'test error when de-serializing'() {
     setup:
     MyMessage message = MyMessage.newBuilder()
-    .setId("1")
-    .setValue("Hello from Protobuf!")
-    .build()
+      .setId("1")
+      .setValue("Hello from Protobuf!")
+      .build()
     when:
     runUnderTrace("parent_deserialize") {
       AgentSpan span = activeSpan()
