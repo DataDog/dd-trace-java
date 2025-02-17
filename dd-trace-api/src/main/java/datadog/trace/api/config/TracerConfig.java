@@ -153,6 +153,9 @@ public final class TracerConfig {
 
   public static final String TRACE_DUBBO_PROVIDER_PROPAGATE_ENABLED =
       "trace.dubbo.provider.propagate.enabled";
+  public static final String TRACE_DUBBO_REQUEST_ENABLED = "trace.dubbo.request.enabled";
+  public static final String TRACE_DUBBO_RESPONSE_ENABLED = "trace.dubbo.response.enabled";
+
   public static final String TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES =
       "trace.cloud.payload.tagging.services";
   public static final String TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING =

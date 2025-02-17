@@ -1,10 +1,8 @@
 package datadog.trace.instrumentation.dubbo_2_7x;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.*;
-import static datadog.trace.instrumentation.dubbo_2_7x.DubboConstants.*;
-import static datadog.trace.instrumentation.dubbo_2_7x.DubboHeadersExtractAdapter.GETTER;
-import static datadog.trace.instrumentation.dubbo_2_7x.DubboHeadersInjectAdapter.SETTER;
-
+import com.google.gson.Gson;
+import com.squareup.moshi.JsonAdapter;
+import com.squareup.moshi.Moshi;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -13,12 +11,14 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 import org.apache.dubbo.common.URL;
 import org.apache.dubbo.common.utils.StringUtils;
-import org.apache.dubbo.rpc.Invocation;
-import org.apache.dubbo.rpc.Invoker;
-import org.apache.dubbo.rpc.RpcContext;
-import org.apache.dubbo.rpc.RpcInvocation;
+import org.apache.dubbo.rpc.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.*;
+import static datadog.trace.instrumentation.dubbo_2_7x.DubboConstants.*;
+import static datadog.trace.instrumentation.dubbo_2_7x.DubboHeadersExtractAdapter.GETTER;
+import static datadog.trace.instrumentation.dubbo_2_7x.DubboHeadersInjectAdapter.SETTER;
 
 public class DubboDecorator extends BaseDecorator {
   private static final Logger log = LoggerFactory.getLogger(DubboDecorator.class);
@@ -27,6 +27,8 @@ public class DubboDecorator extends BaseDecorator {
   public static final CharSequence DUBBO_SERVER = UTF8BytesString.create("apache-dubbo");
 
   public static final DubboDecorator DECORATE = new DubboDecorator();
+
+
 
   @Override
   protected String[] instrumentationNames() {
@@ -88,11 +90,17 @@ public class DubboDecorator extends BaseDecorator {
     span.setTag(TAG_VERSION,getVersion(url));
 
     span.setTag(TAG_SIDE,isConsumer?CONSUMER_SIDE:PROVIDER_SIDE);
-
+    withRequest(span,invocation);
     afterStart(span);
 
     withMethod(span, resourceName);
     return span;
+  }
+  public void withRequest(AgentSpan span, Invocation invocation) {
+    if (Config.get().isDubboRequestEnabled()) {
+      Gson gson = new Gson();
+      span.setTag("dubbo_request", gson.toJson(invocation.getArguments()));
+    }
   }
 
   public void withMethod(final AgentSpan span, final String methodName) {
@@ -170,6 +178,16 @@ public class DubboDecorator extends BaseDecorator {
     return agentScope;
   }
 
+  public AgentScope buildResult(AgentScope scope, Result result) {
+    if (Config.get().isDubboResponseEnabled()) {
+      AgentSpan span = scope.span();
+      if (!result.hasException()) {
+        Gson gson = new Gson();
+        span.setTag("dubbo_response", gson.toJson(result.getValue()));
+      }
+    }
+    return scope;
+  }
   private String getVersion(URL url){
     return url.getParameter(VERSION);
   }
