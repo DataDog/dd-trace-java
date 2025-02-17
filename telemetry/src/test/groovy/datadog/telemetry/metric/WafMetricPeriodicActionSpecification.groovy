@@ -2,7 +2,7 @@ package datadog.telemetry.metric
 
 import datadog.telemetry.TelemetryService
 import datadog.telemetry.api.Metric
-import datadog.trace.api.telemetry.TruncatedType
+import datadog.trace.api.telemetry.WafTruncatedType
 import datadog.trace.api.telemetry.WafMetricCollector
 import datadog.trace.test.util.DDSpecification
 
@@ -53,7 +53,7 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
     WafMetricCollector.get().wafRequestError()
     WafMetricCollector.get().wafRequestRateLimited()
     WafMetricCollector.get().wafRequestBlockFailure()
-    WafMetricCollector.get().wafInputTruncated(TruncatedType.STRING_TOO_LONG, 5)
+    WafMetricCollector.get().wafInputTruncated(WafTruncatedType.STRING_TOO_LONG, 5)
     WafMetricCollector.get().prepareMetrics()
     periodicAction.doIteration(telemetryService)
 
@@ -153,7 +153,7 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
     WafMetricCollector.get().wafRequestError()
     WafMetricCollector.get().wafRequestRateLimited()
     WafMetricCollector.get().wafRequestBlockFailure()
-    WafMetricCollector.get().wafInputTruncated(TruncatedType.STRING_TOO_LONG, 5)
+    WafMetricCollector.get().wafInputTruncated(WafTruncatedType.STRING_TOO_LONG, 5)
     WafMetricCollector.get().prepareMetrics()
     periodicAction.doIteration(telemetryService)
 
