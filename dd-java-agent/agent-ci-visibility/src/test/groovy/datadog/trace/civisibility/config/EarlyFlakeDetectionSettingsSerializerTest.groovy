@@ -21,12 +21,9 @@ class EarlyFlakeDetectionSettingsSerializerTest extends Specification {
     settings << [
       new EarlyFlakeDetectionSettings(false, Collections.emptyList(), -1),
       new EarlyFlakeDetectionSettings(true, [], 10),
-      new EarlyFlakeDetectionSettings(true, [new EarlyFlakeDetectionSettings.ExecutionsByDuration(0, 0)], 10),
-      new EarlyFlakeDetectionSettings(true, [new EarlyFlakeDetectionSettings.ExecutionsByDuration(1, 2)], 20),
-      new EarlyFlakeDetectionSettings(true, [
-        new EarlyFlakeDetectionSettings.ExecutionsByDuration(1, 2),
-        new EarlyFlakeDetectionSettings.ExecutionsByDuration(3, 4)
-      ], 30),
+      new EarlyFlakeDetectionSettings(true, [new ExecutionsByDuration(0, 0)], 10),
+      new EarlyFlakeDetectionSettings(true, [new ExecutionsByDuration(1, 2)], 20),
+      new EarlyFlakeDetectionSettings(true, [new ExecutionsByDuration(1, 2), new ExecutionsByDuration(3, 4)], 30),
     ]
   }
 }

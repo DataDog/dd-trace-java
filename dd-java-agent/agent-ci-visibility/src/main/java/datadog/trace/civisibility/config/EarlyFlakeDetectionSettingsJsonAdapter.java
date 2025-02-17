@@ -21,15 +21,14 @@ public final class EarlyFlakeDetectionSettingsJsonAdapter {
     Boolean enabled = (Boolean) json.get("enabled");
     Double faultySessionThreshold = (Double) json.get("faulty_session_threshold");
 
-    List<EarlyFlakeDetectionSettings.ExecutionsByDuration> executionsByDuration;
+    List<ExecutionsByDuration> executionsByDuration;
     Map<String, Double> slowTestRetries = (Map<String, Double>) json.get("slow_test_retries");
     if (slowTestRetries != null) {
       executionsByDuration = new ArrayList<>(slowTestRetries.size());
       for (Map.Entry<String, Double> e : slowTestRetries.entrySet()) {
         long durationMillis = parseDuration(e.getKey());
         int retries = e.getValue().intValue();
-        executionsByDuration.add(
-            new EarlyFlakeDetectionSettings.ExecutionsByDuration(durationMillis, retries));
+        executionsByDuration.add(new ExecutionsByDuration(durationMillis, retries));
       }
       executionsByDuration.sort(Comparator.comparingLong(r -> r.durationMillis));
     } else {

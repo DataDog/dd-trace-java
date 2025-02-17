@@ -308,7 +308,7 @@ public class ExecutionSettings {
 
       s.write(settings.testSettings, TestFQNSerializer::serialize, Serializer::write);
       s.write(
-          settings.settingsCount, TestSetting.TestSettingsSerializer::serialize, Serializer::write);
+          settings.settingsCount, TestSetting.TestSettingSerializer::serialize, Serializer::write);
 
       Diff.SERIALIZER.serialize(settings.pullRequestDiff, s);
 
@@ -345,7 +345,7 @@ public class ExecutionSettings {
               Serializer.readMap(
                   buffer,
                   () -> new EnumMap<>(TestSetting.class),
-                  TestSetting.TestSettingsSerializer::deserialize,
+                  TestSetting.TestSettingSerializer::deserialize,
                   Serializer::readInt);
 
       Diff diff = Diff.SERIALIZER.deserialize(buffer);

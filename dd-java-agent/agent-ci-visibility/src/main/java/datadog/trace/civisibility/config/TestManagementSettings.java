@@ -1,5 +1,7 @@
 package datadog.trace.civisibility.config;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 
 public class TestManagementSettings {
@@ -20,6 +22,10 @@ public class TestManagementSettings {
 
   public int getAttemptToFixRetries() {
     return attemptToFixRetries;
+  }
+
+  public List<ExecutionsByDuration> getExecutionsByDuration() {
+    return Collections.singletonList(new ExecutionsByDuration(Long.MAX_VALUE, attemptToFixRetries));
   }
 
   @Override

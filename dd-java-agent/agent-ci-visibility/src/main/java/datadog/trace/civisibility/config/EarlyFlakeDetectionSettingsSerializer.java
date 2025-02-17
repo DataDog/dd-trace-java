@@ -15,7 +15,7 @@ public final class EarlyFlakeDetectionSettingsSerializer {
     serializer.write(settings.getFaultySessionThreshold());
     serializer.write(
         settings.getExecutionsByDuration(),
-        EarlyFlakeDetectionSettingsSerializer::serializeExecutionsByDuration);
+        ExecutionsByDuration.ExecutionsByDurationSerializer::serialize);
   }
 
   public static EarlyFlakeDetectionSettings deserialize(ByteBuffer buf) {
@@ -25,22 +25,8 @@ public final class EarlyFlakeDetectionSettingsSerializer {
     }
 
     int faultySessionThreshold = Serializer.readInt(buf);
-    List<EarlyFlakeDetectionSettings.ExecutionsByDuration> executionsByDuration =
-        Serializer.readList(
-            buf, EarlyFlakeDetectionSettingsSerializer::deserializeExecutionsByDuration);
+    List<ExecutionsByDuration> executionsByDuration =
+        Serializer.readList(buf, ExecutionsByDuration.ExecutionsByDurationSerializer::deserialize);
     return new EarlyFlakeDetectionSettings(enabled, executionsByDuration, faultySessionThreshold);
-  }
-
-  private static void serializeExecutionsByDuration(
-      Serializer serializer,
-      EarlyFlakeDetectionSettings.ExecutionsByDuration executionsByDuration) {
-    serializer.write(executionsByDuration.durationMillis);
-    serializer.write(executionsByDuration.executions);
-  }
-
-  private static EarlyFlakeDetectionSettings.ExecutionsByDuration deserializeExecutionsByDuration(
-      ByteBuffer buf) {
-    return new EarlyFlakeDetectionSettings.ExecutionsByDuration(
-        Serializer.readLong(buf), Serializer.readInt(buf));
   }
 }

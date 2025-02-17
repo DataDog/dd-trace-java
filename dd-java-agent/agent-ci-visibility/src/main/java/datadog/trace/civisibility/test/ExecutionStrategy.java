@@ -5,6 +5,7 @@ import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestMetadata;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
+import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.civisibility.config.EarlyFlakeDetectionSettings;
 import datadog.trace.civisibility.config.ExecutionSettings;
@@ -12,7 +13,6 @@ import datadog.trace.civisibility.config.TestManagementSettings;
 import datadog.trace.civisibility.config.TestSetting;
 import datadog.trace.civisibility.execution.Regular;
 import datadog.trace.civisibility.execution.RetryUntilSuccessful;
-import datadog.trace.civisibility.execution.RunNFixedTimes;
 import datadog.trace.civisibility.execution.RunNTimes;
 import datadog.trace.civisibility.execution.RunOnceIgnoreOutcome;
 import datadog.trace.civisibility.source.LinesResolver;
@@ -123,16 +123,20 @@ public class ExecutionStrategy {
     }
 
     if (isAttemptToFix(test)) {
-      return new RunNFixedTimes(
-          executionSettings.getTestManagementSettings().getAttemptToFixRetries(),
-          isQuarantined(test) || isDisabled(test));
+      return new RunNTimes(
+          executionSettings.getTestManagementSettings().getExecutionsByDuration(),
+          isQuarantined(test) || isDisabled(test),
+          RetryReason.attemptToFix);
     }
 
     if (isEFDApplicable(test, testSource)) {
       // check-then-act with "earlyFlakeDetectionsUsed" is not atomic here,
       // but we don't care if we go "a bit" over the limit, it does not have to be precise
       earlyFlakeDetectionsUsed.incrementAndGet();
-      return new RunNTimes(executionSettings.getEarlyFlakeDetectionSettings(), isQuarantined(test));
+      return new RunNTimes(
+          executionSettings.getEarlyFlakeDetectionSettings().getExecutionsByDuration(),
+          isQuarantined(test),
+          RetryReason.efd);
     }
 
     if (isAutoRetryApplicable(test)) {

@@ -115,8 +115,8 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       ExecutionSettings create(JvmInfo jvmInfo, String moduleName) {
         def earlyFlakinessDetectionSettings = earlyFlakinessDetectionEnabled
         ? new EarlyFlakeDetectionSettings(true, [
-          new EarlyFlakeDetectionSettings.ExecutionsByDuration(SLOW_TEST_THRESHOLD_MILLIS, 3),
-          new EarlyFlakeDetectionSettings.ExecutionsByDuration(VERY_SLOW_TEST_THRESHOLD_MILLIS, 2)
+          new ExecutionsByDuration(SLOW_TEST_THRESHOLD_MILLIS, 3),
+          new ExecutionsByDuration(VERY_SLOW_TEST_THRESHOLD_MILLIS, 2)
         ], 0)
         : EarlyFlakeDetectionSettings.DEFAULT
 

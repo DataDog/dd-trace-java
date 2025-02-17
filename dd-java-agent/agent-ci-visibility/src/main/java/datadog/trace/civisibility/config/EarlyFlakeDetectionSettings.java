@@ -34,15 +34,6 @@ public class EarlyFlakeDetectionSettings {
     return executionsByDuration;
   }
 
-  public int getExecutions(long durationMillis) {
-    for (ExecutionsByDuration e : executionsByDuration) {
-      if (durationMillis <= e.durationMillis) {
-        return e.executions;
-      }
-    }
-    return 0;
-  }
-
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -60,40 +51,5 @@ public class EarlyFlakeDetectionSettings {
   @Override
   public int hashCode() {
     return Objects.hash(enabled, executionsByDuration, faultySessionThreshold);
-  }
-
-  public static final class ExecutionsByDuration {
-    public final long durationMillis;
-    public final int executions;
-
-    public ExecutionsByDuration(long durationMillis, int executions) {
-      this.durationMillis = durationMillis;
-      this.executions = executions;
-    }
-
-    public long getDurationMillis() {
-      return durationMillis;
-    }
-
-    public int getExecutions() {
-      return executions;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      ExecutionsByDuration that = (ExecutionsByDuration) o;
-      return durationMillis == that.durationMillis && executions == that.executions;
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(durationMillis, executions);
-    }
   }
 }
