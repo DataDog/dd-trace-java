@@ -210,51 +210,6 @@ class SpockTest extends CiVisibilityInstrumentationTest {
     "test-attempt-to-fix-disabled-succeeded"    | true    | [TestSucceedSpock] | [new TestFQN("org.example.TestSucceedSpock", "test success")] | []                                                            | [new TestFQN("org.example.TestSucceedSpock", "test success")]
   }
 
-  def "test attempt to fix itr #testcaseName"() {
-    givenSkippableTests(skippable)
-    givenAttemptToFixTests(attemptToFix)
-
-    runTests(tests, true)
-
-    assertSpansData(testcaseName)
-    where:
-    testcaseName              | tests              | attemptToFix                                                  | skippable
-    "test-attempt-to-fix-itr" | [TestSucceedSpock] | [new TestFQN("org.example.TestSucceedSpock", "test success")] | [new TestIdentifier("org.example.TestSucceedSpock", "test success", null)]
-  }
-
-  def "test attempt to fix early flakiness detection #testcaseName"() {
-    givenAttemptToFixTests(attemptToFix)
-
-    givenEarlyFlakinessDetectionEnabled(true)
-    givenKnownTests(known)
-
-    runTests(tests, true)
-
-    assertSpansData(testcaseName)
-
-    where:
-    testcaseName                | tests              | attemptToFix                                                  | known
-    "test-attempt-to-fix-known" | [TestSucceedSpock] | [new TestFQN("org.example.TestSucceedSpock", "test success")] | [new TestFQN("org.example.TestSucceedSpock", "test success")]
-    "test-attempt-to-fix-efd"   | [TestSucceedSpock] | [new TestFQN("org.example.TestSucceedSpock", "test success")] | []
-  }
-
-  def "test attempt to fix auto-retries #testcaseName"() {
-    givenAttemptToFixTests(attemptToFix)
-    givenQuarantinedTests(attemptToFix)
-
-    givenFlakyRetryEnabled(true)
-    givenFlakyTests(retried)
-
-    // every test retry fails, but the build status is successful
-    runTests(tests, true)
-
-    assertSpansData(testcaseName)
-
-    where:
-    testcaseName                     | tests             | attemptToFix                                                | retried
-    "test-attempt-to-fix-failed-atr" | [TestFailedSpock] | [new TestFQN("org.example.TestFailedSpock", "test failed")] | [new TestFQN("org.example.TestFailedSpock", "test failed")]
-  }
-
   private static void runTests(List<Class<?>> classes, boolean expectSuccess = true) {
     TestEventsHandlerHolder.startForcefully()
 

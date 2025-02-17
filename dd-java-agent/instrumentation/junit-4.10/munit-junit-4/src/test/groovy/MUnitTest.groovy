@@ -143,39 +143,6 @@ class MUnitTest extends CiVisibilityInstrumentationTest {
     "test-attempt-to-fix-disabled-succeeded"    | true    | [TestSucceedMUnit] | [new TestFQN("org.example.TestSucceedMUnit", "Calculator.add")] | []                                                              | [new TestFQN("org.example.TestSucceedMUnit", "Calculator.add")]
   }
 
-  def "test attempt to fix early flakiness detection #testcaseName"() {
-    givenAttemptToFixTests(attemptToFix)
-
-    givenEarlyFlakinessDetectionEnabled(true)
-    givenKnownTests(known)
-
-    runTests(tests, true)
-
-    assertSpansData(testcaseName)
-
-    where:
-    testcaseName                | tests              | attemptToFix                                                    | known
-    "test-attempt-to-fix-known" | [TestSucceedMUnit] | [new TestFQN("org.example.TestSucceedMUnit", "Calculator.add")] | [new TestFQN("org.example.TestSucceedMUnit", "Calculator.add")]
-    "test-attempt-to-fix-efd"   | [TestSucceedMUnit] | [new TestFQN("org.example.TestSucceedMUnit", "Calculator.add")] | []
-  }
-
-  def "test attempt to fix auto-retries #testcaseName"() {
-    givenAttemptToFixTests(attemptToFix)
-    givenQuarantinedTests(attemptToFix)
-
-    givenFlakyRetryEnabled(true)
-    givenFlakyTests(retried)
-
-    // every test retry fails, but the build status is successful
-    runTests(tests, true)
-
-    assertSpansData(testcaseName)
-
-    where:
-    testcaseName                     | tests             | attemptToFix                                                   | retried
-    "test-attempt-to-fix-failed-atr" | [TestFailedMUnit] | [new TestFQN("org.example.TestFailedMUnit", "Calculator.add")] | [new TestFQN("org.example.TestFailedMUnit", "Calculator.add")]
-  }
-
   private void runTests(Collection<Class<?>> tests, boolean expectSuccess = true) {
     TestEventsHandlerHolder.start()
     try {

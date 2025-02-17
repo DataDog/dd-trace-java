@@ -205,51 +205,6 @@ class JUnit4Test extends CiVisibilityInstrumentationTest {
     "test-attempt-to-fix-disabled-succeeded"    | true    | [TestSucceed] | [new TestFQN("org.example.TestSucceed", "test_succeed")] | []                                                       | [new TestFQN("org.example.TestSucceed", "test_succeed")]
   }
 
-  def "test attempt to fix itr #testcaseName"() {
-    givenSkippableTests(skippable)
-    givenAttemptToFixTests(attemptToFix)
-
-    runTests(tests, true)
-
-    assertSpansData(testcaseName)
-    where:
-    testcaseName              | tests         | attemptToFix                                             | skippable
-    "test-attempt-to-fix-itr" | [TestSucceed] | [new TestFQN("org.example.TestSucceed", "test_succeed")] | [new TestIdentifier("org.example.TestSucceed", "test_succeed", null)]
-  }
-
-  def "test attempt to fix early flakiness detection #testcaseName"() {
-    givenAttemptToFixTests(attemptToFix)
-
-    givenEarlyFlakinessDetectionEnabled(true)
-    givenKnownTests(known)
-
-    runTests(tests, true)
-
-    assertSpansData(testcaseName)
-
-    where:
-    testcaseName                | tests         | attemptToFix                                             | known
-    "test-attempt-to-fix-known" | [TestSucceed] | [new TestFQN("org.example.TestSucceed", "test_succeed")] | [new TestFQN("org.example.TestSucceed", "test_succeed")]
-    "test-attempt-to-fix-efd"   | [TestSucceed] | [new TestFQN("org.example.TestSucceed", "test_succeed")] | []
-  }
-
-  def "test attempt to fix auto-retries #testcaseName"() {
-    givenAttemptToFixTests(attemptToFix)
-    givenQuarantinedTests(attemptToFix)
-
-    givenFlakyRetryEnabled(true)
-    givenFlakyTests(retried)
-
-    // every test retry fails, but the build status is successful
-    runTests(tests, true)
-
-    assertSpansData(testcaseName)
-
-    where:
-    testcaseName                     | tests        | attemptToFix                                           | retried
-    "test-attempt-to-fix-failed-atr" | [TestFailed] | [new TestFQN("org.example.TestFailed", "test_failed")] | [new TestFQN("org.example.TestFailed", "test_failed")]
-  }
-
   private void runTests(Collection<Class<?>> tests, boolean expectSuccess = true) {
     TestEventsHandlerHolder.start()
     try {

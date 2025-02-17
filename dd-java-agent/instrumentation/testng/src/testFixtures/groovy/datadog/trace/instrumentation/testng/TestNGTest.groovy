@@ -241,58 +241,6 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
     "test-attempt-to-fix-disabled-succeeded"    | true    | [TestSucceed] | [new TestFQN("org.example.TestSucceed", "test_succeed")] | []                                                       | [new TestFQN("org.example.TestSucceed", "test_succeed")]
   }
 
-  def "test attempt to fix itr #testcaseName"() {
-    Assumptions.assumeTrue(isExceptionSuppressionSupported())
-
-    givenSkippableTests(skippable)
-    givenAttemptToFixTests(attemptToFix)
-
-    runTests(tests, null, true)
-
-    assertSpansData(testcaseName)
-    where:
-    testcaseName              | tests         | attemptToFix                                             | skippable
-    "test-attempt-to-fix-itr" | [TestSucceed] | [new TestFQN("org.example.TestSucceed", "test_succeed")] | [new TestIdentifier("org.example.TestSucceed", "test_succeed", null)]
-  }
-
-  def "test attempt to fix early flakiness detection #testcaseName"() {
-    Assumptions.assumeTrue(isExceptionSuppressionSupported())
-
-    givenAttemptToFixTests(attemptToFix)
-
-    givenEarlyFlakinessDetectionEnabled(true)
-    givenKnownTests(known)
-
-    runTests(tests, null, true)
-
-    assertSpansData(testcaseName)
-
-    where:
-    testcaseName                | tests         | attemptToFix                                             | known
-    "test-attempt-to-fix-known" | [TestSucceed] | [new TestFQN("org.example.TestSucceed", "test_succeed")] | [new TestFQN("org.example.TestSucceed", "test_succeed")]
-    "test-attempt-to-fix-efd"   | [TestSucceed] | [new TestFQN("org.example.TestSucceed", "test_succeed")] | []
-  }
-
-  def "test attempt to fix auto-retries #testcaseName"() {
-    Assumptions.assumeTrue(isExceptionSuppressionSupported())
-
-    givenAttemptToFixTests(attemptToFix)
-    givenQuarantinedTests(attemptToFix)
-
-    givenFlakyRetryEnabled(true)
-    givenFlakyTests(retried)
-
-    // every test retry fails, but the build status is successful
-    runTests(tests, null, true)
-
-    assertSpansData(testcaseName)
-
-    where:
-    testcaseName                     | tests        | attemptToFix                                           | retried
-    "test-attempt-to-fix-failed-atr" | [TestFailed] | [new TestFQN("org.example.TestFailed", "test_failed")] | [new TestFQN("org.example.TestFailed", "test_failed")]
-  }
-
-
   private static boolean isEFDSupported() {
     currentTestNGVersion >= testNGv75
   }

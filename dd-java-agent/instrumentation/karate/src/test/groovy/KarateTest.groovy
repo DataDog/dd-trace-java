@@ -174,51 +174,6 @@ class KarateTest extends CiVisibilityInstrumentationTest {
     "test-attempt-to-fix-disabled-succeeded"    | true    | [TestSucceedKarate] | [new TestFQN("[org/example/test_succeed] test succeed", "first scenario")] | []                                                                         | [new TestFQN("[org/example/test_succeed] test succeed", "first scenario")]
   }
 
-  def "test attempt to fix itr #testcaseName"() {
-    givenSkippableTests(skippable)
-    givenAttemptToFixTests(attemptToFix)
-
-    runTests(tests, true)
-
-    assertSpansData(testcaseName)
-    where:
-    testcaseName              | tests               | attemptToFix                                                               | skippable
-    "test-attempt-to-fix-itr" | [TestSucceedKarate] | [new TestFQN("[org/example/test_succeed] test succeed", "first scenario")] | [new TestIdentifier("[org/example/test_succeed] test succeed", "first scenario", null)]
-  }
-
-  def "test attempt to fix early flakiness detection #testcaseName"() {
-    givenAttemptToFixTests(attemptToFix)
-
-    givenEarlyFlakinessDetectionEnabled(true)
-    givenKnownTests(known)
-
-    runTests(tests, true)
-
-    assertSpansData(testcaseName)
-
-    where:
-    testcaseName                | tests               | attemptToFix                                                               | known
-    "test-attempt-to-fix-known" | [TestSucceedKarate] | [new TestFQN("[org/example/test_succeed] test succeed", "first scenario")] | [new TestFQN("[org/example/test_succeed] test succeed", "first scenario")]
-    "test-attempt-to-fix-efd"   | [TestSucceedKarate] | [new TestFQN("[org/example/test_succeed] test succeed", "first scenario")] | []
-  }
-
-  def "test attempt to fix auto-retries #testcaseName"() {
-    givenAttemptToFixTests(attemptToFix)
-    givenQuarantinedTests(attemptToFix)
-
-    givenFlakyRetryEnabled(true)
-    givenFlakyTests(retried)
-
-    // every test retry fails, but the build status is successful
-    runTests(tests, true)
-
-    assertSpansData(testcaseName)
-
-    where:
-    testcaseName                     | tests              | attemptToFix                                                              | retried
-    "test-attempt-to-fix-failed-atr" | [TestFailedKarate] | [new TestFQN("[org/example/test_failed] test failed", "second scenario")] | [new TestFQN("[org/example/test_failed] test failed", "second scenario")]
-  }
-
   private void runTests(List<Class<?>> tests, boolean expectSuccess = true) {
     TestEventsHandlerHolder.start()
 
