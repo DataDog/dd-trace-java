@@ -275,6 +275,9 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_TRACE_DUBBO_PROVIDER_PROPAGATE_ENABLED = false;
 
+  static final boolean DEFAULT_TRACE_DUBBO_REQUEST_ENABLED = false;
+  static final boolean DEFAULT_TRACE_DUBBO_RESPONSE_ENABLED = false;
+
   static final boolean DEFAULT_HTTP_ERROR_ENABLED = false;
   static final Set<String> DEFAULT_TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES =
       new HashSet<>(
