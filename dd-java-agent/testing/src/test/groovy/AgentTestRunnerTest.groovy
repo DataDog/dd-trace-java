@@ -87,6 +87,13 @@ class AgentTestRunnerTest extends AgentTestRunner {
               break
             }
             // rethrow the exception otherwise
+          } catch (InternalError e) {
+            // IBM Semeru Runtime Open Edition allows access to JFR classes, but does not provide an implementation
+            if (e.getMessage() == "Flight Recorder is not supported on this VM"
+              && System.getProperty("java.runtime.name") == "IBM Semeru Runtime Open Edition") {
+              break
+            }
+            // rethrow the exception otherwise
           }
         }
       }
