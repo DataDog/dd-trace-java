@@ -34,7 +34,7 @@ class EventSourceTest extends DDSpecification{
       eventQueues.distributionSeriesQueue,
       eventQueues.logMessageQueue,
       eventQueues.productChanges
-    )
+      )
 
     expect:
     eventSource.isEmpty()
@@ -61,5 +61,4 @@ class EventSourceTest extends DDSpecification{
     "Log Message"         | "logMessageQueue"         | new LogMessage()
     "Product Change"      | "productChanges"          | new ProductChange()
   }
-
 }
