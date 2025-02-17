@@ -35,6 +35,8 @@ public interface TestFrameworkModule {
 
   boolean isDisabled(TestIdentifier test);
 
+  boolean isAttemptToFix(TestIdentifier test);
+
   /**
    * Returns the reason for skipping a test, IF it can be skipped.
    *

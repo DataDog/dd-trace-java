@@ -3,7 +3,7 @@ package datadog.trace.civisibility.execution;
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 /** Retries a test case if it failed, up to a maximum number of times. */
 public class RetryUntilSuccessful implements TestExecutionPolicy {
@@ -64,5 +64,10 @@ public class RetryUntilSuccessful implements TestExecutionPolicy {
   @Override
   public boolean hasFailedAllRetries() {
     return currentExecutionIsLast() && !successfulExecutionSeen;
+  }
+
+  @Override
+  public boolean hasSucceededAllRetries() {
+    return false;
   }
 }

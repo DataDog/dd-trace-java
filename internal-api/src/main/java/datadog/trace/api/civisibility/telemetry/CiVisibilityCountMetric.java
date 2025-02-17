@@ -17,6 +17,7 @@ import datadog.trace.api.civisibility.telemetry.tag.FlakyTestRetriesEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.HasCodeowner;
 import datadog.trace.api.civisibility.telemetry.tag.HasFailedAllRetries;
 import datadog.trace.api.civisibility.telemetry.tag.ImpactedTestsDetectionEnabled;
+import datadog.trace.api.civisibility.telemetry.tag.IsAttemptToFix;
 import datadog.trace.api.civisibility.telemetry.tag.IsDisabled;
 import datadog.trace.api.civisibility.telemetry.tag.IsHeadless;
 import datadog.trace.api.civisibility.telemetry.tag.IsModified;
@@ -75,6 +76,7 @@ public enum CiVisibilityCountMetric {
       IsModified.class,
       IsQuarantined.class,
       IsDisabled.class,
+      IsAttemptToFix.class,
       IsRetry.class,
       HasFailedAllRetries.class,
       RetryReason.class,

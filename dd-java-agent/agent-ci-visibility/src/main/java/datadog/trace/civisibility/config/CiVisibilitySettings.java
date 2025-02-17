@@ -142,9 +142,9 @@ public class CiVisibilitySettings {
           getBoolean(json, "flaky_test_retries_enabled", false),
           getBoolean(json, "impacted_tests_enabled", false),
           getBoolean(json, "known_tests_enabled", false),
-          EarlyFlakeDetectionSettingsJsonAdapter.INSTANCE.fromJson(
+          EarlyFlakeDetectionSettings.JsonAdapter.INSTANCE.fromJson(
               (Map<String, Object>) json.get("early_flake_detection")),
-          TestManagementSettingsJsonAdapter.INSTANCE.fromJson(
+          TestManagementSettings.JsonAdapter.INSTANCE.fromJson(
               (Map<String, Object>) json.get("test_management")));
     }
 

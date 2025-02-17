@@ -186,6 +186,25 @@ class JUnit4Test extends CiVisibilityInstrumentationTest {
     "test-disabled-failed-parameterized" | [TestFailedParameterized] | [new TestFQN("org.example.TestFailedParameterized", "test_failed_parameterized")]
   }
 
+  def "test attempt to fix #testcaseName"() {
+    givenQuarantinedTests(quarantined)
+    givenDisabledTests(disabled)
+    givenAttemptToFixTests(attemptToFix)
+
+    runTests(tests, success)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName                                | success | tests         | attemptToFix                                             | quarantined                                              | disabled
+    "test-attempt-to-fix-failed"                | false   | [TestFailed]  | [new TestFQN("org.example.TestFailed", "test_failed")]   | []                                                       | []
+    "test-attempt-to-fix-succeeded"             | true    | [TestSucceed] | [new TestFQN("org.example.TestSucceed", "test_succeed")] | []                                                       | []
+    "test-attempt-to-fix-quarantined-failed"    | true    | [TestFailed]  | [new TestFQN("org.example.TestFailed", "test_failed")]   | [new TestFQN("org.example.TestFailed", "test_failed")]   | []
+    "test-attempt-to-fix-quarantined-succeeded" | true    | [TestSucceed] | [new TestFQN("org.example.TestSucceed", "test_succeed")] | [new TestFQN("org.example.TestSucceed", "test_succeed")] | []
+    "test-attempt-to-fix-disabled-failed"       | true    | [TestFailed]  | [new TestFQN("org.example.TestFailed", "test_failed")]   | []                                                       | [new TestFQN("org.example.TestFailed", "test_failed")]
+    "test-attempt-to-fix-disabled-succeeded"    | true    | [TestSucceed] | [new TestFQN("org.example.TestSucceed", "test_succeed")] | []                                                       | [new TestFQN("org.example.TestSucceed", "test_succeed")]
+  }
+
   private void runTests(Collection<Class<?>> tests, boolean expectSuccess = true) {
     TestEventsHandlerHolder.start()
     try {

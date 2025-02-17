@@ -5,7 +5,6 @@ import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestMetadata;
 import datadog.trace.civisibility.diff.Diff;
 import datadog.trace.civisibility.diff.LineDiff;
-import datadog.trace.civisibility.ipc.serialization.Serializer;
 import java.nio.ByteBuffer;
 import java.util.BitSet;
 import java.util.Collection;
@@ -272,7 +271,7 @@ public class ExecutionSettings {
         pullRequestDiff);
   }
 
-  public static class ExecutionSettingsSerializer {
+  public static class Serializer {
 
     private static final int ITR_ENABLED_FLAG = 1;
     private static final int CODE_COVERAGE_ENABLED_FLAG = 2;
@@ -281,7 +280,8 @@ public class ExecutionSettings {
     private static final int IMPACTED_TESTS_DETECTION_ENABLED_FLAG = 16;
 
     public static ByteBuffer serialize(ExecutionSettings settings) {
-      Serializer s = new Serializer();
+      datadog.trace.civisibility.ipc.serialization.Serializer s =
+          new datadog.trace.civisibility.ipc.serialization.Serializer();
 
       byte flags =
           (byte)
@@ -294,9 +294,9 @@ public class ExecutionSettings {
                       : 0));
       s.write(flags);
 
-      EarlyFlakeDetectionSettingsSerializer.serialize(s, settings.earlyFlakeDetectionSettings);
+      EarlyFlakeDetectionSettings.Serializer.serialize(s, settings.earlyFlakeDetectionSettings);
 
-      TestManagementSettingsSerializer.serialize(s, settings.testManagementSettings);
+      TestManagementSettings.Serializer.serialize(s, settings.testManagementSettings);
 
       s.write(settings.itrCorrelationId);
       s.write(
@@ -304,11 +304,19 @@ public class ExecutionSettings {
           TestIdentifierSerializer::serialize,
           TestMetadataSerializer::serialize);
 
-      s.write(settings.skippableTestsCoverage, Serializer::write, Serializer::write);
-
-      s.write(settings.testSettings, TestFQNSerializer::serialize, Serializer::write);
       s.write(
-          settings.settingsCount, TestSetting.TestSettingsSerializer::serialize, Serializer::write);
+          settings.skippableTestsCoverage,
+          datadog.trace.civisibility.ipc.serialization.Serializer::write,
+          datadog.trace.civisibility.ipc.serialization.Serializer::write);
+
+      s.write(
+          settings.testSettings,
+          TestFQNSerializer::serialize,
+          datadog.trace.civisibility.ipc.serialization.Serializer::write);
+      s.write(
+          settings.settingsCount,
+          TestSetting.Serializer::serialize,
+          datadog.trace.civisibility.ipc.serialization.Serializer::write);
 
       Diff.SERIALIZER.serialize(settings.pullRequestDiff, s);
 
@@ -316,7 +324,7 @@ public class ExecutionSettings {
     }
 
     public static ExecutionSettings deserialize(ByteBuffer buffer) {
-      byte flags = Serializer.readByte(buffer);
+      byte flags = datadog.trace.civisibility.ipc.serialization.Serializer.readByte(buffer);
       boolean itrEnabled = (flags & ITR_ENABLED_FLAG) != 0;
       boolean codeCoverageEnabled = (flags & CODE_COVERAGE_ENABLED_FLAG) != 0;
       boolean testSkippingEnabled = (flags & TEST_SKIPPING_ENABLED_FLAG) != 0;
@@ -324,29 +332,37 @@ public class ExecutionSettings {
       boolean impactedTestsDetectionEnabled = (flags & IMPACTED_TESTS_DETECTION_ENABLED_FLAG) != 0;
 
       EarlyFlakeDetectionSettings earlyFlakeDetectionSettings =
-          EarlyFlakeDetectionSettingsSerializer.deserialize(buffer);
+          EarlyFlakeDetectionSettings.Serializer.deserialize(buffer);
 
       TestManagementSettings testManagementSettings =
-          TestManagementSettingsSerializer.deserialize(buffer);
+          TestManagementSettings.Serializer.deserialize(buffer);
 
-      String itrCorrelationId = Serializer.readString(buffer);
+      String itrCorrelationId =
+          datadog.trace.civisibility.ipc.serialization.Serializer.readString(buffer);
 
       Map<TestIdentifier, TestMetadata> skippableTests =
-          Serializer.readMap(
+          datadog.trace.civisibility.ipc.serialization.Serializer.readMap(
               buffer, TestIdentifierSerializer::deserialize, TestMetadataSerializer::deserialize);
 
       Map<String, BitSet> skippableTestsCoverage =
-          Serializer.readMap(buffer, Serializer::readString, Serializer::readBitSet);
+          datadog.trace.civisibility.ipc.serialization.Serializer.readMap(
+              buffer,
+              datadog.trace.civisibility.ipc.serialization.Serializer::readString,
+              datadog.trace.civisibility.ipc.serialization.Serializer::readBitSet);
 
       Map<TestFQN, Integer> testSettings =
-          Serializer.readMap(buffer, TestFQNSerializer::deserialize, Serializer::readInt);
+          datadog.trace.civisibility.ipc.serialization.Serializer.readMap(
+              buffer,
+              TestFQNSerializer::deserialize,
+              datadog.trace.civisibility.ipc.serialization.Serializer::readInt);
+
       EnumMap<TestSetting, Integer> settingsCount =
           (EnumMap<TestSetting, Integer>)
-              Serializer.readMap(
+              datadog.trace.civisibility.ipc.serialization.Serializer.readMap(
                   buffer,
                   () -> new EnumMap<>(TestSetting.class),
-                  TestSetting.TestSettingsSerializer::deserialize,
-                  Serializer::readInt);
+                  TestSetting.Serializer::deserialize,
+                  datadog.trace.civisibility.ipc.serialization.Serializer::readInt);
 
       Diff diff = Diff.SERIALIZER.deserialize(buffer);
 
