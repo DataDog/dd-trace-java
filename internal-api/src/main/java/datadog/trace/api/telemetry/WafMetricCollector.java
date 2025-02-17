@@ -44,7 +44,7 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
   private static final AtomicRequestCounter wafBlockFailureRequestCounter =
       new AtomicRequestCounter();
   private static final AtomicLongArray wafInputTruncatedCounter =
-      new AtomicLongArray(TruncatedType.values().length);
+      new AtomicLongArray(WafTruncatedType.values().length);
   private static final AtomicLongArray raspRuleEvalCounter =
       new AtomicLongArray(RuleType.getNumValues());
   private static final AtomicLongArray raspRuleMatchCounter =
@@ -127,8 +127,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
     wafBlockFailureRequestCounter.increment();
   }
 
-  public void wafInputTruncated(final TruncatedType truncatedType, long increment) {
-    wafInputTruncatedCounter.addAndGet(truncatedType.ordinal(), increment);
+  public void wafInputTruncated(final WafTruncatedType wafTruncatedType, long increment) {
+    wafInputTruncatedCounter.addAndGet(wafTruncatedType.ordinal(), increment);
   }
 
   public void raspRuleEval(final RuleType ruleType) {
@@ -177,8 +177,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
     final boolean isRateLimited = wafRateLimitedRequestCounter.getAndReset() > 0;
     final boolean isBlockFailure = wafBlockFailureRequestCounter.getAndReset() > 0;
     boolean isWafInputTruncated = false;
-    for (TruncatedType truncatedType : TruncatedType.values()) {
-      isWafInputTruncated = wafInputTruncatedCounter.getAndSet(truncatedType.ordinal(), 0) > 0;
+    for (WafTruncatedType wafTruncatedType : WafTruncatedType.values()) {
+      isWafInputTruncated = wafInputTruncatedCounter.getAndSet(wafTruncatedType.ordinal(), 0) > 0;
       if (isWafInputTruncated) {
         break;
       }

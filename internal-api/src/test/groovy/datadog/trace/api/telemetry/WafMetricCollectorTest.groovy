@@ -33,7 +33,7 @@ class WafMetricCollectorTest extends DDSpecification {
     WafMetricCollector.get().wafRequestError()
     WafMetricCollector.get().wafRequestRateLimited()
     WafMetricCollector.get().wafRequestBlockFailure()
-    WafMetricCollector.get().wafInputTruncated(TruncatedType.STRING_TOO_LONG, 5)
+    WafMetricCollector.get().wafInputTruncated(WafTruncatedType.STRING_TOO_LONG, 5)
     WafMetricCollector.get().raspRuleEval(RuleType.SQL_INJECTION)
     WafMetricCollector.get().raspRuleEval(RuleType.SQL_INJECTION)
     WafMetricCollector.get().raspRuleMatch(RuleType.SQL_INJECTION)

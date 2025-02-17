@@ -29,8 +29,8 @@ import datadog.trace.api.ProductActivation;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.telemetry.LogCollector;
-import datadog.trace.api.telemetry.TruncatedType;
 import datadog.trace.api.telemetry.WafMetricCollector;
+import datadog.trace.api.telemetry.WafTruncatedType;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -471,15 +471,15 @@ public class PowerWAFModule implements AppSecModule {
 
             if (stringTooLong > 0) {
               WafMetricCollector.get()
-                  .wafInputTruncated(TruncatedType.STRING_TOO_LONG, stringTooLong);
+                  .wafInputTruncated(WafTruncatedType.STRING_TOO_LONG, stringTooLong);
             }
             if (listMapTooLarge > 0) {
               WafMetricCollector.get()
-                  .wafInputTruncated(TruncatedType.LIST_MAP_TOO_LARGE, listMapTooLarge);
+                  .wafInputTruncated(WafTruncatedType.LIST_MAP_TOO_LARGE, listMapTooLarge);
             }
             if (objectTooDeep > 0) {
               WafMetricCollector.get()
-                  .wafInputTruncated(TruncatedType.OBJECT_TOO_DEEP, objectTooDeep);
+                  .wafInputTruncated(WafTruncatedType.OBJECT_TOO_DEEP, objectTooDeep);
             }
           }
         }
