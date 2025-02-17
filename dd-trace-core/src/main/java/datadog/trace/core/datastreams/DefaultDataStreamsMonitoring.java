@@ -432,6 +432,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   @Override
   public void clear() {
     timeToBucket.clear();
+    schemaSamplers.clear();
   }
 
   void report() {
