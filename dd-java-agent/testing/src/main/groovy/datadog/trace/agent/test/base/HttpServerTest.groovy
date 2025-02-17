@@ -528,7 +528,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   static <T> T controller(ServerEndpoint endpoint, Closure<T> closure) {
     assert activeSpan() != null: "Controller should have a parent span."
     assert activeSpan() != noopSpan(): "Parent span shouldn't be noopSpan"
-    assert isAsyncPropagationEnabled(): "Scope should be propagating async."
+    assert isAsyncPropagationEnabled(): "Span should be propagating async."
     if (endpoint == NOT_FOUND || endpoint == UNKNOWN) {
       return closure()
     }

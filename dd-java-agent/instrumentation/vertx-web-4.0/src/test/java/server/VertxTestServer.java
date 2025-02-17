@@ -281,7 +281,7 @@ public class VertxTestServer extends AbstractVerticle {
   private static void controller(
       RoutingContext ctx, final ServerEndpoint endpoint, final Runnable runnable) {
     assert activeSpan() != null : "Controller should have a parent span.";
-    assert isAsyncPropagationEnabled() : "Scope should be propagating async.";
+    assert isAsyncPropagationEnabled() : "Span should be propagating async.";
     ctx.response()
         .putHeader(
             HttpServerTest.getIG_RESPONSE_HEADER(), HttpServerTest.getIG_RESPONSE_HEADER_VALUE());
