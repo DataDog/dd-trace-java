@@ -781,9 +781,9 @@ class PowerWAFModuleSpecification extends DDSpecification {
       metrics.with {
         totalDdwafRunTimeNs = new AtomicLong(1000)
         totalRunTimeNs = new AtomicLong(2000)
-        wafInputsTruncatedStringTooLongCount = new AtomicLong(0)
-        wafInputsTruncatedListMapTooLargeCount = new AtomicLong(0)
-        wafInputsTruncatedObjectTooDeepCount = new AtomicLong(0)
+        truncatedStringTooLongCount = new AtomicLong(0)
+        truncatedListMapTooLargeCount = new AtomicLong(0)
+        truncatedObjectTooDeepCount = new AtomicLong(0)
         it } }
 
     1 * segment.setTagTop('_dd.appsec.waf.duration', 1)

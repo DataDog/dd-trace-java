@@ -459,9 +459,9 @@ public class PowerWAFModule implements AppSecModule {
         if (!gwCtx.isRasp) {
           PowerwafMetrics wafMetrics = reqCtx.getWafMetrics();
           if (wafMetrics != null) {
-            final long stringTooLong = wafMetrics.getWafInputsTruncatedStringTooLongCount();
-            final long listMapTooLarge = wafMetrics.getWafInputsTruncatedListMapTooLargeCount();
-            final long objectTooDeep = wafMetrics.getWafInputsTruncatedObjectTooDeepCount();
+            final long stringTooLong = wafMetrics.getTruncatedStringTooLongCount();
+            final long listMapTooLarge = wafMetrics.getTruncatedListMapTooLargeCount();
+            final long objectTooDeep = wafMetrics.getTruncatedObjectTooDeepCount();
 
             if (stringTooLong > 0) {
               WafMetricCollector.get()
