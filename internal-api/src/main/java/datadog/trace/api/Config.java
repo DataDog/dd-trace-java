@@ -3981,8 +3981,8 @@ public class Config {
     return agentlessLogSubmissionProduct;
   }
 
-  public Boolean getAppSecScaEnabled() {
-    return appSecScaEnabled;
+  public boolean isAppSecScaEnabled() {
+    return appSecScaEnabled != null && appSecScaEnabled;
   }
 
   public boolean isAppSecRaspEnabled() {
