@@ -118,6 +118,6 @@ class ExecutionStrategyTest extends Specification {
       executionSettings,
       resolver,
       linesResolver
-    )
+      )
   }
 }
