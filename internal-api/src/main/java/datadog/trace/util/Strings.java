@@ -79,6 +79,11 @@ public final class Strings {
    */
   @Nonnull
   public static String propertyNameToEnvironmentVariableName(final String setting) {
+    // FOR TESTING
+    if (setting.equals("data.streams.enabled")) {
+      System.out.println(
+          "MIKAYLA in propertynametoenvvar; returning: " + "DD_" + toEnvVar(setting));
+    }
     return "DD_" + toEnvVar(setting);
   }
 

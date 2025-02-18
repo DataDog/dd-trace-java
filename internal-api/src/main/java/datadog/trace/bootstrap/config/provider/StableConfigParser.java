@@ -30,6 +30,7 @@ public class StableConfigParser {
           new AtomicBoolean(false); // Track if we've found 'apm_configuration_default:'
       lines.forEach(
           line -> {
+            System.out.println("MIKAYLA: FILE LINE IS: " + line);
             Matcher matcher = idPattern.matcher(line);
             if (matcher.find()) {
               cfg.setConfigId(trimQuotes(matcher.group(1).trim()));

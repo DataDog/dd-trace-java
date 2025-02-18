@@ -7,7 +7,7 @@ import java.nio.file.Path
 
 class StableConfigParserTest extends DDSpecification {
 
-  def "test valid file format"() {
+  def "test parser"() {
     when:
     Path filePath = StableConfigSourceTest.tempFile()
     if (filePath == null) {
@@ -16,6 +16,12 @@ class StableConfigParserTest extends DDSpecification {
     String yaml = """
 something-irrelevant: ""
 config_id: 12345
+something : not : expected << and weird format
+    inufjka <<
+    [a, 
+        b,
+            c,
+                d]
 apm_configuration_default:
   KEY_ONE: value_one
   KEY_TWO: "value_two"
@@ -50,5 +56,4 @@ something-else-irrelevant: value-irrelevant
     cfg.get("KEY_FIVE") == "[a,b,c,d]"
     Files.delete(filePath)
   }
-//  def "test parser invalid file format"() {}
 }
