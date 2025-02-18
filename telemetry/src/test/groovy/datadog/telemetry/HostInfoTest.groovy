@@ -1,17 +1,91 @@
 package datadog.telemetry
 
+import datadog.trace.api.Config
 import datadog.trace.api.Platform
 import org.junit.Assume
+import spock.lang.Shared
 import spock.lang.Specification
 
 class HostInfoTest extends Specification {
-  void 'getHostname'() {
+
+  @Shared
+  final boolean unameAvailable = 'uname -a'.execute().waitFor() == 0
+
+  @Shared
+  final String unameN = 'uname -n'.execute().text.trim()
+
+  void 'getHostname is not null or empty'() {
     when:
     final hostname = HostInfo.getHostname()
 
     then:
     hostname != null
     !hostname.trim().isEmpty()
+  }
+
+  void 'getHostname matches uname -n'() {
+    Assume.assumeTrue(unameAvailable)
+
+    when:
+    final hostname = HostInfo.getHostname()
+
+    then:
+    hostname == unameN
+  }
+
+  void 'getHostname from env var matches uname -n'() {
+    Assume.assumeTrue(unameAvailable)
+
+    when:
+    final hostname = Config.initHostNameFromEnv()
+    Assume.assumeNotNull(hostname)
+
+    then:
+    hostname == unameN
+  }
+
+  void 'getHostname from /proc/sys/kernel/hostname matches uname -n'() {
+    Assume.assumeTrue(unameAvailable)
+
+    when:
+    final hostname = Config.initHostNameFromFile("/proc/sys/kernel/hostname")
+    Assume.assumeNotNull(hostname)
+
+    then:
+    hostname == unameN
+  }
+
+  void 'getHostname from /etc/hostname matches uname -n'() {
+    Assume.assumeTrue(unameAvailable)
+
+    when:
+    final hostname = Config.initHostNameFromFile("/etc/hostname")
+    Assume.assumeNotNull(hostname)
+
+    then:
+    hostname == unameN
+  }
+
+  void 'getHostname from hostname command matches uname -n'() {
+    Assume.assumeTrue(unameAvailable)
+
+    when:
+    final hostname = Config.initHostNameFromCommand()
+    Assume.assumeNotNull(hostname)
+
+    then:
+    hostname == unameN
+  }
+
+  void 'getHostname from DNS matches uname -n'() {
+    Assume.assumeTrue(unameAvailable)
+
+    when:
+    final hostname = Config.initHostNameFromDNS()
+    Assume.assumeNotNull(hostname)
+
+    then:
+    hostname == unameN
   }
 
   void 'getOsName'() {
@@ -32,7 +106,7 @@ class HostInfoTest extends Specification {
   }
 
   void 'compare to uname'() {
-    Assume.assumeTrue('uname -a'.execute().waitFor() == 0)
+    Assume.assumeTrue(unameAvailable)
 
     expect:
     // FIXME: temporarily ignore this assertion on CircleCI
