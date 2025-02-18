@@ -112,6 +112,7 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
 
       try {
         final AgentSpan span = scope.span();
+        span.addThrowable(throwable);
         span.finish();
         AgentTracer.get().notifyExtensionEnd(span, result, null != throwable);
       } finally {
