@@ -17,4 +17,10 @@ public interface TestExecutionHistory {
    *     multiple retries)
    */
   boolean hasFailedAllRetries();
+
+  /**
+   * @return {@code true} if the test has succeeded all retry attempts (only for policies that allow
+   *     multiple retries)
+   */
+  boolean hasSucceededAllRetries();
 }
