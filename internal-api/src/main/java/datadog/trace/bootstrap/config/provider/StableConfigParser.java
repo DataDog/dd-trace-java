@@ -20,8 +20,6 @@ public class StableConfigParser {
   // pairs, either with double quotes or
   // without
 
-  // TODO: Determine whether parse should be re-tried by StableConfigSource some number of times to
-  // account for cases where the file might not be available, or complete, by application startup
   public static StableConfigSource.StableConfig parse(String filePath) throws IOException {
     try (Stream<String> lines = Files.lines(Paths.get(filePath))) {
       StableConfigSource.StableConfig cfg = new StableConfigSource.StableConfig();
@@ -30,7 +28,6 @@ public class StableConfigParser {
           new AtomicBoolean(false); // Track if we've found 'apm_configuration_default:'
       lines.forEach(
           line -> {
-            System.out.println("MIKAYLA: FILE LINE IS: " + line);
             Matcher matcher = idPattern.matcher(line);
             if (matcher.find()) {
               cfg.setConfigId(trimQuotes(matcher.group(1).trim()));

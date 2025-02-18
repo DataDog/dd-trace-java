@@ -32,8 +32,6 @@ public final class StableConfigSource extends ConfigProvider.Source {
     StableConfig cfg;
     try {
       cfg = StableConfigParser.parse(file);
-      // for testing
-      System.out.println("MIKAYLA: FILE AVAILABLE");
     } catch (IOException e) {
       log.debug("Stable configuration file not available at specified path: {}", file);
       cfg = new StableConfig();
