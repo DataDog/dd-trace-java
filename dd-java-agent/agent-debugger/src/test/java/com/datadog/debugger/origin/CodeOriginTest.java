@@ -88,6 +88,7 @@ public class CodeOriginTest extends CapturingTestBase {
     tracer.addTraceInterceptor(traceInterceptor);
 
     setFieldInConfig(Config.get(), "debuggerCodeOriginEnabled", true);
+    setFieldInConfig(Config.get(), "distributedDebuggerEnabled", true);
     setFieldInConfig(InstrumenterConfig.get(), "codeOriginEnabled", true);
   }
 
