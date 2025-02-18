@@ -1,0 +1,9 @@
+[package]
+name = "datadog-library-config-java"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+datadog-library-config = { git = "https://github.com/Datadog/libdatadog.git", tag = "16.0.3" }
+jni = "0.21.1"
