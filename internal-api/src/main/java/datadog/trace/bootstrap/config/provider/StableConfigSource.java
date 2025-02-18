@@ -25,51 +25,25 @@ public final class StableConfigSource extends ConfigProvider.Source {
 
   private final ConfigOrigin fileOrigin;
 
-  private StableConfig config;
-
-  private final String filePath;
-  private boolean fileFound;
-  private static final int maxRetries = 3;
-  private int fileRetries;
+  private final StableConfig config;
 
   StableConfigSource(String file, ConfigOrigin origin) {
     this.fileOrigin = origin;
-    this.filePath = file;
     StableConfig cfg;
     try {
       cfg = StableConfigParser.parse(file);
-      this.fileFound = true;
       // for testing
       System.out.println("MIKAYLA: FILE AVAILABLE");
     } catch (IOException e) {
       log.debug("Stable configuration file not available at specified path: {}", file);
       cfg = new StableConfig();
-      this.fileFound = false;
     }
     this.config = cfg;
   }
 
   @Override
   public String get(String key) {
-    if (this.fileFound) {
-      return this.config.get(propertyNameToEnvironmentVariableName(key));
-    }
-    if (this.fileRetries < maxRetries) {
-      this.fileRetries++;
-      try {
-        this.config = StableConfigParser.parse(this.filePath);
-        this.fileFound = true;
-        // for testing
-        System.out.println("MIKAYLA: FILE AVAILABLE");
-        return this.config.get(propertyNameToEnvironmentVariableName(key));
-      } catch (IOException e) {
-        log.debug(
-            "Retry number {}, Stable configuration file not available at specified path: {}",
-            this.fileRetries,
-            filePath);
-      }
-    }
-    return null;
+    return this.config.get(propertyNameToEnvironmentVariableName(key));
   }
 
   @Override
