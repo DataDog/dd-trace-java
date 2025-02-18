@@ -384,6 +384,19 @@ test_smoke_semeru8_debugger:
     GRADLE_PARAMS: "-PskipFlakyTests"
     testJvm: "semeru8"
 
+agent_integration_tests:
+  extends: .test_job
+  variables:
+    testJvm: "8"
+    DD_AGENT_HOST: "local-agent"
+  services:
+    - name: datadog/agent:7.34.0
+      alias: local-agent
+      variables:
+        DD_APM_ENABLED: "true"
+        DD_BIND_HOST: "0.0.0.0"
+        DD_API_KEY: "invalid_key_but_this_is_fine"
+
 .system-tests-job:
   image: $SYSTEM_TESTS_IMAGE
   tags: [ "runner:docker" ]
