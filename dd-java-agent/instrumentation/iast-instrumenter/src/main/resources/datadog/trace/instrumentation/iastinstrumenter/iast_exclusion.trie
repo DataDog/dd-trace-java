@@ -39,6 +39,9 @@
 0 datadog.smoketest.*
 1 com.timgroup.statsd.*
 
+# -------- Agents -----------
+1. com.instana.*
+
 # -------- Libraries --------
 1 aj.org.objectweb.*
 1 akka.*
