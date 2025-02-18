@@ -25,26 +25,26 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName)
 
     where:
-    testcaseName                                          | success | tests
-    "test-succeed"                                        | true    | [TestSucceed]
-    "test-inheritance"                                    | true    | [TestInheritance]
-    "test-failed-${version()}"                            | false   | [TestFailed]
-    "test-failed-with-success-percentage-${version()}"    | true    | [TestFailedWithSuccessPercentage]
-    "test-error"                                          | false   | [TestError]
-    "test-skipped"                                        | true    | [TestSkipped]
-    "test-parameterized"                                  | true    | [TestParameterized]
-    "test-parameterized-modifies-params"                  | true    | [TestParameterizedModifiesParams]
-    "test-success-with-groups"                            | true    | [TestSucceedGroups]
-    "test-class-skipped"                                  | true    | [TestSkippedClass]
-    "test-success-and-skipped"                            | true    | [TestSucceedAndSkipped]
-    "test-success-and-failure-${version()}"               | false   | [TestFailedAndSucceed]
-    "test-suite-teardown-failure"                         | false   | [TestFailedSuiteTearDown]
-    "test-suite-setup-failure"                            | false   | [TestFailedSuiteSetup]
-    "test-multiple-successful-suites"                     | true    | [TestSucceed, TestSucceedAndSkipped]
-    "test-successful-suite-and-failed-suite-${version()}" | false   | [TestSucceed, TestFailedAndSucceed]
-    "test-nested-successful-suites"                       | true    | [TestSucceedNested, TestSucceedNested.NestedSuite]
-    "test-nested-skipped-suites-${version()}"             | true    | [TestSkippedNested]
-    "test-factory-data-provider"                          | true    | [TestSucceedDataProvider]
+    testcaseName                             | success | tests
+    "test-succeed"                           | true    | [TestSucceed]
+    "test-inheritance"                       | true    | [TestInheritance]
+    "test-failed"                            | false   | [TestFailed]
+    "test-failed-with-success-percentage"    | true    | [TestFailedWithSuccessPercentage]
+    "test-error"                             | false   | [TestError]
+    "test-skipped"                           | true    | [TestSkipped]
+    "test-parameterized"                     | true    | [TestParameterized]
+    "test-parameterized-modifies-params"     | true    | [TestParameterizedModifiesParams]
+    "test-success-with-groups"               | true    | [TestSucceedGroups]
+    "test-class-skipped"                     | true    | [TestSkippedClass]
+    "test-success-and-skipped"               | true    | [TestSucceedAndSkipped]
+    "test-success-and-failure"               | false   | [TestFailedAndSucceed]
+    "test-suite-teardown-failure"            | false   | [TestFailedSuiteTearDown]
+    "test-suite-setup-failure"               | false   | [TestFailedSuiteSetup]
+    "test-multiple-successful-suites"        | true    | [TestSucceed, TestSucceedAndSkipped]
+    "test-successful-suite-and-failed-suite" | false   | [TestSucceed, TestFailedAndSucceed]
+    "test-nested-successful-suites"          | true    | [TestSucceedNested, TestSucceedNested.NestedSuite]
+    "test-nested-skipped-suites"             | true    | [TestSkippedNested]
+    "test-factory-data-provider"             | true    | [TestSucceedDataProvider]
   }
 
   def "test parallel execution #testcaseName"() {
@@ -104,13 +104,13 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName)
 
     where:
-    testcaseName                            | success | tests                     | retriedTests
-    "test-failed-${version()}"              | false   | [TestFailed]              | []
-    "test-skipped"                          | true    | [TestSkipped]             | [new TestFQN("org.example.TestSkipped", "test_skipped")]
-    "test-retry-failed-${version()}"        | false   | [TestFailed]              | [new TestFQN("org.example.TestFailed", "test_failed")]
-    "test-retry-error"                      | false   | [TestError]               | [new TestFQN("org.example.TestError", "test_error")]
-    "test-retry-parameterized"              | false   | [TestFailedParameterized] | [new TestFQN("org.example.TestFailedParameterized", "parameterized_test_succeed")]
-    "test-failed-then-succeed-${version()}" | true    | [TestFailedThenSucceed]   | [new TestFQN("org.example.TestFailedThenSucceed", "test_failed")]
+    testcaseName               | success | tests                     | retriedTests
+    "test-failed"              | false   | [TestFailed]              | []
+    "test-skipped"             | true    | [TestSkipped]             | [new TestFQN("org.example.TestSkipped", "test_skipped")]
+    "test-retry-failed"        | false   | [TestFailed]              | [new TestFQN("org.example.TestFailed", "test_failed")]
+    "test-retry-error"         | false   | [TestError]               | [new TestFQN("org.example.TestError", "test_error")]
+    "test-retry-parameterized" | false   | [TestFailedParameterized] | [new TestFQN("org.example.TestFailedParameterized", "parameterized_test_succeed")]
+    "test-failed-then-succeed" | true    | [TestFailedThenSucceed]   | [new TestFQN("org.example.TestFailedThenSucceed", "test_failed")]
   }
 
   def "test early flakiness detection #testcaseName"() {
@@ -166,7 +166,7 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
 
     where:
     testcaseName                            | tests                     | quarantined
-    "test-quarantined-failed-${version()}"  | [TestFailed]              | [new TestFQN("org.example.TestFailed", "test_failed")]
+    "test-quarantined-failed"               | [TestFailed]              | [new TestFQN("org.example.TestFailed", "test_failed")]
     "test-quarantined-failed-parameterized" | [TestFailedParameterized] | [new TestFQN("org.example.TestFailedParameterized", "parameterized_test_succeed")]
   }
 
@@ -184,8 +184,8 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName)
 
     where:
-    testcaseName                               | tests        | quarantined                                            | retried
-    "test-quarantined-failed-atr-${version()}" | [TestFailed] | [new TestFQN("org.example.TestFailed", "test_failed")] | [new TestFQN("org.example.TestFailed", "test_failed")]
+    testcaseName                  | tests        | quarantined                                            | retried
+    "test-quarantined-failed-atr" | [TestFailed] | [new TestFQN("org.example.TestFailed", "test_failed")] | [new TestFQN("org.example.TestFailed", "test_failed")]
   }
 
   def "test quarantined early flakiness detection #testcaseName"() {
@@ -216,8 +216,29 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
 
     where:
     testcaseName                         | tests                     | disabled
-    "test-disabled-failed-${version()}"  | [TestFailed]              | [new TestFQN("org.example.TestFailed", "test_failed")]
+    "test-disabled-failed"               | [TestFailed]              | [new TestFQN("org.example.TestFailed", "test_failed")]
     "test-disabled-failed-parameterized" | [TestFailedParameterized] | [new TestFQN("org.example.TestFailedParameterized", "parameterized_test_succeed")]
+  }
+
+  def "test attempt to fix #testcaseName"() {
+    Assumptions.assumeTrue(isExceptionSuppressionSupported())
+
+    givenQuarantinedTests(quarantined)
+    givenDisabledTests(disabled)
+    givenAttemptToFixTests(attemptToFix)
+
+    runTests(tests, null, success)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName                                | success | tests         | attemptToFix                                             | quarantined                                              | disabled
+    "test-attempt-to-fix-failed"                | false   | [TestFailed]  | [new TestFQN("org.example.TestFailed", "test_failed")]   | []                                                       | []
+    "test-attempt-to-fix-succeeded"             | true    | [TestSucceed] | [new TestFQN("org.example.TestSucceed", "test_succeed")] | []                                                       | []
+    "test-attempt-to-fix-quarantined-failed"    | true    | [TestFailed]  | [new TestFQN("org.example.TestFailed", "test_failed")]   | [new TestFQN("org.example.TestFailed", "test_failed")]   | []
+    "test-attempt-to-fix-quarantined-succeeded" | true    | [TestSucceed] | [new TestFQN("org.example.TestSucceed", "test_succeed")] | [new TestFQN("org.example.TestSucceed", "test_succeed")] | []
+    "test-attempt-to-fix-disabled-failed"       | true    | [TestFailed]  | [new TestFQN("org.example.TestFailed", "test_failed")]   | []                                                       | [new TestFQN("org.example.TestFailed", "test_failed")]
+    "test-attempt-to-fix-disabled-succeeded"    | true    | [TestSucceed] | [new TestFQN("org.example.TestSucceed", "test_succeed")] | []                                                       | [new TestFQN("org.example.TestSucceed", "test_succeed")]
   }
 
   private static boolean isEFDSupported() {
@@ -274,8 +295,6 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
 
     TestEventsHandlerHolder.stop()
   }
-
-  protected abstract String version()
 
   @Override
   String instrumentedLibraryName() {

@@ -114,6 +114,11 @@ public class ProxyTestModule implements TestFrameworkModule {
     return executionStrategy.isDisabled(test);
   }
 
+  @Override
+  public boolean isAttemptToFix(TestIdentifier test) {
+    return executionStrategy.isAttemptToFix(test);
+  }
+
   @Nullable
   @Override
   public SkipReason skipReason(TestIdentifier test) {

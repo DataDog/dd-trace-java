@@ -257,6 +257,8 @@
 1 org.jooq.*
 1 org.jruby.*
 1 org.json.*
+#Needed for JSON propagation
+2 org.json.JSONTokener
 1 org.jsoup.*
 1 org.junit.*
 1 org.jvnet.hk2.*
