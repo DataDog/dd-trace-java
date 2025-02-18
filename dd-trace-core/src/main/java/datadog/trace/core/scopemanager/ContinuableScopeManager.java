@@ -90,9 +90,8 @@ public final class ContinuableScopeManager implements ScopeStateAware {
     return activate(span, source.id(), true, isAsyncPropagating);
   }
 
-  public AgentScope.Continuation captureSpan(final AgentSpan span) {
-    ScopeContinuation continuation =
-        new ScopeContinuation(this, span, ScopeSource.INSTRUMENTATION.id());
+  public AgentScope.Continuation captureSpan(final AgentSpan span, byte source) {
+    ScopeContinuation continuation = new ScopeContinuation(this, span, source);
     continuation.register();
     healthMetrics.onCaptureContinuation();
     return continuation;

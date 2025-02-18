@@ -77,11 +77,13 @@ public class Reporter {
     final VulnerabilityBatch batch = getOrCreateVulnerabilityBatch(span);
     if (batch != null) {
       batch.add(vulnerability);
-      if (Config.get().isIastStackTraceEnabled() && batch.getVulnerabilities() != null) {
+      if (Config.get().isIastStackTraceEnabled()
+          && batch.getVulnerabilities() != null
+          && vulnerability.getLocation().getStackId() == null) {
         String stackId =
             addVulnerabilityStackTrace(span, String.valueOf(batch.getVulnerabilities().size()));
         if (stackId != null) {
-          vulnerability.setStackId(stackId);
+          vulnerability.getLocation().setStackId(stackId);
         }
       }
     }

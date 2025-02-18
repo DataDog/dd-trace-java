@@ -1,6 +1,8 @@
 package datadog.trace.bootstrap.instrumentation.api.java.lang;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContinuation;
 import static java.lang.invoke.MethodType.methodType;
 
 import datadog.appsec.api.blocking.BlockingException;
@@ -169,7 +171,7 @@ public class ProcessImplInstrumentationHelpers {
         }
       }
 
-      final AgentScope.Continuation continuation = captureContinuation();
+      final AgentScope.Continuation continuation = captureActiveSpan();
       future.whenComplete(
           (process, thr) -> {
             if (thr != null) {
@@ -180,7 +182,7 @@ public class ProcessImplInstrumentationHelpers {
             finishSpan(continuation, span);
           });
     } else if (EXECUTOR != null) {
-      final AgentScope.Continuation continuation = captureContinuation();
+      final AgentScope.Continuation continuation = captureActiveSpan();
       EXECUTOR.execute(
           () -> {
             try {
@@ -313,14 +315,9 @@ public class ProcessImplInstrumentationHelpers {
     }
   }
 
-  private static AgentScope.Continuation captureContinuation() {
-    final AgentScope parentScope = AgentTracer.activeScope();
-    return parentScope == null ? null : parentScope.capture();
-  }
-
   private static void finishSpan(
       final AgentScope.Continuation parentContinuation, final AgentSpan span) {
-    if (parentContinuation == null) {
+    if (parentContinuation == noopContinuation()) {
       span.finish();
       return;
     }
