@@ -389,6 +389,7 @@ agent_integration_tests:
   variables:
     testJvm: "8"
     DD_AGENT_HOST: "local-agent"
+    GRADLE_TARGET: "traceAgentTest"
   services:
     - name: datadog/agent:7.34.0
       alias: local-agent
