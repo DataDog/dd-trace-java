@@ -81,7 +81,7 @@ public class Reporter {
         String stackId =
             addVulnerabilityStackTrace(span, String.valueOf(batch.getVulnerabilities().size()));
         if (stackId != null) {
-          vulnerability.setStackId(stackId);
+          vulnerability.getLocation().setStackId(stackId);
         }
       }
     }

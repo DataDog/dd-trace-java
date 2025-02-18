@@ -45,11 +45,11 @@ public class ExecutionSettingsResponse implements SignalResponse {
 
   @Override
   public ByteBuffer serialize() {
-    return ExecutionSettings.ExecutionSettingsSerializer.serialize(settings);
+    return ExecutionSettings.Serializer.serialize(settings);
   }
 
   public static ExecutionSettingsResponse deserialize(ByteBuffer buffer) {
-    ExecutionSettings settings = ExecutionSettings.ExecutionSettingsSerializer.deserialize(buffer);
+    ExecutionSettings settings = ExecutionSettings.Serializer.deserialize(buffer);
     return new ExecutionSettingsResponse(settings);
   }
 }

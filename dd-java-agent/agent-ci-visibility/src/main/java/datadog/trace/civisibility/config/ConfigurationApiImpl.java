@@ -84,7 +84,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
         new Moshi.Builder()
             .add(ConfigurationsJsonAdapter.INSTANCE)
             .add(CiVisibilitySettings.JsonAdapter.INSTANCE)
-            .add(EarlyFlakeDetectionSettingsJsonAdapter.INSTANCE)
+            .add(EarlyFlakeDetectionSettings.JsonAdapter.INSTANCE)
             .add(MetaDtoJsonAdapter.INSTANCE)
             .build();
 
