@@ -1,10 +1,10 @@
 package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType;
 
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.concurrent.Executor;
 import org.slf4j.Logger;
@@ -26,14 +26,10 @@ public final class ExecutorInstrumentationUtils {
     if (task == null) {
       return false;
     }
-
     if (ExcludeFilter.exclude(ExcludeType.EXECUTOR, task)) {
       return false;
     }
-
-    final AgentScope scope = activeScope();
-
-    return scope != null && scope.isAsyncPropagating();
+    return activeSpan() != null && isAsyncPropagationEnabled();
   }
 
   /**
