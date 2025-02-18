@@ -183,7 +183,7 @@ class AbstractMessageInstrumentationTest extends AgentTestRunner {
     runUnderTrace("parent_deserialize") {
       AgentSpan span = activeSpan()
       span.setTag(DDTags.MANUAL_KEEP, true)
-      MyMessage.parseFrom(bytes)
+      RecursiveMessage.parseFrom(bytes)
     }
     TEST_WRITER.waitForTraces(2)
     then:
