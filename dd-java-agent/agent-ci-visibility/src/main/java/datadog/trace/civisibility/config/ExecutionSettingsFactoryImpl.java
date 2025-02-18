@@ -431,28 +431,30 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
       LOGGER.error("Could not get git diff for PR: {}", pullRequestInfo, e);
     }
 
-    try {
-      ChangedFiles changedFiles = configurationApi.getChangedFiles(tracerEnvironment);
+    if (config.isCiVisibilityImpactedTestsBackendRequestEnabled()) {
+      try {
+        ChangedFiles changedFiles = configurationApi.getChangedFiles(tracerEnvironment);
 
-      // attempting to use base SHA returned by the backend to calculate git diff
-      if (repositoryRoot != null) {
-        // ensure repo is not shallow before attempting to get git diff
-        gitRepoUnshallow.unshallow();
-        Diff diff = gitClient.getGitDiff(changedFiles.getBaseSha(), tracerEnvironment.getSha());
-        if (diff != null) {
-          return diff;
+        // attempting to use base SHA returned by the backend to calculate git diff
+        if (repositoryRoot != null) {
+          // ensure repo is not shallow before attempting to get git diff
+          gitRepoUnshallow.unshallow();
+          Diff diff = gitClient.getGitDiff(changedFiles.getBaseSha(), tracerEnvironment.getSha());
+          if (diff != null) {
+            return diff;
+          }
         }
+
+        // falling back to file-level granularity
+        return new FileDiff(changedFiles.getFiles());
+
+      } catch (InterruptedException e) {
+        LOGGER.error("Interrupted while getting git diff for: {}", tracerEnvironment, e);
+        Thread.currentThread().interrupt();
+
+      } catch (Exception e) {
+        LOGGER.error("Could not get git diff for: {}", tracerEnvironment, e);
       }
-
-      // falling back to file-level granularity
-      return new FileDiff(changedFiles.getFiles());
-
-    } catch (InterruptedException e) {
-      LOGGER.error("Interrupted while getting git diff for: {}", tracerEnvironment, e);
-      Thread.currentThread().interrupt();
-
-    } catch (Exception e) {
-      LOGGER.error("Could not get git diff for: {}", tracerEnvironment, e);
     }
 
     return LineDiff.EMPTY;

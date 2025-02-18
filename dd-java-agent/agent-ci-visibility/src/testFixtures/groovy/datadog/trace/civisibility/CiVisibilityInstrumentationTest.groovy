@@ -115,13 +115,13 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       ExecutionSettings create(JvmInfo jvmInfo, String moduleName) {
         def earlyFlakinessDetectionSettings = earlyFlakinessDetectionEnabled
         ? new EarlyFlakeDetectionSettings(true, [
-          new EarlyFlakeDetectionSettings.ExecutionsByDuration(SLOW_TEST_THRESHOLD_MILLIS, 3),
-          new EarlyFlakeDetectionSettings.ExecutionsByDuration(VERY_SLOW_TEST_THRESHOLD_MILLIS, 2)
+          new ExecutionsByDuration(SLOW_TEST_THRESHOLD_MILLIS, 3),
+          new ExecutionsByDuration(VERY_SLOW_TEST_THRESHOLD_MILLIS, 2)
         ], 0)
         : EarlyFlakeDetectionSettings.DEFAULT
 
         def testManagementSettings = testManagementEnabled
-        ? new TestManagementSettings(true, 20)
+        ? new TestManagementSettings(true, 5)
         : TestManagementSettings.DEFAULT
 
         Map<TestIdentifier, TestMetadata> skippableTestsWithMetadata = new HashMap<>()
@@ -294,14 +294,17 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
 
   def givenQuarantinedTests(List<TestFQN> tests) {
     quarantinedTests.addAll(tests)
+    testManagementEnabled = true
   }
 
   def givenDisabledTests(List<TestFQN> tests) {
     disabledTests.addAll(tests)
+    testManagementEnabled = true
   }
 
   def givenAttemptToFixTests(List<TestFQN> tests) {
     attemptToFixTests.addAll(tests)
+    testManagementEnabled = true
   }
 
   def givenDiff(Diff diff) {
@@ -318,10 +321,6 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
 
   def givenImpactedTestsDetectionEnabled(boolean impactedTestsDetectionEnabled) {
     this.impactedTestsDetectionEnabled = impactedTestsDetectionEnabled
-  }
-
-  def givenTestManagementEnabled(boolean testManagementEnabled) {
-    this.testManagementEnabled = testManagementEnabled
   }
 
   def givenTestsOrder(String testsOrder) {
@@ -342,7 +341,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     injectSysConfig(CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ENABLED, "true")
     injectSysConfig(CiVisibilityConfig.CIVISIBILITY_EARLY_FLAKE_DETECTION_LOWER_LIMIT, "1")
     injectSysConfig(CiVisibilityConfig.TEST_MANAGEMENT_ENABLED, "true")
-    injectSysConfig(CiVisibilityConfig.TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES, "20")
+    injectSysConfig(CiVisibilityConfig.TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES, "5")
   }
 
   def cleanupSpec() {

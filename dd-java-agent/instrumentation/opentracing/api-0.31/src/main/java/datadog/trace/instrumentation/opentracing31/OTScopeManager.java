@@ -63,11 +63,6 @@ public class OTScopeManager implements ScopeManager {
       return converter.toSpan(delegate.span());
     }
 
-    @Override
-    public Continuation capture() {
-      return delegate.capture();
-    }
-
     public boolean isFinishSpanOnClose() {
       return finishSpanOnClose;
     }

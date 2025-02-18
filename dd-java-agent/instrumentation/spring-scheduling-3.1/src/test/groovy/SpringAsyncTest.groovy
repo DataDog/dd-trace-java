@@ -10,26 +10,47 @@ class SpringAsyncTest extends AgentTestRunner {
     def context = new AnnotationConfigApplicationContext(AsyncTaskConfig)
     AsyncTask asyncTask = context.getBean(AsyncTask)
     when:
-    runUnderTrace("root") {
+    if (hasParent) {
+      runUnderTrace("root") {
+        asyncTask.async().join()
+      }
+    } else {
       asyncTask.async().join()
     }
     then:
     assertTraces(1) {
-      trace(3) {
-        span {
-          resourceName "root"
+      if (hasParent) {
+        trace(3) {
+          span {
+            resourceName "root"
+          }
+          span {
+            resourceName "AsyncTask.async"
+            threadNameStartsWith "SimpleAsyncTaskExecutor"
+            childOf span(0)
+          }
+          span {
+            resourceName "AsyncTask.getInt"
+            threadNameStartsWith "SimpleAsyncTaskExecutor"
+            childOf span(1)
+          }
         }
-        span {
-          resourceName "AsyncTask.async"
-          threadNameStartsWith "SimpleAsyncTaskExecutor"
-          childOf span(0)
-        }
-        span {
-          resourceName "AsyncTask.getInt"
-          threadNameStartsWith "SimpleAsyncTaskExecutor"
-          childOf span(1)
+      } else {
+        trace(2) {
+          span {
+            resourceName "AsyncTask.async"
+            threadNameStartsWith "SimpleAsyncTaskExecutor"
+          }
+          span {
+            resourceName "AsyncTask.getInt"
+            threadNameStartsWith "SimpleAsyncTaskExecutor"
+            childOf span(0)
+          }
         }
       }
     }
+
+    where:
+    hasParent << [true, false]
   }
 }

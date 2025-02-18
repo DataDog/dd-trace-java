@@ -133,7 +133,6 @@ class SpockTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test quarantined #testcaseName"() {
-    givenTestManagementEnabled(true)
     givenQuarantinedTests(quarantined)
 
     runTests(tests, true)
@@ -147,7 +146,6 @@ class SpockTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test quarantined auto-retries #testcaseName"() {
-    givenTestManagementEnabled(true)
     givenQuarantinedTests(quarantined)
 
     givenFlakyRetryEnabled(true)
@@ -159,12 +157,11 @@ class SpockTest extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName)
 
     where:
-    testcaseName                  | tests             | quarantined                                                              | retried
+    testcaseName                  | tests             | quarantined                                                 | retried
     "test-quarantined-failed-atr" | [TestFailedSpock] | [new TestFQN("org.example.TestFailedSpock", "test failed")] | [new TestFQN("org.example.TestFailedSpock", "test failed")]
   }
 
   def "test quarantined early flakiness detection #testcaseName"() {
-    givenTestManagementEnabled(true)
     givenQuarantinedTests(quarantined)
 
     givenEarlyFlakinessDetectionEnabled(true)
@@ -176,9 +173,41 @@ class SpockTest extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName)
 
     where:
-    testcaseName                    | tests             | quarantined                                                              | known
+    testcaseName                    | tests             | quarantined                                                 | known
     "test-quarantined-failed-known" | [TestFailedSpock] | [new TestFQN("org.example.TestFailedSpock", "test failed")] | [new TestFQN("org.example.TestFailedSpock", "test failed")]
     "test-quarantined-failed-efd"   | [TestFailedSpock] | [new TestFQN("org.example.TestFailedSpock", "test failed")] | []
+  }
+
+  def "test disabled #testcaseName"() {
+    givenDisabledTests(disabled)
+
+    runTests(tests, true)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName                         | tests                          | disabled
+    "test-disabled-failed"               | [TestFailedSpock]              | [new TestFQN("org.example.TestFailedSpock", "test failed")]
+    "test-disabled-failed-parameterized" | [TestFailedParameterizedSpock] | [new TestFQN("org.example.TestFailedParameterizedSpock", "test add 4 and 4")]
+  }
+
+  def "test attempt to fix #testcaseName"() {
+    givenQuarantinedTests(quarantined)
+    givenDisabledTests(disabled)
+    givenAttemptToFixTests(attemptToFix)
+
+    runTests(tests, success)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName                                | success | tests              | attemptToFix                                                  | quarantined                                                   | disabled
+    "test-attempt-to-fix-failed"                | false   | [TestFailedSpock]  | [new TestFQN("org.example.TestFailedSpock", "test failed")]   | []                                                            | []
+    "test-attempt-to-fix-succeeded"             | true    | [TestSucceedSpock] | [new TestFQN("org.example.TestSucceedSpock", "test success")] | []                                                            | []
+    "test-attempt-to-fix-quarantined-failed"    | true    | [TestFailedSpock]  | [new TestFQN("org.example.TestFailedSpock", "test failed")]   | [new TestFQN("org.example.TestFailedSpock", "test failed")]   | []
+    "test-attempt-to-fix-quarantined-succeeded" | true    | [TestSucceedSpock] | [new TestFQN("org.example.TestSucceedSpock", "test success")] | [new TestFQN("org.example.TestSucceedSpock", "test success")] | []
+    "test-attempt-to-fix-disabled-failed"       | true    | [TestFailedSpock]  | [new TestFQN("org.example.TestFailedSpock", "test failed")]   | []                                                            | [new TestFQN("org.example.TestFailedSpock", "test failed")]
+    "test-attempt-to-fix-disabled-succeeded"    | true    | [TestSucceedSpock] | [new TestFQN("org.example.TestSucceedSpock", "test success")] | []                                                            | [new TestFQN("org.example.TestSucceedSpock", "test success")]
   }
 
   private static void runTests(List<Class<?>> classes, boolean expectSuccess = true) {

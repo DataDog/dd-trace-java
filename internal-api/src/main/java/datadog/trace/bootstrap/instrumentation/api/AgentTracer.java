@@ -24,6 +24,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import javax.annotation.Nonnull;
 
 public class AgentTracer {
   private static final String DEFAULT_INSTRUMENTATION_NAME = "datadog";
@@ -93,6 +94,30 @@ public class AgentTracer {
     return get().activateSpan(span, ScopeSource.INSTRUMENTATION, isAsyncPropagating);
   }
 
+  /**
+   * When asynchronous propagation is enabled, prevent the currently active trace from reporting
+   * until the returned Continuation is either activated (and the returned scope is closed) or the
+   * continuation is canceled.
+   *
+   * <p>Should be called on the parent thread.
+   *
+   * @return Continuation of the active span, no-op continuation if there's no active span or
+   *     asynchronous propagation is disabled.
+   */
+  @Nonnull
+  public static AgentScope.Continuation captureActiveSpan() {
+    return get().captureActiveSpan();
+  }
+
+  /**
+   * Prevent the trace of the given span from reporting until the returned Continuation is either
+   * activated (and the returned scope is closed) or the continuation is canceled.
+   *
+   * <p>Should be called on the parent thread.
+   *
+   * @return Continuation of the given span.
+   */
+  @Nonnull
   public static AgentScope.Continuation captureSpan(final AgentSpan span) {
     return get().captureSpan(span);
   }
@@ -128,11 +153,6 @@ public class AgentTracer {
 
   public static AgentScope activeScope() {
     return get().activeScope();
-  }
-
-  public static AgentScope.Continuation capture() {
-    final AgentScope activeScope = activeScope();
-    return activeScope == null ? null : activeScope.capture();
   }
 
   /**
@@ -290,6 +310,9 @@ public class AgentTracer {
 
     AgentScope activateSpan(AgentSpan span, ScopeSource source, boolean isAsyncPropagating);
 
+    @Override
+    AgentScope.Continuation captureActiveSpan();
+
     AgentScope.Continuation captureSpan(AgentSpan span);
 
     void closePrevious(boolean finishSpan);
@@ -427,6 +450,11 @@ public class AgentTracer {
     public AgentScope activateSpan(
         final AgentSpan span, final ScopeSource source, final boolean isAsyncPropagating) {
       return NoopScope.INSTANCE;
+    }
+
+    @Override
+    public AgentScope.Continuation captureActiveSpan() {
+      return NoopContinuation.INSTANCE;
     }
 
     @Override

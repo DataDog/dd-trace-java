@@ -1,7 +1,6 @@
 package datadog.smoketest
 
 import datadog.trace.api.Config
-import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.civisibility.CiVisibilitySmokeTest
@@ -117,7 +116,8 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     mockBackend.givenChangedFile("src/test/java/datadog/smoke/TestSucceed.java")
 
     def exitCode = whenRunningMavenBuild([
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_GIT_CLIENT_ENABLED)}=false" as String
+      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_GIT_CLIENT_ENABLED)}=false" as String,
+      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_IMPACTED_TESTS_BACKEND_REQUEST_ENABLED)}=true" as String
     ], [])
     assert exitCode == 0
 
@@ -128,22 +128,29 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     "test_successful_maven_run_impacted_tests" | "3.9.9"
   }
 
-  def "test quarantine"() {
+  def "test test management"() {
     givenWrapperPropertiesFile(mavenVersion)
     givenMavenProjectFiles(projectName)
     givenMavenDependenciesAreLoaded(projectName, mavenVersion)
 
     mockBackend.givenTestManagement(true)
+    mockBackend.givenAttemptToFixRetries(5)
+
     mockBackend.givenQuarantinedTests("Maven Smoke Tests Project maven-surefire-plugin default-test", "datadog.smoke.TestFailed", "test_failed")
+    mockBackend.givenQuarantinedTests("Maven Smoke Tests Project maven-surefire-plugin default-test", "datadog.smoke.TestFailed", "test_another_failed")
+
+    mockBackend.givenDisabledTests("Maven Smoke Tests Project maven-surefire-plugin default-test", "datadog.smoke.TestSucceeded", "test_succeed")
+
+    mockBackend.givenAttemptToFixTests("Maven Smoke Tests Project maven-surefire-plugin default-test", "datadog.smoke.TestFailed", "test_another_failed")
 
     def exitCode = whenRunningMavenBuild([], [])
     assert exitCode == 0
 
-    verifyEventsAndCoverages(projectName, "maven", mavenVersion, mockBackend.waitForEvents(8), mockBackend.waitForCoverages(1))
+    verifyEventsAndCoverages(projectName, "maven", mavenVersion, mockBackend.waitForEvents(15), mockBackend.waitForCoverages(6))
 
     where:
     projectName                                   | mavenVersion
-    "test_successful_maven_run_quarantined_tests" | "3.9.9"
+    "test_successful_maven_run_test_management"   | "3.9.9"
   }
 
   private void givenWrapperPropertiesFile(String mavenVersion) {

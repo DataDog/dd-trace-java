@@ -6,6 +6,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongArray;
@@ -13,6 +15,8 @@ import java.util.concurrent.atomic.AtomicLongArray;
 public class WafMetricCollector implements MetricCollector<WafMetricCollector.WafMetric> {
 
   public static WafMetricCollector INSTANCE = new WafMetricCollector();
+  private static final int ABSTRACT_POWERWAF_EXCEPTION_NUMBER =
+      3; // only 3 error codes are possible for now in AbstractPowerwafException
 
   public static WafMetricCollector get() {
     return WafMetricCollector.INSTANCE;
@@ -40,6 +44,15 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
       new AtomicLongArray(RuleType.getNumValues());
   private static final AtomicLongArray raspTimeoutCounter =
       new AtomicLongArray(RuleType.getNumValues());
+  private static final ConcurrentMap<Integer, AtomicLongArray> raspErrorCodeCounter =
+      new ConcurrentSkipListMap<>();
+
+  static {
+    for (int i = -1 * ABSTRACT_POWERWAF_EXCEPTION_NUMBER; i < 0; i++) {
+      raspErrorCodeCounter.put(i, new AtomicLongArray(RuleType.getNumValues()));
+    }
+  }
+
   private static final AtomicLongArray missingUserLoginQueue =
       new AtomicLongArray(LoginFramework.getNumValues() * LoginEvent.getNumValues());
   private static final AtomicLongArray missingUserIdQueue =
@@ -102,6 +115,10 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
 
   public void raspTimeout(final RuleType ruleType) {
     raspTimeoutCounter.incrementAndGet(ruleType.ordinal());
+  }
+
+  public void raspErrorCode(final RuleType ruleType, final int ddwafRunErrorCode) {
+    raspErrorCodeCounter.get(ddwafRunErrorCode).incrementAndGet(ruleType.ordinal());
   }
 
   public void missingUserLogin(final LoginFramework framework, final LoginEvent eventType) {
@@ -212,6 +229,19 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
         if (!rawMetricsQueue.offer(
             new RaspTimeout(counter, ruleType, WafMetricCollector.wafVersion))) {
           return;
+        }
+      }
+    }
+
+    // RASP rule type for each possible error code
+    for (int i = -1 * ABSTRACT_POWERWAF_EXCEPTION_NUMBER; i < 0; i++) {
+      for (RuleType ruleType : RuleType.values()) {
+        long counter = raspErrorCodeCounter.get(i).getAndSet(ruleType.ordinal(), 0);
+        if (counter > 0) {
+          if (!rawMetricsQueue.offer(
+              new RaspError(counter, ruleType, WafMetricCollector.wafVersion, i))) {
+            return;
+          }
         }
       }
     }
@@ -364,6 +394,31 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
                 "event_rules_version:" + rulesVersion
               }
               : new String[] {"rule_type:" + ruleType.type, "waf_version:" + wafVersion});
+    }
+  }
+
+  public static class RaspError extends WafMetric {
+    public RaspError(
+        final long counter,
+        final RuleType ruleType,
+        final String wafVersion,
+        final Integer ddwafRunError) {
+      super(
+          "rasp.error",
+          counter,
+          ruleType.variant != null
+              ? new String[] {
+                "rule_type:" + ruleType.type,
+                "rule_variant:" + ruleType.variant,
+                "waf_version:" + wafVersion,
+                "event_rules_version:" + rulesVersion,
+                "waf_error:" + ddwafRunError
+              }
+              : new String[] {
+                "rule_type:" + ruleType.type,
+                "waf_version:" + wafVersion,
+                "waf_error:" + ddwafRunError
+              });
     }
   }
 

@@ -8,6 +8,7 @@ import com.datadog.appsec.event.data.DataBundle
 import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.report.AppSecEvent
 import com.datadog.appsec.report.AppSecEventWrapper
+import datadog.trace.api.ProductTraceSource
 import datadog.trace.api.UserIdCollectionMode
 import datadog.trace.api.appsec.LoginEventCallback
 import datadog.trace.api.function.TriConsumer
@@ -1112,7 +1113,7 @@ class GatewayBridgeSpecification extends DDSpecification {
       1 * traceSegment.setTagTop('appsec.events.users.signup.track', true, true)
       1 * traceSegment.setTagTop('appsec.events.users.signup', ['key1': 'value1', 'key2': 'value2'], true)
       1 * traceSegment.setTagTop('asm.keep', true)
-      1 * traceSegment.setTagTop('_dd.p.appsec', true)
+      1 * traceSegment.setTagTop('_dd.p.ts', ProductTraceSource.ASM)
       1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> { a, b, DataBundle db, GatewayContext gw ->
         if (mode == SDK) {
           assert db.get(KnownAddresses.USER_ID) == expectedUser
@@ -1151,7 +1152,7 @@ class GatewayBridgeSpecification extends DDSpecification {
       1 * traceSegment.setTagTop('appsec.events.users.login.success.track', true, true)
       1 * traceSegment.setTagTop('appsec.events.users.login.success', ['key1': 'value1', 'key2': 'value2'], true)
       1 * traceSegment.setTagTop('asm.keep', true)
-      1 * traceSegment.setTagTop('_dd.p.appsec', true)
+      1 * traceSegment.setTagTop('_dd.p.ts', ProductTraceSource.ASM)
       1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> { a, b, DataBundle db, GatewayContext gw ->
         if (mode == SDK) {
           assert db.get(KnownAddresses.USER_ID) == expectedUser
@@ -1192,7 +1193,7 @@ class GatewayBridgeSpecification extends DDSpecification {
       1 * traceSegment.setTagTop('appsec.events.users.login.failure.usr.exists', false, true)
       1 * traceSegment.setTagTop('appsec.events.users.login.failure', ['key1': 'value1', 'key2': 'value2'], true)
       1 * traceSegment.setTagTop('asm.keep', true)
-      1 * traceSegment.setTagTop('_dd.p.appsec', true)
+      1 * traceSegment.setTagTop('_dd.p.ts', ProductTraceSource.ASM)
       1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> { a, b, DataBundle db, GatewayContext gw ->
         if (mode == SDK) {
           assert db.get(KnownAddresses.USER_ID) == expectedUser
@@ -1221,7 +1222,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * traceSegment.setTagTop('appsec.events.my.event.track', true, true)
     1 * traceSegment.setTagTop('appsec.events.my.event', ['key1': 'value1', 'key2': 'value2'], true)
     1 * traceSegment.setTagTop('asm.keep', true)
-    1 * traceSegment.setTagTop('_dd.p.appsec', true)
+    1 * traceSegment.setTagTop('_dd.p.ts', ProductTraceSource.ASM)
     0 * eventDispatcher.publishDataEvent
   }
 
@@ -1318,6 +1319,21 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * traceSegment.setTagTop('_dd.appsec.events.users.login.failure.auto.mode', IDENTIFICATION.fullName(), true)
 
     0 * eventDispatcher.publishDataEvent
+  }
+
+  void 'test onUserNotFound'() {
+    setup:
+    eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
+
+    when:
+    loginEventCB.apply(ctx, IDENTIFICATION, 'users.login.failure', exists, null, null)
+
+    then:
+    1 * traceSegment.setTagTop('appsec.events.users.login.failure.usr.exists', exists, true)
+    0 * eventDispatcher.publishDataEvent
+
+    where:
+    exists << [true, false]
   }
 
   void 'test configuration updates should reset cached subscriptions'() {

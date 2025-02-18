@@ -157,9 +157,9 @@ class TracingPropagatorTest extends DDCoreSpecification {
     tracer.close()
   }
 
-  def 'test ASM standalone billing propagator stop propagation'() {
+  def 'test APM Tracing disabled propagator stop propagation'() {
     setup:
-    injectSysConfig('experimental.appsec.standalone.enabled', standaloneAsmEnabled.toString())
+    injectSysConfig('apm.tracing.enabled', apmTracingEnabled.toString())
     def tracer = tracerBuilder().build()
     def span = tracer.buildSpan('test', 'operation').start()
     def setter = Mock(CarrierSetter)
@@ -169,10 +169,10 @@ class TracingPropagatorTest extends DDCoreSpecification {
     Propagators.defaultPropagator().inject(span, carrier, setter)
 
     then:
-    if (standaloneAsmEnabled) {
-      0 * setter.set(_, _, _)
-    } else {
+    if (apmTracingEnabled) {
       (1.._) * setter.set(_, _, _)
+    } else {
+      0 * setter.set(_, _, _)
     }
 
     cleanup:
@@ -180,6 +180,6 @@ class TracingPropagatorTest extends DDCoreSpecification {
     tracer.close()
 
     where:
-    standaloneAsmEnabled << [true, false]
+    apmTracingEnabled << [true, false]
   }
 }

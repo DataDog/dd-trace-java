@@ -198,7 +198,7 @@ class AppSecEventTrackerSpecification extends DDSpecification {
 
     then:
     if (mode != DISABLED) {
-      1 * traceSegment.setTagTop('appsec.events.users.login.failure.usr.exists', false)
+      1 * loginEvent.apply(_ as RequestContext, mode, 'users.login.failure', false, null, null) >> NoopFlow.INSTANCE
     }
     0 * _
 
