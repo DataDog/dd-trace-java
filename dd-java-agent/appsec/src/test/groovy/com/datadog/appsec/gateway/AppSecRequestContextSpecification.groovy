@@ -290,4 +290,17 @@ class AppSecRequestContextSpecification extends DDSpecification {
     then:
     ctx.getRaspTimeouts() == 2
   }
+
+  def "test increase and get RaspErrors"() {
+    when:
+    ctx.increaseRaspErrorCode(AppSecRequestContext.DD_WAF_RUN_INTERNAL_ERROR)
+    ctx.increaseRaspErrorCode(AppSecRequestContext.DD_WAF_RUN_INTERNAL_ERROR)
+    ctx.increaseRaspErrorCode(AppSecRequestContext.DD_WAF_RUN_INVALID_OBJECT_ERROR)
+
+    then:
+    ctx.getRaspError(AppSecRequestContext.DD_WAF_RUN_INTERNAL_ERROR) == 2
+    ctx.getRaspError(AppSecRequestContext.DD_WAF_RUN_INVALID_OBJECT_ERROR) == 1
+    ctx.getRaspError(AppSecRequestContext.DD_WAF_RUN_INVALID_ARGUMENT_ERROR) == 0
+    ctx.getRaspError(0) == 0
+  }
 }
