@@ -40,6 +40,7 @@ class MockBackend implements AutoCloseable {
   private boolean flakyRetriesEnabled = false
   private boolean impactedTestsDetectionEnabled = false
   private boolean testManagementEnabled = false
+  private int attemptToFixRetries = 0
 
   void reset() {
     receivedTraces.clear()
@@ -87,6 +88,10 @@ class MockBackend implements AutoCloseable {
     this.testManagementEnabled = testManagementEnabled
   }
 
+  void givenAttemptToFixRetries(int attemptToFixRetries) {
+    this.attemptToFixRetries = attemptToFixRetries
+  }
+
   void givenQuarantinedTests(String module, String suite, String name) {
     testManagement.add([
       "module": module,
@@ -102,6 +107,15 @@ class MockBackend implements AutoCloseable {
       "suite": suite,
       "name": name,
       "properties": ["disabled": true]
+    ])
+  }
+
+  void givenAttemptToFixTests(String module, String suite, String name) {
+    testManagement.add([
+      "module": module,
+      "suite": suite,
+      "name": name,
+      "properties": ["attempt_to_fix": true]
     ])
   }
 
@@ -151,7 +165,8 @@ class MockBackend implements AutoCloseable {
               "flaky_test_retries_enabled": $flakyRetriesEnabled,
               "impacted_tests_enabled": $impactedTestsDetectionEnabled,
               "test_management": {
-                "enabled": $testManagementEnabled
+                "enabled": $testManagementEnabled,
+                "attempt_to_fix_retries": $attemptToFixRetries
               }
             }
           }

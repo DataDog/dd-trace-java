@@ -57,11 +57,8 @@ class ConfigurationApiImplTest extends Specification {
     agentless | compression | expectedSettings
     false     | false       | new CiVisibilitySettings(false, false, false, false, false, false, false, EarlyFlakeDetectionSettings.DEFAULT, TestManagementSettings.DEFAULT)
     false     | true        | new CiVisibilitySettings(true, true, true, true, true, true, true, EarlyFlakeDetectionSettings.DEFAULT, TestManagementSettings.DEFAULT)
-    true      | false       | new CiVisibilitySettings(false, true, false, true, false, true, false, new EarlyFlakeDetectionSettings(true, [new EarlyFlakeDetectionSettings.ExecutionsByDuration(1000, 3)], 10), new TestManagementSettings(true, 10))
-    true      | true        | new CiVisibilitySettings(false, false, true, true, false, false, true, new EarlyFlakeDetectionSettings(true, [
-      new EarlyFlakeDetectionSettings.ExecutionsByDuration(5000, 3),
-      new EarlyFlakeDetectionSettings.ExecutionsByDuration(120000, 2)
-    ], 10), new TestManagementSettings(true, 20))
+    true      | false       | new CiVisibilitySettings(false, true, false, true, false, true, false, new EarlyFlakeDetectionSettings(true, [new ExecutionsByDuration(1000, 3)], 10), new TestManagementSettings(true, 10))
+    true      | true        | new CiVisibilitySettings(false, false, true, true, false, false, true, new EarlyFlakeDetectionSettings(true, [new ExecutionsByDuration(5000, 3), new ExecutionsByDuration(120000, 2)], 10), new TestManagementSettings(true, 20))
   }
 
   def "test skippable tests request"() {
