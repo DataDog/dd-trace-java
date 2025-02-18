@@ -39,20 +39,20 @@ abstract class LambdaHandlerInstrumentationTest extends VersionedNamingTestBase 
           operationName operation()
           errored true
           tags {
-            "error.type" "java.lang.Error"
-            "error.message" "Some error"
-            "error.stack" String
-            "language" "jvm"
-            "process_id" Long
-            "runtime-id" String
-            "thread.id" Long
-            "thread.name" String
-            "_dd.profiling.ctx" "test"
-            "_dd.profiling.enabled" 0
-            "_dd.agent_psr" 1.0
-            "_dd.tracer_host" String
-            "_sample_rate" 1
-            "_dd.trace_span_attribute_schema" 0
+            tag "error.type", "java.lang.Error"
+            tag "error.message", "Some error"
+            tag "error.stack", String
+            tag "language", "jvm"
+            tag "process_id", Long
+            tag "runtime-id", String
+            tag "thread.id", Long
+            tag "thread.name", String
+            tag "_dd.profiling.ctx", "test"
+            tag "_dd.profiling.enabled", 0
+            tag "_dd.agent_psr", 1.0
+            tag "_dd.tracer_host", String
+            tag "_sample_rate", 1
+            tag "_dd.trace_span_attribute_schema", { it != null }
           }
         }
       }
