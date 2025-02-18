@@ -4,12 +4,12 @@ import datadog.communication.monitor.Monitoring
 import datadog.communication.monitor.NoOpRecording
 import datadog.communication.monitor.Recording
 import datadog.trace.api.StatsDClient
-import datadog.trace.test.util.DDSpecification
 import org.junit.jupiter.api.Assertions
+import spock.lang.Specification
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 
-class TimingTest extends DDSpecification {
+class TimingTest extends Specification {
 
   def "timer times stuff"() {
     setup:
