@@ -8,16 +8,8 @@ apply plugin: "idea"
 [compileMain_java17Java, compileTestJava].each {
   it.configure {
     setJavaVersion(it, 17)
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
-  }
-}
-
-sourceSets {
-  main {
-    java {
-      setSrcDirs(['src/main/java', 'src/main/java17'])
-    }
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
   }
 }
 
