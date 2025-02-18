@@ -17,66 +17,66 @@ class AbstractMessageInstrumentationTest extends AgentTestRunner {
     return true
   }
 
-  void 'test extract protobuf schema on serialize & deserialize'() {
+  void "test extract protobuf schema on serialize & deserialize"() {
 
-    String expectedSchema = "{" +
-      '   "components":{' +
-      '      "schemas":{' +
-      '         "com.datadog.instrumentation.protobuf.generated.MyMessage":{' +
-      '            "properties":{' +
-      '               "id":{' +
-      '                  "extensions":{' +
-      '                     "x-protobuf-number":"1"' +
-      '                  },' +
-      '                  "type":"string"' +
-      '               },' +
-      '               "value":{' +
-      '                  "extensions":{' +
-      '                     "x-protobuf-number":"2"' +
-      '                  },' +
-      '                  "type":"string"' +
-      '               },' +
-      '               "other_message":{' +
-      '                  "extensions":{' +
-      '                     "x-protobuf-number":"3"' +
-      '                  },' +
-      '                  "items":{' +
-      '                     "$ref":"#/components/schemas/com.datadog.instrumentation.protobuf.generated.OtherMessage"' +
-      '                  },' +
-      '                  "type":"array"' +
-      '               },' +
-      '               "nested":{' +
-      '                  "$ref":"#/components/schemas/com.datadog.instrumentation.protobuf.generated.OtherMessage",' +
-      '                  "extensions":{' +
-      '                     "x-protobuf-number":"4"' +
-      '                  }' +
-      '               }' +
-      '            },' +
-      '            "type":"object"' +
-      '         },' +
-      '         "com.datadog.instrumentation.protobuf.generated.OtherMessage":{' +
-      '            "properties":{' +
-      '               "name":{' +
-      '                  "extensions":{' +
-      '                     "x-protobuf-number":"1"' +
-      '                  },' +
-      '                  "type":"string"' +
-      '               },' +
-      '               "age":{' +
-      '                  "extensions":{' +
-      '                     "x-protobuf-number":"2"' +
-      '                  },' +
-      '                  "format":"int32",' +
-      '                  "type":"integer"' +
-      '               }' +
-      '            },' +
-      '            "type":"object"' +
-      '         }' +
-      '      }' +
-      '   },' +
-      '   "openapi":"3.0.0"' +
-      '}'
-    expectedSchema = expectedSchema.replaceAll(" ", "") // the spaces are just here to make it readable
+    String expectedSchema = """{
+         "components":{
+            "schemas":{
+               "com.datadog.instrumentation.protobuf.generated.MyMessage":{
+                  "properties":{
+                     "id":{
+                        "extensions":{
+                           "x-protobuf-number":"1"
+                        },
+                        "type":"string"
+                     },
+                     "value":{
+                        "extensions":{
+                           "x-protobuf-number":"2"
+                        },
+                        "type":"string"
+                     },
+                     "other_message":{
+                        "extensions":{
+                           "x-protobuf-number":"3"
+                        },
+                        "items":{
+                           "\$ref":"#/components/schemas/com.datadog.instrumentation.protobuf.generated.OtherMessage"
+                        },
+                        "type":"array"
+                     },
+                     "nested":{
+                        "\$ref":"#/components/schemas/com.datadog.instrumentation.protobuf.generated.OtherMessage",
+                        "extensions":{
+                           "x-protobuf-number":"4"
+                        }
+                     }
+                  },
+                  "type":"object"
+               },
+               "com.datadog.instrumentation.protobuf.generated.OtherMessage":{
+                  "properties":{
+                     "name":{
+                        "extensions":{
+                           "x-protobuf-number":"1"
+                        },
+                        "type":"string"
+                     },
+                     "age":{
+                        "extensions":{
+                           "x-protobuf-number":"2"
+                        },
+                        "format":"int32",
+                        "type":"integer"
+                     }
+                  },
+                  "type":"object"
+               }
+            }
+         },
+         "openapi":"3.0.0"
+      }"""
+    expectedSchema = expectedSchema.replaceAll("[ \n]", "") // the spaces are just here to make it readable
     String expectedSchemaID = "2792908287829424040"
 
     setup:
@@ -139,33 +139,33 @@ class AbstractMessageInstrumentationTest extends AgentTestRunner {
     }
   }
 
-  void 'test extract protobuf schema with recursive message'() {
-    String expectedSchema = '{' +
-      '   "components":{' +
-      '      "schemas":{' +
-      '         "com.datadog.instrumentation.protobuf.generated.RecursiveMessage":{' +
-      '            "properties":{' +
-      '               "value":{' +
-      '                  "extensions":{' +
-      '                     "x-protobuf-number":"1"' +
-      '                  },' +
-      '                  "format":"int32",' +
-      '                  "type":"integer"' +
-      '               },' +
-      '               "next":{' +
-      '                  "$ref":"#/components/schemas/com.datadog.instrumentation.protobuf.generated.RecursiveMessage",' +
-      '                  "extensions":{' +
-      '                     "x-protobuf-number":"2"' +
-      '                  }' +
-      '               }' +
-      '            },' +
-      '            "type":"object"' +
-      '         }' +
-      '      }' +
-      '   },' +
-      '   "openapi":"3.0.0"' +
-      '}'
-    expectedSchema = expectedSchema.replaceAll(" ", "") // the spaces are just here to make it readable
+  void "test extract protobuf schema with recursive message"() {
+    String expectedSchema = """{
+         "components":{
+            "schemas":{
+               "com.datadog.instrumentation.protobuf.generated.RecursiveMessage":{
+                  "properties":{
+                     "value":{
+                        "extensions":{
+                           "x-protobuf-number":"1"
+                        },
+                        "format":"int32",
+                        "type":"integer"
+                     },
+                     "next":{
+                        "\$ref":"#/components/schemas/com.datadog.instrumentation.protobuf.generated.RecursiveMessage",
+                        "extensions":{
+                           "x-protobuf-number":"2"
+                        }
+                     }
+                  },
+                  "type":"object"
+               }
+            }
+         },
+         "openapi":"3.0.0"
+      }"""
+    expectedSchema = expectedSchema.replaceAll("[ \n]", "") // the spaces are just here to make it readable
     String expectedSchemaID = "8377547842972884891"
 
     setup:
@@ -227,7 +227,7 @@ class AbstractMessageInstrumentationTest extends AgentTestRunner {
     }
   }
 
-  void 'test error when de-serializing'() {
+  void "test error when de-serializing"() {
     setup:
     MyMessage message = MyMessage.newBuilder()
       .setId("1")
