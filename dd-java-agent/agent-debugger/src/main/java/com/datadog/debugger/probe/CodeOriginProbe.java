@@ -27,19 +27,23 @@ import org.slf4j.LoggerFactory;
 public class CodeOriginProbe extends ProbeDefinition {
   private static final Logger LOGGER = LoggerFactory.getLogger(CodeOriginProbe.class);
 
+  private final boolean instrument;
   private final boolean entrySpanProbe;
-
   private String signature;
 
-  public CodeOriginProbe(ProbeId probeId, boolean entry, Where where) {
+  public CodeOriginProbe(ProbeId probeId, boolean entry, Where where, boolean instrument) {
     super(LANGUAGE, probeId, (Tag[]) null, where, MethodLocation.ENTRY);
+    this.instrument = instrument;
     this.entrySpanProbe = entry;
   }
 
   @Override
   public Status instrument(
       MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<ProbeId> probeIds) {
-    return new CodeOriginInstrumentor(this, methodInfo, diagnostics, probeIds).instrument();
+    if (instrument) {
+      return new CodeOriginInstrumentor(this, methodInfo, diagnostics, probeIds).instrument();
+    }
+    return Status.INSTALLED;
   }
 
   @Override
@@ -55,6 +59,10 @@ public class CodeOriginProbe extends ProbeDefinition {
     List<AgentSpan> agentSpans =
         entrySpanProbe ? asList(span, span.getLocalRootSpan()) : singletonList(span);
 
+    if (location == null) {
+      LOGGER.debug("Code origin probe {} has no location", id);
+      return;
+    }
     for (AgentSpan s : agentSpans) {
       if (s.getTag(DD_CODE_ORIGIN_TYPE) == null) {
         s.setTag(DD_CODE_ORIGIN_TYPE, entrySpanProbe ? "entry" : "exit");
@@ -118,20 +126,8 @@ public class CodeOriginProbe extends ProbeDefinition {
 
   @Override
   public String toString() {
-    return "CodeOriginProbe{"
-        + "id='"
-        + id
-        + '\''
-        + ", version="
-        + version
-        + ", tags="
-        + Arrays.toString(tags)
-        + ", where="
-        + where
-        + ", evaluateAt="
-        + evaluateAt
-        + ", entrySpanProbe="
-        + entrySpanProbe
-        + "} ";
+    return String.format(
+        "CodeOriginProbe{probeId=%s, entrySpanProbe=%s, signature=%s, where=%s, location=%s}",
+        probeId, entrySpanProbe, signature, where, location);
   }
 }

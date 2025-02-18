@@ -49,7 +49,7 @@
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.module" : "cucumber-junit-5",
       "test.name" : "Addition",
-      "test.skip_reason" : "Skipped by Datadog Intelligent Test Runner",
+      "test.skip_reason" : "Skipped by Datadog Test Impact Analysis",
       "test.skipped_by_itr" : "true",
       "test.status" : "skip",
       "test.suite" : "classpath:org/example/cucumber/calculator/basic_arithmetic.feature:Basic Arithmetic",

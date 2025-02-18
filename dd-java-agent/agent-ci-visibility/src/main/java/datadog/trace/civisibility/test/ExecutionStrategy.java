@@ -5,10 +5,12 @@ import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestMetadata;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
+import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.civisibility.config.EarlyFlakeDetectionSettings;
 import datadog.trace.civisibility.config.ExecutionSettings;
 import datadog.trace.civisibility.config.TestManagementSettings;
+import datadog.trace.civisibility.config.TestSetting;
 import datadog.trace.civisibility.execution.Regular;
 import datadog.trace.civisibility.execution.RetryUntilSuccessful;
 import datadog.trace.civisibility.execution.RunNTimes;
@@ -16,7 +18,6 @@ import datadog.trace.civisibility.execution.RunOnceIgnoreOutcome;
 import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import java.lang.reflect.Method;
-import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
@@ -53,13 +54,12 @@ public class ExecutionStrategy {
   }
 
   public boolean isNew(TestIdentifier test) {
-    Collection<TestIdentifier> knownTests = executionSettings.getKnownTests();
-    return knownTests != null && !knownTests.contains(test.withoutParameters());
+    return executionSettings.isKnownTestsDataAvailable()
+        && !executionSettings.isKnown(test.toFQN());
   }
 
   public boolean isFlaky(TestIdentifier test) {
-    Collection<TestIdentifier> flakyTests = executionSettings.getFlakyTests();
-    return flakyTests != null && flakyTests.contains(test.withoutParameters());
+    return executionSettings.isFlaky(test.toFQN());
   }
 
   public boolean isQuarantined(TestIdentifier test) {
@@ -67,8 +67,23 @@ public class ExecutionStrategy {
     if (!testManagementSettings.isEnabled()) {
       return false;
     }
-    Collection<TestIdentifier> quarantinedTests = executionSettings.getQuarantinedTests();
-    return quarantinedTests.contains(test.withoutParameters());
+    return executionSettings.isQuarantined(test.toFQN());
+  }
+
+  public boolean isDisabled(TestIdentifier test) {
+    TestManagementSettings testManagementSettings = executionSettings.getTestManagementSettings();
+    if (!testManagementSettings.isEnabled()) {
+      return false;
+    }
+    return executionSettings.isDisabled(test.toFQN());
+  }
+
+  public boolean isAttemptToFix(TestIdentifier test) {
+    TestManagementSettings testManagementSettings = executionSettings.getTestManagementSettings();
+    if (!testManagementSettings.isEnabled()) {
+      return false;
+    }
+    return executionSettings.isAttemptToFix(test.toFQN());
   }
 
   @Nullable
@@ -76,9 +91,20 @@ public class ExecutionStrategy {
     if (test == null) {
       return null;
     }
+
+    // test should not be skipped if it is an attempt to fix, independent of TIA or Disabled
+    if (isAttemptToFix(test)) {
+      return null;
+    }
+
+    if (isDisabled(test)) {
+      return SkipReason.DISABLED;
+    }
+
     if (!executionSettings.isTestSkippingEnabled()) {
       return null;
     }
+
     Map<TestIdentifier, TestMetadata> skippableTests = executionSettings.getSkippableTests();
     TestMetadata testMetadata = skippableTests.get(test);
     if (testMetadata == null) {
@@ -96,11 +122,21 @@ public class ExecutionStrategy {
       return Regular.INSTANCE;
     }
 
+    if (isAttemptToFix(test)) {
+      return new RunNTimes(
+          executionSettings.getTestManagementSettings().getAttemptToFixExecutions(),
+          isQuarantined(test) || isDisabled(test),
+          RetryReason.attemptToFix);
+    }
+
     if (isEFDApplicable(test, testSource)) {
       // check-then-act with "earlyFlakeDetectionsUsed" is not atomic here,
       // but we don't care if we go "a bit" over the limit, it does not have to be precise
       earlyFlakeDetectionsUsed.incrementAndGet();
-      return new RunNTimes(executionSettings.getEarlyFlakeDetectionSettings(), isQuarantined(test));
+      return new RunNTimes(
+          executionSettings.getEarlyFlakeDetectionSettings().getExecutionsByDuration(),
+          isQuarantined(test),
+          RetryReason.efd);
     }
 
     if (isAutoRetryApplicable(test)) {
@@ -122,8 +158,8 @@ public class ExecutionStrategy {
       return false;
     }
 
-    Collection<TestIdentifier> flakyTests = executionSettings.getFlakyTests();
-    return (flakyTests == null || flakyTests.contains(test.withoutParameters()))
+    return (!executionSettings.isFlakyTestsDataAvailable()
+            || executionSettings.isFlaky(test.toFQN()))
         && autoRetriesUsed.get() < config.getCiVisibilityTotalFlakyRetryCount();
   }
 
@@ -135,13 +171,12 @@ public class ExecutionStrategy {
   }
 
   public boolean isEFDLimitReached() {
-    Collection<TestIdentifier> knownTests = executionSettings.getKnownTests();
-    if (knownTests == null) {
+    if (!executionSettings.isKnownTestsDataAvailable()) {
       return false;
     }
 
     int detectionsUsed = earlyFlakeDetectionsUsed.get();
-    int totalTests = knownTests.size() + detectionsUsed;
+    int totalTests = executionSettings.getSettingCount(TestSetting.KNOWN) + detectionsUsed;
     EarlyFlakeDetectionSettings earlyFlakeDetectionSettings =
         executionSettings.getEarlyFlakeDetectionSettings();
     int threshold =

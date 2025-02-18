@@ -51,7 +51,6 @@
       "test.codeowners" : "[\"owner1\",\"owner2\"]",
       "test.framework" : "testng",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.management.is_quarantined" : "true",
       "test.module" : "testng-7",
       "test.name" : "parameterized_test_succeed",
       "test.parameters" : "{\"arguments\":{\"0\":\"hello\",\"1\":\"true\"}}",
@@ -59,6 +58,7 @@
       "test.source.method" : "parameterized_test_succeed(Ljava/lang/String;Z)V",
       "test.status" : "pass",
       "test.suite" : "org.example.TestFailedParameterized",
+      "test.test_management.is_quarantined" : "true",
       "test.type" : "test",
       "test_session.name" : "session-name"
     },
@@ -102,7 +102,6 @@
       "test.codeowners" : "[\"owner1\",\"owner2\"]",
       "test.framework" : "testng",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.management.is_quarantined" : "true",
       "test.module" : "testng-7",
       "test.name" : "parameterized_test_succeed",
       "test.parameters" : "{\"arguments\":{\"0\":\"\\\"goodbye\\\"\",\"1\":\"false\"}}",
@@ -110,6 +109,7 @@
       "test.source.method" : "parameterized_test_succeed(Ljava/lang/String;Z)V",
       "test.status" : "fail",
       "test.suite" : "org.example.TestFailedParameterized",
+      "test.test_management.is_quarantined" : "true",
       "test.type" : "test",
       "test_session.name" : "session-name"
     },

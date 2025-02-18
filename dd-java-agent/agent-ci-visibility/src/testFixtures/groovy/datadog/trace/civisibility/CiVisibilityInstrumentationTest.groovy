@@ -9,6 +9,7 @@ import datadog.trace.api.civisibility.CIConstants
 import datadog.trace.api.civisibility.DDTest
 import datadog.trace.api.civisibility.DDTestSuite
 import datadog.trace.api.civisibility.InstrumentationBridge
+import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.api.civisibility.config.TestMetadata
 import datadog.trace.api.civisibility.coverage.CoveragePerTestBridge
@@ -71,9 +72,11 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
   private static Path agentKeyFile
 
   private static final List<TestIdentifier> skippableTests = new ArrayList<>()
-  private static final List<TestIdentifier> quarantinedTests = new ArrayList<>()
-  private static final List<TestIdentifier> flakyTests = new ArrayList<>()
-  private static final List<TestIdentifier> knownTests = new ArrayList<>()
+  private static final List<TestFQN> flakyTests = new ArrayList<>()
+  private static final List<TestFQN> knownTests = new ArrayList<>()
+  private static final List<TestFQN> quarantinedTests = new ArrayList<>()
+  private static final List<TestFQN> disabledTests = new ArrayList<>()
+  private static final List<TestFQN> attemptToFixTests = new ArrayList<>()
   private static volatile Diff diff = LineDiff.EMPTY
 
   private static volatile boolean itrEnabled = false
@@ -112,13 +115,13 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       ExecutionSettings create(JvmInfo jvmInfo, String moduleName) {
         def earlyFlakinessDetectionSettings = earlyFlakinessDetectionEnabled
         ? new EarlyFlakeDetectionSettings(true, [
-          new EarlyFlakeDetectionSettings.ExecutionsByDuration(SLOW_TEST_THRESHOLD_MILLIS, 3),
-          new EarlyFlakeDetectionSettings.ExecutionsByDuration(VERY_SLOW_TEST_THRESHOLD_MILLIS, 2)
+          new ExecutionsByDuration(SLOW_TEST_THRESHOLD_MILLIS, 3),
+          new ExecutionsByDuration(VERY_SLOW_TEST_THRESHOLD_MILLIS, 2)
         ], 0)
         : EarlyFlakeDetectionSettings.DEFAULT
 
         def testManagementSettings = testManagementEnabled
-        ? new TestManagementSettings(true, 20)
+        ? new TestManagementSettings(true, 5)
         : TestManagementSettings.DEFAULT
 
         Map<TestIdentifier, TestMetadata> skippableTestsWithMetadata = new HashMap<>()
@@ -137,9 +140,11 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
         itrEnabled ? "itrCorrelationId" : null,
         skippableTestsWithMetadata,
         [:],
-        quarantinedTests,
         flakyTests,
         earlyFlakinessDetectionEnabled || CIConstants.FAIL_FAST_TEST_ORDER.equalsIgnoreCase(Config.get().ciVisibilityTestOrder) ? knownTests : null,
+        quarantinedTests,
+        disabledTests,
+        attemptToFixTests,
         diff)
       }
     }
@@ -259,9 +264,11 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
   @Override
   void setup() {
     skippableTests.clear()
-    quarantinedTests.clear()
     flakyTests.clear()
     knownTests.clear()
+    quarantinedTests.clear()
+    disabledTests.clear()
+    attemptToFixTests.clear()
     diff = LineDiff.EMPTY
     itrEnabled = false
     flakyRetryEnabled = false
@@ -277,16 +284,27 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     itrEnabled = true
   }
 
-  def givenFlakyTests(List<TestIdentifier> tests) {
+  def givenFlakyTests(List<TestFQN> tests) {
     flakyTests.addAll(tests)
   }
 
-  def givenKnownTests(List<TestIdentifier> tests) {
+  def givenKnownTests(List<TestFQN> tests) {
     knownTests.addAll(tests)
   }
 
-  def givenQuarantinedTests(List<TestIdentifier> tests) {
+  def givenQuarantinedTests(List<TestFQN> tests) {
     quarantinedTests.addAll(tests)
+    testManagementEnabled = true
+  }
+
+  def givenDisabledTests(List<TestFQN> tests) {
+    disabledTests.addAll(tests)
+    testManagementEnabled = true
+  }
+
+  def givenAttemptToFixTests(List<TestFQN> tests) {
+    attemptToFixTests.addAll(tests)
+    testManagementEnabled = true
   }
 
   def givenDiff(Diff diff) {
@@ -303,10 +321,6 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
 
   def givenImpactedTestsDetectionEnabled(boolean impactedTestsDetectionEnabled) {
     this.impactedTestsDetectionEnabled = impactedTestsDetectionEnabled
-  }
-
-  def givenTestManagementEnabled(boolean testManagementEnabled) {
-    this.testManagementEnabled = testManagementEnabled
   }
 
   def givenTestsOrder(String testsOrder) {
@@ -327,7 +341,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     injectSysConfig(CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ENABLED, "true")
     injectSysConfig(CiVisibilityConfig.CIVISIBILITY_EARLY_FLAKE_DETECTION_LOWER_LIMIT, "1")
     injectSysConfig(CiVisibilityConfig.TEST_MANAGEMENT_ENABLED, "true")
-    injectSysConfig(CiVisibilityConfig.TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES, "20")
+    injectSysConfig(CiVisibilityConfig.TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES, "5")
   }
 
   def cleanupSpec() {
@@ -359,7 +373,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     return CiVisibilityTestUtils.assertData(testcaseName, events, coverages, additionalReplacements)
   }
 
-  def assertTestsOrder(List<TestIdentifier> expectedOrder) {
+  def assertTestsOrder(List<TestFQN> expectedOrder) {
     TEST_WRITER.waitForTraces(expectedOrder.size() + 1)
     def traces = TEST_WRITER.toList()
     def events = getEventsAsJson(traces)
@@ -381,9 +395,8 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     return testIdentifiers
   }
 
-  def test(String suite, String name, String parameters = null) {
-
-    return new TestIdentifier(suite, name, parameters)
+  def test(String suite, String name) {
+    return new TestFQN(suite, name)
   }
 
   def getEventsAsJson(List<List<DDSpan>> traces) {

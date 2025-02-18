@@ -139,11 +139,11 @@
       "span.kind" : "test",
       "test.framework" : "karate",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.management.is_quarantined" : "true",
       "test.module" : "karate",
       "test.name" : "second scenario",
       "test.status" : "fail",
       "test.suite" : "[org/example/test_failed] test failed",
+      "test.test_management.is_quarantined" : "true",
       "test.type" : "test",
       "test_session.name" : "session-name"
     },

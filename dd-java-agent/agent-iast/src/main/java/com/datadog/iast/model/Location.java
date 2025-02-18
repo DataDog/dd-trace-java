@@ -15,6 +15,8 @@ public final class Location {
 
   @Nullable private transient String serviceName;
 
+  private @Nullable String stackId;
+
   private Location(
       @Nullable final Long spanId,
       @Nullable final String path,
@@ -84,6 +86,15 @@ public final class Location {
       this.spanId = span.getSpanId();
       this.serviceName = span.getServiceName();
     }
+  }
+
+  @Nullable
+  public String getStackId() {
+    return stackId;
+  }
+
+  public void setStackId(@Nullable String stackId) {
+    this.stackId = stackId;
   }
 
   @Nullable

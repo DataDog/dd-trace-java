@@ -287,7 +287,6 @@ public class Config {
   private final boolean appSecStackTraceEnabled;
   private final int appSecMaxStackTraces;
   private final int appSecMaxStackTraceDepth;
-  private final boolean appSecStandaloneEnabled;
   private final boolean apiSecurityEnabled;
   private final float apiSecurityRequestSampleRate;
 
@@ -360,6 +359,7 @@ public class Config {
   private final List<String> ciVisibilityResourceFolderNames;
   private final boolean ciVisibilityFlakyRetryEnabled;
   private final boolean ciVisibilityImpactedTestsDetectionEnabled;
+  private final boolean ciVisibilityImpactedTestsBackendRequestEnabled;
   private final boolean ciVisibilityKnownTestsRequestEnabled;
   private final boolean ciVisibilityFlakyRetryOnlyKnownFlakes;
   private final int ciVisibilityFlakyRetryCount;
@@ -553,6 +553,8 @@ public class Config {
   private final int cloudPayloadTaggingMaxTags;
 
   private final long dependecyResolutionPeriodMillis;
+
+  private final boolean apmTracingEnabled;
 
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
@@ -1292,7 +1294,6 @@ public class Config {
             configProvider.getStringNotEmpty(APPSEC_AUTO_USER_INSTRUMENTATION_MODE, null),
             configProvider.getStringNotEmpty(APPSEC_AUTOMATED_USER_EVENTS_TRACKING, null));
     appSecScaEnabled = configProvider.getBoolean(APPSEC_SCA_ENABLED);
-    appSecStandaloneEnabled = configProvider.getBoolean(APPSEC_STANDALONE_ENABLED, false);
     appSecRaspEnabled = configProvider.getBoolean(APPSEC_RASP_ENABLED, DEFAULT_APPSEC_RASP_ENABLED);
     appSecStackTraceEnabled =
         configProvider.getBoolean(
@@ -1501,6 +1502,8 @@ public class Config {
         configProvider.getBoolean(CIVISIBILITY_FLAKY_RETRY_ENABLED, true);
     ciVisibilityImpactedTestsDetectionEnabled =
         configProvider.getBoolean(CIVISIBILITY_IMPACTED_TESTS_DETECTION_ENABLED, true);
+    ciVisibilityImpactedTestsBackendRequestEnabled =
+        configProvider.getBoolean(CIVISIBILITY_IMPACTED_TESTS_BACKEND_REQUEST_ENABLED, false);
     ciVisibilityKnownTestsRequestEnabled =
         configProvider.getBoolean(CIVISIBILITY_KNOWN_TESTS_REQUEST_ENABLED, true);
     ciVisibilityFlakyRetryOnlyKnownFlakes =
@@ -1914,6 +1917,8 @@ public class Config {
           SEND_TELEMETRY,
           "AppSec SCA is enabled but telemetry is disabled. AppSec SCA will not work.");
     }
+
+    this.apmTracingEnabled = configProvider.getBoolean(GeneralConfig.APM_TRACING_ENABLED, true);
 
     log.debug("New instance: {}", this);
   }
@@ -2333,7 +2338,7 @@ public class Config {
 
   public boolean isTracerMetricsEnabled() {
     // When ASM Standalone Billing is enabled metrics should be disabled
-    return tracerMetricsEnabled && !isAppSecStandaloneEnabled();
+    return tracerMetricsEnabled && isApmTracingEnabled();
   }
 
   public boolean isTracerMetricsBufferingEnabled() {
@@ -2943,6 +2948,10 @@ public class Config {
     return ciVisibilityImpactedTestsDetectionEnabled;
   }
 
+  public boolean isCiVisibilityImpactedTestsBackendRequestEnabled() {
+    return ciVisibilityImpactedTestsBackendRequestEnabled;
+  }
+
   public boolean isCiVisibilityKnownTestsRequestEnabled() {
     return ciVisibilityKnownTestsRequestEnabled;
   }
@@ -2959,8 +2968,15 @@ public class Config {
     return ciVisibilityEarlyFlakeDetectionLowerLimit;
   }
 
+  /**
+   * @return {@code true} if any of the features that require CI Visibility execution policies are
+   *     enabled. This is used to enable corresponding instrumentations only when they're needed,
+   *     avoiding unnecessary overhead.
+   */
   public boolean isCiVisibilityExecutionPoliciesEnabled() {
-    return ciVisibilityFlakyRetryEnabled || ciVisibilityEarlyFlakeDetectionEnabled;
+    return ciVisibilityFlakyRetryEnabled
+        || ciVisibilityEarlyFlakeDetectionEnabled
+        || ciVisibilityTestManagementEnabled;
   }
 
   public int getCiVisibilityFlakyRetryCount() {
@@ -3438,6 +3454,10 @@ public class Config {
     return dataJobsCommandPattern;
   }
 
+  public boolean isApmTracingEnabled() {
+    return apmTracingEnabled;
+  }
+
   /** @return A map of tags to be applied only to the local application root span. */
   public Map<String, Object> getLocalRootSpanTags() {
     final Map<String, String> runtimeTags = getRuntimeTags();
@@ -3446,7 +3466,7 @@ public class Config {
     result.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
     result.put(SCHEMA_VERSION_TAG_KEY, SpanNaming.instance().version());
     result.put(DDTags.PROFILING_ENABLED, isProfilingEnabled() ? 1 : 0);
-    if (isAppSecStandaloneEnabled()) {
+    if (!isApmTracingEnabled()) {
       result.put(APM_ENABLED, 0);
     }
 
@@ -3961,12 +3981,8 @@ public class Config {
     return agentlessLogSubmissionProduct;
   }
 
-  public Boolean getAppSecScaEnabled() {
-    return appSecScaEnabled;
-  }
-
-  public boolean isAppSecStandaloneEnabled() {
-    return appSecStandaloneEnabled;
+  public boolean isAppSecScaEnabled() {
+    return appSecScaEnabled != null && appSecScaEnabled;
   }
 
   public boolean isAppSecRaspEnabled() {
@@ -4677,8 +4693,8 @@ public class Config {
         + dataJobsEnabled
         + ", dataJobsCommandPattern="
         + dataJobsCommandPattern
-        + ", appSecStandaloneEnabled="
-        + appSecStandaloneEnabled
+        + ", apmTracingEnabled="
+        + apmTracingEnabled
         + ", cloudRequestPayloadTagging="
         + cloudRequestPayloadTagging
         + ", cloudResponsePayloadTagging="

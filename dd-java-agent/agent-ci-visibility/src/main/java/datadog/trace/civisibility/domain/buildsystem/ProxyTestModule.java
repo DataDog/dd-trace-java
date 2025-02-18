@@ -109,6 +109,16 @@ public class ProxyTestModule implements TestFrameworkModule {
     return executionStrategy.isQuarantined(test);
   }
 
+  @Override
+  public boolean isDisabled(TestIdentifier test) {
+    return executionStrategy.isDisabled(test);
+  }
+
+  @Override
+  public boolean isAttemptToFix(TestIdentifier test) {
+    return executionStrategy.isAttemptToFix(test);
+  }
+
   @Nullable
   @Override
   public SkipReason skipReason(TestIdentifier test) {

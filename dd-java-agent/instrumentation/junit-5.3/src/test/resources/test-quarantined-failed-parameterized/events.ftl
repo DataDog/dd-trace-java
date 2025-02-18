@@ -122,7 +122,6 @@
       "test.codeowners" : "[\"owner1\",\"owner2\"]",
       "test.framework" : "junit5",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.management.is_quarantined" : "true",
       "test.module" : "junit-5.3",
       "test.name" : "test_failed_parameterized",
       "test.parameters" : "{\"metadata\":{\"test_name\":\"[1] 0, 0, 42\"}}",
@@ -130,6 +129,7 @@
       "test.source.method" : "test_failed_parameterized(III)V",
       "test.status" : "fail",
       "test.suite" : "org.example.TestFailedParameterized",
+      "test.test_management.is_quarantined" : "true",
       "test.type" : "test",
       "test_session.name" : "session-name"
     },
@@ -174,7 +174,6 @@
       "test.codeowners" : "[\"owner1\",\"owner2\"]",
       "test.framework" : "junit5",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.management.is_quarantined" : "true",
       "test.module" : "junit-5.3",
       "test.name" : "test_failed_parameterized",
       "test.parameters" : "{\"metadata\":{\"test_name\":\"[2] 1, 1, 42\"}}",
@@ -182,6 +181,7 @@
       "test.source.method" : "test_failed_parameterized(III)V",
       "test.status" : "fail",
       "test.suite" : "org.example.TestFailedParameterized",
+      "test.test_management.is_quarantined" : "true",
       "test.type" : "test",
       "test_session.name" : "session-name"
     },
