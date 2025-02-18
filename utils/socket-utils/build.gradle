@@ -13,6 +13,14 @@ apply plugin: "idea"
   }
 }
 
+sourceSets {
+  main {
+    java {
+      setSrcDirs(['src/main/java', 'src/main/java17'])
+    }
+  }
+}
+
 dependencies {
   implementation libs.slf4j
   implementation project(':internal-api')
