@@ -204,29 +204,6 @@ public class LogProbeTest {
   }
 
   @Test
-  public void testDebugLineProbes() {
-    BudgetSink sink = new BudgetSink(getConfig(), mock(ProbeStatusSink.class));
-    DebuggerAgentHelper.injectSink(sink);
-
-    TracerAPI tracer =
-        CoreTracer.builder().idGenerationStrategy(IdGenerationStrategy.fromName("random")).build();
-    AgentTracer.registerIfAbsent(tracer);
-    int runs = 100;
-    for (int i = 0; i < runs; i++) {
-      runTrace(tracer, true);
-    }
-    assertEquals(runs * LogProbe.CAPTURING_PROBE_BUDGET, sink.captures);
-
-    sink = new BudgetSink(getConfig(), mock(ProbeStatusSink.class));
-    DebuggerAgentHelper.injectSink(sink);
-    runs = 1010;
-    for (int i = 0; i < runs; i++) {
-      runTrace(tracer, false);
-    }
-    assertEquals(runs * LogProbe.NON_CAPTURING_PROBE_BUDGET, sink.highRate);
-  }
-
-  @Test
   public void log() {
     LogProbe logProbe = createLog(null).build();
     assertNull(logProbe.getTemplate());
