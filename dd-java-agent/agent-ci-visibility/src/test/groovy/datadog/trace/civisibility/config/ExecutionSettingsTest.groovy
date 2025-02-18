@@ -12,8 +12,8 @@ class ExecutionSettingsTest extends Specification {
 
   def "test serialization: #settings"() {
     when:
-    def serialized = ExecutionSettings.ExecutionSettingsSerializer.serialize(settings)
-    def deserialized = ExecutionSettings.ExecutionSettingsSerializer.deserialize(serialized)
+    def serialized = ExecutionSettings.Serializer.serialize(settings)
+    def deserialized = ExecutionSettings.Serializer.deserialize(serialized)
 
     then:
     deserialized == settings
@@ -63,7 +63,7 @@ class ExecutionSettingsTest extends Specification {
       true,
       false,
       true,
-      new EarlyFlakeDetectionSettings(true, [new EarlyFlakeDetectionSettings.ExecutionsByDuration(10, 20)], 10),
+      new EarlyFlakeDetectionSettings(true, [new ExecutionsByDuration(10, 20)], 10),
       new TestManagementSettings(true, 20),
       "itrCorrelationId",
       [:],
@@ -86,7 +86,7 @@ class ExecutionSettingsTest extends Specification {
       true,
       true,
       true,
-      new EarlyFlakeDetectionSettings(true, [new EarlyFlakeDetectionSettings.ExecutionsByDuration(10, 20), new EarlyFlakeDetectionSettings.ExecutionsByDuration(30, 40)], 10),
+      new EarlyFlakeDetectionSettings(true, [new ExecutionsByDuration(10, 20), new ExecutionsByDuration(30, 40)], 10),
       new TestManagementSettings(true, 20),
       "itrCorrelationId",
       [(new TestIdentifier("bc", "def", null)): new TestMetadata(true), (new TestIdentifier("de", "f", null)): new TestMetadata(true)],

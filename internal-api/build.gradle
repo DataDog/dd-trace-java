@@ -101,8 +101,6 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.api.StatsPoint",
   "datadog.trace.bootstrap.instrumentation.api.TagContext",
   "datadog.trace.bootstrap.instrumentation.api.TagContext.HttpHeaders",
-  "datadog.trace.api.civisibility.config.EarlyFlakeDetectionSettings",
-  "datadog.trace.api.civisibility.config.EarlyFlakeDetectionSettings.ExecutionsByDuration",
   "datadog.trace.api.civisibility.config.TestIdentifier",
   "datadog.trace.api.civisibility.config.TestFQN",
   "datadog.trace.api.civisibility.config.TestMetadata",

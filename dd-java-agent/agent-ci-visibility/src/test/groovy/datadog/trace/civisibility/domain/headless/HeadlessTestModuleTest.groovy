@@ -45,7 +45,6 @@ class HeadlessTestModuleTest extends SpanWriterTest {
     def executionSettings = Stub(ExecutionSettings)
     executionSettings.getEarlyFlakeDetectionSettings() >> EarlyFlakeDetectionSettings.DEFAULT
     executionSettings.isFlakyTestRetriesEnabled() >> true
-    executionSettings.getFlakyTests() >> null
 
     def config = Stub(Config)
     config.getCiVisibilityFlakyRetryCount() >> 2
