@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.kafka_clients;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
@@ -148,7 +149,7 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
       sortedTags.put(TOPIC_TAG, record.topic());
       sortedTags.put(TYPE_TAG, "kafka");
       try {
-        propagate().inject(span, record.headers(), setter);
+        defaultPropagator().inject(span, record.headers(), setter);
         if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())
             || STREAMING_CONTEXT.isSinkTopic(record.topic())) {
           // inject the context in the headers, but delay sending the stats until we know the
@@ -169,7 +170,7 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
                 record.value(),
                 record.headers());
 
-        propagate().inject(span, record.headers(), setter);
+        defaultPropagator().inject(span, record.headers(), setter);
         if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())
             || STREAMING_CONTEXT.isSinkTopic(record.topic())) {
           propagate()

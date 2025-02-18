@@ -14,7 +14,7 @@ public class DebuggerMetrics implements StatsDClient {
   private final StatsDClient statsd;
 
   private DebuggerMetrics(Config config) {
-    if (config.isDebuggerMetricsEnabled()) {
+    if (config.isDynamicInstrumentationMetricsEnabled()) {
 
       statsd =
           DDAgentStatsDClientManager.statsDClientManager()

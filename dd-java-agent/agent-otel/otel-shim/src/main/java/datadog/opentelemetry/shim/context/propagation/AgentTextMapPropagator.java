@@ -1,5 +1,6 @@
 package datadog.opentelemetry.shim.context.propagation;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.opentelemetry.shim.trace.OtelSpanContext.fromRemote;
 import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT;
 
@@ -8,7 +9,8 @@ import datadog.opentelemetry.shim.trace.OtelExtractedContext;
 import datadog.opentelemetry.shim.trace.OtelSpan;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context.Extracted;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext.Extracted;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.util.PropagationUtils;
@@ -36,11 +38,7 @@ public class AgentTextMapPropagator implements TextMapPropagator {
     if (carrier == null) {
       return;
     }
-    Span span = Span.fromContext(context);
-    if (span.getSpanContext().isValid()) {
-      AgentSpan.Context agentSpanContext = OtelExtractedContext.extract(context);
-      AgentTracer.propagate().inject(agentSpanContext, carrier, setter::set);
-    }
+    defaultPropagator().inject(convertContext(context), carrier, setter::set);
   }
 
   @Override
@@ -66,6 +64,14 @@ public class AgentTextMapPropagator implements TextMapPropagator {
     }
   }
 
+  private static datadog.context.Context convertContext(Context context) {
+    // TODO Extract baggage too
+    // TODO Create fast path from OtelSpan --> AgentSpan delegate --> with() to inflate as full
+    // context if baggage
+    AgentSpanContext extract = OtelExtractedContext.extract(context);
+    return AgentSpan.fromSpanContext(extract);
+  }
+
   /**
    * Extracts tracestate if {@code tracestate} header is present and extracted context comes from
    * {@link TracePropagationStyle#TRACECONTEXT}
@@ -73,8 +79,8 @@ public class AgentTextMapPropagator implements TextMapPropagator {
    * @param extracted The extracted context.
    * @param carrier The context carrier.
    * @param getter The context getter.
-   * @return The extracted tracestate, or an empty tracestate otherwise.
    * @param <C> The carrier type.
+   * @return The extracted tracestate, or an empty tracestate otherwise.
    */
   private static <C> TraceState extractTraceState(
       Extracted extracted, C carrier, TextMapGetter<C> getter) {

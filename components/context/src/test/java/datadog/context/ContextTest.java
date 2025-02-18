@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -65,6 +66,41 @@ class ContextTest {
 
   @ParameterizedTest
   @MethodSource("contextImplementations")
+  void testWithPair(Context context) {
+    // Test retrieving value
+    String stringValue = "value";
+    Context context1 = context.with(BOOLEAN_KEY, false, STRING_KEY, stringValue);
+    assertEquals(stringValue, context1.get(STRING_KEY));
+    assertEquals(false, context1.get(BOOLEAN_KEY));
+    // Test overriding value
+    String stringValue2 = "value2";
+    Context context2 = context1.with(STRING_KEY, stringValue2, BOOLEAN_KEY, true);
+    assertEquals(stringValue2, context2.get(STRING_KEY));
+    assertEquals(true, context2.get(BOOLEAN_KEY));
+    // Test clearing value
+    Context context3 = context2.with(BOOLEAN_KEY, null, STRING_KEY, null);
+    assertNull(context3.get(STRING_KEY));
+    assertNull(context3.get(BOOLEAN_KEY));
+    // Test null key handling
+    assertThrows(
+        NullPointerException.class,
+        () -> context.with(null, "test", STRING_KEY, "test"),
+        "Context forbids null keys");
+    assertThrows(
+        NullPointerException.class,
+        () -> context.with(STRING_KEY, "test", null, "test"),
+        "Context forbids null keys");
+    // Test null value handling
+    assertDoesNotThrow(
+        () -> context.with(BOOLEAN_KEY, null, STRING_KEY, "test"),
+        "Null value should not throw exception");
+    assertDoesNotThrow(
+        () -> context.with(STRING_KEY, "test", BOOLEAN_KEY, null),
+        "Null value should not throw exception");
+  }
+
+  @ParameterizedTest
+  @MethodSource("contextImplementations")
   void testGet(Context original) {
     // Setup context
     String value = "value";
@@ -117,6 +153,16 @@ class ContextTest {
     assertNotEquals(context2.hashCode(), context1.hashCode());
     assertFalse(context4.equals(context1));
     assertNotEquals(context4.hashCode(), context1.hashCode());
+  }
+
+  @ParameterizedTest
+  @MethodSource("contextImplementations")
+  void testToString(Context context) {
+    String debugString = context.toString();
+    assertNotNull(debugString, "Context string representation should not be null");
+    assertTrue(
+        debugString.contains(context.getClass().getSimpleName()),
+        "Context string representation should contain implementation name");
   }
 
   @SuppressWarnings({"SimplifiableAssertion"})

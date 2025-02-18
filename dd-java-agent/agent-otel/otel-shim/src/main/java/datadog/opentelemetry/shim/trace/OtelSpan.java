@@ -13,6 +13,7 @@ import static io.opentelemetry.api.trace.StatusCode.UNSET;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.WithAgentSpan;
 import io.opentelemetry.api.common.AttributeKey;
@@ -165,13 +166,13 @@ public class OtelSpan implements Span, WithAgentSpan {
     return activateSpan(this.delegate);
   }
 
-  public AgentSpan.Context getAgentSpanContext() {
+  public AgentSpanContext getAgentSpanContext() {
     return this.delegate.context();
   }
 
   @Override
   public AgentSpan asAgentSpan() {
-    return delegate;
+    return this.delegate;
   }
 
   private static class NoopSpan implements Span {

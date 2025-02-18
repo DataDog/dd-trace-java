@@ -2,6 +2,7 @@ package datadog.trace.api.civisibility.config;
 
 import java.util.Objects;
 
+/** Additional test metadata returned by the backend. */
 public class TestMetadata {
 
   private final boolean missingLineCodeCoverage;

@@ -1,5 +1,6 @@
 package com.datadog.crashtracking;
 
+import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 import static java.util.Comparator.reverseOrder;
 import static java.util.Locale.ROOT;
 
@@ -89,9 +90,13 @@ public final class ScriptInitializer {
         bw.write(entries[i + 1]);
         bw.newLine();
       }
+      bw.write("java_home=" + System.getProperty("java.home"));
+      bw.newLine();
+
       Runtime.getRuntime()
           .addShutdownHook(
               new Thread(
+                  AGENT_THREAD_GROUP,
                   () -> {
                     try {
                       LOG.debug("Deleting config file: {}", cfgPath);

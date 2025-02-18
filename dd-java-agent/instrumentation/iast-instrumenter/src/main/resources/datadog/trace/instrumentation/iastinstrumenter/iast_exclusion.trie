@@ -92,6 +92,8 @@
 1 com.liferay.*
 1 com.lowagie.*
 1 com.mchange.*
+# APPSEC-56323
+1 com.microsoft.azure.storage.RetryExponentialRetry
 1 com.mongodb.*
 1 com.mysql.*
 1 com.neo4j.*
@@ -116,6 +118,9 @@
 1 com.thoughtworks.*
 1 com.typesafe.*
 1 com.zaxxer.*
+# APPSEC-56331
+1 com.facebook.presto.hive.RetryDriver
+1 com.facebook.presto.verifier.retry.RetryDriver
 1 commonj.work.*
 1 cryptix.*
 # Avoid weak random in dev.failsafe.internal.RetryPolicyExecutor
@@ -129,6 +134,8 @@
 1 io.dropwizard.*
 2 io.ebean.*
 2 io.ebeaninternal.*
+# APPSEC-56322
+1 io.fabric8.kubernetes.client.informers.impl.cache.Reflector
 1 io.github.lukehutch.fastclasspathscanner.*
 1 io.grpc.*
 1 io.leangen.geantyref.*
@@ -144,6 +151,9 @@
 1 io.smallrye.*
 1 io.springfox.*
 1 io.swagger.*
+# APPSEC-56331
+1 io.trino.hdfs.s3.RetryDriver
+1 io.trino.plugin.hive.metastore.thrift.RetryDriver
 1 io.undertow.*
 1 io.vertx.*
 # https://github.com/tsegismont/vertx-musicstore
@@ -246,6 +256,8 @@
 1 org.jooq.*
 1 org.jruby.*
 1 org.json.*
+#Needed for JSON propagation
+2 org.json.JSONTokener
 1 org.jsoup.*
 1 org.junit.*
 1 org.jvnet.hk2.*

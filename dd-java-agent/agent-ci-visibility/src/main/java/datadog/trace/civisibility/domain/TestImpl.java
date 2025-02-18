@@ -8,7 +8,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.DDTest;
-import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.InstrumentationTestBridge;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.coverage.CoveragePerTestBridge;
@@ -16,15 +15,23 @@ import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.domain.TestContext;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
+import datadog.trace.api.civisibility.telemetry.TagValue;
 import datadog.trace.api.civisibility.telemetry.tag.BrowserDriver;
 import datadog.trace.api.civisibility.telemetry.tag.EventType;
+import datadog.trace.api.civisibility.telemetry.tag.HasFailedAllRetries;
+import datadog.trace.api.civisibility.telemetry.tag.IsAttemptToFix;
+import datadog.trace.api.civisibility.telemetry.tag.IsDisabled;
+import datadog.trace.api.civisibility.telemetry.tag.IsModified;
 import datadog.trace.api.civisibility.telemetry.tag.IsNew;
+import datadog.trace.api.civisibility.telemetry.tag.IsQuarantined;
 import datadog.trace.api.civisibility.telemetry.tag.IsRetry;
 import datadog.trace.api.civisibility.telemetry.tag.IsRum;
+import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
@@ -34,6 +41,7 @@ import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.source.SourceResolutionException;
+import datadog.trace.civisibility.test.ExecutionResults;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Collections;
@@ -47,15 +55,17 @@ public class TestImpl implements DDTest {
   private static final Logger log = LoggerFactory.getLogger(TestImpl.class);
 
   private final CiVisibilityMetricCollector metricCollector;
+  private final ExecutionResults executionResults;
   private final TestFrameworkInstrumentation instrumentation;
   private final AgentSpan span;
   private final DDTraceId sessionId;
   private final long suiteId;
   private final Consumer<AgentSpan> onSpanFinish;
   private final TestContext context;
+  private final TestIdentifier identifier;
 
   public TestImpl(
-      AgentSpan.Context moduleSpanContext,
+      AgentSpanContext moduleSpanContext,
       long suiteId,
       String moduleName,
       String testSuiteName,
@@ -74,20 +84,22 @@ public class TestImpl implements DDTest {
       LinesResolver linesResolver,
       Codeowners codeowners,
       CoverageStore.Factory coverageStoreFactory,
+      ExecutionResults executionResults,
       Consumer<AgentSpan> onSpanFinish) {
     this.instrumentation = instrumentation;
     this.metricCollector = metricCollector;
     this.sessionId = moduleSpanContext.getTraceId();
     this.suiteId = suiteId;
+    this.executionResults = executionResults;
     this.onSpanFinish = onSpanFinish;
 
-    TestIdentifier identifier = new TestIdentifier(testSuiteName, testName, testParameters);
+    this.identifier = new TestIdentifier(testSuiteName, testName, testParameters);
     CoverageStore coverageStore = coverageStoreFactory.create(identifier);
     CoveragePerTestBridge.setThreadLocalCoverageProbes(coverageStore.getProbes());
 
     this.context = new TestContextImpl(coverageStore);
 
-    AgentSpan.Context traceContext =
+    AgentSpanContext traceContext =
         new TagContext(CIConstants.CIAPP_TEST_ORIGIN, Collections.emptyMap());
     AgentTracer.SpanBuilder spanBuilder =
         AgentTracer.get()
@@ -178,6 +190,14 @@ public class TestImpl implements DDTest {
     }
   }
 
+  public TestIdentifier getIdentifier() {
+    return identifier;
+  }
+
+  public boolean hasFailed() {
+    return span.isError();
+  }
+
   @Override
   public void setTag(String key, Object value) {
     span.setTag(key, value);
@@ -196,9 +216,10 @@ public class TestImpl implements DDTest {
     if (skipReason != null) {
       span.setTag(Tags.TEST_SKIP_REASON, skipReason);
 
-      if (skipReason.equals(InstrumentationBridge.ITR_SKIP_REASON)) {
+      if (skipReason.equals(SkipReason.ITR.getDescription())) {
         span.setTag(Tags.TEST_SKIPPED_BY_ITR, true);
         metricCollector.add(CiVisibilityCountMetric.ITR_SKIPPED, 1, EventType.TEST);
+        executionResults.incrementTestsSkippedByItr();
       }
     }
   }
@@ -250,13 +271,22 @@ public class TestImpl implements DDTest {
       span.finish();
     }
 
+    Object retryReason = span.getTag(Tags.TEST_RETRY_REASON);
     metricCollector.add(
-        CiVisibilityCountMetric.EVENT_FINISHED,
+        CiVisibilityCountMetric.TEST_EVENT_FINISHED,
         1,
         instrumentation,
         EventType.TEST,
         span.getTag(Tags.TEST_IS_NEW) != null ? IsNew.TRUE : null,
+        span.getTag(Tags.TEST_IS_MODIFIED) != null ? IsModified.TRUE : null,
+        span.getTag(Tags.TEST_TEST_MANAGEMENT_IS_QUARANTINED) != null ? IsQuarantined.TRUE : null,
+        span.getTag(Tags.TEST_TEST_MANAGEMENT_IS_TEST_DISABLED) != null ? IsDisabled.TRUE : null,
+        span.getTag(Tags.TEST_TEST_MANAGEMENT_IS_ATTEMPT_TO_FIX) != null
+            ? IsAttemptToFix.TRUE
+            : null,
         span.getTag(Tags.TEST_IS_RETRY) != null ? IsRetry.TRUE : null,
+        span.getTag(Tags.TEST_HAS_FAILED_ALL_RETRIES) != null ? HasFailedAllRetries.TRUE : null,
+        retryReason instanceof TagValue ? (TagValue) retryReason : null,
         span.getTag(Tags.TEST_IS_RUM_ACTIVE) != null ? IsRum.TRUE : null,
         CIConstants.SELENIUM_BROWSER_DRIVER.equals(span.getTag(Tags.TEST_BROWSER_DRIVER))
             ? BrowserDriver.SELENIUM

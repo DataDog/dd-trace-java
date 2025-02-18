@@ -43,7 +43,7 @@ public class CapturedSnapshot02 {
   int synchronizedBlock(int input) {
     int count = input;
     synchronized (this) {
-      for (int i = 0; i < 10; i++) {
+      for (int i = 0; i < 10; i++) { // beae1817-f3b0-4ea8-a74f-000000000001
         count += i;
       }
     }

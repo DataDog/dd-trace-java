@@ -18,6 +18,7 @@ import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.Phaser;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.LockSupport;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -173,7 +174,7 @@ public class TempLocationManagerTest {
           }
         };
 
-    TempLocationManager mgr = instance(baseDir, blocker);
+    TempLocationManager mgr = instance(baseDir, true, blocker);
 
     // wait for the cleanup start
     phaser.arriveAndAwaitAdvance();
@@ -187,8 +188,9 @@ public class TempLocationManagerTest {
 
   @ParameterizedTest
   @MethodSource("timeoutTestArguments")
-  void testCleanupWithTimeout(boolean selfCleanup, String section) throws Exception {
-    long timeoutMs = 500;
+  void testCleanupWithTimeout(boolean selfCleanup, boolean shouldSucceed, String section)
+      throws Exception {
+    long timeoutMs = 10;
     TempLocationManager.CleanupHook delayer =
         new TempLocationManager.CleanupHook() {
           @Override
@@ -229,9 +231,39 @@ public class TempLocationManagerTest {
         Files.createTempDirectory(
             "ddprof-test-",
             PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
-    TempLocationManager instance = instance(baseDir, delayer);
-    boolean rslt = instance.cleanup(selfCleanup, timeoutMs, TimeUnit.MILLISECONDS);
-    assertTrue(rslt);
+    TempLocationManager instance = instance(baseDir, false, delayer);
+    Path mytempdir = instance.getTempDir();
+    Path otherTempdir = mytempdir.getParent().resolve("pid_0000");
+    Files.createDirectories(otherTempdir);
+    Files.createFile(mytempdir.resolve("dummy"));
+    Files.createFile(otherTempdir.resolve("dummy"));
+    boolean rslt =
+        instance.cleanup(
+            selfCleanup, (long) (timeoutMs * (shouldSucceed ? 10 : 0.5d)), TimeUnit.MILLISECONDS);
+    assertEquals(shouldSucceed, rslt);
+  }
+
+  @Test
+  void testShortCircuit() throws Exception {
+    Path baseDir =
+        Files.createTempDirectory(
+            "ddprof-test-",
+            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
+    AtomicBoolean executed = new AtomicBoolean();
+    TempLocationManager.CleanupHook hook =
+        new TempLocationManager.CleanupHook() {
+          @Override
+          public void onCleanupStart(boolean selfCleanup, long timeout, TimeUnit unit) {
+            executed.set(true);
+          }
+        };
+    TempLocationManager instance = instance(baseDir, false, hook);
+
+    instance.createDirStructure();
+
+    boolean ret = instance.cleanup(false);
+    assertTrue(ret);
+    assertFalse(executed.get());
   }
 
   private static Stream<Arguments> timeoutTestArguments() {
@@ -239,13 +271,15 @@ public class TempLocationManagerTest {
     for (boolean selfCleanup : new boolean[] {true, false}) {
       for (String intercepted :
           new String[] {"preVisitDirectory", "visitFile", "postVisitDirectory"}) {
-        argumentsList.add(Arguments.of(selfCleanup, intercepted));
+        argumentsList.add(Arguments.of(selfCleanup, true, intercepted));
+        argumentsList.add(Arguments.of(selfCleanup, false, intercepted));
       }
     }
     return argumentsList.stream();
   }
 
-  private TempLocationManager instance(Path baseDir, TempLocationManager.CleanupHook cleanupHook)
+  private TempLocationManager instance(
+      Path baseDir, boolean withStartupCleanup, TempLocationManager.CleanupHook cleanupHook)
       throws IOException {
     Properties props = new Properties();
     props.put(ProfilingConfig.PROFILING_TEMP_DIR, baseDir.toString());
@@ -253,6 +287,7 @@ public class TempLocationManagerTest {
         ProfilingConfig.PROFILING_UPLOAD_PERIOD,
         "0"); // to force immediate cleanup; must be a string value!
 
-    return new TempLocationManager(ConfigProvider.withPropertiesOverride(props), cleanupHook);
+    return new TempLocationManager(
+        ConfigProvider.withPropertiesOverride(props), withStartupCleanup, cleanupHook);
   }
 }

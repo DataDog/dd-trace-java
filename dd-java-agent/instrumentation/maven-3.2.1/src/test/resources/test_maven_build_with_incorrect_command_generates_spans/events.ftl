@@ -1,39 +1,39 @@
 [ {
-  "type" : "test_session_end",
-  "version" : 1,
   "content" : {
-    "test_session_id" : ${content_test_session_id},
-    "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
-    "name" : "maven.test_session",
-    "resource" : "Maven Integration Tests Project",
-    "start" : ${content_start},
     "duration" : ${content_duration},
     "error" : 1,
-    "metrics" : {
-      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count},
-      "process_id" : ${content_metrics_process_id},
-      "_dd.profiling.enabled" : 0,
-      "_dd.trace_span_attribute_schema" : 0
-    },
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid},
-      "test.type" : "test",
-      "_dd.tracer_host" : ${content_meta__dd_tracer_host},
-      "test.status" : "fail",
-      "test_session.name" : "session-name",
-      "language" : "jvm",
-      "env" : "none",
-      "dummy_ci_tag" : "dummy_ci_tag_value",
-      "library_version" : ${content_meta_library_version},
-      "component" : "maven",
-      "error.type" : "org.apache.maven.lifecycle.LifecyclePhaseNotFoundException",
       "_dd.profiling.ctx" : "test",
-      "test.toolchain" : ${content_meta_test_toolchain},
-      "span.kind" : "test_session_end",
+      "_dd.tracer_host" : ${content_meta__dd_tracer_host},
+      "component" : "maven",
+      "dummy_ci_tag" : "dummy_ci_tag_value",
+      "env" : "none",
       "error.message" : ${content_meta_error_message},
       "error.stack" : ${content_meta_error_stack},
+      "error.type" : "org.apache.maven.lifecycle.LifecyclePhaseNotFoundException",
+      "language" : "jvm",
+      "library_version" : ${content_meta_library_version},
       "runtime-id" : ${content_meta_runtime_id},
-      "test.command" : "mvn -B unknownPhase"
-    }
-  }
+      "span.kind" : "test_session_end",
+      "test.command" : "mvn -B unknownPhase",
+      "test.status" : "fail",
+      "test.toolchain" : ${content_meta_test_toolchain},
+      "test.type" : "test",
+      "test_session.name" : "session-name"
+    },
+    "metrics" : {
+      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count},
+      "_dd.profiling.enabled" : 0,
+      "_dd.trace_span_attribute_schema" : 0,
+      "process_id" : ${content_metrics_process_id}
+    },
+    "name" : "maven.test_session",
+    "resource" : "Maven Integration Tests Project",
+    "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
+    "start" : ${content_start},
+    "test_session_id" : ${content_test_session_id}
+  },
+  "type" : "test_session_end",
+  "version" : 1
 } ]

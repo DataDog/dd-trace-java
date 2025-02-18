@@ -1,14 +1,22 @@
 package datadog.trace.core.datastreams;
 
+import datadog.context.propagation.Propagator;
 import datadog.trace.api.experimental.DataStreamsContextCarrier;
 import datadog.trace.bootstrap.instrumentation.api.AgentDataStreamsMonitoring;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.core.propagation.HttpCodec;
 
 public interface DataStreamsMonitoring extends AgentDataStreamsMonitoring, AutoCloseable {
   void start();
+
+  /**
+   * Gets the propagator for DSM concern.
+   *
+   * @return The propagator for DSM concern.
+   */
+  Propagator propagator();
 
   /**
    * Get a context extractor that support {@link PathwayContext} extraction.
@@ -26,7 +34,7 @@ public interface DataStreamsMonitoring extends AgentDataStreamsMonitoring, AutoC
   DataStreamContextInjector injector();
 
   /**
-   * Injects DSM {@link PathwayContext} into a span {@link Context}.
+   * Injects DSM {@link PathwayContext} into a span {@link AgentSpanContext}.
    *
    * @param span The span to update.
    * @param carrier The carrier of the {@link PathwayContext} to extract and inject.

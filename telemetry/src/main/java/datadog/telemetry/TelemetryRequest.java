@@ -103,7 +103,7 @@ public class TelemetryRequest {
       requestBody.writeProducts(
           InstrumenterConfig.get().getAppSecActivation() != ProductActivation.FULLY_DISABLED,
           InstrumenterConfig.get().isProfilingEnabled(),
-          Config.get().isDebuggerEnabled());
+          Config.get().isDynamicInstrumentationEnabled());
     } catch (IOException e) {
       throw new TelemetryRequestBody.SerializationException("products", e);
     }

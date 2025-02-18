@@ -7,6 +7,7 @@ import net.bytebuddy.asm.Advice;
 public class EntrySpanOriginAdvice {
 
   @Advice.OnMethodEnter
+  @SuppressWarnings("bytebuddy-exception-suppression")
   public static void onEnter(@Advice.Origin final Method method) {
     CodeOriginInfo.entry(method);
   }

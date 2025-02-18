@@ -2,7 +2,7 @@ package datadog.trace.civisibility.source.index;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.domain.Language;
-import datadog.trace.civisibility.ipc.Serializer;
+import datadog.trace.civisibility.ipc.serialization.Serializer;
 import datadog.trace.civisibility.source.SourceResolutionException;
 import datadog.trace.civisibility.source.Utils;
 import datadog.trace.util.ClassNameTrie;

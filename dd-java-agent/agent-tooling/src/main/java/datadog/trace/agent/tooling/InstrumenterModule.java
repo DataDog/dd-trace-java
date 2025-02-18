@@ -49,7 +49,8 @@ public abstract class InstrumenterModule implements Instrumenter {
     APPSEC,
     IAST,
     CIVISIBILITY,
-    USM
+    USM,
+    LLMOBS,
   }
 
   private static final Logger log = LoggerFactory.getLogger(InstrumenterModule.class);
@@ -154,6 +155,11 @@ public abstract class InstrumenterModule implements Instrumenter {
     // we need to instrument some synthetic methods in Scala and changed that, we make the default
     // here to ignore synthetic methods to not change the behavior for unaware instrumentations
     return isSynthetic();
+  }
+
+  /** Override this to apply shading to method advice and injected helpers. */
+  public Map<String, String> adviceShading() {
+    return null;
   }
 
   /** Override this to post-process the operand stack of any transformed methods. */

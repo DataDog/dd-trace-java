@@ -1,5 +1,6 @@
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.api.config.TraceInstrumentationConfig.CASSANDRA_KEYSPACE_STATEMENT_EXTRACTION_ENABLED
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 
 import com.datastax.driver.core.Cluster
@@ -57,8 +58,11 @@ abstract class CassandraClientTest extends VersionedNamingTestBase {
   def "test sync"() {
     setup:
 
-    Session session = cluster.connect(keyspace)
+    Session session = keyspace ? cluster.connect(keyspace) : cluster.connect()
     injectSysConfig(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService")
+    if (extractFromStatement) {
+      injectSysConfig(CASSANDRA_KEYSPACE_STATEMENT_EXTRACTION_ENABLED, "true")
+    }
 
     when:
     session.execute(statement)
@@ -71,7 +75,7 @@ abstract class CassandraClientTest extends VersionedNamingTestBase {
         }
       }
       trace(1) {
-        cassandraSpan(it, statement, keyspace, renameService)
+        cassandraSpan(it, statement, expectedKeySpace, renameService)
       }
     }
 
@@ -79,12 +83,19 @@ abstract class CassandraClientTest extends VersionedNamingTestBase {
     session.close()
 
     where:
-    statement                                                                                         | keyspace    | renameService
-    "DROP KEYSPACE IF EXISTS sync_test"                                                               | null        | false
-    "CREATE KEYSPACE sync_test WITH REPLICATION = {'class':'SimpleStrategy', 'replication_factor':3}" | null        | true
-    "CREATE TABLE sync_test.users ( id UUID PRIMARY KEY, name text )"                                 | "sync_test" | false
-    "INSERT INTO sync_test.users (id, name) values (uuid(), 'alice')"                                 | "sync_test" | false
-    "SELECT * FROM users where name = 'alice' ALLOW FILTERING"                                        | "sync_test" | true
+    statement                                                                                         | keyspace    | expectedKeySpace  | renameService | extractFromStatement
+    "DROP KEYSPACE IF EXISTS sync_test"                                                               | null        | null              | false         | true
+    "DROP KEYSPACE IF EXISTS a_ks"                                                                    | null        | null              | false         | true
+    "CREATE KEYSPACE sync_test WITH REPLICATION = {'class':'SimpleStrategy', 'replication_factor':3}" | null        | null              | true          | true
+    "CREATE KEYSPACE a_ks WITH REPLICATION = {'class':'SimpleStrategy', 'replication_factor':3}"      | null        | null              | false         | true
+    "CREATE TABLE sync_test.users ( id UUID PRIMARY KEY, name text )"                                 | "sync_test" | "sync_test"       | false         | true
+    "INSERT INTO sync_test.users (id, name) values (uuid(), 'alice')"                                 | "sync_test" | "sync_test"       | false         | true
+    "SELECT * FROM users where name = 'alice' ALLOW FILTERING"                                        | "sync_test" | "sync_test"       | true          | true
+    "SELECT * FROM sync_test.users where name = 'alice' ALLOW FILTERING"                              | "a_ks"      | "sync_test"       | false         | true
+    "SELECT * FROM sync_test.users where name = 'alice' ALLOW FILTERING"                              | "a_ks"      | "sync_test"       | true          | true
+    "SELECT * FROM sync_test.users where name = 'alice' ALLOW FILTERING"                              | null        | "sync_test"       | false         | true
+    "SELECT * FROM sync_test.users where name = 'alice' ALLOW FILTERING"                              | null        | "sync_test"       | true          | true
+    "SELECT * FROM sync_test.users where name = 'alice' ALLOW FILTERING"                              | null        | null              | false         | false
   }
 
   def "test async"() {
@@ -92,6 +103,9 @@ abstract class CassandraClientTest extends VersionedNamingTestBase {
 
     def callbackExecuted = new CountDownLatch(1)
     injectSysConfig(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService")
+    if (extractFromStatement) {
+      injectSysConfig(CASSANDRA_KEYSPACE_STATEMENT_EXTRACTION_ENABLED, "true")
+    }
 
     when:
     Session session = cluster.connect(keyspace)
@@ -117,7 +131,7 @@ abstract class CassandraClientTest extends VersionedNamingTestBase {
       trace(3) {
         sortSpansByStart()
         basicSpan(it, "parent")
-        cassandraSpan(it, statement, keyspace, renameService, span(0))
+        cassandraSpan(it, statement, expectedKeySpace, renameService, span(0))
         basicSpan(it, "callbackListener", span(0))
       }
     }
@@ -126,12 +140,17 @@ abstract class CassandraClientTest extends VersionedNamingTestBase {
     session.close()
 
     where:
-    statement                                                                                          | keyspace     | renameService
-    "DROP KEYSPACE IF EXISTS async_test"                                                               | null         | false
-    "CREATE KEYSPACE async_test WITH REPLICATION = {'class':'SimpleStrategy', 'replication_factor':3}" | null         | true
-    "CREATE TABLE async_test.users ( id UUID PRIMARY KEY, name text )"                                 | "async_test" | false
-    "INSERT INTO async_test.users (id, name) values (uuid(), 'alice')"                                 | "async_test" | false
-    "SELECT * FROM users where name = 'alice' ALLOW FILTERING"                                         | "async_test" | true
+    statement                                                                                          | keyspace     | expectedKeySpace  | renameService | extractFromStatement
+    "DROP KEYSPACE IF EXISTS async_test"                                                               | null         | null              | false         | false
+    "DROP KEYSPACE IF EXISTS a_ks"                                                                     | null         | null              | false         | false
+    "CREATE KEYSPACE async_test WITH REPLICATION = {'class':'SimpleStrategy', 'replication_factor':3}" | null         | null              | true          | false
+    "CREATE KEYSPACE a_ks WITH REPLICATION = {'class':'SimpleStrategy', 'replication_factor':3}"       | null         | null              | true          | false
+    "CREATE TABLE async_test.users ( id UUID PRIMARY KEY, name text )"                                 | "async_test" | "async_test"      | false         | false
+    "INSERT INTO async_test.users (id, name) values (uuid(), 'alice')"                                 | "async_test" | "async_test"      | false         | false
+    "SELECT * FROM users where name = 'alice' ALLOW FILTERING"                                         | "async_test" | "async_test"      | false         | false
+    "SELECT * FROM async_test.users where name = 'alice' ALLOW FILTERING"                              | null         | null              | false         | false
+    "SELECT * FROM async_test.users where name = 'alice' ALLOW FILTERING"                              | "a_ks"       | "a_ks"            | false         | false
+    "SELECT * FROM async_test.users where name = 'alice' ALLOW FILTERING"                              | null         | "async_test"      | true          | true
   }
 
   String normalize(String statement){

@@ -1,10 +1,10 @@
 package com.datadog.instrumentation.protobuf
 
+import com.datadog.instrumentation.protobuf.generated.Message.MyMessage
 import com.google.protobuf.DynamicMessage
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
-import com.datadog.instrumentation.protobuf.generated.Message.MyMessage
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
@@ -22,8 +22,8 @@ class DynamicMessageInstrumentationTest extends AgentTestRunner {
       .setValue("Hello from Protobuf!")
       .build()
     when:
-    String schema = "{\"components\":{\"schemas\":{\"com.datadog.instrumentation.protobuf.generated.MyMessage\":{\"properties\":{\"id\":{\"type\":\"string\"},\"value\":{\"type\":\"string\"},\"other_message\":{\"items\":{\"\$ref\":\"#/components/schemas/com.datadog.instrumentation.protobuf.generated.OtherMessage\"},\"type\":\"array\"}},\"type\":\"object\"},\"com.datadog.instrumentation.protobuf.generated.OtherMessage\":{\"properties\":{\"name\":{\"type\":\"string\"},\"age\":{\"format\":\"int32\",\"type\":\"integer\"}},\"type\":\"object\"}}},\"openapi\":\"3.0.0\"}"
-    String schemaID = "9054678588020233022"
+    String expectedSchema = "{\"components\":{\"schemas\":{\"com.datadog.instrumentation.protobuf.generated.MyMessage\":{\"properties\":{\"id\":{\"extensions\":{\"x-protobuf-number\":\"1\"},\"type\":\"string\"},\"value\":{\"extensions\":{\"x-protobuf-number\":\"2\"},\"type\":\"string\"},\"other_message\":{\"extensions\":{\"x-protobuf-number\":\"3\"},\"items\":{\"\$ref\":\"#/components/schemas/com.datadog.instrumentation.protobuf.generated.OtherMessage\"},\"type\":\"array\"}},\"type\":\"object\"},\"com.datadog.instrumentation.protobuf.generated.OtherMessage\":{\"properties\":{\"name\":{\"extensions\":{\"x-protobuf-number\":\"1\"},\"type\":\"string\"},\"age\":{\"extensions\":{\"x-protobuf-number\":\"2\"},\"format\":\"int32\",\"type\":\"integer\"}},\"type\":\"object\"}}},\"openapi\":\"3.0.0\"}"
+    String expectedSchemaID = "4690647329509494987"
     var bytes
     runUnderTrace("parent_serialize") {
       AgentSpan span = activeSpan()
@@ -46,12 +46,12 @@ class DynamicMessageInstrumentationTest extends AgentTestRunner {
           errored false
           measured false
           tags {
-            "$DDTags.SCHEMA_DEFINITION" schema
+            "$DDTags.SCHEMA_DEFINITION" expectedSchema
             "$DDTags.SCHEMA_WEIGHT" 1
             "$DDTags.SCHEMA_TYPE" "protobuf"
             "$DDTags.SCHEMA_NAME" "com.datadog.instrumentation.protobuf.generated.MyMessage"
             "$DDTags.SCHEMA_OPERATION" "serialization"
-            "$DDTags.SCHEMA_ID" schemaID
+            "$DDTags.SCHEMA_ID" expectedSchemaID
             defaultTags(false)
           }
         }
@@ -64,12 +64,12 @@ class DynamicMessageInstrumentationTest extends AgentTestRunner {
           errored false
           measured false
           tags {
-            "$DDTags.SCHEMA_DEFINITION" schema
+            "$DDTags.SCHEMA_DEFINITION" expectedSchema
             "$DDTags.SCHEMA_WEIGHT" 1
             "$DDTags.SCHEMA_TYPE" "protobuf"
             "$DDTags.SCHEMA_NAME" "com.datadog.instrumentation.protobuf.generated.MyMessage"
             "$DDTags.SCHEMA_OPERATION" "deserialization"
-            "$DDTags.SCHEMA_ID" schemaID
+            "$DDTags.SCHEMA_ID" expectedSchemaID
             defaultTags(false)
           }
         }

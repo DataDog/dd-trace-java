@@ -33,6 +33,7 @@ public class SQLCommenterBenchmark {
         dbService,
         hostname,
         dbName,
+        null,
         env,
         version,
         traceParent);

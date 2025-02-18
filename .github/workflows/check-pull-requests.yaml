@@ -1,12 +1,13 @@
 name: Check pull requests
 on:
   pull_request:
-    types: [opened, edited, ready_for_review, labeled, unlabeled]
+    types: [opened, edited, ready_for_review, labeled, unlabeled, synchronize]
     branches:
     - master
     - release/v*
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   check_pull_requests:
     name: Check pull requests

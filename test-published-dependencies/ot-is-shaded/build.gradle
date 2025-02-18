@@ -91,9 +91,6 @@ tasks.register('checkJarContents', CheckJarContentsTask) {
     '^[^/]*\\.version$',
     '^DDSketch.proto$',
     '^META-INF/.*$',
-    '^com/$',
-    '^com/kenai/$',
-    '^com/kenai/jffi/.*$',
     '^datadog/.*$',
     '^ddtrot/.*$'
   ]
@@ -114,7 +111,7 @@ tasks.register('checkJarSize') {
   doLast {
     // Arbitrary limit to prevent unintentional increases to the dd-trace-ot jar size
     // Raise or lower as required
-    assert jarFile.length() <= 7 * 1024 * 1024
+    assert jarFile.length() <= 8 * 1024 * 1024
   }
 }
 

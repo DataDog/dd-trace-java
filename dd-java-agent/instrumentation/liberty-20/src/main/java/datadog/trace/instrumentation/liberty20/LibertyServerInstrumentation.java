@@ -16,16 +16,17 @@ import com.ibm.ws.webcontainer.webapp.WebApp;
 import com.ibm.wsspi.webcontainer.webapp.IWebAppDispatcherContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.ClassloaderConfigurationOverrides;
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.gateway.Flow;
-import datadog.trace.api.naming.ClassloaderServiceNames;
 import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.instrumentation.servlet.ServletBlockingHelper;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Collections;
@@ -104,7 +105,7 @@ public final class LibertyServerInstrumentation extends InstrumenterModule.Traci
       } catch (NullPointerException e) {
       }
 
-      final AgentSpan.Context.Extracted extractedContext = DECORATE.extract(request);
+      final AgentSpanContext.Extracted extractedContext = DECORATE.extract(request);
       request.setAttribute(DD_EXTRACTED_CONTEXT_ATTRIBUTE, extractedContext);
       final AgentSpan span = DECORATE.startSpan(request, extractedContext);
       scope = activateSpan(span, true);
@@ -115,7 +116,7 @@ public final class LibertyServerInstrumentation extends InstrumenterModule.Traci
           if (webapp != null) {
             final ClassLoader cl = webapp.getClassLoader();
             if (cl != null) {
-              ClassloaderServiceNames.maybeSetToSpan(span, cl);
+              ClassloaderConfigurationOverrides.maybeEnrichSpan(span, cl);
             }
           }
         }

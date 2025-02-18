@@ -1,7 +1,9 @@
 package datadog.trace.instrumentation.junit5;
 
 import datadog.trace.api.Pair;
+import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.coverage.CoveragePerTestBridge;
+import datadog.trace.api.civisibility.execution.TestExecutionHistory;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -71,7 +73,8 @@ public class CucumberTracingListener implements EngineExecutionListener {
         null,
         tags,
         false,
-        TestFrameworkInstrumentation.CUCUMBER);
+        TestFrameworkInstrumentation.CUCUMBER,
+        null);
   }
 
   private void containerExecutionFinished(
@@ -93,7 +96,7 @@ public class CucumberTracingListener implements EngineExecutionListener {
         TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFailure(suiteDescriptor, throwable);
       }
     }
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor, null);
   }
 
   private void testCaseExecutionStarted(final TestDescriptor testDescriptor) {
@@ -109,23 +112,20 @@ public class CucumberTracingListener implements EngineExecutionListener {
     String classpathResourceName = testSource.getClasspathResourceName();
     Pair<String, String> names =
         CucumberUtils.getFeatureAndScenarioNames(testDescriptor, classpathResourceName);
-    String testSuiteName = names.getLeft();
     String testName = names.getRight();
     List<String> tags =
         testDescriptor.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestStart(
         suiteDescriptor,
         testDescriptor,
-        testSuiteName,
         testName,
         testFramework,
         testFrameworkVersion,
         null,
         tags,
+        TestSourceData.UNKNOWN,
         null,
-        null,
-        null,
-        JUnitPlatformUtils.isRetry(testDescriptor));
+        TestEventsHandlerHolder.getExecutionHistory(testDescriptor));
 
     CoveragePerTestBridge.recordCoverage(classpathResourceName);
   }
@@ -149,7 +149,10 @@ public class CucumberTracingListener implements EngineExecutionListener {
         TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFailure(testDescriptor, throwable);
       }
     }
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(testDescriptor);
+    TestExecutionHistory executionHistory =
+        TestEventsHandlerHolder.getExecutionHistory(testDescriptor);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(
+        testDescriptor, null, executionHistory);
   }
 
   @Override
@@ -166,22 +169,18 @@ public class CucumberTracingListener implements EngineExecutionListener {
     String classpathResourceName = testSource.getClasspathResourceName();
     Pair<String, String> names =
         CucumberUtils.getFeatureAndScenarioNames(testDescriptor, classpathResourceName);
-    String testSuiteName = names.getLeft();
     String testName = names.getRight();
     List<String> tags =
         testDescriptor.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestIgnore(
         suiteDescriptor,
         testDescriptor,
-        testSuiteName,
         testName,
         testFramework,
         testFrameworkVersion,
         null,
         tags,
-        null,
-        null,
-        null,
+        TestSourceData.UNKNOWN,
         reason);
   }
 }

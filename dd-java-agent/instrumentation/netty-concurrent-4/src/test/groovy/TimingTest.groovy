@@ -3,6 +3,7 @@ import datadog.trace.agent.test.TestProfilingContextIntegration
 import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling
 import io.netty.util.concurrent.DefaultEventExecutorGroup
 
+import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
@@ -27,7 +28,7 @@ class TimingTest extends AgentTestRunner {
     })
 
     then:
-    verify()
+    verify([LinkedBlockingQueue])
 
     cleanup:
     defaultEventExecutorGroup.shutdownGracefully()
@@ -44,14 +45,15 @@ class TimingTest extends AgentTestRunner {
     })
 
     then:
-    verify()
+    // later netty versions may schedule on the task queue, older versions on the scheduled/delayed queue
+    verify([PriorityQueue, LinkedBlockingQueue])
 
     cleanup:
     defaultEventExecutorGroup.shutdownGracefully()
     TEST_PROFILING_CONTEXT_INTEGRATION.closedTimings.clear()
   }
 
-  void verify() {
+  void verify(acceptableQueueTypes) {
     assert TEST_PROFILING_CONTEXT_INTEGRATION.isBalanced()
     assert !TEST_PROFILING_CONTEXT_INTEGRATION.closedTimings.isEmpty()
     int numAsserts = 0
@@ -64,6 +66,8 @@ class TimingTest extends AgentTestRunner {
         assert timing.task == TestRunnable
         assert timing.scheduler == DefaultEventExecutorGroup
         assert timing.origin == Thread.currentThread()
+        assert timing.queueLength == 0
+        assert acceptableQueueTypes.contains(timing.queue)
         numAsserts++
       }
     }

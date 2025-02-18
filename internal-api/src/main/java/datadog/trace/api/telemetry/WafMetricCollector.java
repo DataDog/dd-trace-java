@@ -40,10 +40,14 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
       new AtomicLongArray(RuleType.getNumValues());
   private static final AtomicLongArray raspTimeoutCounter =
       new AtomicLongArray(RuleType.getNumValues());
-  private static final AtomicRequestCounter missingUserIdCounter = new AtomicRequestCounter();
+  private static final AtomicLongArray missingUserLoginQueue =
+      new AtomicLongArray(LoginFramework.getNumValues() * LoginEvent.getNumValues());
+  private static final AtomicLongArray missingUserIdQueue =
+      new AtomicLongArray(LoginFramework.getNumValues());
 
   /** WAF version that will be initialized with wafInit and reused for all metrics. */
   private static String wafVersion = "";
+
   /**
    * Rules version that will be updated on each wafInit and wafUpdates. This is not entirely
    * accurate, since wafRequest metrics might be collected for a period where a rules update happens
@@ -51,16 +55,17 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
    */
   private static String rulesVersion = "";
 
-  public void wafInit(final String wafVersion, final String rulesVersion) {
+  public void wafInit(final String wafVersion, final String rulesVersion, final boolean success) {
     WafMetricCollector.wafVersion = wafVersion;
     WafMetricCollector.rulesVersion = rulesVersion;
     rawMetricsQueue.offer(
-        new WafInitRawMetric(wafInitCounter.incrementAndGet(), wafVersion, rulesVersion));
+        new WafInitRawMetric(wafInitCounter.incrementAndGet(), wafVersion, rulesVersion, success));
   }
 
-  public void wafUpdates(final String rulesVersion) {
+  public void wafUpdates(final String rulesVersion, final boolean success) {
     rawMetricsQueue.offer(
-        new WafUpdatesRawMetric(wafUpdatesCounter.incrementAndGet(), wafVersion, rulesVersion));
+        new WafUpdatesRawMetric(
+            wafUpdatesCounter.incrementAndGet(), wafVersion, rulesVersion, success));
 
     // Flush request metrics to get the new version.
     if (rulesVersion != null
@@ -99,8 +104,13 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
     raspTimeoutCounter.incrementAndGet(ruleType.ordinal());
   }
 
-  public void missingUserId() {
-    missingUserIdCounter.increment();
+  public void missingUserLogin(final LoginFramework framework, final LoginEvent eventType) {
+    missingUserLoginQueue.incrementAndGet(
+        framework.ordinal() * LoginEvent.getNumValues() + eventType.ordinal());
+  }
+
+  public void missingUserId(final LoginFramework framework) {
+    missingUserIdQueue.incrementAndGet(framework.ordinal());
   }
 
   @Override
@@ -206,11 +216,27 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
       }
     }
 
+    // Missing user login
+    for (LoginFramework framework : LoginFramework.values()) {
+      for (LoginEvent event : LoginEvent.values()) {
+        final int ordinal = framework.ordinal() * LoginEvent.getNumValues() + event.ordinal();
+        long counter = missingUserLoginQueue.getAndSet(ordinal, 0);
+        if (counter > 0) {
+          if (!rawMetricsQueue.offer(
+              new MissingUserLoginMetric(counter, framework.getTag(), event.getTag()))) {
+            return;
+          }
+        }
+      }
+    }
+
     // Missing user id
-    long missingUserId = missingUserIdCounter.getAndReset();
-    if (missingUserId > 0) {
-      if (!rawMetricsQueue.offer(new MissingUserIdMetric(missingUserId))) {
-        return;
+    for (LoginFramework framework : LoginFramework.values()) {
+      long counter = missingUserIdQueue.getAndSet(framework.ordinal(), 0);
+      if (counter > 0) {
+        if (!rawMetricsQueue.offer(new MissingUserIdMetric(counter, framework.getTag()))) {
+          return;
+        }
       }
     }
   }
@@ -224,27 +250,53 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
 
   public static class WafInitRawMetric extends WafMetric {
     public WafInitRawMetric(
-        final long counter, final String wafVersion, final String rulesVersion) {
+        final long counter,
+        final String wafVersion,
+        final String rulesVersion,
+        final boolean success) {
       super(
-          "waf.init", counter, "waf_version:" + wafVersion, "event_rules_version:" + rulesVersion);
+          "waf.init",
+          counter,
+          "waf_version:" + wafVersion,
+          "event_rules_version:" + rulesVersion,
+          "success:" + success);
     }
   }
 
   public static class WafUpdatesRawMetric extends WafMetric {
     public WafUpdatesRawMetric(
-        final long counter, final String wafVersion, final String rulesVersion) {
+        final long counter,
+        final String wafVersion,
+        final String rulesVersion,
+        final boolean success) {
       super(
           "waf.updates",
           counter,
           "waf_version:" + wafVersion,
-          "event_rules_version:" + rulesVersion);
+          "event_rules_version:" + rulesVersion,
+          "success:" + success);
+    }
+  }
+
+  public static class MissingUserLoginMetric extends WafMetric {
+
+    public MissingUserLoginMetric(long counter, String framework, String type) {
+      super(
+          "instrum.user_auth.missing_user_login",
+          counter,
+          "framework:" + framework,
+          "event_type:" + type);
     }
   }
 
   public static class MissingUserIdMetric extends WafMetric {
 
-    public MissingUserIdMetric(long counter) {
-      super("instrum.user_auth.missing_user_id", counter);
+    public MissingUserIdMetric(long counter, String framework) {
+      super(
+          "instrum.user_auth.missing_user_id",
+          counter,
+          "framework:" + framework,
+          "event_type:authenticated_request");
     }
   }
 
@@ -276,7 +328,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
               ? new String[] {
                 "rule_type:" + ruleType.type,
                 "rule_variant:" + ruleType.variant,
-                "waf_version:" + wafVersion
+                "waf_version:" + wafVersion,
+                "event_rules_version:" + rulesVersion
               }
               : new String[] {"rule_type:" + ruleType.type, "waf_version:" + wafVersion});
     }
@@ -291,7 +344,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
               ? new String[] {
                 "rule_type:" + ruleType.type,
                 "rule_variant:" + ruleType.variant,
-                "waf_version:" + wafVersion
+                "waf_version:" + wafVersion,
+                "event_rules_version:" + rulesVersion
               }
               : new String[] {"rule_type:" + ruleType.type, "waf_version:" + wafVersion});
     }
@@ -306,7 +360,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
               ? new String[] {
                 "rule_type:" + ruleType.type,
                 "rule_variant:" + ruleType.variant,
-                "waf_version:" + wafVersion
+                "waf_version:" + wafVersion,
+                "event_rules_version:" + rulesVersion
               }
               : new String[] {"rule_type:" + ruleType.type, "waf_version:" + wafVersion});
     }

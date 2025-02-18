@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.opentelemetry;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import io.opentelemetry.trace.SpanContext;
 import io.opentelemetry.trace.SpanId;
 import io.opentelemetry.trace.TraceFlags;
@@ -9,9 +9,9 @@ import io.opentelemetry.trace.TraceState;
 
 public class OtelSpanContext extends SpanContext {
   private static final TraceFlags FLAGS = TraceFlags.builder().setIsSampled(true).build();
-  private final AgentSpan.Context delegate;
+  private final AgentSpanContext delegate;
 
-  OtelSpanContext(final AgentSpan.Context delegate) {
+  OtelSpanContext(final AgentSpanContext delegate) {
     this.delegate = delegate;
   }
 
@@ -41,7 +41,7 @@ public class OtelSpanContext extends SpanContext {
     return false;
   }
 
-  AgentSpan.Context getDelegate() {
+  AgentSpanContext getDelegate() {
     return delegate;
   }
 }

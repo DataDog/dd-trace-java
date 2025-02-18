@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app>
+
+  <servlet>
+    <servlet-name>test</servlet-name>
+    <servlet-class>${servletClass}</servlet-class>
+  </servlet>
+
+  <servlet-mapping>
+    <servlet-name>test</servlet-name>
+    <url-pattern>/*</url-pattern>
+  </servlet-mapping>
+
+  <env-entry>
+    <env-entry-name>java:comp/env/datadog/tags/service</env-entry-name>
+    <env-entry-type>java.lang.String</env-entry-type>
+    <env-entry-value>custom-service</env-entry-value>
+  </env-entry>
+  <env-entry>
+    <env-entry-name>java:comp/env/datadog/tags/custom-metric</env-entry-name>
+    <env-entry-type>java.lang.Integer</env-entry-type>
+    <env-entry-value>1983</env-entry-value>
+  </env-entry>
+</web-app>

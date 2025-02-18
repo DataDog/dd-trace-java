@@ -8,8 +8,11 @@ import datadog.communication.BackendApiFactory;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.communication.http.OkHttpUtils;
+import datadog.communication.util.IOUtils;
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
+import datadog.trace.api.civisibility.telemetry.tag.Command;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.civisibility.ci.CIProviderInfoFactory;
 import datadog.trace.civisibility.ci.env.CiEnvironment;
@@ -22,12 +25,16 @@ import datadog.trace.civisibility.git.CILocalGitInfoBuilder;
 import datadog.trace.civisibility.git.CIProviderGitInfoBuilder;
 import datadog.trace.civisibility.git.GitClientGitInfoBuilder;
 import datadog.trace.civisibility.git.tree.GitClient;
+import datadog.trace.civisibility.git.tree.NoOpGitClient;
+import datadog.trace.civisibility.git.tree.ShellGitClient;
 import datadog.trace.civisibility.ipc.SignalClient;
 import datadog.trace.civisibility.source.BestEffortLinesResolver;
 import datadog.trace.civisibility.source.ByteCodeLinesResolver;
 import datadog.trace.civisibility.source.CompilerAidedLinesResolver;
 import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.index.*;
+import datadog.trace.civisibility.utils.ShellCommandExecutor;
+import java.io.File;
 import java.lang.reflect.Type;
 import java.net.InetSocketAddress;
 import java.nio.file.FileSystem;
@@ -35,11 +42,11 @@ import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.Map;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,7 +85,7 @@ public class CiVisibilityServices {
     this.backendApi =
         new BackendApiFactory(config, sco).createBackendApi(BackendApiFactory.Intake.API);
     this.jvmInfoFactory = new CachingJvmInfoFactory(config, new JvmInfoFactoryImpl());
-    this.gitClientFactory = new GitClient.Factory(config, metricCollector);
+    this.gitClientFactory = buildGitClientFactory(config, metricCollector);
 
     CiEnvironment environment = buildCiEnvironment(config, sco);
     this.ciProviderInfoFactory = new CIProviderInfoFactory(config, environment);
@@ -111,7 +118,30 @@ public class CiVisibilityServices {
     }
   }
 
-  @NotNull
+  private static GitClient.Factory buildGitClientFactory(
+      Config config, CiVisibilityMetricCollector metricCollector) {
+    if (!config.isCiVisibilityGitClientEnabled()) {
+      return r -> NoOpGitClient.INSTANCE;
+    }
+    try {
+      ShellCommandExecutor shellCommandExecutor =
+          new ShellCommandExecutor(new File("."), config.getCiVisibilityGitCommandTimeoutMillis());
+      String gitVersion = shellCommandExecutor.executeCommand(IOUtils::readFully, "git", "version");
+      logger.debug("Detected git executable version {}", gitVersion);
+      return new ShellGitClient.Factory(config, metricCollector);
+
+    } catch (Exception e) {
+      metricCollector.add(
+          CiVisibilityCountMetric.GIT_COMMAND_ERRORS,
+          1,
+          Command.OTHER,
+          ShellCommandExecutor.getExitCode(e));
+      logger.info("No git executable detected, some features will not be available");
+      return r -> NoOpGitClient.INSTANCE;
+    }
+  }
+
+  @Nonnull
   private static CiEnvironment buildCiEnvironment(Config config, SharedCommunicationObjects sco) {
     String remoteEnvVarsProviderUrl = config.getCiVisibilityRemoteEnvVarsProviderUrl();
     if (remoteEnvVarsProviderUrl != null) {

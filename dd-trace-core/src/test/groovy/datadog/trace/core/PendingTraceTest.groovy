@@ -10,6 +10,8 @@ import spock.lang.Timeout
 
 import java.util.concurrent.TimeUnit
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled
+
 class PendingTraceTest extends PendingTraceTestBase {
 
   @Override
@@ -49,8 +51,8 @@ class PendingTraceTest extends PendingTraceTestBase {
   def "trace is still reported when unfinished continuation discarded"() {
     when:
     def scope = tracer.activateSpan(rootSpan)
-    scope.setAsyncPropagation(true)
-    scope.capture()
+    setAsyncPropagationEnabled(true)
+    tracer.captureActiveSpan()
     scope.close()
     rootSpan.finish()
 

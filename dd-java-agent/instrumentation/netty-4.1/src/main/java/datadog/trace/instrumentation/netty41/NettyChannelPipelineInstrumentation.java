@@ -3,7 +3,8 @@ package datadog.trace.instrumentation.netty41;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContinuation;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
@@ -193,15 +194,12 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
   public static class ConnectAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void addParentSpan(@Advice.This final ChannelPipeline pipeline) {
-      final AgentScope scope = activeScope();
-      if (scope != null) {
-        final AgentScope.Continuation continuation = scope.capture();
-        if (null != continuation) {
-          final Attribute<AgentScope.Continuation> attribute =
-              pipeline.channel().attr(CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY);
-          if (!attribute.compareAndSet(null, continuation)) {
-            continuation.cancel();
-          }
+      AgentScope.Continuation continuation = captureActiveSpan();
+      if (continuation != noopContinuation()) {
+        final Attribute<AgentScope.Continuation> attribute =
+            pipeline.channel().attr(CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY);
+        if (!attribute.compareAndSet(null, continuation)) {
+          continuation.cancel();
         }
       }
     }

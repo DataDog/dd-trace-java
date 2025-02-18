@@ -1,8 +1,12 @@
 package datadog.trace.instrumentation.opentelemetry;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopScope;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpanContext;
+
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import io.opentelemetry.context.Scope;
 import io.opentelemetry.trace.Span;
@@ -15,16 +19,16 @@ public class TypeConverter {
   private final OtelScope noopScopeWrapper;
 
   public TypeConverter() {
-    noopSpanWrapper = new OtelSpan(AgentTracer.NoopAgentSpan.INSTANCE, this);
-    noopContextWrapper = new OtelSpanContext(AgentTracer.NoopContext.INSTANCE);
-    noopScopeWrapper = new OtelScope(AgentTracer.NoopAgentScope.INSTANCE);
+    noopSpanWrapper = new OtelSpan(noopSpan(), this);
+    noopContextWrapper = new OtelSpanContext(noopSpanContext());
+    noopScopeWrapper = new OtelScope(noopScope());
   }
 
   public AgentSpan toAgentSpan(final Span span) {
     if (span instanceof OtelSpan) {
       return ((OtelSpan) span).asAgentSpan();
     }
-    return null == span ? null : AgentTracer.NoopAgentSpan.INSTANCE;
+    return null == span ? null : noopSpan();
   }
 
   public Span toSpan(final AgentSpan agentSpan) {
@@ -41,7 +45,7 @@ public class TypeConverter {
       attachableSpanWrapper.attachWrapper(spanWrapper);
       return spanWrapper;
     }
-    if (agentSpan == AgentTracer.NoopAgentSpan.INSTANCE) {
+    if (agentSpan == noopSpan()) {
       return noopSpanWrapper;
     }
     return new OtelSpan(agentSpan, this);
@@ -61,27 +65,27 @@ public class TypeConverter {
       attachableScopeWrapper.attachWrapper(otScope);
       return otScope;
     }
-    if (scope == AgentTracer.NoopAgentScope.INSTANCE) {
+    if (scope == noopScope()) {
       return noopScopeWrapper;
     }
     return new OtelScope(scope);
   }
 
-  public SpanContext toSpanContext(final AgentSpan.Context context) {
+  public SpanContext toSpanContext(final AgentSpanContext context) {
     if (context == null) {
       return null;
     }
     // avoid a new SpanContext wrapper allocation for the noop context
-    if (context == AgentTracer.NoopContext.INSTANCE) {
+    if (context == noopSpanContext()) {
       return noopContextWrapper;
     }
     return new OtelSpanContext(context);
   }
 
-  public AgentSpan.Context toContext(final SpanContext spanContext) {
+  public AgentSpanContext toContext(final SpanContext spanContext) {
     if (spanContext instanceof OtelSpanContext) {
       return ((OtelSpanContext) spanContext).getDelegate();
     }
-    return null == spanContext ? null : AgentTracer.NoopContext.INSTANCE;
+    return null == spanContext ? null : noopSpanContext();
   }
 }

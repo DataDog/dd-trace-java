@@ -1,8 +1,10 @@
 package datadog.trace.bootstrap.debugger.el;
 
+import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
 import static java.lang.invoke.MethodType.methodType;
 
 import datadog.trace.bootstrap.debugger.CapturedContext;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Field;
@@ -11,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A helper class to resolve a reference path using reflection. */
+@SuppressForbidden // Class#forName(String)
 public class ReflectiveFieldValueResolver {
   private static final Logger LOGGER = LoggerFactory.getLogger(ReflectiveFieldValueResolver.class);
   // This is a workaround for the fact that Field.trySetAccessible is not available in Java 8
@@ -22,7 +25,7 @@ public class ReflectiveFieldValueResolver {
       MethodHandles.Lookup lookup = MethodHandles.lookup();
       methodHandle = lookup.findVirtual(Field.class, "trySetAccessible", methodType(boolean.class));
     } catch (Exception e) {
-      LOGGER.debug("Looking up trySetAccessible failed: ", e);
+      LOGGER.debug(EXCLUDE_TELEMETRY, "Looking up trySetAccessible failed: ", e);
     }
     TRY_SET_ACCESSIBLE = methodHandle;
   }
@@ -35,7 +38,7 @@ public class ReflectiveFieldValueResolver {
     try {
       field = ReflectiveFieldValueResolver.class.getDeclaredField("INACCESSIBLE_FIELD");
     } catch (Exception e) {
-      LOGGER.debug("INACCESSIBLE_FIELD failed: ", e);
+      LOGGER.debug(EXCLUDE_TELEMETRY, "INACCESSIBLE_FIELD failed: ", e);
     }
     INACCESSIBLE_FIELD = field;
   }
@@ -51,7 +54,7 @@ public class ReflectiveFieldValueResolver {
       MethodHandles.Lookup lookup = MethodHandles.lookup();
       methodHandle = lookup.findVirtual(Class.class, "getModule", methodType(moduleClass));
     } catch (Exception e) {
-      LOGGER.debug("Looking up getModule failed: ", e);
+      LOGGER.debug(EXCLUDE_TELEMETRY, "Looking up getModule failed: ", e);
     }
     GET_MODULE = methodHandle;
     MODULE_CLASS = moduleClass;

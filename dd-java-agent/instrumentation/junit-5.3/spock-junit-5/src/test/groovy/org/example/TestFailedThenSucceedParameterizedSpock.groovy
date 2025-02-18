@@ -8,7 +8,7 @@ class TestFailedThenSucceedParameterizedSpock extends Specification {
 
   def "test add #a and #b"() {
     expect:
-    c == 3 && ++testExecutionCount > 2
+    ++testExecutionCount > 2
 
     where:
     a | b | c

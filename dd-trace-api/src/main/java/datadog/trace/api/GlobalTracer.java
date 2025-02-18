@@ -34,6 +34,19 @@ public class GlobalTracer {
         public TraceScope muteTracing() {
           return NoopTraceScope.INSTANCE;
         }
+
+        @Override
+        public TraceScope.Continuation captureActiveSpan() {
+          return NoopTraceScope.NoopContinuation.INSTANCE;
+        }
+
+        @Override
+        public boolean isAsyncPropagationEnabled() {
+          return false;
+        }
+
+        @Override
+        public void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {}
       };
 
   private static final Collection<Callback> installationCallbacks = new ArrayList<>();

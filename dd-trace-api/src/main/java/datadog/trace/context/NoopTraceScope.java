@@ -9,6 +9,11 @@ public class NoopTraceScope implements TraceScope {
     private NoopContinuation() {}
 
     @Override
+    public Continuation hold() {
+      return this;
+    }
+
+    @Override
     public TraceScope activate() {
       return NoopTraceScope.INSTANCE;
     }
@@ -20,23 +25,5 @@ public class NoopTraceScope implements TraceScope {
   private NoopTraceScope() {}
 
   @Override
-  public Continuation capture() {
-    return NoopContinuation.INSTANCE;
-  }
-
-  @Override
-  public Continuation captureConcurrent() {
-    return null;
-  }
-
-  @Override
   public void close() {}
-
-  @Override
-  public boolean isAsyncPropagating() {
-    return false;
-  }
-
-  @Override
-  public void setAsyncPropagation(boolean value) {}
 }

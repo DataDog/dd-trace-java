@@ -3,11 +3,13 @@ package datadog.trace.api.civisibility.events;
 import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.api.civisibility.DDTestSuite;
 import datadog.trace.api.civisibility.config.TestIdentifier;
-import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.config.TestSourceData;
+import datadog.trace.api.civisibility.execution.TestExecutionHistory;
+import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
+import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.ContextStore;
 import java.io.Closeable;
-import java.lang.reflect.Method;
 import java.util.Collection;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -29,54 +31,73 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
       @Nullable Class<?> testClass,
       @Nullable Collection<String> categories,
       boolean parallelized,
-      TestFrameworkInstrumentation instrumentation);
+      TestFrameworkInstrumentation instrumentation,
+      @Nullable Long startTime);
 
   void onTestSuiteSkip(SuiteKey descriptor, @Nullable String reason);
 
   void onTestSuiteFailure(SuiteKey descriptor, @Nullable Throwable throwable);
 
-  void onTestSuiteFinish(SuiteKey descriptor);
+  void onTestSuiteFinish(SuiteKey descriptor, @Nullable Long endTime);
 
+  /**
+   * Reports a "test started" event
+   *
+   * @param suiteDescriptor a descriptor uniquely identifying the test's suite
+   * @param descriptor a descriptor uniquely identifying the test
+   * @param testName the name of the test case
+   * @param testFramework name of the testing framework used to run the test case
+   * @param testFrameworkVersion version of the testing framework used to run the test case
+   * @param testParameters test parameters (as stringified JSON) if this is a parameterized test
+   *     case
+   * @param categories test categories (or test tags) if the test case is marked with any
+   * @param testSourceData metadata for locating the source code for the test case
+   * @param startTime the timestamp of the test execution start ({@code null} for current timestamp)
+   * @param testExecutionHistory the history of executions of this test case
+   */
   void onTestStart(
       SuiteKey suiteDescriptor,
       TestKey descriptor,
-      String testSuiteName,
       String testName,
       @Nullable String testFramework,
       @Nullable String testFrameworkVersion,
       @Nullable String testParameters,
       @Nullable Collection<String> categories,
-      @Nullable Class<?> testClass,
-      @Nullable String testMethodName,
-      @Nullable Method testMethod,
-      boolean isRetry);
+      @Nonnull TestSourceData testSourceData,
+      @Nullable Long startTime,
+      @Nullable TestExecutionHistory testExecutionHistory);
 
   void onTestSkip(TestKey descriptor, @Nullable String reason);
 
   void onTestFailure(TestKey descriptor, @Nullable Throwable throwable);
 
-  void onTestFinish(TestKey descriptor);
+  void onTestFinish(
+      TestKey descriptor,
+      @Nullable Long endTime,
+      @Nullable TestExecutionHistory testExecutionHistory);
 
   void onTestIgnore(
       SuiteKey suiteDescriptor,
       TestKey testDescriptor,
-      String testSuiteName,
       String testName,
       @Nullable String testFramework,
       @Nullable String testFrameworkVersion,
       @Nullable String testParameters,
       @Nullable Collection<String> categories,
-      @Nullable Class<?> testClass,
-      @Nullable String testMethodName,
-      @Nullable Method testMethod,
+      @Nonnull TestSourceData testSourceData,
       @Nullable String reason);
 
-  boolean skip(TestIdentifier test);
-
-  boolean shouldBeSkipped(TestIdentifier test);
-
   @Nonnull
-  TestRetryPolicy retryPolicy(TestIdentifier test);
+  TestExecutionPolicy executionPolicy(TestIdentifier test, TestSourceData source);
+
+  /**
+   * Returns the reason for skipping a test IF it can be skipped.
+   *
+   * @param test Test to be checked
+   * @return skip reason, or {@code null} if the test cannot be skipped
+   */
+  @Nullable
+  SkipReason skipReason(TestIdentifier test);
 
   boolean isNew(TestIdentifier test);
 

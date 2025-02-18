@@ -30,11 +30,15 @@ public final class AppSecConfig {
 
   public static final String APPSEC_SCA_ENABLED = "appsec.sca.enabled";
   public static final String APPSEC_RASP_ENABLED = "appsec.rasp.enabled";
-  public static final String APPSEC_STACK_TRACE_ENABLED = "appsec.stacktrace.enabled";
-  public static final String APPSEC_MAX_STACK_TRACES = "appsec.max.stacktraces";
-  public static final String APPSEC_MAX_STACK_TRACE_DEPTH = "appsec.max.stacktrace.depth";
-
-  public static final String APPSEC_STANDALONE_ENABLED = "experimental.appsec.standalone.enabled";
+  public static final String APPSEC_STACK_TRACE_ENABLED = "appsec.stack-trace.enabled";
+  public static final String APPSEC_STACKTRACE_ENABLED_DEPRECATED =
+      "appsec.stacktrace.enabled"; // old non-standard as a fallback alias
+  public static final String APPSEC_MAX_STACK_TRACES = "appsec.max.stack-traces";
+  public static final String APPSEC_MAX_STACKTRACES_DEPRECATED =
+      "appsec.max.stacktraces"; // old non-standard as a fallback alias
+  public static final String APPSEC_MAX_STACK_TRACE_DEPTH = "appsec.max.stack-trace.depth";
+  public static final String APPSEC_MAX_STACKTRACE_DEPTH_DEPRECATED =
+      "appsec.max.stacktrace.depth"; // old non-standard as a fallback alias
 
   private AppSecConfig() {}
 }

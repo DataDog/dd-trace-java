@@ -64,7 +64,7 @@ public class ConfigurationUpdaterTest {
   @BeforeEach
   void setUp() {
     lenient().when(tracerConfig.getFinalDebuggerSnapshotUrl()).thenReturn("http://localhost");
-    lenient().when(tracerConfig.getDebuggerUploadBatchSize()).thenReturn(100);
+    lenient().when(tracerConfig.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
     lenient().when(tracerConfig.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost");
 
     debuggerSinkWithMockStatusSink = new DebuggerSink(tracerConfig, probeStatusSink);

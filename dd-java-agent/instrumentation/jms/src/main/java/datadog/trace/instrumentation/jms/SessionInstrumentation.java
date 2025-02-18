@@ -13,17 +13,13 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.jms.MessageConsumerState;
 import datadog.trace.bootstrap.instrumentation.jms.MessageProducerState;
 import datadog.trace.bootstrap.instrumentation.jms.SessionState;
-import java.util.HashMap;
-import java.util.Map;
 import javax.jms.Destination;
 import javax.jms.MessageConsumer;
 import javax.jms.MessageProducer;
@@ -32,16 +28,17 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-@AutoService(InstrumenterModule.class)
-public class SessionInstrumentation extends InstrumenterModule.Tracing
+public class SessionInstrumentation
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-  public SessionInstrumentation() {
-    super("jms", "jms-1", "jms-2");
+  private final String namespace;
+
+  public SessionInstrumentation(String namespace) {
+    this.namespace = namespace;
   }
 
   @Override
   public String hierarchyMarkerType() {
-    return "javax.jms.Session";
+    return namespace + ".jms.Session";
   }
 
   @Override
@@ -50,57 +47,43 @@ public class SessionInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".JMSDecorator"};
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    Map<String, String> contextStore = new HashMap<>(4);
-    contextStore.put("javax.jms.MessageConsumer", MessageConsumerState.class.getName());
-    contextStore.put("javax.jms.MessageProducer", MessageProducerState.class.getName());
-    contextStore.put("javax.jms.Session", SessionState.class.getName());
-    return contextStore;
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
             .and(named("createProducer"))
             .and(isPublic())
-            .and(takesArgument(0, named("javax.jms.Destination"))),
+            .and(takesArgument(0, named(namespace + ".jms.Destination"))),
         getClass().getName() + "$CreateProducer");
     transformer.applyAdvice(
         isMethod()
             .and(named("createSender"))
             .and(isPublic())
-            .and(takesArgument(0, named("javax.jms.Queue"))),
+            .and(takesArgument(0, named(namespace + ".jms.Queue"))),
         getClass().getName() + "$CreateProducer");
     transformer.applyAdvice(
         isMethod()
             .and(named("createPublisher"))
             .and(isPublic())
-            .and(takesArgument(0, named("javax.jms.Topic"))),
+            .and(takesArgument(0, named(namespace + ".jms.Topic"))),
         getClass().getName() + "$CreateProducer");
 
     transformer.applyAdvice(
         isMethod()
             .and(named("createConsumer"))
             .and(isPublic())
-            .and(takesArgument(0, named("javax.jms.Destination"))),
+            .and(takesArgument(0, named(namespace + ".jms.Destination"))),
         getClass().getName() + "$CreateConsumer");
     transformer.applyAdvice(
         isMethod()
             .and(named("createReceiver"))
             .and(isPublic())
-            .and(takesArgument(0, named("javax.jms.Queue"))),
+            .and(takesArgument(0, named(namespace + ".jms.Queue"))),
         getClass().getName() + "$CreateConsumer");
     transformer.applyAdvice(
         isMethod()
             .and(namedOneOf("createSubscriber", "createDurableSubscriber"))
             .and(isPublic())
-            .and(takesArgument(0, named("javax.jms.Topic"))),
+            .and(takesArgument(0, named(namespace + ".jms.Topic"))),
         getClass().getName() + "$CreateConsumer");
 
     transformer.applyAdvice(

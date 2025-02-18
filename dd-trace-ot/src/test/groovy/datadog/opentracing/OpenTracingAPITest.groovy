@@ -4,8 +4,9 @@ import datadog.trace.api.DDTags
 import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.interceptor.MutableSpan
 import datadog.trace.api.interceptor.TraceInterceptor
-import datadog.trace.common.writer.ListWriter
 import datadog.trace.api.scopemanager.ScopeListener
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.common.writer.ListWriter
 import datadog.trace.context.TraceScope
 import datadog.trace.test.util.DDSpecification
 import io.opentracing.Scope
@@ -221,22 +222,25 @@ class OpenTracingAPITest extends DDSpecification {
   }
 
   def "span with async propagation"() {
+    setup:
+    AgentTracer.TracerAPI internalTracer = tracer.tracer
+
     when:
     Scope scope = tracer.buildSpan("someOperation")
       .withTag(DDTags.SERVICE_NAME, "someService")
       .startActive(true)
-    ((TraceScope) scope).setAsyncPropagation(false)
+    internalTracer.setAsyncPropagationEnabled(false)
 
     then:
     scope instanceof TraceScope
-    !((TraceScope) scope).isAsyncPropagating()
+    !internalTracer.isAsyncPropagationEnabled()
 
     when:
-    ((TraceScope) scope).setAsyncPropagation(true)
+    internalTracer.setAsyncPropagationEnabled(true)
     TraceScope.Continuation continuation = ((TraceScope) scope).capture()
 
     then:
-    ((TraceScope) scope).isAsyncPropagating()
+    internalTracer.isAsyncPropagationEnabled()
     continuation != null
 
     when:
@@ -262,26 +266,26 @@ class OpenTracingAPITest extends DDSpecification {
   }
 
   def "span inherits async propagation"() {
+    setup:
+    AgentTracer.TracerAPI internalTracer = tracer.tracer
+
     when:
     Scope outer = tracer.buildSpan("someOperation")
       .withTag(DDTags.SERVICE_NAME, "someService")
       .startActive(true)
-    ((TraceScope) outer).setAsyncPropagation(false)
+    internalTracer.setAsyncPropagationEnabled(false)
 
     then:
-    outer instanceof TraceScope
-    !((TraceScope) outer).isAsyncPropagating()
+    !internalTracer.isAsyncPropagationEnabled()
 
     when:
-    ((TraceScope) outer).setAsyncPropagation(true)
+    internalTracer.setAsyncPropagationEnabled(true)
     Scope inner = tracer.buildSpan("otherOperation")
       .withTag(DDTags.SERVICE_NAME, "otherService")
       .startActive(true)
 
     then:
-    inner instanceof TraceScope
-    ((TraceScope) outer).isAsyncPropagating()
-    ((TraceScope) inner).isAsyncPropagating()
+    internalTracer.isAsyncPropagationEnabled()
 
     when:
     inner.close()

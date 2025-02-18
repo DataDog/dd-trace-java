@@ -19,6 +19,7 @@ import datadog.trace.api.ProductActivation;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.instrumentation.jetty.ConnectionHandleRequestVisitor;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -155,7 +156,7 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
         return activateSpan((AgentSpan) existingSpan);
       }
 
-      final AgentSpan.Context.Extracted extractedContext = DECORATE.extract(req);
+      final AgentSpanContext.Extracted extractedContext = DECORATE.extract(req);
       span = DECORATE.startSpan(req, extractedContext);
       final AgentScope scope = activateSpan(span, true);
       DECORATE.afterStart(span);

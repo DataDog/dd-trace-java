@@ -79,6 +79,8 @@ class TestProfilingContextIntegration implements ProfilingContextIntegration {
 
     Class<?> task
     Class<?> scheduler
+    Class<?> queue
+    int queueLength
     final Thread origin
     final long start
 
@@ -96,6 +98,16 @@ class TestProfilingContextIntegration implements ProfilingContextIntegration {
     @Override
     void setScheduler(Class<?> scheduler) {
       this.scheduler = scheduler
+    }
+
+    @Override
+    void setQueue(Class<?> queue) {
+      this.queue = queue
+    }
+
+    @Override
+    void setQueueLength(int queueLength) {
+      this.queueLength = queueLength
     }
 
     @Override

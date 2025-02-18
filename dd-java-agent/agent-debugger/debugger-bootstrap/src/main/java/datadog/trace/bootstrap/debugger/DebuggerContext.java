@@ -7,6 +7,7 @@ import java.lang.reflect.Method;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,8 +22,32 @@ public class DebuggerContext {
   private static final ThreadLocal<Boolean> IN_PROBE = ThreadLocal.withInitial(() -> Boolean.FALSE);
 
   public enum SkipCause {
-    RATE,
-    CONDITION
+    RATE {
+      @Override
+      public String tag() {
+        return "cause:rate";
+      }
+    },
+    CONDITION {
+      @Override
+      public String tag() {
+        return "cause:condition";
+      }
+    },
+    DEBUG_SESSION_DISABLED {
+      @Override
+      public String tag() {
+        return "cause:debug session disabled";
+      }
+    },
+    BUDGET {
+      @Override
+      public String tag() {
+        return "cause:budget_exceeded";
+      }
+    };
+
+    public abstract String tag();
   }
 
   public interface ProbeResolver {
@@ -75,7 +100,7 @@ public class DebuggerContext {
   public interface CodeOriginRecorder {
     String captureCodeOrigin(boolean entry);
 
-    String captureCodeOrigin(Method method, boolean entry);
+    String captureCodeOrigin(Method method, boolean entry, boolean instrument);
   }
 
   private static volatile ProbeResolver probeResolver;
@@ -282,7 +307,8 @@ public class DebuggerContext {
       // only freeze the context when we have at lest one snapshot probe, and we should send
       // snapshot
       if (needFreeze) {
-        Duration timeout = Duration.of(Config.get().getDebuggerCaptureTimeout(), ChronoUnit.MILLIS);
+        Duration timeout =
+            Duration.of(Config.get().getDynamicInstrumentationCaptureTimeout(), ChronoUnit.MILLIS);
         context.freeze(new TimeoutChecker(timeout));
       }
     } catch (Exception ex) {
@@ -316,6 +342,18 @@ public class DebuggerContext {
       }
     } catch (Exception ex) {
       LOGGER.debug("Error in evalContextAndCommit: ", ex);
+    }
+  }
+
+  public static void codeOrigin(String probeId) {
+    try {
+      ProbeImplementation probe = probeResolver.resolve(probeId);
+      if (probe != null) {
+        probe.commit(
+            CapturedContext.EMPTY_CONTEXT, CapturedContext.EMPTY_CONTEXT, Collections.emptyList());
+      }
+    } catch (Exception e) {
+      LOGGER.debug("Error in codeOrigin: ", e);
     }
   }
 
@@ -367,10 +405,14 @@ public class DebuggerContext {
   }
 
   public static String captureCodeOrigin(Method method, boolean entry) {
+    return captureCodeOrigin(method, entry, true);
+  }
+
+  public static String captureCodeOrigin(Method method, boolean entry, boolean instrument) {
     try {
       CodeOriginRecorder recorder = codeOriginRecorder;
       if (recorder != null) {
-        return recorder.captureCodeOrigin(method, entry);
+        return recorder.captureCodeOrigin(method, entry, instrument);
       }
     } catch (Exception ex) {
       LOGGER.debug("Error in captureCodeOrigin: ", ex);

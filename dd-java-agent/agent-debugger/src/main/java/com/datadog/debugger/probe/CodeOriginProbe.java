@@ -1,176 +1,133 @@
 package com.datadog.debugger.probe;
 
-import static com.datadog.debugger.codeorigin.DebuggerConfiguration.isDebuggerEnabled;
 import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_FRAME;
 import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_TYPE;
 import static java.lang.String.format;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 
-import com.datadog.debugger.agent.DebuggerAgent;
-import com.datadog.debugger.instrumentation.InstrumentationResult;
-import com.datadog.debugger.sink.DebuggerSink;
-import com.datadog.debugger.sink.Snapshot;
+import com.datadog.debugger.agent.Generated;
+import com.datadog.debugger.instrumentation.CodeOriginInstrumentor;
+import com.datadog.debugger.instrumentation.DiagnosticMessage;
+import com.datadog.debugger.instrumentation.InstrumentationResult.Status;
+import com.datadog.debugger.instrumentation.MethodInfo;
 import datadog.trace.bootstrap.debugger.CapturedContext;
-import datadog.trace.bootstrap.debugger.DebuggerContext;
+import datadog.trace.bootstrap.debugger.CapturedContext.CapturedThrowable;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeLocation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.util.stacktrace.StackWalkerFactory;
+import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class CodeOriginProbe extends LogProbe implements ForceMethodInstrumentation {
+public class CodeOriginProbe extends ProbeDefinition {
   private static final Logger LOGGER = LoggerFactory.getLogger(CodeOriginProbe.class);
 
-  public final int maxFrames;
-
+  private final boolean instrument;
   private final boolean entrySpanProbe;
+  private String signature;
 
-  private List<StackTraceElement> stackTraceElements;
-
-  public CodeOriginProbe(ProbeId probeId, boolean entry, Where where, int maxFrames) {
-    super(LANGUAGE, probeId, null, where, MethodLocation.EXIT, null, null, true, null, null, null);
+  public CodeOriginProbe(ProbeId probeId, boolean entry, Where where, boolean instrument) {
+    super(LANGUAGE, probeId, (Tag[]) null, where, MethodLocation.ENTRY);
+    this.instrument = instrument;
     this.entrySpanProbe = entry;
-    this.maxFrames = maxFrames;
   }
 
   @Override
-  public boolean isLineProbe() {
-    // these are always method probes even if there is a line number
-    return false;
-  }
-
-  @Override
-  public void evaluate(
-      CapturedContext context, CapturedContext.Status status, MethodLocation methodLocation) {
-    if (!MethodLocation.isSame(methodLocation, getEvaluateAt())) {
-      return;
+  public Status instrument(
+      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<ProbeId> probeIds) {
+    if (instrument) {
+      return new CodeOriginInstrumentor(this, methodInfo, diagnostics, probeIds).instrument();
     }
-
-    super.evaluate(context, status, methodLocation);
-    AgentSpan span = findSpan(AgentTracer.activeSpan());
-
-    if (span == null) {
-      LOGGER.debug("Could not find the span for probeId {}", id);
-      return;
-    }
-    applyCodeOriginTags(span);
+    return Status.INSTALLED;
   }
 
   @Override
   public void commit(
       CapturedContext entryContext,
       CapturedContext exitContext,
-      List<CapturedContext.CapturedThrowable> caughtExceptions) {
-
-    AgentSpan span = findSpan(AgentTracer.activeSpan());
-
+      List<CapturedThrowable> caughtExceptions) {
+    AgentSpan span = AgentTracer.activeSpan();
     if (span == null) {
       LOGGER.debug("Could not find the span for probeId {}", id);
       return;
     }
-    DebuggerSink sink = DebuggerAgent.getSink();
-    if (isDebuggerEnabled(span) && sink != null) {
-      Snapshot snapshot = createSnapshot();
-      if (fillSnapshot(entryContext, exitContext, caughtExceptions, snapshot)) {
-        String snapshotId = snapshot.getId();
-        LOGGER.debug("committing code origin probe id={}, snapshot id={}", id, snapshotId);
-        commitSnapshot(snapshot, sink);
-
-        List<AgentSpan> agentSpans =
-            entrySpanProbe ? asList(span, span.getLocalRootSpan()) : singletonList(span);
-        for (AgentSpan agentSpan : agentSpans) {
-          if (agentSpan.getTag(format(DD_CODE_ORIGIN_FRAME, 0, "snapshot_id")) == null) {
-            agentSpan.setTag(format(DD_CODE_ORIGIN_FRAME, 0, "snapshot_id"), snapshotId);
-          }
-        }
-      }
-    }
-    if (sink != null) {
-      sink.getProbeStatusSink().addEmitting(probeId);
-    }
-    span.getLocalRootSpan().setTag(getId(), (String) null); // clear possible span reference
-  }
-
-  private List<AgentSpan> applyCodeOriginTags(AgentSpan span) {
-    List<StackTraceElement> entries =
-        stackTraceElements != null ? stackTraceElements : getUserStackFrames();
     List<AgentSpan> agentSpans =
         entrySpanProbe ? asList(span, span.getLocalRootSpan()) : singletonList(span);
 
+    if (location == null) {
+      LOGGER.debug("Code origin probe {} has no location", id);
+      return;
+    }
     for (AgentSpan s : agentSpans) {
       if (s.getTag(DD_CODE_ORIGIN_TYPE) == null) {
         s.setTag(DD_CODE_ORIGIN_TYPE, entrySpanProbe ? "entry" : "exit");
-
-        for (int i = 0; i < entries.size(); i++) {
-          StackTraceElement info = entries.get(i);
-          String fileName = info.getFileName();
-          s.setTag(format(DD_CODE_ORIGIN_FRAME, i, "file"), fileName);
-          s.setTag(format(DD_CODE_ORIGIN_FRAME, i, "method"), info.getMethodName());
-          s.setTag(format(DD_CODE_ORIGIN_FRAME, i, "line"), info.getLineNumber());
-          s.setTag(format(DD_CODE_ORIGIN_FRAME, i, "type"), info.getClassName());
-          if (i == 0 && entrySpanProbe) {
-            s.setTag(format(DD_CODE_ORIGIN_FRAME, i, "signature"), where.getSignature());
-          }
-        }
+        s.setTag(format(DD_CODE_ORIGIN_FRAME, 0, "file"), location.getFile());
+        s.setTag(format(DD_CODE_ORIGIN_FRAME, 0, "method"), location.getMethod());
+        s.setTag(format(DD_CODE_ORIGIN_FRAME, 0, "line"), location.getLines().get(0));
+        s.setTag(format(DD_CODE_ORIGIN_FRAME, 0, "type"), location.getType());
+        s.setTag(format(DD_CODE_ORIGIN_FRAME, 0, "signature"), signature);
       }
     }
-    return agentSpans;
   }
 
   public boolean entrySpanProbe() {
     return entrySpanProbe;
   }
 
-  /** look "back" to find exit spans that may have already come and gone */
-  private AgentSpan findSpan(AgentSpan candidate) {
-    if (candidate == null) {
-      return null;
-    }
-    AgentSpan span = candidate;
-    AgentSpan localRootSpan = candidate.getLocalRootSpan();
-    if (localRootSpan.getTag(getId()) != null) {
-      span = (AgentSpan) localRootSpan.getTag(getId());
-    }
-    return span;
-  }
-
   @Override
-  public void buildLocation(InstrumentationResult result) {
+  public void buildLocation(MethodInfo methodInfo) {
     String type = where.getTypeName();
     String method = where.getMethodName();
     List<String> lines = null;
 
     String file = where.getSourceFile();
 
-    if (result != null) {
-      type = result.getTypeName();
-      method = result.getMethodName();
-      if (result.getMethodStart() != -1) {
-        lines = singletonList(String.valueOf(result.getMethodStart()));
+    if (methodInfo != null) {
+      type = methodInfo.getTypeName();
+      method = methodInfo.getMethodName();
+      if (methodInfo.getMethodStart() != -1) {
+        lines = singletonList(String.valueOf(methodInfo.getMethodStart()));
       }
       if (file == null) {
-        file = result.getSourceFileName();
+        file = methodInfo.getSourceFileName();
       }
-      if (entrySpanProbe) {
-        stackTraceElements =
-            singletonList(new StackTraceElement(type, method, file, result.getMethodStart()));
-      }
+      signature = methodInfo.getSignature();
     }
     this.location = new ProbeLocation(type, method, file, lines);
   }
 
-  private List<StackTraceElement> getUserStackFrames() {
-    return StackWalkerFactory.INSTANCE.walk(
-        stream ->
-            stream
-                .filter(element -> !DebuggerContext.isClassNameExcluded(element.getClassName()))
-                .limit(maxFrames)
-                .collect(Collectors.toList()));
+  @Generated
+  @Override
+  public boolean equals(Object o) {
+    if (o == null || getClass() != o.getClass()) return false;
+    CodeOriginProbe that = (CodeOriginProbe) o;
+    return Objects.equals(language, that.language)
+        && Objects.equals(id, that.id)
+        && version == that.version
+        && Arrays.equals(tags, that.tags)
+        && Objects.equals(tagMap, that.tagMap)
+        && Objects.equals(where, that.where)
+        && Objects.equals(evaluateAt, that.evaluateAt)
+        && entrySpanProbe == that.entrySpanProbe;
+  }
+
+  @Generated
+  @Override
+  public int hashCode() {
+    int result = Objects.hash(language, id, version, tagMap, where, evaluateAt, entrySpanProbe);
+    result = 31 * result + Arrays.hashCode(tags);
+    return result;
+  }
+
+  @Override
+  public String toString() {
+    return String.format(
+        "CodeOriginProbe{probeId=%s, entrySpanProbe=%s, signature=%s, where=%s, location=%s}",
+        probeId, entrySpanProbe, signature, where, location);
   }
 }

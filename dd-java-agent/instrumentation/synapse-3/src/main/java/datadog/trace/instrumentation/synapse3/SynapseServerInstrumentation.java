@@ -14,6 +14,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import net.bytebuddy.asm.Advice;
 import org.apache.http.HttpRequest;
 import org.apache.http.nio.NHttpServerConnection;
@@ -67,7 +68,7 @@ public final class SynapseServerInstrumentation extends InstrumenterModule.Traci
 
       // check incoming request for distributed trace ids
       HttpRequest request = connection.getHttpRequest();
-      AgentSpan.Context.Extracted extractedContext = DECORATE.extract(request);
+      AgentSpanContext.Extracted extractedContext = DECORATE.extract(request);
 
       AgentSpan span;
       if (null != extractedContext) {

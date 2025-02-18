@@ -28,19 +28,19 @@ import static datadog.trace.api.TracePropagationStyle.HAYSTACK
 import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CLASSFILE_DUMP_ENABLED
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_DIAGNOSTICS_INTERVAL
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_ENABLED
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCLUDE_FILES
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_INSTRUMENT_THE_WORLD
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_METRICS_ENABLED
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_POLL_INTERVAL
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_PROBE_FILE_LOCATION
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SNAPSHOT_URL
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_BATCH_SIZE
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_FLUSH_INTERVAL
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_TIMEOUT
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_VERIFY_BYTECODE
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_CLASSFILE_DUMP_ENABLED
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_DIAGNOSTICS_INTERVAL
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_ENABLED
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_EXCLUDE_FILES
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_INSTRUMENT_THE_WORLD
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_METRICS_ENABLED
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_POLL_INTERVAL
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_PROBE_FILE
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_SNAPSHOT_URL
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_UPLOAD_BATCH_SIZE
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_UPLOAD_TIMEOUT
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE
 import static datadog.trace.api.config.DebuggerConfig.EXCEPTION_REPLAY_ENABLED
 import static datadog.trace.api.config.GeneralConfig.API_KEY
 import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE
@@ -63,6 +63,9 @@ import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_REFRESH_BEANS_PE
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_STATSD_HOST
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_STATSD_PORT
 import static datadog.trace.api.config.JmxFetchConfig.JMX_TAGS
+import static datadog.trace.api.config.LlmObsConfig.LLMOBS_AGENTLESS_ENABLED
+import static datadog.trace.api.config.LlmObsConfig.LLMOBS_ML_APP
+import static datadog.trace.api.config.LlmObsConfig.LLMOBS_ENABLED
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_OLD
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_VERY_OLD
@@ -163,6 +166,9 @@ class ConfigTest extends DDSpecification {
   private static final DD_PROFILING_TAGS_ENV = "DD_PROFILING_TAGS"
   private static final DD_PROFILING_PROXY_PASSWORD_ENV = "DD_PROFILING_PROXY_PASSWORD"
   private static final DD_TRACE_X_DATADOG_TAGS_MAX_LENGTH = "DD_TRACE_X_DATADOG_TAGS_MAX_LENGTH"
+  private static final DD_LLMOBS_ENABLED_ENV = "DD_LLMOBS_ENABLED"
+  private static final DD_LLMOBS_ML_APP_ENV = "DD_LLMOBS_ML_APP"
+  private static final DD_LLMOBS_AGENTLESS_ENABLED_ENV = "DD_LLMOBS_AGENTLESS_ENABLED"
 
   def "specify overrides via properties"() {
     setup:
@@ -237,18 +243,18 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(REMOTE_CONFIG_POLL_INTERVAL_SECONDS, "3")
     prop.setProperty(REMOTE_CONFIG_MAX_PAYLOAD_SIZE, "2")
 
-    prop.setProperty(DEBUGGER_ENABLED, "true")
-    prop.setProperty(DEBUGGER_PROBE_FILE_LOCATION, "file location")
-    prop.setProperty(DEBUGGER_UPLOAD_TIMEOUT, "10")
-    prop.setProperty(DEBUGGER_UPLOAD_FLUSH_INTERVAL, "1000")
-    prop.setProperty(DEBUGGER_UPLOAD_BATCH_SIZE, "200")
-    prop.setProperty(DEBUGGER_METRICS_ENABLED, "false")
-    prop.setProperty(DEBUGGER_CLASSFILE_DUMP_ENABLED, "true")
-    prop.setProperty(DEBUGGER_POLL_INTERVAL, "10")
-    prop.setProperty(DEBUGGER_DIAGNOSTICS_INTERVAL, "60")
-    prop.setProperty(DEBUGGER_VERIFY_BYTECODE, "true")
-    prop.setProperty(DEBUGGER_INSTRUMENT_THE_WORLD, "true")
-    prop.setProperty(DEBUGGER_EXCLUDE_FILES, "exclude file")
+    prop.setProperty(DYNAMIC_INSTRUMENTATION_ENABLED, "true")
+    prop.setProperty(DYNAMIC_INSTRUMENTATION_PROBE_FILE, "file location")
+    prop.setProperty(DYNAMIC_INSTRUMENTATION_UPLOAD_TIMEOUT, "10")
+    prop.setProperty(DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL, "1000")
+    prop.setProperty(DYNAMIC_INSTRUMENTATION_UPLOAD_BATCH_SIZE, "200")
+    prop.setProperty(DYNAMIC_INSTRUMENTATION_METRICS_ENABLED, "false")
+    prop.setProperty(DYNAMIC_INSTRUMENTATION_CLASSFILE_DUMP_ENABLED, "true")
+    prop.setProperty(DYNAMIC_INSTRUMENTATION_POLL_INTERVAL, "10")
+    prop.setProperty(DYNAMIC_INSTRUMENTATION_DIAGNOSTICS_INTERVAL, "60")
+    prop.setProperty(DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE, "true")
+    prop.setProperty(DYNAMIC_INSTRUMENTATION_INSTRUMENT_THE_WORLD, "true")
+    prop.setProperty(DYNAMIC_INSTRUMENTATION_EXCLUDE_FILES, "exclude file")
     prop.setProperty(EXCEPTION_REPLAY_ENABLED, "true")
     prop.setProperty(TRACE_X_DATADOG_TAGS_MAX_LENGTH, "128")
 
@@ -328,19 +334,19 @@ class ConfigTest extends DDSpecification {
     config.remoteConfigPollIntervalSeconds == 3
     config.remoteConfigMaxPayloadSizeBytes == 2048
 
-    config.debuggerEnabled == true
+    config.dynamicInstrumentationEnabled == true
     config.getFinalDebuggerSnapshotUrl() == "http://somehost:123/debugger/v1/input"
-    config.debuggerProbeFileLocation == "file location"
-    config.debuggerUploadTimeout == 10
-    config.debuggerUploadFlushInterval == 1000
-    config.debuggerUploadBatchSize == 200
-    config.debuggerMetricsEnabled == false
-    config.debuggerClassFileDumpEnabled == true
-    config.debuggerPollInterval == 10
-    config.debuggerDiagnosticsInterval == 60
-    config.debuggerVerifyByteCode == true
-    config.debuggerInstrumentTheWorld == true
-    config.debuggerExcludeFiles == "exclude file"
+    config.dynamicInstrumentationProbeFile == "file location"
+    config.dynamicInstrumentationUploadTimeout == 10
+    config.dynamicInstrumentationUploadFlushInterval == 1000
+    config.dynamicInstrumentationUploadBatchSize == 200
+    config.dynamicInstrumentationMetricsEnabled == false
+    config.dynamicInstrumentationClassFileDumpEnabled == true
+    config.dynamicInstrumentationPollInterval == 10
+    config.dynamicInstrumentationDiagnosticsInterval == 60
+    config.dynamicInstrumentationVerifyByteCode == true
+    config.dynamicInstrumentationInstrumentTheWorld == true
+    config.dynamicInstrumentationExcludeFiles == "exclude file"
     config.debuggerExceptionEnabled == true
 
     config.xDatadogTagsMaxLength == 128
@@ -418,20 +424,20 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + REMOTE_CONFIG_POLL_INTERVAL_SECONDS, "3")
     System.setProperty(PREFIX + REMOTE_CONFIG_MAX_PAYLOAD_SIZE, "2")
 
-    System.setProperty(PREFIX + DEBUGGER_ENABLED, "true")
-    System.setProperty(PREFIX + DEBUGGER_SNAPSHOT_URL, "snapshot url")
-    System.setProperty(PREFIX + DEBUGGER_PROBE_FILE_LOCATION, "file location")
-    System.setProperty(PREFIX + DEBUGGER_UPLOAD_TIMEOUT, "10")
-    System.setProperty(PREFIX + DEBUGGER_UPLOAD_FLUSH_INTERVAL, "1000")
-    System.setProperty(PREFIX + DEBUGGER_UPLOAD_BATCH_SIZE, "200")
+    System.setProperty(PREFIX + DYNAMIC_INSTRUMENTATION_ENABLED, "true")
+    System.setProperty(PREFIX + DYNAMIC_INSTRUMENTATION_SNAPSHOT_URL, "snapshot url")
+    System.setProperty(PREFIX + DYNAMIC_INSTRUMENTATION_PROBE_FILE, "file location")
+    System.setProperty(PREFIX + DYNAMIC_INSTRUMENTATION_UPLOAD_TIMEOUT, "10")
+    System.setProperty(PREFIX + DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL, "1000")
+    System.setProperty(PREFIX + DYNAMIC_INSTRUMENTATION_UPLOAD_BATCH_SIZE, "200")
     System.setProperty(PREFIX + REMOTE_CONFIG_MAX_PAYLOAD_SIZE, "2")
-    System.setProperty(PREFIX + DEBUGGER_METRICS_ENABLED, "false")
-    System.setProperty(PREFIX + DEBUGGER_CLASSFILE_DUMP_ENABLED, "true")
-    System.setProperty(PREFIX + DEBUGGER_POLL_INTERVAL, "10")
-    System.setProperty(PREFIX + DEBUGGER_DIAGNOSTICS_INTERVAL, "60")
-    System.setProperty(PREFIX + DEBUGGER_VERIFY_BYTECODE, "true")
-    System.setProperty(PREFIX + DEBUGGER_INSTRUMENT_THE_WORLD, "true")
-    System.setProperty(PREFIX + DEBUGGER_EXCLUDE_FILES, "exclude file")
+    System.setProperty(PREFIX + DYNAMIC_INSTRUMENTATION_METRICS_ENABLED, "false")
+    System.setProperty(PREFIX + DYNAMIC_INSTRUMENTATION_CLASSFILE_DUMP_ENABLED, "true")
+    System.setProperty(PREFIX + DYNAMIC_INSTRUMENTATION_POLL_INTERVAL, "10")
+    System.setProperty(PREFIX + DYNAMIC_INSTRUMENTATION_DIAGNOSTICS_INTERVAL, "60")
+    System.setProperty(PREFIX + DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE, "true")
+    System.setProperty(PREFIX + DYNAMIC_INSTRUMENTATION_INSTRUMENT_THE_WORLD, "true")
+    System.setProperty(PREFIX + DYNAMIC_INSTRUMENTATION_EXCLUDE_FILES, "exclude file")
     System.setProperty(PREFIX + TRACE_X_DATADOG_TAGS_MAX_LENGTH, "128")
 
     when:
@@ -509,18 +515,18 @@ class ConfigTest extends DDSpecification {
     config.remoteConfigPollIntervalSeconds == 3
     config.remoteConfigMaxPayloadSizeBytes == 2 * 1024
 
-    config.debuggerEnabled == true
-    config.debuggerProbeFileLocation == "file location"
-    config.debuggerUploadTimeout == 10
-    config.debuggerUploadFlushInterval == 1000
-    config.debuggerUploadBatchSize == 200
-    config.debuggerMetricsEnabled == false
-    config.debuggerClassFileDumpEnabled == true
-    config.debuggerPollInterval == 10
-    config.debuggerDiagnosticsInterval == 60
-    config.debuggerVerifyByteCode == true
-    config.debuggerInstrumentTheWorld == true
-    config.debuggerExcludeFiles == "exclude file"
+    config.dynamicInstrumentationEnabled == true
+    config.dynamicInstrumentationProbeFile == "file location"
+    config.dynamicInstrumentationUploadTimeout == 10
+    config.dynamicInstrumentationUploadFlushInterval == 1000
+    config.dynamicInstrumentationUploadBatchSize == 200
+    config.dynamicInstrumentationMetricsEnabled == false
+    config.dynamicInstrumentationClassFileDumpEnabled == true
+    config.dynamicInstrumentationPollInterval == 10
+    config.dynamicInstrumentationDiagnosticsInterval == 60
+    config.dynamicInstrumentationVerifyByteCode == true
+    config.dynamicInstrumentationInstrumentTheWorld == true
+    config.dynamicInstrumentationExcludeFiles == "exclude file"
 
     config.xDatadogTagsMaxLength == 128
   }
@@ -2206,6 +2212,124 @@ class ConfigTest extends DDSpecification {
     then:
     hostname != null
     !hostname.trim().isEmpty()
+  }
+
+  def "config instantiation should fail if llm obs is enabled via sys prop and ml app is not set"() {
+    setup:
+    Properties properties = new Properties()
+    properties.setProperty(LLMOBS_ENABLED, "true")
+
+    when:
+    new Config(ConfigProvider.withPropertiesOverride(properties))
+
+    then:
+    thrown IllegalArgumentException
+  }
+
+  def "config instantiation should fail if llm obs is enabled via env var and ml app is not set"() {
+    setup:
+    environmentVariables.set(DD_LLMOBS_ENABLED_ENV, "true")
+
+    when:
+    new Config()
+
+    then:
+    thrown IllegalArgumentException
+  }
+
+
+  def "config instantiation should NOT fail if llm obs is enabled (agentless disabled) via sys prop and ml app is set"() {
+    setup:
+    Properties properties = new Properties()
+    properties.setProperty(LLMOBS_ENABLED, "true")
+    properties.setProperty(LLMOBS_AGENTLESS_ENABLED, "false")
+    properties.setProperty(LLMOBS_ML_APP, "test-ml-app")
+
+    when:
+    def config = new Config(ConfigProvider.withPropertiesOverride(properties))
+
+    then:
+    noExceptionThrown()
+    config.isLlmObsEnabled()
+    !config.isLlmObsAgentlessEnabled()
+    config.llmObsMlApp == "test-ml-app"
+  }
+
+  def "config instantiation should NOT fail if llm obs is enabled (agentless disabled) via env var and ml app is set"() {
+    setup:
+    environmentVariables.set(DD_LLMOBS_ENABLED_ENV, "true")
+    environmentVariables.set(DD_LLMOBS_ML_APP_ENV, "test-ml-app")
+
+    when:
+    def config = new Config()
+
+    then:
+    noExceptionThrown()
+    config.isLlmObsEnabled()
+    !config.isLlmObsAgentlessEnabled()
+    config.llmObsMlApp == "test-ml-app"
+  }
+
+  def "config instantiation should fail if llm obs is in agentless mode via sys prop and API key is not set"() {
+    setup:
+    Properties properties = new Properties()
+    properties.setProperty(LLMOBS_ENABLED, "true")
+    properties.setProperty(LLMOBS_AGENTLESS_ENABLED, "true")
+    properties.setProperty(LLMOBS_ML_APP, "test-ml-app")
+
+    when:
+    new Config(ConfigProvider.withPropertiesOverride(properties))
+
+    then:
+    thrown FatalAgentMisconfigurationError
+  }
+
+  def "config instantiation should fail if llm obs is in agentless mode via env var and API key is not set"() {
+    setup:
+    environmentVariables.set(DD_LLMOBS_ENABLED_ENV, "true")
+    environmentVariables.set(DD_LLMOBS_ML_APP_ENV, "a")
+    environmentVariables.set(DD_LLMOBS_AGENTLESS_ENABLED_ENV, "true")
+
+    when:
+    new Config()
+
+    then:
+    thrown FatalAgentMisconfigurationError
+  }
+
+  def "config instantiation should NOT fail if llm obs is enabled (agentless enabled) and API key & ml app are set via sys prop"() {
+    setup:
+    Properties properties = new Properties()
+    properties.setProperty(LLMOBS_ENABLED, "true")
+    properties.setProperty(LLMOBS_AGENTLESS_ENABLED, "true")
+    properties.setProperty(LLMOBS_ML_APP, "test-ml-app")
+    properties.setProperty(API_KEY, "123456789")
+
+    when:
+    def config = new Config(ConfigProvider.withPropertiesOverride(properties))
+
+    then:
+    noExceptionThrown()
+    config.isLlmObsEnabled()
+    config.isLlmObsAgentlessEnabled()
+    config.llmObsMlApp == "test-ml-app"
+  }
+
+  def "config instantiation should NOT fail if llm obs is enabled (agentless enabled) and API key & ml app are set via env var"() {
+    setup:
+    environmentVariables.set(DD_LLMOBS_ENABLED_ENV, "true")
+    environmentVariables.set(DD_LLMOBS_ML_APP_ENV, "a")
+    environmentVariables.set(DD_LLMOBS_AGENTLESS_ENABLED_ENV, "true")
+    environmentVariables.set(DD_API_KEY_ENV, "8663294466")
+
+    when:
+    def config = new Config()
+
+    then:
+    noExceptionThrown()
+    config.isLlmObsEnabled()
+    config.isLlmObsAgentlessEnabled()
+    config.llmObsMlApp == "a"
   }
 
   def "config instantiation should fail if CI visibility agentless mode is enabled and API key is not set"() {

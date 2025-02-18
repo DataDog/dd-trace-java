@@ -158,7 +158,7 @@ public class CiVisibilitySystem {
                 services, repoServices, coverageServices, executionSettings);
       } else {
         sessionFactory =
-            headlessTestFrameworkEssionFactory(
+            headlessTestFrameworkSessionFactory(
                 services, repoServices, coverageServices, executionSettings);
       }
     }
@@ -238,7 +238,11 @@ public class CiVisibilitySystem {
           new TestDecoratorImpl(component, sessionName, testCommand, repoServices.ciTags);
 
       ExecutionStrategy executionStrategy =
-          new ExecutionStrategy(services.config, executionSettings);
+          new ExecutionStrategy(
+              services.config,
+              executionSettings,
+              repoServices.sourcePathResolver,
+              services.linesResolver);
 
       return new ProxyTestSession(
           services.processHierarchy.parentProcessModuleContext,
@@ -255,7 +259,7 @@ public class CiVisibilitySystem {
     };
   }
 
-  private static TestFrameworkSession.Factory headlessTestFrameworkEssionFactory(
+  private static TestFrameworkSession.Factory headlessTestFrameworkSessionFactory(
       CiVisibilityServices services,
       CiVisibilityRepoServices repoServices,
       CiVisibilityCoverageServices.Child coverageServices,
@@ -268,7 +272,11 @@ public class CiVisibilitySystem {
           new TestDecoratorImpl(component, sessionName, projectName, repoServices.ciTags);
 
       ExecutionStrategy executionStrategy =
-          new ExecutionStrategy(services.config, executionSettings);
+          new ExecutionStrategy(
+              services.config,
+              executionSettings,
+              repoServices.sourcePathResolver,
+              services.linesResolver);
       return new HeadlessTestSession(
           projectName,
           startTime,

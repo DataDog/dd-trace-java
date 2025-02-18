@@ -129,30 +129,6 @@ class ContinuableScope implements AgentScope, AttachableWrapper {
     isAsyncPropagating = value;
   }
 
-  /**
-   * The continuation returned must be closed or activated or the trace will not finish.
-   *
-   * @return The new continuation, or null if this scope is not async propagating.
-   */
-  @Override
-  public final AbstractContinuation capture() {
-    return isAsyncPropagating
-        ? new SingleContinuation(scopeManager, span, source()).register()
-        : null;
-  }
-
-  /**
-   * The continuation returned must be closed or activated or the trace will not finish.
-   *
-   * @return The new continuation, or null if this scope is not async propagating.
-   */
-  @Override
-  public final AbstractContinuation captureConcurrent() {
-    return isAsyncPropagating
-        ? new ConcurrentContinuation(scopeManager, span, source()).register()
-        : null;
-  }
-
   @Override
   public final String toString() {
     return super.toString() + "->" + span;

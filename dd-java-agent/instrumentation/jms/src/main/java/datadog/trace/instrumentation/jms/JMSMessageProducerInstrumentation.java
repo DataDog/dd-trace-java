@@ -1,29 +1,25 @@
 package datadog.trace.instrumentation.jms;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_PRODUCE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.PRODUCER_DECORATE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.TIME_IN_QUEUE_ENABLED;
 import static datadog.trace.instrumentation.jms.MessageInjectAdapter.SETTER;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.jms.MessageProducerState;
-import java.util.Map;
 import javax.jms.Destination;
 import javax.jms.Message;
 import javax.jms.MessageProducer;
@@ -31,17 +27,17 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-@AutoService(InstrumenterModule.class)
-public final class JMSMessageProducerInstrumentation extends InstrumenterModule.Tracing
+public final class JMSMessageProducerInstrumentation
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+  private final String namespace;
 
-  public JMSMessageProducerInstrumentation() {
-    super("jms", "jms-1", "jms-2");
+  public JMSMessageProducerInstrumentation(String namespace) {
+    this.namespace = namespace;
   }
 
   @Override
   public String hierarchyMarkerType() {
-    return "javax.jms.MessageProducer";
+    return namespace + ".jms.MessageProducer";
   }
 
   @Override
@@ -50,24 +46,14 @@ public final class JMSMessageProducerInstrumentation extends InstrumenterModule.
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".JMSDecorator", packageName + ".MessageInjectAdapter"};
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("javax.jms.MessageProducer", MessageProducerState.class.getName());
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("send").and(takesArgument(0, named("javax.jms.Message"))).and(isPublic()),
+        named("send").and(takesArgument(0, named(namespace + ".jms.Message"))).and(isPublic()),
         JMSMessageProducerInstrumentation.class.getName() + "$ProducerAdvice");
     transformer.applyAdvice(
         named("send")
-            .and(takesArgument(0, hasInterface(named("javax.jms.Destination"))))
-            .and(takesArgument(1, named("javax.jms.Message")))
+            .and(takesArgument(0, hasInterface(named(namespace + ".jms.Destination"))))
+            .and(takesArgument(1, named(namespace + ".jms.Message")))
             .and(isPublic()),
         JMSMessageProducerInstrumentation.class.getName() + "$ProducerWithDestinationAdvice");
   }
@@ -108,7 +94,7 @@ public final class JMSMessageProducerInstrumentation extends InstrumenterModule.
       if (JMSDecorator.canInject(message)) {
         if (Config.get().isJmsPropagationEnabled()
             && (null == producerState || !producerState.isPropagationDisabled())) {
-          propagate().inject(span, message, SETTER);
+          defaultPropagator().inject(span, message, SETTER);
         }
         if (TIME_IN_QUEUE_ENABLED) {
           if (null != producerState) {
@@ -154,9 +140,8 @@ public final class JMSMessageProducerInstrumentation extends InstrumenterModule.
       PRODUCER_DECORATE.onProduce(span, resourceName);
       if (JMSDecorator.canInject(message)) {
         if (Config.get().isJmsPropagationEnabled()
-            && !Config.get().isJmsPropagationDisabledForDestination(destinationName)) {
-          propagate().inject(span, message, SETTER);
-        }
+            && !Config.get().isJmsPropagationDisabledForDestination(destinationName))
+          defaultPropagator().inject(span, message, SETTER);
         if (TIME_IN_QUEUE_ENABLED) {
           MessageProducerState producerState =
               InstrumentationContext.get(MessageProducer.class, MessageProducerState.class)

@@ -12,6 +12,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
@@ -53,7 +54,7 @@ public final class RestletInstrumentation extends InstrumenterModule.Tracing
   public static class RestletHandleAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope beginRequest(@Advice.Argument(0) final HttpExchange exchange) {
-      AgentSpan.Context.Extracted context = DECORATE.extract(exchange);
+      AgentSpanContext.Extracted context = DECORATE.extract(exchange);
       AgentSpan span = DECORATE.startSpan(exchange, context);
       AgentScope scope = activateSpan(span);
       DECORATE.afterStart(span);

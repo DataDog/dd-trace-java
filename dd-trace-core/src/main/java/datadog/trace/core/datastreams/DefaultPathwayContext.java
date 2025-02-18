@@ -7,10 +7,10 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import com.datadoghq.sketch.ddsketch.encoding.ByteArrayInput;
 import com.datadoghq.sketch.ddsketch.encoding.GrowingByteArrayOutput;
 import com.datadoghq.sketch.ddsketch.encoding.VarEncodingHelper;
+import datadog.context.propagation.CarrierVisitor;
 import datadog.trace.api.Config;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.time.TimeSource;
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
 import datadog.trace.util.FNV64Hash;
@@ -26,6 +26,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -218,7 +219,7 @@ public class DefaultPathwayContext implements PathwayContext {
   }
 
   @Override
-  public byte[] encode() throws IOException {
+  public String encode() throws IOException {
     lock.lock();
     try {
       if (!started) {
@@ -236,19 +237,11 @@ public class DefaultPathwayContext implements PathwayContext {
               + TimeUnit.NANOSECONDS.toMillis(edgeStartNanoTicks - pathwayStartNanoTicks);
 
       VarEncodingHelper.encodeSignedVarLong(outputBuffer, edgeStartMillis);
-      return Base64.getEncoder().encode(outputBuffer.trimmedCopy());
+      byte[] base64 = Base64.getEncoder().encode(outputBuffer.trimmedCopy());
+      return new String(base64, ISO_8859_1);
     } finally {
       lock.unlock();
     }
-  }
-
-  @Override
-  public String strEncode() throws IOException {
-    byte[] bytes = encode();
-    if (bytes == null) {
-      return null;
-    }
-    return new String(bytes, ISO_8859_1);
   }
 
   @Override
@@ -275,7 +268,7 @@ public class DefaultPathwayContext implements PathwayContext {
     }
   }
 
-  private static class PathwayContextExtractor implements AgentPropagation.KeyClassifier {
+  private static class PathwayContextExtractor implements BiConsumer<String, String> {
     private final TimeSource timeSource;
     private final long hashOfKnownTags;
     private final String serviceNameOverride;
@@ -289,114 +282,39 @@ public class DefaultPathwayContext implements PathwayContext {
     }
 
     @Override
-    public boolean accept(String key, String value) {
-      if (PathwayContext.PROPAGATION_KEY_BASE64.equalsIgnoreCase(key)) {
-        try {
-          extractedContext = strDecode(timeSource, hashOfKnownTags, serviceNameOverride, value);
-        } catch (IOException e) {
-          return false;
-        }
-      }
-      return true;
-    }
-  }
-
-  private static class BinaryPathwayContextExtractor
-      implements AgentPropagation.BinaryKeyClassifier {
-    private final TimeSource timeSource;
-    private final long hashOfKnownTags;
-    private final String serviceNameOverride;
-    private DefaultPathwayContext extractedContext;
-
-    BinaryPathwayContextExtractor(
-        TimeSource timeSource, long hashOfKnownTags, String serviceNameOverride) {
-      this.timeSource = timeSource;
-      this.hashOfKnownTags = hashOfKnownTags;
-      this.serviceNameOverride = serviceNameOverride;
-    }
-
-    @Override
-    public boolean accept(String key, byte[] value) {
-      // older versions support, should be removed in the future
-      if (PathwayContext.PROPAGATION_KEY.equalsIgnoreCase(key)) {
+    public void accept(String key, String value) {
+      if (PROPAGATION_KEY_BASE64.equalsIgnoreCase(key)) {
         try {
           extractedContext = decode(timeSource, hashOfKnownTags, serviceNameOverride, value);
-        } catch (IOException e) {
-          return false;
+        } catch (IOException ignored) {
         }
       }
-
-      if (PathwayContext.PROPAGATION_KEY_BASE64.equalsIgnoreCase(key)) {
-        try {
-          extractedContext = base64Decode(timeSource, hashOfKnownTags, serviceNameOverride, value);
-        } catch (IOException e) {
-          return false;
-        }
-      }
-      return true;
     }
   }
 
   static <C> DefaultPathwayContext extract(
       C carrier,
-      AgentPropagation.ContextVisitor<C> getter,
+      CarrierVisitor<C> getter,
       TimeSource timeSource,
       long hashOfKnownTags,
       String serviceNameOverride) {
-    if (getter instanceof AgentPropagation.BinaryContextVisitor) {
-      return extractBinary(
-          carrier,
-          (AgentPropagation.BinaryContextVisitor) getter,
-          timeSource,
-          hashOfKnownTags,
-          serviceNameOverride);
-    }
     PathwayContextExtractor pathwayContextExtractor =
         new PathwayContextExtractor(timeSource, hashOfKnownTags, serviceNameOverride);
-    getter.forEachKey(carrier, pathwayContextExtractor);
+    getter.forEachKeyValue(carrier, pathwayContextExtractor);
     if (pathwayContextExtractor.extractedContext == null) {
       log.debug("No context extracted");
     } else {
       log.debug("Extracted context: {} ", pathwayContextExtractor.extractedContext);
     }
     return pathwayContextExtractor.extractedContext;
-  }
-
-  static <C> DefaultPathwayContext extractBinary(
-      C carrier,
-      AgentPropagation.BinaryContextVisitor<C> getter,
-      TimeSource timeSource,
-      long hashOfKnownTags,
-      String serviceNameOverride) {
-    BinaryPathwayContextExtractor pathwayContextExtractor =
-        new BinaryPathwayContextExtractor(timeSource, hashOfKnownTags, serviceNameOverride);
-    getter.forEachKey(carrier, pathwayContextExtractor);
-    if (pathwayContextExtractor.extractedContext == null) {
-      log.debug("No context extracted");
-    } else {
-      log.debug("Extracted context: {} ", pathwayContextExtractor.extractedContext);
-    }
-    return pathwayContextExtractor.extractedContext;
-  }
-
-  private static DefaultPathwayContext strDecode(
-      TimeSource timeSource, long hashOfKnownTags, String serviceNameOverride, String data)
-      throws IOException {
-    byte[] base64Bytes = data.getBytes(UTF_8);
-    return base64Decode(timeSource, hashOfKnownTags, serviceNameOverride, base64Bytes);
-  }
-
-  private static DefaultPathwayContext base64Decode(
-      TimeSource timeSource, long hashOfKnownTags, String serviceNameOverride, byte[] data)
-      throws IOException {
-    return decode(
-        timeSource, hashOfKnownTags, serviceNameOverride, Base64.getDecoder().decode(data));
   }
 
   private static DefaultPathwayContext decode(
-      TimeSource timeSource, long hashOfKnownTags, String serviceNameOverride, byte[] data)
+      TimeSource timeSource, long hashOfKnownTags, String serviceNameOverride, String base64)
       throws IOException {
-    ByteArrayInput input = ByteArrayInput.wrap(data);
+    byte[] base64Bytes = base64.getBytes(UTF_8);
+    byte[] bytes = Base64.getDecoder().decode(base64Bytes);
+    ByteArrayInput input = ByteArrayInput.wrap(bytes);
 
     long hash = input.readLongLE();
 

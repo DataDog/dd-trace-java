@@ -51,7 +51,7 @@ abstract class CITagsProviderTest extends Specification {
     def ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(getWorkspacePath())
     def ciInfo = ciProviderInfo.buildCIInfo()
     def ciTagsProvider = ciTagsProvider()
-    def tags = ciTagsProvider.getCiTags(ciInfo)
+    def tags = ciTagsProvider.getCiTags(ciInfo, PullRequestInfo.EMPTY)
 
     then:
     if (isCi()) {
@@ -76,7 +76,7 @@ abstract class CITagsProviderTest extends Specification {
     def ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(getWorkspacePath())
     def ciInfo = ciProviderInfo.buildCIInfo()
     def ciTagsProvider = ciTagsProvider()
-    def tags = ciTagsProvider.getCiTags(ciInfo)
+    def tags = ciTagsProvider.getCiTags(ciInfo, PullRequestInfo.EMPTY)
 
     then:
     tags.get(Tags.GIT_COMMIT_SHA) == "1234567890123456789012345678901234567890"
@@ -95,7 +95,7 @@ abstract class CITagsProviderTest extends Specification {
     def ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(getWorkspacePath())
     def ciInfo = ciProviderInfo.buildCIInfo()
     def ciTagsProvider = ciTagsProvider()
-    def tags = ciTagsProvider.getCiTags(ciInfo)
+    def tags = ciTagsProvider.getCiTags(ciInfo, PullRequestInfo.EMPTY)
 
     then:
     tags.get(Tags.GIT_REPOSITORY_URL) == "local supplied repo url"
@@ -112,7 +112,7 @@ abstract class CITagsProviderTest extends Specification {
     def ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(getWorkspacePath())
     def ciInfo = ciProviderInfo.buildCIInfo()
     def ciTagsProvider = ciTagsProvider()
-    def tags = ciTagsProvider.getCiTags(ciInfo)
+    def tags = ciTagsProvider.getCiTags(ciInfo, PullRequestInfo.EMPTY)
 
     then:
     if (isWorkspaceAwareCi()) {
@@ -143,7 +143,7 @@ abstract class CITagsProviderTest extends Specification {
       CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(Config.get(), GIT_FOLDER_FOR_TESTS, new CiEnvironmentImpl(System.getenv()))
       def ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(getWorkspacePath())
       def ciInfo = ciProviderInfo.buildCIInfo()
-      def tags = ciTagsProvider.getCiTags(ciInfo)
+      def tags = ciTagsProvider.getCiTags(ciInfo, PullRequestInfo.EMPTY)
 
       tags.get(Tags.GIT_REPOSITORY_URL) == "https://some-host/some-user/some-repo.git"
       tags.get(Tags.GIT_BRANCH) == "master"

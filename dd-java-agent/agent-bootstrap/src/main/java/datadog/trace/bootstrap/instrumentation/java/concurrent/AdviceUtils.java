@@ -1,9 +1,12 @@
 package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled;
 
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 
 /** Helper utils for Runnable/Callable instrumentation */
 public class AdviceUtils {
@@ -26,7 +29,7 @@ public class AdviceUtils {
       final AgentScope.Continuation continuation = state.getAndResetContinuation();
       if (continuation != null) {
         final AgentScope scope = continuation.activate();
-        scope.setAsyncPropagation(true);
+        setAsyncPropagationEnabled(true);
         // important - stop timing after the scope has been activated so the time in the queue can
         // be attributed to the correct context without duplicating the propagated information
         state.stopTiming();
@@ -50,14 +53,14 @@ public class AdviceUtils {
   }
 
   public static <T> void capture(ContextStore<T, State> contextStore, T task) {
-    AgentScope activeScope = activeScope();
-    if (null != activeScope && activeScope.isAsyncPropagating()) {
+    AgentSpan span = activeSpan();
+    if (span != null && isAsyncPropagationEnabled()) {
       State state = contextStore.get(task);
       if (null == state) {
         state = State.FACTORY.create();
         contextStore.put(task, state);
       }
-      state.captureAndSetContinuation(activeScope);
+      state.captureAndSetContinuation(span);
     }
   }
 }

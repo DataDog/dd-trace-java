@@ -19,8 +19,6 @@ import datadog.trace.common.sampling.Sampler
 import datadog.trace.common.writer.DDAgentWriter
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.LoggingWriter
-import datadog.trace.core.datastreams.DataStreamContextExtractor
-import datadog.trace.core.propagation.HttpCodec
 import datadog.trace.core.tagprocessor.TagsPostProcessorFactory
 import datadog.trace.core.test.DDCoreSpecification
 import okhttp3.HttpUrl
@@ -54,9 +52,6 @@ class CoreTracerTest extends DDCoreSpecification {
     tracer.initialSampler instanceof RateByServiceTraceSampler
     tracer.writer instanceof DDAgentWriter
     tracer.statsDClient != null && tracer.statsDClient != StatsDClient.NO_OP
-
-    tracer.propagate().injector instanceof HttpCodec.CompoundInjector
-    tracer.propagate().extractor instanceof DataStreamContextExtractor
 
     cleanup:
     tracer.close()
@@ -570,72 +565,20 @@ class CoreTracerTest extends DDCoreSpecification {
     tracer?.close()
   }
 
-
-  def "reject configuration when target service+env mismatch"() {
-    setup:
-    injectSysConfig(SERVICE_NAME, service)
-    injectSysConfig(ENV, env)
-
-    def key = ParsedConfigKey.parse("datadog/2/APM_TRACING/config_overrides/config")
-    def poller = Mock(ConfigurationPoller)
-    def sco = new SharedCommunicationObjects(
-      okHttpClient: Mock(OkHttpClient),
-      monitoring: Mock(Monitoring),
-      agentUrl: HttpUrl.get('https://example.com'),
-      featuresDiscovery: Mock(DDAgentFeaturesDiscovery),
-      configurationPoller: poller
-      )
-
-    def updater
+  def "flushes on tracer close if configured to do so"() {
+    given:
+    def writer = new WriterWithExplicitFlush()
+    def tracer = tracerBuilder().writer(writer).flushOnClose(true).build()
 
     when:
-    def tracer = CoreTracer.builder()
-      .sharedCommunicationObjects(sco)
-      .pollForTracingConfiguration()
-      .build()
+    tracer.buildSpan('my_span').start().finish()
+    tracer.close()
 
     then:
-    1 * poller.addListener(Product.APM_TRACING, _ as ProductListener) >> {
-      updater = it[1] // capture config updater for further testing
-    }
-    and:
-    tracer.captureTraceConfig().serviceMapping == [:]
-
-    when:
-    updater.accept(key, """
-      {
-        "service_target": {
-          "service": "${targetService}",
-          "env": "${targetEnv}"
-        },
-        "lib_config":
-        {
-          "tracing_service_mapping":
-          [{
-             "from_key": "foobar",
-             "to_name": "bar"
-          }]
-        }
-      }
-      """.getBytes(StandardCharsets.UTF_8), null)
-    updater.commit()
-
-    then: "configuration should not be applied"
-    tracer.captureTraceConfig().serviceMapping == [:]
-    and:
-    thrown(IllegalArgumentException)
-
-    cleanup:
-    tracer?.close()
-
-    where:
-    service   | env    | targetService | targetEnv
-    "service" | "env"  | "service_1"   | "env"
-    "service" | "env"  | "service"     | "env_1"
-    "service" | "env"  | "service_2"   | "env_2"
+    !writer.flushedTraces.empty
   }
 
-  def "accept configuration when target service+env match case-insensitive"() {
+  def "verify no filtering of service/env when mismatched with DD_SERVICE/DD_ENV"() {
     setup:
     injectSysConfig(SERVICE_NAME, service)
     injectSysConfig(ENV, env)
@@ -691,25 +634,10 @@ class CoreTracerTest extends DDCoreSpecification {
     tracer?.close()
 
     where:
-    service   | env   | targetService | targetEnv
-    "service" | "env" | "service"     | "env"
-    "service" | "env" | "SERVICE"     | "env"
-    "service" | "env" | "service"     | "ENV"
-    "service" | "env" | "SERVICE"     | "ENV"
-    "SERVICE" | "ENV" | "service"     | "env"
-  }
-
-  def "flushes on tracer close if configured to do so"() {
-    given:
-    def writer = new WriterWithExplicitFlush()
-    def tracer = tracerBuilder().writer(writer).flushOnClose(true).build()
-
-    when:
-    tracer.buildSpan('my_span').start().finish()
-    tracer.close()
-
-    then:
-    !writer.flushedTraces.empty
+    service   | env    | targetService | targetEnv
+    "service" | "env"  | "service_1"   | "env"
+    "service" | "env"  | "service"     | "env_1"
+    "service" | "env"  | "service_2"   | "env_2"
   }
 }
 

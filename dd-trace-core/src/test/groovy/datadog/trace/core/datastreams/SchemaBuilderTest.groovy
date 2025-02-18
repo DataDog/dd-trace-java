@@ -10,12 +10,15 @@ class SchemaBuilderTest extends DDCoreSpecification {
 
     @Override
     void iterateOverSchema(datadog.trace.bootstrap.instrumentation.api.SchemaBuilder builder) {
-      builder.addProperty("person", "name", false, "string", "name of the person", null, null, null)
-      builder.addProperty("person", "phone_numbers", true, "string", null, null, null, null)
-      builder.addProperty("person", "person_name", false, "string", null, null, null, null)
-      builder.addProperty("person", "address", false, "object", null, "#/components/schemas/address", null, null)
-      builder.addProperty("address", "zip", false, "number", null, null, "int", null)
-      builder.addProperty("address", "street", false, "string", null, null, null, null)
+      HashMap<String, String> extension = new HashMap<String, String>(1)
+      extension.put("x-test-extension-1", "hello")
+      extension.put("x-test-extension-2", "world")
+      builder.addProperty("person", "name", false, "string", "name of the person", null, null, null, null)
+      builder.addProperty("person", "phone_numbers", true, "string", null, null, null, null, null)
+      builder.addProperty("person", "person_name", false, "string", null, null, null, null, null)
+      builder.addProperty("person", "address", false, "object", null, "#/components/schemas/address", null, null, null)
+      builder.addProperty("address", "zip", false, "number", null, null, "int", null, null)
+      builder.addProperty("address", "street", false, "string", null, null, null, null, extension)
     }
   }
 
@@ -31,8 +34,8 @@ class SchemaBuilderTest extends DDCoreSpecification {
     Schema schema = builder.build()
 
     then:
-    "{\"components\":{\"schemas\":{\"person\":{\"properties\":{\"name\":{\"description\":\"name of the person\",\"type\":\"string\"},\"phone_numbers\":{\"items\":{\"type\":\"string\"},\"type\":\"array\"},\"person_name\":{\"type\":\"string\"},\"address\":{\"\$ref\":\"#/components/schemas/address\",\"type\":\"object\"}},\"type\":\"object\"},\"address\":{\"properties\":{\"zip\":{\"format\":\"int\",\"type\":\"number\"},\"street\":{\"type\":\"string\"}},\"type\":\"object\"}}},\"openapi\":\"3.0.0\"}" == schema.definition
-    "14950130709604290100" == schema.id
+    "{\"components\":{\"schemas\":{\"person\":{\"properties\":{\"name\":{\"description\":\"name of the person\",\"type\":\"string\"},\"phone_numbers\":{\"items\":{\"type\":\"string\"},\"type\":\"array\"},\"person_name\":{\"type\":\"string\"},\"address\":{\"\$ref\":\"#/components/schemas/address\",\"type\":\"object\"}},\"type\":\"object\"},\"address\":{\"properties\":{\"zip\":{\"format\":\"int\",\"type\":\"number\"},\"street\":{\"extensions\":{\"x-test-extension-1\":\"hello\",\"x-test-extension-2\":\"world\"},\"type\":\"string\"}},\"type\":\"object\"}}},\"openapi\":\"3.0.0\"}" == schema.definition
+    "16548065305426330543" == schema.id
     shouldExtractPerson
     shouldExtractAddress
     !shouldExtractPerson2

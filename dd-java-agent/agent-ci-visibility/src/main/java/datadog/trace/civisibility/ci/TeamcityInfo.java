@@ -4,6 +4,7 @@ import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.civisibility.ci.env.CiEnvironment;
+import javax.annotation.Nonnull;
 
 public class TeamcityInfo implements CIProviderInfo {
   public static final String TEAMCITY = "TEAMCITY_VERSION";
@@ -29,6 +30,12 @@ public class TeamcityInfo implements CIProviderInfo {
         .ciJobName(environment.get(TEAMCITY_BUILDCONF_NAME))
         .ciJobUrl(environment.get(BUILD_URL))
         .build();
+  }
+
+  @Nonnull
+  @Override
+  public PullRequestInfo buildPullRequestInfo() {
+    return PullRequestInfo.EMPTY;
   }
 
   @Override

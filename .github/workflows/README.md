@@ -28,15 +28,6 @@ _Action:_ Check the pull request complies with [the contribution guidelines](htt
 
 _Recovery:_ Manually verify the guideline compliance.
 
-### create-next-milestone [🔗](create-next-milestone.yaml)
-
-_Trigger:_ When closing a milestone.
-
-_Action:_ Create a new milestone by incrementing minor version.
-
-_Comment:_ Disabled as also covered by increment-milestone-on-tag.
-This will be removed after some testing.  
-
 ### draft-release-notes-on-tag [🔗](draft-release-notes-on-tag.yaml)
 
 _Trigger:_ When creating a tag, or manually (providing a tag)
@@ -61,6 +52,16 @@ _Actions:_
 _Recovery:_ Manually [close the related milestone and create a new one](https://github.com/DataDog/dd-trace-java/milestones).
 
 _Notes:_ This action will not apply to release candidate versions using `-RC` tags.
+
+### update-docker-build-image [🔗](update-docker-build-image.yaml)
+
+_Trigger:_ Quarterly released, loosely [a day after the new image tag is created](https://github.com/DataDog/dd-trace-java-docker-build/blob/master/.github/workflows/docker-tag.yml).
+
+_Action:_ Update the Docker build image used in CircleCI and GitLab CI with the latest tag.
+
+_Recovery:_ Download artifacts and upload them manually to the related _download release_.
+
+_Notes:_  Manually trigger the action again given the desired image tag as input.
 
 ### update-download-releases [🔗](update-download-releases.yaml)
 
@@ -103,7 +104,7 @@ _Recovery:_ Manually trigger the action again.
 
 ## Code Quality and Security
 
-### analyze-changes [🔗](analyze-changes-with-github-codeql.yaml)
+### analyze-changes [🔗](analyze-changes.yaml)
 
 _Trigger:_ When pushing commits to `master` or any pull request targeting `master`.
 
@@ -121,7 +122,7 @@ _Trigger:_ When creating a PR commits to `master` or a `release/*` branch with a
 
 _Action:_ Notify the PR author through comments that about the Git Submodule update.
 
-### update-gradle-dependencies [🔗](update-gradle-dependencies.yml)
+### update-gradle-dependencies [🔗](update-gradle-dependencies.yaml)
 
 _Trigger:_ Every week or manually.
 
@@ -137,7 +138,7 @@ While GitHub owned actions are allowed by default, the other ones must be declar
 
 Run the following script to get the list of actions to declare according the state of your working copy:
 ```bash
-find .github/workflows -name "*.yaml" -exec  awk '/uses:/{print $2 ","}' {} \; | grep -vE '^(actions|github)/' | sort | uniq
+find .github/workflows -name "*.yaml" -exec  awk '/uses:/{print $2 ","}' {} \; | grep -vE '^(actions|github)/' | sed 's/@.*/@*/' | sort | uniq
 ```
 
 ## Testing

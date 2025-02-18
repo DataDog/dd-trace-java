@@ -2,8 +2,10 @@ package datadog.trace.instrumentation.vertx_4_0.server;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapterBase;
+import datadog.trace.bootstrap.instrumentation.api.URIDefaultDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import io.vertx.core.http.HttpServerResponse;
@@ -49,7 +51,7 @@ public class VertxDecorator
 
   @Override
   protected URIDataAdapter url(final RoutingContext routingContext) {
-    return new VertxURIDataAdapter(routingContext);
+    return URIDataAdapterBase.fromURI(routingContext.request().uri(), URIDefaultDataAdapter::new);
   }
 
   @Override
@@ -57,7 +59,7 @@ public class VertxDecorator
       final AgentSpan span,
       final RoutingContext connection,
       final RoutingContext routingContext,
-      AgentSpan.Context.Extracted context) {
+      AgentSpanContext.Extracted context) {
     return span;
   }
 
@@ -74,58 +76,5 @@ public class VertxDecorator
   @Override
   protected int status(final HttpServerResponse httpServerResponse) {
     return httpServerResponse.getStatusCode();
-  }
-
-  protected static final class VertxURIDataAdapter extends URIDataAdapterBase {
-    private final RoutingContext routingContext;
-
-    public VertxURIDataAdapter(final RoutingContext routingContext) {
-      this.routingContext = routingContext;
-    }
-
-    @Override
-    public String scheme() {
-      return routingContext.request().scheme();
-    }
-
-    @Override
-    public String host() {
-      return routingContext.request().host();
-    }
-
-    @Override
-    public int port() {
-      return routingContext.request().localAddress().port();
-    }
-
-    @Override
-    public String path() {
-      return routingContext.request().path();
-    }
-
-    @Override
-    public String fragment() {
-      return null;
-    }
-
-    @Override
-    public String query() {
-      return routingContext.request().query();
-    }
-
-    @Override
-    public boolean supportsRaw() {
-      return false;
-    }
-
-    @Override
-    public String rawPath() {
-      return null;
-    }
-
-    @Override
-    public String rawQuery() {
-      return null;
-    }
   }
 }

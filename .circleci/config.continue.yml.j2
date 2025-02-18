@@ -36,7 +36,7 @@ instrumentation_modules: &instrumentation_modules "dd-java-agent/instrumentation
 debugger_modules: &debugger_modules "dd-java-agent/agent-debugger|dd-java-agent/agent-bootstrap|dd-java-agent/agent-builder|internal-api|communication|dd-trace-core"
 profiling_modules: &profiling_modules "dd-java-agent/agent-profiling"
 
-default_system_tests_commit: &default_system_tests_commit 6a8c4e9ba065bc52a630051a5b7bb7a4ec84e245
+default_system_tests_commit: &default_system_tests_commit 315bc8a32cc888834726397f088336ba8038277f
 
 parameters:
   nightly:
@@ -422,6 +422,7 @@ jobs:
             -PgitBaseRef=origin/{{ pr_base_ref }}
 {% endif %}
             -PrunBuildSrcTests
+            -PskipSpotless
             -PtaskPartitionCount=${CIRCLE_NODE_TOTAL} -PtaskPartition=${CIRCLE_NODE_INDEX}
             << pipeline.parameters.gradle_flags >>
             --max-workers=8
@@ -766,7 +767,7 @@ jobs:
 
   muzzle:
     <<: *defaults
-    resource_class: medium
+    resource_class: medium+
     parallelism: 4
     steps:
       - setup_code
@@ -797,7 +798,7 @@ jobs:
           name: Verify Muzzle
           command: >-
             SKIP_BUILDSCAN="true"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx3G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
             ./gradlew `circleci tests split --split-by=timings workspace/build/muzzleTasks | xargs`
             << pipeline.parameters.gradle_flags >>
             --max-workers=4
@@ -856,6 +857,7 @@ jobs:
               APPSEC_REQUEST_BLOCKING
               APPSEC_RASP
               APPSEC_RUNTIME_ACTIVATION
+              APPSEC_WAF_TELEMETRY
               REMOTE_CONFIG_MOCKED_BACKEND_ASM_DD
               "
             fi
@@ -1107,12 +1109,20 @@ build_test_jobs: &build_test_jobs
       gradleTarget: ":profilingCheck"
       cacheType: profiling
 
+  - check:
+      requires:
+        - ok_to_test
+      name: check_debugger
+      gradleTarget: ":debuggerCheck"
+      cacheType: base
+
   - fan_in:
       requires:
         - check_base
         - check_inst
         - check_smoke
         - check_profiling
+        - check_debugger
       name: check
       stage: check
 

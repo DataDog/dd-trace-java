@@ -6,11 +6,13 @@ import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityBatch
 import com.datadog.iast.model.VulnerabilityType
 import datadog.trace.api.Config
+import datadog.trace.api.ProductTraceSource
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.internal.TraceSegment
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes
@@ -76,15 +78,15 @@ class ReporterTest extends DDSpecification {
             "spanId":123456,
             "line":1,
             "path": "foo",
-            "method": "foo"
+            "method": "foo",
+            "stackId":"1"
           },
-          "stackId":"1",
           "type":"WEAK_HASH"
         }
       ]
     }''', batch.toString(), true)
     1 * traceSegment.setTagTop('asm.keep', true)
-    1 * traceSegment.setTagTop('_dd.p.appsec', true)
+    1 * traceSegment.setTagTop('_dd.p.ts', ProductTraceSource.ASM)
     1 * reqCtx.getOrCreateMetaStructTop('_dd.stack', _)  >> { stackTraceBatch }
     assertStackTrace(stackTraceBatch, v)
     0 * _
@@ -134,7 +136,7 @@ class ReporterTest extends DDSpecification {
       ]
     }''', batch.toString(), true)
     1 * traceSegment.setTagTop('asm.keep', true)
-    1 * traceSegment.setTagTop('_dd.p.appsec', true)
+    1 * traceSegment.setTagTop('_dd.p.ts', ProductTraceSource.ASM)
     0 * _
   }
 
@@ -185,9 +187,9 @@ class ReporterTest extends DDSpecification {
             "spanId":123456,
             "line":1,
             "path":"foo",
-            "method": "foo"
+            "method": "foo",
+            "stackId":"1"
           },
-          "stackId":"1",
           "type":"WEAK_HASH"
         },
         {
@@ -197,15 +199,15 @@ class ReporterTest extends DDSpecification {
             "spanId":123456,
             "line":2,
             "path":"foo",
-            "method": "foo"
+            "method": "foo",
+            "stackId":"2"
           },
-          "stackId":"2",
           "type":"WEAK_HASH"
         }
       ]
     }''', batch.toString(), true)
     1 * traceSegment.setTagTop('asm.keep', true)
-    1 * traceSegment.setTagTop('_dd.p.appsec', true)
+    1 * traceSegment.setTagTop('_dd.p.ts', ProductTraceSource.ASM)
     assertStackTrace(stackTraceBatch, [v1, v2] as Vulnerability[])
     0 * _
   }
@@ -229,7 +231,7 @@ class ReporterTest extends DDSpecification {
 
     then:
     noExceptionThrown()
-    1 * tracerAPI.startSpan('iast', 'vulnerability', _ as AgentSpan.Context) >> span
+    1 * tracerAPI.startSpan('iast', 'vulnerability', _ as AgentSpanContext) >> span
     1 * tracerAPI.activateSpan(span, ScopeSource.MANUAL) >> scope
     1 * span.getRequestContext() >> reqCtx
     1 * span.setSpanType(InternalSpanTypes.VULNERABILITY) >> span
@@ -330,7 +332,7 @@ class ReporterTest extends DDSpecification {
     1 * traceSegment.getDataTop('iast') >> null
     1 * traceSegment.setDataTop('iast', _ as VulnerabilityBatch)
     1 * traceSegment.setTagTop('asm.keep', true)
-    1 * traceSegment.setTagTop('_dd.p.appsec', true)
+    1 * traceSegment.setTagTop('_dd.p.ts', ProductTraceSource.ASM)
     1 * traceSegment.setTagTop('_dd.iast.enabled', 1)
     1 * reqCtx.getOrCreateMetaStructTop('_dd.stack', _) >> new ConcurrentHashMap<>()
     0 * _
@@ -576,7 +578,7 @@ class ReporterTest extends DDSpecification {
     StackTraceEvent currentStackTrace = null
     for (int i = 0; i < vulnerabilities.size(); i++) {
       for (StackTraceEvent event : batch.get("vulnerability")) {
-        if(event.getId() == vulnerabilities[i].getStackId()) {
+        if(event.getId() == vulnerabilities[i].getLocation().getStackId()) {
           currentStackTrace = event
           break
         }

@@ -9,6 +9,7 @@ import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.PersonInfo;
 import datadog.trace.civisibility.ci.env.CiEnvironment;
+import javax.annotation.Nonnull;
 
 public class CodefreshInfo implements CIProviderInfo {
   public static final String CODEFRESH = "CF_BUILD_ID";
@@ -38,6 +39,12 @@ public class CodefreshInfo implements CIProviderInfo {
             new PersonInfo(environment.get(CF_COMMIT_AUTHOR), null),
             PersonInfo.NOOP,
             environment.get(CF_COMMIT_MESSAGE)));
+  }
+
+  @Nonnull
+  @Override
+  public PullRequestInfo buildPullRequestInfo() {
+    return PullRequestInfo.EMPTY;
   }
 
   private String buildGitBranch() {

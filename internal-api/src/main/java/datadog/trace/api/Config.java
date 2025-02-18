@@ -2,7 +2,6 @@ package datadog.trace.api;
 
 import static datadog.trace.api.ConfigDefaults.*;
 import static datadog.trace.api.DDTags.*;
-import static datadog.trace.api.DDTags.PROFILING_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.*;
 import static datadog.trace.api.config.CiVisibilityConfig.*;
 import static datadog.trace.api.config.CrashTrackingConfig.*;
@@ -13,6 +12,7 @@ import static datadog.trace.api.config.GeneralConfig.*;
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static datadog.trace.api.config.IastConfig.*;
 import static datadog.trace.api.config.JmxFetchConfig.*;
+import static datadog.trace.api.config.LlmObsConfig.*;
 import static datadog.trace.api.config.ProfilingConfig.*;
 import static datadog.trace.api.config.RemoteConfigConfig.*;
 import static datadog.trace.api.config.TraceInstrumentationConfig.*;
@@ -38,6 +38,7 @@ import datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.context.TraceScope;
 import datadog.trace.util.PidHelper;
+import datadog.trace.util.RandomUtils;
 import datadog.trace.util.Strings;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -96,7 +97,7 @@ public class Config {
    * and every JMX metric that is sent out.
    */
   static class RuntimeIdHolder {
-    static final String runtimeId = UUID.randomUUID().toString();
+    static final String runtimeId = RandomUtils.randomUUID().toString();
   }
 
   static class HostNameHolder {
@@ -113,12 +114,14 @@ public class Config {
   private final String runtimeVersion;
 
   private final String applicationKey;
+
   /**
    * Note: this has effect only on profiling site. Traces are sent to Datadog agent and are not
    * affected by this setting. If CI Visibility is used with agentless mode, api key is used when
    * sending data (including traces) to backend
    */
   private final String apiKey;
+
   /**
    * Note: this has effect only on profiling site. Traces are sent to Datadog agent and are not
    * affected by this setting.
@@ -284,7 +287,6 @@ public class Config {
   private final boolean appSecStackTraceEnabled;
   private final int appSecMaxStackTraces;
   private final int appSecMaxStackTraceDepth;
-  private final boolean appSecStandaloneEnabled;
   private final boolean apiSecurityEnabled;
   private final float apiSecurityRequestSampleRate;
 
@@ -308,6 +310,10 @@ public class Config {
   private final boolean iastStackTraceEnabled;
   private final boolean iastExperimentalPropagationEnabled;
   private final String iastSecurityControlsConfiguration;
+  private final int iastDbRowsToTaint;
+
+  private final boolean llmObsAgentlessEnabled;
+  private final String llmObsMlApp;
 
   private final boolean ciVisibilityTraceSanitationEnabled;
   private final boolean ciVisibilityAgentlessEnabled;
@@ -331,6 +337,7 @@ public class Config {
   private final String[] ciVisibilityCodeCoverageExcludedPackages;
   private final List<String> ciVisibilityJacocoGradleSourceSets;
   private final Integer ciVisibilityDebugPort;
+  private final boolean ciVisibilityGitClientEnabled;
   private final boolean ciVisibilityGitUploadEnabled;
   private final boolean ciVisibilityGitUnshallowEnabled;
   private final boolean ciVisibilityGitUnshallowDefer;
@@ -351,6 +358,9 @@ public class Config {
   private final String ciVisibilityInjectedTracerVersion;
   private final List<String> ciVisibilityResourceFolderNames;
   private final boolean ciVisibilityFlakyRetryEnabled;
+  private final boolean ciVisibilityImpactedTestsDetectionEnabled;
+  private final boolean ciVisibilityImpactedTestsBackendRequestEnabled;
+  private final boolean ciVisibilityKnownTestsRequestEnabled;
   private final boolean ciVisibilityFlakyRetryOnlyKnownFlakes;
   private final int ciVisibilityFlakyRetryCount;
   private final int ciVisibilityTotalFlakyRetryCount;
@@ -365,6 +375,8 @@ public class Config {
   private final String ciVisibilityRemoteEnvVarsProviderUrl;
   private final String ciVisibilityRemoteEnvVarsProviderKey;
   private final String ciVisibilityTestOrder;
+  private final boolean ciVisibilityTestManagementEnabled;
+  private final Integer ciVisibilityTestManagementAttemptToFixRetries;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -379,30 +391,29 @@ public class Config {
   private final String DBMPropagationMode;
   private final boolean DBMTracePreparedStatements;
 
-  private final boolean debuggerEnabled;
-  private final int debuggerUploadTimeout;
-  private final int debuggerUploadFlushInterval;
-  private final boolean debuggerClassFileDumpEnabled;
-  private final int debuggerPollInterval;
-  private final int debuggerDiagnosticsInterval;
-  private final boolean debuggerMetricEnabled;
-  private final String debuggerProbeFileLocation;
-  private final int debuggerUploadBatchSize;
-  private final long debuggerMaxPayloadSize;
-  private final boolean debuggerVerifyByteCode;
-  private final boolean debuggerInstrumentTheWorld;
-  private final String debuggerExcludeFiles;
-  private final String debuggerIncludeFiles;
-  private final int debuggerCaptureTimeout;
-  private final String debuggerRedactedIdentifiers;
-  private final Set<String> debuggerRedactionExcludedIdentifiers;
-  private final String debuggerRedactedTypes;
-  private final boolean debuggerHoistLocalVarsEnabled;
-  private final boolean debuggerSymbolEnabled;
-  private final boolean debuggerSymbolForceUpload;
-  private final String debuggerSymbolIncludes;
-  private final int debuggerSymbolFlushThreshold;
-  private final boolean debuggerSymbolCompressed;
+  private final boolean dynamicInstrumentationEnabled;
+  private final int dynamicInstrumentationUploadTimeout;
+  private final int dynamicInstrumentationUploadFlushInterval;
+  private final boolean dynamicInstrumentationClassFileDumpEnabled;
+  private final int dynamicInstrumentationPollInterval;
+  private final int dynamicInstrumentationDiagnosticsInterval;
+  private final boolean dynamicInstrumentationMetricEnabled;
+  private final String dynamicInstrumentationProbeFile;
+  private final int dynamicInstrumentationUploadBatchSize;
+  private final long dynamicInstrumentationMaxPayloadSize;
+  private final boolean dynamicInstrumentationVerifyByteCode;
+  private final boolean dynamicInstrumentationInstrumentTheWorld;
+  private final String dynamicInstrumentationExcludeFiles;
+  private final String dynamicInstrumentationIncludeFiles;
+  private final int dynamicInstrumentationCaptureTimeout;
+  private final String dynamicInstrumentationRedactedIdentifiers;
+  private final Set<String> dynamicInstrumentationRedactionExcludedIdentifiers;
+  private final String dynamicInstrumentationRedactedTypes;
+  private final boolean dynamicInstrumentationHoistLocalVarsEnabled;
+  private final boolean symbolDatabaseEnabled;
+  private final boolean symbolDatabaseForceUpload;
+  private final int symbolDatabaseFlushThreshold;
+  private final boolean symbolDatabaseCompressed;
   private final boolean debuggerExceptionEnabled;
   private final int debuggerMaxExceptionPerSecond;
   @Deprecated private final boolean debuggerExceptionOnlyLocalRoot;
@@ -514,6 +525,7 @@ public class Config {
   private final boolean longRunningTraceEnabled;
   private final long longRunningTraceInitialFlushInterval;
   private final long longRunningTraceFlushInterval;
+  private final boolean cassandraKeyspaceStatementExtractionEnabled;
   private final boolean couchbaseInternalSpansEnabled;
   private final boolean elasticsearchBodyEnabled;
   private final boolean elasticsearchParamsEnabled;
@@ -541,6 +553,8 @@ public class Config {
   private final int cloudPayloadTaggingMaxTags;
 
   private final long dependecyResolutionPeriodMillis;
+
+  private final boolean apmTracingEnabled;
 
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
@@ -617,6 +631,10 @@ public class Config {
     } else {
       secureRandom = configProvider.getBoolean(SECURE_RANDOM, DEFAULT_SECURE_RANDOM);
     }
+    cassandraKeyspaceStatementExtractionEnabled =
+        configProvider.getBoolean(
+            CASSANDRA_KEYSPACE_STATEMENT_EXTRACTION_ENABLED,
+            DEFAULT_CASSANDRA_KEYSPACE_STATEMENT_EXTRACTION_ENABLED);
     couchbaseInternalSpansEnabled =
         configProvider.getBoolean(
             COUCHBASE_INTERNAL_SPANS_ENABLED, DEFAULT_COUCHBASE_INTERNAL_SPANS_ENABLED);
@@ -689,6 +707,8 @@ public class Config {
 
     if (agentHostFromEnvironment == null) {
       agentHost = DEFAULT_AGENT_HOST;
+    } else if (agentHostFromEnvironment.charAt(0) == '[') {
+      agentHost = agentHostFromEnvironment.substring(1, agentHostFromEnvironment.length() - 1);
     } else {
       agentHost = agentHostFromEnvironment;
     }
@@ -699,8 +719,12 @@ public class Config {
       agentPort = agentPortFromEnvironment;
     }
 
-    if (rebuildAgentUrl) {
-      agentUrl = "http://" + agentHost + ":" + agentPort;
+    if (rebuildAgentUrl) { // check if agenthost contains ':'
+      if (agentHost.indexOf(':') != -1) { // Checking to see whether host address is IPv6 vs IPv4
+        agentUrl = "http://[" + agentHost + "]:" + agentPort;
+      } else {
+        agentUrl = "http://" + agentHost + ":" + agentPort;
+      }
     } else {
       agentUrl = agentUrlFromEnvironment;
     }
@@ -1224,8 +1248,7 @@ public class Config {
     }
     telemetryMetricsInterval = telemetryInterval;
 
-    telemetryMetricsEnabled =
-        configProvider.getBoolean(GeneralConfig.TELEMETRY_METRICS_ENABLED, true);
+    telemetryMetricsEnabled = configProvider.getBoolean(TELEMETRY_METRICS_ENABLED, true);
 
     isTelemetryLogCollectionEnabled =
         instrumenterConfig.isTelemetryEnabled()
@@ -1271,15 +1294,22 @@ public class Config {
             configProvider.getStringNotEmpty(APPSEC_AUTO_USER_INSTRUMENTATION_MODE, null),
             configProvider.getStringNotEmpty(APPSEC_AUTOMATED_USER_EVENTS_TRACKING, null));
     appSecScaEnabled = configProvider.getBoolean(APPSEC_SCA_ENABLED);
-    appSecStandaloneEnabled = configProvider.getBoolean(APPSEC_STANDALONE_ENABLED, false);
     appSecRaspEnabled = configProvider.getBoolean(APPSEC_RASP_ENABLED, DEFAULT_APPSEC_RASP_ENABLED);
     appSecStackTraceEnabled =
-        configProvider.getBoolean(APPSEC_STACK_TRACE_ENABLED, DEFAULT_APPSEC_STACK_TRACE_ENABLED);
+        configProvider.getBoolean(
+            APPSEC_STACK_TRACE_ENABLED,
+            DEFAULT_APPSEC_STACK_TRACE_ENABLED,
+            APPSEC_STACKTRACE_ENABLED_DEPRECATED);
     appSecMaxStackTraces =
-        configProvider.getInteger(APPSEC_MAX_STACK_TRACES, DEFAULT_APPSEC_MAX_STACK_TRACES);
+        configProvider.getInteger(
+            APPSEC_MAX_STACK_TRACES,
+            DEFAULT_APPSEC_MAX_STACK_TRACES,
+            APPSEC_MAX_STACKTRACES_DEPRECATED);
     appSecMaxStackTraceDepth =
         configProvider.getInteger(
-            APPSEC_MAX_STACK_TRACE_DEPTH, DEFAULT_APPSEC_MAX_STACK_TRACE_DEPTH);
+            APPSEC_MAX_STACK_TRACE_DEPTH,
+            DEFAULT_APPSEC_MAX_STACK_TRACE_DEPTH,
+            APPSEC_MAX_STACKTRACE_DEPTH_DEPRECATED);
     apiSecurityEnabled =
         configProvider.getBoolean(
             API_SECURITY_ENABLED, DEFAULT_API_SECURITY_ENABLED, API_SECURITY_ENABLED_EXPERIMENTAL);
@@ -1320,7 +1350,9 @@ public class Config {
     iastMaxRangeCount = iastDetectionMode.getIastMaxRangeCount(configProvider);
     iastStacktraceLeakSuppress =
         configProvider.getBoolean(
-            IAST_STACKTRACE_LEAK_SUPPRESS, DEFAULT_IAST_STACKTRACE_LEAK_SUPPRESS);
+            IAST_STACK_TRACE_LEAK_SUPPRESS,
+            DEFAULT_IAST_STACKTRACE_LEAK_SUPPRESS,
+            IAST_STACKTRACE_LEAK_SUPPRESS_DEPRECATED);
     iastHardcodedSecretEnabled =
         configProvider.getBoolean(
             IAST_HARDCODED_SECRET_ENABLED, DEFAULT_IAST_HARDCODED_SECRET_ENABLED);
@@ -1330,11 +1362,20 @@ public class Config {
     iastSourceMappingEnabled = configProvider.getBoolean(IAST_SOURCE_MAPPING_ENABLED, false);
     iastSourceMappingMaxSize = configProvider.getInteger(IAST_SOURCE_MAPPING_MAX_SIZE, 1000);
     iastStackTraceEnabled =
-        configProvider.getBoolean(IAST_STACK_TRACE_ENABLED, DEFAULT_IAST_STACK_TRACE_ENABLED);
+        configProvider.getBoolean(
+            IAST_STACK_TRACE_ENABLED,
+            DEFAULT_IAST_STACK_TRACE_ENABLED,
+            IAST_STACKTRACE_ENABLED_DEPRECATED);
     iastExperimentalPropagationEnabled =
         configProvider.getBoolean(IAST_EXPERIMENTAL_PROPAGATION_ENABLED, false);
     iastSecurityControlsConfiguration =
         configProvider.getString(IAST_SECURITY_CONTROLS_CONFIGURATION, null);
+    iastDbRowsToTaint =
+        configProvider.getInteger(IAST_DB_ROWS_TO_TAINT, DEFAULT_IAST_DB_ROWS_TO_TAINT);
+
+    llmObsAgentlessEnabled =
+        configProvider.getBoolean(LLMOBS_AGENTLESS_ENABLED, DEFAULT_LLM_OBS_AGENTLESS_ENABLED);
+    llmObsMlApp = configProvider.getString(LLMOBS_ML_APP);
 
     ciVisibilityTraceSanitationEnabled =
         configProvider.getBoolean(CIVISIBILITY_TRACE_SANITATION_ENABLED, true);
@@ -1409,6 +1450,7 @@ public class Config {
     ciVisibilityJacocoGradleSourceSets =
         configProvider.getList(CIVISIBILITY_GRADLE_SOURCE_SETS, Arrays.asList("main", "test"));
     ciVisibilityDebugPort = configProvider.getInteger(CIVISIBILITY_DEBUG_PORT);
+    ciVisibilityGitClientEnabled = configProvider.getBoolean(CIVISIBILITY_GIT_CLIENT_ENABLED, true);
     ciVisibilityGitUploadEnabled =
         configProvider.getBoolean(
             CIVISIBILITY_GIT_UPLOAD_ENABLED, DEFAULT_CIVISIBILITY_GIT_UPLOAD_ENABLED);
@@ -1458,6 +1500,12 @@ public class Config {
             CIVISIBILITY_RESOURCE_FOLDER_NAMES, DEFAULT_CIVISIBILITY_RESOURCE_FOLDER_NAMES);
     ciVisibilityFlakyRetryEnabled =
         configProvider.getBoolean(CIVISIBILITY_FLAKY_RETRY_ENABLED, true);
+    ciVisibilityImpactedTestsDetectionEnabled =
+        configProvider.getBoolean(CIVISIBILITY_IMPACTED_TESTS_DETECTION_ENABLED, true);
+    ciVisibilityImpactedTestsBackendRequestEnabled =
+        configProvider.getBoolean(CIVISIBILITY_IMPACTED_TESTS_BACKEND_REQUEST_ENABLED, false);
+    ciVisibilityKnownTestsRequestEnabled =
+        configProvider.getBoolean(CIVISIBILITY_KNOWN_TESTS_REQUEST_ENABLED, true);
     ciVisibilityFlakyRetryOnlyKnownFlakes =
         configProvider.getBoolean(CIVISIBILITY_FLAKY_RETRY_ONLY_KNOWN_FLAKES, false);
     ciVisibilityEarlyFlakeDetectionEnabled =
@@ -1480,6 +1528,9 @@ public class Config {
     ciVisibilityRemoteEnvVarsProviderKey =
         configProvider.getString(CIVISIBILITY_REMOTE_ENV_VARS_PROVIDER_KEY);
     ciVisibilityTestOrder = configProvider.getString(CIVISIBILITY_TEST_ORDER);
+    ciVisibilityTestManagementEnabled = configProvider.getBoolean(TEST_MANAGEMENT_ENABLED, true);
+    ciVisibilityTestManagementAttemptToFixRetries =
+        configProvider.getInteger(TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES);
 
     remoteConfigEnabled =
         configProvider.getBoolean(
@@ -1505,57 +1556,79 @@ public class Config {
         configProvider.getInteger(
             REMOTE_CONFIG_MAX_EXTRA_SERVICES, DEFAULT_REMOTE_CONFIG_MAX_EXTRA_SERVICES);
 
-    debuggerEnabled = configProvider.getBoolean(DEBUGGER_ENABLED, DEFAULT_DEBUGGER_ENABLED);
-    debuggerUploadTimeout =
-        configProvider.getInteger(DEBUGGER_UPLOAD_TIMEOUT, DEFAULT_DEBUGGER_UPLOAD_TIMEOUT);
-    debuggerUploadFlushInterval =
-        configProvider.getInteger(
-            DEBUGGER_UPLOAD_FLUSH_INTERVAL, DEFAULT_DEBUGGER_UPLOAD_FLUSH_INTERVAL);
-    debuggerClassFileDumpEnabled =
+    dynamicInstrumentationEnabled =
         configProvider.getBoolean(
-            DEBUGGER_CLASSFILE_DUMP_ENABLED, DEFAULT_DEBUGGER_CLASSFILE_DUMP_ENABLED);
-    debuggerPollInterval =
-        configProvider.getInteger(DEBUGGER_POLL_INTERVAL, DEFAULT_DEBUGGER_POLL_INTERVAL);
-    debuggerDiagnosticsInterval =
+            DYNAMIC_INSTRUMENTATION_ENABLED, DEFAULT_DYNAMIC_INSTRUMENTATION_ENABLED);
+    dynamicInstrumentationUploadTimeout =
         configProvider.getInteger(
-            DEBUGGER_DIAGNOSTICS_INTERVAL, DEFAULT_DEBUGGER_DIAGNOSTICS_INTERVAL);
-    debuggerMetricEnabled =
+            DYNAMIC_INSTRUMENTATION_UPLOAD_TIMEOUT, DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_TIMEOUT);
+    dynamicInstrumentationUploadFlushInterval =
+        configProvider.getInteger(
+            DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL,
+            DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL);
+    dynamicInstrumentationClassFileDumpEnabled =
+        configProvider.getBoolean(
+            DYNAMIC_INSTRUMENTATION_CLASSFILE_DUMP_ENABLED,
+            DEFAULT_DYNAMIC_INSTRUMENTATION_CLASSFILE_DUMP_ENABLED);
+    dynamicInstrumentationPollInterval =
+        configProvider.getInteger(
+            DYNAMIC_INSTRUMENTATION_POLL_INTERVAL, DEFAULT_DYNAMIC_INSTRUMENTATION_POLL_INTERVAL);
+    dynamicInstrumentationDiagnosticsInterval =
+        configProvider.getInteger(
+            DYNAMIC_INSTRUMENTATION_DIAGNOSTICS_INTERVAL,
+            DEFAULT_DYNAMIC_INSTRUMENTATION_DIAGNOSTICS_INTERVAL);
+    dynamicInstrumentationMetricEnabled =
         runtimeMetricsEnabled
             && configProvider.getBoolean(
-                DEBUGGER_METRICS_ENABLED, DEFAULT_DEBUGGER_METRICS_ENABLED);
-    debuggerProbeFileLocation = configProvider.getString(DEBUGGER_PROBE_FILE_LOCATION);
-    debuggerUploadBatchSize =
-        configProvider.getInteger(DEBUGGER_UPLOAD_BATCH_SIZE, DEFAULT_DEBUGGER_UPLOAD_BATCH_SIZE);
-    debuggerMaxPayloadSize =
-        configProvider.getInteger(DEBUGGER_MAX_PAYLOAD_SIZE, DEFAULT_DEBUGGER_MAX_PAYLOAD_SIZE)
-            * 1024;
-    debuggerVerifyByteCode =
-        configProvider.getBoolean(DEBUGGER_VERIFY_BYTECODE, DEFAULT_DEBUGGER_VERIFY_BYTECODE);
-    debuggerInstrumentTheWorld =
-        configProvider.getBoolean(
-            DEBUGGER_INSTRUMENT_THE_WORLD, DEFAULT_DEBUGGER_INSTRUMENT_THE_WORLD);
-    debuggerExcludeFiles = configProvider.getString(DEBUGGER_EXCLUDE_FILES);
-    debuggerIncludeFiles = configProvider.getString(DEBUGGER_INCLUDE_FILES);
-    debuggerCaptureTimeout =
-        configProvider.getInteger(DEBUGGER_CAPTURE_TIMEOUT, DEFAULT_DEBUGGER_CAPTURE_TIMEOUT);
-    debuggerRedactedIdentifiers = configProvider.getString(DEBUGGER_REDACTED_IDENTIFIERS, null);
-    debuggerRedactionExcludedIdentifiers =
-        tryMakeImmutableSet(configProvider.getList(DEBUGGER_REDACTION_EXCLUDED_IDENTIFIERS));
-    debuggerRedactedTypes = configProvider.getString(DEBUGGER_REDACTED_TYPES, null);
-    debuggerHoistLocalVarsEnabled =
-        configProvider.getBoolean(
-            DEBUGGER_HOIST_LOCALVARS_ENABLED, DEFAULT_DEBUGGER_HOIST_LOCALVARS_ENABLED);
-    debuggerSymbolEnabled =
-        configProvider.getBoolean(DEBUGGER_SYMBOL_ENABLED, DEFAULT_DEBUGGER_SYMBOL_ENABLED);
-    debuggerSymbolForceUpload =
-        configProvider.getBoolean(
-            DEBUGGER_SYMBOL_FORCE_UPLOAD, DEFAULT_DEBUGGER_SYMBOL_FORCE_UPLOAD);
-    debuggerSymbolIncludes = configProvider.getString(DEBUGGER_SYMBOL_INCLUDES, null);
-    debuggerSymbolFlushThreshold =
+                DYNAMIC_INSTRUMENTATION_METRICS_ENABLED,
+                DEFAULT_DYNAMIC_INSTRUMENTATION_METRICS_ENABLED);
+    dynamicInstrumentationProbeFile = configProvider.getString(DYNAMIC_INSTRUMENTATION_PROBE_FILE);
+    dynamicInstrumentationUploadBatchSize =
         configProvider.getInteger(
-            DEBUGGER_SYMBOL_FLUSH_THRESHOLD, DEFAULT_DEBUGGER_SYMBOL_FLUSH_THRESHOLD);
-    debuggerSymbolCompressed =
-        configProvider.getBoolean(DEBUGGER_SYMBOL_COMPRESSED, DEFAULT_DEBUGGER_SYMBOL_COMPRESSED);
+            DYNAMIC_INSTRUMENTATION_UPLOAD_BATCH_SIZE,
+            DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_BATCH_SIZE);
+    dynamicInstrumentationMaxPayloadSize =
+        configProvider.getInteger(
+                DYNAMIC_INSTRUMENTATION_MAX_PAYLOAD_SIZE,
+                DEFAULT_DYNAMIC_INSTRUMENTATION_MAX_PAYLOAD_SIZE)
+            * 1024;
+    dynamicInstrumentationVerifyByteCode =
+        configProvider.getBoolean(
+            DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE,
+            DEFAULT_DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE);
+    dynamicInstrumentationInstrumentTheWorld =
+        configProvider.getBoolean(
+            DYNAMIC_INSTRUMENTATION_INSTRUMENT_THE_WORLD,
+            DEFAULT_DYNAMIC_INSTRUMENTATION_INSTRUMENT_THE_WORLD);
+    dynamicInstrumentationExcludeFiles =
+        configProvider.getString(DYNAMIC_INSTRUMENTATION_EXCLUDE_FILES);
+    dynamicInstrumentationIncludeFiles =
+        configProvider.getString(DYNAMIC_INSTRUMENTATION_INCLUDE_FILES);
+    dynamicInstrumentationCaptureTimeout =
+        configProvider.getInteger(
+            DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT,
+            DEFAULT_DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT);
+    dynamicInstrumentationRedactedIdentifiers =
+        configProvider.getString(DYNAMIC_INSTRUMENTATION_REDACTED_IDENTIFIERS, null);
+    dynamicInstrumentationRedactionExcludedIdentifiers =
+        tryMakeImmutableSet(
+            configProvider.getList(DYNAMIC_INSTRUMENTATION_REDACTION_EXCLUDED_IDENTIFIERS));
+    dynamicInstrumentationRedactedTypes =
+        configProvider.getString(DYNAMIC_INSTRUMENTATION_REDACTED_TYPES, null);
+    dynamicInstrumentationHoistLocalVarsEnabled =
+        configProvider.getBoolean(
+            DYNAMIC_INSTRUMENTATION_HOIST_LOCALVARS_ENABLED,
+            DEFAULT_DYNAMIC_INSTRUMENTATION_HOIST_LOCALVARS_ENABLED);
+    symbolDatabaseEnabled =
+        configProvider.getBoolean(SYMBOL_DATABASE_ENABLED, DEFAULT_SYMBOL_DATABASE_ENABLED);
+    symbolDatabaseForceUpload =
+        configProvider.getBoolean(
+            SYMBOL_DATABASE_FORCE_UPLOAD, DEFAULT_SYMBOL_DATABASE_FORCE_UPLOAD);
+    symbolDatabaseFlushThreshold =
+        configProvider.getInteger(
+            SYMBOL_DATABASE_FLUSH_THRESHOLD, DEFAULT_SYMBOL_DATABASE_FLUSH_THRESHOLD);
+    symbolDatabaseCompressed =
+        configProvider.getBoolean(SYMBOL_DATABASE_COMPRESSED, DEFAULT_SYMBOL_DATABASE_COMPRESSED);
     debuggerExceptionEnabled =
         configProvider.getBoolean(
             DEBUGGER_EXCEPTION_ENABLED,
@@ -1713,17 +1786,14 @@ public class Config {
     apiKey = tmpApiKey;
 
     boolean longRunningEnabled =
-        configProvider.getBoolean(
-            TracerConfig.TRACE_LONG_RUNNING_ENABLED,
-            ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_ENABLED);
+        configProvider.getBoolean(TRACE_LONG_RUNNING_ENABLED, DEFAULT_TRACE_LONG_RUNNING_ENABLED);
     long longRunningTraceInitialFlushInterval =
         configProvider.getLong(
-            TracerConfig.TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL,
+            TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL,
             DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL);
     long longRunningTraceFlushInterval =
         configProvider.getLong(
-            TracerConfig.TRACE_LONG_RUNNING_FLUSH_INTERVAL,
-            ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL);
+            TRACE_LONG_RUNNING_FLUSH_INTERVAL, DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL);
 
     if (longRunningEnabled
         && (longRunningTraceInitialFlushInterval < 10
@@ -1750,66 +1820,86 @@ public class Config {
 
     this.sparkTaskHistogramEnabled =
         configProvider.getBoolean(
-            SPARK_TASK_HISTOGRAM_ENABLED, ConfigDefaults.DEFAULT_SPARK_TASK_HISTOGRAM_ENABLED);
+            SPARK_TASK_HISTOGRAM_ENABLED, DEFAULT_SPARK_TASK_HISTOGRAM_ENABLED);
 
     this.sparkAppNameAsService =
-        configProvider.getBoolean(
-            SPARK_APP_NAME_AS_SERVICE, ConfigDefaults.DEFAULT_SPARK_APP_NAME_AS_SERVICE);
+        configProvider.getBoolean(SPARK_APP_NAME_AS_SERVICE, DEFAULT_SPARK_APP_NAME_AS_SERVICE);
 
     this.jaxRsExceptionAsErrorsEnabled =
         configProvider.getBoolean(
-            JAX_RS_EXCEPTION_AS_ERROR_ENABLED,
-            ConfigDefaults.DEFAULT_JAX_RS_EXCEPTION_AS_ERROR_ENABLED);
+            JAX_RS_EXCEPTION_AS_ERROR_ENABLED, DEFAULT_JAX_RS_EXCEPTION_AS_ERROR_ENABLED);
 
     axisPromoteResourceName = configProvider.getBoolean(AXIS_PROMOTE_RESOURCE_NAME, false);
 
     this.traceFlushIntervalSeconds =
         configProvider.getFloat(
             TracerConfig.TRACE_FLUSH_INTERVAL, ConfigDefaults.DEFAULT_TRACE_FLUSH_INTERVAL);
-    if (profilingAgentless && apiKey == null) {
-      log.warn(
-          "Agentless profiling activated but no api key provided. Profile uploading will likely fail");
-    }
 
     this.tracePostProcessingTimeout =
         configProvider.getLong(
-            TRACE_POST_PROCESSING_TIMEOUT, ConfigDefaults.DEFAULT_TRACE_POST_PROCESSING_TIMEOUT);
+            TRACE_POST_PROCESSING_TIMEOUT, DEFAULT_TRACE_POST_PROCESSING_TIMEOUT);
 
-    if (isCiVisibilityEnabled()
-        && ciVisibilityAgentlessEnabled
-        && (apiKey == null || apiKey.isEmpty())) {
-      throw new FatalAgentMisconfigurationError(
-          "Attempt to start in Agentless mode without API key. "
-              + "Please ensure that either an API key is configured, or the tracer is set up to work with the Agent");
+    if (isLlmObsEnabled()) {
+      log.debug("Attempting to enable LLM Observability");
+      if (llmObsMlApp == null || llmObsMlApp.isEmpty()) {
+        throw new IllegalArgumentException(
+            "Attempt to enable LLM Observability without ML app defined."
+                + "Please ensure that the name of the ML app is provided through properties or env variable");
+      }
+
+      log.debug(
+          "LLM Observability enabled for ML app {}, agentless mode {}",
+          llmObsMlApp,
+          llmObsAgentlessEnabled);
+    }
+
+    // if API key is not provided, check if any products are using agentless mode and require it
+    if (apiKey == null || apiKey.isEmpty()) {
+      // CI Visibility
+      if (isCiVisibilityEnabled() && ciVisibilityAgentlessEnabled) {
+        throw new FatalAgentMisconfigurationError(
+            "Attempt to start in CI Visibility in Agentless mode without API key. "
+                + "Please ensure that either an API key is configured, or the tracer is set up to work with the Agent");
+      }
+
+      // Profiling
+      if (profilingAgentless) {
+        log.warn(
+            "Agentless profiling activated but no api key provided. Profile uploading will likely fail");
+      }
+
+      // LLM Observability
+      if (isLlmObsEnabled() && llmObsAgentlessEnabled) {
+        throw new FatalAgentMisconfigurationError(
+            "Attempt to start LLM Observability in Agentless mode without API key. "
+                + "Please ensure that either an API key is configured, or the tracer is set up to work with the Agent");
+      }
     }
 
     this.telemetryDebugRequestsEnabled =
         configProvider.getBoolean(
-            GeneralConfig.TELEMETRY_DEBUG_REQUESTS_ENABLED,
-            ConfigDefaults.DEFAULT_TELEMETRY_DEBUG_REQUESTS_ENABLED);
+            TELEMETRY_DEBUG_REQUESTS_ENABLED, DEFAULT_TELEMETRY_DEBUG_REQUESTS_ENABLED);
 
     this.agentlessLogSubmissionEnabled =
-        configProvider.getBoolean(GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED, false);
+        configProvider.getBoolean(AGENTLESS_LOG_SUBMISSION_ENABLED, false);
     this.agentlessLogSubmissionQueueSize =
-        configProvider.getInteger(GeneralConfig.AGENTLESS_LOG_SUBMISSION_QUEUE_SIZE, 1024);
+        configProvider.getInteger(AGENTLESS_LOG_SUBMISSION_QUEUE_SIZE, 1024);
     this.agentlessLogSubmissionLevel =
-        configProvider.getString(GeneralConfig.AGENTLESS_LOG_SUBMISSION_LEVEL, "INFO");
-    this.agentlessLogSubmissionUrl =
-        configProvider.getString(GeneralConfig.AGENTLESS_LOG_SUBMISSION_URL);
+        configProvider.getString(AGENTLESS_LOG_SUBMISSION_LEVEL, "INFO");
+    this.agentlessLogSubmissionUrl = configProvider.getString(AGENTLESS_LOG_SUBMISSION_URL);
     this.agentlessLogSubmissionProduct = isCiVisibilityEnabled() ? "citest" : "apm";
 
     this.cloudPayloadTaggingServices =
         configProvider.getSet(
-            TracerConfig.TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES,
-            ConfigDefaults.DEFAULT_TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES);
+            TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES, DEFAULT_TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES);
     this.cloudRequestPayloadTagging =
-        configProvider.getList(TracerConfig.TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING, null);
+        configProvider.getList(TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING, null);
     this.cloudResponsePayloadTagging =
-        configProvider.getList(TracerConfig.TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING, null);
+        configProvider.getList(TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING, null);
     this.cloudPayloadTaggingMaxDepth =
-        configProvider.getInteger(TracerConfig.TRACE_CLOUD_PAYLOAD_TAGGING_MAX_DEPTH, 10);
+        configProvider.getInteger(TRACE_CLOUD_PAYLOAD_TAGGING_MAX_DEPTH, 10);
     this.cloudPayloadTaggingMaxTags =
-        configProvider.getInteger(TracerConfig.TRACE_CLOUD_PAYLOAD_TAGGING_MAX_TAGS, 758);
+        configProvider.getInteger(TRACE_CLOUD_PAYLOAD_TAGGING_MAX_TAGS, 758);
 
     this.dependecyResolutionPeriodMillis =
         configProvider.getLong(
@@ -1818,8 +1908,7 @@ public class Config {
 
     timelineEventsEnabled =
         configProvider.getBoolean(
-            ProfilingConfig.PROFILING_TIMELINE_EVENTS_ENABLED,
-            ProfilingConfig.PROFILING_TIMELINE_EVENTS_ENABLED_DEFAULT);
+            PROFILING_TIMELINE_EVENTS_ENABLED, PROFILING_TIMELINE_EVENTS_ENABLED_DEFAULT);
 
     if (appSecScaEnabled != null
         && appSecScaEnabled
@@ -1828,6 +1917,8 @@ public class Config {
           SEND_TELEMETRY,
           "AppSec SCA is enabled but telemetry is disabled. AppSec SCA will not work.");
     }
+
+    this.apmTracingEnabled = configProvider.getBoolean(GeneralConfig.APM_TRACING_ENABLED, true);
 
     log.debug("New instance: {}", this);
   }
@@ -2247,7 +2338,7 @@ public class Config {
 
   public boolean isTracerMetricsEnabled() {
     // When ASM Standalone Billing is enabled metrics should be disabled
-    return tracerMetricsEnabled && !isAppSecStandaloneEnabled();
+    return tracerMetricsEnabled && isApmTracingEnabled();
   }
 
   public boolean isTracerMetricsBufferingEnabled() {
@@ -2640,6 +2731,22 @@ public class Config {
     return iastSecurityControlsConfiguration;
   }
 
+  public int getIastDbRowsToTaint() {
+    return iastDbRowsToTaint;
+  }
+
+  public boolean isLlmObsEnabled() {
+    return instrumenterConfig.isLlmObsEnabled();
+  }
+
+  public boolean isLlmObsAgentlessEnabled() {
+    return llmObsAgentlessEnabled;
+  }
+
+  public String getLlmObsMlApp() {
+    return llmObsMlApp;
+  }
+
   public boolean isCiVisibilityEnabled() {
     return instrumenterConfig.isCiVisibilityEnabled();
   }
@@ -2753,6 +2860,10 @@ public class Config {
     return ciVisibilityDebugPort;
   }
 
+  public boolean isCiVisibilityGitClientEnabled() {
+    return ciVisibilityGitClientEnabled;
+  }
+
   public boolean isCiVisibilityGitUploadEnabled() {
     return ciVisibilityGitUploadEnabled;
   }
@@ -2833,6 +2944,18 @@ public class Config {
     return ciVisibilityFlakyRetryEnabled;
   }
 
+  public boolean isCiVisibilityImpactedTestsDetectionEnabled() {
+    return ciVisibilityImpactedTestsDetectionEnabled;
+  }
+
+  public boolean isCiVisibilityImpactedTestsBackendRequestEnabled() {
+    return ciVisibilityImpactedTestsBackendRequestEnabled;
+  }
+
+  public boolean isCiVisibilityKnownTestsRequestEnabled() {
+    return ciVisibilityKnownTestsRequestEnabled;
+  }
+
   public boolean isCiVisibilityFlakyRetryOnlyKnownFlakes() {
     return ciVisibilityFlakyRetryOnlyKnownFlakes;
   }
@@ -2845,8 +2968,15 @@ public class Config {
     return ciVisibilityEarlyFlakeDetectionLowerLimit;
   }
 
-  public boolean isCiVisibilityTestRetryEnabled() {
-    return ciVisibilityFlakyRetryEnabled || ciVisibilityEarlyFlakeDetectionEnabled;
+  /**
+   * @return {@code true} if any of the features that require CI Visibility execution policies are
+   *     enabled. This is used to enable corresponding instrumentations only when they're needed,
+   *     avoiding unnecessary overhead.
+   */
+  public boolean isCiVisibilityExecutionPoliciesEnabled() {
+    return ciVisibilityFlakyRetryEnabled
+        || ciVisibilityEarlyFlakeDetectionEnabled
+        || ciVisibilityTestManagementEnabled;
   }
 
   public int getCiVisibilityFlakyRetryCount() {
@@ -2893,6 +3023,14 @@ public class Config {
     return ciVisibilityTestOrder;
   }
 
+  public boolean isCiVisibilityTestManagementEnabled() {
+    return ciVisibilityTestManagementEnabled;
+  }
+
+  public Integer getCiVisibilityTestManagementAttemptToFixRetries() {
+    return ciVisibilityTestManagementAttemptToFixRetries;
+  }
+
   public String getAppSecRulesFile() {
     return appSecRulesFile;
   }
@@ -2929,76 +3067,76 @@ public class Config {
     return remoteConfigMaxExtraServices;
   }
 
-  public boolean isDebuggerEnabled() {
-    return debuggerEnabled;
+  public boolean isDynamicInstrumentationEnabled() {
+    return dynamicInstrumentationEnabled;
   }
 
-  public int getDebuggerUploadTimeout() {
-    return debuggerUploadTimeout;
+  public int getDynamicInstrumentationUploadTimeout() {
+    return dynamicInstrumentationUploadTimeout;
   }
 
-  public int getDebuggerUploadFlushInterval() {
-    return debuggerUploadFlushInterval;
+  public int getDynamicInstrumentationUploadFlushInterval() {
+    return dynamicInstrumentationUploadFlushInterval;
   }
 
-  public boolean isDebuggerClassFileDumpEnabled() {
-    return debuggerClassFileDumpEnabled;
+  public boolean isDynamicInstrumentationClassFileDumpEnabled() {
+    return dynamicInstrumentationClassFileDumpEnabled;
   }
 
-  public int getDebuggerPollInterval() {
-    return debuggerPollInterval;
+  public int getDynamicInstrumentationPollInterval() {
+    return dynamicInstrumentationPollInterval;
   }
 
-  public int getDebuggerDiagnosticsInterval() {
-    return debuggerDiagnosticsInterval;
+  public int getDynamicInstrumentationDiagnosticsInterval() {
+    return dynamicInstrumentationDiagnosticsInterval;
   }
 
-  public boolean isDebuggerMetricsEnabled() {
-    return debuggerMetricEnabled;
+  public boolean isDynamicInstrumentationMetricsEnabled() {
+    return dynamicInstrumentationMetricEnabled;
   }
 
-  public int getDebuggerUploadBatchSize() {
-    return debuggerUploadBatchSize;
+  public int getDynamicInstrumentationUploadBatchSize() {
+    return dynamicInstrumentationUploadBatchSize;
   }
 
-  public long getDebuggerMaxPayloadSize() {
-    return debuggerMaxPayloadSize;
+  public long getDynamicInstrumentationMaxPayloadSize() {
+    return dynamicInstrumentationMaxPayloadSize;
   }
 
-  public boolean isDebuggerVerifyByteCode() {
-    return debuggerVerifyByteCode;
+  public boolean isDynamicInstrumentationVerifyByteCode() {
+    return dynamicInstrumentationVerifyByteCode;
   }
 
-  public boolean isDebuggerInstrumentTheWorld() {
-    return debuggerInstrumentTheWorld;
+  public boolean isDynamicInstrumentationInstrumentTheWorld() {
+    return dynamicInstrumentationInstrumentTheWorld;
   }
 
-  public String getDebuggerExcludeFiles() {
-    return debuggerExcludeFiles;
+  public String getDynamicInstrumentationExcludeFiles() {
+    return dynamicInstrumentationExcludeFiles;
   }
 
-  public String getDebuggerIncludeFiles() {
-    return debuggerIncludeFiles;
+  public String getDynamicInstrumentationIncludeFiles() {
+    return dynamicInstrumentationIncludeFiles;
   }
 
-  public int getDebuggerCaptureTimeout() {
-    return debuggerCaptureTimeout;
+  public int getDynamicInstrumentationCaptureTimeout() {
+    return dynamicInstrumentationCaptureTimeout;
   }
 
-  public boolean isDebuggerSymbolEnabled() {
-    return debuggerSymbolEnabled;
+  public boolean isSymbolDatabaseEnabled() {
+    return symbolDatabaseEnabled;
   }
 
-  public boolean isDebuggerSymbolForceUpload() {
-    return debuggerSymbolForceUpload;
+  public boolean isSymbolDatabaseForceUpload() {
+    return symbolDatabaseForceUpload;
   }
 
-  public int getDebuggerSymbolFlushThreshold() {
-    return debuggerSymbolFlushThreshold;
+  public int getSymbolDatabaseFlushThreshold() {
+    return symbolDatabaseFlushThreshold;
   }
 
-  public boolean isDebuggerSymbolCompressed() {
-    return debuggerSymbolCompressed;
+  public boolean isSymbolDatabaseCompressed() {
+    return symbolDatabaseCompressed;
   }
 
   public boolean isDebuggerExceptionEnabled() {
@@ -3058,24 +3196,24 @@ public class Config {
     return getFinalDebuggerBaseUrl() + "/symdb/v1/input";
   }
 
-  public String getDebuggerProbeFileLocation() {
-    return debuggerProbeFileLocation;
+  public String getDynamicInstrumentationProbeFile() {
+    return dynamicInstrumentationProbeFile;
   }
 
-  public String getDebuggerRedactedIdentifiers() {
-    return debuggerRedactedIdentifiers;
+  public String getDynamicInstrumentationRedactedIdentifiers() {
+    return dynamicInstrumentationRedactedIdentifiers;
   }
 
-  public Set<String> getDebuggerRedactionExcludedIdentifiers() {
-    return debuggerRedactionExcludedIdentifiers;
+  public Set<String> getDynamicInstrumentationRedactionExcludedIdentifiers() {
+    return dynamicInstrumentationRedactionExcludedIdentifiers;
   }
 
-  public String getDebuggerRedactedTypes() {
-    return debuggerRedactedTypes;
+  public String getDynamicInstrumentationRedactedTypes() {
+    return dynamicInstrumentationRedactedTypes;
   }
 
-  public boolean isDebuggerHoistLocalVarsEnabled() {
-    return debuggerHoistLocalVarsEnabled;
+  public boolean isDynamicInstrumentationHoistLocalVarsEnabled() {
+    return dynamicInstrumentationHoistLocalVarsEnabled;
   }
 
   public boolean isAwsPropagationEnabled() {
@@ -3272,6 +3410,10 @@ public class Config {
     return grpcClientErrorStatuses;
   }
 
+  public boolean isCassandraKeyspaceStatementExtractionEnabled() {
+    return cassandraKeyspaceStatementExtractionEnabled;
+  }
+
   public boolean isCouchbaseInternalSpansEnabled() {
     return couchbaseInternalSpansEnabled;
   }
@@ -3312,6 +3454,10 @@ public class Config {
     return dataJobsCommandPattern;
   }
 
+  public boolean isApmTracingEnabled() {
+    return apmTracingEnabled;
+  }
+
   /** @return A map of tags to be applied only to the local application root span. */
   public Map<String, Object> getLocalRootSpanTags() {
     final Map<String, String> runtimeTags = getRuntimeTags();
@@ -3319,8 +3465,8 @@ public class Config {
     result.putAll(runtimeTags);
     result.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
     result.put(SCHEMA_VERSION_TAG_KEY, SpanNaming.instance().version());
-    result.put(PROFILING_ENABLED, isProfilingEnabled() ? 1 : 0);
-    if (isAppSecStandaloneEnabled()) {
+    result.put(DDTags.PROFILING_ENABLED, isProfilingEnabled() ? 1 : 0);
+    if (!isApmTracingEnabled()) {
       result.put(APM_ENABLED, 0);
     }
 
@@ -3360,7 +3506,8 @@ public class Config {
         System.getProperty("java.vendor"),
         System.getProperty("os.arch"),
         System.getProperty("os.name"),
-        System.getProperty("os.version"));
+        System.getProperty("os.version"),
+        isServiceNameSetByUser() ? "true" : "false");
   }
 
   public String getPrimaryTag() {
@@ -3716,6 +3863,14 @@ public class Config {
             Arrays.asList(integrationNames), "", ".time-in-queue.enabled", defaultEnabled);
   }
 
+  public boolean isAddSpanPointers(final String integrationName) {
+    return configProvider.isEnabled(
+        Collections.singletonList(ADD_SPAN_POINTERS),
+        integrationName,
+        "",
+        DEFAULT_ADD_SPAN_POINTERS);
+  }
+
   public boolean isEnabled(
       final boolean defaultEnabled, final String settingName, String settingSuffix) {
     return configProvider.isEnabled(
@@ -3782,7 +3937,7 @@ public class Config {
   }
 
   public boolean isSamplingMechanismValidationDisabled() {
-    return configProvider.getBoolean(TracerConfig.SAMPLING_MECHANISM_VALIDATION_DISABLED, false);
+    return configProvider.getBoolean(SAMPLING_MECHANISM_VALIDATION_DISABLED, false);
   }
 
   public <T extends Enum<T>> T getEnumValue(
@@ -3826,12 +3981,8 @@ public class Config {
     return agentlessLogSubmissionProduct;
   }
 
-  public Boolean getAppSecScaEnabled() {
-    return appSecScaEnabled;
-  }
-
-  public boolean isAppSecStandaloneEnabled() {
-    return appSecStandaloneEnabled;
+  public boolean isAppSecScaEnabled() {
+    return appSecScaEnabled != null && appSecScaEnabled;
   }
 
   public boolean isAppSecRaspEnabled() {
@@ -4361,47 +4512,49 @@ public class Config {
         + ", remoteConfigIntegrityCheckEnabled="
         + remoteConfigIntegrityCheckEnabled
         + ", debuggerEnabled="
-        + debuggerEnabled
+        + dynamicInstrumentationEnabled
         + ", debuggerUploadTimeout="
-        + debuggerUploadTimeout
+        + dynamicInstrumentationUploadTimeout
         + ", debuggerUploadFlushInterval="
-        + debuggerUploadFlushInterval
+        + dynamicInstrumentationUploadFlushInterval
         + ", debuggerClassFileDumpEnabled="
-        + debuggerClassFileDumpEnabled
+        + dynamicInstrumentationClassFileDumpEnabled
         + ", debuggerPollInterval="
-        + debuggerPollInterval
+        + dynamicInstrumentationPollInterval
         + ", debuggerDiagnosticsInterval="
-        + debuggerDiagnosticsInterval
+        + dynamicInstrumentationDiagnosticsInterval
         + ", debuggerMetricEnabled="
-        + debuggerMetricEnabled
+        + dynamicInstrumentationMetricEnabled
         + ", debuggerProbeFileLocation="
-        + debuggerProbeFileLocation
+        + dynamicInstrumentationProbeFile
         + ", debuggerUploadBatchSize="
-        + debuggerUploadBatchSize
+        + dynamicInstrumentationUploadBatchSize
         + ", debuggerMaxPayloadSize="
-        + debuggerMaxPayloadSize
+        + dynamicInstrumentationMaxPayloadSize
         + ", debuggerVerifyByteCode="
-        + debuggerVerifyByteCode
+        + dynamicInstrumentationVerifyByteCode
         + ", debuggerInstrumentTheWorld="
-        + debuggerInstrumentTheWorld
+        + dynamicInstrumentationInstrumentTheWorld
         + ", debuggerExcludeFiles="
-        + debuggerExcludeFiles
+        + dynamicInstrumentationExcludeFiles
         + ", debuggerIncludeFiles="
-        + debuggerIncludeFiles
+        + dynamicInstrumentationIncludeFiles
         + ", debuggerCaptureTimeout="
-        + debuggerCaptureTimeout
+        + dynamicInstrumentationCaptureTimeout
         + ", debuggerRedactIdentifiers="
-        + debuggerRedactedIdentifiers
+        + dynamicInstrumentationRedactedIdentifiers
         + ", debuggerRedactTypes="
-        + debuggerRedactedTypes
+        + dynamicInstrumentationRedactedTypes
         + ", debuggerSymbolEnabled="
-        + debuggerSymbolEnabled
+        + symbolDatabaseEnabled
         + ", debuggerSymbolForceUpload="
-        + debuggerSymbolForceUpload
+        + symbolDatabaseForceUpload
         + ", debuggerSymbolFlushThreshold="
-        + debuggerSymbolFlushThreshold
-        + ", debuggerSymbolIncludes="
-        + debuggerSymbolIncludes
+        + symbolDatabaseFlushThreshold
+        + ", thirdPartyIncludes="
+        + debuggerThirdPartyIncludes
+        + ", thirdPartyExcludes="
+        + debuggerThirdPartyExcludes
         + ", debuggerExceptionEnabled="
         + debuggerExceptionEnabled
         + ", debuggerCodeOriginEnabled="
@@ -4496,6 +4649,8 @@ public class Config {
         + longRunningTraceInitialFlushInterval
         + ", longRunningTraceFlushInterval="
         + longRunningTraceFlushInterval
+        + ", cassandraKeyspaceStatementExtractionEnabled="
+        + cassandraKeyspaceStatementExtractionEnabled
         + ", couchbaseInternalSpansEnabled="
         + couchbaseInternalSpansEnabled
         + ", elasticsearchBodyEnabled="
@@ -4538,8 +4693,8 @@ public class Config {
         + dataJobsEnabled
         + ", dataJobsCommandPattern="
         + dataJobsCommandPattern
-        + ", appSecStandaloneEnabled="
-        + appSecStandaloneEnabled
+        + ", apmTracingEnabled="
+        + apmTracingEnabled
         + ", cloudRequestPayloadTagging="
         + cloudRequestPayloadTagging
         + ", cloudResponsePayloadTagging="

@@ -8,6 +8,7 @@ import com.datadog.iast.model.Vulnerability;
 import com.datadog.iast.model.VulnerabilityBatch;
 import com.datadog.iast.taint.TaintedObjects;
 import datadog.trace.api.Config;
+import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.internal.TraceSegment;
@@ -80,7 +81,7 @@ public class Reporter {
         String stackId =
             addVulnerabilityStackTrace(span, String.valueOf(batch.getVulnerabilities().size()));
         if (stackId != null) {
-          vulnerability.setStackId(stackId);
+          vulnerability.getLocation().setStackId(stackId);
         }
       }
     }
@@ -125,7 +126,7 @@ public class Reporter {
       // TODO: We need to check if we can have an API with more fine-grained semantics on why traces
       // are kept.
       segment.setTagTop(Tags.ASM_KEEP, true);
-      segment.setTagTop(Tags.PROPAGATED_APPSEC, true);
+      segment.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
       return batch;
     }
 
@@ -135,7 +136,7 @@ public class Reporter {
   }
 
   private AgentSpan startNewSpan() {
-    final AgentSpan.Context tagContext =
+    final AgentSpanContext tagContext =
         new TagContext()
             .withRequestContextDataIast(new IastRequestContext(TaintedObjects.NoOp.INSTANCE));
     final AgentSpan span =

@@ -71,6 +71,7 @@ public final class CombiningTransformerBuilder
   private ElementMatcher<ClassLoader> classLoaderMatcher;
   private Map<String, String> contextStore;
   private AgentBuilder.Transformer contextRequestRewriter;
+  private AdviceShader adviceShader;
   private HelperTransformer helperTransformer;
   private Advice.PostProcessor.Factory postProcessor;
   private MuzzleCheck muzzle;
@@ -118,6 +119,8 @@ public final class CombiningTransformerBuilder
                 new FieldBackedContextRequestRewriter(contextStore, module.name()))
             : null;
 
+    adviceShader = AdviceShader.with(module);
+
     String[] helperClassNames = module.helperClassNames();
     if (module.injectHelperDependencies()) {
       helperClassNames = HelperScanner.withClassDependencies(helperClassNames);
@@ -125,7 +128,10 @@ public final class CombiningTransformerBuilder
     helperTransformer =
         helperClassNames.length > 0
             ? new HelperTransformer(
-                module.useAgentCodeSource(), module.getClass().getSimpleName(), helperClassNames)
+                module.useAgentCodeSource(),
+                adviceShader,
+                module.getClass().getSimpleName(),
+                helperClassNames)
             : null;
 
     postProcessor = module.postProcessor();
@@ -238,11 +244,17 @@ public final class CombiningTransformerBuilder
     if (postProcessor != null) {
       customMapping = customMapping.with(postProcessor);
     }
-    advice.add(
+    AgentBuilder.Transformer.ForAdvice forAdvice =
         new AgentBuilder.Transformer.ForAdvice(customMapping)
-            .include(Utils.getBootstrapProxy(), Utils.getExtendedClassLoader())
             .withExceptionHandler(ExceptionHandlers.defaultExceptionHandler())
-            .advice(not(ignoredMethods).and(matcher), adviceClass));
+            .include(Utils.getBootstrapProxy());
+    ClassLoader adviceLoader = Utils.getExtendedClassLoader();
+    if (adviceShader != null) {
+      forAdvice = forAdvice.include(new ShadedAdviceLocator(adviceLoader, adviceShader));
+    } else {
+      forAdvice = forAdvice.include(adviceLoader);
+    }
+    advice.add(forAdvice.advice(not(ignoredMethods).and(matcher), adviceClass));
   }
 
   public ClassFileTransformer installOn(Instrumentation instrumentation) {
@@ -342,8 +354,11 @@ public final class CombiningTransformerBuilder
 
   static final class HelperTransformer extends HelperInjector implements AgentBuilder.Transformer {
     HelperTransformer(
-        boolean useAgentCodeSource, String requestingName, String... helperClassNames) {
-      super(useAgentCodeSource, requestingName, helperClassNames);
+        boolean useAgentCodeSource,
+        AdviceShader adviceShader,
+        String requestingName,
+        String... helperClassNames) {
+      super(useAgentCodeSource, adviceShader, requestingName, helperClassNames);
     }
   }
 

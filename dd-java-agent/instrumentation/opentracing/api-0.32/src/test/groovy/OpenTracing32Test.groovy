@@ -3,6 +3,7 @@ import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.interceptor.MutableSpan
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities
 import datadog.trace.context.TraceScope
 import datadog.trace.core.DDSpan
@@ -32,6 +33,8 @@ import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP
 import static datadog.trace.api.sampling.SamplingMechanism.AGENT_RATE
 import static datadog.trace.api.sampling.SamplingMechanism.DEFAULT
 import static datadog.trace.api.sampling.SamplingMechanism.MANUAL
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContinuation
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled
 
 class OpenTracing32Test extends AgentTestRunner {
 
@@ -163,24 +166,25 @@ class OpenTracing32Test extends AgentTestRunner {
 
   def "test scopemanager"() {
     setup:
+    AgentTracer.TracerAPI internalTracer = tracer.tracer.tracer
     def span = tracer.buildSpan("some name").start()
     def scope = tracer.scopeManager().activate(span, finishSpan)
-    (scope as TraceScope).setAsyncPropagation(false)
+    internalTracer.setAsyncPropagationEnabled(false)
 
     expect:
     span instanceof MutableSpan
     scope instanceof TraceScope
-    !(scope as TraceScope).isAsyncPropagating()
-    (scope as TraceScope).capture() == null
+    !internalTracer.isAsyncPropagationEnabled()
+    (scope as TraceScope).capture() == noopContinuation()
     (tracer.scopeManager().active().span().delegate == span.delegate)
 
     when:
-    (scope as TraceScope).setAsyncPropagation(true)
+    internalTracer.setAsyncPropagationEnabled(true)
     def continuation = (scope as TraceScope).capture()
     continuation.cancel()
 
     then:
-    (scope as TraceScope).isAsyncPropagating()
+    internalTracer.isAsyncPropagationEnabled()
     continuation instanceof TraceScope.Continuation
 
     when: "attempting to close the span this way doesn't work because we lost the 'finishSpan' reference"
@@ -230,7 +234,7 @@ class OpenTracing32Test extends AgentTestRunner {
     setup:
     def span = tracer.buildSpan("some name").start()
     TraceScope scope = tracer.scopeManager().activate(span, false)
-    scope.setAsyncPropagation(true)
+    setAsyncPropagationEnabled(true)
 
     expect:
     tracer.activeSpan().delegate == span.delegate

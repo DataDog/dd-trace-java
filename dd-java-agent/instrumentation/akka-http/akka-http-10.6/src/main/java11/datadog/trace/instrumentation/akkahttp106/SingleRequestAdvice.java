@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.akkahttp106;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -28,7 +29,7 @@ public class SingleRequestAdvice {
     AkkaHttpClientDecorator.DECORATE.onRequest(span, request);
 
     if (request != null) {
-      propagate().inject(span, request, headers);
+      defaultPropagator().inject(span, request, headers);
       propagate()
           .injectPathwayContext(
               span, request, headers, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);

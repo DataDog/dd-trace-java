@@ -66,6 +66,8 @@ dependencies {
   implementation 'org.junit.platform:junit-platform-runner:1.9.0'
   implementation project(':dd-java-agent:appsec')
 
+  implementation project(':dd-java-agent:agent-debugger')
+
   testImplementation project(':utils:test-utils')
   testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
 

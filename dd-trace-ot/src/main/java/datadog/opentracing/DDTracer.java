@@ -1,5 +1,8 @@
 package datadog.opentracing;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromSpanContext;
+
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.GlobalTracer;
@@ -11,6 +14,7 @@ import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.profiling.Profiling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.writer.Writer;
@@ -84,7 +88,6 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
     private Sampler sampler;
     private HttpCodec.Injector injector;
     private HttpCodec.Extractor extractor;
-    private ScopeManager scopeManager;
     private Map<String, String> localRootSpanTags;
     private Map<String, String> defaultSpanTags;
     private Map<String, String> serviceNameMappings;
@@ -125,9 +128,7 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
 
     @Deprecated
     public DDTracerBuilder scopeManager(ScopeManager scopeManager) {
-      log.warn(
-          "Custom ScopeManagers are deprecated and will be removed in a future release of dd-trace-ot");
-      this.scopeManager = scopeManager;
+      log.warn("Custom ScopeManagers are not supported");
       return this;
     }
 
@@ -178,7 +179,6 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
           sampler,
           injector,
           extractor,
-          scopeManager,
           localRootSpanTags,
           defaultSpanTags,
           serviceNameMappings,
@@ -323,7 +323,6 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
       final Sampler sampler,
       final HttpCodec.Injector injector,
       final HttpCodec.Extractor extractor,
-      final ScopeManager scopeManager,
       final Map<String, String> localRootSpanTags,
       final Map<String, String> defaultSpanTags,
       final Map<String, String> serviceNameMappings,
@@ -376,11 +375,6 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
       builder = builder.extractor(extractor);
     }
 
-    if (scopeManager != null) {
-      this.scopeManager = scopeManager;
-      builder = builder.scopeManager(new CustomScopeManagerWrapper(scopeManager, converter));
-    }
-
     if (localRootSpanTags != null) {
       builder = builder.localRootSpanTags(localRootSpanTags);
     }
@@ -410,9 +404,7 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
     // FIXME [API] There's an unfortunate cycle between OTScopeManager and CoreTracer where they
     // depend on each other so CoreTracer
     // Perhaps api can change so that CoreTracer doesn't need to implement scope methods directly
-    if (scopeManager == null) {
-      this.scopeManager = new OTScopeManager(tracer, converter);
-    }
+    this.scopeManager = new OTScopeManager(tracer, converter);
 
     if ((config != null && config.isLogsInjectionEnabled())
         || (config == null && Config.get().isLogsInjectionEnabled())) {
@@ -448,6 +440,21 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
   }
 
   @Override
+  public TraceScope.Continuation captureActiveSpan() {
+    return tracer.captureActiveSpan();
+  }
+
+  @Override
+  public boolean isAsyncPropagationEnabled() {
+    return tracer.isAsyncPropagationEnabled();
+  }
+
+  @Override
+  public void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {
+    tracer.setAsyncPropagationEnabled(asyncPropagationEnabled);
+  }
+
+  @Override
   public DataStreamsCheckpointer getDataStreamsCheckpointer() {
     return tracer.getDataStreamsCheckpointer();
   }
@@ -475,9 +482,9 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
   @Override
   public <C> void inject(final SpanContext spanContext, final Format<C> format, final C carrier) {
     if (carrier instanceof TextMap) {
-      final AgentSpan.Context context = converter.toContext(spanContext);
-
-      tracer.propagate().inject(context, (TextMap) carrier, TextMapSetter.INSTANCE);
+      final AgentSpanContext context = converter.toContext(spanContext);
+      AgentSpan span = fromSpanContext(context);
+      defaultPropagator().inject(span, (TextMap) carrier, TextMapSetter.INSTANCE);
     } else {
       log.debug("Unsupported format for propagation - {}", format.getClass().getName());
     }
@@ -486,7 +493,7 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
   @Override
   public <C> SpanContext extract(final Format<C> format, final C carrier) {
     if (carrier instanceof TextMap) {
-      final AgentSpan.Context tagContext =
+      final AgentSpanContext tagContext =
           tracer.propagate().extract((TextMap) carrier, new TextMapGetter((TextMap) carrier));
 
       return converter.toSpanContext(tagContext);
@@ -519,7 +526,7 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
 
   @Override
   public TraceSegment getTraceSegment() {
-    AgentSpan.Context ctx = tracer.activeSpan().context();
+    AgentSpanContext ctx = tracer.activeSpan().context();
     if (ctx instanceof DDSpanContext) {
       return ((DDSpanContext) ctx).getTraceSegment();
     }
@@ -585,7 +592,7 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
         return this;
       }
 
-      final AgentSpan.Context context = converter.toContext(referencedContext);
+      final AgentSpanContext context = converter.toContext(referencedContext);
       if (!(context instanceof ExtractedContext) && !(context instanceof DDSpanContext)) {
         log.debug(
             "Expected to have a DDSpanContext or ExtractedContext but got "

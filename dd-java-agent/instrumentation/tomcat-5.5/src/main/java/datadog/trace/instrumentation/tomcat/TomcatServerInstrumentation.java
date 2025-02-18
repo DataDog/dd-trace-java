@@ -21,6 +21,7 @@ import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import java.util.Arrays;
@@ -121,7 +122,7 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
         return activateSpan((AgentSpan) existingSpan);
       }
 
-      final AgentSpan.Context.Extracted extractedContext = DECORATE.extract(req);
+      final AgentSpanContext.Extracted extractedContext = DECORATE.extract(req);
       req.setAttribute(DD_EXTRACTED_CONTEXT_ATTRIBUTE, extractedContext);
 
       final AgentSpan span = DECORATE.startSpan(req, extractedContext);
@@ -165,9 +166,9 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
         req.setAttribute(CorrelationIdentifier.getTraceIdKey(), AgentTracer.get().getTraceId(span));
         req.setAttribute(CorrelationIdentifier.getSpanIdKey(), AgentTracer.get().getSpanId(span));
         Object ctxObj = req.getAttribute(DD_EXTRACTED_CONTEXT_ATTRIBUTE);
-        AgentSpan.Context.Extracted ctx =
-            ctxObj instanceof AgentSpan.Context.Extracted
-                ? (AgentSpan.Context.Extracted) ctxObj
+        AgentSpanContext.Extracted ctx =
+            ctxObj instanceof AgentSpanContext.Extracted
+                ? (AgentSpanContext.Extracted) ctxObj
                 : null;
         DECORATE.onRequest(span, req, req, ctx);
         Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();

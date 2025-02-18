@@ -9,6 +9,7 @@ import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.PersonInfo;
 import datadog.trace.civisibility.ci.env.CiEnvironment;
+import javax.annotation.Nonnull;
 
 class TravisInfo implements CIProviderInfo {
 
@@ -58,6 +59,12 @@ class TravisInfo implements CIProviderInfo {
         .ciJobUrl(environment.get(TRAVIS_JOB_URL))
         .ciWorkspace(expandTilde(environment.get(TRAVIS_WORKSPACE_PATH)))
         .build();
+  }
+
+  @Nonnull
+  @Override
+  public PullRequestInfo buildPullRequestInfo() {
+    return PullRequestInfo.EMPTY;
   }
 
   private String buildGitBranch() {

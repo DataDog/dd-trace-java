@@ -10,14 +10,14 @@ public class SpanLink implements AgentSpanLink {
   private final long spanId;
   private final byte traceFlags;
   private final String traceState;
-  private final AgentSpan.Attributes attributes;
+  private final SpanAttributes attributes;
 
   protected SpanLink(
       DDTraceId traceId,
       long spanId,
       byte traceFlags,
       String traceState,
-      AgentSpan.Attributes attributes) {
+      SpanAttributes attributes) {
     this.traceId = traceId == null ? DDTraceId.ZERO : traceId;
     this.spanId = spanId;
     this.traceFlags = traceFlags;
@@ -32,7 +32,7 @@ public class SpanLink implements AgentSpanLink {
    * @param context The context of the span to get the link to.
    * @return A span link to the given context.
    */
-  public static SpanLink from(AgentSpan.Context context) {
+  public static SpanLink from(AgentSpanContext context) {
     return from(context, DEFAULT_FLAGS, "", EMPTY);
   }
 
@@ -47,10 +47,7 @@ public class SpanLink implements AgentSpanLink {
    * @return A span link to the given context.
    */
   public static SpanLink from(
-      AgentSpan.Context context,
-      byte traceFlags,
-      String traceState,
-      AgentSpan.Attributes attributes) {
+      AgentSpanContext context, byte traceFlags, String traceState, SpanAttributes attributes) {
     if (context.getSamplingPriority() > 0) {
       traceFlags = (byte) (traceFlags | SAMPLED_FLAG);
     }
@@ -79,7 +76,7 @@ public class SpanLink implements AgentSpanLink {
   }
 
   @Override
-  public AgentSpan.Attributes attributes() {
+  public SpanAttributes attributes() {
     return this.attributes;
   }
 

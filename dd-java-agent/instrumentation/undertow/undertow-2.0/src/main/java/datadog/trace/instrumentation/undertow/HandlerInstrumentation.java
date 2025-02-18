@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.undertow;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
 import static datadog.trace.instrumentation.undertow.UndertowBlockingHandler.REQUEST_BLOCKING_DATA;
 import static datadog.trace.instrumentation.undertow.UndertowBlockingHandler.TRACE_SEGMENT;
 import static datadog.trace.instrumentation.undertow.UndertowDecorator.DD_UNDERTOW_CONTINUATION;
@@ -18,6 +19,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.gateway.Flow.Action.RequestBlockingAction;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.undertow.server.HttpHandler;
 import io.undertow.server.HttpServerExchange;
@@ -86,18 +88,18 @@ public final class HandlerInstrumentation extends InstrumenterModule.Tracing
 
       AgentScope.Continuation continuation = exchange.getAttachment(DD_UNDERTOW_CONTINUATION);
       if (continuation != null) {
-        scope = continuation.activate();
-        exchange.putAttachment(DD_UNDERTOW_CONTINUATION, scope.capture());
+        // not yet complete, not ready to do final activation of continuation
+        scope = activateSpan(continuation.span());
         return;
       }
 
-      final AgentSpan.Context.Extracted extractedContext = DECORATE.extract(exchange);
+      final AgentSpanContext.Extracted extractedContext = DECORATE.extract(exchange);
       final AgentSpan span = DECORATE.startSpan(exchange, extractedContext).setMeasured(true);
       scope = activateSpan(span, true);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, exchange, exchange, extractedContext);
 
-      exchange.putAttachment(DD_UNDERTOW_CONTINUATION, scope.capture());
+      exchange.putAttachment(DD_UNDERTOW_CONTINUATION, captureSpan(span));
 
       exchange.addExchangeCompleteListener(ExchangeEndSpanListener.INSTANCE);
 

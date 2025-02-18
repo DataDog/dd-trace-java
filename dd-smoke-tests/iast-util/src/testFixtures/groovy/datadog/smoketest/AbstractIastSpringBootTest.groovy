@@ -102,6 +102,71 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   }
 
+  void 'Tainted mail Text Jakarta'() {
+    given:
+    String url = "http://localhost:${httpPort}/jakartaMailHtmlVulnerability"
+    String messageText = "This is a test message"
+    RequestBody requestBody = new MultipartBody.Builder().setType(MultipartBody.FORM)
+      .addFormDataPart("messageText", messageText)
+      .addFormDataPart("sanitize", "false")
+      .build()
+    Request request = new Request.Builder()
+      .url(url)
+      .post(requestBody)
+      .build()
+
+    when:
+    client.newCall(request).execute().body().string()
+
+    then:
+    hasVulnerability { vulnerability ->
+      vulnerability.type == 'EMAIL_HTML_INJECTION'
+    }
+  }
+
+
+  void 'Tainted mail Content Jakarta'() {
+    given:
+    String url = "http://localhost:${httpPort}/jakartaMailHtmlVulnerability"
+    String messageContent = "<html><body><h1>This is a test message</h1></body></html>"
+    RequestBody requestBody = new MultipartBody.Builder().setType(MultipartBody.FORM)
+      .addFormDataPart("messageContent", messageContent).build()
+    Request request = new Request.Builder()
+      .url(url)
+      .post(requestBody)
+      .build()
+
+    when:
+    client.newCall(request).execute().body().string()
+
+    then:
+    hasVulnerability { vulnerability ->
+      vulnerability.type == 'EMAIL_HTML_INJECTION'
+    }
+  }
+
+  void 'Sanitized mail Content Jakarta'() {
+    given:
+    String url = "http://localhost:${httpPort}/jakartaMailHtmlVulnerability"
+    String messageContent = "<html><body><h1>This is a test message</h1></body></html>"
+    RequestBody requestBody = new MultipartBody.Builder().setType(MultipartBody.FORM)
+      .addFormDataPart("messageContent", messageContent)
+      .addFormDataPart("sanitize", "true")
+      .build()
+    Request request = new Request.Builder()
+      .url(url)
+      .post(requestBody)
+      .build()
+
+    when:
+    client.newCall(request).execute().body().string()
+
+    then:
+    noVulnerability { vulnerability ->
+      vulnerability.type == 'EMAIL_HTML_INJECTION'
+    }
+  }
+
   void 'Multipart Request original file name'() {
     given:
     String url = "http://localhost:${httpPort}/multipart"
@@ -688,7 +753,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   void 'ssrf is present'() {
     setup:
-    final url = "http://localhost:${httpPort}/ssrf"
+    final url = "http://localhost:${httpPort}/ssrf${path}"
     final body = new FormBody.Builder().add(parameter, value).build()
     final request = new Request.Builder().url(url).post(body).build()
 
@@ -715,9 +780,11 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     }
 
     where:
-    parameter | value
-    'url'     | 'https://dd.datad0g.com/'
-    'host'    | 'dd.datad0g.com'
+    path   | parameter | value
+    ''     | 'url'     | 'https://dd.datad0g.com/'
+    ''     | 'host'    | 'dd.datad0g.com'
+    '/uri' | 'url'     | 'https://dd.datad0g.com/'
+    '/uri' | 'host'    | 'dd.datad0g.com'
   }
 
   void 'ssrf is present (#path) (#parameter)'() {

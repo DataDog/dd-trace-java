@@ -63,26 +63,6 @@ public class OTScopeManager implements ScopeManager {
       return converter.toSpan(delegate.span());
     }
 
-    @Override
-    public Continuation capture() {
-      return delegate.capture();
-    }
-
-    @Override
-    public Continuation captureConcurrent() {
-      return delegate.captureConcurrent();
-    }
-
-    @Override
-    public boolean isAsyncPropagating() {
-      return delegate.isAsyncPropagating();
-    }
-
-    @Override
-    public void setAsyncPropagation(final boolean value) {
-      delegate.setAsyncPropagation(value);
-    }
-
     public boolean isFinishSpanOnClose() {
       return finishSpanOnClose;
     }

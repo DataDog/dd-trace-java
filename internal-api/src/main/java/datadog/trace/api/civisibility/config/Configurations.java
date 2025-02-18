@@ -104,4 +104,36 @@ public final class Configurations {
         testBundle,
         custom);
   }
+
+  @Override
+  public String toString() {
+    return "Configurations{"
+        + "osPlatform='"
+        + osPlatform
+        + '\''
+        + ", osArchitecture='"
+        + osArchitecture
+        + '\''
+        + ", osVersion='"
+        + osVersion
+        + '\''
+        + ", runtimeName='"
+        + runtimeName
+        + '\''
+        + ", runtimeVersion='"
+        + runtimeVersion
+        + '\''
+        + ", runtimeVendor='"
+        + runtimeVendor
+        + '\''
+        + ", runtimeArchitecture='"
+        + runtimeArchitecture
+        + '\''
+        + ", testBundle='"
+        + testBundle
+        + '\''
+        + ", custom="
+        + custom
+        + '}';
+  }
 }
