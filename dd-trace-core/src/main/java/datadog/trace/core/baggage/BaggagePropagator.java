@@ -9,12 +9,10 @@ import datadog.trace.bootstrap.instrumentation.api.BaggageContext;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiConsumer;
@@ -29,7 +27,6 @@ public class BaggagePropagator implements Propagator {
   private Config config;
   private final boolean injectBaggage;
   private final boolean extractBaggage;
-  private BaggageCache baggageCache;
   private static final Set<Character> UNSAFE_CHARACTERS_KEY =
       new HashSet<>(
           Arrays.asList(
@@ -42,7 +39,6 @@ public class BaggagePropagator implements Propagator {
     this.injectBaggage = config.isBaggageInject();
     this.extractBaggage = config.isBaggageExtract();
     this.config = config;
-    baggageCache = null;
   }
 
   // use primarily for testing purposes
@@ -50,7 +46,6 @@ public class BaggagePropagator implements Propagator {
     this.injectBaggage = injectBaggage;
     this.extractBaggage = extractBaggage;
     config = Config.get();
-    baggageCache = null;
   }
 
   private int encodeKey(String key, StringBuilder builder) {
@@ -93,8 +88,9 @@ public class BaggagePropagator implements Propagator {
       return;
     }
 
-    if (baggageCache != null) {
-      setter.set(carrier, BAGGAGE_KEY, baggageCache.getBaggage());
+    if (baggageContext.isUpdatedCache()) {
+      setter.set(carrier, BAGGAGE_KEY, baggageContext.getBaggageString());
+      return;
     }
 
     int maxItems = config.getTraceBaggageMaxItems();
@@ -131,7 +127,10 @@ public class BaggagePropagator implements Propagator {
       currentBytes += byteSize;
     }
 
-    setter.set(carrier, BAGGAGE_KEY, baggageText.toString());
+    String baggageString = baggageText.toString();
+    ;
+    baggageContext.setBaggageString(baggageString);
+    setter.set(carrier, BAGGAGE_KEY, baggageString);
   }
 
   @Override
@@ -141,7 +140,6 @@ public class BaggagePropagator implements Propagator {
       return context;
     }
     BaggageContextExtractor baggageContextExtractor = new BaggageContextExtractor();
-    baggageCache = new BaggageCache<>(carrier, visitor);
     visitor.forEachKeyValue(carrier, baggageContextExtractor);
     BaggageContext extractedContext = baggageContextExtractor.extractedContext;
     if (extractedContext == null) {
@@ -204,46 +202,8 @@ public class BaggagePropagator implements Propagator {
           && key.equalsIgnoreCase(BAGGAGE_KEY)) { // Only process tags that are relevant to baggage
         Map<String, String> baggage = parseBaggageHeaders(value);
         if (!baggage.isEmpty()) {
-          extractedContext = BaggageContext.create(baggage);
+          extractedContext = BaggageContext.create(baggage, value);
         }
-      }
-    }
-  }
-
-  private static class BaggageCache<C>
-      implements BiConsumer<String, String>, CarrierVisitor<BaggageCache<?>> {
-    /** Cached context key-values (even indexes are header names, odd indexes are header values). */
-    private final List<String> keysAndValues;
-
-    private String baggage;
-
-    public BaggageCache(C carrier, CarrierVisitor<C> getter) {
-      this.keysAndValues = new ArrayList<>(32);
-      getter.forEachKeyValue(carrier, this);
-    }
-
-    @Override
-    public void accept(String key, String value) {
-      keysAndValues.add(key);
-      keysAndValues.add(value);
-      if (BAGGAGE_KEY.equalsIgnoreCase(key)) {
-        try {
-          // Parse numeric header value to format it as 16 hexadecimal character format
-          this.baggage = value;
-        } catch (NumberFormatException ignored) {
-        }
-      }
-    }
-
-    private String getBaggage() {
-      return this.baggage;
-    }
-
-    @Override
-    public void forEachKeyValue(BaggageCache<?> carrier, BiConsumer<String, String> visitor) {
-      List<String> keysAndValues = carrier.keysAndValues;
-      for (int i = 0; i < keysAndValues.size(); i += 2) {
-        visitor.accept(keysAndValues.get(i), keysAndValues.get(i + 1));
       }
     }
   }
