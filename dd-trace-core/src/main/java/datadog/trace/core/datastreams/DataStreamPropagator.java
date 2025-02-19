@@ -20,13 +20,13 @@ public class DataStreamPropagator implements Propagator {
   private final Supplier<TraceConfig> traceConfigSupplier;
   private final TimeSource timeSource;
   private final long hashOfKnownTags;
-  private final String serviceNameOverride;
+  private final ThreadLocal<String> serviceNameOverride;
 
   public DataStreamPropagator(
       Supplier<TraceConfig> traceConfigSupplier,
       TimeSource timeSource,
       long hashOfKnownTags,
-      String serviceNameOverride) {
+      ThreadLocal<String> serviceNameOverride) {
     this.traceConfigSupplier = traceConfigSupplier;
     this.timeSource = timeSource;
     this.hashOfKnownTags = hashOfKnownTags;
@@ -78,6 +78,6 @@ public class DataStreamPropagator implements Propagator {
 
   private <C> PathwayContext extractDsmPathwayContext(C carrier, CarrierVisitor<C> visitor) {
     return DefaultPathwayContext.extract(
-        carrier, visitor, this.timeSource, this.hashOfKnownTags, this.serviceNameOverride);
+        carrier, visitor, this.timeSource, this.hashOfKnownTags, serviceNameOverride.get());
   }
 }
