@@ -204,13 +204,13 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   @Override
   public Propagator propagator() {
     return new DataStreamPropagator(
-        this.traceConfigSupplier, this.timeSource, this.hashOfKnownTags, getThreadServiceName());
+        this.traceConfigSupplier, this.timeSource, this.hashOfKnownTags, serviceNameOverride);
   }
 
   @Override
   public HttpCodec.Extractor extractor(HttpCodec.Extractor delegate) {
     return new DataStreamContextExtractor(
-        delegate, timeSource, traceConfigSupplier, hashOfKnownTags, getThreadServiceName());
+        delegate, timeSource, traceConfigSupplier, hashOfKnownTags, serviceNameOverride);
   }
 
   @Override
