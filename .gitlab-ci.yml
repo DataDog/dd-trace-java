@@ -122,6 +122,8 @@ build_and_populate_dep_cache:
     GRADLE_PARAMS: ""
     CONTINUE_ON_FAILURE: "false"
   script:
+    - export DATADOG_API_KEY_PROD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.DATADOG_API_KEY_PROD --with-decryption --query "Parameter.Value" --out text)
+    - export DATADOG_API_KEY_DDSTAGING=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.dd_api_key --with-decryption --query "Parameter.Value" --out text)
     - > 
       if [ "$PROFILE_TESTS" == "true" ] && [ "$testJvm" != "ibm8" ] && [ "$testJvm" != "oracle8" ];
       then
@@ -147,7 +149,7 @@ agent_integration_tests:
   extends: .test_job
   variables:
     testJvm: "8"
-    DD_AGENT_HOST: "local-agent"
+    CI_AGENT_HOST: local-agent
     GRADLE_TARGET: "traceAgentTest"
   services:
     - name: datadog/agent:7.34.0

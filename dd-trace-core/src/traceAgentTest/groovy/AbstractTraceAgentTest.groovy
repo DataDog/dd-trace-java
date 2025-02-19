@@ -37,6 +37,8 @@ abstract class AbstractTraceAgentTest extends DDSpecification {
     if (agentContainer) {
       injectSysConfig(TracerConfig.AGENT_HOST, (String) agentContainer.getHost())
       injectSysConfig(TracerConfig.TRACE_AGENT_PORT, (String) agentContainer.getMappedPort(ConfigDefaults.DEFAULT_TRACE_AGENT_PORT))
+    } else {
+      injectSysConfig(TracerConfig.AGENT_HOST, System.getenv("CI_AGENT_HOST"))
     }
   }
 
