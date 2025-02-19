@@ -1,6 +1,7 @@
 package com.datadog.appsec.gateway
 
 import com.datadog.appsec.AppSecSystem
+import com.datadog.appsec.api.security.ApiSecurityRequestSampler
 import com.datadog.appsec.config.TraceSegmentPostProcessor
 import com.datadog.appsec.event.EventDispatcher
 import com.datadog.appsec.event.EventProducerService
@@ -28,6 +29,7 @@ import datadog.trace.test.util.DDSpecification
 
 import java.util.function.BiConsumer
 import java.util.function.BiFunction
+import java.util.function.Consumer
 import java.util.function.Function
 import java.util.function.Supplier
 
@@ -79,7 +81,10 @@ class GatewayBridgeSpecification extends DDSpecification {
   }
 
   TraceSegmentPostProcessor pp = Mock()
-  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, null, [pp])
+  ApiSecurityRequestSampler requestSampler = Mock(ApiSecurityRequestSampler) {
+    preSampleRequest(_ as AppSecRequestContext) >> false
+  }
+  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, requestSampler, [pp])
 
   Supplier<Flow<AppSecRequestContext>> requestStartedCB
   BiFunction<RequestContext, AgentSpan, Flow<Void>> requestEndedCB
@@ -106,6 +111,7 @@ class GatewayBridgeSpecification extends DDSpecification {
   BiFunction<RequestContext, String[], Flow<Void>> execCmdCB
   BiFunction<RequestContext, String, Flow<Void>> shellCmdCB
   TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>> userCB
+  Consumer<RequestContext> postProcessingCB
   LoginEventCallback loginEventCB
 
   void setup() {
@@ -163,7 +169,6 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * spanInfo.getTags() >> ['http.client_ip': '1.1.1.1']
     1 * mockAppSecCtx.transferCollectedEvents() >> [event]
     1 * mockAppSecCtx.peerAddress >> '2001::1'
-    1 * mockAppSecCtx.close(false)
     1 * traceSegment.setTagTop("_dd.appsec.enabled", 1)
     1 * traceSegment.setTagTop("_dd.runtime_family", "jvm")
     1 * traceSegment.setTagTop('appsec.event', true)
@@ -171,7 +176,6 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * traceSegment.setTagTop('http.request.headers.accept', 'header_value')
     1 * traceSegment.setTagTop('http.response.headers.content-type', 'text/html; charset=UTF-8')
     1 * traceSegment.setTagTop('network.client.ip', '2001::1')
-    1 * mockAppSecCtx.closeAdditive()
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
   }
@@ -447,6 +451,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * ig.registerCallback(EVENTS.shellCmd(), _) >> { shellCmdCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.user(), _) >> { userCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.loginEvent(), _) >> { loginEventCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.postProcessing(), _) >> { postProcessingCB = it[1]; null }
     0 * ig.registerCallback(_, _)
 
     bridge.init()
@@ -973,7 +978,9 @@ class GatewayBridgeSpecification extends DDSpecification {
       getData(RequestContextSlot.APPSEC) >> mockAppSecCtx
       getTraceSegment() >> traceSegment
     }
-    final spanInfo = Mock(AgentSpan)
+    final spanInfo = Mock(AgentSpan) {
+      getTags() >> ['http.route':'/']
+    }
 
     when:
     requestEndedCB.apply(mockCtx, spanInfo)

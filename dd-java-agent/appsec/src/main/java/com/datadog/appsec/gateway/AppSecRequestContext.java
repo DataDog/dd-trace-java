@@ -11,8 +11,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.UserIdCollectionMode;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.util.stacktrace.StackTraceEvent;
 import io.sqreen.powerwaf.Additive;
 import io.sqreen.powerwaf.PowerwafContext;
@@ -93,6 +91,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private String scheme;
   private String method;
   private String savedRawURI;
+  private String route;
   private final Map<String, List<String>> requestHeaders = new LinkedHashMap<>();
   private final Map<String, List<String>> responseHeaders = new LinkedHashMap<>();
   private volatile Map<String, List<String>> collectedCookies;
@@ -362,7 +361,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     this.scheme = scheme;
   }
 
-  String getMethod() {
+  public String getMethod() {
     return method;
   }
 
@@ -370,7 +369,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     this.method = method;
   }
 
-  String getSavedRawURI() {
+  public String getSavedRawURI() {
     return savedRawURI;
   }
 
@@ -380,6 +379,18 @@ public class AppSecRequestContext implements DataBundle, Closeable {
           "Forbidden attempt to set different raw URI for given request context");
     }
     this.savedRawURI = savedRawURI;
+  }
+
+  public String getRoute() {
+    return route;
+  }
+
+  void setRoute(String route) {
+    if (this.route != null && this.route.compareToIgnoreCase(route) != 0) {
+      throw new IllegalStateException(
+          "Forbidden attempt to set different route for given request context");
+    }
+    this.route = route;
   }
 
   void addRequestHeader(String name, String value) {
@@ -575,32 +586,15 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   @Override
   public void close() {
-    final AgentSpan span = AgentTracer.activeSpan();
-    close(span != null && span.isRequiresPostProcessing());
-  }
-
-  /* end interface for GatewayBridge */
-
-  /* Should be accessible from the modules */
-
-  public void close(boolean requiresPostProcessing) {
-    if (additive != null || derivatives != null) {
-      log.debug(
-          SEND_TELEMETRY, "WAF object had not been closed (probably missed request-end event)");
-      closeAdditive();
-      derivatives = null;
-    }
-
-    // check if we might need to further post process data related to the span in order to not free
-    // related data
-    if (requiresPostProcessing) {
-      return;
-    }
-
+    closeAdditive();
     collectedCookies = null;
     requestHeaders.clear();
     responseHeaders.clear();
     persistentData.clear();
+    if (derivatives != null) {
+      derivatives.clear();
+      derivatives = null;
+    }
   }
 
   /** @return the portion of the body read so far, if any */

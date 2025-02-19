@@ -24,7 +24,6 @@ import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_USER_BLOCKING;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ENDPOINT_FINGERPRINT;
 
 import com.datadog.appsec.AppSecSystem;
-import com.datadog.appsec.api.security.ApiSecurityRequestSampler;
 import com.datadog.appsec.config.AppSecModuleConfigurer.SubconfigListener;
 import com.datadog.appsec.config.CurrentAppSecConfig.DirtyStatus;
 import com.datadog.appsec.util.AbortStartupException;
@@ -72,7 +71,6 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   private final Config tracerConfig;
   private final List<TraceSegmentPostProcessor> traceSegmentPostProcessors = new ArrayList<>();
   private final AppSecModuleConfigurer.Reconfiguration reconfiguration;
-  private final ApiSecurityRequestSampler apiSecurityRequestSampler;
 
   private final ConfigurationEndListener applyRemoteConfigListener =
       this::applyRemoteConfigListener;
@@ -82,12 +80,10 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   public AppSecConfigServiceImpl(
       Config tracerConfig,
       ConfigurationPoller configurationPoller,
-      ApiSecurityRequestSampler apiSecurityRequestSampler,
       AppSecModuleConfigurer.Reconfiguration reconfig) {
     this.tracerConfig = tracerConfig;
     this.configurationPoller = configurationPoller;
     this.reconfiguration = reconfig;
-    this.apiSecurityRequestSampler = apiSecurityRequestSampler;
   }
 
   private void subscribeConfigurationPoller() {
@@ -385,7 +381,6 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     // apply ASM_FEATURES configuration first as they might enable AppSec
     final AppSecFeatures features = mergedAsmFeatures.getMergedData();
     setAppSecActivation(features.asm);
-    setApiSecuritySampling(features.apiSecurity);
     setUserIdCollectionMode(features.autoUserInstrum);
 
     if (!AppSecSystem.isActive() || !currentAppSecConfig.dirtyStatus.isAnyDirty()) {
@@ -411,25 +406,6 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
         // On remote activation, we need to re-distribute the last known configuration.
         // This may trigger initializations, including PowerWAF if it was lazy loaded.
         this.currentAppSecConfig.dirtyStatus.markAllDirty();
-      }
-    }
-  }
-
-  private void setApiSecuritySampling(final AppSecFeatures.ApiSecurity apiSecurity) {
-    final float newSampling;
-    if (apiSecurity == null) {
-      newSampling = tracerConfig.getApiSecurityRequestSampleRate();
-    } else {
-      newSampling = apiSecurity.requestSampleRate;
-    }
-    if (apiSecurityRequestSampler.setSampling(newSampling)) {
-      int pct = apiSecurityRequestSampler.getSampling();
-      if (pct == 0) {
-        log.info("Api Security is disabled via remote-config");
-      } else {
-        log.info(
-            "Api Security changed via remote-config. New sampling rate is {}% of all requests.",
-            pct);
       }
     }
   }
