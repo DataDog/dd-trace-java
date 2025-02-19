@@ -59,13 +59,13 @@ class ReactorNettyTest extends HttpClientTest implements TestingNettyHttpNamingC
   }
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+  int doRequest(String method, URI uri, List<List<String>> headers, String body, Closure callback) {
     HttpClientResponse resp = HttpClient.create()
       .doAfterRequest({ r, c -> c.addHandler("TimeoutHandler", new ReadTimeoutHandler(READ_TIMEOUT_MS, TimeUnit.MILLISECONDS)) })
       .baseUrl(server.address.toString())
       .headers {
         headers.each { h ->
-          it.set(h.key, h.value)
+          it.set(h[0], h[1])
         }
       }
       .request(HttpMethod.valueOf(method))
