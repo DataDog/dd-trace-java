@@ -13,7 +13,7 @@ struct JavaConfigurator {
 
 #[allow(non_snake_case)]
 #[no_mangle]
-pub fn Java_JavaConfigurator_new_1configurator<'local>(
+pub extern "system" fn Java_datadog_trace_bootstrap_config_provider_FfiStableConfig_new_1configurator<'local>(
     _env: JNIEnv<'local>,
     _class: JClass<'local>,
     debug_logs: jboolean,
@@ -28,7 +28,7 @@ pub fn Java_JavaConfigurator_new_1configurator<'local>(
 
 #[allow(non_snake_case)]
 #[no_mangle]
-pub fn Java_JavaConfigurator_drop<'local>(
+pub extern "system" fn Java_datadog_trace_bootstrap_config_provider_FfiStableConfig_drop_1configurator<'local>(
     _env: JNIEnv<'local>,
     _class: JClass<'local>,
     configurator: jlong,
@@ -38,7 +38,7 @@ pub fn Java_JavaConfigurator_drop<'local>(
 
 #[allow(non_snake_case)]
 #[no_mangle]
-pub fn Java_JavaConfigurator_override_1local_1path<'local>(
+pub extern "system" fn Java_datadog_trace_bootstrap_config_provider_FfiStableConfig_override_1local_1path<'local>(
     mut env: JNIEnv<'local>,
     _class: JClass<'local>,
     configurator: jlong,
@@ -57,7 +57,7 @@ pub fn Java_JavaConfigurator_override_1local_1path<'local>(
 
 #[allow(non_snake_case)]
 #[no_mangle]
-pub fn Java_JavaConfigurator_override_1fleet_1path<'local>(
+pub extern "system" fn Java_datadog_trace_bootstrap_config_provider_FfiStableConfig_override_1fleet_1path<'local>(
     mut env: JNIEnv<'local>,
     _class: JClass<'local>,
     configurator: jlong,
@@ -115,7 +115,7 @@ fn library_configs_to_java_maps<'local>(
 
 #[allow(non_snake_case)]
 #[no_mangle]
-pub fn Java_JavaConfigurator_get_1configuration<'local>(
+pub extern "system" fn Java_datadog_trace_bootstrap_config_provider_FfiStableConfig_get_1configuration<'local>(
     mut env: JNIEnv<'local>,
     _class: JClass<'local>,
     configurator: jlong,

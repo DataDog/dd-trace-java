@@ -9,34 +9,63 @@ import java.util.Map;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
 public final class StableConfigSource extends ConfigProvider.Source {
   private static final Logger log = LoggerFactory.getLogger(StableConfigSource.class);
 
-  public static final String USER_STABLE_CONFIG_PATH =
-      "/etc/datadog-agent/application_monitoring.yaml";
-  public static final String MANAGED_STABLE_CONFIG_PATH =
-      "/etc/datadog-agent/managed/datadog-apm-libraries/stable/application_monitoring.yaml";
+  // Static to only read the files once
+  private static FfiStableConfig.StableConfigResult ffiConfig;
+  private static boolean ffiConfigLoaded = false;
+
+
+  public static final String LOCAL_STABLE_CONFIG_PATH_OVERRIDE = ""; // Used for tests only
+  public static final String FLEET_STABLE_CONFIG_PATH_OVERRIDE = ""; // Used for tests only
+  
   public static StableConfigSource USER =
-      new StableConfigSource(USER_STABLE_CONFIG_PATH, ConfigOrigin.USER_STABLE_CONFIG);
+      new StableConfigSource(ConfigOrigin.USER_STABLE_CONFIG);
   public static final StableConfigSource MANAGED =
-      new StableConfigSource(
-          StableConfigSource.MANAGED_STABLE_CONFIG_PATH, ConfigOrigin.MANAGED_STABLE_CONFIG);
+      new StableConfigSource(ConfigOrigin.MANAGED_STABLE_CONFIG);
 
   private final ConfigOrigin fileOrigin;
 
   private final StableConfig config;
 
-  StableConfigSource(String file, ConfigOrigin origin) {
+  StableConfigSource(ConfigOrigin origin) {
+    this.config = new StableConfig();
     this.fileOrigin = origin;
-    StableConfig cfg;
-    try {
-      cfg = StableConfigParser.parse(file);
-    } catch (IOException e) {
-      log.debug("Stable configuration file not available at specified path: {}", file);
-      cfg = new StableConfig();
+
+    if (!ffiConfigLoaded) {
+      // Only do the IO once
+      try (FfiStableConfig configurator = new FfiStableConfig(false);) {
+        // Overrides for tests
+        if (!LOCAL_STABLE_CONFIG_PATH_OVERRIDE.isEmpty()) {
+          configurator.setLocalPath(LOCAL_STABLE_CONFIG_PATH_OVERRIDE);
+        }
+        if (!FLEET_STABLE_CONFIG_PATH_OVERRIDE.isEmpty()) {
+          configurator.setFleetPath(FLEET_STABLE_CONFIG_PATH_OVERRIDE);
+        }
+        ffiConfig = configurator.getConfiguration();
+        ffiConfigLoaded = true;
+      } catch (Throwable t) {
+        // Don't crash the customer app!
+        log.warn("Failed to load configuration from libdatadog (is the library loaded?). Err: " + t.getMessage());
+        return;
+      }
     }
-    this.config = cfg;
+    
+    Map<String, String> cfgMap;
+    if (origin == ConfigOrigin.MANAGED_STABLE_CONFIG) {
+      cfgMap = ffiConfig.fleet_configuration;
+    } else {
+      cfgMap = ffiConfig.local_configuration;
+    }
+
+    this.config.setConfigId(ffiConfig.config_id);
+    for (Map.Entry<String, String> entry : cfgMap.entrySet()) {
+      this.config.put(entry.getKey(), entry.getValue());
+    }
   }
 
   @Override

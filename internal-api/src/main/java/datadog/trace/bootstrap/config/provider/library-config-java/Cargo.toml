@@ -1,10 +1,17 @@
 [package]
 name = "datadog-library-config-java"
+version = "0.1.0"
+edition = "2021"
+
+[profile.release]
+lto = true
+strip = true
+opt-level = "z"
 
 [lib]
 crate-type = ["cdylib"]
 
 [dependencies]
-datadog-library-config = { git = "https://github.com/Datadog/libdatadog.git", tag = "16.0.3" }
+datadog-library-config = { git = "https://github.com/Datadog/libdatadog.git", tag = "v16.0.3" }
 jni = "0.21.1"
 anyhow = "1.0"
