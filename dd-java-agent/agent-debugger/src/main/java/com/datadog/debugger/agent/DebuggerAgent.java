@@ -147,13 +147,14 @@ public class DebuggerAgent {
     configurationPoller = sco.configurationPoller(config);
     if (configurationPoller != null) {
       if (config.isSymbolDatabaseEnabled()) {
+        SymbolAggregator symbolAggregator =
+            new SymbolAggregator(
+                classNameFilter,
+                debuggerSink.getSymbolSink(),
+                config.getSymbolDatabaseFlushThreshold());
+        symbolAggregator.start();
         symDBEnablement =
-            new SymDBEnablement(
-                instrumentation,
-                config,
-                new SymbolAggregator(
-                    debuggerSink.getSymbolSink(), config.getSymbolDatabaseFlushThreshold()),
-                classNameFilter);
+            new SymDBEnablement(instrumentation, config, symbolAggregator, classNameFilter);
         if (config.isSymbolDatabaseForceUpload()) {
           symDBEnablement.startSymbolExtraction();
         }
