@@ -451,9 +451,8 @@ public class PowerWAFModule implements AppSecModule {
           reqCtx.increaseRaspErrorCode(e.code);
           WafMetricCollector.get().raspErrorCode(gwCtx.raspRuleType, e.code);
         } else {
-          // TODO APPSEC-56703
-          // reqCtx.increaseWafErrorCode(e.code);
-          // WafMetricCollector.get().wafErrorCode(e.code);
+          reqCtx.increaseWafErrorCode(e.code);
+          WafMetricCollector.get().wafErrorCode(gwCtx.raspRuleType, e.code);
         }
         return;
       } finally {

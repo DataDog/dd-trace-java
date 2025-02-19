@@ -130,6 +130,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private volatile int raspInternalErrors;
   private volatile int raspInvalidObjectErrors;
   private volatile int raspInvalidArgumentErrors;
+  private volatile int wafInternalErrors;
+  private volatile int wafInvalidObjectErrors;
+  private volatile int wafInvalidArgumentErrors;
 
   // keep a reference to the last published usr.id
   private volatile String userId;
@@ -156,6 +159,17 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       RASP_INVALID_ARGUMENT_ERRORS_UPDATER =
           AtomicIntegerFieldUpdater.newUpdater(
               AppSecRequestContext.class, "raspInvalidArgumentErrors");
+
+  private static final AtomicIntegerFieldUpdater<AppSecRequestContext> WAF_INTERNAL_ERRORS_UPDATER =
+      AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "wafInternalErrors");
+  private static final AtomicIntegerFieldUpdater<AppSecRequestContext>
+      WAF_INVALID_OBJECT_ERRORS_UPDATER =
+          AtomicIntegerFieldUpdater.newUpdater(
+              AppSecRequestContext.class, "wafInvalidObjectErrors");
+  private static final AtomicIntegerFieldUpdater<AppSecRequestContext>
+      WAF_INVALID_ARGUMENT_ERRORS_UPDATER =
+          AtomicIntegerFieldUpdater.newUpdater(
+              AppSecRequestContext.class, "wafInvalidArgumentErrors");
 
   // to be called by the Event Dispatcher
   public void addAll(DataBundle newData) {
@@ -222,6 +236,22 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     }
   }
 
+  public void increaseWafErrorCode(int code) {
+    switch (code) {
+      case DD_WAF_RUN_INTERNAL_ERROR:
+        WAF_INTERNAL_ERRORS_UPDATER.incrementAndGet(this);
+        break;
+      case DD_WAF_RUN_INVALID_OBJECT_ERROR:
+        WAF_INVALID_OBJECT_ERRORS_UPDATER.incrementAndGet(this);
+        break;
+      case DD_WAF_RUN_INVALID_ARGUMENT_ERROR:
+        WAF_INVALID_ARGUMENT_ERRORS_UPDATER.incrementAndGet(this);
+        break;
+      default:
+        break;
+    }
+  }
+
   public int getWafTimeouts() {
     return wafTimeouts;
   }
@@ -238,6 +268,19 @@ public class AppSecRequestContext implements DataBundle, Closeable {
         return raspInvalidObjectErrors;
       case DD_WAF_RUN_INVALID_ARGUMENT_ERROR:
         return raspInvalidArgumentErrors;
+      default:
+        return 0;
+    }
+  }
+
+  public int getWafError(int code) {
+    switch (code) {
+      case DD_WAF_RUN_INTERNAL_ERROR:
+        return wafInternalErrors;
+      case DD_WAF_RUN_INVALID_OBJECT_ERROR:
+        return wafInvalidObjectErrors;
+      case DD_WAF_RUN_INVALID_ARGUMENT_ERROR:
+        return wafInvalidArgumentErrors;
       default:
         return 0;
     }
