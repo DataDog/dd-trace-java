@@ -20,17 +20,17 @@ class BaggagePropagatorTest extends DDCoreSpecification {
 
 
   static class MapCarrierAccessor
-    implements CarrierSetter<Map<String, String>>, CarrierVisitor<Map<String, String>> {
+  implements CarrierSetter<Map<String, String>>, CarrierVisitor<Map<String, String>> {
     @Override
     void set(Map<String, String> carrier, String key, String value) {
       if (carrier != null && key != null && value != null) {
-        carrier.put(key, value);
+        carrier.put(key, value)
       }
     }
 
     @Override
     void forEachKeyValue(Map<String, String> carrier, BiConsumer<String, String> visitor) {
-      carrier.forEach(visitor);
+      carrier.forEach(visitor)
     }
   }
 
@@ -49,7 +49,6 @@ class BaggagePropagatorTest extends DDCoreSpecification {
     this.propagator.inject(context, carrier, setter)
 
     then:
-//    1 * setter.set(carrier, BAGGAGE_KEY, baggageHeader)
     assert carrier[BAGGAGE_KEY] == baggageHeader
 
     where:
@@ -74,7 +73,6 @@ class BaggagePropagatorTest extends DDCoreSpecification {
     this.propagator.inject(context, carrier, setter)
 
     then:
-//    1 * setter.set(carrier, BAGGAGE_KEY, baggageHeader)
     assert carrier[BAGGAGE_KEY] == baggageHeader
 
     where:
@@ -93,7 +91,6 @@ class BaggagePropagatorTest extends DDCoreSpecification {
     this.propagator.inject(context, carrier, setter)
 
     then:
-//    1 * setter.set(carrier, BAGGAGE_KEY, baggageHeader)
     assert carrier[BAGGAGE_KEY] == baggageHeader
 
     where:
@@ -142,5 +139,29 @@ class BaggagePropagatorTest extends DDCoreSpecification {
     ""                                                                  | _
     ",,"                                                                | _
     "="                                                                 | _
+  }
+
+  def 'test baggage cache'() {
+    setup:
+    def headers = [
+      (BAGGAGE_KEY): baggageHeader,
+    ]
+
+    when:
+    context = this.propagator.extract(context, headers, ContextVisitors.stringValuesMap())
+
+    then:
+    BaggageContext.fromContext(context).getBaggage() == baggageMap
+
+    when:
+    this.propagator.inject(context, carrier, setter)
+
+    then:
+    1*_
+
+    where:
+    baggageHeader                                                      | baggageMap
+    "key1=val1,key2=val2,foo=bar,x=y"                                  | ["key1": "val1", "key2": "val2", "foo": "bar", "x": "y"]
+    "%22%2C%3B%5C%28%29%2F%3A%3C%3D%3E%3F%40%5B%5D%7B%7D=%22%2C%3B%5C" | ['",;\\()/:<=>?@[]{}': '",;\\']
   }
 }
