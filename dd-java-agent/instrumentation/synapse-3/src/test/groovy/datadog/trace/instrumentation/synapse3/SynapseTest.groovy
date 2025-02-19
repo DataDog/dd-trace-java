@@ -26,12 +26,12 @@ import org.apache.synapse.ServerConfigurationInformation
 import org.apache.synapse.ServerContextInformation
 import org.apache.synapse.ServerManager
 import org.apache.synapse.transport.passthru.PassThroughHttpListener
+import spock.lang.IgnoreIf
 import spock.lang.Shared
 
 import java.lang.reflect.Field
 import java.util.concurrent.TimeUnit
 
-@Flaky("Occasionally times out when receiving traces")
 abstract class SynapseTest extends VersionedNamingTestBase {
 
   String expectedServiceName() {
@@ -312,6 +312,7 @@ abstract class SynapseTest extends VersionedNamingTestBase {
 }
 
 @Flaky("Occasionally times out when receiving traces")
+@IgnoreIf(reason="AIDM-521", value = { System.getenv("CI") != null })
 class SynapseV0ForkedTest extends SynapseTest implements TestingGenericHttpNamingConventions.ClientV0 {
 
 
@@ -322,6 +323,7 @@ class SynapseV0ForkedTest extends SynapseTest implements TestingGenericHttpNamin
 }
 
 @Flaky("Occasionally times out when receiving traces")
+@IgnoreIf(reason="AIDM-521", value = { System.getenv("CI") != null })
 class SynapseV1ForkedTest extends SynapseTest implements TestingGenericHttpNamingConventions.ClientV1 {
 
   @Override
