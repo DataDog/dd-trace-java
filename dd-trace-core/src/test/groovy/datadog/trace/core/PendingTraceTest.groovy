@@ -52,7 +52,7 @@ class PendingTraceTest extends PendingTraceTestBase {
     when:
     def scope = tracer.activateSpan(rootSpan)
     setAsyncPropagationEnabled(true)
-    scope.capture()
+    tracer.captureActiveSpan()
     scope.close()
     rootSpan.finish()
 

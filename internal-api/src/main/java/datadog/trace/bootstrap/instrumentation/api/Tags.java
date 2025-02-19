@@ -102,6 +102,10 @@ public class Tags {
       "test.test_management.is_quarantined";
   public static final String TEST_TEST_MANAGEMENT_IS_TEST_DISABLED =
       "test.test_management.is_test_disabled";
+  public static final String TEST_TEST_MANAGEMENT_IS_ATTEMPT_TO_FIX =
+      "test.test_management.is_attempt_to_fix";
+  public static final String TEST_TEST_MANAGEMENT_ATTEMPT_TO_FIX_PASSED =
+      "test.test_management.attempt_to_fix_passed";
 
   public static final String CI_PROVIDER_NAME = "ci.provider.name";
   public static final String CI_PIPELINE_ID = "ci.pipeline.id";
@@ -146,6 +150,6 @@ public class Tags {
   /** ASM force tracer to keep the trace */
   public static final String ASM_KEEP = "asm.keep";
 
-  public static final String PROPAGATED_APPSEC = "_dd.p.appsec";
+  public static final String PROPAGATED_TRACE_SOURCE = "_dd.p.ts";
   public static final String PROPAGATED_DEBUG = "_dd.p.debug";
 }

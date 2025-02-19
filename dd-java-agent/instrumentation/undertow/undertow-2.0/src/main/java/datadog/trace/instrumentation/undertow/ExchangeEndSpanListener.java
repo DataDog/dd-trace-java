@@ -21,7 +21,7 @@ public class ExchangeEndSpanListener implements ExchangeCompletionListener {
       return;
     }
 
-    AgentSpan span = continuation.getSpan();
+    AgentSpan span = continuation.span();
 
     Throwable throwable = exchange.getAttachment(DefaultResponseListener.EXCEPTION);
     if (throwable != null) {

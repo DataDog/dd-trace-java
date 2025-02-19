@@ -175,6 +175,10 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
       test.setTag(Tags.TEST_TEST_MANAGEMENT_IS_TEST_DISABLED, true);
     }
 
+    if (testModule.isAttemptToFix(thisTest)) {
+      test.setTag(Tags.TEST_TEST_MANAGEMENT_IS_ATTEMPT_TO_FIX, true);
+    }
+
     if (testExecutionHistory != null) {
       RetryReason retryReason = testExecutionHistory.currentExecutionRetryReason();
       if (retryReason != null) {
@@ -249,9 +253,14 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
       return;
     }
 
+    TestIdentifier thisTest = test.getIdentifier();
     if (testExecutionHistory != null) {
       if (test.hasFailed() && testExecutionHistory.hasFailedAllRetries()) {
         test.setTag(Tags.TEST_HAS_FAILED_ALL_RETRIES, true);
+      } else if (!test.hasFailed()
+          && testModule.isAttemptToFix(thisTest)
+          && testExecutionHistory.hasSucceededAllRetries()) {
+        test.setTag(Tags.TEST_TEST_MANAGEMENT_ATTEMPT_TO_FIX_PASSED, true);
       }
     }
 

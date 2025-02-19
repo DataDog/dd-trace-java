@@ -86,11 +86,11 @@ import datadog.trace.core.histogram.Histograms;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.monitor.MonitoringImpl;
 import datadog.trace.core.monitor.TracerHealthMetrics;
+import datadog.trace.core.propagation.ApmTracingDisabledPropagator;
 import datadog.trace.core.propagation.CorePropagation;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.propagation.PropagationTags;
-import datadog.trace.core.propagation.StandaloneAsmPropagator;
 import datadog.trace.core.propagation.TracingPropagator;
 import datadog.trace.core.propagation.XRayPropagator;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
@@ -721,14 +721,16 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     HttpCodec.Extractor tracingExtractor =
         extractor == null ? HttpCodec.createExtractor(config, this::captureTraceConfig) : extractor;
     TracingPropagator tracingPropagator = new TracingPropagator(injector, tracingExtractor);
-    // Check if standalone AppSec is enabled:
-    // If enabled, use the standalone AppSec propagator by default that will limit tracing concern
+    // Check if apm tracing is disabled:
+    // If disabled, use the APM tracing disabled propagator by default that will limit tracing
+    // concern
     // injection and delegate to the tracing propagator if needed,
     // If disabled, the most common case, use the usual tracing propagator by default.
-    boolean standaloneAppSec = config.isAppSecStandaloneEnabled();
+    boolean apmTracingDisabled = !config.isApmTracingEnabled();
     boolean dsm = config.isDataStreamsEnabled();
-    Propagators.register(STANDALONE_ASM_CONCERN, new StandaloneAsmPropagator(), standaloneAppSec);
-    Propagators.register(TRACING_CONCERN, tracingPropagator, !standaloneAppSec);
+    Propagators.register(
+        STANDALONE_ASM_CONCERN, new ApmTracingDisabledPropagator(), apmTracingDisabled);
+    Propagators.register(TRACING_CONCERN, tracingPropagator, !apmTracingDisabled);
     Propagators.register(XRAY_TRACING_CONCERN, new XRayPropagator(config), false);
     if (dsm) {
       Propagators.register(DSM_CONCERN, this.dataStreamsMonitoring.propagator());
@@ -932,8 +934,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public AgentScope.Continuation captureActiveSpan() {
     AgentScope activeScope = this.scopeManager.active();
-    if (null != activeScope) {
-      return activeScope.capture();
+    if (null != activeScope && activeScope.isAsyncPropagating()) {
+      return scopeManager.captureSpan(activeScope.span(), activeScope.source());
     } else {
       return AgentTracer.noopContinuation();
     }
@@ -941,7 +943,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public AgentScope.Continuation captureSpan(final AgentSpan span) {
-    return scopeManager.captureSpan(span);
+    return scopeManager.captureSpan(span, ScopeSource.INSTRUMENTATION.id());
   }
 
   @Override
