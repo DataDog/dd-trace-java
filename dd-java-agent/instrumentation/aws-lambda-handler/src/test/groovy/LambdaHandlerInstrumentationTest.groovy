@@ -8,21 +8,6 @@ abstract class LambdaHandlerInstrumentationTest extends VersionedNamingTestBase 
     null
   }
 
-  def "test lambda handler"() {
-    when:
-    new Handler().handleRequest(null, null)
-
-    then:
-    assertTraces(1) {
-      trace(1) {
-        span {
-          operationName operation()
-          errored false
-        }
-      }
-    }
-  }
-
   def "test lambda streaming handler"() {
     when:
     def input = new ByteArrayInputStream(StandardCharsets.UTF_8.encode("Hello").array())

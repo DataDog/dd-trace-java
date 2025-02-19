@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.zio.v2_0;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.capture;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -16,7 +16,7 @@ public class FiberContext {
     this.state = state;
     this.scope = null;
     this.oldState = null;
-    this.continuation = capture();
+    this.continuation = captureActiveSpan();
   }
 
   public static FiberContext create() {

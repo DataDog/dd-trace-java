@@ -6,9 +6,10 @@ import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
-import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.execution.TestExecutionHistory;
+import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
-import datadog.trace.instrumentation.scalatest.retry.SuppressedTestFailedException;
+import datadog.trace.instrumentation.scalatest.execution.SuppressedTestFailedException;
 import java.util.Collection;
 import java.util.Collections;
 import org.scalatest.events.Event;
@@ -138,13 +139,12 @@ public class DatadogReporter {
     String testParameters = null;
     Collection<String> categories;
     TestIdentifier testIdentifier = new TestIdentifier(testSuiteName, testName, null);
-    if (context.unskippable(testIdentifier)) {
+    if (context.itrUnskippable(testIdentifier)) {
       categories = Collections.singletonList(InstrumentationBridge.ITR_UNSKIPPABLE_TAG);
     } else {
       categories = Collections.emptyList();
     }
     Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
-    TestRetryPolicy retryPolicy = context.popRetryPolicy(testIdentifier);
 
     eventHandler.onTestStart(
         new TestSuiteDescriptor(testSuiteName, testClass),
@@ -155,8 +155,8 @@ public class DatadogReporter {
         testParameters,
         categories,
         new TestSourceData(testClass, null, null),
-        retryPolicy != null && retryPolicy.currentExecutionIsRetry(),
-        null);
+        null,
+        context.getExecutionHistory(testIdentifier));
   }
 
   private static void onTestSuccess(TestSucceeded event) {
@@ -171,7 +171,11 @@ public class DatadogReporter {
     String testParameters = null;
     TestDescriptor testDescriptor =
         new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier);
-    eventHandler.onTestFinish(testDescriptor, null);
+
+    TestIdentifier testIdentifier = new TestIdentifier(testSuiteName, testName, null);
+    TestExecutionHistory executionHistory = context.popExecutionHistory(testIdentifier);
+
+    eventHandler.onTestFinish(testDescriptor, null, executionHistory);
   }
 
   private static void onTestFailure(TestFailed event) {
@@ -187,8 +191,12 @@ public class DatadogReporter {
     Throwable throwable = event.throwable().getOrElse(null);
     TestDescriptor testDescriptor =
         new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier);
+
+    TestIdentifier testIdentifier = new TestIdentifier(testSuiteName, testName, null);
+    TestExecutionHistory executionHistory = context.popExecutionHistory(testIdentifier);
+
     eventHandler.onTestFailure(testDescriptor, throwable);
-    eventHandler.onTestFinish(testDescriptor, null);
+    eventHandler.onTestFinish(testDescriptor, null, executionHistory);
   }
 
   private static void onTestIgnore(TestIgnored event) {
@@ -203,13 +211,8 @@ public class DatadogReporter {
     Collection<String> categories = Collections.emptyList();
     Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
 
-    String reason;
     TestIdentifier skippableTest = new TestIdentifier(testSuiteName, testName, null);
-    if (context.skipped(skippableTest)) {
-      reason = InstrumentationBridge.ITR_SKIP_REASON;
-    } else {
-      reason = null;
-    }
+    SkipReason reason = context.getSkipReason(skippableTest);
 
     eventHandler.onTestIgnore(
         new TestSuiteDescriptor(testSuiteName, testClass),
@@ -220,7 +223,7 @@ public class DatadogReporter {
         testParameters,
         categories,
         new TestSourceData(testClass, null, null),
-        reason);
+        reason != null ? reason.getDescription() : null);
   }
 
   private static void onTestCancel(TestCanceled event) {
@@ -243,7 +246,11 @@ public class DatadogReporter {
     } else {
       eventHandler.onTestSkip(testDescriptor, reason);
     }
-    eventHandler.onTestFinish(testDescriptor, null);
+
+    TestIdentifier testIdentifier = new TestIdentifier(testSuiteName, testName, null);
+    TestExecutionHistory executionHistory = context.popExecutionHistory(testIdentifier);
+
+    eventHandler.onTestFinish(testDescriptor, null, executionHistory);
   }
 
   private static void onTestPending(TestPending event) {
@@ -261,6 +268,10 @@ public class DatadogReporter {
     TestDescriptor testDescriptor =
         new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier);
     eventHandler.onTestSkip(testDescriptor, reason);
-    eventHandler.onTestFinish(testDescriptor, null);
+
+    TestIdentifier testIdentifier = new TestIdentifier(testSuiteName, testName, null);
+    TestExecutionHistory executionHistory = context.popExecutionHistory(testIdentifier);
+
+    eventHandler.onTestFinish(testDescriptor, null, executionHistory);
   }
 }

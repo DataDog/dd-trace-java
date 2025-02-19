@@ -19,7 +19,6 @@ import datadog.trace.bootstrap.debugger.ProbeId;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import org.joor.Reflect;
 import org.junit.jupiter.api.Test;
@@ -134,17 +133,14 @@ public class SpanProbeInstrumentationTest extends ProbeInstrumentationTest {
 
   private MockTracer installSpanProbes(SpanProbe... spanProbes) {
     return installSpanProbes(
-        Configuration.builder()
-            .setService(SERVICE_NAME)
-            .addSpanProbes(Arrays.asList(spanProbes))
-            .build());
+        Configuration.builder().setService(SERVICE_NAME).add(spanProbes).build());
   }
 
   private MockTracer installSpanProbes(Configuration configuration) {
     Config config = mock(Config.class);
-    when(config.isDebuggerEnabled()).thenReturn(true);
-    when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
-    when(config.isDebuggerVerifyByteCode()).thenReturn(true);
+    when(config.isDynamicInstrumentationEnabled()).thenReturn(true);
+    when(config.isDynamicInstrumentationClassFileDumpEnabled()).thenReturn(true);
+    when(config.isDynamicInstrumentationVerifyByteCode()).thenReturn(true);
     when(config.getFinalDebuggerSnapshotUrl())
         .thenReturn("http://localhost:8126/debugger/v1/input");
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");

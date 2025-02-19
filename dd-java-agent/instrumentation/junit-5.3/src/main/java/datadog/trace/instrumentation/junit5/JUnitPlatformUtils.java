@@ -185,10 +185,18 @@ public abstract class JUnitPlatformUtils {
   }
 
   public static boolean isRetry(TestDescriptor testDescriptor) {
+    return getIDSegmentValue(testDescriptor, RETRY_DESCRIPTOR_ID_SUFFIX) != null;
+  }
+
+  private static String getIDSegmentValue(TestDescriptor testDescriptor, String segmentName) {
     UniqueId uniqueId = testDescriptor.getUniqueId();
     List<UniqueId.Segment> segments = uniqueId.getSegments();
-    UniqueId.Segment lastSegment = segments.get(segments.size() - 1);
-    return RETRY_DESCRIPTOR_ID_SUFFIX.equals(lastSegment.getType());
+    for (UniqueId.Segment segment : segments) {
+      if (segmentName.equals(segment.getType())) {
+        return segment.getValue();
+      }
+    }
+    return null;
   }
 
   public static TestDescriptor getSuiteDescriptor(TestDescriptor testDescriptor) {

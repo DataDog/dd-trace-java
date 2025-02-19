@@ -1,6 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.rmi;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
+import static datadog.context.propagation.Propagators.defaultPropagator;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -9,6 +9,7 @@ import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.util.HashMap;
 import java.util.Map;
+import javax.annotation.ParametersAreNonnullByDefault;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,7 +34,7 @@ public class ContextPayload {
 
   public static ContextPayload from(final AgentSpan span) {
     final ContextPayload payload = new ContextPayload();
-    propagate().inject(span, payload, SETTER);
+    defaultPropagator().inject(span, payload, SETTER);
     return payload;
   }
 
@@ -54,6 +55,7 @@ public class ContextPayload {
     out.writeObject(context);
   }
 
+  @ParametersAreNonnullByDefault
   public static class InjectAdapter implements AgentPropagation.Setter<ContextPayload> {
     @Override
     public void set(final ContextPayload carrier, final String key, final String value) {

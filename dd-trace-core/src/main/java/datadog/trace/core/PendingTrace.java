@@ -7,6 +7,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.core.CoreTracer.ConfigSnapshot;
 import datadog.trace.core.monitor.HealthMetrics;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.TimeUnit;
@@ -447,5 +448,9 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
     }
     PendingTrace trace = (PendingTrace) traceCollector;
     return trace.getLastWriteTime() - span.getStartTime();
+  }
+
+  Collection<DDSpan> getSpans() {
+    return spans;
   }
 }

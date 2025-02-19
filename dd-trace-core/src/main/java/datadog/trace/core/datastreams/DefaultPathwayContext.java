@@ -7,10 +7,10 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import com.datadoghq.sketch.ddsketch.encoding.ByteArrayInput;
 import com.datadoghq.sketch.ddsketch.encoding.GrowingByteArrayOutput;
 import com.datadoghq.sketch.ddsketch.encoding.VarEncodingHelper;
+import datadog.context.propagation.CarrierVisitor;
 import datadog.trace.api.Config;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.time.TimeSource;
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
 import datadog.trace.util.FNV64Hash;
@@ -26,6 +26,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -267,7 +268,7 @@ public class DefaultPathwayContext implements PathwayContext {
     }
   }
 
-  private static class PathwayContextExtractor implements AgentPropagation.KeyClassifier {
+  private static class PathwayContextExtractor implements BiConsumer<String, String> {
     private final TimeSource timeSource;
     private final long hashOfKnownTags;
     private final String serviceNameOverride;
@@ -281,27 +282,25 @@ public class DefaultPathwayContext implements PathwayContext {
     }
 
     @Override
-    public boolean accept(String key, String value) {
+    public void accept(String key, String value) {
       if (PROPAGATION_KEY_BASE64.equalsIgnoreCase(key)) {
         try {
           extractedContext = decode(timeSource, hashOfKnownTags, serviceNameOverride, value);
-        } catch (IOException e) {
-          return false;
+        } catch (IOException ignored) {
         }
       }
-      return true;
     }
   }
 
   static <C> DefaultPathwayContext extract(
       C carrier,
-      AgentPropagation.ContextVisitor<C> getter,
+      CarrierVisitor<C> getter,
       TimeSource timeSource,
       long hashOfKnownTags,
       String serviceNameOverride) {
     PathwayContextExtractor pathwayContextExtractor =
         new PathwayContextExtractor(timeSource, hashOfKnownTags, serviceNameOverride);
-    getter.forEachKey(carrier, pathwayContextExtractor);
+    getter.forEachKeyValue(carrier, pathwayContextExtractor);
     if (pathwayContextExtractor.extractedContext == null) {
       log.debug("No context extracted");
     } else {

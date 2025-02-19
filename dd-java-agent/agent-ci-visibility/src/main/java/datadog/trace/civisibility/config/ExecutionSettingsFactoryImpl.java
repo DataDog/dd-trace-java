@@ -3,8 +3,7 @@ package datadog.trace.civisibility.config;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.CiVisibilityWellKnownTags;
-import datadog.trace.api.civisibility.config.TestIdentifier;
-import datadog.trace.api.civisibility.config.TestMetadata;
+import datadog.trace.api.civisibility.config.TestFQN;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.civisibility.ci.PullRequestInfo;
@@ -14,16 +13,21 @@ import datadog.trace.civisibility.diff.LineDiff;
 import datadog.trace.civisibility.git.tree.GitClient;
 import datadog.trace.civisibility.git.tree.GitDataUploader;
 import datadog.trace.civisibility.git.tree.GitRepoUnshallow;
-import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.BitSet;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -32,7 +36,10 @@ import org.slf4j.LoggerFactory;
 public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ExecutionSettingsFactoryImpl.class);
+
   private static final String TEST_CONFIGURATION_TAG_PREFIX = "test.configuration.";
+
+  private static final ThreadFactory THREAD_FACTORY = r -> new Thread(null, r, "dd-ci-vis-config");
 
   /**
    * A workaround for bulk-requesting module settings. For any module that has no settings that are
@@ -112,15 +119,66 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
         .build();
   }
 
-  private @Nonnull Map<String, ExecutionSettings> create(TracerEnvironment tracerEnvironment) {
-    CiVisibilitySettings ciVisibilitySettings = getCiVisibilitySettings(tracerEnvironment);
+  @Nonnull
+  private Map<String, ExecutionSettings> create(TracerEnvironment tracerEnvironment) {
+    CiVisibilitySettings settings = getCiVisibilitySettings(tracerEnvironment);
+    ExecutorService settingsExecutor = Executors.newCachedThreadPool(THREAD_FACTORY);
+    try {
+      return doCreate(tracerEnvironment, settings, settingsExecutor);
 
-    boolean itrEnabled = isItrEnabled(ciVisibilitySettings);
-    boolean codeCoverageEnabled = isCodeCoverageEnabled(ciVisibilitySettings);
-    boolean testSkippingEnabled = isTestSkippingEnabled(ciVisibilitySettings);
-    boolean flakyTestRetriesEnabled = isFlakyTestRetriesEnabled(ciVisibilitySettings);
-    boolean impactedTestsDetectionEnabled = isImpactedTestsDetectionEnabled(ciVisibilitySettings);
-    boolean earlyFlakeDetectionEnabled = isEarlyFlakeDetectionEnabled(ciVisibilitySettings);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      LOGGER.error("Interrupted while creating execution settings");
+      return Collections.singletonMap(DEFAULT_SETTINGS, ExecutionSettings.EMPTY);
+
+    } catch (ExecutionException e) {
+      LOGGER.error("Error while creating execution settings", e);
+      return Collections.singletonMap(DEFAULT_SETTINGS, ExecutionSettings.EMPTY);
+
+    } finally {
+      settingsExecutor.shutdownNow();
+    }
+  }
+
+  @Nonnull
+  private Map<String, ExecutionSettings> doCreate(
+      TracerEnvironment tracerEnvironment, CiVisibilitySettings settings, ExecutorService executor)
+      throws InterruptedException, ExecutionException {
+    boolean itrEnabled =
+        isFeatureEnabled(
+            settings, CiVisibilitySettings::isItrEnabled, Config::isCiVisibilityItrEnabled);
+    boolean codeCoverageEnabled =
+        isFeatureEnabled(
+            settings,
+            CiVisibilitySettings::isCodeCoverageEnabled,
+            Config::isCiVisibilityCodeCoverageEnabled);
+    boolean testSkippingEnabled =
+        isFeatureEnabled(
+            settings,
+            CiVisibilitySettings::isTestsSkippingEnabled,
+            Config::isCiVisibilityTestSkippingEnabled);
+    boolean flakyTestRetriesEnabled =
+        isFeatureEnabled(
+            settings,
+            CiVisibilitySettings::isFlakyTestRetriesEnabled,
+            Config::isCiVisibilityFlakyRetryEnabled);
+    boolean impactedTestsEnabled =
+        isFeatureEnabled(
+            settings,
+            CiVisibilitySettings::isImpactedTestsDetectionEnabled,
+            Config::isCiVisibilityImpactedTestsDetectionEnabled);
+    boolean earlyFlakeDetectionEnabled =
+        isFeatureEnabled(
+            settings,
+            s -> s.getEarlyFlakeDetectionSettings().isEnabled(),
+            Config::isCiVisibilityEarlyFlakeDetectionEnabled);
+    boolean knownTestsRequest =
+        isFeatureEnabled(
+            settings,
+            CiVisibilitySettings::isKnownTestsEnabled,
+            Config::isCiVisibilityKnownTestsRequestEnabled);
+
+    TestManagementSettings testManagementSettings = getTestManagementSettings(settings);
 
     LOGGER.info(
         "CI Visibility settings ({}, {}/{}/{}):\n"
@@ -129,7 +187,9 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
             + "Tests skipping - {},\n"
             + "Early flakiness detection - {},\n"
             + "Impacted tests detection - {},\n"
-            + "Auto test retries - {}",
+            + "Known tests marking - {},\n"
+            + "Auto test retries - {},\n"
+            + "Test Management - {}",
         repositoryRoot,
         tracerEnvironment.getConfigurations().getRuntimeName(),
         tracerEnvironment.getConfigurations().getRuntimeVersion(),
@@ -138,49 +198,51 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
         codeCoverageEnabled,
         testSkippingEnabled,
         earlyFlakeDetectionEnabled,
-        impactedTestsDetectionEnabled,
-        flakyTestRetriesEnabled);
+        impactedTestsEnabled,
+        knownTestsRequest,
+        flakyTestRetriesEnabled,
+        testManagementSettings.isEnabled());
 
-    String itrCorrelationId = null;
-    Map<String, Map<TestIdentifier, TestMetadata>> skippableTestIdentifiers =
-        Collections.emptyMap();
-    Map<String, BitSet> skippableTestsCoverage = null;
-    if (itrEnabled && repositoryRoot != null) {
-      SkippableTests skippableTests =
-          getSkippableTests(Paths.get(repositoryRoot), tracerEnvironment);
-      if (skippableTests != null) {
-        itrCorrelationId = skippableTests.getCorrelationId();
-        skippableTestIdentifiers = skippableTests.getIdentifiersByModule();
-        skippableTestsCoverage = skippableTests.getCoveredLinesByRelativeSourcePath();
-      }
-    }
+    Future<SkippableTests> skippableTestsFuture =
+        executor.submit(() -> getSkippableTests(tracerEnvironment, itrEnabled));
+    Future<Map<String, Collection<TestFQN>>> flakyTestsFuture =
+        executor.submit(() -> getFlakyTestsByModule(tracerEnvironment, flakyTestRetriesEnabled));
+    Future<Map<String, Collection<TestFQN>>> knownTestsFuture =
+        executor.submit(() -> getKnownTestsByModule(tracerEnvironment, knownTestsRequest));
+    Future<Map<TestSetting, Map<String, Collection<TestFQN>>>> testManagementTestsFuture =
+        executor.submit(
+            () ->
+                getTestManagementTestsByModule(
+                    tracerEnvironment, testManagementSettings.isEnabled()));
+    Future<Diff> pullRequestDiffFuture =
+        executor.submit(() -> getPullRequestDiff(tracerEnvironment, impactedTestsEnabled));
 
-    Map<String, Collection<TestIdentifier>> flakyTestsByModule =
-        flakyTestRetriesEnabled && config.isCiVisibilityFlakyRetryOnlyKnownFlakes()
-                || CIConstants.FAIL_FAST_TEST_ORDER.equalsIgnoreCase(
-                    config.getCiVisibilityTestOrder())
-            ? getFlakyTestsByModule(tracerEnvironment)
-            : null;
+    SkippableTests skippableTests = skippableTestsFuture.get();
+    Map<String, Collection<TestFQN>> flakyTestsByModule = flakyTestsFuture.get();
+    Map<String, Collection<TestFQN>> knownTestsByModule = knownTestsFuture.get();
 
-    Map<String, Collection<TestIdentifier>> knownTestsByModule =
-        earlyFlakeDetectionEnabled
-                || CIConstants.FAIL_FAST_TEST_ORDER.equalsIgnoreCase(
-                    config.getCiVisibilityTestOrder())
-            ? getKnownTestsByModule(tracerEnvironment)
-            : null;
+    Map<TestSetting, Map<String, Collection<TestFQN>>> testManagementTestsByModule =
+        testManagementTestsFuture.get();
+    Map<String, Collection<TestFQN>> quarantinedTestsByModule =
+        testManagementTestsByModule.getOrDefault(TestSetting.QUARANTINED, Collections.emptyMap());
+    Map<String, Collection<TestFQN>> disabledTestsByModule =
+        testManagementTestsByModule.getOrDefault(TestSetting.DISABLED, Collections.emptyMap());
+    Map<String, Collection<TestFQN>> attemptToFixTestsByModule =
+        testManagementTestsByModule.getOrDefault(
+            TestSetting.ATTEMPT_TO_FIX, Collections.emptyMap());
 
-    Set<String> moduleNames = new HashSet<>(Collections.singleton(DEFAULT_SETTINGS));
-    moduleNames.addAll(skippableTestIdentifiers.keySet());
-    if (flakyTestsByModule != null) {
-      moduleNames.addAll(flakyTestsByModule.keySet());
-    }
-    if (knownTestsByModule != null) {
-      moduleNames.addAll(knownTestsByModule.keySet());
-    }
-
-    Diff pullRequestDiff = getPullRequestDiff(impactedTestsDetectionEnabled, tracerEnvironment);
+    Diff pullRequestDiff = pullRequestDiffFuture.get();
 
     Map<String, ExecutionSettings> settingsByModule = new HashMap<>();
+    Set<String> moduleNames =
+        getModuleNames(
+            skippableTests,
+            flakyTestsByModule,
+            knownTestsByModule,
+            quarantinedTestsByModule,
+            disabledTestsByModule,
+            attemptToFixTestsByModule);
+
     for (String moduleName : moduleNames) {
       settingsByModule.put(
           moduleName,
@@ -189,17 +251,23 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
               codeCoverageEnabled,
               testSkippingEnabled,
               flakyTestRetriesEnabled,
-              impactedTestsDetectionEnabled,
+              impactedTestsEnabled,
               earlyFlakeDetectionEnabled
-                  ? ciVisibilitySettings.getEarlyFlakeDetectionSettings()
+                  ? settings.getEarlyFlakeDetectionSettings()
                   : EarlyFlakeDetectionSettings.DEFAULT,
-              itrCorrelationId,
-              skippableTestIdentifiers.getOrDefault(moduleName, Collections.emptyMap()),
-              skippableTestsCoverage,
+              testManagementSettings,
+              skippableTests.getCorrelationId(),
+              skippableTests
+                  .getIdentifiersByModule()
+                  .getOrDefault(moduleName, Collections.emptyMap()),
+              skippableTests.getCoveredLinesByRelativeSourcePath(),
               flakyTestsByModule != null
                   ? flakyTestsByModule.getOrDefault(moduleName, Collections.emptyList())
                   : null,
               knownTestsByModule != null ? knownTestsByModule.get(moduleName) : null,
+              quarantinedTestsByModule.getOrDefault(moduleName, Collections.emptyList()),
+              disabledTestsByModule.getOrDefault(moduleName, Collections.emptyList()),
+              attemptToFixTestsByModule.getOrDefault(moduleName, Collections.emptyList()),
               pullRequestDiff));
     }
     return settingsByModule;
@@ -225,38 +293,39 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
     }
   }
 
-  private boolean isItrEnabled(CiVisibilitySettings ciVisibilitySettings) {
-    return ciVisibilitySettings.isItrEnabled() && config.isCiVisibilityItrEnabled();
+  private boolean isFeatureEnabled(
+      CiVisibilitySettings ciVisibilitySettings,
+      Function<CiVisibilitySettings, Boolean> remoteSetting,
+      Function<Config, Boolean> killSwitch) {
+    return remoteSetting.apply(ciVisibilitySettings) && killSwitch.apply(config);
   }
 
-  private boolean isTestSkippingEnabled(CiVisibilitySettings ciVisibilitySettings) {
-    return ciVisibilitySettings.isTestsSkippingEnabled()
-        && config.isCiVisibilityTestSkippingEnabled();
+  @Nonnull
+  private TestManagementSettings getTestManagementSettings(CiVisibilitySettings settings) {
+    boolean testManagementEnabled =
+        isFeatureEnabled(
+            settings,
+            s -> s.getTestManagementSettings().isEnabled(),
+            Config::isCiVisibilityTestManagementEnabled);
+
+    if (!testManagementEnabled) {
+      return TestManagementSettings.DEFAULT;
+    }
+
+    Integer retries = config.getCiVisibilityTestManagementAttemptToFixRetries();
+    if (retries != null) {
+      return new TestManagementSettings(true, retries);
+    }
+
+    return settings.getTestManagementSettings();
   }
 
-  private boolean isCodeCoverageEnabled(CiVisibilitySettings ciVisibilitySettings) {
-    return ciVisibilitySettings.isCodeCoverageEnabled()
-        && config.isCiVisibilityCodeCoverageEnabled();
-  }
-
-  private boolean isFlakyTestRetriesEnabled(CiVisibilitySettings ciVisibilitySettings) {
-    return ciVisibilitySettings.isFlakyTestRetriesEnabled()
-        && config.isCiVisibilityFlakyRetryEnabled();
-  }
-
-  private boolean isImpactedTestsDetectionEnabled(CiVisibilitySettings ciVisibilitySettings) {
-    return ciVisibilitySettings.isImpactedTestsDetectionEnabled()
-        && config.isCiVisibilityImpactedTestsDetectionEnabled();
-  }
-
-  private boolean isEarlyFlakeDetectionEnabled(CiVisibilitySettings ciVisibilitySettings) {
-    return ciVisibilitySettings.getEarlyFlakeDetectionSettings().isEnabled()
-        && config.isCiVisibilityEarlyFlakeDetectionEnabled();
-  }
-
-  @Nullable
+  @Nonnull
   private SkippableTests getSkippableTests(
-      Path repositoryRoot, TracerEnvironment tracerEnvironment) {
+      TracerEnvironment tracerEnvironment, boolean itrEnabled) {
+    if (!itrEnabled || repositoryRoot == null) {
+      return SkippableTests.EMPTY;
+    }
     try {
       // ensure git data upload is finished before asking for tests
       gitDataUploader
@@ -264,37 +333,52 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
           .get(config.getCiVisibilityGitUploadTimeoutMillis(), TimeUnit.MILLISECONDS);
 
       SkippableTests skippableTests = configurationApi.getSkippableTests(tracerEnvironment);
-      LOGGER.debug(
-          "Received {} skippable tests in total for {}",
-          skippableTests.getIdentifiersByModule().size(),
-          repositoryRoot);
+
+      if (LOGGER.isDebugEnabled()) {
+        int totalSkippableTests =
+            skippableTests.getIdentifiersByModule().values().stream()
+                .filter(Objects::nonNull)
+                .mapToInt(Map::size)
+                .sum();
+        LOGGER.debug(
+            "Received {} skippable tests in total for {}",
+            totalSkippableTests,
+            Paths.get(repositoryRoot));
+      }
 
       return skippableTests;
 
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       LOGGER.error("Interrupted while waiting for git data upload", e);
-      return null;
-
+      return SkippableTests.EMPTY;
     } catch (Exception e) {
       LOGGER.error("Could not obtain list of skippable tests, will proceed without skipping", e);
+      return SkippableTests.EMPTY;
+    }
+  }
+
+  @Nullable
+  private Map<String, Collection<TestFQN>> getFlakyTestsByModule(
+      TracerEnvironment tracerEnvironment, boolean flakyTestRetriesEnabled) {
+    if (!(flakyTestRetriesEnabled && config.isCiVisibilityFlakyRetryOnlyKnownFlakes())
+        && !CIConstants.FAIL_FAST_TEST_ORDER.equalsIgnoreCase(config.getCiVisibilityTestOrder())) {
+      return null;
+    }
+    try {
+      return configurationApi.getFlakyTestsByModule(tracerEnvironment);
+    } catch (Exception e) {
+      LOGGER.error("Could not obtain list of flaky tests", e);
       return null;
     }
   }
 
-  private Map<String, Collection<TestIdentifier>> getFlakyTestsByModule(
-      TracerEnvironment tracerEnvironment) {
-    try {
-      return configurationApi.getFlakyTestsByModule(tracerEnvironment);
-
-    } catch (Exception e) {
-      LOGGER.error("Could not obtain list of flaky tests", e);
-      return Collections.emptyMap();
+  @Nullable
+  private Map<String, Collection<TestFQN>> getKnownTestsByModule(
+      TracerEnvironment tracerEnvironment, boolean knownTestsRequest) {
+    if (!knownTestsRequest) {
+      return null;
     }
-  }
-
-  private Map<String, Collection<TestIdentifier>> getKnownTestsByModule(
-      TracerEnvironment tracerEnvironment) {
     try {
       return configurationApi.getKnownTestsByModule(tracerEnvironment);
 
@@ -304,9 +388,24 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
     }
   }
 
+  @Nullable
+  private Map<TestSetting, Map<String, Collection<TestFQN>>> getTestManagementTestsByModule(
+      TracerEnvironment tracerEnvironment, boolean testManagementTestsRequest) {
+    if (!testManagementTestsRequest) {
+      return Collections.emptyMap();
+    }
+    try {
+      return configurationApi.getTestManagementTestsByModule(tracerEnvironment);
+
+    } catch (Exception e) {
+      LOGGER.error("Could not obtain list of test management tests", e);
+      return Collections.emptyMap();
+    }
+  }
+
   @Nonnull
   private Diff getPullRequestDiff(
-      boolean impactedTestsDetectionEnabled, TracerEnvironment tracerEnvironment) {
+      TracerEnvironment tracerEnvironment, boolean impactedTestsDetectionEnabled) {
     if (!impactedTestsDetectionEnabled) {
       return LineDiff.EMPTY;
     }
@@ -332,30 +431,54 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
       LOGGER.error("Could not get git diff for PR: {}", pullRequestInfo, e);
     }
 
-    try {
-      ChangedFiles changedFiles = configurationApi.getChangedFiles(tracerEnvironment);
+    if (config.isCiVisibilityImpactedTestsBackendRequestEnabled()) {
+      try {
+        ChangedFiles changedFiles = configurationApi.getChangedFiles(tracerEnvironment);
 
-      // attempting to use base SHA returned by the backend to calculate git diff
-      if (repositoryRoot != null) {
-        // ensure repo is not shallow before attempting to get git diff
-        gitRepoUnshallow.unshallow();
-        Diff diff = gitClient.getGitDiff(changedFiles.getBaseSha(), tracerEnvironment.getSha());
-        if (diff != null) {
-          return diff;
+        // attempting to use base SHA returned by the backend to calculate git diff
+        if (repositoryRoot != null) {
+          // ensure repo is not shallow before attempting to get git diff
+          gitRepoUnshallow.unshallow();
+          Diff diff = gitClient.getGitDiff(changedFiles.getBaseSha(), tracerEnvironment.getSha());
+          if (diff != null) {
+            return diff;
+          }
         }
+
+        // falling back to file-level granularity
+        return new FileDiff(changedFiles.getFiles());
+
+      } catch (InterruptedException e) {
+        LOGGER.error("Interrupted while getting git diff for: {}", tracerEnvironment, e);
+        Thread.currentThread().interrupt();
+
+      } catch (Exception e) {
+        LOGGER.error("Could not get git diff for: {}", tracerEnvironment, e);
       }
-
-      // falling back to file-level granularity
-      return new FileDiff(changedFiles.getFiles());
-
-    } catch (InterruptedException e) {
-      LOGGER.error("Interrupted while getting git diff for: {}", tracerEnvironment, e);
-      Thread.currentThread().interrupt();
-
-    } catch (Exception e) {
-      LOGGER.error("Could not get git diff for: {}", tracerEnvironment, e);
     }
 
     return LineDiff.EMPTY;
+  }
+
+  @Nonnull
+  private static Set<String> getModuleNames(
+      @Nonnull SkippableTests skippableTests,
+      @Nullable Map<String, Collection<TestFQN>> flakyTestsByModule,
+      @Nullable Map<String, Collection<TestFQN>> knownTestsByModule,
+      @Nonnull Map<String, Collection<TestFQN>> quarantinedTestsByModule,
+      @Nonnull Map<String, Collection<TestFQN>> disabledTestsByModule,
+      @Nonnull Map<String, Collection<TestFQN>> attemptToFixTestsByModule) {
+    Set<String> moduleNames = new HashSet<>(Collections.singleton(DEFAULT_SETTINGS));
+    moduleNames.addAll(skippableTests.getIdentifiersByModule().keySet());
+    if (flakyTestsByModule != null) {
+      moduleNames.addAll(flakyTestsByModule.keySet());
+    }
+    if (knownTestsByModule != null) {
+      moduleNames.addAll(knownTestsByModule.keySet());
+    }
+    moduleNames.addAll(quarantinedTestsByModule.keySet());
+    moduleNames.addAll(disabledTestsByModule.keySet());
+    moduleNames.addAll(attemptToFixTestsByModule.keySet());
+    return moduleNames;
   }
 }

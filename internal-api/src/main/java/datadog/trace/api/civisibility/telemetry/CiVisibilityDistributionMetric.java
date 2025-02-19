@@ -40,11 +40,11 @@ public enum CiVisibilityDistributionMetric {
   /** The number of files covered inside a coverage payload */
   CODE_COVERAGE_FILES("code_coverage.files"),
   /* The time it takes to get the response of the known tests endpoint request in ms */
-  EFD_REQUEST_MS("early_flake_detection.request_ms"),
+  KNOWN_TESTS_REQUEST_MS("known_tests.request_ms"),
   /** The number of bytes received by the known tests endpoint */
-  EFD_RESPONSE_BYTES("early_flake_detection.response_bytes", ResponseCompressed.class),
+  KNOWN_TESTS_RESPONSE_BYTES("known_tests.response_bytes", ResponseCompressed.class),
   /** The number of tests received by the known tests endpoint */
-  EFD_RESPONSE_TESTS("early_flake_detection.response_tests"),
+  KNOWN_TESTS_RESPONSE_TESTS("known_tests.response_tests"),
   /** The time it takes to get the response of the flaky tests endpoint request in ms */
   FLAKY_TESTS_REQUEST_MS("flaky_tests.request_ms"),
   /** The number of bytes received by the flaky tests endpoint */
@@ -57,7 +57,13 @@ public enum CiVisibilityDistributionMetric {
   IMPACTED_TESTS_DETECTION_RESPONSE_BYTES(
       "impacted_tests_detection.response_bytes", ResponseCompressed.class),
   /** The number of files received by the changed files endpoint */
-  IMPACTED_TESTS_DETECTION_RESPONSE_FILES("impacted_tests_detection.response_files");
+  IMPACTED_TESTS_DETECTION_RESPONSE_FILES("impacted_tests_detection.response_files"),
+  /** The time it takes to get the response of the test management tests endpoint request in ms */
+  TEST_MANAGEMENT_TESTS_REQUEST_MS("test_management.request_ms"),
+  /** The number of bytes received by the test management tests endpoint */
+  TEST_MANAGEMENT_TESTS_RESPONSE_BYTES("test_management.response_bytes", ResponseCompressed.class),
+  /** The number of tests received by the test management tests endpoint */
+  TEST_MANAGEMENT_TESTS_RESPONSE_TESTS("test_management.response_tests");
 
   private static final String NAMESPACE = "civisibility";
 

@@ -354,6 +354,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     false
   }
 
+  boolean testBlockingErrorTypeSet() {
+    true
+  }
+
   /** Tomcat 5.5 can't seem to handle the encoded URIs */
   boolean testEncodedPath() {
     true
@@ -1708,9 +1712,11 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     List<DDSpan> spans = TEST_WRITER.flatten()
     spans.find { it.tags['http.status_code'] == 413 } != null
     spans.find { it.tags['appsec.blocked'] == 'true' } != null
-    spans.find {
-      it.error &&
-      it.tags['error.type'] == BlockingException.name } != null
+    if (testBlockingErrorTypeSet()) {
+      spans.find {
+        it.error &&
+        it.tags['error.type'] == BlockingException.name } != null
+    }
 
     and:
     if (isDataStreamsEnabled()) {

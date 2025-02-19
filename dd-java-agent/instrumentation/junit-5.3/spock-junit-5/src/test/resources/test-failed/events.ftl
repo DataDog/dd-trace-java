@@ -54,7 +54,6 @@
       "test.codeowners" : "[\"owner1\",\"owner2\"]",
       "test.framework" : "spock",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.is_new" : "true",
       "test.module" : "spock-junit-5",
       "test.name" : "test failed",
       "test.source.file" : "dummy_source_path",

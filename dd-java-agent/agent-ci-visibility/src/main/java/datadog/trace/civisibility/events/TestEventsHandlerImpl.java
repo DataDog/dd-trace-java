@@ -8,10 +8,13 @@ import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
-import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.execution.TestExecutionHistory;
+import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.EventType;
+import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
+import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -137,8 +140,8 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
       final @Nullable String testParameters,
       final @Nullable Collection<String> categories,
       final @Nonnull TestSourceData testSourceData,
-      final boolean isRetry,
-      @Nullable Long startTime) {
+      final @Nullable Long startTime,
+      final @Nullable TestExecutionHistory testExecutionHistory) {
     if (skipTrace(testSourceData.getTestClass())) {
       return;
     }
@@ -164,6 +167,22 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
       test.setTag(Tags.TEST_IS_MODIFIED, true);
     }
 
+    if (testModule.isQuarantined(thisTest)) {
+      test.setTag(Tags.TEST_TEST_MANAGEMENT_IS_QUARANTINED, true);
+    }
+
+    if (testModule.isDisabled(thisTest)) {
+      test.setTag(Tags.TEST_TEST_MANAGEMENT_IS_TEST_DISABLED, true);
+    }
+
+    if (testExecutionHistory != null) {
+      RetryReason retryReason = testExecutionHistory.currentExecutionRetryReason();
+      if (retryReason != null) {
+        test.setTag(Tags.TEST_IS_RETRY, true);
+        test.setTag(Tags.TEST_RETRY_REASON, retryReason);
+      }
+    }
+
     if (testFramework != null) {
       test.setTag(Tags.TEST_FRAMEWORK, testFramework);
       if (testFrameworkVersion != null) {
@@ -187,17 +206,13 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
           test.setTag(Tags.TEST_ITR_UNSKIPPABLE, true);
           metricCollector.add(CiVisibilityCountMetric.ITR_UNSKIPPABLE, 1, EventType.TEST);
 
-          if (testModule.shouldBeSkipped(thisTest)) {
+          if (testModule.skipReason(thisTest) == SkipReason.ITR) {
             test.setTag(Tags.TEST_ITR_FORCED_RUN, true);
             metricCollector.add(CiVisibilityCountMetric.ITR_FORCED_RUN, 1, EventType.TEST);
           }
           break;
         }
       }
-    }
-
-    if (isRetry) {
-      test.setTag(Tags.TEST_IS_RETRY, true);
     }
 
     inProgressTests.put(descriptor, test);
@@ -224,12 +239,22 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
   }
 
   @Override
-  public void onTestFinish(TestKey descriptor, @Nullable Long endTime) {
+  public void onTestFinish(
+      TestKey descriptor,
+      @Nullable Long endTime,
+      @Nullable TestExecutionHistory testExecutionHistory) {
     TestImpl test = inProgressTests.remove(descriptor);
     if (test == null) {
       log.debug("Ignoring finish event, could not find test {}", descriptor);
       return;
     }
+
+    if (testExecutionHistory != null) {
+      if (test.hasFailed() && testExecutionHistory.hasFailedAllRetries()) {
+        test.setTag(Tags.TEST_HAS_FAILED_ALL_RETRIES, true);
+      }
+    }
+
     test.end(endTime);
   }
 
@@ -253,26 +278,16 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
         testParameters,
         categories,
         testSourceData,
-        false,
+        null,
         null);
     onTestSkip(testDescriptor, reason);
-    onTestFinish(testDescriptor, null);
-  }
-
-  @Override
-  public boolean skip(TestIdentifier test) {
-    return testModule.skip(test);
-  }
-
-  @Override
-  public boolean shouldBeSkipped(TestIdentifier test) {
-    return testModule.shouldBeSkipped(test);
+    onTestFinish(testDescriptor, null, null);
   }
 
   @Override
   @Nonnull
-  public TestRetryPolicy retryPolicy(TestIdentifier test, TestSourceData testSource) {
-    return testModule.retryPolicy(test, testSource);
+  public TestExecutionPolicy executionPolicy(TestIdentifier test, TestSourceData testSource) {
+    return testModule.executionPolicy(test, testSource);
   }
 
   @Override
@@ -283,6 +298,12 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
   @Override
   public boolean isFlaky(TestIdentifier test) {
     return testModule.isFlaky(test);
+  }
+
+  @Nullable
+  @Override
+  public SkipReason skipReason(TestIdentifier test) {
+    return testModule.skipReason(test);
   }
 
   @Override

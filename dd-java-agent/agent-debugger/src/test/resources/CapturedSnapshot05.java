@@ -23,13 +23,13 @@ public class CapturedSnapshot05 {
       if (arg == 1)
         throw new IllegalArgumentException("nope!");
       throw new FileNotFoundException("not there");
-    } catch (IllegalStateException ex) {
+    } catch (IllegalStateException ex) { // beae1817-f3b0-4ea8-a74f-000000000001
       // swallowed with empty catch block
     } catch (IllegalArgumentException ex) {
-      ex.printStackTrace();
+      ex.printStackTrace(); // beae1817-f3b0-4ea8-a74f-000000000002
       return 0;
     } catch (Throwable ex) {
-      return -1;
+      return -1; // beae1817-f3b0-4ea8-a74f-000000000003
     }
     return 42;
   }

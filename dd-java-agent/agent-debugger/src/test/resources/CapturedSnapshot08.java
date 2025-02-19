@@ -5,13 +5,13 @@ public class CapturedSnapshot08 {
     return INSTANCE.doit(arg);
   }
 
-  private int doit(String arg) {
-    int var1 = 1;
+  private int doit(String arg) { // beae1817-f3b0-4ea8-a74f-000000000002
+    int var1 = 1; // beae1817-f3b0-4ea8-a74f-000000000001
     if (Integer.parseInt(arg) == 2) {
       var1 = 2;
       return var1;
     }
-    var1 = 3;
+    var1 = 3; // beae1817-f3b0-4ea8-a74f-000000000003, beae1817-f3b0-4ea8-a74f-000000000004
     return var1;
   }
 

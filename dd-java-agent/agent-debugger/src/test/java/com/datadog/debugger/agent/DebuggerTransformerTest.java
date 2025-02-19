@@ -37,6 +37,8 @@ import java.io.File;
 import java.io.InputStreamReader;
 import java.lang.instrument.Instrumentation;
 import java.lang.reflect.Field;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -137,11 +139,10 @@ public class DebuggerTransformerTest {
   @Test
   public void testDump() {
     Config config = createConfig();
-    final String JAVA_IO_TMPDIR = "java.io.tmpdir";
-    String initialTmpDir = System.getProperty(JAVA_IO_TMPDIR);
-    System.setProperty(JAVA_IO_TMPDIR, "/tmp");
+    Path initialTmpDir = DebuggerTransformer.DUMP_PATH;
+    DebuggerTransformer.DUMP_PATH = Paths.get("/tmp/debugger");
     try {
-      when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
+      when(config.isDynamicInstrumentationClassFileDumpEnabled()).thenReturn(true);
       File instrumentedClassFile = new File("/tmp/debugger/java.util.ArrayList.class");
       File origClassFile = new File("/tmp/debugger/java.util.ArrayList_orig.class");
       if (instrumentedClassFile.exists()) {
@@ -166,7 +167,7 @@ public class DebuggerTransformerTest {
       Assertions.assertTrue(instrumentedClassFile.delete());
       Assertions.assertTrue(origClassFile.delete());
     } finally {
-      System.setProperty(JAVA_IO_TMPDIR, initialTmpDir);
+      DebuggerTransformer.DUMP_PATH = initialTmpDir;
     }
   }
 
@@ -311,8 +312,7 @@ public class DebuggerTransformerTest {
     Configuration configuration =
         Configuration.builder()
             .setService(SERVICE_NAME)
-            .addSpanProbes(Collections.singletonList(mockProbe))
-            .addLogProbes(Arrays.asList(logProbe1, logProbe2))
+            .add(mockProbe, logProbe1, logProbe2)
             .build();
     AtomicReference<InstrumentationResult> lastResult = new AtomicReference<>(null);
     ProbeStatusSink probeStatusSink = mock(ProbeStatusSink.class);
@@ -400,7 +400,7 @@ public class DebuggerTransformerTest {
     when(config.getFinalDebuggerSnapshotUrl())
         .thenReturn("http://localhost:8126/debugger/v1/input");
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
-    when(config.getDebuggerUploadBatchSize()).thenReturn(100);
+    when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
     return config;
   }
 

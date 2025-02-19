@@ -8,6 +8,7 @@ import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.PidHelper;
 import java.io.IOException;
+import java.nio.file.FileSystems;
 import java.nio.file.FileVisitResult;
 import java.nio.file.FileVisitor;
 import java.nio.file.Files;
@@ -344,9 +345,16 @@ public final class TempLocationManager {
         subPath != null && !subPath.toString().isEmpty() ? tempDir.resolve(subPath) : tempDir;
     if (create && !Files.exists(rslt)) {
       try {
-        Files.createDirectories(
-            rslt,
-            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
+        Set<String> supportedViews = FileSystems.getDefault().supportedFileAttributeViews();
+        if (supportedViews.contains("posix")) {
+          Files.createDirectories(
+              rslt,
+              PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
+        } else {
+          // non-posix, eg. Windows - let's rely on the created folders being world-writable
+          Files.createDirectories(rslt);
+        }
+
       } catch (Exception e) {
         log.warn(SEND_TELEMETRY, "Failed to create temp directory: {}", tempDir, e);
         throw new IllegalStateException("Failed to create temp directory: " + tempDir, e);

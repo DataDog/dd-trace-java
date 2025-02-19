@@ -10,7 +10,6 @@ import static net.bytebuddy.asm.Advice.OnMethodEnter;
 import static net.bytebuddy.asm.Advice.OnMethodExit;
 import static net.bytebuddy.asm.Advice.Origin;
 import static net.bytebuddy.asm.Advice.This;
-import static net.bytebuddy.implementation.bytecode.assign.Assigner.Typing.DYNAMIC;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
@@ -66,20 +65,14 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    // two args
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("handleRequest"))
-            .and(takesArgument(1, named("com.amazonaws.services.lambda.runtime.Context"))),
-        getClass().getName() + "$ExtensionCommunicationAdvice");
-    // three args (streaming)
+    // lambda under the hood converts all handlers to streaming handlers via
+    // lambdainternal.EventHandlerLoader$PojoHandlerAsStreamHandler.handleRequest
+    // full spec here : https://docs.aws.amazon.com/lambda/latest/dg/java-handler.html
     transformer.applyAdvice(
         isMethod()
             .and(named("handleRequest"))
             .and(takesArgument(2, named("com.amazonaws.services.lambda.runtime.Context"))),
         getClass().getName() + "$ExtensionCommunicationAdvice");
-    // full spec here : https://docs.aws.amazon.com/lambda/latest/dg/java-handler.html
-
   }
 
   public static class ExtensionCommunicationAdvice {
@@ -108,7 +101,7 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
     static void exit(
         @Origin String method,
         @Enter final AgentScope scope,
-        @Advice.Return(typing = DYNAMIC) final Object result,
+        @Advice.Argument(1) final Object result,
         @Advice.Thrown final Throwable throwable) {
 
       if (scope == null) {

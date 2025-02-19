@@ -1,9 +1,6 @@
-import datadog.trace.bootstrap.debugger.DebuggerContext.CodeOriginRecorder
 import com.google.common.util.concurrent.MoreExecutors
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
-import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.debugger.DebuggerContext
-import datadog.trace.bootstrap.instrumentation.api.Tags
 import example.GreeterGrpc
 import example.Helloworld
 import io.grpc.BindableService
@@ -13,17 +10,15 @@ import io.grpc.inprocess.InProcessChannelBuilder
 import io.grpc.inprocess.InProcessServerBuilder
 import io.grpc.stub.StreamObserver
 
-import java.lang.reflect.Method
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
-import static datadog.trace.api.config.TraceInstrumentationConfig.*
+import static datadog.trace.agent.test.asserts.TagsAssert.assertTags
+
 
 abstract class GrpcCodeOriginTest extends VersionedNamingTestBase {
-  def codeOriginRecorder
-
   @Override
   final String service() {
     return null
@@ -56,7 +51,7 @@ abstract class GrpcCodeOriginTest extends VersionedNamingTestBase {
     codeOriginSetup()
   }
 
-  def "test conversation #name"() {
+  def "code origin test #name"() {
     setup:
 
     def msgCount = serverMessageCount
@@ -155,77 +150,13 @@ abstract class GrpcCodeOriginTest extends VersionedNamingTestBase {
       }
     }.flatten().sort()
 
-
-    assert codeOriginRecorder.invoked
-    assertTraces(2) {
-      trace((hasClientMessageSpans() ? clientMessageCount * serverMessageCount : 0) + 1) {
-        span {
-          operationName clientOperation()
-          resourceName "example.Greeter/Conversation"
-          spanType DDSpanTypes.RPC
-          parent()
-          errored false
-          tags {
-            "$Tags.COMPONENT" "grpc-client"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.RPC_SERVICE" "example.Greeter"
-            "status.code" "OK"
-            "request.type" "example.Helloworld\$Response"
-            "response.type" "example.Helloworld\$Response"
-            peerServiceFrom(Tags.RPC_SERVICE)
-            defaultTags()
-          }
-        }
-        if (hasClientMessageSpans()) {
-          (1..(clientMessageCount * serverMessageCount)).each {
-            span {
-              operationName "grpc.message"
-              resourceName "grpc.message"
-              spanType DDSpanTypes.RPC
-              childOf span(0)
-              errored false
-              tags {
-                "$Tags.COMPONENT" "grpc-client"
-                "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-                "message.type" "example.Helloworld\$Response"
-                defaultTagsNoPeerService()
-              }
-            }
-          }
-        }
-      }
-      trace(clientMessageCount + 1) {
-        span {
-          operationName serverOperation()
-          resourceName "example.Greeter/Conversation"
-          spanType DDSpanTypes.RPC
-          childOf trace(0).get(0)
-          errored false
-          tags {
-            "$Tags.COMPONENT" "grpc-server"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-            "status.code" "OK"
-
-            defaultTags(true)
-          }
-        }
-        clientRange.each {
-          span {
-            operationName "grpc.message"
-            resourceName "grpc.message"
-            spanType DDSpanTypes.RPC
-            childOf span(0)
-            errored false
-            tags {
-              "$Tags.COMPONENT" "grpc-server"
-              "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-              "message.type" "example.Helloworld\$Response"
-              defaultTags()
-            }
-          }
-        }
-      }
+    assert DebuggerContext.codeOriginRecorder != null
+    def span = TEST_WRITER.flatten().find {
+      it.operationName.toString() == "grpc.server.request"
     }
+    assertTags(span, {
+      it.codeOriginTags()
+    }, false)
 
     cleanup:
     channel?.shutdownNow()?.awaitTermination(10, TimeUnit.SECONDS)
@@ -246,26 +177,6 @@ abstract class GrpcCodeOriginTest extends VersionedNamingTestBase {
 
     clientRange = 1..clientMessageCount
     serverRange = 1..serverMessageCount
-  }
-
-
-  void codeOriginSetup() {
-    injectSysConfig(CODE_ORIGIN_FOR_SPANS_ENABLED, "true", true)
-    codeOriginRecorder = new CodeOriginRecorder() {
-        def invoked = false
-        @Override
-        String captureCodeOrigin(boolean entry) {
-          invoked = true
-          return "done"
-        }
-
-        @Override
-        String captureCodeOrigin(Method method, boolean entry) {
-          invoked = true
-          return "done"
-        }
-      }
-    DebuggerContext.initCodeOrigin(codeOriginRecorder)
   }
 }
 

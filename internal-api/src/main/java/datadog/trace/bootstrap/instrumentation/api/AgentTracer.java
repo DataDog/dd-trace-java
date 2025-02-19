@@ -1,20 +1,15 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
-import static java.util.Collections.emptyList;
 
 import datadog.trace.api.ConfigDefaults;
-import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.EndpointCheckpointer;
 import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.TraceConfig;
-import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.experimental.DataStreamsCheckpointer;
 import datadog.trace.api.experimental.DataStreamsContextCarrier;
 import datadog.trace.api.gateway.CallbackProvider;
-import datadog.trace.api.gateway.Flow;
-import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.interceptor.TraceInterceptor;
@@ -99,6 +94,10 @@ public class AgentTracer {
     return get().activateSpan(span, ScopeSource.INSTRUMENTATION, isAsyncPropagating);
   }
 
+  public static AgentScope.Continuation captureActiveSpan() {
+    return get().captureActiveSpan();
+  }
+
   public static AgentScope.Continuation captureSpan(final AgentSpan span) {
     return get().captureSpan(span);
   }
@@ -157,7 +156,7 @@ public class AgentTracer {
    * <p>Asynchronous propagation is enabled by default from {@link
    * ConfigDefaults#DEFAULT_ASYNC_PROPAGATING}.
    *
-   * @param asyncPropagationEnabled @{@code true} to enable asynchronous propagation, {@code false}
+   * @param asyncPropagationEnabled {@code true} to enable asynchronous propagation, {@code false}
    *     to disable it.
    */
   public static void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {
@@ -559,397 +558,8 @@ public class AgentTracer {
     }
   }
 
-  public static final class BlackholeAgentSpan extends NoopAgentSpan {
-    private final DDTraceId ddTraceId;
-
-    public BlackholeAgentSpan(final DDTraceId ddTraceId) {
-      this.ddTraceId = ddTraceId;
-    }
-
-    @Override
-    public boolean isSameTrace(final AgentSpan otherSpan) {
-      return otherSpan != null
-          && ((ddTraceId != null && ddTraceId.equals(otherSpan.getTraceId()))
-              || otherSpan.getTraceId() == null);
-    }
-
-    @Override
-    public DDTraceId getTraceId() {
-      return ddTraceId;
-    }
-
-    @Override
-    public AgentSpanContext context() {
-      return BlackholeContext.INSTANCE;
-    }
-  }
-
-  public static class NoopAgentSpan implements AgentSpan {
-    public static final NoopAgentSpan INSTANCE = new NoopAgentSpan();
-
-    private NoopAgentSpan() {}
-
-    @Override
-    public DDTraceId getTraceId() {
-      return DDTraceId.ZERO;
-    }
-
-    @Override
-    public long getSpanId() {
-      return DDSpanId.ZERO;
-    }
-
-    @Override
-    public AgentSpan setTag(final String key, final boolean value) {
-      return this;
-    }
-
-    @Override
-    public void setRequestBlockingAction(Flow.Action.RequestBlockingAction rba) {}
-
-    @Override
-    public Flow.Action.RequestBlockingAction getRequestBlockingAction() {
-      return null;
-    }
-
-    @Override
-    public AgentSpan setTag(final String tag, final Number value) {
-      return this;
-    }
-
-    @Override
-    public boolean isError() {
-      return false;
-    }
-
-    @Override
-    public AgentSpan setTag(final String key, final int value) {
-      return this;
-    }
-
-    @Override
-    public AgentSpan setTag(final String key, final long value) {
-      return this;
-    }
-
-    @Override
-    public AgentSpan setTag(final String key, final double value) {
-      return this;
-    }
-
-    @Override
-    public AgentSpan setTag(final String key, final Object value) {
-      return this;
-    }
-
-    @Override
-    public AgentSpan setMetric(final CharSequence key, final int value) {
-      return this;
-    }
-
-    @Override
-    public AgentSpan setMetric(final CharSequence key, final long value) {
-      return this;
-    }
-
-    @Override
-    public AgentSpan setMetric(final CharSequence key, final double value) {
-      return this;
-    }
-
-    @Override
-    public Object getTag(final String key) {
-      return null;
-    }
-
-    @Override
-    public long getStartTime() {
-      return 0;
-    }
-
-    @Override
-    public long getDurationNano() {
-      return 0;
-    }
-
-    @Override
-    public String getOperationName() {
-      return null;
-    }
-
-    @Override
-    public AgentSpan setOperationName(final CharSequence serviceName) {
-      return this;
-    }
-
-    @Override
-    public String getServiceName() {
-      return null;
-    }
-
-    @Override
-    public AgentSpan setServiceName(final String serviceName) {
-      return this;
-    }
-
-    @Override
-    public CharSequence getResourceName() {
-      return null;
-    }
-
-    @Override
-    public AgentSpan setResourceName(final CharSequence resourceName) {
-      return this;
-    }
-
-    @Override
-    public AgentSpan setResourceName(final CharSequence resourceName, byte priority) {
-      return this;
-    }
-
-    @Override
-    public boolean eligibleForDropping() {
-      return true;
-    }
-
-    @Override
-    public RequestContext getRequestContext() {
-      return RequestContext.Noop.INSTANCE;
-    }
-
-    @Override
-    public Integer forceSamplingDecision() {
-      return null;
-    }
-
-    @Override
-    public AgentSpan setSamplingPriority(int newPriority, int samplingMechanism) {
-      return this;
-    }
-
-    @Override
-    public Integer getSamplingPriority() {
-      return (int) PrioritySampling.UNSET;
-    }
-
-    @Override
-    public AgentSpan setSamplingPriority(final int newPriority) {
-      return this;
-    }
-
-    @Override
-    public String getSpanType() {
-      return null;
-    }
-
-    @Override
-    public AgentSpan setSpanType(final CharSequence type) {
-      return this;
-    }
-
-    @Override
-    public Map<String, Object> getTags() {
-      return Collections.emptyMap();
-    }
-
-    @Override
-    public AgentSpan setTag(final String key, final String value) {
-      return this;
-    }
-
-    @Override
-    public AgentSpan setTag(final String key, final CharSequence value) {
-      return this;
-    }
-
-    @Override
-    public AgentSpan setError(final boolean error) {
-      return this;
-    }
-
-    @Override
-    public AgentSpan setError(boolean error, byte priority) {
-      return this;
-    }
-
-    @Override
-    public AgentSpan setMeasured(boolean measured) {
-      return this;
-    }
-
-    @Override
-    public AgentSpan getRootSpan() {
-      return this;
-    }
-
-    @Override
-    public AgentSpan setErrorMessage(final String errorMessage) {
-      return this;
-    }
-
-    @Override
-    public AgentSpan addThrowable(final Throwable throwable) {
-      return this;
-    }
-
-    @Override
-    public AgentSpan addThrowable(Throwable throwable, byte errorPriority) {
-      return this;
-    }
-
-    @Override
-    public AgentSpan setHttpStatusCode(int statusCode) {
-      return this;
-    }
-
-    @Override
-    public short getHttpStatusCode() {
-      return 0;
-    }
-
-    @Override
-    public AgentSpan getLocalRootSpan() {
-      return this;
-    }
-
-    @Override
-    public boolean isSameTrace(final AgentSpan otherSpan) {
-      return otherSpan == INSTANCE;
-    }
-
-    @Override
-    public AgentSpanContext context() {
-      return NoopContext.INSTANCE;
-    }
-
-    @Override
-    public String getBaggageItem(final String key) {
-      return null;
-    }
-
-    @Override
-    public AgentSpan setBaggageItem(final String key, final String value) {
-      return this;
-    }
-
-    @Override
-    public void finish() {}
-
-    @Override
-    public void finish(final long finishMicros) {}
-
-    @Override
-    public void finishWithDuration(final long durationNanos) {}
-
-    @Override
-    public void beginEndToEnd() {}
-
-    @Override
-    public void finishWithEndToEnd() {}
-
-    @Override
-    public boolean phasedFinish() {
-      return false;
-    }
-
-    @Override
-    public void publish() {}
-
-    @Override
-    public String getSpanName() {
-      return "";
-    }
-
-    @Override
-    public void setSpanName(final CharSequence spanName) {}
-
-    @Override
-    public boolean hasResourceName() {
-      return false;
-    }
-
-    @Override
-    public byte getResourceNamePriority() {
-      return Byte.MAX_VALUE;
-    }
-
-    @Override
-    public TraceConfig traceConfig() {
-      return NoopTraceConfig.INSTANCE;
-    }
-
-    @Override
-    public void addLink(AgentSpanLink link) {}
-
-    @Override
-    public AgentSpan setMetaStruct(String field, Object value) {
-      return this;
-    }
-
-    @Override
-    public boolean isOutbound() {
-      return false;
-    }
-
-    @Override
-    public boolean isRequiresPostProcessing() {
-      return false;
-    }
-
-    @Override
-    public void setRequiresPostProcessing(boolean requiresPostProcessing) {}
-  }
-
-  public static final class NoopAgentScope implements AgentScope {
-    public static final NoopAgentScope INSTANCE = new NoopAgentScope();
-
-    private NoopAgentScope() {}
-
-    @Override
-    public AgentSpan span() {
-      return NoopAgentSpan.INSTANCE;
-    }
-
-    @Override
-    public byte source() {
-      return 0;
-    }
-
-    @Override
-    public void setAsyncPropagation(final boolean value) {}
-
-    @Override
-    public AgentScope.Continuation capture() {
-      return NoopContinuation.INSTANCE;
-    }
-
-    @Override
-    public AgentScope.Continuation captureConcurrent() {
-      return NoopContinuation.INSTANCE;
-    }
-
-    @Override
-    public void close() {}
-
-    @Override
-    public boolean isAsyncPropagating() {
-      return false;
-    }
-  }
-
   static class NoopAgentPropagation implements AgentPropagation {
     static final NoopAgentPropagation INSTANCE = new NoopAgentPropagation();
-
-    @Override
-    public <C> void inject(final AgentSpan span, final C carrier, final Setter<C> setter) {}
-
-    @Override
-    public <C> void inject(
-        final AgentSpanContext context, final C carrier, final Setter<C> setter) {}
-
-    @Override
-    public <C> void inject(
-        AgentSpan span, C carrier, Setter<C> setter, TracePropagationStyle style) {}
 
     @Override
     public <C> void injectPathwayContext(

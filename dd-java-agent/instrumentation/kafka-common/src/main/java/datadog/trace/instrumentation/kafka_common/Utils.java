@@ -14,7 +14,8 @@ public final class Utils {
     Headers headers = val.headers();
     if (headers != null)
       for (Header h : headers) {
-        headersSize += h.value().length + h.key().getBytes(StandardCharsets.UTF_8).length;
+        int valueSize = h.value() == null ? 0 : h.value().length;
+        headersSize += valueSize + h.key().getBytes(StandardCharsets.UTF_8).length;
       }
     return headersSize + val.serializedKeySize() + val.serializedValueSize();
   }

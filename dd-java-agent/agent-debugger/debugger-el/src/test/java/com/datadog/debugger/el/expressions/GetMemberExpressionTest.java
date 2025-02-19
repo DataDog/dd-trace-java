@@ -86,7 +86,7 @@ class GetMemberExpressionTest {
     Config config = Config.get();
     setFieldInConfig(
         config,
-        "debuggerRedactedTypes",
+        "dynamicInstrumentationRedactedTypes",
         "com.datadog.debugger.el.expressions.GetMemberExpressionTest*");
     try {
       Redaction.addUserDefinedTypes(Config.get());

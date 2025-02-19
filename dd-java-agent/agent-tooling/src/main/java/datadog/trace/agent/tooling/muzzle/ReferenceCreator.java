@@ -390,6 +390,9 @@ public class ReferenceCreator extends ClassVisitor {
 
     @Override
     public void visitTypeInsn(final int opcode, final String stype) {
+      if (ignoreReference(stype)) {
+        return;
+      }
       Type type = underlyingType(Type.getObjectType(stype));
 
       if (ignoreReference(type.getInternalName())) {

@@ -1,4 +1,5 @@
 import datadog.trace.api.DisableTestTrace
+import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.instrumentation.junit4.CucumberTracingListener
@@ -15,21 +16,21 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
   def runner = new JUnitCore()
 
   def "test #testcaseName"() {
-    runFeatures(features)
+    runFeatures(features, success)
 
-    assertSpansData(testcaseName, expectedTracesCount)
+    assertSpansData(testcaseName)
 
     where:
-    testcaseName                          | features                                                                   | expectedTracesCount
-    "test-succeed"                        | ["org/example/cucumber/calculator/basic_arithmetic.feature"]               | 2
-    "test-scenario-outline-${version()}"  | ["org/example/cucumber/calculator/basic_arithmetic_with_examples.feature"] | 5
-    "test-failure"                        | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"]        | 2
-    "test-multiple-features-${version()}" | [
+    testcaseName                          | success | features
+    "test-succeed"                        | true    | ["org/example/cucumber/calculator/basic_arithmetic.feature"]
+    "test-scenario-outline-${version()}"  | true    | ["org/example/cucumber/calculator/basic_arithmetic_with_examples.feature"]
+    "test-failure"                        | false   | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"]
+    "test-multiple-features-${version()}" | false   | [
       "org/example/cucumber/calculator/basic_arithmetic.feature",
       "org/example/cucumber/calculator/basic_arithmetic_failed.feature"
-    ]                                                                                                                  | 3
-    "test-name-with-brackets"             | ["org/example/cucumber/calculator/name_with_brackets.feature"]             | 2
-    "test-empty-name-${version()}"        | ["org/example/cucumber/calculator/empty_scenario_name.feature"]            | 2
+    ]
+    "test-name-with-brackets"             | true    | ["org/example/cucumber/calculator/name_with_brackets.feature"]
+    "test-empty-name-${version()}"        | true    | ["org/example/cucumber/calculator/empty_scenario_name.feature"]
   }
 
   def "test ITR #testcaseName"() {
@@ -37,17 +38,17 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
 
     runFeatures(features)
 
-    assertSpansData(testcaseName, expectedTracesCount)
+    assertSpansData(testcaseName)
 
     where:
-    testcaseName                 | features                                                                       | expectedTracesCount | skippedTests
-    "test-itr-skipping"          | ["org/example/cucumber/calculator/basic_arithmetic.feature"]                   | 2                   | [
+    testcaseName                 | features                                                                       | skippedTests
+    "test-itr-skipping"          | ["org/example/cucumber/calculator/basic_arithmetic.feature"]                   | [
       new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic.feature:Basic Arithmetic", "Addition", null)
     ]
-    "test-itr-unskippable"       | ["org/example/cucumber/calculator/basic_arithmetic_unskippable.feature"]       | 2                   | [
+    "test-itr-unskippable"       | ["org/example/cucumber/calculator/basic_arithmetic_unskippable.feature"]       | [
       new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic_unskippable.feature:Basic Arithmetic", "Addition", null)
     ]
-    "test-itr-unskippable-suite" | ["org/example/cucumber/calculator/basic_arithmetic_unskippable_suite.feature"] | 2                   | [
+    "test-itr-unskippable-suite" | ["org/example/cucumber/calculator/basic_arithmetic_unskippable_suite.feature"] | [
       new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic_unskippable_suite.feature:Basic Arithmetic", "Addition", null)
     ]
   }
@@ -56,18 +57,18 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
     givenFlakyRetryEnabled(true)
     givenFlakyTests(retriedTests)
 
-    runFeatures(features)
+    runFeatures(features, success)
 
-    assertSpansData(testcaseName, expectedTracesCount)
+    assertSpansData(testcaseName)
 
     where:
-    testcaseName                               | features                                                                          | expectedTracesCount | retriedTests
-    "test-failure"                             | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"]               | 2                   | []
-    "test-retry-failure"                       | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"]               | 6                   | [
-      new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition", null)
+    testcaseName                               | success | features                                                                          | retriedTests
+    "test-failure"                             | false   | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"]               | []
+    "test-retry-failure"                       | false   | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"]               | [
+      new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition")
     ]
-    "test-retry-scenario-outline-${version()}" | ["org/example/cucumber/calculator/basic_arithmetic_with_examples_failed.feature"] | 5                   | [
-      new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic_with_examples_failed.feature:Basic Arithmetic With Examples", "Many additions", null)
+    "test-retry-scenario-outline-${version()}" | false   | ["org/example/cucumber/calculator/basic_arithmetic_with_examples_failed.feature"] | [
+      new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_with_examples_failed.feature:Basic Arithmetic With Examples", "Many additions")
     ]
   }
 
@@ -77,23 +78,94 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
 
     runFeatures(features)
 
-    assertSpansData(testcaseName, expectedTracesCount)
+    assertSpansData(testcaseName)
 
     where:
-    testcaseName                                 | features                                                                   | expectedTracesCount | knownTestsList
-    "test-efd-known-test"                        | ["org/example/cucumber/calculator/basic_arithmetic.feature"]               | 2                   | [
-      new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic.feature:Basic Arithmetic", "Addition", null)
+    testcaseName                                 | features                                                                   | knownTestsList
+    "test-efd-known-test"                        | ["org/example/cucumber/calculator/basic_arithmetic.feature"]               | [
+      new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic.feature:Basic Arithmetic", "Addition")
     ]
-    "test-efd-new-test"                          | ["org/example/cucumber/calculator/basic_arithmetic.feature"]               | 4                   | []
-    "test-efd-new-scenario-outline-${version()}" | ["org/example/cucumber/calculator/basic_arithmetic_with_examples.feature"] | 9                   | []
-    "test-efd-new-slow-test"                     | ["org/example/cucumber/calculator/basic_arithmetic_slow.feature"]          | 3                   | []
+    "test-efd-new-test"                          | ["org/example/cucumber/calculator/basic_arithmetic.feature"]               | []
+    "test-efd-new-scenario-outline-${version()}" | ["org/example/cucumber/calculator/basic_arithmetic_with_examples.feature"] | []
+    "test-efd-new-slow-test"                     | ["org/example/cucumber/calculator/basic_arithmetic_slow.feature"]          | []
+  }
+
+  def "test quarantined #testcaseName"() {
+    givenQuarantinedTests(quarantined)
+
+    runFeatures(features, true)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName              | features                                                            | quarantined
+    "test-quarantined-failed" | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"] | [
+      new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition")
+    ]
+  }
+
+  def "test quarantined auto-retries #testcaseName"() {
+    givenQuarantinedTests(quarantined)
+
+    givenFlakyRetryEnabled(true)
+    givenFlakyTests(retried)
+
+    // every test retry fails, but the build status is successful
+    runFeatures(features, true)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName                  | features                                                            | quarantined       | retried
+    "test-quarantined-failed-atr" | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"] | [
+      new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition")
+    ]                                                                                                                       | [
+      new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition")
+    ]
+  }
+
+  def "test quarantined early flakiness detection #testcaseName"() {
+    givenQuarantinedTests(quarantined)
+
+    givenEarlyFlakinessDetectionEnabled(true)
+    givenKnownTests(known)
+
+    // every retry fails, but the build status is successful
+    runFeatures(features, true)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName                    | features                                                            | quarantined     | known
+    "test-quarantined-failed-known" | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"] | [
+      new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition")
+    ]                                                                                                                       | [
+      new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition")
+    ]
+    "test-quarantined-failed-efd"   | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"] | [
+      new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition")
+    ]                                                                                                                       | []
+  }
+
+  def "test disabled #testcaseName"() {
+    givenDisabledTests(disabled)
+
+    runFeatures(features, true)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName           | features                                                            | disabled
+    "test-disabled-failed" | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"] | [
+      new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition")
+    ]
   }
 
   private String version() {
     return CucumberTracingListener.FRAMEWORK_VERSION < "7" ? CucumberTracingListener.FRAMEWORK_VERSION : "latest"
   }
 
-  private void runFeatures(List<String> classpathFeatures) {
+  private void runFeatures(List<String> classpathFeatures, boolean expectSuccess = true) {
     System.setProperty(Constants.GLUE_PROPERTY_NAME, "org.example.cucumber.calculator")
     System.setProperty(Constants.FILTER_TAGS_PROPERTY_NAME, "not @Disabled")
     System.setProperty(Constants.FEATURES_PROPERTY_NAME, classpathFeatures.stream()
@@ -101,8 +173,20 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
     collect(Collectors.joining(",")))
 
     TestEventsHandlerHolder.start()
-    runner.run(TestSucceedCucumber)
-    TestEventsHandlerHolder.stop()
+    try {
+      def result = runner.run(TestSucceedCucumber)
+      if (expectSuccess) {
+        if (result.getFailureCount() > 0) {
+          throw new AssertionError("Expected successful execution, got following failures: " + result.getFailures())
+        }
+      } else {
+        if (result.getFailureCount() == 0) {
+          throw new AssertionError("Expected a failed execution, got no failures")
+        }
+      }
+    } finally {
+      TestEventsHandlerHolder.stop()
+    }
   }
 
   @Override

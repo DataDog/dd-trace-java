@@ -121,7 +121,7 @@ public class ScopeStateCoroutineContext implements ThreadContextElement<ScopeSta
       if (!isInitialized) {
         final AgentScope activeScope = AgentTracer.get().activeScope();
         if (activeScope != null && activeScope.isAsyncPropagating()) {
-          continuation = activeScope.captureConcurrent();
+          continuation = activeScope.capture().hold();
         }
         isInitialized = true;
       }

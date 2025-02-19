@@ -110,7 +110,7 @@ class IndexExpressionTest {
     Config config = Config.get();
     setFieldInConfig(
         config,
-        "debuggerRedactedTypes",
+        "dynamicInstrumentationRedactedTypes",
         "com.datadog.debugger.el.expressions.IndexExpressionTest*");
     try {
       Redaction.addUserDefinedTypes(Config.get());

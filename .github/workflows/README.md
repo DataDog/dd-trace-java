@@ -138,7 +138,7 @@ While GitHub owned actions are allowed by default, the other ones must be declar
 
 Run the following script to get the list of actions to declare according the state of your working copy:
 ```bash
-find .github/workflows -name "*.yaml" -exec  awk '/uses:/{print $2 ","}' {} \; | grep -vE '^(actions|github)/' | sort | uniq
+find .github/workflows -name "*.yaml" -exec  awk '/uses:/{print $2 ","}' {} \; | grep -vE '^(actions|github)/' | sed 's/@.*/@*/' | sort | uniq
 ```
 
 ## Testing

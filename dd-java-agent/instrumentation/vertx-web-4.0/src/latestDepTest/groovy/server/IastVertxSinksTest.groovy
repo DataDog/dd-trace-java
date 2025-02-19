@@ -6,7 +6,7 @@ import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule
 import io.vertx.core.DeploymentOptions
 import io.vertx.core.Vertx
-import io.vertx.core.internal.VertxInternal
+import io.vertx.core.impl.VertxInternal
 import okhttp3.Request
 
 import java.util.concurrent.CompletableFuture
@@ -78,7 +78,11 @@ class IastVertxSinksTest extends IastHttpServerTest<Vertx40Server> {
         })
       final deployment = new DeploymentOptions()
         .setInstances(1)
-      server.deployVerticle('server.IastSinksVerticle', deployment).await()
+      server.deployVerticle('server.IastSinksVerticle', deployment) { res ->
+        if (!res.succeeded()) {
+          throw new RuntimeException("Cannot deploy server Verticle", res.cause())
+        }
+      }
       future.get()
     }
 

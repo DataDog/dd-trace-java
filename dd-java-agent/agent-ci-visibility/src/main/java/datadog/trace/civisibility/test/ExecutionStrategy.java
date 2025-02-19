@@ -4,20 +4,23 @@ import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestMetadata;
 import datadog.trace.api.civisibility.config.TestSourceData;
-import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
+import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.civisibility.config.EarlyFlakeDetectionSettings;
 import datadog.trace.civisibility.config.ExecutionSettings;
-import datadog.trace.civisibility.retry.NeverRetry;
-import datadog.trace.civisibility.retry.RetryIfFailed;
-import datadog.trace.civisibility.retry.RetryNTimes;
+import datadog.trace.civisibility.config.TestManagementSettings;
+import datadog.trace.civisibility.config.TestSetting;
+import datadog.trace.civisibility.execution.Regular;
+import datadog.trace.civisibility.execution.RetryUntilSuccessful;
+import datadog.trace.civisibility.execution.RunNTimes;
+import datadog.trace.civisibility.execution.RunOnceIgnoreOutcome;
 import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import java.lang.reflect.Method;
-import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.LongAdder;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,7 +28,6 @@ public class ExecutionStrategy {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ExecutionStrategy.class);
 
-  private final LongAdder testsSkipped = new LongAdder();
   private final AtomicInteger earlyFlakeDetectionsUsed = new AtomicInteger(0);
   private final AtomicInteger autoRetriesUsed = new AtomicInteger(0);
 
@@ -50,79 +52,115 @@ public class ExecutionStrategy {
     return executionSettings;
   }
 
-  public long getTestsSkipped() {
-    return testsSkipped.sum();
-  }
-
   public boolean isNew(TestIdentifier test) {
-    Collection<TestIdentifier> knownTests = executionSettings.getKnownTests();
-    return knownTests != null && !knownTests.contains(test.withoutParameters());
+    return executionSettings.isKnownTestsDataAvailable()
+        && !executionSettings.isKnown(test.toFQN());
   }
 
   public boolean isFlaky(TestIdentifier test) {
-    Collection<TestIdentifier> flakyTests = executionSettings.getFlakyTests();
-    return flakyTests != null && flakyTests.contains(test.withoutParameters());
+    return executionSettings.isFlaky(test.toFQN());
   }
 
-  public boolean shouldBeSkipped(TestIdentifier test) {
+  public boolean isQuarantined(TestIdentifier test) {
+    TestManagementSettings testManagementSettings = executionSettings.getTestManagementSettings();
+    if (!testManagementSettings.isEnabled()) {
+      return false;
+    }
+    return executionSettings.isQuarantined(test.toFQN());
+  }
+
+  public boolean isDisabled(TestIdentifier test) {
+    TestManagementSettings testManagementSettings = executionSettings.getTestManagementSettings();
+    if (!testManagementSettings.isEnabled()) {
+      return false;
+    }
+    return executionSettings.isDisabled(test.toFQN());
+  }
+
+  public boolean isAttemptToFix(TestIdentifier test) {
+    TestManagementSettings testManagementSettings = executionSettings.getTestManagementSettings();
+    if (!testManagementSettings.isEnabled()) {
+      return false;
+    }
+    return executionSettings.isAttemptToFix(test.toFQN());
+  }
+
+  @Nullable
+  public SkipReason skipReason(TestIdentifier test) {
     if (test == null) {
-      return false;
+      return null;
     }
+
+    if (isDisabled(test)) {
+      return SkipReason.DISABLED;
+    }
+
     if (!executionSettings.isTestSkippingEnabled()) {
-      return false;
+      return null;
     }
+
     Map<TestIdentifier, TestMetadata> skippableTests = executionSettings.getSkippableTests();
     TestMetadata testMetadata = skippableTests.get(test);
-    return testMetadata != null
-        && !(config.isCiVisibilityCoverageLinesEnabled()
-            && testMetadata.isMissingLineCodeCoverage());
-  }
-
-  public boolean skip(TestIdentifier test) {
-    if (shouldBeSkipped(test)) {
-      testsSkipped.increment();
-      return true;
-    } else {
-      return false;
+    if (testMetadata == null) {
+      return null;
     }
+    if (config.isCiVisibilityCoverageLinesEnabled() && testMetadata.isMissingLineCodeCoverage()) {
+      return null;
+    }
+    return SkipReason.ITR;
   }
 
   @Nonnull
-  public TestRetryPolicy retryPolicy(TestIdentifier test, TestSourceData testSource) {
+  public TestExecutionPolicy executionPolicy(TestIdentifier test, TestSourceData testSource) {
     if (test == null) {
-      return NeverRetry.INSTANCE;
+      return Regular.INSTANCE;
     }
 
+    if (isEFDApplicable(test, testSource)) {
+      // check-then-act with "earlyFlakeDetectionsUsed" is not atomic here,
+      // but we don't care if we go "a bit" over the limit, it does not have to be precise
+      earlyFlakeDetectionsUsed.incrementAndGet();
+      return new RunNTimes(executionSettings.getEarlyFlakeDetectionSettings(), isQuarantined(test));
+    }
+
+    if (isAutoRetryApplicable(test)) {
+      // check-then-act with "autoRetriesUsed" is not atomic here,
+      // but we don't care if we go "a bit" over the limit, it does not have to be precise
+      return new RetryUntilSuccessful(
+          config.getCiVisibilityFlakyRetryCount(), isQuarantined(test), autoRetriesUsed);
+    }
+
+    if (isQuarantined(test)) {
+      return new RunOnceIgnoreOutcome();
+    }
+
+    return Regular.INSTANCE;
+  }
+
+  private boolean isAutoRetryApplicable(TestIdentifier test) {
+    if (!executionSettings.isFlakyTestRetriesEnabled()) {
+      return false;
+    }
+
+    return (!executionSettings.isFlakyTestsDataAvailable()
+            || executionSettings.isFlaky(test.toFQN()))
+        && autoRetriesUsed.get() < config.getCiVisibilityTotalFlakyRetryCount();
+  }
+
+  private boolean isEFDApplicable(TestIdentifier test, TestSourceData testSource) {
     EarlyFlakeDetectionSettings efdSettings = executionSettings.getEarlyFlakeDetectionSettings();
-    if (efdSettings.isEnabled() && !isEFDLimitReached()) {
-      if (isNew(test) || isModified(testSource)) {
-        // check-then-act with "earlyFlakeDetectionsUsed" is not atomic here,
-        // but we don't care if we go "a bit" over the limit, it does not have to be precise
-        earlyFlakeDetectionsUsed.incrementAndGet();
-        return new RetryNTimes(efdSettings);
-      }
-    }
-
-    if (executionSettings.isFlakyTestRetriesEnabled()) {
-      Collection<TestIdentifier> flakyTests = executionSettings.getFlakyTests();
-      if ((flakyTests == null || flakyTests.contains(test.withoutParameters()))
-          && autoRetriesUsed.get() < config.getCiVisibilityTotalFlakyRetryCount()) {
-        // check-then-act with "autoRetriesUsed" is not atomic here,
-        // but we don't care if we go "a bit" over the limit, it does not have to be precise
-        return new RetryIfFailed(config.getCiVisibilityFlakyRetryCount(), autoRetriesUsed);
-      }
-    }
-    return NeverRetry.INSTANCE;
+    return efdSettings.isEnabled()
+        && !isEFDLimitReached()
+        && (isNew(test) || isModified(testSource));
   }
 
   public boolean isEFDLimitReached() {
-    Collection<TestIdentifier> knownTests = executionSettings.getKnownTests();
-    if (knownTests == null) {
+    if (!executionSettings.isKnownTestsDataAvailable()) {
       return false;
     }
 
     int detectionsUsed = earlyFlakeDetectionsUsed.get();
-    int totalTests = knownTests.size() + detectionsUsed;
+    int totalTests = executionSettings.getSettingCount(TestSetting.KNOWN) + detectionsUsed;
     EarlyFlakeDetectionSettings earlyFlakeDetectionSettings =
         executionSettings.getEarlyFlakeDetectionSettings();
     int threshold =
