@@ -309,7 +309,6 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
   def codeOriginSetup() {
     injectSysConfig(CODE_ORIGIN_FOR_SPANS_ENABLED, "true", true)
-    injectSysConfig(DYNAMIC_INSTRUMENTATION_ENABLED, "true", true)
     injectSysConfig(DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE, "false", true)
 
     def configuration = Configuration.builder()
