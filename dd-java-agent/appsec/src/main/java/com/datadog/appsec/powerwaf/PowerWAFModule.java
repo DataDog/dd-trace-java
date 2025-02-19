@@ -218,7 +218,7 @@ public class PowerWAFModule implements AppSecModule {
     List<String> errors = new ArrayList<>();
     try {
       // ddwaf_init/update
-      success = initializeNewWafCtx(reconf, config, curCtxAndAddresses, errors);
+      success = initializeNewWafCtx(reconf, config, curCtxAndAddresses);
     } catch (Exception e) {
       throw new AppSecModuleActivationException("Could not initialize/update waf", e);
     } finally {
@@ -227,18 +227,13 @@ public class PowerWAFModule implements AppSecModule {
       } else {
         WafMetricCollector.get().wafUpdates(currentRulesVersion, success);
       }
-      if (!errors.isEmpty()) {
-        log.error("Errors during WAF initialization: {}", errors);
-        WafMetricCollector.get().addWafConfigError(errors.size());
-      }
     }
   }
 
   private boolean initializeNewWafCtx(
       AppSecModuleConfigurer.Reconfiguration reconf,
       CurrentAppSecConfig config,
-      CtxAndAddresses prevContextAndAddresses,
-      List<String> errors)
+      CtxAndAddresses prevContextAndAddresses)
       throws AppSecModuleActivationException, IOException {
     CtxAndAddresses newContextAndAddresses;
     RuleSetInfo initReport = null;
@@ -286,10 +281,9 @@ public class PowerWAFModule implements AppSecModule {
       if (initReport != null
           && initReport.getErrors() != null
           && !initReport.getErrors().isEmpty()) {
-        errors.addAll(
-            initReport.getErrors().values().stream()
-                .flatMap(List::stream)
-                .collect(Collectors.toList()));
+
+        WafMetricCollector.get()
+            .addWafConfigError(initReport.getErrors().values().stream().mapToInt(List::size).sum());
       }
     } catch (InvalidRuleSetException irse) {
       initReport = irse.ruleSetInfo;
