@@ -261,7 +261,7 @@ public class HttpCodec {
         log.debug("Extract complete context {}", context);
         return context;
       } else if (partialContext != null) {
-        log.debug("Extract incomplete context  f", partialContext);
+        log.debug("Extract incomplete context {}", partialContext);
         return partialContext;
       } else {
         log.debug("Extract no context");
