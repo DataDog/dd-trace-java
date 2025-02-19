@@ -289,6 +289,8 @@ public class Config {
   private final int appSecMaxStackTraceDepth;
   private final boolean apiSecurityEnabled;
   private final float apiSecurityRequestSampleRate;
+  private final boolean apiSecurityEndpointCollectionEnabled;
+  private final int apiSecurityEndpointCollectionMessageLimit;
 
   private final IastDetectionMode iastDetectionMode;
   private final int iastMaxConcurrentRequests;
@@ -1316,6 +1318,14 @@ public class Config {
     apiSecurityRequestSampleRate =
         configProvider.getFloat(
             API_SECURITY_REQUEST_SAMPLE_RATE, DEFAULT_API_SECURITY_REQUEST_SAMPLE_RATE);
+    apiSecurityEndpointCollectionEnabled =
+        configProvider.getBoolean(
+            API_SECURITY_ENDPOINT_COLLECTION_ENABLED,
+            DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_ENABLED);
+    apiSecurityEndpointCollectionMessageLimit =
+        configProvider.getInteger(
+            API_SECURITY_ENDPOINT_COLLECTION_MESSAGE_LIMIT,
+            DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_MESSAGE_LIMIT);
 
     iastDebugEnabled = configProvider.getBoolean(IAST_DEBUG_ENABLED, DEFAULT_IAST_DEBUG_ENABLED);
 
@@ -2645,6 +2655,14 @@ public class Config {
 
   public float getApiSecurityRequestSampleRate() {
     return apiSecurityRequestSampleRate;
+  }
+
+  public int getApiSecurityEndpointCollectionMessageLimit() {
+    return apiSecurityEndpointCollectionMessageLimit;
+  }
+
+  public boolean isApiSecurityEndpointCollectionEnabled() {
+    return apiSecurityEndpointCollectionEnabled;
   }
 
   public ProductActivation getIastActivation() {
@@ -4639,6 +4657,10 @@ public class Config {
         + apiSecurityEnabled
         + ", apiSecurityRequestSampleRate="
         + apiSecurityRequestSampleRate
+        + ", apiSecurityEndpointCollectionEnabled="
+        + apiSecurityEndpointCollectionEnabled
+        + ", apiSecurityEndpointCollectionMessageLimit="
+        + apiSecurityEndpointCollectionMessageLimit
         + ", cwsEnabled="
         + cwsEnabled
         + ", cwsTlsRefresh="

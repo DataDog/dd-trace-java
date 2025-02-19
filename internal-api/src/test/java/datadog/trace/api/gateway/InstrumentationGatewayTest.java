@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.appsec.LoginEventCallback;
+import datadog.trace.api.appsec.api.security.model.Endpoint;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.http.StoredBodySupplier;
@@ -12,8 +13,10 @@ import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.assertj.core.api.ThrowableAssert;
@@ -224,6 +227,8 @@ public class InstrumentationGatewayTest {
     cbp.getCallback(events.execCmd()).apply(null, null);
     ss.registerCallback(events.shellCmd(), callback);
     cbp.getCallback(events.shellCmd()).apply(null, null);
+    ss.registerCallback(events.endpoints(), callback.asEndpointsCallback());
+    cbp.getCallback(events.endpoints()).accept(null);
     assertThat(callback.count).isEqualTo(Events.MAX_EVENTS);
   }
 
@@ -294,6 +299,8 @@ public class InstrumentationGatewayTest {
     cbp.getCallback(events.execCmd()).apply(null, null);
     ss.registerCallback(events.shellCmd(), throwback);
     cbp.getCallback(events.shellCmd()).apply(null, null);
+    ss.registerCallback(events.endpoints(), throwback.asEndpointsCallback());
+    cbp.getCallback(events.endpoints()).accept(null);
     assertThat(throwback.count).isEqualTo(Events.MAX_EVENTS);
   }
 
@@ -514,6 +521,12 @@ public class InstrumentationGatewayTest {
         return flow;
       };
     }
+
+    public Consumer<Iterator<Endpoint>> asEndpointsCallback() {
+      return (endpoints) -> {
+        count++;
+      };
+    }
   }
 
   private static class Throwback<D, T>
@@ -585,6 +598,13 @@ public class InstrumentationGatewayTest {
 
     public LoginEventCallback asLoginEventCallback() {
       return (context, mode, eventName, exists, user, metadata) -> {
+        count++;
+        throw new IllegalArgumentException();
+      };
+    }
+
+    public Consumer<Iterator<Endpoint>> asEndpointsCallback() {
+      return (endpoints) -> {
         count++;
         throw new IllegalArgumentException();
       };
