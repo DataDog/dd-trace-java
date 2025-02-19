@@ -32,15 +32,29 @@ public class SpanPointersProcessor implements TagsPostProcessor {
   @Override
   public Map<String, Object> processTags(
       Map<String, Object> unsafeTags, DDSpanContext spanContext, List<AgentSpanLink> spanLinks) {
+    AgentSpanLink s3Link = handleS3SpanPointer(unsafeTags);
+    if (s3Link != null) {
+      spanLinks.add(s3Link);
+    }
+
+    AgentSpanLink dynamoDbLink = handleDynamoDbSpanPointer(unsafeTags);
+    if (dynamoDbLink != null) {
+      spanLinks.add(dynamoDbLink);
+    }
+
+    return unsafeTags;
+  }
+
+  private static AgentSpanLink handleS3SpanPointer(Map<String, Object> unsafeTags) {
     String eTag = asString(unsafeTags.remove(S3_ETAG));
     if (eTag == null) {
-      return unsafeTags;
+      return null;
     }
     String bucket = asString(unsafeTags.get(AWS_BUCKET_NAME));
     String key = asString(unsafeTags.get(AWS_OBJECT_KEY));
     if (bucket == null || key == null) {
       LOG.debug("Unable to calculate span pointer hash because could not find bucket or key tags.");
-      return unsafeTags;
+      return null;
     }
 
     // Hash calculation rules:
@@ -58,13 +72,17 @@ public class SpanPointersProcessor implements TagsPostProcessor {
               .put("link.kind", LINK_KIND)
               .build();
 
-      AgentSpanLink link = SpanLink.from(noopSpanContext(), DEFAULT_FLAGS, "", attributes);
-      spanLinks.add(link);
+      return SpanLink.from(noopSpanContext(), DEFAULT_FLAGS, "", attributes);
     } catch (Exception e) {
       LOG.debug("Failed to add span pointer: {}", e.getMessage());
+      return null;
     }
+  }
 
-    return unsafeTags;
+  private static AgentSpanLink handleDynamoDbSpanPointer(Map<String, Object> unsafeTags) {
+    // TODO
+
+    return null;
   }
 
   private static String asString(Object o) {
