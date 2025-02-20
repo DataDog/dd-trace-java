@@ -32,7 +32,7 @@ public final class StableConfigSource extends ConfigProvider.Source {
     StableConfig cfg;
     try {
       cfg = StableConfigParser.parse(file);
-    } catch (IOException e) {
+    } catch (Throwable e) {
       log.debug("Stable configuration file not available at specified path: {}", file);
       cfg = new StableConfig();
     }
