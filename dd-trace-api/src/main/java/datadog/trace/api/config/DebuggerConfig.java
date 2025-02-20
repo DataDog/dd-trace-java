@@ -58,6 +58,7 @@ public final class DebuggerConfig {
       "exception.replay.capture.interval.seconds";
   public static final String DEBUGGER_EXCEPTION_CAPTURE_INTERMEDIATE_SPANS_ENABLED =
       "exception.replay.capture.intermediate.spans.enabled";
+  public static final String DISTRIBUTED_DEBUGGER_ENABLED = "distributed.debugger.enabled";
   public static final String THIRD_PARTY_INCLUDES = "third.party.includes";
   public static final String THIRD_PARTY_EXCLUDES = "third.party.excludes";
 
