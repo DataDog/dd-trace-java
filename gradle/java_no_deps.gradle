@@ -60,8 +60,12 @@ if (project.hasProperty('minJavaVersionForTests') && project.getProperty('minJav
   }
 
   dependencies {
-    compileOnly files(project.sourceSets."main_$name".compileClasspath)
-    implementation files(project.sourceSets."main_$name".output)
+    if (name == "java17") {
+      compileOnly files(project.sourceSets."main_$name".output)
+    } else {
+      compileOnly files(project.sourceSets."main_$name".compileClasspath)
+      implementation files(project.sourceSets."main_$name".output)
+    }
   }
 
   jar {
