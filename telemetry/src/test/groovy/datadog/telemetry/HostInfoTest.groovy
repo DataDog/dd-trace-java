@@ -109,8 +109,7 @@ class HostInfoTest extends Specification {
     Assume.assumeTrue(unameAvailable)
 
     expect:
-    // FIXME: temporarily ignore this assertion on CircleCI
-    // HostInfo.getHostname() == 'uname -n'.execute().text.trim()
+    HostInfo.getHostname() == 'uname -n'.execute().text.trim()
     HostInfo.getOsName() == 'uname -s'.execute().text.trim()
     HostInfo.getKernelName() == 'uname -s'.execute().text.trim()
     if (Platform.isMac()) {

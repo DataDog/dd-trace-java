@@ -8,6 +8,9 @@ import java.util.concurrent.TimeUnit
 
 class WafMetricCollectorTest extends DDSpecification {
 
+  public static final int DD_WAF_RUN_INTERNAL_ERROR = -3
+  public static final int DD_WAF_RUN_INVALID_OBJECT_ERROR = -2
+
   def "no metrics - drain empty list"() {
     when:
     WafMetricCollector.get().prepareMetrics()
@@ -32,6 +35,10 @@ class WafMetricCollectorTest extends DDSpecification {
     WafMetricCollector.get().raspRuleMatch(RuleType.SQL_INJECTION)
     WafMetricCollector.get().raspRuleEval(RuleType.SQL_INJECTION)
     WafMetricCollector.get().raspTimeout(RuleType.SQL_INJECTION)
+    WafMetricCollector.get().raspErrorCode(RuleType.SHELL_INJECTION, DD_WAF_RUN_INTERNAL_ERROR)
+    WafMetricCollector.get().wafErrorCode(RuleType.SHELL_INJECTION, DD_WAF_RUN_INTERNAL_ERROR)
+    WafMetricCollector.get().raspErrorCode(RuleType.SQL_INJECTION, DD_WAF_RUN_INVALID_OBJECT_ERROR)
+    WafMetricCollector.get().wafErrorCode(RuleType.SQL_INJECTION, DD_WAF_RUN_INVALID_OBJECT_ERROR)
 
     WafMetricCollector.get().prepareMetrics()
 
@@ -131,6 +138,55 @@ class WafMetricCollectorTest extends DDSpecification {
     raspTimeout.namespace == 'appsec'
     raspTimeout.metricName == 'rasp.timeout'
     raspTimeout.tags.toSet() == ['rule_type:sql_injection', 'waf_version:waf_ver1'].toSet()
+
+    def raspInvalidCode = (WafMetricCollector.RaspError)metrics[10]
+    raspInvalidCode.type == 'count'
+    raspInvalidCode.value == 1
+    raspInvalidCode.namespace == 'appsec'
+    raspInvalidCode.metricName == 'rasp.error'
+    raspInvalidCode.tags.toSet() == [
+      'waf_version:waf_ver1',
+      'rule_type:command_injection',
+      'rule_variant:shell',
+      'event_rules_version:rules.3',
+      'waf_error:' + DD_WAF_RUN_INTERNAL_ERROR
+    ].toSet()
+
+    def wafInvalidCode = (WafMetricCollector.WafError)metrics[11]
+    wafInvalidCode.type == 'count'
+    wafInvalidCode.value == 1
+    wafInvalidCode.namespace == 'appsec'
+    wafInvalidCode.metricName == 'waf.error'
+    wafInvalidCode.tags.toSet() == [
+      'waf_version:waf_ver1',
+      'rule_type:command_injection',
+      'rule_variant:shell',
+      'event_rules_version:rules.3',
+      'waf_error:' +DD_WAF_RUN_INTERNAL_ERROR
+    ].toSet()
+
+    def raspInvalidObjectCode = (WafMetricCollector.RaspError)metrics[12]
+    raspInvalidObjectCode.type == 'count'
+    raspInvalidObjectCode.value == 1
+    raspInvalidObjectCode.namespace == 'appsec'
+    raspInvalidObjectCode.metricName == 'rasp.error'
+    raspInvalidObjectCode.tags.toSet() == [
+      'rule_type:sql_injection',
+      'waf_version:waf_ver1',
+      'waf_error:' + DD_WAF_RUN_INVALID_OBJECT_ERROR
+    ]
+    .toSet()
+
+    def wafInvalidObjectCode = (WafMetricCollector.WafError)metrics[13]
+    wafInvalidObjectCode.type == 'count'
+    wafInvalidObjectCode.value == 1
+    wafInvalidObjectCode.namespace == 'appsec'
+    wafInvalidObjectCode.metricName == 'waf.error'
+    wafInvalidObjectCode.tags.toSet() == [
+      'rule_type:sql_injection',
+      'waf_version:waf_ver1',
+      'waf_error:'+DD_WAF_RUN_INVALID_OBJECT_ERROR
+    ].toSet()
   }
 
   def "overflowing WafMetricCollector does not crash"() {
@@ -304,6 +360,8 @@ class WafMetricCollectorTest extends DDSpecification {
     WafMetricCollector.get().raspRuleMatch(ruleType)
     WafMetricCollector.get().raspRuleEval(ruleType)
     WafMetricCollector.get().raspTimeout(ruleType)
+    WafMetricCollector.get().raspErrorCode(ruleType, DD_WAF_RUN_INTERNAL_ERROR)
+    WafMetricCollector.get().wafErrorCode(ruleType, DD_WAF_RUN_INTERNAL_ERROR)
     WafMetricCollector.get().prepareMetrics()
 
     then:
@@ -343,6 +401,32 @@ class WafMetricCollectorTest extends DDSpecification {
       'rule_variant:'+ruleType.variant,
       'waf_version:waf_ver1',
       'event_rules_version:rules.1'
+    ].toSet()
+
+    def raspInvalidCode = (WafMetricCollector.RaspError)metrics[4]
+    raspInvalidCode.type == 'count'
+    raspInvalidCode.value == 1
+    raspInvalidCode.namespace == 'appsec'
+    raspInvalidCode.metricName == 'rasp.error'
+    raspInvalidCode.tags.toSet() == [
+      'waf_version:waf_ver1',
+      'rule_type:command_injection',
+      'rule_variant:' + ruleType.variant,
+      'event_rules_version:rules.1',
+      'waf_error:' + DD_WAF_RUN_INTERNAL_ERROR
+    ].toSet()
+
+    def wafInvalidCode = (WafMetricCollector.WafError)metrics[5]
+    wafInvalidCode.type == 'count'
+    wafInvalidCode.value == 1
+    wafInvalidCode.namespace == 'appsec'
+    wafInvalidCode.metricName == 'waf.error'
+    wafInvalidCode.tags.toSet() == [
+      'waf_version:waf_ver1',
+      'rule_type:command_injection',
+      'rule_variant:' + ruleType.variant,
+      'event_rules_version:rules.1',
+      'waf_error:' + DD_WAF_RUN_INTERNAL_ERROR
     ].toSet()
 
     where:
