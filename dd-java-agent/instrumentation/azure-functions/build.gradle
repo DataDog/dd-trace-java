@@ -8,6 +8,13 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
+addTestSuiteForDir('latestDepTest', 'test')
+
 dependencies {
   compileOnly group: 'com.microsoft.azure.functions', name: 'azure-functions-java-library', version: '1.2.2'
+
+  testImplementation group: 'com.microsoft.azure.functions', name: 'azure-functions-java-library', version: '1.2.2'
+  testImplementation libs.bundles.mockito
+
+  latestDepTestImplementation group: 'com.microsoft.azure.functions', name: 'azure-functions-java-library', version: '+'
 }
