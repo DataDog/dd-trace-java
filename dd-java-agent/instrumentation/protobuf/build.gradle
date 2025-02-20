@@ -8,7 +8,7 @@ muzzle {
   pass {
     group = "com.google.protobuf"
     module = "protobuf-java"
-    versions = "[2.5.0,)"
+    versions = "[3.0.0,)"
     assertInverse = true
   }
 }
