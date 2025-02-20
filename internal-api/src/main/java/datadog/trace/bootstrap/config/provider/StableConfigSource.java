@@ -41,6 +41,9 @@ public final class StableConfigSource extends ConfigProvider.Source {
 
   @Override
   public String get(String key) {
+    if (this.config == StableConfig.EMPTY) {
+      return null;
+    }
     return this.config.get(propertyNameToEnvironmentVariableName(key));
   }
 
