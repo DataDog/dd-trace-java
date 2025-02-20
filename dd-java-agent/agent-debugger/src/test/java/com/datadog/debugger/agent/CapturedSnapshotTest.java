@@ -155,7 +155,8 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     int result = Reflect.onClass(testClass).call("main", "1").get();
     assertEquals(3, result);
     Snapshot snapshot = assertOneSnapshot(listener);
-    assertCaptureArgs(snapshot.getCaptures().getEntry(), "arg", "java.lang.String", "1");
+    // no entry values capture
+    assertEquals(CapturedContext.EMPTY_CAPTURING_CONTEXT, snapshot.getCaptures().getEntry());
     assertCaptureArgs(snapshot.getCaptures().getReturn(), "arg", "java.lang.String", "1");
     assertTrue(snapshot.getDuration() > 0);
     assertTrue(snapshot.getStack().size() > 0);
