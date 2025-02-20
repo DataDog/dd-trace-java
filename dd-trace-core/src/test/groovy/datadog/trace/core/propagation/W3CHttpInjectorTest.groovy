@@ -2,7 +2,7 @@ package datadog.trace.core.propagation
 
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
+import datadog.trace.api.datastreams.NoopPathwayContext
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.test.DDCoreSpecification

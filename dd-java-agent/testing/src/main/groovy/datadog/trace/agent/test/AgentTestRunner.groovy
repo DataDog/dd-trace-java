@@ -37,11 +37,11 @@ import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.internal.TraceSegment
 import datadog.trace.api.sampling.SamplingRule
 import datadog.trace.api.time.SystemTimeSource
+import datadog.trace.api.datastreams.AgentDataStreamsMonitoring
 import datadog.trace.bootstrap.ActiveSubsystems
 import datadog.trace.bootstrap.CallDepthThreadLocalMap
 import datadog.trace.bootstrap.InstrumentationErrors
 import datadog.trace.bootstrap.debugger.DebuggerContext
-import datadog.trace.bootstrap.instrumentation.api.AgentDataStreamsMonitoring
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI
 import datadog.trace.common.metrics.EventListener

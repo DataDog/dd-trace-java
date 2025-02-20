@@ -3,6 +3,7 @@ package datadog.opentracing
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.sampling.PrioritySampling
+import datadog.trace.api.datastreams.NoopPathwayContext
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
@@ -14,7 +15,6 @@ import datadog.trace.test.util.DDSpecification
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopScope
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpanContext
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan
 
 class TypeConverterTest extends DDSpecification {
