@@ -8,6 +8,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.llmobs.LLMObsServices;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nonnull;
@@ -16,22 +17,30 @@ import org.slf4j.LoggerFactory;
 
 public class DDLLMObsSpan implements LLMObsSpan {
 
+  private static final String PARENT_ID_TAG_INTERNAL = "parent_id";
+
   private final AgentSpan span;
 
   private boolean finished = false;
 
   private static final Logger LOGGER = LoggerFactory.getLogger(DDLLMObsSpan.class);
+  private final LLMObsServices llmObsServices;
 
   public DDLLMObsSpan(
       @Nonnull String kind,
       String spanName,
       @Nonnull String mlApp,
       String sessionID,
-      @Nonnull String serviceName) {
+      @Nonnull String serviceName,
+      @Nonnull LLMObsServices llmObsServices) {
 
     if (null == spanName || spanName.isEmpty()) {
       spanName = kind;
     }
+
+    this.llmObsServices = llmObsServices;
+
+    SpanContextInfo activeSpanCtxInfo = this.llmObsServices.getActiveSpanContext();
 
     AgentTracer.SpanBuilder spanBuilder =
         AgentTracer.get()
@@ -40,12 +49,20 @@ public class DDLLMObsSpan implements LLMObsSpan {
             .withServiceName(serviceName)
             .withSpanType(DDSpanTypes.LLMOBS);
 
+    AgentSpanContext activeCtx = activeSpanCtxInfo.getActiveContext();
+    if (!activeSpanCtxInfo.isRoot() && null != activeCtx) {
+      spanBuilder.asChildOf(activeCtx);
+    }
+
     this.span = spanBuilder.start();
     this.span.setTag(Tags.SPAN_KIND, kind);
+    this.span.setTag(LLMObsTags.LLMOBS_TAG_PREFIX + PARENT_ID_TAG_INTERNAL, activeSpanCtxInfo.getParentSpanID());
     this.span.setTag(LLMObsTags.LLMOBS_TAG_PREFIX + LLMObsTags.ML_APP, mlApp);
     if (sessionID != null && !sessionID.isEmpty()) {
       this.span.setTag(LLMObsTags.LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID, sessionID);
     }
+
+    this.llmObsServices.setActiveSpanContext(new SpanContextInfo(span.context(), String.valueOf(span.context().getSpanId())));
   }
 
   public AgentSpanContext getContext() {
@@ -227,5 +244,6 @@ public class DDLLMObsSpan implements LLMObsSpan {
   public void finish() {
     this.span.finish();
     this.finished = true;
+    this.llmObsServices.removeActiveSpanContext();
   }
 }
