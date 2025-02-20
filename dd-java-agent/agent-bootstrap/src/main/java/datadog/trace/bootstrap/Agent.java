@@ -1360,10 +1360,7 @@ public class Agent {
     return value;
   }
 
-  /**
-   * Looks for the "DD_" environment variable equivalent of the given "dd." system property in the
-   * Stable Configuration input
-   */
+  /** Looks for sysProp in the Stable Configuration input */
   private static String getStableConfig(StableConfigSource source, final String sysProp) {
     return source.get((sysProp));
   }
