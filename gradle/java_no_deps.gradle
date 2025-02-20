@@ -60,7 +60,7 @@ if (project.hasProperty('minJavaVersionForTests') && project.getProperty('minJav
   }
 
   dependencies {
-    if (name == "java17") {
+    if ("${project.projectDir}".endsWith("socket-utils")) {
       compileOnly files(project.sourceSets."main_$name".output)
     } else {
       compileOnly files(project.sourceSets."main_$name".compileClasspath)

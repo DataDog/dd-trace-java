@@ -17,6 +17,7 @@ dependencies {
   implementation libs.slf4j
   implementation project(':internal-api')
   implementation libs.jnr.unixsocket
+  testImplementation files(sourceSets.main_java17.output)
 }
 
 forbiddenApisMain_java17 {
