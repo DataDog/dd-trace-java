@@ -286,10 +286,8 @@ public class PowerWAFModule implements AppSecModule {
       if (initReport != null
           && initReport.getErrors() != null
           && !initReport.getErrors().isEmpty()) {
-        errors.addAll(
-            initReport.getErrors().values().stream()
-                .flatMap(List::stream)
-                .collect(Collectors.toList()));
+
+        WafMetricCollector.get().addWafConfigError(countErrors(initReport));
       }
     } catch (InvalidRuleSetException irse) {
       initReport = irse.ruleSetInfo;
@@ -316,6 +314,24 @@ public class PowerWAFModule implements AppSecModule {
 
     reconf.reloadSubscriptions();
     return true;
+  }
+
+  private int countErrors(RuleSetInfo initReport) {
+    int count = countErrorsForSection(initReport.rules);
+    count += countErrorsForSection(initReport.customRules);
+    count += countErrorsForSection(initReport.rulesData);
+    count += countErrorsForSection(initReport.rulesOverride);
+    count += countErrorsForSection(initReport.exclusions);
+    count += countErrorsForSection(initReport.exclusionData);
+
+    return count;
+  }
+
+  private int countErrorsForSection(RuleSetInfo.SectionInfo section) {
+    if (section != null && section.getErrors() != null) {
+      return section.getErrors().size();
+    }
+    return 0;
   }
 
   private Map<String, ActionInfo> calculateEffectiveActions(
