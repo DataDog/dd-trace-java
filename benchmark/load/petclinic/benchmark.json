@@ -45,7 +45,7 @@
     "code_origins": {
       "env": {
         "VARIANT": "code_origins",
-        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.profiling.enabled=true -Ddd.code.origin.for.spans.enabled=true"
+        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.code.origin.for.spans.enabled=true"
       }
     }
   }
