@@ -13,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class StableConfigParser {
+  private static final Logger log = LoggerFactory.getLogger(StableConfigParser.class);
   // Match config_id:<value>
   private static final Pattern idPattern = Pattern.compile("^config_id\\s*:(.*)$");
   // Match 'apm_configuration_default:'
@@ -20,7 +21,6 @@ public class StableConfigParser {
   // Match indented (2 spaces) key-value pairs, either with double quotes or without
   private static final Pattern keyValPattern =
       Pattern.compile("^\\s{2}([^:]+):\\s*(\"[^\"]*\"|[^\"\\n]*)$");;
-  private static final Logger log = LoggerFactory.getLogger(StableConfigParser.class);
 
   public static StableConfigSource.StableConfig parse(String filePath) throws IOException {
     File file = new File(filePath);

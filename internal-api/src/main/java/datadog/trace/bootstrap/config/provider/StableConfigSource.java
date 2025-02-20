@@ -4,7 +4,6 @@ import static datadog.trace.util.Strings.propertyNameToEnvironmentVariableName;
 
 import datadog.trace.api.ConfigOrigin;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import org.slf4j.Logger;
@@ -63,24 +62,11 @@ public final class StableConfigSource extends ConfigProvider.Source {
   public static class StableConfig {
     public static final StableConfig EMPTY = new StableConfig(null, Collections.emptyMap());
     private final Map<String, String> apmConfiguration;
-    private String configId;
-
-    StableConfig() {
-      this.apmConfiguration = new HashMap<>();
-      this.configId = null;
-    }
+    private final String configId;
 
     StableConfig(String configId, Map<String, String> configMap) {
       this.configId = configId;
       this.apmConfiguration = configMap;
-    }
-
-    void put(String key, String value) {
-      this.apmConfiguration.put(key, value);
-    }
-
-    void setConfigId(String configId) {
-      this.configId = configId;
     }
 
     public String get(String key) {
