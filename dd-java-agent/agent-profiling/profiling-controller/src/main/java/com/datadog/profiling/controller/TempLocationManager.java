@@ -73,7 +73,7 @@ public final class TempLocationManager {
   private final class CleanupVisitor implements FileVisitor<Path> {
     private boolean shouldClean;
 
-    private final Set<String> pidSet = PidHelper.getJavaPids();
+    private Set<String> pidSet;
 
     private final boolean cleanSelf;
     private final Instant cutoff;
@@ -120,7 +120,14 @@ public final class TempLocationManager {
       // the JFR repository directories are under <basedir>/pid_<pid>
       String pid = fileName.startsWith(TEMPDIR_PREFIX) ? fileName.substring(4) : null;
       boolean isSelfPid = pid != null && pid.equals(PidHelper.getPid());
-      shouldClean |= cleanSelf ? isSelfPid : !isSelfPid && !pidSet.contains(pid);
+      if (cleanSelf) {
+        shouldClean |= isSelfPid;
+      } else if (!isSelfPid) {
+        if (pidSet == null) {
+          pidSet = PidHelper.getJavaPids(); // only fork jps when required
+        }
+        shouldClean |= !pidSet.contains(pid);
+      }
       if (shouldClean) {
         log.debug("Cleaning temporary location {}", dir);
       }
@@ -294,7 +301,7 @@ public final class TempLocationManager {
     tempDir = baseTempDir.resolve(TEMPDIR_PREFIX + pid);
     if (runStartupCleanup) {
       // do not execute the background cleanup task when running in tests
-      AgentTaskScheduler.INSTANCE.execute(() -> cleanup(false));
+      AgentTaskScheduler.INSTANCE.execute(cleanupTask);
     }
 
     Thread selfCleanup =
