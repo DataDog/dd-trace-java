@@ -100,7 +100,7 @@ public class DebuggerContext {
   public interface CodeOriginRecorder {
     String captureCodeOrigin(boolean entry);
 
-    String captureCodeOrigin(Method method, boolean entry);
+    String captureCodeOrigin(Method method, boolean entry, boolean instrument);
   }
 
   private static volatile ProbeResolver probeResolver;
@@ -404,10 +404,14 @@ public class DebuggerContext {
   }
 
   public static String captureCodeOrigin(Method method, boolean entry) {
+    return captureCodeOrigin(method, entry, true);
+  }
+
+  public static String captureCodeOrigin(Method method, boolean entry, boolean instrument) {
     try {
       CodeOriginRecorder recorder = codeOriginRecorder;
       if (recorder != null) {
-        return recorder.captureCodeOrigin(method, entry);
+        return recorder.captureCodeOrigin(method, entry, instrument);
       }
     } catch (Exception ex) {
       LOGGER.debug("Error in captureCodeOrigin: ", ex);
