@@ -16,9 +16,9 @@ import org.junit.jupiter.api.Test;
 
 public class TunnelingJdkSocketTest {
 
-  private static final AtomicBoolean is_server_running = new AtomicBoolean(false);
-  private final int client_timeout = 1000;
-  private final int test_timeout = 3000;
+  private static final AtomicBoolean isServerRunning = new AtomicBoolean(false);
+  private final int clientTimeout = 1000;
+  private final int testTimeout = 3000;
 
   @Test
   public void testTimeout() throws Exception {
@@ -28,10 +28,10 @@ public class TunnelingJdkSocketTest {
     TunnelingJdkSocket clientSocket = createClient(socketPath);
 
     assertTimeoutPreemptively(
-        Duration.ofMillis(test_timeout), () -> clientSocket.getInputStream().read());
+        Duration.ofMillis(testTimeout), () -> clientSocket.getInputStream().read());
 
     clientSocket.close();
-    is_server_running.set(false);
+    isServerRunning.set(false);
   }
 
   private Path getSocketPath() throws IOException {
@@ -48,9 +48,13 @@ public class TunnelingJdkSocketTest {
               try (ServerSocketChannel serverChannel =
                   ServerSocketChannel.open(StandardProtocolFamily.UNIX)) {
                 serverChannel.bind(socketAddress);
-                is_server_running.set(true);
+                isServerRunning.set(true);
 
-                while (is_server_running.get()) {
+                synchronized (isServerRunning) {
+                  isServerRunning.notifyAll();
+                }
+
+                while (isServerRunning.get()) {
                   SocketChannel clientChannel = serverChannel.accept();
                 }
               } catch (IOException e) {
@@ -58,12 +62,22 @@ public class TunnelingJdkSocketTest {
               }
             });
     serverThread.start();
+
+    synchronized (isServerRunning) {
+      while (!isServerRunning.get()) {
+        try {
+          isServerRunning.wait();
+        } catch (InterruptedException e) {
+          throw new RuntimeException(e);
+        }
+      }
+    }
   }
 
   private TunnelingJdkSocket createClient(Path socketPath) throws IOException {
     TunnelingJdkSocket clientSocket = new TunnelingJdkSocket(socketPath);
     clientSocket.connect(new InetSocketAddress("localhost", 0));
-    clientSocket.setSoTimeout(client_timeout);
+    clientSocket.setSoTimeout(clientTimeout);
     return clientSocket;
   }
 }
