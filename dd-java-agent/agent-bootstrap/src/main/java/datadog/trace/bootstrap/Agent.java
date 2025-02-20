@@ -23,6 +23,7 @@ import datadog.trace.api.config.DebuggerConfig;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.IastConfig;
 import datadog.trace.api.config.JmxFetchConfig;
+import datadog.trace.api.config.LlmObsConfig;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.config.RemoteConfigConfig;
 import datadog.trace.api.config.TraceInstrumentationConfig;
@@ -109,7 +110,8 @@ public class Agent {
         false),
     DATA_JOBS(propertyNameToSystemPropertyName(GeneralConfig.DATA_JOBS_ENABLED), false),
     AGENTLESS_LOG_SUBMISSION(
-        propertyNameToSystemPropertyName(GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED), false);
+        propertyNameToSystemPropertyName(GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED), false),
+    LLMOBS(propertyNameToSystemPropertyName(LlmObsConfig.LLMOBS_ENABLED), false);
 
     private final String systemProp;
     private final boolean enabledByDefault;
@@ -150,6 +152,7 @@ public class Agent {
   private static boolean iastFullyDisabled;
   private static boolean cwsEnabled = false;
   private static boolean ciVisibilityEnabled = false;
+  private static boolean llmObsEnabled = false;
   private static boolean usmEnabled = false;
   private static boolean telemetryEnabled = true;
   private static boolean debuggerEnabled = false;
@@ -268,6 +271,7 @@ public class Agent {
     exceptionDebuggingEnabled = isFeatureEnabled(AgentFeature.EXCEPTION_DEBUGGING);
     spanOriginEnabled = isFeatureEnabled(AgentFeature.SPAN_ORIGIN);
     agentlessLogSubmissionEnabled = isFeatureEnabled(AgentFeature.AGENTLESS_LOG_SUBMISSION);
+    llmObsEnabled = isFeatureEnabled(AgentFeature.LLMOBS);
 
     if (profilingEnabled) {
       if (!isOracleJDK8()) {
@@ -556,6 +560,7 @@ public class Agent {
 
       maybeStartAppSec(scoClass, sco);
       maybeStartCiVisibility(instrumentation, scoClass, sco);
+      maybeStartLLMObs(instrumentation, scoClass, sco);
       // start debugger before remote config to subscribe to it before starting to poll
       maybeStartDebugger(instrumentation, scoClass, sco);
       maybeStartRemoteConfig(scoClass, sco);
@@ -900,6 +905,24 @@ public class Agent {
       }
 
       StaticEventLogger.end("CI Visibility");
+    }
+  }
+
+  private static void maybeStartLLMObs(Instrumentation inst, Class<?> scoClass, Object sco) {
+    if (llmObsEnabled) {
+      StaticEventLogger.begin("LLM Observability");
+
+      try {
+        final Class<?> llmObsSysClass =
+            AGENT_CLASSLOADER.loadClass("datadog.trace.llmobs.LLMObsSystem");
+        final Method llmObsInstallerMethod =
+            llmObsSysClass.getMethod("start", Instrumentation.class, scoClass);
+        llmObsInstallerMethod.invoke(null, inst, sco);
+      } catch (final Throwable e) {
+        log.warn("Not starting LLM Observability subsystem", e);
+      }
+
+      StaticEventLogger.end("LLM Observability");
     }
   }
 
