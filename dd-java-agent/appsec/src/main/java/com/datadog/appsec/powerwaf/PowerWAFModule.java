@@ -218,7 +218,7 @@ public class PowerWAFModule implements AppSecModule {
     List<String> errors = new ArrayList<>();
     try {
       // ddwaf_init/update
-      success = initializeNewWafCtx(reconf, config, curCtxAndAddresses, errors);
+      success = initializeNewWafCtx(reconf, config, curCtxAndAddresses);
     } catch (Exception e) {
       throw new AppSecModuleActivationException("Could not initialize/update waf", e);
     } finally {
@@ -237,8 +237,7 @@ public class PowerWAFModule implements AppSecModule {
   private boolean initializeNewWafCtx(
       AppSecModuleConfigurer.Reconfiguration reconf,
       CurrentAppSecConfig config,
-      CtxAndAddresses prevContextAndAddresses,
-      List<String> errors)
+      CtxAndAddresses prevContextAndAddresses)
       throws AppSecModuleActivationException, IOException {
     CtxAndAddresses newContextAndAddresses;
     RuleSetInfo initReport = null;
