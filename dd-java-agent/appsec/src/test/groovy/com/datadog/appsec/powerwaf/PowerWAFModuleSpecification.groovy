@@ -449,6 +449,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
 
     then:
     1 * wafMetricCollector.wafInit(Powerwaf.LIB_VERSION, _, true)
+    2 * wafMetricCollector.addWafConfigError(1)
     1 * wafMetricCollector.wafUpdates(_, true)
     1 * reconf.reloadSubscriptions()
     0 * _
@@ -534,6 +535,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
 
     then:
     1 * wafMetricCollector.wafInit(Powerwaf.LIB_VERSION, _, true)
+    2 * wafMetricCollector.addWafConfigError(1)
     1 * wafMetricCollector.wafUpdates(_, true)
     1 * reconf.reloadSubscriptions()
     0 * _
@@ -612,6 +614,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
 
     then:
     1 * wafMetricCollector.wafInit(Powerwaf.LIB_VERSION, _, true)
+    2 * wafMetricCollector.addWafConfigError(1)
     2 * wafMetricCollector.wafUpdates(_, true)
     2 * reconf.reloadSubscriptions()
     0 * _
@@ -1070,6 +1073,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
 
     then:
     thrown AppSecModule.AppSecModuleActivationException
+    1 * wafMetricCollector.wafConfigError()
     0 * _
 
     when:
@@ -1088,8 +1092,22 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.closeAdditive()
     2 * tracer.activeSpan()
     1 * wafMetricCollector.wafInit(Powerwaf.LIB_VERSION, _, true)
+    1 * wafMetricCollector.addWafConfigError(1)
     1 * reconf.reloadSubscriptions()
     0 * _
+  }
+
+  void 'configuration is in error'() {
+    def cfgService = new StubAppSecConfigService([waf: null])
+
+    when:
+    pwafModule.config(cfgService)
+
+    then:
+    thrown AppSecModule.AppSecModuleActivationException
+    1 * wafMetricCollector.wafConfigError()
+    0 * _
+
   }
 
   void 'rule data given through configuration'() {
@@ -1122,6 +1140,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
 
     then:
     1 * wafMetricCollector.wafUpdates(_, true)
+    1 * wafMetricCollector.addWafConfigError(1)
     1 * reconf.reloadSubscriptions()
     1 * ctx.getOrCreateAdditive(_, true, false) >> { pwafAdditive = it[0].openAdditive() }
     2 * tracer.activeSpan()
@@ -1180,6 +1199,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
 
     then: 'no match; rule is disabled'
     1 * wafMetricCollector.wafUpdates(_, true)
+    1 * wafMetricCollector.addWafConfigError(1)
     1 * reconf.reloadSubscriptions()
     1 * ctx.getOrCreateAdditive(_, true, false) >> {
       pwafAdditive = it[0].openAdditive() }
@@ -1290,6 +1310,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
 
     then:
     1 * wafMetricCollector.wafUpdates(_, true)
+    1 * wafMetricCollector.addWafConfigError(1)
     1 * reconf.reloadSubscriptions()
     // no attack
     1 * ctx.getOrCreateAdditive(_, true, false) >> { pwafAdditive = it[0].openAdditive() }
@@ -1432,6 +1453,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
 
     then:
     thrown AppSecModule.AppSecModuleActivationException
+    1 * wafMetricCollector.wafConfigError()
     pwafModule.dataSubscriptions.empty
     0 * _
   }
@@ -1445,6 +1467,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
 
     then:
     thrown AppSecModule.AppSecModuleActivationException
+    1 * wafMetricCollector.wafConfigError()
     pwafModule.ctxAndAddresses.get() == null
     0 * _
   }
