@@ -260,7 +260,7 @@ abstract class GrpcCodeOriginTest extends VersionedNamingTestBase {
         }
 
         @Override
-        String captureCodeOrigin(Method method, boolean entry) {
+        String captureCodeOrigin(Method method, boolean entry, boolean instrument) {
           invoked = true
           return "done"
         }
