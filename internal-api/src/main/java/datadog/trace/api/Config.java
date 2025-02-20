@@ -4145,40 +4145,67 @@ public class Config {
 
   /** Returns the detected hostname. First tries locally, then using DNS */
   static String initHostName() {
-    String possibleHostname;
-
     // Try environment variable.  This works in almost all environments
-    if (isWindowsOS()) {
-      possibleHostname = getEnv("COMPUTERNAME");
-    } else {
-      possibleHostname = getEnv("HOSTNAME");
+    String possibleHostname = initHostNameFromEnv();
+    if (possibleHostname != null) {
+      return possibleHostname;
     }
 
-    if (possibleHostname != null && !possibleHostname.isEmpty()) {
-      log.debug("Determined hostname from environment variable");
-      return possibleHostname.trim();
-    }
-
-    // Try hostname files
     final String[] hostNameFiles = new String[] {"/proc/sys/kernel/hostname", "/etc/hostname"};
     for (final String hostNameFile : hostNameFiles) {
-      try {
-        final Path hostNamePath = FileSystems.getDefault().getPath(hostNameFile);
-        if (Files.isRegularFile(hostNamePath)) {
-          byte[] bytes = Files.readAllBytes(hostNamePath);
-          possibleHostname = new String(bytes, StandardCharsets.ISO_8859_1);
-        }
-      } catch (Throwable t) {
-        // Ignore
-      }
-      possibleHostname = Strings.trim(possibleHostname);
-      if (!possibleHostname.isEmpty()) {
-        log.debug("Determined hostname from file {}", hostNameFile);
+      possibleHostname = initHostNameFromFile(hostNameFile);
+      if (possibleHostname != null) {
         return possibleHostname;
       }
     }
 
-    // Try hostname command
+    possibleHostname = initHostNameFromCommand();
+    if (possibleHostname != null) {
+      return possibleHostname;
+    }
+
+    return initHostNameFromDNS();
+  }
+
+  private static String initHostNameFromEnv() {
+    String possibleHostname = null;
+    final String envVar = isWindowsOS() ? "COMPUTERNAME" : "HOSTNAME";
+    possibleHostname = getEnv(envVar);
+    if (possibleHostname == null) {
+      return null;
+    }
+    possibleHostname = possibleHostname.trim();
+    if (possibleHostname.isEmpty()) {
+      return null;
+    }
+    log.debug("Determined hostname from environment variable: {}", envVar);
+    return possibleHostname;
+  }
+
+  private static String initHostNameFromFile(final String fileName) {
+    String possibleHostname = null;
+    try {
+      final Path hostNamePath = FileSystems.getDefault().getPath(fileName);
+      if (Files.isRegularFile(hostNamePath)) {
+        byte[] bytes = Files.readAllBytes(hostNamePath);
+        possibleHostname = new String(bytes, StandardCharsets.ISO_8859_1);
+      }
+    } catch (Throwable t) {
+      return null;
+    }
+    if (possibleHostname == null) {
+      return null;
+    }
+    possibleHostname = possibleHostname.trim();
+    if (possibleHostname.isEmpty()) {
+      return null;
+    }
+    log.debug("Determined hostname from file {}", fileName);
+    return possibleHostname;
+  }
+
+  private static String initHostNameFromCommand() {
+    String possibleHostname = null;
     try (final TraceScope scope = AgentTracer.get().muteTracing();
         final BufferedReader reader =
             new BufferedReader(
@@ -4186,21 +4213,35 @@ public class Config {
       possibleHostname = reader.readLine();
     } catch (final Throwable ignore) {
       // Ignore.  Hostname command is not always available
+      return null;
     }
-
-    if (possibleHostname != null && !possibleHostname.isEmpty()) {
-      log.debug("Determined hostname from hostname command");
-      return possibleHostname.trim();
+    if (possibleHostname == null) {
+      return null;
     }
+    possibleHostname = possibleHostname.trim();
+    if (possibleHostname.isEmpty()) {
+      return null;
+    }
+    log.debug("Determined hostname from hostname command");
+    return possibleHostname;
+  }
 
-    // From DNS
+  private static String initHostNameFromDNS() {
+    String possibleHostname = null;
     try {
-      return InetAddress.getLocalHost().getHostName();
+      possibleHostname = InetAddress.getLocalHost().getHostName();
     } catch (final UnknownHostException e) {
-      // If we are not able to detect the hostname we do not throw an exception.
+      return null;
     }
-
-    return null;
+    if (possibleHostname == null) {
+      return null;
+    }
+    possibleHostname = possibleHostname.trim();
+    if (possibleHostname.isEmpty()) {
+      return null;
+    }
+    log.debug("Determined hostname from DNS");
+    return possibleHostname;
   }
 
   private static boolean isWindowsOS() {
