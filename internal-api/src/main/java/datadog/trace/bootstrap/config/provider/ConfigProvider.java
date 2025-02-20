@@ -406,7 +406,6 @@ public final class ConfigProvider {
         loadConfigurationFile(
             new ConfigProvider(
                 new SystemPropertiesConfigSource(),
-                // MIKAYLA: To add StableConfig?
                 new EnvironmentConfigSource(),
                 providedConfigSource));
     if (configProperties.isEmpty()) {

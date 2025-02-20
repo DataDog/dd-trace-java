@@ -3,7 +3,7 @@ package datadog.trace.bootstrap.config.provider;
 import static datadog.trace.util.Strings.propertyNameToEnvironmentVariableName;
 
 import datadog.trace.api.ConfigOrigin;
-import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -17,7 +17,7 @@ public final class StableConfigSource extends ConfigProvider.Source {
       "/etc/datadog-agent/application_monitoring.yaml";
   public static final String MANAGED_STABLE_CONFIG_PATH =
       "/etc/datadog-agent/managed/datadog-agent/stable/application_monitoring.yaml";
-  public static StableConfigSource USER =
+  public static final StableConfigSource USER =
       new StableConfigSource(USER_STABLE_CONFIG_PATH, ConfigOrigin.USER_STABLE_CONFIG);
   public static final StableConfigSource MANAGED =
       new StableConfigSource(
@@ -33,7 +33,7 @@ public final class StableConfigSource extends ConfigProvider.Source {
     try {
       cfg = StableConfigParser.parse(file);
     } catch (Throwable e) {
-      log.debug("Stable configuration file not available at specified path: {}", file);
+      log.debug("Stable configuration file not readable at specified path: {}", file);
       cfg = new StableConfig();
     }
     this.config = cfg;
@@ -57,13 +57,19 @@ public final class StableConfigSource extends ConfigProvider.Source {
     return this.config.getConfigId();
   }
 
-  /*public?*/ static class StableConfig {
+  public static class StableConfig {
+    public static final StableConfig EMPTY = new StableConfig(null, Collections.emptyMap());
     private final Map<String, String> apmConfiguration;
     private String configId;
 
     StableConfig() {
       this.apmConfiguration = new HashMap<>();
       this.configId = null;
+    }
+
+    StableConfig(String configId, Map<String, String> configMap) {
+      this.configId = configId;
+      this.apmConfiguration = configMap;
     }
 
     void put(String key, String value) {

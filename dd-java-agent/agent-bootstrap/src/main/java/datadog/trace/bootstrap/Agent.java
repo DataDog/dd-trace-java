@@ -1233,7 +1233,6 @@ public class Agent {
         // We need this hack because profiling in SSI can receive 'auto' value in
         // the enablement config
         return ProfilingEnablement.of(featureEnabled).isActive();
-        // MIKAYLA: How does this order of precedence compete with stable config?
       }
       // false unless it's explicitly set to "true"
       return Boolean.parseBoolean(featureEnabled) || "1".equals(featureEnabled);
@@ -1366,7 +1365,7 @@ public class Agent {
    * Stable Configuration input
    */
   private static String getStableConfig(StableConfigSource source, final String sysProp) {
-    return source.get(toEnvVar(sysProp));
+    return source.get((sysProp));
   }
 
   /** Looks for the "DD_" environment variable equivalent of the given "dd." system property. */
